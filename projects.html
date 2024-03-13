@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Soleil Pictures - Our Projects</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link href="https://use.typekit.net/qtd2rwk.css" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Canvas -->
+  <canvas class="orb-canvas"></canvas>
+  <div class="circle"></div>
+
+  <div class="logo-text common-logo-position">
+    <p>SOLEIL PICTURES</p>
+  </div>
+
+  <!-- Projects Section -->
+  <div class="projects-container">
+    <h2 class="projects-title">Our Projects</h2>
+    <div class="project-card">
+      <img src="assets/deepdiveweb1.jpg" alt="Deep Dive Image">
+      <h3>Deep Dive</h3>
+      <p>Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.</p>
+      <button class="details-btn" data-project-id="84309562">More Details</button>
+      <input type="password" class="password-input" style="display: none;" placeholder="Enter Password">
+    </div>
+    <div class="project-card">
+        <img src="assets/deepdiveweb1.jpg" alt="Deep Dive Image">
+        <h3>Deep Dive</h3>
+        <p>Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.</p>
+        <button class="details-btn" data-project-id="84309562">More Details</button>
+        <input type="password" class="password-input" style="display: none;" placeholder="Enter Password">
+      </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="index.html">Home</a>
+    <a href="about-us.html">About Us</a>
+    <a href="mailto:contact@soleilpictures.com">Contact Us</a>
+  </nav>
+
+  <script type="module" src="script.js"></script>
+  <script>
+        // Password Protection Logic
+        const detailsBtns = document.querySelectorAll('.details-btn');
+        const passwordInputs = document.querySelectorAll('.password-input');
+
+        detailsBtns.forEach((btn, index) => {
+        btn.addEventListener('click', () => {
+            btn.style.display = 'none'; // Hide the button
+            passwordInputs[index].style.display = 'block'; // Show the password input
+        });
+        });
+
+        passwordInputs.forEach((input, index) => {
+        input.addEventListener('input', () => { // Use 'input' event instead of 'keyup'
+            const enteredPassword = input.value;
+            const correctPassword = "1234"; // Replace with the actual password for project at index
+
+            if (enteredPassword === correctPassword) {
+            // Password correct, redirect to the project details page
+            const projectId = detailsBtns[index].dataset.projectId; // Get project ID
+            const projectDetailsUrl = `${projectId}.html`; // Construct URL
+            window.location.href = projectDetailsUrl; 
+            } 
+        });
+        });
+  </script>
+</body>
+</html>

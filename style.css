@@ -1,0 +1,286 @@
+/* General styles */
+:root {
+  --dark-color: hsl(var(--hue), 100%, 9%);
+  --light-color: hsl(var(--hue), 95%, 98%);
+  --base: hsl(var(--hue), 95%, 50%);
+  --complimentary1: hsl(var(--hue-complimentary1), 95%, 50%);
+  --complimentary2: hsl(var(--hue-complimentary2), 95%, 50%);
+  --font-family: "brandon-grotesque", "Alfarn", sans-serif;
+  --bg-gradient: linear-gradient(to bottom, hsl(var(--hue), 95%, 99%), hsl(var(--hue), 95%, 84%));
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  max-width: 1920px;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+/* Canvas and circle */
+.orb-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.circle {
+  --circle-size: 40px;
+  position: fixed;
+  height: var(--circle-size);
+  width: var(--circle-size);
+  border: 1px solid white;
+  border-radius: 100%;
+  top: calc(var(--circle-size) / 2 * -1);
+  left: calc(var(--circle-size) / 2 * -1);
+  pointer-events: none;
+}
+
+/* Logo text */
+.logo-text {
+  font-family: var(--font-family);
+  font-size: 3rem;
+  letter-spacing: 1rem;
+  font-weight: 700;
+  color: var(--light-color);
+  text-align: center;
+  padding: 10px;
+  padding-left: 1rem;
+}
+
+.common-logo-position {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Bottom navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0);
+  font-family: "aileron", sans-serif;
+  font-weight: 500;
+}
+
+.bottom-nav a {
+  text-decoration: none;
+  color: rgb(255, 255, 255);
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-family: "aileron", sans-serif;
+  font-weight: 600;
+  background-color: transparent;
+  transition: background-color 0.4s ease-in-out, color 0.4s ease-in-out;
+}
+
+.bottom-nav a:hover {
+  background-color: rgba(255, 255, 255, 0.7);
+  color: #000000;
+}
+
+/* Projects section */
+.projects-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 50px;
+}
+
+.projects-title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.5rem;
+  margin-top: 80px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  color: var(--light-color);
+  font-family: "aileron";
+}
+
+.project-card {
+  width: 500px;
+  margin: 20px;
+  padding: 20px;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.7);
+  transition: transform 0.2s ease-in-out;
+  font-family: "aileron";
+}
+
+.project-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 6px 1px rgba(255, 255, 255, 0.9);
+}
+
+.project-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.project-card h3 {
+  margin-top: 10px;
+}
+
+.project-card p {
+  margin-top: 5px;
+}
+
+.details-btn {
+  background-color: #000000;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 15px;
+}
+
+.password-input {
+  display: none;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgb(255, 255, 255);
+  border-radius: 5px;
+  margin-top: 10px;
+  font-family: "aileron";
+  font-size: 16px;
+  background-color: rgb(0, 0, 0, .15);
+  color: #fff;
+}
+
+.password-input::placeholder {
+  color: #ffffff;
+}
+
+.password-input:focus {
+  outline: none;
+  border-color: #ffffff;
+}
+
+/* About Us page */
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.8rem;
+  color: white;
+  font-family: var(--font-family);
+}
+
+.company-section {
+  margin-bottom: 40px;
+}
+
+/* Founders Section */
+.founders-section {
+  display: flex;
+  flex-direction: row; /* Arrange elements vertically */
+  align-items: center; /* Center items horizontally */
+  text-wrap: wrap;
+  margin-top: 20px;
+}
+
+.founders-section h2 {
+  margin-bottom: 20px; /* Add spacing below the title */
+}
+
+.founder {
+  padding: 1%;
+  text-align: center; /* Center founder content */
+  margin-bottom: 20px; /* Add spacing between founders */
+  width: 50%;
+}
+
+/* Project Details Page (84309562.html) */
+.project-details-section {
+  margin-top: 6em; /* Add spacing above the project details */
+}
+
+.project-details-section h1 {
+  margin-bottom: 20px; /* Add spacing below the title */
+}
+
+.project-details img {
+  width: 100%;
+  max-width: 500px; /* Limit image width */
+  margin-bottom: 20px; /* Add spacing below the image */
+}
+
+.project-details p {
+  margin-bottom: 10px; /* Add spacing between paragraphs */
+}
+
+.documents {
+  margin-top: 30px; /* Add spacing above the documents section */
+}
+
+.documents h3 {
+  margin-bottom: 10px; /* Add spacing below the heading */
+}
+
+.documents ul {
+  list-style: none; /* Remove default list markers */
+  padding: 0;
+  text-align: center;
+}
+
+.documents li {
+  margin-bottom: 5px; /* Add spacing between list items */
+
+}
+
+.documents a {
+  color: var(--light-color); /* Set link color */
+  transition: color 0.2s ease-in-out; /* Add hover effect */
+  text-align: center;
+}
+
+.documents a:hover {
+  color: var(--base); /* Change link color on hover */
+}
+
+
+/* Media queries */
+@media only screen and (max-width: 768px) {
+  .circle {
+    display: none;
+  }
+}
+
+@media only screen and (max-width: 768px) {
+  .logo-text {
+    font-size: 2rem; /* Adjust font size for smaller screens */
+  }
+
+  .project-card {
+    width: 90%; /* Make cards responsive */
+  }
+
+  .projects-title {
+    font-size: 1.5rem;
+  }
+}
+
