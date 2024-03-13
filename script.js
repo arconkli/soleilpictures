@@ -291,9 +291,6 @@ centralOrb.x = window.innerWidth / 2; // Centered horizontally
 centralOrb.y = window.innerHeight / 2; // Centered vertically
 centralOrb.radius = window.innerHeight / 5; // Larger radius
 
-
-
-
 // Animate!
 if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
   app.ticker.add(() => {

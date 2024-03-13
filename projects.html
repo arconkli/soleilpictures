@@ -25,16 +25,15 @@
       <img src="assets/deepdiveweb1.jpg" alt="Deep Dive Image">
       <h3>Deep Dive</h3>
       <p>Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.</p>
-      <button class="details-btn" data-project-id="84309562">More Details</button>
-      <input type="password" class="password-input" style="display: none;" placeholder="Enter Password">
+      <input type="password" class="password-input" placeholder="Enter Password" data-project-id="84309562">
     </div>
     <div class="project-card">
-        <img src="assets/deepdiveweb1.jpg" alt="Deep Dive Image">
-        <h3>Deep Dive</h3>
-        <p>Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.</p>
-        <button class="details-btn" data-project-id="84309562">More Details</button>
-        <input type="password" class="password-input" style="display: none;" placeholder="Enter Password">
-      </div>
+      <img src="assets/frankielosttime.png" alt="Moe Lost Time" style="object-position: top;">
+      <h3>Lost Time</h3>
+      <p>After stealing a time machine, a reckless drunk juggles trying to (literally)
+        live with his past self while going on adventures throughout time.</p>
+      <input type="password" class="password-input" placeholder="Enter Password" data-project-id="09268219">
+    </div>
   </div>
 
   <nav class="bottom-nav">
@@ -45,30 +44,29 @@
 
   <script type="module" src="script.js"></script>
   <script>
-        // Password Protection Logic
-        const detailsBtns = document.querySelectorAll('.details-btn');
-        const passwordInputs = document.querySelectorAll('.password-input');
+// Password Protection Logic
+const passwordInputs = document.querySelectorAll('.password-input');
 
-        detailsBtns.forEach((btn, index) => {
-        btn.addEventListener('click', () => {
-            btn.style.display = 'none'; // Hide the button
-            passwordInputs[index].style.display = 'block'; // Show the password input
-        });
-        });
+// Store passwords for each project (replace with your actual passwords)
+const projectPasswords = {
+  "84309562": "1234", // Password for project with ID 84309562
+  "09268219": "isneverfound", // Password for another project
+  // ... more passwords for other projects
+};
 
-        passwordInputs.forEach((input, index) => {
-        input.addEventListener('input', () => { // Use 'input' event instead of 'keyup'
-            const enteredPassword = input.value;
-            const correctPassword = "1234"; // Replace with the actual password for project at index
+passwordInputs.forEach(input => {
+  input.addEventListener('input', () => {
+    const enteredPassword = input.value;
+    const projectId = input.dataset.projectId; // Get project ID
+    const correctPassword = projectPasswords[projectId]; // Retrieve password
 
-            if (enteredPassword === correctPassword) {
-            // Password correct, redirect to the project details page
-            const projectId = detailsBtns[index].dataset.projectId; // Get project ID
-            const projectDetailsUrl = `${projectId}.html`; // Construct URL
-            window.location.href = projectDetailsUrl; 
-            } 
-        });
-        });
+    if (enteredPassword === correctPassword) {
+      // Password correct, redirect to the project details page
+      const projectDetailsUrl = `${projectId}.html`;
+      window.location.href = projectDetailsUrl;
+    }
+  });
+});
   </script>
 </body>
 </html>
