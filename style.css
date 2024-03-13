@@ -186,7 +186,6 @@ body {
 
 /* About Us page */
 .content {
-  max-width: 800px;
   margin: 0 auto;
   line-height: 1.8rem;
   color: white;
@@ -200,21 +199,36 @@ body {
 /* Founders Section */
 .founders-section {
   display: flex;
-  flex-direction: row; /* Arrange elements vertically */
+  flex-direction: column;
   align-items: flex-start; /* Align items to the top */
-  flex-wrap: wrap;
+  flex-wrap: wrap; /* Allow wrapping if needed */
   margin-top: 20px;
 }
 
-.founders-section h2 {
-  margin-bottom: 20px; /* Add spacing below the title */
+.founder-container {
+  width: 100%; /* Initial width */
+  cursor: pointer; /* Indicate that the container is clickable */
+  padding: 10px; /* Add some padding */
+  border-bottom: 1px solid #ffffff; /* Add a subtle border */
 }
 
-.founder {
-  padding: 1%;
-  text-align: center; /* Center founder content */
-  margin-bottom: 20px; /* Add spacing between founders */
-  width: 50%;
+.founder-container.active-bio {
+  width: 100%; /* Make container 100% width when bio is active */
+  /* Add a subtle background color */
+  display: block; /* Show bio when active */
+  opacity: 1; /* Make bio opaque */
+}
+
+.bio {
+  display: none; /* Initially hidden */
+  transition: opacity 0.3s ease-in-out; /* Add transition for smooth fade */
+  padding: 10px; /* Add padding to the bio content */
+}
+
+.bio.active {
+
+  display: block; /* Show bio when active */
+  opacity: 1; /* Make bio opaque */
 }
 
 /* Project Details Page (84309562.html) */
@@ -271,9 +285,20 @@ body {
   .circle {
     display: none;
   }
-}
+  .content {
+    line-height: 1.2rem; /* Increase line height for better readability */
+  }
 
-@media only screen and (max-width: 768px) {
+  .company-section h1,
+  .founders-section h2,
+  .founder h3 {
+    font-size: 1rem; /* Adjust heading font sizes */
+  }
+
+  .company-section {
+    margin-top: 100px;
+  }
+
   .logo-text {
     font-size: 2rem; /* Adjust font size for smaller screens */
     margin-bottom: 20px; /* Add spacing below the logo */
@@ -286,5 +311,9 @@ body {
   .projects-title {
     font-size: 1.5rem;
   }
-}
+  }
+
+
+  
+
 

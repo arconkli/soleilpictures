@@ -6,6 +6,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" />
   <link href="https://use.typekit.net/qtd2rwk.css" rel="stylesheet" />
   <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2JM12M3VBC"></script>
   <script>
@@ -40,27 +41,59 @@
     <section class="founders-section">
 
       <!-- Andrew Conklin -->
-      <div class="founder">
+      <div class="founder-container" data-bio-id="andrew-bio">
         <h3>Andrew Conklin</h3>
-        <p>Raised in a military family, Andrew's nomadic childhood nurtured his visionary spirit and entrepreneurial drive. A passion for music production and social media ignited at age 12, leading him to amass millions of online impressions by 16. This early success propelled his entry into the music industry, where he provided marketing services that helped several songs achieve multi-platinum status. Around this time he met Chris and their close bond inspired the co-founding of Soleil Pictures years later. Beyond art, he tackles scientific and engineering challenges, having developed a method for carbon-negative cement production. Andrew's relentless drive, combined with his unique blend of business and creative talents, positions him as a powerful force in filmmaking.</p>
+        <div id="andrew-bio" class="bio">Raised in a military family, Andrew's nomadic childhood nurtured his visionary spirit and entrepreneurial drive. A passion for music production and social media ignited at age 12, leading him to amass millions of online impressions by 16. This early success propelled his entry into the music industry, where he provided marketing services that helped several songs achieve multi-platinum status. Around this time he met Chris and their close bond inspired the co-founding of Soleil Pictures years later. Beyond art, he tackles scientific and engineering challenges, having developed a method for carbon-negative cement production. Andrew's relentless drive, combined with his unique blend of business and creative talents, positions him as a powerful force in filmmaking.</div>
       </div>
 
       <!-- Christopher Perez -->
-      <div class="founder">
+      <div class="founder-container" data-bio-id="christopher-bio">
         <h3>Christopher Perez</h3>
-        <p>Mexico City-born Christopher Perez’s artistic journey began soon after moving to Illinois due to a medical condition. The multi-talented artist has explored and begun multiple projects before co-founding Soleil Pictures alongside Andrew Conklin. Chris has worked as a freelance artist, growing his social media presence and catching the eye of celebrities with his successful Instagram art account. He has also explored comic book scriptwriting, singing, and songwriting, and is now translating his creativity into film projects, pushing boundaries, and leaving a mark on the world of cinema.</p>
+        <div id="christopher-bio" class="bio">Mexico City-born Christopher Perez’s artistic journey began soon after moving to Illinois due to a medical condition. The multi-talented artist has explored and begun multiple projects before co-founding Soleil Pictures alongside Andrew Conklin. Chris has worked as a freelance artist, growing his social media presence and catching the eye of celebrities with his successful Instagram art account. He has also explored comic book scriptwriting, singing, and songwriting, and is now translating his creativity into film projects, pushing boundaries, and leaving a mark on the world of cinema.</div>
       </div>
     </div>
     </section>
   </div>
 </div>
 
-  <nav class="bottom-nav">
-    <a href="index.html">Home</a>
-    <a href="projects.html">Our Projects</a>
-    <a href="mailto:contact@soleilpictures.com">Contact Us</a>
-  </nav>
+<nav class="bottom-nav">
+  <a href="index.html">Home</a>
+  <a href="projects.html">Our Projects</a>
+  <a href="mailto:contact@soleilpictures.com">Contact Us</a>
+</nav>
 
   <script type="module" src="script.js"></script>
+
+  <script>
+const founderButtons = document.querySelectorAll('.founder-container');
+
+founderButtons.forEach(button => {
+  button.addEventListener('click', () => {
+    const bioId = button.dataset.bioId; // Get the bio ID from the data attribute
+    const bioElement = document.getElementById(bioId); // Get the bio element
+
+    // Hide all other bios before showing the clicked one
+    founderButtons.forEach(otherButton => {
+      if (otherButton !== button) {
+        const otherBioId = otherButton.dataset.bioId;
+        const otherBioElement = document.getElementById(otherBioId);
+        otherBioElement.style.display = 'none'; // Hide other bio
+        otherButton.classList.remove('active-bio'); // Remove active class
+      }
+    });
+
+    if (bioElement) {
+      // Toggle the clicked bio's visibility
+      bioElement.style.display = bioElement.style.display === 'none' ? 'block' : 'none';
+
+      // Add/remove 'active-bio' class to the container for styling
+      button.classList.toggle('active-bio'); 
+    } else {
+      console.error(`Bio element with ID "${bioId}" not found.`);
+    }
+  });
+});
+  </script>
+
 </body>
 </html>
