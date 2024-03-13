@@ -197,6 +197,10 @@ body {
   margin-bottom: 40px;
 }
 
+.company-section h1 {
+  margin-bottom: 20px;
+}
+
 /* Founders Section */
 .founders-section {
   display: flex;
@@ -205,6 +209,7 @@ body {
   flex-wrap: wrap; /* Allow wrapping if needed */
   margin-top: 20px;
 }
+
 
 .founder-container {
   width: 100%; /* Initial width */
