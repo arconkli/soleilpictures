@@ -201,8 +201,8 @@ body {
 .founders-section {
   display: flex;
   flex-direction: row; /* Arrange elements vertically */
-  align-items: center; /* Center items horizontally */
-  text-wrap: wrap;
+  align-items: flex-start; /* Align items to the top */
+  flex-wrap: wrap;
   margin-top: 20px;
 }
 
@@ -276,6 +276,7 @@ body {
 @media only screen and (max-width: 768px) {
   .logo-text {
     font-size: 2rem; /* Adjust font size for smaller screens */
+    margin-bottom: 20px; /* Add spacing below the logo */
   }
 
   .project-card {
