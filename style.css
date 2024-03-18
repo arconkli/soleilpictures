@@ -227,6 +227,7 @@ body {
 
 .content a {
   text-decoration: none;
+  color: white;
 }
 
 .content a:hover {
