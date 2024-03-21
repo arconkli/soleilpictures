@@ -50,6 +50,10 @@ async function storeMovieDataInD1(movieData) {
         for (const person of movieData.credits.crew) {
             await storePersonDataInD1(person, movieData.id, person.department, person.job);
         }
+
+        // Display a success message or update the movie list after data is stored
+        console.log('Movie data stored successfully!');
+        fetchAndDisplayMovies(); // Update the movie list
     } catch (error) {
         console.error('Error storing movie data in D1:', error);
     }
@@ -83,3 +87,11 @@ async function storePersonDataInD1(personData, movieId, department, job) {
         console.error('Error storing person data in D1:', error);
     }
 }
+
+// Function to fetch and display movies (you'll need to implement this)
+async function fetchAndDisplayMovies() {
+    // ... (your implementation to fetch movie data from D1 and display it)
+}
+
+// Call the function to initially display movies
+fetchAndDisplayMovies();
