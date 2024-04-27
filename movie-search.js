@@ -2,10 +2,12 @@ const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 const searchResults = document.getElementById('search-results');
 
+const apiUrl = '/api';
+
 searchBtn.addEventListener('click', () => {
   const title = searchInput.value;
 
-  fetch(`/api/search/${encodeURIComponent(title)}`)
+  fetch(`${apiUrl}/search/${encodeURIComponent(title)}`)
     .then(response => response.json())
     .then(data => {
       if (data.results.length === 0) {
@@ -21,7 +23,6 @@ searchBtn.addEventListener('click', () => {
         `).join('');
         searchResults.innerHTML = html;
 
-        // Add event listeners to the "Mark Category" buttons
         const markCategoryBtns = document.querySelectorAll('.mark-category-btn');
         markCategoryBtns.forEach(btn => {
           btn.addEventListener('click', () => {
@@ -29,7 +30,7 @@ searchBtn.addEventListener('click', () => {
             const title = btn.dataset.title;
             const category = prompt(`Enter category for "${title}":`);
             if (category) {
-              fetch(`/api/movie/${id}/mark-category`, {
+              fetch(`${apiUrl}/movie/${id}/mark-category`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category })
@@ -37,8 +38,8 @@ searchBtn.addEventListener('click', () => {
                 .then(response => response.json())
                 .then(data => {
                   alert(data.message);
-                  displayMovieTable(); // Refresh the movie table after marking a category
-                  displayPeopleTable(); // Refresh the people table after marking a category
+                  displayMovieTable();
+                  displayPeopleTable();
                 })
                 .catch(error => {
                   console.error('Error:', error);
@@ -53,9 +54,8 @@ searchBtn.addEventListener('click', () => {
     });
 });
 
-// Function to fetch and display the movie table
 function displayMovieTable(sort = 'title', order = 'asc') {
-  fetch(`/api/movies?sort=${sort}&order=${order}`)
+  fetch(`${apiUrl}/movies?sort=${sort}&order=${order}`)
     .then(response => response.json())
     .then(data => {
       const tableBody = document.querySelector('#movie-table tbody');
@@ -77,10 +77,8 @@ function displayMovieTable(sort = 'title', order = 'asc') {
     });
 }
 
-// Call the function to display the movie table on page load
 displayMovieTable();
 
-// Add sorting functionality to the movie table headers
 const movieTableHeaders = document.querySelectorAll('#movie-table th');
 movieTableHeaders.forEach(header => {
   header.addEventListener('click', () => {
@@ -92,9 +90,8 @@ movieTableHeaders.forEach(header => {
   });
 });
 
-// Function to fetch and display the people table
 function displayPeopleTable(sort = 'person_name', order = 'asc') {
-  fetch(`/api/people?sort=${sort}&order=${order}`)
+  fetch(`${apiUrl}/people?sort=${sort}&order=${order}`)
     .then(response => response.json())
     .then(data => {
       const tableBody = document.querySelector('#people-table tbody');
@@ -117,10 +114,8 @@ function displayPeopleTable(sort = 'person_name', order = 'asc') {
     });
 }
 
-// Call the function to display the people table on page load
 displayPeopleTable();
 
-// Add sorting functionality to the people table headers
 const peopleTableHeaders = document.querySelectorAll('#people-table th');
 peopleTableHeaders.forEach(header => {
   header.addEventListener('click', () => {
