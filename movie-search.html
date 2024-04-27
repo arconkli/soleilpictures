@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Soleil Pictures - Movie Search</title>
+  <link rel="icon" type="image/png" href="/assets/soleilpictures_favicon.png">
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://use.typekit.net/qtd2rwk.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas class="orb-canvas"></canvas>
+  <div class="circle"></div>
+
+  <div class="logo-text common-logo-position">
+    <p>SOLEIL PICTURES</p>
+  </div>
+
+  <div class="content">
+    <h2>Movie Search</h2>
+    <input type="text" id="search-input" placeholder="Enter movie or TV show title">
+    <button id="search-btn">Search</button>
+
+    <div id="search-results"></div>
+
+    <h2>Movie Table</h2>
+    <table id="movie-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Media Type</th>
+          <th>Release Year</th>
+          <th>Categories</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <h2>People Table</h2>
+    <table id="people-table">
+      <thead>
+        <tr>
+          <th data-column="person_name">Name</th>
+          <th data-column="department">Department</th>
+          <th data-column="job">Job</th>
+          <th data-column="character">Character</th>
+          <th data-column="special_marking">Special Marking</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="index.html">Home</a>
+    <a href="about-us.html">About Us</a>
+    <a href="projects.html">Our Projects</a>
+    <a href="mailto:contact@soleilpictures.com">Contact Us</a>
+  </nav>
+
+  <script src="movie-search.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>

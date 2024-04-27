@@ -331,6 +331,106 @@ body {
   }
 
 
-  
+  /* Movie Search */
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  color: var(--light-color);
+  font-family: var(--font-family);
+}
+
+.content h2 {
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+#search-input {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+#search-btn {
+  padding: 10px 20px;
+  font-size: 1rem;
+  background-color: var(--base);
+  color: var(--light-color);
+  border: none;
+  cursor: pointer;
+}
+
+.result-item {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.result-item h3 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.result-item p {
+  margin-bottom: 5px;
+}
+
+.mark-category-btn {
+  padding: 5px 10px;
+  font-size: 0.9rem;
+  background-color: var(--complimentary1);
+  color: var(--light-color);
+  border: none;
+  cursor: pointer;
+}
+
+/* Movie Table */
+#movie-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+#movie-table th,
+#movie-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--light-color);
+}
+
+#movie-table th {
+  background-color: var(--base);
+  color: var(--light-color);
+  cursor: pointer;
+}
+
+#movie-table tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* People Table */
+#people-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+#people-table th,
+#people-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--light-color);
+}
+
+#people-table th {
+  background-color: var(--base);
+  color: var(--light-color);
+  cursor: pointer;
+}
+
+#people-table tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.1);
+}
 
 
