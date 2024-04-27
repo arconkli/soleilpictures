@@ -1,3 +1,5 @@
+document.addEventListener('DOMContentLoaded', () => {
+
 const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 const searchResults = document.getElementById('search-results');
@@ -125,4 +127,6 @@ peopleTableHeaders.forEach(header => {
 
     displayPeopleTable(column, order);
   });
+});
+
 });
