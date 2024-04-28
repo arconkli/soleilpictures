@@ -1,19 +1,25 @@
+console.log('JavaScript file loaded');
+
 const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 const searchResults = document.getElementById('search-results');
 const apiUrl = '/api';
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOMContentLoaded event triggered');
+
   function displayPeopleTable(sort = 'person_name', order = 'asc') {
+    console.log('Fetching people data...');
     fetch(`${apiUrl}/people?sort=${sort}&order=${order}`)
       .then(response => {
+        console.log('Response received:', response);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
       })
       .then(data => {
-        console.log('People data:', data); // Log the people data
+        console.log('People data:', data);
         const tableBody = document.querySelector('#people-table tbody');
         if (tableBody) {
           tableBody.innerHTML = '';
@@ -31,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
               tableBody.appendChild(row);
             });
           } else {
+            console.log('No people found.');
             const row = document.createElement('tr');
             row.innerHTML = '<td colspan="6">No people found.</td>';
             tableBody.appendChild(row);
@@ -47,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function addMovieInfo(movieId, movieTitle) {
     const jobCategoryInput = prompt('Enter the job category for special marking:');
     if (jobCategoryInput) {
+      console.log('Adding movie info...');
       fetch(`${apiUrl}/movie/${movieId}/mark-category`, {
         method: 'POST',
         headers: {
@@ -55,35 +63,41 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ category: jobCategoryInput })
       })
         .then(response => {
+          console.log('Response received:', response);
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
           return response.json();
         })
         .then(data => {
-          console.log('Mark category response:', data); // Log the mark category response
+          console.log('Mark category response:', data);
           alert(data.message);
           displayPeopleTable();
         })
         .catch(error => {
           console.error('Error marking job category:', error);
         });
+    } else {
+      console.log('No job category entered.');
     }
   }
 
   if (searchBtn) {
     searchBtn.addEventListener('click', () => {
       const title = searchInput.value;
+      console.log('Searching movies...');
       fetch(`${apiUrl}/search/${encodeURIComponent(title)}`)
         .then(response => {
+          console.log('Response received:', response);
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
           return response.json();
         })
         .then(data => {
-          console.log('Search results:', data); // Log the search results
+          console.log('Search results:', data);
           if (data.results.length === 0) {
+            console.log('No results found.');
             searchResults.innerHTML = '<p>No results found.</p>';
           } else {
             const html = data.results.map(result => `
