@@ -331,7 +331,7 @@ body {
   }
 
 
-  /* Movie Search */
+/* Movie Search */
 .content {
   max-width: 800px;
   margin: 0 auto;
@@ -376,37 +376,13 @@ body {
   margin-bottom: 5px;
 }
 
-.mark-category-btn {
+.add-info-btn {
   padding: 5px 10px;
   font-size: 0.9rem;
   background-color: var(--complimentary1);
   color: var(--light-color);
   border: none;
   cursor: pointer;
-}
-
-/* Movie Table */
-#movie-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-#movie-table th,
-#movie-table td {
-  padding: 10px;
-  text-align: left;
-  border-bottom: 1px solid var(--light-color);
-}
-
-#movie-table th {
-  background-color: var(--base);
-  color: var(--light-color);
-  cursor: pointer;
-}
-
-#movie-table tbody tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* People Table */
@@ -431,6 +407,5 @@ body {
 
 #people-table tbody tr:nth-child(even) {
   background-color: rgba(255, 255, 255, 0.1);
-}
-
+}new 
 
