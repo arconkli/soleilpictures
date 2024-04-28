@@ -1,5 +1,3 @@
-console.log('JavaScript file loaded');
-
 const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 const searchResults = document.getElementById('search-results');
@@ -52,34 +50,51 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function addMovieInfo(movieId, movieTitle) {
-    const jobCategoryInput = prompt('Enter the job category for special marking:');
-    if (jobCategoryInput) {
-      console.log('Adding movie info...');
-      fetch(`${apiUrl}/movie/${movieId}/mark-category`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ category: jobCategoryInput })
-      })
-        .then(response => {
-          console.log('Response received:', response);
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('Mark category response:', data);
-          alert(data.message);
-          displayPeopleTable();
-        })
-        .catch(error => {
-          console.error('Error marking job category:', error);
-        });
-    } else {
-      console.log('No job category entered.');
+    const jobCategories = ['Acting', 'Directing', 'Production', 'Writing', 'Editing', 'Cinematography', 'Music', 'Design', 'Crew'];
+    const selectedCategories = [];
+
+    for (const category of jobCategories) {
+      if (confirm(`Is "${category}" a relevant job category for this movie?`)) {
+        selectedCategories.push(category);
+      }
     }
+
+    fetch(`${apiUrl}/movie/${movieId}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Movie data imported:', data);
+
+        if (selectedCategories.length > 0) {
+          const promises = selectedCategories.map(category => {
+            return fetch(`${apiUrl}/movie/${movieId}/mark-category`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ category })
+            });
+          });
+
+          Promise.all(promises)
+            .then(responses => {
+              console.log('Job categories marked:', responses);
+              displayPeopleTable();
+            })
+            .catch(error => {
+              console.error('Error marking job categories:', error);
+            });
+        } else {
+          displayPeopleTable();
+        }
+      })
+      .catch(error => {
+        console.error('Error importing movie data:', error);
+      });
   }
 
   if (searchBtn) {
