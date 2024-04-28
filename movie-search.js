@@ -13,20 +13,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return response.json();
       })
       .then(data => {
+        console.log('People data:', data); // Log the people data
         const tableBody = document.querySelector('#people-table tbody');
-        tableBody.innerHTML = '';
-        data.people.forEach(person => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${person.name}</td>
-            <td>${person.department}</td>
-            <td>${person.job}</td>
-            <td>${person.character || ''}</td>
-            <td>${person.specialMarking ? 'Yes' : 'No'}</td>
-            <td>${person.movie_title}</td>
-          `;
-          tableBody.appendChild(row);
-        });
+        if (tableBody) {
+          tableBody.innerHTML = '';
+          if (data.people && data.people.length > 0) {
+            data.people.forEach(person => {
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                <td>${person.name || ''}</td>
+                <td>${person.department || ''}</td>
+                <td>${person.job || ''}</td>
+                <td>${person.character || ''}</td>
+                <td>${person.specialMarking ? 'Yes' : 'No'}</td>
+                <td>${person.movie_title || ''}</td>
+              `;
+              tableBody.appendChild(row);
+            });
+          } else {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="6">No people found.</td>';
+            tableBody.appendChild(row);
+          }
+        } else {
+          console.error('Table body element not found.');
+        }
       })
       .catch(error => {
         console.error('Error fetching people data:', error);
@@ -50,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return response.json();
         })
         .then(data => {
+          console.log('Mark category response:', data); // Log the mark category response
           alert(data.message);
           displayPeopleTable();
         })
@@ -59,43 +71,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  searchBtn.addEventListener('click', () => {
-    const title = searchInput.value;
-    fetch(`${apiUrl}/search/${encodeURIComponent(title)}`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (data.results.length === 0) {
-          searchResults.innerHTML = '<p>No results found.</p>';
-        } else {
-          const html = data.results.map(result => `
-            <div class="result-item">
-              <h3>${result.title}</h3>
-              <p>Media Type: ${result.mediaType}</p>
-              <p>Release Year: ${result.releaseYear || 'N/A'}</p>
-              <button class="add-info-btn" data-id="${result.id}" data-title="${result.title}">Add Info</button>
-            </div>
-          `).join('');
-          searchResults.innerHTML = html;
+  if (searchBtn) {
+    searchBtn.addEventListener('click', () => {
+      const title = searchInput.value;
+      fetch(`${apiUrl}/search/${encodeURIComponent(title)}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log('Search results:', data); // Log the search results
+          if (data.results.length === 0) {
+            searchResults.innerHTML = '<p>No results found.</p>';
+          } else {
+            const html = data.results.map(result => `
+              <div class="result-item">
+                <h3>${result.title}</h3>
+                <p>Media Type: ${result.mediaType}</p>
+                <p>Release Year: ${result.releaseYear || 'N/A'}</p>
+                <button class="add-info-btn" data-id="${result.id}" data-title="${result.title}">Add Info</button>
+              </div>
+            `).join('');
+            searchResults.innerHTML = html;
 
-          const addInfoBtns = document.querySelectorAll('.add-info-btn');
-          addInfoBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-              const movieId = btn.dataset.id;
-              const movieTitle = btn.dataset.title;
-              addMovieInfo(movieId, movieTitle);
+            const addInfoBtns = document.querySelectorAll('.add-info-btn');
+            addInfoBtns.forEach(btn => {
+              btn.addEventListener('click', () => {
+                const movieId = btn.dataset.id;
+                const movieTitle = btn.dataset.title;
+                addMovieInfo(movieId, movieTitle);
+              });
             });
-          });
-        }
-      })
-      .catch(error => {
-        console.error('Error searching movies:', error);
-      });
-  });
+          }
+        })
+        .catch(error => {
+          console.error('Error searching movies:', error);
+        });
+    });
+  } else {
+    console.error('Search button element not found.');
+  }
 
   displayPeopleTable();
 
