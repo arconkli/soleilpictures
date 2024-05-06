@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${person.job || ''}</td>
                 <td>${person.character || ''}</td>
                 <td>${person.specialMarking ? 'Yes' : 'No'}</td>
-                <td>${person.movie_title || ''}</td>
+                <td>${person.movieTitle || ''}</td>
               `;
               tableBody.appendChild(row);
             });
