@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const tableBody = document.querySelector('#people-table tbody');
         if (tableBody) {
           tableBody.innerHTML = '';
-          if (data.people && data.people.length > 0) {
-            data.people.forEach(person => {
+          if (data.results && data.results.length > 0) {
+            data.results.forEach(person => {
               const row = document.createElement('tr');
               row.innerHTML = `
                 <td>${person.name || ''}</td>
