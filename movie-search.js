@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function displayPeopleTable(sort = 'person_name', order = 'asc', jobCategory = '', movieTitle = '') {
     console.log('Fetching people data...');
-    fetch(`${apiUrl}/people?sort=${sort}&order=${order}&job_category=${jobCategory}&movie_title=${movieTitle}`)
+    fetch(`${apiUrl}/people?sort=${sort}&order=${order}&job_category=${encodeURIComponent(jobCategory)}&movie_title=${encodeURIComponent(movieTitle)}`)
       .then(response => {
         console.log('Response received:', response);
         if (!response.ok) {
@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(data => {
         console.log('Movie data:', data);
         if (data.movies && data.movies.length > 0) {
+          movieTitleFilter.innerHTML = '<option value="">All Movies</option>';
           const uniqueTitles = [...new Set(data.movies.map(movie => movie.title))];
           uniqueTitles.forEach(title => {
             const option = document.createElement('option');
@@ -85,7 +86,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    fetch(`${apiUrl}/movie/${movieId}`)
+    fetch(`${apiUrl}/movie/${movieId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ selectedCategories })
+    })
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
