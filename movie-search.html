@@ -23,6 +23,27 @@
     </div>
     <div id="search-results"></div>
     <h2>People Table</h2>
+    <div>
+      <label for="job-category-filter">Filter by Job Category:</label>
+      <select id="job-category-filter">
+        <option value="">All Categories</option>
+        <option value="Acting">Acting</option>
+        <option value="Directing">Directing</option>
+        <option value="Production">Production</option>
+        <option value="Writing">Writing</option>
+        <option value="Editing">Editing</option>
+        <option value="Cinematography">Cinematography</option>
+        <option value="Music">Music</option>
+        <option value="Design">Design</option>
+        <option value="Crew">Crew</option>
+      </select>
+    </div>
+    <div>
+      <label for="movie-title-filter">Filter by Movie Title:</label>
+      <select id="movie-title-filter">
+        <option value="">All Movies</option>
+      </select>
+    </div>
     <table id="people-table">
       <thead>
         <tr>
@@ -30,7 +51,6 @@
           <th data-column="department">Department</th>
           <th data-column="job">Job</th>
           <th data-column="character">Character</th>
-          <th data-column="special_marking">Special Marking</th>
           <th data-column="movie_title">Movie Title</th>
         </tr>
       </thead>

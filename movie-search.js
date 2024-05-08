@@ -1,14 +1,16 @@
 const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 const searchResults = document.getElementById('search-results');
+const jobCategoryFilter = document.getElementById('job-category-filter');
+const movieTitleFilter = document.getElementById('movie-title-filter');
 const apiUrl = '/api';
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOMContentLoaded event triggered');
 
-  function displayPeopleTable(sort = 'person_name', order = 'asc') {
+  function displayPeopleTable(sort = 'person_name', order = 'asc', jobCategory = '', movieTitle = '') {
     console.log('Fetching people data...');
-    fetch(`${apiUrl}/people?sort=${sort}&order=${order}`)
+    fetch(`${apiUrl}/people?sort=${sort}&order=${order}&job_category=${jobCategory}&movie_title=${movieTitle}`)
       .then(response => {
         console.log('Response received:', response);
         if (!response.ok) {
@@ -21,15 +23,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const tableBody = document.querySelector('#people-table tbody');
         if (tableBody) {
           tableBody.innerHTML = '';
-          if (data.people && data.people.results && data.people.results.length > 0) {
-            data.people.results.forEach(person => {
+          if (data.people && data.people.length > 0) {
+            data.people.forEach(person => {
               const row = document.createElement('tr');
               row.innerHTML = `
                 <td>${person.name || ''}</td>
                 <td>${person.department || ''}</td>
                 <td>${person.job || ''}</td>
                 <td>${person.character || ''}</td>
-                <td>${person.specialMarking ? 'Yes' : 'No'}</td>
                 <td>${person.movieTitle || ''}</td>
               `;
               tableBody.appendChild(row);
@@ -37,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
             console.log('No people found.');
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="6">No people found.</td>';
+            row.innerHTML = '<td colspan="5">No people found.</td>';
             tableBody.appendChild(row);
           }
         } else {
@@ -46,6 +47,31 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .catch(error => {
         console.error('Error fetching people data:', error);
+      });
+  }
+
+  function populateMovieTitleFilter() {
+    fetch(`${apiUrl}/movies`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Movie data:', data);
+        if (data.movies && data.movies.length > 0) {
+          const uniqueTitles = [...new Set(data.movies.map(movie => movie.title))];
+          uniqueTitles.forEach(title => {
+            const option = document.createElement('option');
+            option.value = title;
+            option.textContent = title;
+            movieTitleFilter.appendChild(option);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching movie data:', error);
       });
   }
 
@@ -68,32 +94,13 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .then(data => {
         console.log('Movie data imported:', data);
-
-        if (selectedCategories.length > 0) {
-          const promises = selectedCategories.map(category => {
-            return fetch(`${apiUrl}/movie/${movieId}/mark-category`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ category })
-            });
-          });
-
-          Promise.all(promises)
-            .then(responses => {
-              console.log('Job categories marked:', responses);
-              displayPeopleTable();
-            })
-            .catch(error => {
-              console.error('Error marking job categories:', error);
-            });
-        } else {
-          displayPeopleTable();
-        }
+        alert('Movie added successfully!');
+        displayPeopleTable();
+        populateMovieTitleFilter();
       })
       .catch(error => {
         console.error('Error importing movie data:', error);
+        alert('Failed to add movie. Please try again.');
       });
   }
 
@@ -144,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   displayPeopleTable();
+  populateMovieTitleFilter();
 
   const peopleTableHeaders = document.querySelectorAll('#people-table th');
   peopleTableHeaders.forEach(header => {
@@ -151,7 +159,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const column = header.dataset.column;
       const order = header.dataset.order === 'asc' ? 'desc' : 'asc';
       header.dataset.order = order;
-      displayPeopleTable(column, order);
+      displayPeopleTable(column, order, jobCategoryFilter.value, movieTitleFilter.value);
     });
+  });
+
+  jobCategoryFilter.addEventListener('change', () => {
+    const selectedCategory = jobCategoryFilter.value;
+    displayPeopleTable('person_name', 'asc', selectedCategory, movieTitleFilter.value);
+  });
+
+  movieTitleFilter.addEventListener('change', () => {
+    const selectedTitle = movieTitleFilter.value;
+    displayPeopleTable('person_name', 'asc', jobCategoryFilter.value, selectedTitle);
   });
 });
