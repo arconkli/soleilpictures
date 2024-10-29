@@ -1,8 +1,3 @@
-import * as PIXI from "https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.3.12/pixi.min.js";
-import { KawaseBlurFilter } from "https://cdn.jsdelivr.net/npm/@pixi/filter-kawase-blur@3.2.0/dist/filter-kawase-blur.min.js";
-import SimplexNoise from "https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/dist/esm/simplex-noise.js";
-
-// Utility Functions
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -26,10 +21,6 @@ function hslToHex(h, s, l) {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-function hsl(h, s, l) {
-  return hslToHex(h, s, l);
-}
-
 function random(min, max) {
   return Math.random() * (max - min) + min;
 }
@@ -37,9 +28,6 @@ function random(min, max) {
 function map(n, start1, end1, start2, end2) {
   return ((n - start1) / (end1 - start1)) * (end2 - start2) + start2;
 }
-
-// Clear console for clean output
-console.clear();
 
 // Mouse tracking setup
 const circleElement = document.querySelector('.circle');
@@ -59,7 +47,7 @@ window.addEventListener('mousemove', (e) => {
 const speed = 0.17;
 
 // Animation tick function
-const tick = () => {
+function tick() {
   // Movement
   circle.x += (mouse.x - circle.x) * speed;
   circle.y += (mouse.y - circle.y) * speed;
@@ -86,14 +74,11 @@ const tick = () => {
   circleElement.style.transform = `${translateTransform} ${rotateTransform} ${scaleTransform}`;
 
   // Continue animation
-  window.requestAnimationFrame(tick);
-};
+  requestAnimationFrame(tick);
+}
 
 // Start animation
 tick();
-
-// Create simplex noise instance
-const simplex = new SimplexNoise();
 
 // Color Palette Class
 class ColorPalette {
@@ -109,13 +94,13 @@ class ColorPalette {
     this.saturation = 95;
     this.lightness = 50;
 
-    this.baseColor = hsl(this.hue, this.saturation, this.lightness);
-    this.complimentaryColor1 = hsl(
+    this.baseColor = hslToHex(this.hue, this.saturation, this.lightness);
+    this.complimentaryColor1 = hslToHex(
       this.complimentaryHue1,
       this.saturation,
       this.lightness
     );
-    this.complimentaryColor2 = hsl(
+    this.complimentaryColor2 = hslToHex(
       this.complimentaryHue2,
       this.saturation,
       this.lightness
@@ -129,7 +114,7 @@ class ColorPalette {
   }
 
   randomColor() {
-    return this.colorChoices[~~random(0, this.colorChoices.length)].replace(
+    return this.colorChoices[Math.floor(random(0, this.colorChoices.length))].replace(
       "#",
       "0x"
     );
@@ -193,23 +178,17 @@ class Orb {
   }
 
   update() {
-    const xNoise = simplex.noise2D(this.xOff, this.xOff);
-    const yNoise = simplex.noise2D(this.yOff, this.yOff);
-    const scaleNoise = simplex.noise2D(this.xOff, this.yOff);
-
-    this.x = map(xNoise, -1, 1, this.bounds["x"].min, this.bounds["x"].max);
-    this.y = map(yNoise, -1, 1, this.bounds["y"].min, this.bounds["y"].max);
-    this.scale = map(scaleNoise, -1, 1, 0.5, 1);
-
-    this.inc = 0.00075;
-
-    const pulse = Math.sin(this.xOff * 0.5) * 0.2;
-    this.scale += pulse;
-
-    this.graphics.rotation += 0.001;
-
+    // Simplified noise implementation
     this.xOff += this.inc;
     this.yOff += this.inc;
+    
+    // Simple circular motion as a fallback
+    const time = Date.now() * 0.001;
+    this.x = this.bounds.x.min + Math.cos(time + this.xOff) * (this.bounds.x.max - this.bounds.x.min) * 0.5;
+    this.y = this.bounds.y.min + Math.sin(time + this.yOff) * (this.bounds.y.max - this.bounds.y.min) * 0.5;
+    
+    this.scale = 0.75 + Math.sin(time * 0.5) * 0.25;
+    this.graphics.rotation += 0.001;
   }
 
   render() {
@@ -224,94 +203,58 @@ class Orb {
   }
 }
 
-// Create PixiJS app
-const app = new PIXI.Application({
-  view: document.querySelector(".orb-canvas"),
-  resizeTo: window,
-  transparent: false
-});
+// Create PixiJS app once the document is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  const app = new PIXI.Application({
+    view: document.querySelector(".orb-canvas"),
+    resizeTo: window,
+    transparent: false
+  });
 
-app.stage.filters = [new KawaseBlurFilter(30, 10, true)];
+  if (window.PIXI.filters.KawaseBlurFilter) {
+    app.stage.filters = [new PIXI.filters.KawaseBlurFilter(30, 10, true)];
+  }
 
-// Create color palette
-const colorPalette = new ColorPalette();
+  // Create color palette
+  const colorPalette = new ColorPalette();
 
-// Create orbs
-const orbs = [];
-const numOrbs = 15;
-const orbRadius = window.innerHeight / 4;
+  // Create orbs
+  const orbs = [];
+  const numOrbs = 15;
+  const orbRadius = window.innerHeight / 4;
 
-for (let i = 0; i < numOrbs; i++) {
-  const orb = new Orb(colorPalette.randomColor());
-  orb.radius = orbRadius;
-  app.stage.addChild(orb.graphics);
-  orbs.push(orb);
-}
+  for (let i = 0; i < numOrbs; i++) {
+    const orb = new Orb(colorPalette.randomColor());
+    orb.radius = orbRadius;
+    app.stage.addChild(orb.graphics);
+    orbs.push(orb);
+  }
 
-// Create central orb
-const centralOrb = new Orb(0xffffff);
-centralOrb.radius = window.innerHeight / 5;
-centralOrb.x = window.innerWidth / 2;
-centralOrb.y = window.innerHeight / 2;
-
-// Animation
-if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-  app.ticker.add(() => {
-    app.renderer.clear();
+  // Animation
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    app.ticker.add(() => {
+      orbs.forEach((orb) => {
+        orb.update();
+        orb.render();
+      });
+    });
+  } else {
     orbs.forEach((orb) => {
       orb.update();
       orb.render();
     });
-  });
-} else {
-  orbs.forEach((orb) => {
-    orb.update();
-    orb.render();
-  });
-}
+  }
 
-// Color change button handler
-document
-  .querySelector(".overlay__btn--colors")
-  ?.addEventListener("click", () => {
-    colorPalette.setColors();
-    colorPalette.setCustomProperties();
+  // Color change button handler
+  const colorButton = document.querySelector(".overlay__btn--colors");
+  if (colorButton) {
+    colorButton.addEventListener("click", () => {
+      colorPalette.setColors();
+      colorPalette.setCustomProperties();
 
-    orbs.forEach((orb) => {
-      orb.fill = colorPalette.randomColor();
+      orbs.forEach((orb) => {
+        orb.fill = colorPalette.randomColor();
+      });
     });
-  });
-
-// Bento grid functionality
-const bentoElements = document.querySelectorAll('.bento');
-const container = document.querySelector('.bento-container');
-
-bentoElements.forEach(element => {
-  element.addEventListener('mouseover', () => {
-    const containerRect = container.getBoundingClientRect();
-    const elementRect = element.getBoundingClientRect();
-
-    const maxScale = Math.min(
-      (containerRect.width - elementRect.left) / elementRect.width,
-      (containerRect.right - elementRect.right) / elementRect.width,
-      (containerRect.height - elementRect.top) / elementRect.height,
-      (containerRect.bottom - elementRect.bottom) / elementRect.height
-    );
-
-    element.style.transform = `scale(${maxScale})`;
-  });
-
-  element.addEventListener('mouseout', () => {
-    element.style.transform = 'scale(1)';
-  });
-});
-
-// Project details buttons
-const detailsBtns = document.querySelectorAll('.details-btn');
-
-detailsBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    const projectId = btn.dataset.projectId;
-    console.log(`Showing details for project ${projectId}`);
-  });
+  }
 });
