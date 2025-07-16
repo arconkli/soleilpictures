@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Soleil Pictures - Movie Database</title>
+  <link rel="icon" type="image/png" href="/assets/soleilpictures_favicon.png">
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://use.typekit.net/qtd2rwk.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2JM12M3VBC"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  
+    gtag('config', 'G-2JM12M3VBC');
+  </script>
+
+  <!-- Include D1 library -->
+  <script src="https://www.jsdelivr.com/package/npm/@cloudflare/d1"></script>
+</head>
+<body>
+
+  <!-- Canvas and circle (for visual consistency) -->
+  <canvas class="orb-canvas"></canvas>
+  <div class="circle"></div>
+
+  <div class="logo-text common-logo-position">
+    <p>SOLEIL PICTURES</p>
+  </div>
+
+  <!-- Movie Database Section -->
+  <div class="content"> <!-- Use the "content" class for consistency -->
+    <section class="movie-database-section">
+      <h1>Movie Database</h1>
+
+      <!-- Filtering Controls (placeholder) -->
+      <div id="filter-controls">
+        <!-- Add filtering controls here (e.g., dropdowns, search bars) -->
+      </div>
+
+      <!-- Movie List -->
+      <div id="movie-list">
+        <!-- Movie data will be displayed here -->
+      </div>
+    </section>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="index.html">Home</a>
+    <a href="about-us.html">About Us</a>
+    <a href="projects.html">Our Projects</a>
+    <a href="mailto:contact@soleilpictures.com">Contact Us</a>
+  </nav>
+
+  <script type="module" src="movie_script.js"></script>
+</body>
+</html>
