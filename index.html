@@ -2,37 +2,179 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Soleil Pictures</title>
-  <link rel="icon" type="image/png" href="/assets/soleilpictures_favicon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soleil Pictures - Film Production Company | Andrew Conklin & Christopher Perez</title>
   
-  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Soleil Pictures is a rising film production company founded by Andrew Conklin and Christopher Perez in 2023. Currently producing 'Deep Dive' and developing 'Lost Time' with innovative fresh ideas.">
+  <meta name="keywords" content="Soleil Pictures, film production, Andrew Conklin, Christopher Perez, Deep Dive movie, Lost Time film, independent cinema, filmmaking, production company">
+  <meta name="author" content="Soleil Pictures">
+  <meta name="robots" content="index, follow">
+  <meta name="googlebot" content="index, follow">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://soleilpictures.com/">
+  <meta property="og:title" content="Soleil Pictures - Film Production Company">
+  <meta property="og:description" content="Rising film production company founded by Andrew Conklin and Christopher Perez, creating innovative cinema with projects like 'Deep Dive' and 'Lost Time'.">
+  <meta property="og:image" content="https://soleilpictures.com/assets/soleilpictures_favicon.png">
+  <meta property="og:site_name" content="Soleil Pictures">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://soleilpictures.com/">
+  <meta property="twitter:title" content="Soleil Pictures - Film Production Company">
+  <meta property="twitter:description" content="Rising film production company founded by Andrew Conklin and Christopher Perez, creating innovative cinema with projects like 'Deep Dive' and 'Lost Time'.">
+  <meta property="twitter:image" content="https://soleilpictures.com/assets/soleilpictures_favicon.png">
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://soleilpictures.com/">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/assets/soleilpictures_favicon.png">
+  <link rel="apple-touch-icon" href="/assets/soleilpictures_favicon.png">
+  
+  <!-- Web App Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://use.typekit.net/qtd2rwk.css" rel="stylesheet">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Preload critical CSS -->
+  <link rel="preload" href="style.css" as="style">
   <link rel="stylesheet" href="style.css">
 
+  <!-- Performance and SEO optimizations -->
+  <meta name="theme-color" content="#ff6b35">
+  <meta name="msapplication-TileColor" content="#ff6b35">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- DNS prefetch for external resources -->
+  <link rel="dns-prefetch" href="//fonts.gstatic.com">
+  <link rel="dns-prefetch" href="//www.googletagmanager.com">
+  <link rel="dns-prefetch" href="//cdn.skypack.dev">
+  
+  <!-- Preload critical resources -->
+  <link rel="preload" href="script.js" as="script">
+  <link rel="preload" href="https://use.typekit.net/qtd2rwk.css" as="style">
+
+  <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2JM12M3VBC"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-  
     gtag('config', 'G-2JM12M3VBC');
   </script>
 
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Soleil Pictures",
+    "description": "Film production company founded by Andrew Conklin and Christopher Perez, creating innovative cinema",
+    "url": "https://soleilpictures.com",
+    "logo": "https://soleilpictures.com/assets/soleilpictures_favicon.png",
+    "foundingDate": "2023",
+    "founders": [
+      {
+        "@type": "Person",
+        "name": "Andrew Conklin",
+        "url": "https://andrewconklin.com",
+        "jobTitle": "Co-Founder",
+        "worksFor": {
+          "@type": "Organization",
+          "name": "Soleil Pictures"
+        }
+      },
+      {
+        "@type": "Person",
+        "name": "Christopher Perez",
+        "jobTitle": "Co-Founder",
+        "worksFor": {
+          "@type": "Organization",
+          "name": "Soleil Pictures"
+        }
+      }
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "contact@soleilpictures.com",
+      "contactType": "customer service"
+    },
+    "sameAs": [
+      "https://andrewconklin.com"
+    ]
+  }
+  </script>
+
+  <!-- Performance monitoring -->
+  <script>
+    // Performance monitoring
+    if ('performance' in window) {
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const perfData = performance.getEntriesByType('navigation')[0];
+          if (perfData) {
+            console.log('Page load time:', perfData.loadEventEnd - perfData.fetchStart + 'ms');
+          }
+        }, 0);
+      });
+    }
+
+    // Service Worker registration for better caching
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('SW registered: ', registration);
+          })
+          .catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+  </script>
 </head>
 <body>
-  <canvas class="orb-canvas"></canvas>
-  <div class="circle"></div>
-
-  <div class="logo-text">
-    <p>SOLEIL PICTURES</p>
+  <!-- Loading Animation -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-orb"></div>
+    <p class="loading-text">SOLEIL PICTURES</p>
   </div>
 
-  <nav class="bottom-nav">
-    <a href="about-us.html">About Us</a>
-    <a href="projects.html">Our Projects</a>
-    <a href="mailto:contact@soleilpictures.com">Contact Us</a>
-  </nav>
+  <!-- Main Content -->
+  <main class="main-content" id="mainContent">
+    <canvas class="orb-canvas" aria-hidden="true"></canvas>
+    <div class="circle" aria-hidden="true"></div>
+
+    <header class="hero-section">
+      <h1 class="logo-text">
+        <span class="logo-main">SOLEIL PICTURES</span>
+        <span class="logo-subtitle">Film Production Company</span>
+      </h1>
+    </header>
+
+    <nav class="bottom-nav" role="navigation" aria-label="Main navigation">
+      <a href="about-us.html" class="nav-link">
+        <span class="nav-text">About Us</span>
+        <span class="nav-description">Meet the founders</span>
+      </a>
+      <a href="projects.html" class="nav-link">
+        <span class="nav-text">Our Projects</span>
+        <span class="nav-description">Current films</span>
+      </a>
+      <a href="mailto:contact@soleilpictures.com" class="nav-link">
+        <span class="nav-text">Contact Us</span>
+        <span class="nav-description">Get in touch</span>
+      </a>
+    </nav>
+  </main>
 
   <script type="module" src="script.js"></script>
 </body>

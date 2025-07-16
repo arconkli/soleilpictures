@@ -1,0 +1,27 @@
+{
+  "name": "Soleil Pictures",
+  "short_name": "Soleil Pictures",
+  "description": "Film production company founded by Andrew Conklin and Christopher Perez, creating innovative cinema",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#ff6b35",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/soleilpictures_favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/soleilpictures_favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["entertainment", "business"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "scope": "/",
+  "prefer_related_applications": false
+} 

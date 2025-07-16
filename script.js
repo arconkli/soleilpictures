@@ -6,9 +6,68 @@ import debounce from "https://cdn.skypack.dev/debounce";
 
 console.clear();
 
-  // Select the circle element
-  const circleElement = document.querySelector('.circle');
-  
+// Loading Animation Controller
+class LoadingController {
+  constructor() {
+    this.loadingScreen = document.getElementById('loadingScreen');
+    this.mainContent = document.getElementById('mainContent');
+    this.isLoaded = false;
+    this.init();
+  }
+
+  init() {
+    // Show loading screen initially
+    if (this.loadingScreen) {
+      this.loadingScreen.style.display = 'flex';
+    }
+    
+    // Hide main content initially
+    if (this.mainContent) {
+      this.mainContent.style.opacity = '0';
+    }
+
+    // Wait for everything to load
+    this.waitForLoad();
+  }
+
+  waitForLoad() {
+    const checkLoad = () => {
+      if (document.readyState === 'complete' && !this.isLoaded) {
+        // Add a small delay to ensure smooth transition
+        setTimeout(() => {
+          this.hideLoadingScreen();
+        }, 800);
+      } else {
+        setTimeout(checkLoad, 100);
+      }
+    };
+
+    checkLoad();
+  }
+
+  hideLoadingScreen() {
+    this.isLoaded = true;
+    
+    if (this.loadingScreen) {
+      this.loadingScreen.classList.add('fade-out');
+      setTimeout(() => {
+        this.loadingScreen.style.display = 'none';
+      }, 800);
+    }
+
+    if (this.mainContent) {
+      this.mainContent.classList.add('loaded');
+    }
+  }
+}
+
+// Initialize loading controller
+const loadingController = new LoadingController();
+
+// Enhanced cursor following circle
+const circleElement = document.querySelector('.circle');
+
+if (circleElement) {
   // Create objects to track mouse position and custom cursor position
   const mouse = { x: 0, y: 0 }; // Track current mouse position
   const previousMouse = { x: 0, y: 0 } // Store the previous mouse position
@@ -71,7 +130,7 @@ console.clear();
   
   // Start the animation loop
   tick();
-
+}
 
 // return a random number within a range
 function random(min, max) {
@@ -147,7 +206,7 @@ class ColorPalette {
   }
 }
 
-// Orb class
+// Enhanced Orb class
 class Orb {
   // Pixi takes hex colors as hexidecimal literals (0x rather than a string with '#')
   constructor(fill = 0x000000) {
@@ -170,7 +229,7 @@ class Orb {
     this.xOff = random(0, 1000);
     this.yOff = random(0, 1000);
     // how quickly the noise/self similar random values step through time
-    this.inc = 0.002;
+    this.inc = 0.00075; // Slower, more graceful movement
 
     // PIXI.Graphics is used to draw 2d primitives (in this case a circle) to the canvas
     this.graphics = new PIXI.Graphics();
@@ -221,23 +280,20 @@ class Orb {
     // map scaleNoise (between -1 and 1) to a scale value somewhere between half of the orb's original size, and 100% of it's original size
     this.scale = map(scaleNoise, -1, 1, 0.5, 1);
 
-    // Decrease the increment value for slower movement
-    this.inc = 0.00075;
+    // Enhanced pulsing effect with smoother transitions
+    const time = Date.now() * 0.001;
+    const pulse = Math.sin(time + this.xOff) * 0.15;
+    this.scale += pulse;
 
-    // Add a slight pulsing effect (adjust amplitude and frequency as needed)
-    const pulse = Math.sin(this.xOff * 0.5) * 0.2; 
-    this.scale += pulse; 
-
-this.graphics.rotation += 0.001; // Add a small rotation value
+    // Subtle rotation for more dynamic movement
+    this.graphics.rotation += 0.0008;
 
     // step through "time"
     this.xOff += this.inc;
     this.yOff += this.inc;
-}
-
+  }
 
   render() {
-    
     // update the PIXI.Graphics position and scale values
     this.graphics.x = this.x;
     this.graphics.y = this.y;
@@ -262,63 +318,214 @@ const app = new PIXI.Application({
   // auto adjust size to fit the current window
   resizeTo: window,
   // transparent background, we will be creating a gradient background later using CSS
-  transparent: false
+  transparent: true, // Make transparent for better layering
+  antialias: true, // Enable antialiasing for smoother graphics
+  autoDensity: true, // Automatically adjust for high DPI displays
+  resolution: window.devicePixelRatio || 1
 });
 
-app.stage.filters = [new KawaseBlurFilter(30, 10, true)];
-
-
+// Enhanced blur filter for more sophisticated effect
+app.stage.filters = [new KawaseBlurFilter(25, 8, true)];
 
 // Create colour palette
 const colorPalette = new ColorPalette();
 
-// Create orbs (more uniform size)
+// Create orbs with enhanced distribution
 const orbs = [];
-const numOrbs = 15; // Adjust the number of orbs as needed
-const orbRadius = window.innerHeight / 4; // Set a consistent radius
+const numOrbs = window.innerWidth < 768 ? 8 : 12; // Fewer orbs on mobile for better performance
 
 for (let i = 0; i < numOrbs; i++) {
   const orb = new Orb(colorPalette.randomColor());
-  orb.radius = orbRadius; // Set the consistent radius
   app.stage.addChild(orb.graphics);
   orbs.push(orb);
 }
 
-// Add a central circle (adjust size and color as needed)
-const centralOrb = new Orb(0xffffff); // White color
-centralOrb.radius = window.innerHeight / 8; // Larger radius
-centralOrb.x = window.innerWidth / 2; // Centered horizontally
-centralOrb.y = window.innerHeight / 2; // Centered vertically
-centralOrb.radius = window.innerHeight / 5; // Larger radius
+// Enhanced animation loop with performance optimization
+let lastTime = 0;
+const targetFPS = 60;
+const frameTime = 1000 / targetFPS;
 
-// Animate!
-if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-  app.ticker.add(() => {
-    app.renderer.clear();
-
-    orbs.forEach((orb) => {
-      orb.update();
-      orb.render();
-    });
-  });
-} else {
-  orbs.forEach((orb) => {
-    orb.update();
-    orb.render();
-  });
+function animate(currentTime) {
+  if (currentTime - lastTime >= frameTime) {
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      orbs.forEach((orb) => {
+        orb.update();
+        orb.render();
+      });
+    }
+    lastTime = currentTime;
+  }
+  requestAnimationFrame(animate);
 }
 
-document
-  .querySelector(".overlay__btn--colors")
-  .addEventListener("click", () => {
-    colorPalette.setColors();
-    colorPalette.setCustomProperties();
+// Start animation when page is loaded
+if (loadingController.isLoaded) {
+  animate(0);
+} else {
+  setTimeout(() => animate(0), 1000);
+}
 
-    orbs.forEach((orb) => {
-      orb.fill = colorPalette.randomColor();
+// Enhanced interaction effects
+document.addEventListener('DOMContentLoaded', () => {
+  // Smooth scrolling for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
     });
   });
 
+  // Enhanced navigation hover effects
+  const navLinks = document.querySelectorAll('.nav-link');
+  navLinks.forEach(link => {
+    link.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-3px) scale(1.05)';
+    });
+    
+    link.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0) scale(1)';
+    });
+  });
+
+  // Enhanced project card interactions
+  const projectCards = document.querySelectorAll('.project-card');
+  projectCards.forEach(card => {
+    card.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-10px) scale(1.03)';
+    });
+    
+    card.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0) scale(1)';
+    });
+  });
+
+  // Enhanced founder container interactions
+  const founderContainers = document.querySelectorAll('.founder-container');
+  founderContainers.forEach(container => {
+    container.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-3px) scale(1.01)';
+    });
+    
+    container.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0) scale(1)';
+    });
+  });
+});
+
+// Enhanced founder bio functionality
+const founderButtons = document.querySelectorAll('.founder-container');
+
+founderButtons.forEach(button => {
+  button.addEventListener('click', () => {
+    const bioId = button.dataset.bioId;
+    const bioElement = document.getElementById(bioId);
+
+    // Hide all other bios before showing the clicked one
+    founderButtons.forEach(otherButton => {
+      if (otherButton !== button) {
+        const otherBioId = otherButton.dataset.bioId;
+        const otherBioElement = document.getElementById(otherBioId);
+        if (otherBioElement) {
+          otherBioElement.style.display = 'none';
+          otherBioElement.classList.remove('active');
+        }
+        otherButton.classList.remove('active-bio');
+      }
+    });
+
+    if (bioElement) {
+      // Toggle the clicked bio's visibility
+      const isVisible = bioElement.style.display === 'block';
+      bioElement.style.display = isVisible ? 'none' : 'block';
+      
+      if (!isVisible) {
+        bioElement.classList.add('active');
+      } else {
+        bioElement.classList.remove('active');
+      }
+
+      // Add/remove 'active-bio' class to the container for styling
+      button.classList.toggle('active-bio');
+    }
+  });
+});
+
+// Enhanced password protection with better UX
+const passwordInputs = document.querySelectorAll('.password-input');
+
+// Store passwords for each project
+const projectPasswords = {
+  "84309562": "verdant",
+  "09268219": "isneverfound"
+};
+
+passwordInputs.forEach(input => {
+  let timeoutId;
+  
+  input.addEventListener('input', () => {
+    const enteredPassword = input.value;
+    const projectId = input.dataset.projectId;
+    const correctPassword = projectPasswords[projectId];
+
+    // Clear previous timeout
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
+    // Add visual feedback
+    input.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+    input.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+
+    if (enteredPassword === correctPassword) {
+      // Success styling
+      input.style.borderColor = 'var(--base)';
+      input.style.backgroundColor = 'rgba(0, 255, 0, 0.1)';
+      
+      // Redirect after a short delay
+      timeoutId = setTimeout(() => {
+        const projectDetailsUrl = `${projectId}.html`;
+        window.location.href = projectDetailsUrl;
+      }, 500);
+    } else if (enteredPassword.length > 0) {
+      // Typing feedback
+      input.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+      input.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+    }
+  });
+
+  // Enhanced focus effects
+  input.addEventListener('focus', () => {
+    input.style.transform = 'scale(1.02)';
+  });
+
+  input.addEventListener('blur', () => {
+    input.style.transform = 'scale(1)';
+  });
+});
+
+// Performance optimization: pause animations when tab is not visible
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    app.ticker.stop();
+  } else {
+    app.ticker.start();
+  }
+});
+
+// Accessibility: respect user's preference for reduced motion
+if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  orbs.forEach((orb) => {
+    orb.inc = 0.0001; // Much slower movement
+    orb.graphics.alpha = 0.5; // Reduce opacity
+  });
+}
+  
 const bentoElements = document.querySelectorAll('.bento'); 
 const container = document.querySelector('.bento-container'); 
   

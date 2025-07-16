@@ -2,83 +2,261 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Soleil Pictures - Our Projects</title>
-  <link rel="icon" type="image/png" href="/assets/soleilpictures_favicon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Our Film Projects - Deep Dive & Lost Time | Soleil Pictures</title>
   
-  <link rel="preconnect" href="https://fonts.gstatic.com" />
-  <link href="https://use.typekit.net/qtd2rwk.css" rel="stylesheet" />
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Explore Soleil Pictures' film projects including 'Deep Dive' - a psychological thriller about pharmaceutical experiments, and 'Lost Time' - a time-travel comedy adventure. Innovative independent cinema.">
+  <meta name="keywords" content="Deep Dive movie, Lost Time film, Soleil Pictures projects, independent cinema, psychological thriller, time travel comedy, Andrew Conklin films, Christopher Perez films">
+  <meta name="author" content="Soleil Pictures">
+  <meta name="robots" content="index, follow">
+  <meta name="googlebot" content="index, follow">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://soleilpictures.com/projects.html">
+  <meta property="og:title" content="Our Film Projects - Deep Dive & Lost Time | Soleil Pictures">
+  <meta property="og:description" content="Discover Soleil Pictures' innovative film projects: 'Deep Dive' psychological thriller and 'Lost Time' time-travel comedy. Independent cinema at its finest.">
+  <meta property="og:image" content="https://soleilpictures.com/assets/deepdiveweb1.jpg">
+  <meta property="og:site_name" content="Soleil Pictures">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://soleilpictures.com/projects.html">
+  <meta property="twitter:title" content="Our Film Projects - Deep Dive & Lost Time | Soleil Pictures">
+  <meta property="twitter:description" content="Discover Soleil Pictures' innovative film projects: 'Deep Dive' psychological thriller and 'Lost Time' time-travel comedy. Independent cinema at its finest.">
+  <meta property="twitter:image" content="https://soleilpictures.com/assets/deepdiveweb1.jpg">
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://soleilpictures.com/projects.html">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/assets/soleilpictures_favicon.png">
+  <link rel="apple-touch-icon" href="/assets/soleilpictures_favicon.png">
+  
+  <!-- Web App Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://use.typekit.net/qtd2rwk.css" rel="stylesheet">
+  
+  <!-- Preload critical CSS -->
+  <link rel="preload" href="style.css" as="style">
   <link rel="stylesheet" href="style.css">
 
+  <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2JM12M3VBC"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-  
     gtag('config', 'G-2JM12M3VBC');
   </script>
 
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": "Soleil Pictures Film Projects",
+    "description": "Film projects by Soleil Pictures production company",
+    "url": "https://soleilpictures.com/projects.html",
+    "itemListElement": [
+      {
+        "@type": "Movie",
+        "name": "Deep Dive",
+        "description": "Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.",
+        "genre": ["Psychological Thriller", "Drama"],
+        "productionCompany": {
+          "@type": "Organization",
+          "name": "Soleil Pictures",
+          "url": "https://soleilpictures.com"
+        },
+        "director": [
+          {
+            "@type": "Person",
+            "name": "Andrew Conklin"
+          },
+          {
+            "@type": "Person",
+            "name": "Christopher Perez"
+          }
+        ],
+        "image": "https://soleilpictures.com/assets/deepdiveweb1.jpg",
+        "dateCreated": "2023",
+        "inLanguage": "en-US"
+      },
+      {
+        "@type": "Movie",
+        "name": "Lost Time",
+        "description": "After stealing a time machine, a reckless drunk juggles trying to (literally) live with his past self while going on adventures throughout time.",
+        "genre": ["Comedy", "Science Fiction", "Adventure"],
+        "productionCompany": {
+          "@type": "Organization",
+          "name": "Soleil Pictures",
+          "url": "https://soleilpictures.com"
+        },
+        "director": [
+          {
+            "@type": "Person",
+            "name": "Andrew Conklin"
+          },
+          {
+            "@type": "Person",
+            "name": "Christopher Perez"
+          }
+        ],
+        "image": "https://soleilpictures.com/assets/frankielosttime.png",
+        "dateCreated": "2023",
+        "inLanguage": "en-US"
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
-
-  <!-- Canvas -->
-  <canvas class="orb-canvas"></canvas>
-  <div class="circle"></div>
-
-  <div class="logo-text common-logo-position">
-    <p>SOLEIL PICTURES</p>
+  <!-- Loading Animation -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-orb"></div>
+    <p class="loading-text">SOLEIL PICTURES</p>
   </div>
 
-  <!-- Projects Section -->
-  <div class="projects-container">
-    <h2 class="projects-title">Our Projects</h2>
-    <div class="project-card">
-      <img src="assets/deepdiveweb1.jpg" alt="Deep Dive Image">
-      <h3>Deep Dive</h3>
-      <p>Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.</p>
-      <input type="password" class="password-input" placeholder="Enter Password" data-project-id="84309562">
-    </div>
-    <div class="project-card">
-      <img src="assets/frankielosttime.png" alt="Moe Lost Time" style="object-position: top;">
-      <h3>Lost Time</h3>
-      <p>After stealing a time machine, a reckless drunk juggles trying to (literally)
-        live with his past self while going on adventures throughout time.</p>
-      <input type="password" class="password-input" placeholder="Enter Password" data-project-id="09268219">
-    </div>
-  </div>
+  <!-- Main Content -->
+  <main class="main-content" id="mainContent">
+    <!-- Canvas -->
+    <canvas class="orb-canvas" aria-hidden="true"></canvas>
+    <div class="circle" aria-hidden="true"></div>
 
-  <nav class="bottom-nav">
-    <a href="index.html">Home</a>
-    <a href="about-us.html">About Us</a>
-    <a href="mailto:contact@soleilpictures.com">Contact Us</a>
+    <header class="logo-text common-logo-position">
+      <h1>
+        <span class="logo-main">SOLEIL PICTURES</span>
+        <span class="logo-subtitle">Our Projects</span>
+      </h1>
+    </header>
+
+    <!-- Projects Section -->
+    <section class="projects-container">
+      <!-- Breadcrumb Navigation -->
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li><a href="index.html">Home</a></li>
+          <li aria-current="page">Our Projects</li>
+        </ol>
+      </nav>
+
+      <header>
+        <h2 class="projects-title">Our Film Projects</h2>
+        <p class="projects-subtitle">Innovative independent cinema pushing creative boundaries</p>
+      </header>
+
+      <div class="projects-grid">
+        <!-- Deep Dive Project -->
+        <article class="project-card" itemscope itemtype="https://schema.org/Movie">
+          <div class="project-image-container">
+            <img src="assets/deepdiveweb1.jpg" alt="Deep Dive Movie Poster - Psychological thriller about pharmaceutical experiments" itemprop="image" loading="lazy" decoding="async">
+            <div class="project-overlay">
+              <span class="project-genre">Psychological Thriller</span>
+              <span class="project-status">In Production</span>
+            </div>
+          </div>
+          <div class="project-content">
+            <header>
+              <h3 itemprop="name">Deep Dive</h3>
+              <div class="project-meta">
+                <span class="project-year" itemprop="dateCreated">2023</span>
+                <span class="project-duration">Feature Film</span>
+              </div>
+            </header>
+            <p class="project-description" itemprop="description">
+              <strong>Salva</strong>, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.
+            </p>
+            <div class="project-genres">
+              <span class="genre-tag" itemprop="genre">Psychological Thriller</span>
+              <span class="genre-tag" itemprop="genre">Drama</span>
+            </div>
+            <div class="project-access">
+              <label for="deep-dive-password" class="sr-only">Enter password to access Deep Dive project details</label>
+              <input 
+                type="password" 
+                id="deep-dive-password"
+                class="password-input" 
+                placeholder="Enter Password for Exclusive Content" 
+                data-project-id="84309562"
+                aria-describedby="deep-dive-help"
+              >
+              <small id="deep-dive-help" class="input-help">Password required to access detailed project information</small>
+            </div>
+          </div>
+        </article>
+
+        <!-- Lost Time Project -->
+        <article class="project-card" itemscope itemtype="https://schema.org/Movie">
+          <div class="project-image-container">
+            <img src="assets/frankielosttime.png" alt="Lost Time Movie Poster - Time travel comedy adventure" style="object-position: top;" itemprop="image" loading="lazy" decoding="async">
+            <div class="project-overlay">
+              <span class="project-genre">Comedy</span>
+              <span class="project-status">In Development</span>
+            </div>
+          </div>
+          <div class="project-content">
+            <header>
+              <h3 itemprop="name">Lost Time</h3>
+              <div class="project-meta">
+                <span class="project-year" itemprop="dateCreated">2023</span>
+                <span class="project-duration">Feature Film</span>
+              </div>
+            </header>
+            <p class="project-description" itemprop="description">
+              After stealing a time machine, a reckless drunk juggles trying to (literally) live with his past self while going on adventures throughout time.
+            </p>
+            <div class="project-genres">
+              <span class="genre-tag" itemprop="genre">Comedy</span>
+              <span class="genre-tag" itemprop="genre">Science Fiction</span>
+              <span class="genre-tag" itemprop="genre">Adventure</span>
+            </div>
+            <div class="project-access">
+              <label for="lost-time-password" class="sr-only">Enter password to access Lost Time project details</label>
+              <input 
+                type="password" 
+                id="lost-time-password"
+                class="password-input" 
+                placeholder="Enter Password for Exclusive Content" 
+                data-project-id="09268219"
+                aria-describedby="lost-time-help"
+              >
+              <small id="lost-time-help" class="input-help">Password required to access detailed project information</small>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Future Projects Teaser -->
+      <section class="future-projects">
+        <h3>More Projects Coming Soon</h3>
+        <p>We're constantly developing new and exciting film projects. Stay tuned for announcements about upcoming productions that will continue to push the boundaries of independent cinema.</p>
+        <a href="mailto:contact@soleilpictures.com" class="cta-button">
+          Get Project Updates
+        </a>
+      </section>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" role="navigation" aria-label="Main navigation">
+    <a href="index.html" class="nav-link">
+      <span class="nav-text">Home</span>
+      <span class="nav-description">Back to main</span>
+    </a>
+    <a href="about-us.html" class="nav-link">
+      <span class="nav-text">About Us</span>
+      <span class="nav-description">Meet the team</span>
+    </a>
+    <a href="mailto:contact@soleilpictures.com" class="nav-link">
+      <span class="nav-text">Contact Us</span>
+      <span class="nav-description">Get in touch</span>
+    </a>
   </nav>
 
   <script type="module" src="script.js"></script>
-  <script>
-// Password Protection Logic
-const passwordInputs = document.querySelectorAll('.password-input');
-
-// Store passwords for each project (replace with your actual passwords)
-const projectPasswords = {
-  "84309562": "verdant", // Password for project with ID 84309562
-  "09268219": "isneverfound", // Password for another project
-  // ... more passwords for other projects
-};
-
-passwordInputs.forEach(input => {
-  input.addEventListener('input', () => {
-    const enteredPassword = input.value;
-    const projectId = input.dataset.projectId; // Get project ID
-    const correctPassword = projectPasswords[projectId]; // Retrieve password
-
-    if (enteredPassword === correctPassword) {
-      // Password correct, redirect to the project details page
-      const projectDetailsUrl = `${projectId}.html`;
-      window.location.href = projectDetailsUrl;
-    }
-  });
-});
-  </script>
 </body>
 </html>
