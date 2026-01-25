@@ -7,6 +7,14 @@
   --complimentary2: hsl(var(--hue-complimentary2), 95%, 50%);
   --font-family: "brandon-grotesque", "Alfarn", sans-serif;
   --bg-gradient: linear-gradient(to bottom, hsl(var(--hue), 95%, 99%), hsl(var(--hue), 95%, 84%));
+
+  /* Glassmorphism variables */
+  --glass-bg: rgba(255, 255, 255, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-blur: blur(16px);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --glow-color: rgba(255, 255, 255, 0.6);
+  --transition-smooth: 0.3s ease;
 }
 
 * {
@@ -37,6 +45,7 @@ body {
   height: 100%;
   pointer-events: none;
   z-index: -1;
+  background: #0a0a0f;
 }
 
 .circle {
@@ -61,6 +70,10 @@ body {
   text-align: center;
   padding: 10px;
   padding-left: 1rem;
+  text-shadow:
+    0 0 20px rgba(255, 255, 255, 0.5),
+    0 0 40px rgba(255, 255, 255, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .common-logo-position {
@@ -70,16 +83,16 @@ body {
   transform: translateX(-50%);
 }
 
-/* Bottom navigation */
+/* Bottom navigation - Minimal */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
   display: flex;
-  justify-content: space-around;
-  padding: 10px;
-  background-color: rgba(255, 255, 255, 0);
+  justify-content: center;
+  gap: 2rem;
+  padding: 16px 20px;
   font-family: "aileron", sans-serif;
   font-weight: 500;
 }
@@ -87,17 +100,25 @@ body {
 .bottom-nav a {
   text-decoration: none;
   color: rgb(255, 255, 255);
-  padding: 8px 12px;
-  border-radius: 5px;
+  padding: 10px 20px;
+  border-radius: 25px;
   font-family: "aileron", sans-serif;
   font-weight: 600;
+  letter-spacing: 0.5px;
   background-color: transparent;
-  transition: background-color 0.4s ease-in-out, color 0.4s ease-in-out;
+  transition: all var(--transition-smooth);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .bottom-nav a:hover {
-  background-color: rgba(255, 255, 255, 0.7);
-  color: #000000;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  box-shadow:
+    0 0 20px rgba(255, 255, 255, 0.3),
+    inset 0 0 20px rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
 }
 
 /* Projects section */
@@ -120,79 +141,124 @@ body {
   text-transform: uppercase;
   color: var(--light-color);
   font-family: "aileron";
+  text-shadow:
+    0 0 15px rgba(255, 255, 255, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* Project cards - Glassmorphism */
 .project-card {
   width: 500px;
   margin: 20px;
-  padding: 20px;
-  border-radius: 10px;
-  background-color: rgba(255, 255, 255, 0.7);
-  transition: transform 0.2s ease-in-out;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--glass-shadow),
+    0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-smooth);
   font-family: "aileron";
 }
 
 .project-card:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 6px 1px rgba(255, 255, 255, 0.9);
+  transform: scale(1.03) translateY(-4px);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.15),
+    0 0 30px rgba(255, 255, 255, 0.2);
 }
 
 .project-card img {
   width: 100%;
   height: 200px;
   object-fit: cover;
-  border-radius: 5px;
+  border-radius: 12px;
 }
 
 .project-card h3 {
-  margin-top: 10px;
+  margin-top: 14px;
   letter-spacing: 2px;
+  color: var(--light-color);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .project-card p {
-  margin-top: 5px;
-  letter-spacing: 2px;
+  margin-top: 8px;
+  letter-spacing: 1px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .details-btn {
-  background-color: #000000;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
+  padding: 12px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 25px;
   cursor: pointer;
   margin-top: 15px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transition: all var(--transition-smooth);
 }
 
+.details-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Input fields - Glassmorphism */
 .password-input {
   display: block;
   width: 100%;
-  padding: 10px;
-  border: 1px solid rgb(255, 255, 255);
-  border-radius: 5px;
-  margin-top: 10px;
+  padding: 14px 18px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  margin-top: 12px;
   font-family: "aileron";
   font-size: 16px;
-  background-color: rgb(0, 0, 0, .15);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: #fff;
+  transition: all var(--transition-smooth);
 }
 
 .password-input::placeholder {
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all var(--transition-smooth);
 }
 
 .password-input:focus {
   outline: none;
-  border-color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow:
+    0 0 20px rgba(255, 255, 255, 0.15),
+    inset 0 0 15px rgba(255, 255, 255, 0.05);
 }
 
-/* About Us page */
+.password-input:focus::placeholder {
+  opacity: 0.5;
+  transform: translateX(5px);
+}
+
+/* About Us page - Minimal */
 .content {
   margin: 0 auto;
-  line-height: 1.8rem;
+  line-height: 1.9;
   color: white;
   font-family: var(--font-family);
   max-width: 750px;
+  padding: 30px;
 }
 
 .company-section {
@@ -201,99 +267,134 @@ body {
 
 .company-section h1 {
   margin-bottom: 20px;
+  text-shadow:
+    0 0 15px rgba(255, 255, 255, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+  letter-spacing: 2px;
 }
 
-/* Founders Section */
+/* Founders Section - Glassmorphism */
 .founders-section {
   display: flex;
   flex-direction: column;
-  align-items: flex-start; /* Align items to the top */
-  flex-wrap: wrap; /* Allow wrapping if needed */
+  align-items: flex-start;
+  flex-wrap: wrap;
   margin-top: 20px;
 }
 
+.founders-section h2 {
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+  letter-spacing: 1px;
+}
 
 .founder-container {
-  width: 100%; /* Initial width */
-  cursor: pointer; /* Indicate that the container is clickable */
-  padding: 10px; /* Add some padding */
-  border-bottom: 1px solid #ffffff; /* Add a subtle border */
+  width: 100%;
+  cursor: pointer;
+  padding: 16px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all var(--transition-smooth);
+}
+
+.founder-container:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  padding-left: 8px;
 }
 
 .founder-container.active-bio {
-  width: 100%; /* Make container 100% width when bio is active */
-  /* Add a subtle background color */
-  display: block; /* Show bio when active */
-  opacity: 1; /* Make bio opaque */
+  width: 100%;
+  border-color: rgba(255, 255, 255, 0.5);
+  display: block;
+  opacity: 1;
 }
 
 .content a {
   text-decoration: none;
   color: white;
+  transition: all var(--transition-smooth);
 }
 
 .content a:hover {
-  font-weight: bold;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 .bio {
-  display: none; /* Initially hidden */
-  transition: opacity 0.3s ease-in-out; /* Add transition for smooth fade */
-  padding: 10px; /* Add padding to the bio content */
+  display: none;
+  transition: all var(--transition-smooth);
+  padding: 14px 0;
+  margin-top: 10px;
+  line-height: 1.7;
 }
 
 .bio.active {
-
-  display: block; /* Show bio when active */
-  opacity: 1; /* Make bio opaque */
+  display: block;
+  opacity: 1;
 }
 
-/* Project Details Page (84309562.html) */
+/* Project Details Page - Glassmorphism */
 .project-details-section {
-  margin-top: 6em; /* Add spacing above the project details */
+  margin-top: 6em;
 }
 
 .project-details-section h1 {
-  margin-bottom: 20px; /* Add spacing below the title */
+  margin-bottom: 20px;
+  text-shadow:
+    0 0 15px rgba(255, 255, 255, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+  letter-spacing: 2px;
 }
 
 .project-details img {
   width: 100%;
-  max-width: 750px; /* Limit image width */
-  margin-bottom: 20px; /* Add spacing below the image */
+  max-width: 750px;
+  margin-bottom: 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .project-details p {
-  margin-bottom: 10px; /* Add spacing between paragraphs */
+  margin-bottom: 12px;
+  line-height: 1.8;
 }
 
+/* Documents section - Glassmorphism */
 .documents {
-  margin-top: 30px; /* Add spacing above the documents section */
+  margin-top: 30px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .documents h3 {
-  margin-bottom: 10px; /* Add spacing below the heading */
+  margin-bottom: 16px;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  letter-spacing: 1px;
 }
 
 .documents ul {
-  list-style: none; /* Remove default list markers */
+  list-style: none;
   padding: 0;
   text-align: center;
 }
 
 .documents li {
-  margin-bottom: 5px; /* Add spacing between list items */
-
+  margin-bottom: 10px;
 }
 
 .documents a {
-  color: var(--light-color); /* Set link color */
-  transition: color 0.2s ease-in-out; /* Add hover effect */
+  display: inline-block;
+  color: var(--light-color);
+  padding: 10px 20px;
+  border-radius: 8px;
+  transition: all var(--transition-smooth);
   text-align: center;
 }
 
 .documents a:hover {
-  color: var(--base); /* Change link color on hover */
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
 }
 
 
@@ -302,14 +403,17 @@ body {
   .circle {
     display: none;
   }
+
   .content {
-    line-height: 1.2rem; /* Increase line height for better readability */
+    line-height: 1.6;
+    padding: 20px;
+    margin: 10px;
   }
 
   .company-section h1,
   .founders-section h2,
   .founder h3 {
-    font-size: 1rem; /* Adjust heading font sizes */
+    font-size: 1rem;
   }
 
   .company-section {
@@ -317,54 +421,105 @@ body {
   }
 
   .logo-text {
-    font-size: 2rem; /* Adjust font size for smaller screens */
-    margin-bottom: 20px; /* Add spacing below the logo */
+    font-size: 2rem;
+    margin-bottom: 20px;
+    text-shadow:
+      0 0 15px rgba(255, 255, 255, 0.4),
+      0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
   .project-card {
-    width: 90%; /* Make cards responsive */
+    width: 90%;
+    padding: 18px;
+    border-radius: 14px;
   }
 
   .projects-title {
     font-size: 1.5rem;
   }
+
+  .bottom-nav {
+    gap: 0.5rem;
+    padding: 12px 10px;
   }
 
+  .bottom-nav a {
+    padding: 8px 14px;
+    font-size: 0.9rem;
+  }
 
-/* Movie Search */
-.content {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  color: var(--light-color);
-  font-family: var(--font-family);
+  .founder-container {
+    padding: 12px 0;
+  }
+
+  .documents {
+    padding: 15px;
+  }
 }
 
+
+/* Movie Search - Glassmorphism */
 .content h2 {
   font-size: 2rem;
   margin-bottom: 20px;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+  letter-spacing: 1px;
 }
 
 #search-input {
   width: 100%;
-  padding: 10px;
+  padding: 14px 18px;
   font-size: 1rem;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: var(--light-color);
+  transition: all var(--transition-smooth);
+}
+
+#search-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
 }
 
 #search-btn {
-  padding: 10px 20px;
+  padding: 12px 24px;
   font-size: 1rem;
-  background-color: var(--base);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: var(--light-color);
-  border: none;
+  border: 1px solid var(--glass-border);
+  border-radius: 25px;
   cursor: pointer;
+  font-weight: 600;
+  transition: all var(--transition-smooth);
+}
+
+#search-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
 }
 
 .result-item {
   margin-bottom: 20px;
-  padding: 10px;
-  background-color: rgba(255, 255, 255, 0.1);
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  transition: all var(--transition-smooth);
+}
+
+.result-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
 }
 
 .result-item h3 {
@@ -374,38 +529,66 @@ body {
 
 .result-item p {
   margin-bottom: 5px;
+  line-height: 1.6;
 }
 
 .add-info-btn {
-  padding: 5px 10px;
+  padding: 8px 16px;
   font-size: 0.9rem;
-  background-color: var(--complimentary1);
+  background: rgba(255, 255, 255, 0.2);
   color: var(--light-color);
-  border: none;
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
   cursor: pointer;
+  transition: all var(--transition-smooth);
 }
 
-/* People Table */
+.add-info-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+/* People Table - Glassmorphism */
 #people-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   margin-top: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
 }
 
 #people-table th,
 #people-table td {
-  padding: 10px;
+  padding: 14px 16px;
   text-align: left;
-  border-bottom: 1px solid var(--light-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 #people-table th {
-  background-color: var(--base);
+  background: rgba(255, 255, 255, 0.15);
   color: var(--light-color);
   cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all var(--transition-smooth);
+}
+
+#people-table th:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#people-table tbody tr {
+  transition: all var(--transition-smooth);
 }
 
 #people-table tbody tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+#people-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.12);
 }
 

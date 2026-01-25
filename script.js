@@ -80,7 +80,7 @@ function tick() {
 // Start animation
 tick();
 
-// Color Palette Class
+// Color Palette Class - Warmer golden/amber tones for sun-like feel
 class ColorPalette {
   constructor() {
     this.setColors();
@@ -88,11 +88,11 @@ class ColorPalette {
   }
 
   setColors() {
-    this.hue = 25;
+    this.hue = 25; // Back to orange
     this.complimentaryHue1 = 22.5;
     this.complimentaryHue2 = 27.5;
     this.saturation = 95;
-    this.lightness = 50;
+    this.lightness = 50; // Original brightness
 
     this.baseColor = hslToHex(this.hue, this.saturation, this.lightness);
     this.complimentaryColor1 = hslToHex(
@@ -133,20 +133,29 @@ class ColorPalette {
   }
 }
 
-// Orb Class
+// Orb Class - Enhanced for elegant sun-like effect
 class Orb {
-  constructor(fill = 0x000000) {
+  constructor(fill = 0x000000, index = 0, total = 10) {
+    this.index = index;
+    this.total = total;
     this.bounds = this.setBounds();
     this.x = random(this.bounds["x"].min, this.bounds["x"].max);
     this.y = random(this.bounds["y"].min, this.bounds["y"].max);
     this.scale = 1;
     this.fill = fill;
-    this.radius = random(window.innerHeight / 6, window.innerHeight / 3);
+    // Larger orbs that overlap to form cohesive sun shape
+    const sizeVariation = random(0.8, 1.4);
+    this.radius = (window.innerHeight / 3.5) * sizeVariation;
     this.xOff = random(0, 1000);
     this.yOff = random(0, 1000);
-    this.inc = 0.002;
+    // Slower animation for elegance
+    this.inc = 0.001;
+    // Each orb has its own speed multiplier for organic movement
+    this.speedMult = random(0.5, 1.2);
+    // Pulsing phase offset for breathing effect
+    this.pulseOffset = random(0, Math.PI * 2);
     this.graphics = new PIXI.Graphics();
-    this.graphics.alpha = 0.825;
+    this.graphics.alpha = 0.75;
 
     window.addEventListener(
       "resize",
@@ -157,38 +166,74 @@ class Orb {
   }
 
   setBounds() {
+    // Position orbs to emanate from bottom-right corner like sun glow
     const maxDist =
-      window.innerWidth < 1000 ? window.innerWidth / 3 : window.innerWidth / 5;
-    const originX = window.innerWidth / 1.25;
+      window.innerWidth < 1000 ? window.innerWidth / 2.5 : window.innerWidth / 4;
+    const originX = window.innerWidth * 0.85;
     const originY =
       window.innerWidth < 1000
-        ? window.innerHeight
-        : window.innerHeight / 1.375;
+        ? window.innerHeight * 0.9
+        : window.innerHeight * 0.75;
 
     return {
       x: {
         min: originX - maxDist,
-        max: originX + maxDist
+        max: originX + maxDist * 0.5
       },
       y: {
         min: originY - maxDist,
-        max: originY + maxDist
+        max: originY + maxDist * 0.5
       }
     };
   }
 
   update() {
-    // Simplified noise implementation
-    this.xOff += this.inc;
-    this.yOff += this.inc;
-    
-    // Simple circular motion as a fallback
-    const time = Date.now() * 0.001;
-    this.x = this.bounds.x.min + Math.cos(time + this.xOff) * (this.bounds.x.max - this.bounds.x.min) * 0.5;
-    this.y = this.bounds.y.min + Math.sin(time + this.yOff) * (this.bounds.y.max - this.bounds.y.min) * 0.5;
-    
-    this.scale = 0.75 + Math.sin(time * 0.5) * 0.25;
-    this.graphics.rotation += 0.001;
+    this.xOff += this.inc * this.speedMult;
+    this.yOff += this.inc * this.speedMult;
+
+    // Shared global time for synchronized breathing (all orbs breathe together)
+    const globalTime = Date.now() * 0.001;
+    const time = globalTime * this.speedMult;
+
+    // Sun origin in bottom-right, slightly in from corners
+    const originX = window.innerWidth * 0.78;
+    const originY = window.innerHeight * 0.78;
+
+    // Big breathing cycle - slow expansion then contraction (12 second cycle)
+    // Use sine wave: 0 to 1 to 0 range for smooth breathing
+    const breathCycle = (Math.sin(globalTime * 0.15 - Math.PI / 2) + 1) / 2;
+
+    // Expansion range: from small to almost filling page
+    const minExpansion = 100;
+    const maxExpansion = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+    const breathExpansion = minExpansion + breathCycle * (maxExpansion - minExpansion);
+
+    // Each orb has a unique angle (spread around the sun)
+    const angle = (this.index / this.total) * Math.PI * 2 + this.pulseOffset * 0.5;
+
+    // Keep orbs close together - slight variation so they overlap like a sun
+    const orbLayer = 0.15 + (this.index % 4) * 0.08; // 0.15, 0.23, 0.31, 0.39 - tight cluster
+    const distance = breathExpansion * orbLayer;
+
+    // Position based on angle and distance from origin
+    const radialX = Math.cos(angle) * distance;
+    const radialY = Math.sin(angle) * distance;
+
+    // Subtle shimmer drift
+    const driftX = Math.sin(time * 0.5 + this.xOff) * 20;
+    const driftY = Math.cos(time * 0.4 + this.yOff) * 15;
+
+    // Position = origin + radial position + drift
+    this.x = originX + radialX + driftX;
+    this.y = originY + radialY + driftY;
+
+    // Scale also breathes - orbs stay large to overlap and form cohesive sun
+    const baseScale = 1.0 + breathCycle * 0.5; // 1.0 to 1.5 - bigger to overlap
+    const individualPulse = Math.sin(time * 0.8 + this.pulseOffset) * 0.08;
+    this.scale = baseScale + individualPulse;
+
+    // Very slow rotation
+    this.graphics.rotation += 0.0005;
   }
 
   render() {
@@ -208,37 +253,133 @@ document.addEventListener('DOMContentLoaded', () => {
   const app = new PIXI.Application({
     view: document.querySelector(".orb-canvas"),
     resizeTo: window,
-    transparent: false
+    transparent: true,
+    backgroundAlpha: 0
   });
 
-  if (window.PIXI.filters.KawaseBlurFilter) {
-    app.stage.filters = [new PIXI.filters.KawaseBlurFilter(30, 10, true)];
+  // Create subtle background stars (no blur - added directly to stage first)
+  const starsContainer = new PIXI.Graphics();
+  app.stage.addChild(starsContainer);
+
+  const stars = [];
+  const numStars = 80;
+
+  for (let i = 0; i < numStars; i++) {
+    stars.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      radius: Math.random() * 1.5 + 0.5, // Small crisp stars
+      baseAlpha: Math.random() * 0.2 + 0.08, // Subtle: 0.08 to 0.28
+      twinkleSpeed: Math.random() * 0.5 + 0.2,
+      twinkleOffset: Math.random() * Math.PI * 2
+    });
   }
+
+  // Extra ultra-dim stars you can barely see
+  for (let i = 0; i < 100; i++) {
+    stars.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      radius: Math.random() * 0.5 + 0.3, // Tiny: 0.3 to 0.8px
+      baseAlpha: Math.random() * 0.06 + 0.02, // Barely visible: 0.02 to 0.08
+      twinkleSpeed: Math.random() * 0.3 + 0.1,
+      twinkleOffset: Math.random() * Math.PI * 2
+    });
+  }
+
+  // Pale blue dot - Earth in the top left
+  const earth = {
+    x: window.innerWidth * 0.12,
+    y: window.innerHeight * 0.15,
+    radius: 2.4,
+    baseAlpha: 0.45,
+    color: 0x6b8cae // Pale blue
+  };
 
   // Create color palette
   const colorPalette = new ColorPalette();
 
-  // Create orbs
+  // Container for sun orbs (blur applied only to this)
+  const sunContainer = new PIXI.Container();
+  app.stage.addChild(sunContainer);
+
+  // Apply blur only to sun container
+  if (window.PIXI.filters.KawaseBlurFilter) {
+    sunContainer.filters = [new PIXI.filters.KawaseBlurFilter(35, 12, true)];
+  }
+
+  // Create orbs inside sun container
   const orbs = [];
-  const numOrbs = 15;
-  const orbRadius = window.innerHeight / 4;
+  const numOrbs = 10;
 
   for (let i = 0; i < numOrbs; i++) {
-    const orb = new Orb(colorPalette.randomColor());
-    orb.radius = orbRadius;
-    app.stage.addChild(orb.graphics);
+    const orb = new Orb(colorPalette.randomColor(), i, numOrbs);
+    sunContainer.addChild(orb.graphics);
     orbs.push(orb);
   }
+
+  // Create center glow inside sun container
+  const centerGlow = new PIXI.Graphics();
+  sunContainer.addChild(centerGlow);
 
   // Animation
   if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     app.ticker.add(() => {
+      // Render subtle twinkling stars
+      const time = Date.now() * 0.001;
+      starsContainer.clear();
+      stars.forEach((star) => {
+        // Very subtle twinkle
+        const twinkle = Math.sin(time * star.twinkleSpeed + star.twinkleOffset) * 0.5 + 0.5;
+        const alpha = star.baseAlpha * (0.7 + twinkle * 0.3);
+        starsContainer.beginFill(0xffffff, alpha);
+        starsContainer.drawCircle(star.x, star.y, star.radius);
+        starsContainer.endFill();
+      });
+
+      // Pale blue dot - tiny Earth with subtle shimmer
+      const earthShimmer = Math.sin(time * 0.4) * 0.08;
+      starsContainer.beginFill(earth.color, earth.baseAlpha + earthShimmer);
+      starsContainer.drawCircle(earth.x, earth.y, earth.radius);
+      starsContainer.endFill();
+
       orbs.forEach((orb) => {
         orb.update();
         orb.render();
       });
+
+      // Update center glow - gets brighter/whiter as sun expands
+      const globalTime = Date.now() * 0.001;
+      const breathCycle = (Math.sin(globalTime * 0.15 - Math.PI / 2) + 1) / 2;
+
+      const originX = window.innerWidth * 0.78;
+      const originY = window.innerHeight * 0.78;
+
+      // Very subtle warmth shift - barely noticeable
+      const saturation = 95 - breathCycle * 10; // 95 -> 85 (stays very orange)
+      const lightness = 55 + breathCycle * 10;  // 55 -> 65 (gentle brighten)
+      const glowColor = hslToHex(25, saturation, lightness).replace('#', '0x');
+
+      // Large size - covers most of the sun
+      const maxExpansion = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+      const glowRadius = (100 + breathCycle * maxExpansion) * 0.7;
+
+      // Very transparent - just a hint
+      centerGlow.alpha = 0.15 + breathCycle * 0.1; // 0.15 -> 0.25
+
+      centerGlow.clear();
+      centerGlow.beginFill(parseInt(glowColor, 16));
+      centerGlow.drawCircle(originX, originY, glowRadius);
+      centerGlow.endFill();
     });
   } else {
+    // Static stars for reduced motion
+    stars.forEach((star) => {
+      starsContainer.beginFill(0xffffff, star.baseAlpha);
+      starsContainer.drawCircle(star.x, star.y, star.radius);
+      starsContainer.endFill();
+    });
+
     orbs.forEach((orb) => {
       orb.update();
       orb.render();
