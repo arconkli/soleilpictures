@@ -143,9 +143,10 @@ class Orb {
     this.y = random(this.bounds["y"].min, this.bounds["y"].max);
     this.scale = 1;
     this.fill = fill;
-    // Larger orbs that overlap to form cohesive sun shape
+    // Larger orbs that overlap to form cohesive sun shape (smaller on mobile)
     const sizeVariation = random(0.8, 1.4);
-    this.radius = (window.innerHeight / 3.5) * sizeVariation;
+    const isMobile = window.innerWidth < 768;
+    this.radius = (window.innerHeight / (isMobile ? 5 : 3.5)) * sizeVariation;
     this.xOff = random(0, 1000);
     this.yOff = random(0, 1000);
     // Slower animation for elegance
@@ -203,9 +204,10 @@ class Orb {
     // Use sine wave: 0 to 1 to 0 range for smooth breathing
     const breathCycle = (Math.sin(globalTime * 0.15 - Math.PI / 2) + 1) / 2;
 
-    // Expansion range: from small to almost filling page
-    const minExpansion = 100;
-    const maxExpansion = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+    // Expansion range: from small to almost filling page (smaller on mobile)
+    const isMobile = window.innerWidth < 768;
+    const minExpansion = isMobile ? 60 : 100;
+    const maxExpansion = Math.min(window.innerWidth, window.innerHeight) * (isMobile ? 0.5 : 0.8);
     const breathExpansion = minExpansion + breathCycle * (maxExpansion - minExpansion);
 
     // Each orb has a unique angle (spread around the sun)
@@ -227,8 +229,9 @@ class Orb {
     this.x = originX + radialX + driftX;
     this.y = originY + radialY + driftY;
 
-    // Scale also breathes - orbs stay large to overlap and form cohesive sun
-    const baseScale = 1.0 + breathCycle * 0.5; // 1.0 to 1.5 - bigger to overlap
+    // Scale also breathes - orbs stay large to overlap and form cohesive sun (smaller on mobile)
+    const mobileScale = isMobile ? 0.7 : 1.0;
+    const baseScale = mobileScale + breathCycle * (isMobile ? 0.3 : 0.5);
     const individualPulse = Math.sin(time * 0.8 + this.pulseOffset) * 0.08;
     this.scale = baseScale + individualPulse;
 
