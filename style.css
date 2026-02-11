@@ -213,12 +213,32 @@ body.projects-page {
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.project-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.genre-tag {
+  padding: 5px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  font-family: "aileron", sans-serif;
+}
+
 .project-description {
   font-size: 1.05rem;
   line-height: 1.8;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.9);
   letter-spacing: 0.3px;
   font-style: italic;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 
 /* Slide indicators */
