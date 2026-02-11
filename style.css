@@ -81,6 +81,7 @@ body {
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
+  z-index: 10;
 }
 
 /* Bottom navigation - Minimal */
@@ -95,6 +96,7 @@ body {
   padding: 16px 20px;
   font-family: "aileron", sans-serif;
   font-weight: 500;
+  z-index: 10;
 }
 
 .bottom-nav a {
@@ -121,160 +123,125 @@ body {
   transform: translateY(-2px);
 }
 
-/* Projects section */
-.projects-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 50px;
-  width: 100%;
-  max-width: 100vw;
+/* Projects page body */
+body.projects-page {
+  padding: 0;
+  display: block;
+  overflow-x: hidden;
+}
+
+/* Full-screen scroll-driven carousel */
+.projects-scroll-wrapper {
+  height: 300vh;
+  position: relative;
+}
+
+.projects-sticky {
+  position: sticky;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
 }
 
-.projects-title {
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: 0.5rem;
-  margin-top: 80px;
-  margin-bottom: 30px;
-  text-transform: uppercase;
-  color: var(--light-color);
-  font-family: "aileron";
-  text-shadow:
-    0 0 15px rgba(255, 255, 255, 0.4),
-    0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* Carousel */
-.projects-carousel {
+.projects-track {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  position: relative;
-  padding: 0 60px;
+  width: 300vw;
+  height: 100%;
+  will-change: transform;
 }
 
-.carousel-track {
-  display: flex;
-  gap: 30px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  padding: 20px 10px;
-  scrollbar-width: none;
-}
-
-.carousel-track::-webkit-scrollbar {
-  display: none;
-}
-
-.carousel-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  font-size: 1.5rem;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--transition-smooth);
-}
-
-.carousel-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-}
-
-.carousel-btn.prev {
-  left: 10px;
-}
-
-.carousel-btn.next {
-  right: 10px;
-}
-
-/* Project cards - Glassmorphism poster style */
-.project-card {
-  min-width: 320px;
-  max-width: 320px;
-  scroll-snap-align: center;
-  padding: 20px;
-  border-radius: 16px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  box-shadow:
-    var(--glass-shadow),
-    0 4px 16px rgba(0, 0, 0, 0.1);
-  transition: all var(--transition-smooth);
-  font-family: "aileron";
+.project-slide {
+  width: 100vw;
+  height: 100vh;
   flex-shrink: 0;
 }
 
-.project-card:hover {
-  transform: scale(1.03) translateY(-4px);
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.5);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.15),
-    0 0 30px rgba(255, 255, 255, 0.2);
-}
-
-.project-card img {
+.project-slide-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4rem;
   width: 100%;
-  height: 450px;
-  object-fit: cover;
-  border-radius: 12px;
+  height: 100%;
+  padding: 100px 60px 80px;
 }
 
-.project-card h3 {
-  margin-top: 14px;
-  letter-spacing: 2px;
+.project-poster {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.project-poster img {
+  max-height: 80vh;
+  max-width: 40vw;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+}
+
+.project-info {
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  font-family: "aileron", sans-serif;
+}
+
+.project-title {
+  font-size: 4.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4rem;
   color: var(--light-color);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  font-family: var(--font-family);
+  text-shadow:
+    0 0 30px rgba(255, 255, 255, 0.4),
+    0 0 60px rgba(255, 255, 255, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  line-height: 1.1;
 }
 
-.project-card p {
-  margin-top: 8px;
-  letter-spacing: 1px;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.9rem;
+.project-description {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.3px;
 }
 
-.details-btn {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: white;
-  padding: 12px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 25px;
+/* Slide indicators */
+.slide-indicators {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  z-index: 10;
+}
+
+.slide-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: transparent;
   cursor: pointer;
-  margin-top: 15px;
-  font-weight: 600;
-  letter-spacing: 1px;
   transition: all var(--transition-smooth);
+  padding: 0;
 }
 
-.details-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
+.slide-dot.active {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+.slide-dot:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 /* Input fields - Glassmorphism */
@@ -490,37 +457,35 @@ body {
       0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  .projects-carousel {
-    padding: 0 50px;
+  .project-slide-inner {
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 90px 24px 80px;
+    justify-content: flex-start;
+    text-align: center;
   }
 
-  .carousel-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 1.2rem;
+  .project-poster img {
+    max-height: 50vh;
+    max-width: 70%;
   }
 
-  .carousel-btn.prev {
-    left: 5px;
+  .project-info {
+    align-items: center;
+    max-width: 90%;
   }
 
-  .carousel-btn.next {
-    right: 5px;
+  .project-title {
+    font-size: 2.5rem;
+    letter-spacing: 0.2rem;
   }
 
-  .project-card {
-    min-width: 260px;
-    max-width: 260px;
-    padding: 16px;
-    border-radius: 14px;
+  .project-description {
+    font-size: 0.95rem;
   }
 
-  .project-card img {
-    height: 360px;
-  }
-
-  .projects-title {
-    font-size: 1.5rem;
+  .slide-indicators {
+    bottom: 60px;
   }
 
   .bottom-nav {

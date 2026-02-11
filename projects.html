@@ -25,7 +25,7 @@
   </script>
 
 </head>
-<body>
+<body class="projects-page">
 
   <!-- Canvas -->
   <canvas class="orb-canvas"></canvas>
@@ -36,32 +36,56 @@
   </div>
 
   <!-- Projects Section -->
-  <div class="projects-container">
-    <h2 class="projects-title">Our Projects</h2>
-    <div class="projects-carousel">
-      <button class="carousel-btn prev" aria-label="Previous project">&#8249;</button>
-      <div class="carousel-track">
-        <div class="project-card">
-          <img src="assets/YAHWEH_mock.PNG" alt="YAHWEH Poster">
-          <h3>YAHWEH</h3>
-          <p>After surviving a brutal execution and emerging from a mass grave with religious psychosis, a broken vagrant reimagines himself as the messiah Yahweh, waging a neon-soaked war against the mob that killed him and the corrupt church that wants to own him.</p>
-          <input type="password" class="password-input" placeholder="Enter Password" data-project-id="yahweh01">
-        </div>
-        <div class="project-card">
-          <img src="assets/Deep_Dive_poster_correct.jpg" alt="Deep Dive Poster">
-          <h3>Deep Dive</h3>
-          <p>Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.</p>
-          <input type="password" class="password-input" placeholder="Enter Password" data-project-id="84309562">
-        </div>
-        <div class="project-card">
-          <img src="assets/frankielosttime.png" alt="Lost Time Poster" style="object-position: top;">
-          <h3>Lost Time</h3>
-          <p>After stealing a time machine, a reckless drunk juggles trying to (literally)
-            live with his past self while going on adventures throughout time.</p>
-          <input type="password" class="password-input" placeholder="Enter Password" data-project-id="09268219">
-        </div>
+  <div class="projects-scroll-wrapper">
+    <div class="projects-sticky">
+      <div class="projects-track">
+
+        <section class="project-slide">
+          <div class="project-slide-inner">
+            <div class="project-poster">
+              <img src="assets/YAHWEH_mock.PNG" alt="YAHWEH Poster">
+            </div>
+            <div class="project-info">
+              <h2 class="project-title">YAHWEH</h2>
+              <p class="project-description">After surviving a brutal execution and emerging from a mass grave with religious psychosis, a broken vagrant reimagines himself as the messiah Yahweh, waging a neon-soaked war against the mob that killed him and the corrupt church that wants to own him.</p>
+              <input type="password" class="password-input" placeholder="Enter Password" data-project-id="yahweh01">
+            </div>
+          </div>
+        </section>
+
+        <section class="project-slide">
+          <div class="project-slide-inner">
+            <div class="project-poster">
+              <img src="assets/Deep_Dive_poster_correct.jpg" alt="Deep Dive Poster">
+            </div>
+            <div class="project-info">
+              <h2 class="project-title">Deep Dive</h2>
+              <p class="project-description">Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.</p>
+              <input type="password" class="password-input" placeholder="Enter Password" data-project-id="84309562">
+            </div>
+          </div>
+        </section>
+
+        <section class="project-slide">
+          <div class="project-slide-inner">
+            <div class="project-poster">
+              <img src="assets/frankielosttime.png" alt="Lost Time Poster">
+            </div>
+            <div class="project-info">
+              <h2 class="project-title">Lost Time</h2>
+              <p class="project-description">After stealing a time machine, a reckless drunk juggles trying to (literally) live with his past self while going on adventures throughout time.</p>
+              <input type="password" class="password-input" placeholder="Enter Password" data-project-id="09268219">
+            </div>
+          </div>
+        </section>
+
       </div>
-      <button class="carousel-btn next" aria-label="Next project">&#8250;</button>
+
+      <div class="slide-indicators">
+        <button class="slide-dot active" data-index="0" aria-label="Go to project 1"></button>
+        <button class="slide-dot" data-index="1" aria-label="Go to project 2"></button>
+        <button class="slide-dot" data-index="2" aria-label="Go to project 3"></button>
+      </div>
     </div>
   </div>
 
@@ -76,21 +100,19 @@
 // Password Protection Logic
 const passwordInputs = document.querySelectorAll('.password-input');
 
-// Store passwords for each project (replace with your actual passwords)
 const projectPasswords = {
-  "yahweh01": "REPLACE_WITH_PASSWORD", // Password for YAHWEH
-  "84309562": "verdant", // Password for Deep Dive
-  "09268219": "isneverfound", // Password for Lost Time
+  "yahweh01": "REPLACE_WITH_PASSWORD",
+  "84309562": "verdant",
+  "09268219": "isneverfound",
 };
 
 passwordInputs.forEach(input => {
   input.addEventListener('input', () => {
     const enteredPassword = input.value;
-    const projectId = input.dataset.projectId; // Get project ID
-    const correctPassword = projectPasswords[projectId]; // Retrieve password
+    const projectId = input.dataset.projectId;
+    const correctPassword = projectPasswords[projectId];
 
     if (enteredPassword === correctPassword) {
-      // Password correct, redirect to the project details page
       const projectDetailsUrl = `${projectId}.html`;
       window.location.href = projectDetailsUrl;
     }
@@ -98,23 +120,47 @@ passwordInputs.forEach(input => {
 });
   </script>
   <script>
-// Carousel Navigation
-const track = document.querySelector('.carousel-track');
-const prevBtn = document.querySelector('.carousel-btn.prev');
-const nextBtn = document.querySelector('.carousel-btn.next');
+// Scroll-Driven Horizontal Carousel
+(function() {
+  const wrapper = document.querySelector('.projects-scroll-wrapper');
+  const track = document.querySelector('.projects-track');
+  const dots = document.querySelectorAll('.slide-dot');
+  const slideCount = document.querySelectorAll('.project-slide').length;
 
-function getScrollAmount() {
-  const card = track.querySelector('.project-card');
-  return card.offsetWidth + 30; // card width + gap
-}
+  function updateCarousel() {
+    const wrapperTop = wrapper.getBoundingClientRect().top;
+    const scrollDistance = wrapper.offsetHeight - window.innerHeight;
+    const rawProgress = -wrapperTop / scrollDistance;
+    const progress = Math.max(0, Math.min(1, rawProgress));
 
-prevBtn.addEventListener('click', () => {
-  track.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
-});
+    const maxTranslate = (slideCount - 1) * window.innerWidth;
+    const translateX = progress * maxTranslate;
+    track.style.transform = `translateX(-${translateX}px)`;
 
-nextBtn.addEventListener('click', () => {
-  track.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
-});
+    // Update active dot
+    const activeIndex = Math.min(
+      slideCount - 1,
+      Math.round(progress * (slideCount - 1))
+    );
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('active', i === activeIndex);
+    });
+
+    requestAnimationFrame(updateCarousel);
+  }
+
+  requestAnimationFrame(updateCarousel);
+
+  // Dot click: scroll to that project
+  dots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      const index = parseInt(dot.dataset.index, 10);
+      const scrollDistance = wrapper.offsetHeight - window.innerHeight;
+      const targetScroll = wrapper.offsetTop + (index / (slideCount - 1)) * scrollDistance;
+      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    });
+  });
+})();
   </script>
 </body>
 </html>
