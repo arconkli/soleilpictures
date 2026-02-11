@@ -127,9 +127,9 @@ body {
   flex-direction: column;
   align-items: center;
   margin-top: 50px;
-  display: flex;
-  flex-wrap: wrap; /* Allow cards to wrap onto multiple rows if needed */
-  justify-content: center; /* Center cards horizontally */
+  width: 100%;
+  max-width: 100vw;
+  overflow: hidden;
 }
 
 .projects-title {
@@ -137,7 +137,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.5rem;
   margin-top: 80px;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
   text-transform: uppercase;
   color: var(--light-color);
   font-family: "aileron";
@@ -146,11 +146,71 @@ body {
     0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Project cards - Glassmorphism */
+/* Carousel */
+.projects-carousel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+  padding: 0 60px;
+}
+
+.carousel-track {
+  display: flex;
+  gap: 30px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 10px;
+  scrollbar-width: none;
+}
+
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 1.5rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-smooth);
+}
+
+.carousel-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.carousel-btn.prev {
+  left: 10px;
+}
+
+.carousel-btn.next {
+  right: 10px;
+}
+
+/* Project cards - Glassmorphism poster style */
 .project-card {
-  width: 500px;
-  margin: 20px;
-  padding: 24px;
+  min-width: 320px;
+  max-width: 320px;
+  scroll-snap-align: center;
+  padding: 20px;
   border-radius: 16px;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
@@ -161,6 +221,7 @@ body {
     0 4px 16px rgba(0, 0, 0, 0.1);
   transition: all var(--transition-smooth);
   font-family: "aileron";
+  flex-shrink: 0;
 }
 
 .project-card:hover {
@@ -174,7 +235,7 @@ body {
 
 .project-card img {
   width: 100%;
-  height: 200px;
+  height: 450px;
   object-fit: cover;
   border-radius: 12px;
 }
@@ -191,6 +252,7 @@ body {
   letter-spacing: 1px;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
 }
 
 .details-btn {
@@ -428,10 +490,33 @@ body {
       0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
+  .projects-carousel {
+    padding: 0 50px;
+  }
+
+  .carousel-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+
+  .carousel-btn.prev {
+    left: 5px;
+  }
+
+  .carousel-btn.next {
+    right: 5px;
+  }
+
   .project-card {
-    width: 90%;
-    padding: 18px;
+    min-width: 260px;
+    max-width: 260px;
+    padding: 16px;
     border-radius: 14px;
+  }
+
+  .project-card img {
+    height: 360px;
   }
 
   .projects-title {

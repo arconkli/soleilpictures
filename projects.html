@@ -38,18 +38,30 @@
   <!-- Projects Section -->
   <div class="projects-container">
     <h2 class="projects-title">Our Projects</h2>
-    <div class="project-card">
-      <img src="assets/deepdiveweb1.jpg" alt="Deep Dive Image">
-      <h3>Deep Dive</h3>
-      <p>Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.</p>
-      <input type="password" class="password-input" placeholder="Enter Password" data-project-id="84309562">
-    </div>
-    <div class="project-card">
-      <img src="assets/frankielosttime.png" alt="Moe Lost Time" style="object-position: top;">
-      <h3>Lost Time</h3>
-      <p>After stealing a time machine, a reckless drunk juggles trying to (literally)
-        live with his past self while going on adventures throughout time.</p>
-      <input type="password" class="password-input" placeholder="Enter Password" data-project-id="09268219">
+    <div class="projects-carousel">
+      <button class="carousel-btn prev" aria-label="Previous project">&#8249;</button>
+      <div class="carousel-track">
+        <div class="project-card">
+          <img src="assets/YAHWEH_mock.PNG" alt="YAHWEH Poster">
+          <h3>YAHWEH</h3>
+          <p>After surviving a brutal execution and emerging from a mass grave with religious psychosis, a broken vagrant reimagines himself as the messiah Yahweh, waging a neon-soaked war against the mob that killed him and the corrupt church that wants to own him.</p>
+          <input type="password" class="password-input" placeholder="Enter Password" data-project-id="yahweh01">
+        </div>
+        <div class="project-card">
+          <img src="assets/deepdiveweb1.jpg" alt="Deep Dive Poster">
+          <h3>Deep Dive</h3>
+          <p>Salva, an office worker, senses an unusual shift at his job; he realizes his coworkers are part of a clandestine experiment by a pharmaceutical company. His job is a facade, concealing a disturbing reality of mind-altering drug trials.</p>
+          <input type="password" class="password-input" placeholder="Enter Password" data-project-id="84309562">
+        </div>
+        <div class="project-card">
+          <img src="assets/frankielosttime.png" alt="Lost Time Poster" style="object-position: top;">
+          <h3>Lost Time</h3>
+          <p>After stealing a time machine, a reckless drunk juggles trying to (literally)
+            live with his past self while going on adventures throughout time.</p>
+          <input type="password" class="password-input" placeholder="Enter Password" data-project-id="09268219">
+        </div>
+      </div>
+      <button class="carousel-btn next" aria-label="Next project">&#8250;</button>
     </div>
   </div>
 
@@ -66,9 +78,9 @@ const passwordInputs = document.querySelectorAll('.password-input');
 
 // Store passwords for each project (replace with your actual passwords)
 const projectPasswords = {
-  "84309562": "verdant", // Password for project with ID 84309562
-  "09268219": "isneverfound", // Password for another project
-  // ... more passwords for other projects
+  "yahweh01": "REPLACE_WITH_PASSWORD", // Password for YAHWEH
+  "84309562": "verdant", // Password for Deep Dive
+  "09268219": "isneverfound", // Password for Lost Time
 };
 
 passwordInputs.forEach(input => {
@@ -83,6 +95,25 @@ passwordInputs.forEach(input => {
       window.location.href = projectDetailsUrl;
     }
   });
+});
+  </script>
+  <script>
+// Carousel Navigation
+const track = document.querySelector('.carousel-track');
+const prevBtn = document.querySelector('.carousel-btn.prev');
+const nextBtn = document.querySelector('.carousel-btn.next');
+
+function getScrollAmount() {
+  const card = track.querySelector('.project-card');
+  return card.offsetWidth + 30; // card width + gap
+}
+
+prevBtn.addEventListener('click', () => {
+  track.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
+});
+
+nextBtn.addEventListener('click', () => {
+  track.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
 });
   </script>
 </body>
