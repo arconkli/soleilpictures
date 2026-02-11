@@ -197,6 +197,33 @@ body.projects-page {
   font-family: "aileron", sans-serif;
 }
 
+.project-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: "aileron", sans-serif;
+}
+
+.project-medium {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.project-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .project-title {
   font-size: 4.5rem;
   font-weight: 700;
@@ -274,6 +301,71 @@ body.projects-page {
 .slide-dot:hover {
   background: rgba(255, 255, 255, 0.4);
   border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Slide counter */
+.slide-counter {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  font-family: "aileron", sans-serif;
+  font-size: 1rem;
+  font-weight: 300;
+  letter-spacing: 3px;
+  color: rgba(255, 255, 255, 0.5);
+  z-index: 10;
+}
+
+.slide-current {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
+
+.slide-separator {
+  margin: 0 4px;
+}
+
+/* Scroll hint */
+.scroll-hint {
+  position: absolute;
+  bottom: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+  opacity: 1;
+  transition: opacity 0.6s ease;
+}
+
+.scroll-hint.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scroll-hint span {
+  font-family: "aileron", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.scroll-arrow {
+  width: 16px;
+  height: 16px;
+  border-right: 1.5px solid rgba(255, 255, 255, 0.5);
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.5);
+  transform: rotate(45deg);
+  animation: scrollBounce 2s ease-in-out infinite;
+}
+
+@keyframes scrollBounce {
+  0%, 100% { transform: rotate(45deg) translateY(0); opacity: 0.5; }
+  50% { transform: rotate(45deg) translateY(6px); opacity: 1; }
 }
 
 /* Input fields - Glassmorphism */
@@ -511,6 +603,10 @@ body.projects-page {
     max-width: 90%;
   }
 
+  .project-meta {
+    justify-content: center;
+  }
+
   .project-title {
     font-size: 2.5rem;
     letter-spacing: 0.2rem;
@@ -518,6 +614,16 @@ body.projects-page {
 
   .project-description {
     font-size: 0.95rem;
+  }
+
+  .slide-counter {
+    top: 30px;
+    right: 20px;
+    font-size: 0.85rem;
+  }
+
+  .scroll-hint {
+    bottom: 100px;
   }
 
   .slide-indicators {

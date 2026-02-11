@@ -46,6 +46,10 @@
               <img src="assets/YAHWEH_mock.PNG" alt="YAHWEH Poster">
             </div>
             <div class="project-info">
+              <div class="project-meta">
+                <span class="project-medium">Feature Film</span>
+                <span class="project-status">In Development</span>
+              </div>
               <h2 class="project-title">YAHWEH</h2>
               <div class="project-genres">
                 <span class="genre-tag">Action</span>
@@ -63,6 +67,10 @@
               <img src="assets/Deep_Dive_poster_correct.jpg" alt="Deep Dive Poster">
             </div>
             <div class="project-info">
+              <div class="project-meta">
+                <span class="project-medium">Feature Film</span>
+                <span class="project-status">Pre-Production</span>
+              </div>
               <h2 class="project-title">Deep Dive</h2>
               <div class="project-genres">
                 <span class="genre-tag">Psychological</span>
@@ -81,6 +89,10 @@
               <img src="assets/frankielosttime.png" alt="Lost Time Poster">
             </div>
             <div class="project-info">
+              <div class="project-meta">
+                <span class="project-medium">TV Series</span>
+                <span class="project-status">Pre-Production</span>
+              </div>
               <h2 class="project-title">Lost Time</h2>
               <div class="project-genres">
                 <span class="genre-tag">Historical Dramedy</span>
@@ -92,6 +104,17 @@
           </div>
         </section>
 
+      </div>
+
+      <div class="slide-counter">
+        <span class="slide-current">01</span>
+        <span class="slide-separator">/</span>
+        <span class="slide-total">03</span>
+      </div>
+
+      <div class="scroll-hint" id="scrollHint">
+        <span>Scroll to explore</span>
+        <div class="scroll-arrow"></div>
       </div>
 
       <div class="slide-indicators">
@@ -139,6 +162,9 @@ passwordInputs.forEach(input => {
   const track = document.querySelector('.projects-track');
   const dots = document.querySelectorAll('.slide-dot');
   const slideCount = document.querySelectorAll('.project-slide').length;
+  const counterEl = document.querySelector('.slide-current');
+  const scrollHint = document.getElementById('scrollHint');
+  let hintHidden = false;
 
   function updateCarousel() {
     const wrapperTop = wrapper.getBoundingClientRect().top;
@@ -150,7 +176,7 @@ passwordInputs.forEach(input => {
     const translateX = progress * maxTranslate;
     track.style.transform = `translateX(-${translateX}px)`;
 
-    // Update active dot
+    // Update active dot + counter
     const activeIndex = Math.min(
       slideCount - 1,
       Math.round(progress * (slideCount - 1))
@@ -158,6 +184,13 @@ passwordInputs.forEach(input => {
     dots.forEach((dot, i) => {
       dot.classList.toggle('active', i === activeIndex);
     });
+    counterEl.textContent = String(activeIndex + 1).padStart(2, '0');
+
+    // Hide scroll hint after user starts scrolling
+    if (!hintHidden && progress > 0.02) {
+      scrollHint.classList.add('hidden');
+      hintHidden = true;
+    }
 
     requestAnimationFrame(updateCarousel);
   }
