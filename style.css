@@ -404,7 +404,7 @@ body.projects-page {
   transform: translateX(5px);
 }
 
-/* About Us page - Minimal */
+/* About Us page */
 .content {
   margin: 0 auto;
   line-height: 1.9;
@@ -414,51 +414,92 @@ body.projects-page {
   padding: 30px;
 }
 
+.content h2 {
+  font-family: var(--font-family);
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3rem;
+  color: var(--light-color);
+  text-shadow:
+    0 0 20px rgba(255, 255, 255, 0.3),
+    0 0 40px rgba(255, 255, 255, 0.15);
+  padding-bottom: 0.8rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 .company-section {
   margin-bottom: 40px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 2rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-.company-section h1 {
-  margin-bottom: 20px;
-  text-shadow:
-    0 0 15px rgba(255, 255, 255, 0.4),
-    0 2px 4px rgba(0, 0, 0, 0.2);
-  letter-spacing: 2px;
+.company-section p {
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.8;
 }
 
-/* Founders Section - Glassmorphism */
+/* Founders Section */
 .founders-section {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  flex-wrap: wrap;
+  gap: 14px;
   margin-top: 20px;
 }
 
 .founders-section h2 {
-  text-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
-  letter-spacing: 1px;
+  margin-bottom: 0.5rem;
 }
 
 .founder-container {
   width: 100%;
   cursor: pointer;
-  padding: 16px 0;
-  margin-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
   transition: all var(--transition-smooth);
 }
 
 .founder-container:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  padding-left: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
 }
 
 .founder-container.active-bio {
-  width: 100%;
-  border-color: rgba(255, 255, 255, 0.5);
-  display: block;
-  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.founder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.founder-header h3 {
+  letter-spacing: 1px;
+  color: var(--light-color);
+}
+
+.founder-chevron {
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid rgba(255, 255, 255, 0.5);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+  transform: rotate(-45deg);
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.founder-container.active-bio .founder-chevron {
+  transform: rotate(45deg);
 }
 
 .content a {
@@ -472,16 +513,22 @@ body.projects-page {
 }
 
 .bio {
-  display: none;
-  transition: all var(--transition-smooth);
-  padding: 14px 0;
-  margin-top: 10px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 0;
+  padding-top: 0;
   line-height: 1.7;
+  color: rgba(255, 255, 255, 0.8);
+  transition: max-height 0.5s ease, opacity 0.4s ease, margin-top 0.3s ease, padding-top 0.3s ease;
 }
 
 .bio.active {
-  display: block;
+  max-height: 500px;
   opacity: 1;
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Project Details Page - Glassmorphism */
@@ -563,14 +610,18 @@ body.projects-page {
     margin: 10px;
   }
 
-  .company-section h1,
-  .founders-section h2,
-  .founder h3 {
-    font-size: 1rem;
+  .content h2 {
+    font-size: 1.2rem;
+    letter-spacing: 0.15rem;
   }
 
   .company-section {
     margin-top: 100px;
+    padding: 1.2rem;
+  }
+
+  .founder-container {
+    padding: 16px 18px;
   }
 
   .logo-text {
