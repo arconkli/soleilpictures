@@ -172,14 +172,21 @@ body.projects-page {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.4),
+    0 0 80px rgba(255, 255, 255, 0.03),
+    inset 0 0 30px rgba(255, 255, 255, 0.02);
 }
 
 .project-poster img {
-  max-height: 80vh;
+  max-height: 75vh;
   max-width: 40vw;
   object-fit: contain;
-  border-radius: 8px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  border-radius: 6px;
 }
 
 .project-info {
@@ -202,13 +209,16 @@ body.projects-page {
     0 0 60px rgba(255, 255, 255, 0.2),
     0 2px 4px rgba(0, 0, 0, 0.3);
   line-height: 1.1;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .project-description {
   font-size: 1.05rem;
-  line-height: 1.7;
-  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.65);
   letter-spacing: 0.3px;
+  font-style: italic;
 }
 
 /* Slide indicators */
@@ -223,25 +233,27 @@ body.projects-page {
 }
 
 .slide-dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.5);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
   background: transparent;
   cursor: pointer;
-  transition: all var(--transition-smooth);
+  transition: all 0.4s ease;
   padding: 0;
 }
 
 .slide-dot.active {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+  width: 28px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
 }
 
 .slide-dot:hover {
-  background: rgba(255, 255, 255, 0.5);
-  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 /* Input fields - Glassmorphism */
@@ -465,9 +477,13 @@ body.projects-page {
     text-align: center;
   }
 
+  .project-poster {
+    padding: 8px;
+  }
+
   .project-poster img {
     max-height: 50vh;
-    max-width: 70%;
+    max-width: 70vw;
   }
 
   .project-info {
