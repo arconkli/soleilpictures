@@ -61,6 +61,13 @@ body {
 }
 
 /* Logo text */
+.logo-text h1 {
+  font-size: inherit;
+  font-weight: inherit;
+  margin: 0;
+  letter-spacing: inherit;
+}
+
 .logo-text {
   font-family: var(--font-family);
   font-size: 3rem;

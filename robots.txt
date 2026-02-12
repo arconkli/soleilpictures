@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://soleilpictures.com/sp_sitemap.xml
