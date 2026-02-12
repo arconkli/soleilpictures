@@ -261,6 +261,41 @@ passwordInputs.forEach(input => {
       window.scrollTo({ top: targetScroll, behavior: 'smooth' });
     });
   });
+
+  // Touch swipe support
+  let touchStartX = 0;
+  let touchStartY = 0;
+  const sticky = document.querySelector('.projects-sticky');
+
+  sticky.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  sticky.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+
+    // Only handle horizontal swipes (ignore vertical scrolling)
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      const scrollDistance = wrapper.offsetHeight - window.innerHeight;
+      const stepSize = scrollDistance / (slideCount - 1);
+      const currentScroll = window.scrollY - wrapper.offsetTop;
+      const currentIndex = Math.round(currentScroll / stepSize);
+
+      let targetIndex;
+      if (dx < 0) {
+        // Swipe left → next slide
+        targetIndex = Math.min(slideCount - 1, currentIndex + 1);
+      } else {
+        // Swipe right → previous slide
+        targetIndex = Math.max(0, currentIndex - 1);
+      }
+
+      const targetScroll = wrapper.offsetTop + targetIndex * stepSize;
+      window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    }
+  }, { passive: true });
 })();
   </script>
 </body>

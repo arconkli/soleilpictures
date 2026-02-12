@@ -623,10 +623,14 @@ body.projects-page {
       0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
+  body.projects-page .common-logo-position {
+    display: none;
+  }
+
   .project-slide-inner {
     flex-direction: column;
     gap: 1rem;
-    padding: 80px 20px 70px;
+    padding: 20px 20px 70px;
     justify-content: flex-start;
     text-align: center;
     overflow-y: auto;
@@ -694,9 +698,9 @@ body.projects-page {
   }
 
   .slide-counter {
-    top: 30px;
-    right: 20px;
-    font-size: 0.85rem;
+    top: 16px;
+    right: 16px;
+    font-size: 0.8rem;
   }
 
   .scroll-hint {
