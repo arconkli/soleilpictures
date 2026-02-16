@@ -26,6 +26,7 @@
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #000;
 }
 
 body {
@@ -631,7 +632,7 @@ body.projects-page {
     flex-direction: column;
     gap: 1rem;
     padding: 20px 20px 70px;
-    justify-content: flex-start;
+    justify-content: center;
     text-align: center;
     overflow-y: auto;
     scrollbar-width: none;
