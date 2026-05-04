@@ -96,6 +96,56 @@ body {
   overflow: hidden;
 }
 
+/* ─────────────────────────── Type utilities ─────────────────────────────── */
+
+.t-display { font-family: var(--font-display); font-weight: 700; font-size: 56px; line-height: 1.05; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-0); }
+.t-h1      { font-family: var(--font-display); font-weight: 700; font-size: 32px; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-0); }
+.t-h2      { font-family: var(--font-sans); font-weight: 600; font-size: 22px; line-height: 1.25; letter-spacing: -0.01em; color: var(--ink-0); }
+.t-h3      { font-family: var(--font-sans); font-weight: 600; font-size: 16px; line-height: 1.30; letter-spacing: -0.01em; color: var(--ink-0); }
+.t-eyebrow { font-family: var(--font-display); font-weight: 700; font-size: 10px; line-height: 1; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-3); }
+.t-body    { font-family: var(--font-sans); font-weight: 400; font-size: 14px; line-height: 1.5; color: var(--ink-1); }
+.t-ui      { font-family: var(--font-sans); font-weight: 500; font-size: 13px; line-height: 1.4; color: var(--ink-1); }
+.t-ui-sm   { font-family: var(--font-sans); font-weight: 500; font-size: 12px; line-height: 1.4; color: var(--ink-1); }
+.t-meta    { font-family: var(--font-sans); font-weight: 400; font-size: 11px; line-height: 1.4; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.t-mono    { font-family: var(--font-mono); font-weight: 500; font-size: 11px; line-height: 1.4; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* ───────────────────────── Surface base classes ─────────────────────────── */
+
+.surface-frosted {
+  background: rgba(20, 18, 15, 0.72);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+}
+[data-theme='light'] .surface-frosted {
+  background: rgba(255, 252, 246, 0.78);
+  border-color: rgba(10, 9, 8, 0.06);
+}
+
+.surface-card {
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+}
+
+.surface-glow-ring {
+  box-shadow: var(--shadow-glow);
+  outline: none;
+}
+
+/* ─────────────────────────── Motion defaults ────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: var(--dur-fast) !important;
+    animation-duration: var(--dur-fast) !important;
+    transform: none !important;
+  }
+}
+
 /* ──────────────────────────── Layout ────────────────────────────────────── */
 
 .app {
