@@ -154,95 +154,118 @@ body {
 
 .app {
   display: grid;
-  grid-template-columns: 224px 1fr;
+  grid-template-columns: 240px 1fr;
   height: 100vh;
   background: var(--bg-0);
 }
-.app.sb-collapsed { grid-template-columns: 52px 1fr; }
+.app.sb-collapsed { grid-template-columns: 56px 1fr; }
 
-/* ──────────────────────────── Sidebar ───────────────────────────────────── */
+/* ─────────────────────────────── Sidebar ────────────────────────────────── */
 
 .sidebar {
   background: var(--bg-1);
   border-right: 1px solid var(--line-1);
   display: flex;
   flex-direction: column;
-  padding: 14px 10px 10px;
-  gap: 2px;
-  overflow: hidden;
+  padding: 14px 8px 10px;
+  gap: 1px;
+  overflow-y: auto;
 }
 
-.sb-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 16px; }
-.sb-brand-mark {
-  width: 26px; height: 26px; border-radius: 5px;
-  background: var(--ink-0);
-  display: grid; place-items: center;
-  flex-shrink: 0;
+.sb-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 16px;
+  gap: 8px;
 }
-.sb-brand-name { font-size: 13px; font-weight: 600; color: var(--ink-0); letter-spacing: -0.01em; }
-.sb-brand-sub  { font-family: var(--font-mono); font-size: 9px; color: var(--ink-3); letter-spacing: .14em; margin-top: 2px; }
-
-.sb-section {
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
+.sb-collapse {
+  background: transparent;
+  border: 0;
   color: var(--ink-3);
-  padding: 14px 8px 6px;
-}
-
-.sb-item {
-  display: flex; align-items: center; gap: 9px;
-  padding: 6px 8px;
+  width: 28px; height: 28px;
   border-radius: var(--radius);
-  font-size: 12.5px;
+  display: grid; place-items: center;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.sb-collapse:hover { color: var(--ink-1); background: var(--bg-hov); }
+.sb-collapsed .sb-brand { justify-content: center; padding: 6px 0 16px; flex-direction: column; }
+.sb-collapsed .sb-collapse { width: 28px; height: 28px; }
+
+.sb-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 12px 6px;
+}
+.sb-group-label { letter-spacing: 0.18em; }
+.sb-group-add {
+  background: transparent;
+  border: 0;
+  color: var(--ink-3);
+  width: 22px; height: 22px;
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.sb-group-add:hover { color: var(--ink-1); background: var(--bg-hov); }
+
+.sb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius);
   color: var(--ink-1);
+  font: 500 12px/1.4 var(--font-sans);
   cursor: pointer;
   position: relative;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  user-select: none;
 }
-.sb-item:hover { background: var(--bg-hov); color: var(--ink-0); }
-.sb-item.active { background: var(--bg-act); color: var(--ink-0); }
-.sb-item.active::before {
-  content: ''; position: absolute; left: -10px; top: 6px; bottom: 6px;
-  width: 2px; background: var(--ink-0); border-radius: 0 2px 2px 0;
+.sb-row:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sb-row.active {
+  background: var(--soleil-soft);
+  color: var(--ink-0);
 }
-.sb-item svg { color: var(--ink-2); flex-shrink: 0; }
-.sb-item.active svg { color: var(--ink-0); }
-.sb-item-count {
-  margin-left: auto;
-  font-family: var(--font-mono); font-size: 10px;
+.sb-row.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px;
+  background: var(--soleil);
+  border-radius: 1px;
+}
+.sb-row-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-row-count { color: var(--ink-3); }
+.sb-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.sb-shared-tag {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-3);
   color: var(--ink-3);
+  letter-spacing: 0.12em;
 }
-
-.sb-board {
-  display: flex; align-items: center; gap: 8px;
-  padding: 5px 8px;
-  border-radius: var(--radius);
-  font-size: 12px;
-  color: var(--ink-1);
-  cursor: pointer;
-}
-.sb-board:hover { background: var(--bg-hov); color: var(--ink-0); }
-.sb-board.active { background: var(--bg-act); color: var(--ink-0); }
-.sb-tree { color: var(--ink-3); font-family: var(--font-mono); font-size: 10px; width: 10px; }
-.sb-board-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-.sb-team-row {
-  display: flex; align-items: center; gap: 4px;
-  padding: 4px 8px;
-}
-.sb-team-more { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); margin-left: 4px; }
 
 .sb-foot {
   margin-top: auto;
-  padding: 10px 6px 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 8px 4px;
   border-top: 1px solid var(--line-1);
-  display: flex; align-items: center; gap: 9px;
 }
-.sb-me-name { font-size: 12px; font-weight: 500; color: var(--ink-0); }
-.sb-me-org  { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); }
+.sb-me { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.sb-me-name { font: 500 13px/1.4 var(--font-sans); color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-me-org  { color: var(--ink-3); }
 
-.sb-collapsed .sb-brand { justify-content: center; padding: 4px 0 16px; }
+.sb-collapsed .sb-group,
+.sb-collapsed .sb-row,
+.sb-collapsed .sb-me { display: none; }
+.sb-collapsed .sb-foot { justify-content: center; padding: 12px 0 4px; }
 
 /* ──────────────────────────── Main ──────────────────────────────────────── */
 
@@ -1835,17 +1858,6 @@ body {
 /* Strokes layer */
 .strokes-layer { color: inherit; }
 
-/* Shared workspace tag */
-.sb-shared-tag {
-  font-family: var(--font-mono); font-size: 8.5px;
-  letter-spacing: .14em;
-  color: var(--ink-3);
-  background: var(--bg-3);
-  padding: 1px 4px;
-  border-radius: 3px;
-  margin-left: auto;
-}
-
 /* ──────────────────────────── Phase 4.7: pan / select-blue / list / files ─ */
 
 /* Kill native selection blue on cards (but keep editable regions selectable) */
@@ -1912,23 +1924,6 @@ body {
 }
 .ic .ic-cap.is-placeholder { opacity: 0; transition: opacity .15s; }
 .ic:hover .ic-cap.is-placeholder, .ic .ic-cap.is-editing { opacity: .8; }
-
-/* Sidebar section "+" */
-.sb-section {
-  display: flex; align-items: center; justify-content: space-between;
-}
-.sb-section-plus {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: var(--ink-3);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 0 4px;
-  border-radius: 3px;
-  line-height: 1;
-}
-.sb-section-plus:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 /* List view — files section */
 .list-files {

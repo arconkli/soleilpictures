@@ -24,7 +24,7 @@ test('stale magic-link URLs are cleared without poisoning the auth session', asy
 test('local QA mode opens a usable Studio canvas', async ({ page }) => {
   await page.goto('/?local=1');
 
-  await expect(page.getByText('Soleil', { exact: true })).toBeVisible();
+  await expect(page.locator('.sb-brand')).toBeVisible();
   await expect(page.getByRole('main').getByText('Studio', { exact: true })).toBeVisible();
   await expect(page.getByTitle('Add note')).toBeVisible();
   await expect(page.locator('.inbox-title', { hasText: 'Inbox' })).toBeVisible();
@@ -48,7 +48,7 @@ test('local QA mode can add a note, switch views, and toggle chrome', async ({ p
   await page.getByTitle('Toggle theme').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
-  await page.getByTitle('Collapse').click();
+  await page.getByTitle('Collapse sidebar').click();
   await expect(page.locator('.app')).toHaveClass(/sb-collapsed/);
 });
 
