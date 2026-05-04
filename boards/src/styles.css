@@ -28,6 +28,8 @@
   --soleil-soft:   rgba(212,160,74,.14);
   --soleil-glow:   0 0 24px rgba(212,160,74,.18);
 
+  --ink-error: #e08b8b;       /* desaturated rose for warm-dark errors */
+
   --accent:  var(--soleil);
 
   --radius:    4px;
@@ -74,6 +76,8 @@
 
   --soleil:      #a37822;
   --soleil-soft: rgba(163,120,34,.10);
+
+  --ink-error: #b04a4a;       /* darker rose for cream backgrounds */
 
   --grid-line: rgba(10,9,8,.04);
   --grid-dot:  rgba(10,9,8,.07);
@@ -1329,6 +1333,7 @@ body {
   gap: 24px;
   text-align: center;
 }
+/* Deliberately bumps .t-eyebrow color from --ink-3 → --ink-2 so the auth subtitle reads. */
 .auth-eyebrow { color: var(--ink-2); }
 .auth-form { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 360px; align-items: stretch; }
 .auth-input {
@@ -1358,7 +1363,7 @@ body {
 .auth-btn:hover:not(:disabled) { box-shadow: var(--shadow-1); transform: translateY(-1px); }
 .auth-btn:active:not(:disabled) { transform: translateY(0) scale(0.99); }
 .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.auth-error { color: #e08b8b; }
+.auth-error { color: var(--ink-error); }
 .auth-hint  { color: var(--ink-3); }
 .auth-foot  { position: absolute; bottom: 24px; left: 0; right: 0; color: var(--ink-3); }
 .auth-link  { background: transparent; border: 0; color: var(--soleil); cursor: pointer; font: 500 13px/1 var(--font-sans); padding: 8px 12px; }

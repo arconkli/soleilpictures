@@ -177,9 +177,8 @@ function SignIn() {
             <div className="auth-hint t-meta">We'll email you a link to sign in.</div>
           </form>
         )}
-
-        <div className="auth-foot t-meta">© Soleil Pictures</div>
       </div>
+      <div className="auth-foot t-meta">© Soleil Pictures</div>
     </div>
   );
 }
