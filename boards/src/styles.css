@@ -3161,15 +3161,30 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
   backdrop-filter: blur(20px) saturate(1.2);
   flex-shrink: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   font-family: var(--font-sans);
   position: sticky; top: 0; z-index: 40;
   opacity: 0.92;
   transition: opacity var(--dur-base) var(--ease);
 }
+.doc-tb::-webkit-scrollbar { display: none; }
 [data-theme='light'] .doc-tb { background: rgba(255,252,246,.82); }
 .doc-tb:hover { opacity: 1; }
 .doc-tb:focus-within { opacity: 1; }
+/* Children must not shrink below their natural width — otherwise they'd
+   collapse instead of letting the bar scroll horizontally. */
+.doc-tb > * { flex-shrink: 0; }
+
+/* Pane-mode (narrow doc-card-modal-side) — tighten everything so the
+   bar still feels usable when only ~320–600px wide. */
+.doc-card-modal-side .doc-tb { height: 40px; padding: 0 10px; gap: 2px; }
+.doc-card-modal-side .doc-tb-btn { width: 26px; height: 26px; }
+.doc-card-modal-side .doc-tb-select { padding: 0 18px 0 6px; height: 26px; max-width: 90px; }
+.doc-card-modal-side .doc-tb-sep { margin: 0 2px; height: 16px; }
+.doc-card-modal-side .doc-tb-spacer { display: none; }
 .doc-tb-btn {
   appearance: none; border: 0; background: transparent;
   width: 30px; height: 30px;
@@ -3254,16 +3269,20 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   width: 100%;
   max-width: 816px;
   min-height: 1056px;
-  background: #faf7f0;
-  color: #1a1612;
-  border: 1px solid rgba(0,0,0,.08);
+  /* Dark theme = warm dark paper that lifts off the canvas (never pure white).
+     Light theme override below switches to warm cream (never pure white either). */
+  background: #1c1b18;
+  color: #e8e3d6;
+  border: 1px solid var(--line-2);
   border-radius: 4px;
   /* 1" margins all around — that's 96px. */
   padding: 96px;
   box-shadow: var(--shadow-2);
 }
 [data-theme='light'] .doc-editor-wrap {
-  background: #ffffff;
+  background: #faf7f0;
+  color: #1a1612;
+  border: 1px solid rgba(0,0,0,.08);
   box-shadow: var(--shadow-1);
 }
 /* Tighter margins for narrower viewports (especially the docked side
@@ -3290,15 +3309,15 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   font-family: aileron, -apple-system, system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.72;
-  color: #1a1612;
+  color: #e8e3d6;
   letter-spacing: -0.003em;
   caret-color: var(--soleil);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-[data-theme='light'] .tt-editor { color: #0a0908; }
-/* Soleil-tinted selection on the cream paper. */
+[data-theme='light'] .tt-editor { color: #1a1612; }
+/* Soleil-tinted selection. */
 .tt-editor ::selection { background: rgba(212,160,74,.28); color: inherit; }
 .tt-editor > :first-child { margin-top: 0; }
 .tt-editor h1, .tt-editor h2, .tt-editor h3,
@@ -3307,13 +3326,15 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   letter-spacing: -0.012em;
   line-height: 1.2;
   margin: 1.5em 0 .4em;
-  color: #0a0807;
+  color: #f5f1e8;
 }
 [data-theme='light'] .tt-editor h1, [data-theme='light'] .tt-editor h2,
 [data-theme='light'] .tt-editor h3, [data-theme='light'] .tt-editor h4,
-[data-theme='light'] .tt-editor h5, [data-theme='light'] .tt-editor h6 { color: #0a0908; }
-.tt-editor a { color: #8a6020; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
-.tt-editor a:hover { color: #5a3e10; }
+[data-theme='light'] .tt-editor h5, [data-theme='light'] .tt-editor h6 { color: #0a0807; }
+.tt-editor a { color: var(--soleil); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.tt-editor a:hover { color: #f5c075; }
+[data-theme='light'] .tt-editor a { color: #8a6020; }
+[data-theme='light'] .tt-editor a:hover { color: #5a3e10; }
 .tt-editor h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.025em; }
 .tt-editor h2 { font-size: 25px; font-weight: 700; }
 .tt-editor h3 { font-size: 19px; font-weight: 600; }
