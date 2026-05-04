@@ -15,13 +15,14 @@ import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { getOrCreatePageContent, addBookmark } from '../lib/docState.js';
 import { uploadImage } from '../lib/uploads.js';
-import { migrateBookmarksToLinks } from '../lib/links.js';
+import { migrateBookmarksToLinks, getLink } from '../lib/links.js';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
 import { BlockHandleExtension } from './DocBlockHandle.jsx';
 import { useFeedback } from './AppFeedback.jsx';
+import { LinkPopover } from './LinkPopover.jsx';
 
 // Comprehensive keyboard shortcuts beyond the StarterKit defaults. Mirrors
 // what users expect from Google Docs / Notion.
@@ -62,12 +63,27 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness }) {
+export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget }) {
   const fragment = pageId ? getOrCreatePageContent(ydoc, pageId, scope) : null;
   // Held so editorProps drop/paste handlers (constructed at editor-init time,
   // before `editor` exists) can reach the live instance.
   const editorRef = useRef(null);
   const feedback = useFeedback();
+  const [linkPop, setLinkPop] = useState(null);
+
+  const handleEditorClick = (e) => {
+    const el = e.target.closest?.('[data-link-id]');
+    if (!el) return;
+    const linkId = el.dataset.linkId;
+    const link = getLink(ydoc, linkId);
+    if (!link) return;
+    e.preventDefault();
+    if (link.targets.length === 1) {
+      onNavigateTarget?.(link.targets[0]);
+    } else {
+      setLinkPop({ anchor: el.getBoundingClientRect(), link });
+    }
+  };
 
   // Upload an image File and insert it at `pos` (or current selection if null).
   const uploadAndInsert = async (editor, file, pos = null) => {
@@ -237,13 +253,21 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
 
   return (
-    <div className="doc-editor-wrap">
+    <div className="doc-editor-wrap" onClick={handleEditorClick}>
       {/* No floating menus — they crowded the cursor. Format from the top
           toolbar (always visible) or right-click for a context menu. */}
       <DocEditorContextMenu editor={editor}
                             onRequestLink={onRequestLink}
                             onStartComment={onStartComment} />
       <EditorContent editor={editor} />
+      {linkPop && (
+        <LinkPopover
+          anchor={linkPop.anchor}
+          link={linkPop.link}
+          onNavigate={(t) => { setLinkPop(null); onNavigateTarget?.(t); }}
+          onClose={() => setLinkPop(null)}
+        />
+      )}
     </div>
   );
 }
