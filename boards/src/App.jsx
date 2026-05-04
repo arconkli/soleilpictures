@@ -11,7 +11,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo } from './lib/icons.js';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -938,77 +938,54 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       <main className="main">
         <div className="topbar">
-          <button className="tb-btn icon ghost" onClick={() => setTweak('compactSidebar', !tweak.compactSidebar)} title="Collapse">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3 V11 M6 4 L9 7 L6 10" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
-          <div className="crumbs">
-            {crumbs.map((c, i) => (
-              <React.Fragment key={`${c.id}-${i}`}>
-                {i > 0 && <span className="sep">/</span>}
-                <span className={`crumb ${i === crumbs.length - 1 ? 'here' : 'clk'}`} onClick={() => goTo(i)}>{c.name}</span>
-              </React.Fragment>
-            ))}
+          <div className="tb-left">
+            <div className="crumbs">
+              {crumbs.map((c, i) => (
+                <React.Fragment key={`${c.id}-${i}`}>
+                  {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
+                  <span className={`crumb ${i === crumbs.length - 1 ? 'here' : 'clk'}`} onClick={() => goTo(i)}>{c.name}</span>
+                </React.Fragment>
+              ))}
+            </div>
           </div>
 
-          <div className="view-switch">
-            <button className={view === 'canvas' ? 'active' : ''} onClick={() => setView('canvas')} title="Canvas view">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.1" fill="none"/><circle cx="4" cy="4" r=".8" fill="currentColor"/><circle cx="8" cy="6" r=".8" fill="currentColor"/><circle cx="5" cy="8.5" r=".8" fill="currentColor"/></svg>
-              Canvas
-            </button>
-            <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')} title="List view">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="4" height="4" stroke="currentColor" strokeWidth="1.1" fill="none"/><rect x="6.5" y="1.5" width="4" height="4" stroke="currentColor" strokeWidth="1.1" fill="none"/><rect x="1.5" y="6.5" width="4" height="4" stroke="currentColor" strokeWidth="1.1" fill="none"/><rect x="6.5" y="6.5" width="4" height="4" stroke="currentColor" strokeWidth="1.1" fill="none"/></svg>
-              List
-            </button>
-            {/* Doc-as-board toggle removed — docs are now canvas cards. The
-                view='doc' routing still exists for back-compat with any docs
-                created before the card-mode change. */}
+          <div className="tb-center">
+            <div className="view-pill">
+              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')}>Canvas</button>
+              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')}>List</button>
+            </div>
           </div>
 
-          <div className="tb-spacer" />
-          <button className="tb-btn icon ghost" title="Undo (⌘Z)" disabled={!yb.canUndo} onClick={() => mainMutators.undo?.()}>
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M3 6 H9 A3 3 0 0 1 9 12 H7 M3 6 L6 3 M3 6 L6 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-          </button>
-          <button className="tb-btn icon ghost" title="Redo (⌘⇧Z)" disabled={!yb.canRedo} onClick={() => mainMutators.redo?.()}>
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M10 6 H4 A3 3 0 0 0 4 12 H6 M10 6 L7 3 M10 6 L7 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-          </button>
-          <button className="tb-btn icon ghost" title="Version history" onClick={() => setHistoryOpen(true)}>
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M6.5 4 V6.5 L8.5 7.5" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/></svg>
-          </button>
-          <div className="tb-divider" />
-          <TopbarAddMenu onAddBoard={() => addNewBoard()} onAddDoc={() => addNewDoc()} onLinkBoard={() => setPickerOpen(true)} />
-          <button className="tb-btn primary" title="Invite someone to this workspace" onClick={inviteToWorkspace}>
-            Share
-          </button>
-          <button className="tb-btn icon ghost" title="Toggle theme"
-                  onClick={() => setTweak('theme', tweak.theme === 'dark' ? 'light' : 'dark')}>
-            {tweak.theme === 'dark' ? (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M11 8.5 A4.5 4.5 0 1 1 5.5 3 A3.5 3.5 0 0 0 11 8.5 Z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-                <path d="M7 1 V2.5 M7 11.5 V13 M1 7 H2.5 M11.5 7 H13 M2.6 2.6 L3.6 3.6 M10.4 10.4 L11.4 11.4 M2.6 11.4 L3.6 10.4 M10.4 3.6 L11.4 2.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-              </svg>
-            )}
-          </button>
-          <PresenceStack getAwareness={yb.getAwareness} />
-          <button className="tb-btn icon ghost"
-                  onClick={() => splitId ? setSplitId(null) : setSplitPickerOpen(true)}
-                  title={splitId ? 'Close split view' : 'Pin alongside…'}>
-            {splitId ? (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
-                <path d="M3.5 5 L5.5 7 L3.5 9 M10.5 5 L8.5 7 L10.5 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
-                <path d="M7 2 V12" stroke="currentColor" strokeWidth="1.2"/>
-              </svg>
-            )}
-          </button>
-          <button className="tb-btn ghost" onClick={signOut} title="Sign out">Sign out</button>
+          <div className="tb-right">
+            <button className="tb-icon" title="Undo (⌘Z)" disabled={!yb.canUndo} onClick={() => mainMutators.undo?.()}>
+              <Icon as={Undo} size={16} />
+            </button>
+            <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!yb.canRedo} onClick={() => mainMutators.redo?.()}>
+              <Icon as={Redo} size={16} />
+            </button>
+            <button className="tb-icon" title="Version history" onClick={() => setHistoryOpen(true)}>
+              <Icon as={History} size={16} />
+            </button>
+            <span className="tb-divider" aria-hidden="true" />
+            <PresenceStack getAwareness={yb.getAwareness} />
+            <span className="tb-divider" aria-hidden="true" />
+            <TopbarAddMenu onAddBoard={() => addNewBoard()} onAddDoc={() => addNewDoc()} onLinkBoard={() => setPickerOpen(true)} />
+            <button className="tb-btn" onClick={inviteToWorkspace} title="Invite someone to this workspace">
+              <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
+            </button>
+            <button className="tb-icon" title="Toggle theme"
+                    onClick={() => setTweak('theme', tweak.theme === 'dark' ? 'light' : 'dark')}>
+              <Icon as={tweak.theme === 'dark' ? Sun : Moon} size={16} />
+            </button>
+            <button className="tb-icon"
+                    onClick={() => splitId ? setSplitId(null) : setSplitPickerOpen(true)}
+                    title={splitId ? 'Close split view' : 'Pin alongside…'}>
+              <Icon as={Columns2} size={16} />
+            </button>
+            <button className="tb-icon" onClick={signOut} title="Sign out">
+              <Icon as={LogOut} size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Always render the same outer container so toggling split doesn't

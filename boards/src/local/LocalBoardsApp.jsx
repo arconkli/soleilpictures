@@ -5,7 +5,7 @@ import { BoardPicker } from '../components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon } from '../lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut } from '../lib/icons.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS, INBOX_SEED } from '../data.js';
 
@@ -557,41 +557,38 @@ export function LocalBoardsApp({ user, signOut }) {
 
       <main className="main">
         <div className="topbar">
-          <button className="tb-btn icon ghost" onClick={() => setTweak('compactSidebar', !tweak.compactSidebar)} title="Collapse">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3 V11 M6 4 L9 7 L6 10" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
-          <div className="crumbs">
-            {crumbs.map((crumb, index) => (
-              <React.Fragment key={`${crumb.id}-${index}`}>
-                {index > 0 && <span className="sep">/</span>}
-                <span className={`crumb ${index === crumbs.length - 1 ? 'here' : 'clk'}`} onClick={() => goTo(index)}>{crumb.name}</span>
-              </React.Fragment>
-            ))}
+          <div className="tb-left">
+            <div className="crumbs">
+              {crumbs.map((crumb, index) => (
+                <React.Fragment key={`${crumb.id}-${index}`}>
+                  {index > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
+                  <span className={`crumb ${index === crumbs.length - 1 ? 'here' : 'clk'}`} onClick={() => goTo(index)}>{crumb.name}</span>
+                </React.Fragment>
+              ))}
+            </div>
           </div>
-          <div className="view-switch">
-            <button className={view === 'canvas' ? 'active' : ''} onClick={() => setView('canvas')} title="Canvas view">Canvas</button>
-            <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')} title="List view">List</button>
+
+          <div className="tb-center">
+            <div className="view-pill">
+              <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')}>Canvas</button>
+              <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')}>List</button>
+            </div>
           </div>
-          <div className="tb-spacer" />
-          <LocalTopbarAddMenu onAddBoard={() => addNewBoard()} onLinkBoard={() => setPickerOpen(true)} />
-          <button
-            className="tb-btn icon ghost"
-            title="Toggle theme"
-            aria-label="Toggle theme"
-            onClick={() => setTweak('theme', tweak.theme === 'dark' ? 'light' : 'dark')}
-          >
-            {tweak.theme === 'dark' ? (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M11 8.5 A4.5 4.5 0 1 1 5.5 3 A3.5 3.5 0 0 0 11 8.5 Z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-                <path d="M7 1 V2.5 M7 11.5 V13 M1 7 H2.5 M11.5 7 H13 M2.6 2.6 L3.6 3.6 M10.4 10.4 L11.4 11.4 M2.6 11.4 L3.6 10.4 M10.4 3.6 L11.4 2.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-              </svg>
-            )}
-          </button>
-          <button className="tb-btn ghost" onClick={signOut} title="Exit local QA">Exit QA</button>
+
+          <div className="tb-right">
+            <LocalTopbarAddMenu onAddBoard={() => addNewBoard()} onLinkBoard={() => setPickerOpen(true)} />
+            <button
+              className="tb-icon"
+              title="Toggle theme"
+              aria-label="Toggle theme"
+              onClick={() => setTweak('theme', tweak.theme === 'dark' ? 'light' : 'dark')}
+            >
+              <Icon as={tweak.theme === 'dark' ? Sun : Moon} size={16} />
+            </button>
+            <button className="tb-icon" onClick={signOut} title="Exit local QA">
+              <Icon as={LogOut} size={16} />
+            </button>
+          </div>
         </div>
 
         {view === 'canvas' ? (

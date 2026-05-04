@@ -52,4 +52,9 @@ export {
   FolderOpen,
   FileText,
   MoreHorizontal,
+  Sun,
+  Moon,
+  History,
+  Columns2,
+  LogOut,
 } from 'lucide-react';
