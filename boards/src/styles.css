@@ -458,12 +458,12 @@ body {
 }
 .cursor-flag {
   position: absolute; top: 18px; left: 12px;
-  padding: 2px 7px;
-  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
-  color: #0a0a0c;
-  border-radius: 3px;
+  padding: 3px 8px;
+  font: 600 11px/1.2 var(--font-sans);
+  color: var(--bg-0);
+  border-radius: var(--radius);
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
 }
 
 /* Floating tools (left center) */
@@ -4225,22 +4225,26 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 /* Presence — small overlapping avatar stack in the topbar */
 .presence-stack {
   display: inline-flex; align-items: center;
-  margin-right: 8px;
 }
-.presence-stack .presence-dot + .presence-dot { margin-left: -6px; }
+.presence-stack .presence-dot + .presence-dot { margin-left: -8px; }
 .presence-dot {
   display: inline-grid; place-items: center;
-  width: 22px; height: 22px;
+  width: 24px; height: 24px;
   border-radius: 50%;
-  border: 2px solid var(--bg-1);
-  font-family: var(--font-sans);
-  font-size: 10.5px; font-weight: 700;
-  color: #0a0a0c;
+  border: 1.5px solid var(--bg-1);
+  font: 600 11px/1 var(--font-sans);
+  color: var(--bg-0);
   user-select: none;
   cursor: default;
   box-shadow: 0 1px 2px rgba(0,0,0,.25);
+  transition: transform var(--dur-fast) var(--ease);
 }
-.presence-overflow { background: var(--bg-3); color: var(--ink-1); }
+.presence-dot:hover { transform: translateY(-1px); z-index: 1; }
+.presence-overflow {
+  background: var(--bg-3);
+  color: var(--ink-1);
+  border-color: var(--soleil);
+}
 
 /* ─────── Doc card on canvas (rich, openable) ─────── */
 .doc-card {
