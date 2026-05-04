@@ -94,11 +94,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
 
   const pickBoardEmbed = (editor) => {
     if (!onRequestBoardEmbed) {
-      // Fallback: a quick prompt accepting a board id (or paste from URL).
-      // eslint-disable-next-line no-alert
-      const id = window.prompt('Board ID to embed');
-      if (!id) return;
-      editor.chain().focus().insertContent({ type: 'boardEmbed', attrs: { boardId: id.trim() } }).run();
+      console.warn('Board embed picker not wired up — onRequestBoardEmbed prop missing');
       return;
     }
     onRequestBoardEmbed((picked) => {
