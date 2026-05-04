@@ -1,0 +1,355 @@
+// Tiptap editor for a single doc page. Binds to the Y.XmlFragment for that
+// page via the Collaboration extension, so every keystroke flows through the
+// per-board Y.Doc (and saves on the existing 250ms snapshot debounce).
+//
+// Single editor instance per (ydoc, pageId). When pageId changes the editor
+// is rebuilt — Tiptap's Collaboration extension cannot re-bind to a different
+// fragment on the same instance.
+
+import { useEffect, useRef, useState } from 'react';
+import { EditorContent, useEditor } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
+import Link from '@tiptap/extension-link';
+import Typography from '@tiptap/extension-typography';
+import Placeholder from '@tiptap/extension-placeholder';
+import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import { getOrCreatePageContent, addBookmark } from '../lib/docState.js';
+import { uploadImage } from '../lib/uploads.js';
+import { baseDocExtensions } from './docExtensions/baseExtensions.js';
+import { makeSlashExtension } from './DocSlashMenu.jsx';
+import { FindHighlightExtension } from './DocFindReplace.jsx';
+import { BlockHandleExtension } from './DocBlockHandle.jsx';
+import { useFeedback } from './AppFeedback.jsx';
+
+// Comprehensive keyboard shortcuts beyond the StarterKit defaults. Mirrors
+// what users expect from Google Docs / Notion.
+const ExtraShortcuts = Extension.create({
+  name: 'soleilDocShortcuts',
+  addKeyboardShortcuts() {
+    const headings = (level) => () => this.editor.chain().focus().toggleHeading({ level }).run();
+    return {
+      // Headings: ⌘⌥1..6
+      'Mod-Alt-1': headings(1),
+      'Mod-Alt-2': headings(2),
+      'Mod-Alt-3': headings(3),
+      'Mod-Alt-4': headings(4),
+      'Mod-Alt-5': headings(5),
+      'Mod-Alt-6': headings(6),
+      'Mod-Alt-0': () => this.editor.chain().focus().setParagraph().run(),
+      // Lists: ⌘⇧7 / ⌘⇧8 / ⌘⇧9 (Google Docs convention)
+      'Mod-Shift-7': () => this.editor.chain().focus().toggleOrderedList().run(),
+      'Mod-Shift-8': () => this.editor.chain().focus().toggleBulletList().run(),
+      'Mod-Shift-9': () => this.editor.chain().focus().toggleTaskList().run(),
+      // Strikethrough: ⌘⇧X
+      'Mod-Shift-x': () => this.editor.chain().focus().toggleStrike().run(),
+      // Blockquote: ⌘⇧.
+      'Mod-Shift-.': () => this.editor.chain().focus().toggleBlockquote().run(),
+      // Code: ⌘E (inline) — matches Notion
+      'Mod-e': () => this.editor.chain().focus().toggleCode().run(),
+      // Highlight: ⌘⇧H
+      'Mod-Shift-h': () => this.editor.chain().focus().toggleHighlight({ color: '#fff7a8' }).run(),
+      // Alignment: ⌘⇧L / E / R / J (Google Docs)
+      'Mod-Shift-l': () => this.editor.chain().focus().setTextAlign('left').run(),
+      'Mod-Shift-e': () => this.editor.chain().focus().setTextAlign('center').run(),
+      'Mod-Shift-r': () => this.editor.chain().focus().setTextAlign('right').run(),
+      'Mod-Shift-j': () => this.editor.chain().focus().setTextAlign('justify').run(),
+      // Subscript/superscript: ⌘. / ⌘,
+      'Mod-.': () => this.editor.chain().focus().toggleSuperscript().run(),
+      'Mod-,': () => this.editor.chain().focus().toggleSubscript().run(),
+    };
+  },
+});
+
+export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness }) {
+  const fragment = pageId ? getOrCreatePageContent(ydoc, pageId, scope) : null;
+  // Held so editorProps drop/paste handlers (constructed at editor-init time,
+  // before `editor` exists) can reach the live instance.
+  const editorRef = useRef(null);
+  const feedback = useFeedback();
+
+  // Upload an image File and insert it at `pos` (or current selection if null).
+  const uploadAndInsert = async (editor, file, pos = null) => {
+    if (!file || !file.type?.startsWith('image/')) return;
+    if (!workspaceId || !userId) return;
+    try {
+      const payload = await uploadImage({ file, workspaceId, userId });
+      if (pos != null) {
+        editor.chain().focus().insertContentAt(pos, { type: 'image', attrs: { src: payload.publicUrl } }).run();
+      } else {
+        editor.chain().focus().setImage({ src: payload.publicUrl }).run();
+      }
+    } catch (e) {
+      console.error('image upload failed', e);
+      feedback.toast({ type: 'error', message: `Image upload failed: ${e?.message || e}` });
+    }
+  };
+
+  const pickImageFromDisk = (editor) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = () => { const f = input.files?.[0]; if (f) uploadAndInsert(editor, f); };
+    input.click();
+  };
+
+  const pickBoardEmbed = (editor) => {
+    if (!onRequestBoardEmbed) {
+      // Fallback: a quick prompt accepting a board id (or paste from URL).
+      // eslint-disable-next-line no-alert
+      const id = window.prompt('Board ID to embed');
+      if (!id) return;
+      editor.chain().focus().insertContent({ type: 'boardEmbed', attrs: { boardId: id.trim() } }).run();
+      return;
+    }
+    onRequestBoardEmbed((picked) => {
+      if (!picked) return;
+      editor.chain().focus().insertContent({
+        type: 'boardEmbed',
+        attrs: { boardId: picked.boardId, cardId: picked.cardId || null, label: picked.label || null },
+      }).run();
+    });
+  };
+
+  const insertBookmarkInline = (editor) => {
+    if (!activePageId) return;
+    const anchor = editor.state.selection.from;
+    let suggested = '';
+    try {
+      const para = editor.state.doc.resolve(anchor).parent;
+      suggested = para?.textContent?.slice(0, 40) || '';
+    } catch (_) {}
+    // eslint-disable-next-line no-alert
+    const name = window.prompt('Bookmark name', suggested || 'Bookmark');
+    if (!name) return;
+    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, scope });
+  };
+
+  const editor = useEditor({
+    extensions: [
+      // Schema-defining extensions live in baseDocExtensions so the template
+      // picker can build a matching offline schema for seeding pages.
+      ...baseDocExtensions,
+      // ⌘K → link picker (URL or bookmark across docs).
+      Extension.create({
+        name: 'soleilLinkShortcut',
+        addKeyboardShortcuts: () => ({
+          'Mod-k': () => { onRequestLink ? onRequestLink(editorRef.current) : promptLink(editorRef.current); return true; },
+        }),
+      }),
+      Typography,
+      Placeholder.configure({
+        placeholder: ({ node }) =>
+          node.type.name === 'heading' ? 'Heading' : "Type '/' for blocks, or just start writing…",
+        showOnlyWhenEditable: true,
+        showOnlyCurrent: true,
+      }),
+      ...(fragment ? [Collaboration.configure({ fragment })] : []),
+      // Live cursors when realtime is wired up. CollaborationCursor pulls
+      // local user info from awareness.localState.user (set by ySupabase.js)
+      // and renders peers' carets + selections automatically.
+      ...(awareness ? [CollaborationCursor.configure({
+        provider: { awareness },
+      })] : []),
+      makeSlashExtension({
+        onInsertImage: pickImageFromDisk,
+        onInsertBookmark: insertBookmarkInline,
+        onInsertBoardEmbed: pickBoardEmbed,
+      }),
+      FindHighlightExtension,
+      BlockHandleExtension,
+      ExtraShortcuts,
+    ],
+    autofocus: 'end',
+    editorProps: {
+      attributes: {
+        class: 'tt-editor',
+        spellcheck: 'true',
+      },
+      // Image drop / paste — upload via our existing Storage helper, then
+      // insert at the drop point (or current cursor for paste).
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved) return false;
+        const files = Array.from(event.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
+        if (!files.length) return false;
+        event.preventDefault();
+        const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        const pos = coords?.pos ?? view.state.selection.from;
+        const ed = editorRef.current;
+        if (ed) files.forEach(f => uploadAndInsert(ed, f, pos));
+        return true;
+      },
+      handlePaste: (_view, event) => {
+        const items = Array.from(event.clipboardData?.items || []);
+        const imgs = items.filter(it => it.type.startsWith('image/'));
+        if (!imgs.length) return false;
+        event.preventDefault();
+        const ed = editorRef.current;
+        if (ed) imgs.forEach(it => { const f = it.getAsFile(); if (f) uploadAndInsert(ed, f); });
+        return true;
+      },
+      handleClickOn: (_view, _pos, _node, _nodePos, event) => {
+        // Intercept soleil:// links so the host can route them (open the
+        // target board / scroll to the bookmark) instead of the browser
+        // trying to navigate to a junk URL.
+        const a = event.target?.closest?.('a[href^="soleil://"]');
+        if (!a) return false;
+        const href = a.getAttribute('href');
+        const m = /^soleil:\/\/bookmark\/([^/]+)\/([^/?#]+)/.exec(href);
+        if (m) {
+          event.preventDefault();
+          document.dispatchEvent(new CustomEvent('soleil-open-bookmark', {
+            detail: { boardId: m[1], bookmarkId: m[2] },
+          }));
+          return true;
+        }
+        return false;
+      },
+    },
+    // Force a fresh editor when the bound page changes.
+    // (Editor identity is keyed on the parent's `key={pageId}` — see DocSurface.)
+  }, [pageId]);
+
+  // Notify parent so it can wire the toolbar to the live editor instance.
+  const lastNotified = useRef(null);
+  useEffect(() => {
+    editorRef.current = editor;
+    if (editor && lastNotified.current !== editor) {
+      lastNotified.current = editor;
+      onEditorReady?.(editor);
+    }
+  }, [editor, onEditorReady]);
+
+  if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
+
+  return (
+    <div className="doc-editor-wrap">
+      {/* No floating menus — they crowded the cursor. Format from the top
+          toolbar (always visible) or right-click for a context menu. */}
+      <DocEditorContextMenu editor={editor}
+                            onRequestLink={onRequestLink}
+                            onStartComment={onStartComment} />
+      <EditorContent editor={editor} />
+    </div>
+  );
+}
+
+// Right-click context menu — appears at click position; lists the most-used
+// inline + block formatting actions for the current selection.
+function DocEditorContextMenu({ editor, onRequestLink, onStartComment }) {
+  const [pos, setPos] = useState(null);
+  useEffect(() => {
+    const root = editor?.view?.dom;
+    if (!root) return;
+    const onCtx = (e) => {
+      // Only intercept when the cursor is inside the editor itself.
+      e.preventDefault();
+      setPos({ x: e.clientX, y: e.clientY, hasSelection: !editor.state.selection.empty });
+    };
+    root.addEventListener('contextmenu', onCtx);
+    return () => root.removeEventListener('contextmenu', onCtx);
+  }, [editor]);
+  useEffect(() => {
+    if (!pos) return;
+    const onDown = (e) => {
+      if (!e.target?.closest?.('.doc-ctx')) setPos(null);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setPos(null); };
+    document.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [pos]);
+
+  if (!pos || !editor) return null;
+  const close = () => setPos(null);
+  const run = (fn) => () => { fn(); close(); };
+  const isActive = (name, attrs) => editor.isActive(name, attrs);
+
+  // Clamp menu inside viewport.
+  const W = 220, H = 360, PAD = 8;
+  const left = Math.max(PAD, Math.min(window.innerWidth - W - PAD, pos.x));
+  const top  = Math.max(PAD, Math.min(window.innerHeight - H - PAD, pos.y));
+
+  const Item = ({ icon, label, shortcut, active, onClick, danger }) => (
+    <button className={`doc-ctx-item ${active ? 'is-active' : ''} ${danger ? 'danger' : ''}`} onClick={onClick}>
+      <span className="doc-ctx-icon">{icon}</span>
+      <span className="doc-ctx-label">{label}</span>
+      {shortcut && <span className="doc-ctx-kbd">{shortcut}</span>}
+    </button>
+  );
+  const Sep = () => <div className="doc-ctx-sep" />;
+
+  return (
+    <div className="doc-ctx" style={{ position: 'fixed', left, top }} role="menu">
+      <Item icon={<b>B</b>} label="Bold" shortcut="⌘B" active={isActive('bold')}
+            onClick={run(() => editor.chain().focus().toggleBold().run())} />
+      <Item icon={<i>I</i>} label="Italic" shortcut="⌘I" active={isActive('italic')}
+            onClick={run(() => editor.chain().focus().toggleItalic().run())} />
+      <Item icon={<u>U</u>} label="Underline" shortcut="⌘U" active={isActive('underline')}
+            onClick={run(() => editor.chain().focus().toggleUnderline().run())} />
+      <Item icon={<s>S</s>} label="Strikethrough" shortcut="⌘⇧X" active={isActive('strike')}
+            onClick={run(() => editor.chain().focus().toggleStrike().run())} />
+      <Sep />
+      <Item icon={<HighlightIcon />} label="Highlight" active={isActive('highlight')}
+            onClick={run(() => editor.chain().focus().toggleHighlight({ color: '#fff7a8' }).run())} />
+      <Item icon={<CodeIcon />} label="Inline code" shortcut="⌘E" active={isActive('code')}
+            onClick={run(() => editor.chain().focus().toggleCode().run())} />
+      <Item icon={<LinkIcon />} label="Link" shortcut="⌘K"
+            onClick={run(() => onRequestLink ? onRequestLink(editor) : promptLink(editor))} />
+      <Sep />
+      <Item icon={<H1Icon />} label="Heading 1" shortcut="⌘⌥1" active={isActive('heading', { level: 1 })}
+            onClick={run(() => editor.chain().focus().toggleHeading({ level: 1 }).run())} />
+      <Item icon={<H2Icon />} label="Heading 2" shortcut="⌘⌥2" active={isActive('heading', { level: 2 })}
+            onClick={run(() => editor.chain().focus().toggleHeading({ level: 2 }).run())} />
+      <Item icon={<H3Icon />} label="Heading 3" shortcut="⌘⌥3" active={isActive('heading', { level: 3 })}
+            onClick={run(() => editor.chain().focus().toggleHeading({ level: 3 }).run())} />
+      <Sep />
+      <Item icon={<UlIcon />} label="Bulleted list" shortcut="⌘⇧8" active={isActive('bulletList')}
+            onClick={run(() => editor.chain().focus().toggleBulletList().run())} />
+      <Item icon={<OlIcon />} label="Numbered list" shortcut="⌘⇧7" active={isActive('orderedList')}
+            onClick={run(() => editor.chain().focus().toggleOrderedList().run())} />
+      <Item icon={<TaskIcon />} label="Task list" shortcut="⌘⇧9" active={isActive('taskList')}
+            onClick={run(() => editor.chain().focus().toggleTaskList().run())} />
+      <Item icon={<QuoteIcon />} label="Quote" active={isActive('blockquote')}
+            onClick={run(() => editor.chain().focus().toggleBlockquote().run())} />
+      {pos.hasSelection && (
+        <>
+          <Sep />
+          <Item icon={<CommentIcon />} label="Add comment"
+                onClick={run(() => onStartComment?.(editor))} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// Shared icon set for context menu + toolbar — small, calm 14px line icons.
+function svg(props, children) { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>; }
+const HighlightIcon = () => svg({}, <><path d="M3 11 L8 6 L10 8 L5 13 Z M8 6 L11 3 L13 5 L10 8" /><path d="M2 13 H6" /></>);
+const CodeIcon  = () => svg({}, <><path d="M5 10 L2 7 L5 4" /><path d="M9 4 L12 7 L9 10" /></>);
+const LinkIcon  = () => svg({}, <><path d="M5 7 L9 7 M6 4 L4 4 A3 3 0 0 0 4 10 L6 10 M8 4 L10 4 A3 3 0 0 1 10 10 L8 10" /></>);
+const H1Icon    = () => svg({}, <><path d="M3 3 V11 M3 7 H8 M8 3 V11" /><path d="M11 4 L13 3 V11" /></>);
+const H2Icon    = () => svg({}, <><path d="M3 3 V11 M3 7 H7 M7 3 V11" /><path d="M10 5 A1.5 1.5 0 0 1 13 5 C13 7 10 9 10 11 H13" /></>);
+const H3Icon    = () => svg({}, <><path d="M3 3 V11 M3 7 H7 M7 3 V11" /><path d="M10 5 A1.5 1.5 0 0 1 13 5 A1.5 1.5 0 0 1 11 7.5 A1.5 1.5 0 0 1 13 10 A1.5 1.5 0 0 1 10 10" /></>);
+const UlIcon    = () => svg({}, <><circle cx="3" cy="4" r=".7" fill="currentColor" stroke="none" /><circle cx="3" cy="7" r=".7" fill="currentColor" stroke="none" /><circle cx="3" cy="10" r=".7" fill="currentColor" stroke="none" /><path d="M6 4 H12 M6 7 H12 M6 10 H12" /></>);
+const OlIcon    = () => svg({}, <><text x="1.4" y="5.5" fontSize="3.2" fontFamily="ui-monospace" stroke="none" fill="currentColor">1</text><text x="1.4" y="9" fontSize="3.2" fontFamily="ui-monospace" stroke="none" fill="currentColor">2</text><text x="1.4" y="12.5" fontSize="3.2" fontFamily="ui-monospace" stroke="none" fill="currentColor">3</text><path d="M6 4 H12 M6 7 H12 M6 10 H12" /></>);
+const TaskIcon  = () => svg({}, <><rect x="2" y="2.5" width="4" height="4" rx="1" /><path d="M3 4.5 L4 5.5 L5.5 3.8" /><path d="M8 4.5 H12" /><rect x="2" y="8.5" width="4" height="4" rx="1" /><path d="M8 10.5 H12" /></>);
+const QuoteIcon = () => svg({}, <><path d="M2 5 Q2 3 4 3 V6 H2 V5 Q2 7 4 8" /><path d="M8 5 Q8 3 10 3 V6 H8 V5 Q8 7 10 8" /></>);
+const CommentIcon = () => svg({}, <><path d="M2 4 A1 1 0 0 1 3 3 H11 A1 1 0 0 1 12 4 V9 A1 1 0 0 1 11 10 H6 L4 12 V10 H3 A1 1 0 0 1 2 9 Z" /></>);
+
+function promptLink(editor) {
+  const previous = editor.getAttributes('link').href || '';
+  // Use a tiny inline prompt for now. The app's feedback.prompt would be
+  // nicer but it's async-modal and would interfere with the editor's
+  // selection — keep this synchronous for the v1.
+  // eslint-disable-next-line no-alert
+  const url = window.prompt('URL', previous);
+  if (url === null) return;
+  if (url === '') {
+    editor.chain().focus().extendMarkRange('link').unsetLink().run();
+    return;
+  }
+  editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+}
