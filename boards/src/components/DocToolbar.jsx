@@ -30,7 +30,7 @@ const SIZES = [12, 14, 16, 18, 22, 28, 36];
 
 const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName }) {
+export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
   useEffect(() => {
@@ -178,7 +178,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName }) {
       <span className="doc-tb-sep" />
 
       <Btn title="Add link (⌘K)" disabled={disabled}
-           onClick={() => promptLink(editor)}><Icon.Link /></Btn>
+           onClick={() => onOpenLink?.(editor)}><Icon.Link /></Btn>
       <Btn title="Bookmark this spot" disabled={disabled}
            onClick={() => onInsertBookmark?.(editor)}><Icon.Bookmark /></Btn>
       <Btn title="Find (⌘F)" disabled={disabled}

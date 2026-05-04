@@ -11,7 +11,7 @@
 // (per-tab) — picked from the tree by default, restored from sessionStorage
 // per board so a refresh reopens the same page.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard } from '../hooks/useDocBoard.js';
 import { addBookmark, addPage } from '../lib/docState.js';
 import { DocPageTree } from './DocPageTree.jsx';
@@ -200,6 +200,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const [, force] = useState(0);
   const onEditorReady = (ed) => { editorRef.current = ed; force(n => n + 1); };
 
+  // Cross-component link-picker wiring: DocPageEditor registers its
+  // openLinkPicker function here; the toolbar calls it via onOpenLink.
+  const openLinkPickerRef = useRef(null);
+  const registerOpenLinkPicker = useCallback((fn) => { openLinkPickerRef.current = fn; }, []);
+
   const insertBookmarkAtCaret = (editor) => {
     if (!editor || !activePageId) return;
     const anchor = editor.state.selection.from;
@@ -248,7 +253,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
                     onInsertBookmark={insertBookmarkAtCaret}
-                    onOpenFind={() => setFindOpen(true)} />
+                    onOpenFind={() => setFindOpen(true)}
+                    onOpenLink={(editor) => openLinkPickerRef.current?.(editor)} />
         <DocFindReplace editor={editorRef.current}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
@@ -270,6 +276,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               onStartComment={startComment}
               awareness={awareness}
               onNavigateTarget={handleNavigateTarget}
+              registerOpenLinkPicker={registerOpenLinkPicker}
             />
           ) : (
             <div className="doc-empty">No page selected.</div>

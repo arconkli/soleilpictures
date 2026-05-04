@@ -6,16 +6,17 @@
 // is rebuilt — Tiptap's Collaboration extension cannot re-bind to a different
 // fragment on the same instance.
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, addBookmark } from '../lib/docState.js';
 import { uploadImage } from '../lib/uploads.js';
-import { migrateBookmarksToLinks, getLink } from '../lib/links.js';
+import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets } from '../lib/links.js';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
@@ -23,6 +24,7 @@ import { FindHighlightExtension } from './DocFindReplace.jsx';
 import { BlockHandleExtension } from './DocBlockHandle.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { LinkPopover } from './LinkPopover.jsx';
+import { EntityPicker } from './EntityPicker.jsx';
 
 // Comprehensive keyboard shortcuts beyond the StarterKit defaults. Mirrors
 // what users expect from Google Docs / Notion.
@@ -63,13 +65,73 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget }) {
+export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker }) {
   const fragment = pageId ? getOrCreatePageContent(ydoc, pageId, scope) : null;
   // Held so editorProps drop/paste handlers (constructed at editor-init time,
   // before `editor` exists) can reach the live instance.
   const editorRef = useRef(null);
   const feedback = useFeedback();
   const [linkPop, setLinkPop] = useState(null);
+  const [linkPicker, setLinkPicker] = useState(null);
+  // linkPicker = { anchor, multi, initialSelected, existingLinkId? } | null
+
+  const openLinkPicker = useCallback((editor) => {
+    if (!editor) return;
+    const sel = editor.state.selection;
+    if (sel.empty) return;
+    // Look for an existing link mark inside the selection.
+    let existingLinkId = null;
+    let initialSelected = [];
+    const $from = editor.state.doc.resolve(sel.from);
+    const m = $from.marks().find(x => x.type.name === 'link');
+    if (m?.attrs.linkId) {
+      existingLinkId = m.attrs.linkId;
+      const link = getLink(ydoc, existingLinkId);
+      initialSelected = link?.targets || [];
+    }
+    // Anchor the picker below the selection.
+    const winSel = window.getSelection();
+    const rect = winSel?.rangeCount
+      ? winSel.getRangeAt(0).getBoundingClientRect()
+      : { left: 100, top: 100, right: 200, bottom: 120 };
+    setLinkPicker({ anchor: rect, multi: true, initialSelected, existingLinkId });
+  }, [ydoc]);
+
+  const commitLink = useCallback((targets) => {
+    const editor = editorRef.current;
+    if (!editor || !linkPicker) { setLinkPicker(null); return; }
+    const sel = editor.state.selection;
+    if (sel.empty) { setLinkPicker(null); return; }
+    if (!targets || targets.length === 0) {
+      // No targets picked → if updating an existing link, remove the mark.
+      if (linkPicker.existingLinkId) {
+        editor.chain().focus().unsetMark('link').run();
+      }
+      setLinkPicker(null);
+      return;
+    }
+    const linkId = linkPicker.existingLinkId || uuid();
+    if (linkPicker.existingLinkId) {
+      updateLinkTargets(ydoc, linkId, targets);
+    } else {
+      addLink(ydoc, {
+        id: linkId,
+        pageId: activePageId,
+        anchor: { from: sel.from, to: sel.to },
+        targets,
+        createdBy: userId || null,
+      });
+    }
+    editor.chain().focus().setMark('link', { linkId }).run();
+    setLinkPicker(null);
+  }, [ydoc, linkPicker, activePageId, userId]);
+
+  // Expose openLinkPicker to parent (DocSurface) via a ref-callback prop,
+  // so the toolbar Link button can call it without requiring forwardRef.
+  useEffect(() => {
+    registerOpenLinkPicker?.(openLinkPicker);
+    return () => registerOpenLinkPicker?.(null);
+  }, [registerOpenLinkPicker, openLinkPicker]);
 
   const handleEditorClick = (e) => {
     const el = e.target.closest?.('[data-link-id]');
@@ -142,11 +204,11 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       // Schema-defining extensions live in baseDocExtensions so the template
       // picker can build a matching offline schema for seeding pages.
       ...baseDocExtensions,
-      // ⌘K → link picker (URL or bookmark across docs).
+      // ⌘K → link picker (URL or entity picker).
       Extension.create({
         name: 'soleilLinkShortcut',
         addKeyboardShortcuts: () => ({
-          'Mod-k': () => { onRequestLink ? onRequestLink(editorRef.current) : promptLink(editorRef.current); return true; },
+          'Mod-k': () => { openLinkPicker(editorRef.current); return true; },
         }),
       }),
       // Live decoration of link marks: kind-aware colours + multi-target badge.
@@ -257,7 +319,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       {/* No floating menus — they crowded the cursor. Format from the top
           toolbar (always visible) or right-click for a context menu. */}
       <DocEditorContextMenu editor={editor}
-                            onRequestLink={onRequestLink}
+                            onOpenLinkPicker={openLinkPicker}
                             onStartComment={onStartComment} />
       <EditorContent editor={editor} />
       {linkPop && (
@@ -268,13 +330,24 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
           onClose={() => setLinkPop(null)}
         />
       )}
+      {linkPicker && (
+        <EntityPicker
+          workspaceId={workspaceId}
+          anchor={linkPicker.anchor}
+          multi={linkPicker.multi}
+          initialSelected={linkPicker.initialSelected}
+          onCommit={commitLink}
+          onCancel={() => setLinkPicker(null)}
+          urlMode
+        />
+      )}
     </div>
   );
 }
 
 // Right-click context menu — appears at click position; lists the most-used
 // inline + block formatting actions for the current selection.
-function DocEditorContextMenu({ editor, onRequestLink, onStartComment }) {
+function DocEditorContextMenu({ editor, onOpenLinkPicker, onStartComment }) {
   const [pos, setPos] = useState(null);
   useEffect(() => {
     const root = editor?.view?.dom;
@@ -336,7 +409,7 @@ function DocEditorContextMenu({ editor, onRequestLink, onStartComment }) {
       <Item icon={<CodeIcon />} label="Inline code" shortcut="⌘E" active={isActive('code')}
             onClick={run(() => editor.chain().focus().toggleCode().run())} />
       <Item icon={<LinkIcon />} label="Link" shortcut="⌘K"
-            onClick={run(() => onRequestLink ? onRequestLink(editor) : promptLink(editor))} />
+            onClick={run(() => onOpenLinkPicker?.(editor))} />
       <Sep />
       <Item icon={<H1Icon />} label="Heading 1" shortcut="⌘⌥1" active={isActive('heading', { level: 1 })}
             onClick={run(() => editor.chain().focus().toggleHeading({ level: 1 }).run())} />
