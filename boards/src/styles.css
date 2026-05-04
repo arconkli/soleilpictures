@@ -1312,7 +1312,7 @@ body {
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
-  transition: background-color 140ms ease;
+  transition: background-color var(--dur-fast) var(--ease);
 }
 *:hover::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,.16); }
 ::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,.28) !important; }
@@ -2174,7 +2174,7 @@ body {
 
 /* Smoother programmatic zoom (toggled on briefly via .is-smooth) */
 .canvas { transition: none; }
-.canvas.is-smooth { transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.canvas.is-smooth { transition: transform var(--dur-base) var(--ease); }
 
 /* Card drag visual: subtle scale + lifted shadow */
 .card { transition: filter .15s ease; }
@@ -2914,7 +2914,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-1);
   letter-spacing: -0.005em;
   user-select: none;
-  transition: background-color 120ms;
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .bc-toc-row:hover { background: var(--bg-hov); color: var(--ink-0); }
 .bc-toc-row + .bc-toc-row { border-top: 1px solid color-mix(in oklab, var(--line-1) 50%, transparent); }
@@ -2991,7 +2991,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   font-size: 20px; line-height: 1;
   cursor: pointer;
   display: grid; place-items: center;
-  transition: background 120ms, border-color 120ms;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .lightbox-x:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.24); }
 
@@ -3763,7 +3763,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-radius: 4px;
   color: var(--ink-3);
   cursor: grab;
-  transition: opacity 120ms ease, background-color 120ms;
+  transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
   user-select: none;
   z-index: 4;
 }
@@ -3820,7 +3820,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   cursor: pointer;
   display: flex; flex-direction: column; gap: 8px;
   font: inherit;
-  transition: border-color 120ms, transform 120ms, background 120ms;
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .doc-tpl-card:hover { border-color: #4f8df8; background: var(--bg-3); transform: translateY(-1px); }
 .doc-tpl-card-mini {
@@ -3879,7 +3879,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   text-decoration: none;
   font-family: var(--font-sans);
   user-select: none;
-  transition: border-color 120ms, background 120ms;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .tt-embed:hover { border-color: #4f8df8; background: var(--bg-3); }
 .tt-embed-icon { color: var(--ink-2); display: grid; place-items: center; flex-shrink: 0; }
@@ -3919,7 +3919,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border: 2px solid var(--bg-0);
   cursor: nwse-resize;
   opacity: 0;
-  transition: opacity 120ms;
+  transition: opacity var(--dur-fast) var(--ease);
 }
 .tt-img-wrap.is-selected .tt-img-resize { opacity: 1; }
 .tt-img-tb {
@@ -3932,7 +3932,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-radius: 8px;
   box-shadow: 0 8px 20px rgba(0,0,0,.4);
   opacity: 0; pointer-events: none;
-  transition: opacity 120ms;
+  transition: opacity var(--dur-fast) var(--ease);
   z-index: 5;
 }
 .tt-img-wrap.is-selected .tt-img-tb { opacity: 1; pointer-events: auto; }
@@ -3983,7 +3983,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   padding: 10px;
   margin: 6px 4px;
   cursor: pointer;
-  transition: border-color 120ms, background 120ms;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .doc-comment:hover { border-color: var(--line-3); }
 .doc-comment.is-resolved { opacity: .55; }
@@ -4100,7 +4100,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   cursor: col-resize;
   flex-shrink: 0;
   position: relative;
-  transition: background 120ms;
+  transition: background var(--dur-fast) var(--ease);
 }
 .split-divider:hover, .split-divider:active {
   background: #4f8df8;
@@ -4372,7 +4372,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   z-index: 2147483601;
   cursor: col-resize;
   background: transparent;
-  transition: background 120ms;
+  transition: background var(--dur-fast) var(--ease);
 }
 .doc-card-side-divider::before {
   content: ''; position: absolute; top: 50%;
@@ -4381,7 +4381,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background: var(--line-3);
   border-radius: 2px;
   opacity: .55;
-  transition: opacity 120ms, background 120ms;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .doc-card-side-divider:hover, .doc-card-side-divider:active { background: var(--soleil-soft); }
 .doc-card-side-divider:hover::before, .doc-card-side-divider:active::before { opacity: 1; background: var(--soleil); }
@@ -4409,7 +4409,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-radius: 6px;
   cursor: pointer;
   display: grid; place-items: center;
-  transition: background 120ms, color 120ms;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-card-icon { width: 36px; height: 36px; }
 .doc-card-close { width: 36px; height: 36px; font-size: 22px; line-height: 1; }
@@ -4518,11 +4518,11 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   cursor: pointer;
   text-align: left;
   font: inherit; font-size: 12.5px;
-  transition: background-color 90ms;
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .doc-ctx-item:hover { background: var(--bg-hov); color: var(--ink-0); }
-.doc-ctx-item.is-active { background: color-mix(in oklab, #4f8df8 14%, transparent); color: var(--ink-0); }
-.doc-ctx-item.danger { color: #f87171; }
+.doc-ctx-item.is-active { background: var(--soleil-soft); color: var(--ink-0); }
+.doc-ctx-item.danger { color: var(--ink-error); }
 .doc-ctx-icon {
   width: 18px; height: 18px;
   display: grid; place-items: center;
