@@ -1843,6 +1843,9 @@ export function CanvasSurface({
         y={ctx.y}
         items={ctx.cardId ? buildMenu(cardById[ctx.cardId] || {}) : []}
         onClose={closeCardMenu}
+        workspaceId={workspaceId}
+        boardId={board?.id}
+        card={ctx.cardId ? cardById[ctx.cardId] : null}
       />
 
       <BackgroundContextMenu
@@ -1851,6 +1854,8 @@ export function CanvasSurface({
         y={bgCtx.y}
         items={buildBgMenu()}
         onClose={closeBgMenu}
+        workspaceId={workspaceId}
+        boardId={board?.id}
       />
 
       <ToolOptionsBar

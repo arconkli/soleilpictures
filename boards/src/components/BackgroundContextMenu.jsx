@@ -1,39 +1,34 @@
-// Card right-click menu — supports flat items, dividers, and nested submenus
-// (item.submenu = [...]). Hover an item with a submenu to expand.
-//
-// Submenus render through a body portal so position:fixed actually pins to
-// the viewport — the parent .ctx-menu has a CSS transform (open animation),
-// which would otherwise turn it into the containing block for any fixed
-// descendant and send the submenu somewhere off-screen.
+// Background right-click menu — supports nested submenus via item.submenu = [...].
+// Hover an item with a submenu to expand. Submenu is portaled to body so its
+// position:fixed escapes the parent menu's transform-induced containing block.
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
 import { BacklinksList } from './BacklinksList.jsx';
 
-export function CardContextMenu({ open, x, y, items, onClose, workspaceId, boardId, card }) {
+export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId, boardId }) {
   const [showRefs, setShowRefs] = useState(false);
   const [refCount, setRefCount] = useState(null);
 
   useEffect(() => {
-    if (!supabase || !workspaceId || !boardId || !card?.id) return;
+    if (!supabase || !workspaceId || !boardId) return;
     let cancelled = false;
     (async () => {
       const { count } = await supabase.from('doc_backlinks')
         .select('*', { count: 'exact', head: true })
         .eq('target_workspace_id', workspaceId)
         .eq('target_board_id', boardId)
-        .eq('target_card_id', card.id);
+        .is('target_card_id', null);
       if (!cancelled) setRefCount(count || 0);
     })();
     return () => { cancelled = true; };
-  }, [workspaceId, boardId, card?.id]);
+  }, [workspaceId, boardId]);
 
   useEffect(() => {
     if (!open) return;
     const onDocDown = (e) => {
-      const inside = e.target.closest('.ctx-menu');
-      if (!inside) onClose();
+      if (!e.target.closest('.ctx-menu')) onClose();
     };
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('mousedown', onDocDown);
@@ -45,7 +40,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   }, [open, onClose]);
 
   if (!open) return null;
-  const w = 220, hEst = items.length * 30 + 8;
+  const w = 240, hEst = items.length * 30 + 8;
   const px = Math.min(x, window.innerWidth  - w  - 8);
   const py = Math.min(y, window.innerHeight - hEst - 8);
 
@@ -59,7 +54,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
             key={it.id || i}
             className={`ctx-item ${it.danger ? 'danger' : ''}`}
             disabled={it.disabled}
-            onClick={async () => { onClose(); it.run && await it.run(); }}
+            onClick={() => { onClose(); it.run && it.run(); }}
             role="menuitem"
           >
             <span className="ctx-label">{it.label}</span>
@@ -67,21 +62,16 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
           </button>
         );
       })}
-      {card?.id && (
+      {boardId && (
         <>
           {items.length > 0 && items[items.length - 1].divider !== true && <div className="ctx-divider" />}
           <button className="ctx-item" onClick={() => setShowRefs(s => !s)}>
-            <span className="ctx-label">Used by {refCount ?? '…'} docs</span>
+            <span className="ctx-label">This board used by {refCount ?? '…'} docs</span>
             <span className="ctx-chevron">{showRefs ? '▾' : '▸'}</span>
           </button>
           {showRefs && refCount > 0 && (
             <div className="ctx-submenu">
-              <BacklinksList
-                workspaceId={workspaceId}
-                targetBoardId={boardId}
-                targetCardId={card.id}
-                onOpenSource={() => { /* parent navigation handler if available, else no-op */ }}
-              />
+              <BacklinksList workspaceId={workspaceId} targetBoardId={boardId} />
             </div>
           )}
         </>
@@ -92,7 +82,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
 
 function SubmenuItem({ item, onClose }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState(null); // {left, top, maxHeight}
+  const [pos, setPos] = useState(null);
   const wrapRef = useRef(null);
   const closeTimerRef = useRef(null);
 
@@ -100,10 +90,7 @@ function SubmenuItem({ item, onClose }) {
     const wrap = wrapRef.current;
     if (!wrap) return null;
     const itemRect = wrap.getBoundingClientRect();
-    // Submenu opens off the parent MENU's right edge (not the item's), so
-    // hovering items deep into the menu doesn't cause the gap to widen and
-    // the "open to the left" branch to misfire on items past the menu's
-    // right edge.
+    // Submenu opens off the parent MENU's right edge — see CardContextMenu.
     const menu = wrap.closest('.ctx-menu');
     const menuRect = menu ? menu.getBoundingClientRect() : itemRect;
     const SUB_W = 204;
@@ -146,7 +133,7 @@ function SubmenuItem({ item, onClose }) {
                 <button key={sub.id || j}
                         className="ctx-item ctx-swatch-row"
                         disabled={sub.disabled}
-                        onClick={async () => { onClose(); sub.run && await sub.run(); }}>
+                        onClick={() => { onClose(); sub.run && sub.run(); }}>
                   <span className="ctx-swatch-dot" style={{
                     background: sub.swatch === 'transparent'
                       ? 'repeating-linear-gradient(45deg,#222 0 4px,#444 4px 8px)'
