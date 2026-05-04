@@ -3138,74 +3138,81 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background: var(--bg-0);
 }
 .doc-tb {
-  display: flex; align-items: center; gap: 2px;
-  padding: 6px 12px;
-  border-bottom: 1px solid color-mix(in oklab, var(--line-1) 60%, transparent);
-  background: var(--bg-0);
+  display: flex; align-items: center; gap: 4px;
+  height: 44px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line-1);
+  background: rgba(20,18,15,.78);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
   flex-shrink: 0;
   flex-wrap: wrap;
   font-family: var(--font-sans);
-  font-size: 12.5px;
-  /* Toolbar fades slightly when the user is actively writing — pull to the
-     fore on hover. Subtle, but the editor wins focus visually. */
-  opacity: .82;
-  transition: opacity 180ms ease, border-color 180ms;
+  position: sticky; top: 0; z-index: 40;
+  opacity: 0.92;
+  transition: opacity var(--dur-base) var(--ease);
 }
+[data-theme='light'] .doc-tb { background: rgba(255,252,246,.82); }
 .doc-tb:hover { opacity: 1; }
 .doc-tb:focus-within { opacity: 1; }
-.doc-center:focus-within .tt-editor:focus + .doc-tb,
-.doc-center:focus-within .doc-tb { /* no-op fallback for browsers without :has */ }
 .doc-tb-btn {
   appearance: none; border: 0; background: transparent;
-  width: 28px; height: 28px;
-  border-radius: 5px;
-  color: var(--ink-1);
-  font: inherit;
+  width: 30px; height: 30px;
+  border-radius: var(--radius);
+  color: var(--ink-2);
+  font: 500 13px/1 var(--font-sans);
   cursor: pointer;
   display: grid; place-items: center;
-  transition: background 120ms, color 120ms;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-tb-btn:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
-.doc-tb-btn.is-active { background: var(--bg-act); color: var(--ink-0); }
-.doc-tb-btn:disabled { opacity: .35; cursor: default; }
+.doc-tb-btn.is-active { background: var(--soleil-soft); color: var(--ink-0); }
+.doc-tb-btn:disabled { opacity: .35; cursor: not-allowed; }
 .doc-tb-select {
   appearance: none;
   background: transparent;
-  border: 1px solid var(--line-2);
-  border-radius: 5px;
+  border: 0;
   color: var(--ink-1);
-  font: inherit; font-size: 12px;
-  padding: 3px 22px 3px 8px;
-  height: 28px;
+  font: 500 12px/1 var(--font-sans);
+  padding: 0 22px 0 10px;
+  height: 30px;
+  border-radius: var(--radius);
   cursor: pointer;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(180,180,180,.7)' d='M0 0h10L5 6z'/></svg>");
   background-repeat: no-repeat;
   background-position: right 6px center;
+  transition: background-color var(--dur-fast) var(--ease);
 }
-.doc-tb-select:hover:not(:disabled) { border-color: var(--line-3); }
+.doc-tb-select:hover:not(:disabled) { background-color: var(--bg-hov); color: var(--ink-0); }
 .doc-tb-sep {
-  width: 1px; height: 18px; background: var(--line-2);
+  width: 1px; height: 20px; background: var(--line-1);
   margin: 0 6px;
 }
 .doc-tb-spacer { flex: 1 1 auto; }
 .doc-tb-colorwrap { position: relative; }
 .doc-tb-colorpop {
-  position: absolute; top: calc(100% + 4px); left: 0;
+  position: absolute; top: calc(100% + 6px); left: 0;
   z-index: 5;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
-  padding: 6px;
-  display: grid; grid-template-columns: repeat(8, 18px); gap: 4px;
-  box-shadow: 0 8px 20px rgba(0,0,0,.4);
+  background: rgba(20,18,15,.85);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  display: grid; grid-template-columns: repeat(8, 20px); gap: 5px;
+  box-shadow: var(--shadow-3);
+  animation: ctx-menu-in var(--dur-base) var(--ease);
 }
+[data-theme='light'] .doc-tb-colorpop { background: rgba(255,252,246,.85); border-color: rgba(10,9,8,.06); }
 .doc-tb-sw {
-  appearance: none; width: 18px; height: 18px;
-  border-radius: 4px;
+  appearance: none; width: 20px; height: 20px;
+  border-radius: var(--radius);
   border: 1px solid rgba(255,255,255,.08);
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
 }
-.doc-tb-sw:hover { transform: scale(1.1); }
+.doc-tb-sw:hover { transform: scale(1.10); }
+.doc-tb-sw.is-active { box-shadow: 0 0 0 2px var(--soleil); }
 .doc-tb-sw-x {
   background: transparent !important;
   color: var(--ink-2); font-size: 12px; line-height: 1;
