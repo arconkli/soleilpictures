@@ -12,7 +12,6 @@ import { BOARDS, INBOX_SEED } from '../data.js';
 const TWEAK_DEFAULTS = {
   theme: 'dark',
   showArrows: true,
-  showCursors: false,
   showInbox: true,
   compactSidebar: false,
 };
@@ -699,7 +698,6 @@ function LocalSettingsPanel({ tweak, setTweak }) {
       </TweakSection>
       <TweakSection label="Canvas">
         <TweakToggle label="Show arrows" value={tweak.showArrows} onChange={(value) => setTweak('showArrows', value)} />
-        <TweakToggle label="Show cursors" value={tweak.showCursors} onChange={(value) => setTweak('showCursors', value)} />
       </TweakSection>
     </TweaksPanel>
   );

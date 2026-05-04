@@ -36,7 +36,6 @@ import { useFeedback } from './components/AppFeedback.jsx';
 const TWEAK_DEFAULTS = {
   theme: 'dark',
   showArrows: true,
-  showCursors: false, // Real cursors arrive in Phase 3; keep off for now.
   showInbox: true,
   compactSidebar: false,
 };
@@ -1117,7 +1116,6 @@ function BoardsSettingsPanel({ tweak, setTweak }) {
       </TweakSection>
       <TweakSection label="Canvas">
         <TweakToggle label="Show arrows" value={tweak.showArrows} onChange={(value) => setTweak('showArrows', value)} />
-        <TweakToggle label="Show cursors" value={tweak.showCursors} onChange={(value) => setTweak('showCursors', value)} />
       </TweakSection>
     </TweaksPanel>
   );
