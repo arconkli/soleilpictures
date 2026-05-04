@@ -16,7 +16,8 @@ import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, addBookmark } from '../lib/docState.js';
 import { uploadImage } from '../lib/uploads.js';
-import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets } from '../lib/links.js';
+import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
+import { updateBacklinks } from '../lib/boardsApi.js';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
@@ -311,6 +312,29 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       console.warn('Bookmark migration failed', e);
     }
   }, [ydoc, scope]);
+
+  // Observe links Y.Map and debounce-call updateBacklinks (2s inactivity).
+  // Skipped for root doc — those have no docCardId to anchor backlinks.
+  useEffect(() => {
+    if (!ydoc || !workspaceId || !activePageId) return;
+    const docCardId = (scope && scope.docCardId) || null;
+    if (!docCardId) return;  // root doc — skip backlinks until per-card
+    const lm = ydoc.getMap('links');
+    let timer = null;
+    const fire = () => {
+      const all = listLinks(ydoc).filter(l => l.pageId === activePageId);
+      updateBacklinks({ workspaceId, docCardId, pageId: activePageId, links: all });
+    };
+    const onChange = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(fire, 2000);
+    };
+    lm.observeDeep(onChange);
+    return () => {
+      if (timer) clearTimeout(timer);
+      lm.unobserveDeep(onChange);
+    };
+  }, [ydoc, workspaceId, activePageId, scope]);
 
   if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
 

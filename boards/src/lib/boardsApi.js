@@ -1,0 +1,199 @@
+// CRUD over the `workspaces`, `workspace_members`, `boards` and `board_state`
+// tables. Pure functions over the Supabase client — no React.
+
+import * as Y from 'yjs';
+import { supabase } from './supabase.js';
+import { bytesToB64 } from './yhelpers.js';
+
+// ── Workspaces ──────────────────────────────────────────────────────────────
+
+// Returns the user's first workspace (created_at asc) or null if none.
+export async function getMyFirstWorkspace() {
+  const { data, error } = await supabase
+    .from('workspace_members')
+    .select('workspace_id, workspaces(*)')
+    .order('created_at', { ascending: true })
+    .limit(1);
+  if (error) throw error;
+  if (!data || data.length === 0) return null;
+  return data[0].workspaces;
+}
+
+// Create a workspace + add the caller as a member, all in two writes.
+export async function createWorkspace({ name, userId }) {
+  const ins = await supabase
+    .from('workspaces')
+    .insert({ name, created_by: userId })
+    .select('*')
+    .single();
+  if (ins.error) throw ins.error;
+  const ws = ins.data;
+  const member = await supabase
+    .from('workspace_members')
+    .insert({ workspace_id: ws.id, user_id: userId, role: 'owner' });
+  if (member.error) throw member.error;
+  return ws;
+}
+
+// ── Boards ─────────────────────────────────────────────────────────────────
+
+export async function listBoards(workspaceId) {
+  const { data, error } = await supabase
+    .from('boards')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getRootBoard(workspaceId) {
+  const { data, error } = await supabase
+    .from('boards')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .is('parent_board_id', null)
+    .order('created_at', { ascending: true })
+    .limit(1);
+  if (error) throw error;
+  return (data && data[0]) || null;
+}
+
+export async function createBoard({ workspaceId, parentBoardId = null, name, view = 'canvas', cover = null, meta = null, userId = null }) {
+  const ins = await supabase
+    .from('boards')
+    .insert({
+      workspace_id: workspaceId,
+      parent_board_id: parentBoardId,
+      name, view, cover, meta,
+      created_by: userId,
+    })
+    .select('*')
+    .single();
+  if (ins.error) throw ins.error;
+  // Seed an empty Y.Doc snapshot so the row exists.
+  const ydoc = new Y.Doc();
+  await saveBoardSnapshot(ins.data.id, ydoc);
+  return ins.data;
+}
+
+export async function renameBoard(boardId, name) {
+  const { error } = await supabase
+    .from('boards')
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq('id', boardId);
+  if (error) throw error;
+}
+
+export async function updateBoardMeta(boardId, patch) {
+  const { error } = await supabase
+    .from('boards')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', boardId);
+  if (error) throw error;
+}
+
+export async function deleteBoard(boardId) {
+  const { error } = await supabase.from('boards').delete().eq('id', boardId);
+  if (error) throw error;
+}
+
+// ── Board state (Y.Doc snapshot, base64-encoded text) ───────────────────────
+
+export async function loadBoardSnapshot(boardId) {
+  const { data, error } = await supabase
+    .from('board_state')
+    .select('doc')
+    .eq('board_id', boardId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.doc || null; // base64 string or null
+}
+
+export async function saveBoardSnapshot(boardId, ydoc) {
+  const update = Y.encodeStateAsUpdate(ydoc);
+  const b64 = bytesToB64(update);
+  const { error } = await supabase
+    .from('board_state')
+    .upsert({ board_id: boardId, doc: b64, updated_at: new Date().toISOString() },
+            { onConflict: 'board_id' });
+  if (error) throw error;
+}
+
+// ── Version history ─────────────────────────────────────────────────────────
+
+export async function saveBoardVersion(boardId, ydoc, { label = null, userId = null } = {}) {
+  const update = Y.encodeStateAsUpdate(ydoc);
+  const b64 = bytesToB64(update);
+  const cardCount = ydoc.getMap('cards').size;
+  const { error } = await supabase
+    .from('board_versions')
+    .insert({ board_id: boardId, doc: b64, card_count: cardCount, label, made_by: userId });
+  if (error) throw error;
+}
+
+export async function listBoardVersions(boardId, limit = 50) {
+  const { data, error } = await supabase
+    .from('board_versions')
+    .select('id, snapshot_at, card_count, label, made_by')
+    .eq('board_id', boardId)
+    .order('snapshot_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function loadBoardVersionDoc(versionId) {
+  const { data, error } = await supabase
+    .from('board_versions')
+    .select('doc')
+    .eq('id', versionId)
+    .single();
+  if (error) throw error;
+  return data?.doc || null;
+}
+
+// ── Doc backlinks ───────────────────────────────────────────────────────────
+
+// Full-replace upsert of doc_backlinks for one (source_doc_card_id, source_page_id).
+// Caller passes the current link list for the page; we delete-then-insert.
+export async function updateBacklinks({ workspaceId, docCardId, pageId, links }) {
+  if (!supabase || !workspaceId || !docCardId || !pageId) return { ok: false };
+  // 1. Delete existing rows for this source page.
+  const del = await supabase
+    .from('doc_backlinks')
+    .delete()
+    .eq('source_doc_card_id', docCardId)
+    .eq('source_page_id', pageId);
+  if (del.error) {
+    console.warn('backlinks delete failed', del.error);
+    return { ok: false, error: del.error };
+  }
+  // 2. Insert one row per (link, target).
+  const rows = [];
+  for (const l of links || []) {
+    for (const t of l.targets || []) {
+      rows.push({
+        source_workspace_id: workspaceId,
+        source_doc_card_id:  docCardId,
+        source_page_id:      pageId,
+        source_link_id:      l.id,
+        target_kind:         t.kind,
+        target_workspace_id: workspaceId,
+        target_board_id:     t.kind === 'board' ? t.id : (t.boardId || null),
+        target_card_id:      t.kind === 'card' ? t.cardId : null,
+        target_doc_card_id:  (t.kind === 'doc' || t.kind === 'docPos') ? t.docCardId : null,
+        target_page_id:      t.kind === 'docPos' ? t.pageId : (t.kind === 'doc' ? (t.pageId || null) : null),
+        target_url:          t.kind === 'url' ? t.href : null,
+        source_text:         (l.name || '').slice(0, 200),
+      });
+    }
+  }
+  if (rows.length === 0) return { ok: true, count: 0 };
+  const ins = await supabase.from('doc_backlinks').insert(rows);
+  if (ins.error) {
+    console.warn('backlinks insert failed', ins.error);
+    return { ok: false, error: ins.error };
+  }
+  return { ok: true, count: rows.length };
+}
