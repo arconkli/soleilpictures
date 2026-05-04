@@ -421,11 +421,9 @@ body {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background:
-    linear-gradient(to right, var(--grid-line) 1px, transparent 1px) 0 0 / 80px 80px,
-    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px) 0 0 / 80px 80px,
-    radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px) 0 0 / 20px 20px,
-    var(--bg-2);
+  background-color: var(--bg-2);
+  background-image: radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .canvas {
@@ -1655,8 +1653,9 @@ body {
 /* Marquee */
 .marquee {
   position: absolute;
-  background: rgba(245, 158, 11, .08);
-  border: 1px dashed #f59e0b;
+  background: var(--soleil-soft);
+  border: 1px solid var(--soleil);
+  border-radius: 2px;
   pointer-events: none;
   z-index: 5;
 }
