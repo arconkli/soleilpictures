@@ -3433,6 +3433,41 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .tt-editor a:hover { color: #f5c075; }
 [data-theme='light'] .tt-editor a { color: #8a6020; }
 [data-theme='light'] .tt-editor a:hover { color: #5a3e10; }
+
+/* ─────────────────────────── New link mark states ───────────────────────── */
+
+.tt-editor .tt-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(212,160,74,.55);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), text-decoration-color var(--dur-fast) var(--ease);
+}
+.tt-editor .tt-link:hover {
+  text-decoration-color: var(--soleil);
+  background: var(--soleil-soft);
+}
+.tt-editor .tt-link-url { color: var(--ink-1); }
+.tt-editor .tt-link-board, .tt-editor .tt-link-card,
+.tt-editor .tt-link-doc, .tt-editor .tt-link-docPos { color: var(--soleil); }
+.tt-editor .tt-link-broken {
+  color: var(--ink-3);
+  text-decoration-line: line-through;
+  text-decoration-color: var(--ink-3);
+}
+.tt-link-badge {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 0 5px;
+  font: 600 10px/1.4 var(--font-sans);
+  vertical-align: super;
+  background: var(--soleil-soft);
+  color: var(--soleil);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
 .tt-editor h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.025em; }
 .tt-editor h2 { font-size: 25px; font-weight: 700; }
 .tt-editor h3 { font-size: 19px; font-weight: 600; }

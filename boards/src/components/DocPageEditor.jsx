@@ -15,6 +15,8 @@ import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { getOrCreatePageContent, addBookmark } from '../lib/docState.js';
 import { uploadImage } from '../lib/uploads.js';
+import { migrateBookmarksToLinks } from '../lib/links.js';
+import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
@@ -131,6 +133,11 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
           'Mod-k': () => { onRequestLink ? onRequestLink(editorRef.current) : promptLink(editorRef.current); return true; },
         }),
       }),
+      // Live decoration of link marks: kind-aware colours + multi-target badge.
+      Extension.create({
+        name: 'soleilLinkRenderer',
+        addProseMirrorPlugins: () => [makeLinkRendererPlugin({ getYdoc: () => ydoc })],
+      }),
       Typography,
       Placeholder.configure({
         placeholder: ({ node }) =>
@@ -213,6 +220,19 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       onEditorReady?.(editor);
     }
   }, [editor, onEditorReady]);
+
+  // One-time idempotent migration: legacy bookmarks → kind='docPos' Links.
+  // Runs whenever ydoc binds (or changes), safe to call repeatedly.
+  useEffect(() => {
+    if (!ydoc) return;
+    const docCardId = (scope && scope.docCardId) || null;
+    try {
+      const n = migrateBookmarksToLinks(ydoc, { docCardId });
+      if (n > 0) console.info(`Migrated ${n} bookmarks → links in ${docCardId || 'root doc'}`);
+    } catch (e) {
+      console.warn('Bookmark migration failed', e);
+    }
+  }, [ydoc, scope]);
 
   if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
 
