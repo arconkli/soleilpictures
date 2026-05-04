@@ -404,14 +404,6 @@ body {
 .tb-icon:disabled, .tb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .tb-btn-label { font: 500 13px/1 var(--font-sans); }
 
-/* Button variants */
-.tb-btn.ghost { background: transparent; color: var(--ink-2); }
-.tb-btn.ghost:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
-.tb-btn.primary { background: var(--soleil); color: var(--bg-0); font-weight: 600; }
-.tb-btn.primary:hover:not(:disabled) { background: var(--soleil); box-shadow: 0 0 0 1px rgba(212,160,74,.5); }
-.tb-btn.primary.danger { background: var(--ink-error); color: var(--bg-0); }
-.tb-btn.primary.danger:hover:not(:disabled) { background: var(--ink-error); box-shadow: 0 0 0 1px var(--ink-error); }
-
 .crumbs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
 .crumb {
   font: 500 13px/1 var(--font-sans);
@@ -2824,6 +2816,46 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* Modal and dialog button primitives */
+.btn-primary, .btn-secondary {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font: 500 12px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.btn-primary {
+  background: var(--soleil);
+  color: var(--bg-0);
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px rgba(212,160,74,.5);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  color: var(--ink-0);
+  background: var(--bg-hov);
+}
+
+.btn-primary.btn-danger {
+  background: var(--ink-error);
+  color: var(--bg-0);
+}
+
+.btn-primary.btn-danger:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px var(--ink-error);
 }
 
 .toast-stack {
