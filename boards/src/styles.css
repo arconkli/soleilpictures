@@ -3249,15 +3249,17 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   width: 100%;
   max-width: 816px;
   min-height: 1056px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
+  background: #faf7f0;
+  color: #1a1612;
+  border: 1px solid rgba(0,0,0,.08);
   border-radius: 4px;
   /* 1" margins all around — that's 96px. */
   padding: 96px;
-  box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 12px 30px rgba(0,0,0,.30);
+  box-shadow: var(--shadow-2);
 }
 [data-theme='light'] .doc-editor-wrap {
-  box-shadow: 0 1px 0 rgba(0,0,0,.02) inset, 0 12px 30px rgba(0,0,0,.10);
+  background: #ffffff;
+  box-shadow: var(--shadow-1);
 }
 /* Tighter margins for narrower viewports (especially the docked side
    panel) so the page doesn't get clipped horizontally. */
@@ -3280,27 +3282,33 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
    measure, calm colors. */
 .tt-editor {
   outline: none;
-  font-family: ui-serif, Georgia, "Iowan Old Style", "Apple Garamond", serif;
-  font-size: 17px;
+  font-family: aileron, -apple-system, system-ui, sans-serif;
+  font-size: 15px;
   line-height: 1.72;
-  color: var(--ink-0);
-  letter-spacing: -0.005em;
-  caret-color: #4f8df8;
+  color: #1a1612;
+  letter-spacing: -0.003em;
+  caret-color: var(--soleil);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-/* Tinted selection — easier on the eye than the OS default. */
-.tt-editor ::selection { background: rgba(79,141,248,.22); color: inherit; }
+[data-theme='light'] .tt-editor { color: #0a0908; }
+/* Soleil-tinted selection on the cream paper. */
+.tt-editor ::selection { background: rgba(212,160,74,.28); color: inherit; }
 .tt-editor > :first-child { margin-top: 0; }
 .tt-editor h1, .tt-editor h2, .tt-editor h3,
 .tt-editor h4, .tt-editor h5, .tt-editor h6 {
-  font-family: ui-serif, Georgia, "Iowan Old Style", serif;
-  letter-spacing: -0.02em;
-  line-height: 1.18;
-  margin: 1.7em 0 .4em;
-  color: var(--ink-0);
+  font-family: aileron, -apple-system, system-ui, sans-serif;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
+  margin: 1.5em 0 .4em;
+  color: #0a0807;
 }
+[data-theme='light'] .tt-editor h1, [data-theme='light'] .tt-editor h2,
+[data-theme='light'] .tt-editor h3, [data-theme='light'] .tt-editor h4,
+[data-theme='light'] .tt-editor h5, [data-theme='light'] .tt-editor h6 { color: #0a0908; }
+.tt-editor a { color: #8a6020; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.tt-editor a:hover { color: #5a3e10; }
 .tt-editor h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.025em; }
 .tt-editor h2 { font-size: 25px; font-weight: 700; }
 .tt-editor h3 { font-size: 19px; font-weight: 600; }
