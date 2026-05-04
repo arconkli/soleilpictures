@@ -17,7 +17,8 @@ import { addBookmark, addPage } from '../lib/docState.js';
 import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocToolbar } from './DocToolbar.jsx';
-import { DocBookmarksPanel } from './DocBookmarksPanel.jsx';
+import { DocLinksPanel } from './DocLinksPanel.jsx';
+import { DocRefsPanel } from './DocRefsPanel.jsx';
 import { DocOutlinePanel } from './DocOutlinePanel.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
@@ -69,7 +70,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   };
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
-  const [rightTab, setRightTab] = useState('outline'); // 'outline' | 'bookmarks' | 'comments'
+  const [rightTab, setRightTab] = useState('outline'); // 'outline' | 'links' | 'refs' | 'comments'
 
   // From the bubble-menu "comment" button. Wraps the current selection with
   // a comment mark + creates a thread in Y.Map. Threads are anchored by mark
@@ -317,8 +318,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             <div className="doc-tabs">
               <button className={`doc-tab ${rightTab === 'outline' ? 'is-active' : ''}`}
                       onClick={() => setRightTab('outline')}>Outline</button>
-              <button className={`doc-tab ${rightTab === 'bookmarks' ? 'is-active' : ''}`}
-                      onClick={() => setRightTab('bookmarks')}>Bookmarks{bookmarks.length > 0 && <span className="doc-tab-count">{bookmarks.length}</span>}</button>
+              <button className={`doc-tab ${rightTab === 'links' ? 'is-active' : ''}`}
+                      onClick={() => setRightTab('links')}>Links</button>
+              <button className={`doc-tab ${rightTab === 'refs' ? 'is-active' : ''}`}
+                      onClick={() => setRightTab('refs')}>Refs</button>
               <button className={`doc-tab ${rightTab === 'comments' ? 'is-active' : ''}`}
                       onClick={() => setRightTab('comments')}>Comments{comments.length > 0 && <span className="doc-tab-count">{comments.length}</span>}</button>
             </div>
@@ -328,15 +331,20 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 activePageId={activePageId}
               />
             )}
-            {rightTab === 'bookmarks' && (
-              <DocBookmarksPanel
+            {rightTab === 'links' && (
+              <DocLinksPanel
                 ydoc={ydoc}
-                scope={scope}
                 pages={pages}
-                bookmarks={bookmarks}
                 activePageId={activePageId}
                 onSelectPage={setActivePageId}
                 getEditor={() => editorRef.current}
+              />
+            )}
+            {rightTab === 'refs' && (
+              <DocRefsPanel
+                workspaceId={workspaceId}
+                docCardId={scope?.cardId ?? null}
+                onOpenSource={(r) => console.info('open source backlink', r)}
               />
             )}
             {rightTab === 'comments' && (
