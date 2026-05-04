@@ -174,8 +174,7 @@ body {
 .font-pop {
   position: fixed;
   z-index: 2147483647;
-  width: 280px;
-  max-height: 60vh;
+  /* width and max-height set inline based on viewport-aware positioning */
   overflow-y: auto;
   padding: 6px;
   display: flex;
