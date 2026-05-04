@@ -433,8 +433,14 @@ body {
 }
 
 .cards-layer { position: absolute; inset: 0; }
-.card { transition: transform .12s ease; overflow: hidden; border-radius: var(--radius-lg); contain: paint; }
-.card:hover { transform: translateY(-1px); z-index: 5; }
+.card {
+  transition: transform var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  contain: paint;
+  box-shadow: var(--shadow-1);
+}
+.card:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); z-index: 5; }
 
 .arrows-layer { color: var(--ink-3); pointer-events: none; overflow: visible; }
 .arrow-label {
@@ -1463,14 +1469,14 @@ body {
 .canvas-wrap.tool-arrow .canvas { cursor: crosshair; }
 
 .card.is-selected > :first-child {
-  outline: 2px solid var(--ink-1);
-  outline-offset: 2px;
-  border-radius: var(--radius-lg);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--soleil), 0 0 0 4px var(--soleil-soft), var(--shadow-2);
+  border-radius: var(--radius-md);
 }
 .card.is-arrow-source > :first-child {
-  outline: 2px dashed #f59e0b;
+  outline: 2px dashed var(--soleil);
   outline-offset: 2px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
 }
 
 /* Resize handle (bottom-right) */
