@@ -2043,39 +2043,43 @@ body {
   left: 50%;
   bottom: 14px;
   transform: translateX(-50%);
-  display: flex; align-items: center; gap: 6px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(20,18,15,.78);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-md);
   padding: 6px 10px;
-  box-shadow: var(--shadow-2);
+  box-shadow: var(--shadow-3);
   z-index: 25;
-  max-width: calc(100% - 360px); /* leave room for inbox + zoom */
+  max-width: calc(100% - 360px);
   flex-wrap: wrap;
   user-select: none;
+  animation: ctx-menu-in var(--dur-base) var(--ease);
 }
+[data-theme='light'] .tob { background: rgba(255,252,246,.82); border-color: rgba(10,9,8,.06); }
 .tob-label {
-  font-family: var(--font-mono); font-size: 9.5px;
-  letter-spacing: .14em; text-transform: uppercase;
+  font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-3);
-  margin: 0 4px 0 2px;
+  margin: 0 6px 0 2px;
 }
-.tob-sep { width: 1px; height: 16px; background: var(--line-2); margin: 0 4px; }
+.tob-sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; }
 .tob-btn {
   appearance: none;
   background: transparent;
   border: 0;
   color: var(--ink-1);
-  font: inherit;
-  font-size: 12.5px;
-  line-height: 1;
-  padding: 5px 8px;
-  border-radius: 4px;
+  font: 500 12px/1 var(--font-sans);
+  padding: 0 8px;
+  height: 26px;
+  border-radius: var(--radius);
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 26px;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .tob-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.tob-btn.is-active { background: var(--soleil-soft); color: var(--ink-0); }
 .tob-select {
   appearance: none;
   background: var(--bg-3);
@@ -2099,7 +2103,9 @@ body {
   cursor: pointer;
   padding: 0;
 }
-.tob-sw.is-active { box-shadow: 0 0 0 2px var(--ink-0); }
+.tob-sw.is-active { box-shadow: 0 0 0 2px var(--soleil), 0 0 0 4px var(--soleil-soft); }
+.tob-sw { transition: transform var(--dur-fast) var(--ease); }
+.tob-sw:hover { transform: scale(1.08); }
 .tob-sw-dot {
   display: inline-block;
   width: 12px; height: 12px;
