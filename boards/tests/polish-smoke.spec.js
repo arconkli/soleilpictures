@@ -39,6 +39,13 @@ for (const vp of viewports) {
   });
 }
 
+test('keyboard focus on sidebar collapse button shows soleil glow', async ({ page }) => {
+  await page.goto('/?local=1');
+  await page.locator('.sb-collapse').focus();
+  const shadow = await page.locator('.sb-collapse').evaluate(el => getComputedStyle(el).boxShadow);
+  expect(shadow).toContain('rgba(212, 160, 74');
+});
+
 test('light theme toggles cleanly with no console errors', async ({ page }) => {
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
