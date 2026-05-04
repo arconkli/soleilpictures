@@ -4806,3 +4806,63 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   gap: 8px;
 }
 .inline-composer-hint { color: var(--ink-3); }
+
+/* ──────────────────────────── Entity picker ─────────────────────────────── */
+
+.entity-picker {
+  position: fixed;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  animation: ctx-menu-in var(--dur-base) var(--ease);
+  overflow: hidden;
+}
+.entity-picker-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-1);
+  color: var(--ink-2);
+  flex-shrink: 0;
+}
+.entity-picker-search input {
+  flex: 1; background: transparent; border: 0;
+  color: var(--ink-0); outline: none;
+  font: 500 13px/1.4 var(--font-sans);
+}
+.entity-picker-search input::placeholder { color: var(--ink-3); }
+.entity-picker-clear {
+  background: transparent; border: 0; color: var(--ink-3);
+  padding: 4px; border-radius: var(--radius);
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.entity-picker-clear:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+.entity-picker-body { overflow-y: auto; padding: 6px; flex: 1 1 auto; min-height: 0; }
+.entity-picker-empty { padding: 24px 16px; text-align: center; color: var(--ink-3); }
+.entity-picker-group { margin-bottom: 4px; }
+.entity-picker-group-label { padding: 8px 12px 4px; color: var(--ink-3); }
+.entity-picker-row {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  background: transparent; border: 0; color: var(--ink-1);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: 500 13px/1.4 var(--font-sans);
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.entity-picker-row:hover { background: var(--bg-hov); color: var(--ink-0); }
+.entity-picker-row.is-selected { background: var(--soleil-soft); color: var(--ink-0); }
+.entity-picker-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entity-picker-url { color: var(--soleil); font-style: italic; }
+.entity-picker-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line-1);
+  flex-shrink: 0;
+}
+.entity-picker-count { color: var(--ink-3); }
