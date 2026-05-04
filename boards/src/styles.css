@@ -3011,28 +3011,28 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 .doc-rail {
   position: relative;
-  border-right: 1px solid color-mix(in oklab, var(--line-1) 60%, transparent);
-  background: var(--bg-0);
+  border-right: 1px solid var(--line-1);
+  background: var(--bg-1);
   overflow: hidden;
   display: flex; flex-direction: column;
-  transition: background 200ms ease;
+  transition: background var(--dur-base) var(--ease);
 }
-.doc-rail-right { border-right: 0; border-left: 1px solid color-mix(in oklab, var(--line-1) 60%, transparent); }
+.doc-rail-right { border-right: 0; border-left: 1px solid var(--line-1); }
 .doc-rail-toggle {
-  position: absolute; top: 8px; right: 6px;
+  position: absolute; top: 10px; right: 6px;
   width: 28px; height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink-2);
   cursor: pointer;
   display: grid; place-items: center;
   z-index: 1;
-  transition: background 120ms, border-color 120ms, color 120ms;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-rail-right .doc-rail-toggle { right: auto; left: 6px; }
 .doc-rail-toggle:hover {
-  background: var(--bg-1);
+  background: var(--bg-hov);
   border-color: var(--line-2);
   color: var(--ink-0);
 }
@@ -3048,59 +3048,65 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   flex-shrink: 0;
 }
 .doc-tree-kicker {
-  font-family: var(--font-mono); font-size: 9px;
-  letter-spacing: .14em; text-transform: uppercase;
+  font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-3);
 }
 .doc-tree-add-root, .doc-tree-add {
   appearance: none; border: 0; background: transparent;
   color: var(--ink-3);
-  width: 22px; height: 22px;
-  border-radius: 5px;
+  width: 24px; height: 24px;
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 14px; line-height: 1;
   display: grid; place-items: center;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-tree-add-root:hover, .doc-tree-add:hover { background: var(--bg-hov); color: var(--ink-0); }
-.doc-tree-body { flex: 1 1 auto; overflow-y: auto; padding: 4px 4px 8px; min-height: 0; }
+.doc-tree-body { flex: 1 1 auto; overflow-y: auto; padding: 6px 6px 12px; min-height: 0; }
 .doc-tree-empty {
   appearance: none; border: 1px dashed var(--line-2); background: transparent;
-  width: calc(100% - 8px); margin: 6px 4px;
-  padding: 8px;
-  border-radius: 6px;
+  width: calc(100% - 12px); margin: 6px;
+  padding: 10px;
+  border-radius: var(--radius-md);
   color: var(--ink-3);
   cursor: pointer;
-  font: inherit; font-size: 12px;
+  font: 400 12px/1.4 var(--font-sans);
+  text-align: center;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .doc-tree-empty:hover { color: var(--ink-1); border-color: var(--line-3); }
 .doc-tree-row {
-  display: flex; align-items: center; gap: 4px;
-  padding: 5px 6px;
-  margin: 1px 6px;
-  border-radius: 6px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  margin: 1px 4px;
+  border-radius: var(--radius);
   cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  color: var(--ink-2);
-  letter-spacing: -0.005em;
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--ink-1);
   user-select: none;
   position: relative;
-  transition: background-color 120ms, color 120ms;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-tree-row:hover { background: var(--bg-hov); color: var(--ink-0); }
 .doc-tree-row.is-active {
-  background: color-mix(in oklab, #4f8df8 14%, transparent);
+  background: var(--soleil-soft);
   color: var(--ink-0);
-  font-weight: 600;
+}
+.doc-tree-row.is-active::before {
+  content: ''; position: absolute;
+  left: -4px; top: 6px; bottom: 6px;
+  width: 2px;
+  background: var(--soleil);
+  border-radius: 1px;
 }
 .doc-tree-row.drop-before::before,
 .doc-tree-row.drop-after::after {
   content: ''; position: absolute; left: 6px; right: 6px;
-  height: 2px; background: #4f8df8; border-radius: 2px;
+  height: 2px; background: var(--soleil); border-radius: 2px;
 }
 .doc-tree-row.drop-before::before { top: -1px; }
 .doc-tree-row.drop-after::after { bottom: -1px; }
-.doc-tree-row.drop-inside { box-shadow: inset 0 0 0 1px #4f8df8; }
+.doc-tree-row.drop-inside { box-shadow: inset 0 0 0 1px var(--soleil); }
 .doc-tree-chev {
   appearance: none; border: 0; background: transparent;
   color: var(--ink-3);
@@ -3125,7 +3131,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   padding: 2px 5px;
   outline: none;
 }
-.doc-tree-rename:focus { border-color: #4f8df8; }
+.doc-tree-rename:focus { border-color: transparent; box-shadow: var(--shadow-glow); }
 .doc-tree-add { opacity: 0; }
 .doc-tree-row:hover .doc-tree-add { opacity: 1; }
 .doc-tree-children {}
@@ -3567,31 +3573,29 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-rail-inner { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .doc-tabs {
   display: flex;
-  /* Left padding reserves space for the right-rail toggle (which sits in the
-     left corner) so the first tab doesn't get covered by the chevron. */
-  padding-left: 38px;
+  padding-left: 42px;
   border-bottom: 1px solid var(--line-1);
   flex-shrink: 0;
 }
 .doc-tab {
   flex: 1 1 0;
   appearance: none; border: 0; background: transparent;
-  padding: 10px 8px;
+  padding: 12px 8px;
   color: var(--ink-2);
   cursor: pointer;
-  font: inherit; font-size: 11.5px; font-weight: 600;
+  font: 600 12px/1 var(--font-sans);
   letter-spacing: -0.005em;
-  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   border-bottom: 2px solid transparent;
-  transition: color 120ms, border-color 120ms;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.doc-tab:hover { color: var(--ink-0); }
-.doc-tab.is-active { color: var(--ink-0); border-bottom-color: #4f8df8; }
+.doc-tab:hover { color: var(--ink-1); }
+.doc-tab.is-active { color: var(--ink-0); border-bottom-color: var(--soleil); }
 .doc-tab-count {
-  font-family: var(--font-mono); font-size: 9.5px;
-  background: var(--bg-2);
+  font: 500 11px/1 var(--font-mono); font-variant-numeric: tabular-nums;
+  background: var(--bg-3);
   border-radius: 999px;
-  padding: 1px 6px;
+  padding: 2px 8px;
   color: var(--ink-2);
 }
 
