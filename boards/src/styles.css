@@ -782,31 +782,35 @@ body {
   min-width: 44px; text-align: center;
 }
 
-/* Inbox */
+/* Inbox — drawer-style panel docked top-right */
 .inbox {
   position: absolute;
-  right: 14px; top: 14px;
-  width: 268px;
-  max-height: calc(100% - 28px);
+  right: 16px; top: 16px;
+  width: 296px;
+  max-height: calc(100% - 32px);
   display: flex; flex-direction: column;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
+  background: rgba(20,18,15,.85);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-2);
   z-index: 20;
   overflow: hidden;
+  animation: ctx-menu-in var(--dur-base) var(--ease);
 }
+[data-theme='light'] .inbox { background: rgba(255,252,246,.85); border-color: rgba(10,9,8,.06); }
 .inbox-hd {
-  display: flex; align-items: center; gap: 8px;
-  padding: 9px 10px 9px 12px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--line-1);
   flex-shrink: 0;
 }
-.inbox-title { font-size: 12px; font-weight: 600; color: var(--ink-0); }
+.inbox-title { font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-1); }
 .inbox-count {
-  font-family: var(--font-mono); font-size: 10px;
+  font: 500 11px/1 var(--font-sans); font-variant-numeric: tabular-nums;
   background: var(--bg-3); color: var(--ink-2);
-  padding: 1px 6px; border-radius: 10px;
+  padding: 3px 8px; border-radius: 999px;
 }
 .inbox-hd-spacer { flex: 1; }
 .inbox-close {
@@ -858,18 +862,19 @@ body {
 }
 
 .inbox-empty {
-  padding: 20px 12px;
+  padding: 24px 16px;
   text-align: center;
-  font-family: var(--font-mono); font-size: 10.5px;
+  font: 400 12px/1.4 var(--font-sans);
   color: var(--ink-3);
 }
 
 .inbox-item {
   display: flex; align-items: flex-start; gap: 10px;
-  padding: 7px 8px;
-  border-radius: 5px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
   cursor: grab;
   user-select: none;
+  transition: background var(--dur-fast) var(--ease);
 }
 .inbox-item:hover { background: var(--bg-hov); }
 .inbox-item:active { cursor: grabbing; }
@@ -1270,20 +1275,29 @@ body {
 /* ──────────────────────────── Tweaks Panel overrides ───────────────────── */
 
 .tweaks-panel {
-  background: var(--bg-1) !important;
-  border: 1px solid var(--line-2) !important;
+  background: rgba(20,18,15,.85) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.06) !important;
   color: var(--ink-1) !important;
   font-family: var(--font-sans) !important;
+  box-shadow: var(--shadow-2) !important;
+  border-radius: var(--radius-md) !important;
 }
+[data-theme='light'] .tweaks-panel { background: rgba(255,252,246,.85) !important; border-color: rgba(10,9,8,.06) !important; }
 .tweaks-panel-header { border-bottom: 1px solid var(--line-1) !important; }
-.tweaks-panel-title { color: var(--ink-0) !important; font-weight: 600 !important; }
+.tweaks-panel-title {
+  color: var(--ink-0) !important;
+  font: 600 14px/1.3 var(--font-sans) !important;
+  letter-spacing: -0.01em !important;
+}
 .tweak-section-label {
-  font-family: var(--font-mono) !important;
-  font-size: 9.5px !important;
-  letter-spacing: .14em !important;
+  font: 700 10px/1 var(--font-display) !important;
+  letter-spacing: .18em !important;
+  text-transform: uppercase;
   color: var(--ink-3) !important;
 }
-.tweak-label { color: var(--ink-1) !important; font-size: 12px !important; }
+.tweak-label { color: var(--ink-1) !important; font: 500 13px/1.4 var(--font-sans) !important; }
 
 /* Scrollbar — thin, transparent track, fades in on hover. Firefox uses the
    shorthand props; WebKit gets a transparent thumb that gets a visible color
