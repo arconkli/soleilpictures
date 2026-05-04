@@ -3665,81 +3665,87 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 /* Find & replace bar */
 .doc-find {
-  position: absolute; top: 6px; right: 24px;
+  position: absolute; top: 12px; right: 24px;
   z-index: 10;
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 4px;
   padding: 6px 8px;
-  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  backdrop-filter: blur(20px) saturate(140%);
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  background: rgba(20,18,15,.85);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  animation: ctx-menu-in var(--dur-base) var(--ease);
 }
+[data-theme='light'] .doc-find { background: rgba(255,252,246,.85); border-color: rgba(10,9,8,.06); }
 .doc-center { position: relative; }
 .doc-find-input {
-  width: 160px;
-  background: var(--bg-2);
+  width: 180px;
+  background: var(--bg-3);
   border: 1px solid var(--line-2);
-  border-radius: 5px;
+  border-radius: var(--radius);
   color: var(--ink-0);
-  font: inherit; font-size: 12.5px;
-  padding: 4px 7px;
+  font: 500 13px/1 var(--font-sans);
+  padding: 6px 10px;
   outline: none;
+  transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
 }
-.doc-find-input:focus { border-color: #4f8df8; }
+.doc-find-input:focus { border-color: transparent; box-shadow: var(--shadow-glow); }
 .doc-find-count {
-  font-family: var(--font-mono); font-size: 10.5px;
+  font: 500 11px/1 var(--font-mono); font-variant-numeric: tabular-nums;
   color: var(--ink-3);
-  min-width: 38px; text-align: center;
+  min-width: 44px; text-align: center;
 }
 .doc-find-btn {
   appearance: none; border: 0; background: transparent;
   width: 26px; height: 26px;
-  border-radius: 5px;
-  color: var(--ink-1);
+  border-radius: var(--radius);
+  color: var(--ink-2);
   cursor: pointer;
-  font: inherit; font-size: 12px; line-height: 1;
+  font: 500 13px/1 var(--font-sans);
   display: grid; place-items: center;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-find-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
-.doc-find-btn.is-active { background: var(--bg-act); color: var(--ink-0); }
+.doc-find-btn.is-active { background: var(--soleil-soft); color: var(--ink-0); }
 .doc-find-x {
   appearance: none; border: 0; background: transparent;
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-size: 16px; line-height: 1;
-  width: 24px; height: 24px;
-  border-radius: 5px;
+  width: 26px; height: 26px;
+  border-radius: var(--radius);
   cursor: pointer;
   display: grid; place-items: center;
   margin-left: 2px;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-find-x:hover { background: var(--bg-hov); color: var(--ink-0); }
-.doc-find-sep { width: 1px; height: 18px; background: var(--line-2); margin: 0 2px; }
+.doc-find-sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; }
 .doc-find-hit {
-  background: rgba(255, 220, 80, .35);
+  background: var(--soleil-soft);
+  border-bottom: 1px solid var(--soleil);
   border-radius: 2px;
 }
 .doc-find-hit-current {
-  background: rgba(255, 200, 50, .8);
+  background: var(--soleil);
+  color: var(--bg-0);
   color: #1a1300;
 }
 
 /* Footer */
 .doc-foot {
   display: flex; align-items: center;
-  padding: 6px 14px;
+  height: 28px;
+  padding: 0 16px;
   border-top: 1px solid var(--line-1);
   background: var(--bg-1);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: var(--ink-3);
-  letter-spacing: .02em;
   flex-shrink: 0;
+  gap: 12px;
 }
-.doc-foot-status.is-saving { color: #f59e0b; }
+.doc-foot-status { font: 400 11px/1 var(--font-sans); color: var(--ink-2); }
+.doc-foot-status.is-saving { color: var(--soleil); }
 .doc-foot-spacer { flex: 1 1 auto; }
-.doc-foot-counts { color: var(--ink-3); }
+.doc-foot-counts { font: 500 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-3); }
 
 /* Block handle (Notion-style) */
 .doc-block-handle {
@@ -4305,12 +4311,13 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-card-meta { color: var(--ink-3); flex: 1 1 auto; }
 .doc-card-open {
   appearance: none; border: 1px solid var(--line-2); background: transparent;
-  color: var(--ink-1); font: inherit; font-size: 10.5px;
-  padding: 3px 9px;
-  border-radius: 5px;
+  color: var(--ink-1); font: 500 11px/1 var(--font-sans);
+  padding: 5px 10px;
+  border-radius: var(--radius);
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.doc-card-open:hover { color: var(--ink-0); border-color: var(--line-3); background: var(--bg-3); }
+.doc-card-open:hover { color: var(--ink-0); border-color: var(--soleil); background: var(--soleil-soft); }
 
 /* Doc card overlay — two modes:
    .doc-card-modal-full → fullscreen-ish (24px inset on all sides)
@@ -4321,14 +4328,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   z-index: 2147483600;
   background: var(--bg-0);
   border: 1px solid var(--line-2);
-  box-shadow: 0 30px 80px rgba(0,0,0,.55);
+  box-shadow: var(--shadow-3);
   display: flex; flex-direction: column;
   overflow: hidden;
-  animation: doc-card-modal-in 160ms cubic-bezier(.2,.8,.2,1);
+  animation: doc-card-modal-in var(--dur-base) var(--ease);
 }
 .doc-card-modal-full {
   inset: 24px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 .doc-card-modal-side {
   border-radius: 0;
@@ -4363,8 +4370,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   opacity: .55;
   transition: opacity 120ms, background 120ms;
 }
-.doc-card-side-divider:hover, .doc-card-side-divider:active { background: rgba(79,141,248,.18); }
-.doc-card-side-divider:hover::before, .doc-card-side-divider:active::before { opacity: 1; background: #4f8df8; }
+.doc-card-side-divider:hover, .doc-card-side-divider:active { background: var(--soleil-soft); }
+.doc-card-side-divider:hover::before, .doc-card-side-divider:active::before { opacity: 1; background: var(--soleil); }
 .doc-card-modal-head {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 12px 10px 18px;
