@@ -4774,3 +4774,35 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-1);
   letter-spacing: -0.005em;
 }
+
+/* ──────────────────────────── Inline composer ───────────────────────────── */
+
+.inline-composer {
+  position: fixed;
+  z-index: 2147483647;
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  animation: ctx-menu-in var(--dur-base) var(--ease);
+}
+.inline-composer-input {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-0);
+  font: 500 13px/1.4 var(--font-sans);
+  padding: 8px 10px;
+  outline: none;
+  resize: none;
+  transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
+}
+.inline-composer-input::placeholder { color: var(--ink-3); }
+.inline-composer-input:focus { border-color: transparent; box-shadow: var(--shadow-glow); }
+.inline-composer-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+.inline-composer-hint { color: var(--ink-3); }
