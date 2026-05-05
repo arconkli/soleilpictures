@@ -30,6 +30,8 @@ import { useFeedback } from './AppFeedback.jsx';
 import { LinkPopover } from './LinkPopover.jsx';
 import { EntityPicker } from './EntityPicker.jsx';
 import { createNameIndex } from '../lib/entityNameTrie.js';
+import { CommentGutter } from './CommentGutter.jsx';
+import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 
 // Comprehensive keyboard shortcuts beyond the StarterKit defaults. Mirrors
 // what users expect from Google Docs / Notion.
@@ -81,6 +83,8 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   // linkPicker = { anchor, multi, initialSelected, existingLinkId? } | null
   const [mention, setMention] = useState(null);
   // mention = { range, query, clientRect } | null
+  const [openThread, setOpenThread] = useState(null);
+  // openThread = { id, anchor } | null
 
   const mentionExt = useMemo(() => MentionExtension({
     onStart: (props) => {
@@ -495,6 +499,23 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
             setMention(null);
           }}
           onCancel={() => setMention(null)}
+        />
+      )}
+      <CommentGutter
+        ydoc={ydoc}
+        scope={scope}
+        pageId={activePageId}
+        editor={editorRef.current}
+        onOpenThread={(id) => {
+          const dot = document.querySelector(`.comment-gutter-dot[data-thread="${id}"]`);
+          setOpenThread({ id, anchor: dot?.getBoundingClientRect() });
+        }}
+      />
+      {openThread && (
+        <CommentInlinePopover
+          ydoc={ydoc} scope={scope} threadId={openThread.id}
+          anchor={openThread.anchor} currentUser={currentUser}
+          onClose={() => setOpenThread(null)}
         />
       )}
     </div>
