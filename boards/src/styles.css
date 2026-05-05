@@ -5401,3 +5401,32 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   font-weight: 600;
 }
 .msg-pill-user { background: rgba(212,160,74,.18); }
+
+.msg-bubble-edit-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+.msg-bubble-edit-actions button {
+  background: transparent; border: 1px solid var(--line-2);
+  color: var(--ink-2);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  font: 500 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.msg-bubble-edit-actions .btn-primary { background: var(--soleil); color: var(--bg-0); border-color: transparent; }
+
+.emoji-palette {
+  position: fixed;
+  z-index: 2147483647;
+  display: flex; gap: 4px;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  animation: ctx-menu-in var(--dur-fast) var(--ease);
+}
+.emoji-palette-btn {
+  background: transparent; border: 0;
+  font-size: 20px;
+  width: 28px; height: 28px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.emoji-palette-btn:hover { background: var(--bg-hov); }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Icon } from './Icon.jsx';
 import { Trash2, Edit, Smile } from '../lib/icons.js';
+import { EmojiPalette } from './EmojiPalette.jsx';
 
 // One message row in a thread.
 //   msg = full row from messages table
@@ -10,22 +11,45 @@ export function MessageBubble({ msg, selfId, onDelete, onEdit, onReact, onAttach
   const isMine = msg.sender_id === selfId;
   const within15min = msg.created_at && (Date.now() - new Date(msg.created_at).getTime()) < 15 * 60 * 1000;
   const [hover, setHover] = useState(false);
+  const [emojiAnchor, setEmojiAnchor] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState(msg.body);
   const time = relTime(msg.created_at);
+
+  const submitEdit = async () => {
+    const v = editBody.trim();
+    if (!v) return;
+    await onEdit?.(msg, v);
+    setEditing(false);
+  };
 
   return (
     <div className="msg-bubble" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
       <div className="msg-bubble-head">
         <span className="msg-bubble-author">{msg.sender_name || 'Someone'}</span>
         <span className="msg-bubble-time t-meta">{time}{msg.edited_at ? ' · edited' : ''}</span>
-        {hover && (
+        {hover && !editing && (
           <span className="msg-bubble-actions">
-            <button title="React"  onClick={() => onReact?.(msg)}><Icon as={Smile} size={12} /></button>
-            {isMine && within15min && <button title="Edit"   onClick={() => onEdit?.(msg)}><Icon as={Edit}   size={12} /></button>}
+            <button title="React"  onClick={(e) => setEmojiAnchor(e.currentTarget.getBoundingClientRect())}><Icon as={Smile} size={12} /></button>
+            {isMine && within15min && <button title="Edit"   onClick={() => { setEditBody(msg.body); setEditing(true); }}><Icon as={Edit}   size={12} /></button>}
             {isMine               && <button title="Delete" onClick={() => onDelete?.(msg)}><Icon as={Trash2} size={12} /></button>}
           </span>
         )}
       </div>
-      <div className="msg-bubble-body">{renderBody({ body: msg.body, mentions: msg.mentions, attachments: msg.attachments })}</div>
+      {editing ? (
+        <form onSubmit={(e) => { e.preventDefault(); submitEdit(); }}>
+          <textarea autoFocus value={editBody}
+                    onChange={(e) => setEditBody(e.target.value)}
+                    className="msg-composer-input" rows={2}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false); }} />
+          <div className="msg-bubble-edit-actions">
+            <button type="button" onClick={() => setEditing(false)}>Cancel</button>
+            <button type="submit" className="btn-primary">Save</button>
+          </div>
+        </form>
+      ) : (
+        <div className="msg-bubble-body">{renderBody({ body: msg.body, mentions: msg.mentions, attachments: msg.attachments })}</div>
+      )}
       {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
         <div className="msg-bubble-attachments">
           {msg.attachments.map((att, i) => (
@@ -58,6 +82,13 @@ export function MessageBubble({ msg, selfId, onDelete, onEdit, onReact, onAttach
             </button>
           ))}
         </div>
+      )}
+      {emojiAnchor && (
+        <EmojiPalette
+          anchor={emojiAnchor}
+          onPick={(emoji) => onReact?.(msg, emoji)}
+          onClose={() => setEmojiAnchor(null)}
+        />
       )}
     </div>
   );

@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Icon } from './Icon.jsx';
 import { ChevronLeft, X } from '../lib/icons.js';
 import { useMessageThread } from '../hooks/useMessageThread.js';
-import { sendMessage, deleteMessage } from '../lib/messages.js';
+import { sendMessage, deleteMessage, editMessage, toggleReaction } from '../lib/messages.js';
 import {
   broadcastBoardMessage, broadcastDmMessage,
   broadcastBoardTyping,  broadcastDmTyping,
@@ -39,6 +39,17 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
     refetch();
   }, [refetch]);
 
+  const handleEdit = useCallback(async (msg, newBody) => {
+    await editMessage({ id: msg.id, body: newBody });
+    refetch();
+  }, [refetch]);
+
+  const handleReact = useCallback(async (msg, emoji) => {
+    if (!emoji) return;
+    await toggleReaction({ messageId: msg.id, emoji, userId });
+    refetch();
+  }, [userId, refetch]);
+
   const handleTyping = useCallback(() => {
     if (thread.kind === 'board') broadcastBoardTyping({ boardId: thread.boardId, userId });
     else                          broadcastDmTyping({ userA: userId, userB: thread.peerId, userId });
@@ -69,8 +80,8 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
             selfId={userId}
             onDelete={handleDelete}
             onAttachmentDragStart={handleAttachmentDragStart}
-            onReact={() => { /* Phase E */ }}
-            onEdit={() => { /* Phase E */ }}
+            onReact={handleReact}
+            onEdit={handleEdit}
           />
         ))}
         {typingUsers.size > 0 && (
