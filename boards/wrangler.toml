@@ -6,6 +6,15 @@
 name = "soleil-boards"
 compatibility_date = "2025-01-01"
 
+# Public custom domain. CF provisions DNS + SSL on first deploy
+# (requires soleilpictures.com to be on Cloudflare DNS).
+routes = [
+  { pattern = "boards.soleilpictures.com", custom_domain = true },
+]
+
+# Disable the *.workers.dev preview URL — we only want the custom domain.
+workers_dev = false
+
 [assets]
 directory = "./dist"
 not_found_handling = "single-page-application"
