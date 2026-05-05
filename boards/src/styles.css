@@ -5721,7 +5721,39 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .bc-presence-dot:first-child { margin-left: 0; }
 .bc-presence-dot.nested { opacity: 0.55; }
-.bc-presence-dot.bc-presence-overflow {
+.bc-presence-dot/* Tiptap CollaborationCursor — caret + label per remote peer in a doc.
+   The extension renders these class names automatically; they have no
+   default styling so the doc looked uncollaborative. */
+.ProseMirror .collaboration-cursor__caret {
+  position: relative;
+  margin-left: -1px; margin-right: -1px;
+  border-left: 2px solid;
+  border-right: 0;
+  word-break: normal;
+  pointer-events: none;
+  height: 1.2em;
+}
+.ProseMirror .collaboration-cursor__label {
+  position: absolute;
+  top: -1.5em;
+  left: -2px;
+  white-space: nowrap;
+  font: 600 10px/1 var(--font-sans);
+  color: #fff;
+  padding: 2px 5px;
+  border-radius: 3px;
+  user-select: none;
+  pointer-events: none;
+}
+/* Selection overlay (peer's text selection) — Tiptap renders these
+   inline yjs selection markers. Make them visible in the peer color. */
+.ProseMirror .ProseMirror-yjs-selection {
+  background: currentColor;
+  opacity: 0.18;
+  border-radius: 1px;
+}
+
+.bc-presence-overflow {
   background: var(--bg-3);
   color: var(--ink-1);
   font-size: 9px;

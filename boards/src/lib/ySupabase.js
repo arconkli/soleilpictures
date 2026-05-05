@@ -140,21 +140,46 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   });
 
   // On subscribe, exchange state vectors with anyone else in the channel.
-  channel.subscribe((status, err) => {
-    // Surface every state change so live debugging in the console is easy.
+  // Re-subscribe loop: if the channel ever drops (CLOSED / CHANNEL_ERROR /
+  // TIMED_OUT), rejoin after a short backoff so a flaky connection
+  // self-heals instead of leaving the user disconnected silently.
+  let reconnectTimer = null;
+  const onSubscribeStatus = (status, err) => {
     console.log('[realtime] y:' + boardId, status, err || '');
-    if (status !== 'SUBSCRIBED') return;
-    subscribed = true;
-    const sv = Y.encodeStateVector(ydoc);
-    channel.send({ type: 'broadcast', event: 'y-sync-step1',
-                   payload: { from: CLIENT_ID, sv: bytesToB64(sv) } });
-    // Also broadcast our current awareness so newly-arrived peers see us.
-    if (awareness.getLocalState()) {
-      const buf = encodeAwarenessUpdate(awareness, [awareness.clientID]);
-      channel.send({ type: 'broadcast', event: 'y-awareness',
-                     payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
+    if (status === 'SUBSCRIBED') {
+      subscribed = true;
+      const sv = Y.encodeStateVector(ydoc);
+      channel.send({ type: 'broadcast', event: 'y-sync-step1',
+                     payload: { from: CLIENT_ID, sv: bytesToB64(sv) } });
+      if (awareness.getLocalState()) {
+        const buf = encodeAwarenessUpdate(awareness, [awareness.clientID]);
+        channel.send({ type: 'broadcast', event: 'y-awareness',
+                       payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
+      }
+    } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      subscribed = false;
+      if (destroyed) return;
+      // The handshakeWith set is per-channel-instance; clearing here so
+      // we re-handshake with peers after a reconnect.
+      handshakeWith.clear();
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        if (destroyed) return;
+        try { channel.subscribe(onSubscribeStatus); } catch (e) { console.warn('[realtime] resubscribe failed', e); }
+      }, 1500);
     }
-  });
+  };
+  channel.subscribe(onSubscribeStatus);
+
+  // Wake-up resubscribe — when the tab regains focus after being backgrounded,
+  // browsers often kill websockets silently. Force a resubscribe to recover.
+  const onVisibility = () => {
+    if (document.visibilityState !== 'visible') return;
+    if (destroyed || subscribed) return;
+    try { channel.subscribe(onSubscribeStatus); } catch (_) {}
+  };
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
 
   // Heartbeat: every 4s, re-broadcast our awareness state so peers know
   // we're still alive (their `meta.lastUpdated` for our clientID resets).
@@ -172,7 +197,9 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     destroy() {
       destroyed = true;
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
       clearInterval(heartbeat);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
       ydoc.off('update', onYUpdate);
       awareness.off('update', onAwarenessUpdate);
       try { removeAwarenessStates(awareness, [awareness.clientID], 'local'); } catch (_) {}

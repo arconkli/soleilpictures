@@ -92,26 +92,44 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     onPeers?.([...peers.values()]);
   });
 
-  channel.subscribe((status, err) => {
+  // Resilient (re)subscribe — flaky networks drop websockets silently;
+  // rejoin after a short backoff and re-emit a heartbeat so peers see us.
+  let reconnectTimer = null;
+  const onSubscribeStatus = (status, err) => {
     console.log('[realtime] ws:' + workspaceId, status, err || '');
     if (status === 'SUBSCRIBED') {
       subscribed = true;
       onStatus?.('connected');
       sendLocation();
-      heartbeatInterval = setInterval(sendLocation, HEARTBEAT_MS);
-      prunerInterval = setInterval(flushPeers, 4000);
-    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      if (!heartbeatInterval) heartbeatInterval = setInterval(sendLocation, HEARTBEAT_MS);
+      if (!prunerInterval) prunerInterval = setInterval(flushPeers, 4000);
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
       subscribed = false;
-      onStatus?.('error');
-    } else if (status === 'CLOSED') {
-      subscribed = false;
-      onStatus?.('disconnected');
+      onStatus?.(status === 'CLOSED' ? 'disconnected' : 'error');
+      if (destroyed) return;
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        if (destroyed) return;
+        try { channel.subscribe(onSubscribeStatus); } catch (e) { console.warn('[realtime] ws resubscribe failed', e); }
+      }, 1500);
     }
-  });
+  };
+  channel.subscribe(onSubscribeStatus);
+
+  // Tab back-foreground often kills the websocket; force resubscribe.
+  const onVisibility = () => {
+    if (document.visibilityState !== 'visible') return;
+    if (destroyed || subscribed) return;
+    try { channel.subscribe(onSubscribeStatus); } catch (_) {}
+  };
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
 
   return {
     destroy() {
       destroyed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       if (prunerInterval) clearInterval(prunerInterval);
       try { channel.send({ type: 'broadcast', event: 'ws-leave', payload: { from: TAB_ID } }); } catch (_) {}
