@@ -729,9 +729,11 @@ body {
 .cursors-layer { position: absolute; inset: 0; pointer-events: none; z-index: 999998; }
 .cursor {
   position: absolute; top: 0; left: 0;
-  /* Short ease so the cursor catches up without a noticeable lag, but
-     still smooths over the discrete broadcast ticks. */
-  transition: transform 80ms linear;
+  /* Slightly longer than the broadcast interval (~80-120ms) with an ease-out
+     so the cursor glides into the next reported position instead of jumping.
+     The will-change hint gets the GPU to composite the move smoothly. */
+  transition: transform 180ms cubic-bezier(.22, .9, .3, 1);
+  will-change: transform;
   pointer-events: none;
 }
 .cursor-flag {
