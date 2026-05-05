@@ -202,8 +202,26 @@ function describeListItem(card, boards = {}) {
 export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
                            onOpen, onOpenChild, onRename, autoFocus = false,
                            clickToOpen = false,
-                           onOpenItem }) {
+                           onOpenItem,
+                           peersHere = [],         // peers exactly on this board
+                           peersBelow = [] }) {    // peers nested somewhere under
   if (!board) return <div className="bc bc-missing">Missing board</div>;
+  const presenceDots = (() => {
+    if (!peersHere.length && !peersBelow.length) return null;
+    // Show up to 3 stacked avatars; the rest are summarized as "+N".
+    const all = [...peersHere, ...peersBelow];
+    const seen = new Set();
+    const dedup = [];
+    for (const p of all) {
+      if (!p?.user?.id || seen.has(p.user.id)) continue;
+      seen.add(p.user.id);
+      // Tag whether this peer is at this exact board or nested deeper, so
+      // the dot can render slightly muted for "below."
+      const exact = peersHere.some(x => x.user?.id === p.user.id);
+      dedup.push({ ...p, exact });
+    }
+    return dedup;
+  })();
   const team = (board.members || []).map(id => teammates.find(t => t.id === id)).filter(Boolean);
   const isList = (board.view === 'list');
   const isDoc = (board.view === 'doc');
@@ -330,6 +348,9 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
         )}
         <div className="bc-cover-ovl">
           <span className="bc-tag">{isDoc ? 'DOC' : 'BOARD'}</span>
+          {presenceDots && presenceDots.length > 0 && (
+            <BoardCardPresence peers={presenceDots} />
+          )}
         </div>
       </div>
       <div className="bc-meta">
@@ -713,6 +734,40 @@ export function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transpar
             {...common} />
         )}
       </svg>
+    </div>
+  );
+}
+
+// Tiny clustered avatars on the corner of a BoardCard cover, signaling
+// peers who are working in this board or somewhere below it. Solid dot =
+// peer is exactly here; faded = peer is in a descendant. Tooltip lists
+// names + their leaf board so you can chase them down.
+function BoardCardPresence({ peers = [] }) {
+  if (!peers.length) return null;
+  const visible = peers.slice(0, 3);
+  const overflow = peers.length - visible.length;
+  return (
+    <div className="bc-presence" aria-label={`${peers.length} ${peers.length === 1 ? 'person' : 'people'} here`}>
+      {visible.map(p => {
+        const initial = (p.user.name || p.user.email || '?')[0].toUpperCase();
+        const where = p.location?.boardName || 'this board';
+        const tip = p.exact
+          ? `${p.user.name || p.user.email} is here`
+          : `${p.user.name || p.user.email} · in ${where}`;
+        return (
+          <span key={p.user.id}
+                className={`bc-presence-dot ${p.exact ? 'exact' : 'nested'}`}
+                style={{ background: p.user.color || '#4f8df8' }}
+                title={tip}>
+            {initial}
+          </span>
+        );
+      })}
+      {overflow > 0 && (
+        <span className="bc-presence-dot bc-presence-overflow" title={`+${overflow} more`}>
+          +{overflow}
+        </span>
+      )}
     </div>
   );
 }

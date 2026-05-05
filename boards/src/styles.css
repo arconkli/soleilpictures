@@ -5702,6 +5702,33 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   cursor: default;
 }
 
+/* Stacked avatar dots on the corner of a board card showing peers who
+   are at-or-below that board in the workspace. */
+.bc-presence {
+  display: inline-flex; align-items: center;
+  margin-left: auto;
+  pointer-events: none;
+}
+.bc-presence-dot {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-1);
+  color: var(--bg-0);
+  font: 600 9px/1 var(--font-sans);
+  display: grid; place-items: center;
+  margin-left: -5px;
+  flex-shrink: 0;
+}
+.bc-presence-dot:first-child { margin-left: 0; }
+.bc-presence-dot.nested { opacity: 0.55; }
+.bc-presence-dot.bc-presence-overflow {
+  background: var(--bg-3);
+  color: var(--ink-1);
+  font-size: 9px;
+  opacity: 1;
+}
+[data-theme='light'] .bc-presence-dot { border-color: var(--bg-2); }
+
 .alt-session-banner {
   background: var(--soleil-soft);
   color: var(--soleil);

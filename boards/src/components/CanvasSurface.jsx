@@ -146,6 +146,8 @@ export function CanvasSurface({
   mutators = {},
   autoFocusId, clearAutoFocus,
   useLocalImages = false,
+  peersHereByBoard,        // Map<boardId, Peer[]>  — workspace presence
+  peersBelowByBoard,       // Map<boardId, Peer[]>  — descendants
 }) {
   const wrapRef = useRef(null);
   const [pan, setPan] = useState({ x: 40, y: 60 });
@@ -1410,8 +1412,11 @@ export function CanvasSurface({
     let inner = null;
     if (c.kind === 'board') {
       const target = boards[c.id];
+      const peersHere  = peersHereByBoard?.get?.(c.id)  || [];
+      const peersBelow = peersBelowByBoard?.get?.(c.id) || [];
       inner = target
         ? <BoardCard board={target} boards={boards} teammates={TEAMMATES}
+                     peersHere={peersHere} peersBelow={peersBelow}
                      onOpenChild={(childId) => onOpenBoard(childId)}
                      onOpenItem={(item) => {
                        // Image rows pop a lightbox so users can preview without

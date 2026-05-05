@@ -11,6 +11,7 @@ export function ListSurface({
   board, boards, cards, childBoards,
   onOpenBoard, onOpenPicker, onDropInboxItem,
   mutators = {},
+  peersHereByBoard, peersBelowByBoard,
 }) {
   const feedback = useFeedback();
   const subBoards = childBoards || [];
@@ -153,6 +154,8 @@ export function ListSurface({
                      onClick={(e) => onTileClick(e, 'board', b.id)}
                      onDoubleClick={(e) => onTileDoubleClick(e, 'board', b.id)}>
                   <BoardCard board={b} boards={boards} teammates={TEAMMATES}
+                             peersHere={peersHereByBoard?.get?.(b.id) || []}
+                             peersBelow={peersBelowByBoard?.get?.(b.id) || []}
                              onRename={(name) => mutators.renameBoardById?.(b.id, name)} />
                 </div>
               ))}

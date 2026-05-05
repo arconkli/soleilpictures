@@ -798,6 +798,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (loc?.boardId && boards[loc.boardId]) { setStack([loc.boardId]); setCurrentSurface('board'); }
   };
 
+  // Build a map of boardId → peers exactly there, plus boardId → peers in a
+  // descendant. Walks each peer's exact board up the parent_board_id chain
+  // so an ancestor card shows a nested-presence dot — that's the "follow
+  // the trail 3 boards deep" behavior.
+  const { peersHereByBoard, peersBelowByBoard } = useMemo(() => {
+    const here = new Map();
+    const below = new Map();
+    for (const p of (wsPeers || [])) {
+      const bid = p?.location?.boardId;
+      if (!bid) continue;
+      if (!here.has(bid)) here.set(bid, []);
+      here.get(bid).push(p);
+      // Walk up ancestors and tag each as "below"
+      let cur = boards[bid]?.parent_board_id;
+      const seen = new Set([bid]);
+      while (cur && !seen.has(cur)) {
+        seen.add(cur);
+        if (!below.has(cur)) below.set(cur, []);
+        below.get(cur).push(p);
+        cur = boards[cur]?.parent_board_id;
+      }
+    }
+    return { peersHereByBoard: here, peersBelowByBoard: below };
+  }, [wsPeers, boards]);
+
   const [selectedTool, setSelectedTool] = useState('select');
   // Reset to the select tool every time the active board changes — otherwise
   // a leftover draw/shape/arrow tool from the previous board carries over and
@@ -896,12 +921,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      onOpenBoard={openBoard}
                      onOpenPicker={() => setPickerOpen(true)}
                      onDropInboxItem={dropInboxItem}
+                     peersHereByBoard={peersHereByBoard}
+                     peersBelowByBoard={peersBelowByBoard}
                      mutators={muts} />
       );
       return (
         <CanvasSurface board={board} boards={boards} cards={cards} arrows={arrows} strokes={strokes}
                        ydoc={yd}
                        getAwareness={yh.getAwareness}
+                       peersHereByBoard={peersHereByBoard}
+                       peersBelowByBoard={peersBelowByBoard}
                        currentUser={{
                          id: user.id, email: user.email,
                          name: user.user_metadata?.full_name || user.email?.split('@')[0],
