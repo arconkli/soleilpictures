@@ -11,6 +11,7 @@ import { LiveCursor } from './primitives.jsx';
 //   localState.user            = { id, name, color }
 //   localState.canvasCursor    = { boardId, x, y }     // canvas-space coords
 //   localState.canvasSelection = { boardId, cardIds }  // string[]
+//   localState.liveDrag        = { boardId, cards: [{id,x,y}] } during drag
 export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
   const [peers, setPeers] = useState([]);
 
@@ -25,13 +26,17 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
         if (state.user.id === selfId) return;       // skip self
         const cursor = state.canvasCursor;
         const sel = state.canvasSelection;
-        const onBoard = (cursor?.boardId === boardId) || (sel?.boardId === boardId);
+        const drag = state.liveDrag;
+        const onBoard = (cursor?.boardId === boardId)
+                     || (sel?.boardId === boardId)
+                     || (drag?.boardId === boardId);
         if (!onBoard) return;
         out.push({
           clientId,
           user: state.user,
-          cursor: cursor?.boardId === boardId ? { x: cursor.x, y: cursor.y } : null,
-          cardIds: sel?.boardId === boardId ? (sel.cardIds || []) : [],
+          cursor:    cursor?.boardId === boardId ? { x: cursor.x, y: cursor.y } : null,
+          cardIds:   sel?.boardId    === boardId ? (sel.cardIds || []) : [],
+          dragCards: drag?.boardId   === boardId ? (drag.cards   || []) : [],
         });
       });
       setPeers(out);

@@ -87,7 +87,14 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   awareness.on('update', onAwarenessUpdate);
 
   // ── Incoming handlers ──────────────────────────────────────────────────
-  // sync-step1: peer's state vector — reply with the updates they're missing.
+  // Track peers we've already kicked off a sync handshake with, so we don't
+  // ping-pong sync-step1 forever.
+  const handshakeWith = new Set();
+
+  // sync-step1: peer's state vector — reply with the updates they're missing,
+  // and also send OUR sync-step1 back (bidirectional) so they can fill in any
+  // updates we haven't broadcast yet. Without this, late-joiners wouldn't get
+  // updates that happened before they subscribed.
   channel.on('broadcast', { event: 'y-sync-step1' }, ({ payload }) => {
     if (!payload || payload.from === CLIENT_ID) return;
     try {
@@ -95,6 +102,13 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       const update = Y.encodeStateAsUpdate(ydoc, sv);
       channel.send({ type: 'broadcast', event: 'y-sync-step2',
                      payload: { from: CLIENT_ID, to: payload.from, u: bytesToB64(update) } });
+      // Reciprocate the handshake exactly once per peer.
+      if (!handshakeWith.has(payload.from)) {
+        handshakeWith.add(payload.from);
+        const ourSv = Y.encodeStateVector(ydoc);
+        channel.send({ type: 'broadcast', event: 'y-sync-step1',
+                       payload: { from: CLIENT_ID, sv: bytesToB64(ourSv) } });
+      }
     } catch (e) { console.warn('y-sync-step1 reply failed', e); }
   });
 

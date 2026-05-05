@@ -223,6 +223,31 @@ export function CanvasSurface({
     };
   }, [getAwareness, board.id, pan.x, pan.y, zoom]);
 
+  // Peer live-drag state — read each peer's awareness liveDrag and map
+  // (cardId → {x, y}) so we can render the card at the peer's reported
+  // position while they're dragging it. Y.Doc commit on drag-end snaps it
+  // into the final position.
+  const [peerDrags, setPeerDrags] = useState({});
+  useEffect(() => {
+    const aw = getAwareness?.();
+    if (!aw) return;
+    const refresh = () => {
+      const map = {};
+      aw.getStates().forEach((state) => {
+        if (!state?.user || state.user.id === currentUser?.id) return;
+        const drag = state.liveDrag;
+        if (!drag || drag.boardId !== board.id) return;
+        for (const dc of (drag.cards || [])) {
+          if (dc?.id) map[dc.id] = { x: dc.x, y: dc.y };
+        }
+      });
+      setPeerDrags(map);
+    };
+    refresh();
+    aw.on('change', refresh);
+    return () => aw.off('change', refresh);
+  }, [getAwareness, board.id, currentUser?.id]);
+
   // Selection broadcast — when our local selection set changes, push the
   // card-id list to awareness so peers can render our selection ring.
   useEffect(() => {
@@ -755,6 +780,19 @@ export function CanvasSurface({
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
         detail: { sourceBoardId: board.id, clientX: ev.clientX, clientY: ev.clientY },
       }));
+      // Broadcast the live drag positions to peers via awareness so they can
+      // see the card move in real time (Y.Doc only commits on drag END, so
+      // without this peers wouldn't see anything until the user lets go).
+      const aw = getAwareness?.();
+      if (aw) {
+        aw.setLocalStateField('liveDrag', {
+          boardId: board.id,
+          cards: dragIds.map(id => {
+            const start = startPositions[id];
+            return start ? { id, x: Math.round(start.x + dx), y: Math.round(start.y + dy) } : null;
+          }).filter(Boolean),
+        });
+      }
     };
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
@@ -763,6 +801,10 @@ export function CanvasSurface({
       const rawDy = (ev.clientY - startClient.y) / zoom;
       const skip = ev.altKey;
       const { dx, dy } = skip ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
+      // Clear our live-drag awareness so peers see the card snap to its
+      // committed position. (The Y.Doc updateCards call below propagates
+      // the final position via Yjs sync.)
+      try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
       // ── Cross-pane transfer detection ──
       const dropEl = document.elementFromPoint(ev.clientX, ev.clientY);
       const dropWrap = dropEl?.closest?.('.canvas-wrap');
@@ -1314,8 +1356,12 @@ export function CanvasSurface({
     const inDrag = drag && drag.ids.includes(c.id);
     const dragDelta = inDrag ? drag : null;
     const resizeDelta = (resize && resize.id === c.id) ? resize : null;
-    const x = c.x + (dragDelta?.dx || 0);
-    const y = c.y + (dragDelta?.dy || 0);
+    // If a peer is currently dragging this card, override (x, y) with their
+    // awareness-reported live position so we see the card move in realtime.
+    // Local drag still wins (we never read peer position for our own drag).
+    const peerDrag = !inDrag ? peerDrags[c.id] : null;
+    const x = peerDrag ? peerDrag.x : (c.x + (dragDelta?.dx || 0));
+    const y = peerDrag ? peerDrag.y : (c.y + (dragDelta?.dy || 0));
     const w = Math.max(MIN_W, c.w + (resizeDelta?.dw || 0));
     const h = Math.max(MIN_H, c.h + (resizeDelta?.dh || 0));
     const isSelected = selected.has(c.id)
