@@ -152,6 +152,16 @@ export function CanvasSurface({
   const wrapRef = useRef(null);
   const [pan, setPan] = useState({ x: 40, y: 60 });
   const [zoom, setZoom] = useState(1);
+  // Mirror pan/zoom into refs so live handlers (cursor broadcast,
+  // pointermove → canvas-space conversion) can read the latest values
+  // without the owning effect needing to re-bind on every pan tick.
+  // Re-binding caused the effect's cleanup to fire repeatedly during a
+  // pan, which would null out our canvasCursor for peers — the cursor
+  // appeared to disappear from their screen while we panned.
+  const panRef = useRef(pan);
+  const zoomRef = useRef(zoom);
+  panRef.current = pan;
+  zoomRef.current = zoom;
   const [smoothXform, setSmoothXform] = useState(false); // true → CSS transition on canvas transform
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
@@ -203,9 +213,11 @@ export function CanvasSurface({
     };
     const onMove = (e) => {
       const r = wrap.getBoundingClientRect();
+      const p = panRef.current;
+      const z = zoomRef.current || 1;
       pending = {
-        x: (e.clientX - r.left - pan.x) / zoom,
-        y: (e.clientY - r.top  - pan.y) / zoom,
+        x: (e.clientX - r.left - p.x) / z,
+        y: (e.clientY - r.top  - p.y) / z,
       };
       if (!timer) timer = setTimeout(flush, 16);
     };
@@ -223,7 +235,7 @@ export function CanvasSurface({
       if (timer) clearTimeout(timer);
       try { aw.setLocalStateField('canvasCursor', null); } catch (_) {}
     };
-  }, [getAwareness, board.id, pan.x, pan.y, zoom]);
+  }, [getAwareness, board.id]);
 
   // Peer live-edit notes — cardId → in-flight html broadcast by peers via
   // awareness. We display this html instead of the canonical Y.Doc html
