@@ -15,6 +15,14 @@ export function RichNoteEditor({
   onAutoSize, // (height) => void  — fires while editing if not manually resized
   manuallyResized = false,
   autoFocus = false,
+  // Live-collab plumbing (optional). When provided, while the user is
+  // editing this note we broadcast the current html/selection to the
+  // shared awareness; peers see the text appear character-by-character
+  // and the highlight-band on selection. Final html still commits on blur.
+  awareness = null,
+  cardId = null,
+  boardId = null,
+  peerLiveHtml = null,        // html override broadcast by another peer
 }) {
   const ref = useRef(null);
   const [editing, setEditing] = useState(autoFocus);
@@ -22,32 +30,15 @@ export function RichNoteEditor({
 
   useEffect(() => {
     if (!ref.current) return;
-    const next = html || (body ? `<div>${escapeHtml(body)}</div>` : '');
-    // While the local user is editing, only update if the incoming html
-    // arrived from a peer (i.e. it differs from what we last sent locally
-    // AND from the current DOM) — otherwise we'd clobber the user's caret
-    // mid-keystroke. The lastLocalRef tracks the html we just broadcast so
-    // we can ignore the echo of our own change coming back through Yjs.
-    if (editing) {
-      if (next !== ref.current.innerHTML && next !== lastLocalRef.current) {
-        // Remote update while editing: preserve caret offset best-effort.
-        const sel = window.getSelection?.();
-        const offset = sel?.focusNode && ref.current.contains(sel.focusNode)
-          ? captureCharOffset(ref.current, sel.focusNode, sel.focusOffset)
-          : -1;
-        ref.current.innerHTML = next;
-        if (offset >= 0) restoreCharOffset(ref.current, offset);
-      }
-      return;
-    }
-    if (ref.current.innerHTML !== next) {
-      ref.current.innerHTML = next;
-    }
+    if (editing) return;  // editor owns the DOM while editing
+    // Receiver: prefer the peer's in-flight html if a peer is editing this
+    // note right now (peerLiveHtml from awareness), otherwise the committed
+    // html from Y.Doc. peerLiveHtml clears on the peer's blur and falls
+    // back to the canonical html.
+    const next = peerLiveHtml ?? (html || (body ? `<div>${escapeHtml(body)}</div>` : ''));
+    if (ref.current.innerHTML !== next) ref.current.innerHTML = next;
     initialRef.current = ref.current.innerHTML;
-  }, [html, body, editing]);
-  // Stash the last html we wrote out so the echo from Yjs doesn't trigger
-  // a re-paint that would jump the user's caret.
-  const lastLocalRef = useRef('');
+  }, [html, body, editing, peerLiveHtml]);
 
   useEffect(() => { onEditingChange?.(editing); }, [editing]);
 
@@ -109,10 +100,12 @@ export function RichNoteEditor({
     setEditing(true);
   };
 
-  // Live broadcast: every input event, debounce 100ms then propagate the
-  // current HTML so peers see the text as you type (was previously commit-
-  // on-blur only). Linkify only at commit-time so partial URLs don't get
-  // boxed mid-typing.
+  // Live broadcast: write the in-flight html to AWARENESS (not Y.Map) on
+  // each input. Awareness is already throttled (~30Hz) on the same channel
+  // as cursor presence, so peers see the text live without spamming Y.Doc
+  // updates that would (a) hit broadcast rate limits and (b) pollute the
+  // undo stack with one entry per keystroke. Final commit-to-Y.Doc still
+  // happens on blur in commit().
   const liveTimerRef = useRef(null);
   const broadcastLive = () => {
     if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
@@ -120,10 +113,10 @@ export function RichNoteEditor({
       liveTimerRef.current = null;
       if (!ref.current) return;
       const cur = ref.current.innerHTML;
-      if (cur === lastLocalRef.current) return;
-      lastLocalRef.current = cur;
-      onChangeHTML?.(cur);
-    }, 100);
+      if (awareness && cardId && boardId) {
+        awareness.setLocalStateField('noteEdit', { boardId, cardId, html: cur });
+      }
+    }, 60);
   };
 
   const commit = (e) => {
@@ -142,7 +135,9 @@ export function RichNoteEditor({
     // the now read-only note.
     ref.current?.blur?.();
     try { window.getSelection?.()?.removeAllRanges(); } catch (_) {}
-    lastLocalRef.current = newHtml;
+    // Clear the live-edit awareness so peers stop seeing our in-flight
+    // html (they'll fall back to the canonical html that we just committed).
+    try { awareness?.setLocalStateField?.('noteEdit', null); } catch (_) {}
     if (newHtml !== initialRef.current) onChangeHTML(newHtml);
   };
 

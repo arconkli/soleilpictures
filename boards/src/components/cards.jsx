@@ -498,10 +498,12 @@ export function ImageCard({ src, label, title, link, tone, aspect, caption,
 }
 
 export function NoteCard({ body, html, bgColor, textColor, onUpdate, onEditingChange, autoFocus = false,
-                           manuallyResized = false }) {
+                           manuallyResized = false,
+                           awareness = null, cardId = null, boardId = null, peerLiveHtml = null }) {
   if (!onUpdate) {
+    const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
     return <div className="note" style={{ background: bgColor || undefined, color: textColor || undefined }}>
-      <div className="note-body" dangerouslySetInnerHTML={{ __html: html || (body ? `<div>${body}</div>` : '') }} />
+      <div className="note-body" dangerouslySetInnerHTML={{ __html: display }} />
     </div>;
   }
   return (
@@ -515,6 +517,8 @@ export function NoteCard({ body, html, bgColor, textColor, onUpdate, onEditingCh
       onAutoSize={(h) => onUpdate({ h: Math.round(h) })}
       manuallyResized={manuallyResized}
       autoFocus={autoFocus}
+      awareness={awareness} cardId={cardId} boardId={boardId}
+      peerLiveHtml={peerLiveHtml}
     />
   );
 }

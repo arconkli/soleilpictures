@@ -225,6 +225,29 @@ export function CanvasSurface({
     };
   }, [getAwareness, board.id, pan.x, pan.y, zoom]);
 
+  // Peer live-edit notes — cardId → in-flight html broadcast by peers via
+  // awareness. We display this html instead of the canonical Y.Doc html
+  // while the peer is typing, so the text appears live without waiting
+  // for commit-on-blur.
+  const [peerNoteEdits, setPeerNoteEdits] = useState({});
+  useEffect(() => {
+    const aw = getAwareness?.();
+    if (!aw) return;
+    const refresh = () => {
+      const map = {};
+      aw.getStates().forEach((state) => {
+        if (!state?.user || state.user.id === currentUser?.id) return;
+        const ne = state.noteEdit;
+        if (!ne || ne.boardId !== board.id || !ne.cardId) return;
+        map[ne.cardId] = ne.html;
+      });
+      setPeerNoteEdits(map);
+    };
+    refresh();
+    aw.on('change', refresh);
+    return () => aw.off('change', refresh);
+  }, [getAwareness, board.id, currentUser?.id]);
+
   // Peer live-drag state — read each peer's awareness liveDrag and map
   // (cardId → {x, y}) so we can render the card at the peer's reported
   // position while they're dragging it. Y.Doc commit on drag-end snaps it
@@ -1440,6 +1463,9 @@ export function CanvasSurface({
                                                      onAfterEdit={() => { setSelected(new Set()); setAutoFocusId(null); }} />;
     else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
+                                                awareness={getAwareness?.() || null}
+                                                cardId={c.id} boardId={board.id}
+                                                peerLiveHtml={peerNoteEdits[c.id] ?? null}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
     else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} onUpdate={onUpdate} autoFocus={af}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
