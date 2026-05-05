@@ -113,28 +113,16 @@ function PeerSelectionStyles({ peers }) {
     const rules = [];
     for (const p of peers) {
       const color = p.user.color || '#d4a04a';
-      const soft = colorWithAlpha(color, 0.22);
       for (const id of p.cardIds) {
         const safe = id.replace(/"/g, '\\"');
-        // Inset ring on the inner content (which has its own background and
-        // sits at the same edge as the card). Corners draw via inset
-        // box-shadow so they stay INSIDE the card's overflow:hidden clip.
-        rules.push(
-          `.card[data-card-id="${safe}"] > :first-child {`
-          + ` box-shadow:`
-          + `   inset 0 0 0 2px ${color},`
-          + `   inset 0 0 0 6px ${soft},`
-          + `   var(--shadow-2);`
-          + ` border-radius: var(--radius-md); }`
-        );
-        // Subtle outer halo on the card itself (small, fits in overflow).
-        // The card's own overflow:hidden wins on inner pixels but the
-        // shadow can extend up to ~4px before contain:paint truncates it
-        // — which is fine for a soft glow.
+        // Single clean ring in the peer's color. Outline (not box-shadow)
+        // because contain:paint on the card root clips outer shadows but
+        // outlines render outside that clip. No second/inner ring — the
+        // user explicitly didn't want the double-select look.
         rules.push(
           `.card[data-card-id="${safe}"] {`
-          + ` outline: 1px solid ${color};`
-          + ` outline-offset: 2px; }`
+          + ` outline: 2px solid ${color};`
+          + ` outline-offset: 1px; }`
         );
       }
     }
