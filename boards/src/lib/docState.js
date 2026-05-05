@@ -1,0 +1,292 @@
+// Helpers for working with the doc Y.Doc shape.
+//
+// Two modes:
+//   ROOT mode (legacy view='doc' boards): types live directly on the per-board
+//     Y.Doc — ydoc.getArray('docPages'), ydoc.getMap('docPageContent'), etc.
+//   CARD mode (doc cards on a canvas): each card's YMap holds its own
+//     'docPages' Y.Array, 'docPageContent' Y.Map, 'docBookmarks' Y.Map,
+//     'docComments' Y.Map. Multiple doc cards on the same board live side by
+//     side, each with its own state.
+//
+// Every helper accepts an optional `scope` arg. Pass null/omit for ROOT mode;
+// pass `cardScope(cardYMap)` for CARD mode. Internals look the same for both.
+
+import * as Y from 'yjs';
+
+// ── Scope plumbing ───────────────────────────────────────────────────────────
+// A "scope" is just a bag of Y types — pages / content / bookmarks / comments.
+// Helpers read from / write to the scope without caring whether it's rooted on
+// the per-board Y.Doc or on an individual card's Y.Map.
+export function rootScope(ydoc) {
+  return {
+    pages: ydoc.getArray('docPages'),
+    content: ydoc.getMap('docPageContent'),
+    bookmarks: ydoc.getMap('docBookmarks'),
+    comments: ydoc.getMap('docComments'),
+  };
+}
+export function cardScope(cardYMap) {
+  return {
+    pages: cardYMap.get('docPages'),
+    content: cardYMap.get('docPageContent'),
+    bookmarks: cardYMap.get('docBookmarks'),
+    comments: cardYMap.get('docComments'),
+  };
+}
+// Initialize the four Y types on a fresh card YMap so cardScope(...) returns
+// real values. Call once when a new doc card is created.
+export function initCardDocStore(ydoc, cardYMap) {
+  ydoc.transact(() => {
+    if (!cardYMap.get('docPages'))       cardYMap.set('docPages', new Y.Array());
+    if (!cardYMap.get('docPageContent')) cardYMap.set('docPageContent', new Y.Map());
+    if (!cardYMap.get('docBookmarks'))   cardYMap.set('docBookmarks', new Y.Map());
+    if (!cardYMap.get('docComments'))    cardYMap.set('docComments', new Y.Map());
+  }, 'local');
+}
+
+const S = (ydoc, scope) => scope || rootScope(ydoc);
+
+export function pagesArray(ydoc, scope)        { return S(ydoc, scope).pages; }
+export function pageContentMap(ydoc, scope)    { return S(ydoc, scope).content; }
+export function bookmarksMap(ydoc, scope)      { return S(ydoc, scope).bookmarks; }
+export function commentsMap(ydoc, scope)       { return S(ydoc, scope).comments; }
+
+export function readPages(ydoc, scope) {
+  const arr = pagesArray(ydoc, scope);
+  if (!arr) return [];
+  return arr.toArray().map(p => (p && p.toJSON) ? p.toJSON() : p);
+}
+
+export function readBookmarks(ydoc, scope) {
+  const out = [];
+  const map = bookmarksMap(ydoc, scope);
+  if (!map) return out;
+  map.forEach((v, k) => { out.push({ id: k, ...v }); });
+  return out;
+}
+
+export function readComments(ydoc, scope) {
+  const out = [];
+  const map = commentsMap(ydoc, scope);
+  if (!map) return out;
+  map.forEach((v, k) => { out.push({ id: k, ...v }); });
+  out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return out;
+}
+
+// Get-or-create the Y.XmlFragment for a page.
+export function getOrCreatePageContent(ydoc, pageId, scope) {
+  const map = pageContentMap(ydoc, scope);
+  if (!map) return null;
+  let frag = map.get(pageId);
+  if (!frag) {
+    frag = new Y.XmlFragment();
+    ydoc.transact(() => { map.set(pageId, frag); }, 'local');
+  }
+  return frag;
+}
+
+function nextPageId() {
+  return 'p_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+export function addPage(ydoc, opts = {}) {
+  const { name = 'Untitled', parent_id = null, scope } = opts;
+  const id = nextPageId();
+  const arr = pagesArray(ydoc, scope);
+  const content = pageContentMap(ydoc, scope);
+  if (!arr || !content) return id;
+  ydoc.transact(() => {
+    const siblings = arr.toArray().filter(p => p.parent_id === parent_id);
+    const order = siblings.length > 0
+      ? Math.max(...siblings.map(p => p.order ?? 0)) + 1
+      : 0;
+    arr.push([{ id, name, parent_id, order, expanded: true }]);
+    content.set(id, new Y.XmlFragment());
+  }, 'local');
+  return id;
+}
+
+export function renamePage(ydoc, id, name, scope) {
+  const arr = pagesArray(ydoc, scope); if (!arr) return;
+  ydoc.transact(() => {
+    for (let i = 0; i < arr.length; i++) {
+      const p = arr.get(i);
+      if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, name }]); return; }
+    }
+  }, 'local');
+}
+
+export function setPageExpanded(ydoc, id, expanded, scope) {
+  const arr = pagesArray(ydoc, scope); if (!arr) return;
+  ydoc.transact(() => {
+    for (let i = 0; i < arr.length; i++) {
+      const p = arr.get(i);
+      if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, expanded }]); return; }
+    }
+  }, 'local');
+}
+
+export function deletePage(ydoc, id, scope) {
+  const arr = pagesArray(ydoc, scope);
+  const content = pageContentMap(ydoc, scope);
+  const bookmarks = bookmarksMap(ydoc, scope);
+  if (!arr || !content || !bookmarks) return;
+  ydoc.transact(() => {
+    const all = arr.toArray();
+    const toRemove = new Set();
+    const collect = (pid) => {
+      toRemove.add(pid);
+      all.forEach(p => { if (p.parent_id === pid) collect(p.id); });
+    };
+    collect(id);
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (toRemove.has(arr.get(i).id)) arr.delete(i, 1);
+    }
+    toRemove.forEach(pid => content.delete(pid));
+    bookmarks.forEach((v, k) => { if (toRemove.has(v.pageId)) bookmarks.delete(k); });
+  }, 'local');
+}
+
+export function movePage(ydoc, id, newParentId, newIndex, scope) {
+  const arr = pagesArray(ydoc, scope); if (!arr) return;
+  ydoc.transact(() => {
+    const all = arr.toArray();
+    const moving = all.find(p => p.id === id);
+    if (!moving) return;
+    const isDescendantOf = (target, ancestor) => {
+      if (target === ancestor) return true;
+      const t = all.find(p => p.id === target);
+      if (!t || t.parent_id == null) return false;
+      return isDescendantOf(t.parent_id, ancestor);
+    };
+    if (newParentId && isDescendantOf(newParentId, id)) return;
+    const siblings = all
+      .filter(p => p.parent_id === newParentId && p.id !== id)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    siblings.splice(Math.max(0, Math.min(newIndex, siblings.length)), 0, { ...moving, parent_id: newParentId });
+    const renumbered = new Map();
+    siblings.forEach((p, i) => renumbered.set(p.id, { ...p, order: i }));
+    const changedIds = new Set([...renumbered.keys()]);
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (changedIds.has(arr.get(i).id)) arr.delete(i, 1);
+    }
+    renumbered.forEach(p => arr.push([p]));
+  }, 'local');
+}
+
+// Comments ──────────────────────────────────────────────────────────────────
+export function addCommentThread(ydoc, opts) {
+  const { pageId, body, author, authorColor, scope } = opts;
+  const id = 'cm_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
+  const map = commentsMap(ydoc, scope); if (!map) return id;
+  ydoc.transact(() => {
+    map.set(id, {
+      pageId, ts: Date.now(),
+      author: author || 'Someone',
+      authorColor: authorColor || '#4f8df8',
+      body: String(body || '').slice(0, 4000),
+      replies: [], resolved: false,
+    });
+  }, 'local');
+  return id;
+}
+
+export function addCommentReply(ydoc, id, opts) {
+  const { body, author, authorColor, scope } = opts;
+  const map = commentsMap(ydoc, scope);
+  const cur = map?.get(id); if (!cur) return;
+  const reply = {
+    id: 'cr_' + Math.random().toString(36).slice(2, 8),
+    ts: Date.now(),
+    author: author || 'Someone',
+    authorColor: authorColor || '#4f8df8',
+    body: String(body || '').slice(0, 4000),
+  };
+  ydoc.transact(() => { map.set(id, { ...cur, replies: [...(cur.replies || []), reply] }); }, 'local');
+}
+
+export function resolveComment(ydoc, id, resolved = true, scope) {
+  const map = commentsMap(ydoc, scope);
+  const cur = map?.get(id); if (!cur) return;
+  ydoc.transact(() => { map.set(id, { ...cur, resolved }); }, 'local');
+}
+
+export function deleteCommentThread(ydoc, id, scope) {
+  const map = commentsMap(ydoc, scope); if (!map) return;
+  ydoc.transact(() => { map.delete(id); }, 'local');
+}
+
+// Bookmarks ─────────────────────────────────────────────────────────────────
+export function addBookmark(ydoc, opts) {
+  const { name, pageId, anchor, scope } = opts;
+  const id = 'bm_' + Math.random().toString(36).slice(2, 10);
+  const map = bookmarksMap(ydoc, scope); if (!map) return id;
+  ydoc.transact(() => { map.set(id, { name, pageId, anchor }); }, 'local');
+  return id;
+}
+
+export function deleteBookmark(ydoc, id, scope) {
+  const map = bookmarksMap(ydoc, scope); if (!map) return;
+  ydoc.transact(() => { map.delete(id); }, 'local');
+}
+
+export function renameBookmark(ydoc, id, name, scope) {
+  const map = bookmarksMap(ydoc, scope);
+  const cur = map?.get(id); if (!cur) return;
+  ydoc.transact(() => { map.set(id, { ...cur, name }); }, 'local');
+}
+
+// Walk a Y.XmlFragment / Y.XmlElement tree and pull out plain text. Used for
+// doc previews on canvas thumbnails (we have no Tiptap editor mounted at
+// preview time — just the raw Yjs structure).
+export function pageFragmentToText(fragment, max = 240) {
+  if (!fragment) return '';
+  let out = '';
+  const walk = (node) => {
+    if (!node || out.length >= max) return;
+    if (typeof node.toString === 'function' && (node.constructor?.name === 'YXmlText' || node._item?.parentSub === undefined && node.toDelta)) {
+      try { out += node.toString(); } catch (_) {}
+      return;
+    }
+    if (typeof node.toArray === 'function') {
+      const kids = node.toArray();
+      for (const k of kids) {
+        walk(k);
+        if (out.length >= max) break;
+      }
+      const tag = node.nodeName;
+      if (tag && /^(paragraph|heading|listItem|blockquote|codeBlock|hardBreak)$/i.test(tag)) {
+        if (!out.endsWith(' ') && !out.endsWith('\n')) out += ' ';
+      }
+    } else if (typeof node.forEach === 'function') {
+      node.forEach(walk);
+    }
+  };
+  try { walk(fragment); } catch (_) {}
+  out = out.replace(/\s+/g, ' ').trim();
+  return out.length > max ? out.slice(0, max - 1) + '…' : out;
+}
+
+export function readDocSummary(ydoc, max = 240, scope) {
+  const pages = readPages(ydoc, scope).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const firstPage = pages.find(p => p.parent_id == null) || pages[0];
+  let firstText = '';
+  if (firstPage) {
+    const frag = pageContentMap(ydoc, scope)?.get(firstPage.id);
+    firstText = pageFragmentToText(frag, max);
+  }
+  return { pages, firstText, firstPageName: firstPage?.name || '' };
+}
+
+export function buildPageTree(pages) {
+  const byParent = new Map();
+  for (const p of pages) {
+    const k = p.parent_id || null;
+    if (!byParent.has(k)) byParent.set(k, []);
+    byParent.get(k).push(p);
+  }
+  byParent.forEach(arr => arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+  const attach = (node) => ({ ...node, children: (byParent.get(node.id) || []).map(attach) });
+  return (byParent.get(null) || []).map(attach);
+}
