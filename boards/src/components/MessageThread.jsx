@@ -10,6 +10,7 @@ import {
 import { MessageBubble } from './MessageBubble.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
 import { INBOX_MIME } from '../lib/dragMimes.js';
+import { inboxPayloadFor } from '../lib/messageAttachments.js';
 
 export function MessageThread({ workspaceId, currentUser, thread, onBack, onClose }) {
   const userId = currentUser?.id;
@@ -44,11 +45,10 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
   }, [thread, userId]);
 
   const handleAttachmentDragStart = (e, att) => {
+    const payload = inboxPayloadFor(att);
+    if (!payload) return;
     e.dataTransfer.effectAllowed = 'copy';
-    // Attachments piggyback on the existing INBOX_MIME drag protocol so
-    // CanvasSurface's existing drop handler turns them into the right
-    // card kind. Phase D fleshes out inboxPayloadFor.
-    e.dataTransfer.setData(INBOX_MIME, JSON.stringify({ kind: att.kind, attachment: att }));
+    e.dataTransfer.setData(INBOX_MIME, JSON.stringify(payload));
   };
 
   return (
@@ -77,7 +77,8 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
           <div className="msg-typing t-meta">{typingUsers.size === 1 ? 'Typing…' : `${typingUsers.size} typing…`}</div>
         )}
       </div>
-      <MessageComposer onSend={handleSend} onTyping={handleTyping} />
+      <MessageComposer onSend={handleSend} onTyping={handleTyping}
+                       workspaceId={workspaceId} userId={userId} />
     </div>
   );
 }

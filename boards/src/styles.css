@@ -5379,3 +5379,15 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .msg-composer-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .msg-composer .btn-primary { margin-left: auto; height: 30px; padding: 0 12px; }
+.msg-composer-attachments {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.msg-composer-att-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-3); border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-1);
+}
+.msg-composer-att-chip button { background: transparent; border: 0; color: var(--ink-3); cursor: pointer; }
