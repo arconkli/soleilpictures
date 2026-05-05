@@ -1,8 +1,56 @@
+import { useEffect, useRef, useCallback } from 'react';
 import { Icon } from './Icon.jsx';
 import { ChevronLeft, X } from '../lib/icons.js';
+import { useMessageThread } from '../hooks/useMessageThread.js';
+import { sendMessage, deleteMessage } from '../lib/messages.js';
+import {
+  broadcastBoardMessage, broadcastDmMessage,
+  broadcastBoardTyping,  broadcastDmTyping,
+} from '../lib/messageRealtime.js';
+import { MessageBubble } from './MessageBubble.jsx';
+import { MessageComposer } from './MessageComposer.jsx';
+import { INBOX_MIME } from '../lib/dragMimes.js';
 
-// Stub — Phase C builds the full thread + composer.
-export function MessageThread({ thread, onBack, onClose }) {
+export function MessageThread({ workspaceId, currentUser, thread, onBack, onClose }) {
+  const userId = currentUser?.id;
+  const { messages, typingUsers, refetch } = useMessageThread({ workspaceId, userId, thread });
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages.length]);
+
+  const handleSend = useCallback(async ({ body, attachments, mentions }) => {
+    const dmPeerId = thread.kind === 'dm' ? thread.peerId : null;
+    const boardId  = thread.kind === 'board' ? thread.boardId : null;
+    try {
+      const inserted = await sendMessage({ workspaceId, boardId, dmPeerId, senderId: userId, body, attachments, mentions });
+      const payload = { ...inserted, sender_name: currentUser?.name || currentUser?.email };
+      if (boardId) await broadcastBoardMessage({ boardId, payload });
+      else         await broadcastDmMessage({ userA: userId, userB: dmPeerId, payload });
+      refetch();
+    } catch (e) { console.warn('send failed', e); }
+  }, [workspaceId, userId, thread, currentUser, refetch]);
+
+  const handleDelete = useCallback(async (msg) => {
+    await deleteMessage({ id: msg.id });
+    refetch();
+  }, [refetch]);
+
+  const handleTyping = useCallback(() => {
+    if (thread.kind === 'board') broadcastBoardTyping({ boardId: thread.boardId, userId });
+    else                          broadcastDmTyping({ userA: userId, userB: thread.peerId, userId });
+  }, [thread, userId]);
+
+  const handleAttachmentDragStart = (e, att) => {
+    e.dataTransfer.effectAllowed = 'copy';
+    // Attachments piggyback on the existing INBOX_MIME drag protocol so
+    // CanvasSurface's existing drop handler turns them into the right
+    // card kind. Phase D fleshes out inboxPayloadFor.
+    e.dataTransfer.setData(INBOX_MIME, JSON.stringify({ kind: att.kind, attachment: att }));
+  };
+
   return (
     <div className="msg-panel">
       <div className="msg-panel-head">
@@ -10,9 +58,26 @@ export function MessageThread({ thread, onBack, onClose }) {
         <span className="t-eyebrow">{thread?.name || 'Thread'}</span>
         <button className="modal-close" onClick={onClose}><Icon as={X} size={16} /></button>
       </div>
-      <div className="msg-panel-body">
-        <div className="msg-empty t-meta">Thread coming in Phase C…</div>
+      <div className="msg-thread-body" ref={scrollRef}>
+        {messages.length === 0 && (
+          <div className="msg-empty t-meta">No messages yet — type one below.</div>
+        )}
+        {messages.map(m => (
+          <MessageBubble
+            key={m.id}
+            msg={m}
+            selfId={userId}
+            onDelete={handleDelete}
+            onAttachmentDragStart={handleAttachmentDragStart}
+            onReact={() => { /* Phase E */ }}
+            onEdit={() => { /* Phase E */ }}
+          />
+        ))}
+        {typingUsers.size > 0 && (
+          <div className="msg-typing t-meta">{typingUsers.size === 1 ? 'Typing…' : `${typingUsers.size} typing…`}</div>
+        )}
       </div>
+      <MessageComposer onSend={handleSend} onTyping={handleTyping} />
     </div>
   );
 }
