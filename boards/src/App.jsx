@@ -11,7 +11,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, UserPlus } from './lib/icons.js';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -19,15 +19,19 @@ import { useWorkspace } from './hooks/useWorkspace.js';
 import { useAllWorkspaces } from './hooks/useAllWorkspaces.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useYBoard } from './hooks/useYBoard.js';
-import { useInbox } from './hooks/useInbox.js';
+import { useChannelList } from './hooks/useChannelList.js';
+import { useUnreadTotal } from './hooks/useUnreadTotal.js';
+import { useTitleBadge } from './hooks/useTitleBadge.js';
+import { MessagesPanel } from './components/MessagesPanel.jsx';
+import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
-import { isSupabaseConfigured, supabase } from './lib/supabase.js';
+import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta } from './lib/boardsApi.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
-import { BOARD_REF_MIME, cardToInboxItem } from './lib/inbox.js';
+import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore } from './lib/docState.js';
 import { uploadImage } from './lib/uploads.js';
 import { HistoryModal } from './components/HistoryModal.jsx';
@@ -37,7 +41,9 @@ import { HomeGraph } from './components/HomeGraph.jsx';
 const TWEAK_DEFAULTS = {
   theme: 'dark',
   showArrows: true,
-  showInbox: true,
+  // Messages defaults to closed — the unread badge guides you to open it.
+  // (Replaces the old showInbox: true default; that drawer was demoware.)
+  showMessages: false,
   compactSidebar: false,
 };
 
@@ -67,6 +73,14 @@ export function App() {
 
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   useEffect(() => { document.documentElement.setAttribute('data-theme', tweak.theme); }, [tweak.theme]);
+  // One-time: rename tweak.showInbox → tweak.showMessages so existing users
+  // keep their drawer-open state across the rename.
+  useEffect(() => {
+    if (tweak.showInbox !== undefined && tweak.showMessages === undefined) {
+      setTweak({ showMessages: !!tweak.showInbox, showInbox: undefined });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Active workspace state — defaults to the user's personal once bootstrap is loaded.
   const workspaceSessionKey = `${SESSION_PREFIX}${user.id}.workspace`;
@@ -122,7 +136,6 @@ export function App() {
 
 function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWorkspace, onWorkspacesChanged, personalWorkspaceId, tweak, setTweak }) {
   const { boards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id);
-  const inbox = useInbox(workspace.id, user.id);
   const feedback = useFeedback();
   const sessionKey = `${SESSION_PREFIX}${user.id}.${workspace.id}`;
   const [initialSession] = useState(() => readSession(sessionKey));
@@ -153,7 +166,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     name: user.user_metadata?.full_name || user.email?.split('@')[0],
     email: user.email,
   };
+
+  // Messages: list/unread/title-badge. msgRefreshTick lets realtime pings
+  // bump the sidebar count without a full refetch loop.
+  const [msgRefreshTick, setMsgRefreshTick] = useState(0);
+  const channelList = useChannelList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
+  const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByKey: channelList.unreadByKey });
+  useTitleBadge({ total: messagesUnread, mentions: messagesMentions });
+
   const yb = useYBoard(currentBoard.id, user.id, userInfo);
+
+  // When a peer chats in the currently-open board, refresh the panel list
+  // so the row + unread dot update without requiring you to open the panel.
+  useEffect(() => {
+    if (!currentBoard?.id) return;
+    const unsub = subscribeBoardChat({
+      boardId: currentBoard.id,
+      onMessage: () => setMsgRefreshTick(t => t + 1),
+      onTyping: () => {},
+    });
+    return () => unsub();
+  }, [currentBoard?.id]);
   const currentYDoc = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
 
   // Side-by-side: when set, the workspace splits 50/50 with a draggable
@@ -673,14 +706,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
   };
 
-  // Pane-aware inbox & file-drop handlers — so dragging into the split pane
-  // creates the card on the SPLIT board, not the main one.
-  const dropInboxItemFor = (muts) => (inboxId, card) => {
-    muts._addCardRaw?.(card);
-    inbox.remove(inboxId);
-  };
+  // Pane-aware drop handlers — so dragging into the split pane creates the
+  // card on the SPLIT board, not the main one. Used by chat-attachment drops
+  // (which piggy-back on the INBOX_MIME drag protocol) and file-image drops.
+  const dropInboxItemFor = (muts) => (_inboxId, card) => { muts._addCardRaw?.(card); };
   const dropFileImageFor = (muts) => (info) => muts._dropImageBlob?.(info);
-  const dropInboxItem = dropInboxItemFor(mainMutators); // back-compat alias
+  const dropInboxItem = dropInboxItemFor(mainMutators);
   const dropFileImage = dropFileImageFor(mainMutators);
 
   // ── Auto-focus on new card creation ───────────────────────────────────────
@@ -722,30 +753,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Drop-card-onto-inbox: convert each dragged card into an inbox item +
-  // tell the source pane to delete the original (move semantics).
-  useEffect(() => {
-    const onCardToInbox = async (e) => {
-      const { sourceBoardId, cards } = e.detail || {};
-      if (!cards?.length) return;
-      const items = cards.map(cardToInboxItem).filter(Boolean);
-      const accepted = [];
-      for (let i = 0; i < items.length; i++) {
-        try {
-          await inbox.add(items[i]);
-          accepted.push(cards[i].id);
-        } catch (err) { console.warn('inbox add failed', err); }
-      }
-      if (accepted.length) {
-        document.dispatchEvent(new CustomEvent('soleil-card-transferred', {
-          detail: { sourceBoardId, cardIds: accepted },
-        }));
-        feedback.toast({ type: 'success', message: `${accepted.length} sent to inbox.` });
-      }
-    };
-    document.addEventListener('soleil-card-to-inbox', onCardToInbox);
-    return () => document.removeEventListener('soleil-card-to-inbox', onCardToInbox);
-  }, [inbox, feedback]);
 
   // Bookmark cross-links — `soleil://bookmark/{boardId}/{bookmarkId}`. Open
   // the target board (forces view='doc') and stash the bookmark id so the
@@ -825,14 +832,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        }}
                        onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                        onOpenPicker={() => setPickerOpen(true)}
-                       inbox={inbox.items} inboxQuery={''} onInboxQuery={() => {}}
                        onDropInboxItem={dropInboxItemFor(muts)}
                        onDropFileImage={dropFileImageFor(muts)}
                        workspaceId={workspace.id} userId={user.id}
                        personalWorkspaceId={personalWorkspaceId}
                        selectedTool={selectedTool} setSelectedTool={setSelectedTool}
-                       mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
-                       onCloseInbox={() => setTweak('showInbox', false)} />
+                       mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus} />
       );
     })();
     return (
@@ -919,12 +924,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <Icon as={LayoutGrid} size={14} />
               <span className="sb-row-label">{rootBoard.name}</span>
             </div>
-            <div className={`sb-row ${tweak.showInbox ? 'active' : ''}`}
-                 onClick={() => setTweak('showInbox', !tweak.showInbox)}
-                 title={tweak.showInbox ? 'Hide inbox' : 'Show inbox'}>
-              <Icon as={InboxIcon} size={14} />
-              <span className="sb-row-label">Inbox</span>
-              <span className="sb-row-count t-meta">{inbox.items.length}</span>
+            <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
+                 onClick={() => setTweak('showMessages', !tweak.showMessages)}
+                 title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
+              <Icon as={MessageSquare} size={14} />
+              <span className="sb-row-label">Messages</span>
+              {messagesUnread > 0 && (
+                <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
+              )}
             </div>
             <div className="sb-row" onClick={() => setPickerOpen(true)}>
               <Icon as={Search} size={14} />
@@ -1021,11 +1028,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     title={splitId ? 'Close split view' : 'Pin alongside…'}>
               <Icon as={Columns2} size={16} />
             </button>
+            {!altSessionId && (
+              <button className="tb-icon" title="Open in second window as another user (for solo collab testing)"
+                      onClick={() => {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('as', 'alt');
+                        window.open(url.toString(), '_blank',
+                          'noopener,noreferrer,width=1280,height=900');
+                      }}>
+                <Icon as={UserPlus} size={16} />
+              </button>
+            )}
             <button className="tb-icon" onClick={signOut} title="Sign out">
               <Icon as={LogOut} size={16} />
             </button>
           </div>
         </div>
+        {altSessionId && (
+          <div className="alt-session-banner">
+            Test session ({altSessionId}) — sign in as a different account here, then collab with the main window.
+          </div>
+        )}
 
         {currentSurface === 'home' ? (
           <HomeGraph
@@ -1083,6 +1106,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         userId={user.id}
         onClose={() => setHistoryOpen(false)}
       />
+
+      {tweak.showMessages && (
+        <MessagesPanel
+          workspaceId={workspace.id}
+          currentUser={userInfo}
+          currentBoard={currentBoard}
+          refreshTick={msgRefreshTick}
+          onClose={() => setTweak('showMessages', false)}
+        />
+      )}
 
     </div>
   );
@@ -1168,7 +1201,7 @@ function BoardsSettingsPanel({ tweak, setTweak }) {
           onChange={(value) => setTweak('theme', value)}
         />
         <TweakToggle label="Compact sidebar" value={tweak.compactSidebar} onChange={(value) => setTweak('compactSidebar', value)} />
-        <TweakToggle label="Show inbox" value={tweak.showInbox} onChange={(value) => setTweak('showInbox', value)} />
+        <TweakToggle label="Show messages" value={tweak.showMessages} onChange={(value) => setTweak('showMessages', value)} />
       </TweakSection>
       <TweakSection label="Canvas">
         <TweakToggle label="Show arrows" value={tweak.showArrows} onChange={(value) => setTweak('showArrows', value)} />

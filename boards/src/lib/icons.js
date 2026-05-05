@@ -59,4 +59,9 @@ export {
   Home,
   LogOut,
   RotateCcw,
+  User,
+  Edit,
+  Smile,
+  Paperclip,
+  UserPlus,
 } from 'lucide-react';

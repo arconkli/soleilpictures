@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { BoardCard, BoardLinkCard } from './cards.jsx';
 import { ImagePlaceholder } from './primitives.jsx';
 import { TEAMMATES } from '../data.js';
-import { INBOX_MIME, inboxItemToCard } from '../lib/inbox.js';
+import { INBOX_MIME, inboxItemToCard } from '../lib/dragMimes.js';
 import { useFeedback } from './AppFeedback.jsx';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');

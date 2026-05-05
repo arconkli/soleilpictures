@@ -27,7 +27,6 @@ test('local QA mode opens a usable Studio canvas', async ({ page }) => {
   await expect(page.locator('.sb-brand')).toBeVisible();
   await expect(page.getByRole('main').getByText('Studio', { exact: true })).toBeVisible();
   await expect(page.getByTitle('Add note')).toBeVisible();
-  await expect(page.locator('.inbox-title', { hasText: 'Inbox' })).toBeVisible();
 });
 
 test('local QA mode can add a note, switch views, and toggle chrome', async ({ page }) => {
@@ -329,7 +328,7 @@ test('local QA mode uses in-app dialogs instead of native prompts', async ({ pag
   await expect(page.getByRole('dialog', { name: /Delete/i })).toBeHidden();
 });
 
-test('local QA mode keeps picker, inbox, and settings simple', async ({ page }) => {
+test('local QA mode keeps picker and settings simple', async ({ page }) => {
   await page.goto('/?local=1');
 
   await page.getByText('Search boards').click();
@@ -338,10 +337,6 @@ test('local QA mode keeps picker, inbox, and settings simple', async ({ page }) 
   await expect(page.locator('.picker-row-name', { hasText: 'Sundown Highway' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.picker')).toBeHidden();
-
-  await page.getByPlaceholder(/Search inbox/).fill('motel');
-  await expect(page.getByText('sunset_motel_ref.png')).toBeVisible();
-  await expect(page.getByText('IMG_4429.heic')).toBeHidden();
 
   await page.getByLabel(/Open settings/).click();
   await expect(page.getByText('Board settings')).toBeVisible();

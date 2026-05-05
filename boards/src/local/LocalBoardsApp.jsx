@@ -5,15 +5,15 @@ import { BoardPicker } from '../components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home } from '../lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare } from '../lib/icons.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
-import { BOARDS, INBOX_SEED } from '../data.js';
+import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
   showArrows: true,
-  showInbox: true,
+  showMessages: false,
   compactSidebar: false,
 };
 
@@ -101,8 +101,6 @@ export function LocalBoardsApp({ user, signOut }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedTool, setSelectedTool] = useState('select');
   const [autoFocusId, setAutoFocusId] = useState(null);
-  const [inboxItems, setInboxItems] = useState(() => initialSession?.inboxItems || clone(INBOX_SEED));
-  const [inboxQuery, setInboxQuery] = useState('');
   const [currentSurface, setCurrentSurface] = useState('board');
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
 
@@ -116,10 +114,9 @@ export function LocalBoardsApp({ user, signOut }) {
         localState: { boards, boardState },
         stack,
         viewOverride,
-        inboxItems,
       }));
     } catch (_) {}
-  }, [boards, boardState, stack, viewOverride, inboxItems]);
+  }, [boards, boardState, stack, viewOverride]);
 
   const currentId = stack[stack.length - 1] || ROOT_ID;
   const currentBoard = boards[currentId] || boards[ROOT_ID];
@@ -421,10 +418,9 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
-  const dropInboxItem = (inboxId, card) => {
-    addCard(card);
-    setInboxItems(items => items.filter(item => item.id !== inboxId));
-  };
+  // Chat-attachment drops piggy-back on the INBOX_MIME drag protocol so
+  // CanvasSurface still calls onDropInboxItem for them.
+  const dropInboxItem = (_inboxId, card) => addCard(card);
 
   const setBoardBgColor = (color) => {
     setLocalState(prev => ({
@@ -514,10 +510,9 @@ export function LocalBoardsApp({ user, signOut }) {
               <Icon as={LayoutGrid} size={14} />
               <span className="sb-row-label">Local Studio</span>
             </div>
-            <div className={`sb-row ${tweak.showInbox ? 'active' : ''}`} onClick={() => setTweak('showInbox', !tweak.showInbox)}>
-              <Icon as={InboxIcon} size={14} />
-              <span className="sb-row-label">Inbox</span>
-              <span className="sb-row-count t-meta">{inboxItems.length}</span>
+            <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`} onClick={() => setTweak('showMessages', !tweak.showMessages)}>
+              <Icon as={MessageSquare} size={14} />
+              <span className="sb-row-label">Messages</span>
             </div>
             <div className="sb-row" onClick={() => setPickerOpen(true)}>
               <Icon as={Search} size={14} />
@@ -620,9 +615,6 @@ export function LocalBoardsApp({ user, signOut }) {
             tweak={tweak}
             depth={stack.length - 1}
             onOpenPicker={() => setPickerOpen(true)}
-            inbox={inboxItems}
-            inboxQuery={inboxQuery}
-            onInboxQuery={setInboxQuery}
             onDropInboxItem={dropInboxItem}
             onDropFileImage={({ publicUrl, width, height, x, y }) => addCard({
               id: createId('img'),
@@ -641,7 +633,6 @@ export function LocalBoardsApp({ user, signOut }) {
             mutators={mutators}
             autoFocusId={autoFocusId}
             clearAutoFocus={() => setAutoFocusId(null)}
-            onCloseInbox={() => setTweak('showInbox', false)}
             useLocalImages
           />
         ) : (
@@ -666,6 +657,15 @@ export function LocalBoardsApp({ user, signOut }) {
         rootId={ROOT_ID}
         onPick={addLink}
       />
+
+      {tweak.showMessages && (
+        <div className="msg-panel">
+          <div className="msg-panel-head"><span className="t-eyebrow">MESSAGES</span></div>
+          <div className="msg-panel-body">
+            <div className="msg-empty t-meta">Messaging requires Supabase. Sign in to use it.</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -713,7 +713,7 @@ function LocalSettingsPanel({ tweak, setTweak }) {
           onChange={(value) => setTweak('theme', value)}
         />
         <TweakToggle label="Compact sidebar" value={tweak.compactSidebar} onChange={(value) => setTweak('compactSidebar', value)} />
-        <TweakToggle label="Show inbox" value={tweak.showInbox} onChange={(value) => setTweak('showInbox', value)} />
+        <TweakToggle label="Show messages" value={tweak.showMessages} onChange={(value) => setTweak('showMessages', value)} />
       </TweakSection>
       <TweakSection label="Canvas">
         <TweakToggle label="Show arrows" value={tweak.showArrows} onChange={(value) => setTweak('showArrows', value)} />

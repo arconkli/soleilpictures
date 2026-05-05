@@ -9,14 +9,13 @@ import { RichDocCard } from './DocCard.jsx';
 const ShapePreview = ShapeCard;
 import { LiveCursor } from './primitives.jsx';
 import { CanvasPresence } from './CanvasPresence.jsx';
-import { InboxPanel } from './InboxPanel.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { TEAMMATES } from '../data.js';
-import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, inboxItemToCard } from '../lib/inbox.js';
+import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, inboxItemToCard } from '../lib/dragMimes.js';
 import { uploadImage } from '../lib/uploads.js';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
 import { addRecentColor } from '../lib/recentColors.js';
@@ -141,12 +140,11 @@ export function CanvasSurface({
   getAwareness,            // () => Awareness | null  — for live presence
   currentUser,             // { id, name, color }     — for awareness localState
   onOpenBoard, tweak, depth, onOpenPicker,
-  inbox, inboxQuery, onInboxQuery, onDropInboxItem, onDropFileImage,
+  onDropInboxItem, onDropFileImage,
   workspaceId, userId, personalWorkspaceId,
   selectedTool = 'select', setSelectedTool = () => {},
   mutators = {},
   autoFocusId, clearAutoFocus,
-  onCloseInbox,
   useLocalImages = false,
 }) {
   const wrapRef = useRef(null);
@@ -757,22 +755,9 @@ export function CanvasSurface({
       // ── Cross-pane transfer detection ──
       const dropEl = document.elementFromPoint(ev.clientX, ev.clientY);
       const dropWrap = dropEl?.closest?.('.canvas-wrap');
-      const dropInbox = dropEl?.closest?.('.inbox');
       const sourceWrap = wrapRef.current;
       // Always clear the cross-pane drop hint regardless of where we landed.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
-      // Drop into the inbox: convert the dragged cards into inbox items.
-      if (dropInbox && Math.abs(dx) + Math.abs(dy) > 4) {
-        const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
-        document.dispatchEvent(new CustomEvent('soleil-card-to-inbox', {
-          detail: {
-            sourceBoardId: board.id,
-            cards: movedCards,
-          },
-        }));
-        setDrag(null);
-        return;
-      }
       // Drop onto a different canvas pane.
       if (dropWrap && sourceWrap && dropWrap !== sourceWrap && Math.abs(dx) + Math.abs(dy) > 4) {
         const isCopy = ev.metaKey || ev.ctrlKey;
@@ -1926,15 +1911,6 @@ export function CanvasSurface({
         </span>
         <button onClick={() => { enableSmoothTransform(); setZoom(z => Math.min(ZOOM_MAX, z * 1.25)); }}>+</button>
       </div>
-
-      {tweak.showInbox && (
-        <InboxPanel
-          items={inbox}
-          query={inboxQuery}
-          onQuery={onInboxQuery}
-          onClose={onCloseInbox}
-        />
-      )}
 
       <CardContextMenu
         open={ctx.open}
