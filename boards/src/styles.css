@@ -1728,7 +1728,9 @@ body {
   border: 1px solid var(--soleil);
   border-radius: 2px;
   pointer-events: none;
-  z-index: 5;
+  /* Sit above all cards (cards use inline z-index from c.z which can climb
+     into the hundreds; 999999 always wins). */
+  z-index: 999999;
 }
 
 /* Selection count chip */

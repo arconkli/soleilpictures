@@ -1297,6 +1297,23 @@ export function CanvasSurface({
   const ROTATABLE = new Set(['shape', 'note', 'image', 'link', 'doc', 'palette']);
 
   // ── Render a card ─────────────────────────────────────────────────────────
+  // Live "would-be-selected" preview while marqueeing — show the soleil
+  // selection ring on cards under the active marquee box so the user sees
+  // exactly what they're highlighting before pointerup commits.
+  const marqueePreviewIds = (() => {
+    if (!marquee) return null;
+    const minX = Math.min(marquee.x0, marquee.x1);
+    const maxX = Math.max(marquee.x0, marquee.x1);
+    const minY = Math.min(marquee.y0, marquee.y1);
+    const maxY = Math.max(marquee.y0, marquee.y1);
+    if (Math.abs(maxX - minX) < 3 && Math.abs(maxY - minY) < 3) return null;
+    const out = new Set();
+    for (const c of (cards || [])) {
+      if (c.x < maxX && c.x + c.w > minX && c.y < maxY && c.y + c.h > minY) out.add(c.id);
+    }
+    return out;
+  })();
+
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
     const dragDelta = inDrag ? drag : null;
@@ -1305,7 +1322,9 @@ export function CanvasSurface({
     const y = c.y + (dragDelta?.dy || 0);
     const w = Math.max(MIN_W, c.w + (resizeDelta?.dw || 0));
     const h = Math.max(MIN_H, c.h + (resizeDelta?.dh || 0));
-    const isSelected = selected.has(c.id) || arrowFrom === c.id;
+    const isSelected = selected.has(c.id)
+      || (marqueePreviewIds && marqueePreviewIds.has(c.id))
+      || arrowFrom === c.id;
     const rotation = (rotateState && rotateState.id === c.id ? rotateState.rot : c.rotation) || 0;
     const canRotate = ROTATABLE.has(c.kind);
 

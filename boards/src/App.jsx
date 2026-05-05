@@ -135,13 +135,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const currentBoard = boards[currentId] || rootBoard;
   const view = viewOverride[currentId] || currentBoard.view || 'canvas';
 
-  // Pop the stack if the current board has been deleted from under us.
+  // Filter the stack down to boards that still exist. Catches cascaded
+  // deletes where multiple frames in the stack vanish at once (e.g. you
+  // delete a parent board with descendants while you're inside one of
+  // them). Falls back to the root if everything in the stack is gone.
   useEffect(() => {
     if (boardsLoading) return;
-    if (!boards[currentId]) {
-      setStack(s => s.length > 1 ? s.slice(0, -1) : [rootBoard.id]);
-    }
-  }, [boards, boardsLoading, currentId, rootBoard.id]);
+    setStack(prev => {
+      const filtered = prev.filter(id => boards[id]);
+      if (filtered.length === prev.length) return prev;
+      return filtered.length ? filtered : [rootBoard.id];
+    });
+  }, [boards, boardsLoading, rootBoard.id]);
 
   const userInfo = {
     id: user.id,
@@ -774,7 +779,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // mutators look at the live ydoc); next pass will give the split its own
   // mutator set so canvas edits there persist correctly.
   const renderSurface = ({ board, view, yb: yh, isMain, onClose }) => {
-    if (!board) return <div className="surface-missing">Board not found.</div>;
+    // Board id resolved to nothing — usually means it was just deleted and
+    // the cleanup useEffects haven't popped the stack / cleared splitId yet.
+    // Render an empty pane silently; the next tick will route to a real
+    // board so the user never sees a scary "not found" message.
+    if (!board) return <div className="surface-wrap" />;
     const ready = yh.ready && yh.boardId === board.id;
     const yd = ready ? yh.ydoc : null;
     const cards = ready ? yh.cards : [];
@@ -865,26 +874,42 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="sb-row-label">Home</span>
             </div>
 
-            <div className="sb-group">
-              <div className="sb-group-label t-eyebrow">WORKSPACES</div>
-              <button className="sb-group-add" onClick={addNewWorkspace} title="New workspace">
-                <Icon as={Plus} size={14} />
-              </button>
-            </div>
-            {(workspaces || []).map(w => {
-              const isMine = w.id === personalWorkspaceId;
-              const isActive = w.id === workspace.id;
+            {(() => {
+              const own = (workspaces || []).filter(w => w.id === personalWorkspaceId);
+              const shared = (workspaces || []).filter(w => w.id !== personalWorkspaceId);
+              const renderWs = (w) => {
+                const isMine = w.id === personalWorkspaceId;
+                const isActive = w.id === workspace.id;
+                return (
+                  <div key={w.id}
+                       className={`sb-row ${isActive && currentSurface === 'board' ? 'active' : ''}`}
+                       onClick={() => { onSwitchWorkspace(w.id); setCurrentSurface('board'); }}
+                       title={isMine ? 'Personal workspace' : 'Shared with you'}>
+                    <span className="sb-dot" style={{ background: isMine ? 'var(--soleil)' : 'var(--ink-3)' }} />
+                    <span className="sb-row-label">{w.name}</span>
+                  </div>
+                );
+              };
               return (
-                <div key={w.id}
-                     className={`sb-row ${isActive && currentSurface === 'board' ? 'active' : ''}`}
-                     onClick={() => { onSwitchWorkspace(w.id); setCurrentSurface('board'); }}
-                     title={isMine ? 'Personal workspace' : 'Shared with me'}>
-                  <span className="sb-dot" style={{ background: isMine ? 'var(--soleil)' : 'var(--ink-3)' }} />
-                  <span className="sb-row-label">{w.name}</span>
-                  {!isMine && <span className="sb-shared-tag t-meta">SHARED</span>}
-                </div>
+                <>
+                  <div className="sb-group">
+                    <div className="sb-group-label t-eyebrow">WORKSPACES</div>
+                    <button className="sb-group-add" onClick={addNewWorkspace} title="New workspace">
+                      <Icon as={Plus} size={14} />
+                    </button>
+                  </div>
+                  {own.map(renderWs)}
+                  {shared.length > 0 && (
+                    <>
+                      <div className="sb-group">
+                        <div className="sb-group-label t-eyebrow">SHARED WITH YOU</div>
+                      </div>
+                      {shared.map(renderWs)}
+                    </>
+                  )}
+                </>
               );
-            })}
+            })()}
 
             <div className="sb-group">
               <div className="sb-group-label t-eyebrow">CURRENT</div>
