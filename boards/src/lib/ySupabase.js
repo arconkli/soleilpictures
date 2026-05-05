@@ -18,7 +18,7 @@
 // origins ('local', 'snapshot', etc.) — those broadcast normally.
 
 import * as Y from 'yjs';
-import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates, removeOutdatedAwarenessStates } from 'y-protocols/awareness';
 import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 
@@ -38,6 +38,10 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   console.log('[realtime] y:' + boardId, 'attach (user:', user?.email || user?.id || 'anon', ')');
 
   const awareness = new Awareness(ydoc);
+  // Default y-protocols outdated timeout is 30s; cut to 12s so a peer who
+  // closes their tab disappears within ~3× the 4s heartbeat instead of
+  // lingering for half a minute as a frozen ghost cursor.
+  awareness.outdatedTimeout = 12000;
   if (user) {
     awareness.setLocalStateField('user', {
       id: user.id || CLIENT_ID,
@@ -151,11 +155,32 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     }
   });
 
+  // Heartbeat: every 4s, re-broadcast our awareness state so peers know
+  // we're still alive (their `meta.lastUpdated` for our clientID resets).
+  // Without this a quiet user with no cursor/selection changes would be
+  // pruned by the receiving peers' stale-state timer.
+  const heartbeat = setInterval(() => {
+    if (destroyed || !subscribed) return;
+    const buf = encodeAwarenessUpdate(awareness, [awareness.clientID]);
+    channel.send({ type: 'broadcast', event: 'y-awareness',
+                   payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
+  }, 4000);
+
+  // Prune stale peers whose lastUpdated has aged past 12s (3× the
+  // heartbeat). This is what makes a peer's cursor disappear when they
+  // close the tab without sending a leave event.
+  const pruner = setInterval(() => {
+    if (destroyed) return;
+    try { removeOutdatedAwarenessStates(awareness); } catch (_) {}
+  }, 4000);
+
   return {
     awareness,
     destroy() {
       destroyed = true;
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }
+      clearInterval(heartbeat);
+      clearInterval(pruner);
       ydoc.off('update', onYUpdate);
       awareness.off('update', onAwarenessUpdate);
       try { removeAwarenessStates(awareness, [awareness.clientID], 'local'); } catch (_) {}

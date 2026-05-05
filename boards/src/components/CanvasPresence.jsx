@@ -20,10 +20,13 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
     if (!aw) return;
     const refresh = () => {
       const states = aw.getStates();
-      const out = [];
+      // Group by user.id and keep only the freshest entry per user, so a
+      // peer who reconnected with a new clientID doesn't show as two
+      // cursors (one frozen, one live) while the old state ages out.
+      const newest = new Map();
       states.forEach((state, clientId) => {
         if (!state?.user) return;
-        if (state.user.id === selfId) return;       // skip self
+        if (state.user.id === selfId) return;
         const cursor = state.canvasCursor;
         const sel = state.canvasSelection;
         const drag = state.liveDrag;
@@ -33,16 +36,21 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
                      || (drag?.boardId === boardId)
                      || (marquee?.boardId === boardId);
         if (!onBoard) return;
-        out.push({
+        const meta = aw.meta?.get?.(clientId);
+        const updated = meta?.lastUpdated || 0;
+        const existing = newest.get(state.user.id);
+        if (existing && existing.updated >= updated) return;
+        newest.set(state.user.id, {
           clientId,
+          updated,
           user: state.user,
-          cursor:    cursor?.boardId === boardId ? { x: cursor.x, y: cursor.y } : null,
-          cardIds:   sel?.boardId    === boardId ? (sel.cardIds || []) : [],
-          dragCards: drag?.boardId   === boardId ? (drag.cards   || []) : [],
+          cursor:    cursor?.boardId  === boardId ? { x: cursor.x, y: cursor.y } : null,
+          cardIds:   sel?.boardId     === boardId ? (sel.cardIds || []) : [],
+          dragCards: drag?.boardId    === boardId ? (drag.cards   || []) : [],
           marquee:   marquee?.boardId === boardId ? marquee : null,
         });
       });
-      setPeers(out);
+      setPeers([...newest.values()]);
     };
     refresh();
     aw.on('change', refresh);
