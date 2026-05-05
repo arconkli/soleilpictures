@@ -56,5 +56,6 @@ export {
   Moon,
   History,
   Columns2,
+  Home,
   LogOut,
 } from 'lucide-react';

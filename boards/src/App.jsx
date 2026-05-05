@@ -11,7 +11,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home } from './lib/icons.js';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -695,6 +695,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Back-compat alias — older code still refers to `mutators`.
   const mutators = mainMutatorsFull;
 
+  const [currentSurface, setCurrentSurface] = useState('board');
+  //   'board' = existing canvas/doc surface; 'home' = HomeGraph
+
   const [selectedTool, setSelectedTool] = useState('select');
   // Reset to the select tool every time the active board changes — otherwise
   // a leftover draw/shape/arrow tool from the previous board carries over and
@@ -850,6 +853,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
         {!tweak.compactSidebar && (
           <>
+            <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`} onClick={() => setCurrentSurface('home')}>
+              <span className="sb-dot" style={{ background: 'var(--soleil)', boxShadow: '0 0 8px rgba(212,160,74,.6)' }} />
+              <span className="sb-row-label">Home</span>
+            </div>
+
             <div className="sb-group">
               <div className="sb-group-label t-eyebrow">WORKSPACES</div>
               <button className="sb-group-add" onClick={addNewWorkspace} title="New workspace">
@@ -861,8 +869,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               const isActive = w.id === workspace.id;
               return (
                 <div key={w.id}
-                     className={`sb-row ${isActive ? 'active' : ''}`}
-                     onClick={() => onSwitchWorkspace(w.id)}
+                     className={`sb-row ${isActive && currentSurface === 'board' ? 'active' : ''}`}
+                     onClick={() => { onSwitchWorkspace(w.id); setCurrentSurface('board'); }}
                      title={isMine ? 'Personal workspace' : 'Shared with me'}>
                   <span className="sb-dot" style={{ background: isMine ? 'var(--soleil)' : 'var(--ink-3)' }} />
                   <span className="sb-row-label">{w.name}</span>
@@ -874,8 +882,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <div className="sb-group">
               <div className="sb-group-label t-eyebrow">CURRENT</div>
             </div>
-            <div className={`sb-row ${currentId === rootBoard.id ? 'active' : ''}`}
-                 onClick={() => setStack([rootBoard.id])}>
+            <div className={`sb-row ${currentId === rootBoard.id && currentSurface === 'board' ? 'active' : ''}`}
+                 onClick={() => { setStack([rootBoard.id]); setCurrentSurface('board'); }}>
               <Icon as={LayoutGrid} size={14} />
               <span className="sb-row-label">{rootBoard.name}</span>
             </div>
@@ -898,9 +906,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               const c = crumbs[i];
               return (
                 <div key={`${id}-${i}`}
-                     className={`sb-row sb-row-tree ${i === stack.length - 1 ? 'active' : ''}`}
+                     className={`sb-row sb-row-tree ${i === stack.length - 1 && currentSurface === 'board' ? 'active' : ''}`}
                      style={{ paddingLeft: 16 + i * 12 }}
-                     onClick={() => goTo(i)}>
+                     onClick={() => { goTo(i); setCurrentSurface('board'); }}>
                   <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
                   <span className="sb-row-label">{c.name}</span>
                 </div>
@@ -915,7 +923,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: b.id, name: b.name }));
                      e.dataTransfer.effectAllowed = 'copy';
                    }}
-                   onClick={() => openBoard(b.id)}
+                   onClick={() => { openBoard(b.id); setCurrentSurface('board'); }}
                    title="Click to open · drag onto a canvas to embed">
                 <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
                 <span className="sb-row-label">{b.name}</span>
@@ -987,19 +995,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
         </div>
 
-        {/* Always render the same outer container so toggling split doesn't
-            re-mount the main pane (and any open doc-card modals inside).
-            The right pane is only added/removed; the left pane stays put. */}
-        <SplitContainer
-          ratio={splitId ? splitRatio : 1}
-          onRatio={setSplitRatio}
-          showSplit={!!splitId}
-          left={renderSurface({ board: currentBoard, view, yb, isMain: true })}
-          right={splitId ? renderSurface({
-            board: splitBoard, view: splitView, yb: splitYb,
-            onClose: () => setSplitId(null), isMain: false,
-          }) : null}
-        />
+        {currentSurface === 'home' ? (
+          <div className="home-placeholder" style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'var(--bg-2)', color: 'var(--ink-2)' }}>
+            Home graph coming in Task 5.3…
+          </div>
+        ) : (
+          /* Always render the same outer container so toggling split doesn't
+             re-mount the main pane (and any open doc-card modals inside).
+             The right pane is only added/removed; the left pane stays put. */
+          <SplitContainer
+            ratio={splitId ? splitRatio : 1}
+            onRatio={setSplitRatio}
+            showSplit={!!splitId}
+            left={renderSurface({ board: currentBoard, view, yb, isMain: true })}
+            right={splitId ? renderSurface({
+              board: splitBoard, view: splitView, yb: splitYb,
+              onClose: () => setSplitId(null), isMain: false,
+            }) : null}
+          />
+        )}
       </main>
 
       <BoardPicker

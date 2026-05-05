@@ -5,7 +5,7 @@ import { BoardPicker } from '../components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut } from '../lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home } from '../lib/icons.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS, INBOX_SEED } from '../data.js';
 
@@ -102,6 +102,8 @@ export function LocalBoardsApp({ user, signOut }) {
   const [autoFocusId, setAutoFocusId] = useState(null);
   const [inboxItems, setInboxItems] = useState(() => initialSession?.inboxItems || clone(INBOX_SEED));
   const [inboxQuery, setInboxQuery] = useState('');
+  const [currentSurface, setCurrentSurface] = useState('board');
+  //   'board' = existing canvas/doc surface; 'home' = HomeGraph
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', tweak.theme);
@@ -498,10 +500,16 @@ export function LocalBoardsApp({ user, signOut }) {
 
         {!tweak.compactSidebar && (
           <>
+            <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`} onClick={() => setCurrentSurface('home')}>
+              <span className="sb-dot" style={{ background: 'var(--soleil)', boxShadow: '0 0 8px rgba(212,160,74,.6)' }} />
+              <span className="sb-row-label">Home</span>
+            </div>
+
             <div className="sb-group">
               <div className="sb-group-label t-eyebrow">WORKSPACE</div>
             </div>
-            <div className="sb-row active" title="Local in-memory workspace">
+            <div className={`sb-row ${currentSurface === 'board' ? 'active' : ''}`} title="Local in-memory workspace"
+                 onClick={() => setCurrentSurface('board')}>
               <Icon as={LayoutGrid} size={14} />
               <span className="sb-row-label">Local Studio</span>
             </div>
@@ -521,9 +529,9 @@ export function LocalBoardsApp({ user, signOut }) {
             {stack.map((id, index) => (
               <div
                 key={`${id}-${index}`}
-                className={`sb-row sb-row-tree ${index === stack.length - 1 ? 'active' : ''}`}
+                className={`sb-row sb-row-tree ${index === stack.length - 1 && currentSurface === 'board' ? 'active' : ''}`}
                 style={{ paddingLeft: 16 + index * 12 }}
-                onClick={() => goTo(index)}
+                onClick={() => { goTo(index); setCurrentSurface('board'); }}
               >
                 <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
                 <span className="sb-row-label">{boards[id]?.name || id}</span>
@@ -534,7 +542,7 @@ export function LocalBoardsApp({ user, signOut }) {
                 key={board.id}
                 className="sb-row sb-row-tree"
                 style={{ paddingLeft: 16 + stack.length * 12 }}
-                onClick={() => openBoard(board.id)}
+                onClick={() => { openBoard(board.id); setCurrentSurface('board'); }}
               >
                 <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
                 <span className="sb-row-label">{board.name}</span>
@@ -590,7 +598,11 @@ export function LocalBoardsApp({ user, signOut }) {
           </div>
         </div>
 
-        {view === 'canvas' ? (
+        {currentSurface === 'home' ? (
+          <div className="home-placeholder" style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'var(--bg-2)', color: 'var(--ink-2)' }}>
+            Home graph coming in Task 5.3…
+          </div>
+        ) : view === 'canvas' ? (
           <CanvasSurface
             board={currentBoard}
             boards={boards}
