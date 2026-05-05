@@ -31,8 +31,10 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
         if (state.user.id === currentUser?.id) return;
         const cursor = state.docCursor;
         const caret  = state.docCaret;
+        const sel    = state.docSelection;
         const onPage = (cursor?.boardId === boardId && cursor?.pageId === pageId)
-                    || (caret?.boardId  === boardId && caret?.pageId  === pageId);
+                    || (caret?.boardId  === boardId && caret?.pageId  === pageId)
+                    || (sel?.boardId    === boardId && sel?.pageId    === pageId);
         if (!onPage) return;
         const meta = aw.meta?.get?.(clientId);
         const updated = meta?.lastUpdated || 0;
@@ -43,6 +45,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
           user: state.user,
           cursor: cursor?.boardId === boardId && cursor?.pageId === pageId ? { x: cursor.x, y: cursor.y } : null,
           caret:  caret?.boardId  === boardId && caret?.pageId  === pageId ? { x: caret.x,  y: caret.y  } : null,
+          selRects: sel?.boardId === boardId && sel?.pageId === pageId ? (sel.rects || []) : [],
         });
       });
       setPeers([...newest.values()]);
@@ -88,27 +91,64 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
     };
   }, [getAwareness, paperRef, boardId, pageId]);
 
-  // ── Write our typing caret position ────────────────────────────────────
+  // ── Write our caret + selection range ──────────────────────────────────
+  // For each transaction or selection change we publish:
+  //   docCaret = { boardId, pageId, x, y }            — head-of-cursor xy
+  //   docSelection = { boardId, pageId, rects: [...]} — list of { left,top,
+  //                  width, height } for non-empty selections (drawn as a
+  //                  colored band on the receiver). Empty → null.
   useEffect(() => {
     const aw = getAwareness?.();
     const paper = paperRef?.current;
     if (!aw || !paper || !editor) return;
-    let lastX = -1, lastY = -1;
+    let lastSig = '';
     const tick = () => {
       try {
         const sel = editor.state.selection;
         const view = editor.view;
         if (!view) return;
-        const coords = view.coordsAtPos(sel.from);
         const r = paper.getBoundingClientRect();
-        const x = Math.round(coords.left - r.left);
-        const y = Math.round(coords.top - r.top + paper.scrollTop);
-        if (x === lastX && y === lastY) return;
-        lastX = x; lastY = y;
-        aw.setLocalStateField('docCaret', { boardId, pageId, x, y });
+        const headCoords = view.coordsAtPos(sel.head);
+        const x = Math.round(headCoords.left - r.left);
+        const y = Math.round(headCoords.top  - r.top + paper.scrollTop);
+        // Build rectangles for the selection range.
+        let rects = null;
+        if (!sel.empty) {
+          const startCoords = view.coordsAtPos(sel.from);
+          const endCoords = view.coordsAtPos(sel.to);
+          // Walk character positions on the same line(s) and merge into
+          // line-bands. Approximation: treat as one rect per "line group"
+          // by stepping through the editor DOM via getClientRects().
+          const range = document.createRange();
+          try {
+            const fromDOM = view.domAtPos(sel.from);
+            const toDOM   = view.domAtPos(sel.to);
+            range.setStart(fromDOM.node, fromDOM.offset);
+            range.setEnd  (toDOM.node,   toDOM.offset);
+            const rs = Array.from(range.getClientRects());
+            rects = rs.map(rc => ({
+              left: Math.round(rc.left - r.left),
+              top: Math.round(rc.top  - r.top + paper.scrollTop),
+              width: Math.round(rc.width),
+              height: Math.round(rc.height),
+            })).filter(rc => rc.width > 0 && rc.height > 0);
+          } catch (_) {
+            // Fallback: a single rect from start head to end head.
+            rects = [{
+              left: Math.round(startCoords.left - r.left),
+              top: Math.round(startCoords.top  - r.top + paper.scrollTop),
+              width: Math.max(2, Math.round(endCoords.left - startCoords.left)),
+              height: Math.max(16, Math.round(endCoords.bottom - startCoords.top)),
+            }];
+          }
+        }
+        const sig = `${x},${y}|${rects ? rects.map(r => `${r.left},${r.top},${r.width},${r.height}`).join(';') : ''}`;
+        if (sig === lastSig) return;
+        lastSig = sig;
+        aw.setLocalStateField('docCaret',     { boardId, pageId, x, y });
+        aw.setLocalStateField('docSelection', rects ? { boardId, pageId, rects } : null);
       } catch (_) {}
     };
-    // Update on every transaction (including selection changes)
     const onTr = () => { tick(); };
     editor.on('transaction', onTr);
     editor.on('selectionUpdate', onTr);
@@ -119,6 +159,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
       editor.off('selectionUpdate', onTr);
       editor.off('focus', onTr);
       try { aw.setLocalStateField('docCaret', null); } catch (_) {}
+      try { aw.setLocalStateField('docSelection', null); } catch (_) {}
     };
   }, [getAwareness, paperRef, editor, boardId, pageId]);
 
@@ -127,6 +168,24 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
     <div className="doc-presence-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 999990 }}>
       {peers.map(p => {
         const els = [];
+        // Selection rectangles drawn as a translucent band in peer color
+        if (p.selRects && p.selRects.length) {
+          for (let i = 0; i < p.selRects.length; i++) {
+            const rc = p.selRects[i];
+            els.push(
+              <div key={'sel-' + p.clientId + '-' + i}
+                   style={{
+                     position: 'absolute',
+                     left: rc.left, top: rc.top,
+                     width: rc.width, height: rc.height,
+                     background: p.user.color || '#4f8df8',
+                     opacity: 0.22,
+                     borderRadius: 1,
+                     pointerEvents: 'none',
+                   }} />
+            );
+          }
+        }
         if (p.caret) {
           els.push(
             <div key={'caret-' + p.clientId}

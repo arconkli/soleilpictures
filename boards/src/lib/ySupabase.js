@@ -128,6 +128,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   // y-update: incremental update from a peer.
   channel.on('broadcast', { event: 'y-update' }, ({ payload }) => {
     if (!payload || payload.from === CLIENT_ID) return;
+    lastInbound = Date.now();
     try { Y.applyUpdate(ydoc, b64ToBytes(payload.u), 'remote'); }
     catch (e) { console.warn('y-update apply failed', e); }
   });
@@ -135,6 +136,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   // y-awareness: peer awareness state.
   channel.on('broadcast', { event: 'y-awareness' }, ({ payload }) => {
     if (!payload || payload.from === CLIENT_ID) return;
+    lastInbound = Date.now();
     try { applyAwarenessUpdate(awareness, b64ToBytes(payload.a), 'remote'); }
     catch (e) { console.warn('y-awareness apply failed', e); }
   });
@@ -172,14 +174,33 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   };
   channel.subscribe(onSubscribeStatus);
 
-  // Wake-up resubscribe — when the tab regains focus after being backgrounded,
-  // browsers often kill websockets silently. Force a resubscribe to recover.
-  const onVisibility = () => {
-    if (document.visibilityState !== 'visible') return;
-    if (destroyed || subscribed) return;
+  // Aggressive reconnect — backgrounded tabs commonly have their websocket
+  // killed by the OS / browser. We listen on every wake-ish event and,
+  // critically, FORCE a resubscribe regardless of our cached `subscribed`
+  // flag (which can lag behind reality when the socket dies silently).
+  // We also kick supabase.realtime.connect() directly so the underlying
+  // websocket re-handshakes if it dropped.
+  const wakeUp = () => {
+    if (destroyed) return;
+    try { supabase?.realtime?.connect?.(); } catch (_) {}
     try { channel.subscribe(onSubscribeStatus); } catch (_) {}
   };
-  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
+  const onVisibility = () => { if (document.visibilityState === 'visible') wakeUp(); };
+  const onFocus  = () => wakeUp();
+  const onOnline = () => wakeUp();
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onOnline);
+  }
+  // Watchdog: if no inbound broadcast in 20s while the tab is visible, the
+  // socket is probably dead even though Supabase hasn't told us. Resubscribe.
+  let lastInbound = Date.now();
+  const watchdog = setInterval(() => {
+    if (destroyed) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    if (Date.now() - lastInbound > 20000) wakeUp();
+  }, 5000);
 
   // Heartbeat: every 4s, re-broadcast our awareness state so peers know
   // we're still alive (their `meta.lastUpdated` for our clientID resets).
@@ -199,7 +220,12 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
       clearInterval(heartbeat);
-      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibility);
+        window.removeEventListener('focus', onFocus);
+        window.removeEventListener('online', onOnline);
+      }
+      clearInterval(watchdog);
       ydoc.off('update', onYUpdate);
       awareness.off('update', onAwarenessUpdate);
       try { removeAwarenessStates(awareness, [awareness.clientID], 'local'); } catch (_) {}
