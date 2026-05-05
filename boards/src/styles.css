@@ -3829,34 +3829,45 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .bc-doc-icon { color: var(--ink-3); opacity: .55; }
 
-/* Right rail: tabs + inner */
+/* Right rail: icon-only tabs + active label eyebrow */
 .doc-rail-inner { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .doc-tabs {
   display: flex;
-  padding-left: 42px;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px 6px 42px;     /* left padding clears the rail toggle */
   border-bottom: 1px solid var(--line-1);
   flex-shrink: 0;
 }
 .doc-tab {
-  flex: 1 1 0;
+  position: relative;
   appearance: none; border: 0; background: transparent;
-  padding: 12px 8px;
-  color: var(--ink-2);
+  width: 32px; height: 32px;
+  border-radius: var(--radius);
+  color: var(--ink-3);
   cursor: pointer;
-  font: 600 12px/1 var(--font-sans);
-  letter-spacing: -0.005em;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  border-bottom: 2px solid transparent;
-  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  display: inline-grid; place-items: center;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.doc-tab:hover { color: var(--ink-1); }
-.doc-tab.is-active { color: var(--ink-0); border-bottom-color: var(--soleil); }
+.doc-tab:hover { color: var(--ink-1); background: var(--bg-hov); }
+.doc-tab.is-active { color: var(--soleil); background: var(--soleil-soft); }
 .doc-tab-count {
-  font: 500 11px/1 var(--font-mono); font-variant-numeric: tabular-nums;
-  background: var(--bg-3);
+  position: absolute;
+  top: 2px; right: 2px;
+  font: 600 9px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+  background: var(--soleil);
+  color: var(--bg-0);
   border-radius: 999px;
-  padding: 2px 8px;
-  color: var(--ink-2);
+  padding: 1px 4px;
+  min-width: 14px;
+  text-align: center;
+}
+.doc-tab-label {
+  margin-left: auto;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Outline panel */

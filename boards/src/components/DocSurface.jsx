@@ -26,6 +26,15 @@ import { DocStatusFooter } from './DocStatusFooter.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
 import { DocCommentsPanel } from './DocCommentsPanel.jsx';
 import { DocLinkPicker } from './DocLinkPicker.jsx';
+import { Icon } from './Icon.jsx';
+import { List, Link as LinkIcon, Quote, MessageSquare } from '../lib/icons.js';
+
+const TAB_LABELS = {
+  outline:  'OUTLINE',
+  links:    'LINKS',
+  refs:     'REFERENCED BY',
+  comments: 'COMMENTS',
+};
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 const RAILS_KEY = 'soleil.boards.docRails';
@@ -304,13 +313,27 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           <div className="doc-rail-inner">
             <div className="doc-tabs">
               <button className={`doc-tab ${rightTab === 'outline' ? 'is-active' : ''}`}
-                      onClick={() => setRightTab('outline')}>Outline</button>
+                      onClick={() => setRightTab('outline')}
+                      title="Outline">
+                <Icon as={List} size={16} />
+              </button>
               <button className={`doc-tab ${rightTab === 'links' ? 'is-active' : ''}`}
-                      onClick={() => setRightTab('links')}>Links</button>
+                      onClick={() => setRightTab('links')}
+                      title="Links in this doc">
+                <Icon as={LinkIcon} size={16} />
+              </button>
               <button className={`doc-tab ${rightTab === 'refs' ? 'is-active' : ''}`}
-                      onClick={() => setRightTab('refs')}>Refs</button>
+                      onClick={() => setRightTab('refs')}
+                      title="Referenced by other docs">
+                <Icon as={Quote} size={16} />
+              </button>
               <button className={`doc-tab ${rightTab === 'comments' ? 'is-active' : ''}`}
-                      onClick={() => setRightTab('comments')}>Comments{comments.length > 0 && <span className="doc-tab-count">{comments.length}</span>}</button>
+                      onClick={() => setRightTab('comments')}
+                      title="Comments">
+                <Icon as={MessageSquare} size={16} />
+                {comments.length > 0 && <span className="doc-tab-count">{comments.length}</span>}
+              </button>
+              <div className="doc-tab-label t-eyebrow">{TAB_LABELS[rightTab]}</div>
             </div>
             {rightTab === 'outline' && (
               <DocOutlinePanel
