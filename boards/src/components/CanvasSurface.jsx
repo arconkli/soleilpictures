@@ -176,30 +176,41 @@ export function CanvasSurface({
     });
   }, [getAwareness, currentUser?.id, currentUser?.name, currentUser?.color]);
 
-  // Cursor broadcast — listen on wrap, convert screen→canvas-space, throttle
-  // to ~60Hz max, and write to awareness. Cleared when the cursor leaves.
+  // Cursor broadcast — write to awareness on a fixed interval rather than
+  // every pointermove/rAF so we don't blow past Supabase Realtime's per-
+  // tenant rate limit. ~120ms feels live-enough for collab cursors and
+  // sits well below the broadcast cap.
   useEffect(() => {
     const aw = getAwareness?.();
     const wrap = wrapRef.current;
     if (!aw || !wrap) return;
     let pending = null;
-    let raf = null;
+    let last = { x: null, y: null };
+    let timer = null;
     const flush = () => {
-      raf = null;
+      timer = null;
       if (!pending) return;
-      aw.setLocalStateField('canvasCursor', { boardId: board.id, x: pending.x, y: pending.y });
+      // Skip a write if the cursor hasn't actually moved (rounded).
+      if (Math.round(pending.x) === last.x && Math.round(pending.y) === last.y) {
+        pending = null;
+        return;
+      }
+      last = { x: Math.round(pending.x), y: Math.round(pending.y) };
+      aw.setLocalStateField('canvasCursor', { boardId: board.id, x: last.x, y: last.y });
       pending = null;
     };
     const onMove = (e) => {
       const r = wrap.getBoundingClientRect();
-      const cx = (e.clientX - r.left - pan.x) / zoom;
-      const cy = (e.clientY - r.top  - pan.y) / zoom;
-      pending = { x: cx, y: cy };
-      if (!raf) raf = requestAnimationFrame(flush);
+      pending = {
+        x: (e.clientX - r.left - pan.x) / zoom,
+        y: (e.clientY - r.top  - pan.y) / zoom,
+      };
+      if (!timer) timer = setTimeout(flush, 120);
     };
     const onLeave = () => {
-      if (raf) { cancelAnimationFrame(raf); raf = null; }
+      if (timer) { clearTimeout(timer); timer = null; }
       pending = null;
+      last = { x: null, y: null };
       aw.setLocalStateField('canvasCursor', null);
     };
     wrap.addEventListener('pointermove', onMove);
@@ -207,7 +218,7 @@ export function CanvasSurface({
     return () => {
       wrap.removeEventListener('pointermove', onMove);
       wrap.removeEventListener('pointerleave', onLeave);
-      if (raf) cancelAnimationFrame(raf);
+      if (timer) clearTimeout(timer);
       try { aw.setLocalStateField('canvasCursor', null); } catch (_) {}
     };
   }, [getAwareness, board.id, pan.x, pan.y, zoom]);
