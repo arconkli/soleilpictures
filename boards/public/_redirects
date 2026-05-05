@@ -1,3 +1,0 @@
-# SPA routing — every URL falls through to index.html so React Router /
-# the magic-link auth callback (?code=…) work after a hard refresh.
-/*    /index.html   200
