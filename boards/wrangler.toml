@@ -1,0 +1,11 @@
+# Cloudflare Workers Builds config for Soleil Boards.
+# Static-only deploy: no Worker code, just the Vite-built dist/ served via
+# Cloudflare's Static Assets, with SPA fallback so /any/route hits index.html
+# (the magic-link auth callback /?code=... and any future client routes).
+
+name = "soleil-boards"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
