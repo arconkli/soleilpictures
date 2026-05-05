@@ -26,7 +26,6 @@ import { DocStatusFooter } from './DocStatusFooter.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
 import { DocCommentsPanel } from './DocCommentsPanel.jsx';
 import { DocLinkPicker } from './DocLinkPicker.jsx';
-import { addCommentThread } from '../lib/docState.js';
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 const RAILS_KEY = 'soleil.boards.docRails';
@@ -72,26 +71,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => { saveRails(rails); }, [rails]);
   const [rightTab, setRightTab] = useState('outline'); // 'outline' | 'links' | 'refs' | 'comments'
 
-  // From the bubble-menu "comment" button. Wraps the current selection with
-  // a comment mark + creates a thread in Y.Map. Threads are anchored by mark
-  // id (NOT by position) so edits inside the comment range can't drift it.
-  const startComment = (editor) => {
-    if (!editor || !activePageId) return;
-    const sel = editor.state.selection;
-    if (sel.empty) return;
-    // eslint-disable-next-line no-alert
-    const body = window.prompt('Add a comment');
-    if (!body || !body.trim()) return;
-    const id = addCommentThread(ydoc, {
-      pageId: activePageId,
-      body: body.trim(),
-      author: currentUser?.name || currentUser?.email || 'You',
-      authorColor: currentUser?.color || '#4f8df8',
-      scope,
-    });
-    editor.chain().focus().setMark('comment', { id }).run();
-    setRightTab('comments');
-  };
   const [findOpen, setFindOpen] = useState(false);
   // Embed-board picker — DocPageEditor calls our request fn (which sets a
   // pending callback); the picker, on selection, runs the callback so the
@@ -206,6 +185,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const openLinkPickerRef = useRef(null);
   const registerOpenLinkPicker = useCallback((fn) => { openLinkPickerRef.current = fn; }, []);
 
+  // Cross-component comment-add wiring: DocPageEditor registers its
+  // addComment.open function here; the toolbar button calls it via onAddComment.
+  const openAddCommentRef = useRef(null);
+  const registerOpenAddComment = useCallback((fn) => { openAddCommentRef.current = fn; }, []);
+
   const insertBookmarkAtCaret = (editor) => {
     if (!editor || !activePageId) return;
     const anchor = editor.state.selection.from;
@@ -255,7 +239,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     docName={board.name}
                     onInsertBookmark={insertBookmarkAtCaret}
                     onOpenFind={() => setFindOpen(true)}
-                    onOpenLink={(editor) => openLinkPickerRef.current?.(editor)} />
+                    onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
+                    onAddComment={() => openAddCommentRef.current?.()} />
         <DocFindReplace editor={editorRef.current}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
@@ -271,13 +256,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               activePageId={activePageId}
               workspaceId={workspaceId}
               userId={userId}
+              currentUser={currentUser}
               onEditorReady={onEditorReady}
               onRequestBoardEmbed={requestBoardEmbed}
               onRequestLink={requestLink}
-              onStartComment={startComment}
               awareness={awareness}
               onNavigateTarget={handleNavigateTarget}
               registerOpenLinkPicker={registerOpenLinkPicker}
+              registerOpenAddComment={registerOpenAddComment}
               boards={Object.values(boards || {})}
             />
           ) : (

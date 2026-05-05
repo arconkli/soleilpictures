@@ -30,7 +30,7 @@ const SIZES = [12, 14, 16, 18, 22, 28, 36];
 
 const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink }) {
+export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink, onAddComment }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
   useEffect(() => {
@@ -181,6 +181,8 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
            onClick={() => onOpenLink?.(editor)}><Icon.Link /></Btn>
       <Btn title="Bookmark this spot" disabled={disabled}
            onClick={() => onInsertBookmark?.(editor)}><Icon.Bookmark /></Btn>
+      <Btn title="Add comment (⌘⌥M)" disabled={disabled || !editor || editor.state.selection.empty}
+           onClick={() => onAddComment?.()}><Icon.Comment /></Btn>
       <Btn title="Find (⌘F)" disabled={disabled}
            onClick={() => onOpenFind?.()}><Icon.Search /></Btn>
       <DocExportMenu editor={editor} docName={docName} />
@@ -211,6 +213,7 @@ const Icon = {
   Search:   () => SVG(<><circle cx="6" cy="6" r="3.5" /><path d="M9 9 L12 12" /></>),
   Undo:     () => SVG(<><path d="M3 6 H8.5 A3 3 0 0 1 8.5 12 H6.5" /><path d="M3 6 L5.5 3.5 M3 6 L5.5 8.5" /></>),
   Redo:     () => SVG(<><path d="M11 6 H5.5 A3 3 0 0 0 5.5 12 H7.5" /><path d="M11 6 L8.5 3.5 M11 6 L8.5 8.5" /></>),
+  Comment:  () => SVG(<><path d="M2 4 A1 1 0 0 1 3 3 H11 A1 1 0 0 1 12 4 V9 A1 1 0 0 1 11 10 H6 L4 12 V10 H3 A1 1 0 0 1 2 9 Z" /></>),
 };
 
 function Btn({ children, active, disabled, onClick, title }) {

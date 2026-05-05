@@ -15,6 +15,7 @@ import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, addBookmark } from '../lib/docState.js';
+import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
 import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { updateBacklinks } from '../lib/boardsApi.js';
@@ -69,7 +70,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, boards }) {
+export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards }) {
   const fragment = pageId ? getOrCreatePageContent(ydoc, pageId, scope) : null;
   // Held so editorProps drop/paste handlers (constructed at editor-init time,
   // before `editor` exists) can reach the live instance.
@@ -170,6 +171,22 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     return () => registerOpenLinkPicker?.(null);
   }, [registerOpenLinkPicker, openLinkPicker]);
 
+  // Inline comment-add flow — opens an InlineComposer next to the selection,
+  // commits a tt-comment mark + thread record on Post.
+  const addComment = useAddCommentFlow({
+    ydoc,
+    scope,
+    activePageId,
+    currentUser,
+    getEditor: () => editorRef.current,
+  });
+
+  // Expose addComment.open to DocSurface so the toolbar button can invoke it.
+  useEffect(() => {
+    registerOpenAddComment?.(addComment.open);
+    return () => registerOpenAddComment?.(null);
+  }, [registerOpenAddComment, addComment.open]);
+
   const handleEditorClick = (e) => {
     const el = e.target.closest?.('[data-link-id]');
     if (!el) return;
@@ -246,6 +263,13 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
         name: 'soleilLinkShortcut',
         addKeyboardShortcuts: () => ({
           'Mod-k': () => { openLinkPicker(editorRef.current); return true; },
+        }),
+      }),
+      // ⌘⌥M → add comment on current selection.
+      Extension.create({
+        name: 'soleilCommentShortcut',
+        addKeyboardShortcuts: () => ({
+          'Mod-Alt-m': () => { addComment.open(); return true; },
         }),
       }),
       // Live decoration of link marks: kind-aware colours + multi-target badge.
@@ -418,8 +442,9 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
           toolbar (always visible) or right-click for a context menu. */}
       <DocEditorContextMenu editor={editor}
                             onOpenLinkPicker={openLinkPicker}
-                            onStartComment={onStartComment} />
+                            onAddComment={addComment.open} />
       <EditorContent editor={editor} />
+      {addComment.node}
       {linkPop && (
         <LinkPopover
           anchor={linkPop.anchor}
@@ -478,7 +503,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
 
 // Right-click context menu — appears at click position; lists the most-used
 // inline + block formatting actions for the current selection.
-function DocEditorContextMenu({ editor, onOpenLinkPicker, onStartComment }) {
+function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment }) {
   const [pos, setPos] = useState(null);
   useEffect(() => {
     const root = editor?.view?.dom;
@@ -560,8 +585,8 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onStartComment }) {
       {pos.hasSelection && (
         <>
           <Sep />
-          <Item icon={<CommentIcon />} label="Add comment"
-                onClick={run(() => onStartComment?.(editor))} />
+          <Item icon={<CommentIcon />} label="Add comment" shortcut="⌘⌥M"
+                onClick={run(() => onAddComment?.())} />
         </>
       )}
     </div>
