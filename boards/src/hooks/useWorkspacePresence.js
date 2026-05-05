@@ -24,14 +24,23 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
     if (!workspaceId || !user?.id) return;
     setStatus('connecting');
     setPeers([]);
-    const handle = attachWorkspacePresence(workspaceId, {
-      user,
-      getLocation: () => locRef.current,
-      onPeers: setPeers,
-      onStatus: setStatus,
-    });
-    handleRef.current = handle;
-    return () => { handle.destroy(); handleRef.current = null; };
+    // Defer the ws: join by 2s so the board: channel gets to subscribe
+    // first. Supabase free-tier has a low join-rate cap and concurrent
+    // channel opens at page load were starving the board: channel.
+    const timer = setTimeout(() => {
+      const handle = attachWorkspacePresence(workspaceId, {
+        user,
+        getLocation: () => locRef.current,
+        onPeers: setPeers,
+        onStatus: setStatus,
+      });
+      handleRef.current = handle;
+    }, 2000);
+    return () => {
+      clearTimeout(timer);
+      handleRef.current?.destroy();
+      handleRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, user?.id]);
 
