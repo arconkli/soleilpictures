@@ -52,8 +52,9 @@ test.describe('Sidebar', () => {
     await expect(page.locator('.app')).toHaveClass(/sb-collapsed/);
     // The middle column is hidden via CSS; rail is still visible.
     await expect(page.locator('.rail')).toBeVisible();
-    // Click the brand (rail logo) to expand.
-    await page.locator('.rail-brand').click();
+    // Brand is hidden in compact mode; the .rail-toggle button replaces it.
+    await expect(page.locator('.rail-brand')).toHaveCount(0);
+    await page.locator('.rail-toggle').click();
     await expect(page.locator('.app')).not.toHaveClass(/sb-collapsed/);
   });
 

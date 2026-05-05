@@ -919,11 +919,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         {/* Left rail — workspace switcher + settings + you. Always visible,
             stays functional even when the middle column is collapsed. */}
         <div className="rail">
-          <button className="rail-brand" title={tweak.compactSidebar ? 'Expand sidebar (⌘B)' : 'Soleil'}
-                  onClick={() => { if (tweak.compactSidebar) setTweak('compactSidebar', false); }}
-                  aria-label={tweak.compactSidebar ? 'Expand sidebar' : 'Soleil'}>
-            <SoleilMark size={18} color="var(--soleil)" glow />
-          </button>
+          {tweak.compactSidebar ? (
+            <button className="rail-toggle" title="Open sidebar (⌘B)"
+                    aria-label="Open sidebar"
+                    onClick={() => setTweak('compactSidebar', false)}>
+              <Icon as={PanelLeftOpen} size={16} />
+            </button>
+          ) : (
+            <div className="rail-brand" title="Soleil">
+              <SoleilMark size={18} color="var(--soleil)" glow />
+            </div>
+          )}
           <div className="rail-ws-list">
             {(workspaces || []).map(w => {
               const isActive = w.id === workspace.id;

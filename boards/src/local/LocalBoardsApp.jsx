@@ -483,11 +483,17 @@ export function LocalBoardsApp({ user, signOut }) {
         {/* Two-tier layout to match real-mode App.jsx — rail (workspaces +
             settings + you) on the left, middle column with nav + boards. */}
         <div className="rail">
-          <button className="rail-brand" title={tweak.compactSidebar ? 'Expand sidebar (⌘B)' : 'Soleil'}
-                  onClick={() => { if (tweak.compactSidebar) setTweak('compactSidebar', false); }}
-                  aria-label={tweak.compactSidebar ? 'Expand sidebar' : 'Soleil'}>
-            <SoleilMark size={18} color="var(--soleil)" glow />
-          </button>
+          {tweak.compactSidebar ? (
+            <button className="rail-toggle" title="Open sidebar (⌘B)"
+                    aria-label="Open sidebar"
+                    onClick={() => setTweak('compactSidebar', false)}>
+              <Icon as={PanelLeftOpen} size={16} />
+            </button>
+          ) : (
+            <div className="rail-brand" title="Soleil">
+              <SoleilMark size={18} color="var(--soleil)" glow />
+            </div>
+          )}
           <div className="rail-ws-list">
             <button className="rail-ws active" title="Local in-memory workspace">L</button>
           </div>

@@ -286,13 +286,26 @@ body {
   width: 28px; height: 28px;
   display: grid; place-items: center;
   margin-bottom: 6px;
-  background: transparent;
-  border: 0;
+}
+.rail-toggle {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  margin-bottom: 6px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
   cursor: pointer;
   border-radius: 8px;
-  transition: background var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
 }
-.rail-brand:hover { background: var(--bg-hov); }
+.rail-toggle:hover {
+  background: var(--bg-4);
+  color: var(--ink-0);
+  border-color: var(--line-3);
+}
+[data-theme='light'] .rail-toggle { background: var(--bg-3); border-color: var(--line-2); }
 .rail-ws-list {
   display: flex; flex-direction: column;
   gap: 4px;
