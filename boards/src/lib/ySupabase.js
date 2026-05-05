@@ -112,6 +112,9 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
 
   // On subscribe, exchange state vectors with anyone else in the channel.
   channel.subscribe((status) => {
+    // Surface every state change so live debugging in the console is easy.
+    // (Filter with `console.log = () => {}` if you want quiet.)
+    console.info('[realtime] board:' + boardId, status);
     if (status !== 'SUBSCRIBED') return;
     subscribed = true;
     const sv = Y.encodeStateVector(ydoc);

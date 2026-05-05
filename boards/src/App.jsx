@@ -23,6 +23,8 @@ import { useChannelList } from './hooks/useChannelList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
 import { useRecents } from './hooks/useRecents.js';
+import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
+import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
@@ -780,6 +782,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [currentSurface, setCurrentSurface] = useState('board');
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
 
+  // Workspace-level presence — shows everyone in the workspace, regardless
+  // of which board they're on. Click an avatar to teleport to their board.
+  const { peers: wsPeers, status: wsStatus } = useWorkspacePresence({
+    workspaceId: workspace.id,
+    user: { id: user.id, name: userInfo.name, email: user.email, color: '#4f8df8' },
+    location: {
+      boardId: currentBoard?.id,
+      boardName: currentBoard?.name,
+      surface: currentSurface,
+    },
+  });
+  const jumpToPeer = (loc) => {
+    if (loc?.surface === 'home') { setCurrentSurface('home'); return; }
+    if (loc?.boardId && boards[loc.boardId]) { setStack([loc.boardId]); setCurrentSurface('board'); }
+  };
+
   const [selectedTool, setSelectedTool] = useState('select');
   // Reset to the select tool every time the active board changes — otherwise
   // a leftover draw/shape/arrow tool from the previous board carries over and
@@ -1062,7 +1080,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <Icon as={History} size={16} />
             </button>
             <span className="tb-divider" aria-hidden="true" />
-            <PresenceStack getAwareness={yb.getAwareness} />
+            <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id} onJumpTo={jumpToPeer} />
             <span className="tb-divider" aria-hidden="true" />
             <button className="tb-btn" onClick={inviteToWorkspace} title="Invite someone to this workspace">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
