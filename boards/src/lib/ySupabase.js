@@ -19,7 +19,7 @@
 
 import * as Y from 'yjs';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
-import { supabase } from './supabase.js';
+import { supabase, bounceRealtime } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 
 // Cap awareness fan-out. 33ms = ~30 broadcasts/sec/user — paired with
@@ -174,32 +174,18 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   };
   channel.subscribe(onSubscribeStatus);
 
-  // Aggressive reconnect — backgrounded tabs commonly have their websocket
-  // killed by the OS / browser. We listen on every wake-ish event and,
-  // critically, FORCE a resubscribe regardless of our cached `subscribed`
-  // flag (which can lag behind reality when the socket dies silently).
-  // We also kick supabase.realtime.connect() directly so the underlying
-  // websocket re-handshakes if it dropped.
-  const wakeUp = () => {
-    if (destroyed) return;
-    try { supabase?.realtime?.connect?.(); } catch (_) {}
-    try { channel.subscribe(onSubscribeStatus); } catch (_) {}
-  };
-  const onVisibility = () => { if (document.visibilityState === 'visible') wakeUp(); };
-  const onFocus  = () => wakeUp();
-  const onOnline = () => wakeUp();
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('focus', onFocus);
-    window.addEventListener('online', onOnline);
-  }
-  // Watchdog: if no inbound broadcast in 20s while the tab is visible, the
-  // socket is probably dead even though Supabase hasn't told us. Resubscribe.
+  // Wake events (visibilitychange / focus / online) are handled in
+  // supabase.js — one listener for the whole app, force-bounces the
+  // realtime transport so every channel re-handshakes. The watchdog
+  // below catches dead sockets that didn't fire any wake event.
   let lastInbound = Date.now();
   const watchdog = setInterval(() => {
     if (destroyed) return;
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-    if (Date.now() - lastInbound > 20000) wakeUp();
+    if (Date.now() - lastInbound > 20000) {
+      lastInbound = Date.now(); // give the bounce time to recover
+      bounceRealtime();
+    }
   }, 5000);
 
   // Heartbeat: every 4s, re-broadcast our awareness state so peers know
@@ -220,11 +206,6 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
       clearInterval(heartbeat);
-      if (typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', onVisibility);
-        window.removeEventListener('focus', onFocus);
-        window.removeEventListener('online', onOnline);
-      }
       clearInterval(watchdog);
       ydoc.off('update', onYUpdate);
       awareness.off('update', onAwarenessUpdate);

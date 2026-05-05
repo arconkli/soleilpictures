@@ -117,19 +117,14 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   };
   channel.subscribe(onSubscribeStatus);
 
-  // Tab back-foreground often kills the websocket; force resubscribe.
-  const onVisibility = () => {
-    if (document.visibilityState !== 'visible') return;
-    if (destroyed || subscribed) return;
-    try { channel.subscribe(onSubscribeStatus); } catch (_) {}
-  };
-  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility);
+  // Wake handling is global (in supabase.js — single visibility/focus/online
+  // listener that bounces the transport for ALL channels). No per-channel
+  // listener needed here; on bounce, this channel auto-rejoins via Phoenix.
 
   return {
     destroy() {
       destroyed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       if (prunerInterval) clearInterval(prunerInterval);
       try { channel.send({ type: 'broadcast', event: 'ws-leave', payload: { from: TAB_ID } }); } catch (_) {}

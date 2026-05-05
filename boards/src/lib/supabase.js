@@ -48,3 +48,39 @@ export const supabase = (url && publicKey)
   : null;
 
 export const isSupabaseConfigured = !!supabase;
+
+// ── Realtime transport reset on wake events ────────────────────────────
+// When the OS / browser kills our websocket while the tab is backgrounded,
+// realtime-js's cached state still says "connected." Both `realtime.connect()`
+// and `channel.subscribe()` short-circuit on that cache, so a normal
+// "reconnect" call is a silent no-op. Force the transport to disconnect
+// (which moves the client to `disconnected`), then connect, so all
+// channels re-handshake via their normal Phoenix join cycle. One listener
+// for the whole app — every channel benefits.
+if (supabase && typeof document !== 'undefined') {
+  let resetTimer = null;
+  const bounceTransport = () => {
+    if (resetTimer) return;        // throttle bursts of wake events
+    resetTimer = setTimeout(() => {
+      resetTimer = null;
+      try {
+        supabase.realtime.disconnect();
+        supabase.realtime.connect();
+      } catch (e) { console.warn('[realtime] transport bounce failed', e); }
+    }, 80);
+  };
+  const onVisibility = () => { if (document.visibilityState === 'visible') bounceTransport(); };
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('focus',  bounceTransport);
+  window.addEventListener('online', bounceTransport);
+}
+
+// Exposed so per-channel watchdogs can request a transport bounce when
+// they detect a dead socket (no inbound 20s while visible).
+export function bounceRealtime() {
+  if (!supabase) return;
+  try {
+    supabase.realtime.disconnect();
+    supabase.realtime.connect();
+  } catch (e) { console.warn('[realtime] bounceRealtime failed', e); }
+}
