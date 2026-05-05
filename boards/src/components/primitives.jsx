@@ -1,5 +1,7 @@
 // Small visual primitives — image stub, avatar, live cursor, soleil mark.
 
+import React from 'react';
+
 export function ImagePlaceholder({ label, tone = 'neutral', aspect = '4/3' }) {
   const tones = {
     neutral: { base: '#1c1c1f', stripe: '#222226' },
@@ -38,9 +40,38 @@ export function Avatar({ name, color, size = 22, ring }) {
   );
 }
 
+// Continuously lerps toward the latest (x,y) on each animation frame so
+// the cursor glides instead of teleporting between discrete broadcast
+// positions. CSS transitions don't work well here — they restart on every
+// prop update, causing the visible "stop and re-ease" jitter.
 export function LiveCursor({ x, y, name, color }) {
+  const ref = React.useRef(null);
+  const targetRef = React.useRef({ x, y });
+  const currentRef = React.useRef({ x, y });
+  // Always reflect the latest target without re-running the rAF effect.
+  targetRef.current = { x, y };
+
+  React.useEffect(() => {
+    // Snap to first reported position so we don't lerp from (0,0).
+    currentRef.current = { x: targetRef.current.x, y: targetRef.current.y };
+    let raf = 0;
+    const tick = () => {
+      const t = targetRef.current;
+      const c = currentRef.current;
+      const dx = t.x - c.x, dy = t.y - c.y;
+      // 0.22 closes ~75% of the gap in 6 frames (~100ms @60fps) — feels
+      // immediate without the broadcast-tick stutter.
+      const next = { x: c.x + dx * 0.22, y: c.y + dy * 0.22 };
+      currentRef.current = next;
+      if (ref.current) ref.current.style.transform = `translate(${next.x}px, ${next.y}px)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
-    <div className="cursor" style={{ transform: `translate(${x}px, ${y}px)` }}>
+    <div ref={ref} className="cursor" style={{ transform: `translate(${x}px, ${y}px)` }}>
       <svg width="16" height="20" viewBox="0 0 16 20" fill="none">
         <path d="M2 2 L2 15 L5.5 12 L8 17.5 L10 16.5 L7.5 11 L13 11 Z"
               fill={color} stroke="#0a0a0c" strokeWidth="1" strokeLinejoin="round" />

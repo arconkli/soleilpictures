@@ -729,10 +729,8 @@ body {
 .cursors-layer { position: absolute; inset: 0; pointer-events: none; z-index: 999998; }
 .cursor {
   position: absolute; top: 0; left: 0;
-  /* Slightly longer than the broadcast interval (~80-120ms) with an ease-out
-     so the cursor glides into the next reported position instead of jumping.
-     The will-change hint gets the GPU to composite the move smoothly. */
-  transition: transform 180ms cubic-bezier(.22, .9, .3, 1);
+  /* No CSS transition — LiveCursor lerps to target every rAF, so any
+     transition would just fight that and reintroduce the stutter. */
   will-change: transform;
   pointer-events: none;
 }
