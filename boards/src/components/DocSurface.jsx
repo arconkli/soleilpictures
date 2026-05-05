@@ -278,6 +278,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               awareness={awareness}
               onNavigateTarget={handleNavigateTarget}
               registerOpenLinkPicker={registerOpenLinkPicker}
+              boards={Object.values(boards || {})}
             />
           ) : (
             <div className="doc-empty">No page selected.</div>

@@ -19,6 +19,7 @@ import { uploadImage } from '../lib/uploads.js';
 import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { updateBacklinks } from '../lib/boardsApi.js';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
+import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
@@ -26,6 +27,7 @@ import { BlockHandleExtension } from './DocBlockHandle.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { LinkPopover } from './LinkPopover.jsx';
 import { EntityPicker } from './EntityPicker.jsx';
+import { createNameIndex } from '../lib/entityNameTrie.js';
 
 // Comprehensive keyboard shortcuts beyond the StarterKit defaults. Mirrors
 // what users expect from Google Docs / Notion.
@@ -66,7 +68,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker }) {
+export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, boards }) {
   const fragment = pageId ? getOrCreatePageContent(ydoc, pageId, scope) : null;
   // Held so editorProps drop/paste handlers (constructed at editor-init time,
   // before `editor` exists) can reach the live instance.
@@ -76,19 +78,35 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   const [linkPicker, setLinkPicker] = useState(null);
   // linkPicker = { anchor, multi, initialSelected, existingLinkId? } | null
 
-  const openLinkPicker = useCallback((editor) => {
+  // In-memory Trie of workspace entity names for auto-detect decorations.
+  const nameIndexRef = useRef(createNameIndex());
+
+  // Rebuild the name index whenever the workspace board list changes.
+  useEffect(() => {
+    const idx = createNameIndex();
+    if (Array.isArray(boards)) {
+      for (const b of boards) {
+        if (b?.name && b?.id) idx.add({ kind: 'board', id: b.id, name: b.name });
+      }
+    }
+    nameIndexRef.current = idx;
+  }, [boards]);
+
+  const openLinkPicker = useCallback((editor, opts = {}) => {
     if (!editor) return;
     const sel = editor.state.selection;
     if (sel.empty) return;
     // Look for an existing link mark inside the selection.
     let existingLinkId = null;
-    let initialSelected = [];
-    const $from = editor.state.doc.resolve(sel.from);
-    const m = $from.marks().find(x => x.type.name === 'link');
-    if (m?.attrs.linkId) {
-      existingLinkId = m.attrs.linkId;
-      const link = getLink(ydoc, existingLinkId);
-      initialSelected = link?.targets || [];
+    let initialSelected = opts.initialSelected || [];
+    if (!opts.initialSelected) {
+      const $from = editor.state.doc.resolve(sel.from);
+      const m = $from.marks().find(x => x.type.name === 'link');
+      if (m?.attrs.linkId) {
+        existingLinkId = m.attrs.linkId;
+        const link = getLink(ydoc, existingLinkId);
+        initialSelected = link?.targets || [];
+      }
     }
     // Anchor the picker below the selection.
     const winSel = window.getSelection();
@@ -216,6 +234,43 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       Extension.create({
         name: 'soleilLinkRenderer',
         addProseMirrorPlugins: () => [makeLinkRendererPlugin({ getYdoc: () => ydoc })],
+      }),
+      // Auto-detect entity names in the doc and add dotted underline decorations.
+      Extension.create({
+        name: 'soleilAutoDetect',
+        addProseMirrorPlugins: () => [makeAutoDetectPlugin({ getIndex: () => nameIndexRef.current })],
+      }),
+      // Enter key handler: if caret is inside an auto-detect candidate span,
+      // open the EntityPicker pre-filled with the candidate's records.
+      Extension.create({
+        name: 'soleilAutoDetectShortcut',
+        addKeyboardShortcuts: () => ({
+          'Enter': () => {
+            const editor = editorRef.current;
+            if (!editor) return false;
+            const sel = editor.state.selection;
+            // Only short-circuit Enter when caret is collapsed.
+            if (!sel.empty) return false;
+            // Find the DOM node at the caret. If it's inside a candidate span,
+            // open the picker.
+            const dom = editor.view.domAtPos(sel.from);
+            const el = (dom?.node?.nodeType === 3 ? dom.node.parentElement : dom?.node)?.closest?.('.tt-autolink-candidate');
+            if (!el) return false;
+            let records = [];
+            try { records = JSON.parse(el.dataset.records || '[]'); } catch {}
+            if (records.length === 0) return false;
+            // Map the candidate's DOM range to PM positions.
+            let from, to;
+            try {
+              from = editor.view.posAtDOM(el.firstChild, 0);
+              to   = editor.view.posAtDOM(el.firstChild, el.firstChild.nodeValue.length);
+            } catch { return false; }
+            editor.commands.setTextSelection({ from, to });
+            // Hand off to openLinkPicker with initialSelected pre-filled from the records.
+            openLinkPicker(editor, { initialSelected: records.map(recordToTarget) });
+            return true;
+          },
+        }),
       }),
       Typography,
       Placeholder.configure({
@@ -488,4 +543,11 @@ function promptLink(editor) {
     return;
   }
   editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+}
+
+// Maps a Trie record (from the auto-detect index) to an EntityPicker target shape.
+function recordToTarget(r) {
+  if (r.kind === 'board') return { kind: 'board', id: r.id };
+  if (r.kind === 'doc')   return { kind: 'doc', docCardId: r.id };
+  return { kind: 'card', boardId: r.boardId, cardId: r.id };
 }

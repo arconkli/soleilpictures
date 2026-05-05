@@ -3468,6 +3468,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   cursor: pointer;
 }
 
+/* ─────────────────────── Auto-detect candidates ─────────────────────────── */
+
+.tt-autolink-candidate {
+  text-decoration: underline dotted rgba(212, 160, 74, .55);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+}
+.tt-autolink-candidate:hover { background: var(--soleil-soft); }
+
 /* ──────────────────────────── Link popover ──────────────────────────────── */
 
 .link-popover {
