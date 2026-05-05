@@ -142,10 +142,26 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
     realtime = attachRealtime(ydoc, boardId, { user });
   });
 
+  // Flush on hard page close. The localStorage draft already protects the
+  // user's own data (saveLocalDraft runs synchronously on every change);
+  // this just shrinks the window where another peer would cold-load a
+  // stale snapshot. We use pagehide instead of beforeunload because mobile
+  // Safari only reliably fires pagehide on tab close.
+  const onPageHide = () => {
+    if (!initialized) return;
+    if (snapTimer) {
+      clearTimeout(snapTimer);
+      snapTimer = null;
+      saveBoardSnapshot(boardId, ydoc).catch(() => {});
+    }
+  };
+  if (typeof window !== 'undefined') window.addEventListener('pagehide', onPageHide);
+
   const destroy = () => {
     destroyed = true;
     if (snapTimer) clearTimeout(snapTimer);
     if (idleTimer) clearTimeout(idleTimer);
+    if (typeof window !== 'undefined') window.removeEventListener('pagehide', onPageHide);
     try { realtime?.destroy?.(); } catch (_) {}
     ydoc.off('update', onUpdate);
     // CRITICAL: only flush if we actually finished loading. Otherwise we'd

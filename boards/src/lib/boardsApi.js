@@ -8,6 +8,9 @@ import { bytesToB64 } from './yhelpers.js';
 // ── Workspaces ──────────────────────────────────────────────────────────────
 
 // Returns the user's first workspace (created_at asc) or null if none.
+// Read-only — useful for "do they have one?" checks. Bootstrap should use
+// `getOrCreatePersonalWorkspace` instead so two simultaneous mounts can't
+// race-create a duplicate.
 export async function getMyFirstWorkspace() {
   const { data, error } = await supabase
     .from('workspace_members')
@@ -19,7 +22,21 @@ export async function getMyFirstWorkspace() {
   return data[0].workspaces;
 }
 
+// Atomic bootstrap — calls a Postgres function that takes a per-user
+// advisory lock, returns the user's oldest workspace if one exists, or
+// otherwise creates {workspace + member + Studio root} in a single
+// transaction. Replaces the prior racy two-step that produced duplicate
+// "Soleil" workspaces on first sign-in.
+export async function getOrCreatePersonalWorkspace({ userId, name = 'Soleil' }) {
+  const { data, error } = await supabase
+    .rpc('get_or_create_personal_workspace', { p_user_id: userId, p_name: name });
+  if (error) throw error;
+  return data;
+}
+
 // Create a workspace + add the caller as a member, all in two writes.
+// Used for explicit user-initiated "new workspace" actions, not for
+// bootstrap (use getOrCreatePersonalWorkspace).
 export async function createWorkspace({ name, userId }) {
   const ins = await supabase
     .from('workspaces')
@@ -33,6 +50,23 @@ export async function createWorkspace({ name, userId }) {
     .insert({ workspace_id: ws.id, user_id: userId, role: 'owner' });
   if (member.error) throw member.error;
   return ws;
+}
+
+// Delete a workspace + all its content. Only the workspace owner
+// (created_by) can delete; non-owners get a permission error and should
+// use leaveWorkspace instead.
+export async function deleteWorkspace(workspaceId) {
+  const { error } = await supabase
+    .rpc('delete_workspace', { p_workspace_id: workspaceId });
+  if (error) throw error;
+}
+
+// Drop the caller's membership of a shared workspace. Owners can't leave
+// (the RPC errors) — they should delete the workspace if they want it gone.
+export async function leaveWorkspace(workspaceId) {
+  const { error } = await supabase
+    .rpc('leave_workspace', { p_workspace_id: workspaceId });
+  if (error) throw error;
 }
 
 // ── Boards ─────────────────────────────────────────────────────────────────

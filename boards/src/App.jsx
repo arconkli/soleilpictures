@@ -11,7 +11,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, UserPlus } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, UserPlus, Trash2 } from './lib/icons.js';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -27,7 +27,7 @@ import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
-import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta } from './lib/boardsApi.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
@@ -620,6 +620,39 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
+  // Right-click on a workspace row → confirm + delete (own) or leave (shared).
+  // If the user removes the currently-active workspace we switch to personal.
+  const removeWorkspace = async (ws, kind /* 'delete' | 'leave' */) => {
+    const isDelete = kind === 'delete';
+    const ok = await feedback.confirm({
+      title: isDelete ? 'Delete workspace' : 'Leave workspace',
+      message: isDelete
+        ? `Delete "${ws.name}" and all of its boards, cards, and messages? This cannot be undone.`
+        : `Leave "${ws.name}"? You'll lose access until the owner re-invites you.`,
+      confirmLabel: isDelete ? 'Delete workspace' : 'Leave',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      if (isDelete) await deleteWorkspace(ws.id);
+      else          await leaveWorkspace(ws.id);
+      // If we just removed the active workspace, fall back to personal so
+      // the next render doesn't briefly try to load deleted boards.
+      if (ws.id === workspace.id && personalWorkspaceId && personalWorkspaceId !== ws.id) {
+        onSwitchWorkspace?.(personalWorkspaceId);
+      } else if (ws.id === workspace.id) {
+        // Removed the personal workspace itself — clear the override and let
+        // useWorkspace bootstrap a fresh one on the next render.
+        onSwitchWorkspace?.(null);
+      }
+      await onWorkspacesChanged?.();
+      feedback.toast({ type: 'success', message: isDelete ? `Deleted "${ws.name}".` : `Left "${ws.name}".` });
+    } catch (e) {
+      console.error('removeWorkspace failed', e);
+      feedback.toast({ type: 'error', message: (isDelete ? 'Delete' : 'Leave') + ' failed: ' + (e.message || e) });
+    }
+  };
+
   // ── Clone a board (and its Y.Doc state) into my personal workspace ───────
   const cloneBoardToPersonal = async (sourceBoardId) => {
     if (!personalWorkspaceId) {
@@ -884,14 +917,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               const shared = (workspaces || []).filter(w => w.id !== personalWorkspaceId);
               const renderWs = (w) => {
                 const isMine = w.id === personalWorkspaceId;
+                const isOwner = w.created_by === user.id;
                 const isActive = w.id === workspace.id;
+                const action = isOwner ? 'delete' : 'leave';
                 return (
                   <div key={w.id}
-                       className={`sb-row ${isActive && currentSurface === 'board' ? 'active' : ''}`}
+                       className={`sb-row sb-row-ws ${isActive && currentSurface === 'board' ? 'active' : ''}`}
                        onClick={() => { onSwitchWorkspace(w.id); setCurrentSurface('board'); }}
-                       title={isMine ? 'Personal workspace' : 'Shared with you'}>
+                       onContextMenu={(e) => { e.preventDefault(); removeWorkspace(w, action); }}
+                       title={isMine ? 'Personal workspace' : (isOwner ? 'Workspace you own' : 'Shared with you')}>
                     <span className="sb-dot" style={{ background: isMine ? 'var(--soleil)' : 'var(--ink-3)' }} />
                     <span className="sb-row-label">{w.name}</span>
+                    <button className="sb-row-action"
+                            onClick={(e) => { e.stopPropagation(); removeWorkspace(w, action); }}
+                            title={action === 'delete' ? `Delete "${w.name}"` : `Leave "${w.name}"`}
+                            aria-label={action === 'delete' ? 'Delete workspace' : 'Leave workspace'}>
+                      <Icon as={Trash2} size={12} />
+                    </button>
                   </div>
                 );
               };

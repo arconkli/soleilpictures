@@ -5431,6 +5431,25 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .emoji-palette-btn:hover { background: var(--bg-hov); }
 
+.sb-row-ws {
+  position: relative;
+}
+.sb-row-ws .sb-row-action {
+  margin-left: auto;
+  background: transparent; border: 0;
+  width: 22px; height: 22px;
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+  color: var(--ink-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+.sb-row-ws:hover .sb-row-action { opacity: 1; }
+.sb-row-ws .sb-row-action:hover { color: var(--ink-0); background: var(--bg-hov); }
+
 .alt-session-banner {
   background: var(--soleil-soft);
   color: var(--soleil);

@@ -1,9 +1,11 @@
-// On first sign-in, create the user's default workspace + Studio root board.
-// Subsequent sign-ins just return the existing workspace.
+// On first sign-in, get-or-create the user's personal workspace.
+// Atomic via the get_or_create_personal_workspace RPC — that takes a
+// per-user advisory lock so duplicate StrictMode / concurrent-mount
+// effect fires can't create duplicate "Soleil" workspaces.
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthGate.jsx';
-import { getMyFirstWorkspace, createWorkspace, getRootBoard, createBoard } from '../lib/boardsApi.js';
+import { getOrCreatePersonalWorkspace, getRootBoard, createBoard } from '../lib/boardsApi.js';
 
 export function useWorkspace() {
   const { user } = useAuth();
@@ -17,11 +19,11 @@ export function useWorkspace() {
     let cancelled = false;
     (async () => {
       try {
-        let ws = await getMyFirstWorkspace();
-        if (!ws) {
-          ws = await createWorkspace({ name: 'Soleil', userId: user.id });
-        }
+        const ws = await getOrCreatePersonalWorkspace({ userId: user.id });
 
+        // RPC creates a Studio root the first time, but if the user later
+        // deleted theirs (from a different workspace) and we re-enter, the
+        // workspace exists with no root. Be defensive.
         let root = await getRootBoard(ws.id);
         if (!root) {
           root = await createBoard({
