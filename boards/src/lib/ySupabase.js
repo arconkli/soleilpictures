@@ -35,7 +35,7 @@ const CLIENT_ID = (() => {
 
 export function attachRealtime(ydoc, boardId, { user } = {}) {
   if (!boardId) return { destroy() {}, awareness: null };
-  console.log('[realtime] board:' + boardId, 'attach (user:', user?.email || user?.id || 'anon', ')');
+  console.log('[realtime] y:' + boardId, 'attach (user:', user?.email || user?.id || 'anon', ')');
 
   const awareness = new Awareness(ydoc);
   if (user) {
@@ -46,9 +46,13 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     });
   }
 
-  // private: true tells the realtime server to enforce realtime.messages RLS
-  // policies on this channel. Without it, Supabase silently drops broadcasts.
-  const channel = supabase.channel(`board:${boardId}`, {
+  // Use a Yjs-specific channel topic. Supabase realtime de-dupes channels
+  // by topic, and the second .subscribe() on a deduped channel is a silent
+  // no-op (RealtimeChannel.js guards: only registers callbacks if isClosed).
+  // The chat module also opens board:{id}, so reusing that topic here means
+  // our subscribe callback never fires and we never start syncing. Distinct
+  // topic = independent channel = both subscribe paths work.
+  const channel = supabase.channel(`y:${boardId}`, {
     config: { broadcast: { self: false, ack: false }, private: true },
   });
 
@@ -119,7 +123,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   // On subscribe, exchange state vectors with anyone else in the channel.
   channel.subscribe((status, err) => {
     // Surface every state change so live debugging in the console is easy.
-    console.log('[realtime] board:' + boardId, status, err || '');
+    console.log('[realtime] y:' + boardId, status, err || '');
     if (status !== 'SUBSCRIBED') return;
     subscribed = true;
     const sv = Y.encodeStateVector(ydoc);
