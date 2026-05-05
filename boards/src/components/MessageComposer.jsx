@@ -2,12 +2,20 @@ import { useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
 import { Paperclip, Smile } from '../lib/icons.js';
 import { uploadMessageFile } from '../lib/messageAttachments.js';
+import { caretRect } from '../lib/caretRect.js';
+import { EntityPicker } from './EntityPicker.jsx';
 
-// Bottom-of-thread input. Phase E wires @-mentions + emoji palette.
+// Bottom-of-thread input. Detects @<query> tokens at the caret to fire the
+// EntityPicker filtered to user/board/card/doc; resolved picks become
+// pendingMentions[] (people, drives notifications) or pendingEntityRefs[]
+// (entity attachments rendered as soleil pills).
 export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId }) {
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [mention, setMention] = useState(null); // { tokenStart, query, anchor }
+  const [pendingMentions, setPendingMentions] = useState([]);     // user ids
+  const [pendingEntityRefs, setPendingEntityRefs] = useState([]); // entity targets
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const lastTypingRef = useRef(0);
@@ -35,12 +43,25 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId })
     if (files.length) handleFiles(files);
   };
 
+  const detectMentionToken = (text, caret) => {
+    let i = caret - 1;
+    while (i >= 0 && /\S/.test(text[i]) && text[i] !== '@') i--;
+    if (i < 0 || text[i] !== '@') return null;
+    return { tokenStart: i, query: text.slice(i + 1, caret) };
+  };
+
   const send = () => {
     const v = body.trim();
     if (!v && attachments.length === 0) return;
-    onSend?.({ body: v, attachments, mentions: [] });
+    onSend?.({
+      body: v,
+      attachments: [...attachments, ...pendingEntityRefs],
+      mentions: pendingMentions,
+    });
     setBody('');
     setAttachments([]);
+    setPendingMentions([]);
+    setPendingEntityRefs([]);
     inputRef.current?.focus();
   };
 
@@ -70,15 +91,18 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId })
         value={body}
         onPaste={handlePaste}
         onChange={(e) => {
-          setBody(e.target.value);
+          const v = e.target.value;
+          setBody(v);
+          const tok = detectMentionToken(v, e.target.selectionEnd);
+          setMention(tok ? { ...tok, anchor: caretRect(e.target) } : null);
           const now = Date.now();
-          if (now - lastTypingRef.current > 1500 && e.target.value.length > 0) {
+          if (now - lastTypingRef.current > 1500 && v.length > 0) {
             lastTypingRef.current = now;
             onTyping?.();
           }
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+          if (e.key === 'Enter' && !e.shiftKey && !mention) { e.preventDefault(); send(); }
         }}
       />
       <input ref={fileInputRef} type="file" hidden multiple
@@ -93,6 +117,27 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId })
           {uploading ? 'Uploading…' : 'Send'}
         </button>
       </div>
+
+      {mention && (
+        <EntityPicker
+          workspaceId={workspaceId}
+          anchor={mention.anchor}
+          initialQuery={mention.query}
+          filter={['user','board','card','doc']}
+          onCommit={(targets) => {
+            const t = targets?.[0];
+            if (!t) { setMention(null); return; }
+            const before = body.slice(0, mention.tokenStart);
+            const after  = body.slice(mention.tokenStart + 1 + mention.query.length);
+            const name   = t.title || t.name || (t.kind === 'user' ? 'someone' : t.kind);
+            setBody(before + '@' + name + ' ' + after);
+            if (t.kind === 'user') setPendingMentions(p => [...p, t.id]);
+            else                   setPendingEntityRefs(p => [...p, t]);
+            setMention(null);
+          }}
+          onCancel={() => setMention(null)}
+        />
+      )}
     </form>
   );
 }
