@@ -1,5 +1,17 @@
 import { useState, useEffect } from 'react';
 import { listLinks } from '../lib/links.js';
+import { Icon } from './Icon.jsx';
+import { LayoutGrid, FileText, StickyNote, Link as LinkIcon } from '../lib/icons.js';
+import { COVER_TINTS } from './primitives.jsx';
+import { supabase } from '../lib/supabase.js';
+
+const KIND_ICON = {
+  board: LayoutGrid,
+  card: StickyNote,
+  doc: FileText,
+  docPos: FileText,
+  url: LinkIcon,
+};
 
 export function DocLinksPanel({ ydoc, pages = [], activePageId, onSelectPage, getEditor }) {
   const [links, setLinks] = useState([]);
@@ -37,9 +49,6 @@ export function DocLinksPanel({ ydoc, pages = [], activePageId, onSelectPage, ge
     tick();
   };
 
-  const labelFor = (l) =>
-    l.name || `${l.targets[0]?.kind || 'link'}${l.targets.length > 1 ? ` · ${l.targets.length} targets` : ''}`;
-
   return (
     <div className="doc-links">
       <div className="doc-links-head">
@@ -50,9 +59,7 @@ export function DocLinksPanel({ ydoc, pages = [], activePageId, onSelectPage, ge
           <div key={pageId} className="doc-links-group">
             <div className="doc-links-page t-meta">{pageById[pageId]?.name || 'Untitled'}</div>
             {items.map(l => (
-              <button key={l.id} className="doc-links-row" onClick={() => jumpTo(l)}>
-                <span className="doc-links-row-name">{labelFor(l)}</span>
-              </button>
+              <LinkRow key={l.id} link={l} onClick={() => jumpTo(l)} />
             ))}
           </div>
         ))}
@@ -61,5 +68,64 @@ export function DocLinksPanel({ ydoc, pages = [], activePageId, onSelectPage, ge
         )}
       </div>
     </div>
+  );
+}
+
+function LinkRow({ link, onClick }) {
+  const primary = link.targets?.[0];
+  const more = (link.targets?.length || 0) - 1;
+  const [meta, setMeta] = useState(null);
+
+  useEffect(() => {
+    if (!supabase || !primary) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (primary.kind === 'board') {
+          const { data } = await supabase.from('boards').select('name,cover').eq('id', primary.id).maybeSingle();
+          if (!cancelled && data) setMeta({ title: data.name, sub: 'BOARD', cover: data.cover });
+        } else if (primary.kind === 'card') {
+          const { data } = await supabase.from('card_index').select('title,kind').eq('board_id', primary.boardId).eq('card_id', primary.cardId).maybeSingle();
+          if (!cancelled && data) setMeta({ title: data.title || 'Untitled', sub: (data.kind || 'card').toUpperCase() });
+        } else if (primary.kind === 'doc' || primary.kind === 'docPos') {
+          const { data } = await supabase.from('card_index').select('title').eq('card_id', primary.docCardId).maybeSingle();
+          if (!cancelled && data) setMeta({ title: data.title || 'Untitled', sub: 'DOC' });
+        } else if (primary.kind === 'url') {
+          let host = primary.href;
+          try { host = new URL(primary.href).hostname; } catch {}
+          if (!cancelled) setMeta({ title: host, sub: 'URL', host });
+        }
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, [primary?.kind, primary?.id, primary?.boardId, primary?.cardId, primary?.docCardId, primary?.href]);
+
+  if (!primary) {
+    return (
+      <button className="doc-links-row" onClick={onClick}>
+        <span className="doc-links-row-name">{link.name || 'Empty link'}</span>
+      </button>
+    );
+  }
+
+  const IconCmp = KIND_ICON[primary.kind] || LinkIcon;
+  const tint = COVER_TINTS[meta?.cover] || COVER_TINTS.warm;
+
+  return (
+    <button className="doc-links-row" onClick={onClick}>
+      <div className="doc-links-row-cover" style={primary.kind === 'url'
+        ? { background: 'var(--bg-3)' }
+        : { background: `linear-gradient(135deg, ${tint}, color-mix(in oklab, ${tint} 35%, var(--bg-2)))`, color: 'var(--ink-0)' }}>
+        {primary.kind === 'url' && meta?.host
+          ? <img alt="" src={`https://www.google.com/s2/favicons?domain=${meta.host}&sz=64`} width={18} height={18} />
+          : <Icon as={IconCmp} size={14} />}
+      </div>
+      <div className="doc-links-row-meta">
+        <div className="doc-links-row-title">{meta?.title || link.name || 'Loading…'}</div>
+        <div className="doc-links-row-sub t-meta">
+          {meta?.sub || primary.kind.toUpperCase()}{more > 0 ? ` · +${more} more` : ''}
+        </div>
+      </div>
+    </button>
   );
 }

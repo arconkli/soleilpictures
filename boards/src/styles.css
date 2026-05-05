@@ -3719,7 +3719,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-links-group { margin-bottom: 8px; }
 .doc-links-page { padding: 6px 10px; color: var(--ink-3); }
 .doc-links-row, .backlinks-row {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; align-items: center; gap: 10px;
   width: 100%;
   text-align: left;
   background: transparent;
@@ -3731,10 +3731,53 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-links-row:hover, .backlinks-row:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-links-row-cover {
+  width: 32px; height: 32px;
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--line-2);
+  overflow: hidden;
+}
+.doc-links-row-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.doc-links-row-title { font: 500 13px/1.3 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-links-row-sub { color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.04em; }
 .doc-links-row-name { font: 500 13px/1.4 var(--font-sans); }
 .doc-links-empty, .backlinks-empty { padding: 24px 16px; text-align: center; color: var(--ink-3); }
 .backlinks-row-source { color: var(--ink-3); }
 .backlinks-row-text { font: 400 12px/1.4 var(--font-sans); color: var(--ink-1); margin-top: 2px; }
+
+/* ───────────────────── Link hover preview card ──────────────────────────── */
+
+.link-hover {
+  position: fixed;
+  z-index: 2147483647;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  animation: ctx-menu-in var(--dur-fast) var(--ease);
+  pointer-events: auto;
+}
+.link-hover-row {
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.link-hover-cover {
+  width: 40px; height: 40px;
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--line-2);
+  overflow: hidden;
+}
+.link-hover-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.link-hover-kind { color: var(--ink-3); }
+.link-hover-title { font: 600 13px/1.3 var(--font-sans); color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.link-hover-sub { color: var(--ink-2); }
+.link-hover-more {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-1);
+  color: var(--ink-3);
+}
 
 /* Tippy.js base (ships with Tiptap floating menus). */
 .tippy-box[data-theme~='soleil'] { background: transparent; }

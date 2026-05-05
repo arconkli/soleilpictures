@@ -28,6 +28,7 @@ import { FindHighlightExtension } from './DocFindReplace.jsx';
 import { BlockHandleExtension } from './DocBlockHandle.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { LinkPopover } from './LinkPopover.jsx';
+import { LinkHoverCard } from './LinkHoverCard.jsx';
 import { EntityPicker } from './EntityPicker.jsx';
 import { createNameIndex } from '../lib/entityNameTrie.js';
 import { CommentGutter } from './CommentGutter.jsx';
@@ -198,12 +199,42 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     const link = getLink(ydoc, linkId);
     if (!link) return;
     e.preventDefault();
+    setLinkHover(null);
     if (link.targets.length === 1) {
       onNavigateTarget?.(link.targets[0]);
     } else {
       setLinkPop({ anchor: el.getBoundingClientRect(), link });
     }
   };
+
+  // Hover-preview state machine: 400ms enter delay, 180ms grace on leave so
+  // the user can move the cursor INTO the card without it disappearing.
+  const [linkHover, setLinkHover] = useState(null);
+  const hoverTimers = useRef({ open: null, close: null });
+  const cancelHoverTimers = () => {
+    clearTimeout(hoverTimers.current.open);
+    clearTimeout(hoverTimers.current.close);
+    hoverTimers.current.open = null;
+    hoverTimers.current.close = null;
+  };
+  const handleLinkHoverEnter = (e) => {
+    const el = e.target.closest?.('[data-link-id]');
+    if (!el) return;
+    const linkId = el.dataset.linkId;
+    cancelHoverTimers();
+    hoverTimers.current.open = setTimeout(() => {
+      const link = getLink(ydoc, linkId);
+      if (!link) return;
+      setLinkHover({ anchor: el.getBoundingClientRect(), link });
+    }, 400);
+  };
+  const handleLinkHoverLeave = (e) => {
+    if (!e.target.closest?.('[data-link-id]')) return;
+    clearTimeout(hoverTimers.current.open);
+    hoverTimers.current.open = null;
+    hoverTimers.current.close = setTimeout(() => setLinkHover(null), 180);
+  };
+  useEffect(() => () => cancelHoverTimers(), []);
 
   // Upload an image File and insert it at `pos` (or current selection if null).
   const uploadAndInsert = async (editor, file, pos = null) => {
@@ -441,7 +472,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
 
   return (
-    <div className="doc-editor-wrap" onClick={handleEditorClick}>
+    <div className="doc-editor-wrap" onClick={handleEditorClick} onMouseOver={handleLinkHoverEnter} onMouseOut={handleLinkHoverLeave}>
       {/* No floating menus — they crowded the cursor. Format from the top
           toolbar (always visible) or right-click for a context menu. */}
       <DocEditorContextMenu editor={editor}
@@ -455,6 +486,14 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
           link={linkPop.link}
           onNavigate={(t) => { setLinkPop(null); onNavigateTarget?.(t); }}
           onClose={() => setLinkPop(null)}
+        />
+      )}
+      {linkHover && (
+        <LinkHoverCard
+          anchor={linkHover.anchor}
+          link={linkHover.link}
+          onMouseEnter={cancelHoverTimers}
+          onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setLinkHover(null), 180); }}
         />
       )}
       {linkPicker && (
