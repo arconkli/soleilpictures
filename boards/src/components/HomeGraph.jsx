@@ -2,12 +2,22 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { assembleGraph } from '../lib/graphData.js';
-import { HomeGraphHud } from './HomeGraphHud.jsx';
 import { HomeGraphDetailDrawer } from './HomeGraphDetailDrawer.jsx';
 import { HomeEmptyState } from './HomeEmptyState.jsx';
 import { HomeGraph2DFallback } from './HomeGraph2DFallback.jsx';
 
+// All entity kinds visible by default; users navigate the graph by hovering
+// + right-clicking to open. The HUD/filter chips were removed — they were
+// decorative more than functional, and cluttered the surface.
 const KIND_FILTER_DEFAULT = new Set(['board', 'doc', 'card', 'url']);
+
+// Read the html element's data-theme so the canvas bg can match light/dark.
+function readTheme() {
+  if (typeof document === 'undefined') return 'dark';
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+
+const BG_FOR = { dark: '#0a0908', light: '#f5f5f7' };
 
 // 3D workspace graph home. Force-directed via react-force-graph-3d.
 //   workspaceId — required
@@ -16,14 +26,24 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   const fgRef = useRef(null);
   const containerRef = useRef(null);
   const [data, setData] = useState({ nodes: [], links: [] });
+  // Loaded turns true the first time assembleGraph resolves. Used to suppress
+  // a brief empty-state flash before the data lands.
+  const [loaded, setLoaded] = useState(false);
   // Structural edges (board↔child-board, board↔card) on by default so the
   // graph reveals workspace hierarchy without requiring explicit doc links.
-  const [structural, setStructural] = useState(true);
-  const [kinds, setKinds] = useState(KIND_FILTER_DEFAULT);
-  const [search, setSearch] = useState('');
+  const structural = true;
+  const kinds = KIND_FILTER_DEFAULT;
   const [selected, setSelected] = useState(null);
   const [supportsWebGL, setSupportsWebGL] = useState(true);
   const [size, setSize] = useState({ w: 800, h: 600 });
+  const [theme, setTheme] = useState(readTheme);
+
+  // Watch html[data-theme] so the canvas bg flips with the rest of the app.
+  useEffect(() => {
+    const obs = new MutationObserver(() => setTheme(readTheme()));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
 
   // WebGL probe
   useEffect(() => {
@@ -67,18 +87,26 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   // Load graph data; refresh when workspace / structural toggle changes.
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
+    // Local QA workspaces don't have rows in Supabase; skip the (hanging) fetch.
+    if (workspaceId === 'local-workspace') {
+      setData({ nodes: [], links: [] });
+      setLoaded(true);
+      return () => {};
+    }
     (async () => {
-      const g = await assembleGraph({ workspaceId, options: { structural } });
-      if (!cancelled) setData(g);
+      let g = { nodes: [], links: [] };
+      try { g = await assembleGraph({ workspaceId, options: { structural } }); }
+      catch (e) { console.warn('assembleGraph failed', e); }
+      if (!cancelled) { setData(g); setLoaded(true); }
     })();
     return () => { cancelled = true; };
   }, [workspaceId, structural]);
 
-  // Apply kind filter on the client side without re-fetching.
+  // Kind filter is fixed (no HUD). Memoize so layout algorithms see stable refs.
   const filtered = useMemo(() => ({
     nodes: data.nodes.filter(n => kinds.has(n.kind)),
     links: data.links.filter(l => {
-      // Both endpoints must still be visible
       const sId = typeof l.source === 'string' ? l.source : l.source.id;
       const tId = typeof l.target === 'string' ? l.target : l.target.id;
       const seen = new Set(data.nodes.filter(n => kinds.has(n.kind)).map(n => n.id));
@@ -98,31 +126,27 @@ export function HomeGraph({ workspaceId, onNavigate }) {
     return new THREE.Mesh(geom, mat);
   };
 
-  if (filtered.nodes.length === 0) {
+  // Show the canvas as soon as we have nodes. Empty state only after we've
+  // confirmed the workspace is genuinely empty (graph load resolved + 0 nodes).
+  if (loaded && filtered.nodes.length === 0) {
     return (
       <div className="home-graph-wrap" ref={containerRef}>
-        <HomeGraphHud
-          kinds={kinds} setKinds={setKinds}
-          structural={structural} setStructural={setStructural}
-          search={search} setSearch={setSearch}
-          onReset={() => {}}
-          onSearchPulse={() => {}}
-        />
         <HomeEmptyState />
       </div>
+    );
+  }
+
+  // Pre-load shell — same bg as the canvas so there's no flash, no HUD, no empty.
+  if (!loaded) {
+    return (
+      <div className="home-graph-wrap" ref={containerRef}
+           style={{ background: BG_FOR[theme] }} />
     );
   }
 
   if (!supportsWebGL) {
     return (
       <div className="home-graph-wrap" ref={containerRef}>
-        <HomeGraphHud
-          kinds={kinds} setKinds={setKinds}
-          structural={structural} setStructural={setStructural}
-          search={search} setSearch={setSearch}
-          onReset={() => {}}
-          onSearchPulse={() => {}}
-        />
         <HomeGraph2DFallback data={filtered} width={size.w} height={size.h} onNodeClick={setSelected} />
       </div>
     );
@@ -130,31 +154,12 @@ export function HomeGraph({ workspaceId, onNavigate }) {
 
   return (
     <div className="home-graph-wrap" ref={containerRef}>
-      <HomeGraphHud
-        kinds={kinds} setKinds={setKinds}
-        structural={structural} setStructural={setStructural}
-        search={search} setSearch={setSearch}
-        onReset={() => fgRef.current?.zoomToFit?.(800, 60)}
-        onSearchPulse={() => {
-          const q = search.trim().toLowerCase();
-          if (!q) return;
-          const hit = filtered.nodes.find(n => (n.name || '').toLowerCase().includes(q));
-          if (hit && fgRef.current) {
-            const dist = 220;
-            const distRatio = 1 + dist / Math.hypot(hit.x || 1, hit.y || 1, hit.z || 1);
-            fgRef.current.cameraPosition(
-              { x: (hit.x || 0) * distRatio, y: (hit.y || 0) * distRatio, z: (hit.z || 0) * distRatio },
-              hit, 1200,
-            );
-          }
-        }}
-      />
       <ForceGraph3D
         ref={fgRef}
         graphData={filtered}
         width={size.w}
         height={size.h}
-        backgroundColor="#0a0908"
+        backgroundColor={BG_FOR[theme]}
         nodeThreeObject={nodeThree}
         nodeLabel={n => n.name}
         linkColor={l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(212,160,74,.55)'}
