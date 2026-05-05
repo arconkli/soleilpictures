@@ -4198,13 +4198,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 /* ─────── Comment marks + panel ─────── */
 .tt-comment {
-  background: rgba(255, 200, 50, .18);
-  border-bottom: 2px solid #f5b50a;
+  background: transparent;
+  text-decoration: underline dotted rgba(212, 160, 74, .45);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
   cursor: pointer;
-  border-radius: 1px;
-  padding: 0 1px;
+  transition: text-decoration-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.tt-comment:hover { background: rgba(255, 200, 50, .30); }
+.tt-comment:hover { text-decoration-color: var(--soleil); background: var(--soleil-soft); }
 .doc-comments { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .doc-comments-toggle {
   padding: 8px 12px;

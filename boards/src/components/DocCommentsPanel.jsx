@@ -65,7 +65,7 @@ export function DocCommentsPanel({ ydoc, scope, comments, pages, activePageId, o
       <div className="doc-comments-body">
         {visible.length === 0 && (
           <div className="doc-comments-empty">
-            Select text in the doc and press the 💬 in the bubble menu to comment.
+            Select text and right-click → Add comment.
           </div>
         )}
         {[...grouped.entries()].map(([pageId, items]) => (
