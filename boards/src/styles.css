@@ -5225,3 +5225,75 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .home-empty-title { color: var(--ink-0); margin-bottom: 16px; }
 .home-empty-body { color: var(--ink-2); max-width: 480px; }
+
+/* ───────────────────────────── Messages panel ───────────────────────────── */
+
+.msg-panel {
+  position: absolute;
+  right: 16px; top: 16px; bottom: 16px;
+  width: 320px;
+  z-index: 30;
+  background: rgba(16,16,20,.85);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: ctx-menu-in var(--dur-base) var(--ease);
+}
+[data-theme='light'] .msg-panel { background: rgba(250,250,252,.85); border-color: rgba(10,10,12,.06); }
+
+.msg-panel-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-1);
+  flex-shrink: 0;
+}
+.msg-panel-head .t-eyebrow { flex: 1; color: var(--ink-1); }
+
+.msg-panel-body { flex: 1; overflow-y: auto; padding: 8px; }
+
+.msg-section { margin-bottom: 12px; }
+.msg-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px;
+}
+.msg-section-add {
+  background: transparent; border: 0;
+  color: var(--ink-3);
+  width: 22px; height: 22px;
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.msg-section-add:hover { color: var(--ink-0); background: var(--bg-hov); }
+.msg-section-sub { padding: 8px 10px 4px; color: var(--ink-3); }
+
+.msg-row {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent; border: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.msg-row:hover { background: var(--bg-hov); color: var(--ink-0); }
+.msg-row.is-unread { color: var(--ink-0); font-weight: 600; }
+.msg-row.msg-row-pinned { color: var(--ink-2); font-style: italic; }
+.msg-row-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--soleil);
+  flex-shrink: 0;
+}
+.msg-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 13px/1.4 var(--font-sans); }
+.msg-row-time { color: var(--ink-3); flex-shrink: 0; }
+.msg-empty { padding: 16px 12px; color: var(--ink-3); }
+
+.sb-row-count.has-unread { background: var(--soleil); color: var(--bg-0); padding: 2px 6px; border-radius: 999px; font-weight: 600; }

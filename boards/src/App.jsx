@@ -11,7 +11,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare } from './lib/icons.js';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -20,6 +20,10 @@ import { useAllWorkspaces } from './hooks/useAllWorkspaces.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useYBoard } from './hooks/useYBoard.js';
 import { useInbox } from './hooks/useInbox.js';
+import { useChannelList } from './hooks/useChannelList.js';
+import { useUnreadTotal } from './hooks/useUnreadTotal.js';
+import { useTitleBadge } from './hooks/useTitleBadge.js';
+import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase } from './lib/supabase.js';
@@ -37,7 +41,7 @@ import { HomeGraph } from './components/HomeGraph.jsx';
 const TWEAK_DEFAULTS = {
   theme: 'dark',
   showArrows: true,
-  showInbox: true,
+  showMessages: true,
   compactSidebar: false,
 };
 
@@ -67,6 +71,14 @@ export function App() {
 
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   useEffect(() => { document.documentElement.setAttribute('data-theme', tweak.theme); }, [tweak.theme]);
+  // One-time: rename tweak.showInbox → tweak.showMessages so existing users
+  // keep their drawer-open state across the rename.
+  useEffect(() => {
+    if (tweak.showInbox !== undefined && tweak.showMessages === undefined) {
+      setTweak({ showMessages: !!tweak.showInbox, showInbox: undefined });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Active workspace state — defaults to the user's personal once bootstrap is loaded.
   const workspaceSessionKey = `${SESSION_PREFIX}${user.id}.workspace`;
@@ -153,6 +165,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     name: user.user_metadata?.full_name || user.email?.split('@')[0],
     email: user.email,
   };
+
+  // Messages: list/unread/title-badge. msgRefreshTick lets realtime pings
+  // (Phase C) bump the sidebar count without a full refetch loop.
+  const [msgRefreshTick, setMsgRefreshTick] = useState(0);
+  const channelList = useChannelList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
+  const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByKey: channelList.unreadByKey });
+  useTitleBadge({ total: messagesUnread, mentions: messagesMentions });
+
   const yb = useYBoard(currentBoard.id, user.id, userInfo);
   const currentYDoc = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
 
@@ -919,12 +939,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <Icon as={LayoutGrid} size={14} />
               <span className="sb-row-label">{rootBoard.name}</span>
             </div>
-            <div className={`sb-row ${tweak.showInbox ? 'active' : ''}`}
-                 onClick={() => setTweak('showInbox', !tweak.showInbox)}
-                 title={tweak.showInbox ? 'Hide inbox' : 'Show inbox'}>
-              <Icon as={InboxIcon} size={14} />
-              <span className="sb-row-label">Inbox</span>
-              <span className="sb-row-count t-meta">{inbox.items.length}</span>
+            <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
+                 onClick={() => setTweak('showMessages', !tweak.showMessages)}
+                 title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
+              <Icon as={MessageSquare} size={14} />
+              <span className="sb-row-label">Messages</span>
+              {messagesUnread > 0 && (
+                <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
+              )}
             </div>
             <div className="sb-row" onClick={() => setPickerOpen(true)}>
               <Icon as={Search} size={14} />
@@ -1084,6 +1106,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onClose={() => setHistoryOpen(false)}
       />
 
+      {tweak.showMessages && (
+        <MessagesPanel
+          workspaceId={workspace.id}
+          currentUser={userInfo}
+          currentBoard={currentBoard}
+          refreshTick={msgRefreshTick}
+          onClose={() => setTweak('showMessages', false)}
+        />
+      )}
+
     </div>
   );
 }
@@ -1168,7 +1200,7 @@ function BoardsSettingsPanel({ tweak, setTweak }) {
           onChange={(value) => setTweak('theme', value)}
         />
         <TweakToggle label="Compact sidebar" value={tweak.compactSidebar} onChange={(value) => setTweak('compactSidebar', value)} />
-        <TweakToggle label="Show inbox" value={tweak.showInbox} onChange={(value) => setTweak('showInbox', value)} />
+        <TweakToggle label="Show messages" value={tweak.showMessages} onChange={(value) => setTweak('showMessages', value)} />
       </TweakSection>
       <TweakSection label="Canvas">
         <TweakToggle label="Show arrows" value={tweak.showArrows} onChange={(value) => setTweak('showArrows', value)} />
