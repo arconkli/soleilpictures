@@ -6,7 +6,7 @@
 // is rebuilt — Tiptap's Collaboration extension cannot re-bind to a different
 // fragment on the same instance.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import Typography from '@tiptap/extension-typography';
@@ -21,6 +21,7 @@ import { updateBacklinks } from '../lib/boardsApi.js';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
+import { MentionExtension } from './docExtensions/MentionExtension.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
 import { BlockHandleExtension } from './DocBlockHandle.jsx';
@@ -77,6 +78,23 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   const [linkPop, setLinkPop] = useState(null);
   const [linkPicker, setLinkPicker] = useState(null);
   // linkPicker = { anchor, multi, initialSelected, existingLinkId? } | null
+  const [mention, setMention] = useState(null);
+  // mention = { range, query, clientRect } | null
+
+  const mentionExt = useMemo(() => MentionExtension({
+    onStart: (props) => {
+      setMention({ range: props.range, query: props.query, clientRect: props.clientRect?.() || null });
+      return () => setMention(null);
+    },
+    onUpdate: (props) => {
+      setMention({ range: props.range, query: props.query, clientRect: props.clientRect?.() || null });
+    },
+    onKeyDown: ({ event }) => {
+      // Let arrows / enter pass through to the picker (which has its own
+      // selection handling). Escape is handled by the picker too.
+      return false;
+    },
+  }), []);
 
   // In-memory Trie of workspace entity names for auto-detect decorations.
   const nameIndexRef = useRef(createNameIndex());
@@ -294,6 +312,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       FindHighlightExtension,
       BlockHandleExtension,
       ExtraShortcuts,
+      mentionExt,
     ],
     autofocus: 'end',
     editorProps: {
@@ -418,6 +437,39 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
           onCommit={commitLink}
           onCancel={() => setLinkPicker(null)}
           urlMode
+        />
+      )}
+      {mention && (
+        <EntityPicker
+          workspaceId={workspaceId}
+          anchor={mention.clientRect}
+          initialQuery={mention.query}
+          multi
+          onCommit={(targets) => {
+            const editor = editorRef.current;
+            if (!editor || !targets?.length) { setMention(null); return; }
+            const linkId = uuid();
+            const text = (mention.query && mention.query.trim()) || (targets[0]?.name || 'mention');
+            // Create the Link record FIRST so the renderer can resolve it on
+            // the next transaction.
+            addLink(ydoc, {
+              id: linkId,
+              pageId: activePageId,
+              // Anchor is filled in below after we know the inserted-text range.
+              anchor: { from: mention.range.from, to: mention.range.from + text.length },
+              targets,
+              createdBy: userId || null,
+            });
+            // Replace the @text with the resolved text + apply the link mark.
+            editor.chain().focus()
+              .deleteRange(mention.range)
+              .insertContent(text)
+              .setTextSelection({ from: mention.range.from, to: mention.range.from + text.length })
+              .setMark('link', { linkId })
+              .run();
+            setMention(null);
+          }}
+          onCancel={() => setMention(null)}
         />
       )}
     </div>
