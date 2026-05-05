@@ -59,9 +59,10 @@ export function LiveCursor({ x, y, name, color }) {
       const t = targetRef.current;
       const c = currentRef.current;
       const dx = t.x - c.x, dy = t.y - c.y;
-      // 0.22 closes ~75% of the gap in 6 frames (~100ms @60fps) — feels
-      // immediate without the broadcast-tick stutter.
-      const next = { x: c.x + dx * 0.22, y: c.y + dy * 0.22 };
+      // 0.35 closes ~88% of the gap in 5 frames (~85ms @60fps) — close
+      // enough to broadcast cadence to feel immediate while still
+      // smoothing visible jitter.
+      const next = { x: c.x + dx * 0.35, y: c.y + dy * 0.35 };
       currentRef.current = next;
       if (ref.current) ref.current.style.transform = `translate(${next.x}px, ${next.y}px)`;
       raf = requestAnimationFrame(tick);

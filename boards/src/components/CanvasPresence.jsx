@@ -113,34 +113,28 @@ function PeerSelectionStyles({ peers }) {
     const rules = [];
     for (const p of peers) {
       const color = p.user.color || '#d4a04a';
-      const soft = colorWithAlpha(color, 0.18);
+      const soft = colorWithAlpha(color, 0.22);
       for (const id of p.cardIds) {
         const safe = id.replace(/"/g, '\\"');
-        // Outer halo via box-shadow (subtle, doesn't compete with corners).
+        // Inset ring on the inner content (which has its own background and
+        // sits at the same edge as the card). Corners draw via inset
+        // box-shadow so they stay INSIDE the card's overflow:hidden clip.
         rules.push(
           `.card[data-card-id="${safe}"] > :first-child {`
-          + ` box-shadow: 0 0 0 2px ${color}, 0 0 0 6px ${soft};`
+          + ` box-shadow:`
+          + `   inset 0 0 0 2px ${color},`
+          + `   inset 0 0 0 6px ${soft},`
+          + `   var(--shadow-2);`
           + ` border-radius: var(--radius-md); }`
         );
-        // Corner accents via ::before / ::after using SVG-style strokes.
-        // Use a dedicated wrapper trick: pseudo on the card root.
+        // Subtle outer halo on the card itself (small, fits in overflow).
+        // The card's own overflow:hidden wins on inner pixels but the
+        // shadow can extend up to ~4px before contain:paint truncates it
+        // — which is fine for a soft glow.
         rules.push(
-          `.card[data-card-id="${safe}"]::before, .card[data-card-id="${safe}"]::after {`
-          + ` content: ''; position: absolute; pointer-events: none;`
-          + ` width: 14px; height: 14px; border: 2.5px solid ${color}; border-radius: 2px;`
-          + ` z-index: 10; }`
-        );
-        // Top-left corner via ::before
-        rules.push(
-          `.card[data-card-id="${safe}"]::before {`
-          + ` left: -7px; top: -7px;`
-          + ` border-right: 0; border-bottom: 0; }`
-        );
-        // Bottom-right corner via ::after
-        rules.push(
-          `.card[data-card-id="${safe}"]::after {`
-          + ` right: -7px; bottom: -7px;`
-          + ` border-left: 0; border-top: 0; }`
+          `.card[data-card-id="${safe}"] {`
+          + ` outline: 1px solid ${color};`
+          + ` outline-offset: 2px; }`
         );
       }
     }

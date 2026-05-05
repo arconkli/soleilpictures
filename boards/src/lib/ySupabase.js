@@ -22,10 +22,10 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwareness
 import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 
-// Cap awareness fan-out so we don't blow Supabase's per-tenant message
-// rate. 80ms = ~12.5 broadcasts/sec/user, which feels live without
-// flooding the channel.
-const AWARENESS_THROTTLE_MS = 80;
+// Cap awareness fan-out. 50ms = ~20 broadcasts/sec/user — feels much
+// smoother than the previous 80ms, and the y:{boardId} channel has its
+// own quota so we're not competing with chat or workspace presence.
+const AWARENESS_THROTTLE_MS = 50;
 
 // Build a stable session-only client id so peers can identify each other.
 const CLIENT_ID = (() => {
