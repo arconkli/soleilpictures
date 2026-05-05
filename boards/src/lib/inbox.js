@@ -1,6 +1,6 @@
 // Helpers for inbox → card conversion + the drag MIME we use.
 
-export const INBOX_MIME = 'application/x-soleil-inbox';
+export { INBOX_MIME } from './dragMimes.js';
 // Drag a sidebar board entry onto a canvas → drops a board card pointing to it.
 export const BOARD_REF_MIME = 'application/x-soleil-board-ref';
 // Drag a card from one canvas to another (split pane → main, or vice versa).
