@@ -177,16 +177,20 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   // Wake events (visibilitychange / focus / online) are handled in
   // supabase.js — one listener for the whole app, force-bounces the
   // realtime transport so every channel re-handshakes. The watchdog
-  // below catches dead sockets that didn't fire any wake event.
+  // below catches dead sockets that didn't fire any wake event. The
+  // 5-minute threshold is generous so a normal idle user doesn't get
+  // forcibly reconnected; a real socket death is recovered quickly by
+  // the wake listeners as soon as you interact with the tab.
+  const WATCHDOG_TIMEOUT_MS = 5 * 60 * 1000;
   let lastInbound = Date.now();
   const watchdog = setInterval(() => {
     if (destroyed) return;
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-    if (Date.now() - lastInbound > 20000) {
+    if (Date.now() - lastInbound > WATCHDOG_TIMEOUT_MS) {
       lastInbound = Date.now(); // give the bounce time to recover
       bounceRealtime();
     }
-  }, 5000);
+  }, 30000);
 
   // Heartbeat: every 4s, re-broadcast our awareness state so peers know
   // we're still alive (their `meta.lastUpdated` for our clientID resets).
