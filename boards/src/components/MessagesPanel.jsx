@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Icon } from './Icon.jsx';
 import { Plus, MessageSquare, X } from '../lib/icons.js';
 import { useChannelList } from '../hooks/useChannelList.js';
+import { hideRow } from '../lib/messages.js';
 import { NewDMPicker } from './NewDMPicker.jsx';
 import { MessageThread } from './MessageThread.jsx';
 
@@ -60,7 +61,8 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
             return (
               <button key={peerId}
                       className={`msg-row ${isUnread ? 'is-unread' : ''}`}
-                      onClick={() => setOpenThread({ kind: 'dm', peerId, name: 'DM' })}>
+                      onClick={() => setOpenThread({ kind: 'dm', peerId, name: 'DM' })}
+                      onContextMenu={(e) => { e.preventDefault(); hideRow({ userId, dmPeerId: peerId }); }}>
                 {isUnread && <span className="msg-row-dot" />}
                 <span className="msg-row-name">{t.last_message?.slice(0, 60) || 'Conversation'}</span>
                 <span className="msg-row-time t-meta">{relTime(t.last_message_at)}</span>
@@ -81,7 +83,8 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
             return (
               <button key={ch.board_id}
                       className={`msg-row ${isUnread ? 'is-unread' : ''}`}
-                      onClick={() => setOpenThread({ kind: 'board', boardId: ch.board_id, name: ch.board_name })}>
+                      onClick={() => setOpenThread({ kind: 'board', boardId: ch.board_id, name: ch.board_name })}
+                      onContextMenu={(e) => { e.preventDefault(); hideRow({ userId, boardId: ch.board_id }); }}>
                 {isUnread && <span className="msg-row-dot" />}
                 <span className="msg-row-name">{ch.board_name}</span>
                 <span className="msg-row-time t-meta">{relTime(ch.last_message_at)}</span>
