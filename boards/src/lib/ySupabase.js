@@ -42,8 +42,10 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     });
   }
 
+  // private: true tells the realtime server to enforce realtime.messages RLS
+  // policies on this channel. Without it, Supabase silently drops broadcasts.
   const channel = supabase.channel(`board:${boardId}`, {
-    config: { broadcast: { self: false, ack: false } },
+    config: { broadcast: { self: false, ack: false }, private: true },
   });
 
   let destroyed = false;

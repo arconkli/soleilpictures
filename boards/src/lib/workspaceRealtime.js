@@ -29,7 +29,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   }
 
   const channel = supabase.channel(`ws:${workspaceId}`, {
-    config: { broadcast: { self: false, ack: false } },
+    config: { broadcast: { self: false, ack: false }, private: true },
   });
 
   let destroyed = false;

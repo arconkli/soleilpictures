@@ -7,20 +7,24 @@ import { supabase } from './supabase.js';
 // Reuses the existing board:{id} broadcast channel that Yjs already
 // subscribes to (Supabase de-dupes channel instances per name).
 export function subscribeBoardChat({ boardId, onMessage, onTyping }) {
-  const channel = supabase.channel(`board:${boardId}`, { config: { broadcast: { self: false } } });
+  const channel = supabase.channel(`board:${boardId}`, { config: { broadcast: { self: false }, private: true } });
   channel.on('broadcast', { event: 'chat-message' }, ({ payload }) => onMessage?.(payload));
   channel.on('broadcast', { event: 'chat-typing'  }, ({ payload }) => onTyping?.(payload));
   channel.subscribe();
   return () => { try { supabase.removeChannel(channel); } catch (_) {} };
 }
 
+// Channels created here use {private: true} so realtime.messages RLS
+// applies. The same {private:true} must be set everywhere a sender opens
+// the channel — Supabase de-dupes channel instances, so a previously
+// public-config call (no private) would persist.
 export function broadcastBoardMessage({ boardId, payload }) {
-  const channel = supabase.channel(`board:${boardId}`);
+  const channel = supabase.channel(`board:${boardId}`, { config: { private: true } });
   return channel.send({ type: 'broadcast', event: 'chat-message', payload });
 }
 
 export function broadcastBoardTyping({ boardId, userId }) {
-  const channel = supabase.channel(`board:${boardId}`);
+  const channel = supabase.channel(`board:${boardId}`, { config: { private: true } });
   return channel.send({ type: 'broadcast', event: 'chat-typing', payload: { user_id: userId, ts: Date.now() } });
 }
 
@@ -31,7 +35,7 @@ function dmChannelName(a, b) {
 }
 
 export function subscribeDmChat({ userA, userB, onMessage, onTyping }) {
-  const channel = supabase.channel(dmChannelName(userA, userB), { config: { broadcast: { self: false } } });
+  const channel = supabase.channel(dmChannelName(userA, userB), { config: { broadcast: { self: false }, private: true } });
   channel.on('broadcast', { event: 'chat-message' }, ({ payload }) => onMessage?.(payload));
   channel.on('broadcast', { event: 'chat-typing'  }, ({ payload }) => onTyping?.(payload));
   channel.subscribe();
@@ -39,11 +43,11 @@ export function subscribeDmChat({ userA, userB, onMessage, onTyping }) {
 }
 
 export function broadcastDmMessage({ userA, userB, payload }) {
-  const channel = supabase.channel(dmChannelName(userA, userB));
+  const channel = supabase.channel(dmChannelName(userA, userB), { config: { private: true } });
   return channel.send({ type: 'broadcast', event: 'chat-message', payload });
 }
 
 export function broadcastDmTyping({ userA, userB, userId }) {
-  const channel = supabase.channel(dmChannelName(userA, userB));
+  const channel = supabase.channel(dmChannelName(userA, userB), { config: { private: true } });
   return channel.send({ type: 'broadcast', event: 'chat-typing', payload: { user_id: userId, ts: Date.now() } });
 }
