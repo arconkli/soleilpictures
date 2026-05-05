@@ -5,7 +5,7 @@ import { BoardPicker } from '../components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare } from '../lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal } from '../lib/icons.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -480,81 +480,79 @@ export function LocalBoardsApp({ user, signOut }) {
   return (
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`} data-screen-label={`Local Board - ${currentBoard.name}`}>
       <aside className="sidebar">
-        <div className="sb-brand">
-          {tweak.compactSidebar ? (
-            <SoleilMark size={22} color="var(--soleil)" glow />
-          ) : (
-            <SoleilWordmark size="block" />
-          )}
-          <button
-            className="sb-collapse"
-            onClick={() => setTweak('compactSidebar', !tweak.compactSidebar)}
-            title={tweak.compactSidebar ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <Icon as={tweak.compactSidebar ? PanelLeftOpen : PanelLeftClose} size={16} />
+        {/* Two-tier layout to match real-mode App.jsx — rail (workspaces +
+            settings + you) on the left, middle column with nav + boards. */}
+        <div className="rail">
+          <button className="rail-brand" title={tweak.compactSidebar ? 'Expand sidebar (⌘B)' : 'Soleil'}
+                  onClick={() => { if (tweak.compactSidebar) setTweak('compactSidebar', false); }}
+                  aria-label={tweak.compactSidebar ? 'Expand sidebar' : 'Soleil'}>
+            <SoleilMark size={18} color="var(--soleil)" glow />
           </button>
+          <div className="rail-ws-list">
+            <button className="rail-ws active" title="Local in-memory workspace">L</button>
+          </div>
+          <div className="rail-foot">
+            <button className="rail-icon" title="Settings (⌘.)" aria-label="Settings"
+                    onClick={() => document.querySelector('.twk-gear')?.click()}>
+              <Icon as={Settings} size={14} />
+            </button>
+            <button className="rail-avatar" title="Local QA · click to exit"
+                    onClick={signOut}>
+              L
+            </button>
+          </div>
         </div>
 
-        {!tweak.compactSidebar && (
-          <>
-            <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`} onClick={() => setCurrentSurface('home')}>
-              <span className="sb-dot" style={{ background: 'var(--soleil)', boxShadow: '0 0 8px rgba(212,160,74,.6)' }} />
-              <span className="sb-row-label">Home</span>
-            </div>
+        <div className="sb-mid">
+          <div className="sb-mid-head">
+            <span className="sb-mid-title">Local Studio</span>
+            <button className="sb-mid-collapse"
+                    onClick={() => setTweak('compactSidebar', !tweak.compactSidebar)}
+                    title="Collapse sidebar (⌘B)" aria-label="Collapse sidebar">
+              <Icon as={PanelLeftClose} size={14} />
+            </button>
+          </div>
 
-            <div className="sb-group">
-              <div className="sb-group-label t-eyebrow">WORKSPACE</div>
-            </div>
-            <div className={`sb-row ${currentSurface === 'board' ? 'active' : ''}`} title="Local in-memory workspace"
-                 onClick={() => setCurrentSurface('board')}>
-              <Icon as={LayoutGrid} size={14} />
-              <span className="sb-row-label">Local Studio</span>
-            </div>
-            <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`} onClick={() => setTweak('showMessages', !tweak.showMessages)}>
-              <Icon as={MessageSquare} size={14} />
-              <span className="sb-row-label">Messages</span>
-            </div>
-            <div className="sb-row" onClick={() => setPickerOpen(true)}>
-              <Icon as={Search} size={14} />
-              <span className="sb-row-label">Search boards</span>
-            </div>
+          <button className="sb-search" onClick={() => setPickerOpen(true)} title="Search boards">
+            <Icon as={Search} size={13} />
+            <span>Search boards…</span>
+          </button>
 
-            <div className="sb-group">
-              <div className="sb-group-label t-eyebrow">STACK</div>
-            </div>
-            {stack.map((id, index) => (
-              <div
-                key={`${id}-${index}`}
-                className={`sb-row sb-row-tree ${index === stack.length - 1 && currentSurface === 'board' ? 'active' : ''}`}
-                style={{ paddingLeft: 16 + index * 12 }}
-                onClick={() => { goTo(index); setCurrentSurface('board'); }}
-              >
-                <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
+          <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
+               onClick={() => setCurrentSurface('home')}>
+            <Icon as={Home} size={14} />
+            <span className="sb-row-label">Home</span>
+          </div>
+          <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
+               onClick={() => setTweak('showMessages', !tweak.showMessages)}>
+            <Icon as={MessageSquare} size={14} />
+            <span className="sb-row-label">Messages</span>
+          </div>
+
+          <div className="sb-eyebrow">BOARDS</div>
+          {stack.map((id, index) => {
+            const isActive = index === stack.length - 1 && currentSurface === 'board';
+            return (
+              <div key={`${id}-${index}`}
+                   className={`sb-row sb-row-board ${isActive ? 'active' : ''}`}
+                   onClick={() => { goTo(index); setCurrentSurface('board'); }}>
+                <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : 'var(--ink-3)' }} />
                 <span className="sb-row-label">{boards[id]?.name || id}</span>
               </div>
-            ))}
-            {childBoards.map(board => (
-              <div
-                key={board.id}
-                className="sb-row sb-row-tree"
-                style={{ paddingLeft: 16 + stack.length * 12 }}
-                onClick={() => { openBoard(board.id); setCurrentSurface('board'); }}
-              >
-                <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
-                <span className="sb-row-label">{board.name}</span>
-              </div>
-            ))}
-          </>
-        )}
-
-        <div className="sb-foot">
-          <Avatar name={user.email || 'Local'} color="var(--soleil)" size={28} />
-          {!tweak.compactSidebar && (
-            <div className="sb-me">
-              <div className="sb-me-name" title={user.email}>Local QA</div>
-              <div className="sb-me-org t-meta">in-memory</div>
+            );
+          })}
+          {childBoards.map(board => (
+            <div key={board.id}
+                 className="sb-row sb-row-board"
+                 onClick={() => { openBoard(board.id); setCurrentSurface('board'); }}>
+              <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
+              <span className="sb-row-label">{board.name}</span>
             </div>
-          )}
+          ))}
+          <div className="sb-row sb-row-all" onClick={() => setPickerOpen(true)}>
+            <Icon as={MoreHorizontal} size={14} />
+            <span className="sb-row-label">All boards</span>
+          </div>
         </div>
       </aside>
 

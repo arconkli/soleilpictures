@@ -41,8 +41,8 @@ for (const vp of viewports) {
 
 test('keyboard focus on sidebar collapse button shows soleil glow', async ({ page }) => {
   await page.goto('/?local=1');
-  await page.locator('.sb-collapse').focus();
-  const shadow = await page.locator('.sb-collapse').evaluate(el => getComputedStyle(el).boxShadow);
+  await page.locator('.sb-mid-collapse').focus();
+  const shadow = await page.locator('.sb-mid-collapse').evaluate(el => getComputedStyle(el).boxShadow);
   expect(shadow).toContain('rgba(212, 160, 74');
 });
 

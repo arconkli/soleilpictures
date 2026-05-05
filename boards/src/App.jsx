@@ -11,7 +11,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, UserPlus, Trash2 } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, UserPlus, Trash2, MoreHorizontal } from './lib/icons.js';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -22,6 +22,7 @@ import { useYBoard } from './hooks/useYBoard.js';
 import { useChannelList } from './hooks/useChannelList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
+import { useRecents } from './hooks/useRecents.js';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
@@ -210,8 +211,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const currentUndoManager = yb.ready && yb.boardId === currentBoard.id ? yb.undoManager : null;
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const openBoard = (id) => setStack(s => [...s, id]);
+  const recents = useRecents(workspace.id);
+  const openBoard = (id) => { setStack(s => [...s, id]); recents.push(id); };
   const goTo = (i) => setStack(s => s.slice(0, i + 1));
+
+  // Prune recents when boards are deleted so the sidebar list stays clean.
+  useEffect(() => {
+    if (boardsLoading) return;
+    recents.prune(Object.keys(boards));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boards, boardsLoading]);
+
+  // Track the currently-open root-board access too — top of stack is "active".
+  useEffect(() => { if (currentId) recents.push(currentId); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [currentId]);
   // Toggling the view in the topbar persists to the boards table so the
   // change survives reloads AND propagates to anywhere this board appears
   // as a card on a parent canvas (where we render list-mode boards as an
@@ -786,6 +798,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ⌘B / Ctrl-B — toggle compact sidebar.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
+        const tag = (e.target?.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
+        e.preventDefault();
+        setTweak('compactSidebar', !tweak.compactSidebar);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tweak.compactSidebar, setTweak]);
+
 
   // Bookmark cross-links — `soleil://bookmark/{boardId}/{bookmarkId}`. Open
   // the target board (forces view='doc') and stash the bookmark id so the
@@ -890,137 +916,112 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
       <aside className="sidebar">
-        <div className="sb-brand">
-          {tweak.compactSidebar ? (
-            <SoleilMark size={22} color="var(--soleil)" glow />
-          ) : (
-            <SoleilWordmark size="block" />
-          )}
-          <button
-            className="sb-collapse"
-            onClick={() => setTweak('compactSidebar', !tweak.compactSidebar)}
-            title={tweak.compactSidebar ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <Icon as={tweak.compactSidebar ? PanelLeftOpen : PanelLeftClose} size={16} />
+        {/* Left rail — workspace switcher + settings + you. Always visible,
+            stays functional even when the middle column is collapsed. */}
+        <div className="rail">
+          <button className="rail-brand" title={tweak.compactSidebar ? 'Expand sidebar (⌘B)' : 'Soleil'}
+                  onClick={() => { if (tweak.compactSidebar) setTweak('compactSidebar', false); }}
+                  aria-label={tweak.compactSidebar ? 'Expand sidebar' : 'Soleil'}>
+            <SoleilMark size={18} color="var(--soleil)" glow />
           </button>
+          <div className="rail-ws-list">
+            {(workspaces || []).map(w => {
+              const isActive = w.id === workspace.id;
+              const isOwner = w.created_by === user.id;
+              const isMine = w.id === personalWorkspaceId;
+              const action = isOwner ? 'delete' : 'leave';
+              const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
+              return (
+                <button key={w.id}
+                        className={`rail-ws ${isActive ? 'active' : ''}`}
+                        onClick={() => { onSwitchWorkspace(w.id); setCurrentSurface('board'); }}
+                        onContextMenu={(e) => { e.preventDefault(); removeWorkspace(w, action); }}
+                        title={`${w.name}${isMine ? ' · personal' : (isOwner ? '' : ' · shared with you')} · right-click to ${action}`}>
+                  {initial}
+                </button>
+              );
+            })}
+            <button className="rail-add" onClick={addNewWorkspace} title="New workspace" aria-label="New workspace">
+              <Icon as={Plus} size={14} />
+            </button>
+          </div>
+          <div className="rail-foot">
+            <button className="rail-icon" title="Settings (⌘.)" aria-label="Settings"
+                    onClick={() => document.querySelector('.twk-gear')?.click()}>
+              <Icon as={Settings} size={14} />
+            </button>
+            <button className="rail-avatar" title={user.email}
+                    onClick={async () => {
+                      const ok = await feedback.confirm({
+                        title: 'Sign out',
+                        message: `Sign out of ${user.email}?`,
+                        confirmLabel: 'Sign out',
+                      });
+                      if (ok) signOut?.();
+                    }}>
+              {(user.email?.[0] || 'Y').toUpperCase()}
+            </button>
+          </div>
         </div>
 
-        {!tweak.compactSidebar && (
-          <>
-            <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`} onClick={() => setCurrentSurface('home')}>
-              <span className="sb-dot" style={{ background: 'var(--soleil)', boxShadow: '0 0 8px rgba(212,160,74,.6)' }} />
-              <span className="sb-row-label">Home</span>
-            </div>
+        {/* Middle column — workspace name + search + nav rows + recent boards.
+            Hidden in compact mode (CSS rule on .sb-collapsed .sb-mid). */}
+        <div className="sb-mid">
+          <div className="sb-mid-head">
+            <span className="sb-mid-title" title={workspace.name}>{workspace.name}</span>
+            <button className="sb-mid-collapse"
+                    onClick={() => setTweak('compactSidebar', !tweak.compactSidebar)}
+                    title="Collapse sidebar (⌘B)" aria-label="Collapse sidebar">
+              <Icon as={PanelLeftClose} size={14} />
+            </button>
+          </div>
 
-            {(() => {
-              const own = (workspaces || []).filter(w => w.id === personalWorkspaceId);
-              const shared = (workspaces || []).filter(w => w.id !== personalWorkspaceId);
-              const renderWs = (w) => {
-                const isMine = w.id === personalWorkspaceId;
-                const isOwner = w.created_by === user.id;
-                const isActive = w.id === workspace.id;
-                const action = isOwner ? 'delete' : 'leave';
-                return (
-                  <div key={w.id}
-                       className={`sb-row sb-row-ws ${isActive && currentSurface === 'board' ? 'active' : ''}`}
-                       onClick={() => { onSwitchWorkspace(w.id); setCurrentSurface('board'); }}
-                       onContextMenu={(e) => { e.preventDefault(); removeWorkspace(w, action); }}
-                       title={isMine ? 'Personal workspace' : (isOwner ? 'Workspace you own' : 'Shared with you')}>
-                    <span className="sb-dot" style={{ background: isMine ? 'var(--soleil)' : 'var(--ink-3)' }} />
-                    <span className="sb-row-label">{w.name}</span>
-                    <button className="sb-row-action"
-                            onClick={(e) => { e.stopPropagation(); removeWorkspace(w, action); }}
-                            title={action === 'delete' ? `Delete "${w.name}"` : `Leave "${w.name}"`}
-                            aria-label={action === 'delete' ? 'Delete workspace' : 'Leave workspace'}>
-                      <Icon as={Trash2} size={12} />
-                    </button>
-                  </div>
-                );
-              };
+          <button className="sb-search" onClick={() => setPickerOpen(true)} title="Search boards (⌘K)">
+            <Icon as={Search} size={13} />
+            <span>Search boards…</span>
+            <span className="sb-search-kbd">⌘K</span>
+          </button>
+
+          <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
+               onClick={() => setCurrentSurface('home')}>
+            <Icon as={Home} size={14} />
+            <span className="sb-row-label">Home</span>
+          </div>
+          <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
+               onClick={() => setTweak('showMessages', !tweak.showMessages)}
+               title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
+            <Icon as={MessageSquare} size={14} />
+            <span className="sb-row-label">Messages</span>
+            {messagesUnread > 0 && (
+              <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
+            )}
+          </div>
+
+          <div className="sb-eyebrow">BOARDS</div>
+          {recents.recents
+            .map(id => boards[id])
+            .filter(Boolean)
+            .map(b => {
+              const isActive = b.id === currentId && currentSurface === 'board';
               return (
-                <>
-                  <div className="sb-group">
-                    <div className="sb-group-label t-eyebrow">WORKSPACES</div>
-                    <button className="sb-group-add" onClick={addNewWorkspace} title="New workspace">
-                      <Icon as={Plus} size={14} />
-                    </button>
-                  </div>
-                  {own.map(renderWs)}
-                  {shared.length > 0 && (
-                    <>
-                      <div className="sb-group">
-                        <div className="sb-group-label t-eyebrow">SHARED WITH YOU</div>
-                      </div>
-                      {shared.map(renderWs)}
-                    </>
-                  )}
-                </>
-              );
-            })()}
-
-            <div className="sb-group">
-              <div className="sb-group-label t-eyebrow">CURRENT</div>
-            </div>
-            <div className={`sb-row ${currentId === rootBoard.id && currentSurface === 'board' ? 'active' : ''}`}
-                 onClick={() => { setStack([rootBoard.id]); setCurrentSurface('board'); }}>
-              <Icon as={LayoutGrid} size={14} />
-              <span className="sb-row-label">{rootBoard.name}</span>
-            </div>
-            <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
-                 onClick={() => setTweak('showMessages', !tweak.showMessages)}
-                 title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
-              <Icon as={MessageSquare} size={14} />
-              <span className="sb-row-label">Messages</span>
-              {messagesUnread > 0 && (
-                <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
-              )}
-            </div>
-            <div className="sb-row" onClick={() => setPickerOpen(true)}>
-              <Icon as={Search} size={14} />
-              <span className="sb-row-label">Search boards</span>
-            </div>
-
-            <div className="sb-group">
-              <div className="sb-group-label t-eyebrow">STACK</div>
-            </div>
-            {stack.map((id, i) => {
-              const c = crumbs[i];
-              return (
-                <div key={`${id}-${i}`}
-                     className={`sb-row sb-row-tree ${i === stack.length - 1 && currentSurface === 'board' ? 'active' : ''}`}
-                     style={{ paddingLeft: 16 + i * 12 }}
-                     onClick={() => { goTo(i); setCurrentSurface('board'); }}>
-                  <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
-                  <span className="sb-row-label">{c.name}</span>
+                <div key={b.id}
+                     className={`sb-row sb-row-board ${isActive ? 'active' : ''}`}
+                     draggable
+                     onDragStart={(e) => {
+                       e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: b.id, name: b.name }));
+                       e.dataTransfer.effectAllowed = 'copy';
+                     }}
+                     onClick={() => { setStack([b.id]); setCurrentSurface('board'); }}
+                     title="Click to open · drag onto a canvas to embed">
+                  <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : 'var(--ink-3)' }} />
+                  <span className="sb-row-label">{b.name}</span>
                 </div>
               );
             })}
-            {childBoards.map(b => (
-              <div key={b.id}
-                   className="sb-row sb-row-tree"
-                   style={{ paddingLeft: 16 + stack.length * 12 }}
-                   draggable
-                   onDragStart={(e) => {
-                     e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: b.id, name: b.name }));
-                     e.dataTransfer.effectAllowed = 'copy';
-                   }}
-                   onClick={() => { openBoard(b.id); setCurrentSurface('board'); }}
-                   title="Click to open · drag onto a canvas to embed">
-                <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
-                <span className="sb-row-label">{b.name}</span>
-              </div>
-            ))}
-          </>
-        )}
-
-        <div className="sb-foot">
-          <Avatar name={user.email || 'You'} color="var(--soleil)" size={28} />
-          {!tweak.compactSidebar && (
-            <div className="sb-me">
-              <div className="sb-me-name" title={user.email}>{user.email?.split('@')[0] || 'You'}</div>
-              <div className="sb-me-org t-meta">{workspace.name}</div>
-            </div>
-          )}
+          <div className="sb-row sb-row-all" onClick={() => setPickerOpen(true)}>
+            <Icon as={MoreHorizontal} size={14} />
+            <span className="sb-row-label">All boards</span>
+          </div>
         </div>
       </aside>
 
@@ -1057,7 +1058,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <span className="tb-divider" aria-hidden="true" />
             <PresenceStack getAwareness={yb.getAwareness} />
             <span className="tb-divider" aria-hidden="true" />
-            <TopbarAddMenu onAddBoard={() => addNewBoard()} onAddDoc={() => addNewDoc()} onLinkBoard={() => setPickerOpen(true)} />
             <button className="tb-btn" onClick={inviteToWorkspace} title="Invite someone to this workspace">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
             </button>
@@ -1081,9 +1081,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <Icon as={UserPlus} size={16} />
               </button>
             )}
-            <button className="tb-icon" onClick={signOut} title="Sign out">
-              <Icon as={LogOut} size={16} />
-            </button>
           </div>
         </div>
         {altSessionId && (

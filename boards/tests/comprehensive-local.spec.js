@@ -14,7 +14,7 @@ async function go(page) {
   await page.evaluate(() => { try { localStorage.removeItem('soleil-boards-tweaks'); } catch (_) {} });
   await page.goto('/?local=1&reset=1');
   await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
-  await expect(page.locator('.sb-brand')).toBeVisible();
+  await expect(page.locator('.rail-brand')).toBeVisible();
 }
 
 async function withFreshSession(page) {
@@ -26,30 +26,34 @@ async function withFreshSession(page) {
 // ═══════════════ SIDEBAR ═══════════════
 
 test.describe('Sidebar', () => {
-  test('has Home, Local Studio, Messages, and Search rows', async ({ page }) => {
+  test('has rail + middle column with Home / Messages rows + search button', async ({ page }) => {
     await go(page);
+    await expect(page.locator('.rail')).toBeVisible();
+    await expect(page.locator('.sb-mid-title')).toContainText('Local Studio');
     await expect(page.locator('.sb-row').filter({ hasText: 'Home' })).toBeVisible();
-    await expect(page.locator('.sb-row').filter({ hasText: 'Local Studio' })).toBeVisible();
     await expect(page.locator('.sb-row').filter({ hasText: 'Messages' })).toBeVisible();
-    await expect(page.locator('.sb-row').filter({ hasText: 'Search boards' })).toBeVisible();
+    await expect(page.locator('.sb-search')).toBeVisible();
   });
 
   test('Messages row toggles the right-drawer panel', async ({ page }) => {
     await go(page);
     // Default closed.
     await expect(page.locator('.msg-panel')).toHaveCount(0);
-    await page.locator('.sb-row').filter({ hasText: 'Messages' }).click();
+    await page.locator('.sb-row').filter({ hasText: /^Messages/ }).click();
     await expect(page.locator('.msg-panel')).toBeVisible();
     // Click again to close.
-    await page.locator('.sb-row').filter({ hasText: 'Messages' }).click();
+    await page.locator('.sb-row').filter({ hasText: /^Messages/ }).click();
     await expect(page.locator('.msg-panel')).toHaveCount(0);
   });
 
-  test('Compact sidebar collapses + expands', async ({ page }) => {
+  test('Compact sidebar collapses (middle column hides) + expands', async ({ page }) => {
     await go(page);
-    await page.getByTitle('Collapse sidebar').click();
+    await page.locator('.sb-mid-collapse').click();
     await expect(page.locator('.app')).toHaveClass(/sb-collapsed/);
-    await page.getByTitle('Expand sidebar').click();
+    // The middle column is hidden via CSS; rail is still visible.
+    await expect(page.locator('.rail')).toBeVisible();
+    // Click the brand (rail logo) to expand.
+    await page.locator('.rail-brand').click();
     await expect(page.locator('.app')).not.toHaveClass(/sb-collapsed/);
   });
 
@@ -57,8 +61,6 @@ test.describe('Sidebar', () => {
     await go(page);
     await page.locator('.sb-row').filter({ hasText: 'Home' }).click();
     await expect(page.locator('.sb-row').filter({ hasText: 'Home' })).toHaveClass(/active/);
-    // Local Studio row no longer active when Home is.
-    await expect(page.locator('.sb-row').filter({ hasText: 'Local Studio' })).not.toHaveClass(/active/);
   });
 });
 

@@ -24,7 +24,7 @@ test('stale magic-link URLs are cleared without poisoning the auth session', asy
 test('local QA mode opens a usable Studio canvas', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
 
-  await expect(page.locator('.sb-brand')).toBeVisible();
+  await expect(page.locator('.rail-brand')).toBeVisible();
   await expect(page.getByRole('main').getByText('Studio', { exact: true })).toBeVisible();
   await expect(page.getByTitle('Add note')).toBeVisible();
 });
@@ -47,7 +47,7 @@ test('local QA mode can add a note, switch views, and toggle chrome', async ({ p
   await page.getByTitle('Toggle theme').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
-  await page.getByTitle('Collapse sidebar').click();
+  await page.locator('.sb-mid-collapse').click();
   await expect(page.locator('.app')).toHaveClass(/sb-collapsed/);
 });
 
@@ -191,8 +191,9 @@ test('local QA mode preserves session location and card edits across refresh', a
   await canvas.click({ position: { x: 430, y: 330 } });
   await expect(page.locator('.card .note').last()).toBeVisible();
   await page.keyboard.type('Persistent refresh note');
-  // Click into the topbar to blur the editable and commit.
-  await page.locator('.tb-right').click({ force: true });
+  // Click on the breadcrumb (no buttons here, just plain text) to blur + commit.
+  await page.locator('.crumbs').click({ force: true });
+  await page.waitForTimeout(80);
 
   const card = page.locator('.card', { hasText: 'Persistent refresh note' }).last();
   // Drag using page.mouse — element-level dragTo gets blocked by SVG subtrees
