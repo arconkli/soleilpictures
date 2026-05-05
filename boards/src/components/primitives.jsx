@@ -40,64 +40,35 @@ export function Avatar({ name, color, size = 22, ring }) {
   );
 }
 
-// Snapshot-interpolation cursor. Each new (x, y) prop is recorded with a
-// timestamp into a small buffer; the rAF loop renders the position at
-// (now - RENDER_DELAY_MS), interpolating between the two samples that
-// bracket that time. Trade: ~RENDER_DELAY_MS of perceived lag in exchange
-// for genuinely smooth motion regardless of broadcast cadence or jitter.
-const RENDER_DELAY_MS = 90;
-const BUFFER = 6;
+// Constant-rate chase: each frame moves the rendered position a fixed
+// fraction of the remaining distance toward the latest reported (x, y).
+// No delay, no buffer — when a new position arrives the chase target
+// updates and the next frame is already moving toward it. Distance-
+// proportional speed (geometric decay) means big jumps glide quickly,
+// small adjustments glide gently. Never teleports.
+const LERP = 0.18; // ~90% closed in ~12 frames (~200ms @60fps)
 
 export function LiveCursor({ x, y, name, color }) {
   const ref = React.useRef(null);
-  const samplesRef = React.useRef([]);
-
-  // Push every new prop into the buffer.
-  React.useLayoutEffect(() => {
-    const t = performance.now();
-    const buf = samplesRef.current;
-    // Drop a duplicate trailing sample if the position didn't change.
-    const last = buf[buf.length - 1];
-    if (last && last.x === x && last.y === y) { last.t = t; return; }
-    buf.push({ x, y, t });
-    if (buf.length > BUFFER) buf.shift();
-  }, [x, y]);
+  const targetRef = React.useRef({ x, y });
+  const currentRef = React.useRef(null); // null until first frame snaps to target
+  // Always reflect the latest target without re-running the rAF effect.
+  targetRef.current = { x, y };
 
   React.useEffect(() => {
     let raf = 0;
     const tick = () => {
-      const buf = samplesRef.current;
-      const now = performance.now() - RENDER_DELAY_MS;
-      let px, py;
-      if (buf.length === 0) {
-        // Nothing yet — fall back to the inline transform set on the div.
-      } else if (buf.length === 1 || now <= buf[0].t) {
-        px = buf[0].x; py = buf[0].y;
-      } else if (now >= buf[buf.length - 1].t) {
-        // Already past the newest sample — extrapolate slightly via the
-        // last two samples' velocity to avoid the "freeze and jump" feel
-        // when broadcasts pause briefly.
-        const a = buf[buf.length - 2];
-        const b = buf[buf.length - 1];
-        const span = Math.max(1, b.t - a.t);
-        const ahead = Math.min(now - b.t, RENDER_DELAY_MS); // cap how far we extrapolate
-        const f = ahead / span;
-        px = b.x + (b.x - a.x) * f;
-        py = b.y + (b.y - a.y) * f;
-      } else {
-        // Find the bracketing samples and lerp.
-        let i = buf.length - 1;
-        while (i > 0 && buf[i - 1].t > now) i--;
-        const a = buf[i - 1] || buf[0];
-        const b = buf[i] || a;
-        const span = Math.max(1, b.t - a.t);
-        const f = Math.max(0, Math.min(1, (now - a.t) / span));
-        px = a.x + (b.x - a.x) * f;
-        py = a.y + (b.y - a.y) * f;
-      }
-      if (ref.current && Number.isFinite(px) && Number.isFinite(py)) {
-        ref.current.style.transform = `translate(${px}px, ${py}px)`;
-      }
+      const t = targetRef.current;
+      // First frame: snap to the initial reported position so we don't
+      // glide in from (0, 0).
+      if (currentRef.current === null) currentRef.current = { x: t.x, y: t.y };
+      const c = currentRef.current;
+      const next = {
+        x: c.x + (t.x - c.x) * LERP,
+        y: c.y + (t.y - c.y) * LERP,
+      };
+      currentRef.current = next;
+      if (ref.current) ref.current.style.transform = `translate(${next.x}px, ${next.y}px)`;
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
