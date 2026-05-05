@@ -5391,3 +5391,13 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-1);
 }
 .msg-composer-att-chip button { background: transparent; border: 0; color: var(--ink-3); cursor: pointer; }
+
+.msg-pill {
+  display: inline-block;
+  background: var(--soleil-soft);
+  color: var(--soleil);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.msg-pill-user { background: rgba(212,160,74,.18); }

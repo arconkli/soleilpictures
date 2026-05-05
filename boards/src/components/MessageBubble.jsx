@@ -25,7 +25,7 @@ export function MessageBubble({ msg, selfId, onDelete, onEdit, onReact, onAttach
           </span>
         )}
       </div>
-      <div className="msg-bubble-body">{msg.body}</div>
+      <div className="msg-bubble-body">{renderBody({ body: msg.body, mentions: msg.mentions, attachments: msg.attachments })}</div>
       {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
         <div className="msg-bubble-attachments">
           {msg.attachments.map((att, i) => (
@@ -61,6 +61,42 @@ export function MessageBubble({ msg, selfId, onDelete, onEdit, onReact, onAttach
       )}
     </div>
   );
+}
+
+function renderBody({ body, mentions = [], attachments = [], userNamesById = {} }) {
+  // Build a lookup of @<name> tokens to (kind, ref).
+  const matchByName = new Map();
+  for (const userId of mentions) {
+    const name = userNamesById[userId];
+    if (name) matchByName.set(name.toLowerCase(), { kind: 'user', id: userId });
+  }
+  for (const att of attachments) {
+    if (att.title || att.name) {
+      matchByName.set((att.title || att.name).toLowerCase(), { kind: att.kind, ref: att });
+    }
+  }
+  const parts = [];
+  let i = 0;
+  const re = /@([a-zA-Z0-9_'’\- ]{1,40})/g;
+  let m;
+  while ((m = re.exec(body)) != null) {
+    if (m.index > i) parts.push(body.slice(i, m.index));
+    const tokenName = m[1].trim().toLowerCase();
+    const hit = matchByName.get(tokenName);
+    if (hit) {
+      parts.push(<span key={`p${parts.length}`} className={`msg-pill msg-pill-${hit.kind}`}>{m[0]}</span>);
+    } else {
+      // Even with no resolved match, mentions[] non-empty implies *some* @ was a person —
+      // pill it as a user mention so the visual cue still works pre-name-resolution.
+      const looksLikeMention = mentions.length > 0 || attachments.length > 0;
+      parts.push(looksLikeMention
+        ? <span key={`p${parts.length}`} className="msg-pill msg-pill-user">{m[0]}</span>
+        : m[0]);
+    }
+    i = m.index + m[0].length;
+  }
+  if (i < body.length) parts.push(body.slice(i));
+  return parts;
 }
 
 function publicUrl(path) {
