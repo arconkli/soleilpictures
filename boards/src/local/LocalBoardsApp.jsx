@@ -7,7 +7,7 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare } from '../lib/icons.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
-import { BOARDS, INBOX_SEED } from '../data.js';
+import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
 
 const TWEAK_DEFAULTS = {
@@ -101,8 +101,6 @@ export function LocalBoardsApp({ user, signOut }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedTool, setSelectedTool] = useState('select');
   const [autoFocusId, setAutoFocusId] = useState(null);
-  const [inboxItems, setInboxItems] = useState(() => initialSession?.inboxItems || clone(INBOX_SEED));
-  const [inboxQuery, setInboxQuery] = useState('');
   const [currentSurface, setCurrentSurface] = useState('board');
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
 
@@ -116,10 +114,9 @@ export function LocalBoardsApp({ user, signOut }) {
         localState: { boards, boardState },
         stack,
         viewOverride,
-        inboxItems,
       }));
     } catch (_) {}
-  }, [boards, boardState, stack, viewOverride, inboxItems]);
+  }, [boards, boardState, stack, viewOverride]);
 
   const currentId = stack[stack.length - 1] || ROOT_ID;
   const currentBoard = boards[currentId] || boards[ROOT_ID];
@@ -421,10 +418,9 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
-  const dropInboxItem = (inboxId, card) => {
-    addCard(card);
-    setInboxItems(items => items.filter(item => item.id !== inboxId));
-  };
+  // Chat-attachment drops piggy-back on the INBOX_MIME drag protocol so
+  // CanvasSurface still calls onDropInboxItem for them.
+  const dropInboxItem = (_inboxId, card) => addCard(card);
 
   const setBoardBgColor = (color) => {
     setLocalState(prev => ({
@@ -619,9 +615,6 @@ export function LocalBoardsApp({ user, signOut }) {
             tweak={tweak}
             depth={stack.length - 1}
             onOpenPicker={() => setPickerOpen(true)}
-            inbox={inboxItems}
-            inboxQuery={inboxQuery}
-            onInboxQuery={setInboxQuery}
             onDropInboxItem={dropInboxItem}
             onDropFileImage={({ publicUrl, width, height, x, y }) => addCard({
               id: createId('img'),
@@ -640,7 +633,6 @@ export function LocalBoardsApp({ user, signOut }) {
             mutators={mutators}
             autoFocusId={autoFocusId}
             clearAutoFocus={() => setAutoFocusId(null)}
-            onCloseInbox={() => setTweak('showInbox', false)}
             useLocalImages
           />
         ) : (

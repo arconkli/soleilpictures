@@ -19,7 +19,6 @@ import { useWorkspace } from './hooks/useWorkspace.js';
 import { useAllWorkspaces } from './hooks/useAllWorkspaces.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useYBoard } from './hooks/useYBoard.js';
-import { useInbox } from './hooks/useInbox.js';
 import { useChannelList } from './hooks/useChannelList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -32,7 +31,7 @@ import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, l
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
-import { BOARD_REF_MIME, cardToInboxItem } from './lib/inbox.js';
+import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore } from './lib/docState.js';
 import { uploadImage } from './lib/uploads.js';
 import { HistoryModal } from './components/HistoryModal.jsx';
@@ -135,7 +134,6 @@ export function App() {
 
 function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWorkspace, onWorkspacesChanged, personalWorkspaceId, tweak, setTweak }) {
   const { boards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id);
-  const inbox = useInbox(workspace.id, user.id);
   const feedback = useFeedback();
   const sessionKey = `${SESSION_PREFIX}${user.id}.${workspace.id}`;
   const [initialSession] = useState(() => readSession(sessionKey));
@@ -706,14 +704,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
   };
 
-  // Pane-aware inbox & file-drop handlers — so dragging into the split pane
-  // creates the card on the SPLIT board, not the main one.
-  const dropInboxItemFor = (muts) => (inboxId, card) => {
-    muts._addCardRaw?.(card);
-    inbox.remove(inboxId);
-  };
+  // Pane-aware drop handlers — so dragging into the split pane creates the
+  // card on the SPLIT board, not the main one. Used by chat-attachment drops
+  // (which piggy-back on the INBOX_MIME drag protocol) and file-image drops.
+  const dropInboxItemFor = (muts) => (_inboxId, card) => { muts._addCardRaw?.(card); };
   const dropFileImageFor = (muts) => (info) => muts._dropImageBlob?.(info);
-  const dropInboxItem = dropInboxItemFor(mainMutators); // back-compat alias
+  const dropInboxItem = dropInboxItemFor(mainMutators);
   const dropFileImage = dropFileImageFor(mainMutators);
 
   // ── Auto-focus on new card creation ───────────────────────────────────────
@@ -755,30 +751,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Drop-card-onto-inbox: convert each dragged card into an inbox item +
-  // tell the source pane to delete the original (move semantics).
-  useEffect(() => {
-    const onCardToInbox = async (e) => {
-      const { sourceBoardId, cards } = e.detail || {};
-      if (!cards?.length) return;
-      const items = cards.map(cardToInboxItem).filter(Boolean);
-      const accepted = [];
-      for (let i = 0; i < items.length; i++) {
-        try {
-          await inbox.add(items[i]);
-          accepted.push(cards[i].id);
-        } catch (err) { console.warn('inbox add failed', err); }
-      }
-      if (accepted.length) {
-        document.dispatchEvent(new CustomEvent('soleil-card-transferred', {
-          detail: { sourceBoardId, cardIds: accepted },
-        }));
-        feedback.toast({ type: 'success', message: `${accepted.length} sent to inbox.` });
-      }
-    };
-    document.addEventListener('soleil-card-to-inbox', onCardToInbox);
-    return () => document.removeEventListener('soleil-card-to-inbox', onCardToInbox);
-  }, [inbox, feedback]);
 
   // Bookmark cross-links — `soleil://bookmark/{boardId}/{bookmarkId}`. Open
   // the target board (forces view='doc') and stash the bookmark id so the
@@ -858,14 +830,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        }}
                        onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                        onOpenPicker={() => setPickerOpen(true)}
-                       inbox={inbox.items} inboxQuery={''} onInboxQuery={() => {}}
                        onDropInboxItem={dropInboxItemFor(muts)}
                        onDropFileImage={dropFileImageFor(muts)}
                        workspaceId={workspace.id} userId={user.id}
                        personalWorkspaceId={personalWorkspaceId}
                        selectedTool={selectedTool} setSelectedTool={setSelectedTool}
-                       mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
-                       onCloseInbox={() => setTweak('showInbox', false)} />
+                       mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus} />
       );
     })();
     return (
