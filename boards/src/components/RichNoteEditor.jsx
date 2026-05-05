@@ -22,13 +22,32 @@ export function RichNoteEditor({
 
   useEffect(() => {
     if (!ref.current) return;
-    if (editing) return;
     const next = html || (body ? `<div>${escapeHtml(body)}</div>` : '');
+    // While the local user is editing, only update if the incoming html
+    // arrived from a peer (i.e. it differs from what we last sent locally
+    // AND from the current DOM) — otherwise we'd clobber the user's caret
+    // mid-keystroke. The lastLocalRef tracks the html we just broadcast so
+    // we can ignore the echo of our own change coming back through Yjs.
+    if (editing) {
+      if (next !== ref.current.innerHTML && next !== lastLocalRef.current) {
+        // Remote update while editing: preserve caret offset best-effort.
+        const sel = window.getSelection?.();
+        const offset = sel?.focusNode && ref.current.contains(sel.focusNode)
+          ? captureCharOffset(ref.current, sel.focusNode, sel.focusOffset)
+          : -1;
+        ref.current.innerHTML = next;
+        if (offset >= 0) restoreCharOffset(ref.current, offset);
+      }
+      return;
+    }
     if (ref.current.innerHTML !== next) {
       ref.current.innerHTML = next;
     }
     initialRef.current = ref.current.innerHTML;
   }, [html, body, editing]);
+  // Stash the last html we wrote out so the echo from Yjs doesn't trigger
+  // a re-paint that would jump the user's caret.
+  const lastLocalRef = useRef('');
 
   useEffect(() => { onEditingChange?.(editing); }, [editing]);
 
@@ -90,6 +109,23 @@ export function RichNoteEditor({
     setEditing(true);
   };
 
+  // Live broadcast: every input event, debounce 100ms then propagate the
+  // current HTML so peers see the text as you type (was previously commit-
+  // on-blur only). Linkify only at commit-time so partial URLs don't get
+  // boxed mid-typing.
+  const liveTimerRef = useRef(null);
+  const broadcastLive = () => {
+    if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+    liveTimerRef.current = setTimeout(() => {
+      liveTimerRef.current = null;
+      if (!ref.current) return;
+      const cur = ref.current.innerHTML;
+      if (cur === lastLocalRef.current) return;
+      lastLocalRef.current = cur;
+      onChangeHTML?.(cur);
+    }, 100);
+  };
+
   const commit = (e) => {
     // If focus is moving INTO the bottom toolbar (font/size selects, color
     // pickers, format buttons), don't exit edit mode — otherwise the
@@ -98,6 +134,7 @@ export function RichNoteEditor({
     if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu'))) {
       return;
     }
+    if (liveTimerRef.current) { clearTimeout(liveTimerRef.current); liveTimerRef.current = null; }
     setEditing(false);
     const newHtml = linkifyNoteHtml(ref.current?.innerHTML || '');
     if (ref.current && ref.current.innerHTML !== newHtml) ref.current.innerHTML = newHtml;
@@ -105,6 +142,7 @@ export function RichNoteEditor({
     // the now read-only note.
     ref.current?.blur?.();
     try { window.getSelection?.()?.removeAllRanges(); } catch (_) {}
+    lastLocalRef.current = newHtml;
     if (newHtml !== initialRef.current) onChangeHTML(newHtml);
   };
 
@@ -161,7 +199,10 @@ export function RichNoteEditor({
            onMouseDown={editing ? (e) => e.stopPropagation() : undefined}
            onBlur={editing ? commit : undefined}
            onKeyDown={editing ? onKey : undefined}
-           onInput={editing && !manuallyResized ? measureAndReport : undefined}
+           onInput={editing ? (() => {
+             if (!manuallyResized) measureAndReport();
+             broadcastLive();
+           }) : undefined}
            onClick={!editing ? onBodyClick : undefined}
            onDoubleClick={!editing ? onOuterDouble : undefined}
       />
@@ -232,4 +273,40 @@ function linkifyNoteHtml(html) {
   });
 
   return root.innerHTML;
+}
+
+// ── Caret preservation helpers ─────────────────────────────────────────
+// captureCharOffset returns the integer position of (node, offset) within
+// `root` — counting the same way Range positions count. restoreCharOffset
+// walks `root` and places the caret at the same integer offset after a
+// re-paint, so a remote html update doesn't kick the local user out of
+// the line they were typing.
+function captureCharOffset(root, node, offset) {
+  let count = 0;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  while (walker.nextNode()) {
+    const n = walker.currentNode;
+    if (n === node) return count + offset;
+    count += n.nodeValue.length;
+  }
+  return -1;
+}
+function restoreCharOffset(root, target) {
+  let remaining = target;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  let node = walker.nextNode();
+  while (node) {
+    if (remaining <= node.nodeValue.length) {
+      const sel = window.getSelection?.();
+      if (!sel) return;
+      const range = document.createRange();
+      range.setStart(node, remaining);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return;
+    }
+    remaining -= node.nodeValue.length;
+    node = walker.nextNode();
+  }
 }
