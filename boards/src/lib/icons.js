@@ -58,4 +58,5 @@ export {
   Columns2,
   Home,
   LogOut,
+  RotateCcw,
 } from 'lucide-react';

@@ -32,6 +32,7 @@ import { initCardDocStore } from './lib/docState.js';
 import { uploadImage } from './lib/uploads.js';
 import { HistoryModal } from './components/HistoryModal.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
+import { HomeGraph } from './components/HomeGraph.jsx';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -996,9 +997,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         </div>
 
         {currentSurface === 'home' ? (
-          <div className="home-placeholder" style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'var(--bg-2)', color: 'var(--ink-2)' }}>
-            Home graph coming in Task 5.3…
-          </div>
+          <HomeGraph
+            workspaceId={workspace.id}
+            onNavigate={(target) => {
+              setCurrentSurface('board');
+              if (target?.kind === 'url') {
+                window.open(target.href, '_blank', 'noopener,noreferrer');
+                return;
+              }
+              if (target?.kind === 'board') setStack([target.id]);
+              if (target?.kind === 'card')  setStack([target.boardId]);
+              if (target?.kind === 'doc')   { /* doc cards open inside their board canvas; future wiring */ }
+            }}
+          />
         ) : (
           /* Always render the same outer container so toggling split doesn't
              re-mount the main pane (and any open doc-card modals inside).

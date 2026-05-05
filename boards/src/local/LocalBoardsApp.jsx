@@ -8,6 +8,7 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home } from '../lib/icons.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS, INBOX_SEED } from '../data.js';
+import { HomeGraph } from '../components/HomeGraph.jsx';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -599,9 +600,15 @@ export function LocalBoardsApp({ user, signOut }) {
         </div>
 
         {currentSurface === 'home' ? (
-          <div className="home-placeholder" style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'var(--bg-2)', color: 'var(--ink-2)' }}>
-            Home graph coming in Task 5.3…
-          </div>
+          <HomeGraph
+            workspaceId="local-workspace"
+            onNavigate={(target) => {
+              setCurrentSurface('board');
+              if (target?.kind === 'url') { window.open(target.href, '_blank', 'noopener,noreferrer'); return; }
+              if (target?.kind === 'board') setStack([target.id]);
+              if (target?.kind === 'card')  setStack([target.boardId]);
+            }}
+          />
         ) : view === 'canvas' ? (
           <CanvasSurface
             board={currentBoard}
