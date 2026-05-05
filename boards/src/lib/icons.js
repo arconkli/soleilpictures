@@ -60,4 +60,6 @@ export {
   LogOut,
   RotateCcw,
   User,
+  Edit,
+  Smile,
 } from 'lucide-react';
