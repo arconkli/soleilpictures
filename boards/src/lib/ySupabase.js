@@ -18,7 +18,7 @@
 // origins ('local', 'snapshot', etc.) — those broadcast normally.
 
 import * as Y from 'yjs';
-import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates, removeOutdatedAwarenessStates } from 'y-protocols/awareness';
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
 import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 
@@ -38,10 +38,11 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   console.log('[realtime] y:' + boardId, 'attach (user:', user?.email || user?.id || 'anon', ')');
 
   const awareness = new Awareness(ydoc);
-  // Default y-protocols outdated timeout is 30s; cut to 12s so a peer who
-  // closes their tab disappears within ~3× the 4s heartbeat instead of
-  // lingering for half a minute as a frozen ghost cursor.
-  awareness.outdatedTimeout = 12000;
+  // y-protocols Awareness uses an internal 30s prune timer (module-level
+  // constant; can't be overridden per-instance). Combined with the 4s
+  // heartbeat below, peers stay alive while connected and drop within
+  // 30s of disconnect. The dedupe-by-user.id in CanvasPresence prevents
+  // "2 cursors of same user" during the gap.
   if (user) {
     awareness.setLocalStateField('user', {
       id: user.id || CLIENT_ID,
@@ -166,21 +167,12 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
                    payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
   }, 4000);
 
-  // Prune stale peers whose lastUpdated has aged past 12s (3× the
-  // heartbeat). This is what makes a peer's cursor disappear when they
-  // close the tab without sending a leave event.
-  const pruner = setInterval(() => {
-    if (destroyed) return;
-    try { removeOutdatedAwarenessStates(awareness); } catch (_) {}
-  }, 4000);
-
   return {
     awareness,
     destroy() {
       destroyed = true;
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }
       clearInterval(heartbeat);
-      clearInterval(pruner);
       ydoc.off('update', onYUpdate);
       awareness.off('update', onAwarenessUpdate);
       try { removeAwarenessStates(awareness, [awareness.clientID], 'local'); } catch (_) {}
