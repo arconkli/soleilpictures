@@ -205,7 +205,7 @@ export function CanvasSurface({
         x: (e.clientX - r.left - pan.x) / zoom,
         y: (e.clientY - r.top  - pan.y) / zoom,
       };
-      if (!timer) timer = setTimeout(flush, 120);
+      if (!timer) timer = setTimeout(flush, 60);
     };
     const onLeave = () => {
       if (timer) { clearTimeout(timer); timer = null; }

@@ -22,10 +22,10 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwareness
 import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 
-// Cap awareness fan-out — Supabase Realtime free tier rate-limits at ~10
-// msg/sec per tenant, and a busy cursor with 2+ peers can blow past that
-// if we send every awareness change. 200ms = 5/sec/user, comfortable headroom.
-const AWARENESS_THROTTLE_MS = 200;
+// Cap awareness fan-out so we don't blow Supabase's per-tenant message
+// rate. 80ms = ~12.5 broadcasts/sec/user, which feels live without
+// flooding the channel.
+const AWARENESS_THROTTLE_MS = 80;
 
 // Build a stable session-only client id so peers can identify each other.
 const CLIENT_ID = (() => {

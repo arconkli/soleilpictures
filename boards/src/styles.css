@@ -724,10 +724,14 @@ body {
   border-radius: 2px;
 }
 
-.cursors-layer { position: absolute; inset: 0; pointer-events: none; }
+/* Sit above all cards. Cards use inline z from c.z which can climb high
+   as users bring-to-front; keep cursors floating clearly on top. */
+.cursors-layer { position: absolute; inset: 0; pointer-events: none; z-index: 999998; }
 .cursor {
   position: absolute; top: 0; left: 0;
-  transition: transform 3.2s cubic-bezier(.45,.05,.55,.95);
+  /* Short ease so the cursor catches up without a noticeable lag, but
+     still smooths over the discrete broadcast ticks. */
+  transition: transform 80ms linear;
   pointer-events: none;
 }
 .cursor-flag {
