@@ -8,6 +8,7 @@ import { RichDocCard } from './DocCard.jsx';
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
 import { LiveCursor } from './primitives.jsx';
+import { CanvasPresence } from './CanvasPresence.jsx';
 import { InboxPanel } from './InboxPanel.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
@@ -122,11 +123,23 @@ function readImageDims(file) {
 }
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
+
+// Per-user presence color, drawn from the warm cover palette. Stable per
+// user id so the same person always shows up in the same color across
+// sessions. Falls back to soleil for unknown ids.
+const PRESENCE_COLORS = ['#d4a04a', '#6b8090', '#9a6b88', '#c9a577', '#6b9088', '#b88958'];
+function pickPresenceColor(id) {
+  if (!id) return PRESENCE_COLORS[0];
+  let h = 0; for (let i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+  return PRESENCE_COLORS[Math.abs(h) % PRESENCE_COLORS.length];
+}
 const cmdKey = isMac ? '⌘' : 'Ctrl';
 
 export function CanvasSurface({
   board, boards, cards, arrows, strokes,
   ydoc, // raw Y.Doc — needed by doc cards to access their per-card YMap
+  getAwareness,            // () => Awareness | null  — for live presence
+  currentUser,             // { id, name, color }     — for awareness localState
   onOpenBoard, tweak, depth, onOpenPicker,
   inbox, inboxQuery, onInboxQuery, onDropInboxItem, onDropFileImage,
   workspaceId, userId, personalWorkspaceId,
@@ -151,6 +164,65 @@ export function CanvasSurface({
   const [arrowFrom, setArrowFrom] = useState(null);
   const [activeStroke, setActiveStroke] = useState(null);
   const [activeFreeArrow, setActiveFreeArrow] = useState(null); // { from:{x,y}, to:{x,y} }
+
+  // Live presence — once awareness is bound, write our own user info, our
+  // canvas-cursor (canvas-space coords, throttled), and our selection.
+  // Peers' presence is rendered by <CanvasPresence/> below.
+  useEffect(() => {
+    const aw = getAwareness?.();
+    if (!aw || !currentUser) return;
+    aw.setLocalStateField('user', {
+      id: currentUser.id,
+      name: currentUser.name || currentUser.email?.split('@')[0] || 'You',
+      color: currentUser.color || pickPresenceColor(currentUser.id),
+    });
+  }, [getAwareness, currentUser?.id, currentUser?.name, currentUser?.color]);
+
+  // Cursor broadcast — listen on wrap, convert screen→canvas-space, throttle
+  // to ~60Hz max, and write to awareness. Cleared when the cursor leaves.
+  useEffect(() => {
+    const aw = getAwareness?.();
+    const wrap = wrapRef.current;
+    if (!aw || !wrap) return;
+    let pending = null;
+    let raf = null;
+    const flush = () => {
+      raf = null;
+      if (!pending) return;
+      aw.setLocalStateField('canvasCursor', { boardId: board.id, x: pending.x, y: pending.y });
+      pending = null;
+    };
+    const onMove = (e) => {
+      const r = wrap.getBoundingClientRect();
+      const cx = (e.clientX - r.left - pan.x) / zoom;
+      const cy = (e.clientY - r.top  - pan.y) / zoom;
+      pending = { x: cx, y: cy };
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+    const onLeave = () => {
+      if (raf) { cancelAnimationFrame(raf); raf = null; }
+      pending = null;
+      aw.setLocalStateField('canvasCursor', null);
+    };
+    wrap.addEventListener('pointermove', onMove);
+    wrap.addEventListener('pointerleave', onLeave);
+    return () => {
+      wrap.removeEventListener('pointermove', onMove);
+      wrap.removeEventListener('pointerleave', onLeave);
+      if (raf) cancelAnimationFrame(raf);
+      try { aw.setLocalStateField('canvasCursor', null); } catch (_) {}
+    };
+  }, [getAwareness, board.id, pan.x, pan.y, zoom]);
+
+  // Selection broadcast — when our local selection set changes, push the
+  // card-id list to awareness so peers can render our selection ring.
+  useEffect(() => {
+    const aw = getAwareness?.();
+    if (!aw) return;
+    const ids = [...selected];
+    aw.setLocalStateField('canvasSelection', ids.length ? { boardId: board.id, cardIds: ids } : null);
+  }, [getAwareness, board.id, selected]);
+
   // Signal sent to ImageCard to enter inline edit mode for a specific field
   // (title or caption). Bumps `n` so a re-trigger on the same card still
   // re-fires the effect. No popup — same UX as board-name editing.
@@ -1247,6 +1319,7 @@ export function CanvasSurface({
     const wrapper = {
       style: wrapperStyle,
       className: `card ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}`,
+      'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
       onDoubleClick: (e) => onCardDoubleClick(e, c),
@@ -1606,6 +1679,13 @@ export function CanvasSurface({
          onDrop={handleDrop}
          onPointerDown={onBackgroundPointerDown}
          onContextMenu={onBackgroundContextMenu}>
+      <CanvasPresence
+        getAwareness={getAwareness}
+        boardId={board.id}
+        pan={pan}
+        zoom={zoom}
+        selfId={currentUser?.id}
+      />
       <div className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
            style={{
              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,

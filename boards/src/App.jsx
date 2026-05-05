@@ -808,6 +808,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return (
         <CanvasSurface board={board} boards={boards} cards={cards} arrows={arrows} strokes={strokes}
                        ydoc={yd}
+                       getAwareness={yh.getAwareness}
+                       currentUser={{
+                         id: user.id, email: user.email,
+                         name: user.user_metadata?.full_name || user.email?.split('@')[0],
+                         color: '#4f8df8',
+                       }}
                        onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                        onOpenPicker={() => setPickerOpen(true)}
                        inbox={inbox.items} inboxQuery={''} onInboxQuery={() => {}}
