@@ -16,7 +16,9 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   const fgRef = useRef(null);
   const containerRef = useRef(null);
   const [data, setData] = useState({ nodes: [], links: [] });
-  const [structural, setStructural] = useState(false);
+  // Structural edges (board↔child-board, board↔card) on by default so the
+  // graph reveals workspace hierarchy without requiring explicit doc links.
+  const [structural, setStructural] = useState(true);
   const [kinds, setKinds] = useState(KIND_FILTER_DEFAULT);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);

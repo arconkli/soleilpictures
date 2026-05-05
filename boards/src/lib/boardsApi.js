@@ -118,6 +118,42 @@ export async function saveBoardSnapshot(boardId, ydoc) {
     .upsert({ board_id: boardId, doc: b64, updated_at: new Date().toISOString() },
             { onConflict: 'board_id' });
   if (error) throw error;
+  // Mirror the board's cards into card_index so the home graph can render
+  // every card as a node (not just boards). Best-effort — failures don't
+  // block the snapshot save.
+  syncCardIndex({ boardId, ydoc }).catch(e => console.warn('card_index sync failed', e));
+}
+
+// Project the board's Y.Map<'cards'> into Postgres `card_index`. Full-replace
+// for the board so deletes propagate. workspace_id is resolved from the
+// boards row so callers don't need to thread it through.
+export async function syncCardIndex({ boardId, ydoc }) {
+  if (!supabase || !boardId || !ydoc) return;
+  // Resolve workspace from the boards row.
+  const wsq = await supabase.from('boards').select('workspace_id').eq('id', boardId).maybeSingle();
+  const workspaceId = wsq.data?.workspace_id;
+  if (!workspaceId) return;
+  const cardsMap = ydoc.getMap('cards');
+  const rows = [];
+  cardsMap.forEach((v, id) => {
+    if (!v) return;
+    const get = (k) => v?.get?.(k) ?? v?.[k];
+    const kind = get('kind') || 'note';
+    const title = get('title') || get('name') || get('label') || get('url') || '';
+    const body = get('body') || get('caption') || '';
+    rows.push({
+      workspace_id: workspaceId,
+      board_id: boardId,
+      card_id: id,
+      kind,
+      title: String(title).slice(0, 200),
+      body: String(body).slice(0, 500),
+    });
+  });
+  // Wipe this board's rows then re-insert (full replace).
+  await supabase.from('card_index').delete().eq('board_id', boardId);
+  if (rows.length === 0) return;
+  await supabase.from('card_index').insert(rows);
 }
 
 // ── Version history ─────────────────────────────────────────────────────────
