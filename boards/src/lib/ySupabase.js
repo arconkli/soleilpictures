@@ -32,6 +32,7 @@ const CLIENT_ID = (() => {
 
 export function attachRealtime(ydoc, boardId, { user } = {}) {
   if (!boardId) return { destroy() {}, awareness: null };
+  console.log('[realtime] board:' + boardId, 'attach (user:', user?.email || user?.id || 'anon', ')');
 
   const awareness = new Awareness(ydoc);
   if (user) {
@@ -113,10 +114,9 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   });
 
   // On subscribe, exchange state vectors with anyone else in the channel.
-  channel.subscribe((status) => {
+  channel.subscribe((status, err) => {
     // Surface every state change so live debugging in the console is easy.
-    // (Filter with `console.log = () => {}` if you want quiet.)
-    console.info('[realtime] board:' + boardId, status);
+    console.log('[realtime] board:' + boardId, status, err || '');
     if (status !== 'SUBSCRIBED') return;
     subscribed = true;
     const sv = Y.encodeStateVector(ydoc);

@@ -92,7 +92,8 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     onPeers?.([...peers.values()]);
   });
 
-  channel.subscribe((status) => {
+  channel.subscribe((status, err) => {
+    console.log('[realtime] ws:' + workspaceId, status, err || '');
     if (status === 'SUBSCRIBED') {
       subscribed = true;
       onStatus?.('connected');
