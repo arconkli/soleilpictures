@@ -16,6 +16,7 @@ import { useDocBoard } from '../hooks/useDocBoard.js';
 import { addBookmark, addPage } from '../lib/docState.js';
 import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
+import { DocPresence } from './DocPresence.jsx';
 import { DocToolbar } from './DocToolbar.jsx';
 import { DocLinksPanel } from './DocLinksPanel.jsx';
 import { DocRefsPanel } from './DocRefsPanel.jsx';
@@ -186,6 +187,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // Hold the live Tiptap editor instance so the toolbar + bookmarks can
   // operate on it. DocPageEditor passes it up via onEditorReady.
   const editorRef = useRef(null);
+  // Ref to .doc-paper for the DocPresence overlay (cursor/caret coords are
+  // paper-relative).
+  const paperRef = useRef(null);
   const [, force] = useState(0);
   const onEditorReady = (ed) => { editorRef.current = ed; force(n => n + 1); };
 
@@ -253,7 +257,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         <DocFindReplace editor={editorRef.current}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
-        <div className="doc-paper">
+        <div className="doc-paper" ref={paperRef} style={{ position: 'relative' }}>
+          {activePageId && awareness && (
+            <DocPresence getAwareness={getAwareness} boardId={board.id} pageId={activePageId}
+                         paperRef={paperRef} editor={editorRef.current}
+                         currentUser={currentUser} />
+          )}
           {activePageId ? (
             // key forces a fresh editor instance on page switch (Collaboration
             // extension can't re-bind to a different fragment).

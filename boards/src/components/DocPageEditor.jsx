@@ -357,12 +357,9 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
         showOnlyCurrent: true,
       }),
       ...(fragment ? [Collaboration.configure({ fragment })] : []),
-      // Live cursors when realtime is wired up. CollaborationCursor pulls
-      // local user info from awareness.localState.user (set by ySupabase.js)
-      // and renders peers' carets + selections automatically.
-      ...(awareness ? [CollaborationCursor.configure({
-        provider: { awareness },
-      })] : []),
+      // CollaborationCursor was unreliable in our setup — replaced with a
+      // custom DocPresence overlay that uses the same awareness-based
+      // cursor system as the canvas (LiveCursor with rAF-lerp).
       makeSlashExtension({
         onInsertImage: pickImageFromDisk,
         onInsertBookmark: insertBookmarkInline,
