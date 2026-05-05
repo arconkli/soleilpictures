@@ -5430,3 +5430,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   transition: background var(--dur-fast) var(--ease);
 }
 .emoji-palette-btn:hover { background: var(--bg-hov); }
+
+.alt-session-banner {
+  background: var(--soleil-soft);
+  color: var(--soleil);
+  border-bottom: 1px solid var(--soleil);
+  padding: 6px 12px;
+  font: 600 11px/1.4 var(--font-sans);
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

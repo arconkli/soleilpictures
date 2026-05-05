@@ -13,7 +13,7 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 const TWEAK_DEFAULTS = {
   theme: 'dark',
   showArrows: true,
-  showMessages: true,
+  showMessages: false,
   compactSidebar: false,
 };
 

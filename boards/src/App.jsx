@@ -11,7 +11,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, UserPlus } from './lib/icons.js';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -26,7 +26,7 @@ import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
-import { isSupabaseConfigured, supabase } from './lib/supabase.js';
+import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta } from './lib/boardsApi.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
@@ -41,7 +41,9 @@ import { HomeGraph } from './components/HomeGraph.jsx';
 const TWEAK_DEFAULTS = {
   theme: 'dark',
   showArrows: true,
-  showMessages: true,
+  // Messages defaults to closed — the unread badge guides you to open it.
+  // (Replaces the old showInbox: true default; that drawer was demoware.)
+  showMessages: false,
   compactSidebar: false,
 };
 
@@ -1026,11 +1028,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     title={splitId ? 'Close split view' : 'Pin alongside…'}>
               <Icon as={Columns2} size={16} />
             </button>
+            {!altSessionId && (
+              <button className="tb-icon" title="Open in second window as another user (for solo collab testing)"
+                      onClick={() => {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('as', 'alt');
+                        window.open(url.toString(), '_blank',
+                          'noopener,noreferrer,width=1280,height=900');
+                      }}>
+                <Icon as={UserPlus} size={16} />
+              </button>
+            )}
             <button className="tb-icon" onClick={signOut} title="Sign out">
               <Icon as={LogOut} size={16} />
             </button>
           </div>
         </div>
+        {altSessionId && (
+          <div className="alt-session-banner">
+            Test session ({altSessionId}) — sign in as a different account here, then collab with the main window.
+          </div>
+        )}
 
         {currentSurface === 'home' ? (
           <HomeGraph

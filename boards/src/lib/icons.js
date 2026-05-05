@@ -63,4 +63,5 @@ export {
   Edit,
   Smile,
   Paperclip,
+  UserPlus,
 } from 'lucide-react';
