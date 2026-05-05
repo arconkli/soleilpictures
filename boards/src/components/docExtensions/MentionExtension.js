@@ -1,5 +1,10 @@
 import { Extension } from '@tiptap/core';
+import { PluginKey } from '@tiptap/pm/state';
 import Suggestion from '@tiptap/suggestion';
+
+// Unique plugin key — prevents collision with the slash menu's
+// default-keyed Suggestion plugin (both use @tiptap/suggestion).
+const MENTION_KEY = new PluginKey('soleilMention');
 
 // `@`-trigger that opens the EntityPicker at the caret. The picker is
 // mounted by React via callbacks supplied by the consumer. The
@@ -17,6 +22,7 @@ export const MentionExtension = (options) => Extension.create({
   addProseMirrorPlugins() {
     return [
       Suggestion({
+        pluginKey: MENTION_KEY,
         editor: this.editor,
         char: '@',
         startOfLine: false,
