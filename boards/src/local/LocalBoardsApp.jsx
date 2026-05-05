@@ -666,6 +666,8 @@ export function LocalBoardsApp({ user, signOut }) {
           </div>
         </div>
       )}
+
+      <LocalSettingsPanel tweak={tweak} setTweak={setTweak} />
     </div>
   );
 }

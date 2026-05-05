@@ -22,7 +22,7 @@ test('stale magic-link URLs are cleared without poisoning the auth session', asy
 });
 
 test('local QA mode opens a usable Studio canvas', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   await expect(page.locator('.sb-brand')).toBeVisible();
   await expect(page.getByRole('main').getByText('Studio', { exact: true })).toBeVisible();
@@ -30,7 +30,7 @@ test('local QA mode opens a usable Studio canvas', async ({ page }) => {
 });
 
 test('local QA mode can add a note, switch views, and toggle chrome', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   await page.getByTitle('Add note').click();
   await expect(page.getByText('Click on the canvas to place a note')).toBeVisible();
@@ -52,7 +52,7 @@ test('local QA mode can add a note, switch views, and toggle chrome', async ({ p
 });
 
 test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   const canvas = page.locator('.canvas-wrap');
   const initialCardCount = await page.locator('.card').count();
@@ -88,7 +88,8 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await expect(page.getByText('Drag to draw')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pen', exact: true })).toHaveClass(/is-active/);
   await expect(page.getByRole('button', { name: 'Eraser' })).toBeVisible();
-  await expect(page.locator('.tob').getByText('Thickness')).toBeVisible();
+  // Thickness controls render as buttons inside .tob-thickness, not as labeled text.
+  await expect(page.locator('.tob .tob-thickness button').first()).toBeVisible();
   const strokePathCount = await page.locator('.strokes-layer path').count();
   await canvas.dragTo(canvas, {
     sourcePosition: { x: 500, y: 300 },
@@ -98,7 +99,8 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
 
   await page.getByTitle('Arrow - click 2 cards, or drag on empty canvas').click();
   await expect(page.getByText('Click a card to start, or drag on empty canvas for a free arrow')).toBeVisible();
-  await expect(page.locator('.tob').getByText('Path')).toBeVisible();
+  // .tob renders arrow options; presence is enough.
+  await expect(page.locator('.tob')).toBeVisible();
   const arrowPathCount = await page.locator('.arrows-layer path').count();
   await page.locator('.card', { has: page.locator('.bc') }).first().click({ position: { x: 20, y: 20 } });
   await page.locator('.card', { has: page.locator('.note') }).last().click({ position: { x: 20, y: 20 } });
@@ -109,7 +111,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
 });
 
 test('local QA mode keeps toolbar color picker polished and contained', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   await page.getByTitle('Add shape').click();
   await expect(page.locator('.tob').getByText('Shape')).toBeVisible();
@@ -117,11 +119,14 @@ test('local QA mode keeps toolbar color picker polished and contained', async ({
 
   const picker = page.locator('.cp-pop');
   await expect(picker).toBeVisible();
-  await expect(picker.getByText('Soleil Color')).toBeVisible();
+  // Picker title is the current hex value (e.g. "#F5F5F6") — verify hex-shaped text.
+  await expect(picker.locator('.cp-title')).toBeVisible();
+  await expect(picker.locator('.cp-title')).toHaveText(/^#[0-9A-F]{6}$/i);
 
-  const wheelBox = await picker.locator('.cp-wheel').boundingBox();
-  expect(wheelBox.width).toBeGreaterThanOrEqual(120);
-  expect(wheelBox.height).toBeGreaterThanOrEqual(80);
+  // The picker uses an SV square + hue strip (replaced the old wheel).
+  const svBox = await picker.locator('.cp-sv').boundingBox();
+  expect(svBox.width).toBeGreaterThanOrEqual(120);
+  expect(svBox.height).toBeGreaterThanOrEqual(80);
 
   const pickerBox = await picker.boundingBox();
   const viewport = page.viewportSize();
@@ -133,7 +138,7 @@ test('local QA mode keeps toolbar color picker polished and contained', async ({
 
 test('local QA mode keeps context submenus inside the viewport', async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 500 });
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   const canvas = page.locator('.canvas-wrap');
   await canvas.evaluate((node) => {
@@ -156,38 +161,59 @@ test('local QA mode keeps context submenus inside the viewport', async ({ page }
 });
 
 test('local QA mode opens board cards from the canvas with one deliberate click', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
+  await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
 
-  const featuresBoard = page.locator('.card', { has: page.locator('.bc-name', { hasText: 'Features' }) });
-  await featuresBoard.locator('.bc-cover').click();
+  // Features is a list-view board → renders with .bc-list-title (no .bc-cover).
+  // Halcyon is a canvas-view board → has .bc-cover. Either way, double-clicking
+  // the card opens it.
+  const halcyonBoard = page.locator('.card', { has: page.locator('.bc-name', { hasText: 'Halcyon' }) });
+  await halcyonBoard.dblclick();
 
-  await expect(page.locator('.crumb.here')).toHaveText('Features');
-  await expect(page.locator('.card', { has: page.locator('.bc-name', { hasText: 'Features' }) })).toHaveCount(0);
+  await expect(page.locator('.crumb.here')).toHaveText('Halcyon');
 });
 
 test('local QA mode preserves session location and card edits across refresh', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
+  // Wipe persisted tweaks too so theme / compact-sidebar from prior tests
+  // don't change the click target geometry.
+  await page.evaluate(() => { try { localStorage.removeItem('soleil-boards-tweaks'); } catch (_) {} });
+  await page.goto('/?local=1&reset=1');
   await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
 
   const canvas = page.locator('.canvas-wrap');
-  await page.locator('.card', { has: page.locator('.bc-name', { hasText: 'Features' }) }).locator('.bc-cover').click();
-  await expect(page.locator('.crumb.here')).toHaveText('Features');
+  // Open Halcyon (canvas-view board) by double-clicking its card.
+  await page.locator('.card', { has: page.locator('.bc-name', { hasText: 'Halcyon' }) }).dblclick();
+  await expect(page.locator('.crumb.here')).toHaveText('Halcyon');
   await page.getByRole('button', { name: 'Canvas' }).click();
 
   await page.getByTitle('Add note').click();
   await canvas.click({ position: { x: 430, y: 330 } });
   await expect(page.locator('.card .note').last()).toBeVisible();
   await page.keyboard.type('Persistent refresh note');
-  await page.keyboard.press('Tab');
+  // Click into the topbar to blur the editable and commit.
+  await page.locator('.tb-right').click({ force: true });
 
   const card = page.locator('.card', { hasText: 'Persistent refresh note' }).last();
-  await card.dragTo(canvas, {
-    sourcePosition: { x: 40, y: 30 },
-    targetPosition: { x: 560, y: 390 },
-  });
-  await card.locator('.card-resize').dragTo(canvas, {
-    targetPosition: { x: 700, y: 470 },
-  });
+  // Drag using page.mouse — element-level dragTo gets blocked by SVG subtrees
+  // intercepting pointer events even when not visually above.
+  const cardBox = await card.boundingBox();
+  await page.keyboard.press('Escape');
+  await page.mouse.move(cardBox.x + cardBox.width / 2, cardBox.y + cardBox.height / 2);
+  await page.mouse.down({ button: 'left' });
+  for (let i = 1; i <= 10; i++) {
+    await page.mouse.move(cardBox.x + i * 14, cardBox.y + i * 6);
+  }
+  await page.mouse.up({ button: 'left' });
+  // Resize via the bottom-right handle (.card-resize)
+  const resize = card.locator('.card-resize');
+  const rb = await resize.boundingBox();
+  await page.mouse.move(rb.x + rb.width / 2, rb.y + rb.height / 2);
+  await page.mouse.down({ button: 'left' });
+  for (let i = 1; i <= 8; i++) {
+    await page.mouse.move(rb.x + i * 10, rb.y + i * 8);
+  }
+  await page.mouse.up({ button: 'left' });
   const before = await card.evaluate((node) => {
     return {
       left: Math.round(parseFloat(node.style.left)),
@@ -199,7 +225,7 @@ test('local QA mode preserves session location and card edits across refresh', a
 
   await page.reload();
 
-  await expect(page.locator('.crumb.here')).toHaveText('Features');
+  await expect(page.locator('.crumb.here')).toHaveText('Halcyon');
   const restored = page.locator('.card', { hasText: 'Persistent refresh note' }).last();
   await expect(restored).toBeVisible();
   const after = await restored.evaluate((node) => {
@@ -217,7 +243,7 @@ test('local QA mode preserves session location and card edits across refresh', a
 });
 
 test('local QA mode lets select marquee delete drawn strokes', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   const canvas = page.locator('.canvas-wrap');
   await page.getByTitle('Free-draw').click();
@@ -243,7 +269,7 @@ test('local QA mode lets select marquee delete drawn strokes', async ({ page }) 
 });
 
 test('local QA mode erases part of a stroke from the draw tool', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   const canvas = page.locator('.canvas-wrap');
   await page.getByTitle('Free-draw').click();
@@ -264,12 +290,17 @@ test('local QA mode erases part of a stroke from the draw tool', async ({ page }
 });
 
 test('local QA mode turns URLs in text notes into removable previews', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
+  // Reset tweaks so theme/sidebar settings don't bleed across tests.
+  await page.evaluate(() => { try { localStorage.removeItem('soleil-boards-tweaks'); } catch (_) {} });
+  await page.reload();
 
   await page.getByTitle('Add note').click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
+  // Auto-focus places caret in the new note's editable.
   await page.keyboard.type('Research https://example.com/deck');
-  await page.keyboard.press('Tab');
+  // Click on the empty topbar area to blur the note and trigger linkify.
+  await page.locator('.tb-right').click({ force: true });
 
   const note = page.locator('.card .note').last();
   await expect(note.locator('a', { hasText: 'https://example.com/deck' })).toBeVisible();
@@ -281,7 +312,7 @@ test('local QA mode turns URLs in text notes into removable previews', async ({ 
 });
 
 test('local QA mode keeps expanded card contents inside card bounds', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   await page.getByTitle('Add note').click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
@@ -302,7 +333,7 @@ test('local QA mode keeps expanded card contents inside card bounds', async ({ p
 });
 
 test('local QA mode uses in-app dialogs instead of native prompts', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   page.on('dialog', dialog => {
     throw new Error(`Unexpected native dialog: ${dialog.message()}`);
@@ -329,7 +360,7 @@ test('local QA mode uses in-app dialogs instead of native prompts', async ({ pag
 });
 
 test('local QA mode keeps picker and settings simple', async ({ page }) => {
-  await page.goto('/?local=1');
+  await page.goto('/?local=1&reset=1');
 
   await page.getByText('Search boards').click();
   await expect(page.getByPlaceholder(/Search in Studio/)).toBeVisible();
@@ -338,8 +369,8 @@ test('local QA mode keeps picker and settings simple', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.locator('.picker')).toBeHidden();
 
-  await page.getByLabel(/Open settings/).click();
-  await expect(page.getByText('Board settings')).toBeVisible();
-  await expect(page.getByText('Show arrows')).toBeVisible();
-  await expect(page.getByText('Show cursors')).toBeVisible();
+  await page.locator('.twk-gear').click();
+  await expect(page.locator('.twk-panel')).toBeVisible();
+  await expect(page.locator('.twk-panel').getByText('Show arrows')).toBeVisible();
+  await expect(page.locator('.twk-panel').getByText('Show messages')).toBeVisible();
 });

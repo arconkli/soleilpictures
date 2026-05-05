@@ -161,10 +161,15 @@ export async function saveBoardSnapshot(boardId, ydoc) {
 // Project the board's Y.Map<'cards'> into Postgres `card_index`. Full-replace
 // for the board so deletes propagate. workspace_id is resolved from the
 // boards row so callers don't need to thread it through.
+//
+// Errors are logged but not thrown — this index is a derived secondary store
+// (entity_search uses it); the source of truth is the Y.Doc + board_state.
+// A failed sync just means search is briefly stale until the next save.
 export async function syncCardIndex({ boardId, ydoc }) {
   if (!supabase || !boardId || !ydoc) return;
   // Resolve workspace from the boards row.
   const wsq = await supabase.from('boards').select('workspace_id').eq('id', boardId).maybeSingle();
+  if (wsq.error) { console.warn('syncCardIndex resolve workspace', wsq.error); return; }
   const workspaceId = wsq.data?.workspace_id;
   if (!workspaceId) return;
   const cardsMap = ydoc.getMap('cards');
@@ -185,9 +190,11 @@ export async function syncCardIndex({ boardId, ydoc }) {
     });
   });
   // Wipe this board's rows then re-insert (full replace).
-  await supabase.from('card_index').delete().eq('board_id', boardId);
+  const del = await supabase.from('card_index').delete().eq('board_id', boardId);
+  if (del.error) { console.warn('syncCardIndex delete', del.error); return; }
   if (rows.length === 0) return;
-  await supabase.from('card_index').insert(rows);
+  const ins = await supabase.from('card_index').insert(rows);
+  if (ins.error) console.warn('syncCardIndex insert', ins.error);
 }
 
 // ── Version history ─────────────────────────────────────────────────────────
