@@ -248,6 +248,24 @@ export function CanvasSurface({
     return () => aw.off('change', refresh);
   }, [getAwareness, board.id, currentUser?.id]);
 
+  // Marquee broadcast — write the live marquee box to awareness so peers
+  // see it as a translucent rectangle in our color while we're drag-selecting.
+  useEffect(() => {
+    const aw = getAwareness?.();
+    if (!aw) return;
+    if (marquee) {
+      aw.setLocalStateField('marquee', {
+        boardId: board.id,
+        x0: Math.round(Math.min(marquee.x0, marquee.x1)),
+        y0: Math.round(Math.min(marquee.y0, marquee.y1)),
+        x1: Math.round(Math.max(marquee.x0, marquee.x1)),
+        y1: Math.round(Math.max(marquee.y0, marquee.y1)),
+      });
+    } else {
+      aw.setLocalStateField('marquee', null);
+    }
+  }, [getAwareness, board.id, marquee]);
+
   // Selection broadcast — when our local selection set changes, push the
   // card-id list to awareness so peers can render our selection ring.
   useEffect(() => {

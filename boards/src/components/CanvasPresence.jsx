@@ -27,9 +27,11 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
         const cursor = state.canvasCursor;
         const sel = state.canvasSelection;
         const drag = state.liveDrag;
+        const marquee = state.marquee;
         const onBoard = (cursor?.boardId === boardId)
                      || (sel?.boardId === boardId)
-                     || (drag?.boardId === boardId);
+                     || (drag?.boardId === boardId)
+                     || (marquee?.boardId === boardId);
         if (!onBoard) return;
         out.push({
           clientId,
@@ -37,6 +39,7 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
           cursor:    cursor?.boardId === boardId ? { x: cursor.x, y: cursor.y } : null,
           cardIds:   sel?.boardId    === boardId ? (sel.cardIds || []) : [],
           dragCards: drag?.boardId   === boardId ? (drag.cards   || []) : [],
+          marquee:   marquee?.boardId === boardId ? marquee : null,
         });
       });
       setPeers(out);
@@ -51,6 +54,29 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
   // follows the same coordinate system as the cards.
   return (
     <>
+      {/* Peer marquee rectangles — drawn in canvas-space, transformed by the
+          parent canvas's pan/zoom so they line up with the cards being
+          highlighted. Sit just below cursors but above cards. */}
+      <div className="peer-marquees-layer" style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 999990,
+        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+        transformOrigin: '0 0',
+      }}>
+        {peers.map(p => p.marquee && (
+          <div key={'mq-' + p.clientId}
+               className="peer-marquee"
+               style={{
+                 position: 'absolute',
+                 left: p.marquee.x0,
+                 top: p.marquee.y0,
+                 width: Math.max(0, p.marquee.x1 - p.marquee.x0),
+                 height: Math.max(0, p.marquee.y1 - p.marquee.y0),
+                 background: colorWithAlpha(p.user.color || '#4f8df8', 0.10),
+                 border: `1px solid ${p.user.color || '#4f8df8'}`,
+                 borderRadius: 2,
+               }} />
+        ))}
+      </div>
       <div className="cursors-layer">
         {peers.map(p => p.cursor && (
           <LiveCursor
@@ -70,6 +96,11 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
 // Inject one CSS rule per peer-selected card so the existing card markup
 // (`.card[data-card-id="…"]`) gets a colored selection ring without us
 // having to traverse and re-render every card on each presence change.
+// Selected-by-peer cards get four bracket-corner accents drawn in the peer's
+// color via ::before/::after on a wrapper, plus a subtle outer halo so the
+// card reads as "selected by someone else." We attach to the card root (not
+// :first-child) so the corners overlap the card edge rather than the inner
+// content's rounded radius.
 function PeerSelectionStyles({ peers }) {
   const styleRef = useRef(null);
   useEffect(() => {
@@ -85,10 +116,31 @@ function PeerSelectionStyles({ peers }) {
       const soft = colorWithAlpha(color, 0.18);
       for (const id of p.cardIds) {
         const safe = id.replace(/"/g, '\\"');
+        // Outer halo via box-shadow (subtle, doesn't compete with corners).
         rules.push(
           `.card[data-card-id="${safe}"] > :first-child {`
-          + ` box-shadow: 0 0 0 1px ${color}, 0 0 0 4px ${soft}, var(--shadow-2);`
+          + ` box-shadow: 0 0 0 2px ${color}, 0 0 0 6px ${soft};`
           + ` border-radius: var(--radius-md); }`
+        );
+        // Corner accents via ::before / ::after using SVG-style strokes.
+        // Use a dedicated wrapper trick: pseudo on the card root.
+        rules.push(
+          `.card[data-card-id="${safe}"]::before, .card[data-card-id="${safe}"]::after {`
+          + ` content: ''; position: absolute; pointer-events: none;`
+          + ` width: 14px; height: 14px; border: 2.5px solid ${color}; border-radius: 2px;`
+          + ` z-index: 10; }`
+        );
+        // Top-left corner via ::before
+        rules.push(
+          `.card[data-card-id="${safe}"]::before {`
+          + ` left: -7px; top: -7px;`
+          + ` border-right: 0; border-bottom: 0; }`
+        );
+        // Bottom-right corner via ::after
+        rules.push(
+          `.card[data-card-id="${safe}"]::after {`
+          + ` right: -7px; bottom: -7px;`
+          + ` border-left: 0; border-top: 0; }`
         );
       }
     }
