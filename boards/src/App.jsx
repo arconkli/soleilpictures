@@ -24,6 +24,7 @@ import { useChannelList } from './hooks/useChannelList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
+import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase } from './lib/supabase.js';
@@ -167,13 +168,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   };
 
   // Messages: list/unread/title-badge. msgRefreshTick lets realtime pings
-  // (Phase C) bump the sidebar count without a full refetch loop.
+  // bump the sidebar count without a full refetch loop.
   const [msgRefreshTick, setMsgRefreshTick] = useState(0);
   const channelList = useChannelList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
   const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByKey: channelList.unreadByKey });
   useTitleBadge({ total: messagesUnread, mentions: messagesMentions });
 
   const yb = useYBoard(currentBoard.id, user.id, userInfo);
+
+  // When a peer chats in the currently-open board, refresh the panel list
+  // so the row + unread dot update without requiring you to open the panel.
+  useEffect(() => {
+    if (!currentBoard?.id) return;
+    const unsub = subscribeBoardChat({
+      boardId: currentBoard.id,
+      onMessage: () => setMsgRefreshTick(t => t + 1),
+      onTyping: () => {},
+    });
+    return () => unsub();
+  }, [currentBoard?.id]);
   const currentYDoc = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
 
   // Side-by-side: when set, the workspace splits 50/50 with a draggable
