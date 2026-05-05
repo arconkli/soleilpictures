@@ -34,6 +34,22 @@ export function HomeGraph({ workspaceId, onNavigate }) {
     } catch { setSupportsWebGL(false); }
   }, []);
 
+  // Auto-rotate the camera when no node is selected. Stops while a node is
+  // open so the camera ease-to-node doesn't fight the rotation. OrbitControls
+  // also pauses autoRotate while the user is actively dragging.
+  useEffect(() => {
+    if (!fgRef.current) return;
+    let raf;
+    const tryAttach = () => {
+      const controls = fgRef.current?.controls?.();
+      if (!controls) { raf = requestAnimationFrame(tryAttach); return; }
+      controls.autoRotate = !selected;
+      controls.autoRotateSpeed = 0.35;
+    };
+    tryAttach();
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, [selected, data]);
+
   // Track container size for the canvas
   useEffect(() => {
     if (!containerRef.current) return;
