@@ -59,4 +59,5 @@ export {
   Home,
   LogOut,
   RotateCcw,
+  User,
 } from 'lucide-react';

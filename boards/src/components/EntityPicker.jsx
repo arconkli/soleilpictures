@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { Search, X, Check, LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
+import { Search, X, Check, LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar, Link as LinkIcon, User } from '../lib/icons.js';
 import { searchEntities } from '../lib/entitySearch.js';
 
 const PAD = 8;
@@ -15,6 +15,7 @@ const KIND_ICON = {
   palette: Palette,
   schedule: Calendar,
   url: LinkIcon,
+  user: User,
 };
 
 const KIND_LABEL = {
@@ -25,6 +26,7 @@ const KIND_LABEL = {
   palette: 'PALETTES',
   schedule: 'SCHEDULES',
   url: 'URLS',
+  user: 'PEOPLE',
 };
 
 // Universal "what do you want to link?" picker.
@@ -192,6 +194,7 @@ export function EntityPicker({
 function rowToTarget(row) {
   if (row.kind === 'board') return { kind: 'board', id: row.board_id };
   if (row.kind === 'doc')   return { kind: 'doc', docCardId: row.card_id };
+  if (row.kind === 'user')  return { kind: 'user', id: row.id, title: row.title };
   return { kind: 'card', boardId: row.board_id, cardId: row.card_id };
 }
 
@@ -200,6 +203,7 @@ function sameTarget(a, b) {
   if (a.kind === 'board') return a.id === b.id;
   if (a.kind === 'doc')   return a.docCardId === b.docCardId && a.pageId === b.pageId;
   if (a.kind === 'card')  return a.boardId === b.boardId && a.cardId === b.cardId;
+  if (a.kind === 'user')  return a.id === b.id;
   if (a.kind === 'url')   return a.href === b.href;
   if (a.kind === 'docPos') return a.docCardId === b.docCardId && a.pageId === b.pageId && a.anchor === b.anchor;
   return false;
