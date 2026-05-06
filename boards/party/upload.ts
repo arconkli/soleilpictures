@@ -232,11 +232,15 @@ export default class UploadParty implements Party.Server {
   }
 
   r2Env(): R2Env | string {
+    // .trim() defensively — a trailing newline (e.g. from `echo "..." |
+    // npx partykit env add`) gets baked into the SigV4 credential and
+    // R2 returns 400. Cheap insurance against fat-finger env values.
+    const get = (k: string) => ((this.room.env[k] as string) || "").trim();
     const env = {
-      accountId:       (this.room.env.R2_ACCOUNT_ID as string)        || "",
-      bucket:          (this.room.env.R2_BUCKET as string)            || "",
-      accessKeyId:     (this.room.env.R2_ACCESS_KEY_ID as string)     || "",
-      secretAccessKey: (this.room.env.R2_SECRET_ACCESS_KEY as string) || "",
+      accountId:       get("R2_ACCOUNT_ID"),
+      bucket:          get("R2_BUCKET"),
+      accessKeyId:     get("R2_ACCESS_KEY_ID"),
+      secretAccessKey: get("R2_SECRET_ACCESS_KEY"),
     };
     const missing: string[] = [];
     if (!env.accountId)       missing.push("R2_ACCOUNT_ID");
