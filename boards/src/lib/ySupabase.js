@@ -131,6 +131,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       const dt = subscribedAt ? `(after ${((Date.now() - subscribedAt) / 1000).toFixed(1)}s)` : '';
       console.log('[realtime] y:' + boardId, status, dt, err || '');
       if (status === 'SUBSCRIBED') {
+        subscribedAt = Date.now();
         subscribed = true;
         handshakeWith.clear();
         const sv = Y.encodeStateVector(ydoc);

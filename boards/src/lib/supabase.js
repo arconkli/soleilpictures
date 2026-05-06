@@ -120,12 +120,13 @@ if (supabase && typeof document !== 'undefined') {
   } catch (_) {}
 
   // Diagnostic: log socket lifecycle so we can correlate channel CLOSED
-  // events with transport-level activity (token refreshes, focus events,
-  // server-side disconnects).
+  // events with transport-level activity. The hooks live on
+  // realtime.socketAdapter, not realtime itself in v2.105.
   try {
-    supabase.realtime.onOpen?.(() => console.log('[realtime] SOCKET open'));
-    supabase.realtime.onClose?.((e) => console.log('[realtime] SOCKET close', e?.code, e?.reason));
-    supabase.realtime.onError?.((e) => console.log('[realtime] SOCKET error', e?.message || e));
+    const sa = supabase.realtime.socketAdapter;
+    sa?.onOpen?.(() => console.log('[realtime] SOCKET open'));
+    sa?.onClose?.((e) => console.log('[realtime] SOCKET close', e?.code, e?.reason || ''));
+    sa?.onError?.((e) => console.log('[realtime] SOCKET error', e?.message || e));
   } catch (_) {}
 }
 
