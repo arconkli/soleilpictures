@@ -65,11 +65,19 @@ export function LiveCursor({ x, y, name, color }) {
   React.useEffect(() => {
     const now = performance.now();
     const buf = bufferRef.current;
-    // De-dupe: identical position from a stationary peer doesn't add a
-    // new sample (the existing tail already reflects it).
     const tail = buf[buf.length - 1];
-    if (!tail || tail.x !== x || tail.y !== y) buf.push({ t: now, x, y });
-    // Discard samples older than the buffer window.
+    if (!tail || tail.x !== x || tail.y !== y) {
+      // If the peer was stationary for a while (long gap since last
+      // sample), synthesize a "just-before-motion" sample at their old
+      // position so the first motion segment has a normal-length curve
+      // instead of spanning the whole idle window. Without this the
+      // Catmull-Rom curve at the start of motion has weird tangents
+      // because P0 (the stale stationary sample) is far in the past.
+      if (tail && now - tail.t > 350) {
+        buf.push({ t: now - 250, x: tail.x, y: tail.y });
+      }
+      buf.push({ t: now, x, y });
+    }
     const cutoff = now - BUFFER_MS;
     while (buf.length > 2 && buf[0].t < cutoff) buf.shift();
   }, [x, y]);
@@ -92,23 +100,44 @@ export function LiveCursor({ x, y, name, color }) {
     const tick = () => {
       const buf = bufferRef.current;
       const renderT = performance.now() - RENDER_DELAY_MS;
-      let rx = buf[buf.length - 1].x, ry = buf[buf.length - 1].y;
+      const last = buf[buf.length - 1];
+      let rx = last.x, ry = last.y;
       // Walk the buffer to find the segment bracketing renderT.
+      let handled = false;
       for (let i = 0; i < buf.length - 1; i++) {
         const a = buf[i], b = buf[i + 1];
-        if (renderT < a.t) { rx = a.x; ry = a.y; break; }
+        if (renderT < a.t) { rx = a.x; ry = a.y; handled = true; break; }
         if (renderT >= a.t && renderT <= b.t) {
           const span = Math.max(1, b.t - a.t);
           const p = (renderT - a.t) / span;
-          // Tangent neighbors — fall back to the segment endpoints at
-          // the buffer edges so we degrade gracefully to linear interp.
           const prev = i > 0 ? buf[i - 1] : a;
           const next = i + 2 < buf.length ? buf[i + 2] : b;
           rx = cmr(prev.x, a.x, b.x, next.x, p);
           ry = cmr(prev.y, a.y, b.y, next.y, p);
+          handled = true;
           break;
         }
-        // renderT after the last sample — clamp to newest (peer stalled).
+      }
+      // renderT past the last sample (peer stopped broadcasting). Don't
+      // snap — coast forward with the last segment's velocity, decaying
+      // to zero over EASE_OUT_MS so the cursor eases to a stop instead
+      // of slamming.
+      if (!handled && buf.length >= 2) {
+        const a = buf[buf.length - 2], b = buf[buf.length - 1];
+        const segSpan = Math.max(1, b.t - a.t);
+        const vx = (b.x - a.x) / segSpan;
+        const vy = (b.y - a.y) / segSpan;
+        const overshoot = renderT - b.t;
+        const EASE_OUT_MS = 200;
+        const decay = Math.max(0, 1 - overshoot / EASE_OUT_MS);
+        // Integrate decaying velocity: ∫(1 - t/T)dt from 0 to overshoot
+        // = overshoot - overshoot²/(2T). Clamps after EASE_OUT_MS.
+        const t = Math.min(overshoot, EASE_OUT_MS);
+        const dist = t - (t * t) / (2 * EASE_OUT_MS);
+        rx = b.x + vx * dist;
+        ry = b.y + vy * dist;
+        // Suppress any pixel-level wiggle once the decay is done.
+        if (decay <= 0) { rx = b.x + vx * (EASE_OUT_MS / 2); ry = b.y + vy * (EASE_OUT_MS / 2); }
       }
       if (ref.current) ref.current.style.transform = `translate(${rx}px, ${ry}px)`;
       raf = requestAnimationFrame(tick);
