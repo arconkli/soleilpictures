@@ -42,66 +42,59 @@ export function Avatar({ name, color, size = 22, ring }) {
 
 // Constant-rate chase: each frame moves the rendered position a fixed
 // fraction of the remaining distance toward the latest reported (x, y).
-// Dead-reckoning cursor renderer. At low broadcast rates (4Hz = 250ms
-// between samples) a plain lerp pulses — fast move, slow stall, fast
-// move. We instead estimate the peer's velocity from consecutive
-// samples and extrapolate forward between updates so the cursor keeps
-// moving naturally during the gap. When the next sample arrives, lerp
-// gently corrects any drift between predicted and actual position.
+// Snapshot interpolation cursor renderer. We buffer the last ~1s of
+// samples and render at virtual_time = now - RENDER_DELAY_MS, so we
+// always have a future sample to interpolate toward. Each rAF frame
+// finds the two buffered samples bracketing virtual_time and lerps
+// linearly between them — cursor moves at peer's actual velocity with
+// no overshoot, perfectly smooth in-between frames between known
+// positions.
 //
-// Velocity is smoothed via EMA so a single noisy sample doesn't snap
-// the prediction. Extrapolation is capped at MAX_EXTRAPOLATE_MS so a
-// stalled peer (no further samples) doesn't fly off the screen.
-const LERP = 0.22;                 // correction speed toward predicted target
-const VEL_SMOOTH = 0.5;            // EMA factor for velocity (0 = none, 1 = full new)
-const MAX_EXTRAPOLATE_MS = 400;    // cap forward prediction; clamps if peer stalls
+// Trade-off: cursor lags real-time by RENDER_DELAY_MS (~200ms). That's
+// invisible to the operator (you don't see your own latency) and is
+// the only way to get genuinely smooth motion from low-rate samples
+// without overshoot.
+const RENDER_DELAY_MS = 200;       // ~one sample interval at 4Hz
+const BUFFER_MS = 1500;            // discard samples older than this
 
 export function LiveCursor({ x, y, name, color }) {
   const ref = React.useRef(null);
-  // Sample history — the most-recent two reported positions + their
-  // arrival times, used to estimate velocity.
-  const sampleRef = React.useRef({ x, y, t: performance.now() });
-  const velRef = React.useRef({ vx: 0, vy: 0 });
-  const currentRef = React.useRef(null); // rendered position; null = snap to first sample
+  const bufferRef = React.useRef([{ t: performance.now(), x, y }]);
 
-  // On every prop change, fold the new sample into our velocity estimate.
+  // Append the latest sample to the buffer on every prop change.
   React.useEffect(() => {
     const now = performance.now();
-    const prev = sampleRef.current;
-    const dt = Math.max(1, now - prev.t);    // ms; guard against /0
-    if (currentRef.current !== null) {
-      // Instantaneous velocity from the gap, smoothed against the
-      // running estimate so a single noisy sample doesn't snap.
-      const ivx = (x - prev.x) / dt;
-      const ivy = (y - prev.y) / dt;
-      velRef.current = {
-        vx: velRef.current.vx * (1 - VEL_SMOOTH) + ivx * VEL_SMOOTH,
-        vy: velRef.current.vy * (1 - VEL_SMOOTH) + ivy * VEL_SMOOTH,
-      };
-    }
-    sampleRef.current = { x, y, t: now };
+    const buf = bufferRef.current;
+    // De-dupe: identical position from a stationary peer doesn't add a
+    // new sample (the existing tail already reflects it).
+    const tail = buf[buf.length - 1];
+    if (!tail || tail.x !== x || tail.y !== y) buf.push({ t: now, x, y });
+    // Discard samples older than the buffer window.
+    const cutoff = now - BUFFER_MS;
+    while (buf.length > 2 && buf[0].t < cutoff) buf.shift();
   }, [x, y]);
 
   React.useEffect(() => {
     let raf = 0;
     const tick = () => {
-      const s = sampleRef.current;
-      const v = velRef.current;
-      // First frame: snap to the initial reported position so we don't
-      // glide in from (0, 0).
-      if (currentRef.current === null) currentRef.current = { x: s.x, y: s.y };
-      const c = currentRef.current;
-      // Extrapolate where the peer "should" be right now from the last
-      // known sample + estimated velocity. Cap the extrapolation window.
-      const elapsed = Math.min(MAX_EXTRAPOLATE_MS, performance.now() - s.t);
-      const targetX = s.x + v.vx * elapsed;
-      const targetY = s.y + v.vy * elapsed;
-      const next = {
-        x: c.x + (targetX - c.x) * LERP,
-        y: c.y + (targetY - c.y) * LERP,
-      };
-      currentRef.current = next;
-      if (ref.current) ref.current.style.transform = `translate(${next.x}px, ${next.y}px)`;
+      const buf = bufferRef.current;
+      const renderT = performance.now() - RENDER_DELAY_MS;
+      let rx = buf[buf.length - 1].x, ry = buf[buf.length - 1].y;
+      // Walk the buffer to find the segment bracketing renderT.
+      for (let i = 0; i < buf.length - 1; i++) {
+        const a = buf[i], b = buf[i + 1];
+        if (renderT >= a.t && renderT <= b.t) {
+          const span = Math.max(1, b.t - a.t);
+          const p = (renderT - a.t) / span;
+          rx = a.x + (b.x - a.x) * p;
+          ry = a.y + (b.y - a.y) * p;
+          break;
+        }
+        // renderT before any sample we have — clamp to oldest.
+        if (renderT < a.t) { rx = a.x; ry = a.y; break; }
+        // renderT after the last sample — clamp to newest (peer stalled).
+      }
+      if (ref.current) ref.current.style.transform = `translate(${rx}px, ${ry}px)`;
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
