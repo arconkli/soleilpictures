@@ -69,6 +69,20 @@ export async function leaveWorkspace(workspaceId) {
   if (error) throw error;
 }
 
+// Members of a workspace. Used for the sidebar member-dot stack and the
+// "Nx" badge on shared workspaces in the rail. RLS already restricts
+// the caller to workspaces they themselves are a member of.
+export async function listWorkspaceMembers(workspaceId) {
+  if (!workspaceId) return [];
+  const { data, error } = await supabase
+    .from('workspace_members')
+    .select('user_id, role, created_at')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 // ── Boards ─────────────────────────────────────────────────────────────────
 
 export async function listBoards(workspaceId) {

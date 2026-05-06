@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { pickPresenceColor } from './lib/presenceColor.js';
+import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
+import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { BoardPicker } from './components/BoardPicker.jsx';
@@ -818,6 +820,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Workspace-level presence — shows everyone in the workspace, regardless
   // of which board they're on. Click an avatar to teleport to their board.
+  // Members of the active workspace — drives the sidebar header dot
+  // stack and the "shared" badge on each rail workspace button.
+  const { members: workspaceMembers } = useWorkspaceMembers(workspace.id);
+  // Per-workspace member counts — needed in the rail to show the "Nx"
+  // shared badge on every workspace button (not just the active one).
+  // Uses the role+joined data already loaded by useAllWorkspaces; if a
+  // workspace doesn't appear here it's treated as solo.
+  const memberCountByWorkspace = useMemo(() => {
+    // We only have the active workspace's full member list. For all
+    // OTHER workspaces, we infer "shared" from the fact that you weren't
+    // the creator (created_by !== you) — those are guaranteed to have
+    // at least 2 members (you + the creator). For workspaces you own,
+    // we honestly only know the count for the active one.
+    const m = new Map();
+    if (workspace?.id) m.set(workspace.id, workspaceMembers.length);
+    return m;
+  }, [workspace?.id, workspaceMembers]);
+
   const { peers: wsPeers, status: wsStatus } = useWorkspacePresence({
     workspaceId: workspace.id,
     user: { id: user.id, name: userInfo.name, email: user.email, color: pickPresenceColor(user.id) },
@@ -1005,25 +1025,63 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             </div>
           )}
           <div className="rail-ws-list">
-            {(workspaces || []).map(w => {
-              const isActive = w.id === workspace.id;
-              const isOwner = w.created_by === user.id;
-              const isMine = w.id === personalWorkspaceId;
-              const action = isOwner ? 'delete' : 'leave';
-              const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
+            {/* Workspaces are split into two groups: ones you own (personal
+                first, then any shared workspaces you created) and ones
+                shared with you. A thin divider sits between the groups so
+                the rail reads as "yours · theirs" at a glance. */}
+            {(() => {
+              const list = workspaces || [];
+              const mine   = list.filter(w => w.created_by === user.id)
+                                 .sort((a, b) => {
+                                   // Personal workspace first; then by created_at.
+                                   if (a.id === personalWorkspaceId) return -1;
+                                   if (b.id === personalWorkspaceId) return 1;
+                                   return (a.created_at || '').localeCompare(b.created_at || '');
+                                 });
+              const shared = list.filter(w => w.created_by !== user.id)
+                                 .sort((a, b) => (a._joinedAt || '').localeCompare(b._joinedAt || ''));
+              const renderWs = (w) => {
+                const isActive = w.id === workspace.id;
+                const isOwner = w.created_by === user.id;
+                const isPersonal = w.id === personalWorkspaceId;
+                const action = isOwner ? 'delete' : 'leave';
+                const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
+                // Member count: we only know the exact number for the
+                // active workspace. For OTHER shared workspaces (ones we
+                // didn't create), we know there are >=2 members. For other
+                // owned workspaces we don't know without fetching, so the
+                // badge only renders when we're sure it's shared.
+                const knownCount = memberCountByWorkspace.get(w.id);
+                const definitelyShared = !isOwner || (knownCount && knownCount > 1);
+                const badgeText = knownCount && knownCount > 1
+                  ? String(knownCount)
+                  : (definitelyShared ? '·' : null);
+                const ctxLabel = isPersonal ? 'personal'
+                              : isOwner ? 'you own'
+                              : 'shared with you';
+                return (
+                  <button key={w.id}
+                          className={`rail-ws ${isActive ? 'active' : ''} ${isOwner ? 'is-owner' : 'is-shared'}`}
+                          onClick={() => { onSwitchWorkspace(w.id); setCurrentSurface('board'); }}
+                          onContextMenu={(e) => { e.preventDefault(); removeWorkspace(w, action); }}
+                          title={`${w.name} · ${ctxLabel}${knownCount ? ` · ${knownCount} member${knownCount === 1 ? '' : 's'}` : ''} · right-click to ${action}`}>
+                    {initial}
+                    {badgeText && <span className="rail-ws-badge">{badgeText}</span>}
+                  </button>
+                );
+              };
               return (
-                <button key={w.id}
-                        className={`rail-ws ${isActive ? 'active' : ''}`}
-                        onClick={() => { onSwitchWorkspace(w.id); setCurrentSurface('board'); }}
-                        onContextMenu={(e) => { e.preventDefault(); removeWorkspace(w, action); }}
-                        title={`${w.name}${isMine ? ' · personal' : (isOwner ? '' : ' · shared with you')} · right-click to ${action}`}>
-                  {initial}
-                </button>
+                <>
+                  {mine.map(renderWs)}
+                  {shared.length > 0 && <div className="rail-ws-divider" aria-hidden="true" />}
+                  {shared.map(renderWs)}
+                  <div className="rail-ws-divider" aria-hidden="true" />
+                  <button className="rail-add" onClick={addNewWorkspace} title="New workspace" aria-label="New workspace">
+                    <Icon as={Plus} size={14} />
+                  </button>
+                </>
               );
-            })}
-            <button className="rail-add" onClick={addNewWorkspace} title="New workspace" aria-label="New workspace">
-              <Icon as={Plus} size={14} />
-            </button>
+            })()}
           </div>
           <div className="rail-foot">
             <button className="rail-icon" title="Settings (⌘.)" aria-label="Settings"
@@ -1055,6 +1113,46 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <Icon as={PanelLeftClose} size={14} />
             </button>
           </div>
+          {(() => {
+            // Subtitle + member dots. Personal/Yours/Shared makes the
+            // ownership context explicit; the dot stack reflects who's a
+            // member of THIS workspace, with online members getting a
+            // bright ring derived from wsPeers.
+            const isOwner = workspace.created_by === user.id;
+            const isPersonal = workspace.id === personalWorkspaceId;
+            const onlineIds = new Set((wsPeers || []).map(p => p?.user?.id).filter(Boolean));
+            const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
+            const ownerPeer = peerById.get(workspace.created_by);
+            const subtitle = isPersonal
+              ? 'Personal'
+              : isOwner
+                ? 'Yours'
+                : `Shared by ${ownerPeer?.user?.email || ownerPeer?.user?.name || 'someone'}`;
+            const visibleMembers = workspaceMembers.slice(0, 6);
+            const overflow = workspaceMembers.length - visibleMembers.length;
+            return (
+              <>
+                <div className="sb-mid-subtitle">{subtitle}</div>
+                {workspaceMembers.length > 0 && (
+                  <div className="sb-members" title={`${workspaceMembers.length} member${workspaceMembers.length === 1 ? '' : 's'}`}>
+                    {visibleMembers.map(m => {
+                      const online = onlineIds.has(m.user_id);
+                      const peer = peerById.get(m.user_id);
+                      const tip = peer?.user?.name || peer?.user?.email
+                        || (m.user_id === user.id ? 'You' : 'Member');
+                      return (
+                        <span key={m.user_id}
+                              className={`sb-member ${online ? 'is-online' : ''}`}
+                              style={{ background: pickPresenceColor(m.user_id) }}
+                              title={tip + (online ? ' · online' : '')} />
+                      );
+                    })}
+                    {overflow > 0 && <span className="sb-member sb-member-overflow">+{overflow}</span>}
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           <button className="sb-search" onClick={() => setPickerOpen(true)} title="Search boards (⌘K)">
             <Icon as={Search} size={13} />
@@ -1078,26 +1176,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
 
           <div className="sb-eyebrow">BOARDS</div>
-          {recents.recents
-            .map(id => boards[id])
-            .filter(Boolean)
-            .map(b => {
-              const isActive = b.id === currentId && currentSurface === 'board';
-              return (
-                <div key={b.id}
-                     className={`sb-row sb-row-board ${isActive ? 'active' : ''}`}
-                     draggable
-                     onDragStart={(e) => {
-                       e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: b.id, name: b.name }));
-                       e.dataTransfer.effectAllowed = 'copy';
-                     }}
-                     onClick={() => { setStack([b.id]); setCurrentSurface('board'); }}
-                     title="Click to open · drag onto a canvas to embed">
-                  <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : 'var(--ink-3)' }} />
-                  <span className="sb-row-label">{b.name}</span>
-                </div>
-              );
-            })}
+          <SidebarBoardTree
+            boards={boards}
+            workspaceId={workspace.id}
+            activeBoardId={currentSurface === 'board' ? currentId : null}
+            onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
+            peersHereByBoard={peersHereByBoard}
+            peersBelowByBoard={peersBelowByBoard}
+            onJumpToPeer={jumpToPeer}
+          />
           <div className="sb-row sb-row-all" onClick={() => setPickerOpen(true)}>
             <Icon as={MoreHorizontal} size={14} />
             <span className="sb-row-label">All boards</span>
