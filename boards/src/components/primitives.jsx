@@ -46,15 +46,13 @@ export function Avatar({ name, color, size = 22, ring }) {
 // samples and render at virtual_time = now - RENDER_DELAY_MS, so we
 // always have a future sample to interpolate toward. Each rAF frame
 // finds the two buffered samples bracketing virtual_time and lerps
-// linearly between them — cursor moves at peer's actual velocity with
-// no overshoot, perfectly smooth in-between frames between known
-// positions.
+// linearly between them.
 //
-// Trade-off: cursor lags real-time by RENDER_DELAY_MS (~200ms). That's
-// invisible to the operator (you don't see your own latency) and is
-// the only way to get genuinely smooth motion from low-rate samples
-// without overshoot.
-const RENDER_DELAY_MS = 200;       // ~one sample interval at 4Hz
+// On PartyKit (high broadcast rate), 80ms of render delay is enough to
+// always have a future sample for interpolation while keeping the
+// perceived cursor latency near-zero. On Supabase Realtime (4Hz) we
+// needed 200ms — bump back up here if you ever roll back to that path.
+const RENDER_DELAY_MS = 80;
 const BUFFER_MS = 1500;            // discard samples older than this
 
 export function LiveCursor({ x, y, name, color }) {
