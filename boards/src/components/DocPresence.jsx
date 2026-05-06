@@ -60,7 +60,11 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
       const now = performance.now();
       states.forEach((state, clientId) => {
         if (!state?.user) return;
-        if (state.user.id === currentUser?.id) return;
+        // Filter self by awareness clientID (per-tab identity), not by
+        // user.id — so the same account in two tabs/devices still sees
+        // its other tab as a peer (useful for testing + valid production
+        // case). Same-user dedup happens below by user.id.
+        if (clientId === aw.clientID) return;
         const cursor = state.docCursor;
         const caret  = state.docCaret;
         const sel    = state.docSelection;
@@ -94,7 +98,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
     refresh();
     aw.on('change', refresh);
     return () => aw.off('change', refresh);
-  }, [getAwareness, boardId, pageId, currentUser?.id]);
+  }, [getAwareness, boardId, pageId]);
 
   // Without this, the typing pulse / idle fade only animates on awareness
   // changes — so when a peer goes idle the caret stays "active" until the
