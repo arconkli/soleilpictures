@@ -24,7 +24,11 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwareness
 import { supabase, bounceRealtime } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 
-const AWARENESS_THROTTLE_MS = 33;
+// 100ms = 10 broadcasts/sec/user. Receiver-side rAF lerp interpolates
+// between samples for smoothness, so dropping from 30Hz → 10Hz is barely
+// perceptible visually but cuts our broadcast pressure 3x. Supabase
+// broadcast rate-limits had been pushing us into REST fallback at 30Hz.
+const AWARENESS_THROTTLE_MS = 100;
 const REBUILD_BACKOFF_MS = 2000;
 const WATCHDOG_TIMEOUT_MS = 5 * 60 * 1000;
 
