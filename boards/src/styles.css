@@ -256,20 +256,24 @@ body {
   grid-template-columns: 240px 1fr;
   height: 100vh;
   background: var(--bg-0);
+  transition: grid-template-columns 180ms var(--ease);
 }
-.app.sb-collapsed { grid-template-columns: 56px 1fr; }
+/* Compact mode collapses the entire sidebar to zero — the open-button
+   moves into the topbar (.tb-left). */
+.app.sb-collapsed { grid-template-columns: 0 1fr; }
 
 /* ─────────────────────────────── Sidebar ────────────────────────────────── */
 
-/* Two-tier layout: 40px workspace rail + 220px boards/utilities column.
-   Compact mode hides the middle column; the rail stays so workspace
-   switching + settings + you remain reachable. */
+/* Single-column sidebar. Workspace switcher is a Notion-style popover
+   triggered from the header (.sb-ws-trigger); footer holds settings +
+   the avatar/sign-out. The old icon rail has been removed.            */
 .sidebar {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   border-right: 1px solid var(--line-1);
   background: var(--bg-1);
   overflow: hidden;
+  min-width: 0;
 }
 
 /* ── Rail (left, 40px) ── */
@@ -408,19 +412,157 @@ body {
 
 /* ── Middle column (220px) ── */
 .sb-mid {
-  width: 220px;
-  flex-shrink: 0;
+  width: 100%;
+  flex: 1 1 auto;
   display: flex; flex-direction: column;
-  padding: 10px 8px 10px;
+  padding: 10px 8px 8px;
   gap: 1px;
   overflow-y: auto;
   background: var(--bg-1);
+  min-height: 0;
 }
 .sb-mid-head {
+  position: relative; /* anchor for the workspace popover */
   display: flex; align-items: center; justify-content: space-between;
   gap: 6px;
   padding: 4px 8px 12px;
 }
+/* Workspace switcher trigger — replaces the old .sb-mid-title +
+   icon-rail combo. Click opens .ws-menu (rendered as a sibling within
+   .sb-mid-head, positioned absolutely below).                          */
+.sb-ws-trigger {
+  flex: 1 1 auto;
+  appearance: none; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--ink-0);
+  font: 600 13px/1.4 var(--font-sans);
+  min-width: 0;
+  transition: background var(--dur-fast) var(--ease);
+}
+.sb-ws-trigger:hover { background: var(--bg-hov); }
+.sb-ws-avatar {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font: 700 10px/1 var(--font-sans);
+  color: var(--bg-0);
+  flex-shrink: 0;
+}
+.sb-ws-name {
+  flex: 1 1 auto;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-align: left;
+}
+.sb-ws-chev {
+  color: var(--ink-3);
+  flex-shrink: 0;
+  transition: color var(--dur-fast) var(--ease);
+}
+.sb-ws-trigger:hover .sb-ws-chev { color: var(--ink-1); }
+
+/* Workspace popover — rendered inside .sb-mid-head; appears below the
+   trigger. Width matches the trigger area; max-height with internal
+   scroll for many-workspace cases.                                     */
+.ws-menu {
+  position: absolute;
+  top: calc(100% - 4px);
+  left: 4px;
+  right: 4px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.2);
+  padding: 6px;
+  z-index: 100;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.ws-menu-section {
+  font: 600 9.5px/1.3 var(--font-sans);
+  letter-spacing: 0.18em;
+  color: var(--ink-3);
+  padding: 8px 8px 4px;
+}
+.ws-menu-row {
+  appearance: none; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink-1);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.ws-menu-row:hover { background: var(--bg-hov); color: var(--ink-0); }
+.ws-menu-row.is-active { background: var(--soleil-soft); color: var(--ink-0); }
+.ws-menu-avatar {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  display: grid; place-items: center;
+  font: 700 11px/1 var(--font-sans);
+  color: var(--bg-0);
+  flex-shrink: 0;
+}
+.ws-menu-avatar-add {
+  background: transparent;
+  border: 1px dashed var(--line-3);
+  color: var(--ink-2);
+}
+.ws-menu-text {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column;
+  min-width: 0;
+}
+.ws-menu-name {
+  font: 600 12.5px/1.3 var(--font-sans);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ws-menu-sub {
+  font: 500 10.5px/1.3 var(--font-sans);
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ws-menu-check {
+  color: var(--soleil);
+  flex-shrink: 0;
+}
+.ws-menu-divider {
+  height: 1px; background: var(--line-2);
+  margin: 4px 6px;
+}
+.ws-menu-add {
+  color: var(--ink-2);
+}
+
+/* Sidebar footer — settings + avatar/sign-out, anchored at the bottom. */
+.sb-foot {
+  margin-top: auto;
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 6px 2px;
+  border-top: 1px solid var(--line-1);
+}
+.sb-foot-icon, .sb-foot-avatar {
+  appearance: none; border: 0; background: transparent;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid; place-items: center;
+  color: var(--ink-2);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.sb-foot-icon:hover, .sb-foot-avatar:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sb-foot-avatar {
+  margin-left: auto;
+  background: var(--bg-3);
+  font: 700 11px/1 var(--font-sans);
+  color: var(--ink-0);
+}
+.sb-foot-avatar:hover { background: var(--bg-4); }
 .sb-mid-title {
   font: 600 13px/1.4 var(--font-sans);
   color: var(--ink-0);
@@ -540,8 +682,8 @@ body {
   padding: 12px 12px 4px;
 }
 
-/* Compact mode: hide the middle column entirely. */
-.sb-collapsed .sb-mid { display: none; }
+/* Compact mode collapses the entire sidebar to zero width via the
+   .app grid rule above; nothing extra needed here.                    */
 
 /* Light-theme tweaks — the rail needs to feel distinct from the column,
    the active board row needs to actually look active (not cream-on-cream),

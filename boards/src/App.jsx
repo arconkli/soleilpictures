@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
+import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { BoardPicker } from './components/BoardPicker.jsx';
@@ -148,6 +149,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [rootBoard.id]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Workspace switcher popover (in the sidebar header). Click-outside +
+  // Escape close it; selecting a workspace also closes.
+  const [wsMenuOpen, setWsMenuOpen] = useState(false);
 
   const currentId = stack[stack.length - 1];
   const currentBoard = boards[currentId] || rootBoard;
@@ -1010,114 +1014,48 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
       <aside className="sidebar">
-        {/* Left rail — workspace switcher + settings + you. Always visible,
-            stays functional even when the middle column is collapsed. */}
-        <div className="rail">
-          {tweak.compactSidebar ? (
-            <button className="rail-toggle" title="Open sidebar (⌘B)"
-                    aria-label="Open sidebar"
-                    onClick={() => setTweak('compactSidebar', false)}>
-              <Icon as={PanelLeftOpen} size={16} />
-            </button>
-          ) : (
-            <div className="rail-brand" title="Soleil">
-              <SoleilMark size={18} color="var(--soleil)" glow />
-            </div>
-          )}
-          <div className="rail-ws-list">
-            {/* Workspaces are split into two groups: ones you own (personal
-                first, then any shared workspaces you created) and ones
-                shared with you. A thin divider sits between the groups so
-                the rail reads as "yours · theirs" at a glance. */}
-            {(() => {
-              const list = workspaces || [];
-              const mine   = list.filter(w => w.created_by === user.id)
-                                 .sort((a, b) => {
-                                   // Personal workspace first; then by created_at.
-                                   if (a.id === personalWorkspaceId) return -1;
-                                   if (b.id === personalWorkspaceId) return 1;
-                                   return (a.created_at || '').localeCompare(b.created_at || '');
-                                 });
-              const shared = list.filter(w => w.created_by !== user.id)
-                                 .sort((a, b) => (a._joinedAt || '').localeCompare(b._joinedAt || ''));
-              const renderWs = (w) => {
-                const isActive = w.id === workspace.id;
-                const isOwner = w.created_by === user.id;
-                const isPersonal = w.id === personalWorkspaceId;
-                const action = isOwner ? 'delete' : 'leave';
-                const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
-                // Member count: we only know the exact number for the
-                // active workspace. For OTHER shared workspaces (ones we
-                // didn't create), we know there are >=2 members. For other
-                // owned workspaces we don't know without fetching, so the
-                // badge only renders when we're sure it's shared.
-                const knownCount = memberCountByWorkspace.get(w.id);
-                const definitelyShared = !isOwner || (knownCount && knownCount > 1);
-                const badgeText = knownCount && knownCount > 1
-                  ? String(knownCount)
-                  : (definitelyShared ? '·' : null);
-                const ctxLabel = isPersonal ? 'personal'
-                              : isOwner ? 'you own'
-                              : 'shared with you';
-                return (
-                  <button key={w.id}
-                          className={`rail-ws ${isActive ? 'active' : ''} ${isOwner ? 'is-owner' : 'is-shared'}`}
-                          onClick={() => { onSwitchWorkspace(w.id); setCurrentSurface('board'); }}
-                          onContextMenu={(e) => { e.preventDefault(); removeWorkspace(w, action); }}
-                          title={`${w.name} · ${ctxLabel}${knownCount ? ` · ${knownCount} member${knownCount === 1 ? '' : 's'}` : ''} · right-click to ${action}`}>
-                    {initial}
-                    {badgeText && <span className="rail-ws-badge">{badgeText}</span>}
-                  </button>
-                );
-              };
-              return (
-                <>
-                  {mine.map(renderWs)}
-                  {shared.length > 0 && <div className="rail-ws-divider" aria-hidden="true" />}
-                  {shared.map(renderWs)}
-                  <div className="rail-ws-divider" aria-hidden="true" />
-                  <button className="rail-add" onClick={addNewWorkspace} title="New workspace" aria-label="New workspace">
-                    <Icon as={Plus} size={14} />
-                  </button>
-                </>
-              );
-            })()}
-          </div>
-          <div className="rail-foot">
-            <button className="rail-icon" title="Settings (⌘.)" aria-label="Settings"
-                    onClick={() => document.querySelector('.twk-gear')?.click()}>
-              <Icon as={Settings} size={14} />
-            </button>
-            <button className="rail-avatar" title={user.email}
-                    onClick={async () => {
-                      const ok = await feedback.confirm({
-                        title: 'Sign out',
-                        message: `Sign out of ${user.email}?`,
-                        confirmLabel: 'Sign out',
-                      });
-                      if (ok) signOut?.();
-                    }}>
-              {(user.email?.[0] || 'Y').toUpperCase()}
-            </button>
-          </div>
-        </div>
-
-        {/* Middle column — workspace name + search + nav rows + recent boards.
-            Hidden in compact mode (CSS rule on .sb-collapsed .sb-mid). */}
+        {/* Single-column sidebar. Workspace switcher is now a popover
+            triggered from the header (Notion-style) instead of the
+            old icon rail. Settings + avatar live at the bottom. */}
         <div className="sb-mid">
           <div className="sb-mid-head">
-            <span className="sb-mid-title" title={workspace.name}>{workspace.name}</span>
+            <button className="sb-ws-trigger"
+                    onClick={() => setWsMenuOpen(o => !o)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      const action = workspace.created_by === user.id ? 'delete' : 'leave';
+                      removeWorkspace(workspace, action);
+                    }}
+                    title={`${workspace.name} · click to switch`}
+                    aria-haspopup="menu" aria-expanded={wsMenuOpen}>
+              <span className="sb-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }}>
+                {(workspace.name || '?').trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="sb-ws-name">{workspace.name}</span>
+              <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
             <button className="sb-mid-collapse"
                     onClick={() => setTweak('compactSidebar', !tweak.compactSidebar)}
                     title="Collapse sidebar (⌘B)" aria-label="Collapse sidebar">
               <Icon as={PanelLeftClose} size={14} />
             </button>
+            {wsMenuOpen && (
+              <WorkspaceMenu
+                workspaces={workspaces || []}
+                activeWorkspaceId={workspace.id}
+                personalWorkspaceId={personalWorkspaceId}
+                selfUserId={user.id}
+                wsPeers={wsPeers}
+                onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
+                onAddNew={addNewWorkspace}
+                onClose={() => setWsMenuOpen(false)}
+              />
+            )}
           </div>
           {(() => {
-            // Subtitle + member dots. Personal/Yours/Shared makes the
-            // ownership context explicit; the dot stack reflects who's a
-            // member of THIS workspace, with online members getting a
-            // bright ring derived from wsPeers.
+            // Subtitle + member dots for the ACTIVE workspace.
             const isOwner = workspace.created_by === user.id;
             const isPersonal = workspace.id === personalWorkspaceId;
             const onlineIds = new Set((wsPeers || []).map(p => p?.user?.id).filter(Boolean));
@@ -1189,12 +1127,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <Icon as={MoreHorizontal} size={14} />
             <span className="sb-row-label">All boards</span>
           </div>
+
+          {/* Footer — settings + avatar (sign-out). Pushed to the bottom
+              of the column with margin-top:auto. */}
+          <div className="sb-foot">
+            <button className="sb-foot-icon" title="Settings (⌘.)" aria-label="Settings"
+                    onClick={() => document.querySelector('.twk-gear')?.click()}>
+              <Icon as={Settings} size={14} />
+            </button>
+            <button className="sb-foot-avatar" title={user.email}
+                    onClick={async () => {
+                      const ok = await feedback.confirm({
+                        title: 'Sign out',
+                        message: `Sign out of ${user.email}?`,
+                        confirmLabel: 'Sign out',
+                      });
+                      if (ok) signOut?.();
+                    }}>
+              {(user.email?.[0] || 'Y').toUpperCase()}
+            </button>
+          </div>
         </div>
       </aside>
 
       <main className="main">
         <div className="topbar">
           <div className="tb-left">
+            {tweak.compactSidebar && (
+              <button className="tb-icon" title="Open sidebar (⌘B)" aria-label="Open sidebar"
+                      onClick={() => setTweak('compactSidebar', false)}>
+                <Icon as={PanelLeftOpen} size={16} />
+              </button>
+            )}
             <div className="crumbs">
               {crumbs.map((c, i) => (
                 <React.Fragment key={`${c.id}-${i}`}>
