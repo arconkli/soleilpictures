@@ -4827,6 +4827,38 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: flex; flex-direction: column;
   overflow: hidden;
   cursor: default;
+  position: relative;
+}
+/* Peer-presence dots floating in the top-right of the doc card preview.
+   Click a dot → jump to that peer's exact page + scroll inside the card.
+   Same visual language as BoardCardPresence (.bc-presence-dot) so the
+   breadcrumb trail feels uniform across canvas → boards → docs.       */
+.doc-card-presence {
+  position: absolute;
+  top: 6px; right: 8px;
+  display: inline-flex;
+  align-items: center;
+  z-index: 4;
+}
+.doc-card-presence-dot {
+  appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-1);
+  margin-left: -5px;
+  color: var(--bg-0);
+  font: 600 9px/1 var(--font-sans);
+  display: grid; place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 140ms var(--ease);
+}
+.doc-card-presence-dot:first-child { margin-left: 0; }
+.doc-card-presence-dot:hover { transform: scale(1.25); z-index: 2; }
+.doc-card-presence-dot.is-overflow {
+  background: var(--bg-3);
+  color: var(--ink-1);
+  cursor: default;
 }
 .doc-card-page {
   flex: 1 1 auto;

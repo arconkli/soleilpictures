@@ -104,6 +104,27 @@ export function RichDocCard({
   return (
     <>
       <div className="doc-card" onDoubleClick={(e) => { e.stopPropagation(); open('full'); }}>
+        {/* Peer-presence dots — shown on the card preview when peers are
+            inside this doc card. Same visual + interaction model as the
+            BoardCard presence stack so the breadcrumb trail (canvas →
+            board → doc card → page) reads consistently. */}
+        {peersOnCard.length > 0 && (
+          <div className="doc-card-presence" aria-label={`${peersOnCard.length} in this doc`}>
+            {peersOnCard.slice(0, 3).map(p => (
+              <button key={p.user?.id}
+                      className="doc-card-presence-dot"
+                      style={{ background: p.user?.color || '#4f8df8' }}
+                      title={`${p.user?.name || 'Someone'} — jump to their page`}
+                      onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(p.location); }}>
+                {(p.user?.name || p.user?.email || '?')[0].toUpperCase()}
+              </button>
+            ))}
+            {peersOnCard.length > 3 && (
+              <span className="doc-card-presence-dot is-overflow"
+                    title={`+${peersOnCard.length - 3} more`}>+{peersOnCard.length - 3}</span>
+            )}
+          </div>
+        )}
         <div className="doc-card-page" key={previewKey}>
           {card.title && <div className="doc-card-title">{card.title}</div>}
           {summary.firstPageName && summary.firstPageName !== card.title && (
