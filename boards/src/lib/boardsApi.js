@@ -158,22 +158,52 @@ export async function saveBoardSnapshot(boardId, ydoc) {
   syncCardIndex({ boardId, ydoc }).catch(e => console.warn('card_index sync failed', e));
 }
 
-// Project the board's Y.Map<'cards'> into Postgres `card_index`. Full-replace
-// for the board so deletes propagate. workspace_id is resolved from the
-// boards row so callers don't need to thread it through.
+// Project the board's Y.Map<'cards'> into Postgres `card_index`.
 //
-// Errors are logged but not thrown — this index is a derived secondary store
-// (entity_search uses it); the source of truth is the Y.Doc + board_state.
-// A failed sync just means search is briefly stale until the next save.
+// Throttled and de-duped because saveBoardSnapshot fires every 250ms while
+// users are active. Without throttle, two windows on the same board race
+// each other (DELETE → DELETE → INSERT(ok) → INSERT(409)) and burn the
+// REST API rate budget — which then starves the realtime websocket.
+//
+// Implementation:
+//   - UPSERT instead of DELETE+INSERT (no race; conflicting writes
+//     overwrite cleanly via the (board_id, card_id) unique key).
+//   - Per-board 10s throttle: subsequent calls within the window are
+//     coalesced into one trailing flush.
+//   - Orphan rows (cards deleted from the Y.Doc) are cleaned up by a
+//     single targeted DELETE only when we detect the row count differs.
+//
+// Errors are logged but not thrown — this index is derived state; the
+// source of truth is the Y.Doc + board_state.
+
+const SYNC_THROTTLE_MS = 10000;
+const _syncState = new Map();   // boardId → { last: timestamp, pending: timer, latestYdoc }
+
 export async function syncCardIndex({ boardId, ydoc }) {
   if (!supabase || !boardId || !ydoc) return;
-  // Resolve workspace from the boards row.
+  const state = _syncState.get(boardId) || { last: 0, pending: null };
+  state.latestYdoc = ydoc;
+  _syncState.set(boardId, state);
+
+  const now = Date.now();
+  if (state.pending) return;                       // already scheduled
+  const wait = Math.max(0, SYNC_THROTTLE_MS - (now - state.last));
+  state.pending = setTimeout(async () => {
+    state.pending = null;
+    state.last = Date.now();
+    await _doSyncCardIndex(boardId, state.latestYdoc);
+  }, wait);
+}
+
+async function _doSyncCardIndex(boardId, ydoc) {
+  if (!supabase || !boardId || !ydoc) return;
   const wsq = await supabase.from('boards').select('workspace_id').eq('id', boardId).maybeSingle();
   if (wsq.error) { console.warn('syncCardIndex resolve workspace', wsq.error); return; }
   const workspaceId = wsq.data?.workspace_id;
   if (!workspaceId) return;
   const cardsMap = ydoc.getMap('cards');
   const rows = [];
+  const liveIds = new Set();
   cardsMap.forEach((v, id) => {
     if (!v) return;
     const get = (k) => v?.get?.(k) ?? v?.[k];
@@ -188,13 +218,24 @@ export async function syncCardIndex({ boardId, ydoc }) {
       title: String(title).slice(0, 200),
       body: String(body).slice(0, 500),
     });
+    liveIds.add(id);
   });
-  // Wipe this board's rows then re-insert (full replace).
-  const del = await supabase.from('card_index').delete().eq('board_id', boardId);
-  if (del.error) { console.warn('syncCardIndex delete', del.error); return; }
-  if (rows.length === 0) return;
-  const ins = await supabase.from('card_index').insert(rows);
-  if (ins.error) console.warn('syncCardIndex insert', ins.error);
+
+  if (rows.length > 0) {
+    // UPSERT on (board_id, card_id). Idempotent — no race if two windows
+    // run this concurrently.
+    const ups = await supabase.from('card_index').upsert(rows, { onConflict: 'board_id,card_id' });
+    if (ups.error) { console.warn('syncCardIndex upsert', ups.error); return; }
+  }
+
+  // Clean up any rows for cards that no longer exist on the board.
+  // Cheap query because card counts per board are typically small.
+  const existing = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
+  if (existing.error) return;
+  const orphanIds = (existing.data || []).map(r => r.card_id).filter(id => !liveIds.has(id));
+  if (orphanIds.length > 0) {
+    await supabase.from('card_index').delete().eq('board_id', boardId).in('card_id', orphanIds);
+  }
 }
 
 // ── Version history ─────────────────────────────────────────────────────────
