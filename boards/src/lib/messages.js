@@ -54,12 +54,17 @@ export async function listMessageReadsForUser({ userId }) {
   return data || [];
 }
 
-export async function sendMessage({ workspaceId, boardId, dmPeerId, senderId, body, attachments = [], mentions = [] }) {
+export async function sendMessage({ workspaceId, boardId, dmPeerId, senderId, senderEmail, body, attachments = [], mentions = [] }) {
+  // sender_email is also stamped server-side via the
+  // messages_set_sender_email trigger (migration 0019), so this is
+  // belt-and-suspenders. We pass it from the client too so the
+  // returned row has the value populated without a SELECT roundtrip.
   const row = {
     workspace_id: workspaceId,
     board_id: boardId || null,
     dm_peer_id: dmPeerId || null,
     sender_id: senderId,
+    sender_email: senderEmail || null,
     body,
     attachments,
     mentions,
@@ -67,6 +72,46 @@ export async function sendMessage({ workspaceId, boardId, dmPeerId, senderId, bo
   const { data, error } = await supabase.from('messages').insert(row).select().single();
   if (error) { console.warn('sendMessage', error); throw error; }
   return data;
+}
+
+// Per-thread message search via Postgres ILIKE on body. Both helpers
+// return rows in the same shape as the regular fetchers so callers
+// can swap them in without touching MessageBubble logic.
+
+function escapeIlike(q) {
+  // Postgres ILIKE pattern escape — % and _ are wildcards.
+  return String(q || '').replace(/[\\%_]/g, ch => '\\' + ch);
+}
+
+export async function searchMessagesInBoard({ boardId, query, limit = 50 }) {
+  const q = String(query || '').trim();
+  if (!q || !boardId) return [];
+  const pattern = '%' + escapeIlike(q) + '%';
+  const { data, error } = await supabase.from('messages')
+    .select('*')
+    .eq('board_id', boardId)
+    .is('deleted_at', null)
+    .ilike('body', pattern)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) { console.warn('searchMessagesInBoard', error); return []; }
+  return data || [];
+}
+
+export async function searchMessagesInDm({ workspaceId, userA, userB, query, limit = 50 }) {
+  const q = String(query || '').trim();
+  if (!q || !workspaceId) return [];
+  const pattern = '%' + escapeIlike(q) + '%';
+  const { data, error } = await supabase.from('messages')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .or(`and(sender_id.eq.${userA},dm_peer_id.eq.${userB}),and(sender_id.eq.${userB},dm_peer_id.eq.${userA})`)
+    .is('deleted_at', null)
+    .ilike('body', pattern)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) { console.warn('searchMessagesInDm', error); return []; }
+  return data || [];
 }
 
 export async function editMessage({ id, body, attachments }) {

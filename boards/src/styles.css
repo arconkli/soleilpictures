@@ -6274,18 +6274,84 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 .msg-panel-head {
   display: flex; align-items: center; gap: 8px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--line-1);
   flex-shrink: 0;
 }
 .msg-panel-head .t-eyebrow { flex: 1; color: var(--ink-1); }
+.msg-panel-title {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.msg-panel-eyebrow {
+  font: 700 9px/1.2 var(--font-sans);
+  letter-spacing: 0.18em;
+  color: var(--ink-3);
+}
+.msg-panel-name {
+  font: 600 13.5px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.msg-panel-icon {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-3);
+  width: 28px; height: 28px;
+  border-radius: var(--radius);
+  display: grid; place-items: center;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.msg-panel-icon:hover { color: var(--ink-0); background: var(--bg-hov); }
+.msg-panel-icon.is-active { color: var(--soleil); background: var(--soleil-soft); }
 
-.msg-panel-body { flex: 1; overflow-y: auto; padding: 8px; }
+/* Inline search input — appears between header and thread body. */
+.msg-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  margin: 8px 12px 0;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-3);
+}
+.msg-search:focus-within { border-color: transparent; box-shadow: 0 0 0 2px var(--soleil-soft); }
+.msg-search-input {
+  flex: 1 1 auto;
+  background: transparent; border: 0;
+  color: var(--ink-0);
+  font: 500 13px/1.4 var(--font-sans);
+  outline: none;
+  min-width: 0;
+}
+.msg-search-input::placeholder { color: var(--ink-3); }
+.msg-search-clear {
+  background: transparent; border: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+}
+.msg-search-clear:hover { color: var(--ink-0); }
+.msg-search-summary {
+  padding: 4px 12px 0;
+  font: 500 11px/1.3 var(--font-sans);
+}
+.msg-search-result {
+  appearance: none; border: 0; background: transparent;
+  text-align: left; padding: 0; cursor: pointer;
+  border-radius: var(--radius);
+  transition: background var(--dur-fast) var(--ease);
+}
+.msg-search-result:hover { background: var(--bg-hov); }
 
-.msg-section { margin-bottom: 12px; }
+.msg-panel-body { flex: 1; overflow-y: auto; padding: 6px; }
+
+.msg-section { margin-bottom: 8px; }
 .msg-section-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 10px;
+  padding: 8px 10px 4px;
 }
 .msg-section-add {
   background: transparent; border: 0;
@@ -6297,10 +6363,10 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .msg-section-add:hover { color: var(--ink-0); background: var(--bg-hov); }
-.msg-section-sub { padding: 8px 10px 4px; color: var(--ink-3); }
+.msg-section-sub { padding: 6px 10px 4px; color: var(--ink-3); font-style: italic; }
 
 .msg-row {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 10px;
   width: 100%;
   text-align: left;
   background: transparent; border: 0;
@@ -6308,20 +6374,73 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-radius: var(--radius);
   color: var(--ink-1);
   cursor: pointer;
+  position: relative;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .msg-row:hover { background: var(--bg-hov); color: var(--ink-0); }
-.msg-row.is-unread { color: var(--ink-0); font-weight: 600; }
+.msg-row.is-unread { color: var(--ink-0); }
+.msg-row.is-unread .msg-row-name { font-weight: 700; }
 .msg-row.msg-row-pinned { color: var(--ink-2); font-style: italic; }
+.msg-row-avatar {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  display: grid; place-items: center;
+  font: 700 12px/1 var(--font-sans);
+  color: var(--bg-0);
+  flex-shrink: 0;
+}
+.msg-row-avatar-board {
+  background: var(--bg-3);
+  color: var(--ink-2);
+  font: 700 14px/1 var(--font-mono);
+}
+.msg-row-text {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column;
+  min-width: 0; gap: 2px;
+}
+.msg-row-name {
+  font: 500 13px/1.3 var(--font-sans);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.msg-row-preview {
+  font: 400 11.5px/1.3 var(--font-sans);
+  color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.msg-row-time {
+  color: var(--ink-3);
+  flex-shrink: 0;
+  font: 500 10.5px/1.2 var(--font-sans);
+}
 .msg-row-dot {
+  position: absolute;
+  left: 4px; top: 50%; transform: translateY(-50%);
   width: 6px; height: 6px;
   border-radius: 50%;
   background: var(--soleil);
-  flex-shrink: 0;
+  box-shadow: 0 0 6px var(--soleil-soft);
 }
-.msg-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 13px/1.4 var(--font-sans); }
-.msg-row-time { color: var(--ink-3); flex-shrink: 0; }
-.msg-empty { padding: 16px 12px; color: var(--ink-3); }
+.msg-empty {
+  padding: 16px 12px;
+  color: var(--ink-3);
+  font: 500 12px/1.4 var(--font-sans);
+  text-align: center;
+}
+.msg-empty-hero {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 48px 24px;
+  margin: auto;
+}
+.msg-empty-title {
+  font: 700 16px/1.2 ui-serif, Georgia, serif;
+  color: var(--ink-0);
+  margin-top: 4px;
+}
+.msg-empty-sub {
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--ink-3);
+}
 
 .sb-row-count.has-unread { background: var(--soleil); color: var(--bg-0); padding: 2px 6px; border-radius: 999px; font-weight: 600; }
 
@@ -6330,16 +6449,66 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   overflow-y: auto;
   padding: 12px;
   display: flex; flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  position: relative;
 }
-.msg-bubble { display: flex; flex-direction: column; gap: 4px; }
-.msg-bubble-head { display: flex; align-items: center; gap: 8px; }
-.msg-bubble-author { font: 600 12px/1.2 var(--font-sans); color: var(--ink-0); }
-.msg-bubble-time   { color: var(--ink-3); }
+
+/* Day divider — pill-style label on a hairline. */
+.msg-day-divider {
+  display: flex; align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  color: var(--ink-3);
+  font: 600 9.5px/1 var(--font-sans);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.msg-day-divider::before, .msg-day-divider::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: var(--line-1);
+}
+
+.msg-bubble {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  position: relative;
+  transition: background var(--dur-fast) var(--ease);
+}
+.msg-bubble:hover { background: var(--bg-hov); }
+.msg-bubble--mine::before {
+  content: '';
+  position: absolute;
+  left: -2px; top: 8px; bottom: 8px;
+  width: 2px;
+  background: var(--soleil);
+  border-radius: 1px;
+  opacity: 0.5;
+}
+.msg-bubble.is-flashed { background: var(--soleil-soft); transition: background 1.5s ease-out; }
+.msg-bubble-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.msg-bubble-avatar {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font: 700 10px/1 var(--font-sans);
+  color: var(--bg-0);
+  flex-shrink: 0;
+}
+.msg-bubble-author { font: 600 12.5px/1.2 var(--font-sans); color: var(--ink-0); }
+.msg-bubble-time {
+  color: var(--ink-3);
+  font: 500 10.5px/1.2 var(--font-sans);
+}
 .msg-bubble-actions {
   margin-left: auto;
   display: inline-flex; gap: 2px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
 }
+.msg-bubble:hover .msg-bubble-actions,
+.msg-bubble-actions.is-visible { opacity: 1; }
 .msg-bubble-actions button {
   background: transparent; border: 0; color: var(--ink-3);
   width: 22px; height: 22px;
@@ -6348,8 +6517,20 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.msg-bubble-actions button:hover { color: var(--ink-0); background: var(--bg-hov); }
-.msg-bubble-body { font: 400 13px/1.5 var(--font-sans); color: var(--ink-1); white-space: pre-wrap; }
+.msg-bubble-actions button:hover { color: var(--soleil); background: var(--soleil-soft); }
+.msg-bubble-body {
+  font: 400 13.5px/1.55 var(--font-sans);
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  padding-left: 30px;  /* align under the author name (avatar 22 + gap 8) */
+  word-break: break-word;
+}
+.msg-bubble-mark {
+  background: var(--soleil-soft);
+  color: var(--soleil);
+  border-radius: 2px;
+  padding: 0 1px;
+}
 .msg-bubble-attachments { display: flex; flex-direction: column; gap: 6px; }
 .msg-attachment {
   border: 1px solid var(--line-2);
@@ -6373,13 +6554,53 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .msg-reaction.own { background: var(--soleil-soft); border-color: var(--soleil); }
 .msg-reaction-count { color: var(--ink-3); }
 
-.msg-typing { color: var(--ink-3); padding: 0 4px; }
+/* Animated typing-indicator dots — three dots that pulse in sequence. */
+.msg-typing {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px;
+  color: var(--ink-3);
+}
+.msg-typing-dots {
+  display: inline-flex; gap: 3px;
+}
+.msg-typing-dots span {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  animation: msg-typing-bounce 1.2s var(--ease) infinite;
+}
+.msg-typing-dots span:nth-child(2) { animation-delay: 150ms; }
+.msg-typing-dots span:nth-child(3) { animation-delay: 300ms; }
+@keyframes msg-typing-bounce {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30%           { opacity: 1;    transform: translateY(-2px); }
+}
+
+/* Floating "↓ N new messages" pill that appears when a new message
+   arrives while the user is scrolled up reading history.        */
+.msg-jump-pill {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  bottom: 78px;       /* above the composer */
+  appearance: none; border: 0;
+  background: var(--soleil);
+  color: var(--bg-0);
+  font: 600 11.5px/1 var(--font-sans);
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  z-index: 5;
+  animation: ctx-menu-in var(--dur-base) var(--ease);
+}
+.msg-jump-pill:hover { filter: brightness(1.08); }
 
 .msg-composer {
   display: flex; flex-direction: column; gap: 6px;
   padding: 10px 12px;
   border-top: 1px solid var(--line-1);
   flex-shrink: 0;
+  background: var(--bg-1);
 }
 .msg-composer-input {
   resize: none;
@@ -6387,14 +6608,18 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
   color: var(--ink-0);
-  font: 500 13px/1.4 var(--font-sans);
-  padding: 8px 10px;
+  font: 500 13.5px/1.45 var(--font-sans);
+  padding: 9px 10px;
   outline: none;
-  min-height: 36px;
+  min-height: 38px;
   max-height: 120px;
   transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
 }
-.msg-composer-input:focus { border-color: transparent; box-shadow: var(--shadow-glow); }
+.msg-composer-input::placeholder { color: var(--ink-3); }
+.msg-composer-input:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--soleil-soft);
+}
 .msg-composer-actions { display: flex; align-items: center; gap: 6px; }
 .msg-composer-btn {
   background: transparent; border: 0; color: var(--ink-2);
@@ -6404,8 +6629,24 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.msg-composer-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
-.msg-composer .btn-primary { margin-left: auto; height: 30px; padding: 0 12px; }
+.msg-composer-btn:hover { color: var(--soleil); background: var(--soleil-soft); }
+
+/* Branded send button — filled gold pill matching the share modal's
+   primary CTA.                                                     */
+.msg-composer-send {
+  margin-left: auto;
+  appearance: none; border: 0;
+  background: var(--soleil);
+  color: var(--bg-0);
+  font: 600 12.5px/1 var(--font-sans);
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.msg-composer-send:hover:not(:disabled) { filter: brightness(1.08); }
+.msg-composer-send:disabled { opacity: 0.4; cursor: not-allowed; }
 .msg-composer-attachments {
   display: flex; gap: 6px; flex-wrap: wrap;
 }

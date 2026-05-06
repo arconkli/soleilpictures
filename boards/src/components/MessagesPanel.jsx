@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Icon } from './Icon.jsx';
 import { Plus, MessageSquare, X } from '../lib/icons.js';
 import { useChannelList } from '../hooks/useChannelList.js';
 import { hideRow } from '../lib/messages.js';
 import { NewDMPicker } from './NewDMPicker.jsx';
 import { MessageThread } from './MessageThread.jsx';
+import * as userProfiles from '../lib/userProfiles.js';
+import { pickPresenceColor } from '../lib/presenceColor.js';
 
 // Right-drawer slot. Two modes: list (BOARDS + DIRECT) or thread (one open
 // conversation). The currently-open board is pinned at the bottom of BOARDS
@@ -14,6 +16,17 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
   const { boardChannels, dmThreads, unreadByKey, hidden } = useChannelList({ workspaceId, userId, refreshTick });
   const [openThread, setOpenThread] = useState(null);
   const [newDmAnchor, setNewDmAnchor] = useState(null);
+  // Subscribe to userProfiles so unresolved peer names re-render when
+  // the batched users_by_ids RPC returns. Pre-warm the cache for
+  // every DM peer so first paint already has names.
+  const [, force] = useState(0);
+  useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
+  useEffect(() => {
+    for (const t of (dmThreads || [])) {
+      const peerId = t.user_a === userId ? t.user_b : t.user_a;
+      if (peerId) userProfiles.resolve(peerId);
+    }
+  }, [dmThreads, userId]);
 
   const visibleBoardChannels = useMemo(() => {
     const seenIds = new Set();
@@ -58,13 +71,24 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
           {dmThreads.filter(t => !hidden.has(`d:${t.user_a === userId ? t.user_b : t.user_a}`)).map(t => {
             const peerId = t.user_a === userId ? t.user_b : t.user_a;
             const isUnread = unreadByKey.get(`d:${peerId}`) > 0;
+            const peer = userProfiles.get(peerId);
+            const peerName = peer?.name || peer?.email || 'Member';
+            const peerColor = peer?.color || pickPresenceColor(peerId || '');
             return (
               <button key={peerId}
                       className={`msg-row ${isUnread ? 'is-unread' : ''}`}
-                      onClick={() => setOpenThread({ kind: 'dm', peerId, name: 'DM' })}
+                      onClick={() => setOpenThread({ kind: 'dm', peerId, name: peerName })}
                       onContextMenu={(e) => { e.preventDefault(); hideRow({ userId, dmPeerId: peerId }); }}>
                 {isUnread && <span className="msg-row-dot" />}
-                <span className="msg-row-name">{t.last_message?.slice(0, 60) || 'Conversation'}</span>
+                <span className="msg-row-avatar" style={{ background: peerColor }}>
+                  {peerName.charAt(0).toUpperCase()}
+                </span>
+                <span className="msg-row-text">
+                  <span className="msg-row-name">{peerName}</span>
+                  {t.last_message && (
+                    <span className="msg-row-preview">{t.last_message.slice(0, 60)}</span>
+                  )}
+                </span>
                 <span className="msg-row-time t-meta">{relTime(t.last_message_at)}</span>
               </button>
             );
@@ -86,7 +110,13 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
                       onClick={() => setOpenThread({ kind: 'board', boardId: ch.board_id, name: ch.board_name })}
                       onContextMenu={(e) => { e.preventDefault(); hideRow({ userId, boardId: ch.board_id }); }}>
                 {isUnread && <span className="msg-row-dot" />}
-                <span className="msg-row-name">{ch.board_name}</span>
+                <span className="msg-row-avatar msg-row-avatar-board">#</span>
+                <span className="msg-row-text">
+                  <span className="msg-row-name">{ch.board_name}</span>
+                  {ch.last_message && (
+                    <span className="msg-row-preview">{String(ch.last_message).slice(0, 60)}</span>
+                  )}
+                </span>
                 <span className="msg-row-time t-meta">{relTime(ch.last_message_at)}</span>
               </button>
             );

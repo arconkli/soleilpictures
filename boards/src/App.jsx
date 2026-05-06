@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
+import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
@@ -857,6 +858,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Members of the active workspace — drives the sidebar header dot
   // stack and the "shared" badge on each rail workspace button.
   const { members: workspaceMembers, refresh: refreshWorkspaceMembers } = useWorkspaceMembers(workspace.id);
+  // Hydrate userProfiles from workspace presence whenever the peer
+  // list changes — every online peer brings its name+email along, so
+  // we get free name resolution without an RPC roundtrip.
+  // (See useEffect on wsPeers further down — this one's a no-op
+  //  reference to keep the import linked even before the wsPeers
+  //  hook resolves on first render.)
   // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -923,6 +930,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return m;
   }, [workspace?.id, workspaceMembers]);
 
+  // Pre-seed the userProfiles cache with the current user so every
+  // message bubble (including own messages) has an immediate name.
+  useEffect(() => {
+    if (!user?.id) return;
+    userProfiles.populateFromUser({
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata?.full_name || null,
+    });
+  }, [user?.id, user?.email]);
+
   const { peers: wsPeers, status: wsStatus } = useWorkspacePresence({
     workspaceId: workspace.id,
     user: { id: user.id, name: userInfo.name, email: user.email, color: pickPresenceColor(user.id) },
@@ -937,6 +955,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       scrollTop: openDocCard?.scrollTop ?? 0,
     },
   });
+  // Hydrate the userProfiles cache from workspace presence — every
+  // online peer brings name+email along, so messages from / mentions
+  // of online users get resolved without an RPC roundtrip.
+  useEffect(() => {
+    userProfiles.populateFromPeers(wsPeers);
+  }, [wsPeers]);
+
   const jumpToPeer = (loc) => {
     if (loc?.surface === 'home') { setCurrentSurface('home'); return; }
     if (!loc?.boardId || !boards[loc.boardId]) return;

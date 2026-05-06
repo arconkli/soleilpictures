@@ -113,7 +113,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId })
           <Icon as={Paperclip} size={14} />
         </button>
         <button type="button" className="msg-composer-btn" title="Emoji"><Icon as={Smile} size={14} /></button>
-        <button type="submit" className="btn-primary" disabled={isBusy || (!body.trim() && attachments.length === 0)}>
+        <button type="submit" className="msg-composer-send" disabled={isBusy || (!body.trim() && attachments.length === 0)}>
           {uploading ? 'Uploading…' : 'Send'}
         </button>
       </div>
