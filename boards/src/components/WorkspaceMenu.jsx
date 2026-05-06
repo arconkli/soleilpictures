@@ -6,10 +6,14 @@
 // render it inside a `position: relative` container. Click-outside +
 // Escape close it.
 
-import { useEffect, useRef } from 'react';
-import { Plus } from '../lib/icons.js';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Search } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+
+// Show the filter input once we have more workspaces than this — on
+// small lists it's just visual clutter.
+const FILTER_THRESHOLD = 6;
 
 export function WorkspaceMenu({
   workspaces,
@@ -22,12 +26,17 @@ export function WorkspaceMenu({
   onClose,
 }) {
   const ref = useRef(null);
+  const [filter, setFilter] = useState('');
   // Close on outside click + Escape. Capture-phase mousedown so we beat
   // any handlers that might re-focus or repaint inside the menu.
+  // Important: ignore clicks on the trigger button itself — its own
+  // onClick toggles the open state, and if we close here first the
+  // trigger immediately re-opens.
   useEffect(() => {
     const onDown = (e) => {
       if (!ref.current) return;
       if (ref.current.contains(e.target)) return;
+      if (e.target.closest?.('.sb-ws-trigger')) return;
       onClose?.();
     };
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -40,16 +49,20 @@ export function WorkspaceMenu({
   }, [onClose]);
 
   const list = workspaces || [];
-  const mine = list
-    .filter(w => w.created_by === selfUserId)
+  const showFilter = list.length > FILTER_THRESHOLD;
+  const q = filter.trim().toLowerCase();
+  const matches = (w) => !q || (w.name || '').toLowerCase().includes(q);
+  const mine = useMemo(() => list
+    .filter(w => w.created_by === selfUserId && matches(w))
     .sort((a, b) => {
       if (a.id === personalWorkspaceId) return -1;
       if (b.id === personalWorkspaceId) return 1;
       return (a.created_at || '').localeCompare(b.created_at || '');
-    });
-  const shared = list
-    .filter(w => w.created_by !== selfUserId)
-    .sort((a, b) => (a._joinedAt || '').localeCompare(b._joinedAt || ''));
+    }), [list, selfUserId, personalWorkspaceId, q]);
+  const shared = useMemo(() => list
+    .filter(w => w.created_by !== selfUserId && matches(w))
+    .sort((a, b) => (a._joinedAt || '').localeCompare(b._joinedAt || '')), [list, selfUserId, q]);
+  const noResults = q && mine.length === 0 && shared.length === 0;
 
   // Map online users by id so each workspace row can render a small
   // green-ringed dot for any member who's currently in the workspace.
@@ -86,18 +99,34 @@ export function WorkspaceMenu({
 
   return (
     <div ref={ref} className="ws-menu" role="menu" aria-label="Switch workspace">
-      {mine.length > 0 && (
-        <>
-          <div className="ws-menu-section">YOURS</div>
-          {mine.map(renderRow)}
-        </>
+      {showFilter && (
+        <div className="ws-menu-filter">
+          <Icon as={Search} size={12} />
+          <input autoFocus
+                 type="text"
+                 placeholder="Filter workspaces…"
+                 value={filter}
+                 onChange={(e) => setFilter(e.target.value)}
+                 onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } }} />
+        </div>
       )}
-      {shared.length > 0 && (
-        <>
-          <div className="ws-menu-section">SHARED WITH YOU</div>
-          {shared.map(renderRow)}
-        </>
-      )}
+      <div className="ws-menu-scroll">
+        {mine.length > 0 && (
+          <>
+            <div className="ws-menu-section">YOURS</div>
+            {mine.map(renderRow)}
+          </>
+        )}
+        {shared.length > 0 && (
+          <>
+            <div className="ws-menu-section">SHARED WITH YOU</div>
+            {shared.map(renderRow)}
+          </>
+        )}
+        {noResults && (
+          <div className="ws-menu-empty">No workspaces match "{filter}"</div>
+        )}
+      </div>
       <div className="ws-menu-divider" />
       <button className="ws-menu-row ws-menu-add"
               onClick={() => { onAddNew?.(); onClose?.(); }}>
