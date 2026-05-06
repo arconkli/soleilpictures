@@ -50,7 +50,6 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   let subscribed = false;
   let awarenessTimer = null;
   let currentChannel = null;
-  let rebuildTimer = null;
   let lastInbound = Date.now();
   const handshakeWith = new Set();
 
@@ -127,8 +126,6 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       console.log('[realtime] y:' + boardId, status, err || '');
       if (status === 'SUBSCRIBED') {
         subscribed = true;
-        // Fresh subscription (or post-rebuild) — re-handshake with peers
-        // and re-broadcast our awareness so peers see us immediately.
         handshakeWith.clear();
         const sv = Y.encodeStateVector(ydoc);
         channel.send({ type: 'broadcast', event: 'y-sync-step1',
@@ -138,21 +135,13 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
           channel.send({ type: 'broadcast', event: 'y-awareness',
                          payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
         }
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        // Phoenix auto-rejoins via rejoinTimer when the socket is back.
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        // No rebuild on CLOSED — Supabase free-tier rate-limits joins, and
+        // looping rebuild on CLOSED creates a server-side feedback loop
+        // (every rebuild costs a join, server closes from rate limit, we
+        // rebuild again). Phoenix's own rejoinTimer handles transient
+        // CHANNEL_ERROR / TIMED_OUT. CLOSED is terminal until refresh.
         subscribed = false;
-      } else if (status === 'CLOSED') {
-        // Terminal: socket.remove(this) was called — the channel can't
-        // rejoin. Tear down and build a fresh channel after a backoff.
-        subscribed = false;
-        if (destroyed) return;
-        if (rebuildTimer) return;
-        rebuildTimer = setTimeout(() => {
-          rebuildTimer = null;
-          if (destroyed) return;
-          try { supabase.removeChannel(channel); } catch (_) {}
-          currentChannel = buildChannel();
-        }, REBUILD_BACKOFF_MS);
       }
     });
 
@@ -186,7 +175,6 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     destroy() {
       destroyed = true;
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }
-      if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = null; }
       clearInterval(heartbeat);
       clearInterval(watchdog);
       ydoc.off('update', onYUpdate);

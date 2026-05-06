@@ -31,7 +31,6 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   let destroyed = false;
   let subscribed = false;
   let currentChannel = null;
-  let rebuildTimer = null;
   // Map<peerKey, { user, location, lastSeen }>  (peerKey = `${userId}:${tabId}`)
   const peers = new Map();
   let prunerInterval = null;
@@ -102,24 +101,16 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
         if (!heartbeatInterval) heartbeatInterval = setInterval(sendLocation, HEARTBEAT_MS);
         if (!prunerInterval) prunerInterval = setInterval(flushPeers, 4000);
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        // Phoenix will auto-rejoin via its rejoinTimer when the socket is
-        // back; just flag the status so the UI shows reconnecting.
         subscribed = false;
         onStatus?.('error');
       } else if (status === 'CLOSED') {
-        // CLOSED is terminal — the channel is removed from the socket and
-        // can't be reused. Tear it down and build a fresh one after a
-        // short backoff so we don't tight-loop on persistent failures.
+        // No rebuild — the rebuild loop creates a server-side feedback
+        // loop with Supabase's join-rate limit (every rebuild costs a
+        // join, server closes from rate limit, we rebuild again). Phoenix
+        // handles transient CHANNEL_ERROR / TIMED_OUT on its own. CLOSED
+        // is terminal; user-visible "Offline" badge until refresh.
         subscribed = false;
         onStatus?.('disconnected');
-        if (destroyed) return;
-        if (rebuildTimer) return;
-        rebuildTimer = setTimeout(() => {
-          rebuildTimer = null;
-          if (destroyed) return;
-          try { supabase.removeChannel(channel); } catch (_) {}
-          currentChannel = buildChannel();
-        }, REBUILD_BACKOFF_MS);
       }
     });
 
@@ -131,7 +122,6 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   return {
     destroy() {
       destroyed = true;
-      if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = null; }
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       if (prunerInterval) clearInterval(prunerInterval);
       try { currentChannel?.send({ type: 'broadcast', event: 'ws-leave', payload: { from: TAB_ID } }); } catch (_) {}
