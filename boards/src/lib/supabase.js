@@ -44,6 +44,21 @@ export const supabase = (url && publicKey)
         detectSessionInUrl: false,
         ...(altSessionId ? { storage: makeNamespacedStorage(altSessionId), storageKey: `sb-auth-as-${altSessionId}` } : {}),
       },
+      realtime: {
+        // Defaults `disconnectOnEmptyChannelsAfterMs` to 2x heartbeat = 50s,
+        // and any transient drop in channels.length to 0 fires a socket-
+        // wide disconnect at exactly that mark. We always have channels
+        // mid-session; effectively disable so a brief empty window doesn't
+        // kill collab. (Set to 24h instead of 0 — 0 means "disconnect
+        // immediately when empty," the opposite of what we want.)
+        disconnectOnEmptyChannelsAfterMs: 24 * 60 * 60 * 1000,
+        // 15s heartbeat (was 25s default). Sends pings sooner and
+        // detects/recovers genuine deaths in ~30s instead of ~50s.
+        heartbeatIntervalMs: 15000,
+        // Run heartbeat in a Web Worker so background-tab setTimeout
+        // throttling can't break it.
+        worker: true,
+      },
     })
   : null;
 
@@ -128,6 +143,14 @@ if (supabase && typeof document !== 'undefined') {
     sa?.onClose?.((e) => console.log('[realtime] SOCKET close', e?.code, e?.reason || ''));
     sa?.onError?.((e) => console.log('[realtime] SOCKET error', e?.message || e));
   } catch (_) {}
+
+  // Diagnostic: warn if we ever see channels.length === 0 — the
+  // empty-channels auto-disconnect arms 50s after this happens (with
+  // default config; we override it to 24h above as a safety net).
+  setInterval(() => {
+    const n = supabase.realtime?.channels?.length ?? -1;
+    if (n === 0) console.log('[realtime] CHANNELS EMPTY (auto-disconnect would arm with default config)');
+  }, 10000);
 }
 
 // Exposed for the per-channel watchdogs (5-min no-inbound guard) — true
