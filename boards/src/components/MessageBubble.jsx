@@ -1,29 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { Trash2, Edit, Smile } from '../lib/icons.js';
+import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon } from '../lib/icons.js';
 import { EmojiPalette } from './EmojiPalette.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { renderMessageBody } from '../lib/renderMessageBody.jsx';
 
 // One message row in a thread.
-//   msg = full row from messages table
-//   selfId = current user
-//   highlight = optional substring to <mark> inside the body (for search)
-//   onDelete, onEdit, onReact, onAttachmentDragStart  — wired by parent
-export function MessageBubble({ msg, selfId, highlight, onDelete, onEdit, onReact, onAttachmentDragStart }) {
+//   msg              — full row from messages table
+//   selfId           — current user
+//   highlight        — optional substring to <mark> inside the body (search)
+//   replyMeta        — { count, lastAt } for replies count badge
+//   readers          — list of { user_id, last_read_at } for read-by stack
+//   isFocused        — keyboard-nav highlight ring
+//   onDelete, onEdit, onReact, onReply, onPin, onCopyLink — wired by parent
+export function MessageBubble({
+  msg, selfId, highlight, replyMeta, readers, isFocused,
+  onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
+  onAttachmentDragStart,
+}) {
   const isMine = msg.sender_id === selfId;
   const within15min = msg.created_at && (Date.now() - new Date(msg.created_at).getTime()) < 15 * 60 * 1000;
   const [hover, setHover] = useState(false);
   const [emojiAnchor, setEmojiAnchor] = useState(null);
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(msg.body);
-  // userProfiles cache emits change events; subscribe so a name that
-  // resolves async after the bubble first paints triggers a re-render.
   const [, force] = useState(0);
   useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
 
-  // Resolution order: cache → persisted sender_email column → broadcast
-  // payload's transient sender_name → "Member" placeholder.
   const profile = userProfiles.resolve(msg.sender_id);
   const senderName = profile?.name
     || profile?.email
@@ -44,10 +48,22 @@ export function MessageBubble({ msg, selfId, highlight, onDelete, onEdit, onReac
     setEditing(false);
   };
 
+  // Filter read-by readers: peers (not self) whose last_read_at is
+  // newer than this message's created_at — i.e., they've seen it.
+  const seenBy = (readers || [])
+    .filter(r => r.user_id !== selfId && r.last_read_at && msg.created_at && r.last_read_at >= msg.created_at)
+    .map(r => ({ ...r, profile: userProfiles.get(r.user_id) }));
+
   return (
-    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''}`}
+    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''}`}
          data-msg-id={msg.id}
+         id={`msg-${msg.id}`}
          onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      {msg.is_pinned && (
+        <div className="msg-bubble-pinned-tag">
+          <Icon as={Pin} size={10} /> Pinned
+        </div>
+      )}
       <div className="msg-bubble-head">
         <span className="msg-bubble-avatar"
               aria-hidden="true"
@@ -59,7 +75,10 @@ export function MessageBubble({ msg, selfId, highlight, onDelete, onEdit, onReac
           {time}{msg.edited_at ? ' · edited' : ''}
         </time>
         <span className={`msg-bubble-actions ${hover && !editing ? 'is-visible' : ''}`}>
-          <button title="React"  onClick={(e) => setEmojiAnchor(e.currentTarget.getBoundingClientRect())}><Icon as={Smile} size={12} /></button>
+          {onReply && <button title="Reply in thread" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
+          <button title="React" onClick={(e) => setEmojiAnchor(e.currentTarget.getBoundingClientRect())}><Icon as={Smile} size={12} /></button>
+          {onPin && <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => onPin(msg)} className={msg.is_pinned ? 'is-active' : ''}><Icon as={Pin} size={12} /></button>}
+          {onCopyLink && <button title="Copy link" onClick={() => onCopyLink(msg)}><Icon as={LinkIcon} size={12} /></button>}
           {isMine && within15min && <button title="Edit"   onClick={() => { setEditBody(msg.body); setEditing(true); }}><Icon as={Edit}   size={12} /></button>}
           {isMine               && <button title="Delete" onClick={() => onDelete?.(msg)}><Icon as={Trash2} size={12} /></button>}
         </span>
@@ -72,11 +91,17 @@ export function MessageBubble({ msg, selfId, highlight, onDelete, onEdit, onReac
                     onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false); }} />
           <div className="msg-bubble-edit-actions">
             <button type="button" onClick={() => setEditing(false)}>Cancel</button>
-            <button type="submit" className="btn-primary">Save</button>
+            <button type="submit" className="msg-composer-send">Save</button>
           </div>
         </form>
       ) : (
-        <div className="msg-bubble-body">{renderBody({ body: msg.body, mentions: msg.mentions, attachments: msg.attachments, highlight })}</div>
+        <div className="msg-bubble-body">
+          {renderMessageBody(msg.body, {
+            mentions: msg.mentions || [],
+            attachments: msg.attachments || [],
+            highlight,
+          })}
+        </div>
       )}
       {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
         <div className="msg-bubble-attachments">
@@ -111,6 +136,37 @@ export function MessageBubble({ msg, selfId, highlight, onDelete, onEdit, onReac
           ))}
         </div>
       )}
+      {/* Read-by avatar stack — only on the LAST own message (parent
+          decides which row gets `readers` populated). Skip if no peer
+          has seen it yet. */}
+      {seenBy.length > 0 && (
+        <div className="msg-bubble-readby">
+          {seenBy.slice(0, 4).map(r => {
+            const name = r.profile?.name || r.profile?.email || 'Member';
+            return (
+              <span key={r.user_id}
+                    className="msg-bubble-readby-dot"
+                    style={{ background: r.profile?.color || pickPresenceColor(r.user_id) }}
+                    title={`${name} read at ${new Date(r.last_read_at).toLocaleString()}`}>
+                {name.charAt(0).toUpperCase()}
+              </span>
+            );
+          })}
+          {seenBy.length > 4 && <span className="msg-bubble-readby-more">+{seenBy.length - 4}</span>}
+        </div>
+      )}
+      {/* Replies-count badge — visible when this message has replies. */}
+      {replyMeta?.count > 0 && (
+        <button className="msg-bubble-replies"
+                onClick={() => onReply?.(msg)}
+                title="Open thread">
+          <Icon as={MessageSquare} size={11} />
+          <span>{replyMeta.count} {replyMeta.count === 1 ? 'reply' : 'replies'}</span>
+          {replyMeta.lastAt && (
+            <span className="msg-bubble-replies-time">· last {formatRelTime(replyMeta.lastAt)}</span>
+          )}
+        </button>
+      )}
       {emojiAnchor && (
         <EmojiPalette
           anchor={emojiAnchor}
@@ -122,7 +178,6 @@ export function MessageBubble({ msg, selfId, highlight, onDelete, onEdit, onReac
   );
 }
 
-// Friendly display from email — "andrew.conklin@x.com" → "Andrew Conklin".
 function emailToFriendly(email) {
   if (!email) return null;
   const at = email.indexOf('@');
@@ -137,69 +192,12 @@ function emailToFriendly(email) {
     .join(' ');
 }
 
-function renderBody({ body = '', mentions = [], attachments = [], userNamesById = {}, highlight }) {
-  // Pass 1: extract @mentions / entity attachments as React nodes.
-  const matchByName = new Map();
-  for (const userId of mentions) {
-    const name = userNamesById[userId];
-    if (name) matchByName.set(name.toLowerCase(), { kind: 'user', id: userId });
-  }
-  for (const att of attachments) {
-    if (att.title || att.name) {
-      matchByName.set((att.title || att.name).toLowerCase(), { kind: att.kind, ref: att });
-    }
-  }
-  const parts = [];
-  let i = 0;
-  const re = /@([a-zA-Z0-9_'’\- ]{1,40})/g;
-  let m;
-  while ((m = re.exec(body)) != null) {
-    if (m.index > i) parts.push(body.slice(i, m.index));
-    const tokenName = m[1].trim().toLowerCase();
-    const hit = matchByName.get(tokenName);
-    if (hit) {
-      parts.push(<span key={`p${parts.length}`} className={`msg-pill msg-pill-${hit.kind}`}>{m[0]}</span>);
-    } else {
-      const looksLikeMention = mentions.length > 0 || attachments.length > 0;
-      parts.push(looksLikeMention
-        ? <span key={`p${parts.length}`} className="msg-pill msg-pill-user">{m[0]}</span>
-        : m[0]);
-    }
-    i = m.index + m[0].length;
-  }
-  if (i < body.length) parts.push(body.slice(i));
-
-  // Pass 2: highlight every literal substring match in the remaining
-  // text spans (search results). Skips already-rendered React nodes
-  // (like mention pills) to avoid breaking their styling.
-  const q = (highlight || '').trim();
-  if (!q) return parts;
-  const out = [];
-  for (const p of parts) {
-    if (typeof p !== 'string') { out.push(p); continue; }
-    const re2 = new RegExp(escapeReg(q), 'gi');
-    let last = 0; let mm;
-    let counter = 0;
-    while ((mm = re2.exec(p)) != null) {
-      if (mm.index > last) out.push(p.slice(last, mm.index));
-      out.push(<mark key={`hl-${out.length}-${counter++}`} className="msg-bubble-mark">{mm[0]}</mark>);
-      last = mm.index + mm[0].length;
-    }
-    if (last < p.length) out.push(p.slice(last));
-  }
-  return out;
-}
-
-function escapeReg(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-
 function publicUrl(path) {
   const base = import.meta.env.VITE_SUPABASE_URL;
   if (!base) return '';
   return `${base}/storage/v1/object/public/message-attachments/${path}`;
 }
 
-// Compact, human-friendly relative time. Falls back to short absolute
-// date for old messages so the bubble label is always meaningful.
 function formatRelTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);

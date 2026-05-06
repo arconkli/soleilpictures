@@ -10,6 +10,8 @@ import { useSharedBoards } from './hooks/useSharedBoards.js';
 import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
+import { useMentionNotifications } from './hooks/useMentionNotifications.js';
+import { fetchMessageById } from './lib/messages.js';
 import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
@@ -867,11 +869,67 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
   const [shareOpen, setShareOpen] = useState(false);
 
+  // Permalink: ?m=<uuid> opens the messages panel, navigates to that
+  // message's thread, and flashes the bubble. Drives MessagesPanel
+  // via initialOpenThread / messageJumpId props on mount.
+  const [permalinkTarget, setPermalinkTarget] = useState(null);  // { messageId, openThread }
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mid = params.get('m');
+    if (!mid || !user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const row = await fetchMessageById(mid);
+        if (!row || cancelled) return;
+        // Build the openThread shape MessagesPanel expects.
+        let openThread;
+        if (row.board_id) {
+          openThread = { kind: 'board', boardId: row.board_id, name: boards[row.board_id]?.name || 'Board' };
+        } else if (row.dm_peer_id) {
+          // The "peer" depends on which side of the DM we're on.
+          const peerId = row.sender_id === user.id ? row.dm_peer_id : row.sender_id;
+          openThread = { kind: 'dm', peerId, name: 'Direct message' };
+        } else { return; }
+        setPermalinkTarget({ messageId: mid, openThread });
+        setTweak('showMessages', true);
+        // Strip the ?m= query so reload doesn't re-trigger.
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+      } catch (e) { console.warn('permalink resolve failed', e); }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   // Surface "X shared a board with you" notifications as toasts on
   // first load. Each toast has a "View" action that opens the board
   // and dismisses; otherwise we batch-dismiss after the initial toast
   // pass so they don't re-fire forever.
   const { unread: shareNotifs, dismiss: dismissNotif, dismissAll: dismissAllNotifs } = useShareNotifications(user.id);
+  // Mention notifications — fired by the messages_fire_mention_
+  // notifications trigger (migration 0020). Same toast-on-mount UX
+  // as share notifications.
+  const { unread: mentionNotifs, dismissAll: dismissAllMentionNotifs } = useMentionNotifications(user.id);
+  const surfacedMentionsRef = React.useRef(new Set());
+  useEffect(() => {
+    for (const n of (mentionNotifs || [])) {
+      if (surfacedMentionsRef.current.has(n.id)) continue;
+      surfacedMentionsRef.current.add(n.id);
+      const where = n.board_id
+        ? (boards[n.board_id]?.name || 'a board')
+        : 'a direct message';
+      feedback.toast({
+        type: 'info',
+        message: `You were mentioned in ${where}. Open Messages to see it.`,
+      });
+    }
+    if (mentionNotifs && mentionNotifs.length > 0) {
+      const t = setTimeout(() => dismissAllMentionNotifs(), 8000);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mentionNotifs]);
   const surfacedNotifsRef = React.useRef(new Set());
   useEffect(() => {
     for (const n of (shareNotifs || [])) {
@@ -1404,6 +1462,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           currentUser={userInfo}
           currentBoard={currentBoard}
           refreshTick={msgRefreshTick}
+          initialOpenThread={permalinkTarget?.openThread || null}
+          jumpToMessageId={permalinkTarget?.messageId || null}
+          onPermalinkConsumed={() => setPermalinkTarget(null)}
           onClose={() => setTweak('showMessages', false)}
         />
       )}

@@ -54,17 +54,18 @@ export async function listMessageReadsForUser({ userId }) {
   return data || [];
 }
 
-export async function sendMessage({ workspaceId, boardId, dmPeerId, senderId, senderEmail, body, attachments = [], mentions = [] }) {
+export async function sendMessage({ workspaceId, boardId, dmPeerId, senderId, senderEmail, parentId, body, attachments = [], mentions = [] }) {
   // sender_email is also stamped server-side via the
   // messages_set_sender_email trigger (migration 0019), so this is
-  // belt-and-suspenders. We pass it from the client too so the
-  // returned row has the value populated without a SELECT roundtrip.
+  // belt-and-suspenders. parentId (migration 0020) attaches the
+  // message as a reply in a threaded conversation.
   const row = {
     workspace_id: workspaceId,
     board_id: boardId || null,
     dm_peer_id: dmPeerId || null,
     sender_id: senderId,
     sender_email: senderEmail || null,
+    parent_id: parentId || null,
     body,
     attachments,
     mentions,
@@ -111,6 +112,115 @@ export async function searchMessagesInDm({ workspaceId, userA, userB, query, lim
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) { console.warn('searchMessagesInDm', error); return []; }
+  return data || [];
+}
+
+// ── Threaded replies ─────────────────────────────────────────────────
+
+export async function fetchReplies({ parentId }) {
+  if (!parentId) return [];
+  const { data, error } = await supabase.from('messages')
+    .select('*')
+    .eq('parent_id', parentId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true });
+  if (error) { console.warn('fetchReplies', error); return []; }
+  return data || [];
+}
+
+// Bulk reply count for a list of parent message ids — used by the
+// main thread to render an "N replies" badge per parent without N+1.
+// Returns Map<parentId, { count, lastAt }>.
+export async function replyCountsFor(parentIds) {
+  if (!Array.isArray(parentIds) || parentIds.length === 0) return new Map();
+  const { data, error } = await supabase.from('messages')
+    .select('parent_id, created_at')
+    .in('parent_id', parentIds)
+    .is('deleted_at', null);
+  if (error) { console.warn('replyCountsFor', error); return new Map(); }
+  const out = new Map();
+  for (const r of (data || [])) {
+    const cur = out.get(r.parent_id) || { count: 0, lastAt: null };
+    cur.count++;
+    if (!cur.lastAt || r.created_at > cur.lastAt) cur.lastAt = r.created_at;
+    out.set(r.parent_id, cur);
+  }
+  return out;
+}
+
+// Look up a single message's full row (for permalink resolution).
+export async function fetchMessageById(id) {
+  if (!id) return null;
+  const { data, error } = await supabase.from('messages')
+    .select('*')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (error) { console.warn('fetchMessageById', error); return null; }
+  return data || null;
+}
+
+// ── Pin / unpin ──────────────────────────────────────────────────────
+
+export async function togglePin(messageId) {
+  const { data, error } = await supabase.rpc('toggle_pin', { p_message_id: messageId });
+  if (error) { console.warn('togglePin', error); throw error; }
+  return data === true;
+}
+
+export async function listPinnedForBoard({ boardId }) {
+  if (!boardId) return [];
+  const { data, error } = await supabase.from('messages')
+    .select('*')
+    .eq('board_id', boardId)
+    .eq('is_pinned', true)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true });
+  if (error) { console.warn('listPinnedForBoard', error); return []; }
+  return data || [];
+}
+
+export async function listPinnedForDm({ workspaceId, userA, userB }) {
+  if (!workspaceId) return [];
+  const { data, error } = await supabase.from('messages')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .or(`and(sender_id.eq.${userA},dm_peer_id.eq.${userB}),and(sender_id.eq.${userB},dm_peer_id.eq.${userA})`)
+    .eq('is_pinned', true)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true });
+  if (error) { console.warn('listPinnedForDm', error); return []; }
+  return data || [];
+}
+
+// ── Unread counts (real numbers, not binary) ─────────────────────────
+
+export async function getUnreadCounts() {
+  const { data, error } = await supabase.rpc('get_unread_counts');
+  if (error) { console.warn('getUnreadCounts', error); return {}; }
+  return data || {};
+}
+
+// ── Read-by indicators ───────────────────────────────────────────────
+// Pull every message_reads row for a thread target. RLS now allows
+// workspace co-members to see each other's last_read_at (read-only).
+
+export async function listReadsForBoard({ boardId }) {
+  if (!boardId) return [];
+  const { data, error } = await supabase.from('message_reads')
+    .select('user_id, last_read_at')
+    .eq('reads_board_id', boardId);
+  if (error) { console.warn('listReadsForBoard', error); return []; }
+  return data || [];
+}
+
+export async function listReadsForDm({ peerId, selfId }) {
+  // Each side stores the other's id in reads_dm_peer.
+  if (!peerId || !selfId) return [];
+  const { data, error } = await supabase.from('message_reads')
+    .select('user_id, last_read_at, reads_dm_peer')
+    .or(`and(user_id.eq.${selfId},reads_dm_peer.eq.${peerId}),and(user_id.eq.${peerId},reads_dm_peer.eq.${selfId})`);
+  if (error) { console.warn('listReadsForDm', error); return []; }
   return data || [];
 }
 

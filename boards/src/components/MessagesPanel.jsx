@@ -11,11 +11,25 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 // Right-drawer slot. Two modes: list (BOARDS + DIRECT) or thread (one open
 // conversation). The currently-open board is pinned at the bottom of BOARDS
 // even if it has no messages yet (option-C "currently-open pin").
-export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshTick, onClose }) {
+export function MessagesPanel({
+  workspaceId, currentUser, currentBoard, refreshTick,
+  initialOpenThread, jumpToMessageId, onPermalinkConsumed,
+  onClose,
+}) {
   const userId = currentUser?.id;
   const { boardChannels, dmThreads, unreadByKey, hidden } = useChannelList({ workspaceId, userId, refreshTick });
-  const [openThread, setOpenThread] = useState(null);
+  const [openThread, setOpenThread] = useState(initialOpenThread || null);
+  const [pendingJumpMessageId, setPendingJumpMessageId] = useState(jumpToMessageId || null);
   const [newDmAnchor, setNewDmAnchor] = useState(null);
+
+  // When App injects a permalink target, open that thread on mount.
+  useEffect(() => {
+    if (initialOpenThread) {
+      setOpenThread(initialOpenThread);
+      setPendingJumpMessageId(jumpToMessageId || null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOpenThread?.boardId, initialOpenThread?.peerId, jumpToMessageId]);
   // Subscribe to userProfiles so unresolved peer names re-render when
   // the batched users_by_ids RPC returns. Pre-warm the cache for
   // every DM peer so first paint already has names.
@@ -45,8 +59,9 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
         workspaceId={workspaceId}
         currentUser={currentUser}
         thread={openThread}
-        onBack={() => setOpenThread(null)}
-        onClose={onClose}
+        jumpToMessageId={pendingJumpMessageId}
+        onBack={() => { setOpenThread(null); setPendingJumpMessageId(null); onPermalinkConsumed?.(); }}
+        onClose={() => { onPermalinkConsumed?.(); onClose?.(); }}
       />
     );
   }
@@ -75,7 +90,8 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
           </div>
           {dmThreads.filter(t => !hidden.has(`d:${t.user_a === userId ? t.user_b : t.user_a}`)).map(t => {
             const peerId = t.user_a === userId ? t.user_b : t.user_a;
-            const isUnread = unreadByKey.get(`d:${peerId}`) > 0;
+            const unreadCount = unreadByKey.get(`d:${peerId}`) || 0;
+            const isUnread = unreadCount > 0;
             const peer = userProfiles.get(peerId);
             const peerName = peer?.name || peer?.email || 'Member';
             const peerColor = peer?.color || pickPresenceColor(peerId || '');
@@ -94,7 +110,9 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
                     <span className="msg-row-preview">{t.last_message.slice(0, 60)}</span>
                   )}
                 </span>
-                <span className="msg-row-time t-meta">{relTime(t.last_message_at)}</span>
+                {isUnread
+                  ? <span className="msg-row-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                  : <span className="msg-row-time t-meta">{relTime(t.last_message_at)}</span>}
               </button>
             );
           })}
@@ -108,7 +126,8 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
             <span className="t-eyebrow">BOARDS</span>
           </div>
           {visibleBoardChannels.active.map(ch => {
-            const isUnread = unreadByKey.get(`b:${ch.board_id}`) > 0;
+            const unreadCount = unreadByKey.get(`b:${ch.board_id}`) || 0;
+            const isUnread = unreadCount > 0;
             return (
               <button key={ch.board_id}
                       className={`msg-row ${isUnread ? 'is-unread' : ''}`}
@@ -122,7 +141,9 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
                     <span className="msg-row-preview">{String(ch.last_message).slice(0, 60)}</span>
                   )}
                 </span>
-                <span className="msg-row-time t-meta">{relTime(ch.last_message_at)}</span>
+                {isUnread
+                  ? <span className="msg-row-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                  : <span className="msg-row-time t-meta">{relTime(ch.last_message_at)}</span>}
               </button>
             );
           })}

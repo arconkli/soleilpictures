@@ -64,4 +64,5 @@ export {
   Smile,
   Paperclip,
   UserPlus,
+  Pin,
 } from 'lucide-react';

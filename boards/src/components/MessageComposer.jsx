@@ -4,13 +4,14 @@ import { Paperclip, Smile } from '../lib/icons.js';
 import { uploadMessageFile } from '../lib/messageAttachments.js';
 import { caretRect } from '../lib/caretRect.js';
 import { EntityPicker } from './EntityPicker.jsx';
+import { useDraft } from '../hooks/useDraft.js';
 
 // Bottom-of-thread input. Detects @<query> tokens at the caret to fire the
 // EntityPicker filtered to user/board/card/doc; resolved picks become
 // pendingMentions[] (people, drives notifications) or pendingEntityRefs[]
 // (entity attachments rendered as soleil pills).
-export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId }) {
-  const [body, setBody] = useState('');
+export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = 'Message…' }) {
+  const [body, setBody, clearDraft] = useDraft(draftKey || `tmp:${workspaceId || 'unknown'}`);
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [mention, setMention] = useState(null); // { tokenStart, query, anchor }
@@ -58,7 +59,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId })
       attachments: [...attachments, ...pendingEntityRefs],
       mentions: pendingMentions,
     });
-    setBody('');
+    clearDraft();
     setAttachments([]);
     setPendingMentions([]);
     setPendingEntityRefs([]);
@@ -85,7 +86,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId })
       <textarea
         ref={inputRef}
         className="msg-composer-input"
-        placeholder="Message…"
+        placeholder={placeholder}
         rows={1}
         disabled={isBusy}
         value={body}

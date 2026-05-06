@@ -6531,6 +6531,163 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-radius: 2px;
   padding: 0 1px;
 }
+
+/* Keyboard-nav focus ring on a bubble. */
+.msg-bubble--focused {
+  outline: 2px solid var(--soleil-soft);
+  outline-offset: -2px;
+}
+
+/* Pinned-message styling — soft gold tint on the bubble itself, plus
+   a small "Pinned" tag at the very top of the row. */
+.msg-bubble--pinned { background: rgba(212,160,74,.06); }
+.msg-bubble-pinned-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font: 700 9px/1 var(--font-sans);
+  letter-spacing: 0.16em;
+  color: var(--soleil);
+  margin-bottom: 2px;
+  padding-left: 30px;
+}
+
+/* Replies-count badge — appears under a parent message that has
+   replies. Click → opens thread mode.                                */
+.msg-bubble-replies {
+  appearance: none; border: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-left: 30px; margin-top: 2px;
+  padding: 4px 8px;
+  background: var(--soleil-soft);
+  color: var(--soleil);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: 600 11px/1 var(--font-sans);
+  transition: background var(--dur-fast) var(--ease);
+}
+.msg-bubble-replies:hover { background: rgba(212,160,74,.22); }
+.msg-bubble-replies-time {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+/* Read-by avatar stack under the last own message. */
+.msg-bubble-readby {
+  display: inline-flex; align-items: center;
+  margin-left: 30px; margin-top: 4px;
+}
+.msg-bubble-readby-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-1);
+  margin-left: -3px;
+  font: 700 8px/1 var(--font-sans);
+  color: var(--bg-0);
+  display: grid; place-items: center;
+}
+.msg-bubble-readby-dot:first-child { margin-left: 0; }
+.msg-bubble-readby-more {
+  font: 600 9px/1 var(--font-sans);
+  color: var(--ink-3);
+  margin-left: 4px;
+}
+
+/* Markdown elements rendered by renderMessageBody. */
+.msg-bubble-body p.msg-line { margin: 0; }
+.msg-bubble-body p.msg-line + p.msg-line { margin-top: 6px; }
+.msg-bubble-body .msg-bold { font-weight: 700; color: var(--ink-0); }
+.msg-bubble-body .msg-italic { font-style: italic; }
+.msg-bubble-body .msg-inline-code {
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
+  padding: 0 4px;
+  border-radius: 3px;
+  font: 500 12px/1.4 var(--font-mono);
+}
+.msg-bubble-body .msg-code-block {
+  margin: 6px 0;
+  padding: 10px 12px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  font: 500 12px/1.5 var(--font-mono);
+  color: var(--ink-0);
+  overflow-x: auto;
+  white-space: pre;
+}
+.msg-bubble-body .msg-quote {
+  margin: 6px 0;
+  padding: 4px 0 4px 10px;
+  border-left: 3px solid var(--soleil-soft);
+  color: var(--ink-2);
+  font-style: italic;
+}
+.msg-bubble-body .msg-list {
+  margin: 4px 0; padding-left: 20px;
+}
+.msg-bubble-body .msg-list li { margin: 2px 0; }
+.msg-bubble-body .msg-link {
+  color: var(--soleil);
+  text-decoration: underline;
+  text-decoration-color: var(--soleil-soft);
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+.msg-bubble-body .msg-link:hover {
+  text-decoration-color: var(--soleil);
+}
+
+/* Pinned strip at top of thread. */
+.msg-pinned-strip {
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-1);
+  flex-shrink: 0;
+}
+.msg-pinned-head {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent; border: 0;
+  color: var(--soleil);
+  cursor: pointer;
+  text-align: left;
+}
+.msg-pinned-head:hover { background: var(--bg-hov); }
+.msg-pinned-chev { margin-left: auto; color: var(--ink-3); font-size: 9px; }
+.msg-pinned-list {
+  display: flex; flex-direction: column;
+  padding: 0 6px 6px;
+}
+.msg-pinned-item {
+  display: block;
+  text-align: left;
+  appearance: none; border: 0;
+  background: transparent;
+  color: var(--ink-1);
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: 500 11.5px/1.4 var(--font-sans);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.msg-pinned-item:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+/* Thread-mode header eyebrow. */
+.msg-thread-header {
+  padding: 0 4px 4px;
+  border-bottom: 1px solid var(--line-1);
+  margin-bottom: 4px;
+}
+
+/* Channel-row unread count pill (right side, replaces timestamp). */
+.msg-row-count {
+  background: var(--soleil);
+  color: var(--bg-0);
+  font: 700 10px/1 var(--font-sans);
+  padding: 3px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
 .msg-bubble-attachments { display: flex; flex-direction: column; gap: 6px; }
 .msg-attachment {
   border: 1px solid var(--line-2);
