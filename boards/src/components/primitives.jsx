@@ -42,30 +42,63 @@ export function Avatar({ name, color, size = 22, ring }) {
 
 // Constant-rate chase: each frame moves the rendered position a fixed
 // fraction of the remaining distance toward the latest reported (x, y).
-// No delay, no buffer — when a new position arrives the chase target
-// updates and the next frame is already moving toward it. Distance-
-// proportional speed (geometric decay) means big jumps glide quickly,
-// small adjustments glide gently. Never teleports.
-const LERP = 0.18; // ~90% closed in ~12 frames (~200ms @60fps)
+// Dead-reckoning cursor renderer. At low broadcast rates (4Hz = 250ms
+// between samples) a plain lerp pulses — fast move, slow stall, fast
+// move. We instead estimate the peer's velocity from consecutive
+// samples and extrapolate forward between updates so the cursor keeps
+// moving naturally during the gap. When the next sample arrives, lerp
+// gently corrects any drift between predicted and actual position.
+//
+// Velocity is smoothed via EMA so a single noisy sample doesn't snap
+// the prediction. Extrapolation is capped at MAX_EXTRAPOLATE_MS so a
+// stalled peer (no further samples) doesn't fly off the screen.
+const LERP = 0.22;                 // correction speed toward predicted target
+const VEL_SMOOTH = 0.5;            // EMA factor for velocity (0 = none, 1 = full new)
+const MAX_EXTRAPOLATE_MS = 400;    // cap forward prediction; clamps if peer stalls
 
 export function LiveCursor({ x, y, name, color }) {
   const ref = React.useRef(null);
-  const targetRef = React.useRef({ x, y });
-  const currentRef = React.useRef(null); // null until first frame snaps to target
-  // Always reflect the latest target without re-running the rAF effect.
-  targetRef.current = { x, y };
+  // Sample history — the most-recent two reported positions + their
+  // arrival times, used to estimate velocity.
+  const sampleRef = React.useRef({ x, y, t: performance.now() });
+  const velRef = React.useRef({ vx: 0, vy: 0 });
+  const currentRef = React.useRef(null); // rendered position; null = snap to first sample
+
+  // On every prop change, fold the new sample into our velocity estimate.
+  React.useEffect(() => {
+    const now = performance.now();
+    const prev = sampleRef.current;
+    const dt = Math.max(1, now - prev.t);    // ms; guard against /0
+    if (currentRef.current !== null) {
+      // Instantaneous velocity from the gap, smoothed against the
+      // running estimate so a single noisy sample doesn't snap.
+      const ivx = (x - prev.x) / dt;
+      const ivy = (y - prev.y) / dt;
+      velRef.current = {
+        vx: velRef.current.vx * (1 - VEL_SMOOTH) + ivx * VEL_SMOOTH,
+        vy: velRef.current.vy * (1 - VEL_SMOOTH) + ivy * VEL_SMOOTH,
+      };
+    }
+    sampleRef.current = { x, y, t: now };
+  }, [x, y]);
 
   React.useEffect(() => {
     let raf = 0;
     const tick = () => {
-      const t = targetRef.current;
+      const s = sampleRef.current;
+      const v = velRef.current;
       // First frame: snap to the initial reported position so we don't
       // glide in from (0, 0).
-      if (currentRef.current === null) currentRef.current = { x: t.x, y: t.y };
+      if (currentRef.current === null) currentRef.current = { x: s.x, y: s.y };
       const c = currentRef.current;
+      // Extrapolate where the peer "should" be right now from the last
+      // known sample + estimated velocity. Cap the extrapolation window.
+      const elapsed = Math.min(MAX_EXTRAPOLATE_MS, performance.now() - s.t);
+      const targetX = s.x + v.vx * elapsed;
+      const targetY = s.y + v.vy * elapsed;
       const next = {
-        x: c.x + (t.x - c.x) * LERP,
-        y: c.y + (t.y - c.y) * LERP,
+        x: c.x + (targetX - c.x) * LERP,
+        y: c.y + (targetY - c.y) * LERP,
       };
       currentRef.current = next;
       if (ref.current) ref.current.style.transform = `translate(${next.x}px, ${next.y}px)`;
