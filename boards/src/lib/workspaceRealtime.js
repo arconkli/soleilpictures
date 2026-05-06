@@ -13,8 +13,12 @@
 
 import { supabase } from './supabase.js';
 
-const HEARTBEAT_MS = 5000;
-const STALE_MS = 15000;
+// 15s heartbeat — was 5s, but combined with the y: channel + cursor
+// broadcasts that's too much for the free-tier per-tenant message
+// cap. STALE_MS = 4 × heartbeat so a single missed heartbeat doesn't
+// drop a peer from the workspace presence list.
+const HEARTBEAT_MS = 15000;
+const STALE_MS = 60000;
 const REBUILD_BACKOFF_MS = 2000;
 
 const TAB_ID = (() => {

@@ -24,11 +24,13 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwareness
 import { supabase, bounceRealtime } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 
-// 100ms = 10 broadcasts/sec/user. Receiver-side rAF lerp interpolates
-// between samples for smoothness, so dropping from 30Hz → 10Hz is barely
-// perceptible visually but cuts our broadcast pressure 3x. Supabase
-// broadcast rate-limits had been pushing us into REST fallback at 30Hz.
-const AWARENESS_THROTTLE_MS = 100;
+// 250ms = 4 broadcasts/sec/user. Supabase free-tier realtime enforces
+// a ~10 messages/sec per-tenant limit (verified via realtime logs:
+// "MessagePerSecondRateLimitReached"). 10Hz × 2 users + heartbeats was
+// blowing past it and the server was closing channels. 4Hz × 2 users +
+// heartbeats fits comfortably under 10/sec. Receiver-side rAF lerp
+// interpolates so the visual difference is small.
+const AWARENESS_THROTTLE_MS = 250;
 const REBUILD_BACKOFF_MS = 2000;
 const WATCHDOG_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -168,14 +170,16 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     }
   }, 30000);
 
-  // Heartbeat: every 4s, re-broadcast our awareness so peers' stale-state
-  // timer doesn't prune us.
+  // Heartbeat: every 15s, re-broadcast our awareness so peers' stale-
+  // state timer doesn't prune us. Was 4s but combined with 10Hz cursor
+  // we were blowing past the tenant-wide message-per-second cap. The
+  // y-protocols Awareness internal prune is 30s, so 15s is safe.
   const heartbeat = setInterval(() => {
     if (destroyed || !subscribed || !currentChannel) return;
     const buf = encodeAwarenessUpdate(awareness, [awareness.clientID]);
     currentChannel.send({ type: 'broadcast', event: 'y-awareness',
                           payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
-  }, 4000);
+  }, 15000);
 
   return {
     awareness,
