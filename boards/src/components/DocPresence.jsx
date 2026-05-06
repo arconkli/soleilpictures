@@ -25,6 +25,13 @@ const IDLE_OPACITY   = 0.55;
 
 export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, currentUser }) {
   const [peers, setPeers] = useState([]);
+  // Mount log so we can confirm in console that the overlay is rendered
+  // at all. Every render also logs a one-line status to make missing
+  // wires (no awareness, no paper, no editor) immediately visible.
+  useEffect(() => {
+    console.log('[docpres] MOUNT board=', boardId, 'page=', pageId, 'me=', currentUser?.id);
+    return () => console.log('[docpres] UNMOUNT board=', boardId, 'page=', pageId);
+  }, [boardId, pageId, currentUser?.id]);
 
   // Mirror paperRef.current into state. React refs aren't reactive, so an
   // effect that depends on `paperRef.current` would never re-run when the
@@ -32,12 +39,12 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
   // Mode double-mount). Polling once on mount fixes the race for free.
   const [paperEl, setPaperEl] = useState(() => paperRef?.current || null);
   useEffect(() => {
-    if (paperEl) return;
+    if (paperEl) { console.log('[docpres] paper ready (initial)'); return; }
     let cancelled = false;
     const tick = () => {
       if (cancelled) return;
       const el = paperRef?.current;
-      if (el) { setPaperEl(el); return; }
+      if (el) { console.log('[docpres] paper ready (polled)'); setPaperEl(el); return; }
       setTimeout(tick, 100);
     };
     tick();
@@ -53,21 +60,31 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
   // ── Read peers ─────────────────────────────────────────────────────────
   useEffect(() => {
     const aw = getAwareness?.();
-    if (!aw) return;
+    if (!aw) { console.log('[docpres] read: NO awareness yet'); return; }
+    console.log('[docpres] read: awareness ready, clients=', aw.getStates().size);
     const refresh = () => {
       const states = aw.getStates();
       const newest = new Map();
       const now = performance.now();
+      let total = 0, sameUser = 0, offPage = 0, kept = 0;
       states.forEach((state, clientId) => {
-        if (!state?.user) return;
-        if (state.user.id === currentUser?.id) return;
+        total++;
+        if (!state?.user) { offPage++; return; }
+        if (state.user.id === currentUser?.id) { sameUser++; return; }
         const cursor = state.docCursor;
         const caret  = state.docCaret;
         const sel    = state.docSelection;
         const onPage = (cursor?.boardId === boardId && cursor?.pageId === pageId)
                     || (caret?.boardId  === boardId && caret?.pageId  === pageId)
                     || (sel?.boardId    === boardId && sel?.pageId    === pageId);
-        if (!onPage) return;
+        if (!onPage) {
+          offPage++;
+          // Helpful diagnostic: a peer IS in awareness but not matching our
+          // boardId/pageId filter — print what they have so we can compare.
+          console.log('[docpres] peer off-page:', state.user.name, 'cursor=', cursor, 'caret=', caret);
+          return;
+        }
+        kept++;
         const meta = aw.meta?.get?.(clientId);
         const updated = meta?.lastUpdated || 0;
         const existing = newest.get(state.user.id);
@@ -89,6 +106,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
           selRects: sel?.boardId === boardId && sel?.pageId === pageId ? (sel.rects || []) : [],
         });
       });
+      console.log('[docpres] refresh: total=', total, 'same-user=', sameUser, 'off-page=', offPage, 'kept=', kept);
       setPeers([...newest.values()]);
     };
     refresh();
@@ -109,13 +127,22 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
   // ── Write our local mouse cursor (paper-relative) ──────────────────────
   useEffect(() => {
     const aw = getAwareness?.();
-    if (!aw || !paperEl) return;
+    if (!aw || !paperEl) {
+      console.log('[docpres] cursor effect skipped — aw=', !!aw, 'paperEl=', !!paperEl);
+      return;
+    }
+    console.log('[docpres] cursor listeners attached on paper');
     let pending = null;
     let timer = null;
+    let cursorBroadcasts = 0;
     const flush = () => {
       timer = null;
       if (!pending) return;
       aw.setLocalStateField('docCursor', { boardId, pageId, x: pending.x, y: pending.y });
+      cursorBroadcasts++;
+      if (cursorBroadcasts <= 3 || cursorBroadcasts % 50 === 0) {
+        console.log('[docpres] BROADCAST cursor #', cursorBroadcasts, pending);
+      }
       pending = null;
     };
     const onMove = (e) => {
@@ -153,7 +180,11 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
   const lastSigRef = useRef('');
   useEffect(() => {
     const aw = getAwareness?.();
-    if (!aw || !paperEl || !editor) return;
+    if (!aw || !paperEl || !editor) {
+      console.log('[docpres] caret effect skipped — aw=', !!aw, 'paperEl=', !!paperEl, 'editor=', !!editor);
+      return;
+    }
+    console.log('[docpres] caret listeners attached on editor');
     const tick = () => {
       try {
         const sel = editor.state.selection;
@@ -194,8 +225,13 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
         lastSigRef.current = sig;
         aw.setLocalStateField('docCaret',     { boardId, pageId, x, y });
         aw.setLocalStateField('docSelection', rects ? { boardId, pageId, rects } : null);
-      } catch (_) {}
+        caretBroadcasts++;
+        if (caretBroadcasts <= 3 || caretBroadcasts % 50 === 0) {
+          console.log('[docpres] BROADCAST caret #', caretBroadcasts, { x, y, hasSel: !!rects });
+        }
+      } catch (e) { console.warn('[docpres] caret tick error', e); }
     };
+    let caretBroadcasts = 0;
     const onTr = () => { tick(); };
     editor.on('transaction', onTr);
     editor.on('selectionUpdate', onTr);
