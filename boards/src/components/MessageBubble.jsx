@@ -11,11 +11,10 @@ import { renderMessageBody } from '../lib/renderMessageBody.jsx';
 //   selfId           — current user
 //   highlight        — optional substring to <mark> inside the body (search)
 //   replyMeta        — { count, lastAt } for replies count badge
-//   readers          — list of { user_id, last_read_at } for read-by stack
 //   isFocused        — keyboard-nav highlight ring
 //   onDelete, onEdit, onReact, onReply, onPin, onCopyLink — wired by parent
 export function MessageBubble({
-  msg, selfId, highlight, replyMeta, readers, isFocused,
+  msg, selfId, highlight, replyMeta, isFocused,
   onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
   onAttachmentDragStart,
 }) {
@@ -47,12 +46,6 @@ export function MessageBubble({
     await onEdit?.(msg, v);
     setEditing(false);
   };
-
-  // Filter read-by readers: peers (not self) whose last_read_at is
-  // newer than this message's created_at — i.e., they've seen it.
-  const seenBy = (readers || [])
-    .filter(r => r.user_id !== selfId && r.last_read_at && msg.created_at && r.last_read_at >= msg.created_at)
-    .map(r => ({ ...r, profile: userProfiles.get(r.user_id) }));
 
   return (
     <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''}`}
@@ -134,25 +127,6 @@ export function MessageBubble({
               <span className="msg-reaction-count">{ids?.length || 0}</span>
             </button>
           ))}
-        </div>
-      )}
-      {/* Read-by avatar stack — only on the LAST own message (parent
-          decides which row gets `readers` populated). Skip if no peer
-          has seen it yet. */}
-      {seenBy.length > 0 && (
-        <div className="msg-bubble-readby">
-          {seenBy.slice(0, 4).map(r => {
-            const name = r.profile?.name || r.profile?.email || 'Member';
-            return (
-              <span key={r.user_id}
-                    className="msg-bubble-readby-dot"
-                    style={{ background: r.profile?.color || pickPresenceColor(r.user_id) }}
-                    title={`${name} read at ${new Date(r.last_read_at).toLocaleString()}`}>
-                {name.charAt(0).toUpperCase()}
-              </span>
-            );
-          })}
-          {seenBy.length > 4 && <span className="msg-bubble-readby-more">+{seenBy.length - 4}</span>}
         </div>
       )}
       {/* Replies-count badge — visible when this message has replies. */}

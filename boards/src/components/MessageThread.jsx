@@ -7,7 +7,6 @@ import {
   searchMessagesInBoard, searchMessagesInDm,
   fetchReplies, replyCountsFor, togglePin,
   listPinnedForBoard, listPinnedForDm,
-  listReadsForBoard, listReadsForDm,
 } from '../lib/messages.js';
 import {
   broadcastBoardMessage, broadcastDmMessage,
@@ -148,28 +147,6 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
     fn.then(rows => { if (!cancelled) setPinned(rows); });
     return () => { cancelled = true; };
   }, [thread, workspaceId, userId, messages.length]);
-
-  // ── Read-by indicators ───────────────────────────────────────────────
-  // Pull last_read_at for everyone (workspace member visibility added
-  // in 0020). Apply only to the LAST own message to avoid noise.
-  const [readers, setReaders] = useState([]);
-  useEffect(() => {
-    let cancelled = false;
-    const fn = thread.kind === 'board'
-      ? listReadsForBoard({ boardId: thread.boardId })
-      : thread.kind === 'dm'
-        ? listReadsForDm({ peerId: thread.peerId, selfId: userId })
-        : Promise.resolve([]);
-    fn.then(rows => { if (!cancelled) setReaders(rows); });
-    return () => { cancelled = true; };
-  }, [thread, userId, messages.length]);
-
-  const lastOwnMessageId = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].sender_id === userId && !messages[i].parent_id) return messages[i].id;
-    }
-    return null;
-  }, [messages, userId]);
 
   // ── Permalink scroll ─────────────────────────────────────────────────
   useEffect(() => {
@@ -443,7 +420,6 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
             </div>
             {threadList.map(g => (
               <MessageBubble key={g.key} msg={g.msg} selfId={userId}
-                             readers={g.msg.id === lastOwnMessageId ? readers : null}
                              isFocused={focusedId === g.msg.id}
                              onDelete={handleDelete}
                              onReact={handleReact}
@@ -460,7 +436,6 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
             ) : (
               <MessageBubble
                 key={g.key} msg={g.msg} selfId={userId}
-                readers={g.msg.id === lastOwnMessageId ? readers : null}
                 replyMeta={replyCounts.get(g.msg.id) || null}
                 isFocused={focusedId === g.msg.id}
                 onDelete={handleDelete}

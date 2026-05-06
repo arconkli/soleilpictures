@@ -201,28 +201,6 @@ export async function getUnreadCounts() {
   return data || {};
 }
 
-// ── Read-by indicators ───────────────────────────────────────────────
-// Pull every message_reads row for a thread target. RLS now allows
-// workspace co-members to see each other's last_read_at (read-only).
-
-export async function listReadsForBoard({ boardId }) {
-  if (!boardId) return [];
-  const { data, error } = await supabase.from('message_reads')
-    .select('user_id, last_read_at')
-    .eq('reads_board_id', boardId);
-  if (error) { console.warn('listReadsForBoard', error); return []; }
-  return data || [];
-}
-
-export async function listReadsForDm({ peerId, selfId }) {
-  // Each side stores the other's id in reads_dm_peer.
-  if (!peerId || !selfId) return [];
-  const { data, error } = await supabase.from('message_reads')
-    .select('user_id, last_read_at, reads_dm_peer')
-    .or(`and(user_id.eq.${selfId},reads_dm_peer.eq.${peerId}),and(user_id.eq.${peerId},reads_dm_peer.eq.${selfId})`);
-  if (error) { console.warn('listReadsForDm', error); return []; }
-  return data || [];
-}
 
 export async function editMessage({ id, body, attachments }) {
   const patch = { body, edited_at: new Date().toISOString() };

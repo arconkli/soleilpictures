@@ -6570,27 +6570,6 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   font-weight: 500;
 }
 
-/* Read-by avatar stack under the last own message. */
-.msg-bubble-readby {
-  display: inline-flex; align-items: center;
-  margin-left: 30px; margin-top: 4px;
-}
-.msg-bubble-readby-dot {
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  border: 1.5px solid var(--bg-1);
-  margin-left: -3px;
-  font: 700 8px/1 var(--font-sans);
-  color: var(--bg-0);
-  display: grid; place-items: center;
-}
-.msg-bubble-readby-dot:first-child { margin-left: 0; }
-.msg-bubble-readby-more {
-  font: 600 9px/1 var(--font-sans);
-  color: var(--ink-3);
-  margin-left: 4px;
-}
-
 /* Markdown elements rendered by renderMessageBody. */
 .msg-bubble-body p.msg-line { margin: 0; }
 .msg-bubble-body p.msg-line + p.msg-line { margin-top: 6px; }
@@ -6758,6 +6737,26 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-top: 1px solid var(--line-1);
   flex-shrink: 0;
   background: var(--bg-1);
+  position: relative;
+  transition: background var(--dur-fast) var(--ease);
+}
+/* Drop affordance — gold dashed border + soft tint when dragging
+   files or a URL over the composer. The overlay covers the whole
+   composer so the textarea/buttons don't fight the drop event. */
+.msg-composer.is-drop-target {
+  background: var(--soleil-soft);
+  outline: 2px dashed var(--soleil);
+  outline-offset: -2px;
+}
+.msg-composer-drop {
+  position: absolute;
+  inset: 0;
+  display: grid; place-items: center;
+  font: 700 11px/1 var(--font-sans);
+  letter-spacing: 0.18em;
+  color: var(--soleil);
+  pointer-events: none;
+  z-index: 2;
 }
 .msg-composer-input {
   resize: none;

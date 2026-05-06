@@ -20,6 +20,12 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const lastTypingRef = useRef(0);
+  // Drag-over state for the visual drop affordance. enterCount tracks
+  // dragenter/leave nesting so the highlight doesn't flicker when the
+  // cursor crosses internal element boundaries (textarea / buttons /
+  // attachment chips all fire their own dragenter/leave).
+  const [dragOver, setDragOver] = useState(false);
+  const enterCountRef = useRef(0);
 
   const handleFiles = async (files) => {
     if (!files?.length || !workspaceId || !userId) return;
@@ -33,15 +39,51 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
     setUploading(false);
   };
 
+  // Try to fetch a remote URL and treat the bytes as a file upload.
+  // Most cross-origin servers refuse this with CORS; if that fails,
+  // fall back to attaching the URL as a link attachment so the user
+  // still gets something useful out of the drag.
+  const handleDroppedUrl = async (url, name = 'image') => {
+    if (!url || !/^https?:\/\//i.test(url)) return;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
+      const ext = (blob.type.split('/')[1] || 'bin').replace(/[^a-z0-9]/gi, '').slice(0, 8);
+      const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'application/octet-stream' });
+      await handleFiles([file]);
+    } catch (_) {
+      // CORS blocked or 404 — attach the URL as a link instead.
+      setAttachments(prev => [...prev, { kind: 'url', href: url, title: url }]);
+    }
+  };
+
   const handlePaste = (e) => {
     const files = [...e.clipboardData?.files || []];
     if (files.length) { e.preventDefault(); handleFiles(files); }
   };
 
-  const handleDrop = (e) => {
+  const handleDragEnter = (e) => {
+    if (!hasDragData(e)) return;
     e.preventDefault();
+    enterCountRef.current++;
+    setDragOver(true);
+  };
+  const handleDragLeave = (e) => {
+    enterCountRef.current = Math.max(0, enterCountRef.current - 1);
+    if (enterCountRef.current === 0) setDragOver(false);
+  };
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    enterCountRef.current = 0;
+    setDragOver(false);
     const files = [...e.dataTransfer?.files || []];
-    if (files.length) handleFiles(files);
+    if (files.length) { await handleFiles(files); return; }
+    // Dragged from another browser tab / canvas image card → URL.
+    const uri = e.dataTransfer?.getData('text/uri-list')
+              || e.dataTransfer?.getData('text/plain') || '';
+    const firstUrl = (uri.split(/\r?\n/).find(line => /^https?:\/\//i.test(line.trim())) || '').trim();
+    if (firstUrl) await handleDroppedUrl(firstUrl);
   };
 
   const detectMentionToken = (text, caret) => {
@@ -69,10 +111,13 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
   const isBusy = busy || uploading;
 
   return (
-    <form className="msg-composer"
+    <form className={`msg-composer ${dragOver ? 'is-drop-target' : ''}`}
           onSubmit={(e) => { e.preventDefault(); send(); }}
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}>
+          onDragEnter={handleDragEnter}
+          onDragOver={(e) => { if (hasDragData(e)) e.preventDefault(); }}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}>
+      {dragOver && <div className="msg-composer-drop">Drop to attach</div>}
       {attachments.length > 0 && (
         <div className="msg-composer-attachments">
           {attachments.map((a, i) => (
@@ -141,4 +186,14 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
       )}
     </form>
   );
+}
+
+// Only show the drop overlay for drags that look like files or URLs —
+// not, e.g., a plain text selection.
+function hasDragData(e) {
+  const types = e.dataTransfer?.types || [];
+  for (const t of types) {
+    if (t === 'Files' || t === 'text/uri-list' || t === 'text/plain') return true;
+  }
+  return false;
 }
