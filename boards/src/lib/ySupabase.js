@@ -59,15 +59,31 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   let lastInbound = Date.now();
   const handshakeWith = new Set();
 
-  // Outgoing handlers read currentChannel each call so post-rebuild
-  // updates land on the fresh channel.
+  // Y-updates are batched + merged. A burst of edits (typing, dragging
+  // a card across the canvas) emits dozens of small Y.Doc updates per
+  // second. Sending each one would blow past Supabase's free-tier
+  // ~10 messages/sec tenant cap. Y.mergeUpdates collapses queued
+  // updates into one logically-equivalent update, so the receiver sees
+  // identical state with a single broadcast per flush window.
+  const Y_FLUSH_MS = 200;            // 5 broadcasts/sec ceiling for edits
+  let yQueue = [];
+  let yFlushTimer = null;
+  const flushYQueue = () => {
+    yFlushTimer = null;
+    if (destroyed || !subscribed || !currentChannel) { yQueue = []; return; }
+    if (yQueue.length === 0) return;
+    const merged = yQueue.length === 1 ? yQueue[0] : Y.mergeUpdates(yQueue);
+    yQueue = [];
+    currentChannel.send({ type: 'broadcast', event: 'y-update',
+                          payload: { from: CLIENT_ID, u: bytesToB64(merged) } });
+  };
   const onYUpdate = (update, origin) => {
-    if (destroyed || !subscribed || !currentChannel) return;
+    if (destroyed) return;
     if (origin === 'remote') return;
     if (origin === 'snapshot') return;
     if (origin === 'restore') return;
-    currentChannel.send({ type: 'broadcast', event: 'y-update',
-                          payload: { from: CLIENT_ID, u: bytesToB64(update) } });
+    yQueue.push(update);
+    if (!yFlushTimer) yFlushTimer = setTimeout(flushYQueue, Y_FLUSH_MS);
   };
   ydoc.on('update', onYUpdate);
 
@@ -186,6 +202,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     destroy() {
       destroyed = true;
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }
+      if (yFlushTimer) { clearTimeout(yFlushTimer); yFlushTimer = null; }
       clearInterval(heartbeat);
       clearInterval(watchdog);
       ydoc.off('update', onYUpdate);
