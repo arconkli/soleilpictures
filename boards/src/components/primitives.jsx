@@ -76,6 +76,19 @@ export function LiveCursor({ x, y, name, color }) {
 
   React.useEffect(() => {
     let raf = 0;
+    // Catmull-Rom: smooth curve through points P1-P2 using P0 and P3 as
+    // tangent control points. Avoids the sharp angles linear interp
+    // produces at every sample, so cornering peers look natural.
+    const cmr = (p0, p1, p2, p3, p) => {
+      const p2_ = p * p;
+      const p3_ = p2_ * p;
+      return 0.5 * (
+        2 * p1 +
+        (-p0 + p2) * p +
+        (2 * p0 - 5 * p1 + 4 * p2 - p3) * p2_ +
+        (-p0 + 3 * p1 - 3 * p2 + p3) * p3_
+      );
+    };
     const tick = () => {
       const buf = bufferRef.current;
       const renderT = performance.now() - RENDER_DELAY_MS;
@@ -83,15 +96,18 @@ export function LiveCursor({ x, y, name, color }) {
       // Walk the buffer to find the segment bracketing renderT.
       for (let i = 0; i < buf.length - 1; i++) {
         const a = buf[i], b = buf[i + 1];
+        if (renderT < a.t) { rx = a.x; ry = a.y; break; }
         if (renderT >= a.t && renderT <= b.t) {
           const span = Math.max(1, b.t - a.t);
           const p = (renderT - a.t) / span;
-          rx = a.x + (b.x - a.x) * p;
-          ry = a.y + (b.y - a.y) * p;
+          // Tangent neighbors — fall back to the segment endpoints at
+          // the buffer edges so we degrade gracefully to linear interp.
+          const prev = i > 0 ? buf[i - 1] : a;
+          const next = i + 2 < buf.length ? buf[i + 2] : b;
+          rx = cmr(prev.x, a.x, b.x, next.x, p);
+          ry = cmr(prev.y, a.y, b.y, next.y, p);
           break;
         }
-        // renderT before any sample we have — clamp to oldest.
-        if (renderT < a.t) { rx = a.x; ry = a.y; break; }
         // renderT after the last sample — clamp to newest (peer stalled).
       }
       if (ref.current) ref.current.style.transform = `translate(${rx}px, ${ry}px)`;
