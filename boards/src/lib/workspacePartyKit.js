@@ -27,6 +27,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   let destroyed = false;
   let socket = null;
   let heartbeatTimer = null;
+  let buildSeq = 0;
   // tabId → record. Mirror of server-side state for our local consumers.
   const peers = new Map();
 
@@ -42,11 +43,20 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   };
 
   const open = async () => {
+    const seq = ++buildSeq;
     let accessToken = '';
     try {
       const { data } = await supabase.auth.getSession();
       accessToken = data?.session?.access_token ?? '';
     } catch (_) {}
+    if (destroyed || seq !== buildSeq) return;
+
+    // Tear down any stale socket from a previous build (token rotated).
+    if (socket) {
+      try { socket.close(); } catch (_) {}
+      socket = null;
+    }
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
 
     socket = new PartySocket({
       host: PARTYKIT_HOST,
@@ -58,8 +68,6 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     socket.addEventListener('open', () => {
       console.log('[partykit] workspace', workspaceId, 'OPEN');
       onStatus?.('connected');
-      // Send initial heartbeat so server knows we're here, then schedule
-      // periodic ones so stale-pruning sees us alive.
       sendLocation();
       if (!heartbeatTimer) heartbeatTimer = setInterval(sendLocation, HEARTBEAT_MS);
     });
@@ -110,6 +118,21 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
 
   open();
 
+  // Reconnect the workspace presence socket whenever Supabase rotates
+  // the access token (mirrors the same fix in yPartyKit.js — without
+  // it, the socket reconnects with a stale JWT after ~60 minutes and
+  // gets stuck in a 401 retry loop).
+  const authSub = supabase.auth.onAuthStateChange((event) => {
+    if (destroyed) return;
+    if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+      console.log('[partykit] workspace', workspaceId, 'auth event', event, '→ rebuilding socket');
+      open();
+    } else if (event === 'SIGNED_OUT') {
+      try { socket?.close(); } catch (_) {}
+      socket = null;
+    }
+  });
+
   return {
     destroy() {
       destroyed = true;
@@ -117,6 +140,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
       try { socket?.send(JSON.stringify({ type: 'leave', tabId: TAB_ID })); } catch (_) {}
       try { socket?.close(); } catch (_) {}
       socket = null;
+      try { authSub?.data?.subscription?.unsubscribe(); } catch (_) {}
     },
     ping: sendLocation,
     broadcastLocation: sendLocation,

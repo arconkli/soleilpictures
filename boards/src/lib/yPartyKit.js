@@ -1,12 +1,16 @@
 // PartyKit Y.Doc + Awareness provider.
 //
-// Drop-in replacement for the Supabase-backed `ySupabase.js#attachRealtime`.
-// Same return shape `{ awareness, destroy }` so callers (yboard.js,
-// useYBoard, etc.) work unchanged.
-//
 // y-partykit speaks the Yjs sync protocol natively, multiplexes Awareness
 // over the same socket, and reconnects automatically. Auth is enforced
 // at the WebSocket upgrade by the party server (see party/auth.ts).
+//
+// IMPORTANT — token refresh: the access_token is encoded in the WS URL
+// query string at connect time. partysocket auto-reconnects but reuses
+// the same URL — so when Supabase rotates the JWT (default every 60
+// minutes), the WS keeps reconnecting with the stale token and gets
+// 401 forever. We listen for `TOKEN_REFRESHED` from supabase auth and
+// rebuild the provider with the new token. Same goes for the manual
+// "I just woke up from sleep" refresh below.
 
 import YPartyKitProvider from 'y-partykit/provider';
 import { Awareness } from 'y-protocols/awareness';
@@ -18,9 +22,6 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   if (!boardId) return { destroy() {}, awareness: null };
   console.log('[partykit] board', boardId, 'attach (user:', user?.email || user?.id || 'anon', ')');
 
-  // Create awareness up front so callers can get a stable reference
-  // before the async token fetch completes. y-partykit will use the
-  // same instance once we hand it over.
   const awareness = new Awareness(ydoc);
   if (user) {
     awareness.setLocalStateField('user', {
@@ -32,8 +33,13 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
 
   let provider = null;
   let destroyed = false;
+  let buildSeq = 0;
 
-  (async () => {
+  // (Re)build the WS provider with a fresh token. Cheap to call —
+  // tears down the old socket, opens a new one. Y.Doc + Awareness
+  // instances are kept across rebuilds so app state is unaffected.
+  const buildProvider = async () => {
+    const seq = ++buildSeq;
     let accessToken = '';
     try {
       const { data } = await supabase.auth.getSession();
@@ -41,26 +47,45 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     } catch (e) {
       console.warn('[partykit] no supabase session', e);
     }
-    if (destroyed) return;
-    provider = new YPartyKitProvider(
-      PARTYKIT_HOST,
-      boardId,
-      ydoc,
-      {
-        params: { access_token: accessToken },
-        awareness,
-      },
-    );
+    // If a newer rebuild has started while we were awaiting, bail.
+    if (destroyed || seq !== buildSeq) return;
+
+    if (provider) {
+      try { provider.destroy(); } catch (_) {}
+      provider = null;
+    }
+
+    provider = new YPartyKitProvider(PARTYKIT_HOST, boardId, ydoc, {
+      params: { access_token: accessToken },
+      awareness,
+    });
     provider.on('status', ({ status }) => {
       console.log('[partykit] board', boardId, status);
     });
-  })();
+  };
+
+  buildProvider();
+
+  // Reconnect with the fresh JWT whenever Supabase rotates the token.
+  // This is the load-bearing fix for the "site open all night, all
+  // WebSockets stuck in 401 retry loop" symptom.
+  const authSub = supabase.auth.onAuthStateChange((event) => {
+    if (destroyed) return;
+    if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+      console.log('[partykit] board', boardId, 'auth event', event, '→ rebuilding socket');
+      buildProvider();
+    } else if (event === 'SIGNED_OUT') {
+      try { provider?.destroy(); } catch (_) {}
+      provider = null;
+    }
+  });
 
   return {
     awareness,
     destroy() {
       destroyed = true;
       try { provider?.destroy(); } catch (_) {}
+      try { authSub?.data?.subscription?.unsubscribe(); } catch (_) {}
     },
   };
 }
