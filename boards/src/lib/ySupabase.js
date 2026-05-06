@@ -142,14 +142,19 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   });
 
   // On subscribe, exchange state vectors with anyone else in the channel.
-  // Re-subscribe loop: if the channel ever drops (CLOSED / CHANNEL_ERROR /
-  // TIMED_OUT), rejoin after a short backoff so a flaky connection
-  // self-heals instead of leaving the user disconnected silently.
-  let reconnectTimer = null;
+  // CHANNEL_ERROR / CLOSED recovery: realtime-js channels auto-rejoin via
+  // their internal Phoenix rejoinTimer when the socket reconnects — we do
+  // NOT call channel.subscribe() again ourselves. RealtimeChannel.join()
+  // throws "tried to join multiple times" if subscribe() is called twice
+  // on the same channel instance, which permanently breaks recovery.
+  // We just track the state flag and re-handshake on the next SUBSCRIBED.
   const onSubscribeStatus = (status, err) => {
     console.log('[realtime] y:' + boardId, status, err || '');
     if (status === 'SUBSCRIBED') {
       subscribed = true;
+      // Fresh subscription (or rejoin) — re-handshake with peers and
+      // re-broadcast our awareness so peers see us immediately.
+      handshakeWith.clear();
       const sv = Y.encodeStateVector(ydoc);
       channel.send({ type: 'broadcast', event: 'y-sync-step1',
                      payload: { from: CLIENT_ID, sv: bytesToB64(sv) } });
@@ -160,16 +165,6 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       }
     } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
       subscribed = false;
-      if (destroyed) return;
-      // The handshakeWith set is per-channel-instance; clearing here so
-      // we re-handshake with peers after a reconnect.
-      handshakeWith.clear();
-      if (reconnectTimer) return;
-      reconnectTimer = setTimeout(() => {
-        reconnectTimer = null;
-        if (destroyed) return;
-        try { channel.subscribe(onSubscribeStatus); } catch (e) { console.warn('[realtime] resubscribe failed', e); }
-      }, 1500);
     }
   };
   channel.subscribe(onSubscribeStatus);
@@ -208,8 +203,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     destroy() {
       destroyed = true;
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }
-      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-      clearInterval(heartbeat);
+clearInterval(heartbeat);
       clearInterval(watchdog);
       ydoc.off('update', onYUpdate);
       awareness.off('update', onAwarenessUpdate);

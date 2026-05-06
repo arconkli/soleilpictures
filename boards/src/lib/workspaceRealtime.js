@@ -92,9 +92,10 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     onPeers?.([...peers.values()]);
   });
 
-  // Resilient (re)subscribe — flaky networks drop websockets silently;
-  // rejoin after a short backoff and re-emit a heartbeat so peers see us.
-  let reconnectTimer = null;
+  // Phoenix auto-rejoins this channel after socket reconnects — do NOT
+  // call channel.subscribe() ourselves. RealtimeChannel.join() throws
+  // "tried to join multiple times" on the second call, permanently
+  // breaking the channel.
   const onSubscribeStatus = (status, err) => {
     console.log('[realtime] ws:' + workspaceId, status, err || '');
     if (status === 'SUBSCRIBED') {
@@ -106,13 +107,6 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
       subscribed = false;
       onStatus?.(status === 'CLOSED' ? 'disconnected' : 'error');
-      if (destroyed) return;
-      if (reconnectTimer) return;
-      reconnectTimer = setTimeout(() => {
-        reconnectTimer = null;
-        if (destroyed) return;
-        try { channel.subscribe(onSubscribeStatus); } catch (e) { console.warn('[realtime] ws resubscribe failed', e); }
-      }, 1500);
     }
   };
   channel.subscribe(onSubscribeStatus);
@@ -124,8 +118,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   return {
     destroy() {
       destroyed = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
+if (heartbeatInterval) clearInterval(heartbeatInterval);
       if (prunerInterval) clearInterval(prunerInterval);
       try { channel.send({ type: 'broadcast', event: 'ws-leave', payload: { from: TAB_ID } }); } catch (_) {}
       try { supabase.removeChannel(channel); } catch (_) {}
