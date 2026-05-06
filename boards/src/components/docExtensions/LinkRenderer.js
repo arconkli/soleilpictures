@@ -24,8 +24,14 @@ export function makeLinkRendererPlugin({ getYdoc }) {
             const id = m.attrs.linkId;
             const link = id ? getLink(ydoc, id) : null;
             const targets = link?.targets || [];
-            const kind = targets[0]?.kind || (m.attrs.href ? 'url' : 'broken');
-            const cls = ['tt-link', `tt-link-${kind}`, targets.length > 1 ? 'tt-link-multi' : ''].filter(Boolean).join(' ');
+            // Universal hairline visual: `tt-link tt-link-manual` is the
+            // single class for explicitly-inserted links. `tt-link-broken`
+            // overrides for dead targets so they read as muted. Multi-
+            // target links still get an inline count badge.
+            const broken = targets.length === 0;
+            const cls = ['tt-link', 'tt-link-manual',
+                         broken ? 'tt-link-broken' : '',
+                         targets.length > 1 ? 'tt-link-multi' : ''].filter(Boolean).join(' ');
             decos.push(Decoration.inline(pos, pos + node.text.length, {
               class: cls,
               ...(id ? { 'data-link-id': id } : {}),

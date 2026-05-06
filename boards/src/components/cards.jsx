@@ -9,6 +9,22 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
+import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
+import { renderHtmlWithAutoLinks } from '../lib/renderHtmlWithAutoLinks.jsx';
+import { EntityLink } from './EntityLink.jsx';
+
+// Display-mode renderer for note cards: walks the saved HTML and
+// wraps any text-node match against the workspace trie in an
+// <EntityLink> chip. The same hover/click/popover behavior as docs +
+// messages flows from there.
+function NoteAutoLinkBody({ html }) {
+  const { trie, workspaceId } = useEntityTrie();
+  if (!html) return null;
+  if (!trie) {
+    return <div className="note-body" dangerouslySetInnerHTML={{ __html: html }} />;
+  }
+  return <div className="note-body">{renderHtmlWithAutoLinks(html, { trie, workspaceId })}</div>;
+}
 
 // Map an arbitrary card from a list-view board into a clickable row entry.
 // Returns null for kinds that don't make sense in a flat list (drawings, etc).
@@ -544,7 +560,7 @@ export function NoteCard({ body, html, bgColor, textColor, onUpdate, onEditingCh
   if (!onUpdate) {
     const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
     return <div className="note" style={{ background: bgColor || undefined, color: textColor || undefined }}>
-      <div className="note-body" dangerouslySetInnerHTML={{ __html: display }} />
+      <NoteAutoLinkBody html={display} />
     </div>;
   }
   return (
@@ -564,7 +580,7 @@ export function NoteCard({ body, html, bgColor, textColor, onUpdate, onEditingCh
   );
 }
 
-export function LinkCard({ title, source, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+export function LinkCard({ title, source, target, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // Title editing is controlled here (not by EditableText's internal state) so
   // dbl-click ANYWHERE on the card body — not just on the title text — can
   // re-enter edit mode. Bumped via editTitleAt from the canvas.
@@ -576,6 +592,27 @@ export function LinkCard({ title, source, onUpdate, autoFocus = false, editTitle
     e.stopPropagation();
     setEditingTitle(true);
   };
+
+  // Polymorphic target: when `target` is an EntityRef the card behaves
+  // like a chip pointing at any board / card / doc / message / user
+  // instead of a raw URL. The hover/click open the universal popover.
+  if (target && typeof target === 'object' && target.kind && target.kind !== 'url') {
+    return (
+      <div className="lc lc-entity">
+        <div className="lc-entity-chip">
+          <EntityLink
+            refs={[target]}
+            asTag="div"
+            className="lc-entity-link"
+          >
+            <span className="lc-entity-title">{title || target.title || target.kind}</span>
+            <span className="lc-entity-kind">{target.kind}</span>
+          </EntityLink>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="lc" onDoubleClick={onBodyDouble}>
       <div className="lc-meta">
@@ -599,6 +636,7 @@ export function LinkCard({ title, source, onUpdate, autoFocus = false, editTitle
     </div>
   );
 }
+
 
 export function PaletteCard({ title, swatches = [], onUpdate, autoFocus = false }) {
   const [pickerIdx, setPickerIdx] = useState(null);

@@ -15,7 +15,8 @@ import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { TEAMMATES } from '../data.js';
-import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, inboxItemToCard } from '../lib/dragMimes.js';
+import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, inboxItemToCard } from '../lib/dragMimes.js';
+import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
@@ -1489,7 +1490,7 @@ export function CanvasSurface({
                                                 cardId={c.id} boardId={board.id}
                                                 peerLiveHtml={peerNoteEdits[c.id] ?? null}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
-    else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target} onUpdate={onUpdate} autoFocus={af}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} onUpdate={onUpdate} autoFocus={af} />;
     else if (c.kind === 'doc') {
@@ -1536,6 +1537,8 @@ export function CanvasSurface({
     if (!types.includes(INBOX_MIME) &&
         !types.includes(BOARD_REF_MIME) &&
         !types.includes(CARD_TRANSFER_MIME) &&
+        !types.includes(ENTITY_REF_MIME) &&
+        !types.includes(ENTITY_REF_LIST_MIME) &&
         !types.includes('application/x-soleil-doc-page') &&
         !types.includes('text/uri-list') &&
         !types.includes('Files')) return;
@@ -1556,6 +1559,30 @@ export function CanvasSurface({
     setDragOver(false);
     const types = e.dataTransfer.types;
     const { x: cx, y: cy } = clientToCanvas(e.clientX, e.clientY);
+
+    // Universal entity-ref drop: any EntityLink chip / picker row /
+    // canvas card dragged here materializes as a 'link' chip card
+    // pointing at the entity. Click the chip to navigate.
+    if (types.includes(ENTITY_REF_MIME) || types.includes(ENTITY_REF_LIST_MIME)) {
+      e.preventDefault();
+      const raw = e.dataTransfer.getData(ENTITY_REF_MIME);
+      if (raw) {
+        let ref = null;
+        try { ref = coerceRef(JSON.parse(raw)); } catch (_) {}
+        if (ref) {
+          const w = 240, h = 70;
+          mutators.addCard?.({
+            id: `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+            kind: 'link', target: ref,
+            title: ref.title || ref.name || ref.kind,
+            x: Math.max(8, Math.round(cx - w / 2)),
+            y: Math.max(8, Math.round(cy - h / 2)),
+            w, h,
+          });
+          return;
+        }
+      }
+    }
 
     // Doc page → boardlink to the doc (page-level deep link reserved for later).
     if (types.includes('application/x-soleil-doc-page')) {

@@ -5,6 +5,9 @@ import { EmojiPalette } from './EmojiPalette.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { renderMessageBody } from '../lib/renderMessageBody.jsx';
+import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
+import { EntityLink } from './EntityLink.jsx';
+import { coerceRef } from '../lib/entityRef.js';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -27,6 +30,7 @@ export function MessageBubble({
   const [, force] = useState(0);
   useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
 
+  const { trie, workspaceId } = useEntityTrie();
   const profile = userProfiles.resolve(msg.sender_id);
   const senderName = profile?.name
     || profile?.email
@@ -93,6 +97,8 @@ export function MessageBubble({
             mentions: msg.mentions || [],
             attachments: msg.attachments || [],
             highlight,
+            trie,
+            workspaceId,
           })}
         </div>
       )}
@@ -113,7 +119,14 @@ export function MessageBubble({
                 <a href={att.href} target="_blank" rel="noopener noreferrer">{att.title || att.href}</a>
               )}
               {(att.kind === 'board' || att.kind === 'card' || att.kind === 'doc' || att.kind === 'docPos') && (
-                <span className="msg-attachment-entity">{(att.title || att.name || att.kind).toString()}</span>
+                <EntityLink
+                  refs={[coerceRef(att)].filter(Boolean)}
+                  workspaceId={workspaceId}
+                  asTag="span"
+                  className="msg-attachment-entity"
+                >
+                  {(att.title || att.name || att.kind).toString()}
+                </EntityLink>
               )}
             </div>
           ))}

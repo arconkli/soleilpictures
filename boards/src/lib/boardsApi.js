@@ -405,25 +405,36 @@ export async function loadBoardVersionDoc(versionId) {
 
 // ── Doc backlinks ───────────────────────────────────────────────────────────
 
-// Full-replace upsert of doc_backlinks for one (source_doc_card_id, source_page_id).
-// Caller passes the current link list for the page; we delete-then-insert.
+// Full-replace upsert for one (source_doc_card_id, source_page_id).
+// Writes to the universal `entity_links` table (Phase 2). The legacy
+// `doc_backlinks` mirror keeps existing readers working until their
+// next migration; the rows are kept consistent because both tables
+// share the source pointer.
 export async function updateBacklinks({ workspaceId, docCardId, pageId, links }) {
   if (!supabase || !workspaceId || !docCardId || !pageId) return { ok: false };
-  // 1. Delete existing rows for this source page.
-  const del = await supabase
-    .from('doc_backlinks')
-    .delete()
+
+  // 1. Delete existing rows for this source page in BOTH indexes.
+  const delLegacy = await supabase
+    .from('doc_backlinks').delete()
     .eq('source_doc_card_id', docCardId)
     .eq('source_page_id', pageId);
-  if (del.error) {
-    console.warn('backlinks delete failed', del.error);
-    return { ok: false, error: del.error };
-  }
-  // 2. Insert one row per (link, target).
-  const rows = [];
+  if (delLegacy.error) console.warn('doc_backlinks delete failed', delLegacy.error);
+
+  const delNew = await supabase
+    .from('entity_links').delete()
+    .eq('source_kind', 'doc')
+    .eq('source_id', docCardId)
+    .eq('source_page_id', pageId);
+  if (delNew.error) console.warn('entity_links delete failed', delNew.error);
+
+  // 2. Insert one row per (link, target) into both tables. We keep
+  //    doc_backlinks rows in sync so the home graph + existing
+  //    "Referenced by" readers don't break.
+  const legacyRows = [];
+  const newRows = [];
   for (const l of links || []) {
     for (const t of l.targets || []) {
-      rows.push({
+      legacyRows.push({
         source_workspace_id: workspaceId,
         source_doc_card_id:  docCardId,
         source_page_id:      pageId,
@@ -437,13 +448,30 @@ export async function updateBacklinks({ workspaceId, docCardId, pageId, links })
         target_url:          t.kind === 'url' ? t.href : null,
         source_text:         (l.name || '').slice(0, 200),
       });
+      newRows.push({
+        source_kind:         'doc',
+        source_id:           docCardId,
+        source_workspace:    workspaceId,
+        source_page_id:      pageId,
+        source_link_id:      l.id,
+        context_text:        (l.name || '').slice(0, 500),
+        target_kind:         t.kind,
+        target_id:           t.kind === 'board' ? t.id : (t.kind === 'user' ? t.id : (t.kind === 'message' ? t.id : null)),
+        target_board_id:     t.kind === 'board' ? t.id : (t.boardId || null),
+        target_card_id:      t.kind === 'card' ? t.cardId : null,
+        target_doc_card_id:  (t.kind === 'doc' || t.kind === 'docPos') ? t.docCardId : null,
+        target_page_id:      t.kind === 'docPos' ? t.pageId : null,
+        target_anchor:       t.kind === 'docPos' ? (t.anchor || null) : null,
+        target_url:          t.kind === 'url' ? t.href : null,
+      });
     }
   }
-  if (rows.length === 0) return { ok: true, count: 0 };
-  const ins = await supabase.from('doc_backlinks').insert(rows);
-  if (ins.error) {
-    console.warn('backlinks insert failed', ins.error);
-    return { ok: false, error: ins.error };
+  if (legacyRows.length === 0) return { ok: true, count: 0 };
+  const ins = await supabase.from('doc_backlinks').insert(legacyRows);
+  if (ins.error) console.warn('doc_backlinks insert failed', ins.error);
+  const ins2 = await supabase.from('entity_links').insert(newRows);
+  if (ins2.error && ins2.error.code !== '23505') {
+    console.warn('entity_links insert failed', ins2.error);
   }
-  return { ok: true, count: rows.length };
+  return { ok: true, count: legacyRows.length };
 }

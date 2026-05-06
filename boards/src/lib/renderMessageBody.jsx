@@ -19,6 +19,8 @@
 // move on without re-parsing.
 
 import React from 'react';
+import { EntityLink } from '../components/EntityLink.jsx';
+import { scanForAutoLinks } from './scanForAutoLinks.js';
 
 const URL_RE = /https?:\/\/[^\s<>]+/g;
 const FENCE_RE = /```([\s\S]*?)```/g;
@@ -121,15 +123,16 @@ function renderTextSegment(str, ctx, keyPrefix) {
   });
 }
 
-// Wrap http(s) URLs in <a>, then run the search highlight overlay.
+// Wrap http(s) URLs in <a>, then auto-detect entity-name matches,
+// then run the search highlight overlay.
 function autoLinkAndHighlight(str, ctx, keyPrefix) {
-  // Auto-link first.
-  const out = [];
+  // 1. URL auto-link first.
+  const urlOut = [];
   let i = 0; let m; let counter = 0;
   URL_RE.lastIndex = 0;
   while ((m = URL_RE.exec(str)) != null) {
-    if (m.index > i) out.push(str.slice(i, m.index));
-    out.push(
+    if (m.index > i) urlOut.push(str.slice(i, m.index));
+    urlOut.push(
       <a key={`${keyPrefix}-u${counter++}`}
          className="msg-link"
          href={m[0]} target="_blank" rel="noopener noreferrer"
@@ -137,12 +140,38 @@ function autoLinkAndHighlight(str, ctx, keyPrefix) {
     );
     i = m.index + m[0].length;
   }
-  if (i < str.length) out.push(str.slice(i));
+  if (i < str.length) urlOut.push(str.slice(i));
 
-  // Highlight pass — only on the remaining string parts.
+  // 2. Entity auto-detect on the remaining string segments. Wraps
+  //    matched ranges in <EntityLink term=... refs={...}> chips so
+  //    hover/click work the same as everywhere else.
+  const trie = ctx.trie;
+  const withEntities = !trie ? urlOut : urlOut.flatMap((p, idx) => {
+    if (typeof p !== 'string') return [p];
+    const matches = scanForAutoLinks(p, trie);
+    if (!matches.length) return [p];
+    const segs = [];
+    let last = 0; let cc = 0;
+    for (const mm of matches) {
+      if (mm.start > last) segs.push(p.slice(last, mm.start));
+      segs.push(
+        <EntityLink
+          key={`${keyPrefix}-e${idx}-${cc++}`}
+          term={mm.text}
+          workspaceId={ctx.workspaceId}
+          asTag="span"
+        >{mm.text}</EntityLink>
+      );
+      last = mm.end;
+    }
+    if (last < p.length) segs.push(p.slice(last));
+    return segs;
+  });
+
+  // 3. Highlight pass — only on the remaining string parts.
   const q = (ctx.highlight || '').trim();
-  if (!q) return out;
-  return out.flatMap((p, idx) => {
+  if (!q) return withEntities;
+  return withEntities.flatMap((p, idx) => {
     if (typeof p !== 'string') return [p];
     const segs = [];
     const re2 = new RegExp(escapeReg(q), 'gi');

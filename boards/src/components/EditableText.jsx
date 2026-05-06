@@ -1,7 +1,16 @@
 // Inline plain-text editor — double-click to edit, Enter / blur to save,
 // Escape to cancel. `autoFocus` enters edit mode on mount (and selects all).
+//
+// Display-mode auto-linking: when not editing AND the workspace trie
+// is present in context, the displayed text is scanned for entity-name
+// matches and the matches are wrapped in <EntityLink> chips. Editing
+// flips contenteditable on and the chips collapse back to plain text
+// (commit reads textContent so the chip's text survives edits).
 
 import { useEffect, useRef, useState } from 'react';
+import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
+import { scanForAutoLinks } from '../lib/scanForAutoLinks.js';
+import { EntityLink } from './EntityLink.jsx';
 
 export function EditableText({
   value, onChange,
@@ -83,6 +92,14 @@ export function EditableText({
   const clickHandler = singleClickEdit && !editing ? startEdit : undefined;
   const dblClickHandler = !singleClickEdit ? startEdit : undefined;
 
+  const { trie, workspaceId } = useEntityTrie();
+  // Only run auto-detect when not editing and the value is real text
+  // (not the placeholder). Hidden behind a context lookup so callers
+  // don't have to opt in.
+  const renderedChildren = (!editing && trie && value)
+    ? renderTitleWithAutoLinks(display, { trie, workspaceId })
+    : display;
+
   return (
     <Tag
       ref={ref}
@@ -95,7 +112,34 @@ export function EditableText({
       onBlur={commit}
       {...swallow}
     >
-      {display}
+      {renderedChildren}
     </Tag>
   );
+}
+
+// Wrap entity-name matches in <EntityLink> chips. Used by every
+// EditableText display in the canvas (card titles, source URLs,
+// etc.) so card titles become a first-class linking surface.
+function renderTitleWithAutoLinks(text, { trie, workspaceId }) {
+  if (!text || typeof text !== 'string') return text;
+  const matches = scanForAutoLinks(text, trie);
+  if (!matches.length) return text;
+  const out = [];
+  let last = 0; let cc = 0;
+  for (const m of matches) {
+    if (m.start > last) out.push(text.slice(last, m.start));
+    out.push(
+      <EntityLink
+        key={`et-${cc++}`}
+        term={m.text}
+        workspaceId={workspaceId}
+        asTag="span"
+      >
+        {m.text}
+      </EntityLink>
+    );
+    last = m.end;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
 }

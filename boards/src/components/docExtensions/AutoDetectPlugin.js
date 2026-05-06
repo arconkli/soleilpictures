@@ -27,8 +27,12 @@ export function makeAutoDetectPlugin({ getIndex }) {
           }
           const text = node.text;
           for (const m of index.findMatches(text)) {
+            // Universal hairline visual — `tt-link tt-link-auto` shares
+            // styling with manual links (just lower opacity at rest).
+            // The data-records attr carries the candidate matches so
+            // hover handlers can hydrate them into refs.
             decos.push(Decoration.inline(pos + m.start, pos + m.end, {
-              class: 'tt-autolink-candidate',
+              class: 'tt-link tt-link-auto',
               'data-records': JSON.stringify(m.records),
             }));
           }

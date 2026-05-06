@@ -251,6 +251,32 @@ export function EntityHoverPopover({
         >
           <Icon as={Copy} size={11} /> Copy link
         </button>
+        {/* Workspace-scoped "don't auto-link this term anywhere"
+            affordance. Only relevant for auto-detect (term-driven)
+            popovers — manual links are explicit and shouldn't be
+            killed via this menu. */}
+        {term && !refs?.length && workspaceId && (
+          <button
+            className="ent-pop-foot-btn"
+            onClick={async () => {
+              try {
+                await supabase.from('entity_ignore_terms').insert({
+                  workspace_id: workspaceId,
+                  scope: 'workspace',
+                  scope_id: null,
+                  term: term.trim(),
+                });
+                feedback?.toast?.({ kind: 'success', title: `Won't auto-link "${term}" anymore` });
+              } catch (_) {
+                feedback?.toast?.({ kind: 'error', title: 'Could not save' });
+              }
+              onClose?.();
+            }}
+            title="Stop auto-linking this term anywhere in the workspace"
+          >
+            Don't auto-link
+          </button>
+        )}
         {totalCount > 0 && (
           <button className="ent-pop-foot-btn ent-pop-foot-btn-primary"
                   onClick={() => onSeeAll?.()}>

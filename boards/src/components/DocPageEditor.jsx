@@ -28,8 +28,14 @@ import { BlockHandleExtension } from './DocBlockHandle.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { LinkPopover } from './LinkPopover.jsx';
 import { LinkHoverCard } from './LinkHoverCard.jsx';
+import { EntityHoverPopover } from './EntityHoverPopover.jsx';
+import { EntityBacklinksPanel } from './EntityBacklinksPanel.jsx';
+import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
+import { recordToRef } from '../lib/scanForAutoLinks.js';
+import { coerceRef } from '../lib/entityRef.js';
 import { EntityPicker } from './EntityPicker.jsx';
 import { createNameIndex } from '../lib/entityNameTrie.js';
+import { useEntityNameTrie } from '../hooks/useEntityNameTrie.js';
 import { CommentGutter } from './CommentGutter.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 
@@ -78,7 +84,6 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   // before `editor` exists) can reach the live instance.
   const editorRef = useRef(null);
   const feedback = useFeedback();
-  const [linkPop, setLinkPop] = useState(null);
   const [linkPicker, setLinkPicker] = useState(null);
   // linkPicker = { anchor, multi, initialSelected, existingLinkId? } | null
   const [mention, setMention] = useState(null);
@@ -101,19 +106,12 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     },
   }), []);
 
-  // In-memory Trie of workspace entity names for auto-detect decorations.
+  // Workspace-wide entity name index for auto-detect decorations.
+  // Pulled from entity_search + entity_aliases via the universal hook;
+  // patches itself on entity create / rename / alias change in realtime.
+  const { trie: workspaceTrie } = useEntityNameTrie(workspaceId);
   const nameIndexRef = useRef(createNameIndex());
-
-  // Rebuild the name index whenever the workspace board list changes.
-  useEffect(() => {
-    const idx = createNameIndex();
-    if (Array.isArray(boards)) {
-      for (const b of boards) {
-        if (b?.name && b?.id) idx.add({ kind: 'board', id: b.id, name: b.name });
-      }
-    }
-    nameIndexRef.current = idx;
-  }, [boards]);
+  useEffect(() => { nameIndexRef.current = workspaceTrie; }, [workspaceTrie]);
 
   const openLinkPicker = useCallback((editor, opts = {}) => {
     if (!editor) return;
@@ -191,23 +189,58 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     return () => registerOpenAddComment?.(null);
   }, [registerOpenAddComment, addComment.open]);
 
-  const handleEditorClick = (e) => {
-    const el = e.target.closest?.('[data-link-id]');
-    if (!el) return;
-    const linkId = el.dataset.linkId;
+  const navigateRef = useEntityNavigate();
+
+  // [{ ref, ... }] derived from a manual-link's Y.Doc record.
+  // Each target lives on a single Link record; v1 always wraps as
+  // canonical EntityRefs so the popover can render previews uniformly.
+  const buildRefsFromManualLink = (linkId) => {
+    if (!linkId) return null;
     const link = getLink(ydoc, linkId);
-    if (!link) return;
-    e.preventDefault();
-    setLinkHover(null);
-    if (link.targets.length === 1) {
-      onNavigateTarget?.(link.targets[0]);
-    } else {
-      setLinkPop({ anchor: el.getBoundingClientRect(), link });
+    if (!link) return null;
+    return (link.targets || []).map(t => coerceRef(t)).filter(Boolean);
+  };
+  const buildRefsFromCandidate = (records) => {
+    if (!Array.isArray(records)) return null;
+    return records.map(recordToRef).filter(Boolean);
+  };
+
+  const handleEditorClick = (e) => {
+    // Manual link spans (rendered with data-link-id by LinkRenderer).
+    const manualEl = e.target.closest?.('[data-link-id]');
+    if (manualEl) {
+      const linkId = manualEl.dataset.linkId;
+      const refs = buildRefsFromManualLink(linkId);
+      e.preventDefault();
+      setLinkHover(null);
+      if (refs && refs.length === 1 && !(e.metaKey || e.ctrlKey)) {
+        navigateRef(refs[0]);
+      } else if (refs && refs.length) {
+        setLinkHover({
+          anchor: manualEl.getBoundingClientRect(),
+          refs, term: manualEl.textContent || '',
+        });
+      }
+      return;
+    }
+    // Auto-detect candidate spans (rendered by AutoDetectPlugin).
+    const autoEl = e.target.closest?.('.tt-link-auto[data-records]');
+    if (autoEl) {
+      let records = [];
+      try { records = JSON.parse(autoEl.dataset.records || '[]'); } catch {}
+      const refs = buildRefsFromCandidate(records);
+      e.preventDefault();
+      setLinkHover({
+        anchor: autoEl.getBoundingClientRect(),
+        refs: refs || [],
+        term: autoEl.textContent || '',
+      });
+      return;
     }
   };
 
-  // Hover-preview state machine: 400ms enter delay, 180ms grace on leave so
-  // the user can move the cursor INTO the card without it disappearing.
+  // Hover-preview state machine: 250ms enter delay, 200ms grace on leave so
+  // the user can move the cursor INTO the popover without it disappearing.
   const [linkHover, setLinkHover] = useState(null);
   const hoverTimers = useRef({ open: null, close: null });
   const cancelHoverTimers = () => {
@@ -217,23 +250,32 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     hoverTimers.current.close = null;
   };
   const handleLinkHoverEnter = (e) => {
-    const el = e.target.closest?.('[data-link-id]');
+    const manualEl = e.target.closest?.('[data-link-id]');
+    const autoEl   = manualEl ? null : e.target.closest?.('.tt-link-auto[data-records]');
+    const el = manualEl || autoEl;
     if (!el) return;
-    const linkId = el.dataset.linkId;
     cancelHoverTimers();
     hoverTimers.current.open = setTimeout(() => {
-      const link = getLink(ydoc, linkId);
-      if (!link) return;
-      setLinkHover({ anchor: el.getBoundingClientRect(), link });
-    }, 400);
+      let refs = null, term = el.textContent || '';
+      if (manualEl) refs = buildRefsFromManualLink(manualEl.dataset.linkId);
+      else if (autoEl) {
+        let records = [];
+        try { records = JSON.parse(autoEl.dataset.records || '[]'); } catch {}
+        refs = buildRefsFromCandidate(records);
+      }
+      setLinkHover({ anchor: el.getBoundingClientRect(), refs: refs || [], term });
+    }, 250);
   };
   const handleLinkHoverLeave = (e) => {
-    if (!e.target.closest?.('[data-link-id]')) return;
+    if (!e.target.closest?.('[data-link-id], .tt-link-auto[data-records]')) return;
     clearTimeout(hoverTimers.current.open);
     hoverTimers.current.open = null;
-    hoverTimers.current.close = setTimeout(() => setLinkHover(null), 180);
+    hoverTimers.current.close = setTimeout(() => setLinkHover(null), 200);
   };
   useEffect(() => () => cancelHoverTimers(), []);
+
+  // "See all references" → open the side drawer for the first ref.
+  const [backlinksRef, setBacklinksRef] = useState(null);
 
   // Upload an image File and insert it at `pos` (or current selection if null).
   const uploadAndInsert = async (editor, file, pos = null) => {
@@ -479,20 +521,26 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
                             onAddComment={addComment.open} />
       <EditorContent editor={editor} />
       {addComment.node}
-      {linkPop && (
-        <LinkPopover
-          anchor={linkPop.anchor}
-          link={linkPop.link}
-          onNavigate={(t) => { setLinkPop(null); onNavigateTarget?.(t); }}
-          onClose={() => setLinkPop(null)}
+      {linkHover && (
+        <EntityHoverPopover
+          anchor={linkHover.anchor}
+          refs={linkHover.refs}
+          term={linkHover.term}
+          workspaceId={workspaceId}
+          onMouseEnter={cancelHoverTimers}
+          onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setLinkHover(null), 200); }}
+          onClose={() => setLinkHover(null)}
+          onSeeAll={() => {
+            const ref = linkHover.refs?.[0];
+            setLinkHover(null);
+            if (ref) setBacklinksRef(ref);
+          }}
         />
       )}
-      {linkHover && (
-        <LinkHoverCard
-          anchor={linkHover.anchor}
-          link={linkHover.link}
-          onMouseEnter={cancelHoverTimers}
-          onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setLinkHover(null), 180); }}
+      {backlinksRef && (
+        <EntityBacklinksPanel
+          ref={backlinksRef}
+          onClose={() => setBacklinksRef(null)}
         />
       )}
       {linkPicker && (

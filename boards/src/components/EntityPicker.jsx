@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { Search, X, Check, LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar, Link as LinkIcon, User } from '../lib/icons.js';
 import { searchEntities } from '../lib/entitySearch.js';
+import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 
 const PAD = 8;
 const WIDTH = 380;
@@ -162,6 +163,8 @@ export function EntityPicker({
                 key={row.id}
                 className={`entity-picker-row ${isSelected(row) ? 'is-selected' : ''}`}
                 onClick={() => toggle(row)}
+                draggable
+                onDragStart={(e) => onPickerRowDragStart(e, row)}
               >
                 <Icon as={KIND_ICON[kind] || LayoutGrid} size={14} />
                 <span className="entity-picker-row-name">{row.title || 'Untitled'}</span>
@@ -196,6 +199,19 @@ function rowToTarget(row) {
   if (row.kind === 'doc')   return { kind: 'doc', docCardId: row.card_id };
   if (row.kind === 'user')  return { kind: 'user', id: row.id, title: row.title };
   return { kind: 'card', boardId: row.board_id, cardId: row.card_id };
+}
+
+// Drag handler for picker rows — sets the universal entity-ref mime
+// types so any drop target (canvas, message composer, doc editor)
+// can recognize the drag.
+function onPickerRowDragStart(e, row) {
+  try {
+    const ref = rowToTarget(row);
+    e.dataTransfer.setData(ENTITY_REF_MIME, JSON.stringify(ref));
+    e.dataTransfer.setData(ENTITY_REF_LIST_MIME, JSON.stringify([ref]));
+    if (row.title) e.dataTransfer.setData('text/plain', row.title);
+    e.dataTransfer.effectAllowed = 'copyLink';
+  } catch (_) {}
 }
 
 function sameTarget(a, b) {

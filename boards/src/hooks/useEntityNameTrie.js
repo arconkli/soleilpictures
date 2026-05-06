@@ -9,9 +9,15 @@
 // lib/entityNameTrie.js so callers (AutoLinkPlugin, scanForAutoLinks)
 // can use it uniformly.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useContext, createContext } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { createNameIndex } from '../lib/entityNameTrie.js';
+
+// Context lets any surface read the workspace-scoped trie without
+// prop-drilling. App.jsx publishes it once; renderMessageBody, note
+// renderers, card title renderers all read it.
+export const EntityTrieContext = createContext({ trie: null, workspaceId: null });
+export function useEntityTrie() { return useContext(EntityTrieContext); }
 
 // Don't auto-link these — too short / too common.
 const STOP_TERMS = new Set([
@@ -76,18 +82,25 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
 
     const reload = async () => {
       try {
-        const [r1, r2] = await Promise.all([
+        const [r1, r2, r3] = await Promise.all([
           supabase.from('entity_search')
             .select('id,kind,workspace_id,board_id,card_id,title,updated_at')
             .eq('workspace_id', workspaceId),
           supabase.from('entity_aliases')
             .select('entity_kind,entity_id,alias')
             .eq('workspace_id', workspaceId),
+          // Workspace-scoped ignore terms (per-doc scope is a follow-up).
+          supabase.from('entity_ignore_terms')
+            .select('term,scope,scope_id')
+            .eq('workspace_id', workspaceId)
+            .eq('scope', 'workspace'),
         ]);
         if (cancelled || versionRef.current !== myVersion) return;
         const rows = r1.data || [];
         const aliases = r2.data || [];
-        const next = buildTrie(rows, aliases, ignoredTerms);
+        const fromDb = (r3.data || []).map(r => r.term);
+        const allIgnored = [...(ignoredTerms || []), ...fromDb];
+        const next = buildTrie(rows, aliases, allIgnored);
         setTrie(next);
         setReady(true);
       } catch (e) {
@@ -115,6 +128,9 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
     const ch3 = supabase.channel(`trie:aliases:${workspaceId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_aliases', filter: `workspace_id=eq.${workspaceId}` }, schedule)
       .subscribe();
+    const ch4 = supabase.channel(`trie:ignore:${workspaceId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_ignore_terms', filter: `workspace_id=eq.${workspaceId}` }, schedule)
+      .subscribe();
 
     return () => {
       cancelled = true;
@@ -122,6 +138,7 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
       try { supabase.removeChannel(ch1); } catch (_) {}
       try { supabase.removeChannel(ch2); } catch (_) {}
       try { supabase.removeChannel(ch3); } catch (_) {}
+      try { supabase.removeChannel(ch4); } catch (_) {}
     };
   }, [workspaceId, JSON.stringify(ignoredTerms)]);
 

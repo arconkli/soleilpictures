@@ -5,6 +5,8 @@ import { uploadMessageFile } from '../lib/messageAttachments.js';
 import { caretRect } from '../lib/caretRect.js';
 import { EntityPicker } from './EntityPicker.jsx';
 import { useDraft } from '../hooks/useDraft.js';
+import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
+import { coerceRef } from '../lib/entityRef.js';
 
 // Bottom-of-thread input. Detects @<query> tokens at the caret to fire the
 // EntityPicker filtered to user/board/card/doc; resolved picks become
@@ -77,9 +79,25 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
     e.preventDefault();
     enterCountRef.current = 0;
     setDragOver(false);
+    // 1. Universal entity refs (dragged from EntityLink chip, picker
+    //    row, or canvas card). Push into pendingEntityRefs[].
+    const refListJson = e.dataTransfer?.getData(ENTITY_REF_LIST_MIME);
+    const refJson     = e.dataTransfer?.getData(ENTITY_REF_MIME);
+    if (refListJson || refJson) {
+      try {
+        const refs = refListJson ? JSON.parse(refListJson)
+                                 : [JSON.parse(refJson)];
+        const cleaned = refs.map(r => coerceRef(r)).filter(Boolean);
+        if (cleaned.length) {
+          setPendingEntityRefs(prev => [...prev, ...cleaned]);
+          return;
+        }
+      } catch (_) { /* fall through to file/url */ }
+    }
+    // 2. File drop.
     const files = [...e.dataTransfer?.files || []];
     if (files.length) { await handleFiles(files); return; }
-    // Dragged from another browser tab / canvas image card → URL.
+    // 3. Dragged from another browser tab / canvas image card → URL.
     const uri = e.dataTransfer?.getData('text/uri-list')
               || e.dataTransfer?.getData('text/plain') || '';
     const firstUrl = (uri.split(/\r?\n/).find(line => /^https?:\/\//i.test(line.trim())) || '').trim();
@@ -194,6 +212,7 @@ function hasDragData(e) {
   const types = e.dataTransfer?.types || [];
   for (const t of types) {
     if (t === 'Files' || t === 'text/uri-list' || t === 'text/plain') return true;
+    if (t === ENTITY_REF_MIME || t === ENTITY_REF_LIST_MIME) return true;
   }
   return false;
 }

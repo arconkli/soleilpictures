@@ -13,6 +13,7 @@ import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
 import { fetchMessageById } from './lib/messages.js';
 import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
+import { useEntityNameTrie, EntityTrieContext } from './hooks/useEntityNameTrie.js';
 import { refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
 // Side-effect import: registers the v1 entity kinds so any surface
 // that resolves a kind sees the same registry.
@@ -27,7 +28,8 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, UserPlus, Trash2, MoreHorizontal } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, UserPlus, Trash2, MoreHorizontal, Link as LinkIcon } from './lib/icons.js';
+import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -873,6 +875,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //  hook resolves on first render.)
   // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
   const [shareOpen, setShareOpen] = useState(false);
+  // "Linked from" side drawer for the currently-viewed board (or any
+  // entity surfaced by other components via setBacklinksRef).
+  const [backlinksRef, setBacklinksRef] = useState(null);
 
   // Permalink target (drives MessagesPanel for ?to=m:<uuid> / legacy
   // ?m=<uuid>). Other ref kinds navigate via setStack + custom events.
@@ -1295,6 +1300,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   return (
     <EntityNavigateContext.Provider value={navHandlers}>
+    <AppTrieProvider workspaceId={workspace.id}>
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
       <aside className="sidebar">
@@ -1482,6 +1488,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             {!canEditCurrent && (
               <span className="tb-viewonly" title="You have view-only access to this board">VIEW ONLY</span>
             )}
+            <button className="tb-icon"
+                    onClick={() => setBacklinksRef({ kind: 'board', id: currentBoard.id })}
+                    title="Linked from — every doc, message, and card that mentions this board">
+              <Icon as={LinkIcon} size={16} />
+            </button>
             <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this board">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
             </button>
@@ -1595,9 +1606,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onSharesChanged={() => { refreshSharedBoards?.(); }}
         />
       )}
+      {backlinksRef && (
+        <EntityBacklinksPanel
+          ref={backlinksRef}
+          onClose={() => setBacklinksRef(null)}
+        />
+      )}
 
     </div>
+    </AppTrieProvider>
     </EntityNavigateContext.Provider>
+  );
+}
+
+// Workspace-scoped trie published into context so every linking
+// surface (renderMessageBody, NoteCard rendering, card-title scanner)
+// reads from one place.
+function AppTrieProvider({ workspaceId, children }) {
+  const { trie } = useEntityNameTrie(workspaceId);
+  const value = useMemo(() => ({ trie, workspaceId }), [trie, workspaceId]);
+  return (
+    <EntityTrieContext.Provider value={value}>
+      {children}
+    </EntityTrieContext.Provider>
   );
 }
 
