@@ -211,7 +211,9 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
   return (
     <div className="msg-panel">
       <div className="msg-panel-head">
-        <button className="modal-close" onClick={onBack} title="Back"><Icon as={ChevronLeft} size={16} /></button>
+        <button className="msg-panel-icon" onClick={onBack} title="Back" aria-label="Back to channels">
+          <Icon as={ChevronLeft} size={14} />
+        </button>
         <div className="msg-panel-title">
           <div className="t-eyebrow msg-panel-eyebrow">{subtitle}</div>
           <div className="msg-panel-name" title={thread?.name || 'Thread'}>{thread?.name || 'Thread'}</div>
@@ -224,7 +226,9 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
                 title="Search messages (⌘F)" aria-label="Search messages">
           <Icon as={Search} size={14} />
         </button>
-        <button className="modal-close" onClick={onClose} title="Close"><Icon as={X} size={16} /></button>
+        <button className="msg-panel-icon" onClick={onClose} title="Close (Esc)" aria-label="Close messages">
+          <Icon as={X} size={14} />
+        </button>
       </div>
 
       {searchOpen && (

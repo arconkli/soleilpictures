@@ -54,8 +54,13 @@ export function MessagesPanel({ workspaceId, currentUser, currentBoard, refreshT
   return (
     <div className="msg-panel">
       <div className="msg-panel-head">
-        <span className="t-eyebrow">MESSAGES</span>
-        <button className="modal-close" onClick={onClose}><Icon as={X} size={16} /></button>
+        <div className="msg-panel-title">
+          <div className="t-eyebrow msg-panel-eyebrow">MESSAGES</div>
+          <div className="msg-panel-name">All conversations</div>
+        </div>
+        <button className="msg-panel-icon" onClick={onClose} title="Close (Esc)" aria-label="Close messages">
+          <Icon as={X} size={14} />
+        </button>
       </div>
 
       <div className="msg-panel-body">
