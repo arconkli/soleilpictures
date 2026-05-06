@@ -54,16 +54,6 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     provider.on('status', ({ status }) => {
       console.log('[partykit] board', boardId, status);
     });
-    // Diagnostic: confirm the provider is using the SAME awareness
-    // instance we exposed via attachRealtime. If these IDs differ, the
-    // provider built its own and our setLocalStateField writes go
-    // nowhere. Should print same number on both sides.
-    console.log('[partykit] board', boardId, 'awareness clientID=', awareness.clientID,
-      'provider.awareness same?', provider.awareness === awareness);
-    awareness.on('change', () => {
-      const sz = awareness.getStates().size;
-      console.log('[partykit] board', boardId, 'awareness change → states=', sz);
-    });
   })();
 
   return {

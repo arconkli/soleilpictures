@@ -1493,8 +1493,8 @@ export function CanvasSurface({
         <RichDocCard card={c} ydoc={ydoc} cardYMap={cardYMap}
                      workspaceId={workspaceId} userId={userId}
                      boards={boards}
-                     getAwareness={undefined}
-                     currentUser={undefined}
+                     getAwareness={getAwareness}
+                     currentUser={currentUser}
                      autoFocus={af}
                      onUpdate={onUpdate} />
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;
