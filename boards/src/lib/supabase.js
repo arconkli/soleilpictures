@@ -49,78 +49,68 @@ export const supabase = (url && publicKey)
 
 export const isSupabaseConfigured = !!supabase;
 
-// ── Realtime transport reset on wake events ────────────────────────────
-// When the OS / browser kills our websocket while the tab is backgrounded,
-// realtime-js's cached state still says "connected." Worse, supabase-js's
-// auto-refresh ticker is paused while hidden — after 1+ hours idle the
-// cached JWT is expired, so even a forced reconnect uses a dead token and
-// the server silently rejects channel joins. The only reliable recovery:
-//   1. Force `auth.refreshSession()` to mint a fresh JWT.
-//   2. Push it to realtime via `setAuth()` (belt-and-suspenders for the
-//      `onAuthStateChange → TOKEN_REFRESHED` hook in supabase-js itself).
-//   3. AWAIT `realtime.disconnect()` (it's async — calling connect() too
-//      early hits the `isDisconnecting()` guard and silently no-ops).
-//   4. `realtime.connect()` to open a new socket; channels resubscribe
-//      via their own CLOSED handlers.
+// ── Realtime wake handling ─────────────────────────────────────────────
+// Two layers of recovery:
+//
+// 1) Wake events (visibility/focus/online/pageshow) → refresh + setAuth ONLY.
+//    Don't touch the transport. Phoenix channels stay JOINED, the new token
+//    is pushed to them via realtime-js's `access_token` event, and the
+//    socket's heartbeat (30s default) detects any genuine death and
+//    auto-reconnects on its own. Aggressively bouncing the transport on
+//    every wake event was causing rejoin pushes to time out, which made
+//    Phoenix channels go to `closed` state — once that happens the channel
+//    is REMOVED from the socket (channel.js:70 → socket.remove(this)) and
+//    no future rejoin is possible, killing collab permanently.
+//
+// 2) Watchdog-detected dead socket (no inbound for 5 min while visible) →
+//    full transport bounce as a last resort. This is rare and only fires
+//    when something is truly wrong; the channel-thrash risk is acceptable
+//    when the alternative is staying dead forever.
 
-const BOUNCE_THROTTLE_MS = 80;
-let bouncePromise = null;
-let lastBounceAt = 0;
+const REFRESH_THROTTLE_MS = 1000;
+let refreshPromise = null;
+let lastRefreshAt = 0;
 
-async function refreshAndBounce(_reason) {
+async function refreshAndSetAuth(_reason) {
   if (!supabase) return;
-  if (bouncePromise) return bouncePromise;             // coalesce concurrent calls
-  if (Date.now() - lastBounceAt < BOUNCE_THROTTLE_MS) return;
+  if (refreshPromise) return refreshPromise;
+  if (Date.now() - lastRefreshAt < REFRESH_THROTTLE_MS) return;
 
-  bouncePromise = (async () => {
+  refreshPromise = (async () => {
     try {
-      // 1. Force a session refresh. If the refresh token itself is dead
-      //    (>30d idle, rotated, revoked elsewhere), log and proceed —
-      //    the channel will fail to join, the auth UI handles re-auth.
       let token = null;
       try {
         const { data, error } = await supabase.auth.refreshSession();
-        if (error) console.warn('[realtime] refreshSession failed; bouncing with stale token', error.message);
+        if (error) console.warn('[realtime] refreshSession failed', error.message);
         token = data?.session?.access_token ?? null;
       } catch (e) { console.warn('[realtime] refreshSession threw', e); }
 
-      // 2. Explicit setAuth — supabase-js usually does this on
-      //    TOKEN_REFRESHED, but being explicit avoids races with the
-      //    bounce we're about to do.
       if (token) {
+        // setAuth on a connected client pushes an `access_token` event
+        // to every joined channel — server accepts the new JWT without
+        // any reconnect. On a disconnected client it just caches the
+        // token for the next connect.
         try { supabase.realtime.setAuth(token); } catch (e) { console.warn('[realtime] setAuth failed', e); }
       }
-
-      // 3. Await the disconnect. Without await, connect() below short-
-      //    circuits because the client is still in `disconnecting` state.
-      try { await supabase.realtime.disconnect(); } catch (e) { console.warn('[realtime] disconnect failed', e); }
-
-      // 4. Reconnect. Channels' onSubscribeStatus CLOSED handlers in
-      //    ySupabase.js / workspaceRealtime.js will re-subscribe.
-      try { supabase.realtime.connect(); } catch (e) { console.warn('[realtime] connect failed', e); }
-
-      lastBounceAt = Date.now();
+      lastRefreshAt = Date.now();
     } finally {
-      bouncePromise = null;
+      refreshPromise = null;
     }
   })();
-  return bouncePromise;
+  return refreshPromise;
 }
 
 if (supabase && typeof document !== 'undefined') {
-  const onVisibility = () => { if (document.visibilityState === 'visible') refreshAndBounce('visibility'); };
-  // pageshow with persisted=true = bfcache restore on iOS Safari (where
-  // visibilitychange may not fire). visibilityState gate keeps normal
-  // navigation from triggering an extra bounce.
-  const onPageShow = (e) => { if (e.persisted || document.visibilityState === 'visible') refreshAndBounce('pageshow'); };
+  const onVisibility = () => { if (document.visibilityState === 'visible') refreshAndSetAuth('visibility'); };
+  const onPageShow = (e) => { if (e.persisted || document.visibilityState === 'visible') refreshAndSetAuth('pageshow'); };
   document.addEventListener('visibilitychange', onVisibility);
-  window.addEventListener('focus',    () => refreshAndBounce('focus'));
-  window.addEventListener('online',   () => refreshAndBounce('online'));
+  window.addEventListener('focus',    () => refreshAndSetAuth('focus'));
+  window.addEventListener('online',   () => refreshAndSetAuth('online'));
   window.addEventListener('pageshow', onPageShow);
 
-  // Any token refresh (periodic from auto-refresh, or our forced one) →
-  // push to realtime explicitly. supabase-js does this internally but
-  // INITIAL_SESSION also fires here during boot — skip to avoid noise.
+  // Belt-and-suspenders: any token refresh (auto or manual) → push to
+  // realtime. supabase-js does this internally on TOKEN_REFRESHED;
+  // explicit avoids races. Skip INITIAL_SESSION (boot noise).
   try {
     supabase.auth.onAuthStateChange((event, session) => {
       if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && session?.access_token) {
@@ -130,8 +120,22 @@ if (supabase && typeof document !== 'undefined') {
   } catch (_) {}
 }
 
-// Exposed so per-channel watchdogs can request a refresh+bounce when
-// they detect a dead socket (no inbound for 5 min while visible).
+// Exposed for the per-channel watchdogs (5-min no-inbound guard) — true
+// last resort. Refreshes auth, then bounces the transport so every
+// channel re-handshakes via Phoenix. WILL cause the CHANNEL_ERROR →
+// rejoin cycle, accept that risk only when the socket is genuinely dead.
+let bouncePromise = null;
 export async function bounceRealtime() {
-  return refreshAndBounce('manual');
+  if (!supabase) return;
+  if (bouncePromise) return bouncePromise;
+  bouncePromise = (async () => {
+    try {
+      await refreshAndSetAuth('bounce');
+      try { await supabase.realtime.disconnect(); } catch (e) { console.warn('[realtime] disconnect failed', e); }
+      try { supabase.realtime.connect(); } catch (e) { console.warn('[realtime] connect failed', e); }
+    } finally {
+      bouncePromise = null;
+    }
+  })();
+  return bouncePromise;
 }
