@@ -328,6 +328,15 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
         <div className="doc-paper" ref={paperRef} style={{ position: 'relative' }}>
+          {(() => {
+            // Diagnostic: log why DocPresence does or doesn't render. The
+            // gate is `activePageId && awareness`. If we're missing either,
+            // the overlay can't run. console-log per render so the next
+            // paste shows the failing condition immediately.
+            console.log('[docsurf] render board=', board.id, 'view=', board.view,
+              'activePageId=', activePageId, 'awareness?', !!awareness, 'editor?', !!editorRef.current);
+            return null;
+          })()}
           {activePageId && awareness && (
             <DocPresence getAwareness={getAwareness} boardId={board.id} pageId={activePageId}
                          paperRef={paperRef} editor={editorRef.current}
