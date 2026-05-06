@@ -152,6 +152,8 @@ export function CanvasSurface({
                            // doc-card overlay can render its own peer
                            // avatars + page-tree dots scoped to that card.
   onJumpToPeer,            // (location) => void  — click peer avatar/dot
+  canEdit = true,          // false → view-only board: hide drawing tools
+                           // and gray the toolbar (RLS is the real defense)
 }) {
   const wrapRef = useRef(null);
   const [pan, setPan] = useState({ x: 40, y: 60 });
@@ -1504,6 +1506,7 @@ export function CanvasSurface({
                      currentUser={currentUser}
                      wsPeers={wsPeers}
                      onJumpToPeer={onJumpToPeer}
+                     canEdit={canEdit}
                      autoFocus={af}
                      onUpdate={onUpdate} />
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;
@@ -1942,7 +1945,7 @@ export function CanvasSurface({
 
       </div>
 
-      <div className="cnv-tools">
+      <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`}>
         <div className="cnv-add-wrap">
           <div
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}

@@ -74,6 +74,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // dots per page row; clicking a dot calls onJumpToPeer.
                               peersOnBoard = [],
                               onJumpToPeer,
+                              // false → view-only doc: Tiptap editable=false.
+                              canEdit = true,
                               onClose }) {
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
   // Subscribe to the awareness instance lazily — it's only created after the
@@ -360,6 +362,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               registerOpenLinkPicker={registerOpenLinkPicker}
               registerOpenAddComment={registerOpenAddComment}
               boards={Object.values(boards || {})}
+              editable={canEdit}
             />
           ) : (
             <div className="doc-empty">No page selected.</div>

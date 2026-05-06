@@ -577,6 +577,206 @@ body {
   color: var(--ink-2);
 }
 
+/* "Shared with me" section — collapsed by default, grouped by source
+   workspace. Sits above the BOARDS tree.                              */
+.sb-shared { display: flex; flex-direction: column; }
+.sb-shared-head {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  padding: 12px 12px 4px;
+  transition: color var(--dur-fast) var(--ease);
+}
+.sb-shared-head:hover { color: var(--ink-1); }
+.sb-shared-chev {
+  display: inline-block;
+  font-size: 9px;
+  color: var(--ink-3);
+  transition: transform 120ms var(--ease);
+}
+.sb-shared-chev.is-open { transform: rotate(90deg); }
+.sb-shared-body { display: flex; flex-direction: column; padding-bottom: 4px; }
+.sb-shared-group { display: flex; flex-direction: column; }
+.sb-shared-group-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 14px;
+  font: 500 11px/1.3 var(--font-sans);
+  color: var(--ink-3);
+  cursor: pointer;
+  user-select: none;
+}
+.sb-shared-group-head:hover { color: var(--ink-1); }
+.sb-shared-group-name {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-shared-rows { padding-left: 8px; }
+.sb-shared-row { padding-left: 22px; }
+.sb-shared-eye {
+  display: inline-flex; align-items: center;
+  color: var(--ink-3);
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+/* Share modal — full-page overlay, centered panel with three sections
+   (invite / workspace members / per-board shares).                    */
+.share-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  display: grid; place-items: center;
+  z-index: 9999;
+  padding: 20px;
+}
+.share-modal {
+  width: min(540px, 92vw);
+  max-height: 86vh;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 56px rgba(0,0,0,.5);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.share-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--line-1);
+}
+.share-eyebrow {
+  font: 600 9.5px/1.3 var(--font-sans);
+  letter-spacing: 0.18em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.share-title {
+  font: 700 16px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 380px;
+}
+.share-close {
+  appearance: none; border: 0; background: transparent;
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: grid; place-items: center;
+  color: var(--ink-2);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.share-close:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+.share-section {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line-1);
+  overflow-y: auto;
+}
+.share-section:last-child { border-bottom: 0; }
+
+.share-invite-row {
+  display: flex; gap: 6px;
+  margin-bottom: 6px;
+}
+.share-input {
+  flex: 1 1 auto;
+  appearance: none;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-0);
+  font: 500 13px/1.4 var(--font-sans);
+  padding: 7px 10px;
+  outline: none;
+  min-width: 0;
+}
+.share-input:focus { border-color: var(--soleil); }
+.share-role-select {
+  appearance: none;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-0);
+  font: 500 12px/1.4 var(--font-sans);
+  padding: 6px 26px 6px 10px;
+  cursor: pointer;
+  outline: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none'><path d='M2 4 L5 7 L8 4' stroke='%2399a' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+.share-invite-btn {
+  appearance: none; border: 0;
+  background: var(--soleil);
+  color: var(--bg-0);
+  font: 600 12px/1 var(--font-sans);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.share-invite-btn:hover:not(:disabled) { background: var(--soleil-bright, var(--soleil)); }
+.share-invite-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.share-hint {
+  font: 500 11px/1.45 var(--font-sans);
+  color: var(--ink-3);
+  margin-top: 6px;
+}
+
+.share-list { display: flex; flex-direction: column; gap: 2px; }
+.share-empty {
+  font: 500 12px/1.45 var(--font-sans);
+  color: var(--ink-3);
+  padding: 8px 0;
+  font-style: italic;
+}
+.share-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 6px;
+  border-radius: var(--radius);
+  transition: background var(--dur-fast) var(--ease);
+}
+.share-row:hover { background: var(--bg-hov); }
+.share-avatar {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  display: grid; place-items: center;
+  font: 700 12px/1 var(--font-sans);
+  color: var(--bg-0);
+  flex-shrink: 0;
+}
+.share-row-text {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column;
+  min-width: 0;
+}
+.share-row-name {
+  font: 600 12.5px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.share-row-sub {
+  font: 500 10.5px/1.3 var(--font-sans);
+  color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.share-row-role { flex-shrink: 0; }
+.share-online {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+.share-remove {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-3);
+  font: 600 11px/1 var(--font-sans);
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.share-remove:hover { color: #f87171; background: rgba(248,113,113,.12); }
+
 /* Sidebar footer — settings + avatar/sign-out, anchored at the bottom. */
 .sb-foot {
   margin-top: auto;
@@ -890,6 +1090,29 @@ body {
 .tb-icon:hover:not(:disabled), .tb-btn:hover:not(:disabled) { color: var(--ink-0); background: var(--bg-hov); }
 .tb-icon:disabled, .tb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .tb-btn-label { font: 500 13px/1 var(--font-sans); }
+
+/* "VIEW ONLY" pill in the topbar — appears for boards the caller has
+   read-but-not-write access to (per-board viewer share, no membership). */
+.tb-viewonly {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  font: 700 9.5px/1 var(--font-sans);
+  letter-spacing: 0.12em;
+  color: var(--bg-0);
+  background: var(--soleil);
+  border-radius: 4px;
+  margin-right: 6px;
+}
+
+/* Canvas toolbar in read-only mode — fade non-select tools so users
+   know they can't draw / add. The select tool stays usable so peers
+   can still scroll/inspect.                                          */
+.cnv-tools.is-readonly .cnv-tool:not(.is-select-tool):not([data-tool='select']) {
+  opacity: 0.32;
+  pointer-events: none;
+}
+.cnv-tools.is-readonly .cnv-add-wrap { opacity: 0.32; pointer-events: none; }
 
 .crumbs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
 .crumb {

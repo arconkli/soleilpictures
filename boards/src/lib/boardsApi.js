@@ -83,6 +83,59 @@ export async function listWorkspaceMembers(workspaceId) {
   return data || [];
 }
 
+// Owner-only: remove a workspace member by user id. Self-removal goes
+// through leaveWorkspace; this is for kicking someone else.
+export async function removeWorkspaceMember({ workspaceId, userId }) {
+  const { error } = await supabase
+    .rpc('remove_workspace_member', {
+      p_workspace_id: workspaceId,
+      p_user_id: userId,
+    });
+  if (error) throw error;
+}
+
+// ── Per-board sharing ──────────────────────────────────────────────────
+// Workspace members keep full access; per-board shares grant view-only
+// or editor access to non-members for one board (and its descendants).
+
+// Owner-only. Looks up the recipient by email + upserts the share row.
+export async function shareBoard({ boardId, email, role }) {
+  const { error } = await supabase
+    .rpc('share_board', {
+      p_board_id: boardId,
+      p_email: email,
+      p_role: role,
+    });
+  if (error) throw error;
+}
+
+export async function unshareBoard({ boardId, userId }) {
+  const { error } = await supabase
+    .rpc('unshare_board', { p_board_id: boardId, p_user_id: userId });
+  if (error) throw error;
+}
+
+// Owner-only. Returns rows: { user_id, email, role, invited_by, created_at }.
+export async function listBoardShares(boardId) {
+  if (!boardId) return [];
+  const { data, error } = await supabase
+    .rpc('list_board_shares', { p_board_id: boardId });
+  if (error) throw error;
+  return data || [];
+}
+
+// Boards the caller has access to via a per-board share where they are
+// NOT also a workspace member. Used by the sidebar's "Shared with me"
+// section.  Returns rows shaped like:
+//   { board_id, board_name, role, source_workspace_id,
+//     source_workspace_name, parent_board_id, board_view, board_cover,
+//     created_at }
+export async function listSharedBoards() {
+  const { data, error } = await supabase.rpc('list_shared_boards');
+  if (error) throw error;
+  return data || [];
+}
+
 // ── Boards ─────────────────────────────────────────────────────────────────
 
 export async function listBoards(workspaceId) {

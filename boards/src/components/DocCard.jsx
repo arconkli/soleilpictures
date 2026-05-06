@@ -27,6 +27,9 @@ export function RichDocCard({
   // render peer avatars in its modal header and pass per-page presence
   // dots into DocPageTree. Filtered to peers whose docCardId === card.id.
   wsPeers = [], onJumpToPeer,
+  // false → view-only board: pass through to DocSurface so Tiptap
+  // becomes non-editable.
+  canEdit = true,
   autoFocus = false, onUpdate,
 }) {
   const scope = cardYMap ? cardScope(cardYMap) : null;
@@ -177,6 +180,7 @@ export function RichDocCard({
           onPendingScrollConsumed={() => setPendingScroll(null)}
           peersOnCard={peersOnCard}
           onJumpToPeer={onJumpToPeer}
+          canEdit={canEdit}
         />,
         document.body
       )}
@@ -189,6 +193,7 @@ function DocCardOverlay({
   getAwareness, boards, onUpdate, onSetMode, onClose, onDividerDown,
   pendingScroll, onPendingScrollConsumed,
   peersOnCard = [], onJumpToPeer,
+  canEdit = true,
 }) {
   // Esc closes from either mode.
   useEffect(() => {
@@ -303,6 +308,7 @@ function DocCardOverlay({
             onPendingScrollConsumed={onPendingScrollConsumed}
             peersOnBoard={peersOnCard}
             onJumpToPeer={onJumpToPeer}
+            canEdit={canEdit}
           />
         </div>
       </div>

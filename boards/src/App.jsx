@@ -6,8 +6,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
+import { useSharedBoards } from './hooks/useSharedBoards.js';
+import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
+import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
+import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { BoardPicker } from './components/BoardPicker.jsx';
@@ -141,7 +145,32 @@ export function App() {
 }
 
 function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWorkspace, onWorkspacesChanged, personalWorkspaceId, tweak, setTweak }) {
-  const { boards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id);
+  const { boards: ownedBoards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id);
+  // Boards shared with the user via per-board shares. Fetched here
+  // (early) so we can merge them into the boards map below; the shared
+  // section in the sidebar reads from the same source.
+  const { shared: sharedBoards, refresh: refreshSharedBoards } = useSharedBoards(user.id);
+  // Effective boards map = workspace boards + shared boards from other
+  // workspaces (normalized to the boards table shape so the rest of
+  // the app can look them up by id transparently).
+  const boards = useMemo(() => {
+    const merged = { ...ownedBoards };
+    for (const s of (sharedBoards || [])) {
+      if (!merged[s.board_id]) {
+        merged[s.board_id] = {
+          id: s.board_id,
+          name: s.board_name,
+          workspace_id: s.source_workspace_id,
+          parent_board_id: s.parent_board_id,
+          view: s.board_view,
+          cover: s.board_cover,
+          created_at: s.created_at,
+          _shared: true,
+        };
+      }
+    }
+    return merged;
+  }, [ownedBoards, sharedBoards]);
   const feedback = useFeedback();
   const sessionKey = `${SESSION_PREFIX}${user.id}.${workspace.id}`;
   const [initialSession] = useState(() => readSession(sessionKey));
@@ -826,7 +855,32 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // of which board they're on. Click an avatar to teleport to their board.
   // Members of the active workspace — drives the sidebar header dot
   // stack and the "shared" badge on each rail workspace button.
-  const { members: workspaceMembers } = useWorkspaceMembers(workspace.id);
+  const { members: workspaceMembers, refresh: refreshWorkspaceMembers } = useWorkspaceMembers(workspace.id);
+  // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
+  const [shareOpen, setShareOpen] = useState(false);
+  // Permission for the currently-active board — drives VIEW ONLY pill
+  // in the topbar + canvas/doc readonly states.
+  const currentBoardPerm = useBoardPermission({
+    board: currentBoard,
+    boards,
+    workspace,
+    workspaceMembers,
+    sharedBoards,
+    userId: user.id,
+  });
+  const canEditCurrent = currentBoardPerm.canEdit;
+  // Pre-compute a sync set of board ids the user can read — used by the
+  // canvas to render the "🔒 No access" placeholder for boardlinks /
+  // embedded boards that point outside the user's reach.
+  const readableBoardIds = useMemo(() => {
+    const set = new Set(Object.keys(boards || {}));
+    // sharedBoards rows are already readable; their descendants (visible
+    // via boards map traversal) inherit but we don't know them all here.
+    // For v1 the boards map only includes workspace boards anyway, and
+    // shared rows refer to OTHER-workspace boards explicitly listed.
+    for (const s of sharedBoards || []) set.add(s.board_id);
+    return set;
+  }, [boards, sharedBoards]);
   // Per-workspace member counts — needed in the rail to show the "Nx"
   // shared badge on every workspace button (not just the active one).
   // Uses the role+joined data already loaded by useAllWorkspaces; if a
@@ -908,6 +962,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // a leftover draw/shape/arrow tool from the previous board carries over and
   // makes the canvas feel "stuck" in a draw mode the user didn't reselect.
   useEffect(() => { setSelectedTool('select'); }, [currentId]);
+  // Force-select on view-only boards: prevent any draw/shape/note tool
+  // from being active when the user has read-only access.
+  useEffect(() => {
+    if (!canEditCurrent && selectedTool !== 'select') setSelectedTool('select');
+  }, [canEditCurrent, selectedTool]);
 
   // Doc embeds dispatch a global "soleil-open-embed" event when clicked.
   // Translate that into a board-open here.
@@ -982,6 +1041,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        peersBelowByBoard={peersBelowByBoard}
                        wsPeers={wsPeers}
                        onJumpToPeer={jumpToPeer}
+                       canEdit={isMain ? canEditCurrent : true}
                        currentUser={{
                          id: user.id, email: user.email,
                          name: user.user_metadata?.full_name || user.email?.split('@')[0],
@@ -1113,6 +1173,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             )}
           </div>
 
+          <SidebarSharedBoards
+            shared={sharedBoards}
+            activeBoardId={currentSurface === 'board' ? currentId : null}
+            onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
+          />
+
           <div className="sb-eyebrow">BOARDS</div>
           <SidebarBoardTree
             boards={boards}
@@ -1189,7 +1255,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <span className="tb-divider" aria-hidden="true" />
             <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id} onJumpTo={jumpToPeer} />
             <span className="tb-divider" aria-hidden="true" />
-            <button className="tb-btn" onClick={inviteToWorkspace} title="Invite someone to this workspace">
+            {!canEditCurrent && (
+              <span className="tb-viewonly" title="You have view-only access to this board">VIEW ONLY</span>
+            )}
+            <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this board">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
             </button>
             <button className="tb-icon" title="Toggle theme"
@@ -1284,6 +1353,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           currentBoard={currentBoard}
           refreshTick={msgRefreshTick}
           onClose={() => setTweak('showMessages', false)}
+        />
+      )}
+
+      {shareOpen && (
+        <ShareModal
+          board={currentBoard}
+          workspace={workspace}
+          workspaceMembers={workspaceMembers}
+          wsPeers={wsPeers}
+          selfUserId={user.id}
+          onClose={() => setShareOpen(false)}
+          onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
+          onSharesChanged={() => { refreshSharedBoards?.(); }}
         />
       )}
 

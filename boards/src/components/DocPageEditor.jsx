@@ -72,7 +72,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards }) {
+export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true }) {
   const fragment = pageId ? getOrCreatePageContent(ydoc, pageId, scope) : null;
   // Held so editorProps drop/paste handlers (constructed at editor-init time,
   // before `editor` exists) can reach the live instance.
@@ -370,6 +370,9 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       mentionExt,
     ],
     autofocus: 'end',
+    // false → read-only (viewer-shared board). RLS will reject any
+    // doc-state writes anyway, but disabling Tiptap stops attempts.
+    editable,
     editorProps: {
       attributes: {
         class: 'tt-editor',
