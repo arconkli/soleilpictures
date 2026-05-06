@@ -4978,6 +4978,38 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-card-close { width: 36px; height: 36px; font-size: 22px; line-height: 1; }
 .doc-card-icon svg, .doc-card-close svg { width: 18px; height: 18px; }
 .doc-card-icon:hover, .doc-card-close:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+/* Peer-avatar stack in the doc-card modal header. One per workspace
+   peer currently inside this card. Hover scales the avatar so it's
+   clear the icon is interactive; click jumps to that peer's view.   */
+.doc-card-peers {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin-right: 4px;
+  padding: 0 2px;
+}
+.doc-card-peer {
+  appearance: none; border: 0; background: transparent;
+  padding: 0;
+  margin-left: -6px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: transform 140ms var(--ease), z-index 0s 140ms;
+  position: relative;
+  z-index: 1;
+}
+.doc-card-peer:first-child { margin-left: 0; }
+.doc-card-peer .avatar { box-shadow: 0 0 0 2px var(--bg-1); }
+.doc-card-peer:hover { transform: scale(1.18); z-index: 5; transition-delay: 0s; }
+.doc-card-peers-overflow {
+  font: 600 11px/1 var(--font-sans);
+  color: var(--ink-2);
+  margin-left: 6px;
+  letter-spacing: 0.02em;
+}
+
 .doc-card-modal-body { flex: 1 1 auto; min-height: 0; display: flex; }
 .doc-card-modal-body > .doc-surface { flex: 1 1 auto; min-width: 0; }
 

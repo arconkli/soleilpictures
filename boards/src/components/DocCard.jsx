@@ -11,10 +11,11 @@
 // Per-card storage means each doc card on a canvas is independent and travels
 // with the canvas's snapshot.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary } from '../lib/docState.js';
 import { DocSurface } from './DocSurface.jsx';
+import { Avatar } from './primitives.jsx';
 
 const DEFAULT_SIDE_RATIO = 0.5;
 const RATIO_KEY = 'soleil.boards.docCardSideRatio';
@@ -22,6 +23,10 @@ const RATIO_KEY = 'soleil.boards.docCardSideRatio';
 export function RichDocCard({
   card, ydoc, cardYMap,
   workspaceId, userId, currentUser, getAwareness, boards = {},
+  // Workspace peers + jump-to-peer handler — used by DocCardOverlay to
+  // render peer avatars in its modal header and pass per-page presence
+  // dots into DocPageTree. Filtered to peers whose docCardId === card.id.
+  wsPeers = [], onJumpToPeer,
   autoFocus = false, onUpdate,
 }) {
   const scope = cardYMap ? cardScope(cardYMap) : null;
@@ -52,7 +57,9 @@ export function RichDocCard({
   // Listen for jump-to-this-doc-card events. App.jumpToPeer fires these
   // after navigating to the host board; whichever RichDocCard matches the
   // cardId pops itself open (in 'full' mode) and primes pendingScroll so
-  // the inner DocSurface scrolls to the peer's exact spot.
+  // the inner DocSurface switches to the peer's page + scrolls to their
+  // exact spot. pendingScroll carries pageId so an already-open card can
+  // also switch pages on click — not just scroll.
   useEffect(() => {
     const onOpen = (e) => {
       const { cardId, pageId, scrollTop } = e.detail || {};
@@ -60,12 +67,19 @@ export function RichDocCard({
       if (pageId) {
         try { sessionStorage.setItem(`soleil.boards.docActivePage.${card.id}`, pageId); } catch (_) {}
       }
-      setPendingScroll({ boardId: card.id, scrollTop: scrollTop || 0 });
+      setPendingScroll({ boardId: card.id, pageId: pageId || null, scrollTop: scrollTop || 0 });
       setMode('full');
     };
     document.addEventListener('soleil-open-doc-card', onOpen);
     return () => document.removeEventListener('soleil-open-doc-card', onOpen);
   }, [card.id]);
+
+  // Filter workspace peers to those currently inside THIS doc card (and
+  // not me). Used both for the avatar stack in the modal header and for
+  // the per-page dots that DocPageTree renders inside DocSurface.
+  const peersOnCard = useMemo(() => (wsPeers || []).filter(p =>
+    p?.location?.docCardId === card.id && p?.user?.id !== currentUser?.id
+  ), [wsPeers, card.id, currentUser?.id]);
 
   // Drag the side-mode divider. Stop propagation + capture pointer so the
   // canvas underneath never sees the events (otherwise dragging the divider
@@ -140,6 +154,8 @@ export function RichDocCard({
           onDividerDown={onDividerDown}
           pendingScroll={pendingScroll}
           onPendingScrollConsumed={() => setPendingScroll(null)}
+          peersOnCard={peersOnCard}
+          onJumpToPeer={onJumpToPeer}
         />,
         document.body
       )}
@@ -151,6 +167,7 @@ function DocCardOverlay({
   mode, sideRatio, card, ydoc, scope, workspaceId, userId, currentUser,
   getAwareness, boards, onUpdate, onSetMode, onClose, onDividerDown,
   pendingScroll, onPendingScrollConsumed,
+  peersOnCard = [], onJumpToPeer,
 }) {
   // Esc closes from either mode.
   useEffect(() => {
@@ -205,6 +222,24 @@ function DocCardOverlay({
                  value={card.title || ''}
                  placeholder="Untitled doc"
                  onChange={(e) => onUpdate?.({ title: e.target.value })} />
+          {/* Peer-avatar stack — one per workspace peer currently in this
+              doc card. Click an avatar → jumpToPeer takes you to their
+              exact page + scroll. Hover shows their name. */}
+          {peersOnCard.length > 0 && (
+            <div className="doc-card-peers" title={`${peersOnCard.length} peer${peersOnCard.length === 1 ? '' : 's'} in this doc`}>
+              {peersOnCard.slice(0, 4).map(p => (
+                <button key={p.tabId || p.user?.id}
+                        className="doc-card-peer"
+                        title={`${p.user?.name || 'Someone'} — click to jump to their view`}
+                        onClick={() => onJumpToPeer?.(p.location)}>
+                  <Avatar name={p.user?.name || '?'} color={p.user?.color || '#4f8df8'} size={26} />
+                </button>
+              ))}
+              {peersOnCard.length > 4 && (
+                <span className="doc-card-peers-overflow">+{peersOnCard.length - 4}</span>
+              )}
+            </div>
+          )}
           {/* Mode toggles */}
           {mode === 'full' ? (
             <button className="doc-card-icon" title="Dock to side (split with canvas)"
@@ -245,6 +280,8 @@ function DocCardOverlay({
             onPaperScroll={emitScroll}
             pendingScroll={pendingScroll}
             onPendingScrollConsumed={onPendingScrollConsumed}
+            peersOnBoard={peersOnCard}
+            onJumpToPeer={onJumpToPeer}
           />
         </div>
       </div>

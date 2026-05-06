@@ -148,6 +148,10 @@ export function CanvasSurface({
   useLocalImages = false,
   peersHereByBoard,        // Map<boardId, Peer[]>  — workspace presence
   peersBelowByBoard,       // Map<boardId, Peer[]>  — descendants
+  wsPeers = [],            // Workspace peers — passed into doc cards so the
+                           // doc-card overlay can render its own peer
+                           // avatars + page-tree dots scoped to that card.
+  onJumpToPeer,            // (location) => void  — click peer avatar/dot
 }) {
   const wrapRef = useRef(null);
   const [pan, setPan] = useState({ x: 40, y: 60 });
@@ -1495,6 +1499,8 @@ export function CanvasSurface({
                      boards={boards}
                      getAwareness={getAwareness}
                      currentUser={currentUser}
+                     wsPeers={wsPeers}
+                     onJumpToPeer={onJumpToPeer}
                      autoFocus={af}
                      onUpdate={onUpdate} />
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;

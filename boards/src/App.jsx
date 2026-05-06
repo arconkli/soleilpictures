@@ -4,6 +4,7 @@
 // snapshot is persisted to board_state.
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { pickPresenceColor } from './lib/presenceColor.js';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { BoardPicker } from './components/BoardPicker.jsx';
@@ -819,7 +820,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // of which board they're on. Click an avatar to teleport to their board.
   const { peers: wsPeers, status: wsStatus } = useWorkspacePresence({
     workspaceId: workspace.id,
-    user: { id: user.id, name: userInfo.name, email: user.email, color: '#4f8df8' },
+    user: { id: user.id, name: userInfo.name, email: user.email, color: pickPresenceColor(user.id) },
     location: {
       boardId: currentBoard?.id,
       boardName: currentBoard?.name,
@@ -954,10 +955,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        getAwareness={yh.getAwareness}
                        peersHereByBoard={peersHereByBoard}
                        peersBelowByBoard={peersBelowByBoard}
+                       wsPeers={wsPeers}
+                       onJumpToPeer={jumpToPeer}
                        currentUser={{
                          id: user.id, email: user.email,
                          name: user.user_metadata?.full_name || user.email?.split('@')[0],
-                         color: '#4f8df8',
+                         color: pickPresenceColor(user.id),
                        }}
                        onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                        onOpenPicker={() => setPickerOpen(true)}

@@ -248,17 +248,24 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     };
   }, [onPaperScroll, activePageId]);
 
-  // Consume a pending click-to-jump scroll target. Waits until the page
-  // matches (sessionStorage was already primed by App.jsx) and the paper
-  // is in the DOM, then scrolls. Only fires once per pending.
+  // Consume a pending click-to-jump scroll target. If pendingScroll names
+  // a different pageId than what's active, switch pages first — the
+  // editor needs to mount on the new page before the scrollTo can land.
+  // The effect re-runs once activePageId catches up, then scrolls and
+  // calls onPendingScrollConsumed.
   useEffect(() => {
     if (!pendingScroll) return;
     if (pendingScroll.boardId !== board.id) return;
+    if (pendingScroll.pageId && pendingScroll.pageId !== activePageId) {
+      setActivePageId(pendingScroll.pageId);
+      return;
+    }
     if (!activePageId) return;
     const paper = paperRef.current;
     if (!paper) return;
     paper.scrollTo({ top: pendingScroll.scrollTop || 0, behavior: 'auto' });
     onPendingScrollConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingScroll, board.id, activePageId, onPendingScrollConsumed]);
 
   // Cross-component link-picker wiring: DocPageEditor registers its
