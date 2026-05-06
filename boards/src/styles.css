@@ -777,6 +777,143 @@ body {
 }
 .share-remove:hover { color: #f87171; background: rgba(248,113,113,.12); }
 
+/* ──────────── Public viewer (/share/:token) ──────────── */
+/* Anonymous read-only board page. No sidebar, no auth — just a
+   minimal topbar + a static canvas of cards.                    */
+.public-shell {
+  display: flex; flex-direction: column;
+  height: 100vh;
+  background: var(--bg-0);
+  color: var(--ink-0);
+}
+.public-loading {
+  display: grid; place-items: center;
+  height: 100vh;
+  font: 500 14px/1 var(--font-sans);
+  color: var(--ink-3);
+}
+.public-empty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+  padding: 80px 24px;
+  text-align: center;
+  margin: auto;
+  max-width: 420px;
+}
+.public-empty-title {
+  font: 700 22px/1.2 ui-serif, Georgia, serif;
+  color: var(--ink-0);
+}
+.public-empty-sub {
+  font: 500 13px/1.45 var(--font-sans);
+  color: var(--ink-2);
+}
+
+.public-topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line-1);
+  flex-shrink: 0;
+  height: 48px;
+}
+.public-brand {
+  display: inline-flex; align-items: center; gap: 8px;
+  text-decoration: none;
+  color: var(--ink-0);
+}
+.public-brand-name {
+  font: 700 14px/1 var(--font-sans);
+  letter-spacing: 0.02em;
+}
+.public-board-name {
+  flex: 1 1 auto;
+  font: 600 14px/1.2 var(--font-sans);
+  color: var(--ink-0);
+  text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.public-signin {
+  text-decoration: none;
+  font: 600 12px/1 var(--font-sans);
+  padding: 8px 14px;
+  background: var(--soleil);
+  color: var(--bg-0);
+  border-radius: var(--radius);
+}
+
+.public-canvas-scroll {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 0;
+}
+.public-canvas {
+  position: relative;
+  margin: 0 auto;
+}
+
+.public-card {
+  position: absolute;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 1px 2px rgba(0,0,0,.18);
+}
+.public-card-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.public-card-note {
+  width: 100%; height: 100%;
+  padding: 12px;
+  font: 500 13px/1.45 ui-serif, Georgia, serif;
+  overflow: auto;
+}
+.public-card-link {
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.public-card-link-title {
+  font: 600 13px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.public-card-link-url {
+  font: 500 11px/1.3 var(--font-mono);
+  color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.public-card-palette {
+  padding: 10px; display: flex; flex-direction: column; gap: 8px;
+}
+.public-card-palette-title {
+  font: 600 11px/1.3 var(--font-sans);
+  color: var(--ink-1);
+}
+.public-card-palette-row { display: flex; gap: 4px; flex: 1; }
+.public-card-palette-swatch {
+  flex: 1; height: 100%; border-radius: 4px;
+  border: 1px solid rgba(0,0,0,.1);
+}
+.public-card-shape { width: 100%; height: 100%; }
+.public-card-blocked {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  gap: 6px;
+  color: var(--ink-3);
+  background: var(--bg-2);
+  border: 1px dashed var(--line-2);
+}
+.public-card-blocked-tag {
+  font: 700 9.5px/1 var(--font-sans);
+  letter-spacing: 0.18em;
+}
+.public-card-blocked-msg {
+  font: 500 11px/1 var(--font-sans);
+}
+
 /* Sidebar footer — settings + avatar/sign-out, anchored at the bottom. */
 .sb-foot {
   margin-top: auto;
@@ -1383,6 +1520,25 @@ body {
 }
 .blc-arrow { color: var(--ink-1); font-size: 13px; }
 .blc-missing { background: transparent; color: var(--ink-3); font-size: 11px; align-items: center; justify-content: center; }
+
+/* "No access" placeholder for board cards / boardlinks the viewer
+   can't read. Keeps the same shape as the original card so the
+   layout doesn't reflow, but greys it out and shows a lock.        */
+.bc.bc-locked, .blc.blc-locked {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--bg-2);
+  border: 1px dashed var(--line-2);
+  color: var(--ink-3);
+  border-radius: var(--radius-lg);
+  height: 100%;
+  cursor: default;
+}
+.bc-locked-icon { color: var(--ink-3); margin-bottom: 6px; }
+.bc-locked-label {
+  font: 600 11.5px/1.3 var(--font-sans);
+  letter-spacing: 0.02em;
+}
 
 /* ─────────────────────────── Board picker (folder browser) ──────────────── */
 

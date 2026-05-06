@@ -243,7 +243,23 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
                            peersHereByBoard,
                            peersBelowByBoard,
                            onJumpToPeer }) {
-  if (!board) return <div className="bc bc-missing">Missing board</div>;
+  if (!board) {
+    // Either the board was deleted, OR the viewer doesn't have read
+    // access to it (per-board sharing didn't include it). Both cases
+    // render the same placeholder — a leaked or stale reference is
+    // indistinguishable from a removed one from the client's POV.
+    return (
+      <div className="bc bc-locked" title="No access — ask the workspace owner to share this board">
+        <div className="bc-locked-icon">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <rect x="5" y="9" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M8 9 V6 a3 3 0 0 1 6 0 V9" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+        </div>
+        <div className="bc-locked-label">No access</div>
+      </div>
+    );
+  }
   const presenceDots = (() => {
     if (!peersHere.length && !peersBelow.length) return null;
     // Show up to 3 stacked avatars; the rest are summarized as "+N".
@@ -262,13 +278,11 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
   })();
   const team = (board.members || []).map(id => teammates.find(t => t.id === id)).filter(Boolean);
   const isList = (board.view === 'list');
-  const isDoc = (board.view === 'doc');
   const children = Object.values(boards).filter(b => b.parent_board_id === board.id);
   const childCount = children.length;
 
   const preview = useBoardPreview(board.id);
-  const hasDocPreview = isDoc && preview && (preview.docText || (preview.docPages?.length || 0) > 0);
-  const hasPreview = !isList && !isDoc && preview && (preview.cards?.length > 0 || preview.strokes?.length > 0);
+  const hasPreview = !isList && preview && (preview.cards?.length > 0 || preview.strokes?.length > 0);
 
   const itemCount = preview?.cards?.length ?? 0;
   const updatedLabel = relativeTimeShort(board.updated_at || board.created_at);
@@ -357,37 +371,10 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
   const subLabel = board.meta || 'Board';
 
   return (
-    <div className={`bc ${mode === 'compact' ? 'bc-compact' : ''} ${isDoc ? 'bc-doc' : ''}`}
+    <div className={`bc ${mode === 'compact' ? 'bc-compact' : ''}`}
          onClick={outerClick}>
       <div className="bc-cover">
-        {hasDocPreview ? (
-          <div className="bc-doc-cover">
-            {/* Two ghost pages peek from behind the front page to suggest depth
-                without competing with the actual content. */}
-            {(preview.docPages?.length || 0) > 1 && <div className="bc-doc-stack bc-doc-stack-2" />}
-            {(preview.docPages?.length || 0) > 0 && <div className="bc-doc-stack bc-doc-stack-1" />}
-            <div className="bc-doc-page">
-              {preview.docFirstPageName && (
-                <div className="bc-doc-h1">{preview.docFirstPageName}</div>
-              )}
-              <div className="bc-doc-rule" />
-              <div className="bc-doc-text">{preview.docText || <span className="bc-doc-empty">Empty page</span>}</div>
-            </div>
-          </div>
-        ) : isDoc ? (
-          <div className="bc-doc-cover bc-doc-empty-cover">
-            <div className="bc-doc-stack bc-doc-stack-2" />
-            <div className="bc-doc-stack bc-doc-stack-1" />
-            <div className="bc-doc-page bc-doc-blank">
-              <div className="bc-doc-icon">
-                <svg width="28" height="36" viewBox="0 0 28 36" fill="none">
-                  <path d="M3 2 H19 L25 8 V34 H3 Z M19 2 V8 H25 M8 16 H20 M8 21 H20 M8 26 H15" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <div className="bc-doc-empty">Blank doc</div>
-            </div>
-          </div>
-        ) : hasPreview ? (
+        {hasPreview ? (
           <div className="bc-thumb-wrap"
                style={{ background: board.bg_color || 'var(--bg-2)' }}>
             <BoardThumbnail cards={preview.cards} strokes={preview.strokes} boards={boards} />
@@ -396,7 +383,7 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
           <ImagePlaceholder tone={board.cover || 'neutral'} aspect="16/9" />
         )}
         <div className="bc-cover-ovl">
-          <span className="bc-tag">{isDoc ? 'DOC' : 'BOARD'}</span>
+          <span className="bc-tag">BOARD</span>
           {presenceDots && presenceDots.length > 0 && (
             <BoardCardPresence peers={presenceDots} />
           )}
@@ -412,16 +399,10 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
           : <div className="bc-name">{board.name}</div>}
         <div className="bc-row">
           <span className="bc-sub">
-            {isDoc ? (() => {
-              const n = preview?.docPages?.length || 0;
-              const label = n > 0 ? `${n} ${n === 1 ? 'page' : 'pages'}` : 'No pages';
-              return <span>{label}</span>;
-            })() : (
-              itemCount > 0 && <span>{itemCount} {itemCount === 1 ? 'item' : 'items'}</span>
-            )}
-            {((isDoc) || itemCount > 0) && updatedLabel && <span className="bc-sub-dot">·</span>}
+            {itemCount > 0 && <span>{itemCount} {itemCount === 1 ? 'item' : 'items'}</span>}
+            {itemCount > 0 && updatedLabel && <span className="bc-sub-dot">·</span>}
             {updatedLabel && <span>{updatedLabel}</span>}
-            {!isDoc && !itemCount && !updatedLabel && <span>{subLabel}</span>}
+            {!itemCount && !updatedLabel && <span>{subLabel}</span>}
           </span>
           {team.length > 0 && (
             <div className="bc-team">
@@ -436,7 +417,18 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
 
 export function BoardLinkCard({ targetBoard, note, onOpen }) {
   if (!targetBoard) {
-    return <div className="blc blc-missing"><span>Missing reference</span></div>;
+    // Linked board the viewer can't access (or that no longer exists).
+    return (
+      <div className="blc blc-locked" title="No access — ask the workspace owner to share this board">
+        <div className="bc-locked-icon">
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+            <rect x="5" y="9" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M8 9 V6 a3 3 0 0 1 6 0 V9" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+        </div>
+        <div className="bc-locked-label">Linked board · no access</div>
+      </div>
+    );
   }
   return (
     <div className="blc" onClick={onOpen}>

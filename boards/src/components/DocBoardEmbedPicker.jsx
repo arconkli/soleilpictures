@@ -54,7 +54,7 @@ export function DocBoardEmbedPicker({ boards, onPick, onClose }) {
                 </svg>
               </span>
               <span className="doc-embed-row-name">{b.name}</span>
-              <span className="doc-embed-row-meta">{b.view === 'doc' ? 'doc' : b.view === 'list' ? 'list' : 'board'}</span>
+              <span className="doc-embed-row-meta">{b.view === 'list' ? 'list' : 'board'}</span>
             </button>
           ))}
         </div>

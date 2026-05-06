@@ -49,6 +49,7 @@ interface PresignBody {
 }
 
 interface SignReadsBody { keys?: string[] }
+interface ShareBundleBody { token?: string }
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -121,6 +122,13 @@ export default class UploadParty implements Party.Server {
       return new Response(env, { status: 500, headers: corsHeaders(origin) });
     }
 
+    // The /share-bundle route is anon-callable (public-link viewers
+    // don't have a Supabase JWT). Dispatch it before the auth check.
+    const url = new URL(req.url);
+    if (url.pathname.endsWith("/share-bundle")) {
+      return this.handleShareBundle(req, env, origin);
+    }
+
     const accessToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
     if (!accessToken) {
       return new Response("Missing Authorization", { status: 401, headers: corsHeaders(origin) });
@@ -130,12 +138,77 @@ export default class UploadParty implements Party.Server {
       return new Response("Invalid token", { status: 401, headers: corsHeaders(origin) });
     }
 
-    const url = new URL(req.url);
     const isSignReads = url.pathname.endsWith("/sign-reads");
-
     return isSignReads
       ? this.handleSignReads(req, accessToken, env, origin)
       : this.handlePresignPut(req, accessToken, claims.sub, env, origin);
+  }
+
+  // POST /share-bundle — anon-callable. Body: { token }. Calls the
+  // get_share_bundle RPC (which validates the token + returns board
+  // metadata + snapshot bytes + image keys), then presigns the image
+  // keys before returning the combined bundle. Anonymous viewers
+  // never need any other roundtrip.
+  async handleShareBundle(
+    req: Party.Request, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    let body: ShareBundleBody = {};
+    try { body = (await req.json()) as ShareBundleBody; } catch (_) {}
+    const token = (body.token || "").trim();
+    if (!token) {
+      return new Response("Missing token", { status: 400, headers: corsHeaders(origin) });
+    }
+
+    // Anon-key-only call. The RPC is granted to `anon` and validates
+    // the token internally (raises if expired/revoked/invalid).
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_share_bundle`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_token: token }),
+    });
+    if (!rpcRes.ok) {
+      const msg = await rpcRes.text().catch(() => "");
+      return new Response(`Invalid or expired share link${msg ? `: ${msg}` : ""}`, {
+        status: 404, headers: corsHeaders(origin),
+      });
+    }
+    const bundle: any = await rpcRes.json();
+    if (!bundle?.board?.id) {
+      return new Response("Invalid or expired share link", {
+        status: 404, headers: corsHeaders(origin),
+      });
+    }
+
+    // Presign every image key referenced on the board (5-minute URLs,
+    // matching the normal sign-reads TTL).
+    const r2 = new AwsClient({
+      accessKeyId: env.accessKeyId,
+      secretAccessKey: env.secretAccessKey,
+      service: "s3",
+      region: "auto",
+    });
+    const imageKeys: string[] = Array.isArray(bundle.image_keys) ? bundle.image_keys : [];
+    const imageUrls: Record<string, string> = {};
+    await Promise.all(imageKeys.map(async (key) => {
+      try {
+        const r2Url = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
+        const signed = await r2.sign(
+          new Request(r2Url, { method: "GET" }),
+          { aws: { signQuery: true }, expiresIn: READ_URL_TTL_SECONDS } as any,
+        );
+        imageUrls[key] = signed.url;
+      } catch (_) { /* skip unreachable keys */ }
+    }));
+
+    return Response.json(
+      { board: bundle.board, snapshot: bundle.snapshot || null, image_urls: imageUrls, role: 'viewer' },
+      { headers: corsHeaders(origin) },
+    );
   }
 
   // POST / — presign R2 PUT URL for a fresh UUID-keyed object.

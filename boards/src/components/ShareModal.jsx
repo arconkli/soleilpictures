@@ -12,7 +12,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   shareBoard, unshareBoard, listBoardShares,
-  removeWorkspaceMember,
+  removeWorkspaceMember, transferWorkspaceOwnership,
+  createPublicLink, revokePublicLink, listPublicLinks,
 } from '../lib/boardsApi.js';
 import { supabase } from '../lib/supabase.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
@@ -35,6 +36,8 @@ export function ShareModal({
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor'); // 'viewer' | 'editor' | 'workspace'
   const [inviting, setInviting] = useState(false);
+  const [publicLinks, setPublicLinks] = useState([]);  // active links
+  const [creatingLink, setCreatingLink] = useState(false);
   const ref = useRef(null);
 
   // Close on Escape + outside-click. Outside-click is bound on the
@@ -58,6 +61,67 @@ export function ShareModal({
     return () => { cancelled = true; };
   }, [board?.id, isOwner]);
 
+  // Public links — owner-only. Filter to active (non-revoked,
+  // non-expired) so the UI only shows useful links.
+  useEffect(() => {
+    if (!isOwner || !board?.id) { setPublicLinks([]); return; }
+    let cancelled = false;
+    listPublicLinks(board.id)
+      .then(rows => {
+        if (cancelled) return;
+        const now = Date.now();
+        setPublicLinks(rows.filter(l =>
+          !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > now)
+        ));
+      })
+      .catch(e => { console.warn('[share] list public links failed', e); });
+    return () => { cancelled = true; };
+  }, [board?.id, isOwner]);
+
+  const onCreatePublicLink = async () => {
+    if (creatingLink) return;
+    setCreatingLink(true);
+    try {
+      const token = await createPublicLink({ boardId: board.id, expiresAt: null });
+      const url = `${window.location.origin}/share/${token}`;
+      try { await navigator.clipboard.writeText(url); } catch (_) {}
+      feedback.toast({ type: 'success', message: 'Public link created and copied to clipboard.' });
+      const rows = await listPublicLinks(board.id);
+      setPublicLinks(rows.filter(l => !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())));
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not create link: ' + (e.message || e) });
+    } finally {
+      setCreatingLink(false);
+    }
+  };
+
+  const onCopyPublicLink = async (token) => {
+    const url = `${window.location.origin}/share/${token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      feedback.toast({ type: 'success', message: 'Link copied to clipboard.' });
+    } catch (_) {
+      feedback.toast({ type: 'info', message: url });
+    }
+  };
+
+  const onRevokePublicLink = async (token) => {
+    const ok = await feedback.confirm({
+      title: 'Revoke this public link?',
+      message: 'Anyone using this link will lose access immediately.',
+      confirmLabel: 'Revoke',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await revokePublicLink(token);
+      setPublicLinks(arr => arr.filter(l => l.token !== token));
+      feedback.toast({ type: 'success', message: 'Link revoked.' });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not revoke: ' + (e.message || e) });
+    }
+  };
+
   // Resolve a user_id to a friendly display tuple. wsPeers gives us
   // names+emails for currently-online users; offline ones fall back.
   const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
@@ -71,60 +135,85 @@ export function ShareModal({
     };
   };
 
+  // Parse a free-form email field that may contain one or many
+  // addresses separated by commas, semicolons, whitespace, or newlines.
+  // Loose validation: anything with "@" and a dot in the domain part.
+  const parseEmails = (raw) => {
+    return raw.split(/[\s,;]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+  };
+
   const submitInvite = async () => {
-    const email = inviteEmail.trim();
-    if (!email || inviting) return;
+    const emails = parseEmails(inviteEmail);
+    if (emails.length === 0 || inviting) return;
     setInviting(true);
-    try {
-      // "workspace" → add them as a workspace_member (full access).
-      // anything else → per-board share with the given role.
-      if (inviteRole === 'workspace') {
-        // Look up the user via the existing user_id_by_email RPC then
-        // insert into workspace_members. Mirrors App.jsx#inviteToWorkspace.
-        const { data: uid, error } = await supabase
-          .rpc('user_id_by_email', { p_email: email });
-        if (error) throw error;
-        if (!uid) {
-          feedback.toast({ type: 'error', message: `No user with email "${email}". They need to sign up first.` });
-          setInviting(false);
-          return;
-        }
-        if (uid === selfUserId) {
-          feedback.toast({ type: 'info', message: "That's you." });
-          setInviting(false);
-          return;
-        }
-        const { error: insErr } = await supabase
-          .from('workspace_members')
-          .insert({ workspace_id: workspace.id, user_id: uid, role: 'editor' });
-        if (insErr) {
-          if (insErr.code === '23505') {
-            feedback.toast({ type: 'info', message: `${email} is already a member.` });
-          } else throw insErr;
+    const ok = []; const fail = [];
+
+    for (const email of emails) {
+      try {
+        if (inviteRole === 'workspace') {
+          const { data: uid, error } = await supabase.rpc('user_id_by_email', { p_email: email });
+          if (error) throw error;
+          if (!uid) { fail.push({ email, reason: 'not signed up' }); continue; }
+          if (uid === selfUserId) { fail.push({ email, reason: "that's you" }); continue; }
+          const { error: insErr } = await supabase
+            .from('workspace_members')
+            .insert({ workspace_id: workspace.id, user_id: uid, role: 'editor' });
+          if (insErr) {
+            if (insErr.code === '23505') fail.push({ email, reason: 'already a member' });
+            else fail.push({ email, reason: insErr.message || String(insErr) });
+            continue;
+          }
+          ok.push(email);
         } else {
-          feedback.toast({ type: 'success', message: `Added ${email} to "${workspace.name}".` });
-          onMembersChanged?.();
+          await shareBoard({ boardId: board.id, email, role: inviteRole });
+          ok.push(email);
         }
-      } else {
-        await shareBoard({ boardId: board.id, email, role: inviteRole });
-        feedback.toast({ type: 'success', message: `Shared "${board.name}" with ${email}.` });
+      } catch (e) {
+        const msg = e?.message || String(e);
+        const reason = msg.includes('no user with email') ? 'not signed up' : msg;
+        fail.push({ email, reason });
+      }
+    }
+
+    // Refresh derived state once after the loop.
+    if (inviteRole === 'workspace' && ok.length > 0) onMembersChanged?.();
+    if (inviteRole !== 'workspace' && ok.length > 0) {
+      try {
         const rows = await listBoardShares(board.id);
         setShares(rows);
-        onSharesChanged?.();
-      }
-      setInviteEmail('');
-    } catch (e) {
-      console.error('[share] invite failed', e);
-      const msg = e?.message || String(e);
-      // Friendly translation of the most common errors.
-      if (msg.includes('no user with email')) {
-        feedback.toast({ type: 'error', message: `No user with that email. They need to sign up first.` });
-      } else {
-        feedback.toast({ type: 'error', message: 'Invite failed: ' + msg });
-      }
-    } finally {
-      setInviting(false);
+      } catch (_) {}
+      onSharesChanged?.();
     }
+
+    // Summary toast — keep simple in the success case, list failures
+    // in the mixed/failure case so the user knows which emails to fix.
+    if (fail.length === 0) {
+      feedback.toast({
+        type: 'success',
+        message: emails.length === 1
+          ? (inviteRole === 'workspace'
+              ? `Added ${ok[0]} to "${workspace.name}".`
+              : `Shared "${board.name}" with ${ok[0]}.`)
+          : `Invited ${ok.length} ${ok.length === 1 ? 'person' : 'people'}.`,
+      });
+    } else if (ok.length === 0) {
+      feedback.toast({
+        type: 'error',
+        message: emails.length === 1
+          ? `Invite failed: ${fail[0].reason}`
+          : `Failed to invite ${fail.length}: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`,
+      });
+    } else {
+      feedback.toast({
+        type: 'info',
+        message: `Invited ${ok.length}, failed ${fail.length}: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`,
+      });
+    }
+
+    if (ok.length > 0) setInviteEmail('');
+    setInviting(false);
   };
 
   const onChangeShareRole = async (share, newRole) => {
@@ -153,6 +242,26 @@ export function ShareModal({
       onSharesChanged?.();
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) });
+    }
+  };
+
+  const onMakeOwner = async (member) => {
+    const meta = userMeta(member.user_id);
+    const label = meta.email || meta.name;
+    const ok = await feedback.confirm({
+      title: `Transfer ownership to ${label}?`,
+      message: `${label} becomes the new owner of "${workspace.name}". You'll be demoted to editor and can then leave if you want. This can't be undone without their cooperation.`,
+      confirmLabel: 'Transfer ownership',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await transferWorkspaceOwnership({ workspaceId: workspace.id, newOwnerId: member.user_id });
+      feedback.toast({ type: 'success', message: `Transferred "${workspace.name}" to ${label}.` });
+      onMembersChanged?.();
+      onClose?.();   // close modal — the user is no longer the owner; modal switches to read-only
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not transfer: ' + (e.message || e) });
     }
   };
 
@@ -198,8 +307,8 @@ export function ShareModal({
             <div className="share-eyebrow">INVITE BY EMAIL</div>
             <div className="share-invite-row">
               <input className="share-input"
-                     type="email"
-                     placeholder="teammate@…"
+                     type="text"
+                     placeholder="teammate@… or paste several, comma-separated"
                      value={inviteEmail}
                      onChange={(e) => setInviteEmail(e.target.value)}
                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
@@ -253,9 +362,15 @@ export function ShareModal({
                     </div>
                   </div>
                   {isOwner && !isSelf && !isWsOwner && (
-                    <button className="share-remove" onClick={() => onRemoveMember(m)}>
-                      Remove
-                    </button>
+                    <>
+                      <button className="share-remove" onClick={() => onMakeOwner(m)}
+                              title="Transfer workspace ownership">
+                        Make owner
+                      </button>
+                      <button className="share-remove" onClick={() => onRemoveMember(m)}>
+                        Remove
+                      </button>
+                    </>
                   )}
                 </div>
               );
@@ -300,6 +415,52 @@ export function ShareModal({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* PUBLIC LINKS — anonymous read-only access. v1: viewer role,
+            no expiry, manual revocation. */}
+        {isOwner && (
+          <div className="share-section">
+            <div className="share-eyebrow">PUBLIC LINK · {publicLinks.length} active</div>
+            {publicLinks.length === 0 ? (
+              <>
+                <div className="share-hint" style={{ marginBottom: 8 }}>
+                  Anyone with the link can view this board (and any sub-boards) without an account.
+                </div>
+                <button className="share-invite-btn"
+                        onClick={onCreatePublicLink}
+                        disabled={creatingLink}>
+                  {creatingLink ? 'Creating…' : 'Create public link'}
+                </button>
+              </>
+            ) : (
+              <div className="share-list">
+                {publicLinks.map(l => (
+                  <div key={l.token} className="share-row">
+                    <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>🔗</span>
+                    <div className="share-row-text">
+                      <div className="share-row-name">/share/{l.token.slice(0, 8)}…</div>
+                      <div className="share-row-sub">
+                        Viewer · created {new Date(l.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title="Copy URL">
+                      Copy
+                    </button>
+                    <button className="share-remove" onClick={() => onRevokePublicLink(l.token)}>
+                      Revoke
+                    </button>
+                  </div>
+                ))}
+                <button className="share-invite-btn"
+                        onClick={onCreatePublicLink}
+                        disabled={creatingLink}
+                        style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+                  {creatingLink ? 'Creating…' : 'New link'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

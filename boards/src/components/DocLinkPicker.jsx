@@ -92,7 +92,11 @@ export function DocLinkPicker({ initialUrl = '', boards = {}, currentBoardId, on
           </div>
           <button className="doc-tpl-x" onClick={onClose} aria-label="Close">×</button>
         </div>
-        <div className="doc-link-tabs">
+        {/* Bookmark tab hidden until cross-doc-card bookmark linking
+            ships — the original implementation filtered the workspace
+            board list to view='doc' which always returns empty now
+            that doc boards are gone. URL linking still works fully. */}
+        <div className="doc-link-tabs" style={{ display: 'none' }}>
           <button className={`doc-link-tab ${mode === 'url' ? 'is-active' : ''}`}
                   onClick={() => setMode('url')}>URL</button>
           <button className={`doc-link-tab ${mode === 'bookmark' ? 'is-active' : ''}`}

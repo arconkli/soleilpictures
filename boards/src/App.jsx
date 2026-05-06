@@ -8,6 +8,7 @@ import { pickPresenceColor } from './lib/presenceColor.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
+import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
@@ -858,6 +859,32 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const { members: workspaceMembers, refresh: refreshWorkspaceMembers } = useWorkspaceMembers(workspace.id);
   // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
   const [shareOpen, setShareOpen] = useState(false);
+
+  // Surface "X shared a board with you" notifications as toasts on
+  // first load. Each toast has a "View" action that opens the board
+  // and dismisses; otherwise we batch-dismiss after the initial toast
+  // pass so they don't re-fire forever.
+  const { unread: shareNotifs, dismiss: dismissNotif, dismissAll: dismissAllNotifs } = useShareNotifications(user.id);
+  const surfacedNotifsRef = React.useRef(new Set());
+  useEffect(() => {
+    for (const n of (shareNotifs || [])) {
+      if (surfacedNotifsRef.current.has(n.id)) continue;
+      surfacedNotifsRef.current.add(n.id);
+      const board = boards[n.board_id];
+      const name = board?.name || 'a board';
+      feedback.toast({
+        type: 'info',
+        message: `${n.role === 'editor' ? 'Editor access' : 'View access'} to "${name}" was shared with you. Find it in "Shared with me".`,
+      });
+    }
+    // After the user has seen the batch (small delay so the toast renders),
+    // mark all as dismissed so they don't re-pop on next reload.
+    if (shareNotifs && shareNotifs.length > 0) {
+      const t = setTimeout(() => dismissAllNotifs(), 8000);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareNotifs]);
   // Permission for the currently-active board — drives VIEW ONLY pill
   // in the topbar + canvas/doc readonly states.
   const currentBoardPerm = useBoardPermission({

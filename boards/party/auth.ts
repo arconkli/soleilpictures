@@ -72,6 +72,34 @@ export async function authBoard(
   return { ok: true, userId: claims.sub, email: claims.email };
 }
 
+// Write check via the can_write_board RPC. Returns false when the
+// caller has only viewer-share access (or no access at all). Used by
+// the board party to mark connections readOnly server-side, closing
+// the loophole where viewers could broadcast Y.js updates that other
+// tabs in the same room would render ephemerally before RLS rejects
+// the snapshot upsert.
+export async function canWriteBoard(
+  accessToken: string,
+  boardId: string,
+): Promise<boolean> {
+  if (!accessToken || !boardId) return false;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/can_write_board`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_board_id: boardId }),
+    });
+    if (!res.ok) return false;
+    const v = await res.json();
+    return v === true;
+  } catch (_) { return false; }
+}
+
 export async function authWorkspace(
   accessToken: string,
   workspaceId: string,

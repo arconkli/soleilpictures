@@ -94,6 +94,18 @@ export async function removeWorkspaceMember({ workspaceId, userId }) {
   if (error) throw error;
 }
 
+// Owner-only: hand off the workspace to another existing member.
+// New owner is bumped to role='owner'; previous owner is demoted to
+// role='editor'. After this, the previous owner can leaveWorkspace().
+export async function transferWorkspaceOwnership({ workspaceId, newOwnerId }) {
+  const { error } = await supabase
+    .rpc('transfer_workspace_ownership', {
+      p_workspace_id: workspaceId,
+      p_new_owner: newOwnerId,
+    });
+  if (error) throw error;
+}
+
 // ── Per-board sharing ──────────────────────────────────────────────────
 // Workspace members keep full access; per-board shares grant view-only
 // or editor access to non-members for one board (and its descendants).
@@ -132,6 +144,32 @@ export async function listBoardShares(boardId) {
 //     created_at }
 export async function listSharedBoards() {
   const { data, error } = await supabase.rpc('list_shared_boards');
+  if (error) throw error;
+  return data || [];
+}
+
+// ── Public sharable links ────────────────────────────────────────────
+// Owner-only. Generate, list, revoke anonymous read-only share tokens.
+// Public viewers go through the upload party's /share-bundle route
+// which calls get_share_bundle() anonymously and presigns image URLs.
+
+export async function createPublicLink({ boardId, expiresAt = null }) {
+  const { data, error } = await supabase
+    .rpc('create_public_link', { p_board_id: boardId, p_expires_at: expiresAt });
+  if (error) throw error;
+  return data;  // uuid token
+}
+
+export async function revokePublicLink(token) {
+  const { error } = await supabase
+    .rpc('revoke_public_link', { p_token: token });
+  if (error) throw error;
+}
+
+export async function listPublicLinks(boardId) {
+  if (!boardId) return [];
+  const { data, error } = await supabase
+    .rpc('list_public_links', { p_board_id: boardId });
   if (error) throw error;
   return data || [];
 }
