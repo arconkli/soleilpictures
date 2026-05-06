@@ -6982,3 +6982,365 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Universal linking system — EntityLink chip, hover popover, backlinks.
+   Treatment: a barely-there 1px dotted hairline below the baseline in
+   body-text color (40%/60% opacity for auto/manual). On hover the
+   hairline becomes a solid 1px in soleil gold and the popover opens.
+   No blue. No always-on solid underline. Survives any link density.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.tt-link {
+  /* Inherit color from surrounding text — linked text reads as text. */
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  /* The hairline is the body-text color (currentColor) so it never
+     fights the surrounding ink. Opacity controls its presence. */
+  text-decoration-color: currentColor;
+  -webkit-text-decoration-color: currentColor;
+  text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  -webkit-text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  transition:
+    text-decoration-color var(--dur-fast) var(--ease),
+    text-decoration-style var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.tt-link-manual {
+  text-decoration-color: color-mix(in oklab, currentColor 60%, transparent);
+  -webkit-text-decoration-color: color-mix(in oklab, currentColor 60%, transparent);
+}
+.tt-link-auto {
+  text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  -webkit-text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+}
+.tt-link:hover, .tt-link.is-active {
+  text-decoration-style: solid;
+  text-decoration-color: var(--soleil);
+  -webkit-text-decoration-color: var(--soleil);
+  color: var(--soleil);
+}
+/* Manual link inside a draggable surface — keep cursor pointer even
+   when draggable. The browser default flips to grab on draggable
+   elements; override so links read as links. */
+.tt-link[draggable="true"] { cursor: pointer; }
+
+/* When auto-detect overlaps a manual link, the manual styling wins. */
+.tt-link-manual.tt-link-auto { /* css order ensures manual wins */ }
+
+/* ─────────────────── Hover popover (EntityHoverPopover) ────────────────── */
+
+.ent-pop {
+  position: fixed;
+  z-index: 2147483647;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.32);
+  animation: ctx-menu-in var(--dur-fast) var(--ease);
+  pointer-events: auto;
+}
+.ent-pop-head {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 10px 12px 6px;
+  border-bottom: 1px solid var(--line-1);
+}
+.ent-pop-head-term {
+  font: 600 13px/1.25 var(--font-sans);
+  color: var(--ink-0);
+  flex: 0 1 auto;
+  max-width: 70%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ent-pop-head-count {
+  font: 500 11px/1.3 var(--font-sans);
+  color: var(--ink-3);
+  flex: 1 1 auto;
+}
+.ent-pop-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius);
+  display: inline-flex; align-items: center;
+}
+.ent-pop-close:hover { background: var(--bg-hov); color: var(--ink-0); }
+.ent-pop-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 0;
+}
+.ent-pop-section { padding: 4px 0; }
+.ent-pop-section + .ent-pop-section { border-top: 1px solid var(--line-1); }
+.ent-pop-section-head {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 6px 12px 4px;
+  font: 700 10px/1.3 var(--font-sans);
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+}
+.ent-pop-section-count {
+  font: 600 10px/1.3 var(--font-sans);
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+.ent-pop-row {
+  appearance: none;
+  display: flex; flex-direction: column; gap: 4px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--ink-0);
+  border-left: 2px solid transparent;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.ent-pop-row:hover, .ent-pop-row:focus-visible {
+  background: var(--bg-hov);
+  border-left-color: var(--soleil);
+  outline: none;
+}
+.ent-pop-row-head {
+  display: flex; align-items: center; gap: 8px;
+}
+.ent-pop-row-kind {
+  font: 600 10px/1.3 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.ent-pop-row-title {
+  font: 600 13px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ent-pop-row-preview {
+  margin-left: 22px;     /* aligns with the row-title under the icon */
+  display: flex;
+  align-items: center;
+}
+.ent-pop-row-when {
+  font: 500 11px/1.3 var(--font-sans);
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.ent-pop-row-snippet {
+  margin-left: 22px;
+  font: 400 12px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ent-pop-more {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  padding: 6px 12px;
+  text-align: left;
+  font: 500 11px/1.3 var(--font-sans);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.ent-pop-more:hover { color: var(--soleil); }
+.ent-pop-empty {
+  padding: 12px;
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--ink-3);
+  text-align: center;
+}
+.ent-pop-foot {
+  display: flex; gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line-1);
+}
+.ent-pop-foot-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  font: 600 11px/1.3 var(--font-sans);
+  color: var(--ink-1);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.ent-pop-foot-btn:hover:not(:disabled) {
+  background: var(--bg-hov);
+  color: var(--ink-0);
+  border-color: var(--soleil);
+}
+.ent-pop-foot-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ent-pop-foot-btn-primary {
+  background: var(--soleil-soft);
+  border-color: var(--soleil);
+  color: var(--soleil);
+  margin-left: auto;
+}
+.ent-pop-foot-btn-primary:hover:not(:disabled) {
+  background: var(--soleil);
+  color: var(--ink-0);
+}
+
+/* ──────────────────── Per-kind preview renderers ────────────────────────── */
+
+.ent-prev-meta {
+  font: 500 11px/1.3 var(--font-sans);
+  color: var(--ink-3);
+}
+.ent-prev-text {
+  font: 400 12px/1.45 var(--font-sans);
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ent-prev-palette {
+  display: flex; gap: 2px;
+  height: 18px;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.ent-prev-swatch {
+  flex: 1 0 12px;
+  min-width: 8px;
+  height: 100%;
+  display: block;
+}
+.ent-prev-palette-full {
+  height: 28px;
+  gap: 3px;
+}
+.ent-prev-palette-full .ent-prev-swatch {
+  position: relative;
+  flex: 1 0 24px;
+}
+.ent-prev-swatch-label {
+  display: none;
+  position: absolute;
+  bottom: -16px; left: 0; right: 0;
+  text-align: center;
+  font: 500 9px/1.2 var(--font-mono);
+  color: var(--ink-3);
+}
+.ent-prev-image {
+  max-width: 240px;
+  max-height: 140px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ent-prev-image img,
+.ent-prev-image .r2-img {
+  width: 100%;
+  height: auto;
+  max-height: 140px;
+  object-fit: contain;
+  display: block;
+}
+.ent-prev-image-full {
+  max-width: 100%;
+  max-height: 220px;
+}
+.ent-prev-image-full img,
+.ent-prev-image-full .r2-img {
+  max-height: 220px;
+}
+
+/* ──────────────────── Backlinks side panel (Phase 6) ────────────────────── */
+
+.ent-backlinks-panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: 480px;
+  max-width: 100vw;
+  height: 100vh;
+  z-index: 2147483646;
+  display: flex; flex-direction: column;
+  border-left: 1px solid var(--line-1);
+  animation: ctx-menu-in var(--dur-fast) var(--ease);
+}
+.ent-backlinks-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-1);
+}
+.ent-backlinks-head-label {
+  font: 700 11px/1.3 var(--font-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  flex: 1;
+}
+.ent-backlinks-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius);
+}
+.ent-backlinks-close:hover { background: var(--bg-hov); color: var(--ink-0); }
+.ent-backlinks-body {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.ent-backlinks-empty {
+  padding: 24px 16px;
+  font: 500 12px/1.5 var(--font-sans);
+  color: var(--ink-3);
+  text-align: center;
+}
+.ent-backlinks-row {
+  appearance: none;
+  display: flex; flex-direction: column; gap: 4px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.ent-backlinks-row:hover {
+  background: var(--bg-hov);
+  border-left-color: var(--soleil);
+}
+.ent-backlinks-row-title {
+  font: 600 13px/1.3 var(--font-sans);
+  color: var(--ink-0);
+}
+.ent-backlinks-row-snippet {
+  font: 400 12px/1.4 var(--font-sans);
+  color: var(--ink-2);
+}

@@ -4,6 +4,13 @@
 export const INBOX_MIME         = 'application/x-soleil-inbox';
 export const BOARD_REF_MIME     = 'application/x-soleil-board-ref';
 export const CARD_TRANSFER_MIME = 'application/x-soleil-card';
+// Universal entity-ref drags. Set by every <EntityLink>, every entity
+// row in the picker, and every canvas chip card so any drop target can
+// recognize "an entity is being dragged here." Payload is JSON.
+// REF_MIME is a single ref; REF_LIST_MIME is the full array (for
+// multi-target manual links so a drop preserves all targets).
+export const ENTITY_REF_MIME      = 'application/vnd.soleil.entity-ref+json';
+export const ENTITY_REF_LIST_MIME = 'application/vnd.soleil.entity-ref-list+json';
 
 // Convert a dragged payload (chat attachment, sidebar board link, etc) into
 // a board-card object at canvas-space (x, y). Callers center if they want;

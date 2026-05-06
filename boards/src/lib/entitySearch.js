@@ -8,7 +8,7 @@ export async function searchEntities({ workspaceId, query, kinds, limit = 30 }) 
   if (!supabase || !workspaceId) return [];
   const q = (query || '').trim();
   let req = supabase.from('entity_search')
-    .select('id,kind,workspace_id,board_id,card_id,title,body,updated_at')
+    .select('id,kind,workspace_id,board_id,card_id,title,body,meta,updated_at')
     .eq('workspace_id', workspaceId)
     .order('updated_at', { ascending: false })
     .limit(limit);

@@ -1,0 +1,129 @@
+// Workspace-scoped name index for the auto-detect scanner.
+//
+// On mount: fetches every entity_search row + every entity_aliases
+// row in the workspace, populates a Trie keyed by lowered name, and
+// subscribes to realtime channels so the Trie patches live as boards
+// are renamed, cards are added, and aliases are added/removed.
+//
+// Returns { trie, ready }. The trie is the same shape exported by
+// lib/entityNameTrie.js so callers (AutoLinkPlugin, scanForAutoLinks)
+// can use it uniformly.
+
+import { useEffect, useRef, useState } from 'react';
+import { supabase } from '../lib/supabase.js';
+import { createNameIndex } from '../lib/entityNameTrie.js';
+
+// Don't auto-link these — too short / too common.
+const STOP_TERMS = new Set([
+  'the','for','and','with','any','all','one','two','our','your','this','that',
+  'from','about','into','then','they','them','out','also','off','on','of','to',
+  'in','at','as','an','a','is','it','be','or','if','so','do','no','yes','i','me',
+  'we','us','he','she','his','her','their','my','am','are','was','were','will',
+  'would','could','should','can','may','might','has','have','had','not',
+]);
+const MIN_LEN = 4;
+
+// Build a fresh trie from rows. Skips short / stop-word names so the
+// index doesn't try to match every "the" in a doc.
+function buildTrie(rows, aliases, ignored) {
+  const trie = createNameIndex();
+  const ignoredSet = new Set((ignored || []).map(s => s.toLowerCase()));
+  const seen = new Set();
+  for (const row of (rows || [])) {
+    addToTrie(trie, row, row.title, ignoredSet, seen);
+  }
+  for (const a of (aliases || [])) {
+    // Resolve alias → owning entity_search row by entity_id+kind.
+    const ownerKey = `${a.entity_kind}:${a.entity_id}`;
+    const owner = (rows || []).find(r => `${r.kind}:${r.id}` === ownerKey
+                                      || (r.kind === 'board' && a.entity_kind === 'board' && r.board_id === a.entity_id));
+    if (!owner) continue;
+    addToTrie(trie, owner, a.alias, ignoredSet, seen);
+  }
+  return trie;
+}
+
+function addToTrie(trie, row, name, ignoredSet, seen) {
+  const n = (name || '').trim();
+  const low = n.toLowerCase();
+  if (!n || n.length < MIN_LEN) return;
+  if (STOP_TERMS.has(low)) return;
+  if (ignoredSet.has(low)) return;
+  // Dedupe (kind,id,name) so the trie node has one record per entity.
+  const key = `${row.kind}:${row.id}:${low}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+  trie.add({
+    kind: row.kind,
+    id: row.id,
+    name: n,
+    boardId: row.board_id || undefined,
+    cardId: row.card_id || undefined,
+    docCardId: row.kind === 'doc' ? row.card_id : undefined,
+  });
+}
+
+export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
+  const [trie, setTrie] = useState(() => createNameIndex());
+  const [ready, setReady] = useState(false);
+  const versionRef = useRef(0);
+
+  useEffect(() => {
+    if (!workspaceId || !supabase) { setReady(false); return; }
+    let cancelled = false;
+    versionRef.current++;
+    const myVersion = versionRef.current;
+
+    const reload = async () => {
+      try {
+        const [r1, r2] = await Promise.all([
+          supabase.from('entity_search')
+            .select('id,kind,workspace_id,board_id,card_id,title,updated_at')
+            .eq('workspace_id', workspaceId),
+          supabase.from('entity_aliases')
+            .select('entity_kind,entity_id,alias')
+            .eq('workspace_id', workspaceId),
+        ]);
+        if (cancelled || versionRef.current !== myVersion) return;
+        const rows = r1.data || [];
+        const aliases = r2.data || [];
+        const next = buildTrie(rows, aliases, ignoredTerms);
+        setTrie(next);
+        setReady(true);
+      } catch (e) {
+        console.warn('useEntityNameTrie reload', e);
+      }
+    };
+
+    reload();
+
+    // Coalesce rapid changes into one rebuild — entity_search is
+    // updated card-by-card during a board save, so we'd otherwise
+    // burn cycles on each row.
+    let pending = null;
+    const schedule = () => {
+      if (pending) return;
+      pending = setTimeout(() => { pending = null; reload(); }, 800);
+    };
+
+    const ch1 = supabase.channel(`trie:boards:${workspaceId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: `workspace_id=eq.${workspaceId}` }, schedule)
+      .subscribe();
+    const ch2 = supabase.channel(`trie:cards:${workspaceId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'card_index', filter: `workspace_id=eq.${workspaceId}` }, schedule)
+      .subscribe();
+    const ch3 = supabase.channel(`trie:aliases:${workspaceId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_aliases', filter: `workspace_id=eq.${workspaceId}` }, schedule)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (pending) clearTimeout(pending);
+      try { supabase.removeChannel(ch1); } catch (_) {}
+      try { supabase.removeChannel(ch2); } catch (_) {}
+      try { supabase.removeChannel(ch3); } catch (_) {}
+    };
+  }, [workspaceId, JSON.stringify(ignoredTerms)]);
+
+  return { trie, ready };
+}

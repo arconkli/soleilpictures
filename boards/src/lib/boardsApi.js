@@ -315,6 +315,10 @@ async function _doSyncCardIndex(boardId, ydoc) {
     const kind = get('kind') || 'note';
     const title = get('title') || get('name') || get('label') || get('url') || '';
     const body = get('body') || get('caption') || '';
+    // Per-kind preview data — drives the universal popover's
+    // visual previews (image thumbnails, palette swatches, etc).
+    // Migration 0021 added the `meta jsonb` column.
+    const meta = buildCardMeta(kind, get);
     rows.push({
       workspace_id: workspaceId,
       board_id: boardId,
@@ -322,6 +326,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
       kind,
       title: String(title).slice(0, 200),
       body: String(body).slice(0, 500),
+      meta,
     });
     liveIds.add(id);
   });
@@ -340,6 +345,28 @@ async function _doSyncCardIndex(boardId, ydoc) {
   const orphanIds = (existing.data || []).map(r => r.card_id).filter(id => !liveIds.has(id));
   if (orphanIds.length > 0) {
     await supabase.from('card_index').delete().eq('board_id', boardId).in('card_id', orphanIds);
+  }
+}
+
+// Per-kind preview data baked into card_index.meta. Kept compact —
+// these rows are read often, and the universal popover only needs
+// what it can render without re-fetching from the Y.Doc.
+function buildCardMeta(kind, get) {
+  switch (kind) {
+    case 'image':
+      return { src: get('src') || null, alt: get('alt') || null,
+               w: get('w') || null, h: get('h') || null };
+    case 'palette':
+      return { swatches: (get('swatches') || []).slice(0, 12) };
+    case 'link':
+      return { url: get('link') || get('source') || get('url') || null };
+    case 'board':
+    case 'boardlink':
+      return { boardId: get('id') || get('target') || null };
+    case 'doc':
+      return { pageCount: (get('pages') || []).length || null };
+    default:
+      return null;
   }
 }
 

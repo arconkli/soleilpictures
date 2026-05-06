@@ -12,6 +12,11 @@ import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
 import { fetchMessageById } from './lib/messages.js';
+import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
+import { refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
+// Side-effect import: registers the v1 entity kinds so any surface
+// that resolves a kind sees the same registry.
+import './lib/entityKinds.js';
 import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
@@ -869,38 +874,146 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
   const [shareOpen, setShareOpen] = useState(false);
 
-  // Permalink: ?m=<uuid> opens the messages panel, navigates to that
-  // message's thread, and flashes the bubble. Drives MessagesPanel
-  // via initialOpenThread / messageJumpId props on mount.
+  // Permalink target (drives MessagesPanel for ?to=m:<uuid> / legacy
+  // ?m=<uuid>). Other ref kinds navigate via setStack + custom events.
   const [permalinkTarget, setPermalinkTarget] = useState(null);  // { messageId, openThread }
+
+  // Open a message thread by id. Used by both the URL resolver and
+  // the EntityNavigate provider for { kind:'message' } refs.
+  const openMessageThread = React.useCallback(async (messageId) => {
+    if (!messageId || !user?.id) return;
+    try {
+      const row = await fetchMessageById(messageId);
+      if (!row) return;
+      let openThread;
+      if (row.board_id) {
+        openThread = { kind: 'board', boardId: row.board_id, name: boards[row.board_id]?.name || 'Board' };
+      } else if (row.dm_peer_id) {
+        const peerId = row.sender_id === user.id ? row.dm_peer_id : row.sender_id;
+        openThread = { kind: 'dm', peerId, name: 'Direct message' };
+      } else { return; }
+      setPermalinkTarget({ messageId, openThread });
+      setTweak('showMessages', true);
+    } catch (e) { console.warn('message permalink resolve failed', e); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, boards, setTweak]);
+
+  // ?to=<token> / ?m=<id> — universal entity permalink resolver.
+  // Resolves once on mount (after user is ready) and strips the param
+  // so refresh doesn't re-trigger. Each kind dispatches via the
+  // EntityNavigate provider below.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const mid = params.get('m');
-    if (!mid || !user?.id) return;
+    const ref = refFromCurrentUrl();
+    if (!ref || !user?.id) return;
     let cancelled = false;
     (async () => {
-      try {
-        const row = await fetchMessageById(mid);
-        if (!row || cancelled) return;
-        // Build the openThread shape MessagesPanel expects.
-        let openThread;
-        if (row.board_id) {
-          openThread = { kind: 'board', boardId: row.board_id, name: boards[row.board_id]?.name || 'Board' };
-        } else if (row.dm_peer_id) {
-          // The "peer" depends on which side of the DM we're on.
-          const peerId = row.sender_id === user.id ? row.dm_peer_id : row.sender_id;
-          openThread = { kind: 'dm', peerId, name: 'Direct message' };
-        } else { return; }
-        setPermalinkTarget({ messageId: mid, openThread });
-        setTweak('showMessages', true);
-        // Strip the ?m= query so reload doesn't re-trigger.
-        const cleanUrl = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, '', cleanUrl);
-      } catch (e) { console.warn('permalink resolve failed', e); }
+      // Defer one tick so the EntityNavigate provider is mounted.
+      await new Promise(r => setTimeout(r, 0));
+      if (cancelled) return;
+      // Inline dispatch — we can't use the hook here (we're outside
+      // the provider), so call the same handlers directly.
+      switch (ref.kind) {
+        case 'message': await openMessageThread(ref.id); break;
+        case 'board':   if (boards[ref.id]) setStack([ref.id]); break;
+        case 'card':    if (boards[ref.boardId]) setStack([ref.boardId]); break;
+        case 'doc':
+        case 'docPos': {
+          let boardId = ref.boardId;
+          if (!boardId) {
+            try {
+              const { data } = await supabase.from('card_index').select('board_id').eq('card_id', ref.docCardId).maybeSingle();
+              boardId = data?.board_id;
+            } catch (_) {}
+          }
+          if (boardId && boards[boardId]) setStack([boardId]);
+          if (ref.pageId) {
+            try { sessionStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
+          }
+          setTimeout(() => {
+            document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
+              detail: { cardId: ref.docCardId, pageId: ref.pageId || null, anchor: ref.anchor || null, scrollTop: 0 },
+            }));
+          }, 200);
+          break;
+        }
+        case 'url': window.open(ref.href, '_blank', 'noopener,noreferrer'); break;
+        default: break;
+      }
+      stripLinkParamsFromUrl();
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // Navigate handlers exposed to every linking surface via
+  // EntityNavigateProvider. Mirror of the URL resolver above; this
+  // version is what `<EntityLink onClick>` and other in-app callers
+  // invoke. Keep both in sync.
+  const navHandlers = useMemo(() => ({
+    board:   (ref) => { if (boards[ref.id]) { setStack([ref.id]); recents.push(ref.id); } },
+    card: async (ref) => {
+      // Resolve missing boardId via card_index — the "appears in"
+      // rows for canvas cards only carry cardId.
+      let boardId = ref.boardId;
+      if (!boardId && ref.cardId) {
+        try {
+          const { data } = await supabase.from('card_index').select('board_id').eq('card_id', ref.cardId).maybeSingle();
+          boardId = data?.board_id;
+        } catch (_) {}
+      }
+      if (!boardId || !boards[boardId]) return;
+      setStack([boardId]);
+      recents.push(boardId);
+      if (ref.cardId) {
+        // Tell the canvas to flash this card once the new board mounts.
+        setTimeout(() => {
+          document.dispatchEvent(new CustomEvent('soleil-flash-card', {
+            detail: { boardId, cardId: ref.cardId },
+          }));
+        }, 200);
+      }
+    },
+    doc: async (ref) => {
+      let boardId = ref.boardId;
+      if (!boardId) {
+        try {
+          const { data } = await supabase.from('card_index').select('board_id').eq('card_id', ref.docCardId).maybeSingle();
+          boardId = data?.board_id;
+        } catch (_) {}
+      }
+      if (boardId && boards[boardId]) { setStack([boardId]); recents.push(boardId); }
+      setTimeout(() => {
+        document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
+          detail: { cardId: ref.docCardId, pageId: null, scrollTop: 0 },
+        }));
+      }, 200);
+    },
+    docPos: async (ref) => {
+      let boardId = ref.boardId;
+      if (!boardId) {
+        try {
+          const { data } = await supabase.from('card_index').select('board_id').eq('card_id', ref.docCardId).maybeSingle();
+          boardId = data?.board_id;
+        } catch (_) {}
+      }
+      if (boardId && boards[boardId]) { setStack([boardId]); recents.push(boardId); }
+      if (ref.pageId) {
+        try { sessionStorage.setItem(`soleil.boards.docActivePage.${ref.docCardId}`, ref.pageId); } catch (_) {}
+      }
+      setTimeout(() => {
+        document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
+          detail: { cardId: ref.docCardId, pageId: ref.pageId || null, anchor: ref.anchor || null, scrollTop: 0 },
+        }));
+      }, 200);
+    },
+    message: (ref) => openMessageThread(ref.id),
+    user: (ref) => {
+      // Phase 1 will open a user-card popover. For now, opening the
+      // messages panel is the closest existing affordance.
+      setTweak('showMessages', true);
+    },
+    url: (ref) => { window.open(ref.href, '_blank', 'noopener,noreferrer'); },
+  }), [boards, recents, openMessageThread, setTweak]);
 
   // Surface "X shared a board with you" notifications as toasts on
   // first load. Each toast has a "View" action that opens the board
@@ -1181,6 +1294,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   };
 
   return (
+    <EntityNavigateContext.Provider value={navHandlers}>
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
       <aside className="sidebar">
@@ -1483,6 +1597,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
     </div>
+    </EntityNavigateContext.Provider>
   );
 }
 
