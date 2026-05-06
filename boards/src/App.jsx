@@ -947,6 +947,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      onDropInboxItem={dropInboxItem}
                      peersHereByBoard={peersHereByBoard}
                      peersBelowByBoard={peersBelowByBoard}
+                     onJumpToPeer={jumpToPeer}
                      mutators={muts} />
       );
       return (

@@ -102,7 +102,7 @@ function KindIcon({ kind }) {
 //
 // HTML5-draggable so users can pull a row onto a canvas (drops as a board-
 // link for boards, a link card for URLs, a re-add for canvas card kinds).
-function ListBoardRow({ item, onClick }) {
+function ListBoardRow({ item, onClick, peersHere = [], peersBelow = [], onJumpToPeer }) {
   const subId = (item.kind === 'board' || item.kind === 'list' || item.kind === 'boardlink') ? item.boardId : null;
   const subPreview = useBoardPreview(subId);
   const isBoard = !!subId;
@@ -110,6 +110,20 @@ function ListBoardRow({ item, onClick }) {
   const meta = isBoard
     ? (subCount == null ? '' : String(subCount))
     : item.meta;
+  // Dedupe peers by user.id, prefer "here" over "below" so the dot tag
+  // reflects the closest match. Up to 3 dots, "+N" overflow.
+  const presence = (() => {
+    if (!isBoard || (!peersHere.length && !peersBelow.length)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const p of [...peersHere, ...peersBelow]) {
+      const id = p?.user?.id;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push({ ...p, exact: peersHere.some(x => x.user?.id === id) });
+    }
+    return out;
+  })();
   const onDragStart = (e) => {
     if (subId) {
       // Sub-board → boardlink reference on the destination canvas.
@@ -149,6 +163,23 @@ function ListBoardRow({ item, onClick }) {
         <KindIcon kind={item.kind} />
       </span>
       <span className="bc-toc-name">{item.name}</span>
+      {presence.length > 0 && (
+        <span className="bc-toc-peers">
+          {presence.slice(0, 3).map(p => (
+            <button key={p.user.id}
+                    className={`bc-toc-peer ${p.exact ? 'is-exact' : 'is-nested'}`}
+                    style={{ background: p.user.color || '#4f8df8' }}
+                    title={p.exact
+                      ? `${p.user.name || p.user.email} is here — click to jump`
+                      : `${p.user.name || p.user.email} · in ${p.location?.boardName || 'a sub-board'} — click to jump`}
+                    onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(p.location); }} />
+          ))}
+          {presence.length > 3 && (
+            <span className="bc-toc-peers-overflow"
+                  title={`+${presence.length - 3} more`}>+{presence.length - 3}</span>
+          )}
+        </span>
+      )}
       {meta && <span className="bc-toc-meta">{meta}</span>}
     </div>
   );
@@ -204,7 +235,13 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
                            clickToOpen = false,
                            onOpenItem,
                            peersHere = [],         // peers exactly on this board
-                           peersBelow = [] }) {    // peers nested somewhere under
+                           peersBelow = [],        // peers nested somewhere under
+                           // Full presence maps so list-mode previews can
+                           // render per-row dots for nested boards. Both are
+                           // optional — board-thumbnail mode doesn't need them.
+                           peersHereByBoard,
+                           peersBelowByBoard,
+                           onJumpToPeer }) {
   if (!board) return <div className="bc bc-missing">Missing board</div>;
   const presenceDots = (() => {
     if (!peersHere.length && !peersBelow.length) return null;
@@ -291,9 +328,20 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
         </div>
         {items.length > 0 ? (
           <div className="bc-list-rows bc-children-scroll">
-            {items.map(it => (
-              <ListBoardRow key={it.key} item={it} onClick={() => handleItemClick(it)} />
-            ))}
+            {items.map(it => {
+              // For board rows, look up peer presence so we can render
+              // colored dots inline — completes the breadcrumb trail
+              // through the list-board preview.
+              const rowPeersHere  = it.boardId ? (peersHereByBoard?.get?.(it.boardId)  || []) : [];
+              const rowPeersBelow = it.boardId ? (peersBelowByBoard?.get?.(it.boardId) || []) : [];
+              return (
+                <ListBoardRow key={it.key} item={it}
+                              peersHere={rowPeersHere}
+                              peersBelow={rowPeersBelow}
+                              onJumpToPeer={onJumpToPeer}
+                              onClick={() => handleItemClick(it)} />
+              );
+            })}
           </div>
         ) : (
           <div className="bc-list-empty">{preview ? 'No items yet' : 'Loading…'}</div>

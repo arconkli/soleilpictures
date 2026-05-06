@@ -12,6 +12,9 @@ export function ListSurface({
   onOpenBoard, onOpenPicker, onDropInboxItem,
   mutators = {},
   peersHereByBoard, peersBelowByBoard,
+  // For nested list-mode previews — let inner BoardCards render
+  // clickable peer dots in their preview rows.
+  onJumpToPeer,
 }) {
   const feedback = useFeedback();
   const subBoards = childBoards || [];
@@ -156,6 +159,9 @@ export function ListSurface({
                   <BoardCard board={b} boards={boards} teammates={TEAMMATES}
                              peersHere={peersHereByBoard?.get?.(b.id) || []}
                              peersBelow={peersBelowByBoard?.get?.(b.id) || []}
+                             peersHereByBoard={peersHereByBoard}
+                             peersBelowByBoard={peersBelowByBoard}
+                             onJumpToPeer={onJumpToPeer}
                              onRename={(name) => mutators.renameBoardById?.(b.id, name)} />
                 </div>
               ))}

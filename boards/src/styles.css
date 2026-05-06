@@ -3253,6 +3253,34 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   flex: 1 1 auto; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Peer-presence dots inline on a list-board preview row. Click → jump
+   to that peer's exact location. "exact" peers (on this very board)
+   render full opacity; "nested" peers (in a sub-board) render slightly
+   muted, matching the BoardCard top-corner badge convention.        */
+.bc-toc-peers {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+.bc-toc-peer {
+  appearance: none; border: 0; padding: 0;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-1);
+  margin-left: -3px;
+  cursor: pointer;
+  transition: transform 120ms var(--ease);
+}
+.bc-toc-peer:first-child { margin-left: 0; }
+.bc-toc-peer.is-nested { opacity: 0.55; }
+.bc-toc-peer:hover { transform: scale(1.4); }
+.bc-toc-peers-overflow {
+  font: 600 9px/1 var(--font-sans);
+  color: var(--ink-3);
+  margin-left: 4px;
+  letter-spacing: .04em;
+}
 .bc-toc-meta {
   font-family: var(--font-mono);
   font-size: 9.5px;

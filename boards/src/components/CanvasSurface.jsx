@@ -1456,6 +1456,9 @@ export function CanvasSurface({
       inner = target
         ? <BoardCard board={target} boards={boards} teammates={TEAMMATES}
                      peersHere={peersHere} peersBelow={peersBelow}
+                     peersHereByBoard={peersHereByBoard}
+                     peersBelowByBoard={peersBelowByBoard}
+                     onJumpToPeer={onJumpToPeer}
                      onOpenChild={(childId) => onOpenBoard(childId)}
                      onOpenItem={(item) => {
                        // Image rows pop a lightbox so users can preview without
