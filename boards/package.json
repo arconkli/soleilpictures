@@ -37,6 +37,7 @@
     "@tiptap/react": "^2.27.2",
     "@tiptap/starter-kit": "^2.27.2",
     "@tiptap/suggestion": "^2.27.2",
+    "aws4fetch": "^1.0.20",
     "d3-force-3d": "^3.0.6",
     "lucide-react": "^0.460.0",
     "partykit": "^0.0.115",

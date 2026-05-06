@@ -1842,6 +1842,24 @@ body {
 }
 .ic .img-ph { flex: 1; }
 .ic-img { width: 100%; flex: 1; object-fit: cover; }
+/* R2Image renders in three states: loading (signed URL in flight),
+   blocked (no read access), or normal img once URL resolves.       */
+.r2-img { display: block; width: 100%; height: 100%; }
+.r2-img-loading {
+  background: linear-gradient(120deg,
+    var(--bg-3) 0%, var(--bg-4) 50%, var(--bg-3) 100%);
+  background-size: 200% 100%;
+  animation: r2-shimmer 1.4s linear infinite;
+}
+@keyframes r2-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.r2-img-blocked {
+  display: grid; place-items: center;
+  background: var(--bg-2);
+  color: var(--ink-3);
+}
 .ic-cap {
   padding: 8px 12px;
   font: 400 11px/1.4 var(--font-sans);

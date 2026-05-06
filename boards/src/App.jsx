@@ -522,7 +522,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       input.onchange = async () => {
         const f = input.files?.[0]; if (!f) return;
         try {
-          const up = await uploadImage({ file: f, workspaceId: workspace.id, userId: user.id });
+          const up = await uploadImage({ file: f, workspaceId: workspace.id, boardId: boardId, userId: user.id });
           dropImageBlob({ ...up, x: clickPos?.x, y: clickPos?.y });
         } catch (e) {
           console.error(e);

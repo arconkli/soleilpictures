@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { BoardCard, BoardLinkCard } from './cards.jsx';
 import { ImagePlaceholder } from './primitives.jsx';
+import { R2Image } from './R2Image.jsx';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, inboxItemToCard } from '../lib/dragMimes.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -212,7 +213,7 @@ function FileRow({ card: c, selected, onClick, onUpdate }) {
 
   if (c.kind === 'image') {
     thumb = c.src
-      ? <img src={c.src} alt="" className="lf-thumb-img" draggable="false" />
+      ? <R2Image src={c.src} alt="" className="lf-thumb-img" draggable="false" />
       : <ImagePlaceholder tone={c.tone} aspect="1/1" />;
     name = c.title || c.label || 'Untitled image';
     meta = c.caption ? `· ${c.caption}` : 'IMAGE';

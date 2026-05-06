@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
+import { R2Image } from './R2Image.jsx';
 import { EditableText } from './EditableText.jsx';
 import { RichNoteEditor } from './RichNoteEditor.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -497,7 +498,7 @@ export function ImageCard({ src, label, title, link, tone, aspect, caption,
     <div className="ic">
       <div className="ic-imgwrap" onDoubleClick={onImgDblClick}>
         {src
-          ? <img src={src} alt={title || label || ''} className="ic-img" draggable="false" />
+          ? <R2Image src={src} alt={title || label || ''} className="ic-img" draggable="false" />
           : <ImagePlaceholder label={label} tone={tone} aspect={aspect} />}
         {showCaption && onUpdate && (
           <EditableText

@@ -4,7 +4,8 @@
   "main": "party/board.ts",
   "compatibilityDate": "2025-01-01",
   "parties": {
-    "workspace": "party/workspace.ts"
+    "workspace": "party/workspace.ts",
+    "upload":    "party/upload.ts"
   },
   "vars": {
     "SUPABASE_URL": "https://ehlhlmbpwwalmeisvmdp.supabase.co"

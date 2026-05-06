@@ -7,6 +7,29 @@
 // node-selection.
 
 import Image from '@tiptap/extension-image';
+import { resolveSrc, getSignedUrl } from '../../lib/r2.js';
+
+// Apply a (possibly r2:-sentinel) src to an <img>. For r2: srcs we
+// resolve to a fresh signed URL via the cache and schedule a refresh
+// before the URL expires. Returns a cleanup fn to cancel the refresh.
+function applyR2Src(img, src) {
+  let cancelled = false;
+  let refreshTimer = null;
+  const set = async () => {
+    const resolved = await resolveSrc(src);
+    if (cancelled) return;
+    if (resolved) img.src = resolved;
+    if (typeof src === 'string' && src.startsWith('r2:')) {
+      refreshTimer = setTimeout(async () => {
+        if (cancelled) return;
+        const fresh = await getSignedUrl(src.slice(3));
+        if (!cancelled && fresh) img.src = fresh;
+      }, 4 * 60 * 1000 - 30 * 1000);
+    }
+  };
+  set();
+  return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); };
+}
 
 export const ImageResizable = Image.extend({
   addAttributes() {
@@ -33,12 +56,13 @@ export const ImageResizable = Image.extend({
 
       const img = document.createElement('img');
       img.className = 'tt-img';
-      img.src = node.attrs.src || '';
       if (node.attrs.alt) img.alt = node.attrs.alt;
       if (node.attrs.title) img.title = node.attrs.title;
       if (node.attrs.width) img.style.width = node.attrs.width;
       img.draggable = false;
       dom.appendChild(img);
+      // Resolve r2: sentinels to signed URLs (auto-refreshes near TTL).
+      let cancelR2 = applyR2Src(img, node.attrs.src || '');
 
       // Resize handle (bottom-right). Only visible when the image is selected.
       const handle = document.createElement('div');
@@ -112,10 +136,12 @@ export const ImageResizable = Image.extend({
 
       return {
         dom,
-        // Update on attribute changes (alignment, width via toolbar, etc.).
         update(updatedNode) {
           if (updatedNode.type.name !== 'image') return false;
-          if (updatedNode.attrs.src !== node.attrs.src) img.src = updatedNode.attrs.src || '';
+          if (updatedNode.attrs.src !== node.attrs.src) {
+            cancelR2?.();
+            cancelR2 = applyR2Src(img, updatedNode.attrs.src || '');
+          }
           if (updatedNode.attrs.width !== img.style.width) img.style.width = updatedNode.attrs.width || '';
           dom.className = `tt-img-wrap tt-img-align-${updatedNode.attrs.align || 'center'}`;
           return true;
@@ -123,6 +149,7 @@ export const ImageResizable = Image.extend({
         selectNode() { dom.classList.add('is-selected'); },
         deselectNode() { dom.classList.remove('is-selected'); },
         stopEvent(e) { return handle.contains(e.target) || tb.contains(e.target); },
+        destroy() { cancelR2?.(); },
       };
     };
   },

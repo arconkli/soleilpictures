@@ -17,6 +17,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, inboxItemToCard } from '../lib/dragMimes.js';
 import { uploadImage } from '../lib/uploads.js';
+import { R2Image } from './R2Image.jsx';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
 import { addRecentColor } from '../lib/recentColors.js';
 
@@ -467,9 +468,9 @@ export function CanvasSurface({
       const dims = await readImageDims(file);
       return { publicUrl: dims.url, width: dims.width, height: dims.height, x, y };
     }
-    const up = await uploadImage({ file, workspaceId, userId });
-    return { publicUrl: up.publicUrl, width: up.width, height: up.height, x, y };
-  }, [useLocalImages, workspaceId, userId]);
+    const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId });
+    return { publicUrl: up.src, width: up.width, height: up.height, x, y };
+  }, [useLocalImages, workspaceId, board?.id, userId]);
 
   useEffect(() => {
     const onMove = (e) => {
@@ -2101,10 +2102,10 @@ export function CanvasSurface({
       {lightbox && (
         <div className="lightbox" onClick={() => setLightbox(null)} role="dialog" aria-label="Image preview">
           <button className="lightbox-x" aria-label="Close" onClick={(e) => { e.stopPropagation(); setLightbox(null); }}>×</button>
-          <img className="lightbox-img"
-               src={lightbox.src}
-               alt={lightbox.title || ''}
-               onClick={(e) => e.stopPropagation()} />
+          <R2Image className="lightbox-img"
+                   src={lightbox.src}
+                   alt={lightbox.title || ''}
+                   onClick={(e) => e.stopPropagation()} />
           {lightbox.title && <div className="lightbox-cap">{lightbox.title}</div>}
         </div>
       )}
