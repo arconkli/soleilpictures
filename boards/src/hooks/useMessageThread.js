@@ -29,7 +29,10 @@ export function useMessageThread({ workspaceId, userId, thread }) {
   // Realtime subscribe.
   useEffect(() => {
     if (!thread) return;
-    const onMessage = () => refetch();
+    const onMessage = () => {
+      console.log('[chat-rt] onMessage → refetch');
+      refetch();
+    };
     const onTyping = ({ user_id, ts }) => {
       if (user_id === userId) return;
       setTypingUsers(m => { const next = new Map(m); next.set(user_id, ts); return next; });
