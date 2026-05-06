@@ -61,11 +61,36 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // Visual mode — 'full' (default) for view='doc' boards, 'modal' for the
                               // doc-card overlay (slightly tighter chrome, includes a close button).
                               chrome = 'full',
+                              // Lift active page + scroll up to App so workspace presence can
+                              // broadcast our exact location for click-to-jump. Optional.
+                              onActivePageChange,
+                              onPaperScroll,
+                              // When App.jsx primes a target page+scroll (because user clicked
+                              // a peer's avatar to jump here), DocSurface consumes it on mount.
+                              pendingScroll,
+                              onPendingScrollConsumed,
                               onClose }) {
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
   // Subscribe to the awareness instance lazily — it's only created after the
-  // realtime channel attaches in yboard.js.
-  const awareness = getAwareness?.() || null;
+  // realtime channel attaches in yboard.js. getAwareness() returns null
+  // until then, and yboard doesn't trigger a re-render here when realtime
+  // attaches, so we poll until non-null then store in state.
+  const [awareness, setAwareness] = useState(() => getAwareness?.() || null);
+  useEffect(() => {
+    if (awareness) return;
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      const aw = getAwareness?.();
+      if (aw) { setAwareness(aw); return; }
+      setTimeout(tick, 200);
+    };
+    tick();
+    return () => { cancelled = true; };
+  }, [getAwareness, board.id, awareness]);
+  // Reset awareness when the board changes — getAwareness will return the
+  // new board's awareness once attach completes; the effect above re-runs.
+  useEffect(() => { setAwareness(null); }, [board.id]);
   const [activePageId, setActivePageIdState] = useState(() => {
     if (typeof sessionStorage === 'undefined') return null;
     return sessionStorage.getItem(ACTIVE_PAGE_KEY(board.id));
@@ -76,7 +101,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       if (id) sessionStorage.setItem(ACTIVE_PAGE_KEY(board.id), id);
       else sessionStorage.removeItem(ACTIVE_PAGE_KEY(board.id));
     } catch (_) {}
+    onActivePageChange?.(id || null);
   };
+  // Tell the parent about the initial activePageId (loaded from sessionStorage)
+  // and re-tell it whenever it changes via the keep-valid effect below.
+  useEffect(() => { onActivePageChange?.(activePageId || null); }, [activePageId, onActivePageChange]);
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
   const [rightTab, setRightTab] = useState('outline'); // 'outline' | 'links' | 'refs' | 'comments'
@@ -192,6 +221,40 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const paperRef = useRef(null);
   const [, force] = useState(0);
   const onEditorReady = (ed) => { editorRef.current = ed; force(n => n + 1); };
+
+  // Broadcast scrollTop on the doc-paper so workspace presence can carry
+  // it for click-to-jump. Throttle to 200ms — peer scroll-sync only needs
+  // to be coarse.
+  useEffect(() => {
+    if (!onPaperScroll) return;
+    const paper = paperRef.current;
+    if (!paper) return;
+    let timer = null;
+    const fire = () => {
+      timer = null;
+      onPaperScroll(paper.scrollTop || 0);
+    };
+    const onScroll = () => { if (!timer) timer = setTimeout(fire, 200); };
+    paper.addEventListener('scroll', onScroll);
+    fire();
+    return () => {
+      paper.removeEventListener('scroll', onScroll);
+      if (timer) clearTimeout(timer);
+    };
+  }, [onPaperScroll, activePageId]);
+
+  // Consume a pending click-to-jump scroll target. Waits until the page
+  // matches (sessionStorage was already primed by App.jsx) and the paper
+  // is in the DOM, then scrolls. Only fires once per pending.
+  useEffect(() => {
+    if (!pendingScroll) return;
+    if (pendingScroll.boardId !== board.id) return;
+    if (!activePageId) return;
+    const paper = paperRef.current;
+    if (!paper) return;
+    paper.scrollTo({ top: pendingScroll.scrollTop || 0, behavior: 'auto' });
+    onPendingScrollConsumed?.();
+  }, [pendingScroll, board.id, activePageId, onPendingScrollConsumed]);
 
   // Cross-component link-picker wiring: DocPageEditor registers its
   // openLinkPicker function here; the toolbar calls it via onOpenLink.

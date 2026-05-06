@@ -782,8 +782,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [currentSurface, setCurrentSurface] = useState('board');
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
 
+  // Doc location for click-to-jump — DocSurface lifts these up so
+  // workspace presence carries them and peers can land on the exact
+  // page + scroll position.
+  const [docPageId, setDocPageId] = useState(null);
+  const [docScrollTop, setDocScrollTop] = useState(0);
+  // Pending click-to-jump target consumed by DocSurface on mount.
+  // Refs (not state) to avoid re-render loops; DocSurface reads + clears.
+  const [pendingDocScroll, setPendingDocScroll] = useState(null);
+
   // Workspace-level presence — shows everyone in the workspace, regardless
   // of which board they're on. Click an avatar to teleport to their board.
+  const inDocView = currentSurface === 'board' && currentBoard?.view === 'doc';
   const { peers: wsPeers, status: wsStatus } = useWorkspacePresence({
     workspaceId: workspace.id,
     user: { id: user.id, name: userInfo.name, email: user.email, color: '#4f8df8' },
@@ -791,11 +801,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       boardId: currentBoard?.id,
       boardName: currentBoard?.name,
       surface: currentSurface,
+      pageId:    inDocView ? docPageId : null,
+      scrollTop: inDocView ? docScrollTop : 0,
     },
   });
   const jumpToPeer = (loc) => {
     if (loc?.surface === 'home') { setCurrentSurface('home'); return; }
-    if (loc?.boardId && boards[loc.boardId]) { setStack([loc.boardId]); setCurrentSurface('board'); }
+    if (loc?.boardId && boards[loc.boardId]) {
+      // Prime the doc page so DocSurface boots into the peer's page,
+      // not whatever was last viewed locally.
+      if (loc.pageId) {
+        try { sessionStorage.setItem(`soleil.boards.docActivePage.${loc.boardId}`, loc.pageId); } catch (_) {}
+        setPendingDocScroll({ boardId: loc.boardId, scrollTop: loc.scrollTop || 0 });
+      }
+      setStack([loc.boardId]);
+      setCurrentSurface('board');
+    }
   };
 
   // Build a map of boardId → peers exactly there, plus boardId → peers in a
@@ -902,12 +923,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const surfaceJsx = (() => {
       if (view === 'doc') {
         const pending = (pendingBookmark && pendingBookmark.boardId === board.id) ? pendingBookmark : null;
+        const pendingScroll = (pendingDocScroll && pendingDocScroll.boardId === board.id) ? pendingDocScroll : null;
         return (
           <DocSurface board={board} ydoc={yd} ready={ready}
                       workspaceId={workspace.id} userId={user.id}
                       boards={boards} getAwareness={yh.getAwareness}
                       pendingBookmark={pending}
                       onPendingBookmarkConsumed={() => setPendingBookmark(null)}
+                      onActivePageChange={isMain ? setDocPageId : undefined}
+                      onPaperScroll={isMain ? setDocScrollTop : undefined}
+                      pendingScroll={isMain ? pendingScroll : null}
+                      onPendingScrollConsumed={isMain ? () => setPendingDocScroll(null) : undefined}
                       currentUser={{
                         id: user.id, email: user.email,
                         name: user.user_metadata?.full_name || user.email?.split('@')[0],

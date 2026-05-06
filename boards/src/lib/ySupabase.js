@@ -13,21 +13,21 @@
 //   3. Every local Y.Doc update broadcasts as a y-update message.
 //   4. Awareness state changes broadcast as y-awareness messages.
 //
-// Origins: incoming updates use origin 'remote' so the existing UndoManager
-// (which tracks 'local') ignores them. Local edits keep their existing
-// origins ('local', 'snapshot', etc.) — those broadcast normally.
+// Self-healing: if Phoenix puts the channel into CLOSED state (which
+// REMOVES it from the socket — channel.js:70 → socket.remove(this), so
+// no future rejoin is possible), we tear down the dead channel and
+// rebuild a fresh one with the same topic. Without this, a single bad
+// close kills realtime for the rest of the session.
 
 import * as Y from 'yjs';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
 import { supabase, bounceRealtime } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 
-// Cap awareness fan-out. 33ms = ~30 broadcasts/sec/user — paired with
-// snapshot-interpolation on the receiver, this gives a genuinely smooth
-// cursor without overwhelming the y:{boardId} channel.
 const AWARENESS_THROTTLE_MS = 33;
+const REBUILD_BACKOFF_MS = 2000;
+const WATCHDOG_TIMEOUT_MS = 5 * 60 * 1000;
 
-// Build a stable session-only client id so peers can identify each other.
 const CLIENT_ID = (() => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return 'c_' + Math.random().toString(36).slice(2, 12);
@@ -38,11 +38,6 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   console.log('[realtime] y:' + boardId, 'attach (user:', user?.email || user?.id || 'anon', ')');
 
   const awareness = new Awareness(ydoc);
-  // y-protocols Awareness uses an internal 30s prune timer (module-level
-  // constant; can't be overridden per-instance). Combined with the 4s
-  // heartbeat below, peers stay alive while connected and drop within
-  // 30s of disconnect. The dedupe-by-user.id in CanvasPresence prevents
-  // "2 cursors of same user" during the gap.
   if (user) {
     awareness.setLocalStateField('user', {
       id: user.id || CLIENT_ID,
@@ -51,151 +46,139 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     });
   }
 
-  // Use a Yjs-specific channel topic. Supabase realtime de-dupes channels
-  // by topic, and the second .subscribe() on a deduped channel is a silent
-  // no-op (RealtimeChannel.js guards: only registers callbacks if isClosed).
-  // The chat module also opens board:{id}, so reusing that topic here means
-  // our subscribe callback never fires and we never start syncing. Distinct
-  // topic = independent channel = both subscribe paths work.
-  const channel = supabase.channel(`y:${boardId}`, {
-    config: { broadcast: { self: false, ack: false }, private: true },
-  });
-
   let destroyed = false;
   let subscribed = false;
   let awarenessTimer = null;
+  let currentChannel = null;
+  let rebuildTimer = null;
+  let lastInbound = Date.now();
+  const handshakeWith = new Set();
 
-  // ── Outgoing: Y.Doc updates ─────────────────────────────────────────────
+  // Outgoing handlers read currentChannel each call so post-rebuild
+  // updates land on the fresh channel.
   const onYUpdate = (update, origin) => {
-    if (destroyed || !subscribed) return;
-    if (origin === 'remote') return;       // don't echo what we just received
-    if (origin === 'snapshot') return;     // initial snapshot apply; not an edit
-    if (origin === 'restore') return;      // version restore — caller broadcasts separately if desired
-    channel.send({ type: 'broadcast', event: 'y-update',
-                   payload: { from: CLIENT_ID, u: bytesToB64(update) } });
+    if (destroyed || !subscribed || !currentChannel) return;
+    if (origin === 'remote') return;
+    if (origin === 'snapshot') return;
+    if (origin === 'restore') return;
+    currentChannel.send({ type: 'broadcast', event: 'y-update',
+                          payload: { from: CLIENT_ID, u: bytesToB64(update) } });
   };
   ydoc.on('update', onYUpdate);
 
-  // ── Outgoing: Awareness ────────────────────────────────────────────────
   const onAwarenessUpdate = ({ added, updated, removed }) => {
-    if (destroyed || !subscribed) return;
+    if (destroyed || !subscribed || !currentChannel) return;
     const changedClients = added.concat(updated, removed);
     if (changedClients.length === 0) return;
-    if (awarenessTimer) return; // throttle
+    if (awarenessTimer) return;
     awarenessTimer = setTimeout(() => {
       awarenessTimer = null;
+      if (!currentChannel) return;
       const buf = encodeAwarenessUpdate(awareness, changedClients);
-      channel.send({ type: 'broadcast', event: 'y-awareness',
-                     payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
+      currentChannel.send({ type: 'broadcast', event: 'y-awareness',
+                            payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
     }, AWARENESS_THROTTLE_MS);
   };
   awareness.on('update', onAwarenessUpdate);
 
-  // ── Incoming handlers ──────────────────────────────────────────────────
-  // Track peers we've already kicked off a sync handshake with, so we don't
-  // ping-pong sync-step1 forever.
-  const handshakeWith = new Set();
+  const buildChannel = () => {
+    const channel = supabase.channel(`y:${boardId}`, {
+      config: { broadcast: { self: false, ack: false }, private: true },
+    });
 
-  // sync-step1: peer's state vector — reply with the updates they're missing,
-  // and also send OUR sync-step1 back (bidirectional) so they can fill in any
-  // updates we haven't broadcast yet. Without this, late-joiners wouldn't get
-  // updates that happened before they subscribed.
-  channel.on('broadcast', { event: 'y-sync-step1' }, ({ payload }) => {
-    if (!payload || payload.from === CLIENT_ID) return;
-    try {
-      const sv = b64ToBytes(payload.sv);
-      const update = Y.encodeStateAsUpdate(ydoc, sv);
-      channel.send({ type: 'broadcast', event: 'y-sync-step2',
-                     payload: { from: CLIENT_ID, to: payload.from, u: bytesToB64(update) } });
-      // Reciprocate the handshake exactly once per peer.
-      if (!handshakeWith.has(payload.from)) {
-        handshakeWith.add(payload.from);
-        const ourSv = Y.encodeStateVector(ydoc);
+    channel.on('broadcast', { event: 'y-sync-step1' }, ({ payload }) => {
+      if (!payload || payload.from === CLIENT_ID) return;
+      try {
+        const sv = b64ToBytes(payload.sv);
+        const update = Y.encodeStateAsUpdate(ydoc, sv);
+        channel.send({ type: 'broadcast', event: 'y-sync-step2',
+                       payload: { from: CLIENT_ID, to: payload.from, u: bytesToB64(update) } });
+        if (!handshakeWith.has(payload.from)) {
+          handshakeWith.add(payload.from);
+          const ourSv = Y.encodeStateVector(ydoc);
+          channel.send({ type: 'broadcast', event: 'y-sync-step1',
+                         payload: { from: CLIENT_ID, sv: bytesToB64(ourSv) } });
+        }
+      } catch (e) { console.warn('y-sync-step1 reply failed', e); }
+    });
+
+    channel.on('broadcast', { event: 'y-sync-step2' }, ({ payload }) => {
+      if (!payload || payload.from === CLIENT_ID) return;
+      if (payload.to && payload.to !== CLIENT_ID) return;
+      try { Y.applyUpdate(ydoc, b64ToBytes(payload.u), 'remote'); }
+      catch (e) { console.warn('y-sync-step2 apply failed', e); }
+    });
+
+    channel.on('broadcast', { event: 'y-update' }, ({ payload }) => {
+      if (!payload || payload.from === CLIENT_ID) return;
+      lastInbound = Date.now();
+      try { Y.applyUpdate(ydoc, b64ToBytes(payload.u), 'remote'); }
+      catch (e) { console.warn('y-update apply failed', e); }
+    });
+
+    channel.on('broadcast', { event: 'y-awareness' }, ({ payload }) => {
+      if (!payload || payload.from === CLIENT_ID) return;
+      lastInbound = Date.now();
+      try { applyAwarenessUpdate(awareness, b64ToBytes(payload.a), 'remote'); }
+      catch (e) { console.warn('y-awareness apply failed', e); }
+    });
+
+    channel.subscribe((status, err) => {
+      console.log('[realtime] y:' + boardId, status, err || '');
+      if (status === 'SUBSCRIBED') {
+        subscribed = true;
+        // Fresh subscription (or post-rebuild) — re-handshake with peers
+        // and re-broadcast our awareness so peers see us immediately.
+        handshakeWith.clear();
+        const sv = Y.encodeStateVector(ydoc);
         channel.send({ type: 'broadcast', event: 'y-sync-step1',
-                       payload: { from: CLIENT_ID, sv: bytesToB64(ourSv) } });
+                       payload: { from: CLIENT_ID, sv: bytesToB64(sv) } });
+        if (awareness.getLocalState()) {
+          const buf = encodeAwarenessUpdate(awareness, [awareness.clientID]);
+          channel.send({ type: 'broadcast', event: 'y-awareness',
+                         payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
+        }
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        // Phoenix auto-rejoins via rejoinTimer when the socket is back.
+        subscribed = false;
+      } else if (status === 'CLOSED') {
+        // Terminal: socket.remove(this) was called — the channel can't
+        // rejoin. Tear down and build a fresh channel after a backoff.
+        subscribed = false;
+        if (destroyed) return;
+        if (rebuildTimer) return;
+        rebuildTimer = setTimeout(() => {
+          rebuildTimer = null;
+          if (destroyed) return;
+          try { supabase.removeChannel(channel); } catch (_) {}
+          currentChannel = buildChannel();
+        }, REBUILD_BACKOFF_MS);
       }
-    } catch (e) { console.warn('y-sync-step1 reply failed', e); }
-  });
+    });
 
-  // sync-step2: missing updates from a peer — apply them locally.
-  channel.on('broadcast', { event: 'y-sync-step2' }, ({ payload }) => {
-    if (!payload || payload.from === CLIENT_ID) return;
-    if (payload.to && payload.to !== CLIENT_ID) return; // addressed to someone else
-    try { Y.applyUpdate(ydoc, b64ToBytes(payload.u), 'remote'); }
-    catch (e) { console.warn('y-sync-step2 apply failed', e); }
-  });
-
-  // y-update: incremental update from a peer.
-  channel.on('broadcast', { event: 'y-update' }, ({ payload }) => {
-    if (!payload || payload.from === CLIENT_ID) return;
-    lastInbound = Date.now();
-    try { Y.applyUpdate(ydoc, b64ToBytes(payload.u), 'remote'); }
-    catch (e) { console.warn('y-update apply failed', e); }
-  });
-
-  // y-awareness: peer awareness state.
-  channel.on('broadcast', { event: 'y-awareness' }, ({ payload }) => {
-    if (!payload || payload.from === CLIENT_ID) return;
-    lastInbound = Date.now();
-    try { applyAwarenessUpdate(awareness, b64ToBytes(payload.a), 'remote'); }
-    catch (e) { console.warn('y-awareness apply failed', e); }
-  });
-
-  // On subscribe, exchange state vectors with anyone else in the channel.
-  // CHANNEL_ERROR / CLOSED recovery: realtime-js channels auto-rejoin via
-  // their internal Phoenix rejoinTimer when the socket reconnects — we do
-  // NOT call channel.subscribe() again ourselves. RealtimeChannel.join()
-  // throws "tried to join multiple times" if subscribe() is called twice
-  // on the same channel instance, which permanently breaks recovery.
-  // We just track the state flag and re-handshake on the next SUBSCRIBED.
-  const onSubscribeStatus = (status, err) => {
-    console.log('[realtime] y:' + boardId, status, err || '');
-    if (status === 'SUBSCRIBED') {
-      subscribed = true;
-      // Fresh subscription (or rejoin) — re-handshake with peers and
-      // re-broadcast our awareness so peers see us immediately.
-      handshakeWith.clear();
-      const sv = Y.encodeStateVector(ydoc);
-      channel.send({ type: 'broadcast', event: 'y-sync-step1',
-                     payload: { from: CLIENT_ID, sv: bytesToB64(sv) } });
-      if (awareness.getLocalState()) {
-        const buf = encodeAwarenessUpdate(awareness, [awareness.clientID]);
-        channel.send({ type: 'broadcast', event: 'y-awareness',
-                       payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
-      }
-    } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-      subscribed = false;
-    }
+    return channel;
   };
-  channel.subscribe(onSubscribeStatus);
 
-  // Wake events (visibilitychange / focus / online) are handled in
-  // supabase.js — one listener for the whole app, force-bounces the
-  // realtime transport so every channel re-handshakes. The watchdog
-  // below catches dead sockets that didn't fire any wake event. The
-  // 5-minute threshold is generous so a normal idle user doesn't get
-  // forcibly reconnected; a real socket death is recovered quickly by
-  // the wake listeners as soon as you interact with the tab.
-  const WATCHDOG_TIMEOUT_MS = 5 * 60 * 1000;
-  let lastInbound = Date.now();
+  currentChannel = buildChannel();
+
+  // 5-min watchdog: if no inbound traffic while visible, force a full
+  // transport bounce. Last-resort recovery for genuinely dead sockets.
   const watchdog = setInterval(() => {
     if (destroyed) return;
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     if (Date.now() - lastInbound > WATCHDOG_TIMEOUT_MS) {
-      lastInbound = Date.now(); // give the bounce time to recover
+      lastInbound = Date.now();
       bounceRealtime();
     }
   }, 30000);
 
-  // Heartbeat: every 4s, re-broadcast our awareness state so peers know
-  // we're still alive (their `meta.lastUpdated` for our clientID resets).
-  // Without this a quiet user with no cursor/selection changes would be
-  // pruned by the receiving peers' stale-state timer.
+  // Heartbeat: every 4s, re-broadcast our awareness so peers' stale-state
+  // timer doesn't prune us.
   const heartbeat = setInterval(() => {
-    if (destroyed || !subscribed) return;
+    if (destroyed || !subscribed || !currentChannel) return;
     const buf = encodeAwarenessUpdate(awareness, [awareness.clientID]);
-    channel.send({ type: 'broadcast', event: 'y-awareness',
-                   payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
+    currentChannel.send({ type: 'broadcast', event: 'y-awareness',
+                          payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
   }, 4000);
 
   return {
@@ -203,17 +186,17 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     destroy() {
       destroyed = true;
       if (awarenessTimer) { clearTimeout(awarenessTimer); awarenessTimer = null; }
-clearInterval(heartbeat);
+      if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = null; }
+      clearInterval(heartbeat);
       clearInterval(watchdog);
       ydoc.off('update', onYUpdate);
       awareness.off('update', onAwarenessUpdate);
       try { removeAwarenessStates(awareness, [awareness.clientID], 'local'); } catch (_) {}
-      try { supabase.removeChannel(channel); } catch (_) {}
+      try { if (currentChannel) supabase.removeChannel(currentChannel); } catch (_) {}
     },
   };
 }
 
-// Deterministic pleasant cursor color from a user id string.
 function pickColor(id) {
   const palette = ['#4f8df8', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
   let h = 0;
