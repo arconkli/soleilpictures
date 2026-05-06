@@ -16,7 +16,14 @@ import * as Y from 'yjs';
 import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion } from './boardsApi.js';
 import { b64ToBytes, bytesToB64 } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
-import { attachRealtime } from './ySupabase.js';
+// Feature flag: PartyKit transport vs legacy Supabase Realtime. Set
+// VITE_USE_PARTYKIT=true (and VITE_PARTYKIT_HOST=<deployed-url>) once
+// the party is deployed.
+import { attachRealtime as attachRealtimePartyKit } from './yPartyKit.js';
+import { attachRealtime as attachRealtimeSupabase } from './ySupabase.js';
+const attachRealtime = import.meta.env.VITE_USE_PARTYKIT === 'true'
+  ? attachRealtimePartyKit
+  : attachRealtimeSupabase;
 
 const SNAP_DEBOUNCE_MS = 250;
 const SESSION_IDLE_MS = 5 * 60 * 1000; // 5 min of inactivity = session boundary

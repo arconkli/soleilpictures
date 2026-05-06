@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:party": "partykit dev --port 1999",
     "build": "vite build",
+    "deploy:party": "partykit deploy",
     "test:e2e": "playwright test",
     "preview": "vite preview"
   },
@@ -37,6 +39,8 @@
     "@tiptap/suggestion": "^2.27.2",
     "d3-force-3d": "^3.0.6",
     "lucide-react": "^0.460.0",
+    "partykit": "^0.0.115",
+    "partysocket": "^1.1.18",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-force-graph-2d": "^1.29.1",
@@ -44,6 +48,7 @@
     "three": "^0.184.0",
     "tippy.js": "^6.3.7",
     "uuid": "^14.0.0",
+    "y-partykit": "^0.0.33",
     "yjs": "^13.6.30"
   },
   "devDependencies": {

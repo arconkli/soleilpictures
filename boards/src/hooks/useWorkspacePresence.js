@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { attachWorkspacePresence } from '../lib/workspaceRealtime.js';
+// Feature flag matches yboard.js — both must be on the same transport.
+import { attachWorkspacePresence as attachWorkspacePresencePartyKit } from '../lib/workspacePartyKit.js';
+import { attachWorkspacePresence as attachWorkspacePresenceSupabase } from '../lib/workspaceRealtime.js';
+const attachWorkspacePresence = import.meta.env.VITE_USE_PARTYKIT === 'true'
+  ? attachWorkspacePresencePartyKit
+  : attachWorkspacePresenceSupabase;
 
 // Hook wrapping the workspace presence channel.
 //   workspaceId — required
