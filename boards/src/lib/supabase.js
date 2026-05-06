@@ -118,6 +118,15 @@ if (supabase && typeof document !== 'undefined') {
       }
     });
   } catch (_) {}
+
+  // Diagnostic: log socket lifecycle so we can correlate channel CLOSED
+  // events with transport-level activity (token refreshes, focus events,
+  // server-side disconnects).
+  try {
+    supabase.realtime.onOpen?.(() => console.log('[realtime] SOCKET open'));
+    supabase.realtime.onClose?.((e) => console.log('[realtime] SOCKET close', e?.code, e?.reason));
+    supabase.realtime.onError?.((e) => console.log('[realtime] SOCKET error', e?.message || e));
+  } catch (_) {}
 }
 
 // Exposed for the per-channel watchdogs (5-min no-inbound guard) — true

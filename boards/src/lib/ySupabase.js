@@ -126,8 +126,10 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       catch (e) { console.warn('y-awareness apply failed', e); }
     });
 
+    let subscribedAt = 0;
     channel.subscribe((status, err) => {
-      console.log('[realtime] y:' + boardId, status, err || '');
+      const dt = subscribedAt ? `(after ${((Date.now() - subscribedAt) / 1000).toFixed(1)}s)` : '';
+      console.log('[realtime] y:' + boardId, status, dt, err || '');
       if (status === 'SUBSCRIBED') {
         subscribed = true;
         handshakeWith.clear();
