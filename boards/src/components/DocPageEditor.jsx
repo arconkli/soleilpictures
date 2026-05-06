@@ -12,7 +12,6 @@ import { Extension } from '@tiptap/core';
 import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, addBookmark } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';

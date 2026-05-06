@@ -17,7 +17,7 @@ import {
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 
-export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelectPage }) {
+export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelectPage, peers = [], onJumpToPeer }) {
   const tree = buildPageTree(pages);
   const [renaming, setRenaming] = useState(null);  // page id
   const [draftName, setDraftName] = useState('');
@@ -120,11 +120,22 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   };
   const resetDrag = () => { setDragId(null); setDropTarget(null); };
 
+  // Group peers by the pageId they're currently on. Map of pageId →
+  // [peer, ...] so renderRow can pluck the relevant ones in O(1).
+  const peersByPage = new Map();
+  for (const peer of peers) {
+    const pid = peer?.location?.pageId;
+    if (!pid) continue;
+    if (!peersByPage.has(pid)) peersByPage.set(pid, []);
+    peersByPage.get(pid).push(peer);
+  }
+
   const renderRow = (p, depth) => {
     const isActive = p.id === activePageId;
     const isOpen = p.expanded !== false;
     const hasKids = pages.some(x => x.parent_id === p.id);
     const drop = dropTarget && dropTarget.id === p.id ? dropTarget.side : null;
+    const pagePeers = peersByPage.get(p.id) || [];
     return (
       <div key={p.id} className="doc-tree-node">
         <div className={`doc-tree-row ${isActive ? 'is-active' : ''} ${drop ? `drop-${drop}` : ''}`}
@@ -158,6 +169,20 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                    onClick={(e) => e.stopPropagation()} />
           ) : (
             <span className="doc-tree-name">{p.name || 'Untitled'}</span>
+          )}
+          {pagePeers.length > 0 && (
+            <span className="doc-tree-peers">
+              {pagePeers.slice(0, 3).map(peer => (
+                <span key={peer.tabId || peer.user?.id}
+                      className="doc-tree-peer"
+                      title={`${peer.user?.name || 'Someone'} — jump here`}
+                      style={{ background: peer.user?.color || '#4f8df8' }}
+                      onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(peer.location); }} />
+              ))}
+              {pagePeers.length > 3 && (
+                <span className="doc-tree-peers-overflow">+{pagePeers.length - 3}</span>
+              )}
+            </span>
           )}
           <button className="doc-tree-add"
                   title="Add sub-page"

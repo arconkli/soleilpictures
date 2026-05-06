@@ -69,6 +69,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // a peer's avatar to jump here), DocSurface consumes it on mount.
                               pendingScroll,
                               onPendingScrollConsumed,
+                              // Workspace peers currently on THIS board (already filtered by
+                              // App). DocPageTree uses peer.location.pageId to render colored
+                              // dots per page row; clicking a dot calls onJumpToPeer.
+                              peersOnBoard = [],
+                              onJumpToPeer,
                               onClose }) {
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
   // Subscribe to the awareness instance lazily — it's only created after the
@@ -305,6 +310,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             pages={pages}
             activePageId={activePageId}
             onSelectPage={setActivePageId}
+            peers={peersOnBoard}
+            onJumpToPeer={onJumpToPeer}
           />
         )}
       </aside>

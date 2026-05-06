@@ -1,23 +1,54 @@
-// Live cursor + caret overlay on the doc surface. Mirrors what
-// CanvasPresence does for the canvas, but reads/writes the awareness
-// fields docCursor / docCaret.
+// Live cursor + caret + selection overlay for the doc surface. Mirrors
+// CanvasPresence: reads/writes a Y.Awareness instance multiplexed over
+// the PartyKit socket.
 //
 // Awareness payload conventions (set by this component):
-//   localState.user      = { id, name, color }   (from ySupabase.js)
-//   localState.docCursor = { boardId, pageId, x, y }   // doc-paper-relative px
-//   localState.docCaret  = { boardId, pageId, x, y }   // typing-caret px
+//   localState.user         = { id, name, color }   (set by yPartyKit.js)
+//   localState.docCursor    = { boardId, pageId, x, y }   // doc-paper-relative px
+//   localState.docCaret     = { boardId, pageId, x, y }   // typing-caret px
+//   localState.docSelection = { boardId, pageId, rects: [...] }
 //
-// Coords are in `.doc-paper` element-relative pixels. Receivers translate
-// to screen by reading their own .doc-paper bounding box (peers may have
-// scrolled differently, but the doc width is fixed so the X tracks
-// reliably; vertical scroll is shared via Y.Doc → caret follows the
-// committed text flow).
+// Coords are in `.doc-paper` element-relative pixels with paper.scrollTop
+// added to y so they survive scroll. The doc paper has a fixed max-width,
+// so peers see the same x as long as both windows are at least that wide.
 
 import { useEffect, useRef, useState } from 'react';
 import { LiveCursor } from './primitives.jsx';
 
+// Window after a peer's caret moves where we treat them as "actively
+// typing" — caret stays at full opacity and pulses subtly. After this
+// window the caret fades to a quieter idle state so you can tell at a
+// glance who's editing vs who's just present.
+const TYPING_FADE_MS = 1500;
+const IDLE_FADE_MS   = 3000;
+const IDLE_OPACITY   = 0.55;
+
 export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, currentUser }) {
   const [peers, setPeers] = useState([]);
+
+  // Mirror paperRef.current into state. React refs aren't reactive, so an
+  // effect that depends on `paperRef.current` would never re-run when the
+  // .doc-paper element finally appears (rare, but possible during Strict
+  // Mode double-mount). Polling once on mount fixes the race for free.
+  const [paperEl, setPaperEl] = useState(() => paperRef?.current || null);
+  useEffect(() => {
+    if (paperEl) return;
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      const el = paperRef?.current;
+      if (el) { setPaperEl(el); return; }
+      setTimeout(tick, 100);
+    };
+    tick();
+    return () => { cancelled = true; };
+  }, [paperRef, paperEl]);
+
+  // Per-peer typing tracking. Bumped from the awareness `change` handler
+  // when a peer's docCaret xy actually moves (i.e. they're editing or
+  // navigating). Used to drive the typing pulse + idle fade in render.
+  const lastCaretChangeRef = useRef(new Map()); // userId → performance.now()
+  const lastCaretXYRef     = useRef(new Map()); // userId → 'x,y' string
 
   // ── Read peers ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -26,6 +57,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
     const refresh = () => {
       const states = aw.getStates();
       const newest = new Map();
+      const now = performance.now();
       states.forEach((state, clientId) => {
         if (!state?.user) return;
         if (state.user.id === currentUser?.id) return;
@@ -40,6 +72,15 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
         const updated = meta?.lastUpdated || 0;
         const existing = newest.get(state.user.id);
         if (existing && existing.updated >= updated) return;
+        // Detect caret movement so the receiving overlay can pulse.
+        if (caret && caret.boardId === boardId && caret.pageId === pageId) {
+          const sig = `${caret.x},${caret.y}`;
+          const prev = lastCaretXYRef.current.get(state.user.id);
+          if (prev !== sig) {
+            lastCaretXYRef.current.set(state.user.id, sig);
+            lastCaretChangeRef.current.set(state.user.id, now);
+          }
+        }
         newest.set(state.user.id, {
           clientId, updated,
           user: state.user,
@@ -55,11 +96,20 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
     return () => aw.off('change', refresh);
   }, [getAwareness, boardId, pageId, currentUser?.id]);
 
+  // Without this, the typing pulse / idle fade only animates on awareness
+  // changes — so when a peer goes idle the caret stays "active" until the
+  // next event. This bumps a render every 250ms while peers are present.
+  const [, tickPulse] = useState(0);
+  useEffect(() => {
+    if (peers.length === 0) return;
+    const id = setInterval(() => tickPulse(n => (n + 1) | 0), 250);
+    return () => clearInterval(id);
+  }, [peers.length]);
+
   // ── Write our local mouse cursor (paper-relative) ──────────────────────
   useEffect(() => {
     const aw = getAwareness?.();
-    const paper = paperRef?.current;
-    if (!aw || !paper) return;
+    if (!aw || !paperEl) return;
     let pending = null;
     let timer = null;
     const flush = () => {
@@ -69,10 +119,10 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
       pending = null;
     };
     const onMove = (e) => {
-      const r = paper.getBoundingClientRect();
+      const r = paperEl.getBoundingClientRect();
       pending = {
         x: Math.round(e.clientX - r.left),
-        y: Math.round(e.clientY - r.top + paper.scrollTop),
+        y: Math.round(e.clientY - r.top + paperEl.scrollTop),
       };
       if (!timer) timer = setTimeout(flush, 30);
     };
@@ -81,44 +131,42 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
       pending = null;
       aw.setLocalStateField('docCursor', null);
     };
-    paper.addEventListener('pointermove', onMove);
-    paper.addEventListener('pointerleave', onLeave);
+    paperEl.addEventListener('pointermove', onMove);
+    paperEl.addEventListener('pointerleave', onLeave);
     return () => {
-      paper.removeEventListener('pointermove', onMove);
-      paper.removeEventListener('pointerleave', onLeave);
+      paperEl.removeEventListener('pointermove', onMove);
+      paperEl.removeEventListener('pointerleave', onLeave);
       if (timer) clearTimeout(timer);
       try { aw.setLocalStateField('docCursor', null); } catch (_) {}
     };
-  }, [getAwareness, paperRef, boardId, pageId]);
+  }, [getAwareness, paperEl, boardId, pageId]);
 
   // ── Write our caret + selection range ──────────────────────────────────
   // For each transaction or selection change we publish:
-  //   docCaret = { boardId, pageId, x, y }            — head-of-cursor xy
-  //   docSelection = { boardId, pageId, rects: [...]} — list of { left,top,
-  //                  width, height } for non-empty selections (drawn as a
+  //   docCaret = { boardId, pageId, x, y }              — head-of-cursor xy
+  //   docSelection = { boardId, pageId, rects: [...] }  — list of {left,top,
+  //                  width,height} for non-empty selections (drawn as a
   //                  colored band on the receiver). Empty → null.
+  // lastSig is a useRef so the dedup survives effect re-runs (the editor
+  // prop flips null → instance after mount, which would otherwise reset
+  // the dedup to '' and re-broadcast the next transaction unnecessarily).
+  const lastSigRef = useRef('');
   useEffect(() => {
     const aw = getAwareness?.();
-    const paper = paperRef?.current;
-    if (!aw || !paper || !editor) return;
-    let lastSig = '';
+    if (!aw || !paperEl || !editor) return;
     const tick = () => {
       try {
         const sel = editor.state.selection;
         const view = editor.view;
         if (!view) return;
-        const r = paper.getBoundingClientRect();
+        const r = paperEl.getBoundingClientRect();
         const headCoords = view.coordsAtPos(sel.head);
         const x = Math.round(headCoords.left - r.left);
-        const y = Math.round(headCoords.top  - r.top + paper.scrollTop);
-        // Build rectangles for the selection range.
+        const y = Math.round(headCoords.top  - r.top + paperEl.scrollTop);
         let rects = null;
         if (!sel.empty) {
           const startCoords = view.coordsAtPos(sel.from);
           const endCoords = view.coordsAtPos(sel.to);
-          // Walk character positions on the same line(s) and merge into
-          // line-bands. Approximation: treat as one rect per "line group"
-          // by stepping through the editor DOM via getClientRects().
           const range = document.createRange();
           try {
             const fromDOM = view.domAtPos(sel.from);
@@ -128,23 +176,22 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
             const rs = Array.from(range.getClientRects());
             rects = rs.map(rc => ({
               left: Math.round(rc.left - r.left),
-              top: Math.round(rc.top  - r.top + paper.scrollTop),
+              top: Math.round(rc.top  - r.top + paperEl.scrollTop),
               width: Math.round(rc.width),
               height: Math.round(rc.height),
             })).filter(rc => rc.width > 0 && rc.height > 0);
           } catch (_) {
-            // Fallback: a single rect from start head to end head.
             rects = [{
               left: Math.round(startCoords.left - r.left),
-              top: Math.round(startCoords.top  - r.top + paper.scrollTop),
+              top: Math.round(startCoords.top  - r.top + paperEl.scrollTop),
               width: Math.max(2, Math.round(endCoords.left - startCoords.left)),
               height: Math.max(16, Math.round(endCoords.bottom - startCoords.top)),
             }];
           }
         }
         const sig = `${x},${y}|${rects ? rects.map(r => `${r.left},${r.top},${r.width},${r.height}`).join(';') : ''}`;
-        if (sig === lastSig) return;
-        lastSig = sig;
+        if (sig === lastSigRef.current) return;
+        lastSigRef.current = sig;
         aw.setLocalStateField('docCaret',     { boardId, pageId, x, y });
         aw.setLocalStateField('docSelection', rects ? { boardId, pageId, rects } : null);
       } catch (_) {}
@@ -161,19 +208,20 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
       try { aw.setLocalStateField('docCaret', null); } catch (_) {}
       try { aw.setLocalStateField('docSelection', null); } catch (_) {}
     };
-  }, [getAwareness, paperRef, editor, boardId, pageId]);
+  }, [getAwareness, paperEl, editor, boardId, pageId]);
 
   // ── Render peer overlays ───────────────────────────────────────────────
+  const now = performance.now();
   return (
     <div className="doc-presence-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 999990 }}>
       {peers.map(p => {
         const els = [];
-        // Selection rectangles drawn as a translucent band in peer color
         if (p.selRects && p.selRects.length) {
           for (let i = 0; i < p.selRects.length; i++) {
             const rc = p.selRects[i];
             els.push(
               <div key={'sel-' + p.clientId + '-' + i}
+                   className="doc-peer-selection"
                    style={{
                      position: 'absolute',
                      left: rc.left, top: rc.top,
@@ -182,14 +230,22 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
                      opacity: 0.22,
                      borderRadius: 1,
                      pointerEvents: 'none',
+                     transition: 'opacity 120ms linear, transform 90ms linear',
                    }} />
             );
           }
         }
         if (p.caret) {
+          const lastChange = lastCaretChangeRef.current.get(p.user.id) || 0;
+          const sinceMove = now - lastChange;
+          const isTyping = sinceMove < TYPING_FADE_MS;
+          // After the typing window, fade caret to IDLE_OPACITY over IDLE_FADE_MS.
+          const idleOpacity = isTyping
+            ? 1
+            : Math.max(IDLE_OPACITY, 1 - ((sinceMove - TYPING_FADE_MS) / IDLE_FADE_MS) * (1 - IDLE_OPACITY));
           els.push(
             <div key={'caret-' + p.clientId}
-                 className="doc-peer-caret"
+                 className={`doc-peer-caret ${isTyping ? 'doc-peer-caret--typing' : ''}`}
                  style={{
                    position: 'absolute',
                    left: p.caret.x,
@@ -197,7 +253,8 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
                    borderLeft: `2px solid ${p.user.color || '#4f8df8'}`,
                    height: '1.2em',
                    pointerEvents: 'none',
-                   transition: 'left 90ms linear, top 90ms linear',
+                   opacity: idleOpacity,
+                   transition: 'left 90ms linear, top 90ms linear, opacity 250ms linear',
                  }}>
               <span className="doc-peer-caret-label" style={{
                 position: 'absolute',

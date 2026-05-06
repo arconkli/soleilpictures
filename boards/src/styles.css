@@ -3461,6 +3461,48 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-tree-row:hover .doc-tree-add { opacity: 1; }
 .doc-tree-children {}
 
+/* ── Page-tree peer presence dots (live cursors at the tree level) ────── */
+/* Stack of small colored dots inline on the right of each page row, one
+   per peer currently viewing/editing that page. Click → jumpToPeer.    */
+.doc-tree-peers {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+.doc-tree-peer {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-0);
+  margin-left: -3px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.35);
+  cursor: pointer;
+  transition: transform 120ms var(--ease);
+}
+.doc-tree-peer:first-child { margin-left: 0; }
+.doc-tree-peer:hover { transform: scale(1.35); }
+.doc-tree-peers-overflow {
+  font: 600 9px/1 var(--font-sans);
+  color: var(--ink-1);
+  margin-left: 3px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Doc presence overlay (peer carets + selections) ──────────────────── */
+/* The mouse cursor + selection rect styles are inline on the elements
+   themselves (paper-relative absolute coords). The keyframe + class here
+   is just the "currently typing" pulse on the colored name label.       */
+@keyframes doc-peer-typing-pulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 currentColor; }
+  60%  { transform: scale(1.06); box-shadow: 0 0 0 4px transparent; }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 transparent; }
+}
+.doc-peer-caret--typing .doc-peer-caret-label {
+  animation: doc-peer-typing-pulse 800ms var(--ease) infinite;
+}
+
 /* ── Center pane: toolbar + paper ─────────────────────────────────────── */
 .doc-center {
   display: flex; flex-direction: column;

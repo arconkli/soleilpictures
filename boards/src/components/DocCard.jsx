@@ -27,6 +27,11 @@ export function RichDocCard({
   const scope = cardYMap ? cardScope(cardYMap) : null;
   const [mode, setMode] = useState(autoFocus ? 'full' : 'closed'); // 'closed' | 'full' | 'side'
   const [previewKey, setPreviewKey] = useState(0);
+  // Click-to-jump landing target: when App.jumpToPeer dispatches a
+  // soleil-open-doc-card event, we self-open and stash the peer's
+  // pageId+scrollTop here so DocSurface inside the overlay can consume
+  // it via its existing pendingScroll flow.
+  const [pendingScroll, setPendingScroll] = useState(null);
   const [sideRatio, setSideRatio] = useState(() => {
     try { const v = parseFloat(localStorage.getItem(RATIO_KEY) || ''); return Number.isFinite(v) && v > .25 && v < .75 ? v : DEFAULT_SIDE_RATIO; }
     catch (_) { return DEFAULT_SIDE_RATIO; }
@@ -43,6 +48,24 @@ export function RichDocCard({
     setMode('closed');
     setPreviewKey((n) => n + 1);
   };
+
+  // Listen for jump-to-this-doc-card events. App.jumpToPeer fires these
+  // after navigating to the host board; whichever RichDocCard matches the
+  // cardId pops itself open (in 'full' mode) and primes pendingScroll so
+  // the inner DocSurface scrolls to the peer's exact spot.
+  useEffect(() => {
+    const onOpen = (e) => {
+      const { cardId, pageId, scrollTop } = e.detail || {};
+      if (cardId !== card.id) return;
+      if (pageId) {
+        try { sessionStorage.setItem(`soleil.boards.docActivePage.${card.id}`, pageId); } catch (_) {}
+      }
+      setPendingScroll({ boardId: card.id, scrollTop: scrollTop || 0 });
+      setMode('full');
+    };
+    document.addEventListener('soleil-open-doc-card', onOpen);
+    return () => document.removeEventListener('soleil-open-doc-card', onOpen);
+  }, [card.id]);
 
   // Drag the side-mode divider. Stop propagation + capture pointer so the
   // canvas underneath never sees the events (otherwise dragging the divider
@@ -115,6 +138,8 @@ export function RichDocCard({
           onSetMode={setMode}
           onClose={close}
           onDividerDown={onDividerDown}
+          pendingScroll={pendingScroll}
+          onPendingScrollConsumed={() => setPendingScroll(null)}
         />,
         document.body
       )}
@@ -125,6 +150,7 @@ export function RichDocCard({
 function DocCardOverlay({
   mode, sideRatio, card, ydoc, scope, workspaceId, userId, currentUser,
   getAwareness, boards, onUpdate, onSetMode, onClose, onDividerDown,
+  pendingScroll, onPendingScrollConsumed,
 }) {
   // Esc closes from either mode.
   useEffect(() => {
@@ -132,6 +158,23 @@ function DocCardOverlay({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  // Workspace-presence lifecycle. Tell App.jsx that this doc-card is
+  // currently open so workspace presence can include docCardId/pageId/
+  // scrollTop, and other peers can click our avatar → land in this card
+  // on this exact page+scroll. Mount once per card, unmount on close.
+  useEffect(() => {
+    document.dispatchEvent(new CustomEvent('soleil-doccard-mount', { detail: { cardId: card.id }}));
+    return () => {
+      document.dispatchEvent(new CustomEvent('soleil-doccard-unmount', { detail: { cardId: card.id }}));
+    };
+  }, [card.id]);
+  const emitPage = (pageId) => {
+    document.dispatchEvent(new CustomEvent('soleil-doccard-page', { detail: { cardId: card.id, pageId }}));
+  };
+  const emitScroll = (scrollTop) => {
+    document.dispatchEvent(new CustomEvent('soleil-doccard-scroll', { detail: { cardId: card.id, scrollTop }}));
+  };
 
   const isSide = mode === 'side';
   const widthPct = isSide ? `${Math.round(sideRatio * 100)}%` : undefined;
@@ -198,6 +241,10 @@ function DocCardOverlay({
             boards={boards}
             getAwareness={getAwareness}
             currentUser={currentUser}
+            onActivePageChange={emitPage}
+            onPaperScroll={emitScroll}
+            pendingScroll={pendingScroll}
+            onPendingScrollConsumed={onPendingScrollConsumed}
           />
         </div>
       </div>

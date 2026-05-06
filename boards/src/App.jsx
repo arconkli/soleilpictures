@@ -791,6 +791,44 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Refs (not state) to avoid re-render loops; DocSurface reads + clears.
   const [pendingDocScroll, setPendingDocScroll] = useState(null);
 
+  // Track which doc-card overlay (if any) is currently open + its active
+  // page + scroll. Doc cards are docs nested inside canvas boards, so
+  // currentBoard.view === 'canvas' but the user is actually editing a
+  // doc inside one of its cards. DocCardOverlay dispatches lifecycle
+  // events; we mirror them into state so workspace presence reflects
+  // the exact location for click-to-jump.
+  //   null OR { cardId, pageId, scrollTop }
+  const [openDocCard, setOpenDocCard] = useState(null);
+  useEffect(() => {
+    const onMount = (e) => {
+      const { cardId } = e.detail || {};
+      if (!cardId) return;
+      setOpenDocCard({ cardId, pageId: null, scrollTop: 0 });
+    };
+    const onUnmount = (e) => {
+      const { cardId } = e.detail || {};
+      setOpenDocCard(c => (c?.cardId === cardId ? null : c));
+    };
+    const onPage = (e) => {
+      const { cardId, pageId } = e.detail || {};
+      setOpenDocCard(c => (c?.cardId === cardId ? { ...c, pageId: pageId || null } : c));
+    };
+    const onScroll = (e) => {
+      const { cardId, scrollTop } = e.detail || {};
+      setOpenDocCard(c => (c?.cardId === cardId ? { ...c, scrollTop: scrollTop || 0 } : c));
+    };
+    document.addEventListener('soleil-doccard-mount', onMount);
+    document.addEventListener('soleil-doccard-unmount', onUnmount);
+    document.addEventListener('soleil-doccard-page', onPage);
+    document.addEventListener('soleil-doccard-scroll', onScroll);
+    return () => {
+      document.removeEventListener('soleil-doccard-mount', onMount);
+      document.removeEventListener('soleil-doccard-unmount', onUnmount);
+      document.removeEventListener('soleil-doccard-page', onPage);
+      document.removeEventListener('soleil-doccard-scroll', onScroll);
+    };
+  }, []);
+
   // Workspace-level presence — shows everyone in the workspace, regardless
   // of which board they're on. Click an avatar to teleport to their board.
   const inDocView = currentSurface === 'board' && currentBoard?.view === 'doc';
@@ -801,15 +839,37 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       boardId: currentBoard?.id,
       boardName: currentBoard?.name,
       surface: currentSurface,
-      pageId:    inDocView ? docPageId : null,
-      scrollTop: inDocView ? docScrollTop : 0,
+      // docCardId takes precedence — if a doc-card overlay is open, the
+      // user's "page" is inside that card, not the canvas board itself.
+      docCardId: openDocCard?.cardId ?? null,
+      pageId:    openDocCard?.pageId ?? (inDocView ? docPageId : null),
+      scrollTop: openDocCard?.scrollTop ?? (inDocView ? docScrollTop : 0),
     },
   });
   const jumpToPeer = (loc) => {
     if (loc?.surface === 'home') { setCurrentSurface('home'); return; }
     if (loc?.boardId && boards[loc.boardId]) {
-      // Prime the doc page so DocSurface boots into the peer's page,
-      // not whatever was last viewed locally.
+      // Doc-card branch: peer is editing a doc card on a canvas board.
+      // Navigate to the board, then dispatch an event the matching
+      // RichDocCard listens for so it self-opens and consumes the peer's
+      // pageId + scrollTop. We allow a short settle window for cards to
+      // mount on the new canvas before firing.
+      if (loc.docCardId) {
+        if (loc.pageId) {
+          try { sessionStorage.setItem(`soleil.boards.docActivePage.${loc.docCardId}`, loc.pageId); } catch (_) {}
+        }
+        setStack([loc.boardId]);
+        setCurrentSurface('board');
+        setTimeout(() => {
+          document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {
+            detail: { cardId: loc.docCardId, pageId: loc.pageId || null, scrollTop: loc.scrollTop || 0 },
+          }));
+        }, 200);
+        return;
+      }
+      // Doc-board branch: peer is on a view='doc' board. Prime the active
+      // page in sessionStorage so DocSurface boots into the peer's page,
+      // and stash a pendingDocScroll so it scrolls to match.
       if (loc.pageId) {
         try { sessionStorage.setItem(`soleil.boards.docActivePage.${loc.boardId}`, loc.pageId); } catch (_) {}
         setPendingDocScroll({ boardId: loc.boardId, scrollTop: loc.scrollTop || 0 });
@@ -924,6 +984,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (view === 'doc') {
         const pending = (pendingBookmark && pendingBookmark.boardId === board.id) ? pendingBookmark : null;
         const pendingScroll = (pendingDocScroll && pendingDocScroll.boardId === board.id) ? pendingDocScroll : null;
+        // Filter workspace peers to those on THIS doc board (excluding self
+        // and home-screen peers). DocPageTree uses this to render per-page
+        // presence dots so you can see who's on which page at a glance.
+        const peersOnBoard = (wsPeers || []).filter(p =>
+          p?.location?.boardId === board.id
+          && p?.location?.surface === 'board'
+          && p?.user?.id !== user.id
+        );
         return (
           <DocSurface board={board} ydoc={yd} ready={ready}
                       workspaceId={workspace.id} userId={user.id}
@@ -934,6 +1002,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                       onPaperScroll={isMain ? setDocScrollTop : undefined}
                       pendingScroll={isMain ? pendingScroll : null}
                       onPendingScrollConsumed={isMain ? () => setPendingDocScroll(null) : undefined}
+                      peersOnBoard={peersOnBoard}
+                      onJumpToPeer={jumpToPeer}
                       currentUser={{
                         id: user.id, email: user.email,
                         name: user.user_metadata?.full_name || user.email?.split('@')[0],

@@ -51,9 +51,11 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
 
   // Push a fresh heartbeat whenever the location changes so peers see the
   // navigation immediately rather than waiting for the next interval tick.
+  // pageId / docCardId are included so doc-page switches and doc-card
+  // open/close are visible to peers within ~50ms (vs the 5s heartbeat).
   useEffect(() => {
     handleRef.current?.ping?.();
-  }, [location?.boardId, location?.surface]);
+  }, [location?.boardId, location?.surface, location?.pageId, location?.docCardId]);
 
   return { peers, status, ping: () => handleRef.current?.ping?.() };
 }
