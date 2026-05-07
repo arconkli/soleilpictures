@@ -506,6 +506,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // 'hug' = per-card rounded rects whose outlines merge where
         //         cards are close. Follows the contour of the cluster.
         if ('shape'   in patch) g.set('shape', patch.shape);
+        // Misc per-group options (e.g. hideLabel). Stored as a plain
+        // object — Yjs will serialize/replicate it shallowly.
+        if ('options' in patch) g.set('options', patch.options);
       }, 'local');
     };
     const addToGroup = (groupId, cardIds) => {

@@ -25,6 +25,9 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import { CanvasCommentLayer } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
 import { addComment } from '../lib/commentsApi.js';
+import { TagPicker } from './TagPicker.jsx';
+import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
+import { ensureTag, tagCard, untagCard, autoTagCardByTitle } from '../lib/tagsApi.js';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -1207,6 +1210,13 @@ export function CanvasSurface({
     if (!multi) {
       items.push({ id: 'comment', label: 'Add comment',
         run: () => promptComment({ kind: 'card', id: c.id }) });
+      items.push({ id: 'tag', label: 'Tag…',
+        run: () => {
+          // Open the picker anchored near the right-click coord. The
+          // ctx state holds the click position from onCardContextMenu.
+          const anchorRect = { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 };
+          openTagPicker(c.id, anchorRect);
+        }});
     }
     items.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: `${cmdKey}X`, run: doCut });
     items.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: `${cmdKey}C`, run: doCopy });
@@ -1246,6 +1256,11 @@ export function CanvasSurface({
       }});
       items.push({ id: 'group-outline', label: g.outline ? 'Hide group outline' : 'Show group outline',
         run: () => mutators.setGroupOutline?.(g.id, { outline: !g.outline }) });
+      items.push({ id: 'group-hide-label',
+        label: g.options?.hideLabel ? 'Show group label' : 'Hide group label',
+        run: () => mutators.setGroupOutline?.(g.id, {
+          options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
+        }) });
       items.push({ id: 'group-shape', label: 'Outline shape', submenu: [
         { id: 'gs-box', label: `Box${(g.shape || 'box') === 'box' ? '  ✓' : ''}`,
           run: () => mutators.setGroupOutline?.(g.id, { shape: 'box', outline: true }) },
@@ -1565,6 +1580,48 @@ export function CanvasSurface({
         danger: true, run: () => mutators.clearStrokes?.() },
     ];
   };
+
+  // ── Tags ──────────────────────────────────────────────────────────────
+  const { tags: wsTags, byCard: tagsByCard, refresh: refreshTags } =
+    useWorkspaceTags({ workspaceId, boardId: board?.id });
+  const [tagPicker, setTagPicker] = useState(null); // { cardId, anchorRect }
+  const openTagPicker = (cardId, anchorRect) => setTagPicker({ cardId, anchorRect });
+  const closeTagPicker = () => setTagPicker(null);
+  const toggleTagOnCard = async (cardId, tag) => {
+    if (!workspaceId || !board?.id || !cardId || !tag) return;
+    const applied = (tagsByCard.get(cardId) || []).some(t => t.id === tag.id);
+    try {
+      if (applied) await untagCard({ boardId: board.id, cardId, tagId: tag.id });
+      else         await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) });
+    }
+  };
+  const createAndApplyTag = async (cardId, name) => {
+    if (!workspaceId || !cardId) return;
+    try {
+      const t = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
+      await tagCard({ workspaceId, boardId: board.id, cardId, tagId: t.id });
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) });
+    }
+  };
+
+  // Auto-tag cards on creation when their title matches an existing tag.
+  // Watches the cards list — for each newly-seen card with a title, fires
+  // autoTagCardByTitle. Avoids re-running for cards we've already seen.
+  const autoTaggedRef = useRef(new Set());
+  useEffect(() => {
+    if (!workspaceId || !board?.id) return;
+    for (const c of cards || []) {
+      if (autoTaggedRef.current.has(c.id)) continue;
+      const title = c.title || c.label || c.name || null;
+      if (!title) continue;
+      autoTaggedRef.current.add(c.id);
+      autoTagCardByTitle({ workspaceId, boardId: board.id, cardId: c.id, title })
+        .catch(() => {});
+    }
+  }, [cards, workspaceId, board?.id]);
 
   // ── Comments ───────────────────────────────────────────────────────────
   // Live anywhere-comments. Bubbles render anchored to cards / groups /
@@ -2185,7 +2242,11 @@ export function CanvasSurface({
               // child) so the same coords work for box + hug.
               const labelLeft = minX - PAD + 8;
               const labelTop  = minY - PAD - 22;
-              const labelEl = g.name ? (
+              // hideLabel — set via right-click → "Hide group label". The
+              // group still exists and its outline still renders; we just
+              // suppress the chip so the canvas reads cleaner when the
+              // grouping is decorative rather than semantic.
+              const labelEl = (g.name && !g.options?.hideLabel) ? (
                 <div className="group-label"
                      key={`${g.id}-label`}
                      style={{
@@ -2587,6 +2648,17 @@ export function CanvasSurface({
           paletteColors={picker.paletteColors || paletteColors}
           palettes={picker.palettes || palettes}
           disableRecent={picker.disableRecent}
+        />
+      )}
+      {tagPicker && (
+        <TagPicker
+          open={!!tagPicker}
+          anchorRect={tagPicker.anchorRect}
+          onClose={closeTagPicker}
+          tags={wsTags}
+          appliedIds={new Set((tagsByCard.get(tagPicker.cardId) || []).map(t => t.id))}
+          onToggle={(t) => toggleTagOnCard(tagPicker.cardId, t)}
+          onCreate={(name) => createAndApplyTag(tagPicker.cardId, name)}
         />
       )}
       {lightbox && (
