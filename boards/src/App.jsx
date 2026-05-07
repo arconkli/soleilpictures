@@ -574,6 +574,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         for (const i of sorted) if (i >= 0 && i < a.length) a.delete(i, 1);
       }, 'local');
     };
+    // Replace an arrow at `index` with a merged copy. Used by the
+    // arrow right-click menu (label, dashed, straight, double-sided).
+    const updateArrow = (index, patch) => {
+      const a = arrowsArr(); if (!a) return;
+      if (index < 0 || index >= a.length) return;
+      const cur = a.get(index) || {};
+      ydoc.transact(() => {
+        a.delete(index, 1);
+        a.insert(index, [{ ...cur, ...patch }]);
+      }, 'local');
+    };
 
     const addShape = (clickPos = null, opts = {}) => {
       const w = opts.w || 160, h = opts.h || 100;
@@ -706,7 +717,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       duplicateCard, duplicateCards, addCard, addCards, bringToFront,
       createGroup, ungroup, renameGroup, setGroupOutline,
       addToGroup, removeFromGroup,
-      addArrow, addFreeArrow, deleteArrows,
+      addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addNewBoard, addPalette,
       addDocCard,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,

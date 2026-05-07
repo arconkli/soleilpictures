@@ -22,6 +22,9 @@ import { R2Image } from './R2Image.jsx';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
+import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportBoard.js';
+import { BoardThumbnail } from './BoardThumbnail.jsx';
+import { saveBoardTemplate } from '../lib/templatesApi.js';
 import { CanvasCommentLayer } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
 import { addComment } from '../lib/commentsApi.js';
@@ -182,6 +185,9 @@ export function CanvasSurface({
   const [selected, setSelected] = useState(() => new Set());
   const [selectedStrokes, setSelectedStrokes] = useState(() => new Set());
   const [selectedArrows, setSelectedArrows] = useState(() => new Set());
+  // Hidden BoardThumbnail used for PNG/PDF export. Same render path as
+  // the canvas card preview, just scaled up at export time.
+  const exportSvgRef = useRef(null);
   const [drag, setDrag] = useState(null);
   // While dragging, computeSnap fills this with the matched alignment lines
   // so the canvas can render thin gold guides at those coords.
@@ -1129,6 +1135,25 @@ export function CanvasSurface({
     }
   };
 
+  // Right-click on an arrow → small menu with edit-label + toggle
+  // double-sided + delete. Uses bgCtx state so the existing
+  // BackgroundContextMenu component can render it.
+  const onArrowContextMenu = (e, idx) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedArrows(new Set([idx]));
+    setSelected(new Set());
+    const a = (arrows || [])[idx];
+    if (!a) return;
+    setBgCtx({
+      open: true,
+      x: e.clientX,
+      y: e.clientY,
+      canvasPos: null,
+      arrowMenu: { idx, arrow: a },
+    });
+  };
+
   // ── Card context menu ─────────────────────────────────────────────────────
   const onCardContextMenu = (e, c) => {
     e.preventDefault();
@@ -1623,6 +1648,35 @@ export function CanvasSurface({
   const closeBgMenu = () => setBgCtx(b => ({ ...b, open: false }));
 
   const buildBgMenu = () => {
+    // Arrow context menu — opened by right-clicking an arrow path.
+    if (bgCtx.arrowMenu) {
+      const { idx, arrow } = bgCtx.arrowMenu;
+      return [
+        { id: 'arrow-label', label: arrow.label ? 'Edit label' : 'Add label', run: async () => {
+          const v = await feedback.prompt({
+            title: 'Arrow label',
+            label: 'Label',
+            defaultValue: arrow.label || '',
+            placeholder: 'leads to, blocks, related…',
+            confirmLabel: 'Save',
+          });
+          if (v == null) return;
+          mutators.updateArrow?.(idx, { label: v.trim() || null });
+        }},
+        { id: 'arrow-bidir',
+          label: arrow.bidir ? 'Single-sided arrow' : 'Double-sided arrow',
+          run: () => mutators.updateArrow?.(idx, { bidir: !arrow.bidir }) },
+        { id: 'arrow-straight',
+          label: arrow.straight ? 'Curved arrow' : 'Straight arrow',
+          run: () => mutators.updateArrow?.(idx, { straight: !arrow.straight }) },
+        { id: 'arrow-dashed',
+          label: arrow.dashed ? 'Solid line' : 'Dashed line',
+          run: () => mutators.updateArrow?.(idx, { dashed: !arrow.dashed }) },
+        { divider: true },
+        { id: 'arrow-delete', label: 'Delete arrow', danger: true,
+          run: () => mutators.deleteArrows?.([idx]) },
+      ];
+    }
     const pos = bgCtx.canvasPos || lastMouseCanvasRef.current;
     return [
       { id: 'add', label: 'Add', submenu: [
@@ -1681,6 +1735,44 @@ export function CanvasSurface({
       ]},
       { divider: true },
       { id: 'fit', label: 'Reset zoom (⌘0)', run: () => { enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); } },
+      { id: 'save-template', label: 'Save board as template…', run: async () => {
+        if (!userId || !ydoc) return;
+        const name = await feedback.prompt({
+          title: 'Save as template',
+          label: 'Template name',
+          placeholder: board?.name ? `e.g. "${board.name} starter"` : 'Project starter',
+          defaultValue: '',
+          confirmLabel: 'Save',
+        });
+        if (!name?.trim()) return;
+        try {
+          await saveBoardTemplate({
+            ydoc,
+            name: name.trim(),
+            workspaceId,
+            scope: 'workspace',
+            cover: board?.cover || null,
+            createdBy: userId,
+          });
+          feedback.toast({ type: 'success', message: `Saved "${name.trim()}" as a template.` });
+        } catch (err) {
+          feedback.toast({ type: 'error', message: 'Save failed: ' + (err.message || err) });
+        }
+      }},
+      { id: 'export', label: 'Export', submenu: [
+        { id: 'export-png', label: 'PNG image', run: async () => {
+          const svg = exportSvgRef.current?.querySelector?.('svg');
+          if (!svg) { feedback.toast({ type: 'error', message: 'Nothing to export.' }); return; }
+          try { await exportBoardAsPng(svg, board?.name || 'board'); }
+          catch (err) { feedback.toast({ type: 'error', message: 'Export failed: ' + (err.message || err) }); }
+        }},
+        { id: 'export-pdf', label: 'PDF (Save from Print)', run: () => {
+          const svg = exportSvgRef.current?.querySelector?.('svg');
+          if (!svg) { feedback.toast({ type: 'error', message: 'Nothing to export.' }); return; }
+          try { exportBoardAsPdf(svg, board?.name || 'board'); }
+          catch (err) { feedback.toast({ type: 'error', message: 'Export failed: ' + (err.message || err) }); }
+        }},
+      ]},
       { id: 'clearstrokes', label: 'Clear all drawings', disabled: !(strokes && strokes.length > 0),
         danger: true, run: () => mutators.clearStrokes?.() },
     ];
@@ -2529,6 +2621,13 @@ export function CanvasSurface({
                 ux = tdx/tl; uy = tdy/tl;
               }
               const head = `${e.x},${e.y} ${e.x-ux*9-uy*4},${e.y-uy*9+ux*4} ${e.x-ux*9+uy*4},${e.y-uy*9-ux*4}`;
+              // Optional reverse arrowhead at the start when a.bidir is on.
+              // The tangent at the start is the negative of the start->end
+              // direction (or, for curves, the start tangent towards the
+              // control point). Reuse ux/uy by inverting them.
+              const tail = a.bidir
+                ? `${s.x},${s.y} ${s.x+ux*9-uy*4},${s.y+uy*9+ux*4} ${s.x+ux*9+uy*4},${s.y+uy*9-ux*4}`
+                : null;
               // Label position — same offset logic for both styles
               const cx = (s.x+e.x)/2 + (a.straight ? 0 : (-dy/len) * Math.min(36, len*0.12));
               const cy = (s.y+e.y)/2 + (a.straight ? 0 : (dx/len)  * Math.min(36, len*0.12));
@@ -2539,11 +2638,13 @@ export function CanvasSurface({
                   <path d={path} fill="none" stroke="transparent" strokeWidth="14"
                         pointerEvents={strokesInteractive ? 'stroke' : 'none'}
                         style={{ cursor: strokesInteractive ? 'pointer' : 'default' }}
-                        onPointerDown={strokesInteractive ? (ev) => onArrowClick(ev, i) : undefined} />
+                        onPointerDown={strokesInteractive ? (ev) => onArrowClick(ev, i) : undefined}
+                        onContextMenu={strokesInteractive ? (ev) => onArrowContextMenu(ev, i) : undefined} />
                   {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)" strokeWidth="6" strokeLinecap="round" pointerEvents="none" />}
                   <path d={path} fill="none" stroke="currentColor" strokeWidth="1.1" opacity=".5"
                         strokeDasharray={a.dashed ? '4 4' : '0'} strokeLinecap="round" pointerEvents="none" />
                   <polygon points={head} fill="currentColor" opacity=".5" pointerEvents="none" />
+                  {tail && <polygon points={tail} fill="currentColor" opacity=".5" pointerEvents="none" />}
                   {a.label && (
                     <foreignObject x={cx-70} y={cy-11} width="140" height="22" pointerEvents="none">
                       <div className="arrow-label">{a.label}</div>
@@ -2596,6 +2697,15 @@ export function CanvasSurface({
           )}
         </svg>
 
+      </div>
+
+      {/* Off-screen BoardThumbnail used as the source SVG for PNG/PDF
+          exports. Sized 0×0 + visibility:hidden so it stays in the DOM
+          (so the export refs can read it) without affecting layout. */}
+      <div ref={exportSvgRef}
+           style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden',
+                    visibility: 'hidden', pointerEvents: 'none' }}>
+        <BoardThumbnail cards={cards} strokes={strokes} boards={boards} />
       </div>
 
       {/* Anywhere-comment bubbles. Mounted OUTSIDE the canvas transform so

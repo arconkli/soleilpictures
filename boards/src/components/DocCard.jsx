@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary } from '../lib/docState.js';
 import { DocSurface } from './DocSurface.jsx';
 import { Avatar } from './primitives.jsx';
+import { EditableText } from './EditableText.jsx';
 
 const DEFAULT_SIDE_RATIO = 0.5;
 const RATIO_KEY = 'soleil.boards.docCardSideRatio';
@@ -36,7 +37,11 @@ export function RichDocCard({
   // `docCardId` so downstream callers (DocSurface header, link/page-
   // index sync) can identify which card this scope belongs to.
   const scope = cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id } : null;
-  const [mode, setMode] = useState(autoFocus ? 'full' : 'closed'); // 'closed' | 'full' | 'side'
+  // New docs no longer auto-open their full editor — autoFocus now means
+  // "focus the title for renaming," letting the user rename + place the
+  // card on the canvas first. The full editor opens on double-click,
+  // explicit Open buttons, or peer-jump events.
+  const [mode, setMode] = useState('closed'); // 'closed' | 'full' | 'side'
   const [previewKey, setPreviewKey] = useState(0);
   // Click-to-jump landing target: when App.jumpToPeer dispatches a
   // soleil-open-doc-card event, we self-open and stash the peer's
@@ -135,7 +140,16 @@ export function RichDocCard({
           </div>
         )}
         <div className="doc-card-page" key={previewKey}>
-          {card.title && <div className="doc-card-title">{card.title}</div>}
+          {(card.title || autoFocus || onUpdate) && (
+            <EditableText
+              className="doc-card-title editable"
+              value={card.title || ''}
+              placeholder="Untitled doc"
+              autoFocus={autoFocus}
+              selectAllOnFocus={autoFocus}
+              onChange={(v) => onUpdate?.({ title: v || null })}
+            />
+          )}
           {summary.firstPageName && summary.firstPageName !== card.title && (
             <div className="doc-card-h1">{summary.firstPageName}</div>
           )}

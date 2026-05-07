@@ -543,6 +543,13 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       attributes: {
         class: 'tt-editor',
         spellcheck: 'true',
+        // Tell Grammarly to enable itself on this contenteditable. The
+        // extension auto-disables on contenteditables that don't opt in
+        // by default; the explicit attribute restores it without
+        // breaking Tiptap's input rules.
+        'data-gramm': 'true',
+        'data-gramm_editor': 'true',
+        'data-enable-grammarly': 'true',
       },
       // Image drop / paste — upload via our existing Storage helper, then
       // insert at the drop point (or current cursor for paste).
