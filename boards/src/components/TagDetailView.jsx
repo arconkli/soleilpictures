@@ -13,7 +13,7 @@ import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 
-const SECTION_ORDER = ['board', 'doc', 'group', 'card', 'note', 'image', 'palette', 'schedule', 'link'];
+const SECTION_ORDER = ['board', 'group', 'doc', 'card', 'note', 'image', 'palette', 'schedule', 'link'];
 
 const KIND_ICON = {
   board: LayoutGrid, doc: FileText, group: LayoutGrid,
@@ -25,6 +25,29 @@ const KIND_LABEL = {
   card: 'Cards', note: 'Notes', image: 'Images',
   palette: 'Palettes', schedule: 'Schedules', link: 'Links',
 };
+
+// Best-effort label for an item that has no title — typical for
+// notes. Falls back to a body excerpt, then to a kind+board hint.
+function itemLabel(it) {
+  const title = (it.title || '').trim();
+  if (title) return title;
+  const body = (it.card_body || it.body || '').trim();
+  if (body) {
+    const snippet = body.length > 60 ? body.slice(0, 57) + '…' : body;
+    return snippet;
+  }
+  // Last-resort hint: "Note on Pricing" or just "Note"
+  const kindLabel = (it.kind || 'item').charAt(0).toUpperCase() + (it.kind || 'item').slice(1);
+  return it.board_name ? `${kindLabel} on ${it.board_name}` : kindLabel;
+}
+
+// Path crumbs that go under each row: board name › group name.
+function itemPath(it) {
+  const parts = [];
+  if (it.board_name && it.kind !== 'board') parts.push(it.board_name);
+  if (it.group_name) parts.push(it.group_name);
+  return parts.join(' › ');
+}
 
 const TAG_PALETTE = [
   '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
@@ -87,6 +110,39 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
     return m;
   }, [rows]);
 
+  // Aggregate any tagged cards that share a (board, group) into
+  // synthetic "group" rows, so users see the recurring contexts as
+  // first-class items in the detail view. Groups appear above the
+  // raw card rows. Each group row deep-links to its board.
+  const groupRows = useMemo(() => {
+    const buckets = new Map();
+    for (const r of rows) {
+      if (r.kind === 'board') continue;
+      const gid = r.group_id || '';
+      const gname = (r.group_name || '').trim();
+      if (!gid || !gname) continue;
+      const key = `${r.board_id || 'b'}::${gid}`;
+      let b = buckets.get(key);
+      if (!b) {
+        b = {
+          kind: 'group',
+          id: key,
+          group_id: gid,
+          board_id: r.board_id,
+          board_name: r.board_name || '',
+          title: gname,
+          count: 0,
+          applied_at: r.applied_at,
+          // Preserve the most-recent application time for sort.
+        };
+        buckets.set(key, b);
+      }
+      b.count += 1;
+      if (r.applied_at > b.applied_at) b.applied_at = r.applied_at;
+    }
+    return Array.from(buckets.values()).sort((a, b) => b.count - a.count);
+  }, [rows]);
+
   if (!tag) return null;
   const dot = tag.color || fallbackColor(tag.slug || tag.name);
 
@@ -115,7 +171,32 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
           </div>
         )}
 
-        {SECTION_ORDER.filter(k => groupedByKind.has(k)).map(kind => {
+        {/* Groups: synthesized from tagged cards that share a group. */}
+        {groupRows.length > 0 && (
+          <div className="tag-detail-section">
+            <div className="tag-detail-section-head">
+              <Icon as={KIND_ICON.group} size={12} />
+              <span className="tag-detail-section-label">{KIND_LABEL.group}</span>
+              <span className="tag-detail-section-count">{groupRows.length}</span>
+            </div>
+            <div className="tag-detail-rows">
+              {groupRows.map(g => (
+                <button key={g.id}
+                        className="tag-detail-row"
+                        title={`${g.count} card${g.count === 1 ? '' : 's'} tagged in this group`}
+                        onClick={() => onOpenItem?.({ kind: 'board', id: g.board_id, board_id: g.board_id })}>
+                  <Icon as={KIND_ICON.group} size={11} />
+                  <span className="tag-detail-row-title">{g.title}</span>
+                  <span className="tag-detail-row-path">{g.board_name}</span>
+                  <span className="tag-detail-row-attr is-count">{g.count}</span>
+                  <span className="tag-detail-row-when">{relativeTimeShort(g.applied_at)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {SECTION_ORDER.filter(k => k !== 'group' && groupedByKind.has(k)).map(kind => {
           const items = groupedByKind.get(kind) || [];
           const Icn = KIND_ICON[kind] || StickyNote;
           return (
@@ -129,12 +210,15 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
                 {items.map(it => {
                   const sourceBadge = it.applied_source && it.applied_source !== 'user'
                     ? it.applied_source : null;
+                  const label = itemLabel(it);
+                  const path = itemPath(it);
                   return (
                     <button key={`${kind}:${it.id}`}
                             className="tag-detail-row"
                             onClick={() => onOpenItem?.(it)}>
                       <Icon as={Icn} size={11} />
-                      <span className="tag-detail-row-title">{it.title || 'Untitled'}</span>
+                      <span className="tag-detail-row-title">{label}</span>
+                      {path && <span className="tag-detail-row-path">{path}</span>}
                       {sourceBadge && (
                         <span className={`tag-detail-row-attr is-${sourceBadge}`}>{sourceBadge}</span>
                       )}

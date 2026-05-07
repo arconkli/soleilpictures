@@ -382,6 +382,16 @@ export async function syncCardIndex({ boardId, ydoc }) {
   }, wait);
 }
 
+function htmlToText(html) {
+  if (!html) return '';
+  // Cheap HTML-strip — drops tags + entities, collapses whitespace.
+  return String(html)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function _doSyncCardIndex(boardId, ydoc) {
   if (!supabase || !boardId || !ydoc) return;
   const wsq = await supabase.from('boards').select('workspace_id').eq('id', boardId).maybeSingle();
@@ -389,6 +399,18 @@ async function _doSyncCardIndex(boardId, ydoc) {
   const workspaceId = wsq.data?.workspace_id;
   if (!workspaceId) return;
   const cardsMap = ydoc.getMap('cards');
+  // Pull the groups list once so we can capture group names per
+  // card in card_index.meta. Used by the tag detail view to render
+  // group context and aggregate "Groups" rows.
+  const groupsArr = ydoc.getArray('groups');
+  const groupNameById = new Map();
+  try {
+    groupsArr.forEach(g => {
+      const id = g?.get?.('id') ?? g?.id;
+      const name = g?.get?.('name') ?? g?.name;
+      if (id) groupNameById.set(String(id), name || '');
+    });
+  } catch (_) {}
   const rows = [];
   const liveIds = new Set();
   cardsMap.forEach((v, id) => {
@@ -396,11 +418,19 @@ async function _doSyncCardIndex(boardId, ydoc) {
     const get = (k) => v?.get?.(k) ?? v?.[k];
     const kind = get('kind') || 'note';
     const title = get('title') || get('name') || get('label') || get('url') || '';
-    const body = get('body') || get('caption') || '';
+    // Notes carry text in `html`, not `body` — fall through so we
+    // index the actual user-visible content. Strip HTML.
+    const rawBody = get('body') || get('caption') || '';
+    const body = rawBody || htmlToText(get('html') || '');
+    const groupId = get('groupId') || null;
+    const groupName = groupId ? (groupNameById.get(String(groupId)) || '') : '';
     // Per-kind preview data — drives the universal popover's
     // visual previews (image thumbnails, palette swatches, etc).
     // Migration 0021 added the `meta jsonb` column.
-    const meta = buildCardMeta(kind, get);
+    const baseMeta = buildCardMeta(kind, get) || {};
+    const meta = (groupId || groupName)
+      ? { ...baseMeta, groupId, groupName }
+      : baseMeta;
     rows.push({
       workspace_id: workspaceId,
       board_id: boardId,

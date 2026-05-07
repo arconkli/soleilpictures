@@ -1039,8 +1039,18 @@ body {
   background: var(--bg-2);
   color: var(--ink-3);
 }
-.tag-detail-row-attr.is-auto { color: var(--soleil); background: var(--soleil-soft); }
-.tag-detail-row-attr.is-ai   { color: #a78bfa; background: rgba(167,139,250,.14); }
+.tag-detail-row-attr.is-auto  { color: var(--soleil); background: var(--soleil-soft); }
+.tag-detail-row-attr.is-ai    { color: #a78bfa; background: rgba(167,139,250,.14); }
+.tag-detail-row-attr.is-count { color: var(--ink-1); background: var(--bg-2); letter-spacing: 0; }
+/* Path crumb under each row — board / group context for items
+   that don't have a meaningful title of their own (notes etc). */
+.tag-detail-row-path {
+  font: 400 11px/1 var(--font-sans);
+  color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 240px;
+  flex-shrink: 0;
+}
 .tag-detail-row-when {
   font: 400 10px/1 var(--font-mono);
   color: var(--ink-3);
