@@ -18,28 +18,17 @@ import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocPresence } from './DocPresence.jsx';
 import { DocToolbar } from './DocToolbar.jsx';
-import { DocLinksPanel } from './DocLinksPanel.jsx';
-import { DocRefsPanel } from './DocRefsPanel.jsx';
-import { DocOutlinePanel } from './DocOutlinePanel.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
 // Templates removed — new docs land in a single empty page.
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
-import { DocCommentsPanel } from './DocCommentsPanel.jsx';
 import { DocLinkPicker } from './DocLinkPicker.jsx';
-import { Icon } from './Icon.jsx';
-import { List, Link as LinkIcon, Quote, MessageSquare } from '../lib/icons.js';
-
-const TAB_LABELS = {
-  outline:  'OUTLINE',
-  links:    'LINKS',
-  refs:     'REFERENCED BY',
-  comments: 'COMMENTS',
-};
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 const RAILS_KEY = 'soleil.boards.docRails';
-const DEFAULT_RAILS = { left: true, right: true };
+// Right rail (outline / links / refs / comments tabs) was removed —
+// only the left page-tree rail remains.
+const DEFAULT_RAILS = { left: true };
 
 function loadRails() {
   try {
@@ -115,7 +104,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => { onActivePageChange?.(activePageId || null); }, [activePageId, onActivePageChange]);
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
-  const [rightTab, setRightTab] = useState('outline'); // 'outline' | 'links' | 'refs' | 'comments'
 
   const [findOpen, setFindOpen] = useState(false);
   // Embed-board picker — DocPageEditor calls our request fn (which sets a
@@ -301,7 +289,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   }
 
   return (
-    <div className={`doc-surface ${rails.left ? '' : 'rail-left-collapsed'} ${rails.right ? '' : 'rail-right-collapsed'}`}>
+    <div className={`doc-surface no-right-rail ${rails.left ? '' : 'rail-left-collapsed'}`}>
       {/* Left rail — page tree */}
       <aside className="doc-rail doc-rail-left">
         <button className="doc-rail-toggle"
@@ -389,78 +377,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         />
       )}
 
-      {/* Right rail — Outline / Bookmarks tabs */}
-      <aside className="doc-rail doc-rail-right">
-        <button className="doc-rail-toggle"
-                title={rails.right ? 'Hide panel' : 'Show panel'}
-                onClick={() => setRails(r => ({ ...r, right: !r.right }))}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d={rails.right ? 'M6 3 L10 7 L6 11' : 'M8 3 L4 7 L8 11'} />
-          </svg>
-        </button>
-        {rails.right && (
-          <div className="doc-rail-inner">
-            <div className="doc-tabs">
-              <button className={`doc-tab ${rightTab === 'outline' ? 'is-active' : ''}`}
-                      onClick={() => setRightTab('outline')}
-                      title="Outline">
-                <Icon as={List} size={16} />
-              </button>
-              <button className={`doc-tab ${rightTab === 'links' ? 'is-active' : ''}`}
-                      onClick={() => setRightTab('links')}
-                      title="Links in this doc">
-                <Icon as={LinkIcon} size={16} />
-              </button>
-              <button className={`doc-tab ${rightTab === 'refs' ? 'is-active' : ''}`}
-                      onClick={() => setRightTab('refs')}
-                      title="Referenced by other docs">
-                <Icon as={Quote} size={16} />
-              </button>
-              <button className={`doc-tab ${rightTab === 'comments' ? 'is-active' : ''}`}
-                      onClick={() => setRightTab('comments')}
-                      title="Comments">
-                <Icon as={MessageSquare} size={16} />
-                {comments.length > 0 && <span className="doc-tab-count">{comments.length}</span>}
-              </button>
-              <div className="doc-tab-label t-eyebrow">{TAB_LABELS[rightTab]}</div>
-            </div>
-            {rightTab === 'outline' && (
-              <DocOutlinePanel
-                getEditor={() => editorRef.current}
-                activePageId={activePageId}
-              />
-            )}
-            {rightTab === 'links' && (
-              <DocLinksPanel
-                ydoc={ydoc}
-                pages={pages}
-                activePageId={activePageId}
-                onSelectPage={setActivePageId}
-                getEditor={() => editorRef.current}
-              />
-            )}
-            {rightTab === 'refs' && (
-              <DocRefsPanel
-                workspaceId={workspaceId}
-                docCardId={scope?.cardId ?? null}
-                onOpenSource={(r) => console.info('open source backlink', r)}
-              />
-            )}
-            {rightTab === 'comments' && (
-              <DocCommentsPanel
-                ydoc={ydoc}
-                scope={scope}
-                pages={pages}
-                comments={comments}
-                activePageId={activePageId}
-                onSelectPage={setActivePageId}
-                getEditor={() => editorRef.current}
-                currentUser={currentUser}
-              />
-            )}
-          </div>
-        )}
-      </aside>
     </div>
   );
 }

@@ -4094,6 +4094,9 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-surface.rail-left-collapsed { grid-template-columns: 28px minmax(0, 1fr) 240px; }
 .doc-surface.rail-right-collapsed { grid-template-columns: 240px minmax(0, 1fr) 28px; }
 .doc-surface.rail-left-collapsed.rail-right-collapsed { grid-template-columns: 28px minmax(0, 1fr) 28px; }
+/* Right rail removed — only the page-tree column remains. */
+.doc-surface.no-right-rail { grid-template-columns: 240px minmax(0, 1fr); }
+.doc-surface.no-right-rail.rail-left-collapsed { grid-template-columns: 28px minmax(0, 1fr); }
 
 .doc-rail {
   position: relative;
