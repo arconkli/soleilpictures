@@ -19,18 +19,11 @@ export function useWorkspace() {
     let cancelled = false;
     (async () => {
       try {
-        // The RPC now returns BOTH the workspace and a guaranteed root
-        // board id (creating either if missing) in one security-definer
-        // transaction — no client-side createBoard fallback needed.
-        const { workspace: ws, rootBoardId } = await getOrCreatePersonalWorkspace({ userId: user.id });
-        if (!ws) throw new Error('personal workspace bootstrap returned nothing');
-        // Hydrate the root board row (RLS now passes because the user is
-        // a member of the workspace).
-        let root = null;
-        if (rootBoardId) {
-          // Best-effort hydrate from Postgres so callers get the full row.
-          root = await getRootBoard(ws.id);
-        }
+        // The RPC ensures a root board exists internally (security
+        // definer transaction), so we just hydrate it after.
+        const ws = await getOrCreatePersonalWorkspace({ userId: user.id });
+        if (!ws?.id) throw new Error('personal workspace bootstrap returned nothing');
+        const root = await getRootBoard(ws.id);
 
         if (cancelled) return;
         setState({ loading: false, workspace: ws, rootBoard: root, error: null });
