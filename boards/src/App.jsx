@@ -1517,8 +1517,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        canEdit={isMain ? canEditCurrent : true}
                        currentUser={{
                          id: user.id, email: user.email,
-                         name: user.user_metadata?.full_name || user.email?.split('@')[0],
-                         color: pickPresenceColor(user.id),
+                         // Always honor the saved profile when present —
+                         // userInfo already merged display_name + custom
+                         // color over the email-prefix and deterministic
+                         // fallbacks. This way, if the user picked a
+                         // color in Account settings, it's their color
+                         // EVERYWHERE (presence avatars, comment author
+                         // tints, peer-icon resolution, etc.) rather
+                         // than reverting to a hash of their user id
+                         // when they appear locally.
+                         name: userInfo.name,
+                         color: userInfo.color || pickPresenceColor(user.id),
                        }}
                        onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                        onOpenPicker={() => setPickerOpen(true)}

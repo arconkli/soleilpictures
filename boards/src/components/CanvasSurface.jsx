@@ -3012,6 +3012,7 @@ export function CanvasSurface({
           workspaceId={workspaceId}
           userId={userId}
           wsPeers={wsPeers}
+          currentUser={currentUser}
           zoom={zoom}
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
@@ -3165,6 +3166,7 @@ export function CanvasSurface({
           anchorRect={commentArchive}
           userId={userId}
           wsPeers={wsPeers}
+          currentUser={currentUser}
           onLocallyRemoved={removeCommentLocally}
           onClose={() => setCommentArchive(null)}
         />

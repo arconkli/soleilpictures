@@ -4457,13 +4457,12 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .canvas-comment-actions button:hover { background: var(--bg-hov); color: var(--ink-0); }
 .canvas-comment-actions button.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
 
-/* Connector line + anchor dot — links a bubble to the card / group /
-   point it's attached to. Lives in canvas-space and uses
-   non-scaling-stroke so the line stays a thin dashed hairline at any
-   zoom. The dot scales with zoom (matches the bubble itself), so it
-   reads like a small marker on the anchored thing. */
-.canvas-comment-connector {
-  z-index: 0;
+/* Anchor dot — small filled circle on a card/group's border (or at a
+   point) that surfaces "there's a comment here" when the master eye
+   toggle is muted. Tinted with the author's color; pure visual. */
+.canvas-comment-anchor-dot {
+  border: 0;
+  z-index: 1;
 }
 
 /* Inline comment-draft input — replaces the pop-up modal we used to

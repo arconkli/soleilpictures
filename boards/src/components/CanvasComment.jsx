@@ -18,6 +18,10 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 
 export function CanvasCommentLayer({
   comments, boardId, workspaceId, userId, wsPeers = [],
+  // Current user (id, name, color) — see resolvePeerName/Color. Lets
+  // the local user's name/color stay consistent even when they're
+  // not in wsPeers (e.g. fresh page load before presence syncs).
+  currentUser,
   // Current zoom — used by drag handlers to convert pointer-pixel
   // deltas into canvas-space deltas. Bubble positions themselves are
   // pure canvas coordinates because the layer mounts INSIDE the
@@ -34,30 +38,48 @@ export function CanvasCommentLayer({
   // Optimistic local removal — invoked right after a successful delete
   // so the bubble disappears without waiting for the realtime fan-out.
   onLocallyRemoved,
-  // Master visibility — when false, every comment bubble is hidden but
-  // the inline draft (if active) still renders so users can compose
-  // even when other bubbles are muted.
+  // Master visibility — when false, every comment bubble is hidden;
+  // we render small "anchor dots" instead so the user can still see
+  // WHERE comments live without the bubble chrome.
   layerVisible = true,
 }) {
   // Index replies by parent so the top-level bubble can render its thread.
   // Skip resolved + hidden comments entirely; resolved goes to the
   // History tab and the comment archive popover, hidden goes to the
-  // archive popover (and History tab). Master visibility off → render
-  // no bubbles at all.
+  // archive popover (and History tab).
   const byParent = new Map();
   const tops = [];
-  if (layerVisible) {
-    for (const c of (comments || [])) {
-      if (c.resolved) continue;
-      if (c.hidden) continue;
-      if (c.reply_to) {
-        const arr = byParent.get(c.reply_to) || [];
-        arr.push(c);
-        byParent.set(c.reply_to, arr);
-      } else {
-        tops.push(c);
-      }
+  for (const c of (comments || [])) {
+    if (c.resolved) continue;
+    if (c.hidden) continue;
+    if (c.reply_to) {
+      const arr = byParent.get(c.reply_to) || [];
+      arr.push(c);
+      byParent.set(c.reply_to, arr);
+    } else {
+      tops.push(c);
     }
+  }
+  // When the master eye is off, replace every bubble with a small
+  // anchor dot at the comment's tail so the user still sees WHICH
+  // cards/groups have comments. The dot is the same affordance we use
+  // for the per-bubble connector start point — just on its own.
+  if (!layerVisible) {
+    return (
+      <div className="canvas-comment-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        {tops.map(c => {
+          const p = anchorDotPoint(c, resolveCardBBox, resolveGroupBBox);
+          if (!p) return null;
+          const color = resolvePeerColor(c.author, wsPeers, currentUser);
+          return (
+            <CommentAnchorDot key={c.id}
+                              x={p.x} y={p.y}
+                              color={color}
+                              count={(byParent.get(c.id) || []).length + 1} />
+          );
+        })}
+      </div>
+    );
   }
   if (!tops.length && !draft) return null;
   return (
@@ -71,6 +93,7 @@ export function CanvasCommentLayer({
           workspaceId={workspaceId}
           userId={userId}
           wsPeers={wsPeers}
+          currentUser={currentUser}
           zoom={zoom}
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
@@ -165,29 +188,41 @@ function anchorPoint({ comment, resolveCardBBox, resolveGroupBBox }) {
   return { x: 100 + ox, y: 100 + oy };
 }
 
-// Clamp helper for the connector-line endpoints.
+// Clamp helper.
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
-function resolvePeerName(authorId, wsPeers, userId) {
+// Resolve a name/color for any author id. The local user always
+// resolves to currentUser (their saved profile), so the same color +
+// name appear everywhere they show up — comment cards, archive list,
+// peer-icon viewer — regardless of whether they happen to be in
+// wsPeers at the moment (presence may not have synced yet on a fresh
+// load, etc.). Falls back to wsPeers for everyone else, then to a
+// short id slice as a last resort.
+function resolvePeerName(authorId, wsPeers, currentUser) {
+  if (currentUser && authorId === currentUser.id) {
+    return currentUser.name || currentUser.email?.split('@')[0] || 'you';
+  }
   const peer = (wsPeers || []).find(p => p?.user?.id === authorId);
   if (peer?.user?.name) return peer.user.name;
   if (peer?.user?.email) return peer.user.email.split('@')[0];
-  if (authorId === userId) return 'you';
   return (authorId || '').slice(0, 6) || 'someone';
 }
-function resolvePeerColor(authorId, wsPeers) {
+function resolvePeerColor(authorId, wsPeers, currentUser) {
+  if (currentUser && authorId === currentUser.id && currentUser.color) {
+    return currentUser.color;
+  }
   const peer = (wsPeers || []).find(p => p?.user?.id === authorId);
   return peer?.user?.color || '#4f8df8';
 }
 
-function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, zoom = 1, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
+function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, currentUser, zoom = 1, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
   const isAuthor = comment.author === userId;
-  const author = resolvePeerName(comment.author, wsPeers, userId);
-  const authorColor = resolvePeerColor(comment.author, wsPeers);
+  const author = resolvePeerName(comment.author, wsPeers, currentUser);
+  const authorColor = resolvePeerColor(comment.author, wsPeers, currentUser);
   const replyCount = replies?.length || 0;
 
   // Live drag offset — while the author is dragging, render the bubble
@@ -211,46 +246,6 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     ? { x: cp.x + dragDelta.dx, y: cp.y + dragDelta.dy }
     : cp;
 
-  // Connector line back to the anchor — shows the user EXACTLY which
-  // card / group / canvas-point each comment belongs to. Returns the
-  // anchor's tail end and a small dot position. For board / doc_range
-  // anchors the connector is suppressed (no clear visual target).
-  const connector = (() => {
-    const W = 240, H = 76;
-    const bubbleCx = liveCp.x + W / 2;
-    const bubbleCy = liveCp.y + H / 2;
-    if (comment.anchor_kind === 'card') {
-      const b = resolveCardBBox?.(comment.anchor_id);
-      if (!b) return null;
-      const tx = b.x + b.w / 2;
-      const ty = b.y + b.h / 2;
-      // End the line on the bubble's NEAREST edge so it doesn't disappear under the card.
-      const ex = clamp(tx, liveCp.x, liveCp.x + W);
-      const ey = clamp(ty, liveCp.y, liveCp.y + H);
-      // Find a sensible point on the card's perimeter to start the line —
-      // closest to the bubble's edge so the connector enters/exits cleanly.
-      const sx = clamp(ex, b.x, b.x + b.w);
-      const sy = clamp(ey, b.y, b.y + b.h);
-      return { sx, sy, ex, ey, dot: { x: sx, y: sy } };
-    }
-    if (comment.anchor_kind === 'group') {
-      const b = resolveGroupBBox?.(comment.anchor_id);
-      if (!b) return null;
-      const ex = clamp(b.x + b.w / 2, liveCp.x, liveCp.x + W);
-      const ey = clamp(b.y + b.h / 2, liveCp.y, liveCp.y + H);
-      const sx = clamp(ex, b.x, b.x + b.w);
-      const sy = clamp(ey, b.y, b.y + b.h);
-      return { sx, sy, ex, ey, dot: { x: sx, y: sy } };
-    }
-    if (comment.anchor_kind === 'point') {
-      const sx = (comment.anchor_x ?? 0);
-      const sy = (comment.anchor_y ?? 0);
-      const ex = clamp(sx, liveCp.x, liveCp.x + W);
-      const ey = clamp(sy, liveCp.y, liveCp.y + H);
-      return { sx, sy, ex, ey, dot: { x: sx, y: sy } };
-    }
-    return null;
-  })();
 
   // When the comment row's saved offset / anchor catches up to what we
   // just committed, drop the dragDelta override. After this, cp is
@@ -404,15 +399,6 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     <div ref={wrapRef}
          className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''} ${dragDelta ? 'is-dragging' : ''} ${isAuthor ? 'is-mine' : ''}`}
          style={{ left: liveCp.x, top: liveCp.y, pointerEvents: 'auto' }}>
-      {connector && (
-        <CommentConnector
-          sx={connector.sx} sy={connector.sy}
-          ex={connector.ex} ey={connector.ey}
-          dot={connector.dot}
-          bubbleX={liveCp.x} bubbleY={liveCp.y}
-          color={authorColor}
-        />
-      )}
       {/* Inline preview — body text is always visible so the user can read
           the comment without clicking. The whole card is the click target
           for opening the thread. */}
@@ -449,8 +435,8 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
           {replies.map(r => (
             <CommentLine key={r.id}
                          c={r}
-                         authorName={resolvePeerName(r.author, wsPeers, userId)}
-                         authorColor={resolvePeerColor(r.author, wsPeers)}
+                         authorName={resolvePeerName(r.author, wsPeers, currentUser)}
+                         authorColor={resolvePeerColor(r.author, wsPeers, currentUser)}
                          canManage={r.author === userId}
                          onDelete={async () => {
                            const ok = await feedback.confirm({
@@ -498,45 +484,45 @@ function parentAnchor(c) {
   return { kind: 'card', id: c.anchor_id };
 }
 
-// Anchor connector — a thin dotted line from the comment bubble to
-// the thing it's attached to (card / group / canvas-point), with a
-// small filled dot at the anchor end. Lives in canvas-space (so it
-// scales naturally with zoom) and sits BEHIND the bubble via the
-// same parent — bubble's content covers any line that would tuck
-// under it.
-function CommentConnector({ sx, sy, ex, ey, dot, bubbleX, bubbleY, color }) {
-  // The SVG is positioned relative to the bubble's top-left so its
-  // children render in canvas-space. We just shift coordinates by
-  // (bubbleX, bubbleY) so the SVG element itself can sit at 0,0.
-  const PAD = 80; // accommodate connector reaching outside the bubble
-  const minX = Math.min(sx, ex) - PAD;
-  const minY = Math.min(sy, ey) - PAD;
-  const maxX = Math.max(sx, ex) + PAD;
-  const maxY = Math.max(sy, ey) + PAD;
-  const w = maxX - minX;
-  const h = maxY - minY;
+// Pick a canvas-space point on the anchored card/group/point border
+// where a "this is anchored here" dot should sit. For card/group the
+// natural spot is the top-right corner — the same spot the comment
+// bubble's tail would have used. For point anchors it's the literal
+// stored point. Returns null for board / doc_range anchors.
+function anchorDotPoint(comment, resolveCardBBox, resolveGroupBBox) {
+  if (comment.anchor_kind === 'card') {
+    const b = resolveCardBBox?.(comment.anchor_id);
+    if (!b) return null;
+    return { x: b.x + b.w, y: b.y };
+  }
+  if (comment.anchor_kind === 'group') {
+    const b = resolveGroupBBox?.(comment.anchor_id);
+    if (!b) return null;
+    return { x: b.x + b.w, y: b.y };
+  }
+  if (comment.anchor_kind === 'point') {
+    return { x: comment.anchor_x ?? 0, y: comment.anchor_y ?? 0 };
+  }
+  return null;
+}
+
+// Small filled dot rendered on a card/group's border (or at a point)
+// when comments are muted. Tinted with the author's color; tooltip
+// surfaces the thread length so users know "two comments here" at a
+// glance. Pure visual — no interaction.
+function CommentAnchorDot({ x, y, color, count = 1 }) {
   return (
-    <svg className="canvas-comment-connector"
-         width={w} height={h}
-         viewBox={`${minX} ${minY} ${w} ${h}`}
+    <div className="canvas-comment-anchor-dot"
+         title={count === 1 ? '1 comment' : `${count} comments`}
          style={{
            position: 'absolute',
-           left: minX - bubbleX,
-           top: minY - bubbleY,
+           left: x - 6, top: y - 6,
+           width: 12, height: 12,
+           borderRadius: '50%',
+           background: color,
+           boxShadow: `0 0 0 2px var(--bg-1)`,
            pointerEvents: 'none',
-           overflow: 'visible',
-         }}>
-      <line x1={sx} y1={sy} x2={ex} y2={ey}
-            stroke={color}
-            strokeOpacity="0.55"
-            strokeWidth="1.5"
-            strokeDasharray="3 3"
-            vectorEffect="non-scaling-stroke" />
-      <circle cx={dot.x} cy={dot.y} r="3"
-              fill={color}
-              stroke="rgba(255,255,255,.55)"
-              strokeWidth="1.2" />
-    </svg>
+         }} />
   );
 }
 
@@ -546,7 +532,7 @@ function CommentConnector({ sx, sy, ex, ey, dot, bubbleX, bubbleY, color }) {
 // to recover comments without leaving the canvas. The full History
 // modal's Comments tab covers richer auditing.
 export function CommentArchivePopover({
-  comments, anchorRect, userId, wsPeers = [], onClose, onLocallyRemoved,
+  comments, anchorRect, userId, wsPeers = [], currentUser, onClose, onLocallyRemoved,
 }) {
   const feedback = useFeedback();
   const ref = useRef(null);
@@ -615,10 +601,8 @@ export function CommentArchivePopover({
           </div>
         )}
         {archived.map(c => {
-          const peer = (wsPeers || []).find(p => p?.user?.id === c.author);
-          const name = peer?.user?.name || peer?.user?.email?.split('@')[0]
-                    || (c.author === userId ? 'you' : (c.author || '').slice(0, 6));
-          const color = peer?.user?.color || '#4f8df8';
+          const name = resolvePeerName(c.author, wsPeers, currentUser);
+          const color = resolvePeerColor(c.author, wsPeers, currentUser);
           const status = c.resolved ? 'resolved' : 'hidden';
           return (
             <div key={c.id} className={`comment-archive-row is-${status}`}>

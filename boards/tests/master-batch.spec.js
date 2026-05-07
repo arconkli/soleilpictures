@@ -336,21 +336,19 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(await hasCssRule(page, /\.comment-archive-tag\.is-hidden/)).toBe(true);
   });
 
-  test('comment connector + canvas-space layer (no canvasToViewport indirection)', async ({ page }) => {
-    // Two related changes:
-    //   1. Bubbles live INSIDE the canvas transform now, so they scale
-    //      with zoom. We assert the connector class ships and the
-    //      canvasToViewport prop is gone from the layer wiring.
-    //   2. Connector line + anchor dot show what each comment is
-    //      attached to.
+  test('comment anchor dot is the in-place affordance when layer is muted', async ({ page }) => {
+    // The connector line was dropped. When commentsVisible is false,
+    // the layer renders small CommentAnchorDot circles instead so
+    // users can still see WHICH cards/groups have comments.
     await go(page);
-    expect(await hasCssRule(page, /\.canvas-comment-connector/)).toBe(true);
-    // Bundle should reference the new connector helper.
+    expect(await hasCssRule(page, /\.canvas-comment-anchor-dot/)).toBe(true);
+    // Bundle should reference the helper + drop the old connector.
     const html = await (await page.request.get('/?local=1')).text();
     const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
     if (!m) return;
     const bundle = await (await page.request.get(m[1])).text();
-    expect(bundle.includes('CommentConnector')).toBe(true);
+    expect(bundle.includes('CommentAnchorDot')).toBe(true);
+    expect(bundle.includes('canvas-comment-connector')).toBe(false);
   });
 
   test('eye toggle bulk-unhides + right-click is propagation-safe', async ({ page }) => {
