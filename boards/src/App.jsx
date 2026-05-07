@@ -371,6 +371,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await refreshBoards();
       }
       const a = arrowsArr();
+      const cardsBefore = m.size;
       ydoc.transact(() => {
         idSet.forEach(id => m.delete(id));
         if (a) {
@@ -382,7 +383,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           }
         }
       }, 'local');
-      console.log('[delete] deleteCards done', { ids });
+      const cardsAfter = m.size;
+      const stillPresent = ids.filter(id => m.has(id));
+      console.log('[delete] deleteCards done', {
+        ids, cardsBefore, cardsAfter, stillPresent,
+      });
     };
     const deleteCard = (cardId) => deleteCards([cardId]);
 
@@ -738,6 +743,46 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }));
     mainMutators.addCards?.(newCards);
   }, [currentYDoc, yb.cards, boards, currentId, boardsLoading, mainMutators]);
+
+  // ── Reconcile drift the OTHER way: orphan board / boardlink cards on
+  // the canvas that point at a board id no longer in the workspace's
+  // boards table. These appear as "Missing board" tiles (or "No
+  // access" lock for boardlinks) and the user can't delete them
+  // because deleteBoard returns count:0. Sweep them out automatically.
+  // Only fires once boards has fully loaded so we don't nuke cards
+  // that just haven't synced yet.
+  const orphanSweepRef = useRef({ wsId: null, runs: 0 });
+  useEffect(() => {
+    if (!currentYDoc || boardsLoading) return;
+    // Reset the sweep counter when the workspace changes.
+    if (orphanSweepRef.current.wsId !== workspace.id) {
+      orphanSweepRef.current = { wsId: workspace.id, runs: 0 };
+    }
+    // Wait until we have at least the realtime subscription confirmed
+    // and the boards list is non-empty (every workspace has a Studio
+    // root). An empty boards list means we likely raced realtime —
+    // skip the sweep so we don't delete a peer's brand-new cards.
+    if (!boards || Object.keys(boards).length === 0) return;
+    const orphans = yb.cards.filter(c => {
+      if (c.kind === 'board')     return !boards[c.id];
+      if (c.kind === 'boardlink') return !boards[c.target];
+      return false;
+    });
+    if (orphans.length === 0) return;
+    console.log('[boards] orphan-card sweep', {
+      currentBoardId: currentId,
+      orphans: orphans.map(c => ({ cardId: c.id, kind: c.kind, target: c.target || c.id })),
+      knownBoardCount: Object.keys(boards).length,
+    });
+    const ids = orphans.map(c => c.id);
+    // Direct Y.Doc removal — DON'T cascade to deleteBoard, the
+    // boards row is already gone.
+    const m = currentYDoc.getMap('cards');
+    currentYDoc.transact(() => {
+      ids.forEach(id => { if (m.has(id)) m.delete(id); });
+    }, 'local');
+    orphanSweepRef.current.runs++;
+  }, [currentYDoc, yb.cards, boards, currentId, boardsLoading, workspace.id]);
 
   // ── New workspace ────────────────────────────────────────────────────────
   const addNewWorkspace = async () => {
