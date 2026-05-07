@@ -1685,15 +1685,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
           />
 
-          <SidebarTags
-            workspaceId={workspace.id}
-            userId={user.id}
-            tags={wsTagsForSidebar.tags}
-            activeTagId={currentSurface === 'tag' ? activeTag?.id : null}
-            onOpenTag={openTagSurface}
-            onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
-          />
-
           <div className="sb-eyebrow">BOARDS</div>
           <SidebarBoardTree
             boards={boards}
@@ -1708,6 +1699,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <Icon as={MoreHorizontal} size={14} />
             <span className="sb-row-label">All boards</span>
           </div>
+
+          <SidebarTags
+            workspaceId={workspace.id}
+            userId={user.id}
+            tags={wsTagsForSidebar.tags}
+            activeTagId={currentSurface === 'tag' ? activeTag?.id : null}
+            onOpenTag={openTagSurface}
+            onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
+          />
 
           {/* Footer — settings + avatar (sign-out). Pushed to the bottom
               of the column with margin-top:auto. */}
