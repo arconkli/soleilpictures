@@ -95,6 +95,44 @@ export async function renameWorkspace(workspaceId, name) {
   if (error) throw error;
 }
 
+// Fetch the caller's own profile (name + color + avatar). Returns null if
+// no row exists yet — callers should fall back to email-derived defaults.
+export async function getOwnProfile() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('user_id, display_name, color, avatar_url, updated_at')
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+// Upsert the caller's profile. Pass only the fields you want to write.
+export async function saveOwnProfile({ userId, displayName, color, avatarUrl }) {
+  if (!userId) throw new Error('userId required');
+  const row = { user_id: userId };
+  if (displayName !== undefined) row.display_name = displayName?.trim() || null;
+  if (color !== undefined)       row.color = color || null;
+  if (avatarUrl !== undefined)   row.avatar_url = avatarUrl || null;
+  const { error } = await supabase
+    .from('profiles')
+    .upsert(row, { onConflict: 'user_id' });
+  if (error) throw error;
+}
+
+// Read profiles for the given user ids — workspace-mate RLS lets you read
+// any profile of someone in a shared workspace. Returns a Map<uid,row>.
+export async function getProfilesByIds(userIds) {
+  if (!userIds || userIds.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('user_id, display_name, color, avatar_url')
+    .in('user_id', userIds);
+  if (error) throw error;
+  const m = new Map();
+  (data || []).forEach(p => m.set(p.user_id, p));
+  return m;
+}
+
 // Members of a workspace. Used for the sidebar member-dot stack and the
 // "Nx" badge on shared workspaces in the rail. RLS already restricts
 // the caller to workspaces they themselves are a member of.

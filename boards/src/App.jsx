@@ -21,6 +21,7 @@ import './lib/entityKinds.js';
 import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
+import { AccountSettings } from './components/AccountSettings.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
@@ -48,7 +49,7 @@ import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
-import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta } from './lib/boardsApi.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
@@ -197,6 +198,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Workspace switcher popover (in the sidebar header). Click-outside +
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const currentId = stack[stack.length - 1];
   const currentBoard = boards[currentId] || rootBoard;
@@ -215,11 +217,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
   }, [boards, boardsLoading, rootBoard.id]);
 
-  const userInfo = {
+  // Pull the user's saved profile so display name + color overrides the
+  // email-derived defaults. Refetch when the AccountSettings modal closes
+  // (user may have just saved). Falls back gracefully if the row is empty.
+  const [ownProfile, setOwnProfile] = useState(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    getOwnProfile()
+      .then(p => { if (!cancelled) setOwnProfile(p || null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id, accountOpen]);
+
+  const userInfo = useMemo(() => ({
     id: user.id,
-    name: user.user_metadata?.full_name || user.email?.split('@')[0],
+    name: ownProfile?.display_name
+       || user.user_metadata?.full_name
+       || user.email?.split('@')[0],
     email: user.email,
-  };
+    color: ownProfile?.color || undefined,
+  }), [user.id, user.email, user.user_metadata?.full_name, ownProfile?.display_name, ownProfile?.color]);
 
   // Messages: list/unread/title-badge. msgRefreshTick lets realtime pings
   // bump the sidebar count without a full refetch loop.
@@ -1639,20 +1657,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     onClick={() => document.querySelector('.twk-gear')?.click()}>
               <Icon as={Settings} size={14} />
             </button>
-            <button className="sb-foot-avatar" title={user.email}
-                    onClick={async () => {
-                      const ok = await feedback.confirm({
-                        title: 'Sign out',
-                        message: `Sign out of ${user.email}?`,
-                        confirmLabel: 'Sign out',
-                      });
-                      if (ok) signOut?.();
-                    }}>
+            <button className="sb-foot-avatar" title="Account & settings"
+                    onClick={() => setAccountOpen(true)}>
               {(user.email?.[0] || 'Y').toUpperCase()}
             </button>
           </div>
         </div>
       </aside>
+      <AccountSettings
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        user={user}
+        onSignOut={signOut}
+        onSaved={() => onWorkspacesChanged?.()}
+      />
 
       <main className="main">
         <div className="topbar">

@@ -3702,6 +3702,121 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   opacity: .85;
 }
 
+/* ──────────────────────────── Account settings modal ───────────────────── */
+
+.account-modal-bg {
+  position: fixed; inset: 0;
+  z-index: 2147483646;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,.45);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: pickerFade var(--dur-slow) var(--ease);
+}
+.account-modal {
+  width: min(440px, calc(100vw - 32px));
+  background: rgba(16,16,20,.78);
+  color: var(--ink-1);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-lg);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow: var(--shadow-3);
+  padding: 18px;
+  animation: modalRise var(--dur-slow) var(--ease);
+  display: flex; flex-direction: column; gap: 14px;
+}
+[data-theme='light'] .account-modal { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
+.account-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.account-modal-title {
+  color: var(--ink-0); font-size: 14px; font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.account-modal-x {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  background: transparent; border: 0;
+  color: var(--ink-2); cursor: pointer;
+  border-radius: 4px;
+}
+.account-modal-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+.account-modal-body { display: flex; flex-direction: column; gap: 12px; }
+.account-field { display: flex; flex-direction: column; gap: 6px; }
+.account-field-label {
+  font: 600 10px/1 var(--font-display);
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.account-input {
+  background: var(--bg-2); color: var(--ink-0);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font: 400 13px/1.4 var(--font-sans);
+}
+.account-input:focus { outline: 0; border-color: var(--soleil); }
+.account-readonly {
+  font: 400 12px/1.4 var(--font-mono);
+  color: var(--ink-3);
+  padding: 6px 0;
+}
+.account-swatches {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+.account-sw {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.account-sw.is-active { border-color: var(--ink-0); }
+.account-sw-custom {
+  background: transparent; padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--line-2);
+}
+.account-sw-clear {
+  background: transparent;
+  color: var(--ink-3);
+  border: 0;
+  font: 500 11px/1 var(--font-sans);
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.account-sw-clear:hover { color: var(--ink-1); }
+.account-modal-foot {
+  display: flex; align-items: center; gap: 8px;
+}
+.account-btn-signout {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-3);
+}
+.account-btn-signout:hover:not(:disabled) {
+  background: rgba(239,68,68,.10);
+  border-color: rgba(239,68,68,.26);
+  color: #ef4444;
+}
+.account-btn {
+  background: var(--bg-2); color: var(--ink-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  font: 500 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.account-btn:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
+.account-btn:disabled { opacity: .5; cursor: not-allowed; }
+.account-btn-primary {
+  background: var(--soleil); color: #1a1300;
+  border-color: var(--soleil);
+}
+.account-btn-primary:hover:not(:disabled) { background: #f5c075; color: #1a1300; }
+
 /* ──────────────────────────── App Feedback ──────────────────────────────── */
 
 .feedback-bg {
