@@ -170,6 +170,7 @@ export function CanvasSurface({
   canEdit = true,          // false → view-only board: hide drawing tools
                            // and gray the toolbar (RLS is the real defense)
   autotagSuggest,          // (content, target) => Promise<[{tagId,score,reason}]>
+  autotagReady = false,    // worker hydration finished
 }) {
   const wrapRef = useRef(null);
   const [pan, setPan] = useState({ x: 40, y: 60 });
@@ -1978,26 +1979,53 @@ export function CanvasSurface({
     }
   };
 
-  // Auto-tag cards on creation / content change. Uses the homegrown
-  // autotag worker (TF-IDF + alias + exact-name) when available;
-  // worker is shared per workspace and lives in App.jsx. We score
-  // each card whose (title+body) hash hasn't been scored yet, apply
-  // high-confidence suggestions as source='auto', and silently drop
-  // the rest (Phase E will surface the LOW–HIGH band as suggestion
-  // chips with a confirm/dismiss control).
+  // Auto-tag cards + the board itself on creation / content change.
+  //
+  // The engine scores text, so the question is: what's "the text"?
+  // A card titled "$10" on a board named "Pricing" inside a group
+  // "PERSONAL PRICING" has zero pricing-related tokens in its own
+  // body — but "pricing" is screamingly obvious from where it lives.
+  // So we feed the engine the card's content PLUS its enclosing
+  // context (board name + group name). The exact-name match path
+  // then catches that on the very first scoring run, no training
+  // corpus required.
+  //
+  // The board itself is also scored once per session (board name
+  // is its content).
   const autoTaggedHashRef = useRef(new Map()); // cardId -> last hash
+  const boardAutotaggedRef = useRef(new Set()); // boardIds we've scored
+
   useEffect(() => {
-    if (!workspaceId || !board?.id || !autotagSuggest) return;
+    if (!workspaceId || !board?.id || !autotagSuggest || !autotagReady) return;
     const HIGH = 0.7;
+    const boardName = board.name || board.title || '';
     const t = setTimeout(() => {
       (async () => {
+        // 1. Score the board itself (once per session per board).
+        if (!boardAutotaggedRef.current.has(board.id) && boardName.trim()) {
+          boardAutotaggedRef.current.add(board.id);
+          try {
+            const suggestions = await autotagSuggest(boardName, { kind: 'board', id: board.id });
+            for (const s of suggestions) {
+              if (s.score < HIGH) continue;
+              await tagBoard({
+                workspaceId, boardId: board.id,
+                tagId: s.tagId, source: 'auto',
+              });
+            }
+          } catch {}
+        }
+        // 2. Score every card with enriched context.
         for (const c of cards || []) {
           const title = c.title || c.label || c.name || '';
           const body = c.body || '';
-          const text = `${title} ${body}`.trim();
+          const groupName = c.groupId ? (groupById[c.groupId]?.name || '') : '';
+          // Context first so exact-name hits land even on cards with
+          // sparse own-text. Board name + group name + card text.
+          const text = [boardName, groupName, title, body].filter(Boolean).join(' ').trim();
           if (text.length < 2) continue;
           const knownIds = new Set((tagsByCard.get(c.id) || []).map(t => t.id));
-          const hash = `${text.length}:${title.slice(0, 40)}:${knownIds.size}`;
+          const hash = `${text.length}:${title.slice(0, 40)}:${groupName}:${knownIds.size}`;
           if (autoTaggedHashRef.current.get(c.id) === hash) continue;
           autoTaggedHashRef.current.set(c.id, hash);
           try {
@@ -2015,7 +2043,7 @@ export function CanvasSurface({
       })();
     }, 1500);
     return () => clearTimeout(t);
-  }, [cards, workspaceId, board?.id, autotagSuggest, tagsByCard]);
+  }, [cards, workspaceId, board?.id, board?.name, autotagSuggest, autotagReady, tagsByCard, groupById]);
 
   // ── Comments ───────────────────────────────────────────────────────────
   // Live anywhere-comments. Bubbles render anchored to cards / groups /

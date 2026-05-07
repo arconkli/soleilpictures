@@ -1033,7 +1033,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Workspace-wide autotag worker. Spawns once per workspace, hosts
   // the inverted index off-thread, and exposes suggestTags() that
   // CanvasSurface uses in place of the legacy substring matcher.
-  const { suggestTags: autotagSuggest } = useAutotagWorker(workspace.id);
+  const { suggestTags: autotagSuggest, ready: autotagReady } = useAutotagWorker(workspace.id);
 
   // Track which doc-card overlay (if any) is currently open + its active
   // page + scroll. Doc cards are docs nested inside canvas boards, so
@@ -1556,7 +1556,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        personalWorkspaceId={personalWorkspaceId}
                        selectedTool={selectedTool} setSelectedTool={setSelectedTool}
                        mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
-                       autotagSuggest={autotagSuggest} />
+                       autotagSuggest={autotagSuggest}
+                       autotagReady={autotagReady} />
       );
     })();
     return (
