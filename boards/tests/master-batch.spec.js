@@ -595,6 +595,20 @@ test.describe('Tags-as-entities unification (Phase A)', () => {
     expect(bundle.includes('merge_tags')).toBe(true);
     expect(bundle.includes('mergeTags')).toBe(true);
   });
+
+  test('autotag worker chunk + engine ship (Phase D)', async ({ page }) => {
+    await go(page);
+    // Worker chunk is emitted by Vite for the ?worker import.
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    // Main bundle references the worker URL + the engine entry points.
+    expect(/assets\/autotagWorker-[A-Za-z0-9_-]+\.js/.test(bundle)).toBe(true);
+    expect(bundle.includes('autotag_ignored')).toBe(true);
+    // Cold-start fallback is gone — substring matcher was replaced.
+    expect(bundle.includes('autoTagCardByTitle')).toBe(false);
+  });
 });
 
 // ═══════════════ ORPHAN-CARD SWEEP REGRESSION GUARD ═══════════════

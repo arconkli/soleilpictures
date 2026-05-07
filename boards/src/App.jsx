@@ -23,6 +23,7 @@ import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { SidebarTags } from './components/SidebarTags.jsx';
 import { TagDetailView } from './components/TagDetailView.jsx';
 import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
+import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
 import { AccountSettings } from './components/AccountSettings.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
@@ -1029,6 +1030,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // canvas chip surfaces.
   const wsTagsForSidebar = useWorkspaceTags({ workspaceId: workspace.id, boardId: null });
 
+  // Workspace-wide autotag worker. Spawns once per workspace, hosts
+  // the inverted index off-thread, and exposes suggestTags() that
+  // CanvasSurface uses in place of the legacy substring matcher.
+  const { suggestTags: autotagSuggest } = useAutotagWorker(workspace.id);
+
   // Track which doc-card overlay (if any) is currently open + its active
   // page + scroll. Doc cards are docs nested inside canvas boards, so
   // currentBoard.view === 'canvas' but the user is actually editing a
@@ -1549,7 +1555,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        workspaceId={workspace.id} userId={user.id}
                        personalWorkspaceId={personalWorkspaceId}
                        selectedTool={selectedTool} setSelectedTool={setSelectedTool}
-                       mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus} />
+                       mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
+                       autotagSuggest={autotagSuggest} />
       );
     })();
     return (

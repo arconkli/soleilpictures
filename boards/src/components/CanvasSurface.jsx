@@ -33,7 +33,7 @@ import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
-import { ensureTag, tagCard, untagCard, tagBoard, autoTagCardByTitle } from '../lib/tagsApi.js';
+import { ensureTag, tagCard, untagCard, tagBoard } from '../lib/tagsApi.js';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -169,6 +169,7 @@ export function CanvasSurface({
   onJumpToPeer,            // (location) => void  — click peer avatar/dot
   canEdit = true,          // false → view-only board: hide drawing tools
                            // and gray the toolbar (RLS is the real defense)
+  autotagSuggest,          // (content, target) => Promise<[{tagId,score,reason}]>
 }) {
   const wrapRef = useRef(null);
   const [pan, setPan] = useState({ x: 40, y: 60 });
@@ -1965,21 +1966,44 @@ export function CanvasSurface({
     }
   };
 
-  // Auto-tag cards on creation when their title matches an existing tag.
-  // Watches the cards list — for each newly-seen card with a title, fires
-  // autoTagCardByTitle. Avoids re-running for cards we've already seen.
-  const autoTaggedRef = useRef(new Set());
+  // Auto-tag cards on creation / content change. Uses the homegrown
+  // autotag worker (TF-IDF + alias + exact-name) when available;
+  // worker is shared per workspace and lives in App.jsx. We score
+  // each card whose (title+body) hash hasn't been scored yet, apply
+  // high-confidence suggestions as source='auto', and silently drop
+  // the rest (Phase E will surface the LOW–HIGH band as suggestion
+  // chips with a confirm/dismiss control).
+  const autoTaggedHashRef = useRef(new Map()); // cardId -> last hash
   useEffect(() => {
-    if (!workspaceId || !board?.id) return;
-    for (const c of cards || []) {
-      if (autoTaggedRef.current.has(c.id)) continue;
-      const title = c.title || c.label || c.name || null;
-      if (!title) continue;
-      autoTaggedRef.current.add(c.id);
-      autoTagCardByTitle({ workspaceId, boardId: board.id, cardId: c.id, title })
-        .catch(() => {});
-    }
-  }, [cards, workspaceId, board?.id]);
+    if (!workspaceId || !board?.id || !autotagSuggest) return;
+    const HIGH = 0.7;
+    const t = setTimeout(() => {
+      (async () => {
+        for (const c of cards || []) {
+          const title = c.title || c.label || c.name || '';
+          const body = c.body || '';
+          const text = `${title} ${body}`.trim();
+          if (text.length < 2) continue;
+          const knownIds = new Set((tagsByCard.get(c.id) || []).map(t => t.id));
+          const hash = `${text.length}:${title.slice(0, 40)}:${knownIds.size}`;
+          if (autoTaggedHashRef.current.get(c.id) === hash) continue;
+          autoTaggedHashRef.current.set(c.id, hash);
+          try {
+            const suggestions = await autotagSuggest(text, { kind: 'card', id: c.id });
+            for (const s of suggestions) {
+              if (s.score < HIGH) continue;
+              if (knownIds.has(s.tagId)) continue;
+              await tagCard({
+                workspaceId, boardId: board.id, cardId: c.id,
+                tagId: s.tagId, source: 'auto',
+              });
+            }
+          } catch {}
+        }
+      })();
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [cards, workspaceId, board?.id, autotagSuggest, tagsByCard]);
 
   // ── Comments ───────────────────────────────────────────────────────────
   // Live anywhere-comments. Bubbles render anchored to cards / groups /

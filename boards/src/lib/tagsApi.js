@@ -220,35 +220,9 @@ export async function confirmAppliedTag({ sourceKind, sourceId, sourceBoardId, t
   if (error) throw error;
 }
 
-// Substring autotagger — preserved as the cold-start fallback for
-// new workspaces that haven't yet trained the homegrown matcher
-// (Phase D). Once enough applied rows exist we fall back to the
-// statistical scorer, but on day-zero this is what runs.
-export async function autoTagCardByTitle({ workspaceId, boardId, cardId, title }) {
-  const t = (title || '').toString().trim();
-  if (!workspaceId || !boardId || !cardId || t.length < 2) return;
-  try {
-    const tags = await listWorkspaceTags(workspaceId);
-    const matches = tags.filter(tag => {
-      const slug = tag.slug;
-      return slug && t.toLowerCase().includes(slug);
-    });
-    if (matches.length === 0) return;
-    const rows = matches.map(tag => ({
-      source_kind:      'card',
-      source_id:        String(cardId),
-      source_workspace: workspaceId,
-      source_board_id:  boardId,
-      target_kind:      'tag',
-      target_id:        tag.id,
-      link_kind:        'applied',
-      source:           'auto',
-    }));
-    await supabase.from('entity_links').upsert(rows, {
-      onConflict: 'source_kind,source_id,source_page_id,source_link_id,link_kind,target_kind,target_id,target_board_id,target_card_id,target_doc_card_id,target_page_id,target_url',
-      ignoreDuplicates: true,
-    });
-  } catch (err) {
-    console.warn('[tags] autoTagCardByTitle failed', err);
-  }
-}
+// (Substring autotagger removed in Phase D — replaced by the
+// homegrown TF-IDF + alias + exact-name engine in autotagEngine.js,
+// hosted off-thread in autotagWorker.js. The exact-name path in the
+// engine subsumes the legacy substring behavior with proper
+// tokenization, while TF-IDF adds rich-context scoring once the
+// workspace has training data.)
