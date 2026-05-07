@@ -2796,6 +2796,154 @@ body {
   padding: 1px 6px; border-radius: 3px;
 }
 
+/* History modal tabs (Versions / Comments) */
+.hist-tabs {
+  display: flex; gap: 4px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line-1);
+  margin-bottom: 8px;
+}
+.hist-tab {
+  background: transparent; border: 0;
+  padding: 10px 12px;
+  font: 600 11px/1 var(--font-display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  cursor: pointer;
+  position: relative;
+  display: flex; align-items: center; gap: 6px;
+}
+.hist-tab:hover { color: var(--ink-1); }
+.hist-tab.is-active { color: var(--ink-0); }
+.hist-tab.is-active::after {
+  content: ''; position: absolute;
+  left: 8px; right: 8px; bottom: -1px;
+  height: 2px;
+  background: var(--soleil);
+  border-radius: 2px 2px 0 0;
+}
+.hist-tab-count {
+  font: 500 10px/1 var(--font-mono);
+  color: var(--ink-3);
+  padding: 2px 5px;
+  background: var(--bg-2);
+  border-radius: 999px;
+  letter-spacing: 0;
+}
+
+/* Comments-tab filter pills */
+.hist-comment-filter {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.hist-pill {
+  background: transparent; border: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font: 600 10.5px/1 var(--font-sans);
+  letter-spacing: .04em;
+  color: var(--ink-3);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.hist-pill:hover { background: var(--bg-hov); color: var(--ink-1); }
+.hist-pill.is-active {
+  background: var(--soleil-soft); color: var(--soleil);
+}
+.hist-pill span {
+  font: 500 9.5px/1 var(--font-mono);
+  color: inherit;
+  opacity: .7;
+}
+
+/* Comment list — read-only history view */
+.hist-comment-list {
+  display: flex; flex-direction: column;
+  gap: 8px;
+}
+.hist-comment-card {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--bg-1);
+}
+.hist-comment-card.is-resolved { opacity: .72; }
+.hist-comment-card.is-hidden   { opacity: .55; border-style: dashed; }
+.hist-comment-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+  font: 500 11px/1.2 var(--font-sans);
+  color: var(--ink-3);
+}
+.hist-comment-avatar {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: #fff;
+  font: 700 10px/1 var(--font-sans);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.hist-comment-author {
+  font: 600 12px/1.2 var(--font-sans);
+  color: var(--ink-0);
+  letter-spacing: -0.005em;
+}
+.hist-comment-when {
+  flex: 1 1 auto;
+  font: 400 10px/1.2 var(--font-mono);
+  color: var(--ink-3);
+  letter-spacing: .04em;
+}
+.hist-comment-status {
+  font: 700 9px/1 var(--font-display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+.hist-comment-status-open     { color: var(--soleil); background: var(--soleil-soft); }
+.hist-comment-status-resolved { color: #10b981;       background: rgba(16,185,129,.14); }
+.hist-comment-status-hidden   { color: var(--ink-3);  background: var(--bg-2); }
+
+.hist-comment-body {
+  font: 400 13px/1.45 var(--font-sans);
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.hist-comment-replies {
+  margin-top: 8px;
+  padding-left: 10px;
+  border-left: 1px solid color-mix(in oklab, var(--ink-3) 18%, transparent);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.hist-comment-reply {
+  font: 400 12px/1.4 var(--font-sans);
+  color: var(--ink-2);
+}
+.hist-comment-reply .hist-comment-when { margin-left: 6px; }
+.hist-comment-actions {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed color-mix(in oklab, var(--ink-3) 18%, transparent);
+}
+.hist-comment-anchor-tag {
+  flex: 1 1 auto;
+  font: 500 10.5px/1 var(--font-mono);
+  color: var(--ink-3);
+  letter-spacing: .04em;
+}
+.tb-btn-sm { padding: 5px 10px; font-size: 10.5px; }
+.tb-btn-danger {
+  color: #ef4444;
+  border-color: rgba(239,68,68,.30);
+  background: transparent;
+}
+.tb-btn-danger:hover { background: rgba(239,68,68,.12); }
+
 /* ──────────────────────────── Phase 4.6: editable + rich + shape + share ─ */
 
 /* EditableText */

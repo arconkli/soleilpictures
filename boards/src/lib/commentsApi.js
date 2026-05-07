@@ -82,6 +82,21 @@ export async function deleteComment(id) {
   if (error) throw error;
 }
 
+// Comment history for a single board — every comment ever, including
+// resolved + hidden ones. Used by the History modal's Comments tab so
+// users can audit what conversations happened on a board.
+export async function listAllBoardComments(boardId, limit = 200) {
+  if (!boardId) return [];
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*')
+    .eq('board_id', boardId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
 // Comments by a given author across a workspace — used by the right-click
 // peer-icon viewer ("see this person's recent comments"). RLS already
 // gates rows the caller can't see (peer is in shared workspace ⇒ usually

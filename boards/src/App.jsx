@@ -1816,6 +1816,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         boardId={currentBoard.id}
         ydoc={currentYDoc}
         userId={user.id}
+        wsPeers={wsPeers}
         onClose={() => setHistoryOpen(false)}
       />
 

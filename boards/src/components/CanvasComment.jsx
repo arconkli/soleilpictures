@@ -182,8 +182,16 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
 
   // Live drag offset — while the author is dragging, render the bubble
   // at this offset for instant feedback. On pointer-up we commit the
-  // accumulated delta to the DB. Cleared after commit.
+  // value to the DB and KEEP the delta visible until the comment prop
+  // reflects the new offset (the realtime UPDATE refetches and lands
+  // a fresh row). Without this hold-over, the bubble snaps back to its
+  // pre-drag position for a frame and then teleports — looks like a
+  // glitch.
   const [dragDelta, setDragDelta] = useState(null);
+  // The values we just committed — once `comment` reflects them, the
+  // saved offset already matches what the user dragged to and we can
+  // safely drop the local override.
+  const committedRef = useRef(null);
   // Suppresses the synthesized click that fires after pointerup of a
   // drag, so dragging the head doesn't accidentally toggle the thread.
   const justDraggedRef = useRef(false);
@@ -193,6 +201,22 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     ? { x: cp.x + dragDelta.dx, y: cp.y + dragDelta.dy }
     : cp;
   const v = canvasToViewport ? canvasToViewport(liveCp.x, liveCp.y) : { x: liveCp.x, y: liveCp.y };
+
+  // When the comment row's saved offset / anchor catches up to what we
+  // just committed, drop the dragDelta override. After this, cp is
+  // computed from the fresh offsets and the bubble stays put.
+  useEffect(() => {
+    if (!dragDelta || !committedRef.current) return;
+    const c = committedRef.current;
+    const matched = comment.anchor_kind === 'point'
+      ? (comment.anchor_x === c.ax && comment.anchor_y === c.ay)
+      : (comment.offset_x === c.ox && comment.offset_y === c.oy);
+    if (matched) {
+      committedRef.current = null;
+      setDragDelta(null);
+    }
+  }, [comment.offset_x, comment.offset_y, comment.anchor_x, comment.anchor_y,
+      comment.anchor_kind, dragDelta]);
 
   // Author-only drag-to-reposition. Pointerdown on the head row starts
   // a drag (we use the head, not the whole card, so dragging doesn't
@@ -234,12 +258,21 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
         patch.offset_x = (comment.offset_x || 0) + dx;
         patch.offset_y = (comment.offset_y || 0) + dy;
       }
+      // Snap the visual delta to whole canvas units (matches what we
+      // just committed) and remember the committed values. The effect
+      // above clears dragDelta only when comment props reflect them.
+      setDragDelta({ dx, dy });
+      committedRef.current = comment.anchor_kind === 'point'
+        ? { ax: patch.anchor_x, ay: patch.anchor_y }
+        : { ox: patch.offset_x, oy: patch.offset_y };
       try {
         await updateComment(comment.id, patch);
       } catch (err) {
         feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
+        // Roll back — the prop never changed, so just drop the override.
+        committedRef.current = null;
+        setDragDelta(null);
       }
-      setDragDelta(null);
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);

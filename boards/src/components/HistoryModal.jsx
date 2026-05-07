@@ -1,10 +1,15 @@
-// Floating modal listing snapshot versions for the current board, with a
-// Restore button per row. Restoring replaces the live Y.Doc state with the
-// version's saved bytes (the change becomes a normal local edit, so it's
-// undoable in turn).
+// Floating history modal for the current board. Two tabs:
+//   • Versions — snapshot history with a Restore button per row
+//   • Comments — every comment on this board (open / resolved / hidden)
+//
+// Restoring a version replaces the live Y.Doc state with the version's
+// saved bytes (the change becomes a normal local edit, so it's undoable
+// in turn). Comments are read-only here — managing them happens on the
+// canvas itself via the bubble actions.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { listBoardVersions, loadBoardVersionDoc, saveBoardVersion } from '../lib/boardsApi.js';
+import { listAllBoardComments, updateComment, deleteComment } from '../lib/commentsApi.js';
 import { restoreVersionInto } from '../lib/yboard.js';
 import { useFeedback } from './AppFeedback.jsx';
 
@@ -27,23 +32,95 @@ function fmtDate(iso) {
   return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
 }
 
-export function HistoryModal({ open, boardId, ydoc, userId, onClose }) {
+export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [] }) {
+  const [tab, setTab] = useState('versions');
   const [versions, setVersions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingV, setLoadingV] = useState(true);
   const [busyId, setBusyId] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [loadingC, setLoadingC] = useState(true);
+  const [commentFilter, setCommentFilter] = useState('all');
   const feedback = useFeedback();
 
+  // ── Versions ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open || !boardId) return;
     let cancelled = false;
-    setLoading(true);
+    setLoadingV(true);
     listBoardVersions(boardId, 100).then(rows => {
       if (cancelled) return;
       setVersions(rows);
-      setLoading(false);
-    }).catch(e => { console.error(e); setLoading(false); });
+      setLoadingV(false);
+    }).catch(e => { console.error(e); setLoadingV(false); });
     return () => { cancelled = true; };
   }, [open, boardId]);
+
+  // ── Comments ────────────────────────────────────────────────────────
+  const refreshComments = async () => {
+    setLoadingC(true);
+    try {
+      const rows = await listAllBoardComments(boardId, 300);
+      setComments(rows);
+    } catch (e) { console.warn('comment history fetch failed', e); }
+    finally { setLoadingC(false); }
+  };
+  useEffect(() => {
+    if (!open || !boardId) return;
+    let cancelled = false;
+    setLoadingC(true);
+    listAllBoardComments(boardId, 300)
+      .then(rows => { if (!cancelled) setComments(rows); })
+      .catch(e => console.warn('comment history fetch failed', e))
+      .finally(() => { if (!cancelled) setLoadingC(false); });
+    return () => { cancelled = true; };
+  }, [open, boardId]);
+
+  // Group replies under their parents, then filter by tab.
+  const commentTree = useMemo(() => {
+    const byParent = new Map();
+    const roots = [];
+    for (const c of comments) {
+      if (c.reply_to) {
+        if (!byParent.has(c.reply_to)) byParent.set(c.reply_to, []);
+        byParent.get(c.reply_to).push(c);
+      } else roots.push(c);
+    }
+    return roots
+      .filter(r => {
+        if (commentFilter === 'open')     return !r.resolved && !r.hidden;
+        if (commentFilter === 'resolved') return !!r.resolved;
+        if (commentFilter === 'hidden')   return !!r.hidden;
+        return true;
+      })
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .map(r => ({ root: r, replies: (byParent.get(r.id) || [])
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) }));
+  }, [comments, commentFilter]);
+
+  const counts = useMemo(() => {
+    let open = 0, resolved = 0, hidden = 0;
+    for (const c of comments) {
+      if (c.reply_to) continue;
+      if (c.hidden) hidden++;
+      else if (c.resolved) resolved++;
+      else open++;
+    }
+    return { all: open + resolved + hidden, open, resolved, hidden };
+  }, [comments]);
+
+  // Author name resolution — we have wsPeers available, fall back to
+  // an id slice if the peer isn't currently online.
+  const resolveName = (uid) => {
+    if (!uid) return 'unknown';
+    if (uid === userId) return 'you';
+    const peer = (wsPeers || []).find(p => p?.user?.id === uid);
+    return peer?.user?.name || peer?.user?.email?.split('@')[0]
+        || (uid || '').slice(0, 6);
+  };
+  const resolveColor = (uid) => {
+    const peer = (wsPeers || []).find(p => p?.user?.id === uid);
+    return peer?.user?.color || '#4f8df8';
+  };
 
   const onRestore = async (v) => {
     if (!ydoc) return;
@@ -55,12 +132,10 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose }) {
     if (!ok) return;
     setBusyId(v.id);
     try {
-      // Snapshot the CURRENT state first as a "before-restore" version.
       try { await saveBoardVersion(boardId, ydoc, { label: 'before-restore', userId }); }
       catch (e) { console.warn('pre-restore version save failed', e); }
       const b64 = await loadBoardVersionDoc(v.id);
       restoreVersionInto(ydoc, b64);
-      // Refresh the list — the pre-restore save just added one.
       const rows = await listBoardVersions(boardId, 100);
       setVersions(rows);
     } catch (e) {
@@ -91,42 +166,153 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose }) {
     }
   };
 
+  const onReopen = async (c) => {
+    try { await updateComment(c.id, { resolved: false, hidden: false }); refreshComments(); }
+    catch (e) { feedback.toast({ type: 'error', message: 'Reopen failed: ' + (e.message || e) }); }
+  };
+  const onUnhide = async (c) => {
+    try { await updateComment(c.id, { hidden: false }); refreshComments(); }
+    catch (e) { feedback.toast({ type: 'error', message: 'Unhide failed: ' + (e.message || e) }); }
+  };
+  const onDeleteForever = async (c) => {
+    const ok = await feedback.confirm({
+      title: 'Delete comment?', confirmLabel: 'Delete', danger: true,
+      message: 'This is permanent and removes any replies.',
+    });
+    if (!ok) return;
+    try { await deleteComment(c.id); refreshComments(); }
+    catch (e) { feedback.toast({ type: 'error', message: 'Delete failed: ' + (e.message || e) }); }
+  };
+
   if (!open) return null;
 
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="modal modal-history" onClick={(e) => e.stopPropagation()}>
         <div className="modal-hd">
-          <div className="modal-title">Version history</div>
+          <div className="modal-title">History</div>
           <button className="modal-x" onClick={onClose} aria-label="Close">✕</button>
         </div>
-        <div className="modal-actions">
-          <button className="tb-btn" onClick={onSaveCurrent}>Save snapshot now</button>
-          <span className="modal-hint">Auto-snapshots every minute of editing</span>
+        <div className="hist-tabs">
+          <button className={`hist-tab ${tab === 'versions' ? 'is-active' : ''}`}
+                  onClick={() => setTab('versions')}>
+            Versions
+            <span className="hist-tab-count">{versions.length}</span>
+          </button>
+          <button className={`hist-tab ${tab === 'comments' ? 'is-active' : ''}`}
+                  onClick={() => setTab('comments')}>
+            Comments
+            <span className="hist-tab-count">{counts.all}</span>
+          </button>
         </div>
-        <div className="modal-body">
-          {loading && <div className="modal-empty">Loading…</div>}
-          {!loading && versions.length === 0 && <div className="modal-empty">No versions yet — keep editing and they'll start appearing here.</div>}
-          {!loading && versions.length > 0 && (
-            <div className="hist-list">
-              {versions.map(v => (
-                <div key={v.id} className="hist-row">
-                  <div className="hist-meta">
-                    <div className="hist-when" title={fmtDate(v.snapshot_at)}>{relTime(v.snapshot_at)}</div>
-                    <div className="hist-sub">
-                      <span>{fmtDate(v.snapshot_at)}</span>
-                      {v.label && <span className="hist-label">{v.label}</span>}
-                      <span>{v.card_count ?? '?'} cards</span>
-                    </div>
-                  </div>
-                  <button className="tb-btn" disabled={busyId === v.id} onClick={() => onRestore(v)}>
-                    {busyId === v.id ? 'Restoring…' : 'Restore'}
-                  </button>
-                </div>
-              ))}
+
+        {tab === 'versions' && (
+          <>
+            <div className="modal-actions">
+              <button className="tb-btn" onClick={onSaveCurrent}>Save snapshot now</button>
+              <span className="modal-hint">Auto-snapshots every minute of editing</span>
             </div>
-          )}
-        </div>
+            <div className="modal-body">
+              {loadingV && <div className="modal-empty">Loading…</div>}
+              {!loadingV && versions.length === 0 && <div className="modal-empty">No versions yet — keep editing and they'll start appearing here.</div>}
+              {!loadingV && versions.length > 0 && (
+                <div className="hist-list">
+                  {versions.map(v => (
+                    <div key={v.id} className="hist-row">
+                      <div className="hist-meta">
+                        <div className="hist-when" title={fmtDate(v.snapshot_at)}>{relTime(v.snapshot_at)}</div>
+                        <div className="hist-sub">
+                          <span>{fmtDate(v.snapshot_at)}</span>
+                          {v.label && <span className="hist-label">{v.label}</span>}
+                          <span>{v.card_count ?? '?'} cards</span>
+                        </div>
+                      </div>
+                      <button className="tb-btn" disabled={busyId === v.id} onClick={() => onRestore(v)}>
+                        {busyId === v.id ? 'Restoring…' : 'Restore'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {tab === 'comments' && (
+          <>
+            <div className="modal-actions">
+              <div className="hist-comment-filter">
+                <button className={`hist-pill ${commentFilter === 'all' ? 'is-active' : ''}`}
+                        onClick={() => setCommentFilter('all')}>All <span>{counts.all}</span></button>
+                <button className={`hist-pill ${commentFilter === 'open' ? 'is-active' : ''}`}
+                        onClick={() => setCommentFilter('open')}>Open <span>{counts.open}</span></button>
+                <button className={`hist-pill ${commentFilter === 'resolved' ? 'is-active' : ''}`}
+                        onClick={() => setCommentFilter('resolved')}>Resolved <span>{counts.resolved}</span></button>
+                <button className={`hist-pill ${commentFilter === 'hidden' ? 'is-active' : ''}`}
+                        onClick={() => setCommentFilter('hidden')}>Hidden <span>{counts.hidden}</span></button>
+              </div>
+            </div>
+            <div className="modal-body">
+              {loadingC && <div className="modal-empty">Loading…</div>}
+              {!loadingC && commentTree.length === 0 && (
+                <div className="modal-empty">
+                  {commentFilter === 'all' ? 'No comments on this board yet.' :
+                   commentFilter === 'resolved' ? 'No resolved comments.' :
+                   commentFilter === 'hidden' ? 'No hidden comments.' :
+                   'No open comments.'}
+                </div>
+              )}
+              {!loadingC && commentTree.length > 0 && (
+                <div className="hist-comment-list">
+                  {commentTree.map(({ root, replies }) => {
+                    const status = root.resolved ? 'resolved' : root.hidden ? 'hidden' : 'open';
+                    return (
+                      <div key={root.id} className={`hist-comment-card is-${status}`}>
+                        <div className="hist-comment-head">
+                          <span className="hist-comment-avatar"
+                                style={{ background: resolveColor(root.author) }}>
+                            {(resolveName(root.author) || '?')[0].toUpperCase()}
+                          </span>
+                          <span className="hist-comment-author">{resolveName(root.author)}</span>
+                          <span className="hist-comment-when">{fmtDate(root.created_at)}</span>
+                          <span className={`hist-comment-status hist-comment-status-${status}`}>{status}</span>
+                        </div>
+                        <div className="hist-comment-body">{root.body}</div>
+                        {replies.length > 0 && (
+                          <div className="hist-comment-replies">
+                            {replies.map(r => (
+                              <div key={r.id} className="hist-comment-reply">
+                                <span className="hist-comment-author">{resolveName(r.author)}</span>
+                                <span className="hist-comment-when">{relTime(r.created_at)}</span>
+                                <div className="hist-comment-body">{r.body}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="hist-comment-actions">
+                          <span className="hist-comment-anchor-tag">
+                            on {root.anchor_kind === 'card' ? 'a card'
+                              : root.anchor_kind === 'group' ? 'a group'
+                              : root.anchor_kind === 'point' ? 'the canvas'
+                              : root.anchor_kind === 'doc_range' ? 'a doc'
+                              : 'the board'}
+                          </span>
+                          {(root.resolved || root.hidden) && (
+                            <button className="tb-btn tb-btn-sm" onClick={() => onReopen(root)}>
+                              {root.hidden ? 'Unhide' : 'Reopen'}
+                            </button>
+                          )}
+                          <button className="tb-btn tb-btn-sm tb-btn-danger"
+                                  onClick={() => onDeleteForever(root)}>Delete</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

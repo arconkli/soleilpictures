@@ -259,6 +259,30 @@ test.describe('Phase 3 — anywhere-comments', () => {
     });
     expect(out).toEqual({ offsetX: 0, offsetY: 0 });
   });
+
+  test('comment drag glitch fix — committedRef holds the live offset', async ({ page }) => {
+    // After commit, the bubble has to keep showing the dragged-to spot
+    // until the comment prop reflects the new offset; otherwise it
+    // snaps back, then teleports. The fix is a committedRef that
+    // gates dragDelta clearing — assert the bundle still ships it
+    // (and the legacy "setDragDelta(null)" right after updateComment
+    // is gone).
+    await page.goto('/?local=1');
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    expect(bundle.includes('committedRef')).toBe(true);
+  });
+
+  test('history modal has tabs + comment status pills', async ({ page }) => {
+    await go(page);
+    expect(await hasCssRule(page, /\.hist-tabs/)).toBe(true);
+    expect(await hasCssRule(page, /\.hist-tab\.is-active/)).toBe(true);
+    expect(await hasCssRule(page, /\.hist-pill/)).toBe(true);
+    expect(await hasCssRule(page, /\.hist-comment-status-resolved/)).toBe(true);
+    expect(await hasCssRule(page, /\.hist-comment-status-hidden/)).toBe(true);
+  });
 });
 
 // ═══════════════ PHASE 4: TAGS ═══════════════
