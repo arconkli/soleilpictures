@@ -336,20 +336,18 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(await hasCssRule(page, /\.comment-archive-tag\.is-hidden/)).toBe(true);
   });
 
-  test('comment anchor dot ships + thin line is conditional', async ({ page }) => {
-    // Small dot at the connection point is always rendered. A thin
-    // connector line is rendered only when the bubble is far enough
-    // away from its anchor that proximity wouldn't communicate the
-    // attachment.
+  test('comments physically attach to anchor — bubbleLayout snap helper ships', async ({ page }) => {
+    // Bubbles snap flush to one of the four sides of the anchored
+    // bbox. The dot sits at the seam where the bubble meets the card,
+    // so the connector line was dropped entirely.
     await go(page);
     expect(await hasCssRule(page, /\.canvas-comment-anchor-dot/)).toBe(true);
     const html = await (await page.request.get('/?local=1')).text();
     const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
     if (!m) return;
     const bundle = await (await page.request.get(m[1])).text();
-    expect(bundle.includes('CommentConnectorLine')).toBe(true);
-    expect(bundle.includes('anchorDotPoint')).toBe(true);
-    expect(bundle.includes('anchorPointFromBase')).toBe(true);
+    expect(bundle.includes('snapBubbleToBox')).toBe(true);
+    expect(bundle.includes('bubbleLayout')).toBe(true);
   });
 
   test('whole card is the drag handle (cursor:grab on .canvas-comment-card, not just head)', async ({ page }) => {

@@ -60,19 +60,20 @@ export function CanvasCommentLayer({
       tops.push(c);
     }
   }
-  // When the master eye is off, replace every bubble with the same
-  // small anchor dot we render alongside the bubble — at the SAME
-  // perimeter point. We compute where the bubble would be (offset +
-  // anchor) and use its center to pick the connection point. So
-  // toggling the eye off doesn't visually move the dot.
+  // When the master eye is off, replace every bubble with just the
+  // small anchor dot — at the EXACT perimeter point the bubble was
+  // meeting before. Computed from the same bubbleLayout used while
+  // bubbles render, so toggling the eye off doesn't visually move
+  // the dots.
   if (!layerVisible) {
-    const W = 240, H = 76;
     return (
       <div className="canvas-comment-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
         {tops.map(c => {
-          const cp = anchorPoint({ comment: c, resolveCardBBox, resolveGroupBBox });
-          const bubbleCenter = { x: cp.x + W / 2, y: cp.y + H / 2 };
-          const p = anchorDotPoint(c, resolveCardBBox, resolveGroupBBox, bubbleCenter);
+          const layout = bubbleLayout(c, resolveCardBBox, resolveGroupBBox, {
+            ox: c.offset_x || 0, oy: c.offset_y || 0,
+            ax: c.anchor_x || 0, ay: c.anchor_y || 0,
+          });
+          const p = layout.dot;
           if (!p) return null;
           const color = resolvePeerColor(c.author, wsPeers, currentUser);
           return (
@@ -188,19 +189,81 @@ function anchorPoint({ comment, resolveCardBBox, resolveGroupBBox }) {
 // committed values are" instead of the (possibly-stale) prop. Critical
 // for the rapid-drag case where the prop hasn't fanned out yet.
 function anchorPointFromBase(comment, resolveCardBBox, resolveGroupBBox, base) {
+  return bubbleLayout(comment, resolveCardBBox, resolveGroupBBox, base).bubble;
+}
+
+const BUBBLE_W = 240;
+const BUBBLE_H = 76;
+
+// Compute the bubble's position AND its anchor dot for a given comment.
+// Card / group anchors snap the bubble flush to one of the four sides
+// of the anchored bbox — the user's offset just determines WHICH side
+// (and where along it) the bubble attaches. The dot sits exactly where
+// the bubble meets the card, so it visually reads as the seam between
+// the two. Point / board anchors fall back to free placement (no card
+// to attach to).
+function bubbleLayout(comment, resolveCardBBox, resolveGroupBBox, base) {
   const { ox, oy, ax, ay } = base;
-  if (comment.anchor_kind === 'card') {
-    const b = resolveCardBBox?.(comment.anchor_id);
-    if (b) return { x: b.x + b.w + 8 + ox, y: b.y - 8 + oy };
-  }
-  if (comment.anchor_kind === 'group') {
-    const b = resolveGroupBBox?.(comment.anchor_id);
-    if (b) return { x: b.x + b.w + 8 + ox, y: b.y - 8 + oy };
+  let bbox = null;
+  if (comment.anchor_kind === 'card')  bbox = resolveCardBBox?.(comment.anchor_id);
+  if (comment.anchor_kind === 'group') bbox = resolveGroupBBox?.(comment.anchor_id);
+  if (bbox) {
+    return snapBubbleToBox(bbox, ox, oy);
   }
   if (comment.anchor_kind === 'point') {
-    return { x: ax + ox, y: ay + oy };
+    const x = ax + ox;
+    const y = ay + oy;
+    return { bubble: { x, y }, dot: { x: ax, y: ay }, side: null };
   }
-  return { x: 100 + ox, y: 100 + oy };
+  // 'board' fallback — top-right corner of the visible canvas.
+  return { bubble: { x: 100 + ox, y: 100 + oy }, dot: null, side: null };
+}
+
+function snapBubbleToBox(box, ox, oy) {
+  const W = BUBBLE_W, H = BUBBLE_H;
+  // The user's intended bubble center, treating the offsets as a
+  // "preferred direction" off the card's natural top-right corner.
+  const targetCx = box.x + box.w + 8 + ox + W / 2;
+  const targetCy = box.y - 8 + oy + H / 2;
+  const cardCx = box.x + box.w / 2;
+  const cardCy = box.y + box.h / 2;
+  const dx = targetCx - cardCx;
+  const dy = targetCy - cardCy;
+  // Pick the closest side. Aspect-ratio-aware so a tall card biases
+  // toward left/right and a wide card toward top/bottom.
+  const ax = Math.abs(dx) / Math.max(1, box.w / 2);
+  const ay = Math.abs(dy) / Math.max(1, box.h / 2);
+  let bx, by, side, dotX, dotY;
+  if (ax >= ay) {
+    if (dx >= 0) {                               // right side
+      bx = box.x + box.w;
+      by = clamp(targetCy - H / 2, box.y - 18, box.y + box.h - H + 18);
+      side = 'right';
+      dotX = box.x + box.w;
+      dotY = by + H / 2;
+    } else {                                     // left side
+      bx = box.x - W;
+      by = clamp(targetCy - H / 2, box.y - 18, box.y + box.h - H + 18);
+      side = 'left';
+      dotX = box.x;
+      dotY = by + H / 2;
+    }
+  } else {
+    if (dy >= 0) {                               // bottom side
+      by = box.y + box.h;
+      bx = clamp(targetCx - W / 2, box.x - 18, box.x + box.w - W + 18);
+      side = 'bottom';
+      dotX = bx + W / 2;
+      dotY = box.y + box.h;
+    } else {                                     // top side
+      by = box.y - H;
+      bx = clamp(targetCx - W / 2, box.x - 18, box.x + box.w - W + 18);
+      side = 'top';
+      dotX = bx + W / 2;
+      dotY = box.y;
+    }
+  }
+  return { bubble: { x: bx, y: by }, dot: { x: dotX, y: dotY }, side };
 }
 
 // Clamp helper.
@@ -284,10 +347,17 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     ox: comment.offset_x || 0, oy: comment.offset_y || 0,
     ax: comment.anchor_x || 0, ay: comment.anchor_y || 0,
   };
-  const cp = anchorPointFromBase(comment, resolveCardBBox, resolveGroupBBox, baseVals);
-  const liveCp = dragDelta
-    ? { x: cp.x + dragDelta.dx, y: cp.y + dragDelta.dy }
-    : cp;
+  // While dragging, treat the cumulative drag delta as a bump to the
+  // base offset BEFORE running the layout snap. That way the bubble
+  // re-snaps to a different side mid-drag if the user pulls it
+  // around the card; without this, dragDelta would just translate the
+  // already-snapped bubble, which feels disconnected.
+  const liveBase = dragDelta
+    ? { ...baseVals, ox: baseVals.ox + dragDelta.dx, oy: baseVals.oy + dragDelta.dy }
+    : baseVals;
+  const layout = bubbleLayout(comment, resolveCardBBox, resolveGroupBBox, liveBase);
+  const liveCp = layout.bubble;
+  const anchorPt = layout.dot;
 
   // Author-only drag-to-reposition. Pointerdown on the head row starts
   // a drag (we use the head, not the whole card, so dragging doesn't
@@ -438,23 +508,9 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     }
   };
 
-  // Anchor dot + (optional) connector line. The dot always renders so
-  // there's a clear "this comment is attached here" affordance. The
-  // line only renders when the bubble is far enough from its anchor
-  // that proximity alone wouldn't communicate the attachment — drop
-  // close-by lines so the canvas doesn't get visually noisy.
-  const W = 240, H = 76; // approximate bubble dimensions
-  const bubbleCenter = { x: liveCp.x + W / 2, y: liveCp.y + H / 2 };
-  const anchorPt = anchorDotPoint(comment, resolveCardBBox, resolveGroupBBox, bubbleCenter);
-  let connectorLineProps = null;
-  if (anchorPt) {
-    const ex = clamp(anchorPt.x, liveCp.x, liveCp.x + W);
-    const ey = clamp(anchorPt.y, liveCp.y, liveCp.y + H);
-    const dist = Math.hypot(anchorPt.x - ex, anchorPt.y - ey);
-    if (dist > 14) {
-      connectorLineProps = { ax: anchorPt.x, ay: anchorPt.y, bx: ex, by: ey };
-    }
-  }
+  // The bubble lays out flush against the anchor's perimeter (see
+  // bubbleLayout / snapBubbleToBox). The dot sits at the seam where
+  // the bubble meets the card — no separate connector line.
 
   // Keyboard delete — when the thread is open and no text input has
   // focus, Delete / Backspace triggers the same delete flow as the
@@ -502,15 +558,6 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                  pointerEvents: 'none',
                }} />
         </div>
-      )}
-      {connectorLineProps && (
-        <CommentConnectorLine
-          ax={connectorLineProps.ax - liveCp.x}
-          ay={connectorLineProps.ay - liveCp.y}
-          bx={connectorLineProps.bx - liveCp.x}
-          by={connectorLineProps.by - liveCp.y}
-          color={authorColor}
-        />
       )}
       {/* Inline preview — body text is always visible so the user can read
           the comment without clicking. The whole card is the click target
