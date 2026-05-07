@@ -171,8 +171,20 @@ function anchorPoint({ comment, resolveCardBBox, resolveGroupBBox }) {
   // offset_x / offset_y let the author drag the bubble around its
   // anchor. For 'point' anchors the offset is added on top of the
   // stored anchor so a manual drag survives card moves nearby.
-  const ox = comment.offset_x || 0;
-  const oy = comment.offset_y || 0;
+  return anchorPointFromBase(comment, resolveCardBBox, resolveGroupBBox, {
+    ox: comment.offset_x || 0,
+    oy: comment.offset_y || 0,
+    ax: comment.anchor_x || 0,
+    ay: comment.anchor_y || 0,
+  });
+}
+
+// Same as anchorPoint but takes the offset/anchor values explicitly,
+// so the bubble component can use a baseRef of "what we believe the
+// committed values are" instead of the (possibly-stale) prop. Critical
+// for the rapid-drag case where the prop hasn't fanned out yet.
+function anchorPointFromBase(comment, resolveCardBBox, resolveGroupBBox, base) {
+  const { ox, oy, ax, ay } = base;
   if (comment.anchor_kind === 'card') {
     const b = resolveCardBBox?.(comment.anchor_id);
     if (b) return { x: b.x + b.w + 8 + ox, y: b.y - 8 + oy };
@@ -182,9 +194,8 @@ function anchorPoint({ comment, resolveCardBBox, resolveGroupBBox }) {
     if (b) return { x: b.x + b.w + 8 + ox, y: b.y - 8 + oy };
   }
   if (comment.anchor_kind === 'point') {
-    return { x: (comment.anchor_x ?? 0) + ox, y: (comment.anchor_y ?? 0) + oy };
+    return { x: ax + ox, y: ay + oy };
   }
-  // 'board' fallback — top-right corner of the visible canvas.
   return { x: 100 + ox, y: 100 + oy };
 }
 
@@ -225,43 +236,54 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
   const authorColor = resolvePeerColor(comment.author, wsPeers, currentUser);
   const replyCount = replies?.length || 0;
 
-  // Live drag offset — while the author is dragging, render the bubble
-  // at this offset for instant feedback. On pointer-up we commit the
-  // value to the DB and KEEP the delta visible until the comment prop
-  // reflects the new offset (the realtime UPDATE refetches and lands
-  // a fresh row). Without this hold-over, the bubble snaps back to its
-  // pre-drag position for a frame and then teleports — looks like a
-  // glitch.
-  const [dragDelta, setDragDelta] = useState(null);
-  // The values we just committed — once `comment` reflects them, the
-  // saved offset already matches what the user dragged to and we can
-  // safely drop the local override.
+  // baseRef is what WE believe the comment's offsets are. While idle,
+  // it tracks the prop. On commit we update it synchronously to the
+  // values we just sent, so a follow-up drag chains off the latest
+  // commit instead of off a stale prop. committedRef holds the most
+  // recent committed values; we release control back to the prop only
+  // when the prop catches up (out-of-order earlier props are ignored
+  // to prevent the visible snap-back glitch).
+  const baseRef = useRef(null);
   const committedRef = useRef(null);
+  useEffect(() => {
+    const next = {
+      ox: comment.offset_x || 0, oy: comment.offset_y || 0,
+      ax: comment.anchor_x || 0, ay: comment.anchor_y || 0,
+    };
+    if (baseRef.current === null) {
+      baseRef.current = next;
+      return;
+    }
+    if (committedRef.current) {
+      const c = committedRef.current;
+      const matched = comment.anchor_kind === 'point'
+        ? (comment.anchor_x === c.ax && comment.anchor_y === c.ay)
+        : (comment.offset_x === c.ox && comment.offset_y === c.oy);
+      if (matched) {
+        committedRef.current = null;
+        baseRef.current = next;
+      }
+      return;
+    }
+    baseRef.current = next;
+  }, [comment.offset_x, comment.offset_y, comment.anchor_x, comment.anchor_y, comment.anchor_kind]);
+
+  // Live drag delta — only set during an active drag, cleared on
+  // pointer-up. The new visible position chains via baseRef so we
+  // don't need to hold the delta after commit.
+  const [dragDelta, setDragDelta] = useState(null);
   // Suppresses the synthesized click that fires after pointerup of a
   // drag, so dragging the head doesn't accidentally toggle the thread.
   const justDraggedRef = useRef(false);
 
-  const cp = anchorPoint({ comment, resolveCardBBox, resolveGroupBBox });
+  const baseVals = baseRef.current || {
+    ox: comment.offset_x || 0, oy: comment.offset_y || 0,
+    ax: comment.anchor_x || 0, ay: comment.anchor_y || 0,
+  };
+  const cp = anchorPointFromBase(comment, resolveCardBBox, resolveGroupBBox, baseVals);
   const liveCp = dragDelta
     ? { x: cp.x + dragDelta.dx, y: cp.y + dragDelta.dy }
     : cp;
-
-
-  // When the comment row's saved offset / anchor catches up to what we
-  // just committed, drop the dragDelta override. After this, cp is
-  // computed from the fresh offsets and the bubble stays put.
-  useEffect(() => {
-    if (!dragDelta || !committedRef.current) return;
-    const c = committedRef.current;
-    const matched = comment.anchor_kind === 'point'
-      ? (comment.anchor_x === c.ax && comment.anchor_y === c.ay)
-      : (comment.offset_x === c.ox && comment.offset_y === c.oy);
-    if (matched) {
-      committedRef.current = null;
-      setDragDelta(null);
-    }
-  }, [comment.offset_x, comment.offset_y, comment.anchor_x, comment.anchor_y,
-      comment.anchor_kind, dragDelta]);
 
   // Author-only drag-to-reposition. Pointerdown on the head row starts
   // a drag (we use the head, not the whole card, so dragging doesn't
@@ -295,28 +317,45 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       const dx = Math.round(dxPx / Math.max(0.001, zoom));
       const dy = Math.round(dyPx / Math.max(0.001, zoom));
       if (dx === 0 && dy === 0) { setDragDelta(null); return; }
+      // Chain off baseRef (latest committed values), NOT off the prop —
+      // the prop may still be stale from the previous drag's realtime
+      // round-trip. This is what fixed the "drags lag and snap to old
+      // positions" glitch when moving rapidly.
+      const base = baseRef.current || {
+        ox: comment.offset_x || 0, oy: comment.offset_y || 0,
+        ax: comment.anchor_x || 0, ay: comment.anchor_y || 0,
+      };
       const patch = {};
+      let next;
       if (comment.anchor_kind === 'point') {
-        patch.anchor_x = (comment.anchor_x || 0) + dx;
-        patch.anchor_y = (comment.anchor_y || 0) + dy;
+        patch.anchor_x = base.ax + dx;
+        patch.anchor_y = base.ay + dy;
+        next = { ...base, ax: patch.anchor_x, ay: patch.anchor_y };
       } else {
-        patch.offset_x = (comment.offset_x || 0) + dx;
-        patch.offset_y = (comment.offset_y || 0) + dy;
+        patch.offset_x = base.ox + dx;
+        patch.offset_y = base.oy + dy;
+        next = { ...base, ox: patch.offset_x, oy: patch.offset_y };
       }
-      // Snap the visual delta to whole canvas units (matches what we
-      // just committed) and remember the committed values. The effect
-      // above clears dragDelta only when comment props reflect them.
-      setDragDelta({ dx, dy });
+      // Update baseRef SYNCHRONOUSLY so cp recomputes to the new
+      // position immediately. dragDelta is no longer needed for
+      // visual continuity; clear it so subsequent renders aren't
+      // double-applying the offset.
+      baseRef.current = next;
       committedRef.current = comment.anchor_kind === 'point'
         ? { ax: patch.anchor_x, ay: patch.anchor_y }
         : { ox: patch.offset_x, oy: patch.offset_y };
+      setDragDelta(null);
       try {
         await updateComment(comment.id, patch);
       } catch (err) {
         feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
-        // Roll back — the prop never changed, so just drop the override.
+        // Roll back — restore baseRef to the last known prop value so
+        // the bubble snaps back rather than appearing committed.
+        baseRef.current = {
+          ox: comment.offset_x || 0, oy: comment.offset_y || 0,
+          ax: comment.anchor_x || 0, ay: comment.anchor_y || 0,
+        };
         committedRef.current = null;
-        setDragDelta(null);
       }
     };
     window.addEventListener('pointermove', onMove);
@@ -395,10 +434,57 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     }
   };
 
+  // Anchor dot + (optional) connector line. The dot always renders so
+  // there's a clear "this comment is attached here" affordance. The
+  // line only renders when the bubble is far enough from its anchor
+  // that proximity alone wouldn't communicate the attachment — drop
+  // close-by lines so the canvas doesn't get visually noisy.
+  const W = 240, H = 76; // approximate bubble dimensions
+  const bubbleCenter = { x: liveCp.x + W / 2, y: liveCp.y + H / 2 };
+  const anchorPt = anchorDotPoint(comment, resolveCardBBox, resolveGroupBBox, bubbleCenter);
+  let connectorLineProps = null;
+  if (anchorPt) {
+    const ex = clamp(anchorPt.x, liveCp.x, liveCp.x + W);
+    const ey = clamp(anchorPt.y, liveCp.y, liveCp.y + H);
+    const dist = Math.hypot(anchorPt.x - ex, anchorPt.y - ey);
+    if (dist > 14) {
+      connectorLineProps = { ax: anchorPt.x, ay: anchorPt.y, bx: ex, by: ey };
+    }
+  }
+
   return (
     <div ref={wrapRef}
          className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''} ${dragDelta ? 'is-dragging' : ''} ${isAuthor ? 'is-mine' : ''}`}
          style={{ left: liveCp.x, top: liveCp.y, pointerEvents: 'auto' }}>
+      {anchorPt && (
+        <div className="canvas-comment-anchor-host"
+             style={{
+               position: 'absolute',
+               left: anchorPt.x - liveCp.x,
+               top:  anchorPt.y - liveCp.y,
+               width: 0, height: 0,
+             }}>
+          <div className="canvas-comment-anchor-dot"
+               style={{
+                 position: 'absolute',
+                 left: -3, top: -3,
+                 width: 6, height: 6,
+                 borderRadius: '50%',
+                 background: authorColor,
+                 boxShadow: '0 0 0 1.5px var(--bg-1)',
+                 pointerEvents: 'none',
+               }} />
+        </div>
+      )}
+      {connectorLineProps && (
+        <CommentConnectorLine
+          ax={connectorLineProps.ax - liveCp.x}
+          ay={connectorLineProps.ay - liveCp.y}
+          bx={connectorLineProps.bx - liveCp.x}
+          by={connectorLineProps.by - liveCp.y}
+          color={authorColor}
+        />
+      )}
       {/* Inline preview — body text is always visible so the user can read
           the comment without clicking. The whole card is the click target
           for opening the thread. */}
@@ -485,20 +571,22 @@ function parentAnchor(c) {
 }
 
 // Pick a canvas-space point on the anchored card/group/point border
-// where a "this is anchored here" dot should sit. For card/group the
-// natural spot is the top-right corner — the same spot the comment
-// bubble's tail would have used. For point anchors it's the literal
-// stored point. Returns null for board / doc_range anchors.
-function anchorDotPoint(comment, resolveCardBBox, resolveGroupBBox) {
-  if (comment.anchor_kind === 'card') {
-    const b = resolveCardBBox?.(comment.anchor_id);
-    if (!b) return null;
-    return { x: b.x + b.w, y: b.y };
-  }
-  if (comment.anchor_kind === 'group') {
-    const b = resolveGroupBBox?.(comment.anchor_id);
-    if (!b) return null;
-    return { x: b.x + b.w, y: b.y };
+// where the comment's connector visually meets it. We anchor on the
+// perimeter point closest to the bubble's center so the dot looks
+// like the natural exit point of a leader line — even though we
+// rarely draw the line. For point anchors it's the literal stored
+// point. Returns null for board / doc_range anchors.
+function anchorDotPoint(comment, resolveCardBBox, resolveGroupBBox, bubbleCenter = null) {
+  let bbox = null;
+  if (comment.anchor_kind === 'card')  bbox = resolveCardBBox?.(comment.anchor_id);
+  if (comment.anchor_kind === 'group') bbox = resolveGroupBBox?.(comment.anchor_id);
+  if (bbox) {
+    const cx = bubbleCenter?.x ?? (bbox.x + bbox.w);
+    const cy = bubbleCenter?.y ?? bbox.y;
+    return {
+      x: clamp(cx, bbox.x, bbox.x + bbox.w),
+      y: clamp(cy, bbox.y, bbox.y + bbox.h),
+    };
   }
   if (comment.anchor_kind === 'point') {
     return { x: comment.anchor_x ?? 0, y: comment.anchor_y ?? 0 };
@@ -506,23 +594,52 @@ function anchorDotPoint(comment, resolveCardBBox, resolveGroupBBox) {
   return null;
 }
 
-// Small filled dot rendered on a card/group's border (or at a point)
-// when comments are muted. Tinted with the author's color; tooltip
-// surfaces the thread length so users know "two comments here" at a
-// glance. Pure visual — no interaction.
+// Tiny filled dot at the anchor's connection point. 6px diameter,
+// tinted with the author's color. Used both as the always-visible
+// "this comment is attached here" marker and as the only chrome that
+// remains when the master eye is muted. Pure visual — no interaction.
 function CommentAnchorDot({ x, y, color, count = 1 }) {
+  const SIZE = 6;
   return (
     <div className="canvas-comment-anchor-dot"
          title={count === 1 ? '1 comment' : `${count} comments`}
          style={{
            position: 'absolute',
-           left: x - 6, top: y - 6,
-           width: 12, height: 12,
+           left: x - SIZE / 2, top: y - SIZE / 2,
+           width: SIZE, height: SIZE,
            borderRadius: '50%',
            background: color,
-           boxShadow: `0 0 0 2px var(--bg-1)`,
+           boxShadow: `0 0 0 1.5px var(--bg-1)`,
            pointerEvents: 'none',
          }} />
+  );
+}
+
+// Optional thin connector line — drawn only when the bubble has been
+// dragged far enough from its anchor that the relationship isn't
+// immediately obvious. Solid 1px non-scaling stroke, tinted by author.
+function CommentConnectorLine({ ax, ay, bx, by, color }) {
+  const PAD = 8;
+  const minX = Math.min(ax, bx) - PAD;
+  const minY = Math.min(ay, by) - PAD;
+  const w = Math.abs(bx - ax) + PAD * 2;
+  const h = Math.abs(by - ay) + PAD * 2;
+  return (
+    <svg className="canvas-comment-connector-line"
+         width={w} height={h}
+         viewBox={`${minX} ${minY} ${w} ${h}`}
+         style={{
+           position: 'absolute',
+           left: minX, top: minY,
+           pointerEvents: 'none',
+           overflow: 'visible',
+         }}>
+      <line x1={ax} y1={ay} x2={bx} y2={by}
+            stroke={color}
+            strokeOpacity="0.45"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke" />
+    </svg>
   );
 }
 

@@ -336,19 +336,34 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(await hasCssRule(page, /\.comment-archive-tag\.is-hidden/)).toBe(true);
   });
 
-  test('comment anchor dot is the in-place affordance when layer is muted', async ({ page }) => {
-    // The connector line was dropped. When commentsVisible is false,
-    // the layer renders small CommentAnchorDot circles instead so
-    // users can still see WHICH cards/groups have comments.
+  test('comment anchor dot ships + thin line is conditional', async ({ page }) => {
+    // Small dot at the connection point is always rendered. A thin
+    // connector line is rendered only when the bubble is far enough
+    // away from its anchor that proximity wouldn't communicate the
+    // attachment.
     await go(page);
     expect(await hasCssRule(page, /\.canvas-comment-anchor-dot/)).toBe(true);
-    // Bundle should reference the helper + drop the old connector.
     const html = await (await page.request.get('/?local=1')).text();
     const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
     if (!m) return;
     const bundle = await (await page.request.get(m[1])).text();
-    expect(bundle.includes('CommentAnchorDot')).toBe(true);
-    expect(bundle.includes('canvas-comment-connector')).toBe(false);
+    expect(bundle.includes('CommentConnectorLine')).toBe(true);
+    expect(bundle.includes('anchorDotPoint')).toBe(true);
+    expect(bundle.includes('anchorPointFromBase')).toBe(true);
+  });
+
+  test('drag race fix — baseRef chains rapid drags off the latest commit', async ({ page }) => {
+    // Without baseRef, computing patch.offset_x from the (stale) prop
+    // meant a second drag while the first commit's realtime hadn't
+    // landed yet would clobber position. The baseRef is updated
+    // synchronously on commit; the bundle should still ship that
+    // helper. Guard so future refactors don't quietly drop it.
+    await page.goto('/?local=1');
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    expect(bundle.includes('baseRef')).toBe(true);
   });
 
   test('eye toggle bulk-unhides + right-click is propagation-safe', async ({ page }) => {
