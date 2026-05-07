@@ -20,6 +20,9 @@ import { refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
 import './lib/entityKinds.js';
 import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
+import { SidebarTags } from './components/SidebarTags.jsx';
+import { TagDetailView } from './components/TagDetailView.jsx';
+import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
 import { AccountSettings } from './components/AccountSettings.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
@@ -1014,7 +1017,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const mutators = mainMutatorsFull;
 
   const [currentSurface, setCurrentSurface] = useState('board');
-  //   'board' = existing canvas/doc surface; 'home' = HomeGraph
+  //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
+  //   'tag'   = TagDetailView keyed by activeTag
+  const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
+  const openTagSurface = (tag) => {
+    setActiveTag(tag);
+    setCurrentSurface('tag');
+  };
+  // Workspace tags drive the sidebar Tags section. We pass the same
+  // list down so the count badges + sort ordering line up with the
+  // canvas chip surfaces.
+  const wsTagsForSidebar = useWorkspaceTags({ workspaceId: workspace.id, boardId: null });
 
   // Track which doc-card overlay (if any) is currently open + its active
   // page + scroll. Doc cards are docs nested inside canvas boards, so
@@ -1665,6 +1678,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
           />
 
+          <SidebarTags
+            workspaceId={workspace.id}
+            userId={user.id}
+            tags={wsTagsForSidebar.tags}
+            activeTagId={currentSurface === 'tag' ? activeTag?.id : null}
+            onOpenTag={openTagSurface}
+            onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
+          />
+
           <div className="sb-eyebrow">BOARDS</div>
           <SidebarBoardTree
             boards={boards}
@@ -1783,6 +1805,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               if (target?.kind === 'board') setStack([target.id]);
               if (target?.kind === 'card')  setStack([target.boardId]);
               if (target?.kind === 'doc')   { /* doc cards open inside their board canvas; future wiring */ }
+            }}
+          />
+        ) : currentSurface === 'tag' && activeTag ? (
+          <TagDetailView
+            tag={activeTag}
+            onClose={() => { setActiveTag(null); setCurrentSurface('board'); }}
+            onOpenItem={(item) => {
+              // Item is a row from get_things_tagged: { kind, board_id, card_id, ... }.
+              // Resolve to the right surface and navigate.
+              setActiveTag(null);
+              setCurrentSurface('board');
+              if (item.kind === 'board') {
+                setStack([item.id]);
+              } else if (item.board_id) {
+                setStack([item.board_id]);
+              }
             }}
           />
         ) : (

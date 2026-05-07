@@ -65,6 +65,24 @@ export async function renameTag(tagId, name) {
   if (error) throw error;
 }
 
+// Workspace-wide application count per tag. Powers the sidebar count
+// badges. RLS scopes the count automatically.
+export async function listTagCounts(workspaceId) {
+  if (!workspaceId) return new Map();
+  const { data, error } = await supabase
+    .from('entity_links')
+    .select('target_id')
+    .eq('source_workspace', workspaceId)
+    .eq('target_kind', 'tag')
+    .eq('link_kind', 'applied');
+  if (error) throw error;
+  const counts = new Map();
+  for (const row of (data || [])) {
+    counts.set(row.target_id, (counts.get(row.target_id) || 0) + 1);
+  }
+  return counts;
+}
+
 // ── Per-source applications (card / board) ─────────────────────────────
 // All four functions below resolve to entity_links rows with
 // link_kind='applied'. The card_tags / board_tags views are kept as

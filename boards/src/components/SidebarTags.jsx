@@ -1,0 +1,276 @@
+// Workspace tags surface in the sidebar.
+//
+// Sits between the Messages / shared-boards section and the BOARDS
+// tree. Collapsible — expanded state persisted per-workspace in
+// localStorage. Each row shows a color dot + name + workspace-wide
+// count. Right-click opens a small management menu (Rename / Recolor
+// / Delete). The `+` button opens an inline input for fast tag
+// creation (use case: "I want to start tagging things with this
+// label" without leaving the canvas).
+//
+// Tag rows are draggable: dragging one onto a canvas card / doc card
+// (anywhere that listens to ENTITY_REF_MIME) applies the tag via the
+// existing entity-ref drop handlers.
+
+import { useEffect, useRef, useState } from 'react';
+import { ChevronRight, Plus, Tag as TagIcon } from '../lib/icons.js';
+import { Icon } from './Icon.jsx';
+import { ensureTag, renameTag, recolorTag, deleteTag, listTagCounts } from '../lib/tagsApi.js';
+import { supabase } from '../lib/supabase.js';
+import { useFeedback } from './AppFeedback.jsx';
+import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
+
+const EXPAND_KEY = 'soleil.tags.sb.expanded';
+function loadExpanded(workspaceId) {
+  if (typeof localStorage === 'undefined') return true;
+  try {
+    const raw = localStorage.getItem(`${EXPAND_KEY}.${workspaceId}`);
+    return raw === null ? true : raw === '1';
+  } catch (_) { return true; }
+}
+function saveExpanded(workspaceId, open) {
+  if (typeof localStorage === 'undefined') return;
+  try { localStorage.setItem(`${EXPAND_KEY}.${workspaceId}`, open ? '1' : '0'); } catch (_) {}
+}
+
+const TAG_PALETTE = [
+  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
+  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
+];
+function fallbackColor(slugOrName) {
+  const s = (slugOrName || '').toString();
+  let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
+}
+
+export function SidebarTags({
+  workspaceId, userId,
+  tags = [],
+  activeTagId,
+  onOpenTag,
+  onWorkspaceTagsChanged,        // optional: nudge a refresh after rename/recolor/delete
+}) {
+  const feedback = useFeedback();
+  const [open, setOpen] = useState(() => loadExpanded(workspaceId));
+  const [creating, setCreating] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [counts, setCounts] = useState(new Map());
+  const [menuFor, setMenuFor] = useState(null);  // { tag, x, y }
+  const inputRef = useRef(null);
+
+  // Reload counts on mount + whenever the entity_links → tag-applied
+  // realtime sub fires. Use the same channel pattern as elsewhere.
+  useEffect(() => {
+    if (!workspaceId) return;
+    let cancelled = false;
+    listTagCounts(workspaceId).then(c => { if (!cancelled) setCounts(c); }).catch(() => {});
+    const sfx = Math.random().toString(36).slice(2, 9);
+    const chan = supabase.channel(`sb-tag-counts:${workspaceId}:${sfx}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'entity_links',
+        filter: `source_workspace=eq.${workspaceId}`,
+      }, (payload) => {
+        const n = payload?.new || {};
+        const o = payload?.old || {};
+        if ((n.target_kind === 'tag' && n.link_kind === 'applied')
+         || (o.target_kind === 'tag' && o.link_kind === 'applied')) {
+          listTagCounts(workspaceId).then(c => { if (!cancelled) setCounts(c); }).catch(() => {});
+        }
+      })
+      .subscribe();
+    return () => {
+      cancelled = true;
+      try { supabase.removeChannel(chan); } catch (_) {}
+    };
+  }, [workspaceId]);
+
+  // Outside-click + Escape close the per-row menu.
+  useEffect(() => {
+    if (!menuFor) return;
+    const onDown = (e) => {
+      if (e.target.closest && e.target.closest('.sb-tag-menu')) return;
+      setMenuFor(null);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setMenuFor(null); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuFor]);
+
+  const toggle = () => {
+    setOpen(v => { const next = !v; saveExpanded(workspaceId, next); return next; });
+  };
+
+  const startCreate = () => {
+    setOpen(true);
+    saveExpanded(workspaceId, true);
+    setCreating(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+  const finishCreate = async (name) => {
+    setCreating(false);
+    setDraftName('');
+    const cleaned = (name || '').trim();
+    if (!cleaned) return;
+    try {
+      await ensureTag({ workspaceId, name: cleaned, kind: 'user', createdBy: userId });
+      onWorkspaceTagsChanged?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Tag create failed: ' + (err.message || err) });
+    }
+  };
+
+  const onContextMenuRow = (e, tag) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuFor({ tag, x: e.clientX, y: e.clientY });
+  };
+
+  const promptRename = async (tag) => {
+    setMenuFor(null);
+    const name = await feedback.prompt({
+      title: 'Rename tag', label: 'Name',
+      defaultValue: tag.name || '', confirmLabel: 'Rename',
+    });
+    if (name == null) return;
+    try {
+      await renameTag(tag.id, name);
+      onWorkspaceTagsChanged?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Rename failed: ' + (err.message || err) });
+    }
+  };
+  const promptRecolor = async (tag) => {
+    setMenuFor(null);
+    // Tiny inline color picker would be nicer; for v1 reuse feedback.prompt
+    // for the hex value. The standard ColorPicker can replace this later.
+    const color = await feedback.prompt({
+      title: 'Recolor tag', label: 'Hex (e.g. #4f8df8)',
+      defaultValue: tag.color || fallbackColor(tag.slug || tag.name),
+      confirmLabel: 'Save',
+    });
+    if (color == null) return;
+    const cleaned = (color || '').trim();
+    if (!cleaned) return;
+    try {
+      await recolorTag(tag.id, cleaned);
+      onWorkspaceTagsChanged?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Recolor failed: ' + (err.message || err) });
+    }
+  };
+  const promptDelete = async (tag) => {
+    setMenuFor(null);
+    const count = counts.get(tag.id) || 0;
+    const ok = await feedback.confirm({
+      title: 'Delete tag?',
+      message: count > 0
+        ? `${count} item${count === 1 ? '' : 's'} are tagged with "${tag.name}". Delete the tag and all of its applications?`
+        : `Delete "${tag.name}"?`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteTag(tag.id);
+      onWorkspaceTagsChanged?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
+    }
+  };
+
+  // Drag a tag row → ENTITY_REF_MIME so existing drop handlers on
+  // canvas / docs / messages know it's a tag and apply it.
+  const onDragStart = (e, tag) => {
+    try {
+      e.dataTransfer.setData(ENTITY_REF_MIME, JSON.stringify({ kind: 'tag', id: tag.id }));
+      e.dataTransfer.effectAllowed = 'copyLink';
+    } catch (_) {}
+  };
+
+  // Order: most-applied first (workspace-wide popularity), with
+  // alphabetical tie-break. Empty tags fall to the bottom.
+  const sorted = [...tags].sort((a, b) => {
+    const ca = counts.get(a.id) || 0;
+    const cb = counts.get(b.id) || 0;
+    if (ca !== cb) return cb - ca;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  return (
+    <div className="sb-tags">
+      <div className="sb-eyebrow sb-tags-head"
+           onClick={toggle}
+           role="button" tabIndex={0}>
+        <span className={`sb-tags-chev ${open ? 'is-open' : ''}`} aria-hidden="true">
+          <Icon as={ChevronRight} size={11} />
+        </span>
+        <span className="sb-tags-head-label">TAGS</span>
+        {tags.length > 0 && <span className="sb-tags-head-count">{tags.length}</span>}
+        <button className="sb-tags-add"
+                title="New tag"
+                onClick={(e) => { e.stopPropagation(); startCreate(); }}>
+          <Icon as={Plus} size={11} />
+        </button>
+      </div>
+
+      {open && (
+        <div className="sb-tags-body">
+          {creating && (
+            <form className="sb-tag-row sb-tag-row-create"
+                  onSubmit={(e) => { e.preventDefault(); finishCreate(draftName); }}>
+              <span className="sb-dot" style={{ background: fallbackColor(draftName) }} />
+              <input ref={inputRef}
+                     className="sb-tag-create-input"
+                     placeholder="New tag…"
+                     value={draftName}
+                     onChange={(e) => setDraftName(e.target.value)}
+                     onBlur={() => finishCreate(draftName)}
+                     onKeyDown={(e) => {
+                       if (e.key === 'Escape') { e.preventDefault(); setCreating(false); setDraftName(''); }
+                     }} />
+            </form>
+          )}
+
+          {sorted.length === 0 && !creating && (
+            <div className="sb-tags-empty">
+              No tags yet — anything you tag will appear here.
+            </div>
+          )}
+
+          {sorted.map(tag => {
+            const c = counts.get(tag.id) || 0;
+            const isActive = tag.id === activeTagId;
+            const dot = tag.color || fallbackColor(tag.slug || tag.name);
+            return (
+              <div key={tag.id}
+                   className={`sb-row sb-tag-row ${isActive ? 'active' : ''}`}
+                   draggable
+                   onDragStart={(e) => onDragStart(e, tag)}
+                   onClick={() => onOpenTag?.(tag)}
+                   onContextMenu={(e) => onContextMenuRow(e, tag)}
+                   title={`${tag.name}${c ? ` · ${c} applied` : ''}`}>
+                <span className="sb-dot" style={{ background: dot }} />
+                <span className="sb-row-label sb-tag-row-label">{tag.name}</span>
+                {c > 0 && <span className="sb-tag-row-count">{c}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {menuFor && (
+        <div className="sb-tag-menu"
+             style={{ position: 'fixed', left: menuFor.x, top: menuFor.y }}
+             role="menu">
+          <button className="sb-tag-menu-item" onClick={() => promptRename(menuFor.tag)}>Rename</button>
+          <button className="sb-tag-menu-item" onClick={() => promptRecolor(menuFor.tag)}>Recolor</button>
+          <button className="sb-tag-menu-item danger" onClick={() => promptDelete(menuFor.tag)}>Delete tag</button>
+        </div>
+      )}
+    </div>
+  );
+}

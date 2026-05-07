@@ -33,7 +33,7 @@ import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
-import { ensureTag, tagCard, untagCard, autoTagCardByTitle } from '../lib/tagsApi.js';
+import { ensureTag, tagCard, untagCard, tagBoard, autoTagCardByTitle } from '../lib/tagsApi.js';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -2368,6 +2368,10 @@ export function CanvasSurface({
     // Universal entity-ref drop: any EntityLink chip / picker row /
     // canvas card dragged here materializes as a 'link' chip card
     // pointing at the entity. Click the chip to navigate.
+    //
+    // Tag refs are special: dropping a tag onto a card / board card
+    // applies the tag (link_kind='applied'); dropping on empty space
+    // is a no-op rather than a confusing "tag link card."
     if (types.includes(ENTITY_REF_MIME) || types.includes(ENTITY_REF_LIST_MIME)) {
       e.preventDefault();
       const raw = e.dataTransfer.getData(ENTITY_REF_MIME);
@@ -2375,6 +2379,27 @@ export function CanvasSurface({
         let ref = null;
         try { ref = coerceRef(JSON.parse(raw)); } catch (_) {}
         if (ref) {
+          if (ref.kind === 'tag') {
+            // Find which canvas card is under the drop point.
+            const el = document.elementFromPoint(e.clientX, e.clientY);
+            const cardEl = el && el.closest && el.closest('[data-card-id]');
+            const droppedCardId = cardEl?.getAttribute('data-card-id') || null;
+            const droppedCard = droppedCardId
+              ? (cards || []).find(c => c.id === droppedCardId)
+              : null;
+            if (droppedCard) {
+              if (droppedCard.kind === 'board') {
+                tagBoard({ workspaceId, boardId: droppedCard.id, tagId: ref.id, source: 'user' })
+                  .catch(err => feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) }));
+              } else {
+                tagCard({ workspaceId, boardId: board.id, cardId: droppedCard.id, tagId: ref.id, source: 'user' })
+                  .catch(err => feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) }));
+              }
+            } else {
+              feedback.toast({ type: 'info', message: 'Drop a tag onto a card or board to apply it.' });
+            }
+            return;
+          }
           const w = 240, h = 70;
           mutators.addCard?.({
             id: `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,

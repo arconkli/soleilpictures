@@ -563,6 +563,27 @@ test.describe('Tags-as-entities unification (Phase A)', () => {
     expect(bundle.includes('link_kind')).toBe(true);
     expect(bundle.includes("'applied'") || bundle.includes('"applied"')).toBe(true);
   });
+
+  test('SidebarTags + TagDetailView CSS shipped (Phase B)', async ({ page }) => {
+    await go(page);
+    expect(await hasCssRule(page, /\.sb-tags\b/)).toBe(true);
+    expect(await hasCssRule(page, /\.sb-tag-row/)).toBe(true);
+    expect(await hasCssRule(page, /\.tag-detail/)).toBe(true);
+    expect(await hasCssRule(page, /\.tag-detail-row/)).toBe(true);
+  });
+
+  test('drag-tag handler routes to tagCard / tagBoard (no link card)', async ({ page }) => {
+    await page.goto('/?local=1');
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    // CanvasSurface drop handler now special-cases ref.kind === 'tag'
+    // and calls tagCard / tagBoard instead of creating a link card.
+    expect(bundle.includes('tagBoard')).toBe(true);
+    // get_things_tagged RPC powers the tag detail view.
+    expect(bundle.includes('get_things_tagged')).toBe(true);
+  });
 });
 
 // ═══════════════ ORPHAN-CARD SWEEP REGRESSION GUARD ═══════════════
