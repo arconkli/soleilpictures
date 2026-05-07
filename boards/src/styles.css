@@ -4407,19 +4407,25 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
      long. */
   max-width: 816px;
   min-height: 1056px;
-  background: transparent;
+  background: var(--bg-1);
   color: var(--ink-0);
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  border: 1px solid color-mix(in oklab, var(--ink-3) 14%, transparent);
+  border-radius: 2px;
+  /* Subtle layered shadow so the sheet lifts off the surface without
+     shouting. Hairline + a soft ambient drop. */
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.18);
   /* 1" margins all around. */
   padding: 96px;
 }
 [data-theme='light'] .doc-editor-wrap {
-  background: transparent;
-  color: var(--ink-0);
-  border: 0;
-  box-shadow: none;
+  background: #ffffff;
+  color: #1a1a1f;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.04),
+    0 6px 18px rgba(0, 0, 0, 0.06);
 }
 @media (max-width: 900px) {
   .doc-editor-wrap { padding: 72px 56px; }
