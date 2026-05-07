@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard, ShapeCard,
@@ -2047,7 +2047,7 @@ export function CanvasSurface({
                 const svgW = (maxX - minX) + 2 * (PAD + buf);
                 const svgH = (maxY - minY) + 2 * (PAD + buf);
                 return (
-                  <React.Fragment key={g.id}>
+                  <Fragment key={g.id}>
                     <svg className="group-outline group-hug" width={svgW} height={svgH}
                          style={{
                            position: 'absolute',
@@ -2078,7 +2078,7 @@ export function CanvasSurface({
                       ))}
                     </svg>
                     {labelEl}
-                  </React.Fragment>
+                  </Fragment>
                 );
               }
 
@@ -2087,7 +2087,7 @@ export function CanvasSurface({
               const w = (maxX - minX) + PAD * 2;
               const h = (maxY - minY) + PAD * 2;
               return (
-                <React.Fragment key={g.id}>
+                <Fragment key={g.id}>
                   <div className={`group-outline ${g.outline ? 'is-on' : 'is-off'}`}
                        style={{
                          position: 'absolute',
@@ -2097,7 +2097,7 @@ export function CanvasSurface({
                          pointerEvents: 'none',
                        }} />
                   {labelEl}
-                </React.Fragment>
+                </Fragment>
               );
             })}
           </div>
