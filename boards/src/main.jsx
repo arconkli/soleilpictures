@@ -6,6 +6,20 @@ import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { PublicBoardView } from './components/PublicBoardView.jsx';
 import './styles.css';
 
+// Expose a small set of internals for end-to-end tests when running in
+// local QA mode (`?local=1`). Lets Playwright assert invariants like
+// "readCards anchors id to the Y.Map key" without needing a live
+// Supabase / PartyKit setup.
+if (typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('local')) {
+  Promise.all([
+    import('./lib/yhelpers.js'),
+    import('yjs'),
+  ]).then(([helpers, Y]) => {
+    window.__soleilTest = { ...helpers, Y };
+  }).catch(() => {});
+}
+
 // /share/<uuid> = public read-only viewer. Bypasses auth entirely so
 // non-account-holders can preview a board without signing up. Any
 // other path falls through to the normal app + auth gate.

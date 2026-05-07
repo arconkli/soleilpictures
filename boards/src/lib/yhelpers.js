@@ -33,10 +33,18 @@ export function yMapToCard(ym) {
 }
 
 // Read all cards out of the cards Y.Map as a plain array of objects.
+// Anchors `card.id` to the Y.Map key — historically `id` was stored in
+// the value too, but if the two ever drift (peer corruption, an old
+// migration), code that does `m.delete(card.id)` becomes a silent no-op
+// and effects that depend on cards loop forever. The key is canonical.
 export function readCards(ydoc) {
   const cards = ydoc.getMap('cards');
   const out = [];
-  cards.forEach((ym) => { out.push(yMapToCard(ym)); });
+  cards.forEach((ym, key) => {
+    const card = yMapToCard(ym);
+    card.id = key;
+    out.push(card);
+  });
   return out;
 }
 

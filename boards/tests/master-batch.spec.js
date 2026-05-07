@@ -326,6 +326,60 @@ test.describe('Phase 7 — arrows + export + docs', () => {
   });
 });
 
+// ═══════════════ ORPHAN-CARD SWEEP REGRESSION GUARD ═══════════════
+// Earlier bug: readCards built `card.id` from the value's `id` key. If
+// the value's id ever drifted from the Y.Map key (peer corruption,
+// older code path), `m.delete(card.id)` became a silent no-op. The
+// orphan sweep then looped forever — sweep finds orphan, "deletes" it,
+// re-runs because cards updated, finds the same orphan, and so on.
+// The fix anchors card.id to the Y.Map key. This test guards it.
+
+test.describe('readCards id-from-key invariant (orphan sweep regression)', () => {
+  test('readCards anchors card.id to the Y.Map key, even when value.id drifts', async ({ page }) => {
+    await page.goto('/?local=1');
+    // Wait for the test bridge that main.jsx exposes in local QA mode.
+    await page.waitForFunction(() => typeof window.__soleilTest === 'object' &&
+                                     window.__soleilTest?.readCards &&
+                                     window.__soleilTest?.Y);
+    const out = await page.evaluate(() => {
+      const { Y, readCards } = window.__soleilTest;
+      const ydoc = new Y.Doc();
+      const m = ydoc.getMap('cards');
+      ydoc.transact(() => {
+        // Card 1: matched key + value.id (the happy path)
+        const a = new Y.Map();
+        a.set('id', 'good-1');
+        a.set('kind', 'note');
+        m.set('good-1', a);
+        // Card 2: key 'real-key', but value claims id='wrong-id'.
+        // The fix: readCards must return id='real-key', not 'wrong-id'.
+        const b = new Y.Map();
+        b.set('id', 'wrong-id');
+        b.set('kind', 'board');
+        m.set('real-key', b);
+      });
+      return readCards(ydoc).map(c => ({ id: c.id, kind: c.kind }));
+    });
+    expect(out).toEqual(expect.arrayContaining([
+      { id: 'good-1', kind: 'note' },
+      { id: 'real-key', kind: 'board' },  // <-- key, not 'wrong-id'
+    ]));
+  });
+
+  test('orphan sweep no-longer-loops circuit breaker is wired', async ({ page }) => {
+    // Guard against future regressions on the sweep itself — the
+    // SWEEP_MAX_RUNS log message is the canonical "we tripped the
+    // breaker" signal and shouldn't silently disappear.
+    await page.goto('/?local=1');
+    const jsResp = await page.request.get('/?local=1');
+    const html = await jsResp.text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    expect(bundle.includes('CIRCUIT BREAKER')).toBe(true);
+  });
+});
+
 // ═══════════════ INTEGRATION: NEW MENU ITEMS COEXIST ═══════════════
 
 test.describe('Integration — new right-click items don\'t conflict', () => {

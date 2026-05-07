@@ -807,37 +807,60 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // because deleteBoard returns count:0. Sweep them out automatically.
   // Only fires once boards has fully loaded so we don't nuke cards
   // that just haven't synced yet.
-  const orphanSweepRef = useRef({ wsId: null, runs: 0 });
+  // Circuit breaker — if we've swept the same workspace more than N
+  // times without converging, something pathological is happening
+  // (e.g. a peer is re-adding the card every tick, or the Y.Map key
+  // doesn't match what readCards thinks the card.id is). Stop firing
+  // and log loudly so the user/peer can diagnose instead of melting
+  // the tab into an infinite loop. Resets when the user switches
+  // boards or workspaces.
+  const SWEEP_MAX_RUNS = 5;
+  const orphanSweepRef = useRef({ wsId: null, boardId: null, runs: 0, tripped: false });
   useEffect(() => {
     if (!currentYDoc || boardsLoading) return;
-    // Reset the sweep counter when the workspace changes.
-    if (orphanSweepRef.current.wsId !== workspace.id) {
-      orphanSweepRef.current = { wsId: workspace.id, runs: 0 };
+    if (orphanSweepRef.current.wsId !== workspace.id ||
+        orphanSweepRef.current.boardId !== currentId) {
+      orphanSweepRef.current = { wsId: workspace.id, boardId: currentId, runs: 0, tripped: false };
     }
-    // Wait until we have at least the realtime subscription confirmed
-    // and the boards list is non-empty (every workspace has a Studio
-    // root). An empty boards list means we likely raced realtime —
-    // skip the sweep so we don't delete a peer's brand-new cards.
+    if (orphanSweepRef.current.tripped) return;
     if (!boards || Object.keys(boards).length === 0) return;
-    const orphans = yb.cards.filter(c => {
-      if (c.kind === 'board')     return !boards[c.id];
-      if (c.kind === 'boardlink') return !boards[c.target];
-      return false;
+
+    // Iterate the Y.Map keys DIRECTLY so the deletion always targets a
+    // real entry, regardless of what `card.id` says inside the value.
+    // (Historically a card's value.id could drift from its Y.Map key;
+    // looping on `card.id` then made `m.delete(...)` a silent no-op.)
+    const m = currentYDoc.getMap('cards');
+    const orphanKeys = [];
+    m.forEach((ym, key) => {
+      const kind = ym.get('kind');
+      if (kind === 'board' && !boards[key]) {
+        orphanKeys.push({ key, kind, target: key });
+      } else if (kind === 'boardlink') {
+        const target = ym.get('target');
+        if (!target || !boards[target]) {
+          orphanKeys.push({ key, kind, target });
+        }
+      }
     });
-    if (orphans.length === 0) return;
+    if (orphanKeys.length === 0) return;
+
+    orphanSweepRef.current.runs++;
+    if (orphanSweepRef.current.runs > SWEEP_MAX_RUNS) {
+      orphanSweepRef.current.tripped = true;
+      console.warn('[boards] orphan-card sweep CIRCUIT BREAKER tripped — orphans persist after',
+                   SWEEP_MAX_RUNS, 'runs', { orphanKeys, knownBoards: Object.keys(boards) });
+      return;
+    }
+
     console.log('[boards] orphan-card sweep', {
       currentBoardId: currentId,
-      orphans: orphans.map(c => ({ cardId: c.id, kind: c.kind, target: c.target || c.id })),
+      run: orphanSweepRef.current.runs,
+      orphans: orphanKeys,
       knownBoardCount: Object.keys(boards).length,
     });
-    const ids = orphans.map(c => c.id);
-    // Direct Y.Doc removal — DON'T cascade to deleteBoard, the
-    // boards row is already gone.
-    const m = currentYDoc.getMap('cards');
     currentYDoc.transact(() => {
-      ids.forEach(id => { if (m.has(id)) m.delete(id); });
+      orphanKeys.forEach(({ key }) => { if (m.has(key)) m.delete(key); });
     }, 'local');
-    orphanSweepRef.current.runs++;
   }, [currentYDoc, yb.cards, boards, currentId, boardsLoading, workspace.id]);
 
   // ── New workspace ────────────────────────────────────────────────────────
