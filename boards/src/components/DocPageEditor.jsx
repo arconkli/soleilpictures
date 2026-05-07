@@ -24,7 +24,11 @@ import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { MentionExtension } from './docExtensions/MentionExtension.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
-import { BlockHandleExtension } from './DocBlockHandle.jsx';
+// Block-handle extension removed — the docs feel less Notion-y / more
+// flowing-document without the per-block drag-dots in the gutter.
+// Keep the import sentinel so the file isn't accidentally re-added
+// unless someone explicitly wants it back.
+// import { BlockHandleExtension } from './DocBlockHandle.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { LinkPopover } from './LinkPopover.jsx';
 import { LinkHoverCard } from './LinkHoverCard.jsx';
@@ -504,7 +508,8 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
         onInsertBoardEmbed: pickBoardEmbed,
       }),
       FindHighlightExtension,
-      BlockHandleExtension,
+      // BlockHandleExtension removed — per-block drag handles felt
+      // too Notion-y; Google-Docs-style flowing prose works better.
       ExtraShortcuts,
       mentionExt,
     ],
