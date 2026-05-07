@@ -807,61 +807,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // because deleteBoard returns count:0. Sweep them out automatically.
   // Only fires once boards has fully loaded so we don't nuke cards
   // that just haven't synced yet.
-  // Circuit breaker — if we've swept the same workspace more than N
-  // times without converging, something pathological is happening
-  // (e.g. a peer is re-adding the card every tick, or the Y.Map key
-  // doesn't match what readCards thinks the card.id is). Stop firing
-  // and log loudly so the user/peer can diagnose instead of melting
-  // the tab into an infinite loop. Resets when the user switches
-  // boards or workspaces.
-  const SWEEP_MAX_RUNS = 5;
-  const orphanSweepRef = useRef({ wsId: null, boardId: null, runs: 0, tripped: false });
-  useEffect(() => {
-    if (!currentYDoc || boardsLoading) return;
-    if (orphanSweepRef.current.wsId !== workspace.id ||
-        orphanSweepRef.current.boardId !== currentId) {
-      orphanSweepRef.current = { wsId: workspace.id, boardId: currentId, runs: 0, tripped: false };
-    }
-    if (orphanSweepRef.current.tripped) return;
-    if (!boards || Object.keys(boards).length === 0) return;
-
-    // Iterate the Y.Map keys DIRECTLY so the deletion always targets a
-    // real entry, regardless of what `card.id` says inside the value.
-    // (Historically a card's value.id could drift from its Y.Map key;
-    // looping on `card.id` then made `m.delete(...)` a silent no-op.)
-    const m = currentYDoc.getMap('cards');
-    const orphanKeys = [];
-    m.forEach((ym, key) => {
-      const kind = ym.get('kind');
-      if (kind === 'board' && !boards[key]) {
-        orphanKeys.push({ key, kind, target: key });
-      } else if (kind === 'boardlink') {
-        const target = ym.get('target');
-        if (!target || !boards[target]) {
-          orphanKeys.push({ key, kind, target });
-        }
-      }
-    });
-    if (orphanKeys.length === 0) return;
-
-    orphanSweepRef.current.runs++;
-    if (orphanSweepRef.current.runs > SWEEP_MAX_RUNS) {
-      orphanSweepRef.current.tripped = true;
-      console.warn('[boards] orphan-card sweep CIRCUIT BREAKER tripped — orphans persist after',
-                   SWEEP_MAX_RUNS, 'runs', { orphanKeys, knownBoards: Object.keys(boards) });
-      return;
-    }
-
-    console.log('[boards] orphan-card sweep', {
-      currentBoardId: currentId,
-      run: orphanSweepRef.current.runs,
-      orphans: orphanKeys,
-      knownBoardCount: Object.keys(boards).length,
-    });
-    currentYDoc.transact(() => {
-      orphanKeys.forEach(({ key }) => { if (m.has(key)) m.delete(key); });
-    }, 'local');
-  }, [currentYDoc, yb.cards, boards, currentId, boardsLoading, workspace.id]);
+  // Orphan cards (board / boardlink references whose target id isn't in
+  // the workspace's boards table) are HIDDEN at the render layer rather
+  // than deleted from the Y.Doc.
+  //
+  // History: we used to delete them via m.delete() on every sweep. That
+  // worked reliably for cards we ourselves added on the same session,
+  // but produced a render-loop in two real scenarios:
+  //   1. A peer (or the user's other tab) holds the card in their state
+  //      and the y-partykit sync re-adds it faster than we delete it.
+  //   2. The Y.Map key drifts from value.id — m.delete(card.id) becomes
+  //      a silent no-op, sweep finds the same orphan again, repeat.
+  // Either way the visible symptom was a board card flashing on and off
+  // forever. Hiding instead of deleting sidesteps both: the data stays,
+  // sync doesn't fight us, and if access is later restored the card
+  // simply reappears.
+  //
+  // Filtering happens in `currentCards` below — see useMemo there.
 
   // ── New workspace ────────────────────────────────────────────────────────
   const addNewWorkspace = async () => {
@@ -1488,7 +1450,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   const crumbs = stack.map(id => ({ id, name: boards[id]?.name || (id === rootBoard.id ? rootBoard.name : id) }));
   const ybReadyForCurrent = Boolean(currentYDoc);
-  const currentCards = ybReadyForCurrent ? yb.cards : [];
+  // Hide orphan board / boardlink cards at the render layer. See the
+  // long comment in the orphan-sweep section above for why we filter
+  // instead of deleting from the Y.Doc. Cheap O(n) filter — runs only
+  // when cards or boards change.
+  const isOrphanRef = (c) => {
+    if (c.kind === 'board')     return !boards[c.id];
+    if (c.kind === 'boardlink') return !boards[c.target];
+    return false;
+  };
+  const currentCards = useMemo(() => {
+    const all = ybReadyForCurrent ? yb.cards : [];
+    if (boardsLoading) return all;             // don't hide before boards arrive
+    if (!boards || Object.keys(boards).length === 0) return all;
+    return all.filter(c => !isOrphanRef(c));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ybReadyForCurrent, yb.cards, boards, boardsLoading]);
   const currentArrows = ybReadyForCurrent ? yb.arrows : [];
   const currentStrokes = ybReadyForCurrent ? yb.strokes : [];
 
@@ -1506,7 +1483,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!board) return <div className="surface-wrap" />;
     const ready = yh.ready && yh.boardId === board.id;
     const yd = ready ? yh.ydoc : null;
-    const cards = ready ? yh.cards : [];
+    // Hide orphan board / boardlink references — see the comment above
+    // currentCards. We filter at the render layer for both panes (main +
+    // split) so a stale Y.Doc entry never produces a flashing card.
+    const rawCards = ready ? yh.cards : [];
+    const cards = (boardsLoading || !boards || Object.keys(boards).length === 0)
+      ? rawCards
+      : rawCards.filter(c => !isOrphanRef(c));
     const arrows = ready ? yh.arrows : [];
     const strokes = ready ? yh.strokes : [];
     const groups = ready ? (yh.groups || []) : [];

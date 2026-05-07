@@ -366,17 +366,21 @@ test.describe('readCards id-from-key invariant (orphan sweep regression)', () =>
     ]));
   });
 
-  test('orphan sweep no-longer-loops circuit breaker is wired', async ({ page }) => {
-    // Guard against future regressions on the sweep itself — the
-    // SWEEP_MAX_RUNS log message is the canonical "we tripped the
-    // breaker" signal and shouldn't silently disappear.
+  test('orphan board cards are hidden at the render layer (no destructive sweep)', async ({ page }) => {
+    // We replaced the delete-from-Y.Doc sweep with a render-layer
+    // filter. The bundle should NOT contain the old circuit breaker
+    // log (proof the sweep is gone) and SHOULD contain the comment
+    // explaining why we filter instead.
     await page.goto('/?local=1');
-    const jsResp = await page.request.get('/?local=1');
-    const html = await jsResp.text();
+    const html = await (await page.request.get('/?local=1')).text();
     const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
     if (!m) return;
     const bundle = await (await page.request.get(m[1])).text();
-    expect(bundle.includes('CIRCUIT BREAKER')).toBe(true);
+    // Old destructive path is gone.
+    expect(bundle.includes('orphan-card sweep CIRCUIT BREAKER tripped')).toBe(false);
+    // Filter-based logic is in place — `isOrphanRef` is the helper
+    // name used in App.jsx for the render-time check.
+    expect(bundle.includes('isOrphanRef')).toBe(true);
   });
 });
 
