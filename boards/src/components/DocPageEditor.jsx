@@ -94,6 +94,28 @@ const ExtraShortcuts = Extension.create({
       // Subscript/superscript: ⌘. / ⌘,
       'Mod-.': () => this.editor.chain().focus().toggleSuperscript().run(),
       'Mod-,': () => this.editor.chain().focus().toggleSubscript().run(),
+      // Tab in lists: indent / outdent. Outside a list, fall back to a
+      // 2-space tab so Tab still does something instead of yanking focus.
+      Tab: () => {
+        const ed = this.editor;
+        if (ed.can().sinkListItem('listItem')) {
+          return ed.chain().focus().sinkListItem('listItem').run();
+        }
+        if (ed.can().sinkListItem('taskItem')) {
+          return ed.chain().focus().sinkListItem('taskItem').run();
+        }
+        return ed.chain().focus().insertContent('  ').run();
+      },
+      'Shift-Tab': () => {
+        const ed = this.editor;
+        if (ed.can().liftListItem('listItem')) {
+          return ed.chain().focus().liftListItem('listItem').run();
+        }
+        if (ed.can().liftListItem('taskItem')) {
+          return ed.chain().focus().liftListItem('taskItem').run();
+        }
+        return true;
+      },
     };
   },
 });

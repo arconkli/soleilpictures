@@ -75,12 +75,16 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
     if (previewBaseRef.current === null) {
       previewBaseRef.current = editor.getAttributes('textStyle')?.fontFamily ?? '';
     }
+    // Re-focus the editor on every preview tick so the selection stays
+    // visually highlighted while the user hovers fonts. Without this,
+    // the browser greys out the selection (focus is technically on the
+    // popover row), making it hard to see what's being restyled.
     if (css == null) {
       const base = previewBaseRef.current;
-      if (base) editor.chain().setMeta('addToHistory', false).setFontFamily(base).run();
-      else      editor.chain().setMeta('addToHistory', false).unsetFontFamily().run();
+      if (base) editor.chain().focus().setMeta('addToHistory', false).setFontFamily(base).run();
+      else      editor.chain().focus().setMeta('addToHistory', false).unsetFontFamily().run();
     } else {
-      editor.chain().setMeta('addToHistory', false).setFontFamily(css).run();
+      editor.chain().focus().setMeta('addToHistory', false).setFontFamily(css).run();
     }
   };
   const cancelPreview = () => {

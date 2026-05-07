@@ -8,9 +8,11 @@
 //   localState.docCaret     = { boardId, pageId, x, y }   // typing-caret px
 //   localState.docSelection = { boardId, pageId, rects: [...] }
 //
-// Coords are in `.doc-paper` element-relative pixels with paper.scrollTop
-// added to y so they survive scroll. The doc paper has a fixed max-width,
-// so peers see the same x as long as both windows are at least that wide.
+// Coords are in `.doc-editor-wrap` element-relative pixels. The wrap is a
+// fixed-width sheet (816px) centered inside .doc-paper, so wrap-relative
+// coords are identical between peers regardless of window width — peers
+// no longer see each other's cursor floating off to the side because of
+// different viewport widths.
 
 import { useEffect, useRef, useState } from 'react';
 import { LiveCursor } from './primitives.jsx';
@@ -110,7 +112,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
     return () => clearInterval(id);
   }, [peers.length]);
 
-  // ── Write our local mouse cursor (paper-relative) ──────────────────────
+  // ── Write our local mouse cursor (editor-wrap-relative) ────────────────
   useEffect(() => {
     const aw = getAwareness?.();
     if (!aw || !paperEl) return;
@@ -123,10 +125,12 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
       pending = null;
     };
     const onMove = (e) => {
-      const r = paperEl.getBoundingClientRect();
+      const wrap = paperEl.querySelector('.doc-editor-wrap');
+      if (!wrap) return;
+      const wr = wrap.getBoundingClientRect();
       pending = {
-        x: Math.round(e.clientX - r.left),
-        y: Math.round(e.clientY - r.top + paperEl.scrollTop),
+        x: Math.round(e.clientX - wr.left),
+        y: Math.round(e.clientY - wr.top),
       };
       if (!timer) timer = setTimeout(flush, 30);
     };
@@ -163,10 +167,12 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
         const sel = editor.state.selection;
         const view = editor.view;
         if (!view) return;
-        const r = paperEl.getBoundingClientRect();
+        const wrap = paperEl.querySelector('.doc-editor-wrap');
+        if (!wrap) return;
+        const r = wrap.getBoundingClientRect();
         const headCoords = view.coordsAtPos(sel.head);
         const x = Math.round(headCoords.left - r.left);
-        const y = Math.round(headCoords.top  - r.top + paperEl.scrollTop);
+        const y = Math.round(headCoords.top  - r.top);
         let rects = null;
         if (!sel.empty) {
           const startCoords = view.coordsAtPos(sel.from);
@@ -180,14 +186,14 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
             const rs = Array.from(range.getClientRects());
             rects = rs.map(rc => ({
               left: Math.round(rc.left - r.left),
-              top: Math.round(rc.top  - r.top + paperEl.scrollTop),
+              top: Math.round(rc.top  - r.top),
               width: Math.round(rc.width),
               height: Math.round(rc.height),
             })).filter(rc => rc.width > 0 && rc.height > 0);
           } catch (_) {
             rects = [{
               left: Math.round(startCoords.left - r.left),
-              top: Math.round(startCoords.top  - r.top + paperEl.scrollTop),
+              top: Math.round(startCoords.top  - r.top),
               width: Math.max(2, Math.round(endCoords.left - startCoords.left)),
               height: Math.max(16, Math.round(endCoords.bottom - startCoords.top)),
             }];
@@ -215,7 +221,22 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
   }, [getAwareness, paperEl, editor, boardId, pageId]);
 
   // ── Render peer overlays ───────────────────────────────────────────────
+  // Cursor / caret coords are stored in editor-wrap-relative space (so peers
+  // render at the same content position regardless of viewport width). At
+  // render time, compute the wrap's offset within the layer (.doc-paper)
+  // so we shift each rendered position from wrap-relative back into paper-
+  // layer-relative.
   const now = performance.now();
+  let offX = 0, offY = 0;
+  if (paperEl) {
+    const wrap = paperEl.querySelector('.doc-editor-wrap');
+    if (wrap) {
+      const wr = wrap.getBoundingClientRect();
+      const pr = paperEl.getBoundingClientRect();
+      offX = wr.left - pr.left;
+      offY = wr.top  - pr.top + paperEl.scrollTop;
+    }
+  }
   return (
     <div className="doc-presence-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 999990 }}>
       {peers.map(p => {
@@ -228,7 +249,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
                    className="doc-peer-selection"
                    style={{
                      position: 'absolute',
-                     left: rc.left, top: rc.top,
+                     left: rc.left + offX, top: rc.top + offY,
                      width: rc.width, height: rc.height,
                      background: p.user.color || '#4f8df8',
                      opacity: 0.22,
@@ -252,8 +273,8 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
                  className={`doc-peer-caret ${isTyping ? 'doc-peer-caret--typing' : ''}`}
                  style={{
                    position: 'absolute',
-                   left: p.caret.x,
-                   top: p.caret.y,
+                   left: p.caret.x + offX,
+                   top: p.caret.y + offY,
                    borderLeft: `2px solid ${p.user.color || '#4f8df8'}`,
                    height: '1.2em',
                    pointerEvents: 'none',
@@ -276,7 +297,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
         if (p.cursor) {
           els.push(
             <LiveCursor key={'cursor-' + p.clientId}
-                        x={p.cursor.x} y={p.cursor.y}
+                        x={p.cursor.x + offX} y={p.cursor.y + offY}
                         name={(p.user.name || '?').split(' ')[0]}
                         color={p.user.color || '#4f8df8'} />
           );

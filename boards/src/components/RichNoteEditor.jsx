@@ -159,6 +159,15 @@ export function RichNoteEditor({
 
   const onKey = (e) => {
     if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    if (e.key === 'Tab') {
+      // Default Tab behavior is to move focus out of the editor, which
+      // breaks the writing flow inside a note. Insert 2 spaces instead;
+      // Shift-Tab is a no-op (un-indent isn't meaningful for free-form
+      // notes).
+      e.preventDefault();
+      if (e.shiftKey) return;
+      try { document.execCommand('insertText', false, '  '); } catch (_) {}
+    }
   };
 
   const onBodyClick = (e) => {

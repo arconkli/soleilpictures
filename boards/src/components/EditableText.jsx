@@ -39,7 +39,12 @@ export function EditableText({
 
   useEffect(() => {
     if (editing && ref.current) {
-      ref.current.focus();
+      // Avoid scrollIntoView side-effect: the canvas is transformed, and
+      // a browser auto-scroll-into-view on a focused contenteditable
+      // can shove the entire page out of place — manifests as the
+      // whole canvas appearing to go black when starting an inline edit.
+      try { ref.current.focus({ preventScroll: true }); }
+      catch (_) { ref.current.focus(); }
       const range = document.createRange();
       range.selectNodeContents(ref.current);
       if (!selectAllOnFocus) range.collapse(false);

@@ -1402,6 +1402,13 @@ body {
   box-shadow: var(--shadow-1);
 }
 .card:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); z-index: 5; }
+/* Shape cards render a non-rectangular SVG primitive (ellipse, triangle,
+   etc.) — but the wrapper is still a rectangle. The wrapper's
+   box-shadow appears as a rectangular halo around the actual shape,
+   which reads as "the previous shape's shadow stuck around" when you
+   morph rect → ellipse. Strip the wrapper shadow for shape cards. */
+.card.card-kind-shape,
+.card.card-kind-shape:hover { box-shadow: none; }
 
 .arrows-layer { color: var(--ink-3); pointer-events: none; overflow: visible; }
 .arrow-label {
@@ -2098,6 +2105,8 @@ body {
   border-radius: var(--radius-lg);
   padding: 16px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 6px 14px rgba(0,0,0,.18);
 }
 [data-theme='light'] .note {
@@ -2122,7 +2131,16 @@ body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
+  /* Note has a fixed height (canvas card bounds). When content overflows,
+     scroll inside the body instead of clipping silently. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
+.note-body::-webkit-scrollbar { width: 6px; }
+.note-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 3px; }
+[data-theme='light'] .note-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,.16); }
 .note-body a {
   color: var(--ink-0);
   text-decoration: underline;
@@ -3860,6 +3878,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   position: absolute; inset: 14px;
   display: block;
   overflow: hidden;
+  /* Quiet the preview slightly so it reads as a representation of the
+     board's content rather than competing with the canvas around it. */
+  filter: brightness(0.94) saturate(0.92);
+  opacity: 0.92;
+}
+[data-theme='light'] .bc-thumb {
+  filter: brightness(0.98) saturate(0.94);
+  opacity: 0.94;
 }
 
 /* List-mode board card on canvas — no thumbnail, just a clickable list of
@@ -4473,11 +4499,17 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .tt-editor h1, .tt-editor h2, .tt-editor h3,
 .tt-editor h4, .tt-editor h5, .tt-editor h6 {
   font-family: aileron, -apple-system, system-ui, sans-serif;
-  letter-spacing: -0.012em;
-  line-height: 1.2;
-  margin: 1.5em 0 .4em;
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+  margin: 1.6em 0 .35em;
   color: #f5f5f7;
 }
+/* Reduce top margin when a heading is the first thing in a section
+   following another heading — keeps tight nested hierarchy looking
+   intentional rather than gappy. */
+.tt-editor h1 + h2,
+.tt-editor h2 + h3,
+.tt-editor h3 + h4 { margin-top: .6em; }
 [data-theme='light'] .tt-editor h1, [data-theme='light'] .tt-editor h2,
 [data-theme='light'] .tt-editor h3, [data-theme='light'] .tt-editor h4,
 [data-theme='light'] .tt-editor h5, [data-theme='light'] .tt-editor h6 { color: #0a0a0c; }
@@ -4553,12 +4585,12 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .link-popover-tile-title { font: 600 12px/1.3 var(--font-sans); color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .link-popover-tile-sub { color: var(--ink-3); }
 
-.tt-editor h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.025em; }
-.tt-editor h2 { font-size: 25px; font-weight: 700; }
-.tt-editor h3 { font-size: 19px; font-weight: 600; }
-.tt-editor h4 { font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-1); }
-.tt-editor h5 { font-size: 14px; font-weight: 700; color: var(--ink-1); }
-.tt-editor h6 { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.tt-editor h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.028em; line-height: 1.12; }
+.tt-editor h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.18; }
+.tt-editor h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.012em; line-height: 1.25; }
+.tt-editor h4 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-1); }
+.tt-editor h5 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-1); }
+.tt-editor h6 { font-size: 12px; font-weight: 600; color: var(--ink-2); font-style: italic; }
 .tt-editor p { margin: .55em 0; }
 .tt-editor ul, .tt-editor ol { margin: .55em 0; padding-left: 26px; }
 .tt-editor li { margin: .2em 0; }
@@ -4566,8 +4598,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .tt-editor li::marker { color: var(--ink-3); }
 .tt-editor blockquote {
   margin: .8em 0;
-  padding: .2em 0 .2em 14px;
-  border-left: 3px solid var(--line-3);
+  padding: .15em 0 .15em 24px;
+  border-left: 1px solid color-mix(in oklab, var(--ink-3) 30%, transparent);
   color: var(--ink-1);
   font-style: italic;
 }
@@ -4576,12 +4608,15 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-top: 1px solid var(--line-2);
   margin: 1.6em 0;
 }
+/* De-boxed code: drop the 1px border + radius; rely on a soft tint of bg-2
+   to delineate the snippet. Inline gets a tiny pad; the block gets a left
+   accent rule (soleil) instead of a full bordered card. */
 .tt-editor code, .tt-editor .tt-code {
   font-family: var(--font-mono);
   font-size: 13.5px;
-  background: var(--bg-2);
-  border: 1px solid var(--line-1);
-  border-radius: 4px;
+  background: color-mix(in oklab, var(--bg-2) 60%, transparent);
+  border: 0;
+  border-radius: 0;
   padding: 1px 5px;
 }
 .tt-editor pre.tt-code {
@@ -4589,7 +4624,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   padding: 12px 14px;
   white-space: pre;
   overflow-x: auto;
-  border-radius: 8px;
+  border-radius: 0;
+  border-left: 4px solid color-mix(in oklab, var(--soleil) 70%, transparent);
 }
 .tt-editor pre.tt-code code { background: transparent; border: 0; padding: 0; }
 /* .tt-editor .tt-link — base styling now lives on the universal
@@ -4609,23 +4645,33 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   margin: 1em auto;
   box-shadow: 0 4px 16px rgba(0,0,0,.25);
 }
+/* De-boxed tables: hairline outline only on top + bottom of the table,
+   plus quiet column dividers. No header-cell fill — the header reads as
+   a header via the bottom rule and the bold weight. */
 .tt-editor .tt-table {
   border-collapse: collapse;
   margin: 1em 0;
   width: 100%;
   table-layout: fixed;
   font-size: 14px;
+  border-top: 1px solid color-mix(in oklab, var(--ink-3) 30%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--ink-3) 30%, transparent);
 }
 .tt-editor .tt-table td, .tt-editor .tt-table th {
-  border: 1px solid var(--line-2);
+  border: 0;
+  border-right: 1px solid color-mix(in oklab, var(--soleil) 14%, transparent);
   padding: 6px 9px;
   position: relative;
   vertical-align: top;
 }
+.tt-editor .tt-table td:last-child, .tt-editor .tt-table th:last-child {
+  border-right: 0;
+}
 .tt-editor .tt-table th {
-  background: var(--bg-2);
+  background: transparent;
   font-weight: 600;
   text-align: left;
+  border-bottom: 1px solid color-mix(in oklab, var(--ink-3) 35%, transparent);
 }
 .tt-editor mark {
   background: #fff7a8;
@@ -5088,18 +5134,21 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-foot-spacer { flex: 1 1 auto; }
 .doc-foot-counts { font: 500 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-3); }
 
-/* Block handle (Notion-style) */
+/* Block handle — kept as a quiet 6-dot affordance for any leftover use.
+   The Notion-style per-block drag UI was removed; if the handle ever
+   re-renders, it should read as a hint, not a button. */
 .doc-block-handle {
   display: grid; place-items: center;
-  width: 18px; height: 22px;
-  border-radius: 4px;
-  color: var(--ink-3);
+  width: 14px; height: 14px;
+  color: color-mix(in oklab, var(--ink-3) 45%, transparent);
   cursor: grab;
-  transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+  transition: opacity var(--dur-fast) var(--ease);
   user-select: none;
   z-index: 4;
+  background: transparent;
+  border: 0;
 }
-.doc-block-handle:hover { background: var(--bg-hov); color: var(--ink-1); }
+.doc-block-handle:hover { color: var(--ink-2); background: transparent; }
 .doc-block-handle:active { cursor: grabbing; }
 
 /* ─────── Doc templates picker ─────── */
@@ -5661,12 +5710,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   font-size: 11px;
   line-height: 1.55;
   color: var(--ink-2);
+  /* Fill the available preview space with as much real first-page text
+     as fits — line-clamp keeps it from spilling past the page card. */
   display: -webkit-box;
-  -webkit-line-clamp: 6;
+  -webkit-line-clamp: 18;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.003em;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .doc-card-muted { color: var(--ink-3); font-style: italic; }
 .doc-card-foot {

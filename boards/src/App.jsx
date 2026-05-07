@@ -186,7 +186,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const sessionKey = `${SESSION_PREFIX}${user.id}.${workspace.id}`;
   const [initialSession] = useState(() => readSession(sessionKey));
 
-  const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [rootBoard.id]);
+  // On cold start, always open at the root board (the "first layer"). Don't
+  // restore a deep nav stack — users find it disorienting to land 4 boards
+  // deep on reload, especially when the in-between context (which sub-board
+  // they were comparing) has decayed from memory. Session-storage still
+  // restores splitId / viewOverride / splitRatio below.
+  const [stack, setStack] = useState(() => [rootBoard.id]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
   // Workspace switcher popover (in the sidebar header). Click-outside +

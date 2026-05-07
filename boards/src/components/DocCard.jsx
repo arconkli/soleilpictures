@@ -51,7 +51,10 @@ export function RichDocCard({
     try { localStorage.setItem(RATIO_KEY, String(sideRatio)); } catch (_) {}
   }, [sideRatio]);
 
-  const summary = (ydoc && scope?.pages) ? readDocSummary(ydoc, 220, scope) : { pages: [], firstText: '', firstPageName: '' };
+  // Pull a generous slice of the first page so the preview fills the blank
+  // area with actual prose (rather than 1-2 lines + empty space). 600 chars
+  // ≈ a paragraph-and-a-half of body copy at the preview's font size.
+  const summary = (ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : { pages: [], firstText: '', firstPageName: '' };
   const pageCount = summary.pages.length;
 
   const open = (m) => setMode(m);

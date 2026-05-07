@@ -176,6 +176,10 @@ export function CanvasSurface({
   const [selectedStrokes, setSelectedStrokes] = useState(() => new Set());
   const [selectedArrows, setSelectedArrows] = useState(() => new Set());
   const [drag, setDrag] = useState(null);
+  // While dragging, computeSnap fills this with the matched alignment lines
+  // so the canvas can render thin gold guides at those coords.
+  // { xs: [{ x, y0, y1 }], ys: [{ y, x0, x1 }] } — both in canvas-space.
+  const [snapHints, setSnapHints] = useState(null);
   const [resize, setResize] = useState(null);
   const [rotateState, setRotateState] = useState(null); // { id, rot }
   const [marquee, setMarquee] = useState(null);
@@ -816,10 +820,28 @@ export function CanvasSurface({
     const SNAP_PX = 6;
     const targetsX = []; // edges to align/abut on the X axis
     const targetsY = [];
+    // Per-target metadata so we can also draw a guide line that spans
+    // from min-y to max-y across all target cards sharing that x (and
+    // same for the y axis).
+    const targetXBounds = new Map(); // x → { y0, y1 }
+    const targetYBounds = new Map();
+    const extendBound = (m, key, lo, hi) => {
+      const cur = m.get(key);
+      if (!cur) m.set(key, { y0: lo, y1: hi });
+      else { cur.y0 = Math.min(cur.y0, lo); cur.y1 = Math.max(cur.y1, hi); }
+    };
     cards.forEach(card => {
       if (dragSet.has(card.id)) return;
-      targetsX.push(card.x, card.x + card.w, card.x + card.w / 2);
-      targetsY.push(card.y, card.y + card.h, card.y + card.h / 2);
+      const xs = [card.x, card.x + card.w, card.x + card.w / 2];
+      const ys = [card.y, card.y + card.h, card.y + card.h / 2];
+      xs.forEach(x => {
+        targetsX.push(x);
+        extendBound(targetXBounds, x, card.y, card.y + card.h);
+      });
+      ys.forEach(y => {
+        targetsY.push(y);
+        extendBound(targetYBounds, y, card.x, card.x + card.w);
+      });
     });
     // Bounding box of dragged group at start (for snapping the group as one).
     const dragBBoxStart = (() => {
@@ -843,24 +865,50 @@ export function CanvasSurface({
       const bottom = dragBBoxStart.maxY + rawDy;
       const cx     = (left + right) / 2;
       const cy     = (top + bottom) / 2;
-      let bestX = null, bestXDist = thresh + 0.001;
-      let bestY = null, bestYDist = thresh + 0.001;
+      let bestX = null, bestXDist = thresh + 0.001, bestXTarget = null;
+      let bestY = null, bestYDist = thresh + 0.001, bestYTarget = null;
       // X-axis: try to align left/right/center to any target X.
       for (const tx of targetsX) {
         for (const [edge, adjust] of [[left, tx - left], [right, tx - right], [cx, tx - cx]]) {
           const d = Math.abs(adjust);
-          if (d < bestXDist) { bestXDist = d; bestX = adjust; }
+          if (d < bestXDist) { bestXDist = d; bestX = adjust; bestXTarget = tx; }
         }
       }
       for (const ty of targetsY) {
         for (const [edge, adjust] of [[top, ty - top], [bottom, ty - bottom], [cy, ty - cy]]) {
           const d = Math.abs(adjust);
-          if (d < bestYDist) { bestYDist = d; bestY = adjust; }
+          if (d < bestYDist) { bestYDist = d; bestY = adjust; bestYTarget = ty; }
         }
+      }
+      // Compose visible guide hints out of the matched target lines plus
+      // the dragged group's bbox along the same axis (so the line spans
+      // both the source card and the aligned target).
+      const newDragBBox = {
+        x0: left + (bestX ?? 0), x1: right + (bestX ?? 0),
+        y0: top  + (bestY ?? 0), y1: bottom + (bestY ?? 0),
+      };
+      const xs = [];
+      const ys = [];
+      if (bestXTarget !== null) {
+        const b = targetXBounds.get(bestXTarget) || { y0: newDragBBox.y0, y1: newDragBBox.y1 };
+        xs.push({
+          x: bestXTarget,
+          y0: Math.min(b.y0, newDragBBox.y0),
+          y1: Math.max(b.y1, newDragBBox.y1),
+        });
+      }
+      if (bestYTarget !== null) {
+        const b = targetYBounds.get(bestYTarget) || { y0: newDragBBox.x0, y1: newDragBBox.x1 };
+        ys.push({
+          y: bestYTarget,
+          x0: Math.min(b.y0, newDragBBox.x0),
+          x1: Math.max(b.y1, newDragBBox.x1),
+        });
       }
       return {
         dx: rawDx + (bestX ?? 0),
         dy: rawDy + (bestY ?? 0),
+        hints: (xs.length || ys.length) ? { xs, ys } : null,
       };
     };
     setDrag({ ids: dragIds, dx: 0, dy: 0, startPositions });
@@ -870,8 +918,10 @@ export function CanvasSurface({
       const rawDy = (ev.clientY - startClient.y) / zoom;
       // Hold Alt/Option to bypass snap.
       const skip = ev.altKey;
-      const { dx, dy } = skip ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
+      const snap = skip ? { dx: rawDx, dy: rawDy, hints: null } : computeSnap(rawDx, rawDy);
+      const { dx, dy, hints } = snap;
       setDrag({ ids: dragIds, dx, dy, startPositions });
+      setSnapHints(hints);
       // Live cross-pane / inbox hover signal — other panes use this to
       // highlight themselves as drop targets while the pointer is over them.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
@@ -897,7 +947,9 @@ export function CanvasSurface({
       const rawDx = (ev.clientX - startClient.x) / zoom;
       const rawDy = (ev.clientY - startClient.y) / zoom;
       const skip = ev.altKey;
-      const { dx, dy } = skip ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
+      const snapEnd = skip ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
+      const { dx, dy } = snapEnd;
+      setSnapHints(null);
       // Clear our live-drag awareness so peers see the card snap to its
       // committed position. (The Y.Doc updateCards call below propagates
       // the final position via Yjs sync.)
@@ -1115,6 +1167,17 @@ export function CanvasSurface({
         }
       } else if (c.kind === 'boardlink') {
         items.push({ id: 'open', label: 'Open linked board', run: () => boards[c.target] && onOpenBoard(c.target) });
+      } else if (c.kind === 'note') {
+        items.push({ id: 'fit', label: 'Fit to content', run: () => {
+          // Measure the rendered note body in the live DOM and snap the
+          // card height to it. Useful when the user resized manually and
+          // wants to reset, or after deleting a chunk of text.
+          const wrap = document.querySelector(`[data-card-id="${c.id}"] .note-body`);
+          if (!wrap) return;
+          const NOTE_PAD_Y = 16 * 2; // .note padding top + bottom
+          const newH = Math.max(40, Math.round(wrap.scrollHeight) + NOTE_PAD_Y);
+          mutators.updateCard?.(c.id, { h: newH, manuallyResized: false });
+        }});
       } else if (c.kind === 'link') {
         items.push({ id: 'edit-title', label: c.title ? 'Edit title' : 'Add title', run: () => {
           triggerInlineEdit(c.id, 'title');
@@ -1467,7 +1530,14 @@ export function CanvasSurface({
     if (e.target.isContentEditable) return;
     if (e.target.closest && e.target.closest('.editable')) return;
     if (c.kind === 'board') {
-      if (e.target.closest && e.target.closest('.bc-cover')) onOpenBoard(c.id);
+      const t = e.target;
+      const inCover = t.closest && t.closest('.bc-cover');
+      // List-mode boards have no .bc-cover. Accept double-click anywhere
+      // on the card EXCEPT individual list rows (which have their own
+      // click semantics — open child / open link / open lightbox).
+      const inListBody =
+        t.closest && t.closest('.bc-list') && !t.closest('.bc-toc-row');
+      if (inCover || inListBody) onOpenBoard(c.id);
       return;
     }
     if (c.kind === 'boardlink') { boards[c.target] && onOpenBoard(c.target); return; }
@@ -1523,9 +1593,10 @@ export function CanvasSurface({
       wrapperStyle.transform = `rotate(${rotation}deg)`;
       wrapperStyle.transformOrigin = 'center center';
     }
+    const kindCls = `card-kind-${c.kind || 'unknown'}`;
     const wrapper = {
       style: wrapperStyle,
-      className: `card ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
@@ -2120,6 +2191,29 @@ export function CanvasSurface({
           </div>
         )}
         <div className="cards-layer">{sortedCards.map(renderCard)}</div>
+
+        {/* Snap-alignment guidelines — gold hairlines along the matched
+            edge / center while a drag is snapping. Cleared on drag end. */}
+        {snapHints && (snapHints.xs?.length || snapHints.ys?.length) && (
+          <svg className="snap-guides"
+               width={VIRTUAL_CANVAS_PX} height={VIRTUAL_CANVAS_PX}
+               style={{ position: 'absolute', left: 0, top: 0,
+                        pointerEvents: 'none', overflow: 'visible',
+                        zIndex: 999997 }}>
+            {(snapHints.xs || []).map((g, i) => (
+              <line key={`gx-${i}`} x1={g.x} x2={g.x} y1={g.y0 - 12} y2={g.y1 + 12}
+                    stroke="var(--soleil)"
+                    strokeWidth={1 / zoom}
+                    vectorEffect="non-scaling-stroke" />
+            ))}
+            {(snapHints.ys || []).map((g, i) => (
+              <line key={`gy-${i}`} y1={g.y} y2={g.y} x1={g.x0 - 12} x2={g.x1 + 12}
+                    stroke="var(--soleil)"
+                    strokeWidth={1 / zoom}
+                    vectorEffect="non-scaling-stroke" />
+            ))}
+          </svg>
+        )}
 
         {marqueeRect && (
           <div className="marquee" style={marqueeRect} />
