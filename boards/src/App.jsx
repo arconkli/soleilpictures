@@ -48,7 +48,7 @@ import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
-import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta } from './lib/boardsApi.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
@@ -314,10 +314,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return max + 1;
     };
 
+    // Audit-metadata helpers: stamp createdBy/createdAt at insert time and
+    // updatedBy/updatedAt on every mutation, in ISO-8601 + uid form. Used
+    // by the right-click "Info" panel; replicated by Yjs to all peers.
+    const nowIso = () => new Date().toISOString();
+    const stampCreate = (card) => ({
+      createdBy: user?.id || null,
+      createdAt: nowIso(),
+      updatedBy: user?.id || null,
+      updatedAt: nowIso(),
+      ...card,
+    });
+    const writeUpdateStamp = (ym) => {
+      ym.set('updatedBy', user?.id || null);
+      ym.set('updatedAt', nowIso());
+    };
+
     const addCard = (card) => {
       const m = cardsMap(); if (!m) return;
       ydoc.transact(() => {
-        const c = { z: nextZ(), ...card };
+        const c = stampCreate({ z: nextZ(), ...card });
         m.set(c.id, cardToYMap(c));
       }, 'local');
     };
@@ -327,7 +343,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ydoc.transact(() => {
         let z = nextZ();
         for (const card of cardsToAdd) {
-          const c = { z: z++, ...card };
+          const c = stampCreate({ z: z++, ...card });
           m.set(c.id, cardToYMap(c));
         }
       }, 'local');
@@ -338,6 +354,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const ym = m.get(cardId); if (!ym) return;
       ydoc.transact(() => {
         for (const [k, v] of Object.entries(patch)) ym.set(k, v);
+        writeUpdateStamp(ym);
       }, 'local');
     };
 
@@ -347,6 +364,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         for (const { id, patch } of updates) {
           const ym = m.get(id); if (!ym) continue;
           for (const [k, v] of Object.entries(patch)) ym.set(k, v);
+          writeUpdateStamp(ym);
         }
       }, 'local');
     };
@@ -841,6 +859,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (e) {
       console.error('removeWorkspace failed', e);
       feedback.toast({ type: 'error', message: (isDelete ? 'Delete' : 'Leave') + ' failed: ' + (e.message || e) });
+    }
+  };
+
+  const promptRenameWorkspace = async (ws) => {
+    const next = await feedback.prompt({
+      title: 'Rename workspace',
+      label: 'Name',
+      defaultValue: ws.name || '',
+      placeholder: 'e.g. Soleil Studio',
+      confirmLabel: 'Rename',
+    });
+    if (next == null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === ws.name) return;
+    try {
+      await renameWorkspace(ws.id, trimmed);
+      await onWorkspacesChanged?.();
+      feedback.toast({ type: 'success', message: `Renamed to "${trimmed}".` });
+    } catch (e) {
+      console.error('renameWorkspace failed', e);
+      feedback.toast({ type: 'error', message: 'Rename failed: ' + (e.message || e) });
     }
   };
 
@@ -1508,6 +1547,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
                 onAddNew={addNewWorkspace}
                 onRemove={(ws, action) => removeWorkspace(ws, action)}
+                onRename={(ws) => promptRenameWorkspace(ws)}
                 onClose={() => setWsMenuOpen(false)}
               />
             )}

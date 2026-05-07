@@ -21,6 +21,7 @@ import { uploadImage } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
 import { addRecentColor } from '../lib/recentColors.js';
+import { relativeTimeShort } from '../lib/relativeTime.js';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -1246,6 +1247,33 @@ export function CanvasSurface({
       items.push({ id: 'group-remove', label: multi ? `Remove from group (${selected.size})` : 'Remove from group',
         run: () => mutators.removeFromGroup?.(multi ? [...selected] : [c.id]) });
       items.push({ id: 'ungroup', label: 'Ungroup', danger: true, run: () => mutators.ungroup?.(g.id) });
+    }
+
+    // Audit info — who created this and when, last edit by whom and when.
+    // Surfaces the audit metadata that was stamped on add/update; resolves
+    // user ids against current wsPeers, falling back to "you" / a short id.
+    if (!multi && (c.createdBy || c.createdAt || c.updatedBy || c.updatedAt)) {
+      const resolveName = (uid) => {
+        if (!uid) return 'unknown';
+        if (uid === userId) return 'you';
+        const peer = (wsPeers || []).find(p => p?.user?.id === uid);
+        return peer?.user?.name
+            || peer?.user?.email?.split('@')[0]
+            || uid.slice(0, 6);
+      };
+      const lines = [];
+      if (c.createdAt) {
+        lines.push(`Created ${relativeTimeShort(c.createdAt)} by ${resolveName(c.createdBy)}`);
+      }
+      if (c.updatedAt && c.updatedAt !== c.createdAt) {
+        lines.push(`Updated ${relativeTimeShort(c.updatedAt)} by ${resolveName(c.updatedBy)}`);
+      }
+      if (lines.length) {
+        items.push({ divider: true });
+        items.push({ id: 'info', label: 'Info', run: () => {
+          feedback.toast({ type: 'info', message: lines.join(' · ') });
+        }});
+      }
     }
 
     items.push({ divider: true });

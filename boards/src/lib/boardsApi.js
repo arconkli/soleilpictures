@@ -84,6 +84,17 @@ export async function leaveWorkspace(workspaceId) {
   if (error) throw error;
 }
 
+// Rename a workspace. Only the owner can rename (RLS enforces created_by).
+export async function renameWorkspace(workspaceId, name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) throw new Error('Workspace name is required');
+  const { error } = await supabase
+    .from('workspaces')
+    .update({ name: trimmed })
+    .eq('id', workspaceId);
+  if (error) throw error;
+}
+
 // Members of a workspace. Used for the sidebar member-dot stack and the
 // "Nx" badge on shared workspaces in the rail. RLS already restricts
 // the caller to workspaces they themselves are a member of.

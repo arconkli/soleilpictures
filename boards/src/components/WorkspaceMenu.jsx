@@ -7,7 +7,7 @@
 // Escape close it.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Search, MoreHorizontal, LogOut, Trash2 } from '../lib/icons.js';
+import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
@@ -24,6 +24,7 @@ export function WorkspaceMenu({
   onSelect,
   onAddNew,
   onRemove,             // (ws, action: 'delete' | 'leave') => void
+  onRename,             // (ws) => void   — owners only; opens a rename prompt
   onClose,
 }) {
   const ref = useRef(null);
@@ -87,10 +88,12 @@ export function WorkspaceMenu({
     // see "Delete workspace" (destroys it for everyone); shared
     // members see "Leave workspace" (removes their own membership).
     const canRemove = !!onRemove && !isPersonal;
+    const canRename = !!onRename && isOwner;
     const removeAction = isOwner ? 'delete' : 'leave';
     const isMenuOpen = openMenuId === w.id;
+    const hasRowMenu = canRemove || canRename;
     return (
-      <div key={w.id} className={`ws-menu-row-wrap ${canRemove ? 'has-menu' : ''}`}>
+      <div key={w.id} className={`ws-menu-row-wrap ${hasRowMenu ? 'has-menu' : ''}`}>
         <button className={`ws-menu-row ${isActive ? 'is-active' : ''}`}
                 onClick={() => { onSelect?.(w.id); onClose?.(); }}>
           <span className="ws-menu-avatar" style={{ background: tint }}>{initial}</span>
@@ -104,10 +107,10 @@ export function WorkspaceMenu({
             </svg>
           )}
         </button>
-        {canRemove && (
+        {hasRowMenu && (
           <>
             <button className="ws-menu-row-more"
-                    title={removeAction === 'delete' ? 'Delete workspace' : 'Leave workspace'}
+                    title="More actions"
                     aria-label="More actions"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -118,14 +121,26 @@ export function WorkspaceMenu({
             {isMenuOpen && (
               <div className="ws-menu-row-pop" role="menu"
                    onClick={(e) => e.stopPropagation()}>
-                <button className="ws-menu-row-pop-item danger"
-                        onClick={() => {
-                          setOpenMenuId(null);
-                          onRemove?.(w, removeAction);
-                        }}>
-                  <Icon as={removeAction === 'delete' ? Trash2 : LogOut} size={12} />
-                  <span>{removeAction === 'delete' ? 'Delete workspace' : 'Leave workspace'}</span>
-                </button>
+                {canRename && (
+                  <button className="ws-menu-row-pop-item"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            onRename?.(w);
+                          }}>
+                    <Icon as={Edit} size={12} />
+                    <span>Rename workspace</span>
+                  </button>
+                )}
+                {canRemove && (
+                  <button className="ws-menu-row-pop-item danger"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            onRemove?.(w, removeAction);
+                          }}>
+                    <Icon as={removeAction === 'delete' ? Trash2 : LogOut} size={12} />
+                    <span>{removeAction === 'delete' ? 'Delete workspace' : 'Leave workspace'}</span>
+                  </button>
+                )}
               </div>
             )}
           </>
