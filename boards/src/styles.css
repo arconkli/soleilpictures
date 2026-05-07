@@ -4274,14 +4274,15 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   height: 100%;
   background: var(--bg-0);
 }
+/* Quieter top bar: no separator border, no backdrop tint, slightly
+   shorter and tighter. Reads as integrated with the editor surface
+   instead of as a heavy chrome strip. */
 .doc-tb {
-  display: flex; align-items: center; gap: 4px;
-  height: 44px;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--line-1);
-  background: rgba(16,16,20,.78);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  display: flex; align-items: center; gap: 2px;
+  height: 40px;
+  padding: 0 16px;
+  border-bottom: 0;
+  background: transparent;
   flex-shrink: 0;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -4289,28 +4290,29 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   scrollbar-width: none;
   font-family: var(--font-sans);
   position: sticky; top: 0; z-index: 40;
-  opacity: 0.92;
-  transition: opacity var(--dur-base) var(--ease);
+  /* Soft fade-from-bg so content can scroll behind without a hard
+     line, but the bar still reads as its own zone when stuck. */
+  background-image: linear-gradient(
+    to bottom,
+    var(--bg-0) 0,
+    var(--bg-0) calc(100% - 8px),
+    color-mix(in oklab, var(--bg-0) 0%, transparent) 100%
+  );
 }
 .doc-tb::-webkit-scrollbar { display: none; }
-[data-theme='light'] .doc-tb { background: rgba(250,250,252,.82); }
-.doc-tb:hover { opacity: 1; }
-.doc-tb:focus-within { opacity: 1; }
-/* Children must not shrink below their natural width — otherwise they'd
-   collapse instead of letting the bar scroll horizontally. */
 .doc-tb > * { flex-shrink: 0; }
 
 /* Pane-mode (narrow doc-card-modal-side) — tighten everything so the
    bar still feels usable when only ~320–600px wide. */
-.doc-card-modal-side .doc-tb { height: 40px; padding: 0 10px; gap: 2px; }
+.doc-card-modal-side .doc-tb { height: 36px; padding: 0 10px; gap: 1px; }
 .doc-card-modal-side .doc-tb-btn { width: 26px; height: 26px; }
-.doc-card-modal-side .doc-tb-select { padding: 0 18px 0 6px; height: 26px; max-width: 90px; }
-.doc-card-modal-side .doc-tb-sep { margin: 0 2px; height: 16px; }
+.doc-card-modal-side .doc-tb-select { padding: 0 16px 0 6px; height: 26px; max-width: 90px; font-size: 11.5px; }
+.doc-card-modal-side .doc-tb-sep { margin: 0 4px; height: 14px; }
 .doc-card-modal-side .doc-tb-spacer { display: none; }
 .doc-tb-btn {
   appearance: none; border: 0; background: transparent;
-  width: 30px; height: 30px;
-  border-radius: var(--radius);
+  width: 28px; height: 28px;
+  border-radius: 6px;
   color: var(--ink-2);
   font: 500 13px/1 var(--font-sans);
   cursor: pointer;
@@ -4318,27 +4320,37 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-tb-btn:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
-.doc-tb-btn.is-active { background: var(--soleil-soft); color: var(--ink-0); }
-.doc-tb-btn:disabled { opacity: .35; cursor: not-allowed; }
+.doc-tb-btn.is-active {
+  background: transparent;
+  color: var(--soleil);
+  box-shadow: inset 0 -2px 0 0 var(--soleil);
+  border-radius: 4px;
+}
+.doc-tb-btn:disabled { opacity: .3; cursor: not-allowed; }
 .doc-tb-select {
   appearance: none;
   background: transparent;
   border: 0;
   color: var(--ink-1);
-  font: 500 12px/1 var(--font-sans);
-  padding: 0 22px 0 10px;
-  height: 30px;
-  border-radius: var(--radius);
+  font: 500 12.5px/1 var(--font-sans);
+  letter-spacing: -0.005em;
+  padding: 0 20px 0 8px;
+  height: 28px;
+  border-radius: 6px;
   cursor: pointer;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(180,180,180,.7)' d='M0 0h10L5 6z'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(160,160,160,.55)' d='M0 0h10L5 6z'/></svg>");
   background-repeat: no-repeat;
   background-position: right 6px center;
-  transition: background-color var(--dur-fast) var(--ease);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-tb-select:hover:not(:disabled) { background-color: var(--bg-hov); color: var(--ink-0); }
+/* Hairline separator — half-height, lower opacity, less margin so
+   button groups read as one continuous strip, not compartments. */
 .doc-tb-sep {
-  width: 1px; height: 20px; background: var(--line-1);
-  margin: 0 6px;
+  width: 1px; height: 14px;
+  background: color-mix(in oklab, var(--ink-3) 30%, transparent);
+  margin: 0 8px;
+  flex-shrink: 0;
 }
 .doc-tb-spacer { flex: 1 1 auto; }
 .doc-tb-colorwrap { position: relative; }
@@ -4371,50 +4383,41 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: grid; place-items: center;
 }
 
-/* ── Paper / editor ───────────────────────────────────────────────────── */
+/* ── Paper / editor — no page-sheet card ─────────────────────────────────
+   Editor floats directly on the surrounding surface. The wrapper
+   only controls max-width + comfortable text margins; no border, no
+   shadow, no contrasting paper background. */
 .doc-paper {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
-  background: var(--bg-2);
+  background: var(--bg-0);
   display: flex; flex-direction: column;
   align-items: center;
-  padding: 48px 24px 120px;
+  padding: 0;
 }
-/* Visible page edges — wraps the editor in a real letter-size sheet
-   (8.5" × 11" at 96dpi = 816 × 1056 px). Min-height pins the first page;
-   the sheet grows taller as content overflows so multi-page docs scroll
-   smoothly inside one container. */
 .doc-editor-wrap {
   position: relative;
   width: 100%;
-  max-width: 816px;
-  min-height: 1056px;
-  /* Dark theme = warm dark paper that lifts off the canvas (never pure white).
-     Light theme override below switches to warm cream (never pure white either). */
-  background: #1c1c20;
-  color: #d8d8dc;
-  border: 1px solid var(--line-2);
-  border-radius: 4px;
-  /* 1" margins all around — that's 96px. */
-  padding: 96px;
-  box-shadow: var(--shadow-2);
+  max-width: 760px;
+  min-height: 0;
+  background: transparent;
+  color: var(--ink-0);
+  border: 0;
+  border-radius: 0;
+  padding: 56px 28px 200px;
+  box-shadow: none;
 }
 [data-theme='light'] .doc-editor-wrap {
-  background: #fafafc;
-  color: #1a1a1f;
-  border: 1px solid rgba(0,0,0,.08);
-  box-shadow: var(--shadow-1);
+  background: transparent;
+  color: var(--ink-0);
+  border: 0;
+  box-shadow: none;
 }
-/* Tighter margins for narrower viewports (especially the docked side
-   panel) so the page doesn't get clipped horizontally. */
-@media (max-width: 900px) {
-  .doc-editor-wrap { padding: 64px 56px; }
-}
-@media (max-width: 640px) {
-  .doc-editor-wrap { padding: 48px 36px; min-height: 800px; }
+@media (max-width: 720px) {
+  .doc-editor-wrap { padding: 40px 20px 160px; }
 }
 .doc-empty, .doc-loading {
   flex: 1 1 auto;
