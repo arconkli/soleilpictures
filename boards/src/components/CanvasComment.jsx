@@ -452,6 +452,29 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     }
   }
 
+  // Keyboard delete — when the thread is open and no text input has
+  // focus, Delete / Backspace triggers the same delete flow as the
+  // action button. Lets users select-and-delete the way they do with
+  // cards. We listen on the document while open so the binding doesn't
+  // intercept other shortcuts elsewhere.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const t = e.target;
+      // Skip if the user is typing inside an input / textarea /
+      // contenteditable — including the comment's own reply field.
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      // Only authors can delete; everyone else's keypress is a no-op.
+      if (!isAuthor) return;
+      e.preventDefault();
+      onDelete();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isAuthor]);
+
   return (
     <div ref={wrapRef}
          className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''} ${dragDelta ? 'is-dragging' : ''} ${isAuthor ? 'is-mine' : ''}`}
@@ -487,17 +510,19 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       )}
       {/* Inline preview — body text is always visible so the user can read
           the comment without clicking. The whole card is the click target
-          for opening the thread. */}
+          for opening the thread AND the drag handle (when the user is
+          the author). justDraggedRef suppresses the click that would
+          otherwise toggle the thread after a drag. */}
       <button type="button"
               className="canvas-comment-card"
               aria-expanded={open}
+              onPointerDown={onDragStart}
+              title={isAuthor ? 'Drag to reposition · click to open' : undefined}
               onClick={() => {
                 if (justDraggedRef.current) return;
                 setOpen(o => !o);
               }}>
-        <span className="canvas-comment-card-head"
-              onPointerDown={onDragStart}
-              title={isAuthor ? 'Drag to reposition' : undefined}>
+        <span className="canvas-comment-card-head">
           <span className="canvas-comment-avatar"
                 style={{ background: authorColor }}
                 aria-hidden="true">

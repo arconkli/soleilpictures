@@ -4243,10 +4243,19 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .canvas-comment.is-revealed-hidden:hover .canvas-comment-card { opacity: .85; }
 .canvas-comment.is-open { z-index: 5; width: 300px; }
 .canvas-comment.is-dragging { z-index: 10; }
-/* The author can drag their own bubble around its anchor; the head row
-   is the drag handle. Hover the head to surface the cursor hint. */
-.canvas-comment.is-mine .canvas-comment-card-head { cursor: grab; }
-.canvas-comment.is-mine.is-dragging .canvas-comment-card-head { cursor: grabbing; }
+/* The author can drag their own bubble around its anchor. The whole
+   preview card is the drag handle now (used to be just the head row);
+   hover the card to surface the cursor hint. The expanded thread's
+   inputs and buttons keep their default cursors so editing replies
+   isn't interrupted. */
+.canvas-comment.is-mine .canvas-comment-card { cursor: grab; }
+.canvas-comment.is-mine.is-dragging .canvas-comment-card { cursor: grabbing; }
+.canvas-comment.is-mine .canvas-comment-thread,
+.canvas-comment.is-mine .canvas-comment-thread * { cursor: auto; }
+.canvas-comment.is-mine .canvas-comment-reply-input,
+.canvas-comment.is-mine .canvas-comment-reply textarea { cursor: text; }
+.canvas-comment.is-mine .canvas-comment-reply-send,
+.canvas-comment.is-mine .canvas-comment-actions button { cursor: pointer; }
 .canvas-comment.is-dragging .canvas-comment-card {
   border-color: var(--soleil);
   box-shadow: 0 12px 28px rgba(0,0,0,.4),

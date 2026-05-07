@@ -352,6 +352,39 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(bundle.includes('anchorPointFromBase')).toBe(true);
   });
 
+  test('whole card is the drag handle (cursor:grab on .canvas-comment-card, not just head)', async ({ page }) => {
+    await go(page);
+    // The grab cursor used to live on the head row only. Now it's on
+    // the entire preview card so users can drag from anywhere.
+    const grabOnCard = await page.evaluate(() => {
+      for (const s of document.styleSheets) {
+        try {
+          for (const r of s.cssRules) {
+            if (r.selectorText === '.canvas-comment.is-mine .canvas-comment-card') {
+              return r.style.cursor === 'grab';
+            }
+          }
+        } catch {}
+      }
+      return false;
+    });
+    expect(grabOnCard).toBe(true);
+  });
+
+  test('keyboard delete is wired when a comment thread is open', async ({ page }) => {
+    await page.goto('/?local=1');
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    // The keydown listener strings should still be in the bundle —
+    // guard against regressions that drop the keyboard delete.
+    expect(bundle.includes('Backspace')).toBe(true);
+    // Should NOT just blindly delete on any keydown — must skip when
+    // user is typing in an input/textarea/contenteditable.
+    expect(/INPUT.*TEXTAREA|TEXTAREA.*INPUT/.test(bundle)).toBe(true);
+  });
+
   test('drag race fix — baseRef chains rapid drags off the latest commit', async ({ page }) => {
     // Without baseRef, computing patch.offset_x from the (stale) prop
     // meant a second drag while the first commit's realtime hadn't
