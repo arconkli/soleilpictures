@@ -68,4 +68,6 @@ export {
   Eye,
   EyeOff,
   MessageCircle,
+  Tag,
+  Hash,
 } from 'lucide-react';

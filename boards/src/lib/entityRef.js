@@ -13,6 +13,7 @@
 //   { kind: 'message',  id }
 //   { kind: 'user',     id }
 //   { kind: 'url',      href }
+//   { kind: 'tag',      id }    -- tag uuid; same shape as board/user
 //
 // Card subkinds (image / note / palette / schedule / link) all use
 // `kind: 'card'` — the per-kind preview lives in entityKinds.js based
@@ -39,6 +40,7 @@ export function equalRef(a, b) {
     case 'message': return a.id === b.id;
     case 'user':    return a.id === b.id;
     case 'url':     return a.href === b.href;
+    case 'tag':     return a.id === b.id;
     default:        return false;
   }
 }
@@ -56,6 +58,7 @@ export function refKey(r) {
     case 'message': return `message:${r.id}`;
     case 'user':    return `user:${r.id}`;
     case 'url':     return `url:${r.href}`;
+    case 'tag':     return `tag:${r.id}`;
     default:        return `${r.kind}:?`;
   }
 }
@@ -88,6 +91,8 @@ export function coerceRef(input) {
       return { kind: 'user', id: input.id ?? input.userId };
     case 'url':
       return { kind: 'url', href: input.href ?? input.url };
+    case 'tag':
+      return { kind: 'tag', id: input.id ?? input.tagId };
     default:
       return null;
   }

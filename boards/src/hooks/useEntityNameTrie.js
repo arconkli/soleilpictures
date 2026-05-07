@@ -135,6 +135,12 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
     const ch4 = supabase.channel(`trie:ignore:${workspaceId}:${sfx}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_ignore_terms', filter: `workspace_id=eq.${workspaceId}` }, schedule)
       .subscribe();
+    // Tags are now first-class entities (migration 0036). The trie
+    // needs to rebuild when a tag is created / renamed / deleted so
+    // its name auto-underlines in prose like any other entity.
+    const ch5 = supabase.channel(`trie:tags:${workspaceId}:${sfx}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tags', filter: `workspace_id=eq.${workspaceId}` }, schedule)
+      .subscribe();
 
     return () => {
       cancelled = true;
@@ -143,6 +149,7 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
       try { supabase.removeChannel(ch2); } catch (_) {}
       try { supabase.removeChannel(ch3); } catch (_) {}
       try { supabase.removeChannel(ch4); } catch (_) {}
+      try { supabase.removeChannel(ch5); } catch (_) {}
     };
   }, [workspaceId, JSON.stringify(ignoredTerms)]);
 

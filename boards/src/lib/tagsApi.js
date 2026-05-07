@@ -1,8 +1,19 @@
-// Tags API. Workspace-scoped tag namespace with per-card and per-board
-// associations. `kind` distinguishes user-added tags from auto-detected
-// (name match) and AI-suggested tags.
+// Tags API. Workspace-scoped tag namespace; per-card / per-board
+// applications now live in the unified `entity_links` table —
+// link_kind='applied', source_kind='card'|'board', target_kind='tag'.
+//
+// The public surface (tagCard / untagCard / tagBoard / untagBoard /
+// listCardTags / listBoardTags) is unchanged so existing callers
+// don't need updates. Internally these now read/write entity_links.
+//
+// Tag definitions themselves still live in `tags` — only their
+// applications were migrated. Tags also appear in entity_search
+// (migration 0036), which is what makes them show up in the
+// EntityPicker, the auto-detect trie, hover popovers, etc.
 
 import { supabase } from './supabase.js';
+
+// ── Tag definitions ────────────────────────────────────────────────────
 
 export async function listWorkspaceTags(workspaceId) {
   if (!workspaceId) return [];
@@ -20,7 +31,6 @@ export async function ensureTag({ workspaceId, name, color = null, kind = 'user'
   const cleaned = (name || '').trim();
   if (!cleaned) throw new Error('Tag name required');
   const slug = cleaned.toLowerCase();
-  // Try select first — avoids spamming inserts that fail unique-constraint.
   const found = await supabase.from('tags').select('*')
     .eq('workspace_id', workspaceId).eq('slug', slug).maybeSingle();
   if (found.error) throw found.error;
@@ -33,64 +43,154 @@ export async function ensureTag({ workspaceId, name, color = null, kind = 'user'
 }
 
 export async function deleteTag(tagId) {
+  // Cascading delete: drop the tag definition AND every application
+  // (entity_links rows). The tag's `id` cascades through entity_links
+  // because we don't have a FK from entity_links.target_id back to
+  // tags — so we explicitly clean up the applications first.
+  await supabase.from('entity_links').delete()
+    .eq('target_kind', 'tag').eq('target_id', tagId);
   const { error } = await supabase.from('tags').delete().eq('id', tagId);
   if (error) throw error;
 }
 
-// ── Card tags ────────────────────────────────────────────────────────────
+export async function recolorTag(tagId, color) {
+  const { error } = await supabase.from('tags').update({ color }).eq('id', tagId);
+  if (error) throw error;
+}
+
+export async function renameTag(tagId, name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) throw new Error('Tag name required');
+  const { error } = await supabase.from('tags').update({ name: trimmed }).eq('id', tagId);
+  if (error) throw error;
+}
+
+// ── Per-source applications (card / board) ─────────────────────────────
+// All four functions below resolve to entity_links rows with
+// link_kind='applied'. The card_tags / board_tags views are kept as
+// a backwards-compat read path; new writes go through entity_links
+// so the unique index is honored and realtime fans out.
 
 export async function listCardTags(boardId) {
   if (!boardId) return [];
   const { data, error } = await supabase
-    .from('card_tags')
-    .select('workspace_id, board_id, card_id, tag_id, source, created_at')
-    .eq('board_id', boardId);
+    .from('entity_links')
+    .select('source_workspace, source_board_id, source_id, target_id, source, created_at')
+    .eq('source_kind', 'card')
+    .eq('target_kind', 'tag')
+    .eq('link_kind', 'applied')
+    .eq('source_board_id', boardId);
   if (error) throw error;
-  return data || [];
+  // Project to the legacy card_tags row shape so existing callers
+  // (useWorkspaceTags) keep working without changes.
+  return (data || []).map(r => ({
+    workspace_id: r.source_workspace,
+    board_id:     r.source_board_id,
+    card_id:      r.source_id,
+    tag_id:       r.target_id,
+    source:       r.source,
+    created_at:   r.created_at,
+  }));
 }
 
 export async function tagCard({ workspaceId, boardId, cardId, tagId, source = 'user' }) {
-  const { error } = await supabase.from('card_tags').upsert({
-    workspace_id: workspaceId, board_id: boardId, card_id: cardId,
-    tag_id: tagId, source,
-  }, { onConflict: 'board_id,card_id,tag_id' });
-  if (error) throw error;
+  if (!workspaceId || !boardId || !cardId || !tagId) {
+    throw new Error('tagCard: missing required field');
+  }
+  // Idempotent: existing applied row for the same target → no-op.
+  const row = {
+    source_kind:      'card',
+    source_id:        String(cardId),
+    source_workspace: workspaceId,
+    source_board_id:  boardId,
+    target_kind:      'tag',
+    target_id:        tagId,
+    link_kind:        'applied',
+    source,
+  };
+  const { error } = await supabase.from('entity_links').insert(row);
+  if (error && error.code !== '23505') throw error; // 23505 = unique violation = already applied
 }
 
 export async function untagCard({ boardId, cardId, tagId }) {
-  const { error } = await supabase.from('card_tags').delete()
-    .eq('board_id', boardId).eq('card_id', cardId).eq('tag_id', tagId);
+  if (!boardId || !cardId || !tagId) return;
+  const { error } = await supabase.from('entity_links').delete()
+    .eq('source_kind', 'card')
+    .eq('source_id', String(cardId))
+    .eq('source_board_id', boardId)
+    .eq('target_kind', 'tag')
+    .eq('target_id', tagId)
+    .eq('link_kind', 'applied');
   if (error) throw error;
 }
-
-// ── Board tags ───────────────────────────────────────────────────────────
 
 export async function listBoardTags(boardId) {
   if (!boardId) return [];
   const { data, error } = await supabase
-    .from('board_tags')
-    .select('workspace_id, board_id, tag_id, source, created_at')
-    .eq('board_id', boardId);
+    .from('entity_links')
+    .select('source_workspace, source_board_id, target_id, source, created_at')
+    .eq('source_kind', 'board')
+    .eq('target_kind', 'tag')
+    .eq('link_kind', 'applied')
+    .eq('source_board_id', boardId);
   if (error) throw error;
-  return data || [];
+  return (data || []).map(r => ({
+    workspace_id: r.source_workspace,
+    board_id:     r.source_board_id,
+    tag_id:       r.target_id,
+    source:       r.source,
+    created_at:   r.created_at,
+  }));
 }
 
 export async function tagBoard({ workspaceId, boardId, tagId, source = 'user' }) {
-  const { error } = await supabase.from('board_tags').upsert({
-    workspace_id: workspaceId, board_id: boardId, tag_id: tagId, source,
-  }, { onConflict: 'board_id,tag_id' });
-  if (error) throw error;
+  if (!workspaceId || !boardId || !tagId) {
+    throw new Error('tagBoard: missing required field');
+  }
+  const row = {
+    source_kind:      'board',
+    source_id:        String(boardId),
+    source_workspace: workspaceId,
+    source_board_id:  boardId,
+    target_kind:      'tag',
+    target_id:        tagId,
+    link_kind:        'applied',
+    source,
+  };
+  const { error } = await supabase.from('entity_links').insert(row);
+  if (error && error.code !== '23505') throw error;
 }
 
 export async function untagBoard({ boardId, tagId }) {
-  const { error } = await supabase.from('board_tags').delete()
-    .eq('board_id', boardId).eq('tag_id', tagId);
+  if (!boardId || !tagId) return;
+  const { error } = await supabase.from('entity_links').delete()
+    .eq('source_kind', 'board')
+    .eq('source_id', String(boardId))
+    .eq('target_kind', 'tag')
+    .eq('target_id', tagId)
+    .eq('link_kind', 'applied');
   if (error) throw error;
 }
 
-// Auto-tag: when an existing tag's name matches the new card's title (case-
-// insensitive substring), attach it with source='auto'. Best-effort —
-// failures are logged not thrown so card creation isn't blocked.
+// Promote an auto/ai applied tag to user-confirmed. Updates the
+// source attribution on the entity_link row in place.
+export async function confirmAppliedTag({ sourceKind, sourceId, sourceBoardId, tagId }) {
+  const q = supabase.from('entity_links').update({ source: 'user' })
+    .eq('source_kind', sourceKind)
+    .eq('source_id', String(sourceId))
+    .eq('target_kind', 'tag')
+    .eq('target_id', tagId)
+    .eq('link_kind', 'applied');
+  const { error } = sourceBoardId
+    ? await q.eq('source_board_id', sourceBoardId)
+    : await q;
+  if (error) throw error;
+}
+
+// Substring autotagger — preserved as the cold-start fallback for
+// new workspaces that haven't yet trained the homegrown matcher
+// (Phase D). Once enough applied rows exist we fall back to the
+// statistical scorer, but on day-zero this is what runs.
 export async function autoTagCardByTitle({ workspaceId, boardId, cardId, title }) {
   const t = (title || '').toString().trim();
   if (!workspaceId || !boardId || !cardId || t.length < 2) return;
@@ -102,10 +202,19 @@ export async function autoTagCardByTitle({ workspaceId, boardId, cardId, title }
     });
     if (matches.length === 0) return;
     const rows = matches.map(tag => ({
-      workspace_id: workspaceId, board_id: boardId, card_id: cardId,
-      tag_id: tag.id, source: 'auto',
+      source_kind:      'card',
+      source_id:        String(cardId),
+      source_workspace: workspaceId,
+      source_board_id:  boardId,
+      target_kind:      'tag',
+      target_id:        tag.id,
+      link_kind:        'applied',
+      source:           'auto',
     }));
-    await supabase.from('card_tags').upsert(rows, { onConflict: 'board_id,card_id,tag_id' });
+    await supabase.from('entity_links').upsert(rows, {
+      onConflict: 'source_kind,source_id,source_page_id,source_link_id,link_kind,target_kind,target_id,target_board_id,target_card_id,target_doc_card_id,target_page_id,target_url',
+      ignoreDuplicates: true,
+    });
   } catch (err) {
     console.warn('[tags] autoTagCardByTitle failed', err);
   }

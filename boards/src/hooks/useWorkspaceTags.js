@@ -37,19 +37,31 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
   useEffect(() => {
     if (!workspaceId) return;
     const sfx = Math.random().toString(36).slice(2, 9);
+    // After unification (migration 0036), tag applications live in
+    // entity_links. We still listen to `tags` itself for definition
+    // changes (rename / recolor / new tag), and to entity_links
+    // for application changes. The publication-level filter is
+    // workspace-scoped via source_workspace.
     const chan = supabase.channel(`tags:${workspaceId}:${sfx}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'tags',
         filter: `workspace_id=eq.${workspaceId}`,
       }, () => refresh())
       .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'card_tags',
-        filter: `workspace_id=eq.${workspaceId}`,
-      }, () => refresh())
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'board_tags',
-        filter: `workspace_id=eq.${workspaceId}`,
-      }, () => refresh())
+        event: '*', schema: 'public', table: 'entity_links',
+        filter: `source_workspace=eq.${workspaceId}`,
+      }, (payload) => {
+        // Only re-fetch when the change touches an applied tag — most
+        // entity_links activity is mention-flavored and irrelevant
+        // to the chip rendering. Realtime payloads include both
+        // old + new, so check both.
+        const n = payload?.new || {};
+        const o = payload?.old || {};
+        if ((n.target_kind === 'tag' && n.link_kind === 'applied')
+         || (o.target_kind === 'tag' && o.link_kind === 'applied')) {
+          refresh();
+        }
+      })
       .subscribe();
     return () => { try { supabase.removeChannel(chan); } catch (_) {} };
   }, [workspaceId, refresh]);

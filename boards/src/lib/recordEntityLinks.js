@@ -12,17 +12,22 @@
 
 import { supabase } from './supabase.js';
 
-export async function recordEntityLinks({ source, refs = [], replaceForSource = false }) {
+export async function recordEntityLinks({
+  source, refs = [], replaceForSource = false,
+  linkKind = 'mention',                  // 'mention' (default) | 'applied' | 'reply' | 'attached'
+  attribution = 'user',                  // 'user' | 'auto' | 'ai'
+}) {
   if (!supabase || !source?.kind || !source?.id || !source?.workspace) return;
   const filtered = (refs || []).filter(r => r && r.ref && r.ref.kind);
 
   // Wipe prior rows for this source so updates re-stamp cleanly.
-  // Scope the delete by (kind, id, [pageId,linkId]) so unrelated
-  // sources on the same doc card aren't touched.
+  // Scope the delete by (kind, id, [pageId,linkId], link_kind) so
+  // unrelated sources on the same doc card aren't touched.
   if (replaceForSource) {
     let q = supabase.from('entity_links').delete()
       .eq('source_kind', source.kind)
-      .eq('source_id', String(source.id));
+      .eq('source_id', String(source.id))
+      .eq('link_kind', linkKind);
     if (source.pageId) q = q.eq('source_page_id', source.pageId);
     if (source.linkId) q = q.eq('source_link_id', source.linkId);
     await q;
@@ -38,20 +43,17 @@ export async function recordEntityLinks({ source, refs = [], replaceForSource = 
     source_page_id: source.pageId || null,
     source_link_id: source.linkId || null,
     context_text: contextText ? String(contextText).slice(0, 500) : null,
+    link_kind: linkKind,
+    source: attribution,
     ...refToTargetCols(ref),
   })).filter(r => r.target_kind);
 
   if (rows.length === 0) return;
   const { error } = await supabase.from('entity_links').upsert(rows, {
-    onConflict: 'source_kind,source_id,source_page_id,source_link_id,target_kind,target_id,target_board_id,target_card_id,target_doc_card_id,target_page_id,target_url',
+    onConflict: 'source_kind,source_id,source_page_id,source_link_id,link_kind,target_kind,target_id,target_board_id,target_card_id,target_doc_card_id,target_page_id,target_url',
     ignoreDuplicates: true,
   });
-  // upsert with ignoreDuplicates fails on Postgres when conflict
-  // target doesn't match the unique index — fall back to INSERT
-  // with on conflict do nothing, which we encode as a plain insert
-  // and tolerate dup-key errors.
   if (error && error.code !== '23505') {
-    // Try a forgiving insert as fallback.
     await supabase.from('entity_links').insert(rows).then(() => {}).catch(() => {});
   }
 }
@@ -77,6 +79,9 @@ function refToTargetCols(ref) {
       return { target_kind: 'user', target_id: ref.id || null };
     case 'url':
       return { target_kind: 'url', target_url: ref.href || null };
+    case 'tag':
+      // Tag id IS the uuid we stored; goes into target_id like board/user/message.
+      return { target_kind: 'tag', target_id: ref.id || null };
     default:
       return {};
   }

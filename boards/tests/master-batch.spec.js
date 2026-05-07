@@ -532,6 +532,39 @@ test.describe('Phase 7 — arrows + export + docs', () => {
   });
 });
 
+// ═══════════════ TAGS-AS-ENTITIES UNIFICATION ═══════════════
+// Phase A of the autotagging plan: tags became first-class entities
+// in entity_search, and tag applications moved into entity_links
+// (link_kind='applied'). The card_tags / board_tags tables are
+// replaced with read-only views over entity_links. These tests
+// guard against accidental regression of that unification.
+
+test.describe('Tags-as-entities unification (Phase A)', () => {
+  test('tag kind is registered in the entity registry', async ({ page }) => {
+    await page.goto('/?local=1');
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    // entityKinds.js registers 'tag' with TagPreview now.
+    expect(bundle.includes('TagPreview')).toBe(true);
+    // entity_search view extension includes 'tag' kind alongside the others.
+    expect(bundle.includes("'tag'")).toBe(true);
+  });
+
+  test('entity_links picks up link_kind + source attribution', async ({ page }) => {
+    await page.goto('/?local=1');
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    // tagsApi inserts entity_links rows now; the new column names
+    // appear in the bundle's literal strings.
+    expect(bundle.includes('link_kind')).toBe(true);
+    expect(bundle.includes("'applied'") || bundle.includes('"applied"')).toBe(true);
+  });
+});
+
 // ═══════════════ ORPHAN-CARD SWEEP REGRESSION GUARD ═══════════════
 // Earlier bug: readCards built `card.id` from the value's `id` key. If
 // the value's id ever drifted from the Y.Map key (peer corruption,
