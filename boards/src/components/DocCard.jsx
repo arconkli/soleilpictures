@@ -11,11 +11,10 @@
 // Per-card storage means each doc card on a canvas is independent and travels
 // with the canvas's snapshot.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary } from '../lib/docState.js';
 import { DocSurface } from './DocSurface.jsx';
-import { DocOverflowMenu } from './DocOverflowMenu.jsx';
 import { Avatar } from './primitives.jsx';
 
 const DEFAULT_SIDE_RATIO = 0.5;
@@ -132,25 +131,24 @@ export function RichDocCard({
             )}
           </div>
         )}
-        {/* Magazine-tile preview — title + thin soleil rule + byline +
-            serif excerpt. No "DOC" tag, no footer bar. Open buttons
-            fade in on hover at the bottom-right (.doc-card-actions). */}
         <div className="doc-card-page" key={previewKey}>
-          <div className="doc-card-title">{card.title || 'Untitled'}</div>
+          {card.title && <div className="doc-card-title">{card.title}</div>}
+          {summary.firstPageName && summary.firstPageName !== card.title && (
+            <div className="doc-card-h1">{summary.firstPageName}</div>
+          )}
           <div className="doc-card-rule" />
-          <div className="doc-card-byline">
-            {pageCount > 0 && (
-              <span>{pageCount} {pageCount === 1 ? 'page' : 'pages'}</span>
-            )}
-          </div>
           {summary.firstText && (
             <div className="doc-card-text">{summary.firstText}</div>
           )}
         </div>
-        <div className="doc-card-actions">
+        <div className="doc-card-foot">
+          <span className="doc-card-tag">DOC</span>
+          <span className="doc-card-meta">
+            {pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'}` : 'no pages'}
+          </span>
           <button className="doc-card-open" title="Open beside (dock to right)"
                   onClick={(e) => { e.stopPropagation(); open('side'); }}>
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
               <path d="M8 2 V12" stroke="currentColor" strokeWidth="1.2"/>
               <rect x="8.5" y="2.5" width="3.5" height="9" fill="currentColor" opacity=".18"/>
@@ -158,7 +156,7 @@ export function RichDocCard({
           </button>
           <button className="doc-card-open" title="Open fullscreen"
                   onClick={(e) => { e.stopPropagation(); open('full'); }}>
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
             </svg>
           </button>
@@ -200,16 +198,6 @@ function DocCardOverlay({
   peersOnCard = [], onJumpToPeer,
   canEdit = true,
 }) {
-  // Pages-rail visibility (driven by the modal-head "Pages" toggle).
-  // We can't reach DocSurface's internal rails state, so we fan out
-  // to a class on the modal that overrides the grid columns when the
-  // user wants pages hidden.
-  const [pagesOpen, setPagesOpen] = useState(true);
-  // Hold the live editor instance so DocOverflowMenu can surface
-  // undo / redo / find. Captured via DocSurface's onEditorReady prop.
-  const editorRef = useRef(null);
-  const onEditorReady = useCallback((ed) => { editorRef.current = ed; }, []);
-
   // Esc closes from either mode.
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -258,16 +246,14 @@ function DocCardOverlay({
            // is open. Fullscreen still uses the .doc-card-modal-full inset.
            style={isSide ? { inset: 'auto', top: 42, right: 0, bottom: 0, left: 'auto', width: widthPct } : undefined}
            onPointerDown={(e) => e.stopPropagation()}>
-        {/* Minimal modal chrome — just enough to navigate / dismiss.
-            Title moved into the editor body (DocTitleBlock). */}
         <div className="doc-card-modal-head">
-          <button
-            className={`doc-card-pages-toggle ${pagesOpen ? 'is-active' : ''}`}
-            title={pagesOpen ? 'Hide pages' : 'Show pages'}
-            onClick={() => setPagesOpen(o => !o)}>
-            Pages
-          </button>
-          <span className="doc-card-modal-head-spacer" />
+          <input className="doc-card-title-input"
+                 value={card.title || ''}
+                 placeholder="Untitled doc"
+                 onChange={(e) => onUpdate?.({ title: e.target.value })} />
+          {/* Peer-avatar stack — one per workspace peer currently in this
+              doc card. Click an avatar → jumpToPeer takes you to their
+              exact page + scroll. Hover shows their name. */}
           {peersOnCard.length > 0 && (
             <div className="doc-card-peers" title={`${peersOnCard.length} peer${peersOnCard.length === 1 ? '' : 's'} in this doc`}>
               {peersOnCard.slice(0, 4).map(p => (
@@ -275,7 +261,7 @@ function DocCardOverlay({
                         className="doc-card-peer"
                         title={`${p.user?.name || 'Someone'} — click to jump to their view`}
                         onClick={() => onJumpToPeer?.(p.location)}>
-                  <Avatar name={p.user?.name || '?'} color={p.user?.color || '#4f8df8'} size={24} />
+                  <Avatar name={p.user?.name || '?'} color={p.user?.color || '#4f8df8'} size={26} />
                 </button>
               ))}
               {peersOnCard.length > 4 && (
@@ -283,16 +269,26 @@ function DocCardOverlay({
               )}
             </div>
           )}
-          <DocOverflowMenu
-            mode={mode}
-            onToggleSide={mode === 'side' ? null : () => onSetMode('side')}
-            onToggleFullscreen={mode === 'full' ? null : () => onSetMode('full')}
-            editor={editorRef.current}
-            onOpenFind={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', metaKey: true, ctrlKey: true }))}
-            onOpenExport={null}
-          />
+          {/* Mode toggles */}
+          {mode === 'full' ? (
+            <button className="doc-card-icon" title="Dock to side (split with canvas)"
+                    onClick={() => onSetMode('side')}>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <rect x="2.5" y="3" width="15" height="14" rx="1.6" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M11 3 V17" stroke="currentColor" strokeWidth="1.4"/>
+                <rect x="11.5" y="3.5" width="5.5" height="13" fill="currentColor" opacity=".18"/>
+              </svg>
+            </button>
+          ) : (
+            <button className="doc-card-icon" title="Open fullscreen"
+                    onClick={() => onSetMode('full')}>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7 V3 H7 M17 7 V3 H13 M3 13 V17 H7 M17 13 V17 H13" />
+              </svg>
+            </button>
+          )}
           <button className="doc-card-close" title="Close (Esc)" onClick={onClose}>
-            <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               <path d="M5 5 L13 13 M13 5 L5 13" />
             </svg>
           </button>
@@ -304,8 +300,6 @@ function DocCardOverlay({
             ready={!!ydoc && !!scope?.pages}
             scope={scope}
             titleOverride={card.title}
-            onTitleChange={(v) => onUpdate?.({ title: v })}
-            onEditorReady={onEditorReady}
             workspaceId={workspaceId}
             userId={userId}
             boards={boards}
@@ -318,7 +312,6 @@ function DocCardOverlay({
             peersOnBoard={peersOnCard}
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit}
-            railsLeftDefault={pagesOpen}
           />
         </div>
       </div>
