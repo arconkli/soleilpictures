@@ -193,7 +193,7 @@ function anchorPointFromBase(comment, resolveCardBBox, resolveGroupBBox, base) {
 }
 
 const BUBBLE_W = 240;
-const BUBBLE_H = 76;
+const BUBBLE_H_DEFAULT = 76;  // initial estimate — replaced by ResizeObserver measurement
 
 // Compute the bubble's position AND its anchor dot for a given comment.
 // Card / group anchors snap the bubble flush to one of the four sides
@@ -202,25 +202,31 @@ const BUBBLE_H = 76;
 // the bubble meets the card, so it visually reads as the seam between
 // the two. Point / board anchors fall back to free placement (no card
 // to attach to).
-function bubbleLayout(comment, resolveCardBBox, resolveGroupBBox, base) {
+//
+// `dim = { w, h }` — actual rendered bubble dimensions if known. The
+// height varies (one-line comments ~50px, two-line + reply-count
+// ~80px); using a fixed estimate left a visible gap on the TOP side
+// when the bubble was shorter. Callers measure via ResizeObserver and
+// pass the live value here.
+function bubbleLayout(comment, resolveCardBBox, resolveGroupBBox, base, dim) {
   const { ox, oy, ax, ay } = base;
+  const W = dim?.w ?? BUBBLE_W;
+  const H = dim?.h ?? BUBBLE_H_DEFAULT;
   let bbox = null;
   if (comment.anchor_kind === 'card')  bbox = resolveCardBBox?.(comment.anchor_id);
   if (comment.anchor_kind === 'group') bbox = resolveGroupBBox?.(comment.anchor_id);
   if (bbox) {
-    return snapBubbleToBox(bbox, ox, oy);
+    return snapBubbleToBox(bbox, ox, oy, W, H);
   }
   if (comment.anchor_kind === 'point') {
     const x = ax + ox;
     const y = ay + oy;
     return { bubble: { x, y }, dot: { x: ax, y: ay }, side: null };
   }
-  // 'board' fallback — top-right corner of the visible canvas.
   return { bubble: { x: 100 + ox, y: 100 + oy }, dot: null, side: null };
 }
 
-function snapBubbleToBox(box, ox, oy) {
-  const W = BUBBLE_W, H = BUBBLE_H;
+function snapBubbleToBox(box, ox, oy, W, H) {
   // The user's intended bubble center, treating the offsets as a
   // "preferred direction" off the card's natural top-right corner.
   const targetCx = box.x + box.w + 8 + ox + W / 2;
@@ -229,8 +235,7 @@ function snapBubbleToBox(box, ox, oy) {
   const cardCy = box.y + box.h / 2;
   const dx = targetCx - cardCx;
   const dy = targetCy - cardCy;
-  // Pick the closest side. Aspect-ratio-aware so a tall card biases
-  // toward left/right and a wide card toward top/bottom.
+  // Aspect-ratio-aware side selection.
   const ax = Math.abs(dx) / Math.max(1, box.w / 2);
   const ay = Math.abs(dy) / Math.max(1, box.h / 2);
   let bx, by, side, dotX, dotY;
@@ -255,7 +260,10 @@ function snapBubbleToBox(box, ox, oy) {
       side = 'bottom';
       dotX = bx + W / 2;
       dotY = box.y + box.h;
-    } else {                                     // top side
+    } else {                                     // top side — bubble's
+      // BOTTOM should sit on box.y, so top = box.y - H. H must be the
+      // bubble's actual rendered height; otherwise a fixed estimate
+      // leaves a visible gap.
       by = box.y - H;
       bx = clamp(targetCx - W / 2, box.x - 18, box.x + box.w - W + 18);
       side = 'top';
@@ -343,6 +351,26 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
   // drag, so dragging the head doesn't accidentally toggle the thread.
   const justDraggedRef = useRef(false);
 
+  // Measured bubble dimensions — the preview card's real height
+  // varies with content (one-line vs. two-line body, reply count
+  // present or not). The TOP-side layout needs the real height to
+  // place the bubble flush against the card's top edge; otherwise a
+  // fixed estimate leaves a visible gap.
+  const cardElRef = useRef(null);
+  const [bubbleDim, setBubbleDim] = useState({ w: BUBBLE_W, h: BUBBLE_H_DEFAULT });
+  useEffect(() => {
+    if (!cardElRef.current || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const el = cardElRef.current;
+      if (!el) return;
+      const w = el.offsetWidth || BUBBLE_W;
+      const h = el.offsetHeight || BUBBLE_H_DEFAULT;
+      setBubbleDim(prev => (prev.w === w && prev.h === h) ? prev : { w, h });
+    });
+    ro.observe(cardElRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   const baseVals = baseRef.current || {
     ox: comment.offset_x || 0, oy: comment.offset_y || 0,
     ax: comment.anchor_x || 0, ay: comment.anchor_y || 0,
@@ -355,7 +383,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
   const liveBase = dragDelta
     ? { ...baseVals, ox: baseVals.ox + dragDelta.dx, oy: baseVals.oy + dragDelta.dy }
     : baseVals;
-  const layout = bubbleLayout(comment, resolveCardBBox, resolveGroupBBox, liveBase);
+  const layout = bubbleLayout(comment, resolveCardBBox, resolveGroupBBox, liveBase, bubbleDim);
   const liveCp = layout.bubble;
   const anchorPt = layout.dot;
 
@@ -565,6 +593,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
           the author). justDraggedRef suppresses the click that would
           otherwise toggle the thread after a drag. */}
       <button type="button"
+              ref={cardElRef}
               className="canvas-comment-card"
               aria-expanded={open}
               onPointerDown={onDragStart}
