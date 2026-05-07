@@ -132,6 +132,16 @@ function squash(cosine) {
   return 1 - Math.exp(-cosine * 6);
 }
 
+// Word-boundary check — avoids matching "art" inside "smart" or
+// "design" inside "designation". Slugs may contain punctuation, so
+// we escape regex specials. Used for both single- and multi-word
+// slugs (the latter not in tokenSet for slugs ≥ 3 words).
+function hasWord(haystack, needle) {
+  if (!needle) return false;
+  const esc = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp('(^|[^a-z0-9])' + esc + '($|[^a-z0-9])', 'i').test(haystack);
+}
+
 // Main entry point.
 //
 // Input:
@@ -160,11 +170,22 @@ export function scoreContent({ tags, index, content, ignoredTagIds }) {
     let bestScore = 0;
     let bestReason = null;
 
-    // 1. Exact-name token match — the tag's slug appears as a token
-    //    or contiguous phrase. This is by far our strongest signal.
-    if (tokenSet.has(slug) || lower.includes(slug)) {
+    // 1. Exact-name token match — the tag's slug appears either as
+    //    a clean token / bigram OR as a word-bounded run in the
+    //    text. The token check covers "pricing" appearing as a
+    //    standalone word; the regex check covers multi-word slugs
+    //    (>= 3 words, beyond bigram coverage) and slugs with
+    //    punctuation. Word-bounded so "art" doesn't match "darts".
+    if (tokenSet.has(slug) || hasWord(lower, slug)) {
       bestScore = 0.95;
       bestReason = 'exact';
+    }
+
+    // Short-circuit: exact-name is already maximal — TF-IDF can't
+    // beat it, so skip the work for the common case.
+    if (bestReason === 'exact') {
+      out.push({ tagId: tag.id, score: bestScore, reason: bestReason });
+      continue;
     }
 
     // 2. Alias match — same thing for any alias.
@@ -172,7 +193,7 @@ export function scoreContent({ tags, index, content, ignoredTagIds }) {
       for (const a of tag.aliases) {
         const al = (a || '').toLowerCase().trim();
         if (!al) continue;
-        if (tokenSet.has(al) || lower.includes(al)) {
+        if (tokenSet.has(al) || hasWord(lower, al)) {
           if (0.9 > bestScore) { bestScore = 0.9; bestReason = 'alias'; }
           break;
         }
@@ -192,11 +213,11 @@ export function scoreContent({ tags, index, content, ignoredTagIds }) {
     if (tfIdf > bestScore) { bestScore = tfIdf; bestReason = 'tfidf'; }
 
     // 4. Substring fallback — only if no other signal fired and the
-    //    tag has zero training corpus (cold start). Captures the
-    //    legacy "tag's slug is mentioned in the title" behavior.
+    //    tag has zero training corpus (cold start). Word-bounded
+    //    for the same reason as the exact-name path.
     if (bestReason == null) {
       const hasTraining = index && index.tagTf.has(tag.id);
-      if (!hasTraining && lower.includes(slug)) {
+      if (!hasTraining && hasWord(lower, slug)) {
         bestScore = 0.55;
         bestReason = 'substring';
       }

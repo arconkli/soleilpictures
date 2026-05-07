@@ -4379,6 +4379,17 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-style: dashed;
   opacity: .82;
 }
+
+/* Board-level tag strip — sits at the top-left of the canvas
+   surface so the user can see (and right-click to manage) the
+   tags applied to the entire board, not just individual cards. */
+.board-tags-strip {
+  position: absolute;
+  top: 12px; left: 16px;
+  display: flex; flex-wrap: wrap; gap: 4px;
+  z-index: 4;
+  pointer-events: auto;
+}
 .card-tag-chip-name { overflow: hidden; text-overflow: ellipsis; }
 .card-tag-chip-overflow {
   color: var(--ink-3);

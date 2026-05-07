@@ -65,16 +65,22 @@ export function useAutotagWorker(workspaceId) {
     async function hydrate() {
       const w = workerRef.current;
       if (!w || !workspaceId) return;
-      // Tags definitions.
-      const tagsResp = await supabase.from('tags')
-        .select('id, name, slug, color')
-        .eq('workspace_id', workspaceId);
-      // Applied entity_links rows for this workspace.
-      const linksResp = await supabase.from('entity_links')
-        .select('source_kind, source_id, source_board_id, target_id')
-        .eq('source_workspace', workspaceId)
-        .eq('target_kind', 'tag')
-        .eq('link_kind', 'applied');
+      // Run the three top-level queries in parallel — we don't depend
+      // on one another's results until enrichment, so this saves a
+      // round-trip's worth of latency on cold starts.
+      const [tagsResp, linksResp, ignResp] = await Promise.all([
+        supabase.from('tags')
+          .select('id, name, slug, color')
+          .eq('workspace_id', workspaceId),
+        supabase.from('entity_links')
+          .select('source_kind, source_id, source_board_id, target_id')
+          .eq('source_workspace', workspaceId)
+          .eq('target_kind', 'tag')
+          .eq('link_kind', 'applied'),
+        supabase.from('autotag_ignored')
+          .select('target_kind, target_id, tag_id')
+          .eq('workspace_id', workspaceId),
+      ]);
       // Group source ids per kind for batched lookup.
       const cardKeys = new Set();
       const boardIds = new Set();
@@ -85,27 +91,28 @@ export function useAutotagWorker(workspaceId) {
           boardIds.add(r.source_id);
         }
       }
-      // Resolve text for cards (card_index) and boards.
+      // Resolve text for cards (card_index) and boards. Also in parallel.
       const cardText = new Map(); // boardId:cardId -> text
       const boardText = new Map(); // boardId -> text
-      if (cardKeys.size > 0) {
-        const cardIds = Array.from(new Set(
-          Array.from(cardKeys).map(k => k.split(':')[1])
-        ));
-        const ciResp = await supabase.from('card_index')
-          .select('board_id, card_id, title, body')
-          .eq('workspace_id', workspaceId)
-          .in('card_id', cardIds);
-        for (const c of (ciResp.data || [])) {
-          cardText.set(`${c.board_id}:${c.card_id}`, makeText(c.title, c.body));
-        }
+      const cardIds = cardKeys.size > 0
+        ? Array.from(new Set(Array.from(cardKeys).map(k => k.split(':')[1])))
+        : [];
+      const boardIdList = Array.from(boardIds);
+      const [ciResp, bResp] = await Promise.all([
+        cardIds.length > 0
+          ? supabase.from('card_index')
+              .select('board_id, card_id, title, body')
+              .eq('workspace_id', workspaceId)
+              .in('card_id', cardIds)
+          : Promise.resolve({ data: [] }),
+        boardIdList.length > 0
+          ? supabase.from('boards').select('id, name').in('id', boardIdList)
+          : Promise.resolve({ data: [] }),
+      ]);
+      for (const c of (ciResp.data || [])) {
+        cardText.set(`${c.board_id}:${c.card_id}`, makeText(c.title, c.body));
       }
-      if (boardIds.size > 0) {
-        const bResp = await supabase.from('boards')
-          .select('id, name')
-          .in('id', Array.from(boardIds));
-        for (const b of (bResp.data || [])) boardText.set(b.id, b.name || '');
-      }
+      for (const b of (bResp.data || [])) boardText.set(b.id, b.name || '');
       // Build the corpus passed to the worker.
       const corpus = [];
       for (const r of (linksResp.data || [])) {
@@ -120,10 +127,6 @@ export function useAutotagWorker(workspaceId) {
         }
         if (text) corpus.push({ tagId: r.target_id, text, key });
       }
-      // Ignored pairs.
-      const ignResp = await supabase.from('autotag_ignored')
-        .select('target_kind, target_id, tag_id')
-        .eq('workspace_id', workspaceId);
       const ignored = {};
       for (const r of (ignResp.data || [])) {
         const k = targetKey(r.target_kind, r.target_id);

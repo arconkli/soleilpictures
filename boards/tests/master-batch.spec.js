@@ -609,6 +609,25 @@ test.describe('Tags-as-entities unification (Phase A)', () => {
     // Cold-start fallback is gone — substring matcher was replaced.
     expect(bundle.includes('autoTagCardByTitle')).toBe(false);
   });
+
+  test('autotag engine: word-boundary + threshold + board chips (audit fixes)', async ({ page }) => {
+    await go(page);
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    // Word-boundary regex helper shipped in the engine.
+    expect(bundle.includes('hasWord')).toBe(true);
+    // Workspace tag fingerprint — without this, creating a new tag
+    // never re-scores existing cards (the user's reported bug).
+    expect(bundle.includes('wsTagsFingerprint')).toBe(true);
+    // Board-tag chip strip rendered above the canvas.
+    expect(await hasCssRule(page, /\.board-tags-strip/)).toBe(true);
+    // untagBoard wired into the chip menu.
+    expect(bundle.includes('untagBoard')).toBe(true);
+    // Dead useAutotagOnChange.js was removed — no stale dependency.
+    expect(bundle.includes('useAutotagOnChange')).toBe(false);
+  });
 });
 
 // ═══════════════ ORPHAN-CARD SWEEP REGRESSION GUARD ═══════════════

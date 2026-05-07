@@ -33,7 +33,7 @@ import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
-import { ensureTag, tagCard, untagCard, tagBoard, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
+import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -1942,8 +1942,17 @@ export function CanvasSurface({
   };
 
   // ── Tags ──────────────────────────────────────────────────────────────
-  const { tags: wsTags, byCard: tagsByCard, refresh: refreshTags } =
+  const { tags: wsTags, byCard: tagsByCard, byBoard: tagsByBoard, refresh: refreshTags } =
     useWorkspaceTags({ workspaceId, boardId: board?.id });
+  // Stable fingerprint of the workspace's tag definitions — used as
+  // a dep + as a per-card hash component so creating / renaming /
+  // deleting a tag triggers a fresh round of scoring against every
+  // visible card. Without this, a brand-new tag never re-scores
+  // existing cards (the per-card hash dedupe would skip them).
+  const wsTagsFingerprint = useMemo(
+    () => (wsTags || []).map(t => `${t.id}:${t.slug || t.name || ''}`).sort().join('|'),
+    [wsTags],
+  );
   const [tagPicker, setTagPicker] = useState(null); // { cardId, anchorRect }
   const openTagPicker = (cardId, anchorRect) => setTagPicker({ cardId, anchorRect });
   const closeTagPicker = () => setTagPicker(null);
@@ -1990,44 +1999,57 @@ export function CanvasSurface({
   // then catches that on the very first scoring run, no training
   // corpus required.
   //
-  // The board itself is also scored once per session (board name
-  // is its content).
-  const autoTaggedHashRef = useRef(new Map()); // cardId -> last hash
-  const boardAutotaggedRef = useRef(new Set()); // boardIds we've scored
+  // The board itself is also scored. The hash includes the workspace
+  // tag fingerprint so creating a brand-new tag re-fires scoring
+  // for every visible card (otherwise the dedupe permanently blocks
+  // re-evaluation against the new tag set).
+  const autoTaggedHashRef = useRef(new Map()); // key -> last hash
 
   useEffect(() => {
     if (!workspaceId || !board?.id || !autotagSuggest || !autotagReady) return;
-    const HIGH = 0.7;
+    // Auto-apply threshold. Lower than the legacy 0.7 because:
+    //   - exact-name (0.95) and alias (0.9) hits are unaffected
+    //   - cold-start substring fallback (0.55) now lands as 'auto',
+    //     giving the user the "everything obvious gets tagged"
+    //     feel they want
+    //   - users have a one-click "Don't suggest again" escape on
+    //     every chip, so false positives are cheap
+    const HIGH = 0.5;
     const boardName = board.name || board.title || '';
     const t = setTimeout(() => {
       (async () => {
-        // 1. Score the board itself (once per session per board).
-        if (!boardAutotaggedRef.current.has(board.id) && boardName.trim()) {
-          boardAutotaggedRef.current.add(board.id);
-          try {
-            const suggestions = await autotagSuggest(boardName, { kind: 'board', id: board.id });
-            for (const s of suggestions) {
-              if (s.score < HIGH) continue;
-              await tagBoard({
-                workspaceId, boardId: board.id,
-                tagId: s.tagId, source: 'auto',
-              });
-            }
-          } catch {}
+        // 1. Score the board itself.
+        if (boardName.trim()) {
+          const knownBoardIds = new Set((tagsByBoard?.get(board.id) || []).map(t => t.id));
+          const boardKey = `board:${board.id}`;
+          const boardHash = `${boardName}:${wsTagsFingerprint}:${knownBoardIds.size}`;
+          if (autoTaggedHashRef.current.get(boardKey) !== boardHash) {
+            autoTaggedHashRef.current.set(boardKey, boardHash);
+            try {
+              const suggestions = await autotagSuggest(boardName, { kind: 'board', id: board.id });
+              for (const s of suggestions) {
+                if (s.score < HIGH) continue;
+                if (knownBoardIds.has(s.tagId)) continue;
+                await tagBoard({
+                  workspaceId, boardId: board.id,
+                  tagId: s.tagId, source: 'auto',
+                });
+              }
+            } catch {}
+          }
         }
         // 2. Score every card with enriched context.
         for (const c of cards || []) {
           const title = c.title || c.label || c.name || '';
           const body = c.body || '';
           const groupName = c.groupId ? (groupById[c.groupId]?.name || '') : '';
-          // Context first so exact-name hits land even on cards with
-          // sparse own-text. Board name + group name + card text.
           const text = [boardName, groupName, title, body].filter(Boolean).join(' ').trim();
           if (text.length < 2) continue;
           const knownIds = new Set((tagsByCard.get(c.id) || []).map(t => t.id));
-          const hash = `${text.length}:${title.slice(0, 40)}:${groupName}:${knownIds.size}`;
-          if (autoTaggedHashRef.current.get(c.id) === hash) continue;
-          autoTaggedHashRef.current.set(c.id, hash);
+          const cardKey = `card:${c.id}`;
+          const hash = `${text.length}:${title.slice(0, 40)}:${groupName}:${wsTagsFingerprint}:${knownIds.size}`;
+          if (autoTaggedHashRef.current.get(cardKey) === hash) continue;
+          autoTaggedHashRef.current.set(cardKey, hash);
           try {
             const suggestions = await autotagSuggest(text, { kind: 'card', id: c.id });
             for (const s of suggestions) {
@@ -2043,7 +2065,7 @@ export function CanvasSurface({
       })();
     }, 1500);
     return () => clearTimeout(t);
-  }, [cards, workspaceId, board?.id, board?.name, autotagSuggest, autotagReady, tagsByCard, groupById]);
+  }, [cards, workspaceId, board?.id, board?.name, autotagSuggest, autotagReady, tagsByCard, tagsByBoard, groupById, wsTagsFingerprint]);
 
   // ── Comments ───────────────────────────────────────────────────────────
   // Live anywhere-comments. Bubbles render anchored to cards / groups /
@@ -2380,7 +2402,7 @@ export function CanvasSurface({
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setTagChipMenu({ x: e.clientX, y: e.clientY, cardId: c.id, tag: t });
+                      setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'card', targetId: c.id, tag: t });
                     }}>
                 <span className="card-tag-chip-dot" />
                 <span className="card-tag-chip-name">{t.name}</span>
@@ -2786,6 +2808,24 @@ export function CanvasSurface({
          onDrop={handleDrop}
          onPointerDown={onBackgroundPointerDown}
          onContextMenu={onBackgroundContextMenu}>
+      {(tagsByBoard?.get(board.id) || []).length > 0 && (
+        <div className="board-tags-strip" data-board-id={board.id}>
+          {(tagsByBoard.get(board.id) || []).slice(0, 6).map(t => (
+            <span key={t.id}
+                  className={`card-tag-chip is-${t.source || 'user'}`}
+                  style={{ '--tag-c': t.color || '#4f8df8' }}
+                  title={t.source && t.source !== 'user' ? `${t.name} (${t.source}) — right-click to confirm` : t.name}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'board', targetId: board.id, tag: t });
+                  }}>
+              <span className="card-tag-chip-dot" />
+              <span className="card-tag-chip-name">{t.name}</span>
+            </span>
+          ))}
+        </div>
+      )}
       <CanvasPresence
         getAwareness={getAwareness}
         boardId={board.id}
@@ -3405,12 +3445,13 @@ export function CanvasSurface({
           {tagChipMenu.tag.source && tagChipMenu.tag.source !== 'user' && (
             <button className="sb-tag-menu-item" role="menuitem"
                     onClick={async () => {
-                      const { cardId, tag } = tagChipMenu;
+                      const { kind, targetId, tag } = tagChipMenu;
                       closeTagChipMenu();
                       try {
                         await confirmAppliedTag({
-                          sourceKind: 'card', sourceId: cardId,
-                          sourceBoardId: board.id, tagId: tag.id,
+                          sourceKind: kind, sourceId: targetId,
+                          sourceBoardId: kind === 'card' ? board.id : null,
+                          tagId: tag.id,
                         });
                         refreshTags?.();
                       } catch (err) {
@@ -3422,10 +3463,14 @@ export function CanvasSurface({
           )}
           <button className="sb-tag-menu-item" role="menuitem"
                   onClick={async () => {
-                    const { cardId, tag } = tagChipMenu;
+                    const { kind, targetId, tag } = tagChipMenu;
                     closeTagChipMenu();
                     try {
-                      await untagCard({ boardId: board.id, cardId, tagId: tag.id });
+                      if (kind === 'card') {
+                        await untagCard({ boardId: board.id, cardId: targetId, tagId: tag.id });
+                      } else if (kind === 'board') {
+                        await untagBoard({ boardId: targetId, tagId: tag.id });
+                      }
                       refreshTags?.();
                     } catch (err) {
                       feedback.toast({ type: 'error', message: 'Untag failed: ' + (err.message || err) });
@@ -3436,12 +3481,16 @@ export function CanvasSurface({
           {tagChipMenu.tag.source && tagChipMenu.tag.source !== 'user' && (
             <button className="sb-tag-menu-item" role="menuitem"
                     onClick={async () => {
-                      const { cardId, tag } = tagChipMenu;
+                      const { kind, targetId, tag } = tagChipMenu;
                       closeTagChipMenu();
                       try {
-                        await untagCard({ boardId: board.id, cardId, tagId: tag.id });
+                        if (kind === 'card') {
+                          await untagCard({ boardId: board.id, cardId: targetId, tagId: tag.id });
+                        } else if (kind === 'board') {
+                          await untagBoard({ boardId: targetId, tagId: tag.id });
+                        }
                         await dismissAutotagSuggestion({
-                          workspaceId, targetKind: 'card', targetId: cardId,
+                          workspaceId, targetKind: kind, targetId,
                           tagId: tag.id, userId,
                         });
                         refreshTags?.();
