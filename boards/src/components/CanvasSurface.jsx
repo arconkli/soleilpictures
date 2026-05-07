@@ -1242,6 +1242,19 @@ export function CanvasSurface({
         mutators.createGroup?.({ name: name || 'Group', cardIds: [...selected] });
       }});
     }
+    // Always offer "Add to group…" when at least one existing group is on
+    // the board, regardless of selection size. Adds the right-clicked card
+    // (or all selected cards) into the chosen group.
+    if (!c.groupId && groups && groups.length > 0) {
+      const targets = multi ? [...selected] : [c.id];
+      items.push({ id: 'add-to-group', label: 'Add to group', submenu:
+        groups.map(g => ({
+          id: `atg-${g.id}`,
+          label: g.name || 'Untitled group',
+          run: () => mutators.addToGroup?.(g.id, targets),
+        })),
+      });
+    }
     if (c.groupId && groupById[c.groupId]) {
       const g = groupById[c.groupId];
       items.push({ id: 'group-rename', label: `Rename group "${g.name || ''}"`, run: async () => {
@@ -1277,6 +1290,21 @@ export function CanvasSurface({
       items.push({ id: 'group-remove', label: multi ? `Remove from group (${selected.size})` : 'Remove from group',
         run: () => mutators.removeFromGroup?.(multi ? [...selected] : [c.id]) });
       items.push({ id: 'ungroup', label: 'Ungroup', danger: true, run: () => mutators.ungroup?.(g.id) });
+      // Group info — surfaces the same audit data we stamp on cards,
+      // plus a quick member count.
+      items.push({ id: 'group-info', label: 'Group info', run: () => {
+        const memberCount = (cards || []).filter(cc => cc.groupId === g.id).length;
+        const lines = [`${memberCount} member${memberCount === 1 ? '' : 's'}`];
+        if (g.createdAt) lines.push(`created ${relativeTimeShort(g.createdAt)}`);
+        if (g.createdBy) {
+          const peer = (wsPeers || []).find(p => p?.user?.id === g.createdBy);
+          const name = peer?.user?.name
+                    || peer?.user?.email?.split('@')[0]
+                    || (g.createdBy === userId ? 'you' : (g.createdBy || '').slice(0, 6));
+          lines.push(`by ${name}`);
+        }
+        feedback.toast({ type: 'info', message: lines.join(' · ') });
+      }});
     }
 
     // Audit info — who created this and when, last edit by whom and when.
@@ -1550,6 +1578,27 @@ export function CanvasSurface({
         { id: 'palette', label: 'Color palette', run: () => mutators.addPalette?.(pos) },
       ]},
       { id: 'comment', label: 'Add comment', run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
+      { id: 'addurl', label: 'Add link…', run: async () => {
+        const v = await feedback.prompt({
+          title: 'Add a link card',
+          label: 'URL',
+          placeholder: 'https://…',
+          confirmLabel: 'Add',
+        });
+        if (!v) return;
+        const url = v.trim();
+        if (!url) return;
+        const w = 280, h = 110;
+        let title = url;
+        try { title = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
+        mutators.addCard?.({
+          id: `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+          kind: 'link', source: url, link: url, title,
+          x: Math.max(8, Math.round(pos.x - w / 2)),
+          y: Math.max(8, Math.round(pos.y - h / 2)),
+          w, h,
+        });
+      }},
       { divider: true },
       { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
         shortcut: `${cmdKey}V`, disabled: clipboardSize() === 0,

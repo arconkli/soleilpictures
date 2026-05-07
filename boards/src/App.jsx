@@ -473,6 +473,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         g.set('color', null);
         g.set('width', 1);
         g.set('createdAt', Date.now());
+        g.set('createdBy', user?.id || null);
         gm.set(id, g);
         for (const cid of cardIds) {
           const ym = m.get(cid); if (!ym) continue;

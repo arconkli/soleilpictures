@@ -15,7 +15,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { X, FileText, MessageSquare, StickyNote } from '../lib/icons.js';
+import { X, FileText, MessageSquare, StickyNote, Pin } from '../lib/icons.js';
 import { getKind } from '../lib/entityKinds.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { supabase } from '../lib/supabase.js';
@@ -129,6 +129,43 @@ export function EntityBacklinksPanel({ ref: targetRef, onClose }) {
     return out;
   }, [linkRows, mentionRows]);
 
+  // Local pin state — per-target list of pinned source keys, persisted in
+  // localStorage so the user's own pins survive across sessions without
+  // needing a server-side table. (Server-side per-user pinning is a
+  // future migration; this is the cheap-and-good MVP.)
+  const targetKey = targetRef
+    ? `${targetRef.kind}:${targetRef.cardId || targetRef.docCardId || targetRef.id || ''}`
+    : '';
+  const pinStorageKey = targetKey ? `soleil-backlink-pins:${targetKey}` : '';
+  const [pinned, setPinned] = useState(() => {
+    if (!pinStorageKey) return new Set();
+    try {
+      const raw = localStorage.getItem(pinStorageKey);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch (_) { return new Set(); }
+  });
+  const persistPins = (next) => {
+    setPinned(next);
+    if (!pinStorageKey) return;
+    try { localStorage.setItem(pinStorageKey, JSON.stringify([...next])); }
+    catch (_) {}
+  };
+  const togglePin = (key) => {
+    const next = new Set(pinned);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    persistPins(next);
+  };
+  const sortedRows = useMemo(() => {
+    if (pinned.size === 0) return rows;
+    const keyOf = (r) => `${r.kind}:${r.id}:${r.pageId || ''}`;
+    const isPinned = (r) => pinned.has(keyOf(r));
+    return [...rows].sort((a, b) => {
+      const pa = isPinned(a), pb = isPinned(b);
+      if (pa !== pb) return pa ? -1 : 1;
+      return new Date(b.when || 0) - new Date(a.when || 0);
+    });
+  }, [rows, pinned]);
+
   if (!targetRef) return null;
 
   return (
@@ -150,21 +187,31 @@ export function EntityBacklinksPanel({ ref: targetRef, onClose }) {
             Nothing links here yet. Mention this from a doc, message, or card.
           </div>
         )}
-        {rows.map((r, i) => {
+        {sortedRows.map((r, i) => {
           const ref = sourceToRef(r);
           const IconCmp = sourceIcon(r.kind);
+          const rowKey = `${r.kind}:${r.id}:${r.pageId || ''}`;
+          const isPinned = pinned.has(rowKey);
           return (
-            <button key={`${r.kind}:${r.id}:${i}`} className="ent-backlinks-row"
-                    onClick={() => { if (ref) navigate(ref); onClose?.(); }}>
-              <span className="ent-backlinks-row-head">
-                <Icon as={IconCmp} size={12} />
-                <span className="ent-backlinks-row-kind">{labelFor(r.kind)}</span>
-                {r.title && <span className="ent-backlinks-row-title">{r.title}</span>}
-                {r.when && <span className="ent-backlinks-row-when">· {relativeTimeShort(r.when)}</span>}
-                {r.isExplicit && <span className="ent-backlinks-row-tag" title="Manual link">link</span>}
-              </span>
-              {r.snippet && <span className="ent-backlinks-row-snippet">{r.snippet}</span>}
-            </button>
+            <div key={`${r.kind}:${r.id}:${i}`}
+                 className={`ent-backlinks-row-wrap ${isPinned ? 'is-pinned' : ''}`}>
+              <button className="ent-backlinks-row"
+                      onClick={() => { if (ref) navigate(ref); onClose?.(); }}>
+                <span className="ent-backlinks-row-head">
+                  <Icon as={IconCmp} size={12} />
+                  <span className="ent-backlinks-row-kind">{labelFor(r.kind)}</span>
+                  {r.title && <span className="ent-backlinks-row-title">{r.title}</span>}
+                  {r.when && <span className="ent-backlinks-row-when">· {relativeTimeShort(r.when)}</span>}
+                  {r.isExplicit && <span className="ent-backlinks-row-tag" title="Manual link">link</span>}
+                </span>
+                {r.snippet && <span className="ent-backlinks-row-snippet">{r.snippet}</span>}
+              </button>
+              <button className={`ent-backlinks-row-pin ${isPinned ? 'is-on' : ''}`}
+                      title={isPinned ? 'Unpin from top' : 'Pin to top'}
+                      onClick={(e) => { e.stopPropagation(); togglePin(rowKey); }}>
+                <Icon as={Pin} size={12} />
+              </button>
+            </div>
           );
         })}
       </div>

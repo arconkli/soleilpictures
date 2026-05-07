@@ -14,6 +14,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { EntityHoverPopover } from './EntityHoverPopover.jsx';
+import { entityKindColor } from '../lib/entityKindColor.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { entityUrl } from '../lib/entityUrl.js';
 
@@ -101,17 +102,23 @@ export function EntityLink({
 
   const Tag = asTag;
   const variantClass = isManual ? 'tt-link tt-link-manual' : 'tt-link tt-link-auto';
+  // Tint by kind on hover. The kind comes from the first manual ref or
+  // is left blank for auto-detected links (which can match many kinds at
+  // once). CSS reads --tt-link-tint to color the text + underline.
+  const linkKind = refs?.[0]?.kind || null;
+  const kindStyle = linkKind ? { '--tt-link-tint': entityKindColor(linkKind) } : undefined;
 
   return (
     <>
       <Tag
         ref={elRef}
-        className={`${variantClass} ${className}`.trim()}
+        className={`${variantClass} ${linkKind ? `tt-link-kind-${linkKind}` : ''} ${className}`.trim()}
         draggable={!!refs?.length}
         onClick={handleClick}
         onMouseEnter={scheduleOpen}
         onMouseLeave={scheduleClose}
         onDragStart={handleDragStart}
+        style={kindStyle}
         {...rest}
       >
         {children}

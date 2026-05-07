@@ -7567,8 +7567,11 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   font-weight: 510;
 }
 .tt-link:hover, .tt-link.is-active {
-  color: var(--soleil);
-  background: var(--soleil-soft);
+  /* Hover tint follows the link target's kind when known (set as a
+     --tt-link-tint inline style by EntityLink). Falls back to the
+     soleil gold for kindless / multi-target links. */
+  color: var(--tt-link-tint, var(--soleil));
+  background: color-mix(in oklab, var(--tt-link-tint, var(--soleil)) 14%, transparent);
   border-radius: 3px;
   /* Tiny inset so the soft background pads the text without nudging
      surrounding glyphs around. */
@@ -7869,21 +7872,41 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-3);
   text-align: center;
 }
+.ent-backlinks-row-wrap {
+  display: flex; align-items: stretch;
+  border-left: 2px solid transparent;
+}
+.ent-backlinks-row-wrap.is-pinned {
+  background: color-mix(in oklab, var(--soleil) 5%, transparent);
+  border-left-color: color-mix(in oklab, var(--soleil) 50%, transparent);
+}
+.ent-backlinks-row-wrap:hover { border-left-color: var(--soleil); }
 .ent-backlinks-row {
   appearance: none;
   display: flex; flex-direction: column; gap: 4px;
-  width: 100%;
+  flex: 1 1 auto; min-width: 0;
   background: transparent;
   border: 0;
   text-align: left;
   padding: 10px 16px;
   cursor: pointer;
-  border-left: 2px solid transparent;
 }
-.ent-backlinks-row:hover {
+.ent-backlinks-row-wrap:hover .ent-backlinks-row {
   background: var(--bg-hov);
-  border-left-color: var(--soleil);
 }
+.ent-backlinks-row-pin {
+  display: grid; place-items: center;
+  width: 32px;
+  background: transparent; border: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.ent-backlinks-row-wrap:hover .ent-backlinks-row-pin,
+.ent-backlinks-row-pin.is-on { opacity: 1; }
+.ent-backlinks-row-pin.is-on { color: var(--soleil); }
+.ent-backlinks-row-pin:hover { color: var(--ink-0); }
 .ent-backlinks-row-title {
   font: 600 13px/1.3 var(--font-sans);
   color: var(--ink-0);
