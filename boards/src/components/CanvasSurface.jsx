@@ -1767,6 +1767,48 @@ export function CanvasSurface({
   const closeBgMenu = () => setBgCtx(b => ({ ...b, open: false }));
 
   const buildBgMenu = () => {
+    // Group context menu — opened by right-clicking a group label.
+    // First so it short-circuits before the arrow + bg branches.
+    if (bgCtx.groupMenu) {
+      const { id: gid, name: gname } = bgCtx.groupMenu;
+      const g = groupById?.[gid];
+      const items = [
+        { id: 'group-comment', label: 'Add comment to group',
+          run: () => promptComment({ kind: 'group', id: gid }) },
+      ];
+      if (g) {
+        items.push({ id: 'group-tag', label: 'Tag group…',
+          run: () => {
+            const r = { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 };
+            // Reuse the per-card tag picker — group tagging would need
+            // a `board_tags` flow which is its own feature; for now we
+            // surface this as a placeholder so users see it and the
+            // archive popover entry still makes sense.
+            feedback.toast({ type: 'info', message: 'Group tagging is coming — comment for now.' });
+          }});
+        items.push({ id: 'group-rename', label: 'Rename group', run: async () => {
+          const name = await feedback.prompt({
+            title: 'Rename group',
+            label: 'Name',
+            defaultValue: gname || g.name || '',
+            confirmLabel: 'Rename',
+          });
+          if (name == null) return;
+          mutators.renameGroup?.(gid, name);
+        }});
+        items.push({ id: 'group-outline', label: g.outline ? 'Hide outline' : 'Show outline',
+          run: () => mutators.setGroupOutline?.(gid, { outline: !g.outline }) });
+        items.push({ id: 'group-hide-label',
+          label: g.options?.hideLabel ? 'Show group label' : 'Hide group label',
+          run: () => mutators.setGroupOutline?.(gid, {
+            options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
+          }) });
+        items.push({ divider: true });
+        items.push({ id: 'group-ungroup', label: 'Ungroup', danger: true,
+          run: () => mutators.ungroup?.(gid) });
+      }
+      return items;
+    }
     // Arrow context menu — opened by right-clicking an arrow path.
     if (bgCtx.arrowMenu) {
       const { idx, arrow } = bgCtx.arrowMenu;
@@ -2718,10 +2760,20 @@ export function CanvasSurface({
                        borderRadius: 4,
                        border: g.outline ? `1px solid ${stroke}` : '1px solid var(--line-1)',
                        pointerEvents: 'auto',
-                       cursor: 'default',
+                       cursor: 'context-menu',
                        whiteSpace: 'nowrap',
                      }}
-                     title={g.name}>
+                     title={`${g.name} — right-click for group actions`}
+                     onContextMenu={(e) => {
+                       e.preventDefault();
+                       e.stopPropagation();
+                       setBgCtx({
+                         open: true,
+                         x: e.clientX, y: e.clientY,
+                         canvasPos: null,
+                         groupMenu: { id: g.id, name: g.name },
+                       });
+                     }}>
                   {g.name}
                 </div>
               ) : null;
