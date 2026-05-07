@@ -3940,6 +3940,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .canvas-comment.is-resolved .canvas-comment-card { opacity: .55; }
 .canvas-comment.is-open { z-index: 5; width: 300px; }
+.canvas-comment.is-dragging { z-index: 10; }
+/* The author can drag their own bubble around its anchor; the head row
+   is the drag handle. Hover the head to surface the cursor hint. */
+.canvas-comment.is-mine .canvas-comment-card-head { cursor: grab; }
+.canvas-comment.is-mine.is-dragging .canvas-comment-card-head { cursor: grabbing; }
+.canvas-comment.is-dragging .canvas-comment-card {
+  border-color: var(--soleil);
+  box-shadow: 0 12px 28px rgba(0,0,0,.4),
+              0 0 0 2px color-mix(in oklab, var(--soleil) 30%, transparent);
+}
 
 .canvas-comment-card {
   display: flex; flex-direction: column; gap: 4px;

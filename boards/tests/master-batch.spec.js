@@ -204,6 +204,61 @@ test.describe('Phase 3 — anywhere-comments', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('.canvas-comment-draft')).toHaveCount(0);
   });
+
+  test('drag affordance + dragging visual states ship', async ({ page }) => {
+    await go(page);
+    expect(await hasCssRule(page, /canvas-comment\.is-mine/)).toBe(true);
+    expect(await hasCssRule(page, /canvas-comment\.is-dragging/)).toBe(true);
+  });
+
+  test('pickCommentOffset prefers a non-overlapping perimeter spot', async ({ page }) => {
+    await page.goto('/?local=1');
+    await page.waitForFunction(() => typeof window.__soleilTest?.pickCommentOffset === 'function');
+    // Target card with two close neighbours blocking the right side. The
+    // algorithm should slide the bubble to the LEFT (or top/bottom) where
+    // it doesn't overlap.
+    const out = await page.evaluate(() => {
+      const { pickCommentOffset } = window.__soleilTest;
+      const target = { x: 200, y: 200, w: 200, h: 200 };
+      const others = [
+        { x: 410, y: 180, w: 200, h: 100 },  // blocks right-top
+        { x: 410, y: 300, w: 200, h: 100 },  // blocks right-middle/bottom
+      ];
+      return pickCommentOffset({ target, others, placed: [] });
+    });
+    // The default spot (right-side, top) lands inside others[0]. The
+    // chosen offset must move the bubble somewhere that doesn't overlap
+    // — either left, top, or bottom of the target. Verify the resulting
+    // bubble rect doesn't intersect either obstacle.
+    const overlaps = await page.evaluate(({ offsetX, offsetY }) => {
+      const target = { x: 200, y: 200, w: 200, h: 200 };
+      const others = [
+        { x: 410, y: 180, w: 200, h: 100 },
+        { x: 410, y: 300, w: 200, h: 100 },
+      ];
+      const W = 240, H = 76;
+      const x = target.x + target.w + 8 + offsetX;
+      const y = target.y - 8 + offsetY;
+      const r = { x, y, w: W, h: H };
+      const overlap = (a, b) => {
+        const dx = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+        const dy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+        return dx * dy;
+      };
+      return others.reduce((s, o) => s + overlap(r, o), 0);
+    }, out);
+    expect(overlaps).toBe(0);
+  });
+
+  test('pickCommentOffset returns 0/0 when target is undefined (defensive default)', async ({ page }) => {
+    await page.goto('/?local=1');
+    await page.waitForFunction(() => typeof window.__soleilTest?.pickCommentOffset === 'function');
+    const out = await page.evaluate(() => {
+      const { pickCommentOffset } = window.__soleilTest;
+      return pickCommentOffset({ target: null, others: [], placed: [] });
+    });
+    expect(out).toEqual({ offsetX: 0, offsetY: 0 });
+  });
 });
 
 // ═══════════════ PHASE 4: TAGS ═══════════════

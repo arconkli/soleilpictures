@@ -27,7 +27,8 @@ import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { saveBoardTemplate } from '../lib/templatesApi.js';
 import { CanvasCommentLayer } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
-import { addComment } from '../lib/commentsApi.js';
+import { addComment, updateComment } from '../lib/commentsApi.js';
+import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { ensureTag, tagCard, untagCard, autoTagCardByTitle } from '../lib/tagsApi.js';
@@ -1865,16 +1866,69 @@ export function CanvasSurface({
     if (!commentDraft) return;
     const trimmed = (body || '').trim();
     if (!trimmed) { setCommentDraft(null); return; }
+    // For card / group anchors, find a perimeter spot that doesn't
+    // collide with neighbouring cards or already-placed comments.
+    let offset = { offsetX: 0, offsetY: 0 };
+    try {
+      const a = commentDraft.anchor;
+      if (a.kind === 'card') {
+        const target = resolveCardBBox(a.id);
+        if (target) {
+          const others = (cards || []).filter(c => c.id !== a.id)
+            .map(c => ({ x: c.x, y: c.y, w: c.w, h: c.h }));
+          const placed = (comments || [])
+            .filter(c => !c.hidden && !c.reply_to)
+            .map(c => commentRectFor(c, resolveCardBBox, resolveGroupBBox))
+            .filter(Boolean);
+          offset = pickCommentOffset({ target, others, placed });
+        }
+      } else if (a.kind === 'group') {
+        const target = resolveGroupBBox(a.id);
+        if (target) {
+          const others = (cards || []).map(c => ({ x: c.x, y: c.y, w: c.w, h: c.h }));
+          const placed = (comments || [])
+            .filter(c => !c.hidden && !c.reply_to)
+            .map(c => commentRectFor(c, resolveCardBBox, resolveGroupBBox))
+            .filter(Boolean);
+          offset = pickCommentOffsetForGroup({ groupBBox: target, others, placed });
+        }
+      }
+    } catch (_) { /* fall through with zero offset */ }
     try {
       await addComment({
         workspaceId, boardId: board.id, author: userId,
         body: trimmed, anchor: commentDraft.anchor,
+        offsetX: offset.offsetX, offsetY: offset.offsetY,
       });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Comment failed: ' + (err.message || err) });
     } finally {
       setCommentDraft(null);
     }
+  };
+  // Helper: compute a comment's canvas-space rect for collision-avoidance.
+  const commentRectFor = (c, resolveCard, resolveGroup) => {
+    const W = 240, H = 76;
+    if (c.anchor_kind === 'card') {
+      const b = resolveCard?.(c.anchor_id);
+      if (!b) return null;
+      const x = b.x + b.w + 8 + (c.offset_x || 0);
+      const y = b.y - 8 + (c.offset_y || 0);
+      return { x, y, w: W, h: H };
+    }
+    if (c.anchor_kind === 'group') {
+      const b = resolveGroup?.(c.anchor_id);
+      if (!b) return null;
+      const x = b.x + b.w + 8 + (c.offset_x || 0);
+      const y = b.y - 8 + (c.offset_y || 0);
+      return { x, y, w: W, h: H };
+    }
+    if (c.anchor_kind === 'point') {
+      return { x: (c.anchor_x || 0) + (c.offset_x || 0),
+               y: (c.anchor_y || 0) + (c.offset_y || 0),
+               w: W, h: H };
+    }
+    return null;
   };
   const resolveCardBBox = useCallback((cardId) => {
     const c = (cards || []).find(c => c.id === cardId);
@@ -2765,13 +2819,15 @@ export function CanvasSurface({
 
       {/* Anywhere-comment bubbles. Mounted OUTSIDE the canvas transform so
           bubbles stay readable size at any zoom; positions come from
-          canvasToViewport. */}
+          canvasToViewport. zoom is passed through so author-drag can
+          convert pointer-pixel deltas into canvas-space deltas. */}
       <CanvasCommentLayer
         comments={comments}
         boardId={board?.id}
         workspaceId={workspaceId}
         userId={userId}
         wsPeers={wsPeers}
+        zoom={zoom}
         canvasToViewport={canvasToViewport}
         resolveCardBBox={resolveCardBBox}
         resolveGroupBBox={resolveGroupBBox}

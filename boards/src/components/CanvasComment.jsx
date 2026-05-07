@@ -22,6 +22,10 @@ export function CanvasCommentLayer({
   // pixels via the canvas's CSS transform. We pass `getCanvasToViewport`
   // so the layer can place bubbles against the live pan/zoom.
   canvasToViewport,
+  // Current zoom — needed by drag handlers to convert viewport pixel
+  // deltas into canvas-space deltas (the layer sits outside the canvas
+  // transform, so 10px drag = 10/zoom canvas units).
+  zoom = 1,
   // Resolve a card / group id to its current bounding box in canvas space,
   // for anchor_kind='card'/'group'. Returns null when the element no
   // longer exists.
@@ -59,6 +63,7 @@ export function CanvasCommentLayer({
           workspaceId={workspaceId}
           userId={userId}
           wsPeers={wsPeers}
+          zoom={zoom}
           canvasToViewport={canvasToViewport}
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
@@ -132,22 +137,25 @@ function CanvasCommentDraft({ viewport, onSubmit, onCancel }) {
 }
 
 function anchorPoint({ comment, resolveCardBBox, resolveGroupBBox }) {
-  // Returns { x, y } in canvas coords for the bubble's tail. Each kind
-  // picks a sensible default (top-right of card/group, the literal point,
-  // or the canvas origin for board-level).
+  // Returns { x, y } in canvas coords for the bubble. Per-comment
+  // offset_x / offset_y let the author drag the bubble around its
+  // anchor. For 'point' anchors the offset is added on top of the
+  // stored anchor so a manual drag survives card moves nearby.
+  const ox = comment.offset_x || 0;
+  const oy = comment.offset_y || 0;
   if (comment.anchor_kind === 'card') {
     const b = resolveCardBBox?.(comment.anchor_id);
-    if (b) return { x: b.x + b.w + 8, y: b.y - 8 };
+    if (b) return { x: b.x + b.w + 8 + ox, y: b.y - 8 + oy };
   }
   if (comment.anchor_kind === 'group') {
     const b = resolveGroupBBox?.(comment.anchor_id);
-    if (b) return { x: b.x + b.w + 8, y: b.y - 8 };
+    if (b) return { x: b.x + b.w + 8 + ox, y: b.y - 8 + oy };
   }
   if (comment.anchor_kind === 'point') {
-    return { x: comment.anchor_x ?? 0, y: comment.anchor_y ?? 0 };
+    return { x: (comment.anchor_x ?? 0) + ox, y: (comment.anchor_y ?? 0) + oy };
   }
   // 'board' fallback — top-right corner of the visible canvas.
-  return { x: 100, y: 100 };
+  return { x: 100 + ox, y: 100 + oy };
 }
 
 function resolvePeerName(authorId, wsPeers, userId) {
@@ -162,7 +170,7 @@ function resolvePeerColor(authorId, wsPeers) {
   return peer?.user?.color || '#4f8df8';
 }
 
-function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, canvasToViewport, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
+function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, zoom = 1, canvasToViewport, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState('');
@@ -172,8 +180,70 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
   const authorColor = resolvePeerColor(comment.author, wsPeers);
   const replyCount = replies?.length || 0;
 
+  // Live drag offset — while the author is dragging, render the bubble
+  // at this offset for instant feedback. On pointer-up we commit the
+  // accumulated delta to the DB. Cleared after commit.
+  const [dragDelta, setDragDelta] = useState(null);
+  // Suppresses the synthesized click that fires after pointerup of a
+  // drag, so dragging the head doesn't accidentally toggle the thread.
+  const justDraggedRef = useRef(false);
+
   const cp = anchorPoint({ comment, resolveCardBBox, resolveGroupBBox });
-  const v = canvasToViewport ? canvasToViewport(cp.x, cp.y) : { x: cp.x, y: cp.y };
+  const liveCp = dragDelta
+    ? { x: cp.x + dragDelta.dx, y: cp.y + dragDelta.dy }
+    : cp;
+  const v = canvasToViewport ? canvasToViewport(liveCp.x, liveCp.y) : { x: liveCp.x, y: liveCp.y };
+
+  // Author-only drag-to-reposition. Pointerdown on the head row starts
+  // a drag (we use the head, not the whole card, so dragging doesn't
+  // conflict with click-to-expand). Threshold prevents accidental drags
+  // on a quick click.
+  const onDragStart = (e) => {
+    if (!isAuthor) return;
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const startClient = { x: e.clientX, y: e.clientY };
+    let started = false;
+    const onMove = (ev) => {
+      const dxPx = ev.clientX - startClient.x;
+      const dyPx = ev.clientY - startClient.y;
+      if (!started && Math.hypot(dxPx, dyPx) < 4) return; // click threshold
+      started = true;
+      const dx = dxPx / Math.max(0.001, zoom);
+      const dy = dyPx / Math.max(0.001, zoom);
+      setDragDelta({ dx, dy });
+    };
+    const onUp = async (ev) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if (!started) { setDragDelta(null); return; }
+      // The synthesized click that's about to fire on the parent
+      // button would toggle the thread — suppress it.
+      justDraggedRef.current = true;
+      setTimeout(() => { justDraggedRef.current = false; }, 0);
+      const dxPx = ev.clientX - startClient.x;
+      const dyPx = ev.clientY - startClient.y;
+      const dx = Math.round(dxPx / Math.max(0.001, zoom));
+      const dy = Math.round(dyPx / Math.max(0.001, zoom));
+      if (dx === 0 && dy === 0) { setDragDelta(null); return; }
+      const patch = {};
+      if (comment.anchor_kind === 'point') {
+        patch.anchor_x = (comment.anchor_x || 0) + dx;
+        patch.anchor_y = (comment.anchor_y || 0) + dy;
+      } else {
+        patch.offset_x = (comment.offset_x || 0) + dx;
+        patch.offset_y = (comment.offset_y || 0) + dy;
+      }
+      try {
+        await updateComment(comment.id, patch);
+      } catch (err) {
+        feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
+      }
+      setDragDelta(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
 
   // Close on outside click + Escape.
   const wrapRef = useRef(null);
@@ -245,7 +315,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
 
   return (
     <div ref={wrapRef}
-         className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''}`}
+         className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''} ${dragDelta ? 'is-dragging' : ''} ${isAuthor ? 'is-mine' : ''}`}
          style={{ left: v.x, top: v.y, pointerEvents: 'auto' }}>
       {/* Inline preview — body text is always visible so the user can read
           the comment without clicking. The whole card is the click target
@@ -253,8 +323,13 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       <button type="button"
               className="canvas-comment-card"
               aria-expanded={open}
-              onClick={() => setOpen(o => !o)}>
-        <span className="canvas-comment-card-head">
+              onClick={() => {
+                if (justDraggedRef.current) return;
+                setOpen(o => !o);
+              }}>
+        <span className="canvas-comment-card-head"
+              onPointerDown={onDragStart}
+              title={isAuthor ? 'Drag to reposition' : undefined}>
           <span className="canvas-comment-avatar"
                 style={{ background: authorColor }}
                 aria-hidden="true">

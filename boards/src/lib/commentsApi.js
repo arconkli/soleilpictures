@@ -25,7 +25,8 @@ export async function listComments(boardId) {
 //   { kind: 'point',     x: <num>, y: <num> }
 //   { kind: 'board' }
 //   { kind: 'doc_range', cardId: '<docCardId>', pageId, from, to }
-export async function addComment({ workspaceId, boardId, author, body, anchor, replyTo = null }) {
+export async function addComment({ workspaceId, boardId, author, body, anchor, replyTo = null,
+                                   offsetX = 0, offsetY = 0 }) {
   if (!workspaceId || !boardId || !author || !body || !anchor) {
     throw new Error('addComment: missing required fields');
   }
@@ -42,6 +43,8 @@ export async function addComment({ workspaceId, boardId, author, body, anchor, r
     doc_page_id: null,
     doc_from: null,
     doc_to: null,
+    offset_x: Math.round(offsetX || 0),
+    offset_y: Math.round(offsetY || 0),
   };
   if (anchor.kind === 'card' || anchor.kind === 'group') row.anchor_id = anchor.id;
   if (anchor.kind === 'point') {
@@ -61,7 +64,10 @@ export async function addComment({ workspaceId, boardId, author, body, anchor, r
 }
 
 export async function updateComment(id, patch) {
-  const allowed = ['body', 'hidden', 'resolved'];
+  // body / hidden / resolved are user-editable; offset_x/y come from drag.
+  // anchor_x/y are settable so we can reposition point-anchored comments
+  // (card/group keep their anchor_id; only the offset changes).
+  const allowed = ['body', 'hidden', 'resolved', 'offset_x', 'offset_y', 'anchor_x', 'anchor_y'];
   const row = {};
   for (const k of allowed) if (k in patch) row[k] = patch[k];
   if (Object.keys(row).length === 0) return;

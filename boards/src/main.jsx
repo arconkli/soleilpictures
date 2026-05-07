@@ -14,9 +14,10 @@ if (typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).has('local')) {
   Promise.all([
     import('./lib/yhelpers.js'),
+    import('./lib/commentPlacement.js'),
     import('yjs'),
-  ]).then(([helpers, Y]) => {
-    window.__soleilTest = { ...helpers, Y };
+  ]).then(([helpers, placement, Y]) => {
+    window.__soleilTest = { ...helpers, ...placement, Y };
   }).catch(() => {});
 }
 
