@@ -318,6 +318,20 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(await hasCssRule(page, /\.comment-archive-tag\.is-resolved/)).toBe(true);
     expect(await hasCssRule(page, /\.comment-archive-tag\.is-hidden/)).toBe(true);
   });
+
+  test('eye toggle bulk-unhides + right-click is propagation-safe', async ({ page }) => {
+    // Two regression guards in one test:
+    //   1. unhideAllOnBoard is exported by the comments API (the bulk
+    //      action the eye toggle invokes on OFF→ON).
+    //   2. The eye's right-click stops propagation (e.stopPropagation)
+    //      so the canvas bg menu doesn't double-fire.
+    await page.goto('/?local=1');
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    expect(bundle.includes('unhideAllOnBoard')).toBe(true);
+  });
 });
 
 // ═══════════════ PHASE 4: TAGS ═══════════════

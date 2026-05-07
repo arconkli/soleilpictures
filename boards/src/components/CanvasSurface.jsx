@@ -29,7 +29,7 @@ import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { saveBoardTemplate } from '../lib/templatesApi.js';
 import { CanvasCommentLayer, CommentArchivePopover } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
-import { addComment, updateComment } from '../lib/commentsApi.js';
+import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.js';
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
@@ -1856,6 +1856,15 @@ export function CanvasSurface({
       const next = !v;
       try { sessionStorage.setItem('soleil.boards.commentsVisible', next ? '1' : '0'); }
       catch (_) {}
+      // Going OFF → ON is "show all" — also un-hide any comments
+      // dismissed via the per-bubble Hide action so they actually
+      // come back, not just the layer's visibility. Best-effort:
+      // log but don't toast on failure (RLS may filter some rows).
+      if (next && board?.id) {
+        unhideAllOnBoard(board.id).catch(err => {
+          console.warn('[comments] unhideAllOnBoard failed', err);
+        });
+      }
       return next;
     });
   };
@@ -2969,23 +2978,24 @@ export function CanvasSurface({
           something to bring back). */}
       <button className={`cnv-comments-eye ${commentsVisible ? '' : 'is-muted'}`}
               title={commentsVisible
-                ? 'Hide all comments (right-click for resolved + hidden)'
-                : 'Show all comments (right-click for resolved + hidden)'}
+                ? 'Hide all comments (right-click for archive)'
+                : 'Show all comments (right-click for archive)'}
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleCommentsVisible}
               onContextMenu={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const r = e.currentTarget.getBoundingClientRect();
                 setCommentArchive({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
               }}>
         <Icon as={MessageCircle} size={13} />
         <Icon as={commentsVisible ? Eye : EyeOff} size={13} />
-        {(() => {
-          const n = commentsVisible
-            ? visibleCommentCount
-            : (resolvedCommentCount + hiddenCommentCount + visibleCommentCount);
-          if (n === 0) return null;
-          return <span className="cnv-comments-eye-count">{n}</span>;
-        })()}
+        {/* Badge counts only currently-visible (open, non-archived)
+            comments — resolved and hidden don't count, since they're
+            archived and live in the popover instead. */}
+        {visibleCommentCount > 0 && (
+          <span className="cnv-comments-eye-count">{visibleCommentCount}</span>
+        )}
       </button>
       {commentArchive && (
         <CommentArchivePopover

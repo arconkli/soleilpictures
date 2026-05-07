@@ -82,6 +82,25 @@ export async function deleteComment(id) {
   if (error) throw error;
 }
 
+// Bulk-unhide every individually-hidden comment on a board. Used by the
+// canvas eye-toggle so flipping the master "show all" actually surfaces
+// comments the user previously dismissed via the per-bubble Hide
+// action — not just the layer's visibility. RLS still gates which rows
+// the caller can flip; ones they don't have write access to are left
+// alone (Postgres returns the rows it CAN update without erroring on
+// the rest).
+export async function unhideAllOnBoard(boardId) {
+  if (!boardId) return 0;
+  const { data, error } = await supabase
+    .from('comments')
+    .update({ hidden: false })
+    .eq('board_id', boardId)
+    .eq('hidden', true)
+    .select('id');
+  if (error) throw error;
+  return (data || []).length;
+}
+
 // Comment history for a single board — every comment ever, including
 // resolved + hidden ones. Used by the History modal's Comments tab so
 // users can audit what conversations happened on a board.
