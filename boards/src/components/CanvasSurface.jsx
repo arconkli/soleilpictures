@@ -2003,10 +2003,15 @@ export function CanvasSurface({
               }
               if (!Number.isFinite(minX)) return null;
 
-              const labelLeft = minX + 8 - PAD;
-              const labelTop  = minY - 22 - PAD;
+              // Label position in canvas-space — anchored to the
+              // OUTLINE's top-left, sitting just above and slightly
+              // inside. Rendered as a sibling of the outline (NOT a
+              // child) so the same coords work for box + hug.
+              const labelLeft = minX - PAD + 8;
+              const labelTop  = minY - PAD - 22;
               const labelEl = g.name ? (
                 <div className="group-label"
+                     key={`${g.id}-label`}
                      style={{
                        position: 'absolute',
                        left: labelLeft, top: labelTop,
@@ -2020,6 +2025,7 @@ export function CanvasSurface({
                        border: g.outline ? `1px solid ${stroke}` : '1px solid var(--line-1)',
                        pointerEvents: 'auto',
                        cursor: 'default',
+                       whiteSpace: 'nowrap',
                      }}
                      title={g.name}>
                   {g.name}
@@ -2041,12 +2047,13 @@ export function CanvasSurface({
                 const svgW = (maxX - minX) + 2 * (PAD + buf);
                 const svgH = (maxY - minY) + 2 * (PAD + buf);
                 return (
-                  <div key={g.id} className="group-outline group-hug" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                    <svg width={svgW} height={svgH}
+                  <React.Fragment key={g.id}>
+                    <svg className="group-outline group-hug" width={svgW} height={svgH}
                          style={{
                            position: 'absolute',
                            left: svgX, top: svgY,
                            overflow: 'visible',
+                           pointerEvents: 'none',
                          }}>
                       {/* Outer (stroke color) */}
                       {adjMembers.map((c, i) => (
@@ -2071,7 +2078,7 @@ export function CanvasSurface({
                       ))}
                     </svg>
                     {labelEl}
-                  </div>
+                  </React.Fragment>
                 );
               }
 
@@ -2080,16 +2087,17 @@ export function CanvasSurface({
               const w = (maxX - minX) + PAD * 2;
               const h = (maxY - minY) + PAD * 2;
               return (
-                <div key={g.id} className={`group-outline ${g.outline ? 'is-on' : 'is-off'}`}
-                     style={{
-                       position: 'absolute',
-                       left: x, top: y, width: w, height: h,
-                       borderRadius: 14,
-                       border: g.outline ? `${sw}px solid ${stroke}` : '1px dashed transparent',
-                       pointerEvents: 'none',
-                     }}>
+                <React.Fragment key={g.id}>
+                  <div className={`group-outline ${g.outline ? 'is-on' : 'is-off'}`}
+                       style={{
+                         position: 'absolute',
+                         left: x, top: y, width: w, height: h,
+                         borderRadius: 14,
+                         border: g.outline ? `${sw}px solid ${stroke}` : '1px dashed transparent',
+                         pointerEvents: 'none',
+                       }} />
                   {labelEl}
-                </div>
+                </React.Fragment>
               );
             })}
           </div>
