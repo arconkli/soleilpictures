@@ -55,6 +55,28 @@ async function presign({ workspaceId, boardId, file }) {
   return res.json();   // { uploadUrl, key }
 }
 
+// XHR PUT with a real upload-progress callback. Browser fetch() doesn't
+// expose progress for a request body, so we drop down to XHR for the
+// PUT step. The presign + DB-insert steps still use fetch.
+function putWithProgress(url, file, { onProgress } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url, true);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.upload.onprogress = (ev) => {
+      if (!ev.lengthComputable || !onProgress) return;
+      onProgress(ev.loaded / Math.max(1, ev.total));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+    };
+    xhr.onerror = () => reject(new Error('Upload network error'));
+    xhr.onabort = () => reject(new Error('Upload aborted'));
+    xhr.send(file);
+  });
+}
+
 // Upload a File to R2 (via the upload party) and insert an `images`
 // row. Returns { id, src, storagePath, width, height, key }.
 //
@@ -64,20 +86,15 @@ async function presign({ workspaceId, boardId, file }) {
 // Pass boardId so the inserted row gets stamped with which board the
 // upload originated from. RLS uses board_id to extend image read
 // access to per-board shares.
-export async function uploadImage({ file, workspaceId, boardId, userId }) {
+//
+// `onProgress(p)` (0..1) fires during the PUT step so callers can
+// render a progress chip on the placeholder card.
+export async function uploadImage({ file, workspaceId, boardId, userId, onProgress = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
 
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
 
-  const putRes = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type || 'application/octet-stream' },
-    body: file,
-  });
-  if (!putRes.ok) {
-    const msg = await putRes.text().catch(() => putRes.statusText);
-    throw new Error(`Upload failed: ${putRes.status} ${msg}`);
-  }
+  await putWithProgress(uploadUrl, file, { onProgress });
 
   const dims = await readImageDims(file);
 
@@ -108,5 +125,60 @@ export async function uploadImage({ file, workspaceId, boardId, userId }) {
     // Back-compat: callers that referenced .publicUrl get the sentinel
     // too (so they don't crash if not yet updated).
     publicUrl: `r2:${key}`,
+  };
+}
+
+// Read width/height/duration from a video File. Returns null fields if
+// the metadata can't load — caller should treat that as "skip duration
+// check" rather than fail.
+export function readVideoMeta(file) {
+  return new Promise((res) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.onloadedmetadata = () => {
+        const out = {
+          w: v.videoWidth || null,
+          h: v.videoHeight || null,
+          duration: Number.isFinite(v.duration) ? v.duration : null,
+        };
+        URL.revokeObjectURL(url);
+        res(out);
+      };
+      v.onerror = () => { URL.revokeObjectURL(url); res({ w: null, h: null, duration: null }); };
+      v.src = url;
+    } catch (_) {
+      res({ w: null, h: null, duration: null });
+    }
+  });
+}
+
+// Upload a short video to R2. Caller is expected to enforce constraints
+// (max duration, max bytes) BEFORE calling — we still validate here as
+// a backstop. Returns the same shape as uploadImage so callers can
+// switch on `kind` rather than the URL.
+export async function uploadVideo({ file, workspaceId, boardId, userId, onProgress = null,
+                                    maxBytes = 30 * 1024 * 1024,
+                                    maxDurationSec = 60 }) {
+  if (!workspaceId) throw new Error('workspaceId required');
+  if (file.size > maxBytes) {
+    throw new Error(`Video too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
+  }
+  const meta = await readVideoMeta(file);
+  if (meta.duration && meta.duration > maxDurationSec) {
+    throw new Error(`Video too long (${Math.round(meta.duration)}s; max ${maxDurationSec}s)`);
+  }
+  const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
+  await putWithProgress(uploadUrl, file, { onProgress });
+  // No images-table row for videos — we'd want a separate `videos` table,
+  // but for now the card itself carries enough metadata for playback.
+  return {
+    src: `r2:${key}`,
+    storagePath: key,
+    key,
+    width: meta.w,
+    height: meta.h,
+    duration: meta.duration,
   };
 }

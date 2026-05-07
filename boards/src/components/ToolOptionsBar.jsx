@@ -68,6 +68,7 @@ export function ToolOptionsBar({
   onUpdateEditingShape,
   paletteColors = [],
   openColorPicker,
+  anchorRect,           // viewport-space rect of the selected card
 }) {
   const recentColors = useRecentColors();
   const openPickerAt = (e, opts) => {
@@ -81,10 +82,38 @@ export function ToolOptionsBar({
     });
   };
 
+  // Anchor the bar above (or below, if there's no room above) the
+  // selected card. Falls back to the original bottom-center sticky
+  // position when nothing's selected.
+  const computeAnchorStyle = () => {
+    if (!anchorRect) return null;
+    const BAR_GAP = 12;
+    const BAR_H_EST = 44;
+    let top = anchorRect.top - BAR_H_EST - BAR_GAP;
+    let isBelow = false;
+    if (top < 56) { top = anchorRect.bottom + BAR_GAP; isBelow = true; }
+    const cx = (anchorRect.left + anchorRect.right) / 2;
+    return {
+      style: {
+        position: 'fixed',
+        left: cx,
+        top,
+        bottom: 'auto',
+        transform: 'translateX(-50%)',
+        zIndex: 30,
+      },
+      isBelow,
+    };
+  };
+  const anchored = computeAnchorStyle();
+  const tobProps = anchored
+    ? { className: `tob tob-anchored ${anchored.isBelow ? 'tob-below' : 'tob-above'}`, style: anchored.style }
+    : { className: 'tob' };
+
   // ── Note rich text bar ──────────────────────────────────────────────────
   if (editingNoteCard) {
     return (
-      <div className="tob"
+      <div {...tobProps}
            onPointerDown={(e) => e.stopPropagation()}>
         <FontPicker />
         <SizePicker />
@@ -126,7 +155,7 @@ export function ToolOptionsBar({
     const allColors = [...new Set([...recentColors, ...paletteColors, ...STROKE_COLORS])];
     const isEraser = drawOptions.mode === 'eraser';
     return (
-      <div className="tob" onPointerDown={(e) => e.stopPropagation()}>
+      <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
         <span className="tob-label">Brush</span>
         <div className="tob-segmented">
           <button aria-label="Pen"
@@ -199,7 +228,7 @@ export function ToolOptionsBar({
     const strokeChoices = [...new Set([...recentColors, ...paletteColors, ...STROKE_COLORS])];
     const fillChoices   = ['transparent', ...new Set([...recentColors, ...paletteColors, ...FILL_COLORS.filter(c => c !== 'transparent')])];
     return (
-      <div className="tob" onPointerDown={(e) => e.stopPropagation()}>
+      <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
         <span className="tob-label">Shape</span>
         <select className="tob-select" value={opts.shape}
                 onChange={(e) => setOpts({ ...opts, shape: e.target.value })}>
@@ -255,7 +284,7 @@ export function ToolOptionsBar({
   // ── Arrow options ───────────────────────────────────────────────────────
   if (selectedTool === 'arrow' && arrowOptions && setArrowOptions) {
     return (
-      <div className="tob" onPointerDown={(e) => e.stopPropagation()}>
+      <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
         <span className="tob-label">Path</span>
         <div className="tob-segmented">
           <button className={!arrowOptions.straight ? 'is-active' : ''}

@@ -554,6 +554,40 @@ export function ImageCard({ src, label, title, link, tone, aspect, caption,
   );
 }
 
+// Video card — short clips uploaded to R2. The R2Image presign helper
+// is image-only, so video src is treated as a sentinel "r2:<key>" and
+// playback uses a <video> element with a presigned read URL fetched
+// the same way images are. For brevity, this component plays whatever
+// `src` was stamped on the card (works for r2: and external https).
+export function VideoCard({ src, title, onUpdate, autoFocus = false }) {
+  const [editingTitle, setEditingTitle] = useState(autoFocus);
+  const showTitle = !!title || editingTitle;
+  const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
+  return (
+    <div className="vc">
+      <div className="vc-vidwrap" onDoubleClick={onDbl}>
+        {src
+          ? <video className="vc-video" src={src.startsWith('r2:') ? '' : src}
+                   data-r2={src.startsWith('r2:') ? src.slice(3) : undefined}
+                   controls preload="metadata" playsInline />
+          : <ImagePlaceholder label="VIDEO" tone="neutral" />}
+      </div>
+      {showTitle && onUpdate && (
+        <EditableText
+          className="vc-title editable"
+          value={title || ''}
+          placeholder="Title"
+          editing={editingTitle}
+          setEditing={setEditingTitle}
+          onChange={(v) => onUpdate({ title: v || null })}
+          selectAllOnFocus={autoFocus}
+        />
+      )}
+      {showTitle && !onUpdate && <div className="vc-title">{title}</div>}
+    </div>
+  );
+}
+
 export function NoteCard({ body, html, bgColor, textColor, onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
                            awareness = null, cardId = null, boardId = null, peerLiveHtml = null }) {
@@ -638,7 +672,7 @@ export function LinkCard({ title, source, target, onUpdate, autoFocus = false, e
 }
 
 
-export function PaletteCard({ title, swatches = [], onUpdate, autoFocus = false }) {
+export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false, onUpdate, autoFocus = false }) {
   const [pickerIdx, setPickerIdx] = useState(null);
   const [pickerPos, setPickerPos] = useState(null);
   const [copiedIdx, setCopiedIdx] = useState(null);
@@ -676,16 +710,18 @@ export function PaletteCard({ title, swatches = [], onUpdate, autoFocus = false 
 
   if (!isEditable) {
     return (
-      <div className="pc">
-        <div className="pc-head">
-          <div className="pc-title">{title || 'Palette'}</div>
-          <div className="pc-count">{countLabel}</div>
-        </div>
+      <div className={`pc ${hideHex ? 'pc-no-hex' : ''} ${hideLabels ? 'pc-no-labels' : ''}`}>
+        {!hideLabels && (
+          <div className="pc-head">
+            <div className="pc-title">{title || 'Palette'}</div>
+            <div className="pc-count">{countLabel}</div>
+          </div>
+        )}
         <div className="pc-strip">
           {swatches.map((s, i) => (
             <div key={i} className="pc-cell" title={`${s.hex}`}>
               <div className="pc-chip" style={{ background: s.hex }} />
-              <div className="pc-hex">{(s.hex || '').toUpperCase()}</div>
+              {!hideHex && <div className="pc-hex">{(s.hex || '').toUpperCase()}</div>}
             </div>
           ))}
         </div>

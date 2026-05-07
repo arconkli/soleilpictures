@@ -3089,6 +3089,19 @@ body {
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
 [data-theme='light'] .tob { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
+/* Anchored variant — bar follows the active selection. Override the
+   default bottom:14px positioning since inline style sets fixed coords.
+   Add a subtle directional pulse on first appear so it's discoverable. */
+.tob.tob-anchored {
+  bottom: auto;
+  left: auto;
+  transform: translateX(-50%);
+  animation: tob-anchored-in 160ms var(--ease);
+}
+@keyframes tob-anchored-in {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
 .tob-label {
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-3);
@@ -3831,6 +3844,25 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .tag-disambig-no { color: var(--ink-3); }
 .tag-disambig-yes:hover { color: #f5c075; }
 .tag-disambig-no:hover { color: var(--ink-1); }
+
+/* ──────────────────────────── Video card ────────────────────────────────── */
+
+.vc { display: flex; flex-direction: column; height: 100%; }
+.vc-vidwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #000; }
+.vc-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vc-title {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-0);
+  border-top: 1px solid var(--line-1);
+  background: var(--bg-3);
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
 
 /* ──────────────────────────── Canvas comments ──────────────────────────── */
 

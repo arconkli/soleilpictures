@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard,
+  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard,
 } from './cards.jsx';
 import { RichDocCard } from './DocCard.jsx';
 
@@ -17,7 +17,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, inboxItemToCard } from '../lib/dragMimes.js';
 import { coerceRef } from '../lib/entityRef.js';
-import { uploadImage } from '../lib/uploads.js';
+import { uploadImage, uploadVideo } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
 import { addRecentColor } from '../lib/recentColors.js';
@@ -519,9 +519,42 @@ export function CanvasSurface({
       const dims = await readImageDims(file);
       return { publicUrl: dims.url, width: dims.width, height: dims.height, x, y };
     }
-    const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId });
+    // Surface paste / drop progress as a small "Uploading… 42%" toast
+    // (the upload is fast for typical images but user-visible feedback
+    // makes very-large pastes feel responsive). The progress callback
+    // throttles itself by only firing on whole-percent changes.
+    let lastPct = -5;
+    const startedAt = performance.now();
+    const onProgress = (frac) => {
+      const pct = Math.round(frac * 100);
+      if (pct - lastPct < 5) return;          // 5% steps; cheap
+      lastPct = pct;
+      // Only annoy the user if the upload is taking longer than ~600ms.
+      if (performance.now() - startedAt < 600) return;
+      feedback.toast({ type: 'info', message: `Uploading image… ${pct}%` });
+    };
+    const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId, onProgress });
     return { publicUrl: up.src, width: up.width, height: up.height, x, y };
-  }, [useLocalImages, workspaceId, board?.id, userId]);
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback]);
+
+  // Upload a video file and place a video card centered on (cx, cy).
+  // Validates duration via uploadVideo (default cap 60s, 30 MB). Toast
+  // surfaces upload errors.
+  const dropVideoFile = useCallback(async (file, cx, cy) => {
+    if (!workspaceId) throw new Error('workspaceId required');
+    const up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId });
+    const w = Math.max(240, Math.min(560, up.width || 360));
+    const aspect = up.height && up.width ? (up.height / up.width) : 9 / 16;
+    const h = Math.max(160, Math.round(w * aspect));
+    mutators.addCard?.({
+      id: `vid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+      kind: 'video',
+      src: up.src,
+      x: Math.round(cx - w / 2),
+      y: Math.round(cy - h / 2),
+      w, h,
+    });
+  }, [workspaceId, board?.id, userId, mutators]);
 
   useEffect(() => {
     const onMove = (e) => {
@@ -1182,6 +1215,29 @@ export function CanvasSurface({
         }
       } else if (c.kind === 'boardlink') {
         items.push({ id: 'open', label: 'Open linked board', run: () => boards[c.target] && onOpenBoard(c.target) });
+      } else if (c.kind === 'palette') {
+        items.push({ id: 'pc-hide-hex',
+          label: c.hideHex ? 'Show hex codes' : 'Hide hex codes',
+          run: () => mutators.updateCard?.(c.id, { hideHex: !c.hideHex }) });
+        items.push({ id: 'pc-hide-labels',
+          label: c.hideLabels ? 'Show palette labels' : 'Hide palette labels',
+          run: () => mutators.updateCard?.(c.id, { hideLabels: !c.hideLabels }) });
+        items.push({ id: 'pc-eyedrop', label: 'Eyedrop color…', run: async () => {
+          // Browser EyeDropper API. Falls back to a friendly toast where
+          // unsupported (Firefox, Safari < 17.4 currently).
+          if (typeof window === 'undefined' || !window.EyeDropper) {
+            feedback.toast({ type: 'error', message: 'Eyedropper not supported in this browser yet.' });
+            return;
+          }
+          try {
+            const ed = new window.EyeDropper();
+            const result = await ed.open();
+            const hex = (result?.sRGBHex || '').toUpperCase();
+            if (!hex) return;
+            const next = [...(c.swatches || []), { name: 'Color', hex }];
+            mutators.updateCard?.(c.id, { swatches: next });
+          } catch (_) { /* user cancelled */ }
+        }});
       } else if (c.kind === 'note') {
         items.push({ id: 'fit', label: 'Fit to content', run: () => {
           // Measure the rendered note body in the live DOM and snap the
@@ -1857,7 +1913,8 @@ export function CanvasSurface({
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
     else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target} onUpdate={onUpdate} autoFocus={af}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} onUpdate={onUpdate} autoFocus={af} />;
+    else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} onUpdate={onUpdate} autoFocus={af} />;
+    else if (c.kind === 'video')     inner = <VideoCard src={c.src} title={c.title} onUpdate={onUpdate} autoFocus={af} />;
     else if (c.kind === 'doc') {
       // Rich doc card. Pull the live cardYMap so RichDocCard can read its
       // per-card pages/content/bookmarks/comments via cardScope().
@@ -2089,11 +2146,12 @@ export function CanvasSurface({
       return;
     }
 
-    // Files (images dragged from Finder).
+    // Files (images / videos dragged from Finder).
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       e.preventDefault();
       const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+      const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
       let offsetX = 0;
       for (const f of imageFiles) {
         try {
@@ -2102,6 +2160,15 @@ export function CanvasSurface({
         } catch (err) {
           console.error(err);
           feedback.toast({ type: 'error', message: 'Image upload failed: ' + (err.message || err) });
+        }
+      }
+      for (const f of videoFiles) {
+        try {
+          await dropVideoFile(f, cx + offsetX, cy);
+          offsetX += 320;
+        } catch (err) {
+          console.error(err);
+          feedback.toast({ type: 'error', message: 'Video upload failed: ' + (err.message || err) });
         }
       }
     }
@@ -2664,6 +2731,10 @@ export function CanvasSurface({
         boardName={board?.name}
       />
 
+      {/* Anchor the tool-options bar to the active selection when a
+          single card is selected — easier to find ("hovers next to what
+          you're editing"). Falls back to bottom-center default when
+          nothing or multiple things are selected. */}
       <ToolOptionsBar
         selectedTool={selectedTool}
         drawOptions={drawOptions} setDrawOptions={setDrawOptions}
@@ -2671,7 +2742,6 @@ export function CanvasSurface({
         arrowOptions={arrowOptions} setArrowOptions={setArrowOptions}
         editingNoteCard={editingNoteId ? cardById[editingNoteId] : null}
         onUpdateEditingNote={editingNoteId ? (patch) => mutators.updateCard?.(editingNoteId, patch) : null}
-        // When exactly one shape card is selected, surface its style controls.
         editingShapeCard={(() => {
           if (selected.size !== 1) return null;
           const id = [...selected][0];
@@ -2685,6 +2755,15 @@ export function CanvasSurface({
         }}
         paletteColors={paletteColors}
         openColorPicker={(opts) => setPicker(opts)}
+        anchorRect={(() => {
+          if (selected.size !== 1) return null;
+          const id = [...selected][0];
+          const c = cardById[id];
+          if (!c) return null;
+          const tl = canvasToViewport(c.x, c.y);
+          const br = canvasToViewport(c.x + c.w, c.y + c.h);
+          return { left: tl.x, top: tl.y, right: br.x, bottom: br.y };
+        })()}
       />
 
       {picker && (
