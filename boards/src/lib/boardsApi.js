@@ -37,19 +37,30 @@ export async function getOrCreatePersonalWorkspace({ userId, name = 'Soleil' }) 
 // Create a workspace + add the caller as a member, all in two writes.
 // Used for explicit user-initiated "new workspace" actions, not for
 // bootstrap (use getOrCreatePersonalWorkspace).
-export async function createWorkspace({ name, userId }) {
-  const ins = await supabase
-    .from('workspaces')
-    .insert({ name, created_by: userId })
-    .select('*')
-    .single();
-  if (ins.error) throw ins.error;
-  const ws = ins.data;
-  const member = await supabase
-    .from('workspace_members')
-    .insert({ workspace_id: ws.id, user_id: userId, role: 'owner' });
-  if (member.error) throw member.error;
-  return ws;
+// Create a fresh shared workspace + its root board atomically.
+//
+// Previously this was three sequential REST calls (workspaces insert,
+// workspace_members insert, boards insert) which intermittently lost
+// the RLS race: the boards INSERT requires is_workspace_member, and
+// in some sessions PostgREST evaluated the policy before the
+// workspace_members row was visible to the policy's read pass.
+//
+// The create_workspace_with_root RPC (security definer) does all the
+// inserts inside one transaction so there's no half-state and the
+// is_workspace_member check sees the new row.
+export async function createWorkspace({ name, userId, rootName = 'Studio' }) {
+  const { data, error } = await supabase.rpc('create_workspace_with_root', {
+    p_name: name || 'Workspace',
+    p_root_name: rootName || 'Studio',
+  });
+  if (error) throw error;
+  const wsId = data?.workspace_id;
+  if (!wsId) throw new Error('create_workspace_with_root returned no id');
+  // Hydrate the workspaces row so callers receive the same shape they
+  // got from the old insert().select() flow.
+  const ws = await supabase.from('workspaces').select('*').eq('id', wsId).maybeSingle();
+  if (ws.error) throw ws.error;
+  return ws.data;
 }
 
 // Delete a workspace + all its content. Only the workspace owner

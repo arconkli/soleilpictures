@@ -738,12 +738,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
     if (!name?.trim()) return;
     try {
+      // createWorkspace now atomically inserts workspace + member +
+      // root board via the create_workspace_with_root RPC, so no
+      // separate createBoard call is needed.
       const ws = await createWorkspace({ name: name.trim(), userId: user.id });
-      // Create a Studio root board for it.
-      await createBoard({
-        workspaceId: ws.id, parentBoardId: null,
-        name: 'Studio', view: 'canvas', userId: user.id,
-      });
       await onWorkspacesChanged?.();
       onSwitchWorkspace?.(ws.id);
     } catch (e) {
