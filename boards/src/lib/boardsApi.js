@@ -214,21 +214,30 @@ export async function getRootBoard(workspaceId) {
 }
 
 export async function createBoard({ workspaceId, parentBoardId = null, name, view = 'canvas', cover = null, meta = null, userId = null }) {
-  const ins = await supabase
-    .from('boards')
-    .insert({
-      workspace_id: workspaceId,
-      parent_board_id: parentBoardId,
-      name, view, cover, meta,
-      created_by: userId,
-    })
-    .select('*')
-    .single();
+  // We generate the id client-side so we DON'T have to use INSERT…
+  // RETURNING. RETURNING re-runs the boards SELECT policy
+  // (can_read_board), which recursively walks the boards table — but
+  // the just-inserted row isn't yet visible to that walk inside the
+  // same statement, so the SELECT policy returns false and Postgres
+  // throws the misleading "new row violates row-level security
+  // policy" error even though the INSERT itself was permitted.
+  const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+  const row = {
+    id,
+    workspace_id: workspaceId,
+    parent_board_id: parentBoardId,
+    name, view, cover, meta,
+    created_by: userId,
+  };
+  const ins = await supabase.from('boards').insert(row);
   if (ins.error) throw ins.error;
   // Seed an empty Y.Doc snapshot so the row exists.
   const ydoc = new Y.Doc();
-  await saveBoardSnapshot(ins.data.id, ydoc);
-  return ins.data;
+  await saveBoardSnapshot(id, ydoc);
+  // Hydrate the row from a fresh statement (snapshot now includes it).
+  const sel = await supabase.from('boards').select('*').eq('id', id).maybeSingle();
+  if (sel.error) throw sel.error;
+  return sel.data || row;
 }
 
 export async function renameBoard(boardId, name) {
