@@ -1776,6 +1776,46 @@ body {
   min-width: 44px; text-align: center;
 }
 
+/* Reveal-hidden-comments toggle — top-right corner of the canvas-wrap
+   so it's the obvious "where do I find hidden comments" surface. Only
+   renders when there's at least one hidden comment. */
+.cnv-comments-eye {
+  position: absolute;
+  right: 14px; top: 14px;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  color: var(--ink-2);
+  font: 600 10.5px/1 var(--font-sans);
+  letter-spacing: 0;
+  box-shadow: var(--shadow-1);
+  z-index: 20;
+  transition: color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
+}
+.cnv-comments-eye:hover { background: var(--bg-hov); color: var(--ink-0); border-color: var(--line-3); }
+.cnv-comments-eye.is-on {
+  background: var(--soleil-soft);
+  border-color: color-mix(in oklab, var(--soleil) 32%, var(--line-2));
+  color: var(--soleil);
+}
+.cnv-comments-eye-count {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: .04em;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--ink-3);
+}
+.cnv-comments-eye.is-on .cnv-comments-eye-count {
+  background: rgba(212, 160, 74, 0.18);
+  color: var(--soleil);
+}
+
 /* Inbox — drawer-style panel docked top-right */
 .inbox {
   position: absolute;
@@ -4086,7 +4126,20 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
      truncates beyond that; full text lives in the expanded thread. */
   width: 240px;
 }
-.canvas-comment.is-resolved .canvas-comment-card { opacity: .55; }
+/* Resolved comments don't render on the canvas at all anymore — see
+   CanvasCommentLayer's filter; the History modal's Comments tab
+   surfaces them. The .is-resolved class still gets applied on the
+   off-chance a comment somehow renders while flipping; keep it as a
+   no-op marker so future polish has a hook. */
+.canvas-comment.is-resolved { display: none; }
+/* Hidden comments are also filtered, but when the eye toggle is on
+   the layer renders them with .is-revealed-hidden — fade them so
+   they read as "this isn't normally visible". */
+.canvas-comment.is-revealed-hidden .canvas-comment-card {
+  opacity: .55;
+  border-style: dashed;
+}
+.canvas-comment.is-revealed-hidden:hover .canvas-comment-card { opacity: .85; }
 .canvas-comment.is-open { z-index: 5; width: 300px; }
 .canvas-comment.is-dragging { z-index: 10; }
 /* The author can drag their own bubble around its anchor; the head row

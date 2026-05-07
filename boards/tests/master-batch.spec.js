@@ -283,6 +283,30 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(await hasCssRule(page, /\.hist-comment-status-resolved/)).toBe(true);
     expect(await hasCssRule(page, /\.hist-comment-status-hidden/)).toBe(true);
   });
+
+  test('resolved comments are hidden on the canvas (display:none)', async ({ page }) => {
+    await go(page);
+    const display = await page.evaluate(() => {
+      for (const s of document.styleSheets) {
+        try {
+          for (const r of s.cssRules) {
+            if (r.selectorText === '.canvas-comment.is-resolved') {
+              return r.style.display || '';
+            }
+          }
+        } catch { /* cross-origin */ }
+      }
+      return '';
+    });
+    expect(display).toBe('none');
+  });
+
+  test('reveal-hidden eye toggle CSS ships', async ({ page }) => {
+    await go(page);
+    expect(await hasCssRule(page, /\.cnv-comments-eye/)).toBe(true);
+    expect(await hasCssRule(page, /\.cnv-comments-eye\.is-on/)).toBe(true);
+    expect(await hasCssRule(page, /\.canvas-comment\.is-revealed-hidden/)).toBe(true);
+  });
 });
 
 // ═══════════════ PHASE 4: TAGS ═══════════════

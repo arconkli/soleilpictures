@@ -37,12 +37,20 @@ export function CanvasCommentLayer({
   // Optimistic local removal — invoked right after a successful delete
   // so the bubble disappears without waiting for the realtime fan-out.
   onLocallyRemoved,
+  // When true, hidden comments render (faded, with an "unhide" button
+  // instead of "hide") so the user can recover them. Default false.
+  revealHidden = false,
 }) {
   // Index replies by parent so the top-level bubble can render its thread.
+  // Skip resolved + hidden comments entirely (resolved → conversation done,
+  // hidden → user dismissed). The History modal's Comments tab is where
+  // both go to be reviewed / restored. The eye toggle reveals hidden ones
+  // INLINE for easy unhide.
   const byParent = new Map();
   const tops = [];
   for (const c of (comments || [])) {
-    if (c.hidden) continue;
+    if (c.resolved) continue;
+    if (c.hidden && !revealHidden) continue;
     if (c.reply_to) {
       const arr = byParent.get(c.reply_to) || [];
       arr.push(c);
@@ -68,6 +76,7 @@ export function CanvasCommentLayer({
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
           onLocallyRemoved={onLocallyRemoved}
+          isRevealedHidden={c.hidden && revealHidden}
         />
       ))}
       {draft && (
@@ -170,7 +179,7 @@ function resolvePeerColor(authorId, wsPeers) {
   return peer?.user?.color || '#4f8df8';
 }
 
-function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, zoom = 1, canvasToViewport, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
+function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, zoom = 1, canvasToViewport, resolveCardBBox, resolveGroupBBox, onLocallyRemoved, isRevealedHidden = false }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState('');
@@ -327,6 +336,10 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     try { await updateComment(comment.id, { hidden: true }); }
     catch (err) { feedback.toast({ type: 'error', message: 'Hide failed: ' + (err.message || err) }); }
   };
+  const onUnhide = async () => {
+    try { await updateComment(comment.id, { hidden: false }); }
+    catch (err) { feedback.toast({ type: 'error', message: 'Unhide failed: ' + (err.message || err) }); }
+  };
   const onDelete = async () => {
     const ok = await feedback.confirm({
       title: 'Delete comment?',
@@ -348,7 +361,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
 
   return (
     <div ref={wrapRef}
-         className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''} ${dragDelta ? 'is-dragging' : ''} ${isAuthor ? 'is-mine' : ''}`}
+         className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''} ${dragDelta ? 'is-dragging' : ''} ${isAuthor ? 'is-mine' : ''} ${isRevealedHidden ? 'is-revealed-hidden' : ''}`}
          style={{ left: v.x, top: v.y, pointerEvents: 'auto' }}>
       {/* Inline preview — body text is always visible so the user can read
           the comment without clicking. The whole card is the click target
@@ -414,7 +427,9 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
             <button type="button" onClick={onResolve}>
               {comment.resolved ? 'Reopen' : 'Resolve'}
             </button>
-            <button type="button" onClick={onHide}>Hide</button>
+            {comment.hidden
+              ? <button type="button" onClick={onUnhide}>Unhide</button>
+              : <button type="button" onClick={onHide}>Hide</button>}
             {isAuthor && <button type="button" className="danger" onClick={onDelete}>Delete</button>}
           </div>
         </div>

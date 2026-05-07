@@ -14,6 +14,8 @@ import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
+import { Eye, EyeOff, MessageCircle } from '../lib/icons.js';
+import { Icon } from './Icon.jsx';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, inboxItemToCard } from '../lib/dragMimes.js';
 import { coerceRef } from '../lib/entityRef.js';
@@ -1839,6 +1841,25 @@ export function CanvasSurface({
   // right-click menu, we set commentDraft to the anchor + viewport
   // position; CanvasCommentLayer renders an inline draft input there.
   const [commentDraft, setCommentDraft] = useState(null);
+  // Reveal-hidden toggle. When on, hidden comments appear inline (faded)
+  // with an unhide affordance — the only way back from a hide other
+  // than the History modal. State is persisted per-tab (sessionStorage)
+  // so the toggle survives navigation but doesn't outlive the session.
+  const [revealHiddenComments, setRevealHiddenComments] = useState(() => {
+    try { return sessionStorage.getItem('soleil.boards.revealHiddenComments') === '1'; }
+    catch (_) { return false; }
+  });
+  const toggleRevealHidden = () => {
+    setRevealHiddenComments(v => {
+      const next = !v;
+      try { sessionStorage.setItem('soleil.boards.revealHiddenComments', next ? '1' : '0'); }
+      catch (_) {}
+      return next;
+    });
+  };
+  // Count of hidden comments on this board — drives the eye-button
+  // badge so users know the toggle has something to reveal.
+  const hiddenCommentCount = (comments || []).filter(c => c.hidden && !c.resolved).length;
   // Open the inline draft. The viewport position is computed from the
   // anchor's canvas coords so the draft input sits exactly where the
   // resulting comment bubble will appear. No popup modal — type
@@ -2835,6 +2856,7 @@ export function CanvasSurface({
         onSubmitDraft={submitCommentDraft}
         onCancelDraft={() => setCommentDraft(null)}
         onLocallyRemoved={removeCommentLocally}
+        revealHidden={revealHiddenComments}
       />
 
       <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`}>
@@ -2933,6 +2955,23 @@ export function CanvasSurface({
         </span>
         <button onClick={() => { enableSmoothTransform(); setZoom(z => Math.min(ZOOM_MAX, z * 1.25)); }}>+</button>
       </div>
+
+      {/* Reveal-hidden-comments toggle. Default off — hidden comments
+          stay invisible on the canvas. Click to surface them inline
+          (faded) so the user can pick which ones to unhide. Badge
+          shows how many hidden comments exist on this board so the
+          eye doesn't feel like a no-op. */}
+      {hiddenCommentCount > 0 && (
+        <button className={`cnv-comments-eye ${revealHiddenComments ? 'is-on' : ''}`}
+                title={revealHiddenComments
+                  ? 'Hide the hidden comments again'
+                  : `Show ${hiddenCommentCount} hidden comment${hiddenCommentCount === 1 ? '' : 's'}`}
+                onClick={toggleRevealHidden}>
+          <Icon as={MessageCircle} size={13} />
+          <Icon as={revealHiddenComments ? Eye : EyeOff} size={13} />
+          <span className="cnv-comments-eye-count">{hiddenCommentCount}</span>
+        </button>
+      )}
 
       <CardContextMenu
         open={ctx.open}

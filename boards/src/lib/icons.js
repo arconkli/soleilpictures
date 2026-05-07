@@ -65,4 +65,7 @@ export {
   Paperclip,
   UserPlus,
   Pin,
+  Eye,
+  EyeOff,
+  MessageCircle,
 } from 'lucide-react';
