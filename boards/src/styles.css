@@ -783,6 +783,103 @@ body {
 .sb-tag-menu-item:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sb-tag-menu-item.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
 
+/* Merge picker — modal overlay for "merge tag X into Y." */
+.merge-picker-bg {
+  position: fixed; inset: 0;
+  z-index: 2147483646;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,.45);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: pickerFade var(--dur-slow) var(--ease);
+}
+.merge-picker {
+  width: min(380px, calc(100vw - 32px));
+  max-height: 70vh;
+  background: rgba(20,20,24,.94);
+  color: var(--ink-0);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  display: flex; flex-direction: column;
+  padding: 14px;
+}
+[data-theme='light'] .merge-picker {
+  background: rgba(252,251,247,.96);
+  border-color: rgba(0,0,0,.06);
+  color: #1a1a1f;
+}
+.merge-picker-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+}
+.merge-picker-eyebrow {
+  font: 700 9px/1 var(--font-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.merge-picker-from {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 600 12px/1 var(--font-sans);
+  color: var(--ink-0);
+  letter-spacing: -0.005em;
+}
+.merge-picker-arrow { color: var(--ink-3); font-size: 13px; }
+.merge-picker-into-label {
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-3);
+}
+.merge-picker-input {
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-0);
+  padding: 7px 10px;
+  font: 400 12.5px/1.4 var(--font-sans);
+}
+.merge-picker-input:focus { outline: 0; border-color: var(--soleil); }
+.merge-picker-list {
+  margin-top: 8px;
+  display: flex; flex-direction: column; gap: 1px;
+  overflow-y: auto;
+  max-height: 360px;
+}
+.merge-picker-empty {
+  padding: 14px 8px;
+  color: var(--ink-3);
+  font: 400 12px/1.4 var(--font-sans);
+  text-align: center;
+}
+.merge-picker-row {
+  display: flex; align-items: center; gap: 8px;
+  background: transparent; border: 0;
+  padding: 7px 8px;
+  text-align: left;
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--ink-1);
+  font: 500 12.5px/1.3 var(--font-sans);
+}
+.merge-picker-row:hover, .merge-picker-row.is-hover {
+  background: var(--bg-hov); color: var(--ink-0);
+}
+.merge-picker-row .sb-dot {
+  width: 8px; height: 8px; border-radius: 999px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1.5px var(--bg-1);
+}
+.merge-picker-row-name {
+  flex: 1 1 auto;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.merge-picker-row-count {
+  font: 500 10px/1 var(--font-mono);
+  color: var(--ink-3);
+}
+
 /* ─── Tag detail view ──────────────────────────────────────────────── */
 .tag-detail {
   width: 100%; height: 100%;

@@ -584,6 +584,17 @@ test.describe('Tags-as-entities unification (Phase A)', () => {
     // get_things_tagged RPC powers the tag detail view.
     expect(bundle.includes('get_things_tagged')).toBe(true);
   });
+
+  test('merge picker + merge_tags RPC ship (Phase C)', async ({ page }) => {
+    await go(page);
+    expect(await hasCssRule(page, /\.merge-picker/)).toBe(true);
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    expect(bundle.includes('merge_tags')).toBe(true);
+    expect(bundle.includes('mergeTags')).toBe(true);
+  });
 });
 
 // ═══════════════ ORPHAN-CARD SWEEP REGRESSION GUARD ═══════════════

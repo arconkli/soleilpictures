@@ -65,6 +65,21 @@ export async function renameTag(tagId, name) {
   if (error) throw error;
 }
 
+// Atomic merge: rewrite every entity_links row targeting `fromTagId`
+// to target `intoTagId` instead, then drop the from-tag. RPC handles
+// collision (a source that already has the survivor tag) by dropping
+// the collider before the update. Returns the number of rewritten rows.
+export async function mergeTags({ fromTagId, intoTagId }) {
+  if (!fromTagId || !intoTagId) throw new Error('mergeTags: both ids required');
+  if (fromTagId === intoTagId) return 0;
+  const { data, error } = await supabase.rpc('merge_tags', {
+    p_from_tag_id: fromTagId,
+    p_into_tag_id: intoTagId,
+  });
+  if (error) throw error;
+  return data || 0;
+}
+
 // Workspace-wide application count per tag. Powers the sidebar count
 // badges. RLS scopes the count automatically.
 export async function listTagCounts(workspaceId) {

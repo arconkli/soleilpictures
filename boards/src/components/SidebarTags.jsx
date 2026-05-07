@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Plus, Tag as TagIcon } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
-import { ensureTag, renameTag, recolorTag, deleteTag, listTagCounts } from '../lib/tagsApi.js';
+import { ensureTag, renameTag, recolorTag, deleteTag, listTagCounts, mergeTags } from '../lib/tagsApi.js';
 import { supabase } from '../lib/supabase.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
@@ -56,6 +56,8 @@ export function SidebarTags({
   const [draftName, setDraftName] = useState('');
   const [counts, setCounts] = useState(new Map());
   const [menuFor, setMenuFor] = useState(null);  // { tag, x, y }
+  // Merge picker — { fromTag, query } when user picks "Merge into…"
+  const [mergePicker, setMergePicker] = useState(null);
   const inputRef = useRef(null);
 
   // Reload counts on mount + whenever the entity_links → tag-applied
@@ -162,6 +164,32 @@ export function SidebarTags({
       feedback.toast({ type: 'error', message: 'Recolor failed: ' + (err.message || err) });
     }
   };
+  const startMerge = (tag) => {
+    setMenuFor(null);
+    setMergePicker({ fromTag: tag, query: '' });
+  };
+  const finishMerge = async (intoTag) => {
+    if (!mergePicker?.fromTag || !intoTag) return;
+    if (intoTag.id === mergePicker.fromTag.id) { setMergePicker(null); return; }
+    const fromCount = counts.get(mergePicker.fromTag.id) || 0;
+    const ok = await feedback.confirm({
+      title: 'Merge tags?',
+      message: `Merge "${mergePicker.fromTag.name}" into "${intoTag.name}". ${fromCount} application${fromCount === 1 ? ' moves' : 's move'} over and "${mergePicker.fromTag.name}" is deleted.`,
+      confirmLabel: 'Merge',
+      danger: true,
+    });
+    if (!ok) { setMergePicker(null); return; }
+    try {
+      await mergeTags({ fromTagId: mergePicker.fromTag.id, intoTagId: intoTag.id });
+      onWorkspaceTagsChanged?.();
+      feedback.toast({ type: 'success', message: 'Merged into "' + intoTag.name + '".' });
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Merge failed: ' + (err.message || err) });
+    } finally {
+      setMergePicker(null);
+    }
+  };
+
   const promptDelete = async (tag) => {
     setMenuFor(null);
     const count = counts.get(tag.id) || 0;
@@ -268,9 +296,100 @@ export function SidebarTags({
              role="menu">
           <button className="sb-tag-menu-item" onClick={() => promptRename(menuFor.tag)}>Rename</button>
           <button className="sb-tag-menu-item" onClick={() => promptRecolor(menuFor.tag)}>Recolor</button>
+          <button className="sb-tag-menu-item" onClick={() => startMerge(menuFor.tag)}>Merge into…</button>
           <button className="sb-tag-menu-item danger" onClick={() => promptDelete(menuFor.tag)}>Delete tag</button>
         </div>
       )}
+
+      {mergePicker && (
+        <MergePicker
+          fromTag={mergePicker.fromTag}
+          tags={tags.filter(t => t.id !== mergePicker.fromTag.id)}
+          counts={counts}
+          onPick={finishMerge}
+          onCancel={() => setMergePicker(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Small modal: pick the tag that the from-tag should merge INTO. The
+// from-tag's applications get re-pointed; the from-tag itself is
+// deleted. Filterable, keyboard-navigable.
+function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
+  const [query, setQuery] = useState('');
+  const [hover, setHover] = useState(0);
+  const ref = useRef(null);
+  useEffect(() => {
+    const onDown = (e) => {
+      if (ref.current?.contains(e.target)) return;
+      onCancel?.();
+    };
+    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onCancel]);
+  useEffect(() => {
+    setTimeout(() => ref.current?.querySelector('input')?.focus({ preventScroll: true }), 0);
+  }, []);
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? tags.filter(t => (t.slug || t.name || '').toLowerCase().includes(q))
+    : tags;
+  const fromColor = fromTag.color || fallbackColor(fromTag.slug || fromTag.name);
+  return (
+    <div className="merge-picker-bg" onMouseDown={onCancel}>
+      <div ref={ref}
+           className="merge-picker"
+           role="dialog"
+           onMouseDown={(e) => e.stopPropagation()}>
+        <div className="merge-picker-head">
+          <span className="merge-picker-eyebrow">MERGE TAG</span>
+          <span className="merge-picker-from">
+            <span className="sb-dot" style={{ background: fromColor }} />
+            <span>{fromTag.name}</span>
+          </span>
+          <span className="merge-picker-arrow">→</span>
+          <span className="merge-picker-into-label">into…</span>
+        </div>
+        <input className="merge-picker-input"
+               placeholder="Search tags…"
+               value={query}
+               onChange={(e) => { setQuery(e.target.value); setHover(0); }}
+               onKeyDown={(e) => {
+                 if (e.key === 'Enter') {
+                   e.preventDefault();
+                   const m = matches[hover];
+                   if (m) onPick(m);
+                 }
+                 if (e.key === 'ArrowDown') { e.preventDefault(); setHover(h => Math.min(h + 1, matches.length - 1)); }
+                 if (e.key === 'ArrowUp')   { e.preventDefault(); setHover(h => Math.max(h - 1, 0)); }
+               }} />
+        <div className="merge-picker-list">
+          {matches.length === 0 && (
+            <div className="merge-picker-empty">No other tags found.</div>
+          )}
+          {matches.map((t, i) => {
+            const c = counts.get(t.id) || 0;
+            const dot = t.color || fallbackColor(t.slug || t.name);
+            return (
+              <button key={t.id}
+                      className={`merge-picker-row ${i === hover ? 'is-hover' : ''}`}
+                      onMouseEnter={() => setHover(i)}
+                      onClick={() => onPick(t)}>
+                <span className="sb-dot" style={{ background: dot }} />
+                <span className="merge-picker-row-name">{t.name}</span>
+                {c > 0 && <span className="merge-picker-row-count">{c}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
