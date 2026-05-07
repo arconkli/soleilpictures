@@ -909,6 +909,70 @@ export function CanvasSurface({
         extendBound(targetYBounds, y, card.x, card.x + card.w);
       });
     });
+
+    // Equal-spacing snap targets — for any pair of non-dragged cards
+    // that share a row (vertical overlap) or column (horizontal
+    // overlap) with a positive gap between them, propose extending
+    // the gap on either side. Drags that match an existing rhythm
+    // ("each card 24px apart") snap cleanly. Works in both axes
+    // independently so a + / cross arrangement falls into place.
+    const otherCards = cards.filter(c => !dragSet.has(c.id));
+    const SPACING_MIN = 4;
+    const SPACING_MAX = 1500;
+    const OVERLAP_MIN = 8;
+    const xSpacingCands = []; // { targetX, edgeIs, gap, paired:{a,b,cross} }
+    const ySpacingCands = [];
+    for (let i = 0; i < otherCards.length; i++) {
+      for (let j = i + 1; j < otherCards.length; j++) {
+        const a = otherCards[i], b = otherCards[j];
+        // Row neighbours on the X axis — vertical overlap, gap > 0
+        const yOverlap = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+        if (yOverlap > OVERLAP_MIN) {
+          const left  = a.x + a.w < b.x ? a : (b.x + b.w < a.x ? b : null);
+          const right = left === a ? b : (left === b ? a : null);
+          if (left && right) {
+            const gap = right.x - (left.x + left.w);
+            if (gap >= SPACING_MIN && gap <= SPACING_MAX) {
+              const cross = (Math.max(left.y, right.y) + Math.min(left.y + left.h, right.y + right.h)) / 2;
+              // Extend the row to the right of `right`
+              xSpacingCands.push({
+                targetX: right.x + right.w + gap,
+                edgeIs: 'left', gap,
+                paired: { a: right.x + right.w, b: right.x + right.w + gap, cross },
+              });
+              // Extend the row to the left of `left`
+              xSpacingCands.push({
+                targetX: left.x - gap,
+                edgeIs: 'right', gap,
+                paired: { a: left.x - gap, b: left.x, cross },
+              });
+            }
+          }
+        }
+        // Column neighbours on the Y axis — horizontal overlap
+        const xOverlap = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+        if (xOverlap > OVERLAP_MIN) {
+          const top    = a.y + a.h < b.y ? a : (b.y + b.h < a.y ? b : null);
+          const bottom = top === a ? b : (top === b ? a : null);
+          if (top && bottom) {
+            const gap = bottom.y - (top.y + top.h);
+            if (gap >= SPACING_MIN && gap <= SPACING_MAX) {
+              const cross = (Math.max(top.x, bottom.x) + Math.min(top.x + top.w, bottom.x + bottom.w)) / 2;
+              ySpacingCands.push({
+                targetY: bottom.y + bottom.h + gap,
+                edgeIs: 'top', gap,
+                paired: { a: bottom.y + bottom.h, b: bottom.y + bottom.h + gap, cross },
+              });
+              ySpacingCands.push({
+                targetY: top.y - gap,
+                edgeIs: 'bottom', gap,
+                paired: { a: top.y - gap, b: top.y, cross },
+              });
+            }
+          }
+        }
+      }
+    }
     // Bounding box of dragged group at start (for snapping the group as one).
     const dragBBoxStart = (() => {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -946,6 +1010,30 @@ export function CanvasSurface({
           if (d < bestYDist) { bestYDist = d; bestY = adjust; bestYTarget = ty; }
         }
       }
+      // Equal-spacing candidates — try them after edge alignment. If a
+      // spacing match is closer than the edge match (or no edge match
+      // fired), use the spacing snap. Whether or not the snap delta
+      // comes from spacing, we record matched gap markers so the user
+      // sees "these cards are 24px apart, just like that pair over there."
+      let bestSpaceX = null, bestSpaceXDist = thresh + 0.001, bestSpaceXMeta = null;
+      for (const cand of xSpacingCands) {
+        const adjust = cand.targetX - (cand.edgeIs === 'left' ? left : right);
+        const d = Math.abs(adjust);
+        if (d < bestSpaceXDist) { bestSpaceXDist = d; bestSpaceX = adjust; bestSpaceXMeta = cand; }
+      }
+      let bestSpaceY = null, bestSpaceYDist = thresh + 0.001, bestSpaceYMeta = null;
+      for (const cand of ySpacingCands) {
+        const adjust = cand.targetY - (cand.edgeIs === 'top' ? top : bottom);
+        const d = Math.abs(adjust);
+        if (d < bestSpaceYDist) { bestSpaceYDist = d; bestSpaceY = adjust; bestSpaceYMeta = cand; }
+      }
+      // Pick the tighter of edge vs spacing per axis.
+      if (bestSpaceX !== null && bestSpaceXDist < bestXDist) {
+        bestX = bestSpaceX; bestXTarget = null;          // suppress edge guide
+      }
+      if (bestSpaceY !== null && bestSpaceYDist < bestYDist) {
+        bestY = bestSpaceY; bestYTarget = null;
+      }
       // Compose visible guide hints out of the matched target lines plus
       // the dragged group's bbox along the same axis (so the line spans
       // both the source card and the aligned target).
@@ -955,6 +1043,7 @@ export function CanvasSurface({
       };
       const xs = [];
       const ys = [];
+      const spacings = [];
       if (bestXTarget !== null) {
         const b = targetXBounds.get(bestXTarget) || { y0: newDragBBox.y0, y1: newDragBBox.y1 };
         xs.push({
@@ -971,10 +1060,28 @@ export function CanvasSurface({
           x1: Math.max(b.y1, newDragBBox.x1),
         });
       }
+      if (bestSpaceXMeta && bestSpaceXDist < thresh + 0.001) {
+        spacings.push({
+          axis: 'x',
+          a: bestSpaceXMeta.paired.a,
+          b: bestSpaceXMeta.paired.b,
+          cross: bestSpaceXMeta.paired.cross,
+          gap: Math.round(bestSpaceXMeta.gap),
+        });
+      }
+      if (bestSpaceYMeta && bestSpaceYDist < thresh + 0.001) {
+        spacings.push({
+          axis: 'y',
+          a: bestSpaceYMeta.paired.a,
+          b: bestSpaceYMeta.paired.b,
+          cross: bestSpaceYMeta.paired.cross,
+          gap: Math.round(bestSpaceYMeta.gap),
+        });
+      }
       return {
         dx: rawDx + (bestX ?? 0),
         dy: rawDy + (bestY ?? 0),
-        hints: (xs.length || ys.length) ? { xs, ys } : null,
+        hints: (xs.length || ys.length || spacings.length) ? { xs, ys, spacings } : null,
       };
     };
     setDrag({ ids: dragIds, dx: 0, dy: 0, startPositions });
@@ -2694,24 +2801,80 @@ export function CanvasSurface({
 
         {/* Snap-alignment guidelines — gold hairlines along the matched
             edge / center while a drag is snapping. Cleared on drag end. */}
-        {snapHints && (snapHints.xs?.length || snapHints.ys?.length) && (
+        {snapHints && (snapHints.xs?.length || snapHints.ys?.length || snapHints.spacings?.length) && (
           <svg className="snap-guides"
                width={VIRTUAL_CANVAS_PX} height={VIRTUAL_CANVAS_PX}
                style={{ position: 'absolute', left: 0, top: 0,
                         pointerEvents: 'none', overflow: 'visible',
                         zIndex: 999997 }}>
+            {/* Edge / center alignment lines — toned down so they
+                read as a hint, not a full ruler. */}
             {(snapHints.xs || []).map((g, i) => (
               <line key={`gx-${i}`} x1={g.x} x2={g.x} y1={g.y0 - 12} y2={g.y1 + 12}
                     stroke="var(--soleil)"
+                    strokeOpacity="0.42"
                     strokeWidth={1 / zoom}
                     vectorEffect="non-scaling-stroke" />
             ))}
             {(snapHints.ys || []).map((g, i) => (
               <line key={`gy-${i}`} y1={g.y} y2={g.y} x1={g.x0 - 12} x2={g.x1 + 12}
                     stroke="var(--soleil)"
+                    strokeOpacity="0.42"
                     strokeWidth={1 / zoom}
                     vectorEffect="non-scaling-stroke" />
             ))}
+            {/* Equal-spacing markers — drawn between paired neighbours
+                with tiny end caps + a label so the user sees "I matched
+                a 24px gap that already existed". */}
+            {(snapHints.spacings || []).map((s, i) => {
+              const isX = s.axis === 'x';
+              const labelX = isX ? (s.a + s.b) / 2 : s.cross;
+              const labelY = isX ? s.cross : (s.a + s.b) / 2;
+              return (
+                <Fragment key={`gs-${i}`}>
+                  {isX ? (
+                    <>
+                      <line x1={s.a} x2={s.b} y1={s.cross} y2={s.cross}
+                            stroke="var(--soleil)" strokeOpacity="0.6"
+                            strokeWidth={1 / zoom}
+                            strokeDasharray={`${4 / zoom} ${3 / zoom}`}
+                            vectorEffect="non-scaling-stroke" />
+                      <line x1={s.a} x2={s.a} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
+                            stroke="var(--soleil)" strokeOpacity="0.6"
+                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                      <line x1={s.b} x2={s.b} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
+                            stroke="var(--soleil)" strokeOpacity="0.6"
+                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                    </>
+                  ) : (
+                    <>
+                      <line x1={s.cross} x2={s.cross} y1={s.a} y2={s.b}
+                            stroke="var(--soleil)" strokeOpacity="0.6"
+                            strokeWidth={1 / zoom}
+                            strokeDasharray={`${4 / zoom} ${3 / zoom}`}
+                            vectorEffect="non-scaling-stroke" />
+                      <line x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.a} y2={s.a}
+                            stroke="var(--soleil)" strokeOpacity="0.6"
+                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                      <line x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.b} y2={s.b}
+                            stroke="var(--soleil)" strokeOpacity="0.6"
+                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                    </>
+                  )}
+                  <text x={labelX} y={labelY}
+                        fill="var(--soleil)"
+                        fontSize={10 / zoom}
+                        fontFamily="ui-monospace, monospace"
+                        textAnchor="middle"
+                        dy={isX ? -6 / zoom : 0}
+                        dx={isX ? 0 : 8 / zoom}
+                        opacity="0.85"
+                        style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
+                    {s.gap}
+                  </text>
+                </Fragment>
+              );
+            })}
           </svg>
         )}
 

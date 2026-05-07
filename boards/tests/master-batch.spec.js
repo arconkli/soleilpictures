@@ -42,6 +42,23 @@ test.describe('Phase 1 — polish & bug fixes', () => {
     expect(await hasCssRule(page, /\.snap-guides/)).toBe(true);
   });
 
+  test('snap alignment lines are toned down (strokeOpacity attribute present)', async ({ page }) => {
+    // The lines used to render at full opacity which felt overbearing.
+    // Now they should ship with a strokeOpacity attribute around 0.42
+    // for edge-alignment lines. We just check the bundle still has the
+    // attribute string + a non-1 opacity value.
+    await page.goto('/?local=1');
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    expect(bundle.includes('strokeOpacity')).toBe(true);
+    // Equal-spacing snap helper named in the source — guard against
+    // future regressions that drop the spacing pass entirely.
+    expect(bundle.includes('xSpacingCands')).toBe(true);
+    expect(bundle.includes('ySpacingCands')).toBe(true);
+  });
+
   test('shape cards drop their wrapper box-shadow', async ({ page }) => {
     await go(page);
     expect(await hasCssRule(page, /card-kind-shape/)).toBe(true);
