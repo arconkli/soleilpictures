@@ -2000,8 +2000,7 @@ export function CanvasSurface({
     } else {
       cx = 100; cy = 100;
     }
-    const v = canvasToViewport(cx, cy);
-    setCommentDraft({ anchor, viewport: v });
+    setCommentDraft({ anchor, canvasPos: { x: cx, y: cy } });
   };
   const submitCommentDraft = async (body) => {
     if (!commentDraft) return;
@@ -3003,6 +3002,26 @@ export function CanvasSurface({
           )}
         </svg>
 
+        {/* Anywhere-comment bubbles. Mounted INSIDE the canvas transform
+            so they scale with zoom and feel like part of the board
+            content; the connector line + anchor dot show users exactly
+            which card / group / point each comment is attached to. */}
+        <CanvasCommentLayer
+          comments={comments}
+          boardId={board?.id}
+          workspaceId={workspaceId}
+          userId={userId}
+          wsPeers={wsPeers}
+          zoom={zoom}
+          resolveCardBBox={resolveCardBBox}
+          resolveGroupBBox={resolveGroupBBox}
+          draft={commentDraft}
+          onSubmitDraft={submitCommentDraft}
+          onCancelDraft={() => setCommentDraft(null)}
+          onLocallyRemoved={removeCommentLocally}
+          layerVisible={commentsVisible}
+        />
+
       </div>
 
       {/* Off-screen BoardThumbnail used as the source SVG for PNG/PDF
@@ -3014,26 +3033,6 @@ export function CanvasSurface({
         <BoardThumbnail cards={cards} strokes={strokes} boards={boards} />
       </div>
 
-      {/* Anywhere-comment bubbles. Mounted OUTSIDE the canvas transform so
-          bubbles stay readable size at any zoom; positions come from
-          canvasToViewport. zoom is passed through so author-drag can
-          convert pointer-pixel deltas into canvas-space deltas. */}
-      <CanvasCommentLayer
-        comments={comments}
-        boardId={board?.id}
-        workspaceId={workspaceId}
-        userId={userId}
-        wsPeers={wsPeers}
-        zoom={zoom}
-        canvasToViewport={canvasToViewport}
-        resolveCardBBox={resolveCardBBox}
-        resolveGroupBBox={resolveGroupBBox}
-        draft={commentDraft}
-        onSubmitDraft={submitCommentDraft}
-        onCancelDraft={() => setCommentDraft(null)}
-        onLocallyRemoved={removeCommentLocally}
-        layerVisible={commentsVisible}
-      />
 
       <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`}>
         <div className="cnv-add-wrap">

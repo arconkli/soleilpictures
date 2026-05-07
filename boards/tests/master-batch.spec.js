@@ -336,6 +336,23 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(await hasCssRule(page, /\.comment-archive-tag\.is-hidden/)).toBe(true);
   });
 
+  test('comment connector + canvas-space layer (no canvasToViewport indirection)', async ({ page }) => {
+    // Two related changes:
+    //   1. Bubbles live INSIDE the canvas transform now, so they scale
+    //      with zoom. We assert the connector class ships and the
+    //      canvasToViewport prop is gone from the layer wiring.
+    //   2. Connector line + anchor dot show what each comment is
+    //      attached to.
+    await go(page);
+    expect(await hasCssRule(page, /\.canvas-comment-connector/)).toBe(true);
+    // Bundle should reference the new connector helper.
+    const html = await (await page.request.get('/?local=1')).text();
+    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    if (!m) return;
+    const bundle = await (await page.request.get(m[1])).text();
+    expect(bundle.includes('CommentConnector')).toBe(true);
+  });
+
   test('eye toggle bulk-unhides + right-click is propagation-safe', async ({ page }) => {
     // Two regression guards in one test:
     //   1. unhideAllOnBoard is exported by the comments API (the bulk

@@ -18,20 +18,17 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 
 export function CanvasCommentLayer({
   comments, boardId, workspaceId, userId, wsPeers = [],
-  // Pixel position helpers — receivers convert canvas coords to viewport
-  // pixels via the canvas's CSS transform. We pass `getCanvasToViewport`
-  // so the layer can place bubbles against the live pan/zoom.
-  canvasToViewport,
-  // Current zoom — needed by drag handlers to convert viewport pixel
-  // deltas into canvas-space deltas (the layer sits outside the canvas
-  // transform, so 10px drag = 10/zoom canvas units).
+  // Current zoom — used by drag handlers to convert pointer-pixel
+  // deltas into canvas-space deltas. Bubble positions themselves are
+  // pure canvas coordinates because the layer mounts INSIDE the
+  // canvas transform; it scales with the rest of the board content.
   zoom = 1,
   // Resolve a card / group id to its current bounding box in canvas space,
   // for anchor_kind='card'/'group'. Returns null when the element no
   // longer exists.
   resolveCardBBox, resolveGroupBBox,
   // Inline-draft state. When set, the layer renders an inline input at
-  // the given viewport position. submitting calls onSubmitDraft; Esc /
+  // the given canvas position. submitting calls onSubmitDraft; Esc /
   // outside-click calls onCancelDraft.
   draft, onSubmitDraft, onCancelDraft,
   // Optimistic local removal — invoked right after a successful delete
@@ -75,7 +72,6 @@ export function CanvasCommentLayer({
           userId={userId}
           wsPeers={wsPeers}
           zoom={zoom}
-          canvasToViewport={canvasToViewport}
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
           onLocallyRemoved={onLocallyRemoved}
@@ -83,7 +79,7 @@ export function CanvasCommentLayer({
       ))}
       {draft && (
         <CanvasCommentDraft
-          viewport={draft.viewport}
+          canvasPos={draft.canvasPos}
           onSubmit={onSubmitDraft}
           onCancel={onCancelDraft}
         />
@@ -92,7 +88,7 @@ export function CanvasCommentLayer({
   );
 }
 
-function CanvasCommentDraft({ viewport, onSubmit, onCancel }) {
+function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
   const [body, setBody] = useState('');
   const ref = useRef(null);
   // Outside click + Escape cancel.
@@ -117,7 +113,7 @@ function CanvasCommentDraft({ viewport, onSubmit, onCancel }) {
   return (
     <div ref={ref}
          className="canvas-comment canvas-comment-draft"
-         style={{ left: viewport.x, top: viewport.y, pointerEvents: 'auto' }}
+         style={{ left: canvasPos.x, top: canvasPos.y, pointerEvents: 'auto' }}
          onMouseDown={(e) => e.stopPropagation()}
          onPointerDown={(e) => e.stopPropagation()}>
       <form className="canvas-comment-card canvas-comment-card-draft"
@@ -169,6 +165,9 @@ function anchorPoint({ comment, resolveCardBBox, resolveGroupBBox }) {
   return { x: 100 + ox, y: 100 + oy };
 }
 
+// Clamp helper for the connector-line endpoints.
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
 function resolvePeerName(authorId, wsPeers, userId) {
   const peer = (wsPeers || []).find(p => p?.user?.id === authorId);
   if (peer?.user?.name) return peer.user.name;
@@ -181,7 +180,7 @@ function resolvePeerColor(authorId, wsPeers) {
   return peer?.user?.color || '#4f8df8';
 }
 
-function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, zoom = 1, canvasToViewport, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
+function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, zoom = 1, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState('');
@@ -211,7 +210,47 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
   const liveCp = dragDelta
     ? { x: cp.x + dragDelta.dx, y: cp.y + dragDelta.dy }
     : cp;
-  const v = canvasToViewport ? canvasToViewport(liveCp.x, liveCp.y) : { x: liveCp.x, y: liveCp.y };
+
+  // Connector line back to the anchor — shows the user EXACTLY which
+  // card / group / canvas-point each comment belongs to. Returns the
+  // anchor's tail end and a small dot position. For board / doc_range
+  // anchors the connector is suppressed (no clear visual target).
+  const connector = (() => {
+    const W = 240, H = 76;
+    const bubbleCx = liveCp.x + W / 2;
+    const bubbleCy = liveCp.y + H / 2;
+    if (comment.anchor_kind === 'card') {
+      const b = resolveCardBBox?.(comment.anchor_id);
+      if (!b) return null;
+      const tx = b.x + b.w / 2;
+      const ty = b.y + b.h / 2;
+      // End the line on the bubble's NEAREST edge so it doesn't disappear under the card.
+      const ex = clamp(tx, liveCp.x, liveCp.x + W);
+      const ey = clamp(ty, liveCp.y, liveCp.y + H);
+      // Find a sensible point on the card's perimeter to start the line —
+      // closest to the bubble's edge so the connector enters/exits cleanly.
+      const sx = clamp(ex, b.x, b.x + b.w);
+      const sy = clamp(ey, b.y, b.y + b.h);
+      return { sx, sy, ex, ey, dot: { x: sx, y: sy } };
+    }
+    if (comment.anchor_kind === 'group') {
+      const b = resolveGroupBBox?.(comment.anchor_id);
+      if (!b) return null;
+      const ex = clamp(b.x + b.w / 2, liveCp.x, liveCp.x + W);
+      const ey = clamp(b.y + b.h / 2, liveCp.y, liveCp.y + H);
+      const sx = clamp(ex, b.x, b.x + b.w);
+      const sy = clamp(ey, b.y, b.y + b.h);
+      return { sx, sy, ex, ey, dot: { x: sx, y: sy } };
+    }
+    if (comment.anchor_kind === 'point') {
+      const sx = (comment.anchor_x ?? 0);
+      const sy = (comment.anchor_y ?? 0);
+      const ex = clamp(sx, liveCp.x, liveCp.x + W);
+      const ey = clamp(sy, liveCp.y, liveCp.y + H);
+      return { sx, sy, ex, ey, dot: { x: sx, y: sy } };
+    }
+    return null;
+  })();
 
   // When the comment row's saved offset / anchor catches up to what we
   // just committed, drop the dragDelta override. After this, cp is
@@ -364,7 +403,16 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
   return (
     <div ref={wrapRef}
          className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''} ${dragDelta ? 'is-dragging' : ''} ${isAuthor ? 'is-mine' : ''}`}
-         style={{ left: v.x, top: v.y, pointerEvents: 'auto' }}>
+         style={{ left: liveCp.x, top: liveCp.y, pointerEvents: 'auto' }}>
+      {connector && (
+        <CommentConnector
+          sx={connector.sx} sy={connector.sy}
+          ex={connector.ex} ey={connector.ey}
+          dot={connector.dot}
+          bubbleX={liveCp.x} bubbleY={liveCp.y}
+          color={authorColor}
+        />
+      )}
       {/* Inline preview — body text is always visible so the user can read
           the comment without clicking. The whole card is the click target
           for opening the thread. */}
@@ -448,6 +496,48 @@ function parentAnchor(c) {
   if (c.anchor_kind === 'point')  return { kind: 'point', x: c.anchor_x, y: c.anchor_y };
   if (c.anchor_kind === 'board')  return { kind: 'board' };
   return { kind: 'card', id: c.anchor_id };
+}
+
+// Anchor connector — a thin dotted line from the comment bubble to
+// the thing it's attached to (card / group / canvas-point), with a
+// small filled dot at the anchor end. Lives in canvas-space (so it
+// scales naturally with zoom) and sits BEHIND the bubble via the
+// same parent — bubble's content covers any line that would tuck
+// under it.
+function CommentConnector({ sx, sy, ex, ey, dot, bubbleX, bubbleY, color }) {
+  // The SVG is positioned relative to the bubble's top-left so its
+  // children render in canvas-space. We just shift coordinates by
+  // (bubbleX, bubbleY) so the SVG element itself can sit at 0,0.
+  const PAD = 80; // accommodate connector reaching outside the bubble
+  const minX = Math.min(sx, ex) - PAD;
+  const minY = Math.min(sy, ey) - PAD;
+  const maxX = Math.max(sx, ex) + PAD;
+  const maxY = Math.max(sy, ey) + PAD;
+  const w = maxX - minX;
+  const h = maxY - minY;
+  return (
+    <svg className="canvas-comment-connector"
+         width={w} height={h}
+         viewBox={`${minX} ${minY} ${w} ${h}`}
+         style={{
+           position: 'absolute',
+           left: minX - bubbleX,
+           top: minY - bubbleY,
+           pointerEvents: 'none',
+           overflow: 'visible',
+         }}>
+      <line x1={sx} y1={sy} x2={ex} y2={ey}
+            stroke={color}
+            strokeOpacity="0.55"
+            strokeWidth="1.5"
+            strokeDasharray="3 3"
+            vectorEffect="non-scaling-stroke" />
+      <circle cx={dot.x} cy={dot.y} r="3"
+              fill={color}
+              stroke="rgba(255,255,255,.55)"
+              strokeWidth="1.2" />
+    </svg>
+  );
 }
 
 // Archive popover — opens on right-click of the comments eye toggle.
