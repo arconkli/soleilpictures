@@ -29,7 +29,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, UserPlus, Trash2, MoreHorizontal, Link as LinkIcon } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
@@ -1754,17 +1754,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     title={splitId ? 'Close split view' : 'Pin alongside…'}>
               <Icon as={Columns2} size={16} />
             </button>
-            {!altSessionId && (
-              <button className="tb-icon" title="Open in second window as another user (for solo collab testing)"
-                      onClick={() => {
-                        const url = new URL(window.location.href);
-                        url.searchParams.set('as', 'alt');
-                        window.open(url.toString(), '_blank',
-                          'noopener,noreferrer,width=1280,height=900');
-                      }}>
-                <Icon as={UserPlus} size={16} />
-              </button>
-            )}
           </div>
         </div>
         {altSessionId && (
