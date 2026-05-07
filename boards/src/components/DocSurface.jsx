@@ -17,12 +17,12 @@ import { addBookmark, addPage } from '../lib/docState.js';
 import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocPresence } from './DocPresence.jsx';
-import { DocToolbar } from './DocToolbar.jsx';
 import { DocLinksPanel } from './DocLinksPanel.jsx';
 import { DocRefsPanel } from './DocRefsPanel.jsx';
 import { DocOutlinePanel } from './DocOutlinePanel.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
-import { DocStatusFooter } from './DocStatusFooter.jsx';
+import { DocTitleBlock } from './DocTitleBlock.jsx';
+import { DocBubbleMenu } from './DocBubbleMenu.jsx';
 // Templates removed — new docs land in a single empty page.
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
 import { DocCommentsPanel } from './DocCommentsPanel.jsx';
@@ -61,6 +61,19 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // Visual mode — 'full' (default) for view='doc' boards, 'modal' for the
                               // doc-card overlay (slightly tighter chrome, includes a close button).
                               chrome = 'full',
+                              // Optional callback fired when the user
+                              // edits the title in DocTitleBlock. Doc
+                              // cards wire this to onUpdate({title}).
+                              onTitleChange,
+                              // Optional callback fired when the
+                              // Tiptap editor instance becomes
+                              // available. Doc-card overlay uses this
+                              // to populate its DocOverflowMenu.
+                              onEditorReady: onEditorReadyProp,
+                              // When set, drives the left rail
+                              // open/closed state from outside (e.g.
+                              // the modal-head "Pages" toggle).
+                              railsLeftDefault,
                               // Lift active page + scroll up to App so workspace presence can
                               // broadcast our exact location for click-to-jump. Optional.
                               onActivePageChange,
@@ -115,6 +128,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => { onActivePageChange?.(activePageId || null); }, [activePageId, onActivePageChange]);
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
+  // External control: when the host (e.g. doc-card modal head's
+  // "Pages" toggle) flips railsLeftDefault, mirror that into our
+  // rails.left state so the rail responds.
+  useEffect(() => {
+    if (railsLeftDefault === undefined) return;
+    setRails(r => (r.left === railsLeftDefault ? r : { ...r, left: railsLeftDefault }));
+  }, [railsLeftDefault]);
   const [rightTab, setRightTab] = useState('outline'); // 'outline' | 'links' | 'refs' | 'comments'
 
   const [findOpen, setFindOpen] = useState(false);
@@ -227,7 +247,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // paper-relative).
   const paperRef = useRef(null);
   const [, force] = useState(0);
-  const onEditorReady = (ed) => { editorRef.current = ed; force(n => n + 1); };
+  const onEditorReady = (ed) => {
+    editorRef.current = ed;
+    force(n => n + 1);
+    onEditorReadyProp?.(ed);
+  };
 
   // Broadcast scrollTop on the doc-paper so workspace presence can carry
   // it for click-to-jump. Throttle to 200ms — peer scroll-sync only needs
@@ -325,14 +349,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         )}
       </aside>
 
-      {/* Center — toolbar + editor */}
+      {/* Center — magazine-editorial flow.
+          - No always-on top toolbar (DocBubbleMenu floats over the
+            selection instead).
+          - No status footer (saving + counts moved into the byline
+            inside DocTitleBlock).
+          - Title sits above the editor in the same .doc-flow column. */}
       <section className="doc-center">
-        <DocToolbar editor={editorRef.current}
-                    docName={board.name}
-                    onInsertBookmark={insertBookmarkAtCaret}
-                    onOpenFind={() => setFindOpen(true)}
-                    onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
-                    onAddComment={() => openAddCommentRef.current?.()} />
         <DocFindReplace editor={editorRef.current}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
@@ -343,32 +366,47 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                          currentUser={currentUser} />
           )}
           {activePageId ? (
-            // key forces a fresh editor instance on page switch (Collaboration
-            // extension can't re-bind to a different fragment).
-            <DocPageEditor
-              key={activePageId}
-              ydoc={ydoc}
-              scope={scope}
-              pageId={activePageId}
-              activePageId={activePageId}
-              workspaceId={workspaceId}
-              userId={userId}
-              currentUser={currentUser}
-              onEditorReady={onEditorReady}
-              onRequestBoardEmbed={requestBoardEmbed}
-              onRequestLink={requestLink}
-              awareness={awareness}
-              onNavigateTarget={handleNavigateTarget}
-              registerOpenLinkPicker={registerOpenLinkPicker}
-              registerOpenAddComment={registerOpenAddComment}
-              boards={Object.values(boards || {})}
-              editable={canEdit}
-            />
+            <div className="doc-flow">
+              <DocTitleBlock
+                title={titleOverride || board.name}
+                onTitleChange={(v) => onTitleChange?.(v)}
+                placeholder="Untitled doc"
+                editor={editorRef.current}
+                ydoc={ydoc}
+                author={currentUser?.name || currentUser?.email || null}
+                pageCount={pages?.length || 0}
+              />
+              {/* key forces a fresh editor instance on page switch
+                  (Collaboration extension can't re-bind to a different
+                  fragment). */}
+              <DocPageEditor
+                key={activePageId}
+                ydoc={ydoc}
+                scope={scope}
+                pageId={activePageId}
+                activePageId={activePageId}
+                workspaceId={workspaceId}
+                userId={userId}
+                currentUser={currentUser}
+                onEditorReady={onEditorReady}
+                onRequestBoardEmbed={requestBoardEmbed}
+                onRequestLink={requestLink}
+                awareness={awareness}
+                onNavigateTarget={handleNavigateTarget}
+                registerOpenLinkPicker={registerOpenLinkPicker}
+                registerOpenAddComment={registerOpenAddComment}
+                boards={Object.values(boards || {})}
+                editable={canEdit}
+              />
+            </div>
           ) : (
             <div className="doc-empty">No page selected.</div>
           )}
         </div>
-        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} />
+        <DocBubbleMenu
+          editor={editorRef.current}
+          onOpenLink={(ed) => openLinkPickerRef.current?.(ed)}
+        />
       </section>
 
       {embedPickerOpen && (

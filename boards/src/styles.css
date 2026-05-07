@@ -4085,25 +4085,41 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 .doc-surface {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 240px;
+  /* Thinner left rail (was 240) so the page-tree feels quiet. Right
+     rail (outline / links / refs / comments tabs) stays at 240. */
+  grid-template-columns: 200px minmax(0, 1fr) 240px;
   height: 100%;
   background: var(--bg-1);
   font-family: var(--font-sans);
   color: var(--ink-1);
 }
 .doc-surface.rail-left-collapsed { grid-template-columns: 28px minmax(0, 1fr) 240px; }
-.doc-surface.rail-right-collapsed { grid-template-columns: 240px minmax(0, 1fr) 28px; }
+.doc-surface.rail-right-collapsed { grid-template-columns: 200px minmax(0, 1fr) 28px; }
 .doc-surface.rail-left-collapsed.rail-right-collapsed { grid-template-columns: 28px minmax(0, 1fr) 28px; }
 
 .doc-rail {
   position: relative;
-  border-right: 1px solid var(--line-1);
   background: var(--bg-1);
   overflow: hidden;
   display: flex; flex-direction: column;
   transition: background var(--dur-base) var(--ease);
 }
-.doc-rail-right { border-right: 0; border-left: 1px solid var(--line-1); }
+/* Soft fade instead of a hard border on the rail edges so the panes
+   don't feel compartmentalized. */
+.doc-rail::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; right: 0;
+  width: 12px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--bg-0));
+  opacity: .55;
+}
+.doc-rail-right { background: var(--bg-1); }
+.doc-rail-right::after {
+  right: auto; left: 0;
+  background: linear-gradient(to left, transparent, var(--bg-0));
+}
 .doc-rail-toggle {
   position: absolute; top: 10px; right: 6px;
   width: 28px; height: 28px;
@@ -4163,12 +4179,13 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-tree-empty:hover { color: var(--ink-1); border-color: var(--line-3); }
 .doc-tree-row {
   display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px;
+  padding: 4px 10px;
   margin: 1px 4px;
   border-radius: var(--radius);
   cursor: pointer;
-  font: 500 12px/1.4 var(--font-sans);
+  font: 500 12.5px/1.4 var(--font-sans);
   color: var(--ink-1);
+  letter-spacing: 0;
   user-select: none;
   position: relative;
   transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
@@ -4180,7 +4197,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .doc-tree-row.is-active::before {
   content: ''; position: absolute;
-  left: -4px; top: 6px; bottom: 6px;
+  left: -4px; top: 5px; bottom: 5px;
   width: 2px;
   background: var(--soleil);
   border-radius: 1px;
@@ -4368,50 +4385,39 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: grid; place-items: center;
 }
 
-/* ── Paper / editor ───────────────────────────────────────────────────── */
+/* ── Paper / editor — magazine-editorial redesign ────────────────────────
+   No page sheet. The editor sits on the surrounding surface with a
+   readable 720px text column. The wrapper class is `.doc-flow`; the
+   old `.doc-editor-wrap` styling has been gutted so any leftover
+   markup stops looking like a card.                                 */
+
 .doc-paper {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
-  background: var(--bg-2);
+  background: var(--bg-0);
   display: flex; flex-direction: column;
   align-items: center;
-  padding: 48px 24px 120px;
+  padding: 0;
 }
-/* Visible page edges — wraps the editor in a real letter-size sheet
-   (8.5" × 11" at 96dpi = 816 × 1056 px). Min-height pins the first page;
-   the sheet grows taller as content overflows so multi-page docs scroll
-   smoothly inside one container. */
+.doc-flow,
 .doc-editor-wrap {
   position: relative;
   width: 100%;
-  max-width: 816px;
-  min-height: 1056px;
-  /* Dark theme = warm dark paper that lifts off the canvas (never pure white).
-     Light theme override below switches to warm cream (never pure white either). */
-  background: #1c1c20;
-  color: #d8d8dc;
-  border: 1px solid var(--line-2);
-  border-radius: 4px;
-  /* 1" margins all around — that's 96px. */
-  padding: 96px;
-  box-shadow: var(--shadow-2);
+  max-width: 720px;
+  /* Vertical air, no horizontal frame. Last value buys room for
+     trailing scroll past the final block of content. */
+  padding: 64px 32px 200px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--ink-0);
 }
-[data-theme='light'] .doc-editor-wrap {
-  background: #fafafc;
-  color: #1a1a1f;
-  border: 1px solid rgba(0,0,0,.08);
-  box-shadow: var(--shadow-1);
-}
-/* Tighter margins for narrower viewports (especially the docked side
-   panel) so the page doesn't get clipped horizontally. */
-@media (max-width: 900px) {
-  .doc-editor-wrap { padding: 64px 56px; }
-}
-@media (max-width: 640px) {
-  .doc-editor-wrap { padding: 48px 36px; min-height: 800px; }
+@media (max-width: 720px) {
+  .doc-flow, .doc-editor-wrap { padding: 48px 24px 160px; }
 }
 .doc-empty, .doc-loading {
   flex: 1 1 auto;
@@ -4534,32 +4540,39 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .tt-editor li { margin: .2em 0; }
 .tt-editor li > p { margin: 0; }
 .tt-editor li::marker { color: var(--ink-3); }
+/* De-boxed blockquote — italic + soft hairline left rule, no thick
+   border. Reads as a quoted passage, not a card. */
 .tt-editor blockquote {
-  margin: .8em 0;
-  padding: .2em 0 .2em 14px;
-  border-left: 3px solid var(--line-3);
+  margin: .9em 0;
+  padding: .15em 0 .15em 24px;
+  border-left: 1px solid color-mix(in oklab, currentColor 30%, transparent);
   color: var(--ink-1);
   font-style: italic;
 }
 .tt-editor hr {
   border: 0;
-  border-top: 1px solid var(--line-2);
+  border-top: 1px solid color-mix(in oklab, currentColor 18%, transparent);
   margin: 1.6em 0;
 }
+/* Inline code — subtle bg only, no border. */
 .tt-editor code, .tt-editor .tt-code {
   font-family: var(--font-mono);
   font-size: 13.5px;
-  background: var(--bg-2);
-  border: 1px solid var(--line-1);
-  border-radius: 4px;
+  background: color-mix(in oklab, var(--bg-2) 60%, transparent);
+  border: 0;
+  border-radius: 3px;
   padding: 1px 5px;
 }
+/* Code block — left soleil rule + soft tinted bg, no border, no
+   rounded card. Reads as a quoted code passage, not a UI tile. */
 .tt-editor pre.tt-code {
   display: block;
-  padding: 12px 14px;
+  padding: 10px 14px 10px 16px;
   white-space: pre;
   overflow-x: auto;
-  border-radius: 8px;
+  border-radius: 0;
+  background: color-mix(in oklab, var(--bg-2) 60%, transparent);
+  border-left: 4px solid color-mix(in oklab, var(--soleil) 60%, transparent);
 }
 .tt-editor pre.tt-code code { background: transparent; border: 0; padding: 0; }
 /* .tt-editor .tt-link — base styling now lives on the universal
@@ -4579,23 +4592,32 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   margin: 1em auto;
   box-shadow: 0 4px 16px rgba(0,0,0,.25);
 }
+/* De-boxed tables — top + bottom hairlines only, no per-cell border.
+   Columns separated by a thin soleil-tinted hairline; header row gets
+   a stronger bottom rule but no fill background. NYT/Bauhaus vibe. */
 .tt-editor .tt-table {
   border-collapse: collapse;
-  margin: 1em 0;
+  margin: 1.2em 0;
   width: 100%;
   table-layout: fixed;
   font-size: 14px;
+  border-top: 1px solid var(--ink-2);
+  border-bottom: 1px solid var(--ink-2);
 }
 .tt-editor .tt-table td, .tt-editor .tt-table th {
-  border: 1px solid var(--line-2);
-  padding: 6px 9px;
+  border: 0;
+  border-right: 1px solid color-mix(in oklab, var(--soleil) 18%, transparent);
+  padding: 8px 12px;
   position: relative;
   vertical-align: top;
 }
+.tt-editor .tt-table td:last-child, .tt-editor .tt-table th:last-child { border-right: 0; }
 .tt-editor .tt-table th {
-  background: var(--bg-2);
-  font-weight: 600;
+  background: transparent;
+  font-weight: 700;
   text-align: left;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--ink-3);
 }
 .tt-editor mark {
   background: #fff7a8;
@@ -5058,18 +5080,20 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-foot-spacer { flex: 1 1 auto; }
 .doc-foot-counts { font: 500 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-3); }
 
-/* Block handle (Notion-style) */
+/* Block handle (Notion-style) — slimmed: bare 6-dot icon at low
+   opacity, no background pill. The hit target stays generous. */
 .doc-block-handle {
   display: grid; place-items: center;
-  width: 18px; height: 22px;
+  width: 14px; height: 18px;
   border-radius: 4px;
   color: var(--ink-3);
+  opacity: .35;
   cursor: grab;
-  transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+  transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
   user-select: none;
   z-index: 4;
 }
-.doc-block-handle:hover { background: var(--bg-hov); color: var(--ink-1); }
+.doc-block-handle:hover { opacity: .9; color: var(--soleil); background: transparent; }
 .doc-block-handle:active { cursor: grabbing; }
 
 /* ─────── Doc templates picker ─────── */
@@ -5558,17 +5582,22 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-color: var(--soleil);
 }
 
-/* ─────── Doc card on canvas (rich, openable) ─────── */
+/* ─────── Doc card on canvas — magazine-tile redesign ─────────
+   Title-led tile. No outer border at rest. No footer bar. Open
+   buttons fade in on hover at the bottom-right. Page count + last
+   edit move into the byline. */
 .doc-card {
   width: 100%; height: 100%;
   background: var(--bg-1);
-  border: 1px solid var(--line-2);
+  border: 1px solid transparent;
   border-radius: var(--radius-lg);
   display: flex; flex-direction: column;
   overflow: hidden;
   cursor: default;
   position: relative;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
+.doc-card:hover { border-color: color-mix(in oklab, var(--soleil) 35%, transparent); }
 /* Peer-presence dots floating in the top-right of the doc card preview.
    Click a dot → jump to that peer's exact page + scroll inside the card.
    Same visual language as BoardCardPresence (.bc-presence-dot) so the
@@ -5602,70 +5631,70 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .doc-card-page {
   flex: 1 1 auto;
-  padding: 14px 16px 6px;
+  padding: 18px 20px 18px;
   overflow: hidden;
-  font-family: ui-serif, Georgia, "Iowan Old Style", "Apple Garamond", serif;
+  font-family: var(--font-display, ui-serif), Georgia, "Iowan Old Style", "Apple Garamond", serif;
   color: var(--ink-1);
-  display: flex; flex-direction: column; gap: 4px;
+  display: flex; flex-direction: column; gap: 6px;
   min-height: 0;
 }
 .doc-card-title {
-  font-size: 14px; font-weight: 700;
+  font: 700 18px/1.2 var(--font-display, ui-serif);
   color: var(--ink-0);
-  letter-spacing: -0.01em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.doc-card-h1 {
-  font-size: 12px; font-weight: 600;
-  color: var(--ink-2);
-  letter-spacing: -0.005em;
-  margin-top: 2px;
+  letter-spacing: -0.012em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .doc-card-rule {
-  height: 1px;
-  background: linear-gradient(to right, var(--line-2), transparent);
-  margin: 4px 0;
+  height: 1.5px;
+  width: 32px;
+  background: var(--soleil);
+  border-radius: 1px;
+  margin: 2px 0 4px;
+  opacity: .85;
 }
+.doc-card-byline {
+  font: 500 10.5px/1.2 var(--font-sans);
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.doc-card-byline-sep { color: var(--ink-3); opacity: .55; }
 .doc-card-text {
-  font-size: 11px;
-  line-height: 1.55;
+  font: 400 12.5px/1.55 var(--font-display, ui-serif);
   color: var(--ink-2);
   display: -webkit-box;
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: -0.003em;
+  letter-spacing: -0.002em;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .doc-card-muted { color: var(--ink-3); font-style: italic; }
-.doc-card-foot {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 12px;
-  border-top: 1px solid var(--line-1);
-  background: var(--bg-2);
-  flex-shrink: 0;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
+/* Open-side / open-full buttons fade in on hover at the bottom-right. */
+.doc-card-actions {
+  position: absolute;
+  right: 8px; bottom: 8px;
+  display: flex; gap: 4px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
 }
-.doc-card-tag {
-  font-family: var(--font-mono);
-  font-size: 9px; letter-spacing: .14em;
-  color: var(--ink-1);
-  background: var(--bg-3);
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-.doc-card-meta { color: var(--ink-3); flex: 1 1 auto; }
+.doc-card:hover .doc-card-actions { opacity: 1; }
 .doc-card-open {
-  appearance: none; border: 1px solid var(--line-2); background: transparent;
-  color: var(--ink-1); font: 500 11px/1 var(--font-sans);
-  padding: 5px 10px;
-  border-radius: var(--radius);
+  appearance: none;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
+  width: 26px; height: 26px;
+  border-radius: 5px;
   cursor: pointer;
+  display: grid; place-items: center;
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.doc-card-open:hover { color: var(--ink-0); border-color: var(--soleil); background: var(--soleil-soft); }
+.doc-card-open:hover { color: var(--soleil); border-color: var(--soleil); background: var(--soleil-soft); }
 
 /* Doc card overlay — two modes:
    .doc-card-modal-full → fullscreen-ish (24px inset on all sides)
@@ -5675,7 +5704,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   position: fixed;
   z-index: 2147483600;
   background: var(--bg-0);
-  border: 1px solid var(--line-2);
+  border: 0;
   box-shadow: var(--shadow-3);
   display: flex; flex-direction: column;
   overflow: hidden;
@@ -5687,8 +5716,6 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .doc-card-modal-side {
   border-radius: 0;
-  border-top: 0; border-right: 0; border-bottom: 0;
-  border-left: 1px solid var(--line-2);
   box-shadow: -16px 0 40px rgba(0,0,0,.4);
   animation: doc-card-modal-side-in 220ms cubic-bezier(.2,.8,.2,1);
 }
@@ -5720,24 +5747,17 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .doc-card-side-divider:hover, .doc-card-side-divider:active { background: var(--soleil-soft); }
 .doc-card-side-divider:hover::before, .doc-card-side-divider:active::before { opacity: 1; background: var(--soleil); }
+/* Minimal modal chrome — only PAGES toggle (left), peers + ⋯ menu
+   + close (right). The doc title moved into the editor body itself
+   (DocTitleBlock) so the header strip stays quiet. */
 .doc-card-modal-head {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 12px 10px 18px;
-  border-bottom: 1px solid var(--line-1);
-  background: var(--bg-1);
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 0;
+  background: transparent;
   flex-shrink: 0;
 }
-.doc-card-title-input {
-  flex: 1 1 auto;
-  appearance: none; border: 0; background: transparent;
-  color: var(--ink-0);
-  font-family: ui-serif, Georgia, "Iowan Old Style", "Apple Garamond", serif;
-  font-size: 17px; font-weight: 700;
-  letter-spacing: -0.012em;
-  outline: none;
-  padding: 2px 0;
-}
-.doc-card-title-input::placeholder { color: var(--ink-3); }
+.doc-card-modal-head-spacer { flex: 1 1 auto; }
 .doc-card-icon, .doc-card-close {
   appearance: none; border: 0; background: transparent;
   color: var(--ink-3);
@@ -5746,10 +5766,23 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: grid; place-items: center;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.doc-card-icon { width: 36px; height: 36px; }
-.doc-card-close { width: 36px; height: 36px; font-size: 22px; line-height: 1; }
-.doc-card-icon svg, .doc-card-close svg { width: 18px; height: 18px; }
+.doc-card-icon { width: 32px; height: 32px; }
+.doc-card-close { width: 32px; height: 32px; font-size: 18px; line-height: 1; }
+.doc-card-icon svg, .doc-card-close svg { width: 16px; height: 16px; }
 .doc-card-icon:hover, .doc-card-close:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-card-pages-toggle {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-3);
+  font: 700 10px/1 var(--font-sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  height: 28px; padding: 0 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.doc-card-pages-toggle:hover { background: var(--bg-hov); color: var(--ink-1); }
+.doc-card-pages-toggle.is-active { color: var(--soleil); background: var(--soleil-soft); }
 
 /* Peer-avatar stack in the doc-card modal header. One per workspace
    peer currently inside this card. Hover scales the avatar so it's
@@ -7436,3 +7469,167 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   text-transform: uppercase;
   color: var(--ink-3);
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Doc magazine-editorial title block + bubble menu + overflow menu.
+   Sits at the top of every doc inside the editor flow column.
+   ════════════════════════════════════════════════════════════════ */
+
+.doc-title-block {
+  display: flex; flex-direction: column;
+  gap: 8px;
+  margin-bottom: 36px;
+}
+.doc-title-input {
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 0;
+  font: 700 48px/1.05 var(--font-display, ui-serif), Georgia, serif;
+  color: var(--ink-0);
+  letter-spacing: -0.02em;
+  resize: none;
+  overflow: hidden;
+}
+.doc-title-input::placeholder { color: var(--ink-3); }
+@media (max-width: 720px) {
+  .doc-title-input { font-size: 36px; }
+}
+.doc-title-rule {
+  width: 80px;
+  height: 2px;
+  background: color-mix(in oklab, var(--soleil) 65%, transparent);
+  border-radius: 1px;
+  margin: 4px 0 0;
+}
+.doc-byline {
+  display: flex; align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.doc-byline-item { white-space: nowrap; }
+.doc-byline-sep { color: var(--ink-3); opacity: .4; }
+.doc-byline-saving {
+  color: var(--soleil);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.doc-byline-saving::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--soleil);
+  animation: doc-byline-pulse 1.4s var(--ease) infinite;
+}
+@keyframes doc-byline-pulse {
+  0%, 100% { opacity: .4; }
+  50%      { opacity: 1; }
+}
+
+/* ── Bubble menu (selection-anchored format buttons) ──────────────── */
+
+.doc-bubble {
+  display: inline-flex; align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(16,16,20,.92);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px;
+  box-shadow: var(--shadow-3);
+  animation: doc-bubble-in 140ms var(--ease);
+}
+[data-theme='light'] .doc-bubble {
+  background: rgba(252,252,254,.96);
+  border-color: rgba(10,10,12,.08);
+}
+@keyframes doc-bubble-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.doc-bubble-btn {
+  appearance: none; border: 0; background: transparent;
+  width: 28px; height: 28px;
+  border-radius: 5px;
+  color: var(--ink-1);
+  cursor: pointer;
+  display: grid; place-items: center;
+  font: 600 12px/1 var(--font-sans);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.doc-bubble-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-bubble-btn.is-active { background: var(--soleil-soft); color: var(--soleil); }
+.doc-bubble-sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(255,255,255,.08);
+  margin: 0 4px;
+}
+[data-theme='light'] .doc-bubble-sep { background: rgba(10,10,12,.08); }
+.doc-bubble-select {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--ink-1);
+  font: 500 12px/1 var(--font-sans);
+  height: 28px;
+  padding: 0 22px 0 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(180,180,180,.7)' d='M0 0h10L5 6z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+}
+.doc-bubble-select:hover { background-color: var(--bg-hov); color: var(--ink-0); }
+.doc-bubble-italic { font-style: italic; }
+.doc-bubble-strike { text-decoration: line-through; }
+.doc-bubble-under  { text-decoration: underline; }
+.doc-bubble-bold   { font-weight: 800; }
+
+/* ── Modal-head ⋯ overflow menu ───────────────────────────────────── */
+
+.doc-overflow-pop {
+  position: fixed;
+  z-index: 2147483647;
+  min-width: 200px;
+  padding: 4px;
+  background: rgba(16,16,20,.92);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  animation: ctx-menu-in var(--dur-fast) var(--ease);
+}
+[data-theme='light'] .doc-overflow-pop {
+  background: rgba(252,252,254,.96);
+  border-color: rgba(10,10,12,.08);
+}
+.doc-overflow-item {
+  appearance: none; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: 500 12.5px/1.3 var(--font-sans);
+  color: var(--ink-1);
+  text-align: left;
+}
+.doc-overflow-item:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-overflow-item-shortcut {
+  margin-left: auto;
+  font: 500 11px/1 var(--font-mono);
+  color: var(--ink-3);
+}
+.doc-overflow-divider {
+  height: 1px;
+  background: rgba(255,255,255,.06);
+  margin: 4px 0;
+}
+[data-theme='light'] .doc-overflow-divider { background: rgba(10,10,12,.06); }
