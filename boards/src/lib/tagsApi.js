@@ -205,6 +205,39 @@ export async function untagBoard({ boardId, tagId }) {
   if (error) throw error;
 }
 
+// Groups are first-class taggable entities. Group ids are NOT uuids
+// — they're "g-…" strings — so source_id is text and the "board"
+// they live on goes into source_board_id (uuid).
+export async function tagGroup({ workspaceId, boardId, groupId, tagId, source = 'user' }) {
+  if (!workspaceId || !boardId || !groupId || !tagId) {
+    throw new Error('tagGroup: missing required field');
+  }
+  const row = {
+    source_kind:      'group',
+    source_id:        String(groupId),
+    source_workspace: workspaceId,
+    source_board_id:  boardId,
+    target_kind:      'tag',
+    target_id:        tagId,
+    link_kind:        'applied',
+    source,
+  };
+  const { error } = await supabase.from('entity_links').insert(row);
+  if (error && error.code !== '23505') throw error;
+}
+
+export async function untagGroup({ boardId, groupId, tagId }) {
+  if (!boardId || !groupId || !tagId) return;
+  const { error } = await supabase.from('entity_links').delete()
+    .eq('source_kind', 'group')
+    .eq('source_id', String(groupId))
+    .eq('source_board_id', boardId)
+    .eq('target_kind', 'tag')
+    .eq('target_id', tagId)
+    .eq('link_kind', 'applied');
+  if (error) throw error;
+}
+
 // Promote an auto/ai applied tag to user-confirmed. Updates the
 // source attribution on the entity_link row in place.
 export async function confirmAppliedTag({ sourceKind, sourceId, sourceBoardId, tagId }) {

@@ -1030,6 +1030,10 @@ body {
   flex: 1 1 auto;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.tag-detail-row-title.is-empty {
+  font-style: italic;
+  color: var(--ink-3);
+}
 .tag-detail-row-attr {
   font: 700 9px/1 var(--font-display);
   letter-spacing: 0.14em;

@@ -33,7 +33,7 @@ import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
-import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
+import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -2003,7 +2003,7 @@ export function CanvasSurface({
   const autotagStateRef = useRef({});
   // Mirror the latest props/state into a ref that the timer reads.
   autotagStateRef.current = {
-    workspaceId, board, cards, autotagSuggest, autotagReady,
+    workspaceId, board, cards, groups, autotagSuggest, autotagReady,
     tagsByCard, tagsByBoard, groupById, wsTagsFingerprint,
   };
 
@@ -2045,6 +2045,30 @@ export function CanvasSurface({
           }
         } catch {}
       }
+    }
+    // 1b. Score every named group on this board against the tag list.
+    //     A group called "Personal Pricing" should obviously pick up
+    //     the Pricing tag without any user prompt.
+    for (const g of (s.groups || [])) {
+      const gname = (g?.name || '').trim();
+      if (!gname || !g.id) continue;
+      const groupKey = `group:${g.id}`;
+      const groupHash = `${gname}:${boardName}:${s.wsTagsFingerprint}`;
+      if (autoTaggedHashRef.current.get(groupKey) === groupHash) continue;
+      autoTaggedHashRef.current.set(groupKey, groupHash);
+      // Enrich with the board name so a group called "Pricing"
+      // on a "Studio" board still benefits from board context.
+      const text = [boardName, gname].filter(Boolean).join(' ').trim();
+      try {
+        const suggestions = await s.autotagSuggest(text, { kind: 'group', id: g.id });
+        for (const sg of suggestions) {
+          if (sg.score < HIGH) continue;
+          await tagGroup({
+            workspaceId: s.workspaceId, boardId: s.board.id, groupId: g.id,
+            tagId: sg.tagId, source: 'auto',
+          });
+        }
+      } catch {}
     }
     // 2. Score every card with enriched context.
     for (const c of s.cards || []) {
