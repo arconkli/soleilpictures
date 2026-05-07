@@ -27,7 +27,7 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportBoard.js';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { saveBoardTemplate } from '../lib/templatesApi.js';
-import { CanvasCommentLayer } from './CanvasComment.jsx';
+import { CanvasCommentLayer, CommentArchivePopover } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
 import { addComment, updateComment } from '../lib/commentsApi.js';
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
@@ -1841,25 +1841,29 @@ export function CanvasSurface({
   // right-click menu, we set commentDraft to the anchor + viewport
   // position; CanvasCommentLayer renders an inline draft input there.
   const [commentDraft, setCommentDraft] = useState(null);
-  // Reveal-hidden toggle. When on, hidden comments appear inline (faded)
-  // with an unhide affordance — the only way back from a hide other
-  // than the History modal. State is persisted per-tab (sessionStorage)
-  // so the toggle survives navigation but doesn't outlive the session.
-  const [revealHiddenComments, setRevealHiddenComments] = useState(() => {
-    try { return sessionStorage.getItem('soleil.boards.revealHiddenComments') === '1'; }
-    catch (_) { return false; }
+  // Master comments-visibility toggle. Default ON — when the user
+  // turns it off, the entire comment layer disappears from the canvas.
+  // Persists per-tab via sessionStorage. Right-clicking the toggle
+  // opens an "archive" popover listing both resolved and hidden
+  // comments with reopen/unhide actions, so users have a direct
+  // surface to recover comments without leaving the board view.
+  const [commentsVisible, setCommentsVisible] = useState(() => {
+    try { return sessionStorage.getItem('soleil.boards.commentsVisible') !== '0'; }
+    catch (_) { return true; }
   });
-  const toggleRevealHidden = () => {
-    setRevealHiddenComments(v => {
+  const toggleCommentsVisible = () => {
+    setCommentsVisible(v => {
       const next = !v;
-      try { sessionStorage.setItem('soleil.boards.revealHiddenComments', next ? '1' : '0'); }
+      try { sessionStorage.setItem('soleil.boards.commentsVisible', next ? '1' : '0'); }
       catch (_) {}
       return next;
     });
   };
-  // Count of hidden comments on this board — drives the eye-button
-  // badge so users know the toggle has something to reveal.
-  const hiddenCommentCount = (comments || []).filter(c => c.hidden && !c.resolved).length;
+  const [commentArchive, setCommentArchive] = useState(null); // { x, y } when open
+  // Counts for the eye-button badge / popover header.
+  const visibleCommentCount  = (comments || []).filter(c => !c.resolved && !c.hidden && !c.reply_to).length;
+  const resolvedCommentCount = (comments || []).filter(c => c.resolved && !c.reply_to).length;
+  const hiddenCommentCount   = (comments || []).filter(c => c.hidden && !c.resolved && !c.reply_to).length;
   // Open the inline draft. The viewport position is computed from the
   // anchor's canvas coords so the draft input sits exactly where the
   // resulting comment bubble will appear. No popup modal — type
@@ -2856,7 +2860,7 @@ export function CanvasSurface({
         onSubmitDraft={submitCommentDraft}
         onCancelDraft={() => setCommentDraft(null)}
         onLocallyRemoved={removeCommentLocally}
-        revealHidden={revealHiddenComments}
+        layerVisible={commentsVisible}
       />
 
       <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`}>
@@ -2956,21 +2960,42 @@ export function CanvasSurface({
         <button onClick={() => { enableSmoothTransform(); setZoom(z => Math.min(ZOOM_MAX, z * 1.25)); }}>+</button>
       </div>
 
-      {/* Reveal-hidden-comments toggle. Default off — hidden comments
-          stay invisible on the canvas. Click to surface them inline
-          (faded) so the user can pick which ones to unhide. Badge
-          shows how many hidden comments exist on this board so the
-          eye doesn't feel like a no-op. */}
-      {hiddenCommentCount > 0 && (
-        <button className={`cnv-comments-eye ${revealHiddenComments ? 'is-on' : ''}`}
-                title={revealHiddenComments
-                  ? 'Hide the hidden comments again'
-                  : `Show ${hiddenCommentCount} hidden comment${hiddenCommentCount === 1 ? '' : 's'}`}
-                onClick={toggleRevealHidden}>
-          <Icon as={MessageCircle} size={13} />
-          <Icon as={revealHiddenComments ? Eye : EyeOff} size={13} />
-          <span className="cnv-comments-eye-count">{hiddenCommentCount}</span>
-        </button>
+      {/* Master comments-visibility toggle. Always rendered — left-click
+          shows/hides every comment bubble on the canvas; right-click
+          opens the archive popover with resolved + hidden comments and
+          one-click reopen / unhide actions. The badge shows the count
+          of currently-visible comments (or the archived count when
+          comments are muted, so the user still feels there's
+          something to bring back). */}
+      <button className={`cnv-comments-eye ${commentsVisible ? '' : 'is-muted'}`}
+              title={commentsVisible
+                ? 'Hide all comments (right-click for resolved + hidden)'
+                : 'Show all comments (right-click for resolved + hidden)'}
+              onClick={toggleCommentsVisible}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                const r = e.currentTarget.getBoundingClientRect();
+                setCommentArchive({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+              }}>
+        <Icon as={MessageCircle} size={13} />
+        <Icon as={commentsVisible ? Eye : EyeOff} size={13} />
+        {(() => {
+          const n = commentsVisible
+            ? visibleCommentCount
+            : (resolvedCommentCount + hiddenCommentCount + visibleCommentCount);
+          if (n === 0) return null;
+          return <span className="cnv-comments-eye-count">{n}</span>;
+        })()}
+      </button>
+      {commentArchive && (
+        <CommentArchivePopover
+          comments={comments}
+          anchorRect={commentArchive}
+          userId={userId}
+          wsPeers={wsPeers}
+          onLocallyRemoved={removeCommentLocally}
+          onClose={() => setCommentArchive(null)}
+        />
       )}
 
       <CardContextMenu

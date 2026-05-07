@@ -1776,12 +1776,13 @@ body {
   min-width: 44px; text-align: center;
 }
 
-/* Reveal-hidden-comments toggle — top-right corner of the canvas-wrap
-   so it's the obvious "where do I find hidden comments" surface. Only
-   renders when there's at least one hidden comment. */
+/* Master comments-visibility toggle — top-left of the canvas-wrap,
+   sitting just above the tool rail. Click toggles all bubbles on/off,
+   right-click opens the archive popover (resolved + hidden). Always
+   visible so users have a stable place to find the toggle. */
 .cnv-comments-eye {
   position: absolute;
-  right: 14px; top: 14px;
+  left: 14px; top: 14px;
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--bg-1);
   border: 1px solid var(--line-2);
@@ -1798,11 +1799,12 @@ body {
               border-color var(--dur-fast) var(--ease);
 }
 .cnv-comments-eye:hover { background: var(--bg-hov); color: var(--ink-0); border-color: var(--line-3); }
-.cnv-comments-eye.is-on {
-  background: var(--soleil-soft);
-  border-color: color-mix(in oklab, var(--soleil) 32%, var(--line-2));
-  color: var(--soleil);
+.cnv-comments-eye.is-muted {
+  background: var(--bg-2);
+  color: var(--ink-3);
+  border-style: dashed;
 }
+.cnv-comments-eye.is-muted:hover { color: var(--ink-1); border-style: solid; }
 .cnv-comments-eye-count {
   font: 600 10px/1 var(--font-mono);
   letter-spacing: .04em;
@@ -1811,10 +1813,109 @@ body {
   background: var(--bg-2);
   color: var(--ink-3);
 }
-.cnv-comments-eye.is-on .cnv-comments-eye-count {
-  background: rgba(212, 160, 74, 0.18);
-  color: var(--soleil);
+
+/* Comment archive popover — opens from a right-click on the eye. */
+.comment-archive {
+  z-index: 2147483640;
+  background: rgba(20,20,24,.94);
+  color: var(--ink-0);
+  border: 1px solid rgba(255,255,255,.08);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  display: flex; flex-direction: column;
+  max-height: 400px;
+  animation: pickerFade var(--dur-base) var(--ease);
 }
+[data-theme='light'] .comment-archive {
+  background: rgba(252,251,247,.96);
+  border-color: rgba(0,0,0,.06);
+  color: #1a1a1f;
+}
+.comment-archive-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-1);
+}
+.comment-archive-title {
+  font: 700 10px/1 var(--font-display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.comment-archive-x {
+  background: transparent; border: 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.comment-archive-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+.comment-archive-body {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.comment-archive-empty {
+  padding: 18px 8px;
+  color: var(--ink-3);
+  font: 400 12px/1.4 var(--font-sans);
+  text-align: center;
+}
+.comment-archive-row {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  background: var(--bg-1);
+}
+.comment-archive-row.is-hidden { border-style: dashed; opacity: .82; }
+.comment-archive-row-head {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 4px;
+  font: 500 11px/1.2 var(--font-sans);
+  color: var(--ink-3);
+}
+.comment-archive-tag {
+  font: 700 9px/1 var(--font-display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 2px;
+  margin-left: auto;
+}
+.comment-archive-tag.is-resolved { color: #10b981; background: rgba(16,185,129,.14); }
+.comment-archive-tag.is-hidden   { color: var(--ink-3); background: var(--bg-2); }
+.comment-archive-body-text {
+  font: 400 12.5px/1.4 var(--font-sans);
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.comment-archive-row-actions {
+  display: flex; gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed color-mix(in oklab, var(--ink-3) 18%, transparent);
+}
+.comment-archive-row-actions button {
+  background: transparent; border: 0;
+  color: var(--ink-3);
+  font: 600 10px/1 var(--font-display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.comment-archive-row-actions button:hover { background: var(--bg-hov); color: var(--ink-0); }
+.comment-archive-row-actions button.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
 
 /* Inbox — drawer-style panel docked top-right */
 .inbox {

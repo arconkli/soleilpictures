@@ -37,26 +37,29 @@ export function CanvasCommentLayer({
   // Optimistic local removal — invoked right after a successful delete
   // so the bubble disappears without waiting for the realtime fan-out.
   onLocallyRemoved,
-  // When true, hidden comments render (faded, with an "unhide" button
-  // instead of "hide") so the user can recover them. Default false.
-  revealHidden = false,
+  // Master visibility — when false, every comment bubble is hidden but
+  // the inline draft (if active) still renders so users can compose
+  // even when other bubbles are muted.
+  layerVisible = true,
 }) {
   // Index replies by parent so the top-level bubble can render its thread.
-  // Skip resolved + hidden comments entirely (resolved → conversation done,
-  // hidden → user dismissed). The History modal's Comments tab is where
-  // both go to be reviewed / restored. The eye toggle reveals hidden ones
-  // INLINE for easy unhide.
+  // Skip resolved + hidden comments entirely; resolved goes to the
+  // History tab and the comment archive popover, hidden goes to the
+  // archive popover (and History tab). Master visibility off → render
+  // no bubbles at all.
   const byParent = new Map();
   const tops = [];
-  for (const c of (comments || [])) {
-    if (c.resolved) continue;
-    if (c.hidden && !revealHidden) continue;
-    if (c.reply_to) {
-      const arr = byParent.get(c.reply_to) || [];
-      arr.push(c);
-      byParent.set(c.reply_to, arr);
-    } else {
-      tops.push(c);
+  if (layerVisible) {
+    for (const c of (comments || [])) {
+      if (c.resolved) continue;
+      if (c.hidden) continue;
+      if (c.reply_to) {
+        const arr = byParent.get(c.reply_to) || [];
+        arr.push(c);
+        byParent.set(c.reply_to, arr);
+      } else {
+        tops.push(c);
+      }
     }
   }
   if (!tops.length && !draft) return null;
@@ -76,7 +79,6 @@ export function CanvasCommentLayer({
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
           onLocallyRemoved={onLocallyRemoved}
-          isRevealedHidden={c.hidden && revealHidden}
         />
       ))}
       {draft && (
@@ -179,7 +181,7 @@ function resolvePeerColor(authorId, wsPeers) {
   return peer?.user?.color || '#4f8df8';
 }
 
-function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, zoom = 1, canvasToViewport, resolveCardBBox, resolveGroupBBox, onLocallyRemoved, isRevealedHidden = false }) {
+function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, zoom = 1, canvasToViewport, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState('');
@@ -361,7 +363,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
 
   return (
     <div ref={wrapRef}
-         className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''} ${dragDelta ? 'is-dragging' : ''} ${isAuthor ? 'is-mine' : ''} ${isRevealedHidden ? 'is-revealed-hidden' : ''}`}
+         className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''} ${dragDelta ? 'is-dragging' : ''} ${isAuthor ? 'is-mine' : ''}`}
          style={{ left: v.x, top: v.y, pointerEvents: 'auto' }}>
       {/* Inline preview — body text is always visible so the user can read
           the comment without clicking. The whole card is the click target
@@ -446,6 +448,112 @@ function parentAnchor(c) {
   if (c.anchor_kind === 'point')  return { kind: 'point', x: c.anchor_x, y: c.anchor_y };
   if (c.anchor_kind === 'board')  return { kind: 'board' };
   return { kind: 'card', id: c.anchor_id };
+}
+
+// Archive popover — opens on right-click of the comments eye toggle.
+// Lists every resolved + hidden top-level comment on this board with
+// per-row reopen / unhide / delete actions. Read-mostly: a quick way
+// to recover comments without leaving the canvas. The full History
+// modal's Comments tab covers richer auditing.
+export function CommentArchivePopover({
+  comments, anchorRect, userId, wsPeers = [], onClose, onLocallyRemoved,
+}) {
+  const feedback = useFeedback();
+  const ref = useRef(null);
+  useEffect(() => {
+    const onDown = (e) => {
+      if (ref.current?.contains(e.target)) return;
+      onClose?.();
+    };
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  const archived = (comments || [])
+    .filter(c => !c.reply_to && (c.resolved || c.hidden))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const onReopen = async (c) => {
+    try { await updateComment(c.id, { resolved: false, hidden: false }); }
+    catch (err) { feedback.toast({ type: 'error', message: 'Reopen failed: ' + (err.message || err) }); }
+  };
+  const onUnhide = async (c) => {
+    try { await updateComment(c.id, { hidden: false }); }
+    catch (err) { feedback.toast({ type: 'error', message: 'Unhide failed: ' + (err.message || err) }); }
+  };
+  const onDeleteRow = async (c) => {
+    const ok = await feedback.confirm({
+      title: 'Delete comment?', confirmLabel: 'Delete', danger: true,
+      message: 'Permanent — also removes any replies.',
+    });
+    if (!ok) return;
+    try {
+      await deleteComment(c.id);
+      onLocallyRemoved?.(c.id);
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
+    }
+  };
+
+  // Position the popover next to the eye toggle. Anchor's right edge
+  // + a small gap; clamp to viewport.
+  const PAD = 8;
+  const W = 320;
+  const left = Math.min(window.innerWidth - W - PAD,
+                        Math.max(PAD, (anchorRect?.right ?? 14) + 8));
+  const top  = Math.min(window.innerHeight - 360,
+                        Math.max(PAD, anchorRect?.top ?? 14));
+
+  return (
+    <div ref={ref}
+         className="comment-archive"
+         role="dialog"
+         style={{ position: 'fixed', left, top, width: W }}>
+      <div className="comment-archive-head">
+        <span className="comment-archive-title">Archived comments</span>
+        <button className="comment-archive-x" aria-label="Close" onClick={onClose}>✕</button>
+      </div>
+      <div className="comment-archive-body">
+        {archived.length === 0 && (
+          <div className="comment-archive-empty">
+            No resolved or hidden comments on this board.
+          </div>
+        )}
+        {archived.map(c => {
+          const peer = (wsPeers || []).find(p => p?.user?.id === c.author);
+          const name = peer?.user?.name || peer?.user?.email?.split('@')[0]
+                    || (c.author === userId ? 'you' : (c.author || '').slice(0, 6));
+          const color = peer?.user?.color || '#4f8df8';
+          const status = c.resolved ? 'resolved' : 'hidden';
+          return (
+            <div key={c.id} className={`comment-archive-row is-${status}`}>
+              <div className="comment-archive-row-head">
+                <span className="canvas-comment-avatar canvas-comment-avatar-sm"
+                      style={{ background: color }}>
+                  {(name || '?')[0].toUpperCase()}
+                </span>
+                <span className="canvas-comment-author">{name}</span>
+                <span className="canvas-comment-when">{relativeTimeShort(c.created_at)}</span>
+                <span className={`comment-archive-tag is-${status}`}>{status}</span>
+              </div>
+              <div className="comment-archive-body-text" title={c.body}>{c.body}</div>
+              <div className="comment-archive-row-actions">
+                {c.resolved
+                  ? <button onClick={() => onReopen(c)}>Reopen</button>
+                  : <button onClick={() => onUnhide(c)}>Unhide</button>}
+                <button className="danger" onClick={() => onDeleteRow(c)}>Delete</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function CommentLine({ c, authorName, authorColor, canManage, onDelete }) {

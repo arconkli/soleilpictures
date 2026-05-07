@@ -301,11 +301,22 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(display).toBe('none');
   });
 
-  test('reveal-hidden eye toggle CSS ships', async ({ page }) => {
+  test('comments eye toggle is always visible (no conditional render)', async ({ page }) => {
     await go(page);
+    // The eye class ships and is-muted variant exists for the OFF state.
     expect(await hasCssRule(page, /\.cnv-comments-eye/)).toBe(true);
-    expect(await hasCssRule(page, /\.cnv-comments-eye\.is-on/)).toBe(true);
-    expect(await hasCssRule(page, /\.canvas-comment\.is-revealed-hidden/)).toBe(true);
+    expect(await hasCssRule(page, /\.cnv-comments-eye\.is-muted/)).toBe(true);
+    // Old "is-on" variant (which only fired when reveal-hidden was active)
+    // shouldn't exist anymore.
+    expect(await hasCssRule(page, /\.cnv-comments-eye\.is-on/)).toBe(false);
+  });
+
+  test('comment archive popover CSS ships', async ({ page }) => {
+    await go(page);
+    expect(await hasCssRule(page, /\.comment-archive/)).toBe(true);
+    expect(await hasCssRule(page, /\.comment-archive-row/)).toBe(true);
+    expect(await hasCssRule(page, /\.comment-archive-tag\.is-resolved/)).toBe(true);
+    expect(await hasCssRule(page, /\.comment-archive-tag\.is-hidden/)).toBe(true);
   });
 });
 
