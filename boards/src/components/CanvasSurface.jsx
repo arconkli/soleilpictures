@@ -2070,18 +2070,27 @@ export function CanvasSurface({
         }
       } catch {}
     }
-    // 2. Score every card with enriched context.
+    // 2. Score every card. The card must say something on its own —
+    //    inherited context (board/group name) only BOOSTS cards
+    //    that already have content of their own. An empty note on
+    //    a board called "Pricing" is just an empty note, not a
+    //    pricing note. We never want to tag emptiness.
     for (const c of s.cards || []) {
-      const title = c.title || c.label || c.name || '';
+      const title = (c.title || c.label || c.name || '').trim();
       // Notes carry their text in `html` (rich-text); simple cards
-      // use `body`. The engine tokenizer strips HTML.
-      const body = c.body || c.html || '';
+      // use `body`. We html-strip below before checking length so
+      // empty <p></p> wrappers don't fool the gate.
+      const rawBody = c.body || c.html || '';
+      const ownText = (title + ' ' + String(rawBody).replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' '))
+        .replace(/\s+/g, ' ').trim();
+      if (ownText.length < 2) continue;
       const groupName = c.groupId ? (s.groupById[c.groupId]?.name || '') : '';
-      const text = [boardName, groupName, title, body].filter(Boolean).join(' ').trim();
-      if (text.length < 2) continue;
+      // Build the scoring text now that we know the card has its own
+      // content. Board + group name go in as TF-IDF boosters.
+      const text = [boardName, groupName, title, rawBody].filter(Boolean).join(' ').trim();
       const knownIds = new Set((s.tagsByCard.get(c.id) || []).map(t => t.id));
       const cardKey = `card:${c.id}`;
-      const hash = `${text.length}:${title.slice(0, 40)}:${groupName}:${s.wsTagsFingerprint}:${knownIds.size}`;
+      const hash = `${ownText.length}:${title.slice(0, 40)}:${groupName}:${s.wsTagsFingerprint}:${knownIds.size}`;
       if (autoTaggedHashRef.current.get(cardKey) === hash) continue;
       autoTaggedHashRef.current.set(cardKey, hash);
       try {
