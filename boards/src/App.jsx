@@ -355,11 +355,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const ym = m.get(id);
         if (ym && ym.get('kind') === 'board') boardIdsToCascade.push(id);
       });
+      console.log('[delete] deleteCards start', {
+        ids,
+        boardIdsToCascade,
+        boardThisIsOn: boardId,
+      });
       for (const bid of boardIdsToCascade) {
         try { await deleteBoard(bid); }
-        catch (e) { console.error('deleteBoard failed', e); }
+        catch (e) {
+          console.error('[delete] deleteBoard failed', { bid, e });
+        }
       }
-      if (boardIdsToCascade.length) await refreshBoards();
+      if (boardIdsToCascade.length) {
+        console.log('[delete] refreshBoards after cascade');
+        await refreshBoards();
+      }
       const a = arrowsArr();
       ydoc.transact(() => {
         idSet.forEach(id => m.delete(id));
@@ -372,6 +382,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           }
         }
       }, 'local');
+      console.log('[delete] deleteCards done', { ids });
     };
     const deleteCard = (cardId) => deleteCards([cardId]);
 

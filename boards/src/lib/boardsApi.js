@@ -257,8 +257,14 @@ export async function updateBoardMeta(boardId, patch) {
 }
 
 export async function deleteBoard(boardId) {
-  const { error } = await supabase.from('boards').delete().eq('id', boardId);
-  if (error) throw error;
+  console.log('[delete] deleteBoard request', { boardId });
+  const { data, error, count } = await supabase
+    .from('boards').delete({ count: 'exact' }).eq('id', boardId).select('id');
+  if (error) {
+    console.warn('[delete] deleteBoard error', { boardId, error });
+    throw error;
+  }
+  console.log('[delete] deleteBoard ok', { boardId, count, rows: data });
 }
 
 // ── Board state (Y.Doc snapshot, base64-encoded text) ───────────────────────

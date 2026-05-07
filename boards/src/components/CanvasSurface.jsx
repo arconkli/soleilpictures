@@ -1538,6 +1538,23 @@ export function CanvasSurface({
     let inner = null;
     if (c.kind === 'board') {
       const target = boards[c.id];
+      if (!target && typeof window !== 'undefined') {
+        if (!window._missingBoardLogged) window._missingBoardLogged = new Set();
+        if (!window._missingBoardLogged.has(c.id)) {
+          window._missingBoardLogged.add(c.id);
+          console.log('[boards] canvas missing board card', {
+            cardId: c.id,
+            requestedBoardId: c.id,
+            currentBoardId: board?.id,
+            knownBoardCount: boards ? Object.keys(boards).length : 0,
+            knownBoardIds: boards ? Object.keys(boards).slice(0, 12) : null,
+          });
+        }
+      } else if (target && typeof window !== 'undefined' && window._missingBoardLogged?.has(c.id)) {
+        // Recovered — boards map now includes it. Log + drop from set.
+        window._missingBoardLogged.delete(c.id);
+        console.log('[boards] canvas missing board RECOVERED', { cardId: c.id });
+      }
       const peersHere  = peersHereByBoard?.get?.(c.id)  || [];
       const peersBelow = peersBelowByBoard?.get?.(c.id) || [];
       inner = target
@@ -1559,7 +1576,7 @@ export function CanvasSurface({
                      }}
                      onRename={(name) => mutators.renameBoardById?.(c.id, name)}
                      autoFocus={af} />
-        : <div className="bc bc-missing">Missing board</div>;
+        : <div className="bc bc-missing" title={`Missing board ${c.id}`}>Missing board</div>;
     } else if (c.kind === 'boardlink') {
       const target = boards[c.target];
       inner = <BoardLinkCard targetBoard={target} note={c.note} onOpen={() => target && onOpenBoard(c.target)} />;
