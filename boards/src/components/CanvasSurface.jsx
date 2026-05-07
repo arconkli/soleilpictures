@@ -22,6 +22,9 @@ import { R2Image } from './R2Image.jsx';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
+import { CanvasCommentLayer } from './CanvasComment.jsx';
+import { useCanvasComments } from '../hooks/useCanvasComments.js';
+import { addComment } from '../lib/commentsApi.js';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -499,6 +502,14 @@ export function CanvasSurface({
       y: (clientY - rect.top  - pan.y) / zoom,
     };
   }, [pan.x, pan.y, zoom]);
+
+  // Inverse of clientToCanvas — returns viewport-relative pixel coords for
+  // a canvas-space point. Used by the comments layer to anchor floating
+  // bubbles correctly under live pan/zoom.
+  const canvasToViewport = useCallback((cx, cy) => ({
+    x: cx * zoom + pan.x,
+    y: cy * zoom + pan.y,
+  }), [pan.x, pan.y, zoom]);
 
   const imageFileToPayload = useCallback(async (file, x, y) => {
     if (useLocalImages) {
@@ -1193,6 +1204,10 @@ export function CanvasSurface({
       if (items.length > 0) items.push({ divider: true });
     }
 
+    if (!multi) {
+      items.push({ id: 'comment', label: 'Add comment',
+        run: () => promptComment({ kind: 'card', id: c.id }) });
+    }
     items.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: `${cmdKey}X`, run: doCut });
     items.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: `${cmdKey}C`, run: doCopy });
     items.push({ id: 'duplicate', label: multi ? `Duplicate (${selected.size})` : 'Duplicate', shortcut: `${cmdKey}D`, run: doDuplicate });
@@ -1519,6 +1534,7 @@ export function CanvasSurface({
         { id: 'shape', label: 'Shape',  run: () => mutators.addShape?.(pos, shapeOptions) },
         { id: 'palette', label: 'Color palette', run: () => mutators.addPalette?.(pos) },
       ]},
+      { id: 'comment', label: 'Add comment', run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
       { divider: true },
       { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
         shortcut: `${cmdKey}V`, disabled: clipboardSize() === 0,
@@ -1549,6 +1565,50 @@ export function CanvasSurface({
         danger: true, run: () => mutators.clearStrokes?.() },
     ];
   };
+
+  // ── Comments ───────────────────────────────────────────────────────────
+  // Live anywhere-comments. Bubbles render anchored to cards / groups /
+  // empty-canvas points; a right-click menu item opens a small prompt.
+  const { comments } = useCanvasComments(board?.id);
+  const promptComment = async (anchor) => {
+    if (!workspaceId || !board?.id || !userId) return;
+    const text = await feedback.prompt({
+      title: 'Add comment',
+      label: 'Note',
+      placeholder: 'Quick thought, question, callout…',
+      confirmLabel: 'Post',
+    });
+    if (text == null) return;
+    const body = text.trim();
+    if (!body) return;
+    try {
+      await addComment({
+        workspaceId, boardId: board.id, author: userId, body, anchor,
+      });
+    } catch (err) {
+      console.warn('[comments] add failed', err);
+      feedback.toast({ type: 'error', message: 'Comment failed: ' + (err.message || err) });
+    }
+  };
+  const resolveCardBBox = useCallback((cardId) => {
+    const c = (cards || []).find(c => c.id === cardId);
+    if (!c) return null;
+    return { x: c.x, y: c.y, w: c.w, h: c.h };
+  }, [cards]);
+  const resolveGroupBBox = useCallback((groupId) => {
+    const g = groupById?.[groupId];
+    if (!g) return null;
+    const members = (cards || []).filter(c => c.groupId === groupId);
+    if (members.length === 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of members) {
+      minX = Math.min(minX, c.x);
+      minY = Math.min(minY, c.y);
+      maxX = Math.max(maxX, c.x + c.w);
+      maxY = Math.max(maxY, c.y + c.h);
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }, [cards, groupById]);
 
   // ── Card double-click ─────────────────────────────────────────────────────
   // For images we let the card itself handle dbl-click (focus title editor).
@@ -2360,6 +2420,20 @@ export function CanvasSurface({
         </svg>
 
       </div>
+
+      {/* Anywhere-comment bubbles. Mounted OUTSIDE the canvas transform so
+          bubbles stay readable size at any zoom; positions come from
+          canvasToViewport. */}
+      <CanvasCommentLayer
+        comments={comments}
+        boardId={board?.id}
+        workspaceId={workspaceId}
+        userId={userId}
+        wsPeers={wsPeers}
+        canvasToViewport={canvasToViewport}
+        resolveCardBBox={resolveCardBBox}
+        resolveGroupBBox={resolveGroupBBox}
+      />
 
       <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`}>
         <div className="cnv-add-wrap">

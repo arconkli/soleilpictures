@@ -1709,7 +1709,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <Icon as={History} size={16} />
             </button>
             <span className="tb-divider" aria-hidden="true" />
-            <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id} onJumpTo={jumpToPeer} />
+            <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
+                                    workspaceId={workspace.id}
+                                    onJumpTo={jumpToPeer} />
             <span className="tb-divider" aria-hidden="true" />
             {!canEditCurrent && (
               <span className="tb-viewonly" title="You have view-only access to this board">VIEW ONLY</span>
