@@ -4145,6 +4145,64 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .canvas-comment-actions button:hover { background: var(--bg-hov); color: var(--ink-0); }
 .canvas-comment-actions button.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
 
+/* Inline comment-draft input — replaces the pop-up modal we used to
+   open via feedback.prompt(). Sits exactly where the resulting bubble
+   will appear. Auto-focused; Enter posts, Esc / outside-click cancels. */
+.canvas-comment-draft .canvas-comment-card {
+  border-color: var(--soleil);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4),
+              0 0 0 2px color-mix(in oklab, var(--soleil) 32%, transparent);
+  cursor: default;
+  width: 280px;
+}
+.canvas-comment-draft-input {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: var(--ink-0);
+  font: 400 13px/1.45 var(--font-sans);
+  letter-spacing: -0.005em;
+  resize: none;
+  outline: 0;
+  padding: 0;
+  min-height: 32px;
+  max-height: 200px;
+}
+.canvas-comment-draft-input::placeholder { color: var(--ink-3); }
+.canvas-comment-draft-actions {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in oklab, var(--ink-3) 18%, transparent);
+}
+.canvas-comment-draft-hint {
+  flex: 1 1 auto;
+  font: 500 10px/1 var(--font-mono);
+  color: var(--ink-3);
+  letter-spacing: .04em;
+}
+.canvas-comment-draft-cancel {
+  background: transparent; border: 0;
+  color: var(--ink-3);
+  font: 600 10px/1 var(--font-display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.canvas-comment-draft-cancel:hover { color: var(--ink-0); }
+.canvas-comment-draft-post {
+  background: var(--soleil);
+  color: #1a1300;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 5px 12px;
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.canvas-comment-draft-post:disabled { opacity: .5; cursor: not-allowed; }
+
 /* ──────────────────────────── Peer-comment audit popover ───────────────── */
 
 .ws-presence-audit {
@@ -4284,22 +4342,33 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-3);
   padding: 6px 0;
 }
-.account-swatches {
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+.account-color-row {
+  display: flex; align-items: center; gap: 10px;
 }
-.account-sw {
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  border: 2px solid transparent;
+.account-color-chip {
+  display: flex; align-items: center;
+  gap: 10px;
+  background: #4f8df8;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: var(--radius);
+  padding: 6px 12px 6px 10px;
   cursor: pointer;
-  padding: 0;
+  min-width: 130px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);
+  transition: transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
 }
-.account-sw.is-active { border-color: var(--ink-0); }
-.account-sw-custom {
-  background: transparent; padding: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  border: 1px solid var(--line-2);
+.account-color-chip:hover { transform: translateY(-1px); }
+.account-color-chip-label {
+  flex: 1 1 auto;
+  text-align: left;
+  font: 600 11.5px/1 var(--font-mono);
+  color: rgba(0,0,0,.78);
+  letter-spacing: .04em;
+  /* When the picked color is dark, the inner label can become unreadable.
+     mix-blend-mode handles both cases — over a light bg it dims; over
+     dark it lifts. */
+  mix-blend-mode: luminosity;
 }
 .account-sw-clear {
   background: transparent;

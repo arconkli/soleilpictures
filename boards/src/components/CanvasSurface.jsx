@@ -1831,26 +1831,49 @@ export function CanvasSurface({
 
   // ── Comments ───────────────────────────────────────────────────────────
   // Live anywhere-comments. Bubbles render anchored to cards / groups /
-  // empty-canvas points; a right-click menu item opens a small prompt.
-  const { comments } = useCanvasComments(board?.id);
-  const promptComment = async (anchor) => {
+  // empty-canvas points; a right-click menu item shows an inline draft
+  // input (no popup) at the click position.
+  const { comments, removeLocally: removeCommentLocally } = useCanvasComments(board?.id);
+  // Inline-draft state. When the user picks "Add comment" from a
+  // right-click menu, we set commentDraft to the anchor + viewport
+  // position; CanvasCommentLayer renders an inline draft input there.
+  const [commentDraft, setCommentDraft] = useState(null);
+  // Open the inline draft. The viewport position is computed from the
+  // anchor's canvas coords so the draft input sits exactly where the
+  // resulting comment bubble will appear. No popup modal — type
+  // directly on the canvas, Enter to post, Escape to cancel.
+  const promptComment = (anchor) => {
     if (!workspaceId || !board?.id || !userId) return;
-    const text = await feedback.prompt({
-      title: 'Add comment',
-      label: 'Note',
-      placeholder: 'Quick thought, question, callout…',
-      confirmLabel: 'Post',
-    });
-    if (text == null) return;
-    const body = text.trim();
-    if (!body) return;
+    let cx, cy;
+    if (anchor.kind === 'card') {
+      const b = resolveCardBBox?.(anchor.id);
+      if (b) { cx = b.x + b.w + 8; cy = b.y - 8; }
+      else   { cx = 100; cy = 100; }
+    } else if (anchor.kind === 'group') {
+      const b = resolveGroupBBox?.(anchor.id);
+      if (b) { cx = b.x + b.w + 8; cy = b.y - 8; }
+      else   { cx = 100; cy = 100; }
+    } else if (anchor.kind === 'point') {
+      cx = anchor.x; cy = anchor.y;
+    } else {
+      cx = 100; cy = 100;
+    }
+    const v = canvasToViewport(cx, cy);
+    setCommentDraft({ anchor, viewport: v });
+  };
+  const submitCommentDraft = async (body) => {
+    if (!commentDraft) return;
+    const trimmed = (body || '').trim();
+    if (!trimmed) { setCommentDraft(null); return; }
     try {
       await addComment({
-        workspaceId, boardId: board.id, author: userId, body, anchor,
+        workspaceId, boardId: board.id, author: userId,
+        body: trimmed, anchor: commentDraft.anchor,
       });
     } catch (err) {
-      console.warn('[comments] add failed', err);
       feedback.toast({ type: 'error', message: 'Comment failed: ' + (err.message || err) });
+    } finally {
+      setCommentDraft(null);
     }
   };
   const resolveCardBBox = useCallback((cardId) => {
@@ -2752,6 +2775,10 @@ export function CanvasSurface({
         canvasToViewport={canvasToViewport}
         resolveCardBBox={resolveCardBBox}
         resolveGroupBBox={resolveGroupBBox}
+        draft={commentDraft}
+        onSubmitDraft={submitCommentDraft}
+        onCancelDraft={() => setCommentDraft(null)}
+        onLocallyRemoved={removeCommentLocally}
       />
 
       <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`}>

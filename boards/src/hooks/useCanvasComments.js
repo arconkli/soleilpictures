@@ -1,8 +1,13 @@
 // Live comments for a single board: list + realtime add/update/delete.
 // Mirrors the boards-list / card-index hooks — Supabase v2 dedupe gotcha
 // is handled with a per-mount random suffix on the channel name.
+//
+// Returns { comments, loading, removeLocally } so callers can drop a
+// comment from local state immediately on delete (the realtime DELETE
+// event ALSO fires and refetches, but doing both gives instant feedback
+// regardless of channel lag).
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { listComments } from '../lib/commentsApi.js';
 
@@ -46,5 +51,13 @@ export function useCanvasComments(boardId) {
     return () => { try { supabase.removeChannel(chan); } catch (_) {} };
   }, [boardId]);
 
-  return { comments, loading };
+  // Drop a comment (and any of its replies) from local state immediately.
+  // Used right after a successful deleteComment() call so the bubble
+  // disappears without waiting for the realtime round-trip.
+  const removeLocally = useCallback((commentId) => {
+    if (!commentId) return;
+    setComments(rows => rows.filter(r => r.id !== commentId && r.reply_to !== commentId));
+  }, []);
+
+  return { comments, loading, removeLocally };
 }

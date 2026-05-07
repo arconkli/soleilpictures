@@ -26,12 +26,18 @@ export function CanvasCommentLayer({
   // for anchor_kind='card'/'group'. Returns null when the element no
   // longer exists.
   resolveCardBBox, resolveGroupBBox,
+  // Inline-draft state. When set, the layer renders an inline input at
+  // the given viewport position. submitting calls onSubmitDraft; Esc /
+  // outside-click calls onCancelDraft.
+  draft, onSubmitDraft, onCancelDraft,
+  // Optimistic local removal — invoked right after a successful delete
+  // so the bubble disappears without waiting for the realtime fan-out.
+  onLocallyRemoved,
 }) {
-  if (!comments?.length) return null;
   // Index replies by parent so the top-level bubble can render its thread.
   const byParent = new Map();
   const tops = [];
-  for (const c of comments) {
+  for (const c of (comments || [])) {
     if (c.hidden) continue;
     if (c.reply_to) {
       const arr = byParent.get(c.reply_to) || [];
@@ -41,6 +47,7 @@ export function CanvasCommentLayer({
       tops.push(c);
     }
   }
+  if (!tops.length && !draft) return null;
   return (
     <div className="canvas-comment-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       {tops.map(c => (
@@ -55,8 +62,71 @@ export function CanvasCommentLayer({
           canvasToViewport={canvasToViewport}
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
+          onLocallyRemoved={onLocallyRemoved}
         />
       ))}
+      {draft && (
+        <CanvasCommentDraft
+          viewport={draft.viewport}
+          onSubmit={onSubmitDraft}
+          onCancel={onCancelDraft}
+        />
+      )}
+    </div>
+  );
+}
+
+function CanvasCommentDraft({ viewport, onSubmit, onCancel }) {
+  const [body, setBody] = useState('');
+  const ref = useRef(null);
+  // Outside click + Escape cancel.
+  useEffect(() => {
+    const onDown = (e) => {
+      if (ref.current?.contains(e.target)) return;
+      onCancel?.();
+    };
+    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onCancel]);
+  // Auto-focus on mount so the user can just start typing.
+  useEffect(() => {
+    const el = ref.current?.querySelector('textarea');
+    if (el) { try { el.focus({ preventScroll: true }); } catch (_) { el.focus(); } }
+  }, []);
+  return (
+    <div ref={ref}
+         className="canvas-comment canvas-comment-draft"
+         style={{ left: viewport.x, top: viewport.y, pointerEvents: 'auto' }}
+         onMouseDown={(e) => e.stopPropagation()}
+         onPointerDown={(e) => e.stopPropagation()}>
+      <form className="canvas-comment-card canvas-comment-card-draft"
+            onSubmit={(e) => { e.preventDefault(); onSubmit?.(body); }}>
+        <textarea className="canvas-comment-draft-input"
+                  rows={2}
+                  value={body}
+                  placeholder="Add a comment…"
+                  onChange={(e) => setBody(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      onSubmit?.(body);
+                    }
+                  }} />
+        <div className="canvas-comment-draft-actions">
+          <span className="canvas-comment-draft-hint">Enter to post · Esc to cancel</span>
+          <button type="button"
+                  className="canvas-comment-draft-cancel"
+                  onClick={onCancel}>Cancel</button>
+          <button type="submit"
+                  className="canvas-comment-draft-post"
+                  disabled={!body.trim()}>Post</button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -92,7 +162,7 @@ function resolvePeerColor(authorId, wsPeers) {
   return peer?.user?.color || '#4f8df8';
 }
 
-function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, canvasToViewport, resolveCardBBox, resolveGroupBBox }) {
+function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, canvasToViewport, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState('');
@@ -162,8 +232,15 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       danger: true,
     });
     if (!ok) return;
-    try { await deleteComment(comment.id); }
-    catch (err) { feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) }); }
+    try {
+      await deleteComment(comment.id);
+      // Drop from local state immediately — the realtime DELETE event
+      // also fires (replica identity full now includes board_id) but
+      // doing both gives instant UX regardless of channel lag.
+      onLocallyRemoved?.(comment.id);
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
+    }
   };
 
   return (
@@ -209,8 +286,10 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                              title: 'Delete reply?', confirmLabel: 'Delete', danger: true,
                            });
                            if (!ok) return;
-                           try { await deleteComment(r.id); }
-                           catch (err) { feedback.toast({ type: 'error', message: 'Delete failed' }); }
+                           try {
+                             await deleteComment(r.id);
+                             onLocallyRemoved?.(r.id);
+                           } catch (err) { feedback.toast({ type: 'error', message: 'Delete failed' }); }
                          }} />
           ))}
           <form className="canvas-comment-reply" onSubmit={submitReply}>

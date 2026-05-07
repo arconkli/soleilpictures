@@ -3,19 +3,13 @@
 // click and used to override the email-derived defaults that ship with
 // every fresh session.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { getOwnProfile, saveOwnProfile } from '../lib/boardsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
-
-// Curated presence palette — same kinds of hues we deterministically
-// pick from for fallback colors, but presented as pickable swatches.
-const COLOR_SWATCHES = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b', '#ef4444',
-  '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9', '#14b8a6', '#f97316',
-];
+import { ColorPicker } from './ColorPicker.jsx';
 
 export function AccountSettings({ open, onClose, user, onSaved, onSignOut }) {
   const feedback = useFeedback();
@@ -24,6 +18,12 @@ export function AccountSettings({ open, onClose, user, onSaved, onSignOut }) {
   const [name, setName]       = useState('');
   const [color, setColor]     = useState('');
   const [initial, setInitial] = useState({ name: '', color: '' });
+  // ColorPicker anchor — when set, the standard picker pops open
+  // anchored to the chip the user clicked. Same modal we use for every
+  // other color affordance in the app (shape stroke, palette swatch,
+  // board background, etc.) so users don't relearn anything.
+  const [pickerPos, setPickerPos] = useState(null);
+  const chipRef = useRef(null);
 
   useEffect(() => {
     if (!open || !user?.id) return;
@@ -98,20 +98,21 @@ export function AccountSettings({ open, onClose, user, onSaved, onSignOut }) {
 
           <div className="account-field">
             <span className="account-field-label">Presence color</span>
-            <div className="account-swatches">
-              {COLOR_SWATCHES.map(c => (
-                <button key={c} type="button"
-                        className={`account-sw ${color === c ? 'is-active' : ''}`}
-                        style={{ background: c }}
-                        title={c}
-                        disabled={loading || saving}
-                        onClick={() => setColor(c)} />
-              ))}
-              <input type="color"
-                     className="account-sw account-sw-custom"
-                     value={color || '#4f8df8'}
-                     disabled={loading || saving}
-                     onChange={(e) => setColor(e.target.value)} />
+            <div className="account-color-row">
+              <button ref={chipRef}
+                      type="button"
+                      className="account-color-chip"
+                      style={{ background: color || '#4f8df8' }}
+                      disabled={loading || saving}
+                      onClick={() => {
+                        const r = chipRef.current?.getBoundingClientRect();
+                        if (r) setPickerPos({ x: r.left + r.width / 2, y: r.top });
+                      }}
+                      title="Pick a presence color">
+                <span className="account-color-chip-label">
+                  {color ? color.toUpperCase() : 'Pick color'}
+                </span>
+              </button>
               {color && (
                 <button type="button"
                         className="account-sw-clear"
@@ -149,6 +150,15 @@ export function AccountSettings({ open, onClose, user, onSaved, onSignOut }) {
           </button>
         </div>
       </form>
+      {pickerPos && (
+        <ColorPicker
+          value={color || '#4f8df8'}
+          onChange={(c) => setColor(c)}
+          onClose={() => setPickerPos(null)}
+          position={pickerPos}
+          allowTransparent={false}
+        />
+      )}
     </div>,
     document.body,
   );

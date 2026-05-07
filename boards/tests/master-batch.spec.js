@@ -112,6 +112,15 @@ test.describe('Phase 2 — workspace + account', () => {
     await go(page);
     expect(await hasCssRule(page, /\.ws-presence-audit/)).toBe(true);
   });
+
+  test('AccountSettings color picker uses the standard ColorPicker chip', async ({ page }) => {
+    await go(page);
+    // Single chip + "Reset" button replaced the old swatches grid +
+    // <input type=color>. Assert the chip class ships and the legacy
+    // swatch-grid class is gone.
+    expect(await hasCssRule(page, /\.account-color-chip/)).toBe(true);
+    expect(await hasCssRule(page, /\.account-swatches/)).toBe(false);
+  });
 });
 
 // ═══════════════ PHASE 3: COMMENTS ═══════════════
@@ -165,6 +174,35 @@ test.describe('Phase 3 — anywhere-comments', () => {
     const menu = page.locator('.ctx-menu');
     await expect(menu).toBeVisible();
     await expect(menu.getByText('Add comment', { exact: true })).toBeVisible();
+  });
+
+  test('comment-draft input + replica-identity-full CSS ship', async ({ page }) => {
+    await go(page);
+    // Inline draft replaces the old feedback.prompt popup. Class ships
+    // even before any comment is placed.
+    expect(await hasCssRule(page, /\.canvas-comment-draft/)).toBe(true);
+    expect(await hasCssRule(page, /\.canvas-comment-draft-input/)).toBe(true);
+    expect(await hasCssRule(page, /\.canvas-comment-draft-post/)).toBe(true);
+  });
+
+  test('clicking "Add comment" mounts an inline draft (no feedback dialog)', async ({ page }) => {
+    await go(page);
+    const wrap = page.locator('.canvas-wrap');
+    await wrap.click({ button: 'right', position: { x: 200, y: 200 } });
+    await page.locator('.ctx-menu').getByText('Add comment', { exact: true }).click();
+    // The draft input should appear inline; the feedback modal must NOT.
+    await expect(page.locator('.canvas-comment-draft')).toBeVisible();
+    await expect(page.locator('.feedback-dialog')).toHaveCount(0);
+  });
+
+  test('Escape on the draft cancels without leaving artifacts', async ({ page }) => {
+    await go(page);
+    const wrap = page.locator('.canvas-wrap');
+    await wrap.click({ button: 'right', position: { x: 200, y: 200 } });
+    await page.locator('.ctx-menu').getByText('Add comment', { exact: true }).click();
+    await expect(page.locator('.canvas-comment-draft')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.canvas-comment-draft')).toHaveCount(0);
   });
 });
 
