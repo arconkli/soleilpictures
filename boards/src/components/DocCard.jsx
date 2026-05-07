@@ -32,7 +32,10 @@ export function RichDocCard({
   canEdit = true,
   autoFocus = false, onUpdate,
 }) {
-  const scope = cardYMap ? cardScope(cardYMap) : null;
+  // Augment cardScope with the card's id under both `cardId` and
+  // `docCardId` so downstream callers (DocSurface header, link/page-
+  // index sync) can identify which card this scope belongs to.
+  const scope = cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id } : null;
   const [mode, setMode] = useState(autoFocus ? 'full' : 'closed'); // 'closed' | 'full' | 'side'
   const [previewKey, setPreviewKey] = useState(0);
   // Click-to-jump landing target: when App.jumpToPeer dispatches a

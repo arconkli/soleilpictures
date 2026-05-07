@@ -403,6 +403,49 @@ export async function loadBoardVersionDoc(versionId) {
   return data?.doc || null;
 }
 
+// ── Doc page index ──────────────────────────────────────────────────────────
+
+// Project the text of every page of one doc card into the doc_page_index
+// table so the universal hover popover can list "Appears in" doc rows
+// (driven by get_entity_mentions). Caller passes { docCardId, workspaceId,
+// pages: [{ id, name, text }] }.
+//
+// Idempotent UPSERT keyed on (doc_card_id, page_id). Empty/whitespace-only
+// pages are deleted instead of stored. Pages no longer present are also
+// deleted so the index never carries orphaned rows.
+export async function syncDocPageIndex({ workspaceId, docCardId, pages }) {
+  if (!supabase || !workspaceId || !docCardId) return { ok: false };
+  const livePageIds = new Set();
+  const upsertRows = [];
+  for (const p of pages || []) {
+    if (!p?.id) continue;
+    const text = (p.text || '').slice(0, 20000);   // cap to keep rows bounded
+    if (!text.trim()) continue;
+    livePageIds.add(p.id);
+    upsertRows.push({
+      doc_card_id: docCardId,
+      page_id:     p.id,
+      workspace_id: workspaceId,
+      page_title:  (p.name || '').slice(0, 200),
+      page_text:   text,
+      updated_at:  new Date().toISOString(),
+    });
+  }
+  if (upsertRows.length > 0) {
+    const ups = await supabase.from('doc_page_index').upsert(upsertRows, { onConflict: 'doc_card_id,page_id' });
+    if (ups.error) console.warn('doc_page_index upsert failed', ups.error);
+  }
+
+  // Clean up rows for pages that no longer exist (or are now empty).
+  const existing = await supabase.from('doc_page_index').select('page_id').eq('doc_card_id', docCardId);
+  if (existing.error) return { ok: true };
+  const orphans = (existing.data || []).map(r => r.page_id).filter(id => !livePageIds.has(id));
+  if (orphans.length > 0) {
+    await supabase.from('doc_page_index').delete().eq('doc_card_id', docCardId).in('page_id', orphans);
+  }
+  return { ok: true };
+}
+
 // ── Doc backlinks ───────────────────────────────────────────────────────────
 
 // Full-replace upsert for one (source_doc_card_id, source_page_id).

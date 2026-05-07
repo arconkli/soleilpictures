@@ -7,6 +7,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { captureSelection, clearSelection } from '../lib/editorSelection.js';
+import { EntityPicker } from './EntityPicker.jsx';
+import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
+import { recordEntityLinks } from '../lib/recordEntityLinks.js';
+import { coerceRef } from '../lib/entityRef.js';
 
 export function RichNoteEditor({
   html, body, bgColor, textColor,
@@ -27,6 +31,11 @@ export function RichNoteEditor({
   const ref = useRef(null);
   const [editing, setEditing] = useState(autoFocus);
   const initialRef = useRef('');
+  const { workspaceId } = useEntityTrie();
+  // @-mention state: { tokenStart, query, anchorRect, tokenRange }
+  // tokenRange is a live DOM Range covering the @<query> text so we
+  // can replace it on commit without re-finding the position.
+  const [mention, setMention] = useState(null);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -182,6 +191,77 @@ export function RichNoteEditor({
     startEdit(e);
   };
 
+  // Walk the caret's text node backward to find an unbroken @<query>
+  // span. Returns { tokenStart, query, tokenRange, anchorRect } | null.
+  const detectMentionAtCaret = () => {
+    const sel = window.getSelection?.();
+    if (!sel || !sel.rangeCount) return null;
+    const r = sel.getRangeAt(0);
+    if (!r.collapsed) return null;
+    const node = r.startContainer;
+    if (!node || node.nodeType !== Node.TEXT_NODE) return null;
+    const text = node.nodeValue || '';
+    const caret = r.startOffset;
+    let i = caret - 1;
+    while (i >= 0 && /\S/.test(text[i]) && text[i] !== '@') i--;
+    if (i < 0 || text[i] !== '@') return null;
+    // Don't fire mid-email: @ must be at start of node OR preceded by whitespace.
+    if (i > 0 && /\S/.test(text[i - 1])) return null;
+    const query = text.slice(i + 1, caret);
+    const tokenRange = document.createRange();
+    tokenRange.setStart(node, i);
+    tokenRange.setEnd(node, caret);
+    const anchorRect = tokenRange.getBoundingClientRect();
+    return { tokenStart: i, query, tokenRange, anchorRect };
+  };
+
+  const onMentionInput = () => {
+    if (!editing) return;
+    if (!manuallyResized) measureAndReport();
+    broadcastLive();
+    const detected = detectMentionAtCaret();
+    setMention(detected);
+  };
+
+  // Insert a chip span at the mention range. The chip is a styled
+  // span tagged with data-entity-ref so the display renderer can
+  // detect it and replace it with an <EntityLink>.
+  const commitMention = (target) => {
+    if (!mention || !ref.current) { setMention(null); return; }
+    const ref0 = coerceRef(target);
+    if (!ref0) { setMention(null); return; }
+    try {
+      const { tokenRange } = mention;
+      tokenRange.deleteContents();
+      const span = document.createElement('span');
+      span.className = 'tt-link tt-link-manual';
+      span.setAttribute('data-entity-ref', JSON.stringify(ref0));
+      span.contentEditable = 'false';
+      span.textContent = target.title || target.name || ref0.kind;
+      tokenRange.insertNode(span);
+      // Drop a trailing space + collapse caret after the chip.
+      const space = document.createTextNode(' ');
+      span.parentNode.insertBefore(space, span.nextSibling);
+      const sel = window.getSelection();
+      const r = document.createRange();
+      r.setStartAfter(space);
+      r.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(r);
+      // Persist immediately so a refresh shows the chip even if the
+      // user doesn't blur — and so the entity_links row is written.
+      const newHtml = ref.current.innerHTML;
+      if (cardId && workspaceId) {
+        recordEntityLinks({
+          source: { kind: 'note', id: cardId, workspace: workspaceId, boardId },
+          refs: [{ ref: ref0 }],
+        }).catch(() => {});
+      }
+      onChangeHTML(newHtml);
+    } catch (_) {}
+    setMention(null);
+  };
+
   return (
     <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${isTransparent ? 'is-transparent' : ''}`}
          style={{ background: bg, color: textColor || undefined }}
@@ -194,13 +274,19 @@ export function RichNoteEditor({
            onMouseDown={editing ? (e) => e.stopPropagation() : undefined}
            onBlur={editing ? commit : undefined}
            onKeyDown={editing ? onKey : undefined}
-           onInput={editing ? (() => {
-             if (!manuallyResized) measureAndReport();
-             broadcastLive();
-           }) : undefined}
+           onInput={editing ? onMentionInput : undefined}
            onClick={!editing ? onBodyClick : undefined}
            onDoubleClick={!editing ? onOuterDouble : undefined}
       />
+      {mention && workspaceId && (
+        <EntityPicker
+          workspaceId={workspaceId}
+          anchor={mention.anchorRect}
+          initialQuery={mention.query}
+          onCommit={(targets) => { const t = targets?.[0]; if (t) commitMention(t); else setMention(null); }}
+          onCancel={() => setMention(null)}
+        />
+      )}
     </div>
   );
 }

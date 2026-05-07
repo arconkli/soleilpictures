@@ -74,6 +74,39 @@ export function readComments(ydoc, scope) {
   return out;
 }
 
+// Extract plain text of a single page's Y.XmlFragment. Used by the
+// doc_page_index sync to project page text into Postgres for the
+// universal "Appears in" hover lookup. Reads the fragment's DOM
+// representation and returns trimmed textContent.
+export function readPageText(ydoc, pageId, scope) {
+  const map = pageContentMap(ydoc, scope);
+  if (!map) return '';
+  const frag = map.get(pageId);
+  if (!frag) return '';
+  try {
+    if (typeof frag.toDOM === 'function' && typeof document !== 'undefined') {
+      const dom = frag.toDOM(document);
+      return (dom?.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+    // Fallback: strip XML tags from the string form.
+    const xml = frag.toString ? frag.toString() : '';
+    return xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+// Read every page (from this scope) along with its plain text body.
+// One call returns the shape syncDocPageIndex expects.
+export function readPagesWithText(ydoc, scope) {
+  const pages = readPages(ydoc, scope);
+  return pages.map(p => ({
+    id: p.id,
+    name: p.name || '',
+    text: readPageText(ydoc, p.id, scope),
+  }));
+}
+
 // Get-or-create the Y.XmlFragment for a page.
 export function getOrCreatePageContent(ydoc, pageId, scope) {
   const map = pageContentMap(ydoc, scope);

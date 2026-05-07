@@ -13,11 +13,11 @@ import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { v4 as uuid } from 'uuid';
-import { getOrCreatePageContent, addBookmark } from '../lib/docState.js';
+import { getOrCreatePageContent, addBookmark, readPagesWithText } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
 import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
-import { updateBacklinks } from '../lib/boardsApi.js';
+import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
@@ -33,6 +33,22 @@ import { EntityBacklinksPanel } from './EntityBacklinksPanel.jsx';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { recordToRef } from '../lib/scanForAutoLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
+import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
+import { supabase } from '../lib/supabase.js';
+
+function labelForRefKind(ref) {
+  if (!ref) return 'link';
+  switch (ref.kind) {
+    case 'board':   return 'board';
+    case 'card':    return 'card';
+    case 'doc':     return 'doc';
+    case 'docPos':  return 'doc anchor';
+    case 'message': return 'message';
+    case 'user':    return 'person';
+    case 'url':     return ref.href || 'link';
+    default:        return ref.kind;
+  }
+}
 import { EntityPicker } from './EntityPicker.jsx';
 import { createNameIndex } from '../lib/entityNameTrie.js';
 import { useEntityNameTrie } from '../hooks/useEntityNameTrie.js';
@@ -113,6 +129,39 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   const nameIndexRef = useRef(createNameIndex());
   useEffect(() => { nameIndexRef.current = workspaceTrie; }, [workspaceTrie]);
 
+  // Per-doc ignore set: terms the user has marked "don't auto-link
+  // here" for this specific doc card. Populated from
+  // entity_ignore_terms (scope='doc'), live-updated via realtime.
+  // Workspace-wide ignores are baked into the trie itself.
+  const docIgnoreRef = useRef(new Set());
+  const docCardIdForIgnore = (scope && scope.docCardId) || null;
+  useEffect(() => {
+    if (!supabase || !workspaceId || !docCardIdForIgnore) {
+      docIgnoreRef.current = new Set();
+      return;
+    }
+    let cancelled = false;
+    const reload = async () => {
+      try {
+        const { data } = await supabase.from('entity_ignore_terms')
+          .select('term')
+          .eq('workspace_id', workspaceId)
+          .eq('scope', 'doc')
+          .eq('scope_id', docCardIdForIgnore);
+        if (cancelled) return;
+        docIgnoreRef.current = new Set((data || []).map(r => (r.term || '').toLowerCase()));
+      } catch (_) {}
+    };
+    reload();
+    const ch = supabase.channel(`docignore:${docCardIdForIgnore}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_ignore_terms', filter: `scope_id=eq.${docCardIdForIgnore}` }, reload)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      try { supabase.removeChannel(ch); } catch (_) {}
+    };
+  }, [workspaceId, docCardIdForIgnore]);
+
   const openLinkPicker = useCallback((editor, opts = {}) => {
     if (!editor) return;
     const sel = editor.state.selection;
@@ -190,6 +239,31 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   }, [registerOpenAddComment, addComment.open]);
 
   const navigateRef = useEntityNavigate();
+
+  // Drop an entity ref onto the doc → inserts the entity's name as
+  // text + applies a manual link mark pointing at the ref. Used by
+  // the cross-surface drag-to-link flow.
+  const insertEntityLinkAt = (pos, ref) => {
+    const editor = editorRef.current;
+    if (!editor || !ref || !activePageId) return;
+    const text = (ref.title || ref.name || labelForRefKind(ref)) + '';
+    const linkId = uuid();
+    try {
+      addLink(ydoc, {
+        id: linkId,
+        pageId: activePageId,
+        anchor: { from: pos, to: pos + text.length },
+        targets: [ref],
+        createdBy: userId || null,
+      });
+      editor.chain().focus()
+        .insertContentAt(pos, text)
+        .setTextSelection({ from: pos, to: pos + text.length })
+        .setMark('link', { linkId })
+        .setTextSelection({ from: pos + text.length, to: pos + text.length })
+        .run();
+    } catch (e) { console.warn('insertEntityLinkAt', e); }
+  };
 
   // [{ ref, ... }] derived from a manual-link's Y.Doc record.
   // Each target lives on a single Link record; v1 always wraps as
@@ -356,7 +430,10 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       // Auto-detect entity names in the doc and add dotted underline decorations.
       Extension.create({
         name: 'soleilAutoDetect',
-        addProseMirrorPlugins: () => [makeAutoDetectPlugin({ getIndex: () => nameIndexRef.current })],
+        addProseMirrorPlugins: () => [makeAutoDetectPlugin({
+          getIndex:   () => nameIndexRef.current,
+          getIgnored: () => docIgnoreRef.current,
+        })],
       }),
       // Enter key handler: if caret is inside an auto-detect candidate span,
       // open the EntityPicker pre-filled with the candidate's records.
@@ -424,6 +501,22 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       // insert at the drop point (or current cursor for paste).
       handleDrop: (view, event, _slice, moved) => {
         if (moved) return false;
+        // Universal entity-ref drop → insert as a manual link mark at
+        // the drop position. Picker rows / canvas chips / message
+        // attachment chips all use this mime type so any of them can
+        // be dragged into a doc.
+        const refRaw = event.dataTransfer?.getData(ENTITY_REF_MIME);
+        if (refRaw) {
+          let ref = null;
+          try { ref = coerceRef(JSON.parse(refRaw)); } catch (_) {}
+          if (ref) {
+            event.preventDefault();
+            const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+            const pos = coords?.pos ?? view.state.selection.from;
+            insertEntityLinkAt(pos, ref);
+            return true;
+          }
+        }
         const files = Array.from(event.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
         if (!files.length) return false;
         event.preventDefault();
@@ -510,6 +603,41 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     };
   }, [ydoc, workspaceId, activePageId, scope]);
 
+  // Project doc page text into doc_page_index so the universal hover
+  // popover can list "Appears in" doc rows. Debounced to ride out
+  // typing storms (2s of quiet → flush). Watches the page-content
+  // map + pages array so renames/adds/deletes also trigger a sync.
+  useEffect(() => {
+    if (!ydoc || !workspaceId) return;
+    const docCardId = (scope && scope.docCardId) || null;
+    if (!docCardId) return;
+    // Scope already carries its own pages + content Y types (via
+    // cardScope) — observe those directly, no card-y-map lookup needed.
+    const pagesType = scope.pages;
+    const contentType = scope.content;
+    if (!pagesType || !contentType) return;
+    let timer = null;
+    const fire = () => {
+      try {
+        const pages = readPagesWithText(ydoc, scope);
+        syncDocPageIndex({ workspaceId, docCardId, pages });
+      } catch (e) { console.warn('doc_page_index sync', e); }
+    };
+    const onChange = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(fire, 2000);
+    };
+    pagesType.observeDeep?.(onChange);
+    contentType.observeDeep?.(onChange);
+    // Initial flush on mount so existing docs get indexed.
+    onChange();
+    return () => {
+      if (timer) clearTimeout(timer);
+      pagesType.unobserveDeep?.(onChange);
+      contentType.unobserveDeep?.(onChange);
+    };
+  }, [ydoc, workspaceId, scope]);
+
   if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
 
   return (
@@ -527,6 +655,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
           refs={linkHover.refs}
           term={linkHover.term}
           workspaceId={workspaceId}
+          docScope={docCardIdForIgnore ? { docCardId: docCardIdForIgnore } : null}
           onMouseEnter={cancelHoverTimers}
           onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setLinkHover(null), 200); }}
           onClose={() => setLinkHover(null)}

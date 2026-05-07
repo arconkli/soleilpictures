@@ -36,6 +36,29 @@ function nodeToReact(node, ctx, key) {
     return scanTextNode(node.textContent, ctx, key);
   }
   if (node.nodeType !== Node.ELEMENT_NODE) return null;
+
+  // Manually-inserted entity chip (from RichNoteEditor's @ picker, or
+  // any other surface). Hydrate the JSON ref and render as a real
+  // <EntityLink> so click + hover work.
+  const refJson = node.getAttribute?.('data-entity-ref');
+  if (refJson) {
+    let ref = null;
+    try { ref = JSON.parse(refJson); } catch (_) {}
+    if (ref) {
+      return (
+        <EntityLink
+          key={key}
+          refs={[ref]}
+          workspaceId={ctx.workspaceId}
+          asTag="span"
+          className="tt-link tt-link-manual"
+        >
+          {node.textContent}
+        </EntityLink>
+      );
+    }
+  }
+
   const tag = node.tagName.toLowerCase();
   if (!ALLOWED_TAGS.has(tag)) {
     // Render unknown tags as plain spans so we don't drop the text.

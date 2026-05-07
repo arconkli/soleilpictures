@@ -33,6 +33,7 @@ export function EntityHoverPopover({
   refs,           // optional — explicit list of refs to render
   term,           // optional — alternative: fetch by name match
   workspaceId,
+  docScope,       // optional — { docCardId } for the per-doc ignore action
   onMouseEnter,
   onMouseLeave,
   onClose,
@@ -251,10 +252,32 @@ export function EntityHoverPopover({
         >
           <Icon as={Copy} size={11} /> Copy link
         </button>
-        {/* Workspace-scoped "don't auto-link this term anywhere"
-            affordance. Only relevant for auto-detect (term-driven)
-            popovers — manual links are explicit and shouldn't be
-            killed via this menu. */}
+        {/* Auto-detect kill switches. Only show for term-driven (auto)
+            popovers — manual links shouldn't be killed via this menu.
+            When docScope is set, also offer a per-doc ignore that
+            scopes the suppression to just this doc. */}
+        {term && !refs?.length && workspaceId && docScope?.docCardId && (
+          <button
+            className="ent-pop-foot-btn"
+            onClick={async () => {
+              try {
+                await supabase.from('entity_ignore_terms').insert({
+                  workspace_id: workspaceId,
+                  scope: 'doc',
+                  scope_id: docScope.docCardId,
+                  term: term.trim(),
+                });
+                feedback?.toast?.({ kind: 'success', title: `Won't auto-link "${term}" in this doc` });
+              } catch (_) {
+                feedback?.toast?.({ kind: 'error', title: 'Could not save' });
+              }
+              onClose?.();
+            }}
+            title="Stop auto-linking this term in this doc only"
+          >
+            Don't here
+          </button>
+        )}
         {term && !refs?.length && workspaceId && (
           <button
             className="ent-pop-foot-btn"
@@ -266,7 +289,7 @@ export function EntityHoverPopover({
                   scope_id: null,
                   term: term.trim(),
                 });
-                feedback?.toast?.({ kind: 'success', title: `Won't auto-link "${term}" anymore` });
+                feedback?.toast?.({ kind: 'success', title: `Won't auto-link "${term}" anywhere` });
               } catch (_) {
                 feedback?.toast?.({ kind: 'error', title: 'Could not save' });
               }
@@ -274,7 +297,7 @@ export function EntityHoverPopover({
             }}
             title="Stop auto-linking this term anywhere in the workspace"
           >
-            Don't auto-link
+            Don't anywhere
           </button>
         )}
         {totalCount > 0 && (

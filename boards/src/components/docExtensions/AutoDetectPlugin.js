@@ -7,8 +7,11 @@ export const AUTO_DETECT_KEY = new PluginKey('autoDetect');
 // Adds dotted underline decorations on candidates. Skips text that's
 // already inside a `link` mark, inline `code` mark, or `codeBlock` node.
 //
-//   options = { getIndex(): NameIndex | null }
-export function makeAutoDetectPlugin({ getIndex }) {
+//   options = {
+//     getIndex(): NameIndex | null,
+//     getIgnored?(): Set<string>     // per-doc ignored terms, lowered
+//   }
+export function makeAutoDetectPlugin({ getIndex, getIgnored }) {
   return new Plugin({
     key: AUTO_DETECT_KEY,
     state: {
@@ -26,7 +29,12 @@ export function makeAutoDetectPlugin({ getIndex }) {
             if (m.type.name === 'link' || m.type.name === 'code') return;
           }
           const text = node.text;
+          const ignored = getIgnored?.() || null;
           for (const m of index.findMatches(text)) {
+            // Per-doc ignore list — kill the decoration if the matched
+            // text is in the doc's "don't auto-link here" suppression
+            // list. Workspace-wide ignore lives in the trie itself.
+            if (ignored && ignored.has(text.slice(m.start, m.end).toLowerCase())) continue;
             // Universal hairline visual — `tt-link tt-link-auto` shares
             // styling with manual links (just lower opacity at rest).
             // The data-records attr carries the candidate matches so
