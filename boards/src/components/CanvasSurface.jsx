@@ -1988,84 +1988,103 @@ export function CanvasSurface({
     }
   };
 
-  // Auto-tag cards + the board itself on creation / content change.
+  // Auto-tag cards + the board itself.
   //
-  // The engine scores text, so the question is: what's "the text"?
-  // A card titled "$10" on a board named "Pricing" inside a group
-  // "PERSONAL PRICING" has zero pricing-related tokens in its own
-  // body — but "pricing" is screamingly obvious from where it lives.
-  // So we feed the engine the card's content PLUS its enclosing
-  // context (board name + group name). The exact-name match path
-  // then catches that on the very first scoring run, no training
-  // corpus required.
-  //
-  // The board itself is also scored. The hash includes the workspace
-  // tag fingerprint so creating a brand-new tag re-fires scoring
-  // for every visible card (otherwise the dedupe permanently blocks
-  // re-evaluation against the new tag set).
+  // Two halves: a per-render "wake" call that flags pending work,
+  // and a stable debounced scoring loop that reads live state via
+  // refs. We can't put a setTimeout inside a useEffect that depends
+  // on `cards` — `cards` is a fresh array on every App render
+  // (filter() in App.jsx), so the timer would reset before it ever
+  // fires. The ref-based pattern below is immune to render churn.
   const autoTaggedHashRef = useRef(new Map()); // key -> last hash
+  const autotagPendingRef = useRef(false);
+  const autotagInFlightRef = useRef(false);
+  const autotagTimerRef = useRef(0);
+  const autotagStateRef = useRef({});
+  // Mirror the latest props/state into a ref that the timer reads.
+  autotagStateRef.current = {
+    workspaceId, board, cards, autotagSuggest, autotagReady,
+    tagsByCard, tagsByBoard, groupById, wsTagsFingerprint,
+  };
 
-  useEffect(() => {
-    if (!workspaceId || !board?.id || !autotagSuggest || !autotagReady) return;
+  const runAutotagScoring = useCallback(async () => {
+    autotagPendingRef.current = false;
+    if (autotagInFlightRef.current) return;
+    autotagInFlightRef.current = true;
+    try { await runAutotagScoringInner(); }
+    finally { autotagInFlightRef.current = false; }
+  }, []);
+
+  const runAutotagScoringInner = useCallback(async () => {
+    const s = autotagStateRef.current;
+    if (!s.workspaceId || !s.board?.id || !s.autotagSuggest || !s.autotagReady) return;
     // Auto-apply threshold. Lower than the legacy 0.7 because:
     //   - exact-name (0.95) and alias (0.9) hits are unaffected
-    //   - cold-start substring fallback (0.55) now lands as 'auto',
-    //     giving the user the "everything obvious gets tagged"
-    //     feel they want
+    //   - cold-start substring fallback (0.55) now auto-applies,
+    //     giving the "everything obvious gets tagged" feel
     //   - users have a one-click "Don't suggest again" escape on
     //     every chip, so false positives are cheap
     const HIGH = 0.5;
-    const boardName = board.name || board.title || '';
-    const t = setTimeout(() => {
-      (async () => {
-        // 1. Score the board itself.
-        if (boardName.trim()) {
-          const knownBoardIds = new Set((tagsByBoard?.get(board.id) || []).map(t => t.id));
-          const boardKey = `board:${board.id}`;
-          const boardHash = `${boardName}:${wsTagsFingerprint}:${knownBoardIds.size}`;
-          if (autoTaggedHashRef.current.get(boardKey) !== boardHash) {
-            autoTaggedHashRef.current.set(boardKey, boardHash);
-            try {
-              const suggestions = await autotagSuggest(boardName, { kind: 'board', id: board.id });
-              for (const s of suggestions) {
-                if (s.score < HIGH) continue;
-                if (knownBoardIds.has(s.tagId)) continue;
-                await tagBoard({
-                  workspaceId, boardId: board.id,
-                  tagId: s.tagId, source: 'auto',
-                });
-              }
-            } catch {}
+    const boardName = s.board.name || s.board.title || '';
+    // 1. Score the board itself.
+    if (boardName.trim()) {
+      const knownBoardIds = new Set((s.tagsByBoard?.get(s.board.id) || []).map(t => t.id));
+      const boardKey = `board:${s.board.id}`;
+      const boardHash = `${boardName}:${s.wsTagsFingerprint}:${knownBoardIds.size}`;
+      if (autoTaggedHashRef.current.get(boardKey) !== boardHash) {
+        autoTaggedHashRef.current.set(boardKey, boardHash);
+        try {
+          const suggestions = await s.autotagSuggest(boardName, { kind: 'board', id: s.board.id });
+          for (const sg of suggestions) {
+            if (sg.score < HIGH) continue;
+            if (knownBoardIds.has(sg.tagId)) continue;
+            await tagBoard({
+              workspaceId: s.workspaceId, boardId: s.board.id,
+              tagId: sg.tagId, source: 'auto',
+            });
           }
+        } catch {}
+      }
+    }
+    // 2. Score every card with enriched context.
+    for (const c of s.cards || []) {
+      const title = c.title || c.label || c.name || '';
+      // Notes carry their text in `html` (rich-text); simple cards
+      // use `body`. The engine tokenizer strips HTML.
+      const body = c.body || c.html || '';
+      const groupName = c.groupId ? (s.groupById[c.groupId]?.name || '') : '';
+      const text = [boardName, groupName, title, body].filter(Boolean).join(' ').trim();
+      if (text.length < 2) continue;
+      const knownIds = new Set((s.tagsByCard.get(c.id) || []).map(t => t.id));
+      const cardKey = `card:${c.id}`;
+      const hash = `${text.length}:${title.slice(0, 40)}:${groupName}:${s.wsTagsFingerprint}:${knownIds.size}`;
+      if (autoTaggedHashRef.current.get(cardKey) === hash) continue;
+      autoTaggedHashRef.current.set(cardKey, hash);
+      try {
+        const suggestions = await s.autotagSuggest(text, { kind: 'card', id: c.id });
+        for (const sg of suggestions) {
+          if (sg.score < HIGH) continue;
+          if (knownIds.has(sg.tagId)) continue;
+          await tagCard({
+            workspaceId: s.workspaceId, boardId: s.board.id, cardId: c.id,
+            tagId: sg.tagId, source: 'auto',
+          });
         }
-        // 2. Score every card with enriched context.
-        for (const c of cards || []) {
-          const title = c.title || c.label || c.name || '';
-          const body = c.body || '';
-          const groupName = c.groupId ? (groupById[c.groupId]?.name || '') : '';
-          const text = [boardName, groupName, title, body].filter(Boolean).join(' ').trim();
-          if (text.length < 2) continue;
-          const knownIds = new Set((tagsByCard.get(c.id) || []).map(t => t.id));
-          const cardKey = `card:${c.id}`;
-          const hash = `${text.length}:${title.slice(0, 40)}:${groupName}:${wsTagsFingerprint}:${knownIds.size}`;
-          if (autoTaggedHashRef.current.get(cardKey) === hash) continue;
-          autoTaggedHashRef.current.set(cardKey, hash);
-          try {
-            const suggestions = await autotagSuggest(text, { kind: 'card', id: c.id });
-            for (const s of suggestions) {
-              if (s.score < HIGH) continue;
-              if (knownIds.has(s.tagId)) continue;
-              await tagCard({
-                workspaceId, boardId: board.id, cardId: c.id,
-                tagId: s.tagId, source: 'auto',
-              });
-            }
-          } catch {}
-        }
-      })();
-    }, 1500);
-    return () => clearTimeout(t);
-  }, [cards, workspaceId, board?.id, board?.name, autotagSuggest, autotagReady, tagsByCard, tagsByBoard, groupById, wsTagsFingerprint]);
+      } catch {}
+    }
+  }, []);
+
+  // Wake on any meaningful state change. The flag-and-singleton-timer
+  // pattern means rapid re-renders still produce exactly one scoring
+  // run per quiet window — render churn doesn't reset the clock.
+  useEffect(() => {
+    if (!autotagReady || !workspaceId || !board?.id) return;
+    if (autotagPendingRef.current) return; // already scheduled
+    if (autotagInFlightRef.current) return; // currently scoring
+    autotagPendingRef.current = true;
+    autotagTimerRef.current = setTimeout(runAutotagScoring, 1500);
+  });
+  useEffect(() => () => clearTimeout(autotagTimerRef.current), []);
 
   // ── Comments ───────────────────────────────────────────────────────────
   // Live anywhere-comments. Bubbles render anchored to cards / groups /

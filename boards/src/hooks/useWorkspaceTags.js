@@ -2,7 +2,7 @@
 // realtime subscription so the right-click "Tag" picker shows up-to-date
 // suggestions across peers. Returns { tags, byCard, byBoard, refresh }.
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { listWorkspaceTags, listCardTags, listBoardTags } from '../lib/tagsApi.js';
 
@@ -66,22 +66,35 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
     return () => { try { supabase.removeChannel(chan); } catch (_) {} };
   }, [workspaceId, refresh]);
 
-  // byCard: cardId -> [tag, ...]
-  const tagById = new Map(tags.map(t => [t.id, t]));
-  const byCard = new Map();
-  for (const r of cardTagRows) {
-    const tag = tagById.get(r.tag_id);
-    if (!tag) continue;
-    if (!byCard.has(r.card_id)) byCard.set(r.card_id, []);
-    byCard.get(r.card_id).push({ ...tag, source: r.source });
-  }
-  const byBoard = new Map();
-  for (const r of boardTagRows) {
-    const tag = tagById.get(r.tag_id);
-    if (!tag) continue;
-    if (!byBoard.has(r.board_id)) byBoard.set(r.board_id, []);
-    byBoard.get(r.board_id).push({ ...tag, source: r.source });
-  }
+  // Memoize the derived Maps. Without this, byCard / byBoard get
+  // re-instantiated on every render — and any consumer effect with
+  // them in its dep array re-runs continuously, blowing away
+  // setTimeout-based debounces (notably the autotag scoring loop in
+  // CanvasSurface). Was the actual root cause of "I made a tag but
+  // nothing got auto-tagged."
+  const byCard = useMemo(() => {
+    const tagById = new Map(tags.map(t => [t.id, t]));
+    const m = new Map();
+    for (const r of cardTagRows) {
+      const tag = tagById.get(r.tag_id);
+      if (!tag) continue;
+      if (!m.has(r.card_id)) m.set(r.card_id, []);
+      m.get(r.card_id).push({ ...tag, source: r.source });
+    }
+    return m;
+  }, [tags, cardTagRows]);
+
+  const byBoard = useMemo(() => {
+    const tagById = new Map(tags.map(t => [t.id, t]));
+    const m = new Map();
+    for (const r of boardTagRows) {
+      const tag = tagById.get(r.tag_id);
+      if (!tag) continue;
+      if (!m.has(r.board_id)) m.set(r.board_id, []);
+      m.get(r.board_id).push({ ...tag, source: r.source });
+    }
+    return m;
+  }, [tags, boardTagRows]);
 
   return { tags, byCard, byBoard, refresh };
 }
