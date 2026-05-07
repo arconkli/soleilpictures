@@ -384,13 +384,23 @@ export function CanvasSurface({
     }
   }, [autoFocusId, clearAutoFocus]);
 
+  // Auto-fit camera on board open. We can't depend on `cards` directly
+  // (would re-fit every time anyone moves a card); instead, fit once per
+  // board change, the first time cards becomes non-empty after opening
+  // it. fitOnceForRef stores the board id we've already fit so a return
+  // visit re-fits and intra-session moves don't disrupt the user's pan.
+  const fitOnceForRef = useRef(null);
+  useEffect(() => {
+    fitOnceForRef.current = null; // new board → arm fit
+    setPan({ x: 40, y: 60 });
+    setZoom(1);
+  }, [board.id]);
   useEffect(() => {
     if (!wrapRef.current) return;
-    if (!cards || cards.length === 0) {
-      setPan({ x: 40, y: 60 });
-      setZoom(1);
-      return;
-    }
+    if (!cards) return;
+    if (fitOnceForRef.current === board.id) return;
+    if (cards.length === 0) return; // wait for Yjs sync
+    fitOnceForRef.current = board.id;
     const r = wrapRef.current.getBoundingClientRect();
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const c of cards) {
@@ -411,8 +421,7 @@ export function CanvasSurface({
       x: (r.width  - contentW * z) / 2 - minX * z,
       y: (r.height - contentH * z) / 2 - minY * z,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board.id]);
+  }, [cards, board.id]);
 
   useEffect(() => { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
   useEffect(() => {
@@ -2031,9 +2040,32 @@ export function CanvasSurface({
     else if (c.kind === 'shape')     inner = <ShapeCard shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
+    // Tag chips along the card's bottom edge so the user actually sees
+    // their tagging — without this, "Tag…" silently writes to the DB
+    // and the user has no feedback that anything happened.
+    const cardTags = tagsByCard?.get?.(c.id) || [];
     return (
       <div key={c.id} {...wrapper}>
         {inner}
+        {cardTags.length > 0 && (
+          <div className="card-tags-strip" data-card-id={c.id}>
+            {cardTags.slice(0, 4).map(t => (
+              <span key={t.id}
+                    className={`card-tag-chip is-${t.source || 'user'}`}
+                    style={{ '--tag-c': t.color || '#4f8df8' }}
+                    title={t.source && t.source !== 'user' ? `${t.name} (${t.source})` : t.name}>
+                <span className="card-tag-chip-dot" />
+                <span className="card-tag-chip-name">{t.name}</span>
+              </span>
+            ))}
+            {cardTags.length > 4 && (
+              <span className="card-tag-chip card-tag-chip-overflow"
+                    title={cardTags.slice(4).map(t => t.name).join(', ')}>
+                +{cardTags.length - 4}
+              </span>
+            )}
+          </div>
+        )}
         {selectedTool === 'select' && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
                style={{ width: RESIZE_HANDLE_PX, height: RESIZE_HANDLE_PX }} />

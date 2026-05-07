@@ -1,7 +1,8 @@
 // Anywhere-comments on canvas. Each top-level comment renders as a small
-// sketchy-handwriting bubble anchored to a card, group, or point. Clicking
-// the bubble opens a thread with replies. Hide / resolve / delete are
-// scoped to the author + board editors.
+// inline note (avatar + author + relative time, then the body) so the
+// content is legible at a glance without needing to expand. Clicking the
+// note opens the full thread with replies and resolve/hide/delete
+// actions.
 //
 // Coordinate model:
 //   anchor_kind = 'card'   → anchor element bounds via [data-card-id="<id>"]
@@ -79,24 +80,47 @@ function anchorPoint({ comment, resolveCardBBox, resolveGroupBBox }) {
   return { x: 100, y: 100 };
 }
 
+function resolvePeerName(authorId, wsPeers, userId) {
+  const peer = (wsPeers || []).find(p => p?.user?.id === authorId);
+  if (peer?.user?.name) return peer.user.name;
+  if (peer?.user?.email) return peer.user.email.split('@')[0];
+  if (authorId === userId) return 'you';
+  return (authorId || '').slice(0, 6) || 'someone';
+}
+function resolvePeerColor(authorId, wsPeers) {
+  const peer = (wsPeers || []).find(p => p?.user?.id === authorId);
+  return peer?.user?.color || '#4f8df8';
+}
+
 function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, canvasToViewport, resolveCardBBox, resolveGroupBBox }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
   const isAuthor = comment.author === userId;
-  const author = (() => {
-    const peer = (wsPeers || []).find(p => p?.user?.id === comment.author);
-    return peer?.user?.name || peer?.user?.email?.split('@')[0]
-        || (isAuthor ? 'you' : (comment.author || '').slice(0, 6));
-  })();
-  const authorColor = (() => {
-    const peer = (wsPeers || []).find(p => p?.user?.id === comment.author);
-    return peer?.user?.color || '#d4a04a';
-  })();
+  const author = resolvePeerName(comment.author, wsPeers, userId);
+  const authorColor = resolvePeerColor(comment.author, wsPeers);
+  const replyCount = replies?.length || 0;
 
   const cp = anchorPoint({ comment, resolveCardBBox, resolveGroupBBox });
   const v = canvasToViewport ? canvasToViewport(cp.x, cp.y) : { x: cp.x, y: cp.y };
+
+  // Close on outside click + Escape.
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (wrapRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
   const submitReply = async (e) => {
     e?.preventDefault?.();
@@ -106,7 +130,9 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     try {
       await addComment({
         workspaceId, boardId, author: userId, body: text,
-        anchor: { kind: 'card', id: comment.anchor_id }, // anchored same as parent
+        // Attach reply to the same anchor as the parent so threads stay
+        // co-located if the anchor card is moved.
+        anchor: parentAnchor(comment),
         replyTo: comment.id,
       });
       setReply('');
@@ -141,37 +167,52 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
   };
 
   return (
-    <div className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''}`}
+    <div ref={wrapRef}
+         className={`canvas-comment ${open ? 'is-open' : ''} ${comment.resolved ? 'is-resolved' : ''}`}
          style={{ left: v.x, top: v.y, pointerEvents: 'auto' }}>
+      {/* Inline preview — body text is always visible so the user can read
+          the comment without clicking. The whole card is the click target
+          for opening the thread. */}
       <button type="button"
-              className="canvas-comment-pin"
-              style={{ background: authorColor }}
-              title={`${author} · ${relativeTimeShort(comment.created_at)}`}
+              className="canvas-comment-card"
+              aria-expanded={open}
               onClick={() => setOpen(o => !o)}>
-        {(author || '?')[0].toUpperCase()}
+        <span className="canvas-comment-card-head">
+          <span className="canvas-comment-avatar"
+                style={{ background: authorColor }}
+                aria-hidden="true">
+            {(author || '?')[0].toUpperCase()}
+          </span>
+          <span className="canvas-comment-author">{author}</span>
+          <span className="canvas-comment-when">{relativeTimeShort(comment.created_at)}</span>
+          {comment.resolved && <span className="canvas-comment-tag">resolved</span>}
+        </span>
+        <span className="canvas-comment-body" title={comment.body}>
+          {comment.body}
+        </span>
+        {replyCount > 0 && (
+          <span className="canvas-comment-replies-count">
+            {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+          </span>
+        )}
       </button>
       {open && (
         <div className="canvas-comment-thread">
-          <CommentLine c={comment} authorName={author} authorColor={authorColor} canManage={isAuthor} onDelete={onDelete} />
-          {replies.map(r => {
-            const peer = (wsPeers || []).find(p => p?.user?.id === r.author);
-            const rname = peer?.user?.name
-                       || peer?.user?.email?.split('@')[0]
-                       || (r.author === userId ? 'you' : (r.author || '').slice(0, 6));
-            const rcolor = peer?.user?.color || '#d4a04a';
-            return (
-              <CommentLine key={r.id} c={r} authorName={rname} authorColor={rcolor}
-                           canManage={r.author === userId}
-                           onDelete={async () => {
-                             const ok = await feedback.confirm({
-                               title: 'Delete reply?', confirmLabel: 'Delete', danger: true,
-                             });
-                             if (!ok) return;
-                             try { await deleteComment(r.id); }
-                             catch (err) { feedback.toast({ type: 'error', message: 'Delete failed' }); }
-                           }} />
-            );
-          })}
+          {replies.map(r => (
+            <CommentLine key={r.id}
+                         c={r}
+                         authorName={resolvePeerName(r.author, wsPeers, userId)}
+                         authorColor={resolvePeerColor(r.author, wsPeers)}
+                         canManage={r.author === userId}
+                         onDelete={async () => {
+                           const ok = await feedback.confirm({
+                             title: 'Delete reply?', confirmLabel: 'Delete', danger: true,
+                           });
+                           if (!ok) return;
+                           try { await deleteComment(r.id); }
+                           catch (err) { feedback.toast({ type: 'error', message: 'Delete failed' }); }
+                         }} />
+          ))}
           <form className="canvas-comment-reply" onSubmit={submitReply}>
             <input className="canvas-comment-reply-input"
                    placeholder="Reply…"
@@ -180,7 +221,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                    onChange={(e) => setReply(e.target.value)} />
             <button type="submit"
                     className="canvas-comment-reply-send"
-                    disabled={!reply.trim() || busy}>↩</button>
+                    disabled={!reply.trim() || busy}>Send</button>
           </form>
           <div className="canvas-comment-actions">
             <button type="button" onClick={onResolve}>
@@ -195,11 +236,34 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
   );
 }
 
+// Reconstruct the same anchor shape from a comment row so a reply attaches
+// to the same target as its parent.
+function parentAnchor(c) {
+  if (c.anchor_kind === 'card')   return { kind: 'card',  id: c.anchor_id };
+  if (c.anchor_kind === 'group')  return { kind: 'group', id: c.anchor_id };
+  if (c.anchor_kind === 'point')  return { kind: 'point', x: c.anchor_x, y: c.anchor_y };
+  if (c.anchor_kind === 'board')  return { kind: 'board' };
+  return { kind: 'card', id: c.anchor_id };
+}
+
 function CommentLine({ c, authorName, authorColor, canManage, onDelete }) {
   return (
     <div className="canvas-comment-line">
-      <span className="canvas-comment-line-name" style={{ color: authorColor }}>{authorName}</span>
-      <span className="canvas-comment-line-when">{relativeTimeShort(c.created_at)}</span>
+      <span className="canvas-comment-line-head">
+        <span className="canvas-comment-avatar canvas-comment-avatar-sm"
+              style={{ background: authorColor }}
+              aria-hidden="true">
+          {(authorName || '?')[0].toUpperCase()}
+        </span>
+        <span className="canvas-comment-line-name">{authorName}</span>
+        <span className="canvas-comment-line-when">{relativeTimeShort(c.created_at)}</span>
+        {canManage && (
+          <button type="button"
+                  className="canvas-comment-line-x"
+                  aria-label="Delete reply"
+                  onClick={onDelete}>×</button>
+        )}
+      </span>
       <div className="canvas-comment-line-body">{c.body}</div>
     </div>
   );
