@@ -69,12 +69,28 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   // Reconnect with the fresh JWT whenever Supabase rotates the token.
   // This is the load-bearing fix for the "site open all night, all
   // WebSockets stuck in 401 retry loop" symptom.
+  //
+  // Debounced: TOKEN_REFRESHED and SIGNED_IN often fire back-to-back
+  // (within tens of ms) when supabase auto-recovers a session. Without
+  // a debounce, each event tore down the in-flight WebSocket before
+  // it finished opening, producing a "closed before connection
+  // established" loop.
+  let rebuildTimer = null;
+  const scheduleRebuild = () => {
+    if (rebuildTimer) clearTimeout(rebuildTimer);
+    rebuildTimer = setTimeout(() => {
+      rebuildTimer = null;
+      if (destroyed) return;
+      buildProvider();
+    }, 250);
+  };
   const authSub = supabase.auth.onAuthStateChange((event) => {
     if (destroyed) return;
     if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
       console.log('[partykit] board', boardId, 'auth event', event, '→ rebuilding socket');
-      buildProvider();
+      scheduleRebuild();
     } else if (event === 'SIGNED_OUT') {
+      if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = null; }
       try { provider?.destroy(); } catch (_) {}
       provider = null;
     }
@@ -84,6 +100,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     awareness,
     destroy() {
       destroyed = true;
+      if (rebuildTimer) clearTimeout(rebuildTimer);
       try { provider?.destroy(); } catch (_) {}
       try { authSub?.data?.subscription?.unsubscribe(); } catch (_) {}
     },

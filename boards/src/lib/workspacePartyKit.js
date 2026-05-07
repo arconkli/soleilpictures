@@ -122,12 +122,26 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   // the access token (mirrors the same fix in yPartyKit.js — without
   // it, the socket reconnects with a stale JWT after ~60 minutes and
   // gets stuck in a 401 retry loop).
+  //
+  // Debounced because TOKEN_REFRESHED + SIGNED_IN can fire back-to-
+  // back during session recovery — opening twice in <100ms produced
+  // "WebSocket closed before connection established" loops.
+  let rebuildTimer = null;
+  const scheduleRebuild = () => {
+    if (rebuildTimer) clearTimeout(rebuildTimer);
+    rebuildTimer = setTimeout(() => {
+      rebuildTimer = null;
+      if (destroyed) return;
+      open();
+    }, 250);
+  };
   const authSub = supabase.auth.onAuthStateChange((event) => {
     if (destroyed) return;
     if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
       console.log('[partykit] workspace', workspaceId, 'auth event', event, '→ rebuilding socket');
-      open();
+      scheduleRebuild();
     } else if (event === 'SIGNED_OUT') {
+      if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = null; }
       try { socket?.close(); } catch (_) {}
       socket = null;
     }
@@ -136,6 +150,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   return {
     destroy() {
       destroyed = true;
+      if (rebuildTimer) clearTimeout(rebuildTimer);
       if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
       try { socket?.send(JSON.stringify({ type: 'leave', tabId: TAB_ID })); } catch (_) {}
       try { socket?.close(); } catch (_) {}
