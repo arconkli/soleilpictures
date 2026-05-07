@@ -60,15 +60,19 @@ export function CanvasCommentLayer({
       tops.push(c);
     }
   }
-  // When the master eye is off, replace every bubble with a small
-  // anchor dot at the comment's tail so the user still sees WHICH
-  // cards/groups have comments. The dot is the same affordance we use
-  // for the per-bubble connector start point — just on its own.
+  // When the master eye is off, replace every bubble with the same
+  // small anchor dot we render alongside the bubble — at the SAME
+  // perimeter point. We compute where the bubble would be (offset +
+  // anchor) and use its center to pick the connection point. So
+  // toggling the eye off doesn't visually move the dot.
   if (!layerVisible) {
+    const W = 240, H = 76;
     return (
       <div className="canvas-comment-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
         {tops.map(c => {
-          const p = anchorDotPoint(c, resolveCardBBox, resolveGroupBBox);
+          const cp = anchorPoint({ comment: c, resolveCardBBox, resolveGroupBBox });
+          const bubbleCenter = { x: cp.x + W / 2, y: cp.y + H / 2 };
+          const p = anchorDotPoint(c, resolveCardBBox, resolveGroupBBox, bubbleCenter);
           if (!p) return null;
           const color = resolvePeerColor(c.author, wsPeers, currentUser);
           return (
@@ -640,15 +644,35 @@ function CommentAnchorDot({ x, y, color, count = 1 }) {
   );
 }
 
-// Optional thin connector line — drawn only when the bubble has been
-// dragged far enough from its anchor that the relationship isn't
-// immediately obvious. Solid 1px non-scaling stroke, tinted by author.
+// Optional curved leader — drawn only when the bubble has been dragged
+// far enough from its anchor that proximity wouldn't communicate the
+// attachment. Quadratic Bezier with the control point pushed
+// perpendicular to the line direction; the result reads as a soft
+// thread rather than a CAD ruler. 1px non-scaling stroke at low
+// opacity so it sits on the canvas without shouting.
 function CommentConnectorLine({ ax, ay, bx, by, color }) {
-  const PAD = 8;
-  const minX = Math.min(ax, bx) - PAD;
-  const minY = Math.min(ay, by) - PAD;
-  const w = Math.abs(bx - ax) + PAD * 2;
-  const h = Math.abs(by - ay) + PAD * 2;
+  // Mid-point with a perpendicular offset for the control point. The
+  // offset scales with the distance — short connectors get a gentle
+  // bend, long ones get a more pronounced arc.
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.hypot(dx, dy) || 1;
+  const offset = Math.min(48, Math.max(10, len * 0.18));
+  // Perpendicular vector (rotated 90deg). Pick the side that bends
+  // away from the bubble's center (deterministic for a given pair).
+  const px = -dy / len;
+  const py =  dx / len;
+  const mx = (ax + bx) / 2 + px * offset;
+  const my = (ay + by) / 2 + py * offset;
+
+  const PAD = 32;
+  const minX = Math.min(ax, bx, mx) - PAD;
+  const minY = Math.min(ay, by, my) - PAD;
+  const maxX = Math.max(ax, bx, mx) + PAD;
+  const maxY = Math.max(ay, by, my) + PAD;
+  const w = maxX - minX;
+  const h = maxY - minY;
+
   return (
     <svg className="canvas-comment-connector-line"
          width={w} height={h}
@@ -659,10 +683,12 @@ function CommentConnectorLine({ ax, ay, bx, by, color }) {
            pointerEvents: 'none',
            overflow: 'visible',
          }}>
-      <line x1={ax} y1={ay} x2={bx} y2={by}
+      <path d={`M${ax},${ay} Q${mx},${my} ${bx},${by}`}
+            fill="none"
             stroke={color}
-            strokeOpacity="0.45"
-            strokeWidth="1"
+            strokeOpacity="0.38"
+            strokeWidth="1.25"
+            strokeLinecap="round"
             vectorEffect="non-scaling-stroke" />
     </svg>
   );
