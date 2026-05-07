@@ -9,25 +9,41 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
-import { BacklinksList } from './BacklinksList.jsx';
 
 export function CardContextMenu({ open, x, y, items, onClose, workspaceId, boardId, card }) {
-  const [showRefs, setShowRefs] = useState(false);
+  // Combined count from BOTH manual entity_links targeting the card
+  // AND text occurrences of the card's name across docs / messages /
+  // other cards. Drives the "Linked from N places" menu label so the
+  // user sees how rich the backlinks panel will be before opening it.
   const [refCount, setRefCount] = useState(null);
 
   useEffect(() => {
     if (!supabase || !workspaceId || !boardId || !card?.id) return;
     let cancelled = false;
     (async () => {
-      const { count } = await supabase.from('doc_backlinks')
-        .select('*', { count: 'exact', head: true })
-        .eq('target_workspace_id', workspaceId)
-        .eq('target_board_id', boardId)
-        .eq('target_card_id', card.id);
-      if (!cancelled) setRefCount(count || 0);
+      let n = 0;
+      try {
+        const { count } = await supabase.from('entity_links')
+          .select('*', { count: 'exact', head: true })
+          .eq('target_kind', 'card')
+          .eq('target_board_id', boardId)
+          .eq('target_card_id', card.id);
+        n += count || 0;
+      } catch (_) {}
+      // Text mentions of the card's title across the workspace.
+      const term = (card.title || card.name || '').trim();
+      if (term && term.length >= 4) {
+        try {
+          const { data } = await supabase.rpc('get_entity_mentions', {
+            p_term: term, p_workspace: workspaceId, p_limit: 1,
+          });
+          n += (data?.total_appears || 0);
+        } catch (_) {}
+      }
+      if (!cancelled) setRefCount(n);
     })();
     return () => { cancelled = true; };
-  }, [workspaceId, boardId, card?.id]);
+  }, [workspaceId, boardId, card?.id, card?.title, card?.name]);
 
   useEffect(() => {
     if (!open) return;
@@ -70,20 +86,19 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
       {card?.id && (
         <>
           {items.length > 0 && items[items.length - 1].divider !== true && <div className="ctx-divider" />}
-          <button className="ctx-item" onClick={() => setShowRefs(s => !s)}>
-            <span className="ctx-label">Used by {refCount ?? '…'} docs</span>
-            <span className="ctx-chevron">{showRefs ? '▾' : '▸'}</span>
+          <button className="ctx-item" onClick={() => {
+            onClose();
+            document.dispatchEvent(new CustomEvent('soleil-open-backlinks', {
+              detail: {
+                ref: { kind: 'card', boardId, cardId: card.id },
+                name: card.title || card.name || null,
+              },
+            }));
+          }}>
+            <span className="ctx-label">
+              {refCount === null ? 'Linked from…' : refCount === 0 ? 'Not linked anywhere' : `Linked from ${refCount} ${refCount === 1 ? 'place' : 'places'}`}
+            </span>
           </button>
-          {showRefs && refCount > 0 && (
-            <div className="ctx-submenu">
-              <BacklinksList
-                workspaceId={workspaceId}
-                targetBoardId={boardId}
-                targetCardId={card.id}
-                onOpenSource={() => { /* parent navigation handler if available, else no-op */ }}
-              />
-            </div>
-          )}
         </>
       )}
     </div>

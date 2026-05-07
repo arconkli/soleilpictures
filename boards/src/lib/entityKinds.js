@@ -15,7 +15,7 @@
 // Navigation per kind lives in App.jsx (it needs setStack / setTweak
 // closures); this registry is concerned with picking + rendering.
 
-import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link, User, MessageSquare } from './icons.js';
+import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link, User, MessageSquare, Folder } from './icons.js';
 import * as BoardP    from '../components/entityPreviews/BoardPreview.jsx';
 import * as DocP      from '../components/entityPreviews/DocPreview.jsx';
 import * as PaletteP  from '../components/entityPreviews/PalettePreview.jsx';
@@ -25,6 +25,7 @@ import * as CardP     from '../components/entityPreviews/CardPreview.jsx';
 import * as UserP     from '../components/entityPreviews/UserPreview.jsx';
 import * as MessageP  from '../components/entityPreviews/MessagePreview.jsx';
 import * as UrlP      from '../components/entityPreviews/UrlPreview.jsx';
+import * as GroupP    from '../components/entityPreviews/GroupPreview.jsx';
 
 const REGISTRY = new Map();
 
@@ -49,6 +50,7 @@ export function compareByPriority(a, b) {
 
 // v1 baseline registrations.
 register('board',    { label: 'Board',     kindPriority: 10, icon: LayoutGrid,     previewMini: BoardP.previewMini,    previewFull: BoardP.previewFull });
+register('group',    { label: 'Group',     kindPriority: 15, icon: Folder,         previewMini: GroupP.previewMini,    previewFull: GroupP.previewFull });
 register('doc',      { label: 'Doc',       kindPriority: 20, icon: FileText,       previewMini: DocP.previewMini,      previewFull: DocP.previewFull });
 register('docPos',   { label: 'Doc anchor',kindPriority: 25, icon: FileText,       previewMini: DocP.previewMini,      previewFull: DocP.previewFull });
 register('palette',  { label: 'Palette',   kindPriority: 30, icon: Palette,        previewMini: PaletteP.previewMini,  previewFull: PaletteP.previewFull });

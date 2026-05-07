@@ -301,6 +301,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const cardsMap = () => ydoc.getMap('cards');
     const arrowsArr = () => ydoc.getArray('arrows');
     const strokesArr = () => ydoc.getArray('strokes');
+    const groupsMap = () => ydoc.getMap('groups');
 
     const nextZ = () => {
       const m = cardsMap(); if (!m) return 1;
@@ -397,6 +398,75 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const duplicateCard = (cardId) => duplicateCards([cardId]);
 
     const bringToFront = (cardId) => updateCard(cardId, { z: nextZ() });
+
+    // ── Card grouping ──────────────────────────────────────────────
+    // Each group is a Y.Map keyed by groupId in `ydoc.getMap('groups')`
+    // with { id, name, outline:bool, color, width }. Cards reference
+    // a group by setting `groupId` on the card row.
+    const createGroup = ({ name, cardIds, outline = false } = {}) => {
+      if (!cardIds?.length) return null;
+      const m = cardsMap(); const gm = groupsMap();
+      if (!m || !gm) return null;
+      const id = `g-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      ydoc.transact(() => {
+        const g = new Y.Map();
+        g.set('id', id);
+        g.set('name', (name || 'Group').slice(0, 80));
+        g.set('outline', !!outline);
+        g.set('color', null);
+        g.set('width', 1);
+        g.set('createdAt', Date.now());
+        gm.set(id, g);
+        for (const cid of cardIds) {
+          const ym = m.get(cid); if (!ym) continue;
+          ym.set('groupId', id);
+        }
+      }, 'local');
+      return id;
+    };
+    const ungroup = (groupId) => {
+      if (!groupId) return;
+      const m = cardsMap(); const gm = groupsMap();
+      if (!m || !gm) return;
+      ydoc.transact(() => {
+        m.forEach((ym) => { if (ym.get('groupId') === groupId) ym.set('groupId', null); });
+        gm.delete(groupId);
+      }, 'local');
+    };
+    const renameGroup = (groupId, name) => {
+      if (!groupId) return;
+      const gm = groupsMap(); const g = gm?.get(groupId); if (!g) return;
+      ydoc.transact(() => { g.set('name', String(name || '').slice(0, 80)); }, 'local');
+    };
+    const setGroupOutline = (groupId, patch) => {
+      if (!groupId) return;
+      const gm = groupsMap(); const g = gm?.get(groupId); if (!g) return;
+      ydoc.transact(() => {
+        if ('outline' in patch) g.set('outline', !!patch.outline);
+        if ('color'   in patch) g.set('color', patch.color);
+        if ('width'   in patch) g.set('width', patch.width);
+      }, 'local');
+    };
+    const addToGroup = (groupId, cardIds) => {
+      if (!groupId || !cardIds?.length) return;
+      const m = cardsMap(); if (!m) return;
+      ydoc.transact(() => {
+        for (const cid of cardIds) {
+          const ym = m.get(cid); if (!ym) continue;
+          ym.set('groupId', groupId);
+        }
+      }, 'local');
+    };
+    const removeFromGroup = (cardIds) => {
+      if (!cardIds?.length) return;
+      const m = cardsMap(); if (!m) return;
+      ydoc.transact(() => {
+        for (const cid of cardIds) {
+          const ym = m.get(cid); if (!ym) continue;
+          ym.set('groupId', null);
+        }
+      }, 'local');
+    };
 
     const addArrow = (fromId, toId, opts = {}) => {
       if (!fromId || !toId || fromId === toId) return;
@@ -569,6 +639,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return {
       updateCard, updateCards, deleteCard, deleteCards,
       duplicateCard, duplicateCards, addCard, addCards, bringToFront,
+      createGroup, ungroup, renameGroup, setGroupOutline,
+      addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows,
       addNote, addTextLink, addImageAt, addNewBoard, addPalette,
       addDocCard,
@@ -1018,6 +1090,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setTweak('showMessages', true);
     },
     url: (ref) => { window.open(ref.href, '_blank', 'noopener,noreferrer'); },
+    group: async (ref) => {
+      // Resolve boardId via group_index if not provided.
+      let boardId = ref.boardId;
+      if (!boardId && ref.id) {
+        try {
+          const { data } = await supabase.from('group_index').select('board_id').eq('group_id', ref.id).maybeSingle();
+          boardId = data?.board_id;
+        } catch (_) {}
+      }
+      if (!boardId || !boards[boardId]) return;
+      setStack([boardId]); recents.push(boardId);
+      // Flash every member card once the board mounts.
+      setTimeout(() => {
+        document.dispatchEvent(new CustomEvent('soleil-flash-group', {
+          detail: { boardId, groupId: ref.id },
+        }));
+      }, 250);
+    },
   }), [boards, recents, openMessageThread, setTweak]);
 
   // Surface "X shared a board with you" notifications as toasts on
@@ -1208,6 +1298,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // "Linked from" affordances anywhere in the app dispatch
+  // soleil-open-backlinks. Card right-click menus, message bubbles,
+  // and any future surface can fire it; the side drawer mounts here
+  // so any caller can open the panel without prop-drilling.
+  useEffect(() => {
+    const onOpen = (e) => {
+      const { ref, name } = e.detail || {};
+      if (ref) setBacklinksRef({ ...ref, _name: name || null });
+    };
+    document.addEventListener('soleil-open-backlinks', onOpen);
+    return () => document.removeEventListener('soleil-open-backlinks', onOpen);
+  }, []);
+
   // ⌘B / Ctrl-B — toggle compact sidebar.
   useEffect(() => {
     const onKey = (e) => {
@@ -1248,6 +1351,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const cards = ready ? yh.cards : [];
     const arrows = ready ? yh.arrows : [];
     const strokes = ready ? yh.strokes : [];
+    const groups = ready ? (yh.groups || []) : [];
     const muts = isMain ? mainMutatorsFull : splitMutatorsFull;
     const surfaceJsx = (() => {
       if (view === 'list') return (
@@ -1262,7 +1366,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      mutators={muts} />
       );
       return (
-        <CanvasSurface board={board} boards={boards} cards={cards} arrows={arrows} strokes={strokes}
+        <CanvasSurface board={board} boards={boards} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
                        ydoc={yd}
                        getAwareness={yh.getAwareness}
                        peersHereByBoard={peersHereByBoard}

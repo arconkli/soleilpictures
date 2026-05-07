@@ -261,6 +261,9 @@ export async function saveBoardSnapshot(boardId, ydoc) {
   // every card as a node (not just boards). Best-effort — failures don't
   // block the snapshot save.
   syncCardIndex({ boardId, ydoc }).catch(e => console.warn('card_index sync failed', e));
+  // Mirror named card-groups into group_index so they appear in
+  // entity_search (linkable / @-mentionable / hover-previewable).
+  syncGroupIndex({ boardId, ydoc }).catch(e => console.warn('group_index sync failed', e));
 }
 
 // Project the board's Y.Map<'cards'> into Postgres `card_index`.
@@ -401,6 +404,61 @@ export async function loadBoardVersionDoc(versionId) {
     .single();
   if (error) throw error;
   return data?.doc || null;
+}
+
+// ── Card group index (mirror of Y.Doc 'groups' map) ───────────────────────
+// One row per (board_id, group_id) so groups appear in entity_search and
+// the universal linking system can find / hover / link to them.
+
+export async function syncGroupIndex({ boardId, ydoc }) {
+  if (!supabase || !boardId || !ydoc) return;
+  try {
+    const wsq = await supabase.from('boards').select('workspace_id').eq('id', boardId).maybeSingle();
+    if (wsq.error) { console.warn('syncGroupIndex resolve workspace', wsq.error); return; }
+    const workspaceId = wsq.data?.workspace_id;
+    if (!workspaceId) return;
+
+    const groupsMap = ydoc.getMap('groups');
+    const cardsMap = ydoc.getMap('cards');
+    // Per-group member counts from cards.groupId
+    const counts = new Map();
+    cardsMap.forEach((ym) => {
+      const gid = ym?.get?.('groupId');
+      if (!gid) return;
+      counts.set(gid, (counts.get(gid) || 0) + 1);
+    });
+
+    const liveIds = new Set();
+    const rows = [];
+    groupsMap.forEach((g, id) => {
+      liveIds.add(id);
+      rows.push({
+        workspace_id: workspaceId,
+        board_id: boardId,
+        group_id: id,
+        name: (g?.get?.('name') || '').slice(0, 200),
+        member_count: counts.get(id) || 0,
+        outline: !!g?.get?.('outline'),
+        color: g?.get?.('color') || null,
+        updated_at: new Date().toISOString(),
+      });
+    });
+
+    if (rows.length > 0) {
+      const ups = await supabase.from('group_index').upsert(rows, { onConflict: 'board_id,group_id' });
+      if (ups.error) { console.warn('group_index upsert', ups.error); return; }
+    }
+
+    // Drop rows for groups deleted from the Y.Doc.
+    const existing = await supabase.from('group_index').select('group_id').eq('board_id', boardId);
+    if (existing.error) return;
+    const orphans = (existing.data || []).map(r => r.group_id).filter(id => !liveIds.has(id));
+    if (orphans.length > 0) {
+      await supabase.from('group_index').delete().eq('board_id', boardId).in('group_id', orphans);
+    }
+  } catch (e) {
+    console.warn('syncGroupIndex failed', e);
+  }
 }
 
 // ── Doc page index ──────────────────────────────────────────────────────────

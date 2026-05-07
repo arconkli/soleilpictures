@@ -51,3 +51,18 @@ export function readStrokes(ydoc) {
   const arr = ydoc.getArray('strokes');
   return arr.toArray().map(v => (v && typeof v.toJSON === 'function') ? v.toJSON() : v);
 }
+
+// Card groups — keyed by groupId. Each value is a Y.Map of
+// { id, name, outline:bool, color, width }. Cards reference a
+// group via `groupId` on the card row. Members move together; the
+// optional outline draws a soft pill around the bounding box.
+export function readGroups(ydoc) {
+  const map = ydoc.getMap('groups');
+  const out = [];
+  map.forEach((ym, id) => {
+    const o = { id };
+    ym.forEach((v, k) => { o[k] = v; });
+    out.push(o);
+  });
+  return out;
+}

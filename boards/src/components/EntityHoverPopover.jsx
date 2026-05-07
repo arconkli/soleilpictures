@@ -372,6 +372,7 @@ function rowToRef(row) {
     case 'doc':     return { kind: 'doc', docCardId: row.card_id, boardId: row.board_id };
     case 'user':    return { kind: 'user', id: row.id };
     case 'url':     return { kind: 'url', href: row.title };
+    case 'group':   return { kind: 'group', id: row.card_id, boardId: row.board_id };
     default:        return { kind: 'card', boardId: row.board_id, cardId: row.card_id };
   }
 }
@@ -385,6 +386,7 @@ function refToSearchId(r) {
     case 'docPos':  return r.boardId ? `${r.boardId}:${r.docCardId}` : null;
     case 'card':    return `${r.boardId}:${r.cardId}`;
     case 'user':    return r.id;
+    case 'group':   return r.boardId ? `${r.boardId}:g:${r.id}` : null;
     default:        return null;
   }
 }

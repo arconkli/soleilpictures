@@ -1,47 +1,89 @@
-// "Linked from" side drawer for any entity. Phase 1: minimal shell
-// driven by the existing card_index / entity_search infra (lists
-// nothing useful yet because doc_backlinks is doc-scoped). Phase 2
-// fills the body via the get_entity_backlinks RPC reading from the
-// new entity_links table, grouped by source kind.
+// "Linked from" side drawer for any entity. Shows EVERY place that
+// references the entity, combining two sources:
+//
+//   1. Explicit links via entity_links (the get_entity_backlinks RPC).
+//      These are manual `@` mentions, dropped chip cards, message
+//      attachments, and link-marks inside docs.
+//
+//   2. Text occurrences via get_entity_mentions(name). These are auto-
+//      detected name appearances in any doc page / message / card
+//      title or body — the same data that fills the popover's
+//      "APPEARS IN" section.
+//
+// We dedupe by (sourceKind, sourceId, sourcePageId) so a doc that
+// has both an explicit link AND a text mention doesn't appear twice.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { X } from '../lib/icons.js';
+import { X, FileText, MessageSquare, StickyNote } from '../lib/icons.js';
 import { getKind } from '../lib/entityKinds.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { supabase } from '../lib/supabase.js';
+import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
+import { relativeTimeShort } from '../lib/relativeTime.js';
 
 export function EntityBacklinksPanel({ ref: targetRef, onClose }) {
   const navigate = useEntityNavigate();
-  const [rows, setRows] = useState([]);
+  const { workspaceId } = useEntityTrie();
+  const [linkRows, setLinkRows] = useState([]);
+  const [mentionRows, setMentionRows] = useState([]);
+  const [entityName, setEntityName] = useState(targetRef?._name || '');
   const [loading, setLoading] = useState(true);
   const def = targetRef ? getKind(targetRef.kind) : null;
   const TitleIcon = def?.icon;
 
+  // Fetch entity name if not provided. Used for the title and to
+  // drive the text-mention RPC.
+  useEffect(() => {
+    if (!targetRef || !supabase || entityName) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (targetRef.kind === 'board' && targetRef.id) {
+          const { data } = await supabase.from('boards').select('name').eq('id', targetRef.id).maybeSingle();
+          if (!cancelled && data?.name) setEntityName(data.name);
+        } else if (targetRef.kind === 'card' && targetRef.boardId && targetRef.cardId) {
+          const { data } = await supabase.from('card_index').select('title').eq('board_id', targetRef.boardId).eq('card_id', targetRef.cardId).maybeSingle();
+          if (!cancelled && data?.title) setEntityName(data.title);
+        } else if ((targetRef.kind === 'doc' || targetRef.kind === 'docPos') && targetRef.docCardId) {
+          const { data } = await supabase.from('card_index').select('title').eq('card_id', targetRef.docCardId).maybeSingle();
+          if (!cancelled && data?.title) setEntityName(data.title);
+        }
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, [targetRef && (targetRef.id || targetRef.cardId || targetRef.docCardId)]);
+
+  // Fetch both backlink sources in parallel.
   useEffect(() => {
     if (!targetRef || !supabase) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     (async () => {
       try {
-        const params = {
-          p_kind: targetRef.kind,
-          p_id: targetRef.id || null,
-          p_board_id: targetRef.boardId || (targetRef.kind === 'board' ? targetRef.id : null),
-          p_card_id: targetRef.cardId || null,
-          p_doc_card_id: targetRef.docCardId || null,
-          p_url: targetRef.href || null,
-          p_limit: 100,
-        };
-        const { data } = await supabase.rpc('get_entity_backlinks', params);
+        const [a, b] = await Promise.all([
+          // 1. Explicit entity_links.
+          supabase.rpc('get_entity_backlinks', {
+            p_kind: targetRef.kind,
+            p_id: targetRef.id || null,
+            p_board_id: targetRef.boardId || (targetRef.kind === 'board' ? targetRef.id : null),
+            p_card_id: targetRef.cardId || null,
+            p_doc_card_id: targetRef.docCardId || null,
+            p_url: targetRef.href || null,
+            p_limit: 200,
+          }),
+          // 2. Text occurrences via the popover RPC. Only meaningful
+          // if we know the entity's name (otherwise we'd be searching
+          // for an empty string).
+          (entityName && entityName.length >= 4 && workspaceId)
+            ? supabase.rpc('get_entity_mentions', {
+                p_term: entityName, p_workspace: workspaceId, p_limit: 50,
+              })
+            : Promise.resolve({ data: { appears_in: [] } }),
+        ]);
         if (cancelled) return;
-        const backlinks = (data || []).map(r => ({
-          ref: backlinkSourceToRef(r),
-          title: backlinkSourceTitle(r),
-          snippet: r.context_text ? String(r.context_text).slice(0, 200) : null,
-          source_kind: r.source_kind,
-        }));
-        setRows(backlinks.filter(b => b.ref));
+        setLinkRows(a.data || []);
+        setMentionRows(b.data?.appears_in || []);
       } catch (e) {
         console.warn('EntityBacklinksPanel fetch', e);
       } finally {
@@ -49,7 +91,43 @@ export function EntityBacklinksPanel({ ref: targetRef, onClose }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [targetRef && (targetRef.id || targetRef.cardId || targetRef.docCardId || targetRef.href)]);
+  }, [targetRef && (targetRef.id || targetRef.cardId || targetRef.docCardId || targetRef.href), entityName, workspaceId]);
+
+  // Merge + dedupe by (kind, id, pageId).
+  const rows = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const r of linkRows) {
+      const key = `${r.source_kind}:${r.source_id}:${r.source_page_id || ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        kind: r.source_kind,
+        id: r.source_id,
+        boardId: r.source_board_id,
+        pageId: r.source_page_id,
+        snippet: r.context_text ? String(r.context_text).slice(0, 200) : null,
+        when: r.created_at,
+        isExplicit: true,
+      });
+    }
+    for (const r of mentionRows) {
+      const key = `${r.source_kind}:${r.source_id}:${r.source_page_id || ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        kind: r.source_kind,
+        id: r.source_id,
+        title: r.source_title || null,
+        pageId: r.source_page_id,
+        snippet: r.snippet ? `…${r.snippet.trim()}…` : null,
+        when: r.updated_at,
+        isExplicit: false,
+      });
+    }
+    out.sort((a, b) => new Date(b.when || 0) - new Date(a.when || 0));
+    return out;
+  }, [linkRows, mentionRows]);
 
   if (!targetRef) return null;
 
@@ -57,7 +135,10 @@ export function EntityBacklinksPanel({ ref: targetRef, onClose }) {
     <aside className="ent-backlinks-panel surface-frosted">
       <div className="ent-backlinks-head">
         {TitleIcon && <Icon as={TitleIcon} size={14} />}
-        <span className="ent-backlinks-head-label">{def?.label || targetRef.kind} · Linked from</span>
+        <span className="ent-backlinks-head-label">Linked from</span>
+        {entityName && (
+          <span className="ent-backlinks-head-target" title={entityName}>{entityName}</span>
+        )}
         <button className="ent-backlinks-close" onClick={() => onClose?.()} title="Close">
           <Icon as={X} size={12} />
         </button>
@@ -69,40 +150,51 @@ export function EntityBacklinksPanel({ ref: targetRef, onClose }) {
             Nothing links here yet. Mention this from a doc, message, or card.
           </div>
         )}
-        {rows.map((r, i) => (
-          <button key={i} className="ent-backlinks-row" onClick={() => { navigate(r.ref); onClose?.(); }}>
-            <span className="ent-backlinks-row-title">{r.title}</span>
-            {r.snippet && <span className="ent-backlinks-row-snippet">{r.snippet}</span>}
-          </button>
-        ))}
+        {rows.map((r, i) => {
+          const ref = sourceToRef(r);
+          const IconCmp = sourceIcon(r.kind);
+          return (
+            <button key={`${r.kind}:${r.id}:${i}`} className="ent-backlinks-row"
+                    onClick={() => { if (ref) navigate(ref); onClose?.(); }}>
+              <span className="ent-backlinks-row-head">
+                <Icon as={IconCmp} size={12} />
+                <span className="ent-backlinks-row-kind">{labelFor(r.kind)}</span>
+                {r.title && <span className="ent-backlinks-row-title">{r.title}</span>}
+                {r.when && <span className="ent-backlinks-row-when">· {relativeTimeShort(r.when)}</span>}
+                {r.isExplicit && <span className="ent-backlinks-row-tag" title="Manual link">link</span>}
+              </span>
+              {r.snippet && <span className="ent-backlinks-row-snippet">{r.snippet}</span>}
+            </button>
+          );
+        })}
       </div>
     </aside>
   );
 }
 
-// Convert one entity_links row → ref the user can click to open.
-function backlinkSourceToRef(r) {
-  switch (r.source_kind) {
-    case 'doc':
-      return { kind: 'docPos', docCardId: r.source_id, pageId: r.source_page_id || '' };
-    case 'message':
-      return { kind: 'message', id: r.source_id };
-    case 'card_title':
+function sourceToRef(r) {
+  switch (r.kind) {
+    case 'doc':       return { kind: 'docPos', docCardId: r.id, pageId: r.pageId || '' };
+    case 'message':   return { kind: 'message', id: r.id };
     case 'card':
     case 'note':
-      return { kind: 'card', boardId: r.source_board_id || null, cardId: r.source_id };
-    default:
-      return null;
+    case 'card_title':
+      return { kind: 'card', boardId: r.boardId || null, cardId: r.id };
+    default:          return null;
   }
 }
-
-function backlinkSourceTitle(r) {
-  switch (r.source_kind) {
+function sourceIcon(kind) {
+  if (kind === 'doc')     return FileText;
+  if (kind === 'message') return MessageSquare;
+  return StickyNote;
+}
+function labelFor(kind) {
+  switch (kind) {
     case 'doc':       return 'Doc';
     case 'message':   return 'Message';
     case 'card':      return 'Card';
-    case 'card_title':return 'Card title';
     case 'note':      return 'Note';
-    default:          return r.source_kind;
+    case 'card_title':return 'Card title';
+    default:          return kind;
   }
 }

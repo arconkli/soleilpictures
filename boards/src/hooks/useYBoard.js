@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadYBoard } from '../lib/yboard.js';
-import { readCards, readArrows, readStrokes } from '../lib/yhelpers.js';
+import { readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.js';
 
 export function useYBoard(boardId, userId, user = null) {
   const handleRef = useRef(null);
   const emptySnapshot = (nextBoardId = null) => ({
-    ready: false, cards: [], arrows: [], strokes: [], ydoc: null, boardId: nextBoardId,
+    ready: false, cards: [], arrows: [], strokes: [], groups: [], ydoc: null, boardId: nextBoardId,
     undoManager: null, canUndo: false, canRedo: false,
   });
   const [snapshot, setSnapshot] = useState({
-    ready: false, cards: [], arrows: [], strokes: [], ydoc: null, boardId: null,
+    ready: false, cards: [], arrows: [], strokes: [], groups: [], ydoc: null, boardId: null,
     undoManager: null, canUndo: false, canRedo: false,
   });
 
@@ -32,6 +32,7 @@ export function useYBoard(boardId, userId, user = null) {
         cards: readCards(handle.ydoc),
         arrows: readArrows(handle.ydoc),
         strokes: readStrokes(handle.ydoc),
+        groups: readGroups(handle.ydoc),
         ydoc: handle.ydoc,
         boardId,
         undoManager: handle.undoManager,

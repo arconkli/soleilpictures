@@ -137,7 +137,7 @@ function pickPresenceColor(id) {
 const cmdKey = isMac ? '⌘' : 'Ctrl';
 
 export function CanvasSurface({
-  board, boards, cards, arrows, strokes,
+  board, boards, cards, arrows, strokes, groups = [],
   ydoc, // raw Y.Doc — needed by doc cards to access their per-card YMap
   getAwareness,            // () => Awareness | null  — for live presence
   currentUser,             // { id, name, color }     — for awareness localState
@@ -415,6 +415,37 @@ export function CanvasSurface({
   const cardById = useMemo(() => {
     const m = {}; (cards || []).forEach(c => m[c.id] = c); return m;
   }, [cards]);
+
+  // groupId → array of member cards. Drives the group-outline render
+  // and the drag-together logic. Also used by "Ungroup" / "Toggle
+  // outline" menu actions to know whether a card is in a group.
+  const cardsByGroup = useMemo(() => {
+    const m = new Map();
+    for (const c of (cards || [])) {
+      if (!c.groupId) continue;
+      if (!m.has(c.groupId)) m.set(c.groupId, []);
+      m.get(c.groupId).push(c);
+    }
+    return m;
+  }, [cards]);
+  const groupById = useMemo(() => {
+    const m = {}; (groups || []).forEach(g => m[g.id] = g); return m;
+  }, [groups]);
+  // Expand any selection / drag set to include all groupmates of any
+  // card whose group has 2+ visible members. Single-orphan group
+  // members aren't expanded — orphaned groups just behave like
+  // single cards.
+  const expandWithGroupmates = (ids) => {
+    const out = new Set(ids);
+    for (const id of ids) {
+      const c = cardById[id];
+      if (!c?.groupId) continue;
+      const members = cardsByGroup.get(c.groupId);
+      if (!members || members.length < 2) continue;
+      for (const m of members) out.add(m.id);
+    }
+    return out;
+  };
 
   // Aggregate every palette card's swatches. `palettes` keeps each palette
   // distinct (with its name + swatches) so the ColorPicker can page through
@@ -768,7 +799,10 @@ export function CanvasSurface({
     if (nextSelected.has(c.id)) mutators.bringToFront?.(c.id);
     if (e.shiftKey) return;
 
-    const dragIds = [...nextSelected];
+    // Expand the drag set to cover every groupmate of every selected
+    // card so groups always move as a unit.
+    const expanded = expandWithGroupmates(nextSelected);
+    const dragIds = [...expanded];
     const dragSet = new Set(dragIds);
     const startPositions = {};
     dragIds.forEach(id => {
@@ -1102,6 +1136,49 @@ export function CanvasSurface({
       const ids = multi ? [...selected] : [c.id];
       ids.forEach(id => mutators.bringToFront?.(id));
     }});
+
+    // Grouping ──
+    items.push({ divider: true });
+    if (multi && selected.size >= 2) {
+      // Selection of 2+ → "Group together"
+      items.push({ id: 'group', label: `Group (${selected.size})`, run: async () => {
+        const name = await feedback.prompt({
+          title: 'Group these cards',
+          label: 'Name',
+          placeholder: 'e.g. Mood board',
+          defaultValue: '',
+          confirmLabel: 'Group',
+        });
+        if (name == null) return;
+        mutators.createGroup?.({ name: name || 'Group', cardIds: [...selected] });
+      }});
+    }
+    if (c.groupId && groupById[c.groupId]) {
+      const g = groupById[c.groupId];
+      items.push({ id: 'group-rename', label: `Rename group "${g.name || ''}"`, run: async () => {
+        const name = await feedback.prompt({
+          title: 'Rename group',
+          label: 'Name',
+          defaultValue: g.name || '',
+          confirmLabel: 'Rename',
+        });
+        if (name == null) return;
+        mutators.renameGroup?.(g.id, name);
+      }});
+      items.push({ id: 'group-outline', label: g.outline ? 'Hide group outline' : 'Show group outline',
+        run: () => mutators.setGroupOutline?.(g.id, { outline: !g.outline }) });
+      items.push({ id: 'group-color', label: 'Group outline color…', run: () => {
+        setPicker({
+          value: g.color || 'var(--soleil)',
+          onChange: (col) => mutators.setGroupOutline?.(g.id, { color: col, outline: true }),
+          x: ctx.x, y: ctx.y, allowTransparent: false,
+        });
+      }});
+      items.push({ id: 'group-remove', label: multi ? `Remove from group (${selected.size})` : 'Remove from group',
+        run: () => mutators.removeFromGroup?.(multi ? [...selected] : [c.id]) });
+      items.push({ id: 'ungroup', label: 'Ungroup', danger: true, run: () => mutators.ungroup?.(g.id) });
+    }
+
     items.push({ divider: true });
     items.push({ id: 'delete', label: multi ? `Delete (${selected.size})` : 'Delete',
       shortcut: '⌫', danger: true,
@@ -1853,6 +1930,68 @@ export function CanvasSurface({
              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
              transformOrigin: '0 0',
            }}>
+        {/* Group outlines + name labels — drawn behind the cards. */}
+        {groups.length > 0 && (
+          <div className="groups-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {groups.map(g => {
+              const members = cardsByGroup.get(g.id) || [];
+              if (members.length < 2) return null;
+              const PAD = 12;
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              for (const c of members) {
+                if (drag && drag.ids?.includes?.(c.id)) {
+                  minX = Math.min(minX, c.x + (drag.dx || 0));
+                  minY = Math.min(minY, c.y + (drag.dy || 0));
+                  maxX = Math.max(maxX, c.x + (c.w || 0) + (drag.dx || 0));
+                  maxY = Math.max(maxY, c.y + (c.h || 0) + (drag.dy || 0));
+                } else {
+                  minX = Math.min(minX, c.x);
+                  minY = Math.min(minY, c.y);
+                  maxX = Math.max(maxX, c.x + (c.w || 0));
+                  maxY = Math.max(maxY, c.y + (c.h || 0));
+                }
+              }
+              if (!Number.isFinite(minX)) return null;
+              const x = minX - PAD, y = minY - PAD;
+              const w = (maxX - minX) + PAD * 2;
+              const h = (maxY - minY) + PAD * 2;
+              const stroke = g.color || 'var(--soleil)';
+              const sw = g.width || 1;
+              return (
+                <div key={g.id} className={`group-outline ${g.outline ? 'is-on' : 'is-off'}`}
+                     style={{
+                       position: 'absolute',
+                       left: x, top: y, width: w, height: h,
+                       borderRadius: 14,
+                       border: g.outline ? `${sw}px solid ${stroke}` : '1px dashed transparent',
+                       boxShadow: g.outline ? '0 0 0 1px color-mix(in oklab, currentColor 0%, transparent)' : 'none',
+                       pointerEvents: 'none',
+                     }}>
+                  {g.name && (
+                    <div className="group-label"
+                         style={{
+                           position: 'absolute',
+                           left: 8, top: -22,
+                           padding: '2px 8px',
+                           font: '700 10px/1.4 var(--font-sans)',
+                           letterSpacing: '0.12em',
+                           textTransform: 'uppercase',
+                           color: g.outline ? stroke : 'var(--ink-3)',
+                           background: 'var(--bg-1)',
+                           borderRadius: 4,
+                           border: g.outline ? `1px solid ${stroke}` : '1px solid var(--line-1)',
+                           pointerEvents: 'auto',
+                           cursor: 'default',
+                         }}
+                         title={g.name}>
+                      {g.name}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="cards-layer">{sortedCards.map(renderCard)}</div>
 
         {marqueeRect && (
@@ -2089,6 +2228,7 @@ export function CanvasSurface({
         onClose={closeBgMenu}
         workspaceId={workspaceId}
         boardId={board?.id}
+        boardName={board?.name}
       />
 
       <ToolOptionsBar

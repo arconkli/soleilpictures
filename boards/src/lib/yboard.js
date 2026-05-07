@@ -74,6 +74,8 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
   const cards = ydoc.getMap('cards');
   const arrows = ydoc.getArray('arrows');
   const strokes = ydoc.getArray('strokes');
+  // Card-grouping — keyed by groupId. See readGroups in yhelpers.
+  const groups = ydoc.getMap('groups');
   // Doc-mode types — populated only on boards with view='doc'.
   // Y.Array of { id, name, parent_id, order }; Y.Map of id → Y.XmlFragment
   // (each page's Tiptap content); Y.Map of id → { name, pageId, anchor }.
@@ -83,7 +85,7 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
   const docComments = ydoc.getMap('docComments');
 
   const undoManager = new Y.UndoManager(
-    [cards, arrows, strokes, docPages, docPageContent, docBookmarks, docComments],
+    [cards, arrows, strokes, groups, docPages, docPageContent, docBookmarks, docComments],
     { trackedOrigins: new Set(['local']) }
   );
 
