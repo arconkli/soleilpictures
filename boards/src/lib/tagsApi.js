@@ -226,3 +226,20 @@ export async function confirmAppliedTag({ sourceKind, sourceId, sourceBoardId, t
 // engine subsumes the legacy substring behavior with proper
 // tokenization, while TF-IDF adds rich-context scoring once the
 // workspace has training data.)
+
+// "Don't suggest again" — write a per-target row to autotag_ignored
+// so the worker filters this (target, tag) pair from future scoring
+// runs. Realtime fans the change out to all clients.
+export async function dismissAutotagSuggestion({ workspaceId, targetKind, targetId, tagId, userId }) {
+  if (!workspaceId || !targetKind || !targetId || !tagId) {
+    throw new Error('dismissAutotagSuggestion: missing required field');
+  }
+  const { error } = await supabase.from('autotag_ignored').upsert({
+    workspace_id: workspaceId,
+    target_kind:  targetKind,
+    target_id:    String(targetId),
+    tag_id:       tagId,
+    ignored_by:   userId || null,
+  }, { onConflict: 'workspace_id,target_kind,target_id,tag_id' });
+  if (error) throw error;
+}

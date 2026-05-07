@@ -33,7 +33,7 @@ import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
-import { ensureTag, tagCard, untagCard, tagBoard } from '../lib/tagsApi.js';
+import { ensureTag, tagCard, untagCard, tagBoard, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -1946,6 +1946,18 @@ export function CanvasSurface({
   const [tagPicker, setTagPicker] = useState(null); // { cardId, anchorRect }
   const openTagPicker = (cardId, anchorRect) => setTagPicker({ cardId, anchorRect });
   const closeTagPicker = () => setTagPicker(null);
+  // Right-click menu for an applied tag chip on a card. Lets users
+  // confirm an auto-applied tag (promoting source='auto' → 'user'),
+  // remove it, or dismiss it permanently for that target.
+  const [tagChipMenu, setTagChipMenu] = useState(null); // { x, y, cardId, tag }
+  const closeTagChipMenu = () => setTagChipMenu(null);
+  useEffect(() => {
+    if (!tagChipMenu) return;
+    const onAway = () => setTagChipMenu(null);
+    window.addEventListener('mousedown', onAway, { capture: true });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setTagChipMenu(null); }, { once: true });
+    return () => window.removeEventListener('mousedown', onAway, { capture: true });
+  }, [tagChipMenu]);
   const toggleTagOnCard = async (cardId, tag) => {
     if (!workspaceId || !board?.id || !cardId || !tag) return;
     const applied = (tagsByCard.get(cardId) || []).some(t => t.id === tag.id);
@@ -2336,7 +2348,12 @@ export function CanvasSurface({
               <span key={t.id}
                     className={`card-tag-chip is-${t.source || 'user'}`}
                     style={{ '--tag-c': t.color || '#4f8df8' }}
-                    title={t.source && t.source !== 'user' ? `${t.name} (${t.source})` : t.name}>
+                    title={t.source && t.source !== 'user' ? `${t.name} (${t.source})` : t.name}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setTagChipMenu({ x: e.clientX, y: e.clientY, cardId: c.id, tag: t });
+                    }}>
                 <span className="card-tag-chip-dot" />
                 <span className="card-tag-chip-name">{t.name}</span>
               </span>
@@ -3352,6 +3369,62 @@ export function CanvasSurface({
           onToggle={(t) => toggleTagOnCard(tagPicker.cardId, t)}
           onCreate={(name) => createAndApplyTag(tagPicker.cardId, name)}
         />
+      )}
+      {tagChipMenu && (
+        <div className="sb-tag-menu" role="menu"
+             style={{ position: 'fixed', left: tagChipMenu.x, top: tagChipMenu.y, zIndex: 60 }}
+             onMouseDown={(e) => e.stopPropagation()}>
+          {tagChipMenu.tag.source && tagChipMenu.tag.source !== 'user' && (
+            <button className="sb-tag-menu-item" role="menuitem"
+                    onClick={async () => {
+                      const { cardId, tag } = tagChipMenu;
+                      closeTagChipMenu();
+                      try {
+                        await confirmAppliedTag({
+                          sourceKind: 'card', sourceId: cardId,
+                          sourceBoardId: board.id, tagId: tag.id,
+                        });
+                        refreshTags?.();
+                      } catch (err) {
+                        feedback.toast({ type: 'error', message: 'Confirm failed: ' + (err.message || err) });
+                      }
+                    }}>
+              Confirm tag
+            </button>
+          )}
+          <button className="sb-tag-menu-item" role="menuitem"
+                  onClick={async () => {
+                    const { cardId, tag } = tagChipMenu;
+                    closeTagChipMenu();
+                    try {
+                      await untagCard({ boardId: board.id, cardId, tagId: tag.id });
+                      refreshTags?.();
+                    } catch (err) {
+                      feedback.toast({ type: 'error', message: 'Untag failed: ' + (err.message || err) });
+                    }
+                  }}>
+            Remove tag
+          </button>
+          {tagChipMenu.tag.source && tagChipMenu.tag.source !== 'user' && (
+            <button className="sb-tag-menu-item" role="menuitem"
+                    onClick={async () => {
+                      const { cardId, tag } = tagChipMenu;
+                      closeTagChipMenu();
+                      try {
+                        await untagCard({ boardId: board.id, cardId, tagId: tag.id });
+                        await dismissAutotagSuggestion({
+                          workspaceId, targetKind: 'card', targetId: cardId,
+                          tagId: tag.id, userId,
+                        });
+                        refreshTags?.();
+                      } catch (err) {
+                        feedback.toast({ type: 'error', message: 'Dismiss failed: ' + (err.message || err) });
+                      }
+                    }}>
+              Don't suggest again
+            </button>
+          )}
+        </div>
       )}
       {lightbox && (
         <div className="lightbox" onClick={() => setLightbox(null)} role="dialog" aria-label="Image preview">
