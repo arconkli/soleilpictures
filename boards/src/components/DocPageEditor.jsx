@@ -153,7 +153,11 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       } catch (_) {}
     };
     reload();
-    const ch = supabase.channel(`docignore:${docCardIdForIgnore}`)
+    // Per-mount unique suffix — Supabase de-dupes channels by name,
+    // so re-mounting reuses the already-subscribed channel and
+    // `.on(...)` throws "after subscribe".
+    const sfx = Math.random().toString(36).slice(2, 9);
+    const ch = supabase.channel(`docignore:${docCardIdForIgnore}:${sfx}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_ignore_terms', filter: `scope_id=eq.${docCardIdForIgnore}` }, reload)
       .subscribe();
     return () => {

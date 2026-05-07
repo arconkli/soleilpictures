@@ -119,16 +119,20 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
       pending = setTimeout(() => { pending = null; reload(); }, 800);
     };
 
-    const ch1 = supabase.channel(`trie:boards:${workspaceId}`)
+    // Per-mount unique suffix — Supabase de-dupes channels by name,
+    // so a re-mount with the same name returns the previously-
+    // subscribed channel and `.on()` throws ("after subscribe").
+    const sfx = Math.random().toString(36).slice(2, 9);
+    const ch1 = supabase.channel(`trie:boards:${workspaceId}:${sfx}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: `workspace_id=eq.${workspaceId}` }, schedule)
       .subscribe();
-    const ch2 = supabase.channel(`trie:cards:${workspaceId}`)
+    const ch2 = supabase.channel(`trie:cards:${workspaceId}:${sfx}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'card_index', filter: `workspace_id=eq.${workspaceId}` }, schedule)
       .subscribe();
-    const ch3 = supabase.channel(`trie:aliases:${workspaceId}`)
+    const ch3 = supabase.channel(`trie:aliases:${workspaceId}:${sfx}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_aliases', filter: `workspace_id=eq.${workspaceId}` }, schedule)
       .subscribe();
-    const ch4 = supabase.channel(`trie:ignore:${workspaceId}`)
+    const ch4 = supabase.channel(`trie:ignore:${workspaceId}:${sfx}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_ignore_terms', filter: `workspace_id=eq.${workspaceId}` }, schedule)
       .subscribe();
 

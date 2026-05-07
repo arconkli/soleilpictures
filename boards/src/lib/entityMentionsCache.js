@@ -24,7 +24,11 @@ function wireInvalidations(workspaceId) {
   // doesn't know which term each row affects.
   const onAny = () => clearWorkspace(workspaceId);
   try {
-    supabase.channel(`mentions-cache:${workspaceId}`)
+    // Per-process suffix — Supabase de-dupes channels by name; reusing
+    // the same name across mounts returns the already-subscribed
+    // channel and `.on()` throws.
+    const sfx = Math.random().toString(36).slice(2, 9);
+    supabase.channel(`mentions-cache:${workspaceId}:${sfx}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages',         filter: `workspace_id=eq.${workspaceId}` }, onAny)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'card_index',       filter: `workspace_id=eq.${workspaceId}` }, onAny)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'doc_page_index',   filter: `workspace_id=eq.${workspaceId}` }, onAny)
