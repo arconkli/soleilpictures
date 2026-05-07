@@ -34,6 +34,7 @@ import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlac
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
+import { syncCardIndex } from '../lib/boardsApi.js';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -173,6 +174,19 @@ export function CanvasSurface({
   autotagReady = false,    // worker hydration finished
 }) {
   const wrapRef = useRef(null);
+
+  // Force one syncCardIndex run when the board opens. card_index
+  // only refreshes on yjs edits or tab-close, so a user who just
+  // refreshes the page may sit on a stale snapshot indefinitely.
+  // syncCardIndex is throttled + idempotent — calling it here is
+  // free if it already ran recently, and ensures rich-note text
+  // (c.html) gets html-stripped into card_index.body so the tag
+  // detail view + suggestion engine see real content.
+  useEffect(() => {
+    if (!board?.id || !ydoc) return;
+    syncCardIndex({ boardId: board.id, ydoc }).catch(() => {});
+  }, [board?.id, ydoc]);
+
   const [pan, setPan] = useState({ x: 40, y: 60 });
   const [zoom, setZoom] = useState(1);
   // Mirror pan/zoom into refs so live handlers (cursor broadcast,
