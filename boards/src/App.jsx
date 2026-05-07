@@ -3,7 +3,7 @@
 // (parent_board_id). Each board's cards/arrows live in a Y.Doc whose
 // snapshot is persisted to board_state.
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
