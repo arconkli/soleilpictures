@@ -12,13 +12,14 @@
 // (anywhere that listens to ENTITY_REF_MIME) applies the tag via the
 // existing entity-ref drop handlers.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Plus, Tag as TagIcon } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { ensureTag, renameTag, recolorTag, deleteTag, listTagCounts, mergeTags } from '../lib/tagsApi.js';
 import { supabase } from '../lib/supabase.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
+import { useSuggestedTags } from '../hooks/useSuggestedTags.js';
 
 const EXPAND_KEY = 'soleil.tags.sb.expanded';
 function loadExpanded(workspaceId) {
@@ -59,6 +60,43 @@ export function SidebarTags({
   // Merge picker — { fromTag, query } when user picks "Merge into…"
   const [mergePicker, setMergePicker] = useState(null);
   const inputRef = useRef(null);
+
+  // Suggested tags — frequently-recurring terms in the workspace
+  // that aren't already tags. The user one-clicks to create.
+  const existingSlugs = useMemo(
+    () => (tags || []).map(t => (t.slug || t.name || '').toLowerCase()),
+    [tags],
+  );
+  const { suggestions } = useSuggestedTags({ workspaceId, existingTagSlugs: existingSlugs });
+  const [dismissedSuggestions, setDismissedSuggestions] = useState(() => {
+    if (typeof localStorage === 'undefined') return new Set();
+    try {
+      const raw = localStorage.getItem(`soleil.tags.suggested.dismissed.${workspaceId}`);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch (_) { return new Set(); }
+  });
+  const visibleSuggestions = useMemo(
+    () => (suggestions || []).filter(s => !dismissedSuggestions.has(s.term)),
+    [suggestions, dismissedSuggestions],
+  );
+  const dismissSuggestion = (term) => {
+    setDismissedSuggestions(prev => {
+      const next = new Set(prev); next.add(term);
+      try { localStorage.setItem(`soleil.tags.suggested.dismissed.${workspaceId}`, JSON.stringify(Array.from(next))); } catch (_) {}
+      return next;
+    });
+  };
+  const acceptSuggestion = async (term) => {
+    if (!workspaceId || !term) return;
+    try {
+      await ensureTag({ workspaceId, name: term.charAt(0).toUpperCase() + term.slice(1), kind: 'user', createdBy: userId });
+      onWorkspaceTagsChanged?.();
+      // Once accepted, drop it from the dismissed list (it'll naturally
+      // disappear from suggestions because existingSlugs now includes it).
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Create tag failed: ' + (err.message || err) });
+    }
+  };
 
   // Reload counts on mount + whenever the entity_links → tag-applied
   // realtime sub fires. Use the same channel pattern as elsewhere.
@@ -266,6 +304,31 @@ export function SidebarTags({
           {sorted.length === 0 && !creating && (
             <div className="sb-tags-empty">
               No tags yet — anything you tag will appear here.
+            </div>
+          )}
+
+          {visibleSuggestions.length > 0 && (
+            <div className="sb-tags-suggestions">
+              <div className="sb-tags-suggestions-head">Suggested</div>
+              {visibleSuggestions.map(s => (
+                <div key={s.term}
+                     className="sb-tag-suggestion"
+                     title={`Mentioned in ${s.items} item${s.items > 1 ? 's' : ''} across ${s.boards} board${s.boards > 1 ? 's' : ''} — click + to make it a tag`}>
+                  <span className="sb-dot" style={{ background: fallbackColor(s.term) }} />
+                  <span className="sb-tag-suggestion-name">{s.term}</span>
+                  <span className="sb-tag-suggestion-count">{s.items}</span>
+                  <button className="sb-tag-suggestion-add"
+                          onClick={() => acceptSuggestion(s.term)}
+                          title={`Make "${s.term}" a tag`}>
+                    <Icon as={Plus} size={11} />
+                  </button>
+                  <button className="sb-tag-suggestion-x"
+                          onClick={() => dismissSuggestion(s.term)}
+                          title="Hide this suggestion">
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
