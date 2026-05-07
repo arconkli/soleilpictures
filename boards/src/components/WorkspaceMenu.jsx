@@ -7,7 +7,7 @@
 // Escape close it.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Search } from '../lib/icons.js';
+import { Plus, Search, MoreHorizontal, LogOut, Trash2 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
@@ -23,10 +23,14 @@ export function WorkspaceMenu({
   wsPeers = [],
   onSelect,
   onAddNew,
+  onRemove,             // (ws, action: 'delete' | 'leave') => void
   onClose,
 }) {
   const ref = useRef(null);
   const [filter, setFilter] = useState('');
+  // Per-row mini-menu state — only one open at a time. Stores the
+  // workspace id whose ⋯ button was clicked.
+  const [openMenuId, setOpenMenuId] = useState(null);
   // Close on outside click + Escape. Capture-phase mousedown so we beat
   // any handlers that might re-focus or repaint inside the menu.
   // Important: ignore clicks on the trigger button itself — its own
@@ -79,21 +83,54 @@ export function WorkspaceMenu({
                   :              'Shared with you';
     const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
     const tint = pickPresenceColor(w.id);
+    // Personal workspace is the user's home — not removable. Owners
+    // see "Delete workspace" (destroys it for everyone); shared
+    // members see "Leave workspace" (removes their own membership).
+    const canRemove = !!onRemove && !isPersonal;
+    const removeAction = isOwner ? 'delete' : 'leave';
+    const isMenuOpen = openMenuId === w.id;
     return (
-      <button key={w.id}
-              className={`ws-menu-row ${isActive ? 'is-active' : ''}`}
-              onClick={() => { onSelect?.(w.id); onClose?.(); }}>
-        <span className="ws-menu-avatar" style={{ background: tint }}>{initial}</span>
-        <span className="ws-menu-text">
-          <span className="ws-menu-name">{w.name}</span>
-          <span className="ws-menu-sub">{subtitle}</span>
-        </span>
-        {isActive && (
-          <svg className="ws-menu-check" width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M3 7 L6 10 L11 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+      <div key={w.id} className={`ws-menu-row-wrap ${canRemove ? 'has-menu' : ''}`}>
+        <button className={`ws-menu-row ${isActive ? 'is-active' : ''}`}
+                onClick={() => { onSelect?.(w.id); onClose?.(); }}>
+          <span className="ws-menu-avatar" style={{ background: tint }}>{initial}</span>
+          <span className="ws-menu-text">
+            <span className="ws-menu-name">{w.name}</span>
+            <span className="ws-menu-sub">{subtitle}</span>
+          </span>
+          {isActive && (
+            <svg className="ws-menu-check" width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M3 7 L6 10 L11 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </button>
+        {canRemove && (
+          <>
+            <button className="ws-menu-row-more"
+                    title={removeAction === 'delete' ? 'Delete workspace' : 'Leave workspace'}
+                    aria-label="More actions"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenuId(isMenuOpen ? null : w.id);
+                    }}>
+              <Icon as={MoreHorizontal} size={14} />
+            </button>
+            {isMenuOpen && (
+              <div className="ws-menu-row-pop" role="menu"
+                   onClick={(e) => e.stopPropagation()}>
+                <button className="ws-menu-row-pop-item danger"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          onRemove?.(w, removeAction);
+                        }}>
+                  <Icon as={removeAction === 'delete' ? Trash2 : LogOut} size={12} />
+                  <span>{removeAction === 'delete' ? 'Delete workspace' : 'Leave workspace'}</span>
+                </button>
+              </div>
+            )}
+          </>
         )}
-      </button>
+      </div>
     );
   };
 

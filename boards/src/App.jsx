@@ -1446,6 +1446,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 wsPeers={wsPeers}
                 onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
                 onAddNew={addNewWorkspace}
+                onRemove={(ws, action) => removeWorkspace(ws, action)}
                 onClose={() => setWsMenuOpen(false)}
               />
             )}
