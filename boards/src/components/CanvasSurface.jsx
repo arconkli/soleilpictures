@@ -1167,6 +1167,12 @@ export function CanvasSurface({
       }});
       items.push({ id: 'group-outline', label: g.outline ? 'Hide group outline' : 'Show group outline',
         run: () => mutators.setGroupOutline?.(g.id, { outline: !g.outline }) });
+      items.push({ id: 'group-shape', label: 'Outline shape', submenu: [
+        { id: 'gs-box', label: `Box${(g.shape || 'box') === 'box' ? '  ✓' : ''}`,
+          run: () => mutators.setGroupOutline?.(g.id, { shape: 'box', outline: true }) },
+        { id: 'gs-hug', label: `Hug${g.shape === 'hug' ? '  ✓' : ''}`,
+          run: () => mutators.setGroupOutline?.(g.id, { shape: 'hug', outline: true }) },
+      ]});
       items.push({ id: 'group-color', label: 'Group outline color…', run: () => {
         setPicker({
           value: g.color || 'var(--soleil)',
@@ -1680,11 +1686,47 @@ export function CanvasSurface({
       return;
     }
 
+    // Inbox item (chat attachment) — checked BEFORE plain URL drops
+    // because dragging an image from a message also auto-attaches a
+    // text/uri-list mime via the browser's default img drag behavior;
+    // without this priority the canvas would create a link card with
+    // the image's URL instead of an actual image card.
+    const inboxRawEarly = e.dataTransfer.getData(INBOX_MIME);
+    if (inboxRawEarly) {
+      e.preventDefault();
+      let item;
+      try { item = JSON.parse(inboxRawEarly); } catch (_) { return; }
+      const card = inboxItemToCard(item, 0, 0);
+      if (!card) return;
+      card.x = Math.round(cx - card.w / 2);
+      card.y = Math.round(cy - card.h / 2);
+      mutators.addCard?.(card);
+      onDropInboxItem && onDropInboxItem(item.id, card);
+      return;
+    }
+
     // Plain URL drag (e.g. from a list-board link row, browser address bar).
     if (types.includes('text/uri-list')) {
       e.preventDefault();
       const url = e.dataTransfer.getData('text/uri-list').split('\n')[0]?.trim();
       if (!url) return;
+      // If the URL looks like an image (file extension or content-type
+      // hint via the dragged element), drop as an image card so the
+      // browser image-drag flow lands as a real image rather than a
+      // generic link tile. Same defensive idea as the inbox case above
+      // but for cross-tab drags from outside the app.
+      const isImage = /\.(png|jpe?g|gif|webp|svg|avif)(\?|#|$)/i.test(url);
+      if (isImage) {
+        const w = 320, h = 240;
+        mutators.addCard?.({
+          id: `image-${Date.now()}`,
+          kind: 'image', src: url,
+          x: Math.max(8, Math.round(cx - w / 2)),
+          y: Math.max(8, Math.round(cy - h / 2)),
+          w, h,
+        });
+        return;
+      }
       const w = 280, h = 130;
       mutators.addCard?.({
         id: `link-${Date.now()}`,
@@ -1930,33 +1972,113 @@ export function CanvasSurface({
              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
              transformOrigin: '0 0',
            }}>
-        {/* Group outlines + name labels — drawn behind the cards. */}
+        {/* Group outlines + name labels — drawn behind the cards.
+            Two shapes:
+              'box' (default) — one rounded rect around the bounding box.
+              'hug'           — per-card rounded rects whose outlines
+                                merge where cards overlap, so the
+                                contour follows the cluster instead of
+                                a giant rectangle. */}
         {groups.length > 0 && (
           <div className="groups-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
             {groups.map(g => {
               const members = cardsByGroup.get(g.id) || [];
               if (members.length < 2) return null;
+              const stroke = g.color || 'var(--soleil)';
+              const sw = g.width || 1;
               const PAD = 12;
+              const adj = (c) => (drag && drag.ids?.includes?.(c.id))
+                ? { x: c.x + (drag.dx || 0), y: c.y + (drag.dy || 0), w: c.w, h: c.h }
+                : { x: c.x, y: c.y, w: c.w, h: c.h };
+              const adjMembers = members.map(adj);
+
+              // Bounding box (used by both modes for the label position
+              // and by 'box' mode for the rect itself).
               let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-              for (const c of members) {
-                if (drag && drag.ids?.includes?.(c.id)) {
-                  minX = Math.min(minX, c.x + (drag.dx || 0));
-                  minY = Math.min(minY, c.y + (drag.dy || 0));
-                  maxX = Math.max(maxX, c.x + (c.w || 0) + (drag.dx || 0));
-                  maxY = Math.max(maxY, c.y + (c.h || 0) + (drag.dy || 0));
-                } else {
-                  minX = Math.min(minX, c.x);
-                  minY = Math.min(minY, c.y);
-                  maxX = Math.max(maxX, c.x + (c.w || 0));
-                  maxY = Math.max(maxY, c.y + (c.h || 0));
-                }
+              for (const a of adjMembers) {
+                minX = Math.min(minX, a.x);
+                minY = Math.min(minY, a.y);
+                maxX = Math.max(maxX, a.x + (a.w || 0));
+                maxY = Math.max(maxY, a.y + (a.h || 0));
               }
               if (!Number.isFinite(minX)) return null;
+
+              const labelLeft = minX + 8 - PAD;
+              const labelTop  = minY - 22 - PAD;
+              const labelEl = g.name ? (
+                <div className="group-label"
+                     style={{
+                       position: 'absolute',
+                       left: labelLeft, top: labelTop,
+                       padding: '2px 8px',
+                       font: '700 10px/1.4 var(--font-sans)',
+                       letterSpacing: '0.12em',
+                       textTransform: 'uppercase',
+                       color: g.outline ? stroke : 'var(--ink-3)',
+                       background: 'var(--bg-1)',
+                       borderRadius: 4,
+                       border: g.outline ? `1px solid ${stroke}` : '1px solid var(--line-1)',
+                       pointerEvents: 'auto',
+                       cursor: 'default',
+                     }}
+                     title={g.name}>
+                  {g.name}
+                </div>
+              ) : null;
+
+              if ((g.shape || 'box') === 'hug' && g.outline) {
+                // Render a contoured outline by overlaying two SVG layers:
+                //  outer: rounded rects per card padded by PAD+SW filled
+                //         with the stroke color.
+                //  inner: rounded rects per card padded by PAD filled
+                //         with the canvas background — punches out the
+                //         interior so only the OUTSIDE of the union shows
+                //         in stroke color. Adjacent cards merge naturally
+                //         because both layers' rects overlap.
+                const buf = sw + 2;
+                const svgX = minX - PAD - buf;
+                const svgY = minY - PAD - buf;
+                const svgW = (maxX - minX) + 2 * (PAD + buf);
+                const svgH = (maxY - minY) + 2 * (PAD + buf);
+                return (
+                  <div key={g.id} className="group-outline group-hug" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                    <svg width={svgW} height={svgH}
+                         style={{
+                           position: 'absolute',
+                           left: svgX, top: svgY,
+                           overflow: 'visible',
+                         }}>
+                      {/* Outer (stroke color) */}
+                      {adjMembers.map((c, i) => (
+                        <rect key={`o-${i}`}
+                              x={c.x - PAD - sw - svgX}
+                              y={c.y - PAD - sw - svgY}
+                              width={c.w + 2 * (PAD + sw)}
+                              height={c.h + 2 * (PAD + sw)}
+                              rx={PAD + sw} ry={PAD + sw}
+                              fill={stroke} />
+                      ))}
+                      {/* Inner punch-out (canvas bg). uses CSS variable
+                          so it tracks the active board's background. */}
+                      {adjMembers.map((c, i) => (
+                        <rect key={`i-${i}`}
+                              x={c.x - PAD - svgX}
+                              y={c.y - PAD - svgY}
+                              width={c.w + 2 * PAD}
+                              height={c.h + 2 * PAD}
+                              rx={PAD} ry={PAD}
+                              style={{ fill: 'var(--canvas-bg, var(--bg-1))' }} />
+                      ))}
+                    </svg>
+                    {labelEl}
+                  </div>
+                );
+              }
+
+              // box mode (default)
               const x = minX - PAD, y = minY - PAD;
               const w = (maxX - minX) + PAD * 2;
               const h = (maxY - minY) + PAD * 2;
-              const stroke = g.color || 'var(--soleil)';
-              const sw = g.width || 1;
               return (
                 <div key={g.id} className={`group-outline ${g.outline ? 'is-on' : 'is-off'}`}
                      style={{
@@ -1964,29 +2086,9 @@ export function CanvasSurface({
                        left: x, top: y, width: w, height: h,
                        borderRadius: 14,
                        border: g.outline ? `${sw}px solid ${stroke}` : '1px dashed transparent',
-                       boxShadow: g.outline ? '0 0 0 1px color-mix(in oklab, currentColor 0%, transparent)' : 'none',
                        pointerEvents: 'none',
                      }}>
-                  {g.name && (
-                    <div className="group-label"
-                         style={{
-                           position: 'absolute',
-                           left: 8, top: -22,
-                           padding: '2px 8px',
-                           font: '700 10px/1.4 var(--font-sans)',
-                           letterSpacing: '0.12em',
-                           textTransform: 'uppercase',
-                           color: g.outline ? stroke : 'var(--ink-3)',
-                           background: 'var(--bg-1)',
-                           borderRadius: 4,
-                           border: g.outline ? `1px solid ${stroke}` : '1px solid var(--line-1)',
-                           pointerEvents: 'auto',
-                           cursor: 'default',
-                         }}
-                         title={g.name}>
-                      {g.name}
-                    </div>
-                  )}
+                  {labelEl}
                 </div>
               );
             })}

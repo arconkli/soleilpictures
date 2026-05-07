@@ -445,6 +445,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if ('outline' in patch) g.set('outline', !!patch.outline);
         if ('color'   in patch) g.set('color', patch.color);
         if ('width'   in patch) g.set('width', patch.width);
+        // 'box' = single rounded rect around the bounding box.
+        // 'hug' = per-card rounded rects whose outlines merge where
+        //         cards are close. Follows the contour of the cluster.
+        if ('shape'   in patch) g.set('shape', patch.shape);
       }, 'local');
     };
     const addToGroup = (groupId, cardIds) => {
