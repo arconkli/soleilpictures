@@ -6971,45 +6971,42 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
    ════════════════════════════════════════════════════════════════════════ */
 
 .tt-link {
-  /* Inherit color from surrounding text — linked text reads as text. */
-  color: inherit;
+  /* Pure typographic treatment — no underline, no border, no
+     background. Linked text reads as text with a slightly warmer
+     color and a tiny weight bump. Survives any density: even if 80%
+     of a paragraph is linked, the result is a soft golden-tinted
+     paragraph instead of an underline thicket. */
+  color: color-mix(in oklab, currentColor 86%, var(--soleil) 14%);
   cursor: pointer;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
-  /* The hairline is the body-text color (currentColor) so it never
-     fights the surrounding ink. Opacity controls its presence. */
-  text-decoration-color: currentColor;
-  -webkit-text-decoration-color: currentColor;
-  text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
-  -webkit-text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  /* Browsers ignore fractional weights but most variable fonts
+     accept them. The +20 bump is sub-perceptible at rest. */
+  font-weight: 510;
+  text-decoration: none;
   transition:
-    text-decoration-color var(--dur-fast) var(--ease),
-    text-decoration-style var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
 }
 .tt-link-manual {
-  text-decoration-color: color-mix(in oklab, currentColor 60%, transparent);
-  -webkit-text-decoration-color: color-mix(in oklab, currentColor 60%, transparent);
+  color: color-mix(in oklab, currentColor 78%, var(--soleil) 22%);
+  font-weight: 530;
 }
 .tt-link-auto {
-  text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
-  -webkit-text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  color: color-mix(in oklab, currentColor 90%, var(--soleil) 10%);
+  font-weight: 510;
 }
 .tt-link:hover, .tt-link.is-active {
-  text-decoration-style: solid;
-  text-decoration-color: var(--soleil);
-  -webkit-text-decoration-color: var(--soleil);
   color: var(--soleil);
+  background: var(--soleil-soft);
+  border-radius: 3px;
+  /* Tiny inset so the soft background pads the text without nudging
+     surrounding glyphs around. */
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 2px;
+  margin: 0 -2px;
 }
-/* Manual link inside a draggable surface — keep cursor pointer even
-   when draggable. The browser default flips to grab on draggable
-   elements; override so links read as links. */
 .tt-link[draggable="true"] { cursor: pointer; }
-
-/* When auto-detect overlaps a manual link, the manual styling wins. */
-.tt-link-manual.tt-link-auto { /* css order ensures manual wins */ }
+.tt-link-manual.tt-link-auto { /* manual wins */ }
 
 /* ─────────────────── Hover popover (EntityHoverPopover) ────────────────── */
 

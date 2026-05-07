@@ -315,8 +315,12 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
 
   // Hover-preview state machine: 250ms enter delay, 200ms grace on leave so
   // the user can move the cursor INTO the popover without it disappearing.
+  // De-duped by chip element — repeated mouseovers on the same chip
+  // (which happen as the cursor crosses internal sub-spans created by
+  // overlapping decorations) don't reset the open timer.
   const [linkHover, setLinkHover] = useState(null);
   const hoverTimers = useRef({ open: null, close: null });
+  const lastChipRef = useRef(null);
   const cancelHoverTimers = () => {
     clearTimeout(hoverTimers.current.open);
     clearTimeout(hoverTimers.current.close);
@@ -328,8 +332,13 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     const autoEl   = manualEl ? null : e.target.closest?.('.tt-link-auto[data-records]');
     const el = manualEl || autoEl;
     if (!el) return;
+    // Same chip we were already hovering → don't reset the timer or
+    // we'll never actually open the popover.
+    if (lastChipRef.current === el && (hoverTimers.current.open || linkHover)) return;
+    lastChipRef.current = el;
     cancelHoverTimers();
     hoverTimers.current.open = setTimeout(() => {
+      hoverTimers.current.open = null;
       let refs = null, term = el.textContent || '';
       if (manualEl) refs = buildRefsFromManualLink(manualEl.dataset.linkId);
       else if (autoEl) {
@@ -341,7 +350,14 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     }, 250);
   };
   const handleLinkHoverLeave = (e) => {
-    if (!e.target.closest?.('[data-link-id], .tt-link-auto[data-records]')) return;
+    const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records]');
+    if (!fromChip) return;
+    // If the cursor is moving to another element INSIDE the same chip,
+    // don't trigger the close — that's an internal sub-span boundary,
+    // not a real exit.
+    const toChip = e.relatedTarget?.closest?.('[data-link-id], .tt-link-auto[data-records]');
+    if (toChip && toChip === fromChip) return;
+    lastChipRef.current = null;
     clearTimeout(hoverTimers.current.open);
     hoverTimers.current.open = null;
     hoverTimers.current.close = setTimeout(() => setLinkHover(null), 200);
