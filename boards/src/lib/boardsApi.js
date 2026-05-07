@@ -27,11 +27,19 @@ export async function getMyFirstWorkspace() {
 // otherwise creates {workspace + member + Studio root} in a single
 // transaction. Replaces the prior racy two-step that produced duplicate
 // "Soleil" workspaces on first sign-in.
+// Now returns { workspace, rootBoardId } — the RPC is responsible
+// for ensuring both exist, in one security-definer transaction. The
+// previous shape (just the workspace) led to a JS-side fallback to
+// createBoard when the workspace existed without a root, and that
+// fallback hit RLS in some sessions.
 export async function getOrCreatePersonalWorkspace({ userId, name = 'Soleil' }) {
   const { data, error } = await supabase
     .rpc('get_or_create_personal_workspace', { p_user_id: userId, p_name: name });
   if (error) throw error;
-  return data;
+  return {
+    workspace: data?.workspace || null,
+    rootBoardId: data?.root_board_id || null,
+  };
 }
 
 // Create a workspace + add the caller as a member, all in two writes.

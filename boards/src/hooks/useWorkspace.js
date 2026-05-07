@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthGate.jsx';
-import { getOrCreatePersonalWorkspace, getRootBoard, createBoard } from '../lib/boardsApi.js';
+import { getOrCreatePersonalWorkspace, getRootBoard } from '../lib/boardsApi.js';
 
 export function useWorkspace() {
   const { user } = useAuth();
@@ -19,20 +19,17 @@ export function useWorkspace() {
     let cancelled = false;
     (async () => {
       try {
-        const ws = await getOrCreatePersonalWorkspace({ userId: user.id });
-
-        // RPC creates a Studio root the first time, but if the user later
-        // deleted theirs (from a different workspace) and we re-enter, the
-        // workspace exists with no root. Be defensive.
-        let root = await getRootBoard(ws.id);
-        if (!root) {
-          root = await createBoard({
-            workspaceId: ws.id,
-            parentBoardId: null,
-            name: 'Studio',
-            view: 'canvas',
-            userId: user.id,
-          });
+        // The RPC now returns BOTH the workspace and a guaranteed root
+        // board id (creating either if missing) in one security-definer
+        // transaction — no client-side createBoard fallback needed.
+        const { workspace: ws, rootBoardId } = await getOrCreatePersonalWorkspace({ userId: user.id });
+        if (!ws) throw new Error('personal workspace bootstrap returned nothing');
+        // Hydrate the root board row (RLS now passes because the user is
+        // a member of the workspace).
+        let root = null;
+        if (rootBoardId) {
+          // Best-effort hydrate from Postgres so callers get the full row.
+          root = await getRootBoard(ws.id);
         }
 
         if (cancelled) return;
