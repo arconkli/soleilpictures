@@ -4401,6 +4401,21 @@ body {
 }
 .tob-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
 .tob-btn.is-active { background: var(--soleil-soft); color: var(--ink-0); }
+/* Button form for inline tool actions (e.g. "Canvas" launcher inside
+   the Draw tool options). Same vibe as a segmented button without
+   the segmented frame. */
+.tob-action {
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-1);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font: 500 11.5px/1 var(--font-sans);
+  display: inline-flex; align-items: center;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.tob-action:hover { background: var(--bg-hov); color: var(--ink-0); }
 .tob-select {
   appearance: none;
   background: var(--bg-3);

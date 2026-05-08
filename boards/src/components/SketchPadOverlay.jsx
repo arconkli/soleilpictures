@@ -20,6 +20,8 @@ import { createPortal } from 'react-dom';
 import { X } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
+import { addRecentColor } from '../lib/recentColors.js';
+import { useRecentColors } from '../hooks/useRecentColors.js';
 
 const DEFAULT_COLOR = '#f5f5f6';
 const DEFAULT_WIDTH = 3;
@@ -39,6 +41,19 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [pickerPos, setPickerPos] = useState(null);
+  // Recent colors strip (per-user, persisted via lib/recentColors).
+  const recentColors = useRecentColors();
+  const swatchRow = (() => {
+    const seen = new Set();
+    const out = [];
+    for (const c of [...recentColors, ...COLOR_PRESETS]) {
+      if (!c || seen.has(c)) continue;
+      seen.add(c);
+      out.push(c);
+      if (out.length >= 10) break;
+    }
+    return out;
+  })();
   // Drawing state
   const [strokes, setStrokes]       = useState([]);
   const [activeStroke, setActive]   = useState(null);
@@ -98,6 +113,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
   const onPointerUp = () => {
     if (activeStroke && activeStroke.points?.length > 1) {
       setStrokes(prev => [...prev, activeStroke]);
+      addRecentColor(activeStroke.color);
     }
     setActive(null);
   };
@@ -126,12 +142,12 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
                   onClick={() => setTool('eraser')}
                   title="Eraser">⌫</button>
           <span className="sp-sep" />
-          {COLOR_PRESETS.map(c => (
+          {swatchRow.map(c => (
             <button key={c}
                     type="button"
                     className={`sp-color ${color === c ? 'is-active' : ''}`}
                     style={{ background: c }}
-                    onClick={() => setColor(c)}
+                    onClick={() => { setColor(c); addRecentColor(c); }}
                     title={c} />
           ))}
           <button type="button"
@@ -212,7 +228,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
       </div>
       {pickerPos && (
         <ColorPicker value={color}
-                     onChange={setColor}
+                     onChange={(c) => { setColor(c); addRecentColor(c); }}
                      onClose={() => setPickerPos(null)}
                      position={pickerPos}
                      allowTransparent={false} />

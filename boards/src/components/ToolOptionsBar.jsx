@@ -69,6 +69,7 @@ export function ToolOptionsBar({
   paletteColors = [],
   openColorPicker,
   anchorRect,           // viewport-space rect of the selected card
+  onOpenSketchpad,      // launch the fullscreen sketch pad from inside Draw tool
 }) {
   const recentColors = useRecentColors();
   const openPickerAt = (e, opts) => {
@@ -179,7 +180,12 @@ export function ToolOptionsBar({
               <button className="tob-sw tob-sw-custom" title="Custom hex…"
                       onClick={(e) => openPickerAt(e, {
                         value: drawOptions.color,
-                        onChange: (col) => setDrawOptions({ ...drawOptions, color: col }),
+                        onChange: (col) => {
+                          setDrawOptions({ ...drawOptions, color: col });
+                          // Track the picked color in recents so the
+                          // strip updates as the user explores hexes.
+                          addRecentColor(col);
+                        },
                       })}>+</button>
             </div>
           </>
@@ -195,6 +201,20 @@ export function ToolOptionsBar({
             </button>
           ))}
         </div>
+        {onOpenSketchpad && (
+          <>
+            <span className="tob-sep" />
+            <button className="tob-action"
+                    title="Open a fullscreen drawing canvas"
+                    onClick={onOpenSketchpad}>
+              <svg width="14" height="14" viewBox="0 0 20 20" style={{ marginRight: 6, verticalAlign: '-2px' }}>
+                <rect x="3" y="3" width="14" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.4" fill="none"/>
+                <path d="M6 13 Q9 8 13 11 Q15 12 14 14" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+              </svg>
+              Canvas
+            </button>
+          </>
+        )}
       </div>
     );
   }

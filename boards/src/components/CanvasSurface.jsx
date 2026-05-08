@@ -233,7 +233,15 @@ export function CanvasSurface({
   // is hovering over — so when they release we can move the dragged cards
   // INTO that board. Drives a .is-card-drop-target class on the matching
   // board card so the affordance is visible.
+  // The state drives rendering; the ref mirrors it so the long-lived
+  // pointermove/pointerup closures can read the LATEST value (state in
+  // a captured closure goes stale across React re-renders).
   const [boardDropTarget, setBoardDropTarget] = useState(null);
+  const boardDropTargetRef = useRef(null);
+  const updateBoardDropTarget = useCallback((next) => {
+    boardDropTargetRef.current = next;
+    setBoardDropTarget(next);
+  }, []);
   // Eyedropper mode — when set to a palette card id, the next click on
   // an image card on this board samples a pixel and adds it as a swatch
   // to that palette. Escape exits the mode.
@@ -1314,21 +1322,26 @@ export function CanvasSurface({
       const { dx, dy, hints } = snap;
       setDrag({ ids: dragIds, dx, dy, startPositions });
       setSnapHints(hints);
-      // Same-canvas board-drop hover detection. If the cursor is over a
-      // board card that's not in the dragged set, we'll commit the drop
-      // by moving the dragged cards INTO that board.
+      // Same-canvas board-drop hover detection. The dragged cards
+      // themselves sit under the cursor, so elementFromPoint would
+      // return them; use elementsFromPoint and walk the stack to find
+      // the FIRST card-id that's not in the dragged set.
       let nextDropTarget = null;
       if (Math.abs(dx) + Math.abs(dy) > 4) {
-        const el = document.elementFromPoint(ev.clientX, ev.clientY);
-        const cardEl = el?.closest?.('[data-card-id]');
-        const id = cardEl?.getAttribute?.('data-card-id');
-        if (id && !dragIds.includes(id)) {
+        const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
+        for (const el of stack) {
+          const cardEl = el?.closest?.('[data-card-id]');
+          const id = cardEl?.getAttribute?.('data-card-id');
+          if (!id) continue;
+          if (dragIds.includes(id)) continue;
           const tc = cardById[id];
-          if (tc?.kind === 'board') nextDropTarget = tc.id;
-          else if (tc?.kind === 'boardlink' && tc.target) nextDropTarget = tc.target;
+          if (tc?.kind === 'board') { nextDropTarget = tc.id; break; }
+          if (tc?.kind === 'boardlink' && tc.target) { nextDropTarget = tc.target; break; }
+          // Keep walking the stack — non-board cards aren't drop
+          // targets but we don't want to stop on them either.
         }
       }
-      setBoardDropTarget(nextDropTarget);
+      updateBoardDropTarget(nextDropTarget);
       // Live cross-pane / inbox hover signal — other panes use this to
       // highlight themselves as drop targets while the pointer is over them.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
@@ -1362,9 +1375,10 @@ export function CanvasSurface({
       // the final position via Yjs sync.)
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
       // ── Same-canvas drop onto a board card (move INTO that board) ──
-      // Capture the target before we clear hover state.
-      const targetBoardId = boardDropTarget;
-      setBoardDropTarget(null);
+      // Read from the ref — the state captured in this closure is stale
+      // across re-renders during the drag.
+      const targetBoardId = boardDropTargetRef.current;
+      updateBoardDropTarget(null);
       if (targetBoardId && (Math.abs(dx) + Math.abs(dy) > 4)) {
         const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
         if (movedCards.length) {
@@ -1897,7 +1911,12 @@ export function CanvasSurface({
       const onUp = () => {
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
-        if (points.length > 1) mutators.addStroke?.({ color, width, points });
+        if (points.length > 1) {
+          mutators.addStroke?.({ color, width, points });
+          // Surface the just-used color in recents so the swatch
+          // strip in the draw tool options updates as the user works.
+          addRecentColor(color);
+        }
         setActiveStroke(null);
       };
       window.addEventListener('pointermove', onMove);
@@ -3670,19 +3689,6 @@ export function CanvasSurface({
             <svg width="20" height="20" viewBox="0 0 20 20">{t.svg}</svg>
           </div>
         ))}
-        <div className="cnv-tool-sep" />
-        <div className="cnv-tool"
-             title="Sketch pad — fullscreen drawing"
-             role="button"
-             tabIndex={0}
-             aria-label="Sketch pad"
-             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSketchpadOpen(true); } }}
-             onPointerDown={(e) => { e.stopPropagation(); setSketchpadOpen(true); }}>
-          <svg width="20" height="20" viewBox="0 0 20 20">
-            <rect x="3" y="3" width="14" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-            <path d="M6 13 Q9 8 13 11 Q15 12 14 14" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
-          </svg>
-        </div>
       </div>
 
       {selectedTool === 'arrow' && (
@@ -3801,6 +3807,7 @@ export function CanvasSurface({
         drawOptions={drawOptions} setDrawOptions={setDrawOptions}
         shapeOptions={shapeOptions} setShapeOptions={setShapeOptions}
         arrowOptions={arrowOptions} setArrowOptions={setArrowOptions}
+        onOpenSketchpad={() => setSketchpadOpen(true)}
         editingNoteCard={editingNoteId ? cardById[editingNoteId] : null}
         onUpdateEditingNote={editingNoteId ? (patch) => mutators.updateCard?.(editingNoteId, patch) : null}
         editingShapeCard={(() => {
