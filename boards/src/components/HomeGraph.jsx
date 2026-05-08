@@ -115,10 +115,10 @@ export function HomeGraph({ workspaceId, onNavigate }) {
       geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       const mat = new THREE.PointsMaterial({
-        size: 1.6,
+        size: 1.3,
         vertexColors: true,
         transparent: true,
-        opacity: 0.65,
+        opacity: 0.38,
         depthWrite: false,
         sizeAttenuation: false,
         blending: THREE.AdditiveBlending,
@@ -151,10 +151,10 @@ export function HomeGraph({ workspaceId, onNavigate }) {
         const cGeom = new THREE.BufferGeometry();
         cGeom.setAttribute('position', new THREE.BufferAttribute(cPos, 3));
         const cMat = new THREE.PointsMaterial({
-          size: 2.4,
+          size: 1.9,
           color: hue,
           transparent: true,
-          opacity: 0.55,
+          opacity: 0.30,
           depthWrite: false,
           sizeAttenuation: false,
           blending: THREE.AdditiveBlending,
