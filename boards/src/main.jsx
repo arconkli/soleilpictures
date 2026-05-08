@@ -4,6 +4,7 @@ import { App } from './App.jsx';
 import { AuthGate } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { PublicBoardView } from './components/PublicBoardView.jsx';
+import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import './styles.css';
 
 // Expose a small set of internals for end-to-end tests when running in
@@ -28,14 +29,16 @@ const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <FeedbackProvider>
-      {shareMatch ? (
-        <PublicBoardView token={shareMatch[1]} />
-      ) : (
-        <AuthGate>
-          <App />
-        </AuthGate>
-      )}
-    </FeedbackProvider>
+    <AppErrorBoundary>
+      <FeedbackProvider>
+        {shareMatch ? (
+          <PublicBoardView token={shareMatch[1]} />
+        ) : (
+          <AuthGate>
+            <App />
+          </AuthGate>
+        )}
+      </FeedbackProvider>
+    </AppErrorBoundary>
   </StrictMode>
 );
