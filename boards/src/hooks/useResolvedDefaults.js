@@ -122,12 +122,17 @@ export function useResolvedDefaults({ workspaceId, userId }) {
   }, [userId, tick]);
 
   const defaults = useMemo(() => {
+    // Card categories (note/board/doc/shape/palette) are workspace-only.
+    // The `ui` category is per-user (theme, accent, hideChrome, fonts).
+    // We deliberately don't merge user.note over workspace.note — defaults
+    // on the canvas are a *house style* concept, not a personal one.
     const out = {};
     for (const k of Object.keys(HARDCODED_FALLBACKS)) {
-      out[k] = mergeCat(
-        mergeCat(HARDCODED_FALLBACKS[k], workspaceSettings[k]),
-        mySettings[k],
-      );
+      if (k === 'ui') {
+        out[k] = mergeCat(HARDCODED_FALLBACKS[k], mySettings[k]);
+      } else {
+        out[k] = mergeCat(HARDCODED_FALLBACKS[k], workspaceSettings[k]);
+      }
     }
     return out;
   }, [workspaceSettings, mySettings]);

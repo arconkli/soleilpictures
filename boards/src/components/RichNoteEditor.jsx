@@ -13,7 +13,7 @@ import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
 
 export function RichNoteEditor({
-  html, body, bgColor, textColor,
+  html, body, bgColor, textColor, fontFamily, fontSize,
   onChangeHTML, onChangeBg, onChangeColor,
   onEditingChange,
   onAutoSize, // (height) => void  — fires while editing if not manually resized
@@ -275,9 +275,12 @@ export function RichNoteEditor({
     setMention(null);
   };
 
+  const noteStyle = { background: bg, color: textColor || undefined };
+  if (fontFamily) noteStyle.fontFamily = fontFamily;
+  if (fontSize) noteStyle.fontSize = `${fontSize}px`;
   return (
     <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${isTransparent ? 'is-transparent' : ''}`}
-         style={{ background: bg, color: textColor || undefined }}
+         style={noteStyle}
          onDoubleClick={onOuterDouble}>
       <div ref={ref}
            className="note-body"

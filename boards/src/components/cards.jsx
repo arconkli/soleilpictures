@@ -600,12 +600,19 @@ export function VideoCard({ src, title, onUpdate, autoFocus = false }) {
   );
 }
 
-export function NoteCard({ body, html, bgColor, textColor, onUpdate, onEditingChange, autoFocus = false,
+export function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
+                           onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
                            awareness = null, cardId = null, boardId = null, peerLiveHtml = null }) {
+  // Workspace defaults can pin a fontFamily/fontSize at create time —
+  // pass them through as inline styles so existing notes that didn't
+  // capture them keep falling back to the page default.
+  const fontStyle = {};
+  if (fontFamily) fontStyle.fontFamily = fontFamily;
+  if (fontSize) fontStyle.fontSize = `${fontSize}px`;
   if (!onUpdate) {
     const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
-    return <div className="note" style={{ background: bgColor || undefined, color: textColor || undefined }}>
+    return <div className="note" style={{ background: bgColor || undefined, color: textColor || undefined, ...fontStyle }}>
       <NoteAutoLinkBody html={display} />
     </div>;
   }
@@ -613,6 +620,7 @@ export function NoteCard({ body, html, bgColor, textColor, onUpdate, onEditingCh
     <RichNoteEditor
       html={html} body={body}
       bgColor={bgColor} textColor={textColor}
+      fontFamily={fontFamily} fontSize={fontSize}
       onChangeHTML={(h) => onUpdate({ html: h, body: null })}
       onChangeBg={(c) => onUpdate({ bgColor: c })}
       onChangeColor={(c) => onUpdate({ textColor: c })}

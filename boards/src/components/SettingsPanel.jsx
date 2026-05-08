@@ -37,13 +37,127 @@ const TABS = [
   { id: 'display',   label: 'Display' },
 ];
 
+// Curated quick-pick fonts + a "Custom…" escape hatch that pulls from
+// Google Fonts on demand. Each preset's `gf` is the Google Fonts family
+// name (or null for system fonts that don't need a remote load).
 const FONT_PRESETS = [
-  { id: 'sans',     name: 'Aileron',     css: 'aileron, -apple-system, system-ui, sans-serif' },
-  { id: 'inter',    name: 'Inter',       css: 'Inter, -apple-system, system-ui, sans-serif' },
-  { id: 'serif',    name: 'Serif',       css: 'Georgia, "Times New Roman", serif' },
-  { id: 'caveat',   name: 'Handwritten', css: 'Caveat, cursive' },
-  { id: 'mono',     name: 'Mono',        css: '"JetBrains Mono", ui-monospace, monospace' },
+  // System / brand
+  { id: 'aileron',  name: 'Aileron (default)', css: 'aileron, -apple-system, system-ui, sans-serif', gf: null },
+  { id: 'system',   name: 'System sans',       css: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif', gf: null },
+  // Sans
+  { id: 'inter',    name: 'Inter',             css: '"Inter", system-ui, sans-serif', gf: 'Inter' },
+  { id: 'manrope',  name: 'Manrope',           css: '"Manrope", system-ui, sans-serif', gf: 'Manrope' },
+  { id: 'plex-sans',name: 'IBM Plex Sans',     css: '"IBM Plex Sans", sans-serif', gf: 'IBM+Plex+Sans' },
+  { id: 'work',     name: 'Work Sans',         css: '"Work Sans", sans-serif', gf: 'Work+Sans' },
+  { id: 'dmsans',   name: 'DM Sans',           css: '"DM Sans", sans-serif', gf: 'DM+Sans' },
+  { id: 'space',    name: 'Space Grotesk',     css: '"Space Grotesk", sans-serif', gf: 'Space+Grotesk' },
+  { id: 'host',     name: 'Host Grotesk',      css: '"Host Grotesk", sans-serif', gf: 'Host+Grotesk' },
+  { id: 'archivo',  name: 'Archivo',           css: '"Archivo", sans-serif', gf: 'Archivo' },
+  // Serif / editorial
+  { id: 'lora',     name: 'Lora',              css: '"Lora", Georgia, serif', gf: 'Lora' },
+  { id: 'eb',       name: 'EB Garamond',       css: '"EB Garamond", Georgia, serif', gf: 'EB+Garamond' },
+  { id: 'fraunces', name: 'Fraunces',          css: '"Fraunces", Georgia, serif', gf: 'Fraunces' },
+  { id: 'crimson',  name: 'Crimson Pro',       css: '"Crimson Pro", Georgia, serif', gf: 'Crimson+Pro' },
+  { id: 'plex-serif', name: 'IBM Plex Serif',  css: '"IBM Plex Serif", Georgia, serif', gf: 'IBM+Plex+Serif' },
+  { id: 'serif',    name: 'Georgia (system)',  css: 'Georgia, "Times New Roman", serif', gf: null },
+  // Display
+  { id: 'syne',     name: 'Syne',              css: '"Syne", sans-serif', gf: 'Syne' },
+  { id: 'unbounded',name: 'Unbounded',         css: '"Unbounded", sans-serif', gf: 'Unbounded' },
+  { id: 'bricolage',name: 'Bricolage Grotesque', css: '"Bricolage Grotesque", sans-serif', gf: 'Bricolage+Grotesque' },
+  // Handwritten
+  { id: 'caveat',   name: 'Caveat (handwritten)', css: '"Caveat", cursive', gf: 'Caveat' },
+  { id: 'kalam',    name: 'Kalam',             css: '"Kalam", cursive', gf: 'Kalam' },
+  { id: 'reenie',   name: 'Reenie Beanie',     css: '"Reenie Beanie", cursive', gf: 'Reenie+Beanie' },
+  // Mono
+  { id: 'plex-mono',name: 'IBM Plex Mono',     css: '"IBM Plex Mono", ui-monospace, monospace', gf: 'IBM+Plex+Mono' },
+  { id: 'jetbrains',name: 'JetBrains Mono',    css: '"JetBrains Mono", ui-monospace, monospace', gf: 'JetBrains+Mono' },
+  { id: 'mono',     name: 'System mono',       css: 'ui-monospace, "SF Mono", Menlo, monospace', gf: null },
 ];
+
+// Inject a Google Fonts stylesheet on demand. Idempotent — same family
+// only loads once. Used by FontField when the user picks a font that
+// isn't already on the page (i.e. anything beyond Aileron + system).
+function ensureGoogleFont(family) {
+  if (!family || typeof document === 'undefined') return;
+  const id = `gf-${family.replace(/[^a-z0-9_-]/gi, '')}`;
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${family}:wght@300;400;500;600;700&display=swap`;
+  document.head.appendChild(link);
+}
+
+// Small picker that supports the curated list AND a free-text custom
+// font. Custom mode auto-loads the chosen family from Google Fonts so
+// users can paste any name and see it apply live.
+function FontField({ value, onChange, disabled }) {
+  const preset = FONT_PRESETS.find(f => f.css === value);
+  const initialMode = !value ? '' : (preset ? preset.id : '__custom');
+  const [mode, setMode] = useState(initialMode);
+  const [custom, setCustom] = useState(preset ? '' : (value || ''));
+
+  // Re-sync if the saved value changes externally (e.g. someone else
+  // edits the workspace setting).
+  useEffect(() => {
+    const p = FONT_PRESETS.find(f => f.css === value);
+    if (!value) { setMode(''); setCustom(''); }
+    else if (p) { setMode(p.id); setCustom(''); }
+    else { setMode('__custom'); setCustom(value); }
+  }, [value]);
+
+  const onSelect = (e) => {
+    const v = e.target.value;
+    setMode(v);
+    if (v === '') { onChange(null); return; }
+    if (v === '__custom') {
+      // Don't write yet — wait for the text input to commit.
+      return;
+    }
+    const p = FONT_PRESETS.find(f => f.id === v);
+    if (!p) return;
+    if (p.gf) ensureGoogleFont(p.gf);
+    onChange(p.css);
+  };
+
+  const commitCustom = () => {
+    const t = custom.trim();
+    if (!t) { onChange(null); return; }
+    // Extract the first family name to load from Google Fonts.
+    const first = t.split(',')[0].replace(/['"]/g, '').trim();
+    const familyParam = first.replace(/\s+/g, '+');
+    if (familyParam) ensureGoogleFont(familyParam);
+    // Build a CSS font-family string. If the user gave us a bare family
+    // name with no fallbacks, append a sensible system fallback chain.
+    const cssValue = t.includes(',') ? t : `"${first}", system-ui, sans-serif`;
+    onChange(cssValue);
+  };
+
+  return (
+    <div className="settings-font-row">
+      <select className="settings-input"
+              value={mode}
+              disabled={disabled}
+              onChange={onSelect}>
+        <option value="">Default</option>
+        {FONT_PRESETS.map(f => (
+          <option key={f.id} value={f.id} style={{ fontFamily: f.css }}>{f.name}</option>
+        ))}
+        <option value="__custom">Custom…</option>
+      </select>
+      {mode === '__custom' && (
+        <input className="settings-input settings-font-custom"
+               type="text"
+               placeholder="e.g. Atkinson Hyperlegible"
+               value={custom}
+               disabled={disabled}
+               onChange={(e) => setCustom(e.target.value)}
+               onBlur={commitCustom}
+               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitCustom(); } }} />
+      )}
+    </div>
+  );
+}
 
 const ACCENT_PRESETS = [
   '#d4a04a', // soleil (default)
@@ -262,13 +376,14 @@ function ProfileTab({ user, onSaved }) {
   );
 }
 
-// ── Defaults tab — workspace OR user defaults for new cards ─────────────
-function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh }) {
+// ── Defaults tab — workspace-wide defaults for new cards ─────────────────
+// Editable by workspace editors and owners only. Viewers see the values
+// for context but the inputs are disabled. Changes apply to every member
+// when they create a new card next.
+function DefaultsTab({ workspaceId, role, workspaceSettings, refresh }) {
   const feedback = useFeedback();
-  const canEditWorkspace = role === 'editor' || role === 'owner';
-  // Which scope the user is currently editing. Viewers are pinned to
-  // 'mine' since they can't write workspace settings.
-  const [scope, setScope] = useState(canEditWorkspace ? 'workspace' : 'mine');
+  const canEdit = role === 'editor' || role === 'owner';
+  const disabled = !canEdit;
   // "Saved ✓" flash that fades after each successful save.
   const [savedAt, setSavedAt] = useState(0);
   const flashSaved = () => setSavedAt(Date.now());
@@ -278,23 +393,17 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
     return () => clearTimeout(t);
   }, [savedAt]);
 
-  // Settings being viewed/edited — live snapshot of the right scope.
-  const settings = scope === 'workspace' ? workspaceSettings : mySettings;
+  const settings = workspaceSettings;
   const setKey = (cat, key, value) => savePatch(cat, { [key]: value });
   const savePatch = async (cat, patch) => {
+    if (!canEdit || !workspaceId) return;
     const merged = { ...(settings[cat] || {}), ...patch };
-    // Prune null/undefined so the workspace value can shine through.
+    // Prune empties so the hardcoded fallback shines through.
     for (const k of Object.keys(merged)) {
       if (merged[k] === null || merged[k] === undefined || merged[k] === '') delete merged[k];
     }
-    const top = { [cat]: merged };
     try {
-      if (scope === 'workspace') {
-        if (!workspaceId) return;
-        await updateWorkspaceSettings(workspaceId, top);
-      } else {
-        await updateOwnSettings(top);
-      }
+      await updateWorkspaceSettings(workspaceId, { [cat]: merged });
       refresh?.();
       flashSaved();
     } catch (err) {
@@ -304,39 +413,16 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
 
   return (
     <div className="settings-section">
-      <h3 className="settings-section-title">Defaults</h3>
-      <p className="settings-section-hint">
-        Defaults flow into every new card you create.
-        Resolution order is: Workspace → Yours → built-in.
-      </p>
-      <div className="settings-scope-row" role="tablist">
-        <button type="button"
-                role="tab"
-                className={`settings-scope-pill ${scope === 'workspace' ? 'is-active' : ''} ${!canEditWorkspace ? 'is-locked' : ''}`}
-                onClick={() => setScope('workspace')}
-                title={canEditWorkspace
-                  ? 'Edit defaults that apply to everyone on the workspace'
-                  : 'Workspace defaults are read-only — you have viewer access'}>
-          <span className="settings-scope-dot settings-scope-dot-ws" />
-          Workspace {!canEditWorkspace && '(read-only)'}
-        </button>
-        <button type="button"
-                role="tab"
-                className={`settings-scope-pill ${scope === 'mine' ? 'is-active' : ''}`}
-                onClick={() => setScope('mine')}>
-          <span className="settings-scope-dot settings-scope-dot-mine" />
-          Yours
-        </button>
-        <span style={{ flex: 1 }} />
+      <div className="settings-section-headrow">
+        <h3 className="settings-section-title">Workspace defaults</h3>
         <span className={`settings-saved-flash ${savedAt ? 'is-on' : ''}`}>Saved ✓</span>
       </div>
-      {!canEditWorkspace && scope === 'workspace' && (
-        <p className="settings-section-hint settings-viewer-hint">
-          You have viewer access — workspace defaults show below for context,
-          but only editors and owners can change them. Switch to “Yours” to
-          set personal overrides.
-        </p>
-      )}
+      <p className="settings-section-hint">
+        These set the starting look of every new card on this workspace.
+        {canEdit
+          ? ' Anyone you create now will pick these up; existing cards aren’t changed.'
+          : ' You have viewer access — only editors and owners can change them.'}
+      </p>
 
       {/* NOTES */}
       <SettingsCategory title="Notes" desc="When you create a sticky note">
@@ -344,63 +430,40 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
           <SwatchInput
             value={settings.note?.bgColor ?? null}
             fallback={HARDCODED_FALLBACKS.note.bgColor}
-            disabled={scope === 'workspace' && !canEditWorkspace}
+            disabled={disabled}
             onChange={(v) => setKey('note', 'bgColor', v)} />
         </Field>
         <Field label="Text color">
           <SwatchInput
             value={settings.note?.textColor ?? null}
             fallback={HARDCODED_FALLBACKS.note.textColor}
-            disabled={scope === 'workspace' && !canEditWorkspace}
+            disabled={disabled}
             onChange={(v) => setKey('note', 'textColor', v)} />
         </Field>
         <Field label="Font">
-          <select className="settings-input"
-                  value={settings.note?.fontFamily ?? ''}
-                  disabled={scope === 'workspace' && !canEditWorkspace}
-                  onChange={(e) => setKey('note', 'fontFamily', e.target.value || null)}>
-            <option value="">Default</option>
-            {FONT_PRESETS.map(f => (
-              <option key={f.id} value={f.css}>{f.name}</option>
-            ))}
-          </select>
+          <FontField value={settings.note?.fontFamily ?? null}
+                     disabled={disabled}
+                     onChange={(v) => setKey('note', 'fontFamily', v)} />
         </Field>
         <Field label="Font size">
           <input type="number" min="8" max="36"
                  className="settings-input"
                  placeholder="12.5"
                  value={settings.note?.fontSize ?? ''}
-                 disabled={scope === 'workspace' && !canEditWorkspace}
+                 disabled={disabled}
                  onChange={(e) => {
                    const v = e.target.value;
                    setKey('note', 'fontSize', v === '' ? null : Number(v));
                  }} />
         </Field>
-        <Field label="Default size">
-          <SizeInput
-            w={settings.note?.w ?? null} h={settings.note?.h ?? null}
-            wFallback={HARDCODED_FALLBACKS.note.w} hFallback={HARDCODED_FALLBACKS.note.h}
-            disabled={scope === 'workspace' && !canEditWorkspace}
-            onChange={(w, h) => savePatch('note', { w, h })} />
-        </Field>
       </SettingsCategory>
 
       {/* BOARDS */}
       <SettingsCategory title="Boards" desc="When you create a new board">
-        <Field label="Cover tint">
-          <select className="settings-input"
-                  value={settings.board?.cover ?? 'neutral'}
-                  disabled={scope === 'workspace' && !canEditWorkspace}
-                  onChange={(e) => setKey('board', 'cover', e.target.value === 'neutral' ? null : e.target.value)}>
-            {Object.keys(COVER_TINTS).map(k => (
-              <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>
-            ))}
-          </select>
-        </Field>
         <Field label="Default view">
           <select className="settings-input"
                   value={settings.board?.view ?? 'canvas'}
-                  disabled={scope === 'workspace' && !canEditWorkspace}
+                  disabled={disabled}
                   onChange={(e) => setKey('board', 'view', e.target.value)}>
             <option value="canvas">Canvas</option>
             <option value="list">List</option>
@@ -411,22 +474,9 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
       {/* DOCS */}
       <SettingsCategory title="Docs" desc="When you create a new doc">
         <Field label="Font">
-          <select className="settings-input"
-                  value={settings.doc?.fontFamily ?? ''}
-                  disabled={scope === 'workspace' && !canEditWorkspace}
-                  onChange={(e) => setKey('doc', 'fontFamily', e.target.value || null)}>
-            <option value="">Default</option>
-            {FONT_PRESETS.map(f => (
-              <option key={f.id} value={f.css}>{f.name}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Default size">
-          <SizeInput
-            w={settings.doc?.w ?? null} h={settings.doc?.h ?? null}
-            wFallback={HARDCODED_FALLBACKS.doc.w} hFallback={HARDCODED_FALLBACKS.doc.h}
-            disabled={scope === 'workspace' && !canEditWorkspace}
-            onChange={(w, h) => savePatch('doc', { w, h })} />
+          <FontField value={settings.doc?.fontFamily ?? null}
+                     disabled={disabled}
+                     onChange={(v) => setKey('doc', 'fontFamily', v)} />
         </Field>
       </SettingsCategory>
 
@@ -436,7 +486,7 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
           <SwatchInput
             value={settings.shape?.stroke ?? null}
             fallback={HARDCODED_FALLBACKS.shape.stroke}
-            disabled={scope === 'workspace' && !canEditWorkspace}
+            disabled={disabled}
             onChange={(v) => setKey('shape', 'stroke', v)} />
         </Field>
         <Field label="Fill">
@@ -444,14 +494,14 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
             value={settings.shape?.fill ?? null}
             fallback={HARDCODED_FALLBACKS.shape.fill}
             allowTransparent
-            disabled={scope === 'workspace' && !canEditWorkspace}
+            disabled={disabled}
             onChange={(v) => setKey('shape', 'fill', v)} />
         </Field>
         <Field label="Stroke width">
           <input type="number" min="1" max="12"
                  className="settings-input"
                  value={settings.shape?.strokeWidth ?? HARDCODED_FALLBACKS.shape.strokeWidth}
-                 disabled={scope === 'workspace' && !canEditWorkspace}
+                 disabled={disabled}
                  onChange={(e) => setKey('shape', 'strokeWidth', Number(e.target.value) || 2)} />
         </Field>
       </SettingsCategory>
@@ -564,32 +614,54 @@ function ThemeTab({ mySettings, refresh }) {
       </Field>
 
       <Field label="Accent">
-        <div className="settings-accent-row">
-          {ACCENT_PRESETS.map(c => (
-            <button key={c}
-                    type="button"
-                    className={`settings-accent-dot ${ui.accent === c ? 'is-active' : ''}`}
-                    style={{ background: c }}
-                    title={c}
-                    onClick={() => setUi({ accent: c })} />
-          ))}
-          <button type="button"
-                  className={`settings-accent-dot settings-accent-dot-clear ${!ui.accent ? 'is-active' : ''}`}
-                  title="Default soleil gold"
-                  onClick={() => setUi({ accent: null })}>×</button>
-        </div>
+        <AccentPicker value={ui.accent || null} onChange={(v) => setUi({ accent: v })} />
       </Field>
 
       <Field label="Body font">
-        <select className="settings-input"
-                value={ui.fontSans || ''}
-                onChange={(e) => setUi({ fontSans: e.target.value || null })}>
-          <option value="">Default (Aileron)</option>
-          {FONT_PRESETS.filter(f => f.id !== 'mono').map(f => (
-            <option key={f.id} value={f.css}>{f.name}</option>
-          ))}
-        </select>
+        <FontField value={ui.fontSans || null} onChange={(v) => setUi({ fontSans: v })} />
       </Field>
+    </div>
+  );
+}
+
+// Accent picker — preset dots + a "Custom" chip that opens the full
+// ColorPicker modal so the user isn't capped at 8 swatches.
+function AccentPicker({ value, onChange }) {
+  const [pickerPos, setPickerPos] = useState(null);
+  const customRef = useRef(null);
+  const isCustom = value && !ACCENT_PRESETS.includes(value);
+  return (
+    <div className="settings-accent-row">
+      {ACCENT_PRESETS.map(c => (
+        <button key={c}
+                type="button"
+                className={`settings-accent-dot ${value === c ? 'is-active' : ''}`}
+                style={{ background: c }}
+                title={c}
+                onClick={() => onChange(c)} />
+      ))}
+      <button ref={customRef}
+              type="button"
+              className={`settings-accent-dot settings-accent-dot-custom ${isCustom ? 'is-active' : ''}`}
+              style={isCustom ? { background: value } : undefined}
+              title={isCustom ? `Custom — ${value}` : 'Custom color'}
+              onClick={(e) => {
+                const r = customRef.current?.getBoundingClientRect();
+                if (r) setPickerPos({ x: r.left + r.width / 2, y: r.bottom + 8 });
+              }}>
+        {isCustom ? '' : '+'}
+      </button>
+      <button type="button"
+              className={`settings-accent-dot settings-accent-dot-clear ${!value ? 'is-active' : ''}`}
+              title="Default soleil gold"
+              onClick={() => onChange(null)}>×</button>
+      {pickerPos && (
+        <ColorPicker value={value || '#d4a04a'}
+                     onChange={onChange}
+                     onClose={() => setPickerPos(null)}
+                     position={pickerPos}
+                     allowTransparent={false} />
+      )}
     </div>
   );
 }

@@ -9899,6 +9899,26 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: inline-flex; align-items: center; justify-content: center;
   font: 500 12px/1 var(--font-sans);
 }
+.settings-accent-dot-custom {
+  background: conic-gradient(from 0deg, #ef4444, #f59e0b, #10b981, #06b6d4, #6366f1, #ec4899, #ef4444);
+  color: white;
+  font: 600 13px/1 var(--font-sans);
+  display: inline-flex; align-items: center; justify-content: center;
+  text-shadow: 0 1px 1px rgba(0,0,0,.3);
+}
+.settings-accent-dot-custom.is-active { transform: scale(1.1); }
+/* Font picker — selector + optional custom-name input row. */
+.settings-font-row {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1 1 auto;
+}
+.settings-font-row .settings-input { flex: 1 1 auto; min-width: 0; }
+.settings-font-custom { flex: 1 1 180px; }
+/* Headrow that puts a Saved-flash next to the section title. */
+.settings-section-headrow {
+  display: flex; align-items: baseline; gap: 12px;
+}
+.settings-section-headrow .settings-section-title { flex: 1 1 auto; }
 .settings-empty {
   padding: 24px 0;
   text-align: center;
