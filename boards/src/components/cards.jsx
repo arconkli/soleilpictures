@@ -468,7 +468,8 @@ export function BoardLinkCard({ targetBoard, note, onOpen }) {
 export function ImageCard({ src, label, title, link, tone, aspect, caption,
                             onUpdate, autoFocus = false,
                             editTitleAt = 0, editCaptionAt = 0,
-                            onAfterEdit }) {
+                            onAfterEdit,
+                            pending = false, uploadProgress = null }) {
   // Caption + title are hidden until a value exists OR the user opts in to
   // edit. Double-click on the image area focuses the title editor (creating
   // it on the fly). Hover affordance for adding a caption. Right-click in
@@ -508,6 +509,14 @@ export function ImageCard({ src, label, title, link, tone, aspect, caption,
         {src
           ? <R2Image src={src} alt={title || label || ''} className="ic-img" draggable="false" />
           : <ImagePlaceholder label={label} tone={tone} aspect={aspect} />}
+        {pending && (
+          <div className="ic-upload-overlay" aria-label="Uploading image">
+            <div className="ic-upload-spinner" />
+            {uploadProgress != null && (
+              <div className="ic-upload-progress">{Math.round(uploadProgress * 100)}%</div>
+            )}
+          </div>
+        )}
         {showCaption && onUpdate && (
           <EditableText
             className="ic-cap editable-overlay"

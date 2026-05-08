@@ -218,6 +218,14 @@ export function CanvasSurface({
   const [arrowFrom, setArrowFrom] = useState(null);
   const [activeStroke, setActiveStroke] = useState(null);
   const [activeFreeArrow, setActiveFreeArrow] = useState(null); // { from:{x,y}, to:{x,y} }
+  // Per-card upload progress (cardId → 0..1). Threaded into ImageCard so
+  // the spinner overlay can show a percentage while uploading.
+  const [uploadProgressById, setUploadProgressById] = useState({});
+  // Local-only blob URL previews keyed by cardId. We don't write blob URLs
+  // into the Yjs doc (peers can't resolve them), so the optimistic preview
+  // lives here and is passed to ImageCard as a fallback src until the
+  // upload finishes and the real R2 url lands in the doc.
+  const [localImagePreview, setLocalImagePreview] = useState({});
 
   // Live presence — once awareness is bound, write our own user info, our
   // canvas-cursor (canvas-space coords, throttled), and our selection.
@@ -553,23 +561,68 @@ export function CanvasSurface({
       const dims = await readImageDims(file);
       return { publicUrl: dims.url, width: dims.width, height: dims.height, x, y };
     }
-    // Surface paste / drop progress as a small "Uploading… 42%" toast
-    // (the upload is fast for typical images but user-visible feedback
-    // makes very-large pastes feel responsive). The progress callback
-    // throttles itself by only firing on whole-percent changes.
-    let lastPct = -5;
-    const startedAt = performance.now();
-    const onProgress = (frac) => {
-      const pct = Math.round(frac * 100);
-      if (pct - lastPct < 5) return;          // 5% steps; cheap
-      lastPct = pct;
-      // Only annoy the user if the upload is taking longer than ~600ms.
-      if (performance.now() - startedAt < 600) return;
-      feedback.toast({ type: 'info', message: `Uploading image… ${pct}%` });
-    };
-    const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId, onProgress });
+    // Used by the "replace image" path on existing cards — keeps the
+    // synchronous-await contract since there's no card to add.
+    const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId });
     return { publicUrl: up.src, width: up.width, height: up.height, x, y };
-  }, [useLocalImages, workspaceId, board?.id, userId, feedback]);
+  }, [useLocalImages, workspaceId, board?.id, userId]);
+
+  // Optimistic image drop/paste. Adds the card immediately with a local
+  // blob URL + pending:true so the user sees their image right away (and
+  // can already drag/select it), then uploads in the background. When the
+  // upload resolves we patch the card with the real R2 url and clear
+  // pending. On failure, we drop the card and toast the error.
+  const optimisticDropImage = useCallback(async (file, cx, cy) => {
+    if (!file) return;
+    if (useLocalImages) {
+      // Local QA path — no upload. Just add the card directly.
+      try {
+        const dims = await readImageDims(file);
+        onDropFileImage?.({ publicUrl: dims.url, width: dims.width, height: dims.height, x: cx, y: cy });
+      } catch (err) {
+        feedback.toast({ type: 'error', message: 'Image failed: ' + (err.message || err) });
+      }
+      return;
+    }
+    let blobUrl = null;
+    try { blobUrl = URL.createObjectURL(file); } catch (_) {}
+    let dims = { width: 0, height: 0 };
+    try { dims = await readImageDims(file); } catch (_) {}
+    let w = 240, h = 200;
+    if (dims.width && dims.height) {
+      const ar = dims.width / dims.height;
+      if (ar >= 1) { w = 280; h = Math.round(280 / ar); }
+      else { h = 240; w = Math.round(240 * ar); }
+      h = Math.max(80, Math.min(360, h));
+      w = Math.max(80, Math.min(420, w));
+    }
+    const id = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    if (blobUrl) setLocalImagePreview(prev => ({ ...prev, [id]: blobUrl }));
+    // src omitted here — blob URLs aren't useful to peers, so we keep the
+    // doc clean and let localImagePreview drive the local view.
+    mutators.addCard?.({
+      id, kind: 'image',
+      x: Math.max(8, Math.round(cx - w / 2)),
+      y: Math.max(8, Math.round(cy - h / 2)),
+      w, h,
+      pending: true,
+    });
+    try {
+      const onProgress = (frac) => {
+        setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      };
+      const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId, onProgress });
+      mutators.updateCard?.(id, { src: up.src, pending: false });
+    } catch (err) {
+      console.error('image upload failed', err);
+      feedback.toast({ type: 'error', message: 'Image upload failed: ' + (err.message || err) });
+      mutators.deleteCard?.(id);
+    } finally {
+      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+      setLocalImagePreview(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+      if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }
+    }
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage]);
 
   // Upload a video file and place a video card centered on (cx, cy).
   // Validates duration via uploadVideo (default cap 60s, 30 MB). Toast
@@ -758,13 +811,10 @@ export function CanvasSurface({
             handled = true;
             const file = item.getAsFile();
             if (file) {
-              try {
-                const pos = lastMouseCanvasRef.current;
-                onDropFileImage && onDropFileImage(await imageFileToPayload(file, pos.x, pos.y));
-              } catch (err) {
-                console.error('image paste failed', err);
-                feedback.toast({ type: 'error', message: 'Image paste failed: ' + (err.message || err) });
-              }
+              const pos = lastMouseCanvasRef.current;
+              // Adds an optimistic card immediately + uploads in the
+              // background; spinner overlay shows progress.
+              optimisticDropImage(file, pos.x, pos.y);
             }
             break;
           }
@@ -777,7 +827,7 @@ export function CanvasSurface({
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [feedback, imageFileToPayload, onDropFileImage, doPaste]);
+  }, [feedback, optimisticDropImage, doPaste]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -2441,9 +2491,11 @@ export function CanvasSurface({
     } else if (c.kind === 'boardlink') {
       const target = boards[c.target];
       inner = <BoardLinkCard targetBoard={target} note={c.note} onOpen={() => target && onOpenBoard(c.target)} />;
-    } else if (c.kind === 'image')   inner = <ImageCard src={c.src} tone={c.tone} label={c.label} title={c.title} link={c.link} aspect={`${c.w}/${c.h}`} caption={c.caption} onUpdate={onUpdate} autoFocus={af}
+    } else if (c.kind === 'image')   inner = <ImageCard src={c.src || localImagePreview[c.id] || null} tone={c.tone} label={c.label} title={c.title} link={c.link} aspect={`${c.w}/${c.h}`} caption={c.caption} onUpdate={onUpdate} autoFocus={af}
                                                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                      editCaptionAt={editFieldSignal.id === c.id && editFieldSignal.field === 'caption' ? editFieldSignal.n : 0}
+                                                     pending={!!c.pending}
+                                                     uploadProgress={uploadProgressById[c.id] ?? null}
                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
@@ -2771,13 +2823,10 @@ export function CanvasSurface({
       const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
       let offsetX = 0;
       for (const f of imageFiles) {
-        try {
-          onDropFileImage && onDropFileImage(await imageFileToPayload(f, cx + offsetX, cy));
-          offsetX += 260;
-        } catch (err) {
-          console.error(err);
-          feedback.toast({ type: 'error', message: 'Image upload failed: ' + (err.message || err) });
-        }
+        // Optimistic — adds the card and uploads in the background so
+        // multi-file drops aren't blocked one at a time.
+        optimisticDropImage(f, cx + offsetX, cy);
+        offsetX += 260;
       }
       for (const f of videoFiles) {
         try {

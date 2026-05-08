@@ -4079,6 +4079,30 @@ body {
 .ic-imgwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .ic .ic-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ic .img-ph { width: 100%; height: 100%; }
+/* Upload-in-progress overlay — sits on top of the local blob preview
+   while the file uploads to R2. Subtle scrim + soleil-tinted spinner
+   so it reads as "this is happening" rather than "this is broken". */
+.ic-upload-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px;
+  background: rgba(0,0,0,.34);
+  pointer-events: none;
+}
+.ic-upload-spinner {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.22);
+  border-top-color: var(--soleil, #d4a04a);
+  animation: ic-upload-spin .9s linear infinite;
+}
+.ic-upload-progress {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px; letter-spacing: .12em;
+  color: rgba(255,255,255,.92);
+  text-shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+@keyframes ic-upload-spin { to { transform: rotate(360deg); } }
 /* Title below image — primary */
 .ic .ic-title {
   padding: 8px 12px;
