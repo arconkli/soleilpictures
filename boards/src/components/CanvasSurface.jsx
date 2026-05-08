@@ -23,6 +23,7 @@ import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
+import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
 import { addRecentColor } from '../lib/recentColors.js';
@@ -240,6 +241,25 @@ export function CanvasSurface({
   // a captured closure goes stale across React re-renders).
   const [boardDropTarget, setBoardDropTarget] = useState(null);
   const boardDropTargetRef = useRef(null);
+  // 80ms hover-prefetch debounce for board/boardlink cards. Mouse-sweep
+  // across many cards won't trigger fetches; pausing on a single card
+  // for >80ms warms its snapshot.
+  const hoverPrefetchTimer = useRef(null);
+  const scheduleHoverPrefetch = useCallback((boardId) => {
+    if (!boardId) return;
+    if (hoverPrefetchTimer.current) clearTimeout(hoverPrefetchTimer.current);
+    hoverPrefetchTimer.current = setTimeout(() => {
+      hoverPrefetchTimer.current = null;
+      prefetchBoard(boardId);
+    }, 80);
+  }, []);
+  const cancelHoverPrefetch = useCallback(() => {
+    if (hoverPrefetchTimer.current) {
+      clearTimeout(hoverPrefetchTimer.current);
+      hoverPrefetchTimer.current = null;
+    }
+  }, []);
+  useEffect(() => () => cancelHoverPrefetch(), [cancelHoverPrefetch]);
   // Cursor position while hovering a board drop target — drives the
   // floating "Drop into <board>" label so the user has clear feedback
   // before they release.
@@ -2794,6 +2814,13 @@ export function CanvasSurface({
     // dragged cards so they don't obscure the destination. The
     // is-dragging class is added by `inDrag` above.
     const isFadingForBoardDrop = inDrag && !!boardDropTarget;
+    // For board-pointing cards, hover-warm the target snapshot so a
+    // click opens against an already-fetched cache.
+    const hoverPrefetchTarget = c.kind === 'board' ? c.id
+      : (c.kind === 'boardlink' ? c.target : null);
+    const onCardMouseEnter = hoverPrefetchTarget
+      ? () => scheduleHoverPrefetch(hoverPrefetchTarget)
+      : undefined;
     const wrapper = {
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
@@ -2803,6 +2830,8 @@ export function CanvasSurface({
       onPointerDown: (e) => onCardPointerDown(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
       onDoubleClick: (e) => onCardDoubleClick(e, c),
+      onMouseEnter: onCardMouseEnter,
+      onMouseLeave: hoverPrefetchTarget ? cancelHoverPrefetch : undefined,
     };
 
     const onUpdate = (patch) => mutators.updateCard?.(c.id, patch);
@@ -4042,6 +4071,7 @@ export function CanvasSurface({
           <R2Image className="lightbox-img"
                    src={lightbox.src}
                    alt={lightbox.title || ''}
+                   eager
                    onClick={(e) => e.stopPropagation()} />
           {lightbox.title && <div className="lightbox-cap">{lightbox.title}</div>}
         </div>

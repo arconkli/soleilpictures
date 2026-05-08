@@ -5,6 +5,7 @@ import { assembleGraph } from '../lib/graphData.js';
 import { HomeGraphDetailDrawer } from './HomeGraphDetailDrawer.jsx';
 import { HomeEmptyState } from './HomeEmptyState.jsx';
 import { HomeGraph2DFallback } from './HomeGraph2DFallback.jsx';
+import { prefetchEntity } from '../lib/prefetchKinds.js';
 
 // All entity kinds visible by default; users navigate the graph by hovering
 // + right-clicking to open. The HUD/filter chips were removed — they were
@@ -266,6 +267,10 @@ export function HomeGraph({ workspaceId, onNavigate }) {
             );
           }
         }}
+        // Hover the planet → start warming its target. The graph
+        // doesn't fire enter/leave at typing speed, so no debounce
+        // needed; prefetchEntity is idempotent.
+        onNodeHover={(n) => { if (n) prefetchEntity(nodeToTarget(n)); }}
         onNodeRightClick={(n) => onNavigate?.(nodeToTarget(n))}
         enableNodeDrag
         controlType="orbit"

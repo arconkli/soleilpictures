@@ -8,6 +8,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { COVER_TINTS } from './primitives.jsx';
+import { prefetchBoard } from '../lib/prefetchKinds.js';
+
+const HOVER_PREFETCH_MS = 80;
 
 const BOARD_REF_MIME = 'application/x-soleil-board-ref';
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
@@ -39,6 +42,20 @@ export function SidebarBoardTree({
   // Enter/blur to commit, Escape to cancel.
   const [renaming, setRenaming] = useState(null);
   const renameInputRef = useRef(null);
+  // Single shared hover timer — only one row can be hovered at a
+  // time, so we don't need per-row state.
+  const hoverTimer = useRef(null);
+  const hoverEnter = (boardId) => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => {
+      hoverTimer.current = null;
+      prefetchBoard(boardId);
+    }, HOVER_PREFETCH_MS);
+  };
+  const hoverLeave = () => {
+    if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null; }
+  };
+  useEffect(() => () => hoverLeave(), []);
   const beginRename = (board) => {
     setRenaming({ boardId: board.id, draft: board.name || '' });
     requestAnimationFrame(() => {
@@ -125,6 +142,8 @@ export function SidebarBoardTree({
                  e.dataTransfer.effectAllowed = 'copy';
                } catch (_) {}
              }}
+             onMouseEnter={() => hoverEnter(board.id)}
+             onMouseLeave={hoverLeave}
              onClick={() => { if (!isRenaming) onOpenBoard?.(board.id); }}
              onDoubleClick={(e) => {
                // Double-click anywhere on the row enters rename mode.

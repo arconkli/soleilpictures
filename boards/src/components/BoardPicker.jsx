@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { prefetchBoard } from '../lib/prefetchKinds.js';
 
 // Folder-style board browser: one column at a time, breadcrumb to jump back,
 // search to flatten when needed. Pick any board to link.
@@ -99,6 +100,7 @@ export function BoardPicker({ open, onPick, onClose, excludeIds = [], boards, ro
               <div
                 key={b.id}
                 className="picker-row"
+                onMouseEnter={() => prefetchBoard(b.id)}
                 onClick={() => { onPick(b); onClose(); }}
               >
                 <div className="picker-row-icon">

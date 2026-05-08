@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { COVER_TINTS } from './primitives.jsx';
+import { prefetchBoard } from '../lib/prefetchKinds.js';
 
 const EXPAND_KEY = 'soleil.boards.sb.shared.expanded';
 
@@ -76,6 +77,7 @@ export function SidebarSharedBoards({
                       return (
                         <div key={row.board_id}
                              className={`sb-row sb-shared-row ${isActive ? 'active' : ''}`}
+                             onMouseEnter={() => prefetchBoard(row.board_id)}
                              onClick={() => onOpenBoard?.(row.board_id)}
                              title={`${row.board_name} · ${row.role === 'viewer' ? 'view only' : 'editor'}`}>
                           <span className="sb-dot"

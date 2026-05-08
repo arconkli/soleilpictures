@@ -42,6 +42,7 @@ import { useAuth } from './auth/AuthGate.jsx';
 import { useWorkspace } from './hooks/useWorkspace.js';
 import { useAllWorkspaces } from './hooks/useAllWorkspaces.js';
 import { useBoardList } from './hooks/useBoardList.js';
+import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
 import { useYBoard } from './hooks/useYBoard.js';
 import { useChannelList } from './hooks/useChannelList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
@@ -189,6 +190,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     return merged;
   }, [ownedBoards, sharedBoards]);
+  // Idle prefetch: warm the top 8 most-recently-updated boards in
+  // the background so first-click navigation is instant. Stops on
+  // first user interaction.
+  const idlePrefetchList = useMemo(() => {
+    const arr = Object.values(boards || {});
+    arr.sort((a, b) =>
+      String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')));
+    return arr;
+  }, [boards]);
+  useIdlePrefetch(idlePrefetchList);
   const feedback = useFeedback();
   const sessionKey = `${SESSION_PREFIX}${user.id}.${workspace.id}`;
   const [initialSession] = useState(() => readSession(sessionKey));

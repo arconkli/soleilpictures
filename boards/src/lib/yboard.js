@@ -16,6 +16,8 @@ import * as Y from 'yjs';
 import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion } from './boardsApi.js';
 import { b64ToBytes, bytesToB64 } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
+import { peekBoardSnapshot, prefetchBoard } from './prefetchKinds.js';
+import { invalidate as invalidatePrefetch } from './prefetch.js';
 // Feature flag: PartyKit transport vs legacy Supabase Realtime. Set
 // VITE_USE_PARTYKIT=true (and VITE_PARTYKIT_HOST=<deployed-url>) once
 // the party is deployed.
@@ -134,7 +136,10 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
     try {
       const localDraft = readLocalDraft(boardId);
       if (localDraft?.doc) Y.applyUpdate(ydoc, b64ToBytes(localDraft.doc), 'snapshot');
-      const b64 = await loadBoardSnapshot(boardId);
+      // Consume a hover-warmed snapshot if one is sitting in the
+      // prefetch cache; otherwise fall through to the fetcher (which
+      // dedupes against any in-flight prefetch from the same hover).
+      const b64 = peekBoardSnapshot(boardId) ?? await prefetchBoard(boardId, { lane: 'high' });
       if (b64) Y.applyUpdate(ydoc, b64ToBytes(b64), 'snapshot');
     } catch (e) {
       console.error('loadBoardSnapshot failed', e);
@@ -185,6 +190,8 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
           // Force-refresh thumbnail caches for this board (parent canvases
           // showing it will refetch the latest snapshot).
           invalidateBoardPreview(boardId);
+          // Drop the prefetch cache too — next navigation should pull fresh.
+          invalidatePrefetch(`board:${boardId}`);
         })
         .catch(() => {});
       if (dirty) {

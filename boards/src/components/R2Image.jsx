@@ -14,7 +14,7 @@ import { cachedUrl, resolveSrc, getSignedUrl } from '../lib/r2.js';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
-export function R2Image({ src, alt = '', onError, ...rest }) {
+export function R2Image({ src, alt = '', eager = false, onError, ...rest }) {
   const initial = cachedUrl(src);
   const [url, setUrl] = useState(initial);
   const [failed, setFailed] = useState(false);
@@ -64,6 +64,9 @@ export function R2Image({ src, alt = '', onError, ...rest }) {
   return (
     <img src={url}
          alt={alt}
+         loading={eager ? 'eager' : 'lazy'}
+         decoding="async"
+         fetchpriority={eager ? 'high' : 'low'}
          {...rest}
          onError={(e) => {
            // Signed URL fetch worked but the actual GET failed (e.g.

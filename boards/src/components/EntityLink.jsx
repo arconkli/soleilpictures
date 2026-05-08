@@ -17,6 +17,7 @@ import { EntityHoverPopover } from './EntityHoverPopover.jsx';
 import { entityKindColor } from '../lib/entityKindColor.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { entityUrl } from '../lib/entityUrl.js';
+import { prefetchEntity } from '../lib/prefetchKinds.js';
 
 const HOVER_OPEN_MS = 250;
 const HOVER_CLOSE_MS = 200;
@@ -59,7 +60,14 @@ export function EntityLink({
 
   const scheduleOpen = useCallback(() => {
     cancelTimers();
-    if (refs?.length) broadcastHover(refs);
+    if (refs?.length) {
+      broadcastHover(refs);
+      // Hover-prefetch the first ref's target so a click navigates
+      // against an already-warm cache. Fires immediately (no
+      // debounce) — prefetchEntity is idempotent and dedups against
+      // any prior hover.
+      try { prefetchEntity(refs[0], { lane: 'high' }); } catch (_) {}
+    }
     openTimer.current = setTimeout(() => {
       const r = elRef.current?.getBoundingClientRect();
       if (r) {
