@@ -201,7 +201,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       }));
-      const haloScale = r * 3.8;
+      const haloScale = r * 3.5;
       halo.scale.set(haloScale, haloScale, 1);
       group.add(halo);
     }
