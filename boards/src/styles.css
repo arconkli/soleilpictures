@@ -3445,6 +3445,21 @@ body {
   outline-offset: 2px;
   border-radius: var(--radius-md);
 }
+/* Link-hover target — fires when the user hovers an EntityLink
+   anywhere in the app that points at this card. Soleil ring + soft
+   glow so the user can see which canvas card the link goes to
+   without having to click. Subtler than selection and tag-drop so
+   it doesn't compete with those. */
+.card.is-link-target > :first-child {
+  outline: 2px solid var(--soleil);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--soleil) 18%, transparent),
+    var(--shadow-2);
+  border-radius: var(--radius-md);
+  transition: outline-color 100ms ease, box-shadow 120ms ease;
+}
+
 /* Tag drop target — when a tag is being dragged over this card,
    ring it in the tag's color so the user can see exactly which
    target the tag will land on. Color is set inline as --tag-drop-

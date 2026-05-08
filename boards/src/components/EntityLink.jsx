@@ -45,8 +45,21 @@ export function EntityLink({
     if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
   };
 
+  // Broadcast a window-level hover signal so any rendered surface
+  // (canvas cards, sidebar rows, doc pages) can self-highlight when it
+  // matches the hovered link's targets. The detail is the refs array
+  // (or null on hover-out). Fired immediately, separate from the 250ms
+  // popover-open delay — the highlight should feel instant.
+  const broadcastHover = useCallback((refsOrNull) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.dispatchEvent(new CustomEvent('soleil:link-hover', { detail: refsOrNull }));
+    } catch (_) { /* ignore */ }
+  }, []);
+
   const scheduleOpen = useCallback(() => {
     cancelTimers();
+    if (refs?.length) broadcastHover(refs);
     openTimer.current = setTimeout(() => {
       const r = elRef.current?.getBoundingClientRect();
       if (r) {
@@ -54,12 +67,13 @@ export function EntityLink({
         setOpen(true);
       }
     }, HOVER_OPEN_MS);
-  }, []);
+  }, [refs, broadcastHover]);
 
   const scheduleClose = useCallback(() => {
     cancelTimers();
+    broadcastHover(null);
     closeTimer.current = setTimeout(() => setOpen(false), HOVER_CLOSE_MS);
-  }, []);
+  }, [broadcastHover]);
 
   const closeNow = useCallback(() => { cancelTimers(); setOpen(false); }, []);
 

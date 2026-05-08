@@ -10,7 +10,7 @@ import { LiveCursor } from './primitives.jsx';
 // Awareness payload conventions (set by CanvasSurface):
 //   localState.user            = { id, name, color }
 //   localState.canvasCursor    = { boardId, x, y }     // canvas-space coords
-//   localState.canvasSelection = { boardId, cardIds }  // string[]
+//   localState.canvasSelection = { boardId, cardIds, strokeIds, arrowIds }
 //   localState.liveDrag        = { boardId, cards: [{id,x,y}] } during drag
 export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
   const [peers, setPeers] = useState([]);
@@ -45,7 +45,9 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
           updated,
           user: state.user,
           cursor:    cursor?.boardId  === boardId ? { x: cursor.x, y: cursor.y } : null,
-          cardIds:   sel?.boardId     === boardId ? (sel.cardIds || []) : [],
+          cardIds:   sel?.boardId     === boardId ? (sel.cardIds   || []) : [],
+          strokeIds: sel?.boardId     === boardId ? (sel.strokeIds || []) : [],
+          arrowIds:  sel?.boardId     === boardId ? (sel.arrowIds  || []) : [],
           dragCards: drag?.boardId    === boardId ? (drag.cards   || []) : [],
           marquee:   marquee?.boardId === boardId ? marquee : null,
         });
@@ -131,6 +133,29 @@ function PeerSelectionStyles({ peers }) {
           `.card[data-card-id="${safe}"] {`
           + ` outline: 2px solid ${color};`
           + ` outline-offset: 1px; }`
+        );
+      }
+      // Strokes (free-draw paths) and arrows are array-indexed, not
+      // id-keyed. Use the index as a stable enough handle — when peers
+      // shuffle the array (delete a stroke), the rule glitches for one
+      // frame, then reconciles.
+      for (const idx of (p.strokeIds || [])) {
+        rules.push(
+          `g[data-stroke-idx="${idx}"] path[data-stroke-line] {`
+          + ` stroke: ${color} !important;`
+          + ` filter: drop-shadow(0 0 3px ${color}); }`
+        );
+      }
+      for (const idx of (p.arrowIds || [])) {
+        rules.push(
+          `g[data-arrow-idx="${idx}"] path[data-arrow-line] {`
+          + ` stroke: ${color} !important;`
+          + ` opacity: 0.95 !important;`
+          + ` filter: drop-shadow(0 0 3px ${color}); }`
+          + `\n`
+          + `g[data-arrow-idx="${idx}"] polygon {`
+          + ` fill: ${color} !important;`
+          + ` opacity: 0.95 !important; }`
         );
       }
     }

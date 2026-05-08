@@ -221,11 +221,35 @@ export function CanvasSurface({
   // Per-card upload progress (cardId → 0..1). Threaded into ImageCard so
   // the spinner overlay can show a percentage while uploading.
   const [uploadProgressById, setUploadProgressById] = useState({});
+  // IDs of cards/boards currently highlighted because the user is hovering
+  // an EntityLink that points at them. Drives the .is-link-target class
+  // so the canvas reflects what the link will navigate to.
+  const [linkHoverIds, setLinkHoverIds] = useState(() => new Set());
   // Local-only blob URL previews keyed by cardId. We don't write blob URLs
   // into the Yjs doc (peers can't resolve them), so the optimistic preview
   // lives here and is passed to ImageCard as a fallback src until the
   // upload finishes and the real R2 url lands in the doc.
   const [localImagePreview, setLocalImagePreview] = useState({});
+
+  // Listen for the EntityLink hover broadcast and translate the refs into
+  // a set of card/board ids on this board, so we can ring-highlight them.
+  useEffect(() => {
+    const onHover = (e) => {
+      const refs = e?.detail;
+      if (!refs || !refs.length) { setLinkHoverIds(new Set()); return; }
+      const ids = new Set();
+      for (const r of refs) {
+        if (!r) continue;
+        if (r.kind === 'card' && r.cardId) ids.add(r.cardId);
+        if (r.kind === 'board' && r.id) ids.add(r.id);
+        if (r.kind === 'doc' && r.docCardId) ids.add(r.docCardId);
+        if (r.kind === 'docPos' && r.docCardId) ids.add(r.docCardId);
+      }
+      setLinkHoverIds(ids);
+    };
+    window.addEventListener('soleil:link-hover', onHover);
+    return () => window.removeEventListener('soleil:link-hover', onHover);
+  }, []);
 
   // Live presence — once awareness is bound, write our own user info, our
   // canvas-cursor (canvas-space coords, throttled), and our selection.
@@ -357,12 +381,19 @@ export function CanvasSurface({
 
   // Selection broadcast — when our local selection set changes, push the
   // card-id list to awareness so peers can render our selection ring.
+  // We also broadcast stroke + arrow selections so peers see *every*
+  // primitive a user is acting on, not just card cards.
   useEffect(() => {
     const aw = getAwareness?.();
     if (!aw) return;
     const ids = [...selected];
-    aw.setLocalStateField('canvasSelection', ids.length ? { boardId: board.id, cardIds: ids } : null);
-  }, [getAwareness, board.id, selected]);
+    const strokeIds = [...selectedStrokes];
+    const arrowIds = [...selectedArrows];
+    const empty = ids.length === 0 && strokeIds.length === 0 && arrowIds.length === 0;
+    aw.setLocalStateField('canvasSelection', empty
+      ? null
+      : { boardId: board.id, cardIds: ids, strokeIds, arrowIds });
+  }, [getAwareness, board.id, selected, selectedStrokes, selectedArrows]);
 
   // Signal sent to ImageCard to enter inline edit mode for a specific field
   // (title or caption). Bumps `n` so a re-trigger on the same card still
@@ -2446,11 +2477,12 @@ export function CanvasSurface({
     }
     const kindCls = `card-kind-${c.kind || 'unknown'}`;
     const isTagDropHover = tagDropTarget?.cardId === c.id;
+    const isLinkTarget = linkHoverIds.has(c.id);
     const wrapper = {
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
@@ -3308,7 +3340,7 @@ export function CanvasSurface({
               const cy = (s.y+e.y)/2 + (a.straight ? 0 : (dx/len)  * Math.min(36, len*0.12));
               const sel = selectedArrows.has(i);
               return (
-                <g key={i}>
+                <g key={i} data-arrow-idx={i}>
                   {/* Hit target — only path with pointer-events; svg root is none. */}
                   <path d={path} fill="none" stroke="transparent" strokeWidth="14"
                         pointerEvents={strokesInteractive ? 'stroke' : 'none'}
@@ -3316,7 +3348,7 @@ export function CanvasSurface({
                         onPointerDown={strokesInteractive ? (ev) => onArrowClick(ev, i) : undefined}
                         onContextMenu={strokesInteractive ? (ev) => onArrowContextMenu(ev, i) : undefined} />
                   {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)" strokeWidth="6" strokeLinecap="round" pointerEvents="none" />}
-                  <path d={path} fill="none" stroke="currentColor" strokeWidth="1.1" opacity=".5"
+                  <path data-arrow-line d={path} fill="none" stroke="currentColor" strokeWidth="1.1" opacity=".5"
                         strokeDasharray={a.dashed ? '4 4' : '0'} strokeLinecap="round" pointerEvents="none" />
                   <polygon points={head} fill="currentColor" opacity=".5" pointerEvents="none" />
                   {tail && <polygon points={tail} fill="currentColor" opacity=".5" pointerEvents="none" />}
@@ -3348,7 +3380,7 @@ export function CanvasSurface({
             const path = strokeToPath(s.points);
             const hitW = Math.max(w + STROKE_HIT_PADDING, 14);
             return (
-              <g key={i}>
+              <g key={i} data-stroke-idx={i}>
                 <path d={path} fill="none" stroke="transparent" strokeWidth={hitW}
                       pointerEvents={strokesInteractive ? 'stroke' : 'none'}
                       style={{ cursor: strokesInteractive ? 'pointer' : 'default' }}
@@ -3356,7 +3388,7 @@ export function CanvasSurface({
                 {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)"
                               strokeWidth={w + 6} strokeLinecap="round" strokeLinejoin="round"
                               pointerEvents="none" />}
-                <path d={path} fill="none"
+                <path data-stroke-line d={path} fill="none"
                       stroke={s.color || DRAW_DEFAULT_COLOR}
                       strokeWidth={w}
                       strokeLinecap="round" strokeLinejoin="round"
