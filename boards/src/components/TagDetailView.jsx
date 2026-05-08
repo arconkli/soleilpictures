@@ -392,6 +392,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
 
   return (
     <div className="tag-detail">
+      <div className="grain-surface" aria-hidden="true" />
       <div className="tag-detail-head">
         <span className="tag-detail-dot" style={{ background: dot }} />
         <h1 className="tag-detail-name">{tag.name}</h1>

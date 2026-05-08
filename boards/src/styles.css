@@ -103,23 +103,24 @@ body {
   overflow: hidden;
 }
 
-/* Animated grain texture — ARC browser vibe. Mounted INSIDE the
-   canvas-wrap so it sits on the canvas surface only. Cards,
-   menus, popovers, modals all stack ABOVE it (portal-mounted UI
-   is outside the canvas tree entirely). pointer-events:none so
-   it never blocks input. */
-.grain-canvas {
+/* Animated grain texture — ARC browser vibe. Mounted INSIDE each
+   workspace surface (canvas, home graph, tag detail) so it sits
+   on the surface only. Cards, headers, menus, popovers, modals
+   all stack ABOVE it. pointer-events:none so it never blocks
+   input. .grain-canvas is the legacy alias kept so older callers
+   still work. */
+.grain-canvas, .grain-surface {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-image: url('/grain.gif');
   background-repeat: repeat;
-  background-size: 200px 150px;
-  opacity: 0.05;
-  /* Sits between the canvas-wrap's grid and the .canvas children. */
+  background-size: 320px 240px;
+  opacity: 0.04;
   z-index: 0;
 }
-[data-theme='light'] .grain-canvas { opacity: 0.035; }
+[data-theme='light'] .grain-canvas,
+[data-theme='light'] .grain-surface { opacity: 0.028; }
 
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
@@ -1066,6 +1067,7 @@ body {
   background: var(--bg-0);
   color: var(--ink-0);
   overflow: hidden;
+  position: relative;  /* anchor for .grain-surface */
 }
 .tag-detail-head {
   display: flex; align-items: center; gap: 10px;
@@ -1845,6 +1847,25 @@ body {
 }
 .sb-tree-row:hover .sb-tree-chev { color: var(--ink-1); }
 .sb-tree-chev:hover { background: var(--bg-3); color: var(--ink-0); }
+
+/* Inline rename input — replaces the row's label while editing.
+   Sized to the same line-height + font as the label so the row
+   doesn't shift; transparent background + soleil focus ring so
+   it reads as a quick edit, not a heavy form field. */
+.sb-tree-rename-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid var(--soleil);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin: -2px 0;
+  font: inherit;
+  color: var(--ink-0);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--soleil-soft);
+}
+.sb-tree-row.is-renaming { cursor: text; }
 
 .sb-search {
   display: flex; align-items: center; gap: 8px;

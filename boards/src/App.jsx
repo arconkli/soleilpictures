@@ -1697,6 +1697,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             workspaceId={workspace.id}
             activeBoardId={currentSurface === 'board' ? currentId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
+            onRenameBoard={renameBoardById}
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={jumpToPeer}
