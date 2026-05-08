@@ -2419,7 +2419,7 @@ export function CanvasSurface({
     } else if (c.kind === 'image')   inner = <ImageCard src={c.src} tone={c.tone} label={c.label} title={c.title} link={c.link} aspect={`${c.w}/${c.h}`} caption={c.caption} onUpdate={onUpdate} autoFocus={af}
                                                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                      editCaptionAt={editFieldSignal.id === c.id && editFieldSignal.field === 'caption' ? editFieldSignal.n : 0}
-                                                     onAfterEdit={() => { setSelected(new Set()); setAutoFocusId(null); }} />;
+                                                     onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
                                                 awareness={getAwareness?.() || null}
