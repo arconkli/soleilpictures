@@ -27,15 +27,24 @@ export async function assembleGraph({ workspaceId, options = {} }) {
     .eq('source_workspace_id', workspaceId);
 
   const nodes = new Map();
-  const add = (id, kind, name, val = 8) => {
+  // `kind` is the node's broad category (board/doc/card/url) used by the
+  // home-graph filter. `cardKind` is the underlying card sub-type
+  // (note/image/palette/link/...) — surfaced so the renderer can give
+  // each card a distinct planetary color.
+  const add = (id, kind, name, val = 8, cardKind = null) => {
     if (!nodes.has(id)) {
-      nodes.set(id, { id, kind, name: name || 'Untitled', color: COLOR[kind] || COLOR.card, val });
+      const colorKey = cardKind || kind;
+      nodes.set(id, {
+        id, kind, cardKind, name: name || 'Untitled',
+        color: COLOR[colorKey] || COLOR[kind] || COLOR.card,
+        val,
+      });
     }
   };
   for (const b of boards) add(`board:${b.id}`, 'board', b.name, 14);
   for (const c of cards) {
     const isDoc = c.kind === 'doc';
-    add(`card:${c.board_id}:${c.card_id}`, isDoc ? 'doc' : 'card', c.title, isDoc ? 12 : 8);
+    add(`card:${c.board_id}:${c.card_id}`, isDoc ? 'doc' : 'card', c.title, isDoc ? 12 : 8, c.kind || 'note');
   }
 
   const links = [];
@@ -83,9 +92,23 @@ export async function assembleGraph({ workspaceId, options = {} }) {
   };
 }
 
+// Each entity gets its own distinct planet color. Tuned so they
+// read clearly against the dark canvas while still feeling like
+// they belong to the same warm/earthy family. Order — boards are
+// the brightest "stars", docs are pale moons, and the various
+// card sub-kinds get their own planetary hues.
 const COLOR = {
-  board: '#d4a04a',  // soleil-gold
-  doc:   '#e8d4a8',  // warm cream
-  card:  '#6b8090',  // cool slate
-  url:   '#5b574e',  // ink-3
+  board:     '#e8a93a',  // sun — warm orange-gold
+  doc:       '#f1d9a3',  // pale cream moon
+  // Card sub-kinds:
+  note:      '#cf6a4f',  // mars — terracotta
+  image:     '#7c5cc9',  // jovian violet
+  palette:   '#3fa39a',  // teal seafoam
+  link:      '#5b8fc7',  // neptune blue
+  board_:    '#c4a96b',  // dust gold (embedded board)
+  boardlink: '#c4a96b',
+  doc_card:  '#e6c98a',  // warm doc satellite
+  // Fallbacks
+  card:      '#7c8a98',  // cool slate
+  url:       '#8c7a55',  // ink-3 (warmed)
 };
