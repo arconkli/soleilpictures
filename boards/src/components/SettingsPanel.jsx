@@ -61,23 +61,45 @@ export function SettingsPanel({
   user, onSignOut,
   workspaceId, onWorkspacesChanged,
   onSaved,
+  // 'account' = avatar-style identity-only modal (Profile tab + sign out).
+  // 'workspace' = the cog-style settings (Defaults/Theme/Templates/Display).
+  // 'full' = legacy / dev — show every tab in one panel.
+  mode = 'full',
   // Settings hook output — passed in so the panel and the rest of the
   // app share one source of truth and refresh together.
   defaults, role, refresh, workspaceSettings, mySettings,
 }) {
-  const [tab, setTab] = useState('profile');
+  // Filter tabs by mode + pick the first as default.
+  const visibleTabs = mode === 'account'
+    ? TABS.filter(t => t.id === 'profile')
+    : mode === 'workspace'
+      ? TABS.filter(t => t.id !== 'profile')
+      : TABS;
+  const [tab, setTab] = useState(visibleTabs[0]?.id || 'profile');
+  // If the user reopens the panel in a different mode, the previously
+  // selected tab can be invalid — snap back to the first visible.
+  useEffect(() => {
+    if (!visibleTabs.find(t => t.id === tab)) setTab(visibleTabs[0]?.id || 'profile');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
   const feedback = useFeedback();
 
   if (!open) return null;
 
+  // Account mode hides the side tab list (it's a single tab) so the
+  // panel reads as a tight identity modal, not a tabbed settings UI.
+  const showTabRail = mode !== 'account' && visibleTabs.length > 1;
+  const headTitle = mode === 'account' ? 'Account' : 'Settings';
+
   return createPortal(
-    <div className="settings-bg" onMouseDown={onClose}>
-      <div className="settings-modal"
+    <div className={`settings-bg ${mode === 'account' ? 'is-account-mode' : ''}`}
+         onMouseDown={onClose}>
+      <div className={`settings-modal ${mode === 'account' ? 'settings-modal-narrow' : ''}`}
            onMouseDown={(e) => e.stopPropagation()}>
         <div className="settings-head">
-          <span className="settings-title">Settings</span>
+          <span className="settings-title">{headTitle}</span>
           <span style={{ flex: 1 }} />
-          {onSignOut && (
+          {onSignOut && mode === 'account' && (
             <button type="button" className="settings-link-btn settings-head-signout"
                     onClick={async () => {
                       const ok = await feedback.confirm({
@@ -94,17 +116,19 @@ export function SettingsPanel({
           </button>
         </div>
         <div className="settings-body">
-          <nav className="settings-tabs" role="tablist">
-            {TABS.map(t => (
-              <button key={t.id}
-                      type="button"
-                      role="tab"
-                      className={`settings-tab ${tab === t.id ? 'is-active' : ''}`}
-                      onClick={() => setTab(t.id)}>
-                {t.label}
-              </button>
-            ))}
-          </nav>
+          {showTabRail && (
+            <nav className="settings-tabs" role="tablist">
+              {visibleTabs.map(t => (
+                <button key={t.id}
+                        type="button"
+                        role="tab"
+                        className={`settings-tab ${tab === t.id ? 'is-active' : ''}`}
+                        onClick={() => setTab(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          )}
           <div className="settings-pane">
             {tab === 'profile' && (
               <ProfileTab user={user} onSaved={onSaved} />

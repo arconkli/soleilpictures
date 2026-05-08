@@ -204,7 +204,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Workspace switcher popover (in the sidebar header). Click-outside +
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
+  // Two separate panels:
+  //   accountOpen  — avatar (bottom-left, your initial) → identity only
+  //                  (Profile tab + sign out)
+  //   settingsOpen — cog (bottom-left, gear) → workspace defaults +
+  //                  theme + templates + display
   const [accountOpen, setAccountOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const currentId = stack[stack.length - 1];
   const currentBoard = boards[currentId] || rootBoard;
@@ -1877,23 +1883,41 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
           />
 
-          {/* Footer — settings + avatar (sign-out). Pushed to the bottom
-              of the column with margin-top:auto. */}
+          {/* Footer — settings cog + avatar. Cog opens workspace
+              settings (defaults, theme, templates, display). Avatar
+              opens identity (name, presence color, sign out). */}
           <div className="sb-foot">
-            <button className="sb-foot-icon" title="Settings (⌘.)" aria-label="Settings"
-                    onClick={() => document.querySelector('.twk-gear')?.click()}>
+            <button className="sb-foot-icon" title="Workspace settings" aria-label="Workspace settings"
+                    onClick={() => setSettingsOpen(true)}>
               <Icon as={Settings} size={14} />
             </button>
-            <button className="sb-foot-avatar" title="Account & settings"
+            <button className="sb-foot-avatar" title="Account"
                     onClick={() => setAccountOpen(true)}>
               {(user.email?.[0] || 'Y').toUpperCase()}
             </button>
           </div>
         </div>
       </aside>
+      {/* Avatar → identity-only modal (Profile tab). */}
       <SettingsPanel
         open={accountOpen}
         onClose={() => setAccountOpen(false)}
+        mode="account"
+        user={user}
+        onSignOut={signOut}
+        workspaceId={workspace?.id}
+        onWorkspacesChanged={onWorkspacesChanged}
+        onSaved={() => onWorkspacesChanged?.()}
+        defaults={defaults}
+        role={workspaceRole}
+        refresh={refreshSettings}
+        workspaceSettings={workspaceSettings}
+        mySettings={mySettings} />
+      {/* Cog → workspace + UI settings (everything else). */}
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        mode="workspace"
         user={user}
         onSignOut={signOut}
         workspaceId={workspace?.id}

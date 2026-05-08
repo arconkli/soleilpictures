@@ -9647,6 +9647,12 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   backdrop-filter: blur(2px);
   animation: pickerFade var(--dur-slow) var(--ease);
 }
+.settings-modal-narrow {
+  /* Account mode (avatar → identity-only) — single column, no tab
+     rail, so a tighter width reads as a card edit rather than a
+     full settings UI. */
+  width: min(440px, calc(100vw - 32px)) !important;
+}
 .settings-modal {
   width: min(720px, calc(100vw - 32px));
   max-height: calc(100vh - 80px);
