@@ -10405,18 +10405,49 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 }
 
 /* ──────────────────────────── PANEL GRAIN ─────────────────────────────
-   Comprehensive grain layer applied to every dark panel-style surface
-   in the app — toolbars, popovers, dropdowns, modals, sidebars, etc.
-   Declared LAST so any earlier `background:` shorthand on these
-   surfaces gets its background-image filled in here.
+   Two tiers of grain across the app:
 
-   Add new surfaces by appending to this selector list.
-   The grain image is opaque grayscale noise; it tints into the
-   surface's existing bg-color via `background-blend-mode: overlay`
-   in dark theme and `multiply` in light theme. */
+     Tier 1 (strong, same level as the canvas/body grain)
+       — applied to the deepest dark surfaces: topbar, sidebar, rail,
+         the canvas wrap itself, the home-graph backdrop, etc.
+       — uses `background-blend-mode: overlay` (dark) / `multiply` (light)
+
+     Tier 2 (light, more subtle — for floating foreground pieces)
+       — applied to panels, modals, popovers, cards, toolbars, etc.
+       — uses `background-blend-mode: soft-light`
+       — reads as "the same material" but doesn't compete with content
+
+   Declared LAST in the file so any earlier `background:` shorthand
+   gets its background-image filled in here without needing per-rule
+   edits. Add new surfaces by appending to the appropriate tier. */
+/* ── Tier 1 (STRONG, canvas-level intensity) ── */
 .topbar,
 .sidebar,
 .rail,
+.canvas-wrap,
+.home-graph-wrap,
+.public-shell,
+.public-topbar,
+.auth-screen,
+.app-error-panel,
+.app-error-stack,
+.surface-wrap,
+.doc-surface,
+.doc-rail,
+.doc-paper,
+.doc-foot,
+.doc-center,
+.doc-editor-wrap,
+.inbox,
+.list-wrap,
+.list-files {
+  background-image: url('/grain.gif');
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  background-blend-mode: overlay;
+}
+
+/* ── Tier 2 (LIGHT, subtle — floating foreground pieces) ── */
 .modal,
 .share-modal,
 .twk-panel,
@@ -10439,13 +10470,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .doc-card,
 .doc-card-foot,
 .doc-card-modal,
-.doc-center,
-.doc-editor-wrap,
 .doc-embed-picker,
-.doc-foot,
-.doc-paper,
-.doc-rail,
-.doc-surface,
 .doc-tpl,
 .doc-tpl-card,
 .doc-tpl-card-mini,
@@ -10480,7 +10505,6 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .settings-template-tile,
 .home-graph-drawer,
 .home-graph-hud,
-.home-graph-wrap,
 .tag-detail,
 .tag-detail-menu,
 .tag-detail-head,
@@ -10488,12 +10512,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .tag-detail-block-open,
 .tag-detail-group-block,
 .tag-picker,
-.inbox,
 .surface-card,
-.surface-wrap,
-.app-error-panel,
-.app-error-stack,
-.auth-screen,
 .sb-tags-suggestions,
 .sb-tag-menu,
 .sb-tag-suggest-list,
@@ -10502,16 +10521,12 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .ws-presence-audit,
 .picker,
 .public-card,
-.public-shell,
-.public-topbar,
 .rb-swatch-pop,
 .folder-body,
 .folder-slot,
 .folder-tab,
 .hist-comment-card,
-.list-files,
 .list-selbar,
-.list-wrap,
 .split-bar,
 .toast,
 .emoji-palette,
@@ -10522,112 +10537,29 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
-  background-blend-mode: overlay;
+  background-blend-mode: soft-light;
 }
+/* ── Light theme: tier 1 = multiply, tier 2 = soft-light still works
+   in light mode (it just becomes a very gentle texture). ── */
 [data-theme='light'] .topbar,
 [data-theme='light'] .sidebar,
 [data-theme='light'] .rail,
-[data-theme='light'] .modal,
-[data-theme='light'] .share-modal,
-[data-theme='light'] .twk-panel,
-[data-theme='light'] .tweaks-panel,
-[data-theme='light'] .bc,
-[data-theme='light'] .bc-child,
-[data-theme='light'] .bc-doc-page,
-[data-theme='light'] .bc-doc-stack,
-[data-theme='light'] .bc-list-cover,
-[data-theme='light'] .bc-list-slot,
-[data-theme='light'] .blc,
-[data-theme='light'] .cnv-tools,
-[data-theme='light'] .cnv-hint,
-[data-theme='light'] .cnv-zoom,
-[data-theme='light'] .tob,
-[data-theme='light'] .tob-pop,
-[data-theme='light'] .doc,
-[data-theme='light'] .doc-tb,
-[data-theme='light'] .doc-tb-colorpop,
-[data-theme='light'] .doc-card,
-[data-theme='light'] .doc-card-foot,
-[data-theme='light'] .doc-card-modal,
-[data-theme='light'] .doc-center,
-[data-theme='light'] .doc-editor-wrap,
-[data-theme='light'] .doc-embed-picker,
-[data-theme='light'] .doc-foot,
-[data-theme='light'] .doc-paper,
-[data-theme='light'] .doc-rail,
-[data-theme='light'] .doc-surface,
-[data-theme='light'] .doc-tpl,
-[data-theme='light'] .doc-tpl-card,
-[data-theme='light'] .doc-tpl-card-mini,
-[data-theme='light'] .doc-tpl-mini,
-[data-theme='light'] .doc-comments,
-[data-theme='light'] .doc-comment,
-[data-theme='light'] .doc-find,
-[data-theme='light'] .doc-link-picker,
-[data-theme='light'] .doc-outline,
-[data-theme='light'] .note,
-[data-theme='light'] .note-toolbar,
-[data-theme='light'] .pc,
-[data-theme='light'] .sched,
-[data-theme='light'] .tt-embed,
-[data-theme='light'] .tt-img-tb,
-[data-theme='light'] .sketchpad-toolbar,
-[data-theme='light'] .sketchpad-frame,
-[data-theme='light'] .ctx-menu,
-[data-theme='light'] .ctx-submenu,
-[data-theme='light'] .cp-pop,
-[data-theme='light'] .ws-menu,
-[data-theme='light'] .ws-menu-row-pop,
-[data-theme='light'] .ws-menu-section,
-[data-theme='light'] .cnv-add-menu,
-[data-theme='light'] .topbar-add-menu,
-[data-theme='light'] .entity-picker,
-[data-theme='light'] .entity-hover-popover,
-[data-theme='light'] .link-popover,
-[data-theme='light'] .link-hover-card,
-[data-theme='light'] .account-modal,
-[data-theme='light'] .settings-modal,
-[data-theme='light'] .settings-template-tile,
-[data-theme='light'] .home-graph-drawer,
-[data-theme='light'] .home-graph-hud,
+[data-theme='light'] .canvas-wrap,
 [data-theme='light'] .home-graph-wrap,
-[data-theme='light'] .tag-detail,
-[data-theme='light'] .tag-detail-menu,
-[data-theme='light'] .tag-detail-head,
-[data-theme='light'] .tag-detail-block-attr,
-[data-theme='light'] .tag-detail-block-open,
-[data-theme='light'] .tag-detail-group-block,
-[data-theme='light'] .tag-picker,
-[data-theme='light'] .inbox,
-[data-theme='light'] .surface-card,
-[data-theme='light'] .surface-wrap,
-[data-theme='light'] .app-error-panel,
-[data-theme='light'] .app-error-stack,
-[data-theme='light'] .auth-screen,
-[data-theme='light'] .sb-tags-suggestions,
-[data-theme='light'] .sb-tag-menu,
-[data-theme='light'] .sb-tag-suggest-list,
-[data-theme='light'] .card-info-popover,
-[data-theme='light'] .merge-picker,
-[data-theme='light'] .ws-presence-audit,
-[data-theme='light'] .picker,
-[data-theme='light'] .public-card,
 [data-theme='light'] .public-shell,
 [data-theme='light'] .public-topbar,
-[data-theme='light'] .rb-swatch-pop,
-[data-theme='light'] .folder-body,
-[data-theme='light'] .folder-slot,
-[data-theme='light'] .folder-tab,
-[data-theme='light'] .hist-comment-card,
-[data-theme='light'] .list-files,
-[data-theme='light'] .list-selbar,
+[data-theme='light'] .auth-screen,
+[data-theme='light'] .app-error-panel,
+[data-theme='light'] .app-error-stack,
+[data-theme='light'] .surface-wrap,
+[data-theme='light'] .doc-surface,
+[data-theme='light'] .doc-rail,
+[data-theme='light'] .doc-paper,
+[data-theme='light'] .doc-foot,
+[data-theme='light'] .doc-center,
+[data-theme='light'] .doc-editor-wrap,
+[data-theme='light'] .inbox,
 [data-theme='light'] .list-wrap,
-[data-theme='light'] .split-bar,
-[data-theme='light'] .toast,
-[data-theme='light'] .emoji-palette,
-[data-theme='light'] .msg-bubble,
-[data-theme='light'] .msg-composer,
-[data-theme='light'] .msg-pinned-strip,
-[data-theme='light'] .presence-stack {
+[data-theme='light'] .list-files {
   background-blend-mode: multiply;
 }
