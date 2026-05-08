@@ -109,8 +109,16 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
     return out;
   }, [rows]);
 
-  // For each tagged board, fetch ALL its cards from card_index so
-  // the user can scroll through them as previews.
+  // Drop cards that have nothing to show — empty title AND empty
+  // body. Showing them as "(empty note)" rows under a board /
+  // group preview is just noise. The user wants to scroll through
+  // CONTENT, not placeholders.
+  const hasOwnText = (c) =>
+    (c.title && c.title.trim().length > 0) ||
+    (c.body  && c.body.trim().length  > 0);
+
+  // For each tagged board, fetch ALL its non-empty cards so the
+  // user can scroll through them as previews.
   useEffect(() => {
     if (direct.boards.length === 0) return;
     let cancelled = false;
@@ -124,6 +132,7 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
         if (cancelled) return;
         const m = new Map();
         for (const c of (data || [])) {
+          if (!hasOwnText(c)) continue;
           if (!m.has(c.board_id)) m.set(c.board_id, []);
           m.get(c.board_id).push(c);
         }
@@ -132,8 +141,7 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
     return () => { cancelled = true; };
   }, [direct.boards]);
 
-  // For each tagged group, fetch its member cards (cards whose
-  // card_index.meta.groupId matches).
+  // For each tagged group, fetch its non-empty member cards.
   useEffect(() => {
     if (direct.groups.length === 0) return;
     let cancelled = false;
@@ -148,6 +156,7 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
         if (cancelled) return;
         const m = new Map();
         for (const c of (data || [])) {
+          if (!hasOwnText(c)) continue;
           const gid = c.meta?.groupId;
           if (!gid) continue;
           const key = `${c.board_id}::${gid}`;
