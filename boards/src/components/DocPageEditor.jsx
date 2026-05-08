@@ -856,6 +856,31 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment }) {
             onClick={run(() => editor.chain().focus().toggleCode().run())} />
       <Item icon={<LinkIcon />} label="Link" shortcut="⌘K"
             onClick={run(() => onOpenLinkPicker?.(editor))} />
+      {/* Text color row — quick swatches + a native picker for custom.
+          Clicking a swatch applies setColor to the current selection
+          (TextStyle + Color extensions are loaded in baseDocExtensions).
+          The "×" swatch unsets the color and falls back to the doc's
+          default ink. */}
+      <div className="doc-ctx-color-row" role="group" aria-label="Text color">
+        <span className="doc-ctx-color-label">Color</span>
+        {['#f5f5f7', '#d4a04a', '#cf6a4f', '#7c5cc9', '#5b8fc7', '#3fa39a', '#10b981'].map(c => (
+          <button key={c}
+                  type="button"
+                  className="doc-ctx-color-dot"
+                  style={{ background: c }}
+                  title={`Text color ${c}`}
+                  onClick={run(() => editor.chain().focus().setColor(c).run())} />
+        ))}
+        <button type="button"
+                className="doc-ctx-color-dot doc-ctx-color-clear"
+                title="Clear color"
+                onClick={run(() => editor.chain().focus().unsetColor().run())}>×</button>
+        <label className="doc-ctx-color-dot doc-ctx-color-custom" title="Custom color">
+          <input type="color"
+                 onChange={(e) => { editor.chain().focus().setColor(e.target.value).run(); close(); }} />
+          <span aria-hidden="true">⋯</span>
+        </label>
+      </div>
       <Sep />
       <Item icon={<H1Icon />} label="Heading 1" shortcut="⌘⌥1" active={isActive('heading', { level: 1 })}
             onClick={run(() => editor.chain().focus().toggleHeading({ level: 1 }).run())} />
