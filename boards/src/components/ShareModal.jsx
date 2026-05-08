@@ -17,6 +17,7 @@ import {
 } from '../lib/boardsApi.js';
 import { supabase } from '../lib/supabase.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import * as userProfiles from '../lib/userProfiles.js';
 import { useFeedback } from './AppFeedback.jsx';
 
 export function ShareModal({
@@ -38,7 +39,12 @@ export function ShareModal({
   const [inviting, setInviting] = useState(false);
   const [publicLinks, setPublicLinks] = useState([]);  // active links
   const [creatingLink, setCreatingLink] = useState(false);
+  // Bumped on every userProfiles cache mutation so offline rows re-render
+  // with their resolved display names as soon as the lookup lands.
+  const [, setProfilesTick] = useState(0);
   const ref = useRef(null);
+
+  useEffect(() => userProfiles.subscribe(() => setProfilesTick(t => t + 1)), []);
 
   // Close on Escape + outside-click. Outside-click is bound on the
   // backdrop element so clicks inside the panel pass through normally.
@@ -55,11 +61,22 @@ export function ShareModal({
     let cancelled = false;
     setLoadingShares(true);
     listBoardShares(board.id)
-      .then(rows => { if (!cancelled) setShares(rows); })
+      .then(rows => {
+        if (cancelled) return;
+        setShares(rows);
+        // Hydrate full names so offline shares aren't email-only.
+        rows.forEach(r => userProfiles.resolve(r.user_id));
+      })
       .catch(e => { console.warn('[share] list failed', e); if (!cancelled) setShares([]); })
       .finally(() => { if (!cancelled) setLoadingShares(false); });
     return () => { cancelled = true; };
   }, [board?.id, isOwner]);
+
+  // Resolve names for workspace members too — peers covers online ones,
+  // but offline members were rendering as a generic "Member".
+  useEffect(() => {
+    workspaceMembers.forEach(m => userProfiles.resolve(m.user_id));
+  }, [workspaceMembers]);
 
   // Public links — owner-only. Filter to active (non-revoked,
   // non-expired) so the UI only shows useful links.
@@ -122,15 +139,19 @@ export function ShareModal({
     }
   };
 
-  // Resolve a user_id to a friendly display tuple. wsPeers gives us
-  // names+emails for currently-online users; offline ones fall back.
+  // Resolve a user_id to a friendly display tuple. Order: live presence
+  // (peers) → cached profile (userProfiles, populated by users_by_ids
+  // RPC) → "You" / "Member" fallback. The cache hydrates async; the
+  // profilesTick subscription above re-renders us when names land.
   const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
   const userMeta = (uid) => {
     const peer = peerById.get(uid);
+    const profile = userProfiles.get(uid);
     return {
-      name: peer?.user?.name || peer?.user?.email
+      name: peer?.user?.name || profile?.name
+        || peer?.user?.email || profile?.email
         || (uid === selfUserId ? 'You' : 'Member'),
-      email: peer?.user?.email || null,
+      email: peer?.user?.email || profile?.email || null,
       online: !!peer,
     };
   };
@@ -393,27 +414,33 @@ export function ShareModal({
                   board (and its sub-boards) with someone outside the
                   workspace.
                 </div>
-              ) : shares.map(s => (
-                <div key={s.user_id} className="share-row">
-                  <span className="share-avatar"
-                        style={{ background: pickPresenceColor(s.user_id) }}>
-                    {(s.email || '?').charAt(0).toUpperCase()}
-                  </span>
-                  <div className="share-row-text">
-                    <div className="share-row-name">{s.email}</div>
-                    <div className="share-row-sub">{ROLE_LABEL[s.role]}</div>
+              ) : shares.map(s => {
+                const profile = userProfiles.get(s.user_id);
+                const displayName = profile?.name || s.email;
+                return (
+                  <div key={s.user_id} className="share-row">
+                    <span className="share-avatar"
+                          style={{ background: pickPresenceColor(s.user_id) }}>
+                      {(displayName || '?').charAt(0).toUpperCase()}
+                    </span>
+                    <div className="share-row-text">
+                      <div className="share-row-name">{displayName}</div>
+                      <div className="share-row-sub">
+                        {profile?.name && s.email ? `${s.email} · ` : ''}{ROLE_LABEL[s.role]}
+                      </div>
+                    </div>
+                    <select className="share-role-select share-row-role"
+                            value={s.role}
+                            onChange={(e) => onChangeShareRole(s, e.target.value)}>
+                      <option value="editor">Editor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    <button className="share-remove" onClick={() => onRemoveShare(s)}>
+                      Remove
+                    </button>
                   </div>
-                  <select className="share-role-select share-row-role"
-                          value={s.role}
-                          onChange={(e) => onChangeShareRole(s, e.target.value)}>
-                    <option value="editor">Editor</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
-                  <button className="share-remove" onClick={() => onRemoveShare(s)}>
-                    Remove
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
