@@ -1400,14 +1400,39 @@ export function CanvasSurface({
         }});
       } else if (c.kind === 'note') {
         items.push({ id: 'fit', label: 'Fit to content', run: () => {
-          // Measure the rendered note body in the live DOM and snap the
-          // card height to it. Useful when the user resized manually and
-          // wants to reset, or after deleting a chunk of text.
+          // Snap the note to the natural size of its rendered content so
+          // there's no padding to the right of titles or short lines, and
+          // no empty space below. We clone the live note-body into an
+          // offscreen measurer with the same font/styles but width set to
+          // max-content; that gives us the unwrapped longest-line width.
+          // Then we set the note's width and re-measure height at that
+          // width so multi-line content still wraps correctly.
           const wrap = document.querySelector(`[data-card-id="${c.id}"] .note-body`);
           if (!wrap) return;
-          const NOTE_PAD_Y = 16 * 2; // .note padding top + bottom
-          const newH = Math.max(40, Math.round(wrap.scrollHeight) + NOTE_PAD_Y);
-          mutators.updateCard?.(c.id, { h: newH, manuallyResized: false });
+          const NOTE_PAD_X = 16 * 2; // .note padding left + right
+          const NOTE_PAD_Y = 16 * 2;
+          const cs = window.getComputedStyle(wrap);
+          const measurer = document.createElement('div');
+          measurer.innerHTML = wrap.innerHTML;
+          Object.assign(measurer.style, {
+            position: 'absolute', left: '-99999px', top: '0',
+            visibility: 'hidden',
+            width: 'max-content', maxWidth: 'none',
+            font: cs.font,
+            lineHeight: cs.lineHeight,
+            letterSpacing: cs.letterSpacing,
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere',
+          });
+          document.body.appendChild(measurer);
+          const naturalW = Math.ceil(measurer.scrollWidth);
+          // Cap width so a giant single line doesn't blow out the canvas.
+          const newW = Math.min(560, Math.max(80, naturalW + NOTE_PAD_X));
+          // Re-measure height at the new content width.
+          measurer.style.width = (newW - NOTE_PAD_X) + 'px';
+          const newH = Math.max(40, Math.ceil(measurer.scrollHeight) + NOTE_PAD_Y);
+          measurer.remove();
+          mutators.updateCard?.(c.id, { w: newW, h: newH, manuallyResized: false });
         }});
       } else if (c.kind === 'link') {
         items.push({ id: 'edit-title', label: c.title ? 'Edit title' : 'Add title', run: () => {
