@@ -193,8 +193,9 @@ export function RichNoteEditor({
   };
 
   const bg = bgColor || undefined;
+  const hasBg = !!bg && bg !== 'transparent';
   const isTransparent = bg === 'transparent';
-  const isLightBg = !isTransparent && bg && /^#?(f|e|d|c)/i.test(bg.replace('#', ''));
+  const isLightBg = hasBg && /^#?(f|e|d|c)/i.test(bg.replace('#', ''));
 
   // Outer-container double-click also enters edit mode so a click on the
   // padding/border area (not inside .note-body) still re-opens the editor.
@@ -278,8 +279,12 @@ export function RichNoteEditor({
   const noteStyle = { background: bg, color: textColor || undefined };
   if (fontFamily) noteStyle.fontFamily = fontFamily;
   if (fontSize) noteStyle.fontSize = `${fontSize}px`;
+  // Expose the bg color to CSS so .has-bg rules can keep their material
+  // polish even when the inline `background` is locally overridden by
+  // editing-state tints.
+  if (bg) noteStyle['--has-bg-color'] = bg;
   return (
-    <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${isTransparent ? 'is-transparent' : ''}`}
+    <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''}`}
          style={noteStyle}
          onDoubleClick={onOuterDouble}>
       <div ref={ref}

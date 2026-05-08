@@ -612,7 +612,9 @@ export function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   if (fontSize) fontStyle.fontSize = `${fontSize}px`;
   if (!onUpdate) {
     const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
-    return <div className="note" style={{ background: bgColor || undefined, color: textColor || undefined, ...fontStyle }}>
+    const hasBg = !!bgColor && bgColor !== 'transparent';
+    return <div className={`note ${hasBg ? 'has-bg' : ''}`}
+                style={{ background: bgColor || undefined, color: textColor || undefined, ...fontStyle }}>
       <NoteAutoLinkBody html={display} />
     </div>;
   }

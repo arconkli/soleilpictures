@@ -28,8 +28,11 @@ import {
 // user/workspace doesn't override a field, this is what they get.
 export const HARDCODED_FALLBACKS = Object.freeze({
   note: {
-    bgColor:    '#fde68a',
-    textColor:  '#1a1300',
+    // null => transparent floating text on the canvas. The user can
+    // still repaint per-note from the bottom toolbar, or set a
+    // workspace-wide default in Settings → Defaults → Notes.
+    bgColor:    null,
+    textColor:  null,
     fontFamily: null,           // null => inherit page font
     fontSize:   null,
     w: 200, h: 200,

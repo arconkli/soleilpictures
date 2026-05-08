@@ -3149,39 +3149,68 @@ body {
   color: rgba(255,255,255,.85);
 }
 
-/* Note — sticky-note feel by default. Soft drop-shadow gives it dimension
-   on the canvas; the color comes from the card's `bgColor` (defaults to a
-   warm yellow when added via the text tool). Transparent variant below
-   strips this chrome for floating-text use. */
+/* Note — defaults to floating text on the canvas (no chrome) so it
+   blends with whatever bg the user picked. When the user paints a note
+   with a `bgColor`, .has-bg adds the sticky-note shadow + hairline
+   highlight; until then the note looks like editable copy on the
+   surface itself, with a hairline border that fades in on hover so
+   bounds remain discoverable for drag/resize.
+   `is-transparent` is the legacy explicit-transparent class kept for
+   notes saved with `bgColor: 'transparent'`. It maps to the same
+   chrome-less default. */
 .note {
   width: 100%; height: 100%;
-  background: var(--bg-3);
-  border-radius: var(--radius-lg);
-  padding: 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 14px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 6px 14px rgba(0,0,0,.18);
+  transition:
+    border-color 140ms var(--ease),
+    background-color 140ms var(--ease),
+    box-shadow 140ms var(--ease);
 }
-[data-theme='light'] .note {
-  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 6px 14px rgba(0,0,0,.10);
+.note:hover { border-color: rgba(255,255,255,.06); }
+[data-theme='light'] .note:hover { border-color: rgba(0,0,0,.06); }
+.note.is-editing {
+  background-color: rgba(255,255,255,.024);
+  border-color: rgba(255,255,255,.10);
 }
-/* Transparent text notes: drop the card chrome so it reads as floating text
-   on the canvas. Border + shadow return while editing or selected so the
-   bounds are discoverable for drag/resize. */
-.note.is-transparent {
-  background: transparent;
-  border: 1px solid transparent;
-  box-shadow: none;
+[data-theme='light'] .note.is-editing {
+  background-color: rgba(0,0,0,.024);
+  border-color: rgba(0,0,0,.08);
 }
-.note.is-transparent.is-editing {
-  border-color: var(--line-2);
-  background: rgba(0,0,0,.04);
+/* When the user has explicitly painted the note (bgColor set), bring
+   back the sticky-note feel — but quieter than before so it doesn't
+   shout. The drop is offset slightly so it reads as a card "sitting
+   on" the canvas, plus a soft inner highlight for material polish. */
+.note.has-bg {
+  border-color: transparent;
+  border-radius: 10px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.05) inset,
+    0 1px 1px rgba(0,0,0,.08),
+    0 6px 16px -4px rgba(0,0,0,.22);
 }
-[data-theme='light'] .note.is-transparent.is-editing { background: rgba(0,0,0,.03); }
-.card.is-selected .note.is-transparent { border-color: var(--line-2); }
+[data-theme='light'] .note.has-bg {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.6) inset,
+    0 1px 1px rgba(0,0,0,.04),
+    0 6px 14px -4px rgba(0,0,0,.10);
+}
+.note.has-bg.is-editing {
+  background-color: var(--has-bg-color, transparent);
+  border-color: transparent;
+}
+
+/* Legacy explicit-transparent class — same as default. */
+.note.is-transparent { background: transparent; border-color: transparent; box-shadow: none; }
+
 .note-body {
-  font-size: 12.5px; line-height: 1.55; color: var(--ink-1);
+  font-size: 13px; line-height: 1.62; color: var(--ink-0);
+  letter-spacing: -0.002em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -3191,6 +3220,8 @@ body {
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 .note-body::-webkit-scrollbar { width: 8px; }
 .note-body::-webkit-scrollbar-track { background: transparent; }

@@ -745,10 +745,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     const addNote = (clickPos = null) => {
-      // Sticky-note feel: warm yellow, square-ish, dark text. Color picker
-      // in the rich-text bar still lets users repaint or go transparent.
-      // Defaults flow through useResolvedDefaults — workspace settings
-      // override hardcoded fallbacks, user settings override workspace.
+      // Notes default to no background — they read as floating text on
+      // the canvas instead of a sticky-note slab. The user can repaint
+      // any note from the bottom toolbar's color picker, or set a
+      // workspace-wide default in Settings → Defaults → Notes.
       const d = defaultsRef.current?.note || {};
       const w = d.w || 200, h = d.h || 200;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
@@ -756,8 +756,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const id = `note-${Date.now()}`;
       addCard({
         id, kind: 'note', html: '',
-        bgColor: d.bgColor || '#fde68a',
-        textColor: d.textColor || '#1a1300',
+        ...(d.bgColor ? { bgColor: d.bgColor } : null),
+        ...(d.textColor ? { textColor: d.textColor } : null),
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
         ...(d.fontSize ? { fontSize: d.fontSize } : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
