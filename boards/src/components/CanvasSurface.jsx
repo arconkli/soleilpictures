@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard,
@@ -204,12 +204,6 @@ export function CanvasSurface({
   panRef.current = pan;
   zoomRef.current = zoom;
   const [smoothXform, setSmoothXform] = useState(false); // true → CSS transition on canvas transform
-  // Reveal the canvas content only AFTER fit-to-content has run and the
-  // browser has painted with the new pan/zoom. Eliminates the
-  // "card pop-in at wrong viewport" flash on board transitions: while
-  // false, the .canvas children are opacity:0 and the grain background
-  // shows through smoothly.
-  const [surfacePainted, setSurfacePainted] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [selectedStrokes, setSelectedStrokes] = useState(() => new Set());
@@ -506,33 +500,30 @@ export function CanvasSurface({
   // visit re-fits and intra-session moves don't disrupt the user's pan.
   const fitOnceForRef = useRef(null);
   useEffect(() => {
-    // New board → arm fit and hide content until fit-to-content lands.
+    // New board → arm fit. Don't reset pan/zoom here; the
+    // useLayoutEffect below sets the correct viewport synchronously
+    // with the first card render so there's never a frame painted at
+    // the previous board's viewport.
     fitOnceForRef.current = null;
-    setSurfacePainted(false);
-    // Don't reset pan/zoom here. If we did, cards from the new board
-    // would render at the (40, 60)/1 viewport for a frame before
-    // fit-to-content corrects — which is what produced the
-    // "wrong-place flash." Instead, the fit effect below sets the
-    // correct viewport synchronously with the first card render and
-    // we reveal only AFTER both have committed.
   }, [board.id]);
-  useEffect(() => {
+  // useLayoutEffect (not useEffect): runs after DOM mutations but
+  // BEFORE the browser paints. setState inside a layout effect
+  // triggers a sync re-render in the same commit phase, so the cards
+  // render and the fit-to-content pan/zoom both land in a single
+  // visible frame. Using a regular useEffect produced a one-frame
+  // flash where cards painted at the previous board's pan/zoom.
+  useLayoutEffect(() => {
     if (!wrapRef.current) return;
     if (!cards) return;
     if (fitOnceForRef.current === board.id) return;
     const r = wrapRef.current.getBoundingClientRect();
     if (r.width < 50 || r.height < 50) return;
-    // Empty-board branch: nothing to fit, just reveal at the default
-    // viewport once we know we're actually in a ready state. Without
-    // this, an empty new board would stay hidden forever.
+    // Empty-board branch: jump to default viewport once we're ready.
     if (cards.length === 0) {
       if (!ydoc) return; // not ready yet — try again after Yjs sync
       fitOnceForRef.current = board.id;
       setPan({ x: 40, y: 60 });
       setZoom(1);
-      // Two rAFs: one for React to flush, one for the browser to
-      // commit the new transform. THEN reveal.
-      requestAnimationFrame(() => requestAnimationFrame(() => setSurfacePainted(true)));
       return;
     }
     fitOnceForRef.current = board.id;
@@ -555,10 +546,6 @@ export function CanvasSurface({
       x: (r.width  - contentW * z) / 2 - minX * z,
       y: (r.height - contentH * z) / 2 - minY * z,
     });
-    // Defer reveal until the new transform has actually painted —
-    // otherwise cards flicker at the prior viewport for a microframe
-    // because React state updates aren't yet flushed to the DOM.
-    requestAnimationFrame(() => requestAnimationFrame(() => setSurfacePainted(true)));
   }, [cards, board.id, ydoc]);
 
   useEffect(() => { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
@@ -3420,7 +3407,7 @@ export function CanvasSurface({
         zoom={zoom}
         selfId={currentUser?.id}
       />
-      <div className={`canvas ${smoothXform ? 'is-smooth' : ''} ${surfacePainted ? 'is-painted' : ''}`}
+      <div className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
            style={{
              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
              transformOrigin: '0 0',
