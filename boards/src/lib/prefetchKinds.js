@@ -57,8 +57,18 @@ export function prefetchImage(src, { lane = 'normal' } = {}) {
     // fetchPriority is supported in Chromium-based browsers; harmless
     // on others (just ignored).
     try { img.fetchPriority = lane === 'high' ? 'high' : 'low'; } catch (_) {}
+    const t0 = performance.now();
     img.src = url;
-    try { await img.decode(); } catch { /* decode unsupported / abort — bytes may still be cached */ }
+    try {
+      await img.decode();
+      const ms = (performance.now() - t0).toFixed(0);
+      // Per-image timing is too chatty for the [prefetch] channel.
+      // Gated behind window.__SOLEIL_PREFETCH_DEBUG_IMAGES__ for when
+      // someone actually wants to inspect image-specific timing.
+      if (typeof window !== 'undefined' && window.__SOLEIL_PREFETCH_DEBUG_IMAGES__) {
+        console.log(`%c[prefetch] image decoded in ${ms}ms`, 'color:#a3854b', src.slice(0, 32));
+      }
+    } catch { /* unsupported / abort — bytes may still be cached */ }
     return url;
   }, { lane, cacheTtl: IMAGE_TTL });
 }

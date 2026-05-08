@@ -528,7 +528,10 @@ export function CanvasSurface({
       (r.width - margin * 2) / contentW,
       (r.height - margin * 2) / contentH,
     )));
-    enableSmoothTransform();
+    // Snap to fit instantly on cold-load — animating a 220ms pan/zoom
+    // makes the cards feel like they "fly in" even though they're at
+    // their final positions. User-initiated zoom (⌘0/+/−) still uses
+    // enableSmoothTransform; this is the only callsite that doesn't.
     setZoom(z);
     setPan({
       x: (r.width  - contentW * z) / 2 - minX * z,

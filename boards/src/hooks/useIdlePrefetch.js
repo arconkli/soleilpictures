@@ -16,11 +16,12 @@ const DEFAULT_TOP_N = 8;
 export function useIdlePrefetch(boardList, { topN = DEFAULT_TOP_N } = {}) {
   useEffect(() => {
     if (!Array.isArray(boardList) || boardList.length === 0) return;
-    // boardList from useBoardList is already sorted by recency. Take
-    // the first N — they're the most likely click targets.
-    const picks = boardList.slice(0, topN);
+    const picks = boardList.slice(0, topN).filter(b => b?.id);
+    if (picks.length && typeof window !== 'undefined' && window.__SOLEIL_PREFETCH_DEBUG__ !== false) {
+      console.log(`%c[prefetch]`, 'color:#a3854b;font-weight:600',
+                  `idle queueing ${picks.length} boards:`, picks.map(b => b.name || b.id).slice(0, 5).join(', ') + (picks.length > 5 ? '…' : ''));
+    }
     for (const b of picks) {
-      if (!b?.id) continue;
       prefetch(`board:${b.id}`,
         () => loadBoardSnapshot(b.id),
         { lane: 'idle', cacheTtl: 30_000 });
