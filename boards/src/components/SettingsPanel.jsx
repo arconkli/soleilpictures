@@ -66,6 +66,7 @@ export function SettingsPanel({
   defaults, role, refresh, workspaceSettings, mySettings,
 }) {
   const [tab, setTab] = useState('profile');
+  const feedback = useFeedback();
 
   if (!open) return null;
 
@@ -75,6 +76,18 @@ export function SettingsPanel({
            onMouseDown={(e) => e.stopPropagation()}>
         <div className="settings-head">
           <span className="settings-title">Settings</span>
+          <span style={{ flex: 1 }} />
+          {onSignOut && (
+            <button type="button" className="settings-link-btn settings-head-signout"
+                    onClick={async () => {
+                      const ok = await feedback.confirm({
+                        title: 'Sign out',
+                        message: `Sign out of ${user?.email || 'this account'}?`,
+                        confirmLabel: 'Sign out',
+                      });
+                      if (ok) { onClose?.(); onSignOut?.(); }
+                    }}>Sign out</button>
+          )}
           <button type="button" className="settings-x"
                   onClick={onClose} aria-label="Close">
             <Icon as={X} size={14} />
@@ -94,8 +107,7 @@ export function SettingsPanel({
           </nav>
           <div className="settings-pane">
             {tab === 'profile' && (
-              <ProfileTab user={user} onSaved={onSaved} onSignOut={onSignOut}
-                          onClose={onClose} />
+              <ProfileTab user={user} onSaved={onSaved} />
             )}
             {tab === 'defaults' && (
               <DefaultsTab workspaceId={workspaceId}
@@ -122,7 +134,7 @@ export function SettingsPanel({
 }
 
 // ── Profile tab (today's AccountSettings, lifted in) ────────────────────
-function ProfileTab({ user, onSaved, onSignOut, onClose }) {
+function ProfileTab({ user, onSaved }) {
   const feedback = useFeedback();
   const [name, setName] = useState('');
   const [color, setColor] = useState('');
@@ -207,18 +219,6 @@ function ProfileTab({ user, onSaved, onSignOut, onClose }) {
         <div className="settings-readonly">{user?.email || '—'}</div>
       </Field>
       <div className="settings-row-actions">
-        {onSignOut && (
-          <button type="button" className="settings-btn settings-btn-ghost"
-                  onClick={async () => {
-                    const ok = await feedback.confirm({
-                      title: 'Sign out',
-                      message: `Sign out of ${user?.email || 'this account'}?`,
-                      confirmLabel: 'Sign out',
-                    });
-                    if (ok) { onClose?.(); onSignOut?.(); }
-                  }}
-                  disabled={saving}>Sign out</button>
-        )}
         <span style={{ flex: 1 }} />
         <button type="button" className="settings-btn settings-btn-primary"
                 onClick={onSave}
@@ -245,6 +245,14 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
   // Which scope the user is currently editing. Viewers are pinned to
   // 'mine' since they can't write workspace settings.
   const [scope, setScope] = useState(canEditWorkspace ? 'workspace' : 'mine');
+  // "Saved ✓" flash that fades after each successful save.
+  const [savedAt, setSavedAt] = useState(0);
+  const flashSaved = () => setSavedAt(Date.now());
+  useEffect(() => {
+    if (!savedAt) return;
+    const t = setTimeout(() => setSavedAt(0), 1600);
+    return () => clearTimeout(t);
+  }, [savedAt]);
 
   // Settings being viewed/edited — live snapshot of the right scope.
   const settings = scope === 'workspace' ? workspaceSettings : mySettings;
@@ -264,6 +272,7 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
         await updateOwnSettings(top);
       }
       refresh?.();
+      flashSaved();
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Save failed: ' + (err.message || err) });
     }
@@ -294,7 +303,16 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
           <span className="settings-scope-dot settings-scope-dot-mine" />
           Yours
         </button>
+        <span style={{ flex: 1 }} />
+        <span className={`settings-saved-flash ${savedAt ? 'is-on' : ''}`}>Saved ✓</span>
       </div>
+      {!canEditWorkspace && scope === 'workspace' && (
+        <p className="settings-section-hint settings-viewer-hint">
+          You have viewer access — workspace defaults show below for context,
+          but only editors and owners can change them. Switch to “Yours” to
+          set personal overrides.
+        </p>
+      )}
 
       {/* NOTES */}
       <SettingsCategory title="Notes" desc="When you create a sticky note">
@@ -311,6 +329,28 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
             fallback={HARDCODED_FALLBACKS.note.textColor}
             disabled={scope === 'workspace' && !canEditWorkspace}
             onChange={(v) => setKey('note', 'textColor', v)} />
+        </Field>
+        <Field label="Font">
+          <select className="settings-input"
+                  value={settings.note?.fontFamily ?? ''}
+                  disabled={scope === 'workspace' && !canEditWorkspace}
+                  onChange={(e) => setKey('note', 'fontFamily', e.target.value || null)}>
+            <option value="">Default</option>
+            {FONT_PRESETS.map(f => (
+              <option key={f.id} value={f.css}>{f.name}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Font size">
+          <input type="number" min="8" max="36"
+                 className="settings-input"
+                 placeholder="12.5"
+                 value={settings.note?.fontSize ?? ''}
+                 disabled={scope === 'workspace' && !canEditWorkspace}
+                 onChange={(e) => {
+                   const v = e.target.value;
+                   setKey('note', 'fontSize', v === '' ? null : Number(v));
+                 }} />
         </Field>
         <Field label="Default size">
           <SizeInput
@@ -346,6 +386,17 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, mySettings, refresh
 
       {/* DOCS */}
       <SettingsCategory title="Docs" desc="When you create a new doc">
+        <Field label="Font">
+          <select className="settings-input"
+                  value={settings.doc?.fontFamily ?? ''}
+                  disabled={scope === 'workspace' && !canEditWorkspace}
+                  onChange={(e) => setKey('doc', 'fontFamily', e.target.value || null)}>
+            <option value="">Default</option>
+            {FONT_PRESETS.map(f => (
+              <option key={f.id} value={f.css}>{f.name}</option>
+            ))}
+          </select>
+        </Field>
         <Field label="Default size">
           <SizeInput
             w={settings.doc?.w ?? null} h={settings.doc?.h ?? null}

@@ -9805,6 +9805,26 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .settings-scope-dot { width: 8px; height: 8px; border-radius: 50%; }
 .settings-scope-dot-ws { background: var(--soleil); }
 .settings-scope-dot-mine { background: #5b8fc7; }
+.settings-saved-flash {
+  font: 600 11px/1 var(--font-mono, monospace);
+  color: #10b981;
+  letter-spacing: .04em;
+  opacity: 0;
+  transition: opacity 220ms var(--ease);
+}
+.settings-saved-flash.is-on { opacity: 1; }
+.settings-viewer-hint {
+  background: var(--bg-2);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border-left: 2px solid var(--ink-3);
+}
+.settings-head-signout {
+  margin-right: 6px;
+  padding: 4px 10px !important;
+  color: var(--ink-2);
+}
+.settings-head-signout:hover { color: #ef4444; }
 .settings-cat {
   border: 1px solid var(--line-1);
   border-radius: var(--radius-md);

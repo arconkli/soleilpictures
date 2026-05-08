@@ -13,6 +13,57 @@
 
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="canonical" href="https://boards.soleilpictures.com/" />
+
+  <!-- Bootstrap user UI prefs BEFORE React mounts so theme/clean-mode/
+       accent don't flicker for ~200ms on every cold start. We read
+       the cached blob written by App.jsx to localStorage on each save
+       (key 'soleil.ui'). Server settings overwrite this once they
+       resolve. -->
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('soleil.ui');
+        if (!raw) return;
+        var ui = JSON.parse(raw) || {};
+        if (ui.theme) document.documentElement.setAttribute('data-theme', ui.theme);
+        if (ui.hideChrome) document.body && document.body.setAttribute('data-clean-mode', '1');
+        // Inject accent + font overrides into a style tag we'll
+        // reuse from React so we don't double-up.
+        var rules = [];
+        if (ui.accent) {
+          var hex = ui.accent;
+          var r = parseInt(hex.slice(1,3), 16) || 212;
+          var g = parseInt(hex.slice(3,5), 16) || 160;
+          var b = parseInt(hex.slice(5,7), 16) || 74;
+          rules.push(":root, [data-theme='light'] {"
+            + " --soleil: " + hex + ";"
+            + " --soleil-soft: rgba(" + r + "," + g + "," + b + ",.14);"
+            + " --soleil-glow: 0 0 24px rgba(" + r + "," + g + "," + b + ",.18);"
+            + " --accent: " + hex + ";"
+            + " }");
+        }
+        if (ui.fontSans) {
+          rules.push(":root, [data-theme='light'] { --font-sans: " + ui.fontSans + "; }");
+        }
+        if (rules.length) {
+          var s = document.createElement('style');
+          s.id = 'user-theme-overrides';
+          s.textContent = rules.join('\n');
+          (document.head || document.documentElement).appendChild(s);
+        }
+      } catch (_) { /* malformed cache → ignore */ }
+    })();
+    // Body might not exist yet at script run; defer the clean-mode
+    // attribute set to a microtask if needed.
+    document.addEventListener('DOMContentLoaded', function () {
+      try {
+        var raw = localStorage.getItem('soleil.ui');
+        if (!raw) return;
+        var ui = JSON.parse(raw) || {};
+        if (ui.hideChrome) document.body.setAttribute('data-clean-mode', '1');
+      } catch (_) {}
+    });
+  </script>
 </head>
 <body>
   <div id="root"></div>

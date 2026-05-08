@@ -977,6 +977,7 @@ export function CanvasSurface({
         return hex;
       };
       let hex = null;
+      let taintedFallbackUsed = false;
       try {
         // Try a clean reload with crossOrigin set so the canvas isn't tainted.
         const fresh = new Image();
@@ -988,12 +989,29 @@ export function CanvasSurface({
         });
         hex = sample(fresh);
       } catch (_) {
-        // Fall back to the on-page image — works only if the bucket
-        // already serves CORS headers OR the image is same-origin.
-        hex = sample(imgEl);
+        // The fresh load failed (most likely the storage bucket doesn't
+        // return Access-Control-Allow-Origin). The on-page image was
+        // loaded WITHOUT crossOrigin, so its canvas would also taint —
+        // but try anyway in case the source is same-origin or a data:
+        // URI. If it throws, surface a clear instruction.
+        try {
+          taintedFallbackUsed = true;
+          hex = sample(imgEl);
+        } catch (sampleErr) {
+          feedback.toast({
+            type: 'error',
+            message: 'In-image sampling needs CORS on the image bucket. Use “Eyedrop color (anywhere on screen)” instead.',
+          });
+          return;
+        }
       }
       if (!hex) {
-        feedback.toast({ type: 'error', message: 'Could not read pixel — image bucket may not allow CORS.' });
+        feedback.toast({
+          type: 'error',
+          message: taintedFallbackUsed
+            ? 'Image bucket missing CORS headers — try “Eyedrop color (anywhere on screen)”.'
+            : 'Could not read pixel.',
+        });
         return;
       }
       const next = [...(palette.swatches || []), { name: 'Color', hex }];
@@ -3896,13 +3914,27 @@ export function CanvasSurface({
         open={sketchpadOpen}
         onClose={() => setSketchpadOpen(false)}
         onCommitStrokes={(strokes) => {
-          // Translate pad-local coords (origin at the pad's top-left) into
-          // canvas coords. Land the bundle near the top-left of the
-          // user's current viewport so they can see the result land.
-          const offsetX = -pan.x / zoom + 60;
-          const offsetY = -pan.y / zoom + 60;
+          if (!strokes?.length) return;
+          // Convert pad-local pixels → canvas units AND center the bundle
+          // on the user's current viewport so the strokes land where the
+          // user is actually looking, not buried at the top-left.
+          // 1) Compute the strokes' bounding box in pad coords.
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          for (const s of strokes) for (const [x, y] of s.points) {
+            if (x < minX) minX = x; if (y < minY) minY = y;
+            if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+          }
+          const padW = maxX - minX, padH = maxY - minY;
+          // 2) Viewport center in canvas units.
+          const wrap = wrapRef.current;
+          const r = wrap?.getBoundingClientRect?.() || { width: 800, height: 600 };
+          const vCx = (-pan.x + r.width  / 2) / zoom;
+          const vCy = (-pan.y + r.height / 2) / zoom;
+          // 3) Bundle center in canvas units = (padCenter / zoom) shifted to vCenter.
+          const dx = vCx - (minX + padW / 2) / zoom;
+          const dy = vCy - (minY + padH / 2) / zoom;
           for (const s of strokes) {
-            const points = s.points.map(([x, y]) => [x / zoom + offsetX, y / zoom + offsetY]);
+            const points = s.points.map(([x, y]) => [x / zoom + dx, y / zoom + dy]);
             mutators.addStroke?.({ color: s.color, width: s.width, points });
           }
         }} />

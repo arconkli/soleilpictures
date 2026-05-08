@@ -26,7 +26,6 @@ import { TagDetailView } from './components/TagDetailView.jsx';
 import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
 import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
-import { AccountSettings } from './components/AccountSettings.jsx';
 import { SettingsPanel } from './components/SettingsPanel.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
@@ -260,8 +259,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Apply per-user UI preferences on load + whenever they change.
   // Theme attribute, accent custom-property, body-font custom-property,
   // and the clean-mode body attribute all flow from mySettings.ui.
+  // We also mirror to localStorage so the bootstrap script in index.html
+  // can apply these before React mounts on the next page load (no flicker).
   useEffect(() => {
     const ui = mySettings?.ui || {};
+    try { localStorage.setItem('soleil.ui', JSON.stringify(ui)); } catch (_) {}
     if (ui.theme) {
       document.documentElement.setAttribute('data-theme', ui.theme);
     }
