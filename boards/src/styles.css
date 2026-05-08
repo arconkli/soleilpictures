@@ -144,13 +144,13 @@ body {
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
-  opacity: 0.02;
+  opacity: 0.05;
   z-index: 0;
 }
 [data-theme='light'] .sidebar::after,
 [data-theme='light'] .share-modal::after,
 [data-theme='light'] .modal::after,
-[data-theme='light'] .twk-panel::after { opacity: 0.018; }
+[data-theme='light'] .twk-panel::after { opacity: 0.045; }
 /* Keep panel children above the grain pseudo. */
 .sidebar > *,
 .share-modal > *,
