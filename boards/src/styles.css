@@ -116,11 +116,11 @@ body {
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
-  opacity: 0.04;
+  opacity: 0.02;
   z-index: 0;
 }
 [data-theme='light'] .grain-canvas,
-[data-theme='light'] .grain-surface { opacity: 0.028; }
+[data-theme='light'] .grain-surface { opacity: 0.012; }
 
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
