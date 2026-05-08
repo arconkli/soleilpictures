@@ -1600,6 +1600,7 @@ body {
   z-index: 9999;
   padding: 20px;
 }
+[data-theme='light'] .share-backdrop { background: rgba(28,28,31,.32); }
 .share-modal {
   width: min(540px, 92vw);
   max-height: 86vh;
@@ -3996,6 +3997,7 @@ body {
   padding-top: 12vh;
   animation: pickerFade var(--dur-slow) var(--ease);
 }
+[data-theme='light'] .modal-bg { background: rgba(28,28,31,.28); }
 .modal {
   width: 560px;
   max-height: calc(100vh - 24vh);
@@ -10264,6 +10266,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   padding: 24px;
   animation: pickerFade var(--dur-base) var(--ease);
 }
+[data-theme='light'] .sketchpad-bg { background: rgba(28,28,31,.34); }
 .sketchpad-frame {
   width: min(1200px, calc(100vw - 48px));
   height: min(840px, calc(100vh - 48px));
