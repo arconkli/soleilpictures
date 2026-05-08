@@ -64,7 +64,16 @@ export function HomeGraph({ workspaceId, onNavigate }) {
       const controls = fgRef.current?.controls?.();
       if (!controls) { raf = requestAnimationFrame(tryAttach); return; }
       controls.autoRotate = !selected;
-      controls.autoRotateSpeed = 0.35;
+      controls.autoRotateSpeed = 0.28;
+      // Damping gives the orbit weight + glide. Low factor = long, smooth
+      // ease-out after the user releases the cursor (floats to a stop
+      // instead of cutting). Combined with the lower rotate/zoom speeds,
+      // the camera feels like it has mass.
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.rotateSpeed = 0.55;
+      controls.zoomSpeed = 0.7;
+      controls.panSpeed = 0.6;
     };
     tryAttach();
     return () => { if (raf) cancelAnimationFrame(raf); };
@@ -166,6 +175,13 @@ export function HomeGraph({ workspaceId, onNavigate }) {
         linkColor={l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(212,160,74,.55)'}
         linkOpacity={0.7}
         linkCurvature={0.18}
+        // Floatier idle physics — lower velocity decay = nodes glide longer
+        // before settling, and a long cooldown keeps the constellation
+        // breathing instead of freezing into a static lattice.
+        d3AlphaDecay={0.012}
+        d3VelocityDecay={0.22}
+        warmupTicks={40}
+        cooldownTime={20000}
         onNodeClick={(n) => {
           setSelected(n);
           if (fgRef.current) {
