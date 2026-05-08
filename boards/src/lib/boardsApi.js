@@ -399,14 +399,16 @@ async function _doSyncCardIndex(boardId, ydoc) {
   const workspaceId = wsq.data?.workspace_id;
   if (!workspaceId) return;
   const cardsMap = ydoc.getMap('cards');
-  // Pull the groups list once so we can capture group names per
+  // Pull the groups map once so we can capture group names per
   // card in card_index.meta. Used by the tag detail view to render
-  // group context and aggregate "Groups" rows.
-  const groupsArr = ydoc.getArray('groups');
+  // group context and aggregate "Groups" rows. NOTE: groups is a
+  // Y.Map keyed by groupId — calling getArray here used to throw
+  // "Type with the name groups has already been defined with a
+  // different constructor" because yboard.js gets it as a Map.
+  const groupsMap = ydoc.getMap('groups');
   const groupNameById = new Map();
   try {
-    groupsArr.forEach(g => {
-      const id = g?.get?.('id') ?? g?.id;
+    groupsMap.forEach((g, id) => {
       const name = g?.get?.('name') ?? g?.name;
       if (id) groupNameById.set(String(id), name || '');
     });

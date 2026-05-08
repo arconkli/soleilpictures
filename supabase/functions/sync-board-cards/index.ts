@@ -57,11 +57,14 @@ async function syncBoard(boardId: string): Promise<{ ok: boolean; n: number; err
     return { ok: false, n: 0, error: "yjs decode failed: " + (err?.message || err) };
   }
   const cards: any = ydoc.getMap("cards");
-  const groups: any = ydoc.getArray("groups");
+  // groups is a Y.Map keyed by groupId, NOT a Y.Array — using
+  // getArray throws "Type with the name groups has already been
+  // defined with a different constructor" when the snapshot
+  // includes the map.
+  const groups: any = ydoc.getMap("groups");
   const groupNameById = new Map<string, string>();
   try {
-    groups.forEach((g: any) => {
-      const id = g?.get?.("id") ?? g?.id;
+    groups.forEach((g: any, id: string) => {
       const name = g?.get?.("name") ?? g?.name;
       if (id) groupNameById.set(String(id), name || "");
     });
