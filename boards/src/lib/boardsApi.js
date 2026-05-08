@@ -95,15 +95,69 @@ export async function renameWorkspace(workspaceId, name) {
   if (error) throw error;
 }
 
-// Fetch the caller's own profile (name + color + avatar). Returns null if
-// no row exists yet — callers should fall back to email-derived defaults.
+// Read the workspace settings jsonb. Returns {} when none set.
+// Members can read; the SELECT policy already covers it.
+export async function getWorkspaceSettings(workspaceId) {
+  if (!workspaceId) return {};
+  const { data, error } = await supabase
+    .from('workspaces')
+    .select('settings')
+    .eq('id', workspaceId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.settings && typeof data.settings === 'object') ? data.settings : {};
+}
+
+// Atomic merge-patch into workspaces.settings. Editors AND owners can
+// write — the RPC enforces. `patch` is a top-level object whose keys
+// overwrite their counterparts in settings; missing keys preserve.
+export async function updateWorkspaceSettings(workspaceId, patch) {
+  if (!workspaceId) throw new Error('workspaceId required');
+  const { data, error } = await supabase.rpc('merge_workspace_settings', {
+    p_workspace_id: workspaceId,
+    p_patch: patch || {},
+  });
+  if (error) throw error;
+  return (data && typeof data === 'object') ? data : {};
+}
+
+// Caller's role on this workspace. 'editor' | 'owner' | 'viewer' | null
+// (null when not a member). Used by the SettingsPanel to gate the
+// workspace-defaults editor for viewers.
+export async function getMyWorkspaceRole(workspaceId) {
+  if (!workspaceId) return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.role || null;
+}
+
+// Fetch the caller's own profile (name + color + avatar + settings).
+// Returns null if no row exists yet — callers should fall back to
+// email-derived defaults and {} settings.
 export async function getOwnProfile() {
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, display_name, color, avatar_url, updated_at')
+    .select('user_id, display_name, color, avatar_url, settings, updated_at')
     .maybeSingle();
   if (error) throw error;
   return data || null;
+}
+
+// Atomic merge-patch into the caller's profile.settings. The RPC
+// upserts the row if needed, then merges top-level keys.
+export async function updateOwnSettings(patch) {
+  const { data, error } = await supabase.rpc('merge_profile_settings', {
+    p_patch: patch || {},
+  });
+  if (error) throw error;
+  return (data && typeof data === 'object') ? data : {};
 }
 
 // Upsert the caller's profile. Pass only the fields you want to write.

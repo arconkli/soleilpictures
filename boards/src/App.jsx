@@ -10,6 +10,7 @@ import { useSharedBoards } from './hooks/useSharedBoards.js';
 import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
+import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
 import { fetchMessageById } from './lib/messages.js';
 import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
@@ -243,6 +244,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     email: user.email,
     color: ownProfile?.color || undefined,
   }), [user.id, user.email, user.user_metadata?.full_name, ownProfile?.display_name, ownProfile?.color]);
+
+  // Resolved defaults — workspace > user > hardcoded fallback. Drives every
+  // addX mutator's initial values + the SettingsPanel UI. Stash in a ref
+  // so mutators read the latest at call time without re-memo cascades.
+  const { defaults, role: workspaceRole, refresh: refreshSettings,
+          workspaceSettings, mySettings } = useResolvedDefaults({
+    workspaceId: workspace?.id,
+    userId: user?.id,
+  });
+  const defaultsRef = useRef(defaults);
+  useEffect(() => { defaultsRef.current = defaults; }, [defaults]);
 
   // Messages: list/unread/title-badge. msgRefreshTick lets realtime pings
   // bump the sidebar count without a full refetch loop.
@@ -592,43 +604,48 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     const addShape = (clickPos = null, opts = {}) => {
-      const w = opts.w || 160, h = opts.h || 100;
+      const d = defaultsRef.current?.shape || {};
+      const w = opts.w || d.w || 160, h = opts.h || d.h || 100;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       addCard({
         id: `shape-${Date.now()}`, kind: 'shape',
-        shape: opts.shape || 'rect',
-        stroke: opts.stroke || '#f5f5f6',
-        fill: opts.fill || 'transparent',
-        strokeWidth: opts.strokeWidth || 2,
-        dash: opts.dash || 'solid',
+        shape: opts.shape || d.shape || 'rect',
+        stroke: opts.stroke || d.stroke || '#f5f5f6',
+        fill: opts.fill || d.fill || 'transparent',
+        strokeWidth: opts.strokeWidth || d.strokeWidth || 2,
+        dash: opts.dash || d.dash || 'solid',
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       });
     };
 
     const addPalette = (clickPos = null) => {
-      const w = 280, h = 130;
+      const d = defaultsRef.current?.palette || {};
+      const w = d.w || 280, h = d.h || 130;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `pal-${Date.now()}`;
       addCard({
         id, kind: 'palette', title: 'Palette',
-        swatches: [
-          { name: 'Color', hex: '#3b82f6' },
-          { name: 'Color', hex: '#10b981' },
-        ],
+        swatches: Array.isArray(d.swatches) && d.swatches.length
+          ? d.swatches
+          : [{ name: 'Color', hex: '#3b82f6' }, { name: 'Color', hex: '#10b981' }],
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       });
       setAutoFocusId(id);
     };
 
     const addDocCard = (clickPos = null) => {
-      const w = 320, h = 240;
+      const d = defaultsRef.current?.doc || {};
+      const w = d.w || 320, h = d.h || 240;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `doc-${Date.now()}`;
-      addCard({ id, kind: 'doc', title: 'Untitled doc',
-                x: Math.max(8, x), y: Math.max(8, y), w, h });
+      addCard({
+        id, kind: 'doc', title: 'Untitled doc',
+        ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
+        x: Math.max(8, x), y: Math.max(8, y), w, h,
+      });
       // Initialize the per-card doc store (pages, content, bookmarks, comments).
       const m = cardsMap();
       const cardYM = m?.get(id);
@@ -662,14 +679,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const addNote = (clickPos = null) => {
       // Sticky-note feel: warm yellow, square-ish, dark text. Color picker
       // in the rich-text bar still lets users repaint or go transparent.
-      const w = 200, h = 200;
+      // Defaults flow through useResolvedDefaults — workspace settings
+      // override hardcoded fallbacks, user settings override workspace.
+      const d = defaultsRef.current?.note || {};
+      const w = d.w || 200, h = d.h || 200;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `note-${Date.now()}`;
       addCard({
         id, kind: 'note', html: '',
-        bgColor: '#fde68a',
-        textColor: '#1a1300',
+        bgColor: d.bgColor || '#fde68a',
+        textColor: d.textColor || '#1a1300',
+        ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
+        ...(d.fontSize ? { fontSize: d.fontSize } : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       });
       setAutoFocusId(id);
@@ -708,15 +730,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     const addNewBoard = async (clickPos = null, opts = {}) => {
-      const view = opts.view || 'canvas';
+      const d = defaultsRef.current?.board || {};
+      const view = opts.view || d.view || 'canvas';
       const defaultName = view === 'list' ? 'Untitled list' : 'Untitled board';
       try {
         const b = await createBoard({
           workspaceId: workspace.id,
           parentBoardId: boardId,
           name: defaultName, view, userId: user.id,
+          cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
         });
-        const w = 280, h = 220;
+        const w = d.w || 280, h = d.h || 220;
         const x = clickPos ? Math.round(clickPos.x - w/2) : 60 + Math.floor(Math.random() * 600);
         const y = clickPos ? Math.round(clickPos.y - h/2) : 60 + Math.floor(Math.random() * 200);
         addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h });
