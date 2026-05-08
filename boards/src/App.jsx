@@ -27,6 +27,7 @@ import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
 import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
 import { AccountSettings } from './components/AccountSettings.jsx';
+import { SettingsPanel } from './components/SettingsPanel.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
@@ -54,7 +55,7 @@ import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
-import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta, updateOwnSettings } from './lib/boardsApi.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
@@ -255,6 +256,65 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   });
   const defaultsRef = useRef(defaults);
   useEffect(() => { defaultsRef.current = defaults; }, [defaults]);
+
+  // Apply per-user UI preferences on load + whenever they change.
+  // Theme attribute, accent custom-property, body-font custom-property,
+  // and the clean-mode body attribute all flow from mySettings.ui.
+  useEffect(() => {
+    const ui = mySettings?.ui || {};
+    if (ui.theme) {
+      document.documentElement.setAttribute('data-theme', ui.theme);
+    }
+    // We inject overrides into a single <style> element so changing
+    // settings doesn't accumulate stale rules.
+    let el = document.getElementById('user-theme-overrides');
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'user-theme-overrides';
+      document.head.appendChild(el);
+    }
+    const rules = [];
+    if (ui.accent) {
+      const hex = ui.accent;
+      const r = parseInt(hex.slice(1,3), 16) || 212;
+      const g = parseInt(hex.slice(3,5), 16) || 160;
+      const b = parseInt(hex.slice(5,7), 16) || 74;
+      rules.push(`:root, [data-theme='light'] {`
+        + ` --soleil: ${hex};`
+        + ` --soleil-soft: rgba(${r},${g},${b},.14);`
+        + ` --soleil-glow: 0 0 24px rgba(${r},${g},${b},.18);`
+        + ` --accent: ${hex};`
+        + ` }`);
+    }
+    if (ui.fontSans) {
+      rules.push(`:root, [data-theme='light'] { --font-sans: ${ui.fontSans}; }`);
+    }
+    el.textContent = rules.join('\n');
+
+    // Clean mode body attribute
+    if (ui.hideChrome) document.body.setAttribute('data-clean-mode', '1');
+    else document.body.removeAttribute('data-clean-mode');
+  }, [mySettings]);
+
+  // ⌘. toggles clean mode quickly. Persists via merge_profile_settings.
+  useEffect(() => {
+    const onKey = (e) => {
+      const isMac = navigator.platform?.toLowerCase().includes('mac');
+      const cmd = isMac ? e.metaKey : e.ctrlKey;
+      if (cmd && e.key === '.') {
+        e.preventDefault();
+        const cur = mySettings?.ui?.hideChrome;
+        // Optimistic — toggle the body attribute now, persist async.
+        if (!cur) document.body.setAttribute('data-clean-mode', '1');
+        else document.body.removeAttribute('data-clean-mode');
+        updateOwnSettings({ ui: { ...(mySettings.ui || {}), hideChrome: !cur } })
+          .then(() => refreshSettings?.())
+          .catch(() => {});
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mySettings, refreshSettings]);
 
   // Messages: list/unread/title-badge. msgRefreshTick lets realtime pings
   // bump the sidebar count without a full refetch loop.
@@ -1670,6 +1730,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <AppTrieProvider workspaceId={workspace.id}>
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
+      {/* Clean-mode exit button — only renders while body[data-clean-mode='1'].
+          CSS hides it otherwise. Click or press ⌘. to leave. */}
+      <button className="clean-mode-exit"
+              onClick={() => {
+                document.body.removeAttribute('data-clean-mode');
+                updateOwnSettings({ ui: { ...(mySettings.ui || {}), hideChrome: false } })
+                  .then(() => refreshSettings?.())
+                  .catch(() => {});
+              }}
+              title="Exit clean mode (⌘.)">
+        Exit clean mode
+      </button>
       <aside className="sidebar">
         {/* Single-column sidebar. Workspace switcher is now a popover
             triggered from the header (Notion-style) instead of the
@@ -1817,13 +1889,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
         </div>
       </aside>
-      <AccountSettings
+      <SettingsPanel
         open={accountOpen}
         onClose={() => setAccountOpen(false)}
         user={user}
         onSignOut={signOut}
+        workspaceId={workspace?.id}
+        onWorkspacesChanged={onWorkspacesChanged}
         onSaved={() => onWorkspacesChanged?.()}
-      />
+        defaults={defaults}
+        role={workspaceRole}
+        refresh={refreshSettings}
+        workspaceSettings={workspaceSettings}
+        mySettings={mySettings} />
 
       <main className="main">
         <div className="topbar">

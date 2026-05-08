@@ -61,6 +61,18 @@ export async function deleteBoardTemplate(id) {
   if (error) throw error;
 }
 
+// Rename a template. RLS already restricts who can update — owners /
+// editors of the template's workspace, and the template's own
+// creator. Surfaced from the SettingsPanel Templates tab.
+export async function renameBoardTemplate(id, name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) throw new Error('Template name required');
+  const { error } = await supabase.from('board_templates')
+    .update({ name: trimmed })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 // Fetch a template's Y.Doc bytes for spawning a new board.
 export async function getTemplateDocBytes(id) {
   const { data, error } = await supabase
