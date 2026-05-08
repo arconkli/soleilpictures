@@ -309,22 +309,28 @@ export function SidebarTags({
 
           {visibleSuggestions.length > 0 && (
             <div className="sb-tags-suggestions">
-              <div className="sb-tags-suggestions-head">Suggested</div>
-              {visibleSuggestions.map(s => (
+              <div className="sb-tags-suggestions-head">
+                <span>Suggested</span>
+                <span className="sb-tags-suggestions-counter">
+                  {Math.min(3, visibleSuggestions.length)}
+                  {visibleSuggestions.length > 3 ? ` of ${visibleSuggestions.length}` : ''}
+                </span>
+              </div>
+              {visibleSuggestions.slice(0, 3).map(s => (
                 <div key={s.term}
                      className="sb-tag-suggestion"
-                     title={`Mentioned in ${s.items} item${s.items > 1 ? 's' : ''} across ${s.boards} board${s.boards > 1 ? 's' : ''} — click + to make it a tag`}>
+                     title={`Mentioned in ${s.items} item${s.items > 1 ? 's' : ''} across ${s.boards} board${s.boards > 1 ? 's' : ''}`}>
                   <span className="sb-dot" style={{ background: fallbackColor(s.term) }} />
                   <span className="sb-tag-suggestion-name">{s.term}</span>
                   <span className="sb-tag-suggestion-count">{s.items}</span>
                   <button className="sb-tag-suggestion-add"
                           onClick={() => acceptSuggestion(s.term)}
-                          title={`Make "${s.term}" a tag`}>
+                          title={`Accept "${s.term}" as a tag`}>
                     <Icon as={Plus} size={11} />
                   </button>
                   <button className="sb-tag-suggestion-x"
                           onClick={() => dismissSuggestion(s.term)}
-                          title="Hide this suggestion">
+                          title="Don't suggest this">
                     ×
                   </button>
                 </div>
