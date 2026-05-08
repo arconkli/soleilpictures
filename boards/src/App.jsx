@@ -1469,6 +1469,55 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => document.removeEventListener('soleil-open-backlinks', onOpen);
   }, []);
 
+  // Drag-onto-board: CanvasSurface fires this when a card drag releases
+  // over a board card. We load the target board's snapshot, inject the
+  // dragged cards (offset to the snap point), and save back. The source
+  // canvas already deletes the dragged cards on its end.
+  useEffect(() => {
+    const onDrop = async (e) => {
+      const { sourceBoardId, targetBoardId, cards: movedCards } = e.detail || {};
+      if (!sourceBoardId || !targetBoardId || !movedCards?.length) return;
+      if (sourceBoardId === targetBoardId) return;
+      try {
+        const snap = await loadBoardSnapshot(targetBoardId);
+        const tmp = new Y.Doc();
+        if (snap) Y.applyUpdate(tmp, b64ToBytes(snap));
+        const targetMap = tmp.getMap('cards');
+        // Tile the moved cards into a corner of the target board so they
+        // don't all land on top of each other.
+        let ox = 80, oy = 80;
+        tmp.transact(() => {
+          for (const c of movedCards) {
+            const newId = `${c.id}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e4).toString(36)}`;
+            const fresh = {
+              ...c,
+              id: newId,
+              x: ox, y: oy,
+              createdAt: new Date().toISOString(),
+            };
+            ox += Math.min(40, (c.w || 200) * 0.15);
+            oy += Math.min(40, (c.h || 160) * 0.15);
+            targetMap.set(newId, cardToYMap(fresh));
+          }
+        }, 'cross-board-move');
+        await saveBoardSnapshot(targetBoardId, tmp);
+        tmp.destroy();
+        const targetName = boards[targetBoardId]?.name || 'board';
+        feedback.toast({
+          type: 'success',
+          message: movedCards.length === 1
+            ? `Moved into "${targetName}".`
+            : `Moved ${movedCards.length} cards into "${targetName}".`,
+        });
+      } catch (err) {
+        console.error('cross-board move failed', err);
+        feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
+      }
+    };
+    document.addEventListener('soleil-card-into-board-drop', onDrop);
+    return () => document.removeEventListener('soleil-card-into-board-drop', onDrop);
+  }, [boards, feedback]);
+
   // ⌘B / Ctrl-B — toggle compact sidebar.
   useEffect(() => {
     const onKey = (e) => {

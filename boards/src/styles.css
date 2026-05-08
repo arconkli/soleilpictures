@@ -3523,6 +3523,21 @@ body {
   outline-offset: 2px;
   border-radius: var(--radius-md);
 }
+/* Drop-into-board target — fires while the user drags one or more
+   cards over a board card (or boardlink). Releasing here moves the
+   dragged cards into that board. Distinct ring + glow so the user
+   knows the gesture is about to teleport their selection, not just
+   reposition it. */
+.card.is-card-drop-target > :first-child {
+  outline: 2px dashed var(--soleil);
+  outline-offset: 4px;
+  box-shadow:
+    0 0 0 8px color-mix(in srgb, var(--soleil) 22%, transparent),
+    0 14px 36px rgba(0,0,0,.32);
+  border-radius: var(--radius-md);
+  transition: outline-color 80ms ease, box-shadow 100ms ease;
+}
+
 /* Link-hover target — fires when the user hovers an EntityLink
    anywhere in the app that points at this card. Soleil ring + soft
    glow so the user can see which canvas card the link goes to

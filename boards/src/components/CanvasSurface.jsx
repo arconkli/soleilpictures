@@ -228,6 +228,11 @@ export function CanvasSurface({
   // Card-info popover state (right-click → Info). Anchored to the click
   // point. cardId is the card we're showing metadata for.
   const [infoFor, setInfoFor] = useState(null);
+  // While dragging cards, this holds the id of the board *card* the user
+  // is hovering over — so when they release we can move the dragged cards
+  // INTO that board. Drives a .is-card-drop-target class on the matching
+  // board card so the affordance is visible.
+  const [boardDropTarget, setBoardDropTarget] = useState(null);
   // Local-only blob URL previews keyed by cardId. We don't write blob URLs
   // into the Yjs doc (peers can't resolve them), so the optimistic preview
   // lives here and is passed to ImageCard as a fallback src until the
@@ -1199,6 +1204,21 @@ export function CanvasSurface({
       const { dx, dy, hints } = snap;
       setDrag({ ids: dragIds, dx, dy, startPositions });
       setSnapHints(hints);
+      // Same-canvas board-drop hover detection. If the cursor is over a
+      // board card that's not in the dragged set, we'll commit the drop
+      // by moving the dragged cards INTO that board.
+      let nextDropTarget = null;
+      if (Math.abs(dx) + Math.abs(dy) > 4) {
+        const el = document.elementFromPoint(ev.clientX, ev.clientY);
+        const cardEl = el?.closest?.('[data-card-id]');
+        const id = cardEl?.getAttribute?.('data-card-id');
+        if (id && !dragIds.includes(id)) {
+          const tc = cardById[id];
+          if (tc?.kind === 'board') nextDropTarget = tc.id;
+          else if (tc?.kind === 'boardlink' && tc.target) nextDropTarget = tc.target;
+        }
+      }
+      setBoardDropTarget(nextDropTarget);
       // Live cross-pane / inbox hover signal — other panes use this to
       // highlight themselves as drop targets while the pointer is over them.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
@@ -1231,6 +1251,25 @@ export function CanvasSurface({
       // committed position. (The Y.Doc updateCards call below propagates
       // the final position via Yjs sync.)
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
+      // ── Same-canvas drop onto a board card (move INTO that board) ──
+      // Capture the target before we clear hover state.
+      const targetBoardId = boardDropTarget;
+      setBoardDropTarget(null);
+      if (targetBoardId && (Math.abs(dx) + Math.abs(dy) > 4)) {
+        const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
+        if (movedCards.length) {
+          document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
+            detail: {
+              sourceBoardId: board.id,
+              targetBoardId,
+              cards: movedCards,
+            },
+          }));
+          mutators.deleteCards?.(dragIds);
+          setDrag(null);
+          return;
+        }
+      }
       // ── Cross-pane transfer detection ──
       const dropEl = document.elementFromPoint(ev.clientX, ev.clientY);
       const dropWrap = dropEl?.closest?.('.canvas-wrap');
@@ -2486,11 +2525,15 @@ export function CanvasSurface({
     const kindCls = `card-kind-${c.kind || 'unknown'}`;
     const isTagDropHover = tagDropTarget?.cardId === c.id;
     const isLinkTarget = linkHoverIds.has(c.id);
+    const isBoardDropTarget = boardDropTarget && (
+      (c.kind === 'board' && c.id === boardDropTarget) ||
+      (c.kind === 'boardlink' && c.target === boardDropTarget)
+    );
     const wrapper = {
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
