@@ -427,8 +427,11 @@ export function CanvasSurface({
     if (!cards) return;
     if (fitOnceForRef.current === board.id) return;
     if (cards.length === 0) return; // wait for Yjs sync
-    fitOnceForRef.current = board.id;
     const r = wrapRef.current.getBoundingClientRect();
+    // Defer if the canvas wrap hasn't measured yet — re-runs next time
+    // cards change (or once a layout pass lands the rect dimensions).
+    if (r.width < 50 || r.height < 50) return;
+    fitOnceForRef.current = board.id;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const c of cards) {
       minX = Math.min(minX, c.x);
@@ -443,6 +446,7 @@ export function CanvasSurface({
       (r.width - margin * 2) / contentW,
       (r.height - margin * 2) / contentH,
     )));
+    enableSmoothTransform();
     setZoom(z);
     setPan({
       x: (r.width  - contentW * z) / 2 - minX * z,
@@ -2538,7 +2542,7 @@ export function CanvasSurface({
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;
     }
     else if (c.kind === 'schedule')  inner = <ScheduleCard title={c.title} rows={c.rows} />;
-    else if (c.kind === 'shape')     inner = <ShapeCard shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash} />;
+    else if (c.kind === 'shape')     inner = <ShapeCard key={`shape-${c.shape}`} shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
     // Tag chips along the card's bottom edge so the user actually sees
