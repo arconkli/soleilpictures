@@ -3,6 +3,48 @@
 // Board / boardlink cards render their target name as a label so the parent
 // thumbnail reads as "what's inside" instead of anonymous gray boxes.
 
+import { useEffect, useState } from 'react';
+import { cachedUrl, resolveSrc } from '../lib/r2.js';
+
+// Image cells in thumbnails used to render `<image href={c.src}>` directly,
+// which fails for `r2:<key>` references because they're not real URLs.
+// `cachedUrl` returns the signed URL synchronously when warmed by prefetch
+// or a previous full-board render; on a cold miss we fire `resolveSrc`
+// to populate the cache and re-render. While unresolved we draw a warm
+// placeholder rect so missing images don't read as broken icons.
+function ThumbImage({ x, y, w, h, src, fontSize, label, labelFill }) {
+  const [url, setUrl] = useState(() => cachedUrl(src));
+  useEffect(() => {
+    if (url) return;
+    let cancelled = false;
+    resolveSrc(src).then(u => { if (!cancelled && u) setUrl(u); });
+    return () => { cancelled = true; };
+  }, [src, url]);
+
+  return (
+    <g>
+      {url ? (
+        <image x={x} y={y} width={w} height={h}
+               href={url}
+               preserveAspectRatio="xMidYMid slice"
+               opacity={0.95} />
+      ) : (
+        <rect x={x} y={y} width={w} height={h} rx={3}
+              fill="#3a322a" stroke="#5a4a32" strokeWidth={1} opacity={0.55} />
+      )}
+      {label && (
+        <text x={x + 8} y={y + h - 8}
+              fontSize={fontSize} fontWeight={600}
+              fill={labelFill || '#f5f5f6'}
+              style={{ paintOrder: 'stroke' }}
+              stroke="rgba(0,0,0,.55)" strokeWidth={fontSize * 0.25}>
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
 const KIND_FILL = {
   image:    '#3b82f6',
   note:     '#fde68a',
@@ -60,21 +102,11 @@ export function BoardThumbnail({ cards, strokes, boards = {} }) {
         const x = c.x, y = c.y, w = c.w || 100, h = c.h || 100;
         if (c.kind === 'image' && c.src) {
           return (
-            <g key={c.id}>
-              <image x={x} y={y} width={w} height={h}
-                     href={c.src}
-                     preserveAspectRatio="xMidYMid slice"
-                     opacity={0.95} />
-              {(c.title || c.label) && (
-                <text x={x + 8} y={y + h - 8}
-                      fontSize={fontSize} fontWeight={600}
-                      fill="#f5f5f6"
-                      style={{ paintOrder: 'stroke' }}
-                      stroke="rgba(0,0,0,.55)" strokeWidth={fontSize * 0.25}>
-                  {labelForCard(c, boards)}
-                </text>
-              )}
-            </g>
+            <ThumbImage key={c.id}
+                        x={x} y={y} w={w} h={h}
+                        src={c.src}
+                        fontSize={fontSize}
+                        label={(c.title || c.label) ? labelForCard(c, boards) : ''} />
           );
         }
         if (c.kind === 'shape') {
