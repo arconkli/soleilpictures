@@ -23,9 +23,13 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { addRecentColor } from '../lib/recentColors.js';
 import { useRecentColors } from '../hooks/useRecentColors.js';
 
-const DEFAULT_COLOR = '#f5f5f6';
+// Default pen stroke + bucket fill colors. The pad SURFACE defaults to
+// pure white — when the user commits, the surrounding ArtCanvasCard
+// adopts whatever bg the user painted (white if untouched).
+const DEFAULT_COLOR = '#0a0a0c';
+const DEFAULT_BG = '#ffffff';
 const DEFAULT_WIDTH = 3;
-const COLOR_PRESETS = ['#f5f5f6', '#0a0a0c', '#d4a04a', '#cf6a4f', '#7c5cc9', '#3fa39a', '#5b8fc7', '#10b981'];
+const COLOR_PRESETS = ['#0a0a0c', '#f5f5f6', '#d4a04a', '#cf6a4f', '#7c5cc9', '#3fa39a', '#5b8fc7', '#10b981'];
 const WIDTH_PRESETS = [1, 2, 4, 8, 14];
 
 function strokeToPath(pts) {
@@ -37,9 +41,10 @@ function strokeToPath(pts) {
 
 export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
   // Tool state
-  const [tool, setTool]   = useState('pen'); // 'pen' | 'eraser'
+  const [tool, setTool]   = useState('pen'); // 'pen' | 'eraser' | 'bucket'
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const [padBg, setPadBg] = useState(DEFAULT_BG);
   const [pickerPos, setPickerPos] = useState(null);
   // Recent colors strip (per-user, persisted via lib/recentColors).
   const recentColors = useRecentColors();
@@ -62,7 +67,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
   // Reset on open. Escape to close (unsaved strokes prompt).
   useEffect(() => {
     if (!open) return;
-    setStrokes([]); setActive(null);
+    setStrokes([]); setActive(null); setPadBg(DEFAULT_BG); setTool('pen');
     const onKey = (e) => {
       if (e.key === 'Escape') {
         // If there are strokes, ask before discarding.
@@ -83,6 +88,15 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
     if (!wrapRef.current) return;
     const rect = wrapRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    if (tool === 'bucket') {
+      // Round 1 of paint bucket: click anywhere to set the WHOLE pad bg.
+      // True region-fill (Canvas2D flood fill against rasterized strokes)
+      // is a follow-up. The single-bg approach matches what the user gets
+      // in most graphic tools when they bucket-click empty space.
+      setPadBg(color);
+      addRecentColor(color);
+      return;
+    }
     if (tool === 'eraser') {
       // Drop any stroke under the click. Cheap point-in-bbox test
       // followed by stroke-distance for accuracy.
@@ -119,13 +133,14 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
   };
 
   const onCommit = useCallback(() => {
-    if (!strokes.length) { onClose?.(); return; }
-    // Convert pad-local coordinates to canvas-space by passing the
-    // sketches up. The host decides where to land them — currently
-    // adds at the canvas origin so they appear top-left of the board.
-    onCommitStrokes?.(strokes);
+    if (!strokes.length && padBg === DEFAULT_BG) { onClose?.(); return; }
+    // Pass the strokes AND the chosen pad bg up — the host turns the
+    // bundle into a single ArtCanvasCard with the bg baked in. Allows
+    // committing even with no strokes if the user only painted a bg
+    // (a blank colored canvas is still a valid card).
+    onCommitStrokes?.({ strokes, bg: padBg });
     onClose?.();
-  }, [strokes, onCommitStrokes, onClose]);
+  }, [strokes, padBg, onCommitStrokes, onClose]);
 
   if (!open) return null;
 
@@ -141,6 +156,10 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
                   className={`sp-tool ${tool === 'eraser' ? 'is-active' : ''}`}
                   onClick={() => setTool('eraser')}
                   title="Eraser">⌫</button>
+          <button type="button"
+                  className={`sp-tool ${tool === 'bucket' ? 'is-active' : ''}`}
+                  onClick={() => setTool('bucket')}
+                  title="Paint bucket (click pad to fill background)">●</button>
           <span className="sp-sep" />
           {swatchRow.map(c => (
             <button key={c}
@@ -196,7 +215,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
           </button>
         </div>
         <div ref={wrapRef}
-             className={`sketchpad-surface ${tool === 'eraser' ? 'is-eraser' : ''}`}
+             className={`sketchpad-surface ${tool === 'eraser' ? 'is-eraser' : ''} ${tool === 'bucket' ? 'is-bucket' : ''}`}
+             style={{ background: padBg }}
              onPointerDown={onPointerDown}
              onPointerMove={onPointerMove}
              onPointerUp={onPointerUp}>

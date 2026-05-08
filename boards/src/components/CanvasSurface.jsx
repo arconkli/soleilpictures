@@ -4140,30 +4140,50 @@ export function CanvasSurface({
       <SketchPadOverlay
         open={sketchpadOpen}
         onClose={() => setSketchpadOpen(false)}
-        onCommitStrokes={(strokes) => {
-          if (!strokes?.length) return;
-          // Convert pad-local pixels → canvas units AND center the bundle
-          // on the user's current viewport so the strokes land where the
-          // user is actually looking, not buried at the top-left.
-          // 1) Compute the strokes' bounding box in pad coords.
+        onCommitStrokes={(payload) => {
+          // Backwards-compat: older shape was a bare strokes array.
+          const strokes = Array.isArray(payload) ? payload : (payload?.strokes || []);
+          const bg = Array.isArray(payload) ? '#ffffff' : (payload?.bg || '#ffffff');
+          if (!strokes.length && bg === '#ffffff') return;
+          // Wrap the sketch into a single art-canvas card so the strokes
+          // stay bounded to one card on the board (instead of bleeding
+          // across the board's stroke layer). Coords are translated into
+          // card-local space; the card is positioned at the viewport
+          // center where the user is actually looking.
+          const PAD_MARGIN = 24;
           let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-          for (const s of strokes) for (const [x, y] of s.points) {
-            if (x < minX) minX = x; if (y < minY) minY = y;
-            if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+          if (strokes.length) {
+            for (const s of strokes) for (const [x, y] of s.points) {
+              if (x < minX) minX = x; if (y < minY) minY = y;
+              if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+            }
+          } else {
+            // No strokes — just a colored canvas.
+            minX = 0; minY = 0; maxX = 320; maxY = 240;
           }
-          const padW = maxX - minX, padH = maxY - minY;
-          // 2) Viewport center in canvas units.
+          const padW = Math.max(80, maxX - minX);
+          const padH = Math.max(80, maxY - minY);
+          const cardW = Math.ceil(padW + PAD_MARGIN * 2);
+          const cardH = Math.ceil(padH + PAD_MARGIN * 2);
           const wrap = wrapRef.current;
           const r = wrap?.getBoundingClientRect?.() || { width: 800, height: 600 };
           const vCx = (-pan.x + r.width  / 2) / zoom;
           const vCy = (-pan.y + r.height / 2) / zoom;
-          // 3) Bundle center in canvas units = (padCenter / zoom) shifted to vCenter.
-          const dx = vCx - (minX + padW / 2) / zoom;
-          const dy = vCy - (minY + padH / 2) / zoom;
-          for (const s of strokes) {
-            const points = s.points.map(([x, y]) => [x / zoom + dx, y / zoom + dy]);
-            mutators.addStroke?.({ color: s.color, width: s.width, points });
-          }
+          const cardX = Math.round(vCx - cardW / 2);
+          const cardY = Math.round(vCy - cardH / 2);
+          const localStrokes = strokes.map(s => ({
+            color: s.color, width: s.width,
+            points: s.points.map(([x, y]) => [
+              x - minX + PAD_MARGIN,
+              y - minY + PAD_MARGIN,
+            ]),
+          }));
+          mutators.addCard?.({
+            id: `art-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+            kind: 'art',
+            x: cardX, y: cardY, w: cardW, h: cardH,
+            bg, strokes: localStrokes,
+          });
         }} />
     </div>
   );

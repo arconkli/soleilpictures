@@ -10316,6 +10316,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
     radial-gradient(circle at 50% 50%, rgba(0,0,0,.07) 1px, transparent 1.4px);
 }
 .sketchpad-surface.is-eraser { cursor: cell; }
+.sketchpad-surface.is-bucket { cursor: copy; }
 .sketchpad-svg {
   position: absolute; inset: 0;
   pointer-events: none;
