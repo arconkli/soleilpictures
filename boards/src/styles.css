@@ -27,9 +27,12 @@
   --ink-3:   #5a5a60;
   --ink-4:   #3a3a40;
 
-  --soleil:        #d4a04a;
-  --soleil-soft:   rgba(212,160,74,.14);
-  --soleil-glow:   0 0 24px rgba(212,160,74,.18);
+  /* Warm-gold accent. Matches the home-graph "sun" hue (#e8a93a) so
+     focus rings, primary buttons, and hover states feel like a quiet
+     continuation of the planetary palette. */
+  --soleil:        #e8a93a;
+  --soleil-soft:   rgba(232,169,58,.14);
+  --soleil-glow:   0 0 24px rgba(232,169,58,.18);
 
   --ink-error: #e08b8b;       /* desaturated rose for dark errors */
 
@@ -50,7 +53,7 @@
   --shadow-1:    0 1px 0 rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.25);
   --shadow-2:    0 1px 0 rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2);
   --shadow-3:    0 12px 48px rgba(0,0,0,.45), 0 4px 12px rgba(0,0,0,.3);
-  --shadow-glow: 0 0 0 1px rgba(212,160,74,.32), 0 0 18px rgba(212,160,74,.14);
+  --shadow-glow: 0 0 0 1px rgba(232,169,58,.32), 0 0 18px rgba(232,169,58,.14);
 
   --ease:     cubic-bezier(0.2, 0.8, 0.2, 1);
   --dur-fast: 120ms;
