@@ -15,16 +15,34 @@ export async function assembleGraph({ workspaceId, options = {} }) {
   if (!supabase || !workspaceId) return { nodes: [], links: [] };
 
   const { data: boards = [] } = await supabase.from('boards')
-    .select('id,name,parent_board_id')
+    .select('id,name,parent_board_id,workspace_id')
     .eq('workspace_id', workspaceId);
 
   const { data: cards = [] } = await supabase.from('card_index')
-    .select('board_id,card_id,kind,title')
+    .select('board_id,card_id,kind,title,meta')
     .eq('workspace_id', workspaceId);
 
   const { data: bls = [] } = await supabase.from('doc_backlinks')
     .select('*')
     .eq('source_workspace_id', workspaceId);
+
+  // Build a set of live board IDs so we can drop ANY card_index row
+  // whose board_id no longer resolves to an actual board. This guards
+  // against the rare cases where the FK CASCADE didn't land or the
+  // table got out of sync — and against boardlink/board cards whose
+  // target board has been deleted, which used to render as ghost
+  // "Untitled" planets in the constellation.
+  const liveBoardIds = new Set(boards.map(b => b.id));
+  const liveCards = cards.filter(c => liveBoardIds.has(c.board_id));
+  // For board/boardlink cards, also confirm the *target* board still
+  // exists. card_index.meta.boardId points at the linked board for
+  // these kinds (built by buildCardMeta in boardsApi.js).
+  const liveCardsResolved = liveCards.filter(c => {
+    if (c.kind !== 'board' && c.kind !== 'boardlink') return true;
+    const targetId = c?.meta?.boardId;
+    if (!targetId) return false;
+    return liveBoardIds.has(targetId);
+  });
 
   const nodes = new Map();
   // `kind` is the node's broad category (board/doc/card/url) used by the
@@ -42,7 +60,7 @@ export async function assembleGraph({ workspaceId, options = {} }) {
     }
   };
   for (const b of boards) add(`board:${b.id}`, 'board', b.name, 14);
-  for (const c of cards) {
+  for (const c of liveCardsResolved) {
     const isDoc = c.kind === 'doc';
     add(`card:${c.board_id}:${c.card_id}`, isDoc ? 'doc' : 'card', c.title, isDoc ? 12 : 8, c.kind || 'note');
   }
@@ -76,7 +94,7 @@ export async function assembleGraph({ workspaceId, options = {} }) {
       const s = `board:${b.parent_board_id}`, t = `board:${b.id}`;
       if (nodes.has(s) && nodes.has(t)) links.push({ source: s, target: t, kind: 'structural' });
     }
-    for (const c of cards) {
+    for (const c of liveCardsResolved) {
       const s = `board:${c.board_id}`, t = `card:${c.board_id}:${c.card_id}`;
       if (nodes.has(s) && nodes.has(t)) links.push({ source: s, target: t, kind: 'structural' });
     }

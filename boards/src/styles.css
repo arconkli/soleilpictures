@@ -8481,6 +8481,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background: var(--bg-0);
   overflow: hidden;
 }
+
+/* Hide the constellation while the force simulation is bouncing into
+   place. The wrap's bg + grain shows through during the warmup, then
+   the stage fades in once layout has settled. */
+.home-graph-stage {
+  position: absolute; inset: 0;
+  opacity: 0;
+  transition: opacity 240ms var(--ease);
+}
+.home-graph-stage.is-ready { opacity: 1; }
 .home-graph-hud {
   position: absolute;
   top: 16px; right: 16px;
@@ -8552,6 +8562,15 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: flex; align-items: flex-start; justify-content: space-between;
   padding: 16px;
   border-bottom: 1px solid var(--line-1);
+}
+.home-graph-drawer-head-info { flex: 1; min-width: 0; }
+.home-graph-drawer-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.home-graph-drawer-dot {
+  display: inline-block; width: 10px; height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 8px currentColor;
 }
 .home-graph-drawer-name { color: var(--ink-0); margin-top: 4px; }
 .home-graph-drawer-x {

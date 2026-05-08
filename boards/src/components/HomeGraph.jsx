@@ -58,6 +58,12 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   const [supportsWebGL, setSupportsWebGL] = useState(true);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [theme, setTheme] = useState(readTheme);
+  // Hide the constellation until the force simulation has had time to
+  // settle — otherwise the first ~600ms shows nodes bouncing into
+  // place, which read as "broken" against the rest of the app's snappy
+  // feel. Combined with the bumped d3AlphaDecay/warmupTicks below,
+  // the user sees a clean reveal of the already-stable layout.
+  const [graphReady, setGraphReady] = useState(false);
 
   // Watch html[data-theme] so the canvas bg flips with the rest of the app.
   useEffect(() => {
@@ -159,6 +165,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
       setLoaded(true);
       return () => {};
     }
+    setGraphReady(false);
     (async () => {
       let g = { nodes: [], links: [] };
       try { g = await assembleGraph({ workspaceId, options: { structural } }); }
@@ -167,6 +174,16 @@ export function HomeGraph({ workspaceId, onNavigate }) {
     })();
     return () => { cancelled = true; };
   }, [workspaceId, structural]);
+
+  // Reveal after the simulation has had time to settle. With the bumped
+  // warmupTicks=200 + d3AlphaDecay=0.04 below, the layout converges
+  // well before this timer fires.
+  useEffect(() => {
+    if (!loaded) return;
+    if (data.nodes.length === 0) { setGraphReady(true); return; }
+    const t = setTimeout(() => setGraphReady(true), 650);
+    return () => clearTimeout(t);
+  }, [loaded, data]);
 
   // Kind filter is fixed (no HUD). Memoize so layout algorithms see stable refs.
   const filtered = useMemo(() => ({
@@ -238,6 +255,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   return (
     <div className="home-graph-wrap" ref={containerRef}>
       <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1 }} />
+      <div className={`home-graph-stage ${graphReady ? 'is-ready' : ''}`}>
       <ForceGraph3D
         ref={fgRef}
         graphData={filtered}
@@ -249,14 +267,19 @@ export function HomeGraph({ workspaceId, onNavigate }) {
         linkColor={l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(212,160,74,.55)'}
         linkOpacity={0.7}
         linkCurvature={0.18}
-        // Floatier idle physics — lower velocity decay = nodes glide longer
-        // before settling, and a long cooldown keeps the constellation
-        // breathing instead of freezing into a static lattice.
-        d3AlphaDecay={0.012}
-        d3VelocityDecay={0.22}
-        warmupTicks={40}
-        cooldownTime={20000}
+        // Settle fast so the user sees an already-stable layout when
+        // the reveal lands. Higher alpha decay = simulation cools off
+        // sooner; more warmup ticks = the off-screen pre-roll runs the
+        // sim further before any frame paints. Velocity decay still
+        // keeps the user-facing drift gentle.
+        d3AlphaDecay={0.04}
+        d3VelocityDecay={0.32}
+        warmupTicks={200}
+        cooldownTime={4000}
+        // Click → open info drawer. Camera also eases toward the
+        // node so the user knows they hit the right one.
         onNodeClick={(n) => {
+          if (!n) return;
           setSelected(n);
           if (fgRef.current) {
             const dist = 200;
@@ -266,16 +289,24 @@ export function HomeGraph({ workspaceId, onNavigate }) {
               n, 1200,
             );
           }
+          // Warm the target so a "Open" click in the drawer opens
+          // against an already-fetched cache.
+          try { prefetchEntity(nodeToTarget(n), { lane: 'high' }); } catch (_) {}
         }}
-        // Hover the planet → start warming its target. The graph
-        // doesn't fire enter/leave at typing speed, so no debounce
-        // needed; prefetchEntity is idempotent.
+        // Hover the planet → start warming its target.
         onNodeHover={(n) => { if (n) prefetchEntity(nodeToTarget(n)); }}
+        // Right-click is the legacy "open immediately" gesture. Keep
+        // it for power users.
         onNodeRightClick={(n) => onNavigate?.(nodeToTarget(n))}
-        enableNodeDrag
+        // Drag was hijacking single clicks (a tiny mouse jitter would
+        // cancel onNodeClick). Disabling it makes click → drawer
+        // reliable; the camera orbit still works because that's
+        // controlled separately.
+        enableNodeDrag={false}
         controlType="orbit"
         showNavInfo={false}
       />
+      </div>
       {selected && (
         <HomeGraphDetailDrawer
           workspaceId={workspaceId}
