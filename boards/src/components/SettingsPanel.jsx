@@ -18,9 +18,8 @@ import { X } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import {
   getOwnProfile, saveOwnProfile,
-  getWorkspaceSettings, updateWorkspaceSettings,
+  updateWorkspaceSettings,
   updateOwnSettings,
-  getMyWorkspaceRole,
 } from '../lib/boardsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -66,7 +65,6 @@ export function SettingsPanel({
   // app share one source of truth and refresh together.
   defaults, role, refresh, workspaceSettings, mySettings,
 }) {
-  const feedback = useFeedback();
   const [tab, setTab] = useState('profile');
 
   if (!open) return null;
