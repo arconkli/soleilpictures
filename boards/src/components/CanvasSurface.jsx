@@ -23,6 +23,8 @@ import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
+import * as Y from 'yjs';
+import { supabase } from '../lib/supabase.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportBoard.js';
@@ -829,7 +831,7 @@ export function CanvasSurface({
     await doDeleteIds([...selected]);
   }, [selected, cardById, board.id, doDeleteIds]);
 
-  const doPaste = useCallback((atCanvas) => {
+  const doPaste = useCallback(async (atCanvas) => {
     const items = getClipboard();
     if (!items.length) return;
     const minX = Math.min(...items.map(c => c.x));
@@ -837,18 +839,130 @@ export function CanvasSurface({
     const target = atCanvas || lastMouseCanvasRef.current;
     const dx = target.x - minX;
     const dy = target.y - minY;
+    const stamp = Date.now().toString(36);
+    const idMap = {};       // oldCardId → newCardId
+    const groupMap = {};    // oldGroupId → newGroupId
     const newCards = items.map(c => {
       const copy = { ...c };
       if (copy.kind === 'board') return null;
-      copy.id = `${copy.kind || 'card'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const newId = `${copy.kind || 'card'}-${stamp}-${Math.floor(Math.random() * 1e6)}`;
+      idMap[copy.id] = newId;
+      copy.id = newId;
       copy.x = Math.round((copy.x || 0) + dx);
       copy.y = Math.round((copy.y || 0) + dy);
+      // Group remapping happens after the loop so we know which
+      // groups were referenced. Stub for now; resolved below.
       return copy;
     }).filter(Boolean);
     if (!newCards.length) return;
+
+    // ── Recreate groups so a copy-paste of a grouped selection
+    //    "stays together" as its own group, not the original. Reads
+    //    the source ydoc's groups map for metadata; the source is
+    //    THIS canvas (clipboard items came from board.id).
+    try {
+      const sourceGroupIds = new Set();
+      for (const c of items) if (c.groupId) sourceGroupIds.add(c.groupId);
+      if (sourceGroupIds.size && ydoc) {
+        const sgm = ydoc.getMap('groups');
+        const tgm = ydoc.getMap('groups');
+        ydoc.transact(() => {
+          for (const gid of sourceGroupIds) {
+            const g = sgm.get(gid);
+            if (!g) continue;
+            const newGid = `g-${stamp}-${Math.floor(Math.random() * 1e6).toString(36)}`;
+            groupMap[gid] = newGid;
+            const ny = new Y.Map();
+            ny.set('id', newGid);
+            ny.set('name', g?.get?.('name') ?? g?.name ?? 'Group');
+            ny.set('outline', g?.get?.('outline') ?? g?.outline ?? false);
+            ny.set('color', g?.get?.('color') ?? g?.color ?? null);
+            ny.set('width', g?.get?.('width') ?? g?.width ?? 1);
+            const opts = g?.get?.('options') ?? g?.options ?? null;
+            if (opts) ny.set('options', opts);
+            ny.set('createdAt', Date.now());
+            ny.set('createdBy', currentUser?.id || null);
+            tgm.set(newGid, ny);
+          }
+        }, 'local');
+      }
+    } catch (_) { /* groups copy is best-effort */ }
+    // Apply group remap to new card rows.
+    for (const c of newCards) {
+      if (c.groupId && groupMap[c.groupId]) c.groupId = groupMap[c.groupId];
+      else if (c.groupId && !groupMap[c.groupId]) c.groupId = null;
+    }
+
     mutators.addCards?.(newCards);
     setSelected(new Set(newCards.map(c => c.id)));
-  }, [mutators]);
+
+    // ── Duplicate comments anchored to the source cards / groups so
+    //    annotations come along with the paste. Card-anchored
+    //    comments retarget to the new card ids; group-anchored ones
+    //    retarget to the new group id.
+    try {
+      const oldCardIds = items.map(c => c.id);
+      const oldGroupIds = Object.keys(groupMap);
+      const anchorIds = [...oldCardIds, ...oldGroupIds];
+      if (anchorIds.length && workspaceId && currentUser?.id) {
+        const { data: srcComments } = await supabase
+          .from('comments')
+          .select('*')
+          .eq('board_id', board.id)
+          .in('anchor_kind', ['card', 'group'])
+          .in('anchor_id', anchorIds);
+        if (srcComments?.length) {
+          // Build new rows. Replies need a new reply_to that points
+          // at the cloned parent — collect the parent map.
+          const cmtIdMap = {};
+          // First pass: insert top-level (non-reply) comments and
+          // capture id mapping.
+          const tops = srcComments.filter(c => !c.reply_to);
+          const replies = srcComments.filter(c => c.reply_to);
+          for (const c of tops) {
+            const newAnchorId = idMap[c.anchor_id] || groupMap[c.anchor_id];
+            if (!newAnchorId) continue;
+            const { data: ins } = await supabase.from('comments').insert({
+              workspace_id: c.workspace_id,
+              board_id: board.id,
+              author: currentUser.id,
+              body: c.body,
+              anchor_kind: c.anchor_kind,
+              anchor_id: newAnchorId,
+              anchor_x: c.anchor_x,
+              anchor_y: c.anchor_y,
+              offset_x: c.offset_x || 0,
+              offset_y: c.offset_y || 0,
+            }).select('id').single();
+            if (ins?.id) cmtIdMap[c.id] = ins.id;
+          }
+          // Second pass: replies — only insert if their parent was
+          // also cloned.
+          for (const r of replies) {
+            const newParentId = cmtIdMap[r.reply_to];
+            if (!newParentId) continue;
+            const newAnchorId = idMap[r.anchor_id] || groupMap[r.anchor_id];
+            if (!newAnchorId) continue;
+            await supabase.from('comments').insert({
+              workspace_id: r.workspace_id,
+              board_id: board.id,
+              author: currentUser.id,
+              body: r.body,
+              reply_to: newParentId,
+              anchor_kind: r.anchor_kind,
+              anchor_id: newAnchorId,
+              anchor_x: r.anchor_x,
+              anchor_y: r.anchor_y,
+              offset_x: r.offset_x || 0,
+              offset_y: r.offset_y || 0,
+            });
+          }
+        }
+      }
+    } catch (cmtErr) {
+      console.warn('paste comments failed', cmtErr);
+    }
+  }, [mutators, ydoc, board.id, workspaceId, currentUser?.id]);
 
   const doDuplicate = useCallback(() => {
     const ids = [...selected];
@@ -1387,6 +1501,12 @@ export function CanvasSurface({
       if (targetBoardId && (Math.abs(dx) + Math.abs(dy) > 4)) {
         const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
         if (movedCards.length) {
+          // Collect groupIds referenced by the moved cards so we can
+          // optimistically clear comments anchored to those groups
+          // too — supabase realtime will catch up but the local UI
+          // shouldn't ghost-render the bubbles.
+          const movedGroupIds = [...new Set(movedCards.map(c => c.groupId).filter(Boolean))];
+          removeCommentsByAnchorIds([...dragIds, ...movedGroupIds]);
           document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
             detail: {
               sourceBoardId: board.id,
@@ -2445,7 +2565,7 @@ export function CanvasSurface({
   // Live anywhere-comments. Bubbles render anchored to cards / groups /
   // empty-canvas points; a right-click menu item shows an inline draft
   // input (no popup) at the click position.
-  const { comments, removeLocally: removeCommentLocally } = useCanvasComments(board?.id);
+  const { comments, removeLocally: removeCommentLocally, removeByAnchorIds: removeCommentsByAnchorIds } = useCanvasComments(board?.id);
   // Inline-draft state. When the user picks "Add comment" from a
   // right-click menu, we set commentDraft to the anchor + viewport
   // position; CanvasCommentLayer renders an inline draft input there.

@@ -5990,7 +5990,21 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-1);
   box-shadow: var(--shadow-2);
   font-size: 12.5px;
+  display: flex; align-items: center; gap: 12px;
+  pointer-events: auto;
 }
+.toast-msg { flex: 1 1 auto; }
+.toast-action {
+  background: transparent;
+  border: 1px solid var(--soleil);
+  color: var(--soleil);
+  font: 600 11.5px/1 var(--font-sans);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.toast-action:hover { background: var(--soleil-soft); }
 
 .toast-success { border-color: rgba(16,185,129,.45); }
 .toast-error { border-color: rgba(239,68,68,.5); }

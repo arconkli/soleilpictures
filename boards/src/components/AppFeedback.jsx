@@ -40,13 +40,16 @@ export function FeedbackProvider({ children }) {
     });
   }), []);
 
-  const toast = useCallback(({ type = 'info', message }) => {
+  const toast = useCallback(({ type = 'info', message, action = null, ttl = 4200 }) => {
     if (!message) return;
     const id = nextId.current++;
-    setToasts(current => [...current, { id, type, message }]);
+    setToasts(current => [...current, { id, type, message, action }]);
     window.setTimeout(() => {
       setToasts(current => current.filter(item => item.id !== id));
-    }, 4200);
+    }, Math.max(1000, ttl));
+  }, []);
+  const dismissToast = useCallback((id) => {
+    setToasts(current => current.filter(item => item.id !== id));
   }, []);
 
   const value = useMemo(() => ({ confirm, prompt, toast }), [confirm, prompt, toast]);
@@ -58,7 +61,17 @@ export function FeedbackProvider({ children }) {
       <div className="toast-stack" aria-live="polite" aria-atomic="false">
         {toasts.map(item => (
           <div key={item.id} className={`toast toast-${item.type}`}>
-            {item.message}
+            <span className="toast-msg">{item.message}</span>
+            {item.action && (
+              <button type="button"
+                      className="toast-action"
+                      onClick={() => {
+                        try { item.action.onClick?.(); } catch (_) {}
+                        dismissToast(item.id);
+                      }}>
+                {item.action.label || 'Undo'}
+              </button>
+            )}
           </div>
         ))}
       </div>

@@ -59,5 +59,17 @@ export function useCanvasComments(boardId) {
     setComments(rows => rows.filter(r => r.id !== commentId && r.reply_to !== commentId));
   }, []);
 
-  return { comments, loading, removeLocally };
+  // Drop every comment (and replies) anchored to one of the given
+  // ids. Used by the cross-board-move flow: when cards leave for a
+  // new board, we want their comments to disappear from THIS board's
+  // canvas immediately, not wait for the supabase realtime push to
+  // catch up — otherwise the bubbles ghost-render against the empty
+  // space the cards left behind.
+  const removeByAnchorIds = useCallback((anchorIds) => {
+    if (!anchorIds?.length) return;
+    const set = new Set(anchorIds);
+    setComments(rows => rows.filter(r => !set.has(r.anchor_id)));
+  }, []);
+
+  return { comments, loading, removeLocally, removeByAnchorIds };
 }
