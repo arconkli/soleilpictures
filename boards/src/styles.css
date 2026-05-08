@@ -3073,9 +3073,17 @@ body {
   overflow-y: auto;
   scrollbar-width: thin;
 }
-.note-body::-webkit-scrollbar { width: 6px; }
-.note-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 3px; }
-[data-theme='light'] .note-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,.16); }
+.note-body::-webkit-scrollbar { width: 8px; }
+.note-body::-webkit-scrollbar-track { background: transparent; }
+.note-body::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.22);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.note-body:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,.32); background-clip: padding-box; }
+[data-theme='light'] .note-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,.22); background-clip: padding-box; }
+[data-theme='light'] .note-body:hover::-webkit-scrollbar-thumb { background: rgba(0,0,0,.32); background-clip: padding-box; }
 .note-body a {
   color: var(--ink-0);
   text-decoration: underline;

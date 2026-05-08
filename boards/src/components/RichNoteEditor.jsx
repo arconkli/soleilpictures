@@ -56,12 +56,16 @@ export function RichNoteEditor({
   // each side). Reports up to NoteCard via onAutoSize so the card height
   // grows/shrinks with the typed text. Once `manuallyResized` becomes true,
   // we stop reporting and the card keeps its hand-set size.
+  // Cap the auto-grown height so very long notes start scrolling instead
+  // of taking over the canvas; the user can still drag-resize bigger if
+  // they want, which flips manuallyResized true and disables this cap.
+  const NOTE_AUTOSIZE_MAX = 480;
   const measureAndReport = () => {
     if (manuallyResized) return;
     if (!ref.current || !onAutoSize) return;
     const NOTE_PAD = 14 * 2;
     const contentH = ref.current.scrollHeight;
-    onAutoSize(Math.max(40, contentH + NOTE_PAD));
+    onAutoSize(Math.min(NOTE_AUTOSIZE_MAX, Math.max(40, contentH + NOTE_PAD)));
   };
   // Measure on every input + once on edit-start. ResizeObserver catches
   // wraps from font-size or width changes that don't fire `input`.
