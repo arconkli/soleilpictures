@@ -93,35 +93,34 @@
 
 html, body, #root { height: 100%; }
 
-/* Reusable grain pattern — ARC browser vibe. SVG fractal noise
-   inlined as a base64 data URI (universally supported; the older
-   `;utf8,` form was silently rejected by some browsers, which is
-   why the user wasn't seeing the grain). Apply via
-   `background-image: var(--grain), <other layers>;` so the noise
-   composites over each surface's color. */
-:root {
-  /* Lower baseFrequency (0.85 → 0.65) makes individual grain
-     particles slightly larger and easier to see at desktop pixel
-     density. Bumped alpha way up (0.45 → 0.85 dark, 0.30 → 0.55
-     light) — at the previous values the noise averaged out to
-     near-flat at viewing distance. */
-  --grain: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxODAnIGhlaWdodD0nMTgwJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIHR5cGU9J2ZyYWN0YWxOb2lzZScgYmFzZUZyZXF1ZW5jeT0nMC42NScgbnVtT2N0YXZlcz0nMicgc3RpdGNoVGlsZXM9J3N0aXRjaCcvPjxmZUNvbG9yTWF0cml4IHR5cGU9J21hdHJpeCcgdmFsdWVzPScwIDAgMCAwIDEgIDAgMCAwIDAgMSAgMCAwIDAgMCAxICAwIDAgMCAwLjg1IDAnLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyBmaWx0ZXI9J3VybCgjbiknLz48L3N2Zz4=");
-}
-[data-theme='light'] {
-  --grain: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxODAnIGhlaWdodD0nMTgwJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIHR5cGU9J2ZyYWN0YWxOb2lzZScgYmFzZUZyZXF1ZW5jeT0nMC42NScgbnVtT2N0YXZlcz0nMicgc3RpdGNoVGlsZXM9J3N0aXRjaCcvPjxmZUNvbG9yTWF0cml4IHR5cGU9J21hdHJpeCcgdmFsdWVzPScwIDAgMCAwIDAgIDAgMCAwIDAgMCAgMCAwIDAgMCAwICAwIDAgMCAwLjU1IDAnLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyBmaWx0ZXI9J3VybCgjbiknLz48L3N2Zz4=");
-}
-
 body {
   font-family: var(--font-sans);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
-  background-color: var(--bg-0);
-  background-image: var(--grain);
-  background-repeat: repeat;
+  background: var(--bg-0);
   color: var(--ink-1);
   overflow: hidden;
 }
+
+/* Animated grain overlay — ARC browser vibe. One fixed-position
+   element layered above everything, very low opacity so it reads
+   as subtle film grain. Single source of truth (no per-surface
+   duplication, can't be overridden by inline styles like the
+   canvas wrapStyle). pointer-events:none so it never blocks
+   input. z-index sits above app content but below modals
+   (error boundary z-index:999, color picker etc 100+). */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background-image: url('/grain.gif');
+  background-repeat: repeat;
+  background-size: 240px 180px;
+  opacity: 0.06;
+}
+[data-theme='light'] .grain-overlay { opacity: 0.04; }
 
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
@@ -378,9 +377,7 @@ body {
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--line-1);
-  background-color: var(--bg-1);
-  background-image: var(--grain);
-  background-repeat: repeat;
+  background: var(--bg-1);
   overflow: hidden;
   min-width: 0;
 }
@@ -2159,13 +2156,8 @@ body {
   position: relative;
   overflow: hidden;
   background-color: var(--bg-2);
-  /* Two layers: dot grid (pinned to a fixed 24px tile) over grain
-     (its own native 220px tile, repeated). */
-  background-image:
-    radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1px),
-    var(--grain);
-  background-size: 24px 24px, 180px 180px;
-  background-repeat: repeat, repeat;
+  background-image: radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .canvas {
