@@ -2356,9 +2356,12 @@ export function CanvasSurface({
       wrapperStyle.transformOrigin = 'center center';
     }
     const kindCls = `card-kind-${c.kind || 'unknown'}`;
+    const isTagDropHover = tagDropTarget?.cardId === c.id;
     const wrapper = {
-      style: wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}`,
+      style: isTagDropHover
+        ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
+        : wrapperStyle,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
@@ -2494,6 +2497,12 @@ export function CanvasSurface({
   };
 
   // ── HTML5 drag-drop ───────────────────────────────────────────────────────
+  // Tag drop highlight: when a tag is being dragged over the canvas,
+  // show the hovered card / board in the tag's color so the user can
+  // see exactly where it'll land. window.__soleilTagDrag is set by
+  // SidebarTags onDragStart since dataTransfer payload isn't readable
+  // during dragOver (only types).
+  const [tagDropTarget, setTagDropTarget] = useState(null); // { cardId, color }
   const handleDragOver = (e) => {
     const types = e.dataTransfer.types;
     if (!types.includes(INBOX_MIME) &&
@@ -2512,13 +2521,31 @@ export function CanvasSurface({
       e.dataTransfer.dropEffect = 'copy';
     }
     if (!dragOver) setDragOver(true);
+    // Tag-drag highlight: read the side-channel state and find which
+    // card is under the cursor. Update only on change to avoid React
+    // re-renders on every dragover tick.
+    const tagDrag = (typeof window !== 'undefined' && window.__soleilTagDrag) || null;
+    if (tagDrag && types.includes(ENTITY_REF_MIME)) {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const cardEl = el?.closest?.('[data-card-id]');
+      const cardId = cardEl?.getAttribute('data-card-id') || null;
+      const next = cardId ? { cardId, color: tagDrag.color || '#4f8df8' } : null;
+      if ((tagDropTarget?.cardId || null) !== (next?.cardId || null)
+       || (tagDropTarget?.color || null) !== (next?.color || null)) {
+        setTagDropTarget(next);
+      }
+    } else if (tagDropTarget) {
+      setTagDropTarget(null);
+    }
   };
   const handleDragLeave = (e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return;
     setDragOver(false);
+    setTagDropTarget(null);
   };
   const handleDrop = async (e) => {
     setDragOver(false);
+    setTagDropTarget(null);
     const types = e.dataTransfer.types;
     const { x: cx, y: cy } = clientToCanvas(e.clientX, e.clientY);
 

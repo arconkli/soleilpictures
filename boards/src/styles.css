@@ -3175,6 +3175,19 @@ body {
   outline-offset: 2px;
   border-radius: var(--radius-md);
 }
+/* Tag drop target — when a tag is being dragged over this card,
+   ring it in the tag's color so the user can see exactly which
+   target the tag will land on. Color is set inline as --tag-drop-
+   color from CanvasSurface. */
+.card.is-tag-drop > :first-child {
+  outline: 3px solid var(--tag-drop-color, var(--soleil));
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--tag-drop-color, var(--soleil)) 18%, transparent),
+    var(--shadow-2);
+  border-radius: var(--radius-md);
+  transition: outline-color 80ms ease, box-shadow 80ms ease;
+}
 
 /* Resize handle (bottom-right) */
 .card-resize {

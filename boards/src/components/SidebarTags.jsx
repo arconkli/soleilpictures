@@ -20,6 +20,7 @@ import { supabase } from '../lib/supabase.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
 import { useSuggestedTags } from '../hooks/useSuggestedTags.js';
+import { ColorPicker } from './ColorPicker.jsx';
 
 const EXPAND_KEY = 'soleil.tags.sb.expanded';
 function loadExpanded(workspaceId) {
@@ -59,6 +60,8 @@ export function SidebarTags({
   const [menuFor, setMenuFor] = useState(null);  // { tag, x, y }
   // Merge picker — { fromTag, query } when user picks "Merge into…"
   const [mergePicker, setMergePicker] = useState(null);
+  // Color picker for recolor — { tag, x, y } when active.
+  const [colorPickerFor, setColorPickerFor] = useState(null);
   const inputRef = useRef(null);
 
   // Suggested tags — frequently-recurring terms in the workspace
@@ -183,20 +186,18 @@ export function SidebarTags({
       feedback.toast({ type: 'error', message: 'Rename failed: ' + (err.message || err) });
     }
   };
-  const promptRecolor = async (tag) => {
+  const promptRecolor = (tag) => {
+    // Anchor the color picker to where the menu was open so it
+    // floats next to the tag row rather than centering on the page.
+    const x = (menuFor?.x ?? 200) + 6;
+    const y = (menuFor?.y ?? 200) + 6;
     setMenuFor(null);
-    // Tiny inline color picker would be nicer; for v1 reuse feedback.prompt
-    // for the hex value. The standard ColorPicker can replace this later.
-    const color = await feedback.prompt({
-      title: 'Recolor tag', label: 'Hex (e.g. #4f8df8)',
-      defaultValue: tag.color || fallbackColor(tag.slug || tag.name),
-      confirmLabel: 'Save',
-    });
-    if (color == null) return;
-    const cleaned = (color || '').trim();
-    if (!cleaned) return;
+    setColorPickerFor({ tag, x, y });
+  };
+  const applyColor = async (color) => {
+    if (!colorPickerFor?.tag || !color) return;
     try {
-      await recolorTag(tag.id, cleaned);
+      await recolorTag(colorPickerFor.tag.id, color);
       onWorkspaceTagsChanged?.();
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Recolor failed: ' + (err.message || err) });
@@ -249,13 +250,20 @@ export function SidebarTags({
   };
 
   // Drag a tag row → ENTITY_REF_MIME so existing drop handlers on
-  // canvas / docs / messages know it's a tag and apply it.
+  // canvas / docs / messages know it's a tag and apply it. Also
+  // exposes the tag's color via window.__soleilTagDrag so canvas
+  // dragOver can highlight the hovered drop target in that color
+  // (HTML5 drag-over can't read dataTransfer payload, only types,
+  // so a side-channel is the cleanest read for in-window drags).
   const onDragStart = (e, tag) => {
     try {
       e.dataTransfer.setData(ENTITY_REF_MIME, JSON.stringify({ kind: 'tag', id: tag.id }));
       e.dataTransfer.effectAllowed = 'copyLink';
+      const dot = tag.color || fallbackColor(tag.slug || tag.name);
+      window.__soleilTagDrag = { id: tag.id, color: dot, name: tag.name };
     } catch (_) {}
   };
+  const onDragEnd = () => { try { window.__soleilTagDrag = null; } catch (_) {} };
 
   // Order: most-applied first (workspace-wide popularity), with
   // alphabetical tie-break. Empty tags fall to the bottom.
@@ -316,6 +324,7 @@ export function SidebarTags({
                    className={`sb-row sb-tag-row ${isActive ? 'active' : ''}`}
                    draggable
                    onDragStart={(e) => onDragStart(e, tag)}
+                   onDragEnd={onDragEnd}
                    onClick={() => onOpenTag?.(tag)}
                    onContextMenu={(e) => onContextMenuRow(e, tag)}
                    title={`${tag.name}${c ? ` · ${c} applied` : ''}`}>
@@ -377,6 +386,15 @@ export function SidebarTags({
           counts={counts}
           onPick={finishMerge}
           onCancel={() => setMergePicker(null)}
+        />
+      )}
+
+      {colorPickerFor && (
+        <ColorPicker
+          value={colorPickerFor.tag.color || fallbackColor(colorPickerFor.tag.slug || colorPickerFor.tag.name)}
+          onChange={applyColor}
+          onClose={() => setColorPickerFor(null)}
+          position={{ x: colorPickerFor.x, y: colorPickerFor.y }}
         />
       )}
     </div>
