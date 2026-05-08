@@ -1034,6 +1034,130 @@ body {
   font-style: italic;
   color: var(--ink-3);
 }
+
+/* Hierarchical preview blocks — each tagged board/group becomes a
+   block with inline previews of its child cards so you can scroll
+   through "everything pricing" without drilling in. */
+.tag-detail-board-block,
+.tag-detail-group-block,
+.tag-detail-loose-cards {
+  margin: 8px 0 16px;
+  border: 1px solid var(--bd-1);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-1);
+}
+.tag-detail-group-block {
+  margin: 8px 12px;
+  border-color: var(--bd-1);
+  background: var(--bg-2);
+}
+.tag-detail-block-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--bd-1);
+}
+.tag-detail-block-head.is-board {
+  background: var(--bg-1);
+  padding: 12px 14px;
+  border-bottom-width: 2px;
+}
+.tag-detail-group-block .tag-detail-block-head {
+  background: transparent;
+  border-bottom: 1px dashed var(--bd-1);
+  padding: 8px 12px;
+}
+.tag-detail-block-title {
+  flex: 1 1 auto;
+  font: 600 13px/1.2 var(--font-sans);
+  color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tag-detail-block-head.is-board .tag-detail-block-title {
+  font-size: 14px;
+}
+.tag-detail-block-crumb {
+  font: 400 11px/1 var(--font-sans);
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.tag-detail-block-attr {
+  font: 700 9px/1 var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 2px;
+  background: var(--bg-2);
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.tag-detail-block-attr.is-count { color: var(--ink-1); background: var(--bg-1); letter-spacing: 0; }
+.tag-detail-block-attr.is-auto  { color: var(--soleil); background: var(--soleil-soft); }
+.tag-detail-block-attr.is-ai    { color: #a78bfa; background: rgba(167,139,250,.14); }
+.tag-detail-block-open {
+  font: 600 11px/1 var(--font-sans);
+  padding: 4px 9px;
+  border: 1px solid var(--bd-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--ink-1);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.tag-detail-block-open:hover {
+  background: var(--bg-hov);
+  color: var(--ink-0);
+}
+.tag-detail-block-empty {
+  padding: 12px 16px;
+  font: 400 11.5px/1.45 var(--font-sans);
+  color: var(--ink-3);
+}
+
+.tag-detail-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+  padding: 10px 12px;
+}
+.tag-detail-group-block .tag-detail-card-grid {
+  padding: 8px 12px 12px;
+}
+.tag-detail-card-preview {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--bd-1);
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--ink-1);
+  min-height: 44px;
+}
+.tag-detail-group-block .tag-detail-card-preview { background: var(--bg-1); }
+.tag-detail-card-preview:hover {
+  border-color: var(--soleil);
+  background: var(--bg-hov);
+}
+.tag-detail-card-preview-kind {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+.tag-detail-card-preview-text {
+  flex: 1 1 auto;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.tag-detail-card-preview-empty {
+  font-style: italic;
+  color: var(--ink-3);
+}
 .tag-detail-row-attr {
   font: 700 9px/1 var(--font-display);
   letter-spacing: 0.14em;

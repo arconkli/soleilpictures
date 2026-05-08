@@ -1,11 +1,26 @@
-// "Tag detail" surface — what you see after clicking a tag in the
-// sidebar. Conceptually it's a per-tag inbox: every card / board / doc /
-// note tagged with this tag, ordered by recency-of-application, click
-// to navigate.
+// "Tag detail" surface — a scroll-through preview of every board,
+// group, and card carrying this tag. Layout is a HIERARCHY rather
+// than a flat list:
 //
-// Data source: get_things_tagged(tag_id) RPC (migration 0036d). It
-// joins entity_links → entity_search in one round trip so we get
-// title + meta + thumbnail data without a second query.
+//   [Pricing board]
+//     ├─ Personal Pricing  (tagged group)
+//     │   • Free / 10GB of space
+//     │   • $10 mo / 100GB
+//     │   • $25 mo / unlimited
+//     ├─ Business Pricing  (tagged group)
+//     │   • $8 / per user
+//     │   • $20 / per user
+//     └─ School Pricing  (tagged group)
+//         • $12 / per user
+//
+// You can read the entire tag at a glance — no per-item click
+// required. Cards under a tagged board / group are fetched
+// inline (card_index lookup) and labeled with their actual body
+// text. Empty cards are still rendered, just dimmed, so the
+// hierarchy stays intact.
+//
+// Data source: get_things_tagged(tag_id) for the directly-tagged
+// rows; card_index for the children of each tagged board / group.
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
@@ -13,40 +28,21 @@ import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 
-const SECTION_ORDER = ['board', 'group', 'doc', 'card', 'note', 'image', 'palette', 'schedule', 'link'];
-
 const KIND_ICON = {
   board: LayoutGrid, doc: FileText, group: LayoutGrid,
   card: StickyNote, note: StickyNote, image: Image,
   palette: Palette, schedule: Calendar, link: LinkIcon,
 };
-const KIND_LABEL = {
-  board: 'Boards', doc: 'Docs', group: 'Groups',
-  card: 'Cards', note: 'Notes', image: 'Images',
-  palette: 'Palettes', schedule: 'Schedules', link: 'Links',
-};
 
-// Best-effort label for an item that has no title — typical for
-// notes. Falls back to a body excerpt; if neither title nor body
-// is available the row gets an italicized "(empty {kind})" so the
-// user knows it really is content-less, not just a sync glitch.
-function itemLabel(it) {
+function kindIcon(kind) { return KIND_ICON[kind] || StickyNote; }
+
+// Excerpt for any item that lacks a real title — falls back to body.
+function itemExcerpt(it) {
   const title = (it.title || '').trim();
   if (title) return title;
-  const body = (it.card_body || it.body || '').trim();
-  if (body) {
-    const snippet = body.length > 80 ? body.slice(0, 77) + '…' : body;
-    return snippet;
-  }
+  const body = (it.body || it.card_body || '').trim();
+  if (body) return body.length > 100 ? body.slice(0, 97) + '…' : body;
   return null;
-}
-
-// Path crumbs that go under each row: board name › group name.
-function itemPath(it) {
-  const parts = [];
-  if (it.board_name && it.kind !== 'board') parts.push(it.board_name);
-  if (it.group_name) parts.push(it.group_name);
-  return parts.join(' › ');
 }
 
 const TAG_PALETTE = [
@@ -60,9 +56,12 @@ function fallbackColor(slugOrName) {
 }
 
 export function TagDetailView({ tag, onOpenItem, onClose }) {
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState([]);                  // directly tagged rows
+  const [boardCards, setBoardCards] = useState(new Map()); // boardId -> cards
+  const [groupCards, setGroupCards] = useState(new Map()); // groupKey -> cards
   const [loading, setLoading] = useState(true);
 
+  // Reload directly-tagged rows.
   useEffect(() => {
     if (!tag?.id) { setRows([]); setLoading(false); return; }
     let cancelled = false;
@@ -76,7 +75,6 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
       .catch(err => { console.warn('[tags] get_things_tagged failed', err); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
-    // Realtime: refresh when applications change for THIS tag.
     const sfx = Math.random().toString(36).slice(2, 9);
     const chan = supabase.channel(`tag-detail:${tag.id}:${sfx}`)
       .on('postgres_changes', {
@@ -100,19 +98,162 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
     };
   }, [tag?.id]);
 
-  const groupedByKind = useMemo(() => {
-    const m = new Map();
+  // Partition directly-tagged rows by kind.
+  const direct = useMemo(() => {
+    const out = { boards: [], groups: [], cards: [] };
     for (const r of rows) {
-      const k = r.kind || 'card';
-      if (!m.has(k)) m.set(k, []);
-      m.get(k).push(r);
+      if (r.kind === 'board') out.boards.push(r);
+      else if (r.kind === 'group') out.groups.push(r);
+      else out.cards.push(r);
     }
-    return m;
+    return out;
   }, [rows]);
 
+  // For each tagged board, fetch ALL its cards from card_index so
+  // the user can scroll through them as previews.
+  useEffect(() => {
+    if (direct.boards.length === 0) return;
+    let cancelled = false;
+    const ids = direct.boards.map(b => b.board_id || b.id).filter(Boolean);
+    if (ids.length === 0) return;
+    supabase.from('card_index')
+      .select('board_id, card_id, kind, title, body, meta, updated_at')
+      .in('board_id', ids)
+      .order('updated_at', { ascending: false })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const m = new Map();
+        for (const c of (data || [])) {
+          if (!m.has(c.board_id)) m.set(c.board_id, []);
+          m.get(c.board_id).push(c);
+        }
+        setBoardCards(m);
+      });
+    return () => { cancelled = true; };
+  }, [direct.boards]);
+
+  // For each tagged group, fetch its member cards (cards whose
+  // card_index.meta.groupId matches).
+  useEffect(() => {
+    if (direct.groups.length === 0) return;
+    let cancelled = false;
+    const allBoardIds = direct.groups.map(g => g.board_id).filter(Boolean);
+    if (allBoardIds.length === 0) return;
+    // We can't filter on a JSON path with `in()` so we fetch all
+    // cards for these boards and partition client-side.
+    supabase.from('card_index')
+      .select('board_id, card_id, kind, title, body, meta, updated_at')
+      .in('board_id', allBoardIds)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const m = new Map();
+        for (const c of (data || [])) {
+          const gid = c.meta?.groupId;
+          if (!gid) continue;
+          const key = `${c.board_id}::${gid}`;
+          if (!m.has(key)) m.set(key, []);
+          m.get(key).push(c);
+        }
+        setGroupCards(m);
+      });
+    return () => { cancelled = true; };
+  }, [direct.groups]);
 
   if (!tag) return null;
   const dot = tag.color || fallbackColor(tag.slug || tag.name);
+
+  // Render helpers ----------------------------------------------------------
+
+  const renderCardPreview = (c) => {
+    const Icn = kindIcon(c.kind);
+    const excerpt = itemExcerpt(c);
+    return (
+      <button key={`c:${c.board_id}:${c.card_id}`}
+              className="tag-detail-card-preview"
+              onClick={() => onOpenItem?.({
+                kind: c.kind, id: `${c.board_id}:${c.card_id}`,
+                board_id: c.board_id, card_id: c.card_id,
+              })}>
+        <span className="tag-detail-card-preview-kind">
+          <Icon as={Icn} size={11} />
+        </span>
+        <span className="tag-detail-card-preview-text">
+          {excerpt || <span className="tag-detail-card-preview-empty">empty {c.kind}</span>}
+        </span>
+      </button>
+    );
+  };
+
+  const renderGroupBlock = (g, opts = {}) => {
+    const key = `${g.board_id}::${g.group_id || g.id}`;
+    const cards = groupCards.get(key) || [];
+    const sourceBadge = g.applied_source && g.applied_source !== 'user' ? g.applied_source : null;
+    return (
+      <div key={`grp:${key}`} className="tag-detail-group-block">
+        <div className="tag-detail-block-head">
+          <Icon as={LayoutGrid} size={12} />
+          <span className="tag-detail-block-title">{g.title || 'Group'}</span>
+          {opts.boardCrumb && g.board_name && (
+            <span className="tag-detail-block-crumb">{g.board_name}</span>
+          )}
+          {g.member_count != null && (
+            <span className="tag-detail-block-attr is-count">{g.member_count}</span>
+          )}
+          {sourceBadge && (
+            <span className={`tag-detail-block-attr is-${sourceBadge}`}>{sourceBadge}</span>
+          )}
+        </div>
+        {cards.length > 0 ? (
+          <div className="tag-detail-card-grid">
+            {cards.map(renderCardPreview)}
+          </div>
+        ) : (
+          <div className="tag-detail-block-empty">No cards in this group yet.</div>
+        )}
+      </div>
+    );
+  };
+
+  const renderBoardBlock = (b) => {
+    const id = b.board_id || b.id;
+    const allCards = boardCards.get(id) || [];
+    // Partition: cards in tagged groups vs ungrouped/other-grouped
+    const groupedHere = direct.groups.filter(g => g.board_id === id);
+    const groupedHereKeys = new Set(groupedHere.map(g => `${g.board_id}::${g.group_id || g.id}`));
+    const groupedCardKeys = new Set();
+    for (const k of groupedHereKeys) {
+      const arr = groupCards.get(k) || [];
+      for (const c of arr) groupedCardKeys.add(`${c.board_id}::${c.card_id}`);
+    }
+    const looseCards = allCards.filter(c => !groupedCardKeys.has(`${c.board_id}::${c.card_id}`));
+    const sourceBadge = b.applied_source && b.applied_source !== 'user' ? b.applied_source : null;
+    return (
+      <div key={`brd:${id}`} className="tag-detail-board-block">
+        <div className="tag-detail-block-head is-board">
+          <Icon as={LayoutGrid} size={13} />
+          <span className="tag-detail-block-title">{b.title || 'Board'}</span>
+          {sourceBadge && (
+            <span className={`tag-detail-block-attr is-${sourceBadge}`}>{sourceBadge}</span>
+          )}
+          <button className="tag-detail-block-open"
+                  onClick={() => onOpenItem?.({ kind: 'board', id, board_id: id })}>
+            Open
+          </button>
+        </div>
+        {groupedHere.map(g => renderGroupBlock(g))}
+        {looseCards.length > 0 && (
+          <div className="tag-detail-card-grid">
+            {looseCards.map(renderCardPreview)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Standalone groups not under a tagged board (rare).
+  const orphanGroups = direct.groups.filter(g => !direct.boards.some(b => (b.board_id || b.id) === g.board_id));
+  // Standalone cards (directly tagged but their board isn't).
+  const orphanCards = direct.cards;
 
   return (
     <div className="tag-detail">
@@ -139,47 +280,24 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
           </div>
         )}
 
-        {SECTION_ORDER.filter(k => groupedByKind.has(k)).map(kind => {
-          const items = groupedByKind.get(kind) || [];
-          const Icn = KIND_ICON[kind] || StickyNote;
-          return (
-            <div key={kind} className="tag-detail-section">
-              <div className="tag-detail-section-head">
-                <Icon as={Icn} size={12} />
-                <span className="tag-detail-section-label">{KIND_LABEL[kind] || kind}</span>
-                <span className="tag-detail-section-count">{items.length}</span>
-              </div>
-              <div className="tag-detail-rows">
-                {items.map(it => {
-                  const sourceBadge = it.applied_source && it.applied_source !== 'user'
-                    ? it.applied_source : null;
-                  const label = itemLabel(it);
-                  const path = itemPath(it);
-                  return (
-                    <button key={`${kind}:${it.id}`}
-                            className="tag-detail-row"
-                            onClick={() => onOpenItem?.(it)}>
-                      <Icon as={Icn} size={11} />
-                      {label
-                        ? <span className="tag-detail-row-title">{label}</span>
-                        : <span className="tag-detail-row-title is-empty">empty {kind}</span>}
-                      {kind === 'group' && it.member_count != null && (
-                        <span className="tag-detail-row-attr is-count">{it.member_count}</span>
-                      )}
-                      {path && <span className="tag-detail-row-path">{path}</span>}
-                      {sourceBadge && (
-                        <span className={`tag-detail-row-attr is-${sourceBadge}`}>{sourceBadge}</span>
-                      )}
-                      <span className="tag-detail-row-when">
-                        {relativeTimeShort(it.applied_at)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+        {direct.boards.map(renderBoardBlock)}
+        {orphanGroups.map(g => renderGroupBlock(g, { boardCrumb: true }))}
+
+        {orphanCards.length > 0 && (
+          <div className="tag-detail-loose-cards">
+            <div className="tag-detail-block-head">
+              <Icon as={StickyNote} size={12} />
+              <span className="tag-detail-block-title">Other items</span>
+              <span className="tag-detail-block-attr is-count">{orphanCards.length}</span>
             </div>
-          );
-        })}
+            <div className="tag-detail-card-grid">
+              {orphanCards.map(c => renderCardPreview({
+                board_id: c.board_id, card_id: c.card_id, kind: c.kind,
+                title: c.title, body: c.card_body || c.body,
+              }))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
