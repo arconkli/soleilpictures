@@ -99,6 +99,55 @@ export function App() {
 
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   useEffect(() => { document.documentElement.setAttribute('data-theme', tweak.theme); }, [tweak.theme]);
+
+  // ── Grain diagnostic ────────────────────────────────────────────
+  // The user reports the grain texture isn't visible even after
+  // multiple fixes. Log everything we know about its state so we
+  // can see what's actually happening at runtime.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setTimeout(() => {
+      try {
+        const root = getComputedStyle(document.documentElement);
+        const grainVar = root.getPropertyValue('--grain');
+        const bodyBg = getComputedStyle(document.body).backgroundImage;
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarBg = sidebar ? getComputedStyle(sidebar).backgroundImage : '(no sidebar)';
+        const canvasWrap = document.querySelector('.canvas-wrap');
+        const canvasBg = canvasWrap ? getComputedStyle(canvasWrap).backgroundImage : '(no canvas-wrap)';
+        const theme = document.documentElement.getAttribute('data-theme');
+        console.group('[grain] diagnostic');
+        console.log('theme:', theme);
+        console.log('--grain length:', grainVar.length);
+        console.log('--grain prefix:', grainVar.slice(0, 80));
+        console.log('body backgroundImage:', bodyBg.slice(0, 200));
+        console.log('  body has --grain url?', bodyBg.includes('data:image/svg+xml'));
+        console.log('.sidebar backgroundImage:', sidebarBg.slice(0, 200));
+        console.log('  sidebar has --grain url?', String(sidebarBg).includes('data:image/svg+xml'));
+        console.log('.canvas-wrap backgroundImage:', canvasBg.slice(0, 200));
+        console.log('  canvas-wrap has --grain url?', String(canvasBg).includes('data:image/svg+xml'));
+        // Try loading the grain SVG as an Image to see if it actually parses.
+        const m = grainVar.match(/url\("?([^")]+)/);
+        if (m) {
+          const img = new Image();
+          img.onload = () => console.log('[grain] SVG loads ok, w=', img.naturalWidth, 'h=', img.naturalHeight);
+          img.onerror = (e) => console.error('[grain] SVG FAILED to load', e);
+          img.src = m[1];
+        } else {
+          console.warn('[grain] no URL found in --grain');
+        }
+        // Check if the .app element is still painting opaque on top.
+        const app = document.querySelector('.app');
+        if (app) {
+          const appBg = getComputedStyle(app).backgroundColor;
+          console.log('.app backgroundColor:', appBg, '(should be transparent / rgba(0,0,0,0))');
+        }
+        console.groupEnd();
+      } catch (err) {
+        console.warn('[grain] diagnostic failed', err);
+      }
+    }, 1000);
+  }, []);
   // One-time: rename tweak.showInbox → tweak.showMessages so existing users
   // keep their drawer-open state across the rename.
   useEffect(() => {
