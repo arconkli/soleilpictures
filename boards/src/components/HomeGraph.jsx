@@ -154,6 +154,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
 
   return (
     <div className="home-graph-wrap" ref={containerRef}>
+      <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1 }} />
       <ForceGraph3D
         ref={fgRef}
         graphData={filtered}
