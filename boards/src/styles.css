@@ -126,36 +126,22 @@ body {
 [data-theme='light'] .grain-surface { opacity: 0.025; }
 
 /* Super-subtle grain on chrome surfaces (sidebar, modals, tweaks panel,
-   share modal). Way fainter than the body's ambient grain — the goal is
-   "the surface still reads as a clean panel, with just a hint of the
-   space-instrument material when you stare at it." Pseudo-elements so we
-   don't have to mount the .grain-surface React node into every panel. */
-.sidebar,
-.share-modal,
-.modal,
-.twk-panel { position: relative; }
-.sidebar::after,
-.share-modal::after,
-.modal::after,
-.twk-panel::after {
-  content: "";
-  position: absolute; inset: 0;
+   share modal). Renders via a fixed-position child div mounted directly
+   into each panel — same approach as .grain-canvas — because pseudo-
+   elements get covered by panel children that have their own backgrounds.
+   Tagged with .panel-grain; non-interactive; opacity is the dial. */
+.panel-grain {
+  position: absolute;
+  inset: 0;
   pointer-events: none;
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
   opacity: 0.05;
-  z-index: 0;
+  z-index: 999;            /* above panel content while testing visibility */
+  mix-blend-mode: overlay;
 }
-[data-theme='light'] .sidebar::after,
-[data-theme='light'] .share-modal::after,
-[data-theme='light'] .modal::after,
-[data-theme='light'] .twk-panel::after { opacity: 0.045; }
-/* Keep panel children above the grain pseudo. */
-.sidebar > *,
-.share-modal > *,
-.modal > *,
-.twk-panel > * { position: relative; z-index: 1; }
+[data-theme='light'] .panel-grain { opacity: 0.045; mix-blend-mode: multiply; }
 
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
