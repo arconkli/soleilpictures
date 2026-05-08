@@ -252,8 +252,13 @@ export function TagDetailView({ tag, onOpenItem, onClose }) {
 
   // Standalone groups not under a tagged board (rare).
   const orphanGroups = direct.groups.filter(g => !direct.boards.some(b => (b.board_id || b.id) === g.board_id));
-  // Standalone cards (directly tagged but their board isn't).
-  const orphanCards = direct.cards;
+  // "Other items" should only contain cards whose containing board
+  // ISN'T already represented in the hierarchy. Cards on tagged
+  // boards already appear under that board's preview block (either
+  // nested under a group or as loose cards), so re-listing them
+  // here would just be visual duplicate.
+  const taggedBoardIds = new Set(direct.boards.map(b => b.board_id || b.id));
+  const orphanCards = direct.cards.filter(c => !taggedBoardIds.has(c.board_id));
 
   return (
     <div className="tag-detail">
