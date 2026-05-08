@@ -197,11 +197,11 @@ export function HomeGraph({ workspaceId, onNavigate }) {
         map: HALO_TEXTURE,
         color,
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.22,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       }));
-      const haloScale = r * 3.2;
+      const haloScale = r * 3.8;
       halo.scale.set(haloScale, haloScale, 1);
       group.add(halo);
     }
