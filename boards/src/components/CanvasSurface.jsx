@@ -3555,6 +3555,7 @@ export function CanvasSurface({
             </button>
           )}
           <button className="sb-tag-menu-item" role="menuitem"
+                  title="Removes this tag and won't auto-apply it here again. Drag the tag back to undo."
                   onClick={async () => {
                     const { kind, targetId, tag } = tagChipMenu;
                     closeTagChipMenu();
@@ -3564,36 +3565,20 @@ export function CanvasSurface({
                       } else if (kind === 'board') {
                         await untagBoard({ boardId: targetId, tagId: tag.id });
                       }
+                      // Always dismiss too. Without this, the autotag
+                      // triggers re-apply on the next card_index UPDATE
+                      // and "Remove tag" feels broken.
+                      await dismissAutotagSuggestion({
+                        workspaceId, targetKind: kind, targetId,
+                        tagId: tag.id, userId,
+                      });
                       refreshTags?.();
                     } catch (err) {
-                      feedback.toast({ type: 'error', message: 'Untag failed: ' + (err.message || err) });
+                      feedback.toast({ type: 'error', message: 'Remove failed: ' + (err.message || err) });
                     }
                   }}>
             Remove tag
           </button>
-          {tagChipMenu.tag.source && tagChipMenu.tag.source !== 'user' && (
-            <button className="sb-tag-menu-item" role="menuitem"
-                    onClick={async () => {
-                      const { kind, targetId, tag } = tagChipMenu;
-                      closeTagChipMenu();
-                      try {
-                        if (kind === 'card') {
-                          await untagCard({ boardId: board.id, cardId: targetId, tagId: tag.id });
-                        } else if (kind === 'board') {
-                          await untagBoard({ boardId: targetId, tagId: tag.id });
-                        }
-                        await dismissAutotagSuggestion({
-                          workspaceId, targetKind: kind, targetId,
-                          tagId: tag.id, userId,
-                        });
-                        refreshTags?.();
-                      } catch (err) {
-                        feedback.toast({ type: 'error', message: 'Dismiss failed: ' + (err.message || err) });
-                      }
-                    }}>
-              Don't suggest again
-            </button>
-          )}
         </div>
       )}
       {lightbox && (

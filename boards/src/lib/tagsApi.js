@@ -158,6 +158,14 @@ export async function tagCard({ workspaceId, boardId, cardId, tagId, source = 'u
   };
   const { error } = await supabase.from('entity_links').insert(row);
   if (error && error.code !== '23505') throw error; // 23505 = unique violation = already applied
+  // User-applied tag clears any prior dismissal so the user's
+  // intent overrides past "Don't suggest again." (Auto-applied
+  // tags don't, since the engine doesn't override user dismissals.)
+  if (source === 'user') {
+    await supabase.from('autotag_ignored').delete()
+      .eq('workspace_id', workspaceId).eq('target_kind', 'card')
+      .eq('target_id', String(cardId)).eq('tag_id', tagId);
+  }
 }
 
 export async function untagCard({ boardId, cardId, tagId }) {
@@ -207,6 +215,11 @@ export async function tagBoard({ workspaceId, boardId, tagId, source = 'user' })
   };
   const { error } = await supabase.from('entity_links').insert(row);
   if (error && error.code !== '23505') throw error;
+  if (source === 'user') {
+    await supabase.from('autotag_ignored').delete()
+      .eq('workspace_id', workspaceId).eq('target_kind', 'board')
+      .eq('target_id', String(boardId)).eq('tag_id', tagId);
+  }
 }
 
 export async function untagBoard({ boardId, tagId }) {
@@ -239,6 +252,11 @@ export async function tagGroup({ workspaceId, boardId, groupId, tagId, source = 
   };
   const { error } = await supabase.from('entity_links').insert(row);
   if (error && error.code !== '23505') throw error;
+  if (source === 'user') {
+    await supabase.from('autotag_ignored').delete()
+      .eq('workspace_id', workspaceId).eq('target_kind', 'group')
+      .eq('target_id', String(groupId)).eq('tag_id', tagId);
+  }
 }
 
 export async function untagGroup({ boardId, groupId, tagId }) {

@@ -216,19 +216,29 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   }, [direct.cards]);
 
   // ── Actions ─────────────────────────────────────────────────────────────
+  // Remove always dismisses too. Otherwise the autotag triggers
+  // re-apply the tag on the next card_index UPDATE if the text
+  // word-matches — making "Remove tag" pointless. Dismissing on
+  // remove makes the action stick. To bring the tag back, just
+  // manually re-tag the item; the user-application path clears the
+  // dismissal so it doesn't get filtered next round.
   const removeTag = async (target) => {
     try {
-      if (target.kind === 'card' || target.kind === 'note' || target.kind === 'image' ||
-          target.kind === 'doc'  || target.kind === 'palette' || target.kind === 'schedule' ||
-          target.kind === 'link') {
+      const targetKind = target.kind === 'group' ? 'group' :
+                         target.kind === 'board' ? 'board' : 'card';
+      if (targetKind === 'card') {
         await untagCard({ boardId: target.boardId, cardId: target.id, tagId: tag.id });
-      } else if (target.kind === 'board') {
+      } else if (targetKind === 'board') {
         await untagBoard({ boardId: target.id, tagId: tag.id });
-      } else if (target.kind === 'group') {
+      } else if (targetKind === 'group') {
         await untagGroup({ boardId: target.boardId, groupId: target.id, tagId: tag.id });
       }
+      await dismissAutotagSuggestion({
+        workspaceId: workspaceId || tag.workspace_id,
+        targetKind, targetId: target.id, tagId: tag.id, userId,
+      });
     } catch (err) {
-      feedback?.toast?.({ type: 'error', message: 'Untag failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', message: 'Remove failed: ' + (err.message || err) });
     }
   };
 
@@ -236,27 +246,11 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     try {
       const sourceKind = target.kind === 'group' ? 'group' :
                          target.kind === 'board' ? 'board' : 'card';
-      const sourceId = sourceKind === 'card' ? target.id : target.id;
       const sourceBoardId = sourceKind === 'card' ? target.boardId :
                             sourceKind === 'group' ? target.boardId : null;
-      await confirmAppliedTag({ sourceKind, sourceId, sourceBoardId, tagId: tag.id });
+      await confirmAppliedTag({ sourceKind, sourceId: target.id, sourceBoardId, tagId: tag.id });
     } catch (err) {
       feedback?.toast?.({ type: 'error', message: 'Confirm failed: ' + (err.message || err) });
-    }
-  };
-
-  const dismissTag = async (target) => {
-    try {
-      const targetKind = target.kind === 'group' ? 'group' :
-                         target.kind === 'board' ? 'board' : 'card';
-      // Untag first, then write the dismissal so it never returns.
-      await removeTag(target);
-      await dismissAutotagSuggestion({
-        workspaceId: workspaceId || tag.workspace_id,
-        targetKind, targetId: target.id, tagId: tag.id, userId,
-      });
-    } catch (err) {
-      feedback?.toast?.({ type: 'error', message: 'Dismiss failed: ' + (err.message || err) });
     }
   };
 
@@ -488,14 +482,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           )}
           {menu.source && (
             <button className="tag-detail-menu-item" role="menuitem"
+                    title="Removes this tag and won't auto-apply it here again. Drag it back to undo."
                     onClick={() => { const m = menu; setMenu(null); removeTag(m); }}>
               Remove tag
-            </button>
-          )}
-          {menu.source && menu.source !== 'user' && (
-            <button className="tag-detail-menu-item" role="menuitem"
-                    onClick={() => { const m = menu; setMenu(null); dismissTag(m); }}>
-              Don't suggest again
             </button>
           )}
           {!menu.source && (
