@@ -125,11 +125,16 @@ body {
 [data-theme='light'] .grain-canvas,
 [data-theme='light'] .grain-surface { opacity: 0.025; }
 
-/* Super-subtle grain on chrome surfaces (sidebar, modals, tweaks panel,
-   share modal). Renders via a fixed-position child div mounted directly
-   into each panel — same approach as .grain-canvas — because pseudo-
-   elements get covered by panel children that have their own backgrounds.
-   Tagged with .panel-grain; non-interactive; opacity is the dial. */
+/* Subtle grain on chrome surfaces (sidebar, modals, tweaks panel,
+   share modal). Sits BEHIND panel content (z-index:-1, contained
+   inside the panel via `isolation: isolate`) so child elements with
+   their own backgrounds — board preview thumbnails, image rows, etc.
+   — naturally cover it. Only empty bg areas show the grain through.
+   No blend mode (would tint content above). */
+.sidebar,
+.share-modal,
+.modal,
+.twk-panel { isolation: isolate; }
 .panel-grain {
   position: absolute;
   inset: 0;
@@ -137,11 +142,10 @@ body {
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
-  opacity: 0.05;
-  z-index: 999;            /* above panel content while testing visibility */
-  mix-blend-mode: overlay;
+  opacity: 0.1;
+  z-index: -1;
 }
-[data-theme='light'] .panel-grain { opacity: 0.045; mix-blend-mode: multiply; }
+[data-theme='light'] .panel-grain { opacity: 0.09; }
 
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
