@@ -14,7 +14,7 @@ import { supabase } from './supabase.js';
 export async function assembleGraph({ workspaceId, options = {} }) {
   if (!supabase || !workspaceId) return { nodes: [], links: [] };
 
-  const { data: boards = [] } = await supabase.from('boards')
+  const { data: rawBoards = [] } = await supabase.from('boards')
     .select('id,name,parent_board_id,workspace_id')
     .eq('workspace_id', workspaceId);
 
@@ -26,17 +26,48 @@ export async function assembleGraph({ workspaceId, options = {} }) {
     .select('*')
     .eq('source_workspace_id', workspaceId);
 
+  // Reachability filter — only include boards that can be reached by
+  // walking parent_board_id from a root (parent_board_id IS NULL),
+  // matching what the sidebar tree shows. The boards table can
+  // accumulate orphans: rows whose parent chain dead-ends because a
+  // mid-tree board got deleted, or rows whose parent_board_id points
+  // at a row from a different workspace. Those are invisible in the
+  // sidebar but used to appear in the graph as ghost "Untitled" planets,
+  // and an auto-reconcile effect in App.jsx re-creates board cards
+  // for them every time their parent is opened. Drop them here so
+  // the graph reflects the user's mental model of "what boards exist."
+  const allById = new Map(rawBoards.map(b => [b.id, b]));
+  const reachable = new Set();
+  for (const b of rawBoards) {
+    if (b.parent_board_id == null) reachable.add(b.id);
+  }
+  // Iterate to fixpoint — children of reachable parents become reachable.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const b of rawBoards) {
+      if (reachable.has(b.id)) continue;
+      if (b.parent_board_id && reachable.has(b.parent_board_id)) {
+        reachable.add(b.id);
+        changed = true;
+      }
+    }
+  }
+  const orphans = rawBoards.filter(b => !reachable.has(b.id));
+  if (orphans.length && typeof window !== 'undefined' && window.__SOLEIL_GRAPH_DEBUG__ !== false) {
+    console.warn(`%c[graph]`, 'color:#a3854b;font-weight:600',
+      `dropping ${orphans.length} orphan board${orphans.length === 1 ? '' : 's'} (parent chain doesn't reach a root):`,
+      orphans.map(b => ({ id: b.id, name: b.name || '(empty)', parent_board_id: b.parent_board_id })));
+  }
+  const boards = rawBoards.filter(b => reachable.has(b.id));
+
   // Build a set of live board IDs so we can drop ANY card_index row
-  // whose board_id no longer resolves to an actual board. This guards
-  // against the rare cases where the FK CASCADE didn't land or the
-  // table got out of sync — and against boardlink/board cards whose
-  // target board has been deleted, which used to render as ghost
-  // "Untitled" planets in the constellation.
+  // whose board_id no longer resolves to an actual reachable board.
   const liveBoardIds = new Set(boards.map(b => b.id));
   const liveCards = cards.filter(c => liveBoardIds.has(c.board_id));
   // For board/boardlink cards, also confirm the *target* board still
-  // exists. card_index.meta.boardId points at the linked board for
-  // these kinds (built by buildCardMeta in boardsApi.js).
+  // exists AND is reachable. card_index.meta.boardId points at the
+  // linked board for these kinds (built by buildCardMeta in boardsApi.js).
   const liveCardsResolved = liveCards.filter(c => {
     if (c.kind !== 'board' && c.kind !== 'boardlink') return true;
     const targetId = c?.meta?.boardId;
