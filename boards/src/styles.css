@@ -4603,7 +4603,18 @@ body {
 
 /* Smoother programmatic zoom (toggled on briefly via .is-smooth) */
 .canvas { transition: none; }
-.canvas.is-smooth { transition: transform var(--dur-base) var(--ease); }
+/* Board-transition reveal: the canvas starts at opacity:0 on every
+   board change and fades in only AFTER fit-to-content has run + the
+   browser has painted with the new pan/zoom. Eliminates the
+   "card pop-in at wrong viewport" flash the previous behavior had —
+   the grain background on .canvas-wrap stays visible the whole time
+   so the transition feels like a soft reveal rather than a blank flash. */
+.canvas {
+  opacity: 0;
+  transition: opacity 140ms var(--ease);
+}
+.canvas.is-smooth { transition: transform var(--dur-base) var(--ease), opacity 140ms var(--ease); }
+.canvas.is-painted { opacity: 1; }
 
 /* Card drag visual: subtle scale + lifted shadow */
 .card { transition: filter .15s ease; }
