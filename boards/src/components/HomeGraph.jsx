@@ -81,6 +81,104 @@ export function HomeGraph({ workspaceId, onNavigate }) {
     } catch { setSupportsWebGL(false); }
   }, []);
 
+  // Distant star field — represents "other people's solar systems of
+  // data viz" floating in the background. Built as one Points cloud
+  // for the bulk uniform sprinkle plus a few faint warm-tinted
+  // clusters so the eye reads them as remote constellations rather
+  // than uniform white noise.
+  useEffect(() => {
+    if (!fgRef.current) return;
+    let raf = null;
+    let added = null;
+    const tryAttach = () => {
+      const scene = fgRef.current?.scene?.();
+      if (!scene) { raf = requestAnimationFrame(tryAttach); return; }
+      const group = new THREE.Group();
+      // (1) Bulk distant stars — uniform on a thick sphere shell.
+      const N = 1800;
+      const positions = new Float32Array(N * 3);
+      const colors = new Float32Array(N * 3);
+      for (let i = 0; i < N; i++) {
+        const R = 3500 + Math.random() * 2500;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        positions[i * 3]     = R * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = R * Math.cos(phi);
+        positions[i * 3 + 2] = R * Math.sin(phi) * Math.sin(theta);
+        // 80% pure white, 20% warm cream — varies the field subtly.
+        const warm = Math.random() < 0.2;
+        colors[i * 3]     = warm ? 1.0 : 1.0;
+        colors[i * 3 + 1] = warm ? 0.92 : 1.0;
+        colors[i * 3 + 2] = warm ? 0.78 : 1.0;
+      }
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      const mat = new THREE.PointsMaterial({
+        size: 1.6,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.65,
+        depthWrite: false,
+        sizeAttenuation: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const stars = new THREE.Points(geom, mat);
+      group.add(stars);
+
+      // (2) A handful of faint "remote workspaces" — small clustered
+      // sprites tinted in different hues, scattered far out. Each one
+      // reads as someone else's solar system in the distance.
+      const REMOTE_HUES = [0xc4a96b, 0x7c5cc9, 0x3fa39a, 0xcf6a4f, 0x5b8fc7, 0xe6c98a];
+      const clusterCount = 9;
+      for (let k = 0; k < clusterCount; k++) {
+        const cR = 4200 + Math.random() * 2200;
+        const cTheta = Math.random() * Math.PI * 2;
+        const cPhi = Math.acos(2 * Math.random() - 1);
+        const cx = cR * Math.sin(cPhi) * Math.cos(cTheta);
+        const cy = cR * Math.cos(cPhi);
+        const cz = cR * Math.sin(cPhi) * Math.sin(cTheta);
+        const hue = REMOTE_HUES[k % REMOTE_HUES.length];
+        // 6–14 points per cluster, jittered around the centroid
+        const M = 6 + Math.floor(Math.random() * 9);
+        const cPos = new Float32Array(M * 3);
+        for (let i = 0; i < M; i++) {
+          const jitter = 80;
+          cPos[i * 3]     = cx + (Math.random() * 2 - 1) * jitter;
+          cPos[i * 3 + 1] = cy + (Math.random() * 2 - 1) * jitter;
+          cPos[i * 3 + 2] = cz + (Math.random() * 2 - 1) * jitter;
+        }
+        const cGeom = new THREE.BufferGeometry();
+        cGeom.setAttribute('position', new THREE.BufferAttribute(cPos, 3));
+        const cMat = new THREE.PointsMaterial({
+          size: 2.4,
+          color: hue,
+          transparent: true,
+          opacity: 0.55,
+          depthWrite: false,
+          sizeAttenuation: false,
+          blending: THREE.AdditiveBlending,
+        });
+        const cluster = new THREE.Points(cGeom, cMat);
+        group.add(cluster);
+      }
+
+      scene.add(group);
+      added = { group, dispose() {
+        scene.remove(group);
+        group.traverse(o => {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) o.material.dispose();
+        });
+      }};
+    };
+    tryAttach();
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      added?.dispose();
+    };
+  }, [data]);  // re-run when the workspace changes (data identity)
+
   // Camera idle motion. We don't use OrbitControls.autoRotate because that
   // only spins around the world Y axis — the result is purely horizontal,
   // which feels flat. Instead we run our own RAF that rotates the camera

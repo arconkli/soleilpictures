@@ -90,10 +90,31 @@ export async function assembleGraph({ workspaceId, options = {} }) {
       });
     }
   };
+
   for (const b of boards) add(`board:${b.id}`, 'board', b.name, 14);
+
+  // Embedded-board (`kind: 'board'`) and boardlink (`kind: 'boardlink'`)
+  // cards are NOT added as separate nodes. The drawer used to render
+  // them as small "Untitled" yellow planets because their title field
+  // is empty (syncCardIndex reads card-local fields, not the
+  // underlying board's name) and clicking them said "Board" — which
+  // looked like phantom boards but were actually embed/link cards
+  // that double-referenced an existing board. We surface the
+  // host→target relationship as a board:→board: structural edge
+  // below instead. Other card kinds (note/image/palette/link/doc)
+  // still get their own nodes.
+  const skippedEmbeds = [];
   for (const c of liveCardsResolved) {
+    if (c.kind === 'board' || c.kind === 'boardlink') {
+      skippedEmbeds.push(c);
+      continue;
+    }
     const isDoc = c.kind === 'doc';
     add(`card:${c.board_id}:${c.card_id}`, isDoc ? 'doc' : 'card', c.title, isDoc ? 12 : 8, c.kind || 'note');
+  }
+  if (skippedEmbeds.length && typeof window !== 'undefined' && window.__SOLEIL_GRAPH_DEBUG__ !== false) {
+    console.log(`%c[graph]`, 'color:#a3854b;font-weight:600',
+      `skipped ${skippedEmbeds.length} embedded-board card${skippedEmbeds.length === 1 ? '' : 's'} (host→target rendered as edge instead of a duplicate node)`);
   }
 
   const links = [];
@@ -125,8 +146,27 @@ export async function assembleGraph({ workspaceId, options = {} }) {
       const s = `board:${b.parent_board_id}`, t = `board:${b.id}`;
       if (nodes.has(s) && nodes.has(t)) links.push({ source: s, target: t, kind: 'structural' });
     }
+    // Per-card edges. Skip embed/link cards — we collapse those into
+    // a board→target edge below so the graph doesn't double-count
+    // the relationship.
     for (const c of liveCardsResolved) {
+      if (c.kind === 'board' || c.kind === 'boardlink') continue;
       const s = `board:${c.board_id}`, t = `card:${c.board_id}:${c.card_id}`;
+      if (nodes.has(s) && nodes.has(t)) links.push({ source: s, target: t, kind: 'structural' });
+    }
+    // Embed / boardlink cards: instead of host→card→target (which
+    // produced ghost intermediate nodes), draw a single host→target
+    // structural edge, dedup'd in case the host has multiple embeds
+    // pointing at the same board.
+    const seenHostTarget = new Set();
+    for (const c of skippedEmbeds) {
+      const targetId = c?.meta?.boardId;
+      if (!targetId) continue;
+      const s = `board:${c.board_id}`, t = `board:${targetId}`;
+      if (s === t) continue; // a board embedding itself would be a self-loop
+      const key = `${s}→${t}`;
+      if (seenHostTarget.has(key)) continue;
+      seenHostTarget.add(key);
       if (nodes.has(s) && nodes.has(t)) links.push({ source: s, target: t, kind: 'structural' });
     }
     return { nodes: [...nodes.values()], links };
