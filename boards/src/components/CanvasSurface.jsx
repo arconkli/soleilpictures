@@ -225,6 +225,9 @@ export function CanvasSurface({
   // an EntityLink that points at them. Drives the .is-link-target class
   // so the canvas reflects what the link will navigate to.
   const [linkHoverIds, setLinkHoverIds] = useState(() => new Set());
+  // Card-info popover state (right-click → Info). Anchored to the click
+  // point. cardId is the card we're showing metadata for.
+  const [infoFor, setInfoFor] = useState(null);
   // Local-only blob URL previews keyed by cardId. We don't write blob URLs
   // into the Yjs doc (peers can't resolve them), so the optimistic preview
   // lives here and is passed to ImageCard as a fallback src until the
@@ -1553,6 +1556,11 @@ export function CanvasSurface({
           const anchorRect = { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 };
           openTagPicker(c.id, anchorRect);
         }});
+      items.push({ id: 'info', label: 'Info', run: () => {
+        // Anchor the info popover at the click point so it sits next
+        // to the card the user invoked it on.
+        setInfoFor({ cardId: c.id, x: ctx.x, y: ctx.y });
+      }});
     }
     items.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: `${cmdKey}X`, run: doCut });
     items.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: `${cmdKey}C`, run: doCopy });
@@ -3585,6 +3593,20 @@ export function CanvasSurface({
         card={ctx.cardId ? cardById[ctx.cardId] : null}
       />
 
+      {infoFor && (() => {
+        const c = cardById[infoFor.cardId];
+        if (!c) return null;
+        return (
+          <CardInfoPopover
+            x={infoFor.x} y={infoFor.y}
+            card={c}
+            currentUserId={currentUser?.id}
+            getAwareness={getAwareness}
+            onClose={() => setInfoFor(null)}
+          />
+        );
+      })()}
+
       <BackgroundContextMenu
         open={bgCtx.open}
         x={bgCtx.x}
@@ -3714,6 +3736,87 @@ export function CanvasSurface({
           {lightbox.title && <div className="lightbox-cap">{lightbox.title}</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── CardInfoPopover ──────────────────────────────────────────────────────
+// Tiny "Info" panel — shown on right-click → Info. Surfaces who created
+// the card (via stampCreate's createdBy) and when (createdAt). Looks
+// the creator up via Yjs awareness so an online peer's display name +
+// color show up; falls back to "Someone else" for offline / unknown.
+function CardInfoPopover({ x, y, card, currentUserId, getAwareness, onClose }) {
+  // Click-away to close.
+  const ref = useRef(null);
+  useEffect(() => {
+    const onDocDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose?.(); };
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('mousedown', onDocDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  const creator = (() => {
+    const id = card?.createdBy;
+    if (!id) return { name: 'Unknown', color: '#5b574e' };
+    if (id === currentUserId) return { name: 'You', color: 'var(--soleil)' };
+    try {
+      const aw = getAwareness?.();
+      if (aw) {
+        for (const state of aw.getStates().values()) {
+          if (state?.user?.id === id) return { name: state.user.name || state.user.email || 'Teammate', color: state.user.color || '#4f8df8' };
+        }
+      }
+    } catch (_) {}
+    return { name: 'Someone else', color: '#5b574e' };
+  })();
+
+  const when = (() => {
+    const t = card?.createdAt;
+    if (!t) return null;
+    const d = typeof t === 'string' ? new Date(t) : new Date(t);
+    if (isNaN(d.getTime())) return null;
+    const diff = Date.now() - d.getTime();
+    const min = Math.floor(diff / 60000);
+    let rel;
+    if (min < 1) rel = 'just now';
+    else if (min < 60) rel = `${min}m ago`;
+    else if (min < 60 * 24) rel = `${Math.floor(min / 60)}h ago`;
+    else if (min < 60 * 24 * 30) rel = `${Math.floor(min / (60 * 24))}d ago`;
+    else rel = d.toLocaleDateString();
+    return { rel, abs: d.toLocaleString() };
+  })();
+
+  // Anchor near the click but keep on-screen.
+  const W = 240, H = 110;
+  const left = Math.min(window.innerWidth - W - 8, Math.max(8, x));
+  const top  = Math.min(window.innerHeight - H - 8, Math.max(8, y));
+
+  return (
+    <div ref={ref}
+         className="card-info-popover"
+         style={{ position: 'fixed', left, top, zIndex: 2147483647 }}
+         onClick={(e) => e.stopPropagation()}>
+      <div className="card-info-popover-row">
+        <span className="card-info-popover-label">Created by</span>
+        <span className="card-info-popover-value">
+          <span className="card-info-popover-dot" style={{ background: creator.color }} />
+          {creator.name}
+        </span>
+      </div>
+      <div className="card-info-popover-row">
+        <span className="card-info-popover-label">Created</span>
+        <span className="card-info-popover-value" title={when?.abs || ''}>
+          {when ? when.rel : 'Unknown'}
+        </span>
+      </div>
+      <div className="card-info-popover-row">
+        <span className="card-info-popover-label">Type</span>
+        <span className="card-info-popover-value">{card?.kind || 'card'}</span>
+      </div>
     </div>
   );
 }

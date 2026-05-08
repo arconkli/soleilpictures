@@ -45,6 +45,55 @@ function fallbackColor(slugOrName) {
   return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
 }
 
+// Minimal Levenshtein for short strings (tag names are typically <30
+// chars). Used to surface "did you mean an existing tag?" matches as
+// the user types a new tag name. Caps at maxDist for early-exit.
+function levenshtein(a, b, maxDist = 3) {
+  if (a === b) return 0;
+  const al = a.length, bl = b.length;
+  if (Math.abs(al - bl) > maxDist) return maxDist + 1;
+  if (!al) return bl;
+  if (!bl) return al;
+  let prev = new Array(bl + 1);
+  for (let j = 0; j <= bl; j++) prev[j] = j;
+  for (let i = 1; i <= al; i++) {
+    const curr = new Array(bl + 1);
+    curr[0] = i;
+    let rowMin = i;
+    for (let j = 1; j <= bl; j++) {
+      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+      if (curr[j] < rowMin) rowMin = curr[j];
+    }
+    if (rowMin > maxDist) return maxDist + 1;
+    prev = curr;
+  }
+  return prev[bl];
+}
+
+// Score existing tags as candidates for "did you mean" against draft
+// text. Returns up to 4 matches sorted best-first. Considers exact
+// substring (highest), prefix match, and edit-distance-≤2.
+function findSimilarTags(draft, existingTags, max = 4) {
+  const q = (draft || '').trim().toLowerCase();
+  if (q.length < 2) return [];
+  const out = [];
+  for (const t of existingTags) {
+    const name = (t.name || '').toLowerCase();
+    if (!name || name === q) continue;
+    let score = 0;
+    if (name.startsWith(q)) score = 100 - (name.length - q.length);
+    else if (name.includes(q)) score = 70 - (name.length - q.length);
+    else {
+      const d = levenshtein(name, q, 2);
+      if (d <= 2) score = 50 - d * 10;
+    }
+    if (score > 0) out.push({ tag: t, score });
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out.slice(0, max).map(x => x.tag);
+}
+
 export function SidebarTags({
   workspaceId, userId,
   tags = [],
@@ -293,21 +342,58 @@ export function SidebarTags({
 
       {open && (
         <div className="sb-tags-body">
-          {creating && (
-            <form className="sb-tag-row sb-tag-row-create"
-                  onSubmit={(e) => { e.preventDefault(); finishCreate(draftName); }}>
-              <span className="sb-dot" style={{ background: fallbackColor(draftName) }} />
-              <input ref={inputRef}
-                     className="sb-tag-create-input"
-                     placeholder="New tag…"
-                     value={draftName}
-                     onChange={(e) => setDraftName(e.target.value)}
-                     onBlur={() => finishCreate(draftName)}
-                     onKeyDown={(e) => {
-                       if (e.key === 'Escape') { e.preventDefault(); setCreating(false); setDraftName(''); }
-                     }} />
-            </form>
-          )}
+          {creating && (() => {
+            const draftSuggestions = findSimilarTags(draftName, tags);
+            return (
+              <>
+                <form className="sb-tag-row sb-tag-row-create"
+                      onSubmit={(e) => { e.preventDefault(); finishCreate(draftName); }}>
+                  <span className="sb-dot" style={{ background: fallbackColor(draftName) }} />
+                  <input ref={inputRef}
+                         className="sb-tag-create-input"
+                         placeholder="New tag…"
+                         value={draftName}
+                         onChange={(e) => setDraftName(e.target.value)}
+                         onBlur={(e) => {
+                           // Defer commit so a click on a suggestion (which
+                           // fires before blur) can win the race and use the
+                           // existing tag instead of creating a new one.
+                           const v = draftName;
+                           setTimeout(() => {
+                             if (creating) finishCreate(v);
+                           }, 120);
+                         }}
+                         onKeyDown={(e) => {
+                           if (e.key === 'Escape') { e.preventDefault(); setCreating(false); setDraftName(''); }
+                         }} />
+                </form>
+                {draftSuggestions.length > 0 && (
+                  <div className="sb-tag-suggest-list" role="listbox" aria-label="Did you mean">
+                    <div className="sb-tag-suggest-head">Did you mean…</div>
+                    {draftSuggestions.map(tag => {
+                      const dot = tag.color || fallbackColor(tag.slug || tag.name);
+                      return (
+                        <button key={tag.id}
+                                type="button"
+                                className="sb-tag-suggest-row"
+                                onMouseDown={(e) => {
+                                  // Prevent input blur from firing first.
+                                  e.preventDefault();
+                                  setCreating(false);
+                                  setDraftName('');
+                                  onOpenTag?.(tag);
+                                }}>
+                          <span className="sb-dot" style={{ background: dot }} />
+                          <span className="sb-tag-suggest-name">{tag.name}</span>
+                          <span className="sb-tag-suggest-hint">use existing</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {sorted.length === 0 && !creating && (
             <div className="sb-tags-empty">
