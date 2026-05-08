@@ -115,11 +115,11 @@ body {
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 200px 150px;
-  opacity: 0.035;
+  opacity: 0.05;
   /* Sits between the canvas-wrap's grid and the .canvas children. */
   z-index: 0;
 }
-[data-theme='light'] .grain-canvas { opacity: 0.025; }
+[data-theme='light'] .grain-canvas { opacity: 0.035; }
 
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
