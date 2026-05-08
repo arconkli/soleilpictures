@@ -541,7 +541,9 @@ body {
   padding: 10px 8px 8px;
   gap: 1px;
   overflow-y: auto;
-  background: var(--bg-1);
+  /* Background intentionally transparent — the sidebar parent paints
+     the bg-1 + grain blend; setting bg here would cover it. */
+  background: transparent;
   min-height: 0;
 }
 .sb-mid-head {
