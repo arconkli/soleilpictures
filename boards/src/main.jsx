@@ -13,7 +13,11 @@ import './styles.css';
 // window.__SOLEIL_GRAIN_DEBUG__ = false.
 if (typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
   setTimeout(() => {
-    const surfaces = ['.topbar', '.sidebar', '.sb-mid', '.rail', '.share-modal', '.modal', '.twk-panel'];
+    const surfaces = ['.topbar', '.sidebar', '.sb-mid', '.rail', '.share-modal', '.modal', '.twk-panel',
+      '.bc', '.cnv-tools', '.tob', '.tob-pop', '.doc-tb', '.sketchpad-toolbar', '.sketchpad-frame',
+      '.ctx-menu', '.ctx-submenu', '.cp-pop', '.ws-menu', '.cnv-add-menu', '.topbar-add-menu',
+      '.entity-picker', '.entity-hover-popover', '.link-popover', '.link-hover-card',
+      '.account-modal', '.settings-modal', '.home-graph-drawer', '.tag-detail', '.inbox'];
     const head = '%c[grain]';
     const headStyle = 'color:#e8a93a;font-weight:600';
     // Sanity: try to load grain.gif directly so we know the asset exists.

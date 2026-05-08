@@ -10403,3 +10403,79 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   color: var(--ink-3);
   pointer-events: none;
 }
+
+/* ──────────────────────────── PANEL GRAIN ─────────────────────────────
+   Comprehensive grain layer applied to every dark panel-style surface
+   in the app — toolbars, popovers, dropdowns, modals, sidebars, etc.
+   Declared LAST so any earlier `background:` shorthand on these
+   surfaces gets its background-image filled in here.
+
+   Add new surfaces by appending to this selector list.
+   The grain image is opaque grayscale noise; it tints into the
+   surface's existing bg-color via `background-blend-mode: overlay`
+   in dark theme and `multiply` in light theme. */
+.topbar,
+.sidebar,
+.rail,
+.modal,
+.share-modal,
+.twk-panel,
+.bc,
+.cnv-tools,
+.tob,
+.tob-pop,
+.doc-tb,
+.doc-tb-colorpop,
+.sketchpad-toolbar,
+.sketchpad-frame,
+.ctx-menu,
+.ctx-submenu,
+.cp-pop,
+.ws-menu,
+.cnv-add-menu,
+.topbar-add-menu,
+.entity-picker,
+.entity-hover-popover,
+.link-popover,
+.link-hover-card,
+.account-modal,
+.settings-modal,
+.home-graph-drawer,
+.tag-detail,
+.inbox {
+  background-image: url('/grain.gif');
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  background-blend-mode: overlay;
+}
+[data-theme='light'] .topbar,
+[data-theme='light'] .sidebar,
+[data-theme='light'] .rail,
+[data-theme='light'] .modal,
+[data-theme='light'] .share-modal,
+[data-theme='light'] .twk-panel,
+[data-theme='light'] .bc,
+[data-theme='light'] .cnv-tools,
+[data-theme='light'] .tob,
+[data-theme='light'] .tob-pop,
+[data-theme='light'] .doc-tb,
+[data-theme='light'] .doc-tb-colorpop,
+[data-theme='light'] .sketchpad-toolbar,
+[data-theme='light'] .sketchpad-frame,
+[data-theme='light'] .ctx-menu,
+[data-theme='light'] .ctx-submenu,
+[data-theme='light'] .cp-pop,
+[data-theme='light'] .ws-menu,
+[data-theme='light'] .cnv-add-menu,
+[data-theme='light'] .topbar-add-menu,
+[data-theme='light'] .entity-picker,
+[data-theme='light'] .entity-hover-popover,
+[data-theme='light'] .link-popover,
+[data-theme='light'] .link-hover-card,
+[data-theme='light'] .account-modal,
+[data-theme='light'] .settings-modal,
+[data-theme='light'] .home-graph-drawer,
+[data-theme='light'] .tag-detail,
+[data-theme='light'] .inbox {
+  background-blend-mode: multiply;
+}
