@@ -646,6 +646,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
     };
 
+    // Set the cover tint of any board (passed boardId) so the bar at the
+    // bottom of its card + the sidebar dot adopt the chosen accent. Tint
+    // value is the COVER_TINTS key (neutral/warm/cool/sun/dusk/sand/sea).
+    const setBoardCover = async (targetBoardId, cover) => {
+      try {
+        await updateBoardMeta(targetBoardId, { cover: cover || null });
+        await refreshBoards();
+      } catch (e) {
+        console.error('setBoardCover failed', e);
+        feedback.toast({ type: 'error', message: 'Could not set cover: ' + (e.message || e) });
+      }
+    };
+
     const addNote = (clickPos = null) => {
       // Sticky-note feel: warm yellow, square-ish, dark text. Color picker
       // in the rich-text bar still lets users repaint or go transparent.
@@ -727,6 +740,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addDocCard,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
+      setBoardCover,
       // Workspace-scoped mutators (rename, delete, clone) close over outer
       // scope and are filled in below since they don't need ydoc.
       undo, redo,

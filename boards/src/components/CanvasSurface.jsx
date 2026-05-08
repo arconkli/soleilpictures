@@ -7,7 +7,7 @@ import { RichDocCard } from './DocCard.jsx';
 
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
-import { LiveCursor } from './primitives.jsx';
+import { LiveCursor, COVER_TINTS } from './primitives.jsx';
 import { CanvasPresence } from './CanvasPresence.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
@@ -1420,6 +1420,16 @@ export function CanvasSurface({
       } else if (c.kind === 'board') {
         items.push({ id: 'open', label: 'Open board', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
+        const currentCover = target?.cover || 'neutral';
+        items.push({ id: 'cover', label: 'Cover color', submenu: [
+          ...Object.keys(COVER_TINTS).map(k => ({
+            id: `cover-${k}`,
+            swatch: COVER_TINTS[k],
+            label: k.charAt(0).toUpperCase() + k.slice(1),
+            checked: currentCover === k,
+            run: () => mutators.setBoardCover?.(c.id, k === 'neutral' ? null : k),
+          })),
+        ]});
         if (target && personalWorkspaceId && target.workspace_id !== personalWorkspaceId) {
           items.push({ id: 'clone', label: 'Copy to my workspace', run: () => mutators.cloneBoardToPersonal?.(c.id) });
         }

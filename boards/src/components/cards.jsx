@@ -405,7 +405,10 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
           )}
         </div>
       </div>
-      <div className="bc-meta">
+      <div className="bc-meta"
+           style={board.cover && COVER_TINTS[board.cover]
+             ? { borderTopColor: COVER_TINTS[board.cover], borderTopWidth: 3 }
+             : undefined}>
         {onRename
           ? <EditableText className="bc-name" value={board.name}
                           onChange={onRename}
