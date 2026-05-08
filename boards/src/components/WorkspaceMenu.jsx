@@ -7,7 +7,7 @@
 // Escape close it.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit } from '../lib/icons.js';
+import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit, Check } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
@@ -102,9 +102,7 @@ export function WorkspaceMenu({
             <span className="ws-menu-sub">{subtitle}</span>
           </span>
           {isActive && (
-            <svg className="ws-menu-check" width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M3 7 L6 10 L11 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <span className="ws-menu-check"><Icon as={Check} size={14} /></span>
           )}
         </button>
         {hasRowMenu && (

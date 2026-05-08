@@ -6,6 +6,8 @@
 import { useState } from 'react';
 import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
+import { Eye } from '../lib/icons.js';
+import { Icon } from './Icon.jsx';
 
 const EXPAND_KEY = 'soleil.boards.sb.shared.expanded';
 
@@ -85,11 +87,7 @@ export function SidebarSharedBoards({
                           <span className="sb-row-label">{row.board_name}</span>
                           {row.role === 'viewer' && (
                             <span className="sb-shared-eye" title="View only">
-                              <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
-                                <path d="M1 7s2-4 6-4 6 4 6 4-2 4-6 4-6-4-6-4z"
-                                      stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-                                <circle cx="7" cy="7" r="1.6" fill="currentColor" />
-                              </svg>
+                              <Icon as={Eye} size={11} />
                             </span>
                           )}
                         </div>

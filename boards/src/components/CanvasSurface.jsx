@@ -15,7 +15,10 @@ import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
-import { Eye, EyeOff, MessageCircle } from '../lib/icons.js';
+import {
+  Eye, EyeOff, MessageCircle,
+  MousePointer2, Hand, NotePencil, Image, Square, Scribble, ArrowRight, Plus,
+} from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, inboxItemToCard } from '../lib/dragMimes.js';
@@ -3357,13 +3360,13 @@ export function CanvasSurface({
 
   // ── Toolbar ───────────────────────────────────────────────────────────────
   const tools = [
-    { id: 'select', title: 'Select / move (V)', label: 'Select tool', svg: <path d="M5 3 L17 12 L11 13 L13 19 L10 20 L8 14 L4 17 Z" fill="currentColor"/> },
-    { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', svg: <path d="M6 13 V8 A1 1 0 0 1 8 8 V11 V6 A1 1 0 0 1 10 6 V11 V5 A1 1 0 0 1 12 5 V11 V7 A1 1 0 0 1 14 7 V13 A4 4 0 0 1 6 13 Z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/> },
-    { id: 'text',   title: 'Add note', label: 'Add note tool', svg: <path d="M4 5 H16 M10 5 V16 M8 16 H12" stroke="currentColor" strokeWidth="1.2" fill="none"/> },
-    { id: 'image',  title: 'Add image', label: 'Add image tool', svg: <><rect x="3" y="4" width="14" height="11" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none"/><circle cx="7" cy="8" r="1.2" fill="currentColor"/><path d="M3 12 L7 9 L11 12 L14 10 L17 12 V14 H3 Z" fill="currentColor" opacity=".5"/></> },
-    { id: 'shape',  title: 'Add shape', label: 'Add shape tool', svg: <rect x="3" y="5" width="14" height="10" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none"/> },
-    { id: 'draw',   title: 'Free-draw', label: 'Free-draw tool', svg: <path d="M3 16 L7 13 L13 5 L16 8 L8 16 Z M11 7 L14 10" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/> },
-    { id: 'arrow',  title: 'Arrow - click 2 cards, or drag on empty canvas', label: 'Arrow tool', svg: <path d="M3 10 H15 M12 7 L15 10 L12 13" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/> },
+    { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2 },
+    { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand },
+    { id: 'text',   title: 'Add note', label: 'Add note tool', icon: NotePencil },
+    { id: 'image',  title: 'Add image', label: 'Add image tool', icon: Image },
+    { id: 'shape',  title: 'Add shape', label: 'Add shape tool', icon: Square },
+    { id: 'draw',   title: 'Free-draw', label: 'Free-draw tool', icon: Scribble },
+    { id: 'arrow',  title: 'Arrow - click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
   ];
 
   const addMenuItems = [
@@ -3849,9 +3852,7 @@ export function CanvasSurface({
               setAddMenuOpen(open => !open);
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 4 V16 M4 10 H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+            <Icon as={Plus} size={20} />
           </div>
           {addMenuOpen && (
             <div className="cnv-add-menu" role="menu" aria-label="Add">
@@ -3888,7 +3889,7 @@ export function CanvasSurface({
                  }
                }}
                onPointerDown={(e) => { e.stopPropagation(); setSelectedTool(t.id); }}>
-            <svg width="20" height="20" viewBox="0 0 20 20">{t.svg}</svg>
+            <Icon as={t.icon} size={20} />
           </div>
         ))}
       </div>

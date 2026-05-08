@@ -3,6 +3,8 @@
 // protocol. Tweak values persist to localStorage.
 
 import React from 'react';
+import { Settings } from './../lib/icons.js';
+import { Icon } from './Icon.jsx';
 
 const __TWEAKS_STORAGE_KEY = 'soleil-boards-tweaks';
 
@@ -186,10 +188,7 @@ export function TweaksPanel({ title = 'Tweaks', children }) {
         <button className="twk-gear" aria-label="Open settings (⌘.)"
                 title="Settings (⌘.)"
                 onClick={() => setOpen(true)}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" strokeWidth="1.5"/>
-            <path d="M19.4 13.5a7.5 7.5 0 0 0 0-3l1.7-1.3-1.5-2.6-2 .7a7.5 7.5 0 0 0-2.6-1.5L14.5 3.5h-3l-.5 2.3a7.5 7.5 0 0 0-2.6 1.5l-2-.7-1.5 2.6L6.6 10.5a7.5 7.5 0 0 0 0 3l-1.7 1.3 1.5 2.6 2-.7a7.5 7.5 0 0 0 2.6 1.5l.5 2.3h3l.5-2.3a7.5 7.5 0 0 0 2.6-1.5l2 .7 1.5-2.6-1.7-1.3Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
-          </svg>
+          <Icon as={Settings} size={14} />
         </button>
       )}
       {open && (

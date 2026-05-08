@@ -12,6 +12,12 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { renderHtmlWithAutoLinks } from '../lib/renderHtmlWithAutoLinks.jsx';
 import { EntityLink } from './EntityLink.jsx';
+import {
+  Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
+  Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
+  Circle as CirclePh,
+} from '../lib/icons.js';
+import { Icon } from './Icon.jsx';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -48,68 +54,19 @@ function htmlToText(html, max = 80) {
   const txt = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
   return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
 }
-// Inline SVG icons used in list-board rows. Sized to fill a 24px tile.
+// Phosphor-thin glyphs used in list-board rows. Sized to fill a 22px tile.
 function KindIcon({ kind }) {
-  const C = { stroke: 'currentColor', strokeWidth: 1.4, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
   if (kind === 'board' || kind === 'list' || kind === 'boardlink') {
-    return (
-      <svg width="22" height="22" viewBox="0 0 22 22">
-        <path d="M5 4 H17 V18 H5 Z M5 8 H17 M9 4 V8" {...C} />
-      </svg>
-    );
+    return <Icon as={FolderIcon} size={22} />;
   }
-  if (kind === 'image') {
-    return (
-      <svg width="22" height="22" viewBox="0 0 22 22">
-        <rect x="4" y="5" width="14" height="12" rx="1.5" {...C} />
-        <circle cx="9" cy="10" r="1.4" {...C} />
-        <path d="M5 16 L10 12 L13 14 L17 10" {...C} />
-      </svg>
-    );
-  }
-  if (kind === 'note') {
-    return (
-      <svg width="22" height="22" viewBox="0 0 22 22">
-        <path d="M5 4 H14 L17 7 V18 H5 Z M14 4 V7 H17 M7 11 H15 M7 14 H13" {...C} />
-      </svg>
-    );
-  }
-  if (kind === 'link') {
-    return (
-      <svg width="22" height="22" viewBox="0 0 22 22">
-        <path d="M9 13 L13 9 M8 11 L6 13 A2.8 2.8 0 0 0 10 17 L12 15 M14 11 L16 9 A2.8 2.8 0 0 0 12 5 L10 7" {...C} />
-      </svg>
-    );
-  }
-  if (kind === 'palette') {
-    return (
-      <svg width="22" height="22" viewBox="0 0 22 22">
-        <path d="M11 4 A7 7 0 1 0 11 18 A1.5 1.5 0 0 1 12.5 16.5 A1.5 1.5 0 0 0 14 15 H15.5 A2.5 2.5 0 0 0 18 12.5 A7 7 0 0 0 11 4 Z" {...C} />
-        <circle cx="7" cy="9" r="1" fill="currentColor" />
-        <circle cx="11" cy="6.5" r="1" fill="currentColor" />
-        <circle cx="14.5" cy="9" r="1" fill="currentColor" />
-      </svg>
-    );
-  }
-  if (kind === 'doc') {
-    return (
-      <svg width="22" height="22" viewBox="0 0 22 22">
-        <path d="M6 4 H13 L17 8 V18 H6 Z M13 4 V8 H17 M8 11 H15 M8 13.5 H15 M8 16 H12" {...C} />
-      </svg>
-    );
-  }
-  if (kind === 'schedule') {
-    return (
-      <svg width="22" height="22" viewBox="0 0 22 22">
-        <rect x="4" y="6" width="14" height="12" rx="1.5" {...C} />
-        <path d="M4 10 H18 M8 4 V7 M14 4 V7" {...C} />
-      </svg>
-    );
-  }
-  if (kind === 'shape') {
-    return <svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="6" {...C} /></svg>;
-  }
-  return <svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="2" fill="currentColor" /></svg>;
+  if (kind === 'image')    return <Icon as={ImagePh} size={22} />;
+  if (kind === 'note')     return <Icon as={StickyNote} size={22} />;
+  if (kind === 'link')     return <Icon as={LinkPh} size={22} />;
+  if (kind === 'palette')  return <Icon as={PalettePh} size={22} />;
+  if (kind === 'doc')      return <Icon as={FileText} size={22} />;
+  if (kind === 'schedule') return <Icon as={CalendarPh} size={22} />;
+  if (kind === 'shape')    return <Icon as={SquarePh} size={22} />;
+  return <Icon as={CirclePh} size={22} />;
 }
 
 // One row inside a list-board card. Sub-board rows use useBoardPreview to

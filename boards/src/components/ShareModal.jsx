@@ -19,6 +19,8 @@ import { supabase } from '../lib/supabase.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { X as XIcon } from '../lib/icons.js';
+import { Icon as Glyph } from './Icon.jsx';
 
 export function ShareModal({
   board,                  // { id, name, workspace_id }
@@ -316,9 +318,7 @@ export function ShareModal({
             <div className="share-title">{board?.name || 'Untitled board'}</div>
           </div>
           <button className="share-close" onClick={onClose} aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M3 3 L11 11 M11 3 L3 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <Glyph as={XIcon} size={14} />
           </button>
         </div>
 
