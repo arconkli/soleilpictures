@@ -238,9 +238,14 @@ export function CanvasSurface({
   // a captured closure goes stale across React re-renders).
   const [boardDropTarget, setBoardDropTarget] = useState(null);
   const boardDropTargetRef = useRef(null);
-  const updateBoardDropTarget = useCallback((next) => {
+  // Cursor position while hovering a board drop target — drives the
+  // floating "Drop into <board>" label so the user has clear feedback
+  // before they release.
+  const [boardDropHoverPos, setBoardDropHoverPos] = useState(null);
+  const updateBoardDropTarget = useCallback((next, pos = null) => {
     boardDropTargetRef.current = next;
     setBoardDropTarget(next);
+    setBoardDropHoverPos(next ? pos : null);
   }, []);
   // Eyedropper mode — when set to a palette card id, the next click on
   // an image card on this board samples a pixel and adds it as a swatch
@@ -1341,7 +1346,7 @@ export function CanvasSurface({
           // targets but we don't want to stop on them either.
         }
       }
-      updateBoardDropTarget(nextDropTarget);
+      updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
       // Live cross-pane / inbox hover signal — other panes use this to
       // highlight themselves as drop targets while the pointer is over them.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
@@ -2665,11 +2670,15 @@ export function CanvasSurface({
       (c.kind === 'board' && c.id === boardDropTarget) ||
       (c.kind === 'boardlink' && c.target === boardDropTarget)
     );
+    // While the user is dragging cards over a board target, fade the
+    // dragged cards so they don't obscure the destination. The
+    // is-dragging class is added by `inDrag` above.
+    const isFadingForBoardDrop = inDrag && !!boardDropTarget;
     const wrapper = {
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
@@ -3917,6 +3926,23 @@ export function CanvasSurface({
           {lightbox.title && <div className="lightbox-cap">{lightbox.title}</div>}
         </div>
       )}
+      {boardDropTarget && boardDropHoverPos && (() => {
+        const target = boards?.[boardDropTarget];
+        const tname = target?.name || 'this board';
+        const count = drag?.ids?.length || 0;
+        const left = Math.min(window.innerWidth - 240, boardDropHoverPos.x + 18);
+        const top  = Math.min(window.innerHeight - 60, boardDropHoverPos.y + 18);
+        return (
+          <div className="board-drop-label"
+               style={{ position: 'fixed', left, top, zIndex: 2147483646, pointerEvents: 'none' }}>
+            <span className="board-drop-label-arrow">↳</span>
+            <span className="board-drop-label-text">
+              Drop into <b>{tname}</b>
+              {count > 1 && <span className="board-drop-label-count"> · {count} cards</span>}
+            </span>
+          </div>
+        );
+      })()}
       <SketchPadOverlay
         open={sketchpadOpen}
         onClose={() => setSketchpadOpen(false)}

@@ -1563,43 +1563,179 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Drag-onto-board: CanvasSurface fires this when a card drag releases
   // over a board card. We load the target board's snapshot, inject the
-  // dragged cards (offset to the snap point), and save back. The source
-  // canvas already deletes the dragged cards on its end.
+  // dragged cards (with relative positions preserved), and save back.
+  // The source canvas already deletes the dragged cards on its end.
+  // Plus we move:
+  //  • Groups — any unique group id referenced by a moved card gets
+  //    cloned into the target (fresh id, same name + options).
+  //  • Arrows — only those whose BOTH endpoints are in the moved set
+  //    (otherwise they'd dangle); endpoint card ids are remapped.
+  //  • Comments — comments anchored to a moved card are repointed to
+  //    the new card id and the new board_id via a single supabase
+  //    update.
   useEffect(() => {
     const onDrop = async (e) => {
       const { sourceBoardId, targetBoardId, cards: movedCards } = e.detail || {};
       if (!sourceBoardId || !targetBoardId || !movedCards?.length) return;
       if (sourceBoardId === targetBoardId) return;
       try {
+        // ── ID remapping ──
+        const stamp = Date.now().toString(36);
+        const movedIds = new Set(movedCards.map(c => c.id));
+        const idMap = {};       // oldCardId → newCardId
+        const groupMap = {};    // oldGroupId → newGroupId
+        for (const c of movedCards) {
+          idMap[c.id] = `${c.id}-${stamp}-${Math.floor(Math.random()*1e4).toString(36)}`;
+        }
+        // Source groups + arrows live on the active ydoc (the user is
+        // dragging from THIS board). Snapshot them now so async work
+        // below doesn't see partial mutations.
+        const sourceGroups = (() => {
+          const out = [];
+          if (!currentYDoc || sourceBoardId !== currentBoard?.id) return out;
+          try {
+            const gm = currentYDoc.getMap('groups');
+            const usedGroupIds = new Set();
+            for (const c of movedCards) if (c.groupId) usedGroupIds.add(c.groupId);
+            gm.forEach((g, gid) => {
+              if (!usedGroupIds.has(gid)) return;
+              const obj = {
+                id:        gid,
+                name:      g?.get?.('name')   ?? g?.name   ?? '',
+                outline:   g?.get?.('outline') ?? g?.outline ?? false,
+                color:     g?.get?.('color')   ?? g?.color   ?? null,
+                width:     g?.get?.('width')   ?? g?.width   ?? 1,
+                options:   g?.get?.('options') ?? g?.options ?? null,
+              };
+              out.push(obj);
+            });
+          } catch (_) {}
+          return out;
+        })();
+        for (const g of sourceGroups) {
+          groupMap[g.id] = `g-${stamp}-${Math.floor(Math.random()*1e4).toString(36)}`;
+        }
+        const sourceArrows = (() => {
+          const out = [];
+          if (!currentYDoc || sourceBoardId !== currentBoard?.id) return out;
+          try {
+            const ar = currentYDoc.getArray('arrows');
+            ar.forEach((a) => {
+              const fromId = typeof a?.from === 'string' ? a.from : a?.from?.cardId;
+              const toId   = typeof a?.to   === 'string' ? a.to   : a?.to?.cardId;
+              if (movedIds.has(fromId) && movedIds.has(toId)) {
+                out.push({ ...a });
+              }
+            });
+          } catch (_) {}
+          return out;
+        })();
+
+        // ── Bbox + relative-layout offset ──
+        let minX = Infinity, minY = Infinity;
+        for (const c of movedCards) {
+          if ((c.x ?? 0) < minX) minX = c.x ?? 0;
+          if ((c.y ?? 0) < minY) minY = c.y ?? 0;
+        }
+        if (!isFinite(minX)) minX = 0;
+        if (!isFinite(minY)) minY = 0;
+        // Land the bundle at (60,60) in the target — close enough that
+        // the user opening the board sees it without it feeling pinned.
+        const dx = 60 - minX;
+        const dy = 60 - minY;
+
         const snap = await loadBoardSnapshot(targetBoardId);
         const tmp = new Y.Doc();
         if (snap) Y.applyUpdate(tmp, b64ToBytes(snap));
-        const targetMap = tmp.getMap('cards');
-        // Tile the moved cards into a corner of the target board so they
-        // don't all land on top of each other.
-        let ox = 80, oy = 80;
+
         tmp.transact(() => {
+          // Groups first so cards can reference their new ids.
+          if (sourceGroups.length) {
+            const tgm = tmp.getMap('groups');
+            for (const g of sourceGroups) {
+              const newId = groupMap[g.id];
+              const ym = new Y.Map();
+              ym.set('id', newId);
+              ym.set('name', g.name);
+              ym.set('outline', !!g.outline);
+              ym.set('color', g.color);
+              ym.set('width', g.width || 1);
+              if (g.options) ym.set('options', g.options);
+              ym.set('createdAt', Date.now());
+              ym.set('createdBy', user?.id || null);
+              tgm.set(newId, ym);
+            }
+          }
+          // Cards — remap groupId, preserve relative layout.
+          const tcm = tmp.getMap('cards');
           for (const c of movedCards) {
-            const newId = `${c.id}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e4).toString(36)}`;
+            const newId = idMap[c.id];
             const fresh = {
               ...c,
               id: newId,
-              x: ox, y: oy,
+              x: Math.round((c.x ?? 0) + dx),
+              y: Math.round((c.y ?? 0) + dy),
+              groupId: c.groupId && groupMap[c.groupId] ? groupMap[c.groupId] : null,
               createdAt: new Date().toISOString(),
             };
-            ox += Math.min(40, (c.w || 200) * 0.15);
-            oy += Math.min(40, (c.h || 160) * 0.15);
-            targetMap.set(newId, cardToYMap(fresh));
+            tcm.set(newId, cardToYMap(fresh));
+          }
+          // Arrows — only those connecting moved cards.
+          if (sourceArrows.length) {
+            const tar = tmp.getArray('arrows');
+            for (const a of sourceArrows) {
+              const fromId = typeof a.from === 'string' ? a.from : a.from?.cardId;
+              const toId   = typeof a.to   === 'string' ? a.to   : a.to?.cardId;
+              if (!idMap[fromId] || !idMap[toId]) continue;
+              const next = { ...a };
+              if (typeof a.from === 'string') next.from = idMap[fromId];
+              else next.from = { ...a.from, cardId: idMap[fromId] };
+              if (typeof a.to === 'string') next.to = idMap[toId];
+              else next.to = { ...a.to, cardId: idMap[toId] };
+              tar.push([next]);
+            }
           }
         }, 'cross-board-move');
         await saveBoardSnapshot(targetBoardId, tmp);
         tmp.destroy();
+
+        // ── Repoint attached comments ──
+        try {
+          const oldCardIds = movedCards.map(c => c.id);
+          // Pull the matching rows so we can update one at a time
+          // (anchor_id needs to change per-row; supabase update doesn't
+          // support a CASE-style remap in a single call).
+          const { data: cmts, error: cErr } = await supabase
+            .from('comments')
+            .select('id, anchor_id')
+            .eq('board_id', sourceBoardId)
+            .in('anchor_kind', ['card', 'group'])
+            .in('anchor_id', [...oldCardIds, ...Object.keys(groupMap)]);
+          if (cErr) throw cErr;
+          for (const row of (cmts || [])) {
+            const newAnchor = idMap[row.anchor_id] || groupMap[row.anchor_id];
+            if (!newAnchor) continue;
+            await supabase.from('comments').update({
+              board_id: targetBoardId,
+              anchor_id: newAnchor,
+            }).eq('id', row.id);
+          }
+        } catch (cmtErr) {
+          // Don't fail the whole drop if comments couldn't move —
+          // log and let the user know.
+          console.warn('comment move failed', cmtErr);
+        }
+
         const targetName = boards[targetBoardId]?.name || 'board';
+        const extras = [];
+        if (sourceArrows.length) extras.push(`${sourceArrows.length} arrow${sourceArrows.length === 1 ? '' : 's'}`);
+        if (sourceGroups.length) extras.push(`${sourceGroups.length} group${sourceGroups.length === 1 ? '' : 's'}`);
+        const tail = extras.length ? ` (+${extras.join(', ')})` : '';
         feedback.toast({
           type: 'success',
           message: movedCards.length === 1
-            ? `Moved into "${targetName}".`
-            : `Moved ${movedCards.length} cards into "${targetName}".`,
+            ? `Moved into "${targetName}"${tail}.`
+            : `Moved ${movedCards.length} cards into "${targetName}"${tail}.`,
         });
       } catch (err) {
         console.error('cross-board move failed', err);
@@ -1608,7 +1744,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     document.addEventListener('soleil-card-into-board-drop', onDrop);
     return () => document.removeEventListener('soleil-card-into-board-drop', onDrop);
-  }, [boards, feedback]);
+  }, [boards, feedback, currentYDoc, currentBoard?.id, user?.id]);
 
   // ⌘B / Ctrl-B — toggle compact sidebar.
   useEffect(() => {
