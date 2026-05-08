@@ -27,6 +27,13 @@ export async function listWorkspaceTags(workspaceId) {
 }
 
 // Find or create a tag by name. Trims + dedupes by slug.
+//
+// On first creation, fires backfill_tag_applications which scans
+// the workspace for existing boards/groups/cards whose text
+// word-matches the slug and applies the tag to them as
+// source='auto'. Without that, a tag created from the sidebar
+// (when no board is mounted to drive the autotag worker) sits
+// at zero applications until the user opens each board manually.
 export async function ensureTag({ workspaceId, name, color = null, kind = 'user', createdBy = null }) {
   const cleaned = (name || '').trim();
   if (!cleaned) throw new Error('Tag name required');
@@ -39,6 +46,14 @@ export async function ensureTag({ workspaceId, name, color = null, kind = 'user'
     workspace_id: workspaceId, name: cleaned, color, kind, created_by: createdBy,
   }).select('*').single();
   if (error) throw error;
+  // Best-effort: kick off the workspace-wide backfill in the
+  // background. Failure is non-fatal — the per-board autotagger
+  // will pick up the tag on the next board open anyway.
+  supabase.rpc('backfill_tag_applications', {
+    p_tag_id: data.id, p_workspace_id: workspaceId,
+  }).then(({ error: bfErr }) => {
+    if (bfErr) console.warn('[tags] backfill_tag_applications failed', bfErr);
+  });
   return data;
 }
 
