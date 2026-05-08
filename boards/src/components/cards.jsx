@@ -12,6 +12,7 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { renderHtmlWithAutoLinks } from '../lib/renderHtmlWithAutoLinks.jsx';
 import { EntityLink } from './EntityLink.jsx';
+export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
 // wraps any text-node match against the workspace trie in an

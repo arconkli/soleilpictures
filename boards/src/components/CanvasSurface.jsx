@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard,
+  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, ArtCanvasCard,
 } from './cards.jsx';
 import { RichDocCard } from './DocCard.jsx';
 
@@ -2060,6 +2060,15 @@ export function CanvasSurface({
         return;
       }
       const { color, width } = drawOptions;
+      // If the stroke starts inside an art-canvas card, route it to that
+      // card's local `strokes` array so it stays bounded to the card and
+      // moves/scales with it. Falls through to board.strokes when the
+      // stroke starts outside any art card (existing behavior).
+      const artHit = (cards || []).find(c =>
+        c.kind === 'art' &&
+        start.x >= c.x && start.x <= c.x + (c.w || 0) &&
+        start.y >= c.y && start.y <= c.y + (c.h || 0)
+      );
       setActiveStroke({ color, width, points: [...points] });
       const onMove = (ev) => {
         const p = clientToCanvas(ev.clientX, ev.clientY);
@@ -2072,7 +2081,16 @@ export function CanvasSurface({
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         if (points.length > 1) {
-          mutators.addStroke?.({ color, width, points });
+          if (artHit) {
+            // Translate to card-local coords (subtract card origin).
+            const localPoints = points.map(([x, y]) => [x - artHit.x, y - artHit.y]);
+            const existing = Array.isArray(artHit.strokes) ? artHit.strokes : [];
+            mutators.updateCard?.(artHit.id, {
+              strokes: [...existing, { color, width, points: localPoints }],
+            });
+          } else {
+            mutators.addStroke?.({ color, width, points });
+          }
           // Surface the just-used color in recents so the swatch
           // strip in the draw tool options updates as the user works.
           addRecentColor(color);
@@ -2326,6 +2344,16 @@ export function CanvasSurface({
         { id: 'doc',   label: 'Doc',    run: () => mutators.addDocCard?.(pos) },
         { id: 'shape', label: 'Shape',  run: () => mutators.addShape?.(pos, shapeOptions) },
         { id: 'palette', label: 'Color palette', run: () => mutators.addPalette?.(pos) },
+        { id: 'art', label: 'Art canvas', run: () => {
+          const w = 320, h = 240;
+          mutators.addCard?.({
+            id: `art-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+            kind: 'art',
+            x: Math.round((pos?.x ?? 100) - w / 2),
+            y: Math.round((pos?.y ?? 100) - h / 2),
+            w, h, bg: '#ffffff', strokes: [],
+          });
+        }},
       ]},
       { id: 'comment', label: 'Add comment', run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
       { id: 'addurl', label: 'Add link…', run: async () => {
@@ -2935,6 +2963,7 @@ export function CanvasSurface({
     }
     else if (c.kind === 'schedule')  inner = <ScheduleCard title={c.title} rows={c.rows} />;
     else if (c.kind === 'shape')     inner = <ShapeCard key={`shape-${c.shape}`} shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash} />;
+    else if (c.kind === 'art')       inner = <ArtCanvasCard strokes={c.strokes || []} bg={c.bg || '#ffffff'} w={c.w} h={c.h} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
     // Tag chips along the card's bottom edge so the user actually sees
