@@ -1,0 +1,243 @@
+// Sketch pad overlay — a fullscreen drawing surface that opens above
+// the canvas. Reuses the same stroke data shape as the inline draw
+// tool (color, width, points[][]) so when the user closes the pad we
+// commit the strokes back into the active board's strokes Y.Array
+// via addStroke().
+//
+// Why have a separate pad if the canvas already supports freehand?
+// The canvas conflates pan/zoom/select gestures with drawing — small
+// hand sketches are cramped, and the user has to switch tools.  The
+// pad is a deliberate "I'm sketching now" mode with full screen real
+// estate, no other content under your cursor, and Esc to bail.
+//
+// Strokes are committed at the END of the session (one transaction)
+// rather than streaming — keeps the Y.Doc small and avoids broadcasting
+// every move tick to peers. Live cursor presence is intentionally not
+// hooked up here; it's a focused individual tool.
+
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from '../lib/icons.js';
+import { Icon } from './Icon.jsx';
+import { ColorPicker } from './ColorPicker.jsx';
+
+const DEFAULT_COLOR = '#f5f5f6';
+const DEFAULT_WIDTH = 3;
+const COLOR_PRESETS = ['#f5f5f6', '#0a0a0c', '#d4a04a', '#cf6a4f', '#7c5cc9', '#3fa39a', '#5b8fc7', '#10b981'];
+const WIDTH_PRESETS = [1, 2, 4, 8, 14];
+
+function strokeToPath(pts) {
+  if (!pts || pts.length === 0) return '';
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) d += ` L${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)}`;
+  return d;
+}
+
+export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
+  // Tool state
+  const [tool, setTool]   = useState('pen'); // 'pen' | 'eraser'
+  const [color, setColor] = useState(DEFAULT_COLOR);
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const [pickerPos, setPickerPos] = useState(null);
+  // Drawing state
+  const [strokes, setStrokes]       = useState([]);
+  const [activeStroke, setActive]   = useState(null);
+  const wrapRef = useRef(null);
+
+  // Reset on open. Escape to close (unsaved strokes prompt).
+  useEffect(() => {
+    if (!open) return;
+    setStrokes([]); setActive(null);
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        // If there are strokes, ask before discarding.
+        if (strokes.length > 0) {
+          const ok = window.confirm('Discard sketch?');
+          if (!ok) return;
+        }
+        onClose?.();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const onPointerDown = (e) => {
+    if (e.button !== 0) return;
+    if (!wrapRef.current) return;
+    const rect = wrapRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    if (tool === 'eraser') {
+      // Drop any stroke under the click. Cheap point-in-bbox test
+      // followed by stroke-distance for accuracy.
+      const HIT = Math.max(width + 6, 12);
+      setStrokes(prev => prev.filter(s => !pointNearStroke(s, x, y, HIT)));
+      return;
+    }
+    setActive({ color, width, points: [[x, y]] });
+    e.target.setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMove = (e) => {
+    if (!wrapRef.current) return;
+    if (tool === 'eraser') {
+      if (e.buttons !== 1) return;
+      const rect = wrapRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      const HIT = Math.max(width + 6, 12);
+      setStrokes(prev => prev.filter(s => !pointNearStroke(s, x, y, HIT)));
+      return;
+    }
+    if (!activeStroke) return;
+    const rect = wrapRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    setActive(s => s ? { ...s, points: [...s.points, [x, y]] } : s);
+  };
+
+  const onPointerUp = () => {
+    if (activeStroke && activeStroke.points?.length > 1) {
+      setStrokes(prev => [...prev, activeStroke]);
+    }
+    setActive(null);
+  };
+
+  const onCommit = useCallback(() => {
+    if (!strokes.length) { onClose?.(); return; }
+    // Convert pad-local coordinates to canvas-space by passing the
+    // sketches up. The host decides where to land them — currently
+    // adds at the canvas origin so they appear top-left of the board.
+    onCommitStrokes?.(strokes);
+    onClose?.();
+  }, [strokes, onCommitStrokes, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="sketchpad-bg">
+      <div className="sketchpad-frame">
+        <div className="sketchpad-toolbar">
+          <button type="button"
+                  className={`sp-tool ${tool === 'pen' ? 'is-active' : ''}`}
+                  onClick={() => setTool('pen')}
+                  title="Pen">✎</button>
+          <button type="button"
+                  className={`sp-tool ${tool === 'eraser' ? 'is-active' : ''}`}
+                  onClick={() => setTool('eraser')}
+                  title="Eraser">⌫</button>
+          <span className="sp-sep" />
+          {COLOR_PRESETS.map(c => (
+            <button key={c}
+                    type="button"
+                    className={`sp-color ${color === c ? 'is-active' : ''}`}
+                    style={{ background: c }}
+                    onClick={() => setColor(c)}
+                    title={c} />
+          ))}
+          <button type="button"
+                  className="sp-color sp-color-custom"
+                  onClick={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setPickerPos({ x: r.left + r.width / 2, y: r.bottom + 8 });
+                  }}
+                  title="Custom color">⋯</button>
+          <span className="sp-sep" />
+          {WIDTH_PRESETS.map(w => (
+            <button key={w}
+                    type="button"
+                    className={`sp-width ${width === w ? 'is-active' : ''}`}
+                    onClick={() => setWidth(w)}
+                    title={`${w}px`}>
+              <span className="sp-width-dot" style={{
+                width: Math.min(20, w + 4),
+                height: Math.min(20, w + 4),
+              }} />
+            </button>
+          ))}
+          <span className="sp-sep" />
+          <button type="button"
+                  className="sp-action"
+                  onClick={() => setStrokes([])}
+                  disabled={!strokes.length}>Clear</button>
+          <span style={{ flex: 1 }} />
+          <button type="button"
+                  className="sp-action"
+                  onClick={() => {
+                    if (strokes.length && !window.confirm('Discard sketch?')) return;
+                    onClose?.();
+                  }}>Cancel</button>
+          <button type="button"
+                  className="sp-action sp-action-primary"
+                  onClick={onCommit}
+                  disabled={!strokes.length}>
+            Add to canvas
+          </button>
+          <button type="button"
+                  className="sp-x"
+                  onClick={() => onClose?.()}
+                  aria-label="Close">
+            <Icon as={X} size={14} />
+          </button>
+        </div>
+        <div ref={wrapRef}
+             className={`sketchpad-surface ${tool === 'eraser' ? 'is-eraser' : ''}`}
+             onPointerDown={onPointerDown}
+             onPointerMove={onPointerMove}
+             onPointerUp={onPointerUp}>
+          <svg className="sketchpad-svg" width="100%" height="100%">
+            {strokes.map((s, i) => (
+              <path key={i}
+                    d={strokeToPath(s.points)}
+                    fill="none"
+                    stroke={s.color}
+                    strokeWidth={s.width}
+                    strokeLinecap="round"
+                    strokeLinejoin="round" />
+            ))}
+            {activeStroke && (
+              <path d={strokeToPath(activeStroke.points)}
+                    fill="none"
+                    stroke={activeStroke.color}
+                    strokeWidth={activeStroke.width}
+                    strokeLinecap="round"
+                    strokeLinejoin="round" />
+            )}
+          </svg>
+          {!strokes.length && !activeStroke && (
+            <div className="sketchpad-hint">
+              Sketch freely — your strokes commit to the active board when you press “Add to canvas”.
+            </div>
+          )}
+        </div>
+      </div>
+      {pickerPos && (
+        <ColorPicker value={color}
+                     onChange={setColor}
+                     onClose={() => setPickerPos(null)}
+                     position={pickerPos}
+                     allowTransparent={false} />
+      )}
+    </div>,
+    document.body,
+  );
+}
+
+// Squared-distance from point (px, py) to the nearest segment in
+// stroke. Returns true if any segment is within `hit` px.
+function pointNearStroke(stroke, px, py, hit) {
+  const pts = stroke?.points;
+  if (!pts || pts.length < 2) return false;
+  const hit2 = hit * hit;
+  for (let i = 1; i < pts.length; i++) {
+    const [x1, y1] = pts[i - 1];
+    const [x2, y2] = pts[i];
+    const dx = x2 - x1, dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy || 1;
+    let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    const cx = x1 + t * dx, cy = y1 + t * dy;
+    const ddx = px - cx, ddy = py - cy;
+    if (ddx * ddx + ddy * ddy <= hit2) return true;
+  }
+  return false;
+}

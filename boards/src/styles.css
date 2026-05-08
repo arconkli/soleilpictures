@@ -9968,3 +9968,161 @@ body[data-clean-mode='1'] .bc-toc-peers {
 }
 .clean-mode-exit:hover { opacity: 1; }
 body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
+
+/* Eyedropper mode — when picking a color from a board image, the
+   canvas-wrap gets data-eyedrop=1 so we can flip the cursor and
+   ring image cards as the obvious targets. */
+.canvas-wrap[data-eyedrop='1'] { cursor: crosshair; }
+.canvas-wrap[data-eyedrop='1'] .card-kind-image > :first-child {
+  outline: 1px dashed var(--soleil);
+  outline-offset: 4px;
+  border-radius: var(--radius-md);
+}
+.canvas-wrap[data-eyedrop='1'] .card-kind-image:hover > :first-child {
+  outline-color: var(--soleil);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--soleil) 22%, transparent);
+}
+
+/* ──────────────────────────── Sketch Pad ──────────────────────────── */
+/* Fullscreen drawing overlay launched from the toolbar. Covers the
+   canvas while open; commits its strokes back to the active board's
+   strokes Y.Array on close (or discards on Cancel). */
+.sketchpad-bg {
+  position: fixed; inset: 0;
+  z-index: 2147483645;
+  background: rgba(0,0,0,.74);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: pickerFade var(--dur-base) var(--ease);
+}
+.sketchpad-frame {
+  width: min(1200px, calc(100vw - 48px));
+  height: min(840px, calc(100vh - 48px));
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sketchpad-toolbar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-0);
+}
+.sp-sep {
+  width: 1px; height: 18px;
+  background: var(--line-2);
+  margin: 0 4px;
+}
+.sp-tool {
+  width: 28px; height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--ink-1);
+  font-size: 16px;
+  cursor: pointer;
+}
+.sp-tool:hover { background: var(--bg-hov); }
+.sp-tool.is-active {
+  background: var(--bg-3);
+  border-color: var(--soleil);
+  color: var(--ink-0);
+}
+.sp-color {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  background-clip: padding-box;
+}
+.sp-color.is-active {
+  border-color: var(--ink-0);
+}
+.sp-color-custom {
+  background: conic-gradient(from 0deg, #ef4444, #f59e0b, #10b981, #06b6d4, #6366f1, #ec4899, #ef4444);
+  color: white; font-size: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  text-shadow: 0 1px 1px rgba(0,0,0,.3);
+}
+.sp-width {
+  width: 28px; height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.sp-width:hover { background: var(--bg-hov); }
+.sp-width.is-active {
+  background: var(--bg-3);
+  border-color: var(--soleil);
+}
+.sp-width-dot {
+  display: block;
+  background: var(--ink-1);
+  border-radius: 50%;
+}
+.sp-action {
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-1);
+  font: 500 12px/1 var(--font-sans);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.sp-action:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
+.sp-action:disabled { opacity: 0.4; cursor: not-allowed; }
+.sp-action-primary {
+  background: var(--soleil);
+  border-color: var(--soleil);
+  color: rgba(0,0,0,.85);
+  font-weight: 600;
+}
+.sp-x {
+  width: 26px; height: 26px;
+  background: transparent;
+  border: 0;
+  color: var(--ink-2);
+  cursor: pointer;
+  border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 4px;
+}
+.sp-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sketchpad-surface {
+  flex: 1 1 auto;
+  position: relative;
+  background: var(--bg-2);
+  cursor: crosshair;
+  /* Subtle grid behind the strokes so it doesn't feel like an empty
+     void — same dot grid as the board thumbnails. */
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,.05) 1px, transparent 1.4px);
+  background-size: 18px 18px;
+  background-position: 0 0;
+}
+[data-theme='light'] .sketchpad-surface {
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(0,0,0,.07) 1px, transparent 1.4px);
+}
+.sketchpad-surface.is-eraser { cursor: cell; }
+.sketchpad-svg {
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+.sketchpad-hint {
+  position: absolute;
+  inset: 0;
+  display: grid; place-items: center;
+  font: 400 13px/1.4 var(--font-sans);
+  color: var(--ink-3);
+  pointer-events: none;
+}

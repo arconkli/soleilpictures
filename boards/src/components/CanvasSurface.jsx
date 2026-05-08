@@ -10,6 +10,7 @@ const ShapePreview = ShapeCard;
 import { LiveCursor, COVER_TINTS } from './primitives.jsx';
 import { CanvasPresence } from './CanvasPresence.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
+import { SketchPadOverlay } from './SketchPadOverlay.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -233,6 +234,13 @@ export function CanvasSurface({
   // INTO that board. Drives a .is-card-drop-target class on the matching
   // board card so the affordance is visible.
   const [boardDropTarget, setBoardDropTarget] = useState(null);
+  // Eyedropper mode — when set to a palette card id, the next click on
+  // an image card on this board samples a pixel and adds it as a swatch
+  // to that palette. Escape exits the mode.
+  const [eyedropFor, setEyedropFor] = useState(null);
+  // Sketch pad — full-screen overlay drawing modal. When closed with
+  // strokes, they're committed to the current board's strokes Y.Array.
+  const [sketchpadOpen, setSketchpadOpen] = useState(false);
   // Local-only blob URL previews keyed by cardId. We don't write blob URLs
   // into the Yjs doc (peers can't resolve them), so the optimistic preview
   // lives here and is passed to ImageCard as a fallback src until the
@@ -932,9 +940,93 @@ export function CanvasSurface({
   };
 
   // ── Card pointer handlers ─────────────────────────────────────────────────
+  // Eyedropper helpers ── load the clicked image into an offscreen canvas,
+  // sample the pixel under the click, append it as a swatch on the palette
+  // that initiated the mode, and exit. R2 needs CORS for canvas pixel
+  // access — if it taints, we toast a friendly error.
+  const sampleImagePixel = useCallback(async (e, imageCard, paletteId) => {
+    const palette = cardById[paletteId];
+    if (!palette || palette.kind !== 'palette') {
+      setEyedropFor(null);
+      return;
+    }
+    try {
+      const imgEl = e.target?.closest?.('.ic-imgwrap')?.querySelector('img');
+      if (!imgEl) {
+        feedback.toast({ type: 'error', message: 'Could not find the image element.' });
+        setEyedropFor(null);
+        return;
+      }
+      const rect = imgEl.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      // Use the displayed image's natural dimensions for accurate sampling.
+      const nW = imgEl.naturalWidth || rect.width;
+      const nH = imgEl.naturalHeight || rect.height;
+      // Load via a fresh Image() so we control crossOrigin. Fall back
+      // to the on-page <img> if the fresh load fails (e.g. for blob:).
+      const sample = (sourceEl) => {
+        const cv = document.createElement('canvas');
+        cv.width = Math.min(nW, 4096); cv.height = Math.min(nH, 4096);
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(sourceEl, 0, 0, cv.width, cv.height);
+        const x = Math.max(0, Math.min(cv.width - 1, Math.round(px * cv.width)));
+        const y = Math.max(0, Math.min(cv.height - 1, Math.round(py * cv.height)));
+        const d = ctx.getImageData(x, y, 1, 1).data;
+        const hex = '#' + [d[0], d[1], d[2]].map(n => n.toString(16).padStart(2, '0')).join('').toUpperCase();
+        return hex;
+      };
+      let hex = null;
+      try {
+        // Try a clean reload with crossOrigin set so the canvas isn't tainted.
+        const fresh = new Image();
+        fresh.crossOrigin = 'anonymous';
+        await new Promise((resolve, reject) => {
+          fresh.onload = resolve;
+          fresh.onerror = reject;
+          fresh.src = imgEl.src;
+        });
+        hex = sample(fresh);
+      } catch (_) {
+        // Fall back to the on-page image — works only if the bucket
+        // already serves CORS headers OR the image is same-origin.
+        hex = sample(imgEl);
+      }
+      if (!hex) {
+        feedback.toast({ type: 'error', message: 'Could not read pixel — image bucket may not allow CORS.' });
+        return;
+      }
+      const next = [...(palette.swatches || []), { name: 'Color', hex }];
+      mutators.updateCard?.(palette.id, { swatches: next });
+      feedback.toast({ type: 'success', message: `Added ${hex} to palette.` });
+    } catch (err) {
+      console.error('eyedrop sample failed', err);
+      feedback.toast({ type: 'error', message: 'Sample failed: ' + (err.message || err) });
+    } finally {
+      setEyedropFor(null);
+    }
+  }, [cardById, mutators, feedback]);
+
+  // Escape exits eyedropper mode without sampling.
+  useEffect(() => {
+    if (!eyedropFor) return;
+    const onKey = (e) => { if (e.key === 'Escape') setEyedropFor(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [eyedropFor]);
+
   const onCardPointerDown = (e, c) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
+    // Eyedropper mode — clicking an image card samples a pixel and
+    // appends a swatch to the palette that started this mode. Other
+    // clicks (non-image cards) do nothing; Escape exits.
+    if (eyedropFor && c.kind === 'image') {
+      e.stopPropagation();
+      e.preventDefault();
+      sampleImagePixel(e, c, eyedropFor);
+      return;
+    }
     if (spaceDown || selectedTool === 'pan') { startPan(e); return; }
     if (e.target.isContentEditable) return;
     if (e.target.closest?.('.editable.is-editing, .note-toolbar, .rb-swatch-pop, .ic-link, .ic-add-caption, .editable')) return;
@@ -1519,7 +1611,7 @@ export function CanvasSurface({
         items.push({ id: 'pc-hide-labels',
           label: c.hideLabels ? 'Show palette labels' : 'Hide palette labels',
           run: () => mutators.updateCard?.(c.id, { hideLabels: !c.hideLabels }) });
-        items.push({ id: 'pc-eyedrop', label: 'Eyedrop color…', run: async () => {
+        items.push({ id: 'pc-eyedrop', label: 'Eyedrop color (anywhere on screen)…', run: async () => {
           // Browser EyeDropper API. Falls back to a friendly toast where
           // unsupported (Firefox, Safari < 17.4 currently).
           if (typeof window === 'undefined' || !window.EyeDropper) {
@@ -1534,6 +1626,13 @@ export function CanvasSurface({
             const next = [...(c.swatches || []), { name: 'Color', hex }];
             mutators.updateCard?.(c.id, { swatches: next });
           } catch (_) { /* user cancelled */ }
+        }});
+        items.push({ id: 'pc-pick-image', label: 'Pick from board image…', run: () => {
+          // Enter pick mode — the next click on an image card samples
+          // a pixel and adds the swatch. The mode is canvas-scoped
+          // (see eyedropFor state above + click handler below).
+          setEyedropFor(c.id);
+          feedback.toast({ type: 'info', message: 'Click an image to sample a color. Esc to cancel.' });
         }});
       } else if (c.kind === 'note') {
         items.push({ id: 'fit', label: 'Fit to content', run: () => {
@@ -3064,7 +3163,8 @@ export function CanvasSurface({
   };
 
   return (
-    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''}`}
+    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''}`}
+         data-eyedrop={eyedropFor ? '1' : undefined}
          ref={wrapRef}
          style={wrapStyle}
          onDragOver={handleDragOver}
@@ -3552,6 +3652,19 @@ export function CanvasSurface({
             <svg width="20" height="20" viewBox="0 0 20 20">{t.svg}</svg>
           </div>
         ))}
+        <div className="cnv-tool-sep" />
+        <div className="cnv-tool"
+             title="Sketch pad — fullscreen drawing"
+             role="button"
+             tabIndex={0}
+             aria-label="Sketch pad"
+             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSketchpadOpen(true); } }}
+             onPointerDown={(e) => { e.stopPropagation(); setSketchpadOpen(true); }}>
+          <svg width="20" height="20" viewBox="0 0 20 20">
+            <rect x="3" y="3" width="14" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+            <path d="M6 13 Q9 8 13 11 Q15 12 14 14" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+          </svg>
+        </div>
       </div>
 
       {selectedTool === 'arrow' && (
@@ -3779,6 +3892,20 @@ export function CanvasSurface({
           {lightbox.title && <div className="lightbox-cap">{lightbox.title}</div>}
         </div>
       )}
+      <SketchPadOverlay
+        open={sketchpadOpen}
+        onClose={() => setSketchpadOpen(false)}
+        onCommitStrokes={(strokes) => {
+          // Translate pad-local coords (origin at the pad's top-left) into
+          // canvas coords. Land the bundle near the top-left of the
+          // user's current viewport so they can see the result land.
+          const offsetX = -pan.x / zoom + 60;
+          const offsetY = -pan.y / zoom + 60;
+          for (const s of strokes) {
+            const points = s.points.map(([x, y]) => [x / zoom + offsetX, y / zoom + offsetY]);
+            mutators.addStroke?.({ color: s.color, width: s.width, points });
+          }
+        }} />
     </div>
   );
 }
