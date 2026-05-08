@@ -31,7 +31,7 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
   useEffect(() => {
     if (!workspaceId || !user?.id) return;
     setStatus('connecting');
-    setPeers([]);
+    setRawPeers([]);
     // Defer the ws: join by 2s so the board: channel gets to subscribe
     // first. Supabase free-tier has a low join-rate cap and concurrent
     // channel opens at page load were starving the board: channel.
