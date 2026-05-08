@@ -14,10 +14,13 @@ const attachWorkspacePresence = import.meta.env.VITE_USE_PARTYKIT === 'true'
 //
 // Returns { peers, status, ping }
 //   peers  — array of remote presences { user, location, tabId, lastSeen }
+//            EXCLUDING the local user (other tabs / stale entries
+//            of the same user.id are filtered out so the user
+//            never sees themselves in the peer list)
 //   status — 'connecting' | 'connected' | 'error' | 'disconnected'
 //   ping   — call to broadcast location immediately (e.g. on board switch)
 export function useWorkspacePresence({ workspaceId, user, location }) {
-  const [peers, setPeers] = useState([]);
+  const [rawPeers, setRawPeers] = useState([]);
   const [status, setStatus] = useState('connecting');
   const handleRef = useRef(null);
   // Stash the latest location in a ref so the heartbeat closure always
@@ -36,7 +39,7 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
       const handle = attachWorkspacePresence(workspaceId, {
         user,
         getLocation: () => locRef.current,
-        onPeers: setPeers,
+        onPeers: setRawPeers,
         onStatus: setStatus,
       });
       handleRef.current = handle;
@@ -56,6 +59,12 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
   useEffect(() => {
     handleRef.current?.ping?.();
   }, [location?.boardId, location?.surface, location?.pageId, location?.docCardId]);
+
+  // Filter own-user out of the peer list. Multi-tab and stale-after-
+  // close scenarios used to make the user appear as a peer in boards
+  // they weren't in — confusing and visually wrong. Self-presence is
+  // implicit (you ARE here); peer dots should only ever be other people.
+  const peers = rawPeers.filter(p => p?.user?.id !== user?.id);
 
   return { peers, status, ping: () => handleRef.current?.ping?.() };
 }

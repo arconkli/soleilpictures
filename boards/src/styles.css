@@ -101,7 +101,32 @@ body {
   background: var(--bg-0);
   color: var(--ink-1);
   overflow: hidden;
+  position: relative;
 }
+
+/* Subtle grain texture overlay — ARC browser vibe. SVG fractal
+   noise inlined as a data URI so there's no extra request. Layered
+   above the page background but below all interactive content via
+   pointer-events:none + z-index:0 + body { position: relative }.
+   Opacity tuned per theme so it reads as texture, not haze. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  /* fractalNoise + frequency 0.9 + numOctaves 2 gives a fine,
+     even film-grain pattern at any zoom. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.7 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/></svg>");
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+}
+[data-theme='light'] body::before {
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+}
+/* App content sits on top of the grain. */
+#root { position: relative; z-index: 1; }
 
 /* ─────────────────────────── Type utilities ─────────────────────────────── */
 
@@ -1049,36 +1074,51 @@ body {
 
 /* Hierarchical preview blocks — each tagged board/group becomes a
    block with inline previews of its child cards so you can scroll
-   through "everything pricing" without drilling in. */
-.tag-detail-board-block,
-.tag-detail-group-block,
-.tag-detail-loose-cards {
-  margin: 8px 0 16px;
-  border: 1px solid var(--bd-1);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--bg-1);
+   through "everything pricing" without drilling in.
+   Aesthetic: drop the heavy box borders; use spacing + a subtle
+   left-rail accent to convey nesting. Big typographic hierarchy
+   between board / group / card. */
+.tag-detail-board-block {
+  margin: 18px 0 28px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
 }
 .tag-detail-group-block {
-  margin: 8px 12px;
-  border-color: var(--bd-1);
-  background: var(--bg-2);
+  margin: 10px 0 14px;
+  padding: 4px 0 6px 14px;
+  border: 0;
+  border-left: 2px solid var(--line-1);
+  background: transparent;
+  border-radius: 0;
+}
+.tag-detail-loose-cards {
+  margin: 24px 0 16px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line-1);
+  padding-top: 18px;
+  border-radius: 0;
 }
 .tag-detail-block-head {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 12px;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--bd-1);
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 0 10px;
+  background: transparent;
+  border-bottom: 0;
 }
 .tag-detail-block-head.is-board {
-  background: var(--bg-1);
-  padding: 12px 14px;
-  border-bottom-width: 2px;
+  background: transparent;
+  padding: 6px 0 14px;
+  border-bottom: 1px solid var(--line-1);
+  margin-bottom: 12px;
 }
 .tag-detail-group-block .tag-detail-block-head {
   background: transparent;
-  border-bottom: 1px dashed var(--bd-1);
-  padding: 8px 12px;
+  border-bottom: 0;
+  padding: 2px 0 8px;
 }
 .tag-detail-block-title {
   flex: 1 1 auto;
@@ -1087,7 +1127,8 @@ body {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .tag-detail-block-head.is-board .tag-detail-block-title {
-  font-size: 14px;
+  font-size: 18px;
+  letter-spacing: -0.012em;
 }
 .tag-detail-block-crumb {
   font: 400 11px/1 var(--font-sans);
@@ -1122,8 +1163,7 @@ body {
   color: var(--ink-0);
 }
 
-/* Clickable title — inline button styled to look like text but
-   clearly hoverable. Replaces the separate "Open" button. */
+/* Clickable title — inline button styled to look like text. */
 .tag-detail-block-title-link {
   flex: 1 1 auto;
   background: transparent;
@@ -1131,19 +1171,25 @@ body {
   padding: 0;
   margin: 0;
   text-align: left;
-  font: 600 13px/1.2 var(--font-sans);
+  font: 600 13.5px/1.2 var(--font-sans);
   color: var(--ink-0);
   cursor: pointer;
+  letter-spacing: -0.005em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color 80ms ease;
 }
 .tag-detail-block-head.is-board .tag-detail-block-title-link {
-  font-size: 14px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.014em;
 }
 .tag-detail-block-title-link:hover {
   color: var(--soleil);
+}
+.tag-detail-block-head.is-board .tag-detail-block-title-link:hover {
   text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
 }
 
 /* Filter pills row — All / Manual / Auto — sits between the
@@ -1217,36 +1263,55 @@ body {
 }
 .tag-detail-card-preview { position: relative; }
 .tag-detail-block-empty {
-  padding: 12px 16px;
+  padding: 8px 0;
   font: 400 11.5px/1.45 var(--font-sans);
   color: var(--ink-3);
 }
 
+/* Spacing between the page header bar and the first block. */
+.tag-detail-body { padding-top: 24px; }
+
+/* Tag header with a slightly tighter wrap and subtle dot ring. */
+.tag-detail-head {
+  background: var(--bg-1);
+  position: relative;
+  z-index: 1;
+}
+.tag-detail-dot {
+  width: 16px; height: 16px;
+  box-shadow: 0 0 0 3px var(--bg-1), 0 0 0 4px var(--line-1);
+}
+
 .tag-detail-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 6px;
-  padding: 10px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+  padding: 0;
+  margin-top: 4px;
 }
 .tag-detail-group-block .tag-detail-card-grid {
-  padding: 8px 12px 12px;
+  padding: 0;
+  margin-top: 6px;
 }
 .tag-detail-card-preview {
-  display: flex; align-items: flex-start; gap: 6px;
-  padding: 8px 10px;
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 12px 14px;
   background: var(--bg-1);
-  border: 1px solid var(--bd-1);
-  border-radius: 6px;
+  border: 1px solid var(--line-1);
+  border-radius: 8px;
   text-align: left;
   cursor: pointer;
-  font: 500 12px/1.4 var(--font-sans);
+  font: 500 12.5px/1.45 var(--font-sans);
   color: var(--ink-1);
-  min-height: 44px;
+  min-height: 56px;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+  transition: transform 100ms ease, box-shadow 100ms ease, border-color 100ms ease;
 }
 .tag-detail-group-block .tag-detail-card-preview { background: var(--bg-1); }
 .tag-detail-card-preview:hover {
   border-color: var(--soleil);
-  background: var(--bg-hov);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -4px rgba(0,0,0,.18), 0 1px 0 rgba(0,0,0,.02);
 }
 .tag-detail-card-preview-kind {
   flex-shrink: 0;

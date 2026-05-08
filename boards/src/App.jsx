@@ -1348,7 +1348,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   const { peers: wsPeers, status: wsStatus } = useWorkspacePresence({
     workspaceId: workspace.id,
-    user: { id: user.id, name: userInfo.name, email: user.email, color: pickPresenceColor(user.id) },
+    // Broadcast the user's CHOSEN color (from Account settings). The
+    // pickPresenceColor hash was a fallback when no custom color was
+    // saved — using it here meant peers always saw the deterministic
+    // color even after the user picked their own.
+    user: { id: user.id, name: userInfo.name, email: user.email, color: userInfo.color || pickPresenceColor(user.id) },
     location: {
       boardId: currentBoard?.id,
       boardName: currentBoard?.name,
