@@ -2887,9 +2887,16 @@ export function CanvasSurface({
   const wrapStyle = {
     '--canvas-bg': board.bg_color || undefined,
     backgroundColor: board.bg_color || undefined,
-    backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
-    backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px`,
-    backgroundPosition: `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
+    // Three pan/zoom-aware layers (lines/lines/dots) PLUS the
+    // workspace-wide grain texture pinned to a fixed 180px tile.
+    // Inline style here would otherwise override the CSS rule on
+    // .canvas-wrap that includes var(--grain) — so re-add it
+    // explicitly. The grain doesn't pan with the canvas (it's
+    // texture on the surface itself, not the artboard content).
+    backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px), var(--grain)`,
+    backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px, 180px 180px`,
+    backgroundPosition: `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, 0 0`,
+    backgroundRepeat: 'repeat, repeat, repeat, repeat',
   };
 
   return (
