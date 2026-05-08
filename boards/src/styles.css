@@ -125,36 +125,8 @@ body {
 [data-theme='light'] .grain-canvas,
 [data-theme='light'] .grain-surface { opacity: 0.025; }
 
-/* Subtle grain baked into the background of every dark chrome surface
-   that uses var(--bg-1) — topbar, sidebar, rail, modals, tweaks panel.
-   Layered as a SECOND background-image with background-blend-mode so
-   the grain mixes INTO the bg-1 color directly. Cannot be covered or
-   leak onto child content (thumbnails, image rows): it's part of the
-   surface's own background, not an overlay layer.
-   Tune via the gif-side opacity (the image is already low-alpha) plus
-   the blend mode. Per-surface opacity is dialed by adjusting the
-   bg-position in case we want one surface louder than the other. */
-.topbar,
-.sidebar,
-.rail,
-.modal,
-.share-modal,
-.twk-panel {
-  background-image: url('/grain.gif'), none;
-  background-repeat: repeat, no-repeat;
-  background-size: 320px 240px, auto;
-  background-blend-mode: overlay, normal;
-}
-[data-theme='light'] .topbar,
-[data-theme='light'] .sidebar,
-[data-theme='light'] .rail,
-[data-theme='light'] .modal,
-[data-theme='light'] .share-modal,
-[data-theme='light'] .twk-panel {
-  background-blend-mode: multiply, normal;
-}
-/* The legacy .panel-grain hooks (mounted as child divs) become no-ops;
-   leave them so existing JSX doesn't have to be torn out. */
+/* Legacy .panel-grain child div hooks become no-ops — grain is now
+   baked directly into each dark surface's own background rule below. */
 .panel-grain { display: none; }
 
 /* App-level error boundary — shown when any component below it
@@ -412,10 +384,15 @@ body {
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--line-1);
-  background: var(--bg-1);
+  background-color: var(--bg-1);
+  background-image: url('/grain.gif');
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  background-blend-mode: overlay;
   overflow: hidden;
   min-width: 0;
 }
+[data-theme='light'] .sidebar { background-blend-mode: multiply; }
 
 /* ── Rail (left, 40px) ── */
 .rail {
@@ -424,9 +401,14 @@ body {
   display: flex; flex-direction: column; align-items: center;
   padding: 10px 0 8px;
   gap: 4px;
-  background: var(--bg-0);
+  background-color: var(--bg-0);
+  background-image: url('/grain.gif');
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  background-blend-mode: overlay;
   border-right: 1px solid var(--line-1);
 }
+[data-theme='light'] .rail { background-blend-mode: multiply; }
 .rail-brand {
   width: 28px; height: 28px;
   display: grid; place-items: center;
@@ -1607,13 +1589,18 @@ body {
 .share-modal {
   width: min(540px, 92vw);
   max-height: 86vh;
-  background: var(--bg-1);
+  background-color: var(--bg-1);
+  background-image: url('/grain.gif');
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  background-blend-mode: overlay;
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg);
   box-shadow: 0 24px 56px rgba(0,0,0,.5);
   display: flex; flex-direction: column;
   overflow: hidden;
 }
+[data-theme='light'] .share-modal { background-blend-mode: multiply; }
 .share-head {
   display: flex; align-items: flex-start; justify-content: space-between;
   padding: 16px 18px 12px;
@@ -2195,11 +2182,16 @@ body {
   justify-content: space-between;
   height: 48px;
   padding: 0 16px;
-  background: var(--bg-1);
+  background-color: var(--bg-1);
+  background-image: url('/grain.gif');
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  background-blend-mode: overlay;
   border-bottom: 1px solid var(--line-1);
   flex-shrink: 0;
   gap: 12px;
 }
+[data-theme='light'] .topbar { background-blend-mode: multiply; }
 .tb-left, .tb-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .tb-center { flex: 1; display: flex; justify-content: center; }
 .tb-divider { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; flex-shrink: 0; }
@@ -4004,7 +3996,11 @@ body {
 .modal {
   width: 560px;
   max-height: calc(100vh - 24vh);
-  background: rgba(16,16,20,.78);
+  background-color: rgba(16,16,20,.78);
+  background-image: url('/grain.gif');
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  background-blend-mode: overlay;
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
   backdrop-filter: blur(20px) saturate(1.2);
   border: 1px solid rgba(255,255,255,.06);
@@ -4014,7 +4010,7 @@ body {
   display: flex; flex-direction: column;
   animation: modalRise var(--dur-slow) var(--ease);
 }
-[data-theme='light'] .modal { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
+[data-theme='light'] .modal { background-color: rgba(250,250,252,.82); background-blend-mode: multiply; border-color: rgba(10,10,12,.06); }
 .modal-hd {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px;
