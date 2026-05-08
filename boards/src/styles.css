@@ -1121,6 +1121,101 @@ body {
   background: var(--bg-hov);
   color: var(--ink-0);
 }
+
+/* Clickable title — inline button styled to look like text but
+   clearly hoverable. Replaces the separate "Open" button. */
+.tag-detail-block-title-link {
+  flex: 1 1 auto;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font: 600 13px/1.2 var(--font-sans);
+  color: var(--ink-0);
+  cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tag-detail-block-head.is-board .tag-detail-block-title-link {
+  font-size: 14px;
+}
+.tag-detail-block-title-link:hover {
+  color: var(--soleil);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* Filter pills row — All / Manual / Auto — sits between the
+   header and the first preview block. */
+.tag-detail-filter {
+  display: flex; gap: 4px;
+  padding: 6px 14px 8px;
+  border-bottom: 1px solid var(--bd-1);
+}
+.tag-detail-filter-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px;
+  background: transparent;
+  border: 1px solid var(--bd-1);
+  border-radius: 999px;
+  color: var(--ink-2);
+  font: 600 10.5px/1 var(--font-sans);
+  cursor: pointer;
+}
+.tag-detail-filter-pill:hover { background: var(--bg-hov); color: var(--ink-0); }
+.tag-detail-filter-pill.is-on {
+  background: var(--soleil-soft);
+  border-color: var(--soleil);
+  color: var(--soleil);
+}
+.tag-detail-filter-count {
+  font: 500 9.5px/1 var(--font-mono);
+  color: var(--ink-3);
+}
+.tag-detail-filter-pill.is-on .tag-detail-filter-count { color: var(--soleil); }
+
+/* Right-click menu over preview items. */
+.tag-detail-menu {
+  background: var(--bg-1);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  min-width: 190px;
+  padding: 4px;
+  display: flex; flex-direction: column;
+}
+.tag-detail-menu-item {
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 7px 10px;
+  font: 500 12px/1.2 var(--font-sans);
+  color: var(--ink-1);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.tag-detail-menu-item:hover { background: var(--bg-hov); color: var(--ink-0); }
+.tag-detail-menu-hint {
+  padding: 8px 10px 6px;
+  font: 400 10.5px/1.45 var(--font-sans);
+  color: var(--ink-3);
+}
+
+/* Auto/AI badge on a card preview to show it's a directly-tagged
+   non-user application. */
+.tag-detail-card-preview-badge {
+  position: absolute;
+  top: 6px; right: 6px;
+  font: 700 8.5px/1 var(--font-display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 2px 4px;
+  border-radius: 2px;
+  background: var(--soleil-soft);
+  color: var(--soleil);
+}
+.tag-detail-card-preview { position: relative; }
 .tag-detail-block-empty {
   padding: 12px 16px;
   font: 400 11.5px/1.45 var(--font-sans);

@@ -1818,6 +1818,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ) : currentSurface === 'tag' && activeTag ? (
           <TagDetailView
             tag={activeTag}
+            workspaceId={workspace.id}
+            userId={user.id}
             onClose={() => { setActiveTag(null); setCurrentSurface('board'); }}
             onOpenItem={(item) => {
               // Item is a row from get_things_tagged: { kind, board_id, card_id, ... }.
