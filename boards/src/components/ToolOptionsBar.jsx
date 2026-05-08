@@ -126,6 +126,8 @@ export function ToolOptionsBar({
         <span className="tob-sep" />
         <FormatBtn label="•"  title="Bulleted list" cmd="insertUnorderedList" />
         <FormatBtn label="1." title="Numbered list" cmd="insertOrderedList" />
+        <FormatBtn label="☐"  title="Checklist" cmd="insertHTML"
+                   val={'<ul class="note-checklist"><li class="ck"><span class="ck-box" contenteditable="false" role="checkbox" aria-checked="false"></span><span class="ck-text">&#8203;</span></li></ul>'} />
         <span className="tob-sep" />
         <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft" />
         <FormatBtn label="≡" title="Align center" cmd="justifyCenter" />

@@ -3256,6 +3256,39 @@ body {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+/* Checklist inside a note. Hairline checkbox; warm-gold check on toggle.
+   Uses a click handler on .ck-box (RichNoteEditor.onBodyClick) to flip
+   .is-checked + aria-checked, which then drives the visual state. */
+.note-checklist { list-style: none; padding-left: 0; margin: 6px 0; }
+.note-checklist .ck { display: flex; gap: 8px; align-items: flex-start; padding: 2px 0; }
+.note-checklist .ck-box {
+  flex: 0 0 14px; width: 14px; height: 14px; margin-top: 4px;
+  border: 1px solid rgba(245,245,246,.4);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+  position: relative;
+  user-select: none;
+}
+.note-checklist .ck-box.is-checked {
+  background: #e8a93a; border-color: #c98c25;
+}
+.note-checklist .ck-box.is-checked::after {
+  content: ""; position: absolute; left: 4px; top: 1px;
+  width: 4px; height: 8px;
+  border: solid #1c1c1f; border-width: 0 1.4px 1.4px 0;
+  transform: rotate(45deg);
+}
+.note-checklist .ck-text { flex: 1; min-width: 0; }
+.note-checklist .ck-box.is-checked + .ck-text {
+  color: rgba(245,245,246,.4);
+  text-decoration: line-through;
+}
+[data-theme='light'] .note-checklist .ck-box { border-color: rgba(28,28,31,.35); }
+[data-theme='light'] .note-checklist .ck-box.is-checked + .ck-text { color: rgba(28,28,31,.4); }
+.note.is-light-bg .note-checklist .ck-box { border-color: rgba(28,28,31,.45); }
+.note.is-light-bg .note-checklist .ck-box.is-checked + .ck-text { color: rgba(28,28,31,.45); }
 .note-link-preview {
   margin-top: 10px;
   border: 1px solid var(--line-2);

@@ -175,6 +175,18 @@ export function RichNoteEditor({
   };
 
   const onBodyClick = (e) => {
+    // Checklist box toggle — fire whether or not the note is currently
+    // editing; checking off items shouldn't require a double-click in.
+    const box = e.target.closest?.('.ck-box');
+    if (box && ref.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      const checked = !box.classList.contains('is-checked');
+      box.classList.toggle('is-checked', checked);
+      box.setAttribute('aria-checked', checked ? 'true' : 'false');
+      onChangeHTML(ref.current.innerHTML);
+      return;
+    }
     const remove = e.target.closest?.('.note-preview-remove');
     if (!remove || !ref.current) return;
     e.preventDefault();
