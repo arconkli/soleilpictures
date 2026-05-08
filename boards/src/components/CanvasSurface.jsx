@@ -1713,37 +1713,35 @@ export function CanvasSurface({
 
     if (!multi) {
       if (c.kind === 'image') {
-        items.push({ id: 'title', label: c.title ? 'Edit title' : 'Add title', run: () => {
-          triggerInlineEdit(c.id, 'title');
-        }});
-        items.push({ id: 'caption', label: c.caption ? 'Edit caption' : 'Add caption', run: () => {
-          triggerInlineEdit(c.id, 'caption');
-        }});
-        items.push({ id: 'link', label: c.link ? 'Edit hyperlink' : 'Add hyperlink', run: async () => {
-          const v = await feedback.prompt({
-            title: c.link ? 'Edit image hyperlink' : 'Add image hyperlink',
-            label: 'URL',
-            placeholder: 'https://...',
-            defaultValue: c.link || '',
-            confirmLabel: 'Save link',
-          });
-          if (v == null) return;
-          mutators.updateCard?.(c.id, { link: v.trim() || null });
-        }});
-        items.push({ id: 'replace', label: 'Replace image…', run: () => {
-          const input = document.createElement('input');
-          input.type = 'file'; input.accept = 'image/*';
-          input.onchange = async () => {
-            const f = input.files?.[0]; if (!f) return;
-            try {
-              const payload = await imageFileToPayload(f, c.x + c.w / 2, c.y + c.h / 2);
-              mutators.updateCard?.(c.id, { src: payload.publicUrl });
-            } catch (err) {
-              feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
-            }
-          };
-          input.click();
-        }});
+        items.push({ id: 'image-edit', label: 'Edit', submenu: [
+          { id: 'title', label: c.title ? 'Edit title' : 'Add title', run: () => triggerInlineEdit(c.id, 'title') },
+          { id: 'caption', label: c.caption ? 'Edit caption' : 'Add caption', run: () => triggerInlineEdit(c.id, 'caption') },
+          { id: 'link', label: c.link ? 'Edit hyperlink' : 'Add hyperlink', run: async () => {
+            const v = await feedback.prompt({
+              title: c.link ? 'Edit image hyperlink' : 'Add image hyperlink',
+              label: 'URL',
+              placeholder: 'https://...',
+              defaultValue: c.link || '',
+              confirmLabel: 'Save link',
+            });
+            if (v == null) return;
+            mutators.updateCard?.(c.id, { link: v.trim() || null });
+          }},
+          { id: 'replace', label: 'Replace image…', run: () => {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = 'image/*';
+            input.onchange = async () => {
+              const f = input.files?.[0]; if (!f) return;
+              try {
+                const payload = await imageFileToPayload(f, c.x + c.w / 2, c.y + c.h / 2);
+                mutators.updateCard?.(c.id, { src: payload.publicUrl });
+              } catch (err) {
+                feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
+              }
+            };
+            input.click();
+          }},
+        ]});
       } else if (c.kind === 'shape') {
         items.push({ id: 'shape-kind', label: 'Shape', submenu: [
           { id: 'sk-rect', label: 'Rectangle', run: () => mutators.updateCard?.(c.id, { shape: 'rect' }) },
@@ -1755,21 +1753,22 @@ export function CanvasSurface({
           { id: 'sk-hex', label: 'Hexagon', run: () => mutators.updateCard?.(c.id, { shape: 'hexagon' }) },
           { id: 'sk-star', label: 'Star', run: () => mutators.updateCard?.(c.id, { shape: 'star' }) },
         ]});
-        items.push({ id: 'shape-stroke', label: 'Stroke color…', run: () => {
-          setPicker({
-            value: c.stroke || '#f5f5f6',
-            onChange: (col) => mutators.updateCard?.(c.id, { stroke: col }),
-            x: ctx.x, y: ctx.y, allowTransparent: false,
-          });
-        }});
-        items.push({ id: 'shape-fill', label: 'Fill color…', run: () => {
-          setPicker({
-            value: c.fill && c.fill !== 'transparent' ? c.fill : '#1c1c1f',
-            onChange: (col) => mutators.updateCard?.(c.id, { fill: col }),
-            x: ctx.x, y: ctx.y, allowTransparent: true,
-          });
-        }});
-        items.push({ id: 'shape-strokew', label: 'Stroke width…', submenu: [
+        items.push({ id: 'shape-style', label: 'Stroke', submenu: [
+          { id: 'shape-stroke-col', label: 'Stroke color…', run: () => {
+            setPicker({
+              value: c.stroke || '#f5f5f6',
+              onChange: (col) => mutators.updateCard?.(c.id, { stroke: col }),
+              x: ctx.x, y: ctx.y, allowTransparent: false,
+            });
+          }},
+          { id: 'shape-fill', label: 'Fill color…', run: () => {
+            setPicker({
+              value: c.fill && c.fill !== 'transparent' ? c.fill : '#1c1c1f',
+              onChange: (col) => mutators.updateCard?.(c.id, { fill: col }),
+              x: ctx.x, y: ctx.y, allowTransparent: true,
+            });
+          }},
+          { divider: true },
           { id: 'sw-1', label: '1 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 1 }) },
           { id: 'sw-2', label: '2 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 2 }) },
           { id: 'sw-4', label: '4 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 4 }) },
@@ -1794,35 +1793,35 @@ export function CanvasSurface({
       } else if (c.kind === 'boardlink') {
         items.push({ id: 'open', label: 'Open linked board', run: () => boards[c.target] && onOpenBoard(c.target) });
       } else if (c.kind === 'palette') {
-        items.push({ id: 'pc-hide-hex',
-          label: c.hideHex ? 'Show hex codes' : 'Hide hex codes',
-          run: () => mutators.updateCard?.(c.id, { hideHex: !c.hideHex }) });
-        items.push({ id: 'pc-hide-labels',
-          label: c.hideLabels ? 'Show palette labels' : 'Hide palette labels',
-          run: () => mutators.updateCard?.(c.id, { hideLabels: !c.hideLabels }) });
-        items.push({ id: 'pc-eyedrop', label: 'Eyedrop color (anywhere on screen)…', run: async () => {
-          // Browser EyeDropper API. Falls back to a friendly toast where
-          // unsupported (Firefox, Safari < 17.4 currently).
-          if (typeof window === 'undefined' || !window.EyeDropper) {
-            feedback.toast({ type: 'error', message: 'Eyedropper not supported in this browser yet.' });
-            return;
-          }
-          try {
-            const ed = new window.EyeDropper();
-            const result = await ed.open();
-            const hex = (result?.sRGBHex || '').toUpperCase();
-            if (!hex) return;
-            const next = [...(c.swatches || []), { name: 'Color', hex }];
-            mutators.updateCard?.(c.id, { swatches: next });
-          } catch (_) { /* user cancelled */ }
-        }});
-        items.push({ id: 'pc-pick-image', label: 'Pick from board image…', run: () => {
-          // Enter pick mode — the next click on an image card samples
-          // a pixel and adds the swatch. The mode is canvas-scoped
-          // (see eyedropFor state above + click handler below).
-          setEyedropFor(c.id);
-          feedback.toast({ type: 'info', message: 'Click an image to sample a color. Esc to cancel.' });
-        }});
+        items.push({ id: 'palette-edit', label: 'Edit', submenu: [
+          { id: 'pc-hide-hex',
+            label: c.hideHex ? 'Show hex codes' : 'Hide hex codes',
+            run: () => mutators.updateCard?.(c.id, { hideHex: !c.hideHex }) },
+          { id: 'pc-hide-labels',
+            label: c.hideLabels ? 'Show palette labels' : 'Hide palette labels',
+            run: () => mutators.updateCard?.(c.id, { hideLabels: !c.hideLabels }) },
+          { divider: true },
+          { id: 'pc-eyedrop', label: 'Eyedrop color (anywhere on screen)…', run: async () => {
+            // Browser EyeDropper API. Falls back to a friendly toast where
+            // unsupported (Firefox, Safari < 17.4 currently).
+            if (typeof window === 'undefined' || !window.EyeDropper) {
+              feedback.toast({ type: 'error', message: 'Eyedropper not supported in this browser yet.' });
+              return;
+            }
+            try {
+              const ed = new window.EyeDropper();
+              const result = await ed.open();
+              const hex = (result?.sRGBHex || '').toUpperCase();
+              if (!hex) return;
+              const next = [...(c.swatches || []), { name: 'Color', hex }];
+              mutators.updateCard?.(c.id, { swatches: next });
+            } catch (_) { /* user cancelled */ }
+          }},
+          { id: 'pc-pick-image', label: 'Pick from board image…', run: () => {
+            setEyedropFor(c.id);
+            feedback.toast({ type: 'info', message: 'Click an image to sample a color. Esc to cancel.' });
+          }},
+        ]});
       } else if (c.kind === 'note') {
         items.push({ id: 'fit', label: 'Fit to content', run: () => {
           // Snap the note to the natural size of its rendered content so
@@ -1928,54 +1927,58 @@ export function CanvasSurface({
     }
     if (c.groupId && groupById[c.groupId]) {
       const g = groupById[c.groupId];
-      items.push({ id: 'group-rename', label: `Rename group "${g.name || ''}"`, run: async () => {
-        const name = await feedback.prompt({
-          title: 'Rename group',
-          label: 'Name',
-          defaultValue: g.name || '',
-          confirmLabel: 'Rename',
-        });
-        if (name == null) return;
-        mutators.renameGroup?.(g.id, name);
-      }});
-      items.push({ id: 'group-outline', label: g.outline ? 'Hide group outline' : 'Show group outline',
-        run: () => mutators.setGroupOutline?.(g.id, { outline: !g.outline }) });
-      items.push({ id: 'group-hide-label',
-        label: g.options?.hideLabel ? 'Show group label' : 'Hide group label',
-        run: () => mutators.setGroupOutline?.(g.id, {
-          options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
-        }) });
-      items.push({ id: 'group-shape', label: 'Outline shape', submenu: [
-        { id: 'gs-box', label: `Box${(g.shape || 'box') === 'box' ? '  ✓' : ''}`,
-          run: () => mutators.setGroupOutline?.(g.id, { shape: 'box', outline: true }) },
-        { id: 'gs-hug', label: `Hug${g.shape === 'hug' ? '  ✓' : ''}`,
-          run: () => mutators.setGroupOutline?.(g.id, { shape: 'hug', outline: true }) },
-      ]});
-      items.push({ id: 'group-color', label: 'Group outline color…', run: () => {
-        setPicker({
-          value: g.color || 'var(--soleil)',
-          onChange: (col) => mutators.setGroupOutline?.(g.id, { color: col, outline: true }),
-          x: ctx.x, y: ctx.y, allowTransparent: false,
-        });
-      }});
+      // Quick "Remove from group" stays at top — most common action.
       items.push({ id: 'group-remove', label: multi ? `Remove from group (${selected.size})` : 'Remove from group',
         run: () => mutators.removeFromGroup?.(multi ? [...selected] : [c.id]) });
-      items.push({ id: 'ungroup', label: 'Ungroup', danger: true, run: () => mutators.ungroup?.(g.id) });
-      // Group info — surfaces the same audit data we stamp on cards,
-      // plus a quick member count.
-      items.push({ id: 'group-info', label: 'Group info', run: () => {
-        const memberCount = (cards || []).filter(cc => cc.groupId === g.id).length;
-        const lines = [`${memberCount} member${memberCount === 1 ? '' : 's'}`];
-        if (g.createdAt) lines.push(`created ${relativeTimeShort(g.createdAt)}`);
-        if (g.createdBy) {
-          const peer = (wsPeers || []).find(p => p?.user?.id === g.createdBy);
-          const name = peer?.user?.name
-                    || peer?.user?.email?.split('@')[0]
-                    || (g.createdBy === userId ? 'you' : (g.createdBy || '').slice(0, 6));
-          lines.push(`by ${name}`);
-        }
-        feedback.toast({ type: 'info', message: lines.join(' · ') });
-      }});
+      // Everything else — rename / outline / shape / color / info / ungroup —
+      // tucked into a single Group submenu so the top level stays scannable.
+      items.push({ id: 'group', label: `Group "${g.name || 'Untitled'}"`, submenu: [
+        { id: 'group-rename', label: 'Rename group…', run: async () => {
+          const name = await feedback.prompt({
+            title: 'Rename group',
+            label: 'Name',
+            defaultValue: g.name || '',
+            confirmLabel: 'Rename',
+          });
+          if (name == null) return;
+          mutators.renameGroup?.(g.id, name);
+        }},
+        { id: 'group-outline', label: g.outline ? 'Hide outline' : 'Show outline',
+          run: () => mutators.setGroupOutline?.(g.id, { outline: !g.outline }) },
+        { id: 'group-hide-label',
+          label: g.options?.hideLabel ? 'Show label' : 'Hide label',
+          run: () => mutators.setGroupOutline?.(g.id, {
+            options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
+          }) },
+        { id: 'group-shape', label: 'Outline shape', submenu: [
+          { id: 'gs-box', label: `Box${(g.shape || 'box') === 'box' ? '  ✓' : ''}`,
+            run: () => mutators.setGroupOutline?.(g.id, { shape: 'box', outline: true }) },
+          { id: 'gs-hug', label: `Hug${g.shape === 'hug' ? '  ✓' : ''}`,
+            run: () => mutators.setGroupOutline?.(g.id, { shape: 'hug', outline: true }) },
+        ]},
+        { id: 'group-color', label: 'Outline color…', run: () => {
+          setPicker({
+            value: g.color || 'var(--soleil)',
+            onChange: (col) => mutators.setGroupOutline?.(g.id, { color: col, outline: true }),
+            x: ctx.x, y: ctx.y, allowTransparent: false,
+          });
+        }},
+        { id: 'group-info', label: 'Group info', run: () => {
+          const memberCount = (cards || []).filter(cc => cc.groupId === g.id).length;
+          const lines = [`${memberCount} member${memberCount === 1 ? '' : 's'}`];
+          if (g.createdAt) lines.push(`created ${relativeTimeShort(g.createdAt)}`);
+          if (g.createdBy) {
+            const peer = (wsPeers || []).find(p => p?.user?.id === g.createdBy);
+            const name = peer?.user?.name
+                      || peer?.user?.email?.split('@')[0]
+                      || (g.createdBy === userId ? 'you' : (g.createdBy || '').slice(0, 6));
+            lines.push(`by ${name}`);
+          }
+          feedback.toast({ type: 'info', message: lines.join(' · ') });
+        }},
+        { divider: true },
+        { id: 'ungroup', label: 'Ungroup', danger: true, run: () => mutators.ungroup?.(g.id) },
+      ]});
     }
 
     // Audit info — who created this and when, last edit by whom and when.
