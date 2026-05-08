@@ -38,12 +38,6 @@ createRoot(document.getElementById('root')).render(
             <App />
           </AuthGate>
         )}
-        {/* ARC-style animated grain overlay. Single fixed element
-            above app content (z-index 50) but below modals
-            (error boundary 999, color picker 100+). Low opacity
-            so it reads as subtle film texture. pointer-events
-            none so it never intercepts input. */}
-        <div className="grain-overlay" aria-hidden="true" />
       </FeedbackProvider>
     </AppErrorBoundary>
   </StrictMode>

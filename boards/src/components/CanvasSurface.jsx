@@ -2901,6 +2901,9 @@ export function CanvasSurface({
          onDrop={handleDrop}
          onPointerDown={onBackgroundPointerDown}
          onContextMenu={onBackgroundContextMenu}>
+      {/* Grain texture — sits behind cards on the canvas surface
+          only. Cards / popovers / modals all stack above it. */}
+      <div className="grain-canvas" aria-hidden="true" />
       {(tagsByBoard?.get(board.id) || []).length > 0 && (
         <div className="board-tags-strip" data-board-id={board.id}>
           {(tagsByBoard.get(board.id) || []).slice(0, 6).map(t => (

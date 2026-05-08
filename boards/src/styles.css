@@ -103,24 +103,23 @@ body {
   overflow: hidden;
 }
 
-/* Animated grain overlay — ARC browser vibe. One fixed-position
-   element layered above everything, very low opacity so it reads
-   as subtle film grain. Single source of truth (no per-surface
-   duplication, can't be overridden by inline styles like the
-   canvas wrapStyle). pointer-events:none so it never blocks
-   input. z-index sits above app content but below modals
-   (error boundary z-index:999, color picker etc 100+). */
-.grain-overlay {
-  position: fixed;
+/* Animated grain texture — ARC browser vibe. Mounted INSIDE the
+   canvas-wrap so it sits on the canvas surface only. Cards,
+   menus, popovers, modals all stack ABOVE it (portal-mounted UI
+   is outside the canvas tree entirely). pointer-events:none so
+   it never blocks input. */
+.grain-canvas {
+  position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 50;
   background-image: url('/grain.gif');
   background-repeat: repeat;
-  background-size: 240px 180px;
-  opacity: 0.06;
+  background-size: 200px 150px;
+  opacity: 0.035;
+  /* Sits between the canvas-wrap's grid and the .canvas children. */
+  z-index: 0;
 }
-[data-theme='light'] .grain-overlay { opacity: 0.04; }
+[data-theme='light'] .grain-canvas { opacity: 0.025; }
 
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
