@@ -715,10 +715,10 @@ body {
    reviewable strip. Up to three at a time, each with ✓ accept / ×
    deny. Background tint distinguishes the band from real tags. */
 .sb-tags-suggestions {
-  margin: 0 0 4px;
-  padding: 4px 0 4px;
+  margin: 4px 0 0;
+  padding: 4px 0;
   background: var(--bg-2);
-  border-bottom: 1px solid var(--bd-1);
+  border-top: 1px solid var(--bd-1);
 }
 .sb-tags-suggestions-head {
   display: flex; align-items: center; justify-content: space-between;

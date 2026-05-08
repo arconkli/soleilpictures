@@ -20,7 +20,7 @@ import { tokenize } from '../lib/autotagEngine.js';
 // suggestions, which is not useful. We surface the candidates
 // and let the user dismiss the ones they don't want; dismissals
 // persist per workspace.
-const MIN_DOC_FREQ = 2;     // term must show up in N distinct items
+const MIN_DOC_FREQ = 3;     // term must show up in N distinct items
 const MIN_BOARD_FREQ = 1;   // multi-board overlap is a *bonus*, not a gate
 const MIN_LEN = 4;          // 3-char filler ("per", "all") is rarely a useful tag
 const MAX_RESULTS = 12;

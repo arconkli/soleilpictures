@@ -307,6 +307,25 @@ export function SidebarTags({
             </div>
           )}
 
+          {sorted.map(tag => {
+            const c = counts.get(tag.id) || 0;
+            const isActive = tag.id === activeTagId;
+            const dot = tag.color || fallbackColor(tag.slug || tag.name);
+            return (
+              <div key={tag.id}
+                   className={`sb-row sb-tag-row ${isActive ? 'active' : ''}`}
+                   draggable
+                   onDragStart={(e) => onDragStart(e, tag)}
+                   onClick={() => onOpenTag?.(tag)}
+                   onContextMenu={(e) => onContextMenuRow(e, tag)}
+                   title={`${tag.name}${c ? ` · ${c} applied` : ''}`}>
+                <span className="sb-dot" style={{ background: dot }} />
+                <span className="sb-row-label sb-tag-row-label">{tag.name}</span>
+                {c > 0 && <span className="sb-tag-row-count">{c}</span>}
+              </div>
+            );
+          })}
+
           {visibleSuggestions.length > 0 && (
             <div className="sb-tags-suggestions">
               <div className="sb-tags-suggestions-head">
@@ -337,25 +356,6 @@ export function SidebarTags({
               ))}
             </div>
           )}
-
-          {sorted.map(tag => {
-            const c = counts.get(tag.id) || 0;
-            const isActive = tag.id === activeTagId;
-            const dot = tag.color || fallbackColor(tag.slug || tag.name);
-            return (
-              <div key={tag.id}
-                   className={`sb-row sb-tag-row ${isActive ? 'active' : ''}`}
-                   draggable
-                   onDragStart={(e) => onDragStart(e, tag)}
-                   onClick={() => onOpenTag?.(tag)}
-                   onContextMenu={(e) => onContextMenuRow(e, tag)}
-                   title={`${tag.name}${c ? ` · ${c} applied` : ''}`}>
-                <span className="sb-dot" style={{ background: dot }} />
-                <span className="sb-row-label sb-tag-row-label">{tag.name}</span>
-                {c > 0 && <span className="sb-tag-row-count">{c}</span>}
-              </div>
-            );
-          })}
         </div>
       )}
 
