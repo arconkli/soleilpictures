@@ -570,6 +570,17 @@ export function CanvasSurface({
     const m = {}; (cards || []).forEach(c => m[c.id] = c); return m;
   }, [cards]);
 
+  // Refs that always mirror the latest cards / selection — used by
+  // pointer-event closures (which capture state at pointer-down) so
+  // that drawing decisions made at pointer-up read the live values.
+  // Without this, a stroke that starts a few ms after a SketchPad
+  // commit would route against a stale cards snapshot that doesn't
+  // yet contain the brand-new art canvas.
+  const cardsRef = useRef(cards);
+  const selectedRef = useRef(selected);
+  useEffect(() => { cardsRef.current = cards; }, [cards]);
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+
   // groupId → array of member cards. Drives the group-outline render
   // and the drag-together logic. Also used by "Ungroup" / "Toggle
   // outline" menu actions to know whether a card is in a group.
@@ -2041,23 +2052,26 @@ export function CanvasSurface({
       // Routing is decided at COMMIT (in onUp) so the whole stroke is
       // considered, not just the start point — drawing into an art
       // canvas should land in that canvas even if the cursor began
-      // just outside its edge. See `pickStrokeTarget` below.
-      const selectedTarget = selected.size === 1
-        ? (cards || []).find(c => c.id === [...selected][0])
-        : null;
+      // just outside its edge. Reads from refs so a stroke right
+      // after a SketchPad commit sees the freshly-added art canvas.
       const pickStrokeTarget = (pts) => {
-        if (selectedTarget) {
-          console.log('[draw] route → SELECTED card', selectedTarget.id, 'kind:', selectedTarget.kind);
-          return selectedTarget;
+        const liveCards = cardsRef.current || [];
+        const liveSelected = selectedRef.current;
+        if (liveSelected && liveSelected.size === 1) {
+          const sel = liveCards.find(c => c.id === [...liveSelected][0]);
+          if (sel) {
+            console.log('[draw] route → SELECTED card', sel.id, 'kind:', sel.kind);
+            return sel;
+          }
         }
         // Score every art canvas by how many stroke points fall inside
         // its bbox; the one with the most overlap wins. Ties pick the
         // top-most z (last wins). If nothing scores > 0, return null
         // and the stroke falls through to the board's free-canvas.
-        const arts = (cards || []).filter(c => c.kind === 'art');
+        const arts = liveCards.filter(c => c.kind === 'art');
         if (!arts.length) {
-          const allKinds = (cards || []).map(c => ({ id: c.id, kind: c.kind, x: c.x, y: c.y, w: c.w, h: c.h }));
-          console.log('[draw] route → BOARD (no kind:"art" cards). All cards:', allKinds, 'first stroke point:', pts[0]);
+          const allKinds = liveCards.map(c => ({ id: c.id, kind: c.kind, x: c.x, y: c.y, w: c.w, h: c.h }));
+          console.log('[draw] route → BOARD (no kind:"art" cards). All cards:', allKinds, 'first stroke point:', pts[0], 'selected size:', liveSelected?.size);
           return null;
         }
         let best = null, bestScore = 0;
@@ -2074,7 +2088,7 @@ export function CanvasSurface({
           }
         }
         if (bestScore > 0) {
-          console.log('[draw] route → ART CANVAS', best.id, '(', bestScore, '/', pts.length, 'points inside)', 'all scores:', scores, 'first point:', pts[0], 'last point:', pts[pts.length - 1]);
+          console.log('[draw] route → ART CANVAS', best.id, '(', bestScore, '/', pts.length, 'points inside)');
           return best;
         }
         console.log('[draw] route → BOARD (no art canvas matched)', 'first point:', pts[0], 'last point:', pts[pts.length - 1], 'art bboxes:', scores);
@@ -4101,6 +4115,11 @@ export function CanvasSurface({
         openColorPicker={(opts) => setPicker(opts)}
         anchorRect={(() => {
           if (selected.size !== 1) return null;
+          // Keep the draw palette in its default bottom position — it's
+          // a tool palette, not an editor for the selected card, so it
+          // shouldn't jump around when an art canvas gets auto-selected
+          // after a SketchPad commit.
+          if (selectedTool === 'draw') return null;
           const id = [...selected][0];
           const c = cardById[id];
           if (!c) return null;
