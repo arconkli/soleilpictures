@@ -10437,7 +10437,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .doc-tb,
 .doc-foot,
 .doc-center,
-.doc-editor-wrap,
+.doc-paper,
 .inbox,
 .list-wrap,
 .list-files {
@@ -10448,10 +10448,13 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 }
 
 /* ── Tier 2 (LIGHT, subtle — floating foreground pieces) ──
-   .doc-paper, .bc-doc-page, .bc-doc-stack, .doc-tpl-mini, and
-   .doc-tpl-card-mini are intentionally NOT in either tier — they
-   are the actual page/preview surfaces that should stay clean so
-   typed content isn't fighting a texture. */
+   .doc-editor-wrap (the actual 8.5×11 page you type on),
+   .bc-doc-page, .bc-doc-stack, .doc-tpl-mini, and .doc-tpl-card-mini
+   are intentionally NOT in either tier — they are the actual page /
+   preview surfaces that should stay clean so typed content isn't
+   fighting a texture. (Note: .doc-paper is misleadingly named — it's
+   the dark gutter around the page, NOT the page itself, so it lives
+   in tier 1.) */
 .modal,
 .share-modal,
 .twk-panel,
@@ -10557,7 +10560,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 [data-theme='light'] .doc-tb,
 [data-theme='light'] .doc-foot,
 [data-theme='light'] .doc-center,
-[data-theme='light'] .doc-editor-wrap,
+[data-theme='light'] .doc-paper,
 [data-theme='light'] .inbox,
 [data-theme='light'] .list-wrap,
 [data-theme='light'] .list-files {
