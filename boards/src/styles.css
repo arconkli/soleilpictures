@@ -10381,11 +10381,12 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
    Declared LAST in the file so any earlier `background:` shorthand
    leaves things intact. */
 /* ── Tier 1 — opacity is the dial. ── */
+/* .canvas-wrap and .home-graph-wrap are NOT in tier 1 — they already
+   have a mounted <div class="grain-canvas/grain-surface" /> that covers
+   their interior. Adding the tier ::after on top would double-grain. */
 .topbar,
 .sidebar,
 .rail,
-.canvas-wrap,
-.home-graph-wrap,
 .public-shell,
 .public-topbar,
 .auth-screen,
@@ -10406,8 +10407,8 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   position: relative;
   isolation: isolate;
 }
-.topbar::after, .sidebar::after, .rail::after, .canvas-wrap::after,
-.home-graph-wrap::after, .public-shell::after, .public-topbar::after,
+.topbar::after, .sidebar::after, .rail::after,
+.public-shell::after, .public-topbar::after,
 .auth-screen::after, .app-error-panel::after, .app-error-stack::after,
 .surface-wrap::after, .doc-card-modal::after, .doc-card-modal-head::after,
 .doc-card-foot::after, .doc-surface::after, .doc-rail::after,
@@ -10420,7 +10421,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
-  opacity: 0.1;
+  opacity: 0.025;
   z-index: -1;
   border-radius: inherit;
 }
@@ -10480,7 +10481,6 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .settings-template-tile,
 .home-graph-drawer,
 .home-graph-hud,
-.tag-detail,
 .tag-detail-menu,
 .tag-detail-head,
 .tag-detail-block-attr,
@@ -10555,7 +10555,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .link-popover::after, .link-hover-card::after,
 .account-modal::after, .settings-modal::after, .settings-template-tile::after,
 .home-graph-drawer::after, .home-graph-hud::after,
-.tag-detail::after, .tag-detail-menu::after, .tag-detail-head::after,
+.tag-detail-menu::after, .tag-detail-head::after,
 .tag-detail-block-attr::after, .tag-detail-block-open::after, .tag-detail-group-block::after,
 .tag-picker::after, .surface-card::after,
 .sb-tags-suggestions::after, .sb-tag-menu::after, .sb-tag-suggest-list::after,
@@ -10574,7 +10574,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
-  opacity: 0.1;
+  opacity: 0.012;
   z-index: -1;
   border-radius: inherit;
 }
