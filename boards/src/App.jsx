@@ -1969,7 +1969,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         Exit clean mode
       </button>
       <aside className="sidebar">
-        <div className="panel-grain" aria-hidden="true" />
         {/* Single-column sidebar. Workspace switcher is now a popover
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}

@@ -194,7 +194,6 @@ export function TweaksPanel({ title = 'Tweaks', children }) {
       {open && (
         <div ref={dragRef} className="twk-panel"
              style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
-          <div className="panel-grain" aria-hidden="true" />
           <div className="twk-hd" onMouseDown={onDragStart}>
             <b>{title}</b>
             <button className="twk-x" aria-label="Close tweaks"

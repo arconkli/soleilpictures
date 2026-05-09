@@ -125,10 +125,6 @@ body {
 [data-theme='light'] .grain-canvas,
 [data-theme='light'] .grain-surface { opacity: 0.025; }
 
-/* Legacy .panel-grain child div hooks become no-ops — grain is now
-   baked directly into each dark surface's own background rule below. */
-.panel-grain { display: none; }
-
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
    blank (no React content + grain background). */
@@ -385,14 +381,9 @@ body {
   flex-direction: column;
   border-right: 1px solid var(--line-1);
   background-color: var(--bg-1);
-  background-image: url('/grain.gif');
-  background-repeat: repeat;
-  background-size: 320px 240px;
-  background-blend-mode: overlay;
   overflow: hidden;
   min-width: 0;
 }
-[data-theme='light'] .sidebar { background-blend-mode: multiply; }
 
 /* ── Rail (left, 40px) ── */
 .rail {
@@ -402,13 +393,8 @@ body {
   padding: 10px 0 8px;
   gap: 4px;
   background-color: var(--bg-0);
-  background-image: url('/grain.gif');
-  background-repeat: repeat;
-  background-size: 320px 240px;
-  background-blend-mode: overlay;
   border-right: 1px solid var(--line-1);
 }
-[data-theme='light'] .rail { background-blend-mode: multiply; }
 .rail-brand {
   width: 28px; height: 28px;
   display: grid; place-items: center;
@@ -1592,17 +1578,12 @@ body {
   width: min(540px, 92vw);
   max-height: 86vh;
   background-color: var(--bg-1);
-  background-image: url('/grain.gif');
-  background-repeat: repeat;
-  background-size: 320px 240px;
-  background-blend-mode: overlay;
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg);
   box-shadow: 0 24px 56px rgba(0,0,0,.5);
   display: flex; flex-direction: column;
   overflow: hidden;
 }
-[data-theme='light'] .share-modal { background-blend-mode: multiply; }
 .share-head {
   display: flex; align-items: flex-start; justify-content: space-between;
   padding: 16px 18px 12px;
@@ -2185,15 +2166,10 @@ body {
   height: 48px;
   padding: 0 16px;
   background-color: var(--bg-1);
-  background-image: url('/grain.gif');
-  background-repeat: repeat;
-  background-size: 320px 240px;
-  background-blend-mode: overlay;
   border-bottom: 1px solid var(--line-1);
   flex-shrink: 0;
   gap: 12px;
 }
-[data-theme='light'] .topbar { background-blend-mode: multiply; }
 .tb-left, .tb-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .tb-center { flex: 1; display: flex; justify-content: center; }
 .tb-divider { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; flex-shrink: 0; }
@@ -3090,10 +3066,6 @@ body {
 .bc {
   width: 100%; height: 100%;
   background-color: var(--bg-3);
-  background-image: url('/grain.gif');
-  background-repeat: repeat;
-  background-size: 320px 240px;
-  background-blend-mode: overlay;
   border: 1px solid var(--line-2);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -3101,7 +3073,6 @@ body {
   display: flex; flex-direction: column;
   transition: border-color var(--dur-fast) var(--ease), transform var(--dur-base) var(--ease);
 }
-[data-theme='light'] .bc { background-blend-mode: multiply; }
 .bc:hover { border-color: var(--soleil); }
 .bc-cover {
   position: relative;
@@ -4004,10 +3975,6 @@ body {
   width: 560px;
   max-height: calc(100vh - 24vh);
   background-color: rgba(16,16,20,.78);
-  background-image: url('/grain.gif');
-  background-repeat: repeat;
-  background-size: 320px 240px;
-  background-blend-mode: overlay;
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
   backdrop-filter: blur(20px) saturate(1.2);
   border: 1px solid rgba(255,255,255,.06);
@@ -4017,7 +3984,7 @@ body {
   display: flex; flex-direction: column;
   animation: modalRise var(--dur-slow) var(--ease);
 }
-[data-theme='light'] .modal { background-color: rgba(250,250,252,.82); background-blend-mode: multiply; border-color: rgba(10,10,12,.06); }
+[data-theme='light'] .modal { background-color: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
 .modal-hd {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px;
@@ -6565,11 +6532,6 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   scrollbar-width: none;
   font-family: var(--font-sans);
   position: sticky; top: 0; z-index: 40;
-  /* Grain comes from the comprehensive panel-grain rule at the end of
-     the file (tier 1 — matches the doc surface beneath it). The old
-     soft-fade gradient was suppressing the grain because backgrounds
-     can't have BOTH a gradient and the grain image without one
-     winning; pulled it. */
 }
 .doc-tb::-webkit-scrollbar { display: none; }
 .doc-tb > * { flex-shrink: 0; }
@@ -10563,7 +10525,12 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .msg-bubble,
 .msg-composer,
 .msg-pinned-strip,
-.presence-stack {
+.presence-stack,
+.cfont,
+.doc-ctx,
+.ent-backlinks-panel,
+.feedback-dialog,
+.lightbox {
   position: relative;
   isolation: isolate;
 }
@@ -10582,7 +10549,8 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .rb-swatch-pop, .folder-tab { position: absolute; }
 
 .auth-screen, .doc-card-modal, .ctx-menu, .ctx-submenu, .cp-pop,
-.entity-picker, .link-popover, .emoji-palette { position: fixed; }
+.entity-picker, .link-popover, .emoji-palette,
+.doc-ctx, .ent-backlinks-panel, .lightbox { position: fixed; }
 
 .doc-tb, .ws-menu-section { position: sticky; }
 
@@ -10613,7 +10581,9 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .folder-body::after, .folder-slot::after, .folder-tab::after, .hist-comment-card::after,
 .list-selbar::after, .split-bar::after, .toast::after,
 .emoji-palette::after, .msg-bubble::after, .msg-composer::after,
-.msg-pinned-strip::after, .presence-stack::after {
+.msg-pinned-strip::after, .presence-stack::after,
+.cfont::after, .doc-ctx::after, .ent-backlinks-panel::after,
+.feedback-dialog::after, .lightbox::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -10672,7 +10642,10 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 [data-theme='light'] .toast::after,
 [data-theme='light'] .emoji-palette::after, [data-theme='light'] .msg-bubble::after,
 [data-theme='light'] .msg-composer::after, [data-theme='light'] .msg-pinned-strip::after,
-[data-theme='light'] .presence-stack::after {
+[data-theme='light'] .presence-stack::after,
+[data-theme='light'] .cfont::after, [data-theme='light'] .doc-ctx::after,
+[data-theme='light'] .ent-backlinks-panel::after, [data-theme='light'] .feedback-dialog::after,
+[data-theme='light'] .lightbox::after {
   mix-blend-mode: multiply;
 }
 /* ── Light theme: tier 1 = multiply, tier 2 = soft-light still works

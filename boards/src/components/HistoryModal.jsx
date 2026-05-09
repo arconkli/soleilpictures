@@ -189,7 +189,6 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="modal modal-history" onClick={(e) => e.stopPropagation()}>
-        <div className="panel-grain" aria-hidden="true" />
         <div className="modal-hd">
           <div className="modal-title">History</div>
           <button className="modal-x" onClick={onClose} aria-label="Close">✕</button>

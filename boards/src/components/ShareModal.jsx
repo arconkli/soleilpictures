@@ -312,7 +312,6 @@ export function ShareModal({
   return createPortal(
     <div className="share-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
       <div ref={ref} className="share-modal" onPointerDown={(e) => e.stopPropagation()}>
-        <div className="panel-grain" aria-hidden="true" />
         <div className="share-head">
           <div>
             <div className="share-eyebrow">SHARE</div>
