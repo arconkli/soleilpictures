@@ -325,6 +325,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
         <div className="doc-paper" ref={paperRef} style={{ position: 'relative' }}>
+          {/* Same grain layer the canvas uses — opacity:0.03 ambient
+              noise — so the doc's dark gutter matches the canvas's
+              texture exactly. The .doc-editor-wrap (the actual page
+              you type on) sits above it and isn't grained. */}
+          <div className="grain-canvas" aria-hidden="true" />
           {activePageId && awareness && (
             <DocPresence getAwareness={getAwareness} boardId={board.id} pageId={activePageId}
                          paperRef={paperRef} editor={editorRef.current}

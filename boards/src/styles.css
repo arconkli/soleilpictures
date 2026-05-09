@@ -10437,7 +10437,6 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .doc-tb,
 .doc-foot,
 .doc-center,
-.doc-paper,
 .inbox,
 .list-wrap,
 .list-files {
@@ -10560,7 +10559,6 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 [data-theme='light'] .doc-tb,
 [data-theme='light'] .doc-foot,
 [data-theme='light'] .doc-center,
-[data-theme='light'] .doc-paper,
 [data-theme='light'] .inbox,
 [data-theme='light'] .list-wrap,
 [data-theme='light'] .list-files {
