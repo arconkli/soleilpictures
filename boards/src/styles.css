@@ -10534,6 +10534,14 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   position: relative;
   isolation: isolate;
 }
+/* Restore the original `position: absolute` on the floating canvas
+   widgets — my tier-2 grain rule above set `position: relative` to
+   anchor the pseudo, which clobbered their viewport-anchored
+   positions and dragged them to the top of the layout flow. The
+   pseudo still anchors fine because position:absolute also
+   establishes a containing block. */
+.cnv-tools, .cnv-zoom, .cnv-hint { position: absolute; }
+
 .modal::after, .share-modal::after, .twk-panel::after, .tweaks-panel::after,
 .bc::after, .bc-child::after, .bc-list-cover::after, .bc-list-slot::after, .blc::after,
 .cnv-tools::after, .cnv-hint::after, .cnv-zoom::after,
