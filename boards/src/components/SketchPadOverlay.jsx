@@ -39,7 +39,7 @@ function strokeToPath(pts) {
   return d;
 }
 
-export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
+export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }) {
   // Tool state
   const [tool, setTool]   = useState('pen'); // 'pen' | 'eraser' | 'bucket'
   const [color, setColor] = useState(DEFAULT_COLOR);
@@ -64,10 +64,22 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
   const [activeStroke, setActive]   = useState(null);
   const wrapRef = useRef(null);
 
-  // Reset on open. Escape to close (unsaved strokes prompt).
+  // Reset on open. Escape to close (unsaved strokes prompt). When the
+  // pad opens to edit an existing art canvas, seed it with that card's
+  // strokes (already in card-local coords, which we treat as pad coords)
+  // and bg color so the user sees their drawing exactly as it sits on
+  // the board, ready to keep working on.
   useEffect(() => {
     if (!open) return;
-    setStrokes([]); setActive(null); setPadBg(DEFAULT_BG); setTool('pen');
+    if (editingCard) {
+      setStrokes(Array.isArray(editingCard.strokes) ? editingCard.strokes.map(s => ({ ...s, points: s.points.map(p => [...p]) })) : []);
+      setPadBg(editingCard.bg || DEFAULT_BG);
+    } else {
+      setStrokes([]);
+      setPadBg(DEFAULT_BG);
+    }
+    setActive(null);
+    setTool('pen');
     const onKey = (e) => {
       if (e.key === 'Escape') {
         // If there are strokes, ask before discarding.
@@ -133,14 +145,16 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
   };
 
   const onCommit = useCallback(() => {
-    if (!strokes.length && padBg === DEFAULT_BG) { onClose?.(); return; }
+    if (!editingCard && !strokes.length && padBg === DEFAULT_BG) { onClose?.(); return; }
     // Pass the strokes AND the chosen pad bg up — the host turns the
     // bundle into a single ArtCanvasCard with the bg baked in. Allows
     // committing even with no strokes if the user only painted a bg
-    // (a blank colored canvas is still a valid card).
-    onCommitStrokes?.({ strokes, bg: padBg });
+    // (a blank colored canvas is still a valid card). When editing an
+    // existing card we forward its id so the host updates instead of
+    // creating a new one.
+    onCommitStrokes?.({ strokes, bg: padBg, editingId: editingCard?.id || null });
     onClose?.();
-  }, [strokes, padBg, onCommitStrokes, onClose]);
+  }, [strokes, padBg, onCommitStrokes, onClose, editingCard]);
 
   if (!open) return null;
 
@@ -204,8 +218,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes }) {
           <button type="button"
                   className="sp-action sp-action-primary"
                   onClick={onCommit}
-                  disabled={!strokes.length}>
-            Add to canvas
+                  disabled={!editingCard && !strokes.length}>
+            {editingCard ? 'Save' : 'Add to canvas'}
           </button>
           <button type="button"
                   className="sp-x"

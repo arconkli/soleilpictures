@@ -279,6 +279,9 @@ export function CanvasSurface({
   // Sketch pad — full-screen overlay drawing modal. When closed with
   // strokes, they're committed to the current board's strokes Y.Array.
   const [sketchpadOpen, setSketchpadOpen] = useState(false);
+  // When set, SketchPad opens in "edit existing canvas" mode and its
+  // commit updates the card in place instead of creating a new one.
+  const [sketchpadEditId, setSketchpadEditId] = useState(null);
   // Local-only blob URL previews keyed by cardId. We don't write blob URLs
   // into the Yjs doc (peers can't resolve them), so the optimistic preview
   // lives here and is passed to ImageCard as a fallback src until the
@@ -2871,16 +2874,12 @@ export function CanvasSurface({
       return;
     }
     if (c.kind === 'boardlink') { boards[c.target] && onOpenBoard(c.target); return; }
-    // Double-click an art canvas → re-enter draw mode on it. Selects
-    // the card so the draw routing's selection branch wins, meaning
-    // every subsequent stroke (no matter where it starts) lands in
-    // this canvas until the user picks a different tool / selection.
+    // Double-click an art canvas → re-open it in the fullscreen
+    // SketchPad with its existing strokes loaded for editing.
     if (c.kind === 'art') {
       e.stopPropagation();
-      setSelected(new Set([c.id]));
-      setSelectedStrokes(new Set());
-      setSelectedArrows(new Set());
-      setSelectedTool('draw');
+      setSketchpadEditId(c.id);
+      setSketchpadOpen(true);
       return;
     }
     // image / note / link / etc — defer to inner editors so dbl-click
@@ -4232,11 +4231,25 @@ export function CanvasSurface({
       })()}
       <SketchPadOverlay
         open={sketchpadOpen}
-        onClose={() => setSketchpadOpen(false)}
+        onClose={() => { setSketchpadOpen(false); setSketchpadEditId(null); }}
+        editingCard={sketchpadEditId ? cardById[sketchpadEditId] : null}
         onCommitStrokes={(payload) => {
           // Backwards-compat: older shape was a bare strokes array.
           const strokes = Array.isArray(payload) ? payload : (payload?.strokes || []);
           const bg = Array.isArray(payload) ? '#ffffff' : (payload?.bg || '#ffffff');
+          const editingId = Array.isArray(payload) ? null : (payload?.editingId || null);
+          // Editing an existing canvas — write strokes (already in
+          // card-local coords because that's how SketchPad loaded them)
+          // and the bg back, then leave the card selected so the user
+          // can keep drawing on it inline.
+          if (editingId) {
+            mutators.updateCard?.(editingId, { strokes, bg });
+            setSelected(new Set([editingId]));
+            setSelectedStrokes(new Set());
+            setSelectedArrows(new Set());
+            setSelectedTool('draw');
+            return;
+          }
           if (!strokes.length && bg === '#ffffff') return;
           // Wrap the sketch into a single art-canvas card so the strokes
           // stay bounded to one card on the board (instead of bleeding
