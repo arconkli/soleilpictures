@@ -2329,9 +2329,9 @@ body {
 .card.card-kind-shape,
 .card.card-kind-shape:hover { box-shadow: none; }
 
-/* Art canvas — bounded white drawing surface. Strokes are rendered by
-   ArtCanvasCard via SVG; the wrapper provides the bg color and the
-   subtle bevel that distinguishes it from a plain rect. */
+/* Art canvas — bounded white drawing surface. Strokes are painted by
+   the shared CardStrokesOverlay (every card kind picks it up); the
+   wrapper just provides the bg color and the subtle bevel. */
 .art-canvas-card {
   position: relative;
   border-radius: 6px;
@@ -2341,7 +2341,6 @@ body {
 [data-theme='light'] .art-canvas-card {
   box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 0 1px rgba(0,0,0,.06) inset;
 }
-.art-canvas-svg { display: block; pointer-events: none; }
 
 .arrows-layer { color: var(--ink-3); pointer-events: none; overflow: visible; }
 .arrow-label {
