@@ -2056,7 +2056,8 @@ export function CanvasSurface({
         // and the stroke falls through to the board's free-canvas.
         const arts = (cards || []).filter(c => c.kind === 'art');
         if (!arts.length) {
-          console.log('[draw] route → BOARD (no art canvases on board, total cards:', (cards || []).length, ')');
+          const allKinds = (cards || []).map(c => ({ id: c.id, kind: c.kind, x: c.x, y: c.y, w: c.w, h: c.h }));
+          console.log('[draw] route → BOARD (no kind:"art" cards). All cards:', allKinds, 'first stroke point:', pts[0]);
           return null;
         }
         let best = null, bestScore = 0;
@@ -2108,8 +2109,8 @@ export function CanvasSurface({
               });
               mutators.replaceStrokes?.(next);
               setSelectedStrokes(new Set());
+              setSelectedTool('select');
             }
-            setSelectedTool('select');
           }
           setActiveStroke(null);
         };
@@ -2141,11 +2142,11 @@ export function CanvasSurface({
             });
           } else {
             mutators.addStroke?.({ color, width, points });
+            setSelectedTool('select');
           }
           // Surface the just-used color in recents so the swatch
           // strip in the draw tool options updates as the user works.
           addRecentColor(color);
-          setSelectedTool('select');
         }
         setActiveStroke(null);
       };
@@ -4232,12 +4233,20 @@ export function CanvasSurface({
               y - minY + PAD_MARGIN,
             ]),
           }));
+          const newId = `art-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
           mutators.addCard?.({
-            id: `art-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+            id: newId,
             kind: 'art',
             x: cardX, y: cardY, w: cardW, h: cardH,
             bg, strokes: localStrokes,
           });
+          // Drop the user back on the board with the new canvas selected
+          // and the draw tool active, so they can keep painting straight
+          // into it (selection-based routing keeps strokes on the card).
+          setSelected(new Set([newId]));
+          setSelectedStrokes(new Set());
+          setSelectedArrows(new Set());
+          setSelectedTool('draw');
         }} />
     </div>
   );
