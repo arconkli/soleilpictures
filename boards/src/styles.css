@@ -6557,7 +6557,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   height: 40px;
   padding: 0 16px;
   border-bottom: 0;
-  background: transparent;
+  background-color: var(--bg-0);
   flex-shrink: 0;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -6565,14 +6565,11 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   scrollbar-width: none;
   font-family: var(--font-sans);
   position: sticky; top: 0; z-index: 40;
-  /* Soft fade-from-bg so content can scroll behind without a hard
-     line, but the bar still reads as its own zone when stuck. */
-  background-image: linear-gradient(
-    to bottom,
-    var(--bg-0) 0,
-    var(--bg-0) calc(100% - 8px),
-    color-mix(in oklab, var(--bg-0) 0%, transparent) 100%
-  );
+  /* Grain comes from the comprehensive panel-grain rule at the end of
+     the file (tier 1 — matches the doc surface beneath it). The old
+     soft-fade gradient was suppressing the grain because backgrounds
+     can't have BOTH a gradient and the grain image without one
+     winning; pulled it. */
 }
 .doc-tb::-webkit-scrollbar { display: none; }
 .doc-tb > * { flex-shrink: 0; }
@@ -10434,7 +10431,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .surface-wrap,
 .doc-surface,
 .doc-rail,
-.doc-paper,
+.doc-tb,
 .doc-foot,
 .doc-center,
 .doc-editor-wrap,
@@ -10447,15 +10444,17 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background-blend-mode: overlay;
 }
 
-/* ── Tier 2 (LIGHT, subtle — floating foreground pieces) ── */
+/* ── Tier 2 (LIGHT, subtle — floating foreground pieces) ──
+   .doc-paper, .bc-doc-page, .bc-doc-stack, .doc-tpl-mini, and
+   .doc-tpl-card-mini are intentionally NOT in either tier — they
+   are the actual page/preview surfaces that should stay clean so
+   typed content isn't fighting a texture. */
 .modal,
 .share-modal,
 .twk-panel,
 .tweaks-panel,
 .bc,
 .bc-child,
-.bc-doc-page,
-.bc-doc-stack,
 .bc-list-cover,
 .bc-list-slot,
 .blc,
@@ -10465,7 +10464,6 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .tob,
 .tob-pop,
 .doc,
-.doc-tb,
 .doc-tb-colorpop,
 .doc-card,
 .doc-card-foot,
@@ -10473,8 +10471,6 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .doc-embed-picker,
 .doc-tpl,
 .doc-tpl-card,
-.doc-tpl-card-mini,
-.doc-tpl-mini,
 .doc-comments,
 .doc-comment,
 .doc-find,
@@ -10554,7 +10550,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 [data-theme='light'] .surface-wrap,
 [data-theme='light'] .doc-surface,
 [data-theme='light'] .doc-rail,
-[data-theme='light'] .doc-paper,
+[data-theme='light'] .doc-tb,
 [data-theme='light'] .doc-foot,
 [data-theme='light'] .doc-center,
 [data-theme='light'] .doc-editor-wrap,
