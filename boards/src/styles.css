@@ -10511,9 +10511,11 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .presence-stack,
 .cfont,
 .doc-ctx,
+.doc-export-menu,
 .ent-backlinks-panel,
 .feedback-dialog,
-.lightbox {
+.lightbox,
+.msg-panel {
   position: relative;
   isolation: isolate;
 }
@@ -10529,7 +10531,8 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .inbox, .tob, .tob-pop, .doc-tb-colorpop, .doc-find, .tt-img-tb,
 .ws-menu, .ws-menu-row-pop,
 .home-graph-drawer, .home-graph-hud, .public-card,
-.rb-swatch-pop, .folder-tab { position: absolute; }
+.rb-swatch-pop, .folder-tab,
+.doc-export-menu, .msg-panel { position: absolute; }
 
 .auth-screen, .doc-card-modal, .ctx-menu, .ctx-submenu, .cp-pop,
 .entity-picker, .link-popover, .emoji-palette,
@@ -10565,8 +10568,9 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .list-selbar::after, .split-bar::after, .toast::after,
 .emoji-palette::after, .msg-bubble::after, .msg-composer::after,
 .msg-pinned-strip::after, .presence-stack::after,
-.cfont::after, .doc-ctx::after, .ent-backlinks-panel::after,
-.feedback-dialog::after, .lightbox::after {
+.cfont::after, .doc-ctx::after, .doc-export-menu::after,
+.ent-backlinks-panel::after, .feedback-dialog::after, .lightbox::after,
+.msg-panel::after {
   content: "";
   position: absolute;
   inset: 0;
