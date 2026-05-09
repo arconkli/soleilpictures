@@ -1215,7 +1215,10 @@ export function CanvasSurface({
       e.stopPropagation();
       if (!arrowFrom) setArrowFrom(c.id);
       else {
-        if (arrowFrom !== c.id) mutators.addArrow?.(arrowFrom, c.id, arrowOptions);
+        if (arrowFrom !== c.id) {
+          mutators.addArrow?.(arrowFrom, c.id, arrowOptions);
+          setSelectedTool('select');
+        }
         setArrowFrom(null);
       }
       return;
@@ -2035,14 +2038,23 @@ export function CanvasSurface({
       e.preventDefault();
       const start = clientToCanvas(e.clientX, e.clientY);
       const points = [[start.x, start.y]];
-      // Drawing routes by SELECTION, not geometry: when exactly one card
-      // is selected, every stroke (pen or eraser) targets that card's
-      // local `strokes` array and rides with it. Zero or multiple
-      // selected → fall through to the board's free-canvas strokes.
-      const targetCardId = selected.size === 1 ? [...selected][0] : null;
-      const targetCard = targetCardId
-        ? (cards || []).find(c => c.id === targetCardId)
+      // Drawing routes to a card when one is in scope:
+      //   1) If exactly one card is selected, target it (any kind).
+      //   2) Otherwise, if the stroke starts inside an art-canvas card,
+      //      target that card — art canvases are drawing surfaces by
+      //      definition, and clicks in draw mode start strokes (so the
+      //      user has no way to select one while drawing).
+      //   3) Otherwise fall through to the board's free-canvas strokes.
+      const selectedTarget = selected.size === 1
+        ? (cards || []).find(c => c.id === [...selected][0])
         : null;
+      const artHit = !selectedTarget
+        ? (cards || []).find(c =>
+            c.kind === 'art' &&
+            start.x >= c.x && start.x <= c.x + (c.w || 0) &&
+            start.y >= c.y && start.y <= c.y + (c.h || 0))
+        : null;
+      const targetCard = selectedTarget || artHit || null;
       if (drawOptions.mode === 'eraser') {
         const radius = Math.max(4, (drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) / 2);
         setActiveStroke({ color: 'rgba(239,68,68,.75)', width: radius * 2, points: [...points], eraser: true });
@@ -2072,6 +2084,7 @@ export function CanvasSurface({
               mutators.replaceStrokes?.(next);
               setSelectedStrokes(new Set());
             }
+            setSelectedTool('select');
           }
           setActiveStroke(null);
         };
@@ -2106,6 +2119,7 @@ export function CanvasSurface({
           // Surface the just-used color in recents so the swatch
           // strip in the draw tool options updates as the user works.
           addRecentColor(color);
+          setSelectedTool('select');
         }
         setActiveStroke(null);
       };
@@ -2131,6 +2145,7 @@ export function CanvasSurface({
         if (moved) {
           const end = clientToCanvas(ev.clientX, ev.clientY);
           mutators.addFreeArrow?.({ x: startC.x, y: startC.y }, { x: end.x, y: end.y }, arrowOptions);
+          setSelectedTool('select');
         }
         setActiveFreeArrow(null);
       };
