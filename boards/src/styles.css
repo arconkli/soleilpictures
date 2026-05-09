@@ -10331,17 +10331,31 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   margin-left: 4px;
 }
 .sp-x:hover { background: var(--bg-hov); color: var(--ink-0); }
-.sketchpad-surface {
+.sketchpad-frame-body {
   flex: 1 1 auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  min-height: 0;
+}
+.sketchpad-surface {
   position: relative;
   background: var(--bg-2);
   cursor: crosshair;
+  /* Constrained by aspect-ratio (set inline) — fit either width or
+     height of the available frame, never overflow. */
+  max-width: 100%;
+  max-height: 100%;
+  width: auto; height: auto;
+  /* Force the box to take all available space within max-w/max-h. */
+  flex: 1 1 auto;
   /* Subtle grid behind the strokes so it doesn't feel like an empty
      void — same dot grid as the board thumbnails. */
   background-image:
     radial-gradient(circle at 50% 50%, rgba(255,255,255,.05) 1px, transparent 1.4px);
   background-size: 18px 18px;
   background-position: 0 0;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--line-2);
 }
 [data-theme='light'] .sketchpad-surface {
   background-image:

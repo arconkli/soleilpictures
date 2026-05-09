@@ -39,7 +39,20 @@ function strokeToPath(pts) {
   return d;
 }
 
+// Logical drawing surface size for newly-created canvases. Strokes are
+// stored at this resolution so the SketchPad and the resulting card use
+// the exact same coordinate space — every pixel in the pad maps to a
+// fixed pixel in the card. The pad is rendered larger or smaller via
+// CSS while preserving this aspect ratio.
+const NEW_CANVAS_W = 480;
+const NEW_CANVAS_H = 360;
+
 export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }) {
+  // The logical canvas size for the current session. When editing, we
+  // adopt the existing card's bounds so strokes stay in card-local
+  // coords without any rescaling on commit.
+  const logicalW = editingCard?.w || NEW_CANVAS_W;
+  const logicalH = editingCard?.h || NEW_CANVAS_H;
   // Tool state
   const [tool, setTool]   = useState('pen'); // 'pen' | 'eraser' | 'bucket'
   const [color, setColor] = useState(DEFAULT_COLOR);
@@ -95,11 +108,19 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Map a viewport-pixel coord into the pad's logical coord space so
+  // strokes get stored at the resolution that will become the card.
+  const toLogical = (clientX, clientY) => {
+    const rect = wrapRef.current.getBoundingClientRect();
+    return {
+      x: ((clientX - rect.left) / rect.width) * logicalW,
+      y: ((clientY - rect.top) / rect.height) * logicalH,
+    };
+  };
   const onPointerDown = (e) => {
     if (e.button !== 0) return;
     if (!wrapRef.current) return;
-    const rect = wrapRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const { x, y } = toLogical(e.clientX, e.clientY);
     if (tool === 'bucket') {
       // Round 1 of paint bucket: click anywhere to set the WHOLE pad bg.
       // True region-fill (Canvas2D flood fill against rasterized strokes)
@@ -124,15 +145,13 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     if (!wrapRef.current) return;
     if (tool === 'eraser') {
       if (e.buttons !== 1) return;
-      const rect = wrapRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      const { x, y } = toLogical(e.clientX, e.clientY);
       const HIT = Math.max(width + 6, 12);
       setStrokes(prev => prev.filter(s => !pointNearStroke(s, x, y, HIT)));
       return;
     }
     if (!activeStroke) return;
-    const rect = wrapRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const { x, y } = toLogical(e.clientX, e.clientY);
     setActive(s => s ? { ...s, points: [...s.points, [x, y]] } : s);
   };
 
@@ -146,15 +165,20 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
 
   const onCommit = useCallback(() => {
     if (!editingCard && !strokes.length && padBg === DEFAULT_BG) { onClose?.(); return; }
-    // Pass the strokes AND the chosen pad bg up — the host turns the
-    // bundle into a single ArtCanvasCard with the bg baked in. Allows
-    // committing even with no strokes if the user only painted a bg
-    // (a blank colored canvas is still a valid card). When editing an
-    // existing card we forward its id so the host updates instead of
-    // creating a new one.
-    onCommitStrokes?.({ strokes, bg: padBg, editingId: editingCard?.id || null });
+    // Pass the strokes (in logical coords), the chosen pad bg, and the
+    // logical canvas size up — the host writes the card with these as
+    // its w/h so the SketchPad and the resulting card share one
+    // coordinate system. When editing an existing card we forward its
+    // id so the host updates instead of creating a new one.
+    onCommitStrokes?.({
+      strokes,
+      bg: padBg,
+      editingId: editingCard?.id || null,
+      canvasW: logicalW,
+      canvasH: logicalH,
+    });
     onClose?.();
-  }, [strokes, padBg, onCommitStrokes, onClose, editingCard]);
+  }, [strokes, padBg, onCommitStrokes, onClose, editingCard, logicalW, logicalH]);
 
   if (!open) return null;
 
@@ -228,13 +252,16 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             <Icon as={X} size={14} />
           </button>
         </div>
+        <div className="sketchpad-frame-body">
         <div ref={wrapRef}
              className={`sketchpad-surface ${tool === 'eraser' ? 'is-eraser' : ''} ${tool === 'bucket' ? 'is-bucket' : ''}`}
-             style={{ background: padBg }}
+             style={{ background: padBg, aspectRatio: `${logicalW} / ${logicalH}` }}
              onPointerDown={onPointerDown}
              onPointerMove={onPointerMove}
              onPointerUp={onPointerUp}>
-          <svg className="sketchpad-svg" width="100%" height="100%">
+          <svg className="sketchpad-svg" width="100%" height="100%"
+               viewBox={`0 0 ${logicalW} ${logicalH}`}
+               preserveAspectRatio="none">
             {strokes.map((s, i) => (
               <path key={i}
                     d={strokeToPath(s.points)}
@@ -258,6 +285,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               Sketch freely — your strokes commit to the active board when you press “Add to canvas”.
             </div>
           )}
+        </div>
         </div>
       </div>
       {pickerPos && (

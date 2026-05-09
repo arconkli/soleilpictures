@@ -4238,6 +4238,8 @@ export function CanvasSurface({
           const strokes = Array.isArray(payload) ? payload : (payload?.strokes || []);
           const bg = Array.isArray(payload) ? '#ffffff' : (payload?.bg || '#ffffff');
           const editingId = Array.isArray(payload) ? null : (payload?.editingId || null);
+          const canvasW = (Array.isArray(payload) ? null : payload?.canvasW) || 480;
+          const canvasH = (Array.isArray(payload) ? null : payload?.canvasH) || 360;
           // Editing an existing canvas — write strokes (already in
           // card-local coords because that's how SketchPad loaded them)
           // and the bg back, then leave the card selected so the user
@@ -4251,39 +4253,20 @@ export function CanvasSurface({
             return;
           }
           if (!strokes.length && bg === '#ffffff') return;
-          // Wrap the sketch into a single art-canvas card so the strokes
-          // stay bounded to one card on the board (instead of bleeding
-          // across the board's stroke layer). Coords are translated into
-          // card-local space; the card is positioned at the viewport
-          // center where the user is actually looking.
-          const PAD_MARGIN = 24;
-          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-          if (strokes.length) {
-            for (const s of strokes) for (const [x, y] of s.points) {
-              if (x < minX) minX = x; if (y < minY) minY = y;
-              if (x > maxX) maxX = x; if (y > maxY) maxY = y;
-            }
-          } else {
-            // No strokes — just a colored canvas.
-            minX = 0; minY = 0; maxX = 320; maxY = 240;
-          }
-          const padW = Math.max(80, maxX - minX);
-          const padH = Math.max(80, maxY - minY);
-          const cardW = Math.ceil(padW + PAD_MARGIN * 2);
-          const cardH = Math.ceil(padH + PAD_MARGIN * 2);
+          // The pad and the card share one coordinate system: strokes
+          // are already in canvasW × canvasH space, so the card just
+          // takes those exact dimensions. Whatever the user drew at
+          // (cx, cy) in the pad lives at (cx, cy) on the card —
+          // including the bg, which fills the entire card surface.
+          const cardW = canvasW;
+          const cardH = canvasH;
           const wrap = wrapRef.current;
           const r = wrap?.getBoundingClientRect?.() || { width: 800, height: 600 };
           const vCx = (-pan.x + r.width  / 2) / zoom;
           const vCy = (-pan.y + r.height / 2) / zoom;
           const cardX = Math.round(vCx - cardW / 2);
           const cardY = Math.round(vCy - cardH / 2);
-          const localStrokes = strokes.map(s => ({
-            color: s.color, width: s.width,
-            points: s.points.map(([x, y]) => [
-              x - minX + PAD_MARGIN,
-              y - minY + PAD_MARGIN,
-            ]),
-          }));
+          const localStrokes = strokes;
           const newId = `art-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
           mutators.addCard?.({
             id: newId,
