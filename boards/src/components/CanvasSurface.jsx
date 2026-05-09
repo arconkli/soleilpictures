@@ -2109,8 +2109,10 @@ export function CanvasSurface({
               });
               mutators.replaceStrokes?.(next);
               setSelectedStrokes(new Set());
-              setSelectedTool('select');
             }
+            // Auto-switch only when finishing on an art canvas — board
+            // free-erasing is iterative like board free-drawing.
+            if (targetCard) setSelectedTool('select');
           }
           setActiveStroke(null);
         };
@@ -2157,11 +2159,13 @@ export function CanvasSurface({
           } else {
             console.log('[draw] writing stroke to BOARD (free strokes)');
             mutators.addStroke?.({ color, width, points });
-            setSelectedTool('select');
           }
           // Surface the just-used color in recents so the swatch
           // strip in the draw tool options updates as the user works.
           addRecentColor(color);
+          // Auto-switch only when finishing on an art canvas. Drawing
+          // on the main board is iterative — that's how people draw.
+          if (targetCard) setSelectedTool('select');
         }
         setActiveStroke(null);
       };
