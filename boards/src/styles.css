@@ -10402,21 +10402,22 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 }
 
 /* ──────────────────────────── PANEL GRAIN ─────────────────────────────
-   Two tiers of grain across the app:
+   Two tiers:
 
-     Tier 1 (strong, same level as the canvas/body grain)
-       — applied to the deepest dark surfaces: topbar, sidebar, rail,
-         the canvas wrap itself, the home-graph backdrop, etc.
-       — uses `background-blend-mode: overlay` (dark) / `multiply` (light)
+     Tier 1 (canvas-level, strong) — applied via `background-image`
+       + `background-blend-mode: overlay` on the deepest dark surfaces
+       (topbar, sidebar, rail, doc shell, etc.). Matches the canvas
+       grain via `<div class="grain-canvas" />` opacity:0.03 so the
+       whole "deep dark" layer reads as one continuous material.
 
-     Tier 2 (light, more subtle — for floating foreground pieces)
-       — applied to panels, modals, popovers, cards, toolbars, etc.
-       — uses `background-blend-mode: soft-light`
-       — reads as "the same material" but doesn't compete with content
+     Tier 2 (light, floating pieces) — applied via a `::after`
+       pseudo-element with `opacity: 0.015` and `mix-blend-mode:
+       overlay`. Used on modals, toolbars, popovers, cards, dropdowns
+       — subtle enough not to compete with content sitting on them.
+       The 0.015 value is the dial; bump it here to taste.
 
    Declared LAST in the file so any earlier `background:` shorthand
-   gets its background-image filled in here without needing per-rule
-   edits. Add new surfaces by appending to the appropriate tier. */
+   leaves things intact. */
 /* ── Tier 1 (STRONG, canvas-level intensity) ── */
 .topbar,
 .sidebar,
@@ -10446,14 +10447,11 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background-blend-mode: overlay;
 }
 
-/* ── Tier 2 (LIGHT, subtle — floating foreground pieces) ──
-   .doc-editor-wrap (the actual 8.5×11 page you type on),
-   .bc-doc-page, .bc-doc-stack, .doc-tpl-mini, and .doc-tpl-card-mini
-   are intentionally NOT in either tier — they are the actual page /
-   preview surfaces that should stay clean so typed content isn't
-   fighting a texture. (Note: .doc-paper is misleadingly named — it's
-   the dark gutter around the page, NOT the page itself, so it lives
-   in tier 1.) */
+/* ── Tier 2 (LIGHT, opacity:0.015 via pseudo-element) ──
+   .doc-editor-wrap (the actual page you type on), .bc-doc-page,
+   .bc-doc-stack, .doc-tpl-mini, and .doc-tpl-card-mini are
+   intentionally NOT in either tier — they are the actual page /
+   preview surfaces that should stay clean. */
 .modal,
 .share-modal,
 .twk-panel,
@@ -10533,10 +10531,97 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .msg-composer,
 .msg-pinned-strip,
 .presence-stack {
+  position: relative;
+  isolation: isolate;
+}
+.modal::after, .share-modal::after, .twk-panel::after, .tweaks-panel::after,
+.bc::after, .bc-child::after, .bc-list-cover::after, .bc-list-slot::after, .blc::after,
+.cnv-tools::after, .cnv-hint::after, .cnv-zoom::after,
+.tob::after, .tob-pop::after,
+.doc::after, .doc-tb-colorpop::after, .doc-card::after, .doc-embed-picker::after,
+.doc-tpl::after, .doc-tpl-card::after,
+.doc-comments::after, .doc-comment::after, .doc-find::after,
+.doc-link-picker::after, .doc-outline::after,
+.note::after, .note-toolbar::after, .pc::after, .sched::after,
+.tt-embed::after, .tt-img-tb::after,
+.sketchpad-toolbar::after, .sketchpad-frame::after,
+.ctx-menu::after, .ctx-submenu::after, .cp-pop::after,
+.ws-menu::after, .ws-menu-row-pop::after, .ws-menu-section::after,
+.cnv-add-menu::after, .topbar-add-menu::after,
+.entity-picker::after, .entity-hover-popover::after,
+.link-popover::after, .link-hover-card::after,
+.account-modal::after, .settings-modal::after, .settings-template-tile::after,
+.home-graph-drawer::after, .home-graph-hud::after,
+.tag-detail::after, .tag-detail-menu::after, .tag-detail-head::after,
+.tag-detail-block-attr::after, .tag-detail-block-open::after, .tag-detail-group-block::after,
+.tag-picker::after, .surface-card::after,
+.sb-tags-suggestions::after, .sb-tag-menu::after, .sb-tag-suggest-list::after,
+.card-info-popover::after, .merge-picker::after, .ws-presence-audit::after,
+.picker::after, .public-card::after, .rb-swatch-pop::after,
+.folder-body::after, .folder-slot::after, .folder-tab::after, .hist-comment-card::after,
+.list-selbar::after, .split-bar::after, .toast::after,
+.emoji-palette::after, .msg-bubble::after, .msg-composer::after,
+.msg-pinned-strip::after, .presence-stack::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
-  background-blend-mode: soft-light;
+  opacity: 0.015;
+  mix-blend-mode: overlay;
+  z-index: 1;
+  border-radius: inherit;
+}
+[data-theme='light'] .modal::after, [data-theme='light'] .share-modal::after,
+[data-theme='light'] .twk-panel::after, [data-theme='light'] .tweaks-panel::after,
+[data-theme='light'] .bc::after, [data-theme='light'] .bc-child::after,
+[data-theme='light'] .bc-list-cover::after, [data-theme='light'] .bc-list-slot::after,
+[data-theme='light'] .blc::after,
+[data-theme='light'] .cnv-tools::after, [data-theme='light'] .cnv-hint::after,
+[data-theme='light'] .cnv-zoom::after,
+[data-theme='light'] .tob::after, [data-theme='light'] .tob-pop::after,
+[data-theme='light'] .doc::after, [data-theme='light'] .doc-tb-colorpop::after,
+[data-theme='light'] .doc-card::after, [data-theme='light'] .doc-embed-picker::after,
+[data-theme='light'] .doc-tpl::after, [data-theme='light'] .doc-tpl-card::after,
+[data-theme='light'] .doc-comments::after, [data-theme='light'] .doc-comment::after,
+[data-theme='light'] .doc-find::after, [data-theme='light'] .doc-link-picker::after,
+[data-theme='light'] .doc-outline::after,
+[data-theme='light'] .note::after, [data-theme='light'] .note-toolbar::after,
+[data-theme='light'] .pc::after, [data-theme='light'] .sched::after,
+[data-theme='light'] .tt-embed::after, [data-theme='light'] .tt-img-tb::after,
+[data-theme='light'] .sketchpad-toolbar::after, [data-theme='light'] .sketchpad-frame::after,
+[data-theme='light'] .ctx-menu::after, [data-theme='light'] .ctx-submenu::after,
+[data-theme='light'] .cp-pop::after,
+[data-theme='light'] .ws-menu::after, [data-theme='light'] .ws-menu-row-pop::after,
+[data-theme='light'] .ws-menu-section::after,
+[data-theme='light'] .cnv-add-menu::after, [data-theme='light'] .topbar-add-menu::after,
+[data-theme='light'] .entity-picker::after, [data-theme='light'] .entity-hover-popover::after,
+[data-theme='light'] .link-popover::after, [data-theme='light'] .link-hover-card::after,
+[data-theme='light'] .account-modal::after, [data-theme='light'] .settings-modal::after,
+[data-theme='light'] .settings-template-tile::after,
+[data-theme='light'] .home-graph-drawer::after, [data-theme='light'] .home-graph-hud::after,
+[data-theme='light'] .tag-detail::after, [data-theme='light'] .tag-detail-menu::after,
+[data-theme='light'] .tag-detail-head::after,
+[data-theme='light'] .tag-detail-block-attr::after,
+[data-theme='light'] .tag-detail-block-open::after,
+[data-theme='light'] .tag-detail-group-block::after,
+[data-theme='light'] .tag-picker::after, [data-theme='light'] .surface-card::after,
+[data-theme='light'] .sb-tags-suggestions::after, [data-theme='light'] .sb-tag-menu::after,
+[data-theme='light'] .sb-tag-suggest-list::after,
+[data-theme='light'] .card-info-popover::after, [data-theme='light'] .merge-picker::after,
+[data-theme='light'] .ws-presence-audit::after,
+[data-theme='light'] .picker::after, [data-theme='light'] .public-card::after,
+[data-theme='light'] .rb-swatch-pop::after,
+[data-theme='light'] .folder-body::after, [data-theme='light'] .folder-slot::after,
+[data-theme='light'] .folder-tab::after, [data-theme='light'] .hist-comment-card::after,
+[data-theme='light'] .list-selbar::after, [data-theme='light'] .split-bar::after,
+[data-theme='light'] .toast::after,
+[data-theme='light'] .emoji-palette::after, [data-theme='light'] .msg-bubble::after,
+[data-theme='light'] .msg-composer::after, [data-theme='light'] .msg-pinned-strip::after,
+[data-theme='light'] .presence-stack::after {
+  mix-blend-mode: multiply;
 }
 /* ── Light theme: tier 1 = multiply, tier 2 = soft-light still works
    in light mode (it just becomes a very gentle texture). ── */
