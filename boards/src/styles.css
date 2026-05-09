@@ -10421,7 +10421,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background-repeat: repeat;
   background-size: 320px 240px;
   opacity: 0.1;
-  z-index: 1;
+  z-index: -1;
   border-radius: inherit;
 }
 
@@ -10575,6 +10575,6 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background-repeat: repeat;
   background-size: 320px 240px;
   opacity: 0.1;
-  z-index: 1;
+  z-index: -1;
   border-radius: inherit;
 }
