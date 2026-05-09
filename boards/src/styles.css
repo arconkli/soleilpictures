@@ -10411,14 +10411,17 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
        whole "deep dark" layer reads as one continuous material.
 
      Tier 2 (light, floating pieces) — applied via a `::after`
-       pseudo-element with `opacity: 0.015` and `mix-blend-mode:
+       pseudo-element with `opacity: 0.008` and `mix-blend-mode:
        overlay`. Used on modals, toolbars, popovers, cards, dropdowns
        — subtle enough not to compete with content sitting on them.
        The 0.015 value is the dial; bump it here to taste.
 
    Declared LAST in the file so any earlier `background:` shorthand
    leaves things intact. */
-/* ── Tier 1 (STRONG, canvas-level intensity) ── */
+/* ── Tier 1 (canvas-level, opacity:0.025 via pseudo-element) ──
+   Same mechanism as tier 2 — single explicit opacity dial. The
+   surfaces themselves just get position:relative + isolation so
+   the ::after anchors locally. */
 .topbar,
 .sidebar,
 .rail,
@@ -10441,13 +10444,43 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .inbox,
 .list-wrap,
 .list-files {
+  position: relative;
+  isolation: isolate;
+}
+.topbar::after, .sidebar::after, .rail::after, .canvas-wrap::after,
+.home-graph-wrap::after, .public-shell::after, .public-topbar::after,
+.auth-screen::after, .app-error-panel::after, .app-error-stack::after,
+.surface-wrap::after, .doc-card-modal::after, .doc-card-modal-head::after,
+.doc-card-foot::after, .doc-surface::after, .doc-rail::after,
+.doc-tb::after, .doc-foot::after, .doc-center::after,
+.inbox::after, .list-wrap::after, .list-files::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
-  background-blend-mode: overlay;
+  opacity: 0.025;
+  mix-blend-mode: overlay;
+  z-index: 1;
+  border-radius: inherit;
+}
+[data-theme='light'] .topbar::after, [data-theme='light'] .sidebar::after,
+[data-theme='light'] .rail::after, [data-theme='light'] .canvas-wrap::after,
+[data-theme='light'] .home-graph-wrap::after, [data-theme='light'] .public-shell::after,
+[data-theme='light'] .public-topbar::after, [data-theme='light'] .auth-screen::after,
+[data-theme='light'] .app-error-panel::after, [data-theme='light'] .app-error-stack::after,
+[data-theme='light'] .surface-wrap::after, [data-theme='light'] .doc-card-modal::after,
+[data-theme='light'] .doc-card-modal-head::after, [data-theme='light'] .doc-card-foot::after,
+[data-theme='light'] .doc-surface::after, [data-theme='light'] .doc-rail::after,
+[data-theme='light'] .doc-tb::after, [data-theme='light'] .doc-foot::after,
+[data-theme='light'] .doc-center::after, [data-theme='light'] .inbox::after,
+[data-theme='light'] .list-wrap::after, [data-theme='light'] .list-files::after {
+  mix-blend-mode: multiply;
 }
 
-/* ── Tier 2 (LIGHT, opacity:0.015 via pseudo-element) ──
+/* ── Tier 2 (LIGHT, opacity:0.008 via pseudo-element) ──
    .doc-editor-wrap (the actual page you type on), .bc-doc-page,
    .bc-doc-stack, .doc-tpl-mini, and .doc-tpl-card-mini are
    intentionally NOT in either tier — they are the actual page /
@@ -10577,7 +10610,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background-image: url('/grain.gif');
   background-repeat: repeat;
   background-size: 320px 240px;
-  opacity: 0.015;
+  opacity: 0.008;
   mix-blend-mode: overlay;
   z-index: 1;
   border-radius: inherit;
