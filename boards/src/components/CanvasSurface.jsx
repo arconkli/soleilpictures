@@ -2137,10 +2137,25 @@ export function CanvasSurface({
             // to the card and moves/scales with it.
             const localPoints = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
             const existing = Array.isArray(targetCard.strokes) ? targetCard.strokes : [];
+            const newStroke = { color, width, points: localPoints };
+            console.log('[draw] writing stroke to card', targetCard.id,
+                        '— card pos:', { x: targetCard.x, y: targetCard.y, w: targetCard.w, h: targetCard.h },
+                        '— existing strokes:', existing.length,
+                        '— new stroke local pts:', localPoints.slice(0, 3), '…',
+                        '— mutators.updateCard exists?', !!mutators.updateCard);
             mutators.updateCard?.(targetCard.id, {
-              strokes: [...existing, { color, width, points: localPoints }],
+              strokes: [...existing, newStroke],
             });
+            // Re-read the card after write to confirm the stroke landed
+            // on the Yjs side. Yjs propagates synchronously within the
+            // same tick for local writes, so this should already reflect
+            // the new strokes count.
+            setTimeout(() => {
+              const after = (cards || []).find(c => c.id === targetCard.id);
+              console.log('[draw] post-write card.strokes count:', after?.strokes?.length, '(was', existing.length, '→ expected', existing.length + 1, ')');
+            }, 0);
           } else {
+            console.log('[draw] writing stroke to BOARD (free strokes)');
             mutators.addStroke?.({ color, width, points });
             setSelectedTool('select');
           }
