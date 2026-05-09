@@ -2038,23 +2038,34 @@ export function CanvasSurface({
       e.preventDefault();
       const start = clientToCanvas(e.clientX, e.clientY);
       const points = [[start.x, start.y]];
-      // Drawing routes to a card when one is in scope:
-      //   1) If exactly one card is selected, target it (any kind).
-      //   2) Otherwise, if the stroke starts inside an art-canvas card,
-      //      target that card — art canvases are drawing surfaces by
-      //      definition, and clicks in draw mode start strokes (so the
-      //      user has no way to select one while drawing).
-      //   3) Otherwise fall through to the board's free-canvas strokes.
+      // Routing is decided at COMMIT (in onUp) so the whole stroke is
+      // considered, not just the start point — drawing into an art
+      // canvas should land in that canvas even if the cursor began
+      // just outside its edge. See `pickStrokeTarget` below.
       const selectedTarget = selected.size === 1
         ? (cards || []).find(c => c.id === [...selected][0])
         : null;
-      const artHit = !selectedTarget
-        ? (cards || []).find(c =>
-            c.kind === 'art' &&
-            start.x >= c.x && start.x <= c.x + (c.w || 0) &&
-            start.y >= c.y && start.y <= c.y + (c.h || 0))
-        : null;
-      const targetCard = selectedTarget || artHit || null;
+      const pickStrokeTarget = (pts) => {
+        if (selectedTarget) return selectedTarget;
+        // Score every art canvas by how many stroke points fall inside
+        // its bbox; the one with the most overlap wins. Ties pick the
+        // top-most z (last wins). If nothing scores > 0, return null
+        // and the stroke falls through to the board's free-canvas.
+        const arts = (cards || []).filter(c => c.kind === 'art');
+        if (!arts.length) return null;
+        let best = null, bestScore = 0;
+        for (const c of arts) {
+          let n = 0;
+          const cx = c.x, cy = c.y, cw = c.w || 0, ch = c.h || 0;
+          for (const [px, py] of pts) {
+            if (px >= cx && px <= cx + cw && py >= cy && py <= cy + ch) n++;
+          }
+          if (n > bestScore || (n > 0 && n === bestScore && (c.z || 0) >= (best?.z || 0))) {
+            best = c; bestScore = n;
+          }
+        }
+        return bestScore > 0 ? best : null;
+      };
       if (drawOptions.mode === 'eraser') {
         const radius = Math.max(4, (drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) / 2);
         setActiveStroke({ color: 'rgba(239,68,68,.75)', width: radius * 2, points: [...points], eraser: true });
@@ -2069,6 +2080,7 @@ export function CanvasSurface({
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
           if (points.length > 1) {
+            const targetCard = pickStrokeTarget(points);
             if (targetCard) {
               const localEraser = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
               const next = [];
@@ -2105,6 +2117,7 @@ export function CanvasSurface({
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         if (points.length > 1) {
+          const targetCard = pickStrokeTarget(points);
           if (targetCard) {
             // Translate to card-local coords so the stroke stays bounded
             // to the card and moves/scales with it.
@@ -2811,6 +2824,18 @@ export function CanvasSurface({
       return;
     }
     if (c.kind === 'boardlink') { boards[c.target] && onOpenBoard(c.target); return; }
+    // Double-click an art canvas → re-enter draw mode on it. Selects
+    // the card so the draw routing's selection branch wins, meaning
+    // every subsequent stroke (no matter where it starts) lands in
+    // this canvas until the user picks a different tool / selection.
+    if (c.kind === 'art') {
+      e.stopPropagation();
+      setSelected(new Set([c.id]));
+      setSelectedStrokes(new Set());
+      setSelectedArrows(new Set());
+      setSelectedTool('draw');
+      return;
+    }
     // image / note / link / etc — defer to inner editors so dbl-click
     // re-enters edit mode reliably. (Open link via the link-card icon or
     // right-click → Open instead.)
