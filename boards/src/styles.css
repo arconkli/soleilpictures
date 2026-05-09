@@ -6096,12 +6096,12 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   opacity: 0.74;
   transition: filter var(--dur-base) var(--ease), opacity var(--dur-base) var(--ease);
 }
-.bc:hover .bc-thumb { filter: brightness(0.96) saturate(0.96); opacity: 0.96; }
+.bc:hover .bc-thumb { filter: brightness(0.88) saturate(0.9); opacity: 0.9; }
 [data-theme='light'] .bc-thumb {
   filter: brightness(1.02) saturate(0.86);
   opacity: 0.78;
 }
-[data-theme='light'] .bc:hover .bc-thumb { filter: brightness(1.0) saturate(0.96); opacity: 0.98; }
+[data-theme='light'] .bc:hover .bc-thumb { filter: brightness(0.98) saturate(0.92); opacity: 0.92; }
 
 /* List-mode board card on canvas — no thumbnail, just a clickable list of
    child boards. Header on top, scroll the rest. */

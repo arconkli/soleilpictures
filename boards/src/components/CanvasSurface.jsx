@@ -2046,25 +2046,38 @@ export function CanvasSurface({
         ? (cards || []).find(c => c.id === [...selected][0])
         : null;
       const pickStrokeTarget = (pts) => {
-        if (selectedTarget) return selectedTarget;
+        if (selectedTarget) {
+          console.log('[draw] route → SELECTED card', selectedTarget.id, 'kind:', selectedTarget.kind);
+          return selectedTarget;
+        }
         // Score every art canvas by how many stroke points fall inside
         // its bbox; the one with the most overlap wins. Ties pick the
         // top-most z (last wins). If nothing scores > 0, return null
         // and the stroke falls through to the board's free-canvas.
         const arts = (cards || []).filter(c => c.kind === 'art');
-        if (!arts.length) return null;
+        if (!arts.length) {
+          console.log('[draw] route → BOARD (no art canvases on board, total cards:', (cards || []).length, ')');
+          return null;
+        }
         let best = null, bestScore = 0;
+        const scores = [];
         for (const c of arts) {
           let n = 0;
           const cx = c.x, cy = c.y, cw = c.w || 0, ch = c.h || 0;
           for (const [px, py] of pts) {
             if (px >= cx && px <= cx + cw && py >= cy && py <= cy + ch) n++;
           }
+          scores.push({ id: c.id, bbox: [cx, cy, cw, ch], inside: n, of: pts.length });
           if (n > bestScore || (n > 0 && n === bestScore && (c.z || 0) >= (best?.z || 0))) {
             best = c; bestScore = n;
           }
         }
-        return bestScore > 0 ? best : null;
+        if (bestScore > 0) {
+          console.log('[draw] route → ART CANVAS', best.id, '(', bestScore, '/', pts.length, 'points inside)', 'all scores:', scores, 'first point:', pts[0], 'last point:', pts[pts.length - 1]);
+          return best;
+        }
+        console.log('[draw] route → BOARD (no art canvas matched)', 'first point:', pts[0], 'last point:', pts[pts.length - 1], 'art bboxes:', scores);
+        return null;
       };
       if (drawOptions.mode === 'eraser') {
         const radius = Math.max(4, (drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) / 2);
