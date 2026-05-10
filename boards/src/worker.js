@@ -1,14 +1,21 @@
 // Cloudflare Worker entrypoint. Handles /api/* routes; everything else
 // falls through to env.ASSETS which serves the Vite-built dist/.
 //
-// /api/og?url=… — fetches the URL server-side, parses Open Graph and
-// favicon metadata, returns JSON. Used by link cards to render
-// previews without hitting CORS in the browser.
+// /api/og?url=…       — fetches the URL server-side, parses Open Graph
+//                       and favicon metadata, returns JSON. Used by link
+//                       cards to render previews without hitting CORS.
+// /api/tags/*         — AI tagging pipeline (embed, apply verdicts, name
+//                       emergent clusters). See worker-tags.js for the
+//                       per-route contracts. All routes auth-checked
+//                       against the user's Supabase JWT.
+
+import { handleTagsRoute } from './worker-tags.js';
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/og') return handleOg(url, request);
+    if (url.pathname.startsWith('/api/tags/')) return handleTagsRoute(url, request, env);
     return env.ASSETS.fetch(request);
   },
 };
