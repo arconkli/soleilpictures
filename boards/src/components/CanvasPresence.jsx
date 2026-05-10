@@ -122,7 +122,7 @@ function PeerSelectionStyles({ peers }) {
     }
     const rules = [];
     for (const p of peers) {
-      const color = p.user.color || '#d4a04a';
+      const color = p.user.color || '#ffa500';
       for (const id of p.cardIds) {
         const safe = id.replace(/"/g, '\\"');
         // Single clean ring in the peer's color. Outline (not box-shadow)
@@ -170,12 +170,12 @@ function PeerSelectionStyles({ peers }) {
 }
 
 function colorWithAlpha(c, a) {
-  // Accept #rrggbb only (we control the palette); fall back to rgba(212,160,74,…).
+  // Accept #rrggbb only (we control the palette); fall back to rgba(255,165,0,…).
   if (typeof c === 'string' && c.startsWith('#') && c.length === 7) {
     const r = parseInt(c.slice(1, 3), 16);
     const g = parseInt(c.slice(3, 5), 16);
     const b = parseInt(c.slice(5, 7), 16);
     return `rgba(${r},${g},${b},${a})`;
   }
-  return `rgba(212,160,74,${a})`;
+  return `rgba(255,165,0,${a})`;
 }

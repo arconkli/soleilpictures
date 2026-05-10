@@ -150,7 +150,7 @@ const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform
 // Per-user presence color, drawn from the warm cover palette. Stable per
 // user id so the same person always shows up in the same color across
 // sessions. Falls back to soleil for unknown ids.
-const PRESENCE_COLORS = ['#d4a04a', '#6b8090', '#9a6b88', '#c9a577', '#6b9088', '#b88958'];
+const PRESENCE_COLORS = ['#ffa500', '#6b8090', '#9a6b88', '#c9a577', '#6b9088', '#b88958'];
 function pickPresenceColor(id) {
   if (!id) return PRESENCE_COLORS[0];
   let h = 0; for (let i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0;

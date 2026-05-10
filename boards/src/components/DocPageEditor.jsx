@@ -863,7 +863,7 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment }) {
           default ink. */}
       <div className="doc-ctx-color-row" role="group" aria-label="Text color">
         <span className="doc-ctx-color-label">Color</span>
-        {['#f5f5f7', '#d4a04a', '#cf6a4f', '#7c5cc9', '#5b8fc7', '#3fa39a', '#10b981'].map(c => (
+        {['#f5f5f7', '#ffa500', '#cf6a4f', '#7c5cc9', '#5b8fc7', '#3fa39a', '#10b981'].map(c => (
           <button key={c}
                   type="button"
                   className="doc-ctx-color-dot"

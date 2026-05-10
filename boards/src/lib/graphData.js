@@ -187,7 +187,7 @@ export async function assembleGraph({ workspaceId, options = {} }) {
 // the brightest "stars", docs are pale moons, and the various
 // card sub-kinds get their own planetary hues.
 const COLOR = {
-  board:     '#e8a93a',  // sun — warm orange-gold
+  board:     '#ffa500',  // sun — Soleil brand gold
   doc:       '#f1d9a3',  // pale cream moon
   // Card sub-kinds:
   note:      '#cf6a4f',  // mars — terracotta

@@ -15,7 +15,7 @@ test('auth input gains a soleil glow ring on focus', async ({ page }) => {
   const input = page.getByPlaceholder('you@soleilpictures.com');
   await input.focus();
   const shadow = await input.evaluate(el => getComputedStyle(el).boxShadow);
-  expect(shadow).toContain('rgba(212, 160, 74');
+  expect(shadow).toContain('rgba(255, 165, 0');
 });
 
 const viewports = [
@@ -43,7 +43,7 @@ test('keyboard focus on sidebar collapse button shows soleil glow', async ({ pag
   await page.goto('/?local=1');
   await page.locator('.sb-mid-collapse').focus();
   const shadow = await page.locator('.sb-mid-collapse').evaluate(el => getComputedStyle(el).boxShadow);
-  expect(shadow).toContain('rgba(212, 160, 74');
+  expect(shadow).toContain('rgba(255, 165, 0');
 });
 
 test('light theme toggles cleanly with no console errors', async ({ page }) => {

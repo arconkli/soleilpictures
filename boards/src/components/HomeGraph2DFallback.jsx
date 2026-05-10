@@ -10,7 +10,7 @@ export function HomeGraph2DFallback({ data, width, height, onNodeClick }) {
       nodeColor={n => n.color}
       nodeVal={n => n.val}
       nodeLabel={n => n.name}
-      linkColor={l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(212,160,74,.55)'}
+      linkColor={l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(255,165,0,.55)'}
       onNodeClick={onNodeClick}
     />
   );

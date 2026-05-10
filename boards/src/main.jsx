@@ -19,7 +19,7 @@ if (typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
       '.entity-picker', '.entity-hover-popover', '.link-popover', '.link-hover-card',
       '.account-modal', '.settings-modal', '.home-graph-drawer', '.tag-detail', '.inbox'];
     const head = '%c[grain]';
-    const headStyle = 'color:#e8a93a;font-weight:600';
+    const headStyle = 'color:#ffa500;font-weight:600';
     // Sanity: try to load grain.gif directly so we know the asset exists.
     const probe = new Image();
     probe.onload  = () => console.log(head, headStyle, `/grain.gif loaded ok: ${probe.naturalWidth}×${probe.naturalHeight}`);

@@ -27,12 +27,12 @@
   --ink-3:   #5a5a60;
   --ink-4:   #3a3a40;
 
-  /* Warm-gold accent. Matches the home-graph "sun" hue (#e8a93a) so
-     focus rings, primary buttons, and hover states feel like a quiet
-     continuation of the planetary palette. */
-  --soleil:        #e8a93a;
-  --soleil-soft:   rgba(232,169,58,.14);
-  --soleil-glow:   0 0 24px rgba(232,169,58,.18);
+  /* Warm-gold accent. Soleil Pictures brand gold (#ffa500) — focus
+     rings, primary buttons, and hover states are a quiet continuation
+     of the marketing-site sun. */
+  --soleil:        #ffa500;
+  --soleil-soft:   rgba(255,165,0,.14);
+  --soleil-glow:   0 0 24px rgba(255,165,0,.18);
 
   --ink-error: #e08b8b;       /* desaturated rose for dark errors */
 
@@ -53,7 +53,7 @@
   --shadow-1:    0 1px 0 rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.25);
   --shadow-2:    0 1px 0 rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2);
   --shadow-3:    0 12px 48px rgba(0,0,0,.45), 0 4px 12px rgba(0,0,0,.3);
-  --shadow-glow: 0 0 0 1px rgba(232,169,58,.32), 0 0 18px rgba(232,169,58,.14);
+  --shadow-glow: 0 0 0 1px rgba(255,165,0,.32), 0 0 18px rgba(255,165,0,.14);
 
   --ease:     cubic-bezier(0.2, 0.8, 0.2, 1);
   --dur-fast: 120ms;
@@ -80,8 +80,8 @@
   --ink-3:  #92929a;
   --ink-4:  #b8b8be;
 
-  --soleil:      #a37822;
-  --soleil-soft: rgba(163,120,34,.10);
+  --soleil:      #ffa500;
+  --soleil-soft: rgba(255,165,0,.10);
 
   --ink-error: #b04a4a;
 
@@ -91,7 +91,7 @@
   --shadow-1:    0 1px 0 rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.05);
   --shadow-2:    0 1px 0 rgba(0,0,0,.05), 0 8px 22px rgba(0,0,0,.08);
   --shadow-3:    0 12px 40px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.06);
-  --shadow-glow: 0 0 0 1px rgba(163,120,34,.32), 0 0 18px rgba(163,120,34,.14);
+  --shadow-glow: 0 0 0 1px rgba(255,165,0,.32), 0 0 18px rgba(255,165,0,.14);
 }
 
 html, body, #root { height: 100%; }
@@ -2052,7 +2052,7 @@ body {
 [data-theme='light'] .rail-add:hover { color: var(--ink-1); border-color: var(--ink-3); }
 
 [data-theme='light'] .sb-row.active {
-  background: rgba(163,120,34,.18);
+  background: rgba(255,165,0,.18);
   color: var(--ink-0);
 }
 [data-theme='light'] .sb-row.active::before { background: var(--soleil); }
@@ -3277,7 +3277,7 @@ body {
   user-select: none;
 }
 .note-checklist .ck-box.is-checked {
-  background: #e8a93a; border-color: #c98c25;
+  background: #ffa500; border-color: #cc8400;
 }
 .note-checklist .ck-box.is-checked::after {
   content: ""; position: absolute; left: 4px; top: 1px;
@@ -3602,7 +3602,7 @@ body {
 .auth-glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 800px 600px at 50% 45%, rgba(212,160,74,.10) 0%, transparent 60%);
+  background: radial-gradient(ellipse 800px 600px at 50% 45%, rgba(255,165,0,.10) 0%, transparent 60%);
   pointer-events: none;
 }
 .auth-card {
@@ -3660,9 +3660,9 @@ body {
 .dev-banner {
   position: fixed; top: 0; left: 0; right: 0;
   z-index: 2147483640;
-  background: rgba(212, 160, 74, 0.12);
+  background: rgba(255, 165, 0,0.12);
   color: var(--soleil);
-  border-bottom: 1px solid rgba(212, 160, 74, 0.25);
+  border-bottom: 1px solid rgba(255, 165, 0,0.25);
   font-family: var(--font-mono); font-size: 10px;
   letter-spacing: .06em;
   text-align: center;
@@ -3673,9 +3673,9 @@ body {
 }
 .dev-banner + * .topbar { margin-top: 20px; }
 [data-theme='light'] .dev-banner {
-  background: rgba(212, 160, 74, 0.16);
-  color: #8a6324;
-  border-bottom-color: rgba(212, 160, 74, 0.35);
+  background: rgba(255, 165, 0,0.16);
+  color: #cc8400;
+  border-bottom-color: rgba(255, 165, 0,0.35);
 }
 
 /* ──────────────────────────── Card interactions (Phase 4) ───────────────── */
@@ -4441,7 +4441,7 @@ body {
   width: 22px; height: 22px;
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,.22);
-  border-top-color: var(--soleil, #d4a04a);
+  border-top-color: var(--soleil, #ffa500);
   animation: ic-upload-spin .9s linear infinite;
 }
 .ic-upload-progress {
@@ -6053,7 +6053,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 
 .btn-primary:hover:not(:disabled) {
-  box-shadow: 0 0 0 1px rgba(212,160,74,.5);
+  box-shadow: 0 0 0 1px rgba(255,165,0,.5);
 }
 
 .btn-secondary {
@@ -6753,7 +6753,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 [data-theme='light'] .tt-editor { color: #1a1a1f; }
 /* Soleil-tinted selection. */
-.tt-editor ::selection { background: rgba(212,160,74,.28); color: inherit; }
+.tt-editor ::selection { background: rgba(255,165,0,.28); color: inherit; }
 .tt-editor > :first-child { margin-top: 0; }
 .tt-editor h1, .tt-editor h2, .tt-editor h3,
 .tt-editor h4, .tt-editor h5, .tt-editor h6 {
@@ -7630,7 +7630,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 /* ─────── Comment marks + panel ─────── */
 .tt-comment {
   background: transparent;
-  text-decoration: underline dotted rgba(212, 160, 74, .45);
+  text-decoration: underline dotted rgba(255, 165, 0,.45);
   text-underline-offset: 4px;
   text-decoration-thickness: 1px;
   cursor: pointer;
@@ -8679,7 +8679,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .home-empty-glow {
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse 800px 600px at 50% 50%, rgba(212,160,74,.10), transparent 60%);
+  background: radial-gradient(ellipse 800px 600px at 50% 50%, rgba(255,165,0,.10), transparent 60%);
   pointer-events: none;
 }
 .home-empty-title { color: var(--ink-0); margin-bottom: 16px; }
@@ -8972,7 +8972,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 /* Pinned-message styling — soft gold tint on the bubble itself, plus
    a small "Pinned" tag at the very top of the row. */
-.msg-bubble--pinned { background: rgba(212,160,74,.06); }
+.msg-bubble--pinned { background: rgba(255,165,0,.06); }
 .msg-bubble-pinned-tag {
   display: inline-flex; align-items: center; gap: 4px;
   font: 700 9px/1 var(--font-sans);
@@ -8996,7 +8996,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   font: 600 11px/1 var(--font-sans);
   transition: background var(--dur-fast) var(--ease);
 }
-.msg-bubble-replies:hover { background: rgba(212,160,74,.22); }
+.msg-bubble-replies:hover { background: rgba(255,165,0,.22); }
 .msg-bubble-replies-time {
   color: var(--ink-3);
   font-weight: 500;
@@ -9256,7 +9256,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-radius: 3px;
   font-weight: 600;
 }
-.msg-pill-user { background: rgba(212,160,74,.18); }
+.msg-pill-user { background: rgba(255,165,0,.18); }
 
 .msg-bubble-edit-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
 .msg-bubble-edit-actions button {

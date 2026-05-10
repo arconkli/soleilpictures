@@ -29,7 +29,7 @@ import { useRecentColors } from '../hooks/useRecentColors.js';
 const DEFAULT_COLOR = '#0a0a0c';
 const DEFAULT_BG = '#ffffff';
 const DEFAULT_WIDTH = 3;
-const COLOR_PRESETS = ['#0a0a0c', '#f5f5f6', '#d4a04a', '#cf6a4f', '#7c5cc9', '#3fa39a', '#5b8fc7', '#10b981'];
+const COLOR_PRESETS = ['#0a0a0c', '#f5f5f6', '#ffa500', '#cf6a4f', '#7c5cc9', '#3fa39a', '#5b8fc7', '#10b981'];
 const WIDTH_PRESETS = [1, 2, 4, 8, 14];
 
 function strokeToPath(pts) {

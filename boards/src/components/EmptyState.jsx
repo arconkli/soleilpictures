@@ -13,7 +13,7 @@ export function EmptyState({ icon, title, body, action, glow = false }) {
       {icon && (
         <div
           className="empty-icon"
-          style={glow ? { filter: 'drop-shadow(0 0 16px rgba(212,160,74,.30))', color: 'var(--soleil)' } : undefined}
+          style={glow ? { filter: 'drop-shadow(0 0 16px rgba(255,165,0,.30))', color: 'var(--soleil)' } : undefined}
         >
           <Icon as={icon} size={48} />
         </div>

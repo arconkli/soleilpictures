@@ -301,7 +301,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
   // distinct atmosphere.
   const nodeThree = (node) => {
     const r = (node.val || 8) * 0.4;
-    const color = node.color || '#d4a04a';
+    const color = node.color || '#ffa500';
     const group = new THREE.Group();
     const core = new THREE.Mesh(
       new THREE.SphereGeometry(r, 20, 20),
@@ -362,7 +362,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
         backgroundColor={BG_FOR[theme]}
         nodeThreeObject={nodeThree}
         nodeLabel={n => n.name}
-        linkColor={l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(212,160,74,.55)'}
+        linkColor={l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(255,165,0,.55)'}
         linkOpacity={0.7}
         linkCurvature={0.18}
         // Settle fast so the user sees an already-stable layout when

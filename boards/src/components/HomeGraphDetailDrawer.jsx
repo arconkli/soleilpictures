@@ -47,7 +47,7 @@ export function HomeGraphDetailDrawer({ workspaceId, node, onClose, onOpen }) {
       <header className="home-graph-drawer-head">
         <div className="home-graph-drawer-head-info">
           <div className="home-graph-drawer-eyebrow">
-            <span className="home-graph-drawer-dot" style={{ background: node.color || '#d4a04a' }} />
+            <span className="home-graph-drawer-dot" style={{ background: node.color || '#ffa500' }} />
             <span className="t-eyebrow">{readableKind(node)}</span>
           </div>
           <div className="home-graph-drawer-name t-h3">{node.name || 'Untitled'}</div>

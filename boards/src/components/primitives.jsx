@@ -158,7 +158,7 @@ export function LiveCursor({ x, y, name, color }) {
 export function SoleilMark({ size = 18, color = 'currentColor', glow = false }) {
   const rays = 12;
   const filter = glow && size > 20
-    ? 'drop-shadow(0 0 12px rgba(212,160,74,.35))'
+    ? 'drop-shadow(0 0 12px rgba(255,165,0,.35))'
     : undefined;
   // At small sizes (<= 20px) the rays read as noise — shorten them slightly
   // and drop stroke weight to 1px so the mark reads as a luminous point.
@@ -185,7 +185,7 @@ export const COVER_TINTS = {
   neutral: '#6b6760',
   warm:    '#b88958',
   cool:    '#6b8090',
-  sun:     '#d4a04a',
+  sun:     '#ffa500',
   dusk:    '#9a6b88',
   sand:    '#c9a577',
   sea:     '#6b9088',

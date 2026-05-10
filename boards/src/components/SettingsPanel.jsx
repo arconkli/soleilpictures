@@ -160,7 +160,7 @@ function FontField({ value, onChange, disabled }) {
 }
 
 const ACCENT_PRESETS = [
-  '#d4a04a', // soleil (default)
+  '#ffa500', // soleil (default)
   '#cf6a4f', // terracotta
   '#7c5cc9', // violet
   '#3fa39a', // teal
@@ -656,7 +656,7 @@ function AccentPicker({ value, onChange }) {
               title="Default soleil gold"
               onClick={() => onChange(null)}>×</button>
       {pickerPos && (
-        <ColorPicker value={value || '#d4a04a'}
+        <ColorPicker value={value || '#ffa500'}
                      onChange={onChange}
                      onClose={() => setPickerPos(null)}
                      position={pickerPos}
