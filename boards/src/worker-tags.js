@@ -4,8 +4,13 @@
 // later phases):
 //
 //   POST /api/tags/embed         — OpenAI text-embedding-3-small in batch
-//   POST /api/tags/apply         — Anthropic Haiku tier verdicts, batched
-//   POST /api/tags/cluster-name  — Anthropic Haiku names emergent clusters
+//   POST /api/tags/apply         — gpt-4o-mini tier verdicts, batched
+//   POST /api/tags/cluster-name  — gpt-4o-mini names emergent clusters
+//
+// Single provider (OpenAI) for both embeddings and completions — gpt-4o-mini
+// with structured outputs is ~5× cheaper than Anthropic Haiku 4.5 for this
+// task and OpenAI has a first-party embeddings API. Anthropic doesn't, so
+// going single-provider also collapses two API keys into one.
 //
 // Auth: every request must carry a valid Supabase user JWT in the
 // Authorization header. We verify by calling the project's /auth/v1/user
@@ -17,14 +22,12 @@
 // the normal Supabase client, respecting RLS.
 //
 // Required secrets / vars (set via `wrangler secret put` or CF dashboard):
-//   ANTHROPIC_API_KEY  — anthropic.com Haiku 4.5
-//   OPENAI_API_KEY     — OpenAI text-embedding-3-small
+//   OPENAI_API_KEY     — both embeddings and completions
 //   SUPABASE_URL       — used to validate user JWTs (already known publicly)
 //   SUPABASE_ANON_KEY  — required by Supabase /auth/v1/user as the apikey hdr
 
-const ANTHROPIC_MODEL = 'claude-haiku-4-5';
-const ANTHROPIC_VERSION = '2023-06-01';
-const OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
+const COMPLETIONS_MODEL = 'gpt-4o-mini';
+const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIM = 1536;
 
 // Hard caps so a misbehaving client can't run up the bill in one call.
@@ -90,7 +93,7 @@ async function handleEmbed(request, env) {
       return json({ error: 'each card needs {id, text}' }, 400);
     }
     ids.push(c.id);
-    // Cap input length to keep token costs predictable. ~2000 chars ≈ 500 tokens.
+    // Cap input length to keep token costs predictable.
     texts.push(c.text.slice(0, 8000));
   }
   const r = await fetch('https://api.openai.com/v1/embeddings', {
@@ -99,7 +102,7 @@ async function handleEmbed(request, env) {
       'authorization': `Bearer ${env.OPENAI_API_KEY}`,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ model: OPENAI_EMBEDDING_MODEL, input: texts }),
+    body: JSON.stringify({ model: EMBEDDING_MODEL, input: texts }),
   });
   if (!r.ok) {
     const err = await r.text();
@@ -111,7 +114,7 @@ async function handleEmbed(request, env) {
     return json({ error: 'embedding count mismatch' }, 502);
   }
   const embeddings = out.map((row, i) => ({ id: ids[i], vector: row.embedding }));
-  return json({ embeddings, dim: EMBEDDING_DIM }, 200);
+  return json({ embeddings, dim: EMBEDDING_DIM, usage: data.usage || null }, 200);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -130,12 +133,11 @@ async function handleEmbed(request, env) {
 //   }]
 // }
 //
-// All cards in one call share the system prompt + tag list (cached). The
-// client is responsible for embedding-prefiltering candidate_tags down to
-// the middle band (cosine 0.20–0.55) before calling — we don't second-guess
-// that here.
+// All cards in one call share the system prompt. The client is responsible
+// for embedding-prefiltering candidate_tags down to the middle band
+// (cosine 0.20–0.55) before calling — we don't second-guess that here.
 async function handleApply(request, env) {
-  if (!env.ANTHROPIC_API_KEY) return json({ error: 'anthropic key not configured' }, 500);
+  if (!env.OPENAI_API_KEY) return json({ error: 'openai key not configured' }, 500);
   const body = await request.json().catch(() => null);
   if (!Array.isArray(body?.cards)) return json({ error: 'cards array required' }, 400);
   if (body.cards.length === 0) return json({ verdicts: [] }, 200);
@@ -143,18 +145,6 @@ async function handleApply(request, env) {
     return json({ error: `max ${MAX_APPLY_CARDS_PER_CALL} cards per call` }, 400);
   }
 
-  const system = [
-    {
-      type: 'text',
-      text: APPLY_SYSTEM_PROMPT,
-      cache_control: { type: 'ephemeral' },
-    },
-  ];
-
-  // The user message is the card payload. We don't put the tag list in the
-  // system prompt because it varies per workspace — the cache key is the
-  // system prompt, which stays constant across all workspaces and all
-  // tagging requests, maximising hit rate.
   const userPayload = {
     cards: body.cards.map(c => ({
       id: String(c.id),
@@ -162,35 +152,40 @@ async function handleApply(request, env) {
       candidate_tags: (c.candidate_tags || []).map(t => ({
         id: String(t.id),
         name: String(t.name || ''),
-        description: t.description ? String(t.description).slice(0, 200) : undefined,
+        description: t.description ? String(t.description).slice(0, 200) : null,
       })),
     })),
   };
 
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': ANTHROPIC_VERSION,
+      'authorization': `Bearer ${env.OPENAI_API_KEY}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 2048,
-      system,
-      output_config: {
-        format: { type: 'json_schema', schema: APPLY_RESPONSE_SCHEMA },
+      model: COMPLETIONS_MODEL,
+      messages: [
+        { role: 'system', content: APPLY_SYSTEM_PROMPT },
+        { role: 'user', content: JSON.stringify(userPayload) },
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'tag_verdicts',
+          strict: true,
+          schema: APPLY_RESPONSE_SCHEMA,
+        },
       },
-      messages: [{ role: 'user', content: JSON.stringify(userPayload) }],
     }),
   });
   if (!r.ok) {
     const err = await r.text();
-    return json({ error: `anthropic ${r.status}`, detail: err.slice(0, 500) }, 502);
+    return json({ error: `openai ${r.status}`, detail: err.slice(0, 500) }, 502);
   }
   const data = await r.json();
-  const text = (data?.content || []).find(b => b.type === 'text')?.text;
-  if (!text) return json({ error: 'no text in response' }, 502);
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) return json({ error: 'no content in response' }, 502);
   let parsed;
   try { parsed = JSON.parse(text); } catch (_) {
     return json({ error: 'malformed json from model', detail: text.slice(0, 500) }, 502);
@@ -207,7 +202,7 @@ async function handleApply(request, env) {
 // Returns: { name: string|null, description: string|null }
 //   name === null → cards don't share a coherent theme; mark cluster rejected.
 async function handleClusterName(request, env) {
-  if (!env.ANTHROPIC_API_KEY) return json({ error: 'anthropic key not configured' }, 500);
+  if (!env.OPENAI_API_KEY) return json({ error: 'openai key not configured' }, 500);
   const body = await request.json().catch(() => null);
   if (!Array.isArray(body?.member_cards) || body.member_cards.length < 3) {
     return json({ error: 'need ≥3 member_cards' }, 400);
@@ -217,37 +212,34 @@ async function handleClusterName(request, env) {
     text: String(c.text || '').slice(0, 1500),
   }));
 
-  const system = [
-    {
-      type: 'text',
-      text: CLUSTER_NAME_SYSTEM_PROMPT,
-      cache_control: { type: 'ephemeral' },
-    },
-  ];
-
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': ANTHROPIC_VERSION,
+      'authorization': `Bearer ${env.OPENAI_API_KEY}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 256,
-      system,
-      output_config: {
-        format: { type: 'json_schema', schema: CLUSTER_NAME_RESPONSE_SCHEMA },
+      model: COMPLETIONS_MODEL,
+      messages: [
+        { role: 'system', content: CLUSTER_NAME_SYSTEM_PROMPT },
+        { role: 'user', content: JSON.stringify({ cards: members }) },
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'cluster_name',
+          strict: true,
+          schema: CLUSTER_NAME_RESPONSE_SCHEMA,
+        },
       },
-      messages: [{ role: 'user', content: JSON.stringify({ cards: members }) }],
     }),
   });
   if (!r.ok) {
     const err = await r.text();
-    return json({ error: `anthropic ${r.status}`, detail: err.slice(0, 500) }, 502);
+    return json({ error: `openai ${r.status}`, detail: err.slice(0, 500) }, 502);
   }
   const data = await r.json();
-  const text = (data?.content || []).find(b => b.type === 'text')?.text;
+  const text = data?.choices?.[0]?.message?.content;
   let parsed = null;
   try { parsed = text ? JSON.parse(text) : null; } catch (_) {}
   if (!parsed) return json({ error: 'malformed json from model' }, 502);
@@ -258,8 +250,11 @@ async function handleClusterName(request, env) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Prompts and JSON schemas. Kept here so the cache prefix stays byte-stable
-// across deployments (any change here invalidates the prompt cache once).
+// Prompts and JSON schemas. OpenAI structured outputs in strict mode
+// require: (a) every property in `properties` must also be listed in
+// `required`, (b) `additionalProperties: false` on every object,
+// (c) `["string","null"]` union for optional fields. The schemas below
+// follow those rules.
 
 const APPLY_SYSTEM_PROMPT = `You are a tagging assistant for a notes/board app. Each request gives you a batch of cards, each card with a list of candidate tags. For every (card, tag) pair, decide whether the tag actually applies to the card content.
 
@@ -311,14 +306,14 @@ Your job: decide whether they share a coherent theme worth tagging, and if so, n
 
 Output a name (1-3 words, title case, the kind of label a person would actually use as a tag like "Project Phoenix" or "Onboarding flow") and a one-sentence description suitable for a tag tooltip.
 
-If the cards do NOT share a meaningful theme — for example, they're a coincidental grouping of common words, or each card is about something different — return name: null. This is the validation gate against bad emergent clusters.
+If the cards do NOT share a meaningful theme — for example, they're a coincidental grouping of common words, or each card is about something different — return name: null and description: null. This is the validation gate against bad emergent clusters.
 
 Return JSON matching the schema. Do not add prose.`;
 
 const CLUSTER_NAME_RESPONSE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['name'],
+  required: ['name', 'description'],
   properties: {
     name: { type: ['string', 'null'] },
     description: { type: ['string', 'null'] },
