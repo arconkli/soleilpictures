@@ -3429,6 +3429,35 @@ body {
   flex-shrink: 0;
 }
 
+/* Eye toggle that hides the title + per-swatch hex labels, leaving just
+   the color strip. Lives in the head when the head is visible; floats
+   in the top-right corner when chipsOnly is on so the user can flip
+   back. Quiet by default — fades up to ink-1 on hover. */
+.pc-eye-btn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 2px;
+  width: 18px; height: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.pc-eye-btn:hover { color: var(--ink-1); background: var(--bg-hov); }
+.pc-eye-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+
+.pc.pc-chips-only > .pc-eye-btn {
+  position: absolute;
+  top: 6px; right: 6px;
+  opacity: 0;
+}
+.pc.pc-chips-only { position: relative; padding: 8px; }
+.pc.pc-chips-only:hover > .pc-eye-btn,
+.pc.pc-chips-only > .pc-eye-btn:focus-visible { opacity: 1; }
+
 /* Doc */
 .doc {
   width: 100%; height: 100%;

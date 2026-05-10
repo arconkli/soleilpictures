@@ -697,11 +697,15 @@ export function LinkCard({ title, source, target, image, description, favicon, o
 }
 
 
-export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false, onUpdate, autoFocus = false }) {
+export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false, chipsOnly = false, onUpdate, autoFocus = false }) {
   const [pickerIdx, setPickerIdx] = useState(null);
   const [pickerPos, setPickerPos] = useState(null);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const isEditable = !!onUpdate;
+  // chipsOnly is the user-facing toggle (eye button); hideHex/hideLabels are
+  // legacy props that still drive the same visibility paths.
+  const showHead = !chipsOnly && !hideLabels;
+  const showHex  = !chipsOnly && !hideHex;
 
   const updateSwatch = (i, patch) => {
     const next = swatches.map((s, idx) => idx === i ? { ...s, ...patch } : s);
@@ -735,8 +739,8 @@ export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels 
 
   if (!isEditable) {
     return (
-      <div className={`pc ${hideHex ? 'pc-no-hex' : ''} ${hideLabels ? 'pc-no-labels' : ''}`}>
-        {!hideLabels && (
+      <div className={`pc ${!showHex ? 'pc-no-hex' : ''} ${!showHead ? 'pc-no-labels' : ''}`}>
+        {showHead && (
           <div className="pc-head">
             <div className="pc-title">{title || 'Palette'}</div>
             <div className="pc-count">{countLabel}</div>
@@ -746,7 +750,7 @@ export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels 
           {swatches.map((s, i) => (
             <div key={i} className="pc-cell" title={`${s.hex}`}>
               <div className="pc-chip" style={{ background: s.hex }} />
-              {!hideHex && <div className="pc-hex">{(s.hex || '').toUpperCase()}</div>}
+              {showHex && <div className="pc-hex">{(s.hex || '').toUpperCase()}</div>}
             </div>
           ))}
         </div>
@@ -754,28 +758,57 @@ export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels 
     );
   }
 
+  const eyeBtn = (
+    <button className="pc-eye-btn"
+            title={chipsOnly ? 'Show labels' : 'Hide labels'}
+            aria-pressed={chipsOnly}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onUpdate({ chipsOnly: !chipsOnly }); }}>
+      {chipsOnly ? (
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2 2 L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="M2 8 C4 4.5 5.7 3 8 3 C10.3 3 12 4.5 14 8 C12 11.5 10.3 13 8 13 C5.7 13 4 11.5 2 8 Z"
+                stroke="currentColor" strokeWidth="1.2" fill="none" />
+          <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.2" fill="none" />
+        </svg>
+      ) : (
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2 8 C4 4.5 5.7 3 8 3 C10.3 3 12 4.5 14 8 C12 11.5 10.3 13 8 13 C5.7 13 4 11.5 2 8 Z"
+                stroke="currentColor" strokeWidth="1.2" fill="none" />
+          <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.2" fill="none" />
+        </svg>
+      )}
+    </button>
+  );
+
   return (
-    <div className="pc pc-editable">
-      <div className="pc-head">
-        <EditableText className="pc-title" value={title || ''} placeholder="Palette"
-                      onChange={(v) => onUpdate({ title: v })}
-                      autoFocus={autoFocus}
-                      selectAllOnFocus={autoFocus} />
-        <div className="pc-count">{countLabel}</div>
-      </div>
+    <div className={`pc pc-editable ${chipsOnly ? 'pc-chips-only' : ''}`}>
+      {showHead && (
+        <div className="pc-head">
+          <EditableText className="pc-title" value={title || ''} placeholder="Palette"
+                        onChange={(v) => onUpdate({ title: v })}
+                        autoFocus={autoFocus}
+                        selectAllOnFocus={autoFocus} />
+          <div className="pc-count">{countLabel}</div>
+          {eyeBtn}
+        </div>
+      )}
+      {!showHead && eyeBtn}
       <div className="pc-strip">
         {swatches.map((s, i) => (
           <div key={i} className="pc-cell">
             <button className="pc-chip" style={{ background: s.hex }}
-                    title="Click to edit color"
+                    title={showHex ? 'Click to edit color' : `${(s.hex || '').toUpperCase()} — click to edit`}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => openPicker(i, e)} />
-            <button className="pc-hex pc-hex-btn"
-                    title="Click to copy"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => copyHex(i, (s.hex || '').toUpperCase(), e)}>
-              {copiedIdx === i ? 'COPIED' : (s.hex || '').toUpperCase()}
-            </button>
+            {showHex && (
+              <button className="pc-hex pc-hex-btn"
+                      title="Click to copy"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => copyHex(i, (s.hex || '').toUpperCase(), e)}>
+                {copiedIdx === i ? 'COPIED' : (s.hex || '').toUpperCase()}
+              </button>
+            )}
             <button className="pc-cell-x" title="Remove"
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => removeSwatch(i, e)}>×</button>

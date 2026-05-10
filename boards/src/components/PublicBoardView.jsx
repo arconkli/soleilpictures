@@ -204,7 +204,7 @@ function PublicCardBody({ card, imageUrls }) {
     case 'palette':
       return (
         <div className="public-card-palette">
-          {card.title && <div className="public-card-palette-title">{card.title}</div>}
+          {!card.chipsOnly && card.title && <div className="public-card-palette-title">{card.title}</div>}
           <div className="public-card-palette-row">
             {(card.swatches || []).map((s, i) => (
               <span key={i} className="public-card-palette-swatch" style={{ background: s.color || s }} />

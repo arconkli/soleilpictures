@@ -73,6 +73,7 @@ export function ColorPicker({
   disableRecent = false,
 }) {
   const ref = useRef(null);
+  const hexInputRef = useRef(null);
   const initialHex = (value && value !== 'transparent') ? value : '#888888';
   const [hsv, setHsv] = useState(() => rgbToHsv(hexToRgb(initialHex)));
   const [hexText, setHexText] = useState(initialHex.replace(/^#/, ''));
@@ -92,7 +93,13 @@ export function ColorPicker({
 
   const currentHex = useMemo(() => rgbToHex(hsvToRgb(hsv)), [hsv]);
 
-  useEffect(() => { setHexText(currentHex.replace(/^#/, '')); }, [currentHex]);
+  // Sync hexText from currentHex (driven by SV pad / hue strip / preset clicks),
+  // but NEVER while the user is mid-type in the hex field — that would
+  // overwrite their partial entry on every commit.
+  useEffect(() => {
+    if (document.activeElement === hexInputRef.current) return;
+    setHexText(currentHex.replace(/^#/, ''));
+  }, [currentHex]);
 
   // Recent-colors policy: a session is one open→close cycle of the picker.
   // We don't add anything to the recent list while the user is exploring
@@ -159,12 +166,32 @@ export function ColorPicker({
   const onHexInput = (e) => {
     let v = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
     setHexText(v);
-    if (/^[0-9a-fA-F]{6}$/.test(v) || /^[0-9a-fA-F]{3}$/.test(v)) {
-      const full = v.length === 3 ? v.split('').map(c => c + c).join('') : v;
+    // Commit ONLY on a full 6-char hex. We deliberately don't expand 3-char
+    // shorthand mid-type — that turned "ffa" into "ffaffa" and made the hex
+    // input feel like it was rewriting itself as the user typed.
+    if (/^[0-9a-fA-F]{6}$/.test(v)) {
+      const next = rgbToHsv(hexToRgb(v));
+      setHsv(next);
+      onChange('#' + v);
+      markDirty('#' + v);
+    }
+  };
+
+  // On blur: if user left a 3-char shorthand or partial entry, expand/snap
+  // back to the current valid hex so the field never displays an incomplete
+  // value once they've moved on.
+  const onHexBlur = () => {
+    if (/^[0-9a-fA-F]{3}$/.test(hexText)) {
+      const full = hexText.split('').map(c => c + c).join('');
+      setHexText(full);
       const next = rgbToHsv(hexToRgb(full));
       setHsv(next);
       onChange('#' + full);
       markDirty('#' + full);
+      return;
+    }
+    if (!/^[0-9a-fA-F]{6}$/.test(hexText)) {
+      setHexText(currentHex.replace(/^#/, ''));
     }
   };
 
@@ -279,9 +306,11 @@ export function ColorPicker({
         <span className="cp-hex-prefix">#</span>
         <input type="text"
                className="cp-hex"
+               ref={hexInputRef}
                value={hexText.toUpperCase()}
                maxLength={6}
                onChange={onHexInput}
+               onBlur={onHexBlur}
                spellCheck={false}
                placeholder="FFFFFF" />
         {allowTransparent && (
