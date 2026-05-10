@@ -31,6 +31,8 @@ import {
   NO_MATCH_DIST,
 } from '../lib/clusterMath.js';
 import { logDecision, recordCall, isDebug } from '../lib/aiTaggerLog.js';
+import { runWorkspaceDiscovery } from '../lib/aiDiscovery.js';
+import { backfillTagAgainstWorkspace } from '../lib/aiBackfill.js';
 
 // Strip HTML tags / entities and collapse whitespace before sending text to
 // the embedding model. Saves tokens and improves quality — `<span style=...>`
@@ -132,6 +134,12 @@ export function useAiTagger(workspaceId) {
   // tagId → setTimeout handle. Debounced centroid recomputation per tag
   // — repeated apply/unapply in a quick burst settles into one recompute.
   const centroidDebounceRef = useRef(new Map());
+  // Workspace-wide discovery is debounced too — a burst of orphan-card
+  // edits should produce one discovery pass, not one per edit.
+  const discoveryDebounceRef = useRef(null);
+  // Track which new tags have been backfilled this session so the
+  // tags-realtime listener doesn't re-fire for tags we just created.
+  const backfilledTagsRef = useRef(new Set());
 
   // Load tags + any persisted centroids + currently-applied tag links on
   // workspace change.
@@ -285,28 +293,72 @@ export function useAiTagger(workspaceId) {
   }, [workspaceId]);
 
   // Subscribe to tag definition changes so renames / new tags / deletes
-  // land in tagsRef without a page reload. Centroid recomputation on
-  // rename is deferred — Phase 1.5.
+  // land in tagsRef without a page reload. INSERT also triggers backfill
+  // against existing cards so a newly-created tag doesn't have to wait
+  // for every card to be re-edited to pick up its members.
   useEffect(() => {
     if (!workspaceId || !supabase || !ready) return;
     const chId = `ai-tagger-tags-${workspaceId}-${Math.random().toString(36).slice(2, 8)}`;
     const ch = supabase.channel(chId)
       .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'tags', filter: `workspace_id=eq.${workspaceId}` },
+          { event: 'INSERT', schema: 'public', table: 'tags', filter: `workspace_id=eq.${workspaceId}` },
+          async (payload) => {
+            const tag = payload?.new;
+            if (!tag?.id) return;
+            // Update tagsRef.
+            const { data } = await supabase.from('tags')
+              .select('id, name, slug, color')
+              .eq('workspace_id', workspaceId);
+            tagsRef.current = data || [];
+            // Seed centroid from name (lazy fallback) then kick off backfill.
+            const centroid = await ensureCentroidFn.current?.(tag);
+            if (centroid && !backfilledTagsRef.current.has(tag.id)) {
+              backfilledTagsRef.current.add(tag.id);
+              // Slight delay so any concurrent applies (e.g., cluster promotion
+              // applies members directly) land first and we don't double-apply.
+              setTimeout(async () => {
+                const result = await backfillTagAgainstWorkspace({
+                  workspaceId,
+                  tag,
+                  centroid,
+                  embeddingCache: cardEmbeddingCacheRef.current,
+                  appliedRef,
+                });
+                if (isDebug() && result) {
+                  console.log(`[ai-backfill] "${tag.name}" → ${result.silent} silent + ${result.applied_high} ai-high (${result.ai_calls} apply call${result.ai_calls === 1 ? '' : 's'})`);
+                }
+              }, 1500);
+            }
+          })
+      .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'tags', filter: `workspace_id=eq.${workspaceId}` },
           async () => {
             const { data } = await supabase.from('tags')
               .select('id, name, slug, color')
               .eq('workspace_id', workspaceId);
             tagsRef.current = data || [];
-            // Drop any centroid for a tag that no longer exists.
-            const validIds = new Set(tagsRef.current.map(t => t.id));
-            for (const id of [...centroidsRef.current.keys()]) {
-              if (!validIds.has(id)) centroidsRef.current.delete(id);
+          })
+      .on('postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'tags', filter: `workspace_id=eq.${workspaceId}` },
+          async (payload) => {
+            const removed = payload?.old?.id;
+            if (removed) {
+              centroidsRef.current.delete(removed);
+              backfilledTagsRef.current.delete(removed);
             }
+            const { data } = await supabase.from('tags')
+              .select('id, name, slug, color')
+              .eq('workspace_id', workspaceId);
+            tagsRef.current = data || [];
           });
     ch.subscribe();
     return () => { try { supabase.removeChannel(ch); } catch {} };
   }, [workspaceId, ready]);
+
+  // Ref-stable handle to ensureCentroid so the tags-realtime callback above
+  // can call it without re-binding the channel every render. Set after
+  // ensureCentroid is defined further down.
+  const ensureCentroidFn = useRef(null);
 
   // Lazily produce a centroid for a tag that has no stored one. Falls
   // back to the embedding of the tag's name. Dedupes concurrent calls.
@@ -342,6 +394,25 @@ export function useAiTagger(workspaceId) {
     } finally {
       centroidPromisesRef.current.delete(tag.id);
     }
+  }, [workspaceId]);
+  // Stash a stable handle so the tags-realtime callback above can invoke
+  // ensureCentroid without re-binding on every render.
+  ensureCentroidFn.current = ensureCentroid;
+
+  // Debounced workspace-wide discovery pass. Triggered after a card-edit
+  // suggestTags finds the card has no high-confidence matches (orphan)
+  // — repeat orphans during a burst of edits collapse to one pass.
+  const scheduleDiscovery = useCallback(() => {
+    if (!workspaceId) return;
+    if (discoveryDebounceRef.current) clearTimeout(discoveryDebounceRef.current);
+    discoveryDebounceRef.current = setTimeout(() => {
+      discoveryDebounceRef.current = null;
+      runWorkspaceDiscovery({
+        workspaceId,
+        tagCentroids: centroidsRef.current,
+        embeddingCache: cardEmbeddingCacheRef.current,
+      }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
+    }, 4000);
   }, [workspaceId]);
 
   const suggestTags = useCallback(async (content, target) => {
@@ -450,8 +521,17 @@ export function useAiTagger(workspaceId) {
       }
       // 'low' → dropped silently.
     }
+
+    // 7. If this card got no high-confidence applies, it's a discovery
+    //    candidate — schedule a workspace-wide cluster pass. Debounced
+    //    so a burst of orphan edits collapses to one pass.
+    if (target?.kind === 'card') {
+      const gotHigh = out.some(s => s.score >= 1.0);
+      if (!gotHigh) scheduleDiscovery();
+    }
+
     return out;
-  }, [ready, workspaceId, ensureCentroid]);
+  }, [ready, workspaceId, ensureCentroid, scheduleDiscovery]);
 
   return { ready, suggestTags };
 }

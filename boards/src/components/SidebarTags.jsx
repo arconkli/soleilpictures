@@ -20,6 +20,7 @@ import { supabase } from '../lib/supabase.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
 import { useSuggestedTags } from '../hooks/useSuggestedTags.js';
+import { useDiscoveredTags } from '../hooks/useDiscoveredTags.js';
 import { ColorPicker } from './ColorPicker.jsx';
 
 const EXPAND_KEY = 'soleil.tags.sb.expanded';
@@ -119,7 +120,24 @@ export function SidebarTags({
     () => (tags || []).map(t => (t.slug || t.name || '').toLowerCase()),
     [tags],
   );
-  const { suggestions } = useSuggestedTags({ workspaceId, existingTagSlugs: existingSlugs });
+  // Two suggestion sources:
+  //   - legacy useSuggestedTags: word-frequency over workspace prose
+  //   - useDiscoveredTags: AI-named clusters from pending_clusters
+  // Switched by the same localStorage flag as the AI tagger engine.
+  const aiTaggerEnabled = (() => {
+    try { return localStorage.getItem('soleil.ai_tagger') === '1'; } catch { return false; }
+  })();
+  const legacySuggested = useSuggestedTags({
+    workspaceId: aiTaggerEnabled ? null : workspaceId,
+    existingTagSlugs: existingSlugs,
+  });
+  const discovered = useDiscoveredTags({
+    workspaceId: aiTaggerEnabled ? workspaceId : null,
+    userId,
+    onWorkspaceTagsChanged,
+  });
+  const suggestions = aiTaggerEnabled ? discovered.suggestions : legacySuggested.suggestions;
+
   const [dismissedSuggestions, setDismissedSuggestions] = useState(() => {
     if (typeof localStorage === 'undefined') return new Set();
     try {
@@ -131,20 +149,29 @@ export function SidebarTags({
     () => (suggestions || []).filter(s => !dismissedSuggestions.has(s.term)),
     [suggestions, dismissedSuggestions],
   );
-  const dismissSuggestion = (term) => {
+  const dismissSuggestion = (term, clusterId) => {
+    // AI-discovered: persist dismissal server-side so other sessions don't
+    // keep re-surfacing it. Legacy: localStorage is fine.
+    if (aiTaggerEnabled && clusterId) {
+      discovered.dismissCluster(clusterId);
+      return;
+    }
     setDismissedSuggestions(prev => {
       const next = new Set(prev); next.add(term);
       try { localStorage.setItem(`soleil.tags.suggested.dismissed.${workspaceId}`, JSON.stringify(Array.from(next))); } catch (_) {}
       return next;
     });
   };
-  const acceptSuggestion = async (term) => {
+  const acceptSuggestion = async (term, clusterId) => {
     if (!workspaceId || !term) return;
     try {
-      await ensureTag({ workspaceId, name: term.charAt(0).toUpperCase() + term.slice(1), kind: 'user', createdBy: userId });
-      onWorkspaceTagsChanged?.();
-      // Once accepted, drop it from the dismissed list (it'll naturally
-      // disappear from suggestions because existingSlugs now includes it).
+      if (aiTaggerEnabled && clusterId) {
+        // Promotion creates the tag AND applies it to every cluster member.
+        await discovered.promoteCluster(clusterId);
+      } else {
+        await ensureTag({ workspaceId, name: term.charAt(0).toUpperCase() + term.slice(1), kind: 'user', createdBy: userId });
+        onWorkspaceTagsChanged?.();
+      }
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Create tag failed: ' + (err.message || err) });
     }
@@ -431,19 +458,21 @@ export function SidebarTags({
                 </span>
               </div>
               {visibleSuggestions.slice(0, 3).map(s => (
-                <div key={s.term}
+                <div key={s.clusterId || s.term}
                      className="sb-tag-suggestion"
-                     title={`Mentioned in ${s.items} item${s.items > 1 ? 's' : ''} across ${s.boards} board${s.boards > 1 ? 's' : ''}`}>
+                     title={s.clusterId
+                       ? `Found in ${s.items} related card${s.items > 1 ? 's' : ''}`
+                       : `Mentioned in ${s.items} item${s.items > 1 ? 's' : ''} across ${s.boards} board${s.boards > 1 ? 's' : ''}`}>
                   <span className="sb-dot" style={{ background: fallbackColor(s.term) }} />
                   <span className="sb-tag-suggestion-name">{s.term}</span>
                   <span className="sb-tag-suggestion-count">{s.items}</span>
                   <button className="sb-tag-suggestion-add"
-                          onClick={() => acceptSuggestion(s.term)}
+                          onClick={() => acceptSuggestion(s.term, s.clusterId)}
                           title={`Accept "${s.term}" as a tag`}>
                     <Icon as={Plus} size={11} />
                   </button>
                   <button className="sb-tag-suggestion-x"
-                          onClick={() => dismissSuggestion(s.term)}
+                          onClick={() => dismissSuggestion(s.term, s.clusterId)}
                           title="Don't suggest this">
                     ×
                   </button>
