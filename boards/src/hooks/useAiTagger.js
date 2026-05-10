@@ -30,6 +30,17 @@ import {
 } from '../lib/clusterMath.js';
 import { logDecision, recordCall } from '../lib/aiTaggerLog.js';
 
+// Strip HTML tags / entities and collapse whitespace before sending text to
+// the embedding model. Saves tokens and improves quality — `<span style=...>`
+// markup has no semantic meaning, but the embedder will still weight it.
+function stripHtml(s) {
+  return String(s || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function useAiTagger(workspaceId) {
   const [ready, setReady] = useState(false);
   // Tag rows for the workspace. Refreshed on init + tag-realtime change.
@@ -40,34 +51,79 @@ export function useAiTagger(workspaceId) {
   // tag-name embedding promise dedup — multiple suggestTags calls in flight
   // shouldn't each kick off the same embed call for an uncentroided tag.
   const centroidPromisesRef = useRef(new Map());
+  // `${source_kind}:${source_id}` → Set<tag_id> of already-applied tags.
+  // Filters out duplicate suggestions so we don't emit insert calls that
+  // generate noisy 409s for tags already on the target.
+  const appliedRef = useRef(new Map());
 
-  // Load tags + any persisted centroids on workspace change.
+  // Load tags + any persisted centroids + currently-applied tag links on
+  // workspace change.
   useEffect(() => {
     if (!workspaceId || !supabase) { setReady(false); return; }
     let cancelled = false;
     setReady(false);
     async function load() {
-      const [tagsResp, centroidsResp] = await Promise.all([
+      const [tagsResp, centroidsResp, appliedResp] = await Promise.all([
         supabase.from('tags')
           .select('id, name, slug, color')
           .eq('workspace_id', workspaceId),
         supabase.from('tag_centroids')
           .select('tag_id, centroid')
           .eq('workspace_id', workspaceId),
+        supabase.from('entity_links')
+          .select('source_kind, source_id, target_id')
+          .eq('source_workspace', workspaceId)
+          .eq('target_kind', 'tag')
+          .eq('link_kind', 'applied'),
       ]);
       if (cancelled) return;
       tagsRef.current = tagsResp.data || [];
       centroidsRef.current.clear();
       centroidPromisesRef.current.clear();
+      appliedRef.current.clear();
       for (const r of (centroidsResp.data || [])) {
         const v = parsePgvector(r.centroid);
         if (v) centroidsRef.current.set(r.tag_id, v);
+      }
+      for (const r of (appliedResp.data || [])) {
+        const key = `${r.source_kind}:${r.source_id}`;
+        if (!appliedRef.current.has(key)) appliedRef.current.set(key, new Set());
+        appliedRef.current.get(key).add(r.target_id);
       }
       setReady(true);
     }
     load().catch(err => console.warn('[ai-tagger] hydrate failed', err));
     return () => { cancelled = true; };
   }, [workspaceId]);
+
+  // Track applied-tag inserts/deletes so the filter stays current as the
+  // user (or our own auto-applies) modify tags. Subscribed only after
+  // initial hydrate so the in-memory map starts in sync.
+  useEffect(() => {
+    if (!workspaceId || !supabase || !ready) return;
+    const chId = `ai-tagger-applied-${workspaceId}-${Math.random().toString(36).slice(2, 8)}`;
+    const ch = supabase.channel(chId)
+      .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'entity_links', filter: `source_workspace=eq.${workspaceId}` },
+          (payload) => {
+            const r = payload?.new || {};
+            if (r.target_kind !== 'tag' || r.link_kind !== 'applied') return;
+            const key = `${r.source_kind}:${r.source_id}`;
+            if (!appliedRef.current.has(key)) appliedRef.current.set(key, new Set());
+            appliedRef.current.get(key).add(r.target_id);
+          })
+      .on('postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'entity_links', filter: `source_workspace=eq.${workspaceId}` },
+          (payload) => {
+            const r = payload?.old || {};
+            if (r.target_kind !== 'tag' || r.link_kind !== 'applied') return;
+            const key = `${r.source_kind}:${r.source_id}`;
+            const set = appliedRef.current.get(key);
+            if (set) set.delete(r.target_id);
+          });
+    ch.subscribe();
+    return () => { try { supabase.removeChannel(ch); } catch {} };
+  }, [workspaceId, ready]);
 
   // Subscribe to tag definition changes so renames / new tags / deletes
   // land in tagsRef without a page reload. Centroid recomputation on
@@ -131,10 +187,16 @@ export function useAiTagger(workspaceId) {
 
   const suggestTags = useCallback(async (content, target) => {
     if (!ready || !workspaceId || !supabase) return [];
-    const text = String(content || '').trim();
+    // Strip HTML before doing anything else — feeding span/style markup to
+    // the embedding model wastes tokens and adds noise.
+    const text = stripHtml(content);
     if (!text) return [];
     const tags = tagsRef.current;
     if (!tags.length) return [];
+
+    // Tags already applied to this target — never re-suggest them.
+    const targetKey = target ? `${target.kind}:${target.id}` : null;
+    const alreadyApplied = (targetKey && appliedRef.current.get(targetKey)) || new Set();
 
     // 1. Embed the query.
     const queryResult = await embedOne(target?.id || 'q', text);
@@ -199,12 +261,15 @@ export function useAiTagger(workspaceId) {
       applyUsage,
     });
 
-    // 6. Convert to the legacy suggestion shape.
+    // 6. Convert to the legacy suggestion shape, filtering already-applied
+    //    tags so we don't generate noisy 23505 inserts on the caller side.
     const out = [];
     for (const s of silentApply) {
+      if (alreadyApplied.has(s.tag_id)) continue;
       out.push({ tagId: s.tag_id, score: 1.0, reason: 'embedding-near' });
     }
     for (const v of verdicts) {
+      if (alreadyApplied.has(v.tag_id)) continue;
       if (v.confidence === 'high') {
         out.push({ tagId: v.tag_id, score: 1.0, reason: 'ai-high' });
       } else if (v.confidence === 'medium') {
