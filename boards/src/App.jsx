@@ -32,7 +32,7 @@ import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
-import { SoleilWordmark } from './components/SoleilWordmark.jsx';
+import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
@@ -2156,6 +2156,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <Icon as={PanelLeftOpen} size={16} />
               </button>
             )}
+            <button className="tb-brand" title="Home" aria-label="Clusters home"
+                    onClick={() => setCurrentSurface('home')}>
+              <ClustersMark size={22} />
+              <span className="tb-brand-text">Clusters</span>
+            </button>
+            <span className="tb-brand-sep" aria-hidden="true" />
             <div className="crumbs">
               {crumbs.map((c, i) => (
                 <React.Fragment key={`${c.id}-${i}`}>

@@ -2208,6 +2208,31 @@ body {
 .tb-icon:disabled, .tb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .tb-btn-label { font: 500 13px/1 var(--font-sans); }
 
+/* Clusters brand chip in the topbar — small cluster mark + "CLUSTERS"
+   wordmark in Brandon Grotesque, click goes home. Sits at the very left
+   of .tb-left before the crumbs so the product identity is always visible. */
+.tb-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  background: transparent;
+  border: 0;
+  color: var(--ink-1);
+  border-radius: var(--radius);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.tb-brand:hover { color: var(--ink-0); background: var(--bg-hov); }
+.tb-brand-text {
+  font: 700 12px/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.tb-brand-sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; flex-shrink: 0; }
+
 /* "VIEW ONLY" pill in the topbar — appears for boards the caller has
    read-but-not-write access to (per-board viewer share, no membership). */
 .tb-viewonly {
