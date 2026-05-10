@@ -2477,6 +2477,7 @@ export function CanvasSurface({
         // Fire-and-forget OG fetch — when it resolves, patch the card
         // with the preview fields and grow it to fit the image.
         fetchLinkPreview(url).then(p => {
+          console.log('[link] preview result for', url, '→', p);
           if (!p) return;
           const patch = {};
           if (p.title) patch.title = p.title;
@@ -2484,7 +2485,10 @@ export function CanvasSurface({
           if (p.description) patch.description = p.description;
           if (p.favicon) patch.favicon = p.favicon;
           if (p.image) { patch.w = 280; patch.h = 290; }
-          if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
+          if (Object.keys(patch).length) {
+            console.log('[link] patching card', newId, patch);
+            mutators.updateCard?.(newId, patch);
+          }
         });
       }},
       { divider: true },
