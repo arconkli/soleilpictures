@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
-import { Paperclip, Smile } from '../lib/icons.js';
+import { Paperclip, Smile, Link as LinkIcon } from '../lib/icons.js';
 import { uploadMessageFile } from '../lib/messageAttachments.js';
 import { caretRect } from '../lib/caretRect.js';
 import { EntityPicker } from './EntityPicker.jsx';
@@ -19,6 +19,8 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
   const [mention, setMention] = useState(null); // { tokenStart, query, anchor }
   const [pendingMentions, setPendingMentions] = useState([]);     // user ids
   const [pendingEntityRefs, setPendingEntityRefs] = useState([]); // entity targets
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkDraft, setLinkDraft] = useState('');
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const lastTypingRef = useRef(0);
@@ -128,6 +130,22 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
 
   const isBusy = busy || uploading;
 
+  // Insert a URL chip into the attachment row. Same `{ kind: 'url' }`
+  // shape used by the CORS-fallback path when a dragged remote image
+  // can't be fetched cross-origin (line 59 above) — the recipient sees
+  // it as a soleil link pill.
+  const commitLink = () => {
+    let raw = linkDraft.trim();
+    if (!raw) return;
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(raw)) raw = 'https://' + raw;
+    if (!/^https?:\/\//i.test(raw)) { setLinkOpen(false); setLinkDraft(''); return; }
+    setAttachments(prev => [...prev, { kind: 'url', href: raw, title: raw }]);
+    setLinkOpen(false);
+    setLinkDraft('');
+    inputRef.current?.focus();
+  };
+  const cancelLink = () => { setLinkOpen(false); setLinkDraft(''); inputRef.current?.focus(); };
+
   return (
     <form className={`msg-composer ${dragOver ? 'is-drop-target' : ''}`}
           onSubmit={(e) => { e.preventDefault(); send(); }}
@@ -171,10 +189,34 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
       />
       <input ref={fileInputRef} type="file" hidden multiple
              onChange={(e) => { handleFiles([...e.target.files]); e.target.value = ''; }} />
+      {linkOpen && (
+        <div className="msg-composer-link">
+          <input
+            className="msg-composer-link-input"
+            type="url"
+            autoFocus
+            placeholder="https://…"
+            value={linkDraft}
+            onChange={(e) => setLinkDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commitLink(); }
+              if (e.key === 'Escape') { e.preventDefault(); cancelLink(); }
+            }}
+          />
+          <button type="button" className="msg-composer-btn" onClick={commitLink}>Add</button>
+          <button type="button" className="msg-composer-btn" onClick={cancelLink}>Cancel</button>
+        </div>
+      )}
       <div className="msg-composer-actions">
         <button type="button" className="msg-composer-btn" title="Attach"
                 onClick={() => fileInputRef.current?.click()}>
           <Icon as={Paperclip} size={14} />
+        </button>
+        <button type="button"
+                className={`msg-composer-btn ${linkOpen ? 'is-active' : ''}`}
+                title="Link"
+                onClick={() => { setLinkOpen(o => !o); setLinkDraft(''); }}>
+          <Icon as={LinkIcon} size={14} />
         </button>
         <button type="button" className="msg-composer-btn" title="Emoji"><Icon as={Smile} size={14} /></button>
         <button type="submit" className="msg-composer-send" disabled={isBusy || (!body.trim() && attachments.length === 0)}>

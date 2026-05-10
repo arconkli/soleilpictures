@@ -275,7 +275,12 @@ body {
   font: 500 12px/1 var(--font-sans);
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-  max-width: 160px;
+  /* Fixed width so the label changing as the caret moves through
+     differently-styled text doesn't reflow the rest of the toolbar
+     (which previously caused the "toolbar jitter on arrow keys" bug). */
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
 }
 .doc-tb-pill:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
 .doc-tb-pill:disabled { opacity: .35; cursor: not-allowed; }
@@ -3243,17 +3248,8 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-.note-body::-webkit-scrollbar { width: 8px; }
-.note-body::-webkit-scrollbar-track { background: transparent; }
-.note-body::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.22);
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-.note-body:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,.32); background-clip: padding-box; }
-[data-theme='light'] .note-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,.22); background-clip: padding-box; }
-[data-theme='light'] .note-body:hover::-webkit-scrollbar-thumb { background: rgba(0,0,0,.32); background-clip: padding-box; }
+/* Note bodies inherit the global auto-hide scrollbar styling — no
+   per-component override. */
 .note-body a {
   color: var(--ink-0);
   text-decoration: underline;
@@ -3546,11 +3542,15 @@ body {
 }
 .tweak-label { color: var(--ink-1) !important; font: 500 13px/1.4 var(--font-sans) !important; }
 
-/* Scrollbar — thin, transparent track, fades in on hover. Firefox uses the
-   shorthand props; WebKit gets a transparent thumb that gets a visible color
-   only when the parent is hovered. */
+/* Scrollbars — macOS-style auto-hide. Invisible at rest, fades in on
+   hover/scroll. Width is 8px (overlay-style on WebKit) so layout
+   doesn't reflow when the bar appears. Firefox: `scrollbar-width: thin`
+   plus the `scrollbar-color` shorthand handles fade. WebKit: a thumb
+   that's transparent by default and only colored when the parent is
+   hovered or the user is dragging the thumb. */
 * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-*:hover { scrollbar-color: rgba(255,255,255,.18) transparent; }
+*:hover { scrollbar-color: rgba(255,255,255,.22) transparent; }
+[data-theme='light'] *:hover { scrollbar-color: rgba(0,0,0,.22) transparent; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-corner { background: transparent; }
@@ -3559,11 +3559,14 @@ body {
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
-  transition: background-color var(--dur-fast) var(--ease);
+  transition: background-color 240ms var(--ease);
 }
-*:hover::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,.16); }
-::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,.28) !important; }
-::-webkit-scrollbar-thumb:active { background-color: rgba(255,255,255,.36) !important; }
+*:hover::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,.18); }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,.32) !important; }
+::-webkit-scrollbar-thumb:active { background-color: rgba(255,255,255,.4) !important; }
+[data-theme='light'] *:hover::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,.18); }
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover { background-color: rgba(0,0,0,.32) !important; }
+[data-theme='light'] ::-webkit-scrollbar-thumb:active { background-color: rgba(0,0,0,.42) !important; }
 
 /* Fully hidden scrollbars where we don't want any chrome at all. */
 .scroll-hidden { scrollbar-width: none; -ms-overflow-style: none; }
@@ -4594,19 +4597,6 @@ body {
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
 [data-theme='light'] .tob { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
-/* Anchored variant — bar follows the active selection. Override the
-   default bottom:14px positioning since inline style sets fixed coords.
-   Add a subtle directional pulse on first appear so it's discoverable. */
-.tob.tob-anchored {
-  bottom: auto;
-  left: auto;
-  transform: translateX(-50%);
-  animation: tob-anchored-in 160ms var(--ease);
-}
-@keyframes tob-anchored-in {
-  from { opacity: 0; transform: translate(-50%, 4px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
-}
 .tob-label {
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-3);
@@ -6375,8 +6365,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   margin-left: -2px;
 }
 
-/* Image lightbox — opened from list-board image rows so the user can preview
-   without entering the parent board. Click outside or press Esc to close. */
+/* Image lightbox — opens fit-to-screen by default; click image to switch to
+   actual size with drag-to-pan. Click backdrop or Esc to close.            */
 .lightbox {
   position: fixed; inset: 0;
   z-index: 2147483640;
@@ -6393,14 +6383,32 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+/* Stage holds the image; in actual-size mode it scrolls/pans via JS. */
+.lightbox-stage {
+  position: relative;
+  width: 100%; flex: 1 1 auto;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  min-height: 0;
+}
+.lightbox-mode-actual .lightbox-stage { cursor: grab; }
+.lightbox-mode-actual .lightbox-stage:active { cursor: grabbing; }
 .lightbox-img {
-  max-width: 100%; max-height: calc(100vh - 140px);
-  object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 30px 80px rgba(0,0,0,.55);
-  cursor: default;
   user-select: none;
   -webkit-user-drag: none;
+  transition: transform 90ms linear;
+}
+.lightbox-mode-fit .lightbox-img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain;
+  cursor: zoom-in;
+}
+.lightbox-mode-actual .lightbox-img {
+  max-width: none; max-height: none;
+  width: auto; height: auto;
+  cursor: zoom-out;
 }
 .lightbox-cap {
   margin-top: 14px;
@@ -6410,19 +6418,43 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   max-width: 60ch;
   text-align: center;
 }
-.lightbox-x {
-  position: absolute; top: 18px; right: 18px;
+.lightbox-x,
+.lightbox-download {
+  position: absolute; top: 18px;
   width: 34px; height: 34px;
   border-radius: 50%;
   border: 1px solid rgba(255,255,255,.14);
   background: rgba(255,255,255,.06);
   color: var(--ink-0);
-  font-size: 20px; line-height: 1;
   cursor: pointer;
   display: grid; place-items: center;
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.lightbox-x:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.24); }
+.lightbox-x { right: 18px; font-size: 20px; line-height: 1; }
+.lightbox-download { right: 60px; }
+.lightbox-x:hover,
+.lightbox-download:hover:not(:disabled) {
+  background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.24);
+}
+.lightbox-download:disabled { opacity: .5; cursor: progress; }
+
+/* Hover-revealed expand button on canvas image cards. Mirrors .ic-link
+   placement (top-right) so multiple affordances stack predictably.       */
+.ic-expand {
+  position: absolute; top: 6px; right: 6px;
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(8,8,10,.55);
+  color: #fff;
+  display: grid; place-items: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms var(--ease), background var(--dur-fast) var(--ease);
+}
+.ic:hover .ic-expand { opacity: 1; }
+.ic-expand:hover { background: rgba(8,8,10,.78); }
+.ic-expand + .ic-link { right: 32px; } /* If link icon is also present, scoot it left. */
 
 
 /* ──────────────────────────── Phase 4.20: doc surface (Tiptap) ─────────── */
@@ -6430,7 +6462,12 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-surface {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr) 240px;
+  /* Single explicit row so the grid track has a definite height for its
+     children (the previous implicit row let .doc-center collapse in some
+     overlays, which broke wheel-scroll inside .doc-paper).               */
+  grid-template-rows: minmax(0, 1fr);
   height: 100%;
+  min-height: 0;
   background: var(--bg-1);
   font-family: var(--font-sans);
   color: var(--ink-1);
@@ -6615,6 +6652,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-center {
   display: flex; flex-direction: column;
   min-width: 0;
+  min-height: 0;     /* allow flex children to scroll; without this the
+                        column never shrinks below content size */
   height: 100%;
   background: var(--bg-0);
 }
@@ -6672,6 +6711,12 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   letter-spacing: -0.005em;
   padding: 0 20px 0 8px;
   height: 28px;
+  /* Fixed width so the heading/size dropdowns don't grow/shrink as the
+     caret moves through different blocks ("Body" vs "Heading 1" etc.).
+     This was the source of the toolbar reflow that the user saw on
+     arrow-key navigation. */
+  width: 96px;
+  min-width: 96px;
   border-radius: 6px;
   cursor: pointer;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(160,160,160,.55)' d='M0 0h10L5 6z'/></svg>");
@@ -6680,6 +6725,19 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-tb-select:hover:not(:disabled) { background-color: var(--bg-hov); color: var(--ink-0); }
+
+/* Zoom segmented control (− [pct] +). Tabular figures so the percentage
+   label doesn't shift width as it ticks through values.                  */
+.doc-tb-zoom {
+  display: inline-flex; align-items: center; gap: 0;
+  flex-shrink: 0;
+}
+.doc-tb-zoom .doc-tb-btn { width: 24px; }
+.doc-tb-zoom-label {
+  width: 44px !important;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
 /* Hairline separator — half-height, lower opacity, less margin so
    button groups read as one continuous strip, not compartments. */
 .doc-tb-sep {
@@ -6738,6 +6796,12 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-editor-wrap {
   position: relative;
   width: 100%;
+  /* User-controlled zoom — set as `--doc-zoom` on the .doc-paper
+     container by DocSurface. The CSS `zoom` property scales both the
+     visual size *and* the layout box, so .doc-paper's scrollbars
+     track the scaled height correctly (unlike `transform: scale`,
+     which only changes paint). Range clamped 0.5–2.0 in JS.            */
+  zoom: var(--doc-zoom, 1);
   /* 8.5" × 11" at 96dpi. min-height keeps the first page tall enough
      to feel like paper; the wrapper grows past 1056 as content runs
      long. */
@@ -7401,8 +7465,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 /* Find & replace bar */
 .doc-find {
-  position: absolute; top: 12px; right: 24px;
-  z-index: 10;
+  position: absolute; top: 52px; right: 24px;
+  z-index: 60;
   display: flex; align-items: center; gap: 4px;
   padding: 6px 8px;
   background: rgba(16,16,20,.85);
@@ -9033,6 +9097,45 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   padding-left: 30px;
 }
 
+/* iMessage-style parent preview shown above a reply in the main feed.
+   Sender's color rail on the left, name in the same color, body excerpt
+   in muted ink. Click → flash + scroll the parent into view.            */
+.msg-reply-preview {
+  appearance: none; background: transparent; border: 0;
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-left: 30px; /* aligns under the avatar column */
+  margin-bottom: 2px;
+  padding: 3px 8px 3px 6px;
+  border-left: 2px solid var(--line-2);
+  color: var(--ink-3);
+  font: 500 11.5px/1.3 var(--font-sans);
+  cursor: pointer;
+  text-align: left;
+  max-width: 100%;
+  border-radius: 4px;
+  transition: background var(--dur-fast) var(--ease);
+}
+.msg-reply-preview:hover { background: var(--bg-hov); }
+.msg-reply-preview-line {
+  width: 2px; align-self: stretch;
+  border-radius: 2px;
+  margin: 1px 4px 1px 0;
+  display: none; /* the border-left handles the rail; this is a slot for future use */
+}
+.msg-reply-preview-author {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.msg-reply-preview-body {
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 32ch;
+}
+.msg-bubble--reply { /* leave room for the preview chip above */ }
+
 /* Replies-count badge — appears under a parent message that has
    replies. Click → opens thread mode.                                */
 .msg-bubble-replies {
@@ -9269,6 +9372,31 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .msg-composer-btn:hover { color: var(--soleil); background: var(--soleil-soft); }
+.msg-composer-btn.is-active { color: var(--soleil); background: var(--soleil-soft); }
+
+/* Inline URL prompt above the textarea, shown when the link button is
+   toggled on. Sits between the attachment row and the input.           */
+.msg-composer-link {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+}
+.msg-composer-link-input {
+  flex: 1;
+  appearance: none; border: 1px solid var(--line-2);
+  background: var(--bg-3); color: var(--ink-0);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font: 500 12.5px/1.3 var(--font-sans);
+}
+.msg-composer-link-input:focus {
+  outline: none;
+  border-color: var(--soleil);
+  box-shadow: var(--shadow-glow);
+}
+.msg-composer-link .msg-composer-btn {
+  width: auto; padding: 0 10px;
+  font: 600 11.5px/1 var(--font-sans);
+}
 
 /* Branded send button — filled gold pill matching the share modal's
    primary CTA.                                                     */

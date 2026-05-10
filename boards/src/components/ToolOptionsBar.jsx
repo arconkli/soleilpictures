@@ -68,7 +68,6 @@ export function ToolOptionsBar({
   onUpdateEditingShape,
   paletteColors = [],
   openColorPicker,
-  anchorRect,           // viewport-space rect of the selected card
   onOpenSketchpad,      // launch the fullscreen sketch pad from inside Draw tool
 }) {
   const recentColors = useRecentColors();
@@ -83,33 +82,11 @@ export function ToolOptionsBar({
     });
   };
 
-  // Anchor the bar above (or below, if there's no room above) the
-  // selected card. Falls back to the original bottom-center sticky
-  // position when nothing's selected.
-  const computeAnchorStyle = () => {
-    if (!anchorRect) return null;
-    const BAR_GAP = 12;
-    const BAR_H_EST = 44;
-    let top = anchorRect.top - BAR_H_EST - BAR_GAP;
-    let isBelow = false;
-    if (top < 56) { top = anchorRect.bottom + BAR_GAP; isBelow = true; }
-    const cx = (anchorRect.left + anchorRect.right) / 2;
-    return {
-      style: {
-        position: 'fixed',
-        left: cx,
-        top,
-        bottom: 'auto',
-        transform: 'translateX(-50%)',
-        zIndex: 30,
-      },
-      isBelow,
-    };
-  };
-  const anchored = computeAnchorStyle();
-  const tobProps = anchored
-    ? { className: `tob tob-anchored ${anchored.isBelow ? 'tob-below' : 'tob-above'}`, style: anchored.style }
-    : { className: 'tob' };
+  // Always render at the canvas bottom-center (CSS default in `.tob`).
+  // Earlier the bar floated above the selected card; that constant
+  // repositioning made the UI feel jumpy, so the bar stays put and any
+  // contextual buttons swap in inline.
+  const tobProps = { className: 'tob' };
 
   // ── Note rich text bar ──────────────────────────────────────────────────
   if (editingNoteCard) {

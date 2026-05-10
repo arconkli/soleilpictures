@@ -25,6 +25,7 @@ import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
+import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
@@ -556,15 +557,10 @@ export function CanvasSurface({
   // re-fires the effect. No popup — same UX as board-name editing.
   const [editFieldSignal, setEditFieldSignal] = useState({ id: null, field: null, n: 0 });
   const triggerInlineEdit = (id, field) => setEditFieldSignal((s) => ({ id, field, n: s.n + 1 }));
-  // Lightbox: previewing an image inline (e.g. clicked from a list-board's
-  // child row). Null when closed.
+  // Lightbox: previewing an image inline (clicked from a list-board's child
+  // row, or the expand button on a canvas image card). Null when closed.
+  // Esc handling + close-on-backdrop-click live inside ImageLightbox.
   const [lightbox, setLightbox] = useState(null);
-  useEffect(() => {
-    if (!lightbox) return;
-    const onKey = (e) => { if (e.key === 'Escape') setLightbox(null); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [lightbox]);
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
     color: DRAW_DEFAULT_COLOR,
@@ -3223,6 +3219,7 @@ export function CanvasSurface({
                                                      editCaptionAt={editFieldSignal.id === c.id && editFieldSignal.field === 'caption' ? editFieldSignal.n : 0}
                                                      pending={!!c.pending}
                                                      uploadProgress={uploadProgressById[c.id] ?? null}
+                                                     onExpand={() => setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '' })}
                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
@@ -4379,20 +4376,6 @@ export function CanvasSurface({
         }}
         paletteColors={paletteColors}
         openColorPicker={(opts) => setPicker(opts)}
-        anchorRect={(() => {
-          if (selected.size !== 1) return null;
-          // Keep the draw palette in its default bottom position — it's
-          // a tool palette, not an editor for the selected card, so it
-          // shouldn't jump around when an art canvas gets auto-selected
-          // after a SketchPad commit.
-          if (selectedTool === 'draw') return null;
-          const id = [...selected][0];
-          const c = cardById[id];
-          if (!c) return null;
-          const tl = canvasToViewport(c.x, c.y);
-          const br = canvasToViewport(c.x + c.w, c.y + c.h);
-          return { left: tl.x, top: tl.y, right: br.x, bottom: br.y };
-        })()}
       />
 
       {picker && (
@@ -4469,15 +4452,8 @@ export function CanvasSurface({
         </div>
       )}
       {lightbox && (
-        <div className="lightbox" onClick={() => setLightbox(null)} role="dialog" aria-label="Image preview">
-          <button className="lightbox-x" aria-label="Close" onClick={(e) => { e.stopPropagation(); setLightbox(null); }}>×</button>
-          <R2Image className="lightbox-img"
-                   src={lightbox.src}
-                   alt={lightbox.title || ''}
-                   eager
-                   onClick={(e) => e.stopPropagation()} />
-          {lightbox.title && <div className="lightbox-cap">{lightbox.title}</div>}
-        </div>
+        <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt}
+                       onClose={() => setLightbox(null)} />
       )}
       {boardDropTarget && boardDropHoverPos && (() => {
         const target = boards?.[boardDropTarget];

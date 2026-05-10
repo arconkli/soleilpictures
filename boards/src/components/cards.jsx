@@ -181,7 +181,7 @@ function describeListItem(card, boards = {}) {
   }
   if (card.kind === 'image') {
     return { ...base, src: card.src || null,
-             name: card.title || card.label || 'Image', meta: 'image' };
+             name: card.title || card.label || 'image', meta: 'image' };
   }
   if (card.kind === 'note') {
     const text = htmlToText(card.html, 80) || (card.body || '').toString().slice(0, 80);
@@ -429,7 +429,7 @@ export function BoardLinkCard({ targetBoard, note, onOpen }) {
 export function ImageCard({ src, label, title, link, tone, aspect, caption,
                             onUpdate, autoFocus = false,
                             editTitleAt = 0, editCaptionAt = 0,
-                            onAfterEdit,
+                            onAfterEdit, onExpand,
                             pending = false, uploadProgress = null }) {
   // Caption + title are hidden until a value exists OR the user opts in to
   // edit. Double-click on the image area focuses the title editor (creating
@@ -506,6 +506,16 @@ export function ImageCard({ src, label, title, link, tone, aspect, caption,
               <path d="M4 7 L7 4 M3 5 L2 6 A2 2 0 0 0 5 9 L6 8 M8 6 L9 5 A2 2 0 0 0 6 2 L5 3" stroke="currentColor" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
             </svg>
           </a>
+        )}
+        {src && onExpand && (
+          <button type="button" className="ic-expand" title="View full size"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onExpand(); }}>
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
+                 stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
+            </svg>
+          </button>
         )}
       </div>
       {showTitle && onUpdate && (

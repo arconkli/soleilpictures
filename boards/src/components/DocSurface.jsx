@@ -26,6 +26,11 @@ import { DocLinkPicker } from './DocLinkPicker.jsx';
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 const RAILS_KEY = 'soleil.boards.docRails';
+const ZOOM_KEY = 'soleil.boards.docZoom';
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2.0;
+const ZOOM_STEP = 0.1;
+const clampZoom = (z) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(z * 100) / 100));
 // Right rail (outline / links / refs / comments tabs) was removed —
 // only the left page-tree rail remains.
 const DEFAULT_RAILS = { left: true };
@@ -105,6 +110,26 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
 
+  // Ref to .doc-paper — declared early because the zoom/pinch effect
+  // below needs it. The DocPresence overlay also uses it later (cursor/
+  // caret coords are paper-relative).
+  const paperRef = useRef(null);
+
+  // Page zoom — global preference (every doc opens at the user's last
+  // zoom level). Cmd +/−/0 + toolbar buttons + Ctrl+wheel (trackpad pinch)
+  // all adjust this value.
+  const [zoom, setZoomState] = useState(() => {
+    try {
+      const v = parseFloat(localStorage.getItem(ZOOM_KEY) || '');
+      return Number.isFinite(v) ? clampZoom(v) : 1;
+    } catch (_) { return 1; }
+  });
+  const setZoom = (z) => {
+    const next = clampZoom(typeof z === 'function' ? z(zoom) : z);
+    setZoomState(next);
+    try { localStorage.setItem(ZOOM_KEY, String(next)); } catch (_) {}
+  };
+
   const [findOpen, setFindOpen] = useState(false);
   // Embed-board picker — DocPageEditor calls our request fn (which sets a
   // pending callback); the picker, on selection, runs the callback so the
@@ -129,21 +154,50 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   };
 
   // ⌘F opens find. ⌘⇧F also opens find (legacy macOS Pages-style).
+  // ⌘+ / ⌘- / ⌘0 zoom in / out / reset (when the cursor is in this doc).
   useEffect(() => {
     const onKey = (e) => {
       const cmd = e.metaKey || e.ctrlKey;
-      if (cmd && (e.key === 'f' || e.key === 'F')) {
-        // Only intercept when the user is actually typing in our editor.
-        const target = e.target;
-        if (target?.closest?.('.tt-editor') || target?.closest?.('.doc-find')) {
-          e.preventDefault();
-          setFindOpen(true);
-        }
+      if (!cmd) return;
+      const inDoc = e.target?.closest?.('.tt-editor')
+                 || e.target?.closest?.('.doc-find')
+                 || e.target?.closest?.('.doc-surface');
+      if (!inDoc) return;
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        setFindOpen(true);
+      } else if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        setZoom((z) => z + ZOOM_STEP);
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        setZoom((z) => z - ZOOM_STEP);
+      } else if (e.key === '0') {
+        e.preventDefault();
+        setZoom(1);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom]);
+
+  // Trackpad pinch — Chrome/Safari deliver pinch as wheel events with
+  // `ctrlKey: true`. Hijack those (preventDefault) and translate the
+  // delta into a zoom adjustment.
+  useEffect(() => {
+    const paper = paperRef.current;
+    if (!paper) return;
+    const onWheel = (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const factor = Math.exp(-e.deltaY * 0.01);
+      setZoom((z) => z * factor);
+    };
+    paper.addEventListener('wheel', onWheel, { passive: false });
+    return () => paper.removeEventListener('wheel', onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom]);
 
   // Keep activePageId valid: pick first page if none selected, or current is gone.
   useEffect(() => {
@@ -211,9 +265,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // Hold the live Tiptap editor instance so the toolbar + bookmarks can
   // operate on it. DocPageEditor passes it up via onEditorReady.
   const editorRef = useRef(null);
-  // Ref to .doc-paper for the DocPresence overlay (cursor/caret coords are
-  // paper-relative).
-  const paperRef = useRef(null);
   const [, force] = useState(0);
   const onEditorReady = (ed) => { editorRef.current = ed; force(n => n + 1); };
 
@@ -320,11 +371,16 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     onInsertBookmark={insertBookmarkAtCaret}
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
-                    onAddComment={() => openAddCommentRef.current?.()} />
+                    onAddComment={() => openAddCommentRef.current?.()}
+                    zoom={zoom}
+                    onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
+                    onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
+                    onZoomReset={() => setZoom(1)} />
         <DocFindReplace editor={editorRef.current}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
-        <div className="doc-paper" ref={paperRef} style={{ position: 'relative' }}>
+        <div className="doc-paper" ref={paperRef}
+             style={{ position: 'relative', '--doc-zoom': zoom }}>
           {/* Same grain layer the canvas uses — opacity:0.03 ambient
               noise — so the doc's dark gutter matches the canvas's
               texture exactly. The .doc-editor-wrap (the actual page

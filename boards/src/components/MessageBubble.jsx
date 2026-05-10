@@ -14,10 +14,15 @@ import { coerceRef } from '../lib/entityRef.js';
 //   selfId           — current user
 //   highlight        — optional substring to <mark> inside the body (search)
 //   replyMeta        — { count, lastAt } for replies count badge
+//   parent           — when this message is a reply, the parent message row
+//                      (renders as an iMessage-style preview chip above the
+//                      bubble). Null for top-level messages.
+//   onJumpToMessage  — called with an id when the user clicks the parent
+//                      preview chip; parent flashes/scrolls into view.
 //   isFocused        — keyboard-nav highlight ring
 //   onDelete, onEdit, onReact, onReply, onPin, onCopyLink — wired by parent
 export function MessageBubble({
-  msg, selfId, highlight, replyMeta, isFocused,
+  msg, selfId, highlight, replyMeta, parent, onJumpToMessage, isFocused,
   onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
   onAttachmentDragStart,
 }) {
@@ -51,11 +56,31 @@ export function MessageBubble({
     setEditing(false);
   };
 
+  // iMessage-style parent preview shown on replies. Click → parent flashes
+  // and scrolls into view in the same feed.
+  const parentProfile = parent ? userProfiles.resolve(parent.sender_id) : null;
+  const parentName = parent
+    ? (parentProfile?.name || parentProfile?.email || parent.sender_name
+        || (parent.sender_email ? emailToFriendly(parent.sender_email) : null) || 'Member')
+    : '';
+  const parentColor = parent ? (parentProfile?.color || pickPresenceColor(parent.sender_id || '')) : '';
+  const parentExcerpt = parent ? (parent.body || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+
   return (
-    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''}`}
+    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''}`}
          data-msg-id={msg.id}
          id={`msg-${msg.id}`}
          onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      {parent && (
+        <button type="button"
+                className="msg-reply-preview"
+                title={`Reply to ${parentName}`}
+                onClick={(e) => { e.stopPropagation(); onJumpToMessage?.(parent.id); }}>
+          <span className="msg-reply-preview-line" style={{ background: parentColor }} aria-hidden="true" />
+          <span className="msg-reply-preview-author" style={{ color: parentColor }}>{parentName}</span>
+          <span className="msg-reply-preview-body">{parentExcerpt || '…'}</span>
+        </button>
+      )}
       {msg.is_pinned && (
         <div className="msg-bubble-pinned-tag">
           <Icon as={Pin} size={10} /> Pinned

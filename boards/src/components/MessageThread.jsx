@@ -219,13 +219,23 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
     });
   };
 
+  // Map of message id → message, used to render a parent-preview chip
+  // on top of each reply in the main feed (iMessage-style). The thread
+  // panel still owns full back-and-forth via the "X replies" badge.
+  const messagesById = useMemo(() => {
+    const m = new Map();
+    for (const x of messages || []) m.set(x.id, x);
+    return m;
+  }, [messages]);
+
   // ── Day-divider grouping ─────────────────────────────────────────────
   const groupedMessages = useMemo(() => {
     const groups = [];
     let lastKey = null;
-    // Top-level messages only in the main view (replies render inside
-    // their thread view, not inline).
-    const list = replyParent ? [] : (messages || []).filter(m => !m.parent_id);
+    // Main view shows everything — top-level messages AND their replies
+    // (each reply gets a small preview chip pointing at its parent). The
+    // thread mode below renders parent + replies separately.
+    const list = replyParent ? [] : (messages || []);
     for (const m of list) {
       const k = dayKey(m.created_at);
       if (k !== lastKey) {
@@ -437,6 +447,8 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
               <MessageBubble
                 key={g.key} msg={g.msg} selfId={userId}
                 replyMeta={replyCounts.get(g.msg.id) || null}
+                parent={g.msg.parent_id ? messagesById.get(g.msg.parent_id) : null}
+                onJumpToMessage={flashMessage}
                 isFocused={focusedId === g.msg.id}
                 onDelete={handleDelete}
                 onAttachmentDragStart={handleAttachmentDragStart}

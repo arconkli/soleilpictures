@@ -215,11 +215,14 @@ function FileRow({ card: c, selected, onClick, onUpdate }) {
     thumb = c.src
       ? <R2Image src={c.src} alt="" className="lf-thumb-img" draggable="false" />
       : <ImagePlaceholder tone={c.tone} aspect="1/1" />;
-    name = c.title || c.label || 'Untitled image';
+    name = c.title || c.label || 'image';
     meta = c.caption ? `· ${c.caption}` : 'IMAGE';
   } else if (c.kind === 'note') {
     thumb = <div className="lf-thumb-glyph" style={{ background: c.bgColor || 'var(--bg-3)' }}>¶</div>;
-    name = stripHTML(c.html) || c.body || 'Empty note';
+    // Notes: derive the display title from the first words of the body.
+    // Manual `c.title` is intentionally ignored — the user asked for the
+    // first line / header to win so the listing always reflects content.
+    name = stripHTML(c.html, 80) || (c.body || '').toString().slice(0, 80) || 'Empty note';
     meta = 'NOTE';
   } else if (c.kind === 'link') {
     thumb = <div className="lf-thumb-glyph">↗</div>;
@@ -264,9 +267,9 @@ function FileRow({ card: c, selected, onClick, onUpdate }) {
   );
 }
 
-function stripHTML(s) {
+function stripHTML(s, max = 120) {
   if (!s) return '';
   const tmp = document.createElement('div');
   tmp.innerHTML = s;
-  return (tmp.textContent || tmp.innerText || '').trim().slice(0, 120);
+  return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }

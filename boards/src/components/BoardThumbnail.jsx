@@ -63,11 +63,18 @@ function labelForCard(c, boards) {
   if (c.kind === 'boardlink') return boards?.[c.target]?.name || 'Linked';
   if (c.kind === 'link')      return c.title || c.source || 'Link';
   if (c.kind === 'note') {
-    if (c.body) return String(c.body).slice(0, 40);
+    // Notes: title from the first words of the body (HTML preferred so
+    // formatting + headings show up in plaintext form). Manual title is
+    // intentionally not consulted — the listing should reflect content.
     if (c.html) {
       const tmp = typeof document !== 'undefined' ? document.createElement('div') : null;
-      if (tmp) { tmp.innerHTML = c.html; return (tmp.textContent || '').trim().slice(0, 40); }
+      if (tmp) {
+        tmp.innerHTML = c.html;
+        const t = (tmp.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+        if (t) return t;
+      }
     }
+    if (c.body) return String(c.body).replace(/\s+/g, ' ').trim().slice(0, 40);
     return '';
   }
   if (c.kind === 'image')    return c.title || c.label || '';

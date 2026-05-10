@@ -241,6 +241,13 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
     <div className="doc-presence-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 999990 }}>
       {peers.map(p => {
         const els = [];
+        // Compute typing state up front so we can suppress this peer's
+        // floating mouse cursor while their caret is actively moving —
+        // otherwise you see two markers (caret + cursor) for the same
+        // person at once, which is noisy.
+        const lastChange = lastCaretChangeRef.current.get(p.user.id) || 0;
+        const sinceMove = now - lastChange;
+        const peerIsTyping = !!p.caret && sinceMove < TYPING_FADE_MS;
         if (p.selRects && p.selRects.length) {
           for (let i = 0; i < p.selRects.length; i++) {
             const rc = p.selRects[i];
@@ -261,9 +268,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
           }
         }
         if (p.caret) {
-          const lastChange = lastCaretChangeRef.current.get(p.user.id) || 0;
-          const sinceMove = now - lastChange;
-          const isTyping = sinceMove < TYPING_FADE_MS;
+          const isTyping = peerIsTyping;
           // After the typing window, fade caret to IDLE_OPACITY over IDLE_FADE_MS.
           const idleOpacity = isTyping
             ? 1
@@ -294,7 +299,7 @@ export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, c
             </div>
           );
         }
-        if (p.cursor) {
+        if (p.cursor && !peerIsTyping) {
           els.push(
             <LiveCursor key={'cursor-' + p.clientId}
                         x={p.cursor.x + offX} y={p.cursor.y + offY}
