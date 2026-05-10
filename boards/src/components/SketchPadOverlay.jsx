@@ -120,6 +120,11 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const onPointerDown = (e) => {
     if (e.button !== 0) return;
     if (!wrapRef.current) return;
+    // The pad lives in a portal, so React events bubble through the
+    // React tree all the way back to CanvasSurface's canvas-wrap and
+    // trigger its draw handler — every pad stroke would also paint a
+    // board stroke. Stop propagation here (and in move/up below).
+    e.stopPropagation();
     const { x, y } = toLogical(e.clientX, e.clientY);
     if (tool === 'bucket') {
       // Round 1 of paint bucket: click anywhere to set the WHOLE pad bg.
@@ -143,6 +148,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
 
   const onPointerMove = (e) => {
     if (!wrapRef.current) return;
+    e.stopPropagation();
     if (tool === 'eraser') {
       if (e.buttons !== 1) return;
       const { x, y } = toLogical(e.clientX, e.clientY);
@@ -155,7 +161,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     setActive(s => s ? { ...s, points: [...s.points, [x, y]] } : s);
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e) => {
+    e?.stopPropagation?.();
     if (activeStroke && activeStroke.points?.length > 1) {
       setStrokes(prev => [...prev, activeStroke]);
       addRecentColor(activeStroke.color);

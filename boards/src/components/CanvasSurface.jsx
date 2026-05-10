@@ -4265,7 +4265,7 @@ export function CanvasSurface({
             setSelected(new Set([editingId]));
             setSelectedStrokes(new Set());
             setSelectedArrows(new Set());
-            setSelectedTool('draw');
+            setSelectedTool('select');
             return;
           }
           if (!strokes.length && bg === '#ffffff') return;
@@ -4301,12 +4301,13 @@ export function CanvasSurface({
             bg, strokes: localStrokes,
           };
           // Drop the user back on the board with the new canvas selected
-          // and the draw tool active, so they can keep painting straight
-          // into it (selection-based routing keeps strokes on the card).
+          // and the select tool active so they can move/resize/inspect
+          // the just-placed canvas. Selection markers (resize / rotate
+          // handles, soleil outline) only render in select mode.
           setSelected(new Set([newId]));
           setSelectedStrokes(new Set());
           setSelectedArrows(new Set());
-          setSelectedTool('draw');
+          setSelectedTool('select');
         }} />
     </div>
   );
