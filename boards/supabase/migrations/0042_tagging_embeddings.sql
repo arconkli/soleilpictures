@@ -17,15 +17,22 @@ create extension if not exists vector;
 
 -- One embedding per card. content_hash lets the client skip re-embedding when
 -- the card text hasn't actually changed (typo fix, formatting tweak).
+--
+-- card_id is text, not uuid: boards uses a mix of synthesized IDs
+-- ("note-1778…", "b-features") and uuids depending on how the card was
+-- created — matching the card_index.card_id column type.
 create table if not exists card_embeddings (
-  card_id        uuid primary key,
+  card_id        text primary key,
   workspace_id   uuid not null references workspaces(id) on delete cascade,
+  board_id       uuid,
   content_hash   text not null,
   embedding      vector(1536) not null,
   embedded_at    timestamptz not null default now()
 );
 create index if not exists card_embeddings_workspace_idx
   on card_embeddings (workspace_id);
+create index if not exists card_embeddings_board_card_idx
+  on card_embeddings (board_id, card_id);
 create index if not exists card_embeddings_hnsw
   on card_embeddings using hnsw (embedding vector_cosine_ops);
 
@@ -55,7 +62,7 @@ create index if not exists tag_centroids_hnsw
 create table if not exists pending_clusters (
   id              uuid primary key default gen_random_uuid(),
   workspace_id    uuid not null references workspaces(id) on delete cascade,
-  member_card_ids uuid[] not null,
+  member_card_ids text[] not null,
   centroid        vector(1536) not null,
   proposed_name   text,
   status          text not null default 'pending'

@@ -25,10 +25,12 @@ import { embedOne, embedCards, applyCards, parsePgvector, formatPgvector } from 
 import {
   partitionTagsByEmbedding,
   cosineDist,
+  centroid as meanCentroid,
+  contentHash,
   SILENT_APPLY_DIST,
   NO_MATCH_DIST,
 } from '../lib/clusterMath.js';
-import { logDecision, recordCall } from '../lib/aiTaggerLog.js';
+import { logDecision, recordCall, isDebug } from '../lib/aiTaggerLog.js';
 
 // Strip HTML tags / entities and collapse whitespace before sending text to
 // the embedding model. Saves tokens and improves quality — `<span style=...>`
@@ -39,6 +41,75 @@ function stripHtml(s) {
     .replace(/&[a-z]+;/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// Recompute a tag's centroid from the embeddings of cards currently tagged
+// with it. Replaces the lazy name-derived fallback with a real card-derived
+// centroid as soon as we have ≥1 member card with an embedding stored.
+//
+// Triggered (debounced) on every apply/unapply of this tag. Idempotent and
+// safe to call when no cards are embedded yet — bails silently.
+async function recomputeCentroidFromMembers(tagId, workspaceId, centroidsRef, cardEmbeddingCacheRef) {
+  if (!supabase || !tagId || !workspaceId) return;
+  // 1. Get all cards currently tagged with this tag.
+  const { data: links, error: linksErr } = await supabase
+    .from('entity_links')
+    .select('source_kind, source_id')
+    .eq('source_workspace', workspaceId)
+    .eq('target_kind', 'tag')
+    .eq('target_id', tagId)
+    .eq('link_kind', 'applied');
+  if (linksErr) {
+    console.warn('[ai-tagger] recompute centroid: links query failed', linksErr.message);
+    return;
+  }
+  const cardIds = (links || [])
+    .filter(l => l.source_kind === 'card' && l.source_id)
+    .map(l => l.source_id);
+  if (cardIds.length === 0) return; // no card members, leave name-derived centroid
+
+  // 2. Pull embeddings for those cards. In-memory first, fall back to DB.
+  const vectors = [];
+  const missingIds = [];
+  for (const id of cardIds) {
+    const cached = cardEmbeddingCacheRef.current.get(id);
+    if (cached?.vector) vectors.push(cached.vector);
+    else missingIds.push(id);
+  }
+  if (missingIds.length > 0) {
+    const { data: rows } = await supabase.from('card_embeddings')
+      .select('card_id, embedding, content_hash')
+      .eq('workspace_id', workspaceId)
+      .in('card_id', missingIds);
+    for (const r of (rows || [])) {
+      const v = parsePgvector(r.embedding);
+      if (v) {
+        cardEmbeddingCacheRef.current.set(r.card_id, { hash: r.content_hash, vector: v });
+        vectors.push(v);
+      }
+    }
+  }
+  if (vectors.length === 0) return; // members exist but no embeddings yet
+
+  // 3. Mean → new centroid. Persist + update in-memory.
+  const newCentroid = meanCentroid(vectors);
+  if (!newCentroid) return;
+  centroidsRef.current.set(tagId, newCentroid);
+  const { error: upErr } = await supabase.from('tag_centroids').upsert({
+    tag_id: tagId,
+    workspace_id: workspaceId,
+    centroid: formatPgvector(newCentroid),
+    card_count: vectors.length,
+    last_named_centroid: formatPgvector(newCentroid),
+    last_named_at: new Date().toISOString(),
+  }, { onConflict: 'tag_id' });
+  if (upErr) {
+    console.warn('[ai-tagger] persist centroid failed', upErr.message);
+    return;
+  }
+  if (isDebug()) {
+    console.log(`[ai-tagger] recomputed centroid for tag ${tagId.slice(0, 8)} from ${vectors.length} member card${vectors.length === 1 ? '' : 's'}`);
+  }
 }
 
 export function useAiTagger(workspaceId) {
@@ -55,6 +126,12 @@ export function useAiTagger(workspaceId) {
   // Filters out duplicate suggestions so we don't emit insert calls that
   // generate noisy 409s for tags already on the target.
   const appliedRef = useRef(new Map());
+  // cardId → { hash, vector }. In-memory mirror of card_embeddings; the
+  // table is the persistent layer for cold-start across sessions.
+  const cardEmbeddingCacheRef = useRef(new Map());
+  // tagId → setTimeout handle. Debounced centroid recomputation per tag
+  // — repeated apply/unapply in a quick burst settles into one recompute.
+  const centroidDebounceRef = useRef(new Map());
 
   // Load tags + any persisted centroids + currently-applied tag links on
   // workspace change.
@@ -96,6 +173,19 @@ export function useAiTagger(workspaceId) {
     return () => { cancelled = true; };
   }, [workspaceId]);
 
+  // Schedule a debounced centroid recompute for a tag. Runs ~1.5s after
+  // the last apply/unapply for that tag so a burst of changes coalesces.
+  const scheduleCentroidRecompute = useCallback((tagId) => {
+    if (!tagId) return;
+    const existing = centroidDebounceRef.current.get(tagId);
+    if (existing) clearTimeout(existing);
+    const handle = setTimeout(() => {
+      centroidDebounceRef.current.delete(tagId);
+      recomputeCentroidFromMembers(tagId, workspaceId, centroidsRef, cardEmbeddingCacheRef);
+    }, 1500);
+    centroidDebounceRef.current.set(tagId, handle);
+  }, [workspaceId]);
+
   // Track applied-tag inserts/deletes so the filter stays current as the
   // user (or our own auto-applies) modify tags. Subscribed only after
   // initial hydrate so the in-memory map starts in sync.
@@ -111,6 +201,7 @@ export function useAiTagger(workspaceId) {
             const key = `${r.source_kind}:${r.source_id}`;
             if (!appliedRef.current.has(key)) appliedRef.current.set(key, new Set());
             appliedRef.current.get(key).add(r.target_id);
+            scheduleCentroidRecompute(r.target_id);
           })
       .on('postgres_changes',
           { event: 'DELETE', schema: 'public', table: 'entity_links', filter: `source_workspace=eq.${workspaceId}` },
@@ -120,10 +211,78 @@ export function useAiTagger(workspaceId) {
             const key = `${r.source_kind}:${r.source_id}`;
             const set = appliedRef.current.get(key);
             if (set) set.delete(r.target_id);
+            scheduleCentroidRecompute(r.target_id);
           });
     ch.subscribe();
-    return () => { try { supabase.removeChannel(ch); } catch {} };
-  }, [workspaceId, ready]);
+    return () => {
+      try { supabase.removeChannel(ch); } catch {}
+      // Cancel any pending recomputes on unmount.
+      for (const h of centroidDebounceRef.current.values()) clearTimeout(h);
+      centroidDebounceRef.current.clear();
+    };
+  }, [workspaceId, ready, scheduleCentroidRecompute]);
+
+  // After hydrate, seed centroids for any tag that already has applied
+  // cards. This pulls workspaces with pre-existing tag applications onto
+  // proper card-derived centroids immediately, instead of waiting for
+  // the next apply/unapply to trigger it.
+  useEffect(() => {
+    if (!ready || !workspaceId) return;
+    const tags = tagsRef.current;
+    if (!tags?.length) return;
+    // Stagger by 200ms so we don't dogpile the first few seconds of load.
+    let i = 0;
+    for (const tag of tags) {
+      setTimeout(() => recomputeCentroidFromMembers(tag.id, workspaceId, centroidsRef, cardEmbeddingCacheRef), i * 200);
+      i++;
+    }
+  }, [ready, workspaceId]);
+
+  // Look up or fetch the embedding for a card. Three-tier lookup:
+  //   1. In-memory cache (hit when same card scored twice in a session)
+  //   2. card_embeddings table (hit on cold start for previously-embedded card)
+  //   3. /api/tags/embed (network call, persist for next time)
+  // Returns { vector, usage, ms, cached } or null.
+  const getOrFetchCardEmbedding = useCallback(async (cardId, text) => {
+    const hash = contentHash(text);
+    // Tier 1: memory
+    const cached = cardEmbeddingCacheRef.current.get(cardId);
+    if (cached && cached.hash === hash) {
+      return { vector: cached.vector, usage: null, ms: 0, cached: 'memory' };
+    }
+    // Tier 2: Supabase
+    try {
+      const { data } = await supabase.from('card_embeddings')
+        .select('content_hash, embedding')
+        .eq('card_id', cardId)
+        .eq('workspace_id', workspaceId)
+        .maybeSingle();
+      if (data?.content_hash === hash) {
+        const v = parsePgvector(data.embedding);
+        if (v) {
+          cardEmbeddingCacheRef.current.set(cardId, { hash, vector: v });
+          return { vector: v, usage: null, ms: 0, cached: 'db' };
+        }
+      }
+    } catch (e) {
+      console.warn('[ai-tagger] card_embeddings lookup failed', e?.message || e);
+    }
+    // Tier 3: network embed + persist
+    const result = await embedOne(cardId, text);
+    if (!result?.vector) return null;
+    cardEmbeddingCacheRef.current.set(cardId, { hash, vector: result.vector });
+    // Fire-and-forget upsert. If this fails (RLS, missing workspace_id, etc.)
+    // we just won't have a persistent cache; next session will re-embed.
+    supabase.from('card_embeddings').upsert({
+      card_id: cardId,
+      workspace_id: workspaceId,
+      content_hash: hash,
+      embedding: formatPgvector(result.vector),
+    }, { onConflict: 'card_id' }).then(({ error }) => {
+      if (error) console.warn('[ai-tagger] persist card embedding failed', error.message);
+    });
+    return { vector: result.vector, usage: result.usage, ms: result.ms, cached: false };
+  }, [workspaceId]);
 
   // Subscribe to tag definition changes so renames / new tags / deletes
   // land in tagsRef without a page reload. Centroid recomputation on
@@ -198,12 +357,24 @@ export function useAiTagger(workspaceId) {
     const targetKey = target ? `${target.kind}:${target.id}` : null;
     const alreadyApplied = (targetKey && appliedRef.current.get(targetKey)) || new Set();
 
-    // 1. Embed the query.
-    const queryResult = await embedOne(target?.id || 'q', text);
-    if (!queryResult?.vector) return [];
-    const queryVec = queryResult.vector;
-    const embedMs = queryResult.ms;
-    const embedUsage = queryResult.usage;
+    // 1. Embed the query. For cards we use the persistent embedding cache
+    //    (in-memory + card_embeddings table) so unchanged content doesn't
+    //    re-embed across edits or sessions. Groups and boards re-embed
+    //    every time — they're rare and cheap.
+    let queryVec, embedMs, embedUsage;
+    if (target?.kind === 'card' && target?.id) {
+      const r = await getOrFetchCardEmbedding(target.id, text);
+      if (!r?.vector) return [];
+      queryVec = r.vector;
+      embedMs = r.ms || 0;
+      embedUsage = r.usage;
+    } else {
+      const r = await embedOne(target?.id || 'q', text);
+      if (!r?.vector) return [];
+      queryVec = r.vector;
+      embedMs = r.ms;
+      embedUsage = r.usage;
+    }
 
     // 2. Make sure every tag has a centroid (lazy seed from name on miss).
     //    Run concurrently — these are independent network calls.
