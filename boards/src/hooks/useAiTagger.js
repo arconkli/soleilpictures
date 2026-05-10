@@ -142,12 +142,25 @@ export function useAiTagger(workspaceId) {
   const backfilledTagsRef = useRef(new Set());
 
   // Load tags + any persisted centroids + currently-applied tag links on
-  // workspace change.
+  // workspace change. Also check the workspace-level ai_tagger_enabled
+  // toggle — if a workspace owner has flipped it off (privacy / cost
+  // reasons), the hook stays in the not-ready state and never sends
+  // card content to OpenAI for this workspace.
   useEffect(() => {
     if (!workspaceId || !supabase) { setReady(false); return; }
     let cancelled = false;
     setReady(false);
     async function load() {
+      // Per-workspace AI opt-out check. If disabled, short-circuit.
+      const { data: ws } = await supabase.from('workspaces')
+        .select('ai_tagger_enabled')
+        .eq('id', workspaceId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (ws && ws.ai_tagger_enabled === false) {
+        if (isDebug()) console.log('[ai-tagger] disabled for workspace', workspaceId);
+        return; // never sets ready=true; suggestTags returns [] forever
+      }
       const [tagsResp, centroidsResp, appliedResp] = await Promise.all([
         supabase.from('tags')
           .select('id, name, slug, color')

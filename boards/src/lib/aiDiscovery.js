@@ -40,8 +40,47 @@ function clusterFingerprint(memberCardIds) {
   return [...memberCardIds].sort().join(',');
 }
 
+// Re-claim after 5 minutes — discovery is cheaper than backfill and we
+// want it to re-fire reasonably often as the workspace evolves.
+const DISCOVERY_LOCK_STALE_MS = 5 * 60 * 1000;
+
+// Workspace-wide single-flight. First connected client to claim the
+// lock runs the pass; everyone else short-circuits. Tries INSERT first;
+// if a row exists, falls back to atomic stale-UPDATE.
+async function claimDiscoveryLock(workspaceId) {
+  const nowIso = new Date().toISOString();
+  // Fast path: no row yet.
+  const { error: insertErr } = await supabase
+    .from('workspace_discovery_locks')
+    .insert({ workspace_id: workspaceId, last_run_at: nowIso });
+  if (!insertErr) return true;
+  if (insertErr.code !== '23505') {
+    console.warn('[ai-discovery] lock insert failed', insertErr.message);
+    return false;
+  }
+  // Slow path: row exists, atomic-update if stale.
+  const staleBefore = new Date(Date.now() - DISCOVERY_LOCK_STALE_MS).toISOString();
+  const { data, error: updErr } = await supabase
+    .from('workspace_discovery_locks')
+    .update({ last_run_at: nowIso })
+    .eq('workspace_id', workspaceId)
+    .lt('last_run_at', staleBefore)
+    .select('workspace_id');
+  if (updErr) {
+    console.warn('[ai-discovery] lock update failed', updErr.message);
+    return false;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
+
 export async function runWorkspaceDiscovery({ workspaceId, tagCentroids, embeddingCache }) {
   if (!supabase || !workspaceId) return null;
+
+  const claimed = await claimDiscoveryLock(workspaceId);
+  if (!claimed) {
+    if (isDebug()) console.log('[ai-discovery] another client has the lock, skipping');
+    return null;
+  }
 
   // 1. Load every card embedding in the workspace.
   const { data: rows, error } = await supabase

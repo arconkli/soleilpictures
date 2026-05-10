@@ -19,9 +19,36 @@ import { tagCard } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
 
 const BATCH_SIZE = 8; // cards per /api/tags/apply call
+const LOCK_STALE_MS = 10 * 60 * 1000; // re-claim after 10 minutes
+
+// Try to claim the workspace-wide backfill lock for this tag.
+// Returns true if we won; false if another client is already running it.
+// Uses an atomic UPDATE … WHERE last_backfill_at IS NULL OR < 10-minutes-ago.
+async function claimBackfillLock(tagId) {
+  const staleBefore = new Date(Date.now() - LOCK_STALE_MS).toISOString();
+  const { data, error } = await supabase
+    .from('tag_centroids')
+    .update({ last_backfill_at: new Date().toISOString() })
+    .eq('tag_id', tagId)
+    .or(`last_backfill_at.is.null,last_backfill_at.lt.${staleBefore}`)
+    .select('tag_id');
+  if (error) {
+    console.warn('[ai-backfill] lock claim failed', error.message);
+    return false;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
 
 export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, embeddingCache, appliedRef }) {
   if (!supabase || !workspaceId || !tag?.id || !centroid) return null;
+
+  // Single-flight across all connected clients. The first one to claim
+  // the lock runs; everyone else short-circuits.
+  const claimed = await claimBackfillLock(tag.id);
+  if (!claimed) {
+    if (isDebug()) console.log(`[ai-backfill] "${tag.name}" — another client has the lock, skipping`);
+    return null;
+  }
 
   // 1. Load all card embeddings.
   const { data: rows, error } = await supabase
