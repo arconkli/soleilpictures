@@ -200,6 +200,24 @@ export function ColorPicker({
   const hsvRef = useRef(hsv);
   useEffect(() => { hsvRef.current = hsv; }, [hsv]);
 
+  // Native EyeDropper API — Chromium-only (Chrome, Edge, Arc, Opera). Hide
+  // the button entirely on browsers that don't support it (Safari, Firefox)
+  // rather than show a non-functional control.
+  const eyeDropperSupported = typeof window !== 'undefined' && 'EyeDropper' in window;
+  const pickFromScreen = async () => {
+    if (!eyeDropperSupported) return;
+    try {
+      // The browser dims the page and shows a magnifier; resolves with the
+      // sRGB hex the user clicked. AbortError fires if they hit Esc — that's
+      // a normal cancellation, not a bug.
+      const ed = new window.EyeDropper();
+      const result = await ed.open();
+      if (result?.sRGBHex) pickHex(result.sRGBHex);
+    } catch (err) {
+      if (err?.name !== 'AbortError') console.warn('[eyedropper]', err);
+    }
+  };
+
   const recentColors = useRecentColors();
 
   // ── Saturation / Value pad ────────────────────────────────────────────────
@@ -313,6 +331,19 @@ export function ColorPicker({
                onBlur={onHexBlur}
                spellCheck={false}
                placeholder="FFFFFF" />
+        {eyeDropperSupported && (
+          <button className="cp-eyedropper-btn"
+                  title="Pick a color from the screen"
+                  aria-label="Pick a color from the screen"
+                  onClick={pickFromScreen}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M11.5 1.5 L14.5 4.5 L12 7 L9 4 Z"
+                    stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" fill="currentColor" fillOpacity="0.15" />
+              <path d="M9 4 L3 10 L2 13 L5 12 L11 6"
+                    stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" fill="none" />
+            </svg>
+          </button>
+        )}
         {allowTransparent && (
           <button className="cp-transparent-btn"
                   title="Transparent"

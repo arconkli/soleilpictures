@@ -4912,6 +4912,21 @@ html, body { overscroll-behavior: none; }
   cursor: pointer;
 }
 .cp-transparent-btn:hover { color: var(--ink-0); border-color: var(--line-3); }
+
+.cp-eyedropper-btn {
+  appearance: none;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  color: var(--ink-2);
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.cp-eyedropper-btn:hover { color: var(--ink-0); border-color: var(--line-3); background: var(--bg-hov); }
+.cp-eyedropper-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 .cp-presets {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
