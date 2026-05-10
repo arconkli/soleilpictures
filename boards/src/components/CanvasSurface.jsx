@@ -2078,41 +2078,26 @@ export function CanvasSurface({
           const selId = [...liveSelected][0];
           const sel = liveCards.find(c => c.id === selId)
                    || (pendingCardRef.current?.id === selId ? pendingCardRef.current : null);
-          if (sel) {
-            const viaPending = pendingCardRef.current?.id === selId && !liveCards.find(c => c.id === selId);
-            console.log('[draw] route → SELECTED card', sel.id, 'kind:', sel.kind, viaPending ? '(via pendingCardRef)' : '');
-            return sel;
-          }
+          if (sel) return sel;
         }
         // Score every art canvas by how many stroke points fall inside
         // its bbox; the one with the most overlap wins. Ties pick the
         // top-most z (last wins). If nothing scores > 0, return null
         // and the stroke falls through to the board's free-canvas.
         const arts = liveCards.filter(c => c.kind === 'art');
-        if (!arts.length) {
-          const allKinds = liveCards.map(c => ({ id: c.id, kind: c.kind, x: c.x, y: c.y, w: c.w, h: c.h }));
-          console.log('[draw] route → BOARD (no kind:"art" cards). All cards:', allKinds, 'first stroke point:', pts[0], 'selected size:', liveSelected?.size);
-          return null;
-        }
+        if (!arts.length) return null;
         let best = null, bestScore = 0;
-        const scores = [];
         for (const c of arts) {
           let n = 0;
           const cx = c.x, cy = c.y, cw = c.w || 0, ch = c.h || 0;
           for (const [px, py] of pts) {
             if (px >= cx && px <= cx + cw && py >= cy && py <= cy + ch) n++;
           }
-          scores.push({ id: c.id, bbox: [cx, cy, cw, ch], inside: n, of: pts.length });
           if (n > bestScore || (n > 0 && n === bestScore && (c.z || 0) >= (best?.z || 0))) {
             best = c; bestScore = n;
           }
         }
-        if (bestScore > 0) {
-          console.log('[draw] route → ART CANVAS', best.id, '(', bestScore, '/', pts.length, 'points inside)');
-          return best;
-        }
-        console.log('[draw] route → BOARD (no art canvas matched)', 'first point:', pts[0], 'last point:', pts[pts.length - 1], 'art bboxes:', scores);
-        return null;
+        return bestScore > 0 ? best : null;
       };
       if (drawOptions.mode === 'eraser') {
         const radius = Math.max(4, (drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) / 2);
@@ -2173,25 +2158,10 @@ export function CanvasSurface({
             // to the card and moves/scales with it.
             const localPoints = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
             const existing = Array.isArray(targetCard.strokes) ? targetCard.strokes : [];
-            const newStroke = { color, width, points: localPoints };
-            console.log('[draw] writing stroke to card', targetCard.id,
-                        '— card pos:', { x: targetCard.x, y: targetCard.y, w: targetCard.w, h: targetCard.h },
-                        '— existing strokes:', existing.length,
-                        '— new stroke local pts:', localPoints.slice(0, 3), '…',
-                        '— mutators.updateCard exists?', !!mutators.updateCard);
             mutators.updateCard?.(targetCard.id, {
-              strokes: [...existing, newStroke],
+              strokes: [...existing, { color, width, points: localPoints }],
             });
-            // Re-read the card after write to confirm the stroke landed
-            // on the Yjs side. Yjs propagates synchronously within the
-            // same tick for local writes, so this should already reflect
-            // the new strokes count.
-            setTimeout(() => {
-              const after = (cards || []).find(c => c.id === targetCard.id);
-              console.log('[draw] post-write card.strokes count:', after?.strokes?.length, '(was', existing.length, '→ expected', existing.length + 1, ')');
-            }, 0);
           } else {
-            console.log('[draw] writing stroke to BOARD (free strokes)');
             mutators.addStroke?.({ color, width, points });
           }
           // Surface the just-used color in recents so the swatch
@@ -2477,7 +2447,6 @@ export function CanvasSurface({
         // Fire-and-forget OG fetch — when it resolves, patch the card
         // with the preview fields and grow it to fit the image.
         fetchLinkPreview(url).then(p => {
-          console.log('[link] preview result for', url, '→', p);
           if (!p) return;
           const patch = {};
           if (p.title) patch.title = p.title;
@@ -2485,10 +2454,7 @@ export function CanvasSurface({
           if (p.description) patch.description = p.description;
           if (p.favicon) patch.favicon = p.favicon;
           if (p.image) { patch.w = 280; patch.h = 290; }
-          if (Object.keys(patch).length) {
-            console.log('[link] patching card', newId, patch);
-            mutators.updateCard?.(newId, patch);
-          }
+          if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
         });
       }},
       { divider: true },

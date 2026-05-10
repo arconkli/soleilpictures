@@ -18,17 +18,9 @@ export async function fetchLinkPreview(rawUrl) {
     const r = await fetch(`${SAME_ORIGIN}?url=${encodeURIComponent(url)}`);
     if (r.ok) {
       const j = await r.json();
-      if (j && !j.error) {
-        console.log('[linkPreview] /api/og →', j);
-        return normalize(j, url);
-      }
-      console.warn('[linkPreview] /api/og returned error', j);
-    } else {
-      console.warn('[linkPreview] /api/og status', r.status);
+      if (j && !j.error) return normalize(j, url);
     }
-  } catch (e) {
-    console.warn('[linkPreview] /api/og threw', e);
-  }
+  } catch (_) {}
   // 2) Public fallback.
   try {
     const r = await fetch(`${MICROLINK}?url=${encodeURIComponent(url)}`);
@@ -36,17 +28,14 @@ export async function fetchLinkPreview(rawUrl) {
     const j = await r.json();
     if (j.status !== 'success' || !j.data) return null;
     const d = j.data;
-    const out = {
+    return {
       title: d.title || null,
       description: d.description || null,
       image: d.image?.url || null,
       favicon: d.logo?.url || null,
       url: d.url || url,
     };
-    console.log('[linkPreview] microlink fallback →', out);
-    return out;
-  } catch (e) {
-    console.warn('[linkPreview] microlink threw', e);
+  } catch (_) {
     return null;
   }
 }
