@@ -1633,18 +1633,106 @@ export function CanvasSurface({
     const startClient = { x: e.clientX, y: e.clientY };
     setResize({ id: c.id, dw: 0, dh: 0 });
 
+    // Snap targets, captured once at drag start. Two flavours per axis:
+    //   - numeric match: dragged width / height equals another card's
+    //     width / height (the primary "match the size of that card" use case).
+    //   - edge alignment: dragged card's right / bottom edge lands on
+    //     another card's left / right / top / bottom edge — same idea
+    //     position-drag uses, applied to the bottom-right resize corner.
+    const SNAP_PX = 6;
+    const wCands = []; // { value, owner }
+    const hCands = [];
+    const rightEdgeXs   = []; // { x, y0, y1 }  — where dragged right edge can land
+    const bottomEdgeYs  = []; // { y, x0, x1 }
+    cards.forEach(other => {
+      if (other.id === c.id) return;
+      wCands.push({ value: other.w, owner: other });
+      hCands.push({ value: other.h, owner: other });
+      rightEdgeXs.push({ x: other.x,             y0: other.y, y1: other.y + other.h });
+      rightEdgeXs.push({ x: other.x + other.w,   y0: other.y, y1: other.y + other.h });
+      bottomEdgeYs.push({ y: other.y,            x0: other.x, x1: other.x + other.w });
+      bottomEdgeYs.push({ y: other.y + other.h,  x0: other.x, x1: other.x + other.w });
+    });
+
+    const computeResizeSnap = (rawDw, rawDh, skip) => {
+      if (skip) return { dw: rawDw, dh: rawDh, hints: null };
+      const thresh = SNAP_PX / zoom;
+      const candW       = c.w + rawDw;
+      const candH       = c.h + rawDh;
+      const candRight   = c.x + c.w + rawDw;
+      const candBottom  = c.y + c.h + rawDh;
+      let bestDwAdj = null, bestDwDist = thresh + 0.001, bestWMatch = null;
+      let bestDhAdj = null, bestDhDist = thresh + 0.001, bestHMatch = null;
+      for (const wc of wCands) {
+        const adjust = wc.value - candW;
+        const d = Math.abs(adjust);
+        if (d < bestDwDist) { bestDwDist = d; bestDwAdj = adjust; bestWMatch = { kind: 'numeric', owner: wc.owner }; }
+      }
+      for (const re of rightEdgeXs) {
+        const adjust = re.x - candRight;
+        const d = Math.abs(adjust);
+        if (d < bestDwDist) { bestDwDist = d; bestDwAdj = adjust; bestWMatch = { kind: 'edge', target: re }; }
+      }
+      for (const hc of hCands) {
+        const adjust = hc.value - candH;
+        const d = Math.abs(adjust);
+        if (d < bestDhDist) { bestDhDist = d; bestDhAdj = adjust; bestHMatch = { kind: 'numeric', owner: hc.owner }; }
+      }
+      for (const be of bottomEdgeYs) {
+        const adjust = be.y - candBottom;
+        const d = Math.abs(adjust);
+        if (d < bestDhDist) { bestDhDist = d; bestDhAdj = adjust; bestHMatch = { kind: 'edge', target: be }; }
+      }
+      const dw = rawDw + (bestDwAdj ?? 0);
+      const dh = rawDh + (bestDhAdj ?? 0);
+      // Build guide hints using the same shape consumed by the existing
+      // <svg className="snap-guides"> renderer further down in render.
+      const xs = [];
+      const ys = [];
+      if (bestWMatch?.kind === 'edge') {
+        const t = bestWMatch.target;
+        xs.push({
+          x: t.x,
+          y0: Math.min(t.y0, c.y),
+          y1: Math.max(t.y1, c.y + c.h + dh),
+        });
+      } else if (bestWMatch?.kind === 'numeric') {
+        // Underline the matched card so the user can see WHO they're
+        // matching. Drawn just below the matched card.
+        const o = bestWMatch.owner;
+        ys.push({ y: o.y + o.h + 6 / zoom, x0: o.x, x1: o.x + o.w });
+      }
+      if (bestHMatch?.kind === 'edge') {
+        const t = bestHMatch.target;
+        ys.push({
+          y: t.y,
+          x0: Math.min(t.x0, c.x),
+          x1: Math.max(t.x1, c.x + c.w + dw),
+        });
+      } else if (bestHMatch?.kind === 'numeric') {
+        // Side-bar to the right of the matched card.
+        const o = bestHMatch.owner;
+        xs.push({ x: o.x + o.w + 6 / zoom, y0: o.y, y1: o.y + o.h });
+      }
+      const hints = (xs.length || ys.length) ? { xs, ys, spacings: [] } : null;
+      return { dw, dh, hints };
+    };
+
     const onMove = (ev) => {
-      const dx = (ev.clientX - startClient.x) / zoom;
-      const dy = (ev.clientY - startClient.y) / zoom;
-      setResize({ id: c.id, dw: dx, dh: dy });
+      const rawDw = (ev.clientX - startClient.x) / zoom;
+      const rawDh = (ev.clientY - startClient.y) / zoom;
+      const { dw, dh, hints } = computeResizeSnap(rawDw, rawDh, ev.altKey);
+      setResize({ id: c.id, dw, dh });
+      setSnapHints(hints);
     };
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      const dx = (ev.clientX - startClient.x) / zoom;
-      const dy = (ev.clientY - startClient.y) / zoom;
-      const newW = Math.max(MIN_W, Math.round(c.w + dx));
-      const newH = Math.max(MIN_H, Math.round(c.h + dy));
+      const rawDw = (ev.clientX - startClient.x) / zoom;
+      const rawDh = (ev.clientY - startClient.y) / zoom;
+      const { dw, dh } = computeResizeSnap(rawDw, rawDh, ev.altKey);
+      const newW = Math.max(MIN_W, Math.round(c.w + dw));
+      const newH = Math.max(MIN_H, Math.round(c.h + dh));
       if (newW !== c.w || newH !== c.h) {
         // Manual resize sticks — note auto-sizing stops once the user has
         // committed a hand-set size. Only matters for note cards but the
@@ -1654,6 +1742,7 @@ export function CanvasSurface({
         mutators.updateCard?.(c.id, patch);
       }
       setResize(null);
+      setSnapHints(null);
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
