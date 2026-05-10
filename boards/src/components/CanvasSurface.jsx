@@ -220,6 +220,32 @@ export function CanvasSurface({
   // so the canvas can render thin gold guides at those coords.
   // { xs: [{ x, y0, y1 }], ys: [{ y, x0, x1 }] } — both in canvas-space.
   const [snapHints, setSnapHints] = useState(null);
+  // Mirror of snapHints that lingers ~160ms after clearing so the SVG
+  // layer can fade out instead of vanishing. The is-visible class is
+  // keyed off snapHints (live), but the rendered <line>s come from
+  // displayedHints (last-known) so there's still something to fade.
+  const [displayedHints, setDisplayedHints] = useState(null);
+  const snapHintsTimerRef = useRef(null);
+  useEffect(() => {
+    if (snapHints) {
+      if (snapHintsTimerRef.current) {
+        clearTimeout(snapHintsTimerRef.current);
+        snapHintsTimerRef.current = null;
+      }
+      setDisplayedHints(snapHints);
+    } else {
+      snapHintsTimerRef.current = setTimeout(() => {
+        setDisplayedHints(null);
+        snapHintsTimerRef.current = null;
+      }, 160);
+    }
+    return () => {
+      if (snapHintsTimerRef.current) {
+        clearTimeout(snapHintsTimerRef.current);
+        snapHintsTimerRef.current = null;
+      }
+    };
+  }, [snapHints]);
   const [resize, setResize] = useState(null);
   const [rotateState, setRotateState] = useState(null); // { id, rot }
   const [marquee, setMarquee] = useState(null);
@@ -1698,9 +1724,9 @@ export function CanvasSurface({
         });
       } else if (bestWMatch?.kind === 'numeric') {
         // Underline the matched card so the user can see WHO they're
-        // matching. Drawn just below the matched card.
+        // matching, with the matched dimension floating just under it.
         const o = bestWMatch.owner;
-        ys.push({ y: o.y + o.h + 6 / zoom, x0: o.x, x1: o.x + o.w });
+        ys.push({ y: o.y + o.h + 6 / zoom, x0: o.x, x1: o.x + o.w, label: String(o.w) });
       }
       if (bestHMatch?.kind === 'edge') {
         const t = bestHMatch.target;
@@ -1710,9 +1736,9 @@ export function CanvasSurface({
           x1: Math.max(t.x1, c.x + c.w + dw),
         });
       } else if (bestHMatch?.kind === 'numeric') {
-        // Side-bar to the right of the matched card.
+        // Side-bar to the right of the matched card, labeled with its height.
         const o = bestHMatch.owner;
-        xs.push({ x: o.x + o.w + 6 / zoom, y0: o.y, y1: o.y + o.h });
+        xs.push({ x: o.x + o.w + 6 / zoom, y0: o.y, y1: o.y + o.h, label: String(o.h) });
       }
       const hints = (xs.length || ys.length) ? { xs, ys, spacings: [] } : null;
       return { dw, dh, hints };
@@ -3784,33 +3810,80 @@ export function CanvasSurface({
         <div className="cards-layer">{sortedCards.map(renderCard)}</div>
 
         {/* Snap-alignment guidelines — gold hairlines along the matched
-            edge / center while a drag is snapping. Cleared on drag end. */}
-        {snapHints && (snapHints.xs?.length || snapHints.ys?.length || snapHints.spacings?.length) && (
-          <svg className="snap-guides"
+            edge / center / dimension while a drag is snapping.
+            Rendered off `displayedHints` (a delayed-unmount mirror of
+            `snapHints`) so the SVG can fade out for ~140ms after the
+            drag releases instead of vanishing instantly. The
+            `is-visible` class is keyed off live `snapHints`. */}
+        {displayedHints && (displayedHints.xs?.length || displayedHints.ys?.length || displayedHints.spacings?.length) && (
+          <svg className={`snap-guides ${snapHints ? 'is-visible' : ''}`}
                width={VIRTUAL_CANVAS_PX} height={VIRTUAL_CANVAS_PX}
                style={{ position: 'absolute', left: 0, top: 0,
                         pointerEvents: 'none', overflow: 'visible',
                         zIndex: 999997 }}>
-            {/* Edge / center alignment lines — toned down so they
-                read as a hint, not a full ruler. */}
-            {(snapHints.xs || []).map((g, i) => (
-              <line key={`gx-${i}`} x1={g.x} x2={g.x} y1={g.y0 - 12} y2={g.y1 + 12}
-                    stroke="var(--soleil)"
-                    strokeOpacity="0.42"
-                    strokeWidth={1 / zoom}
-                    vectorEffect="non-scaling-stroke" />
-            ))}
-            {(snapHints.ys || []).map((g, i) => (
-              <line key={`gy-${i}`} y1={g.y} y2={g.y} x1={g.x0 - 12} x2={g.x1 + 12}
-                    stroke="var(--soleil)"
-                    strokeOpacity="0.42"
-                    strokeWidth={1 / zoom}
-                    vectorEffect="non-scaling-stroke" />
-            ))}
+            {/* Edge / center alignment + numeric-match guides. Each
+                line is anchored by tiny dots at the card-edge endpoints
+                so the line reads as a relationship, not a ruler. The
+                stroke extends a soft 4px past the dots for breathing
+                room. Optional `label` floats just outside the cap. */}
+            {(displayedHints.xs || []).map((g, i) => {
+              const overshoot = 4 / zoom;
+              const dotR = 2 / zoom;
+              return (
+                <Fragment key={`gx-${i}`}>
+                  <line x1={g.x} x2={g.x} y1={g.y0 - overshoot} y2={g.y1 + overshoot}
+                        stroke="var(--soleil)"
+                        strokeOpacity="0.55"
+                        strokeWidth={1 / zoom}
+                        vectorEffect="non-scaling-stroke" />
+                  <circle cx={g.x} cy={g.y0} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
+                  <circle cx={g.x} cy={g.y1} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
+                  {g.label && (
+                    <text x={g.x + 8 / zoom} y={(g.y0 + g.y1) / 2}
+                          fill="var(--soleil)"
+                          fontSize={10 / zoom}
+                          fontFamily="ui-monospace, monospace"
+                          textAnchor="start"
+                          dominantBaseline="middle"
+                          opacity="0.85"
+                          style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
+                      {g.label}
+                    </text>
+                  )}
+                </Fragment>
+              );
+            })}
+            {(displayedHints.ys || []).map((g, i) => {
+              const overshoot = 4 / zoom;
+              const dotR = 2 / zoom;
+              return (
+                <Fragment key={`gy-${i}`}>
+                  <line y1={g.y} y2={g.y} x1={g.x0 - overshoot} x2={g.x1 + overshoot}
+                        stroke="var(--soleil)"
+                        strokeOpacity="0.55"
+                        strokeWidth={1 / zoom}
+                        vectorEffect="non-scaling-stroke" />
+                  <circle cx={g.x0} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
+                  <circle cx={g.x1} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
+                  {g.label && (
+                    <text x={(g.x0 + g.x1) / 2} y={g.y + 12 / zoom}
+                          fill="var(--soleil)"
+                          fontSize={10 / zoom}
+                          fontFamily="ui-monospace, monospace"
+                          textAnchor="middle"
+                          dominantBaseline="hanging"
+                          opacity="0.85"
+                          style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
+                      {g.label}
+                    </text>
+                  )}
+                </Fragment>
+              );
+            })}
             {/* Equal-spacing markers — drawn between paired neighbours
                 with tiny end caps + a label so the user sees "I matched
                 a 24px gap that already existed". */}
-            {(snapHints.spacings || []).map((s, i) => {
+            {(displayedHints.spacings || []).map((s, i) => {
               const isX = s.axis === 'x';
               const labelX = isX ? (s.a + s.b) / 2 : s.cross;
               const labelY = isX ? s.cross : (s.a + s.b) / 2;

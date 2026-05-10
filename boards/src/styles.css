@@ -5253,9 +5253,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 /* Snap-alignment guide layer — gold hairlines while a card drag is
    snapping. Inline strokes do the actual rendering; this rule exists
    so the class is grep-able in CSS, the layer can't capture pointer
-   events, and parent transforms don't affect its bounds. */
+   events, and parent transforms don't affect its bounds.
+   Opacity transitions in / out so the lines feel breathed onto the
+   canvas rather than snapping into existence. */
 .snap-guides {
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+.snap-guides.is-visible {
+  opacity: 1;
 }
 
 /* Group label chip — most styling is set inline because the colors
