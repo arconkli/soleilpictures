@@ -30,6 +30,7 @@ import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
 import { addRecentColor } from '../lib/recentColors.js';
+import { fetchLinkPreview } from '../lib/linkPreview.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportBoard.js';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
@@ -2465,12 +2466,25 @@ export function CanvasSurface({
         const w = 280, h = 110;
         let title = url;
         try { title = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
+        const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
         mutators.addCard?.({
-          id: `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+          id: newId,
           kind: 'link', source: url, link: url, title,
           x: Math.max(8, Math.round(pos.x - w / 2)),
           y: Math.max(8, Math.round(pos.y - h / 2)),
           w, h,
+        });
+        // Fire-and-forget OG fetch — when it resolves, patch the card
+        // with the preview fields and grow it to fit the image.
+        fetchLinkPreview(url).then(p => {
+          if (!p) return;
+          const patch = {};
+          if (p.title) patch.title = p.title;
+          if (p.image) patch.image = p.image;
+          if (p.description) patch.description = p.description;
+          if (p.favicon) patch.favicon = p.favicon;
+          if (p.image) { patch.w = 280; patch.h = 290; }
+          if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
         });
       }},
       { divider: true },
@@ -3041,7 +3055,9 @@ export function CanvasSurface({
                                                 cardId={c.id} boardId={board.id}
                                                 peerLiveHtml={peerNoteEdits[c.id] ?? null}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
-    else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target}
+                                                       image={c.image} description={c.description} favicon={c.favicon}
+                                                       onUpdate={onUpdate} autoFocus={af}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} onUpdate={onUpdate} autoFocus={af} />;
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} title={c.title} onUpdate={onUpdate} autoFocus={af} />;
@@ -3276,12 +3292,25 @@ export function CanvasSurface({
         return;
       }
       const w = 280, h = 130;
+      const newId = `link-${Date.now()}`;
+      let initialTitle = url;
+      try { initialTitle = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
       mutators.addCard?.({
-        id: `link-${Date.now()}`,
-        kind: 'link', source: url, link: url, title: url,
+        id: newId,
+        kind: 'link', source: url, link: url, title: initialTitle,
         x: Math.max(8, Math.round(cx - w / 2)),
         y: Math.max(8, Math.round(cy - h / 2)),
         w, h,
+      });
+      fetchLinkPreview(url).then(p => {
+        if (!p) return;
+        const patch = {};
+        if (p.title) patch.title = p.title;
+        if (p.image) patch.image = p.image;
+        if (p.description) patch.description = p.description;
+        if (p.favicon) patch.favicon = p.favicon;
+        if (p.image) { patch.w = 280; patch.h = 290; }
+        if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
       });
       return;
     }

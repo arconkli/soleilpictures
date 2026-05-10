@@ -594,7 +594,7 @@ export function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   );
 }
 
-export function LinkCard({ title, source, target, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+export function LinkCard({ title, source, target, image, description, favicon, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // Title editing is controlled here (not by EditableText's internal state) so
   // dbl-click ANYWHERE on the card body — not just on the title text — can
   // re-enter edit mode. Bumped via editTitleAt from the canvas.
@@ -627,8 +627,38 @@ export function LinkCard({ title, source, target, onUpdate, autoFocus = false, e
     );
   }
 
+  // Resolve a click-friendly URL (prefix bare hostnames so window.open
+  // doesn't treat them as a relative path).
+  const openHref = (() => {
+    if (!source) return null;
+    return source.startsWith('http://') || source.startsWith('https://')
+      ? source
+      : `https://${source}`;
+  })();
+  const openLink = (e) => {
+    if (!openHref) return;
+    e.stopPropagation();
+    window.open(openHref, '_blank', 'noopener,noreferrer');
+  };
+  const hasPreview = !!(image || description);
   return (
-    <div className="lc" onDoubleClick={onBodyDouble}>
+    <div className={`lc ${hasPreview ? 'lc-has-preview' : ''}`} onDoubleClick={onBodyDouble}>
+      {hasPreview && (
+        <div className="lc-preview" onPointerDown={(e) => e.stopPropagation()} onClick={openLink} title={openHref || ''}>
+          {image && (
+            <img className="lc-preview-img" src={image} alt="" loading="lazy"
+                 onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          )}
+          {onUpdate && (
+            <button type="button" className="lc-preview-x" title="Remove preview"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdate({ image: null, description: null, favicon: null });
+                    }}>×</button>
+          )}
+        </div>
+      )}
       <div className="lc-meta">
         {onUpdate
           ? <EditableText className="lc-title" value={title || ''} placeholder="Untitled link"
@@ -638,13 +668,28 @@ export function LinkCard({ title, source, target, onUpdate, autoFocus = false, e
                           autoFocus={autoFocus}
                           selectAllOnFocus={autoFocus || editTitleAt > 0} />
           : <div className="lc-title">{title}</div>}
+        {description && <div className="lc-desc">{description}</div>}
         <div className="lc-src">
-          <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-            <path d="M5 1 H9 V5 M9 1 L4 6 M2 3 H1 V9 H7 V8" stroke="currentColor" strokeWidth="1" fill="none" />
-          </svg>
+          {favicon
+            ? <img className="lc-favicon" src={favicon} alt="" width="11" height="11"
+                   onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            : (
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                <path d="M5 1 H9 V5 M9 1 L4 6 M2 3 H1 V9 H7 V8" stroke="currentColor" strokeWidth="1" fill="none" />
+              </svg>
+            )}
           {onUpdate
             ? <EditableText className="lc-src-text" value={source || ''} placeholder="https://…" onChange={(v) => onUpdate({ source: v, link: v })} />
             : <span>{source}</span>}
+          {openHref && (
+            <button type="button" className="lc-open" title="Open link"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={openLink}>
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <path d="M5 2 H10 V7 M10 2 L5 7 M3 4 V9 H8 V8" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </div>
