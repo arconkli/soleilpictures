@@ -21,6 +21,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
 import { useSuggestedTags } from '../hooks/useSuggestedTags.js';
 import { useDiscoveredTags } from '../hooks/useDiscoveredTags.js';
+import { isAiTaggerEnabled } from '../lib/aiTaggerFlag.js';
 import { ColorPicker } from './ColorPicker.jsx';
 
 const EXPAND_KEY = 'soleil.tags.sb.expanded';
@@ -123,10 +124,8 @@ export function SidebarTags({
   // Two suggestion sources:
   //   - legacy useSuggestedTags: word-frequency over workspace prose
   //   - useDiscoveredTags: AI-named clusters from pending_clusters
-  // Switched by the same localStorage flag as the AI tagger engine.
-  const aiTaggerEnabled = (() => {
-    try { return localStorage.getItem('soleil.ai_tagger') === '1'; } catch { return false; }
-  })();
+  // Routed by the shared isAiTaggerEnabled() helper (default on).
+  const aiTaggerEnabled = isAiTaggerEnabled();
   const legacySuggested = useSuggestedTags({
     workspaceId: aiTaggerEnabled ? null : workspaceId,
     existingTagSlugs: existingSlugs,

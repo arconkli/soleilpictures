@@ -26,6 +26,7 @@ import { TagDetailView } from './components/TagDetailView.jsx';
 import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
 import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { useAiTagger } from './hooks/useAiTagger.js';
+import { isAiTaggerEnabled } from './lib/aiTaggerFlag.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
 import { SettingsPanel } from './components/SettingsPanel.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
@@ -1149,15 +1150,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // canvas chip surfaces.
   const wsTagsForSidebar = useWorkspaceTags({ workspaceId: workspace.id, boardId: null });
 
-  // Tag suggester. Two engines live side by side during the transition:
-  //   - legacy TF-IDF in a web worker (useAutotagWorker)
-  //   - AI-powered embedding + tier verdict (useAiTagger)
-  // Flip via localStorage: `localStorage.setItem('soleil.ai_tagger', '1')`
-  // and reload. Both hooks accept null workspaceId as a no-op so the
-  // inactive one doesn't waste resources.
-  const aiTaggerEnabled = (() => {
-    try { return localStorage.getItem('soleil.ai_tagger') === '1'; } catch { return false; }
-  })();
+  // Tag suggester. AI engine on by default; legacy TF-IDF stays available
+  // as a fallback if anyone explicitly opts out (`localStorage.soleil.ai_tagger = '0'`).
+  // Both hooks accept null workspaceId as a no-op so the inactive one
+  // doesn't waste resources.
+  const aiTaggerEnabled = isAiTaggerEnabled();
   const legacy = useAutotagWorker(aiTaggerEnabled ? null : workspace.id);
   const ai = useAiTagger(aiTaggerEnabled ? workspace.id : null);
   const { suggestTags: autotagSuggest, ready: autotagReady } = aiTaggerEnabled ? ai : legacy;
