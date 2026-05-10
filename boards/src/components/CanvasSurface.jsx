@@ -371,7 +371,15 @@ export function CanvasSurface({
       aw.setLocalStateField('canvasCursor', { boardId: board.id, x: last.x, y: last.y });
       pending = null;
     };
+    // Debounce leave-null. Pointerleave fires whenever the cursor crosses
+    // a sibling overlay (popover / floating toolbar / context menu) that
+    // sits above the canvas — those are transient and shouldn't make the
+    // cursor pop in and out for peers. Only commit a null after the
+    // pointer has stayed away for ~400ms.
+    let leaveTimer = null;
+    const cancelLeave = () => { if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null; } };
     const onMove = (e) => {
+      cancelLeave();
       const r = wrap.getBoundingClientRect();
       const p = panRef.current;
       const z = zoomRef.current || 1;
@@ -384,8 +392,12 @@ export function CanvasSurface({
     const onLeave = () => {
       if (timer) { clearTimeout(timer); timer = null; }
       pending = null;
-      last = { x: null, y: null };
-      aw.setLocalStateField('canvasCursor', null);
+      cancelLeave();
+      leaveTimer = setTimeout(() => {
+        leaveTimer = null;
+        last = { x: null, y: null };
+        try { aw.setLocalStateField('canvasCursor', null); } catch (_) {}
+      }, 400);
     };
     wrap.addEventListener('pointermove', onMove);
     wrap.addEventListener('pointerleave', onLeave);
@@ -393,6 +405,7 @@ export function CanvasSurface({
       wrap.removeEventListener('pointermove', onMove);
       wrap.removeEventListener('pointerleave', onLeave);
       if (timer) clearTimeout(timer);
+      cancelLeave();
       try { aw.setLocalStateField('canvasCursor', null); } catch (_) {}
     };
   }, [getAwareness, board.id]);

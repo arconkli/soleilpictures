@@ -14,10 +14,12 @@ import { LiveCursor } from './primitives.jsx';
 //   localState.liveDrag        = { boardId, cards: [{id,x,y}] } during drag
 export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
   const [peers, setPeers] = useState([]);
-  // Lerped cursor positions, keyed by clientId. Kept separate from `peers`
-  // so the rAF loop can update cursor display without re-running the
-  // whole presence aggregation, and so non-positional fields (selection,
-  // marquee) still update at change cadence.
+  // Lerped cursor positions keyed by clientId. Carries user meta inline
+  // so the cursor can render even when the peer briefly drops out of the
+  // `peers` list (e.g. sender momentarily writes canvasCursor=null on a
+  // pointerleave caused by a popover overlay). A grace window keeps the
+  // last-known position visible across these transient gaps so the cursor
+  // doesn't pop in and out of existence.
   const [cursorDisplay, setCursorDisplay] = useState({});
 
   useEffect(() => {
@@ -25,9 +27,11 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
     if (!aw) return;
     const ALPHA = 0.35;
     const SNAP_PX = 0.5;
-    const cursorTargets = { current: {} };
-    const cursorState   = { current: {} };
+    const GRACE_MS = 700;
+    const cursorTargets = { current: {} };  // clientId → { x, y }  (current target if currently broadcasting)
+    const cursorState   = { current: {} };  // clientId → { x, y, user, lastSeen }
     let rafId = 0;
+    let cleanupId = 0;
 
     const tick = () => {
       rafId = 0;
@@ -36,16 +40,16 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
       let moved = false;
       for (const id in display) {
         const t = targets[id];
-        if (!t) continue;
+        if (!t) continue;  // no current target: hold last position (within grace)
         const dx = t.x - display[id].x;
         const dy = t.y - display[id].y;
         if (Math.abs(dx) < SNAP_PX && Math.abs(dy) < SNAP_PX) {
           if (display[id].x !== t.x || display[id].y !== t.y) {
-            display[id] = { x: t.x, y: t.y };
+            display[id] = { ...display[id], x: t.x, y: t.y };
             moved = true;
           }
         } else {
-          display[id] = { x: display[id].x + dx * ALPHA, y: display[id].y + dy * ALPHA };
+          display[id] = { ...display[id], x: display[id].x + dx * ALPHA, y: display[id].y + dy * ALPHA };
           moved = true;
         }
       }
@@ -55,13 +59,29 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
       }
     };
 
+    const dropExpired = () => {
+      const now = performance.now();
+      let changed = false;
+      for (const id in cursorState.current) {
+        if (id in cursorTargets.current) continue;  // still actively broadcasting
+        const lastSeen = cursorState.current[id].lastSeen || 0;
+        if (now - lastSeen > GRACE_MS) {
+          delete cursorState.current[id];
+          changed = true;
+        }
+      }
+      if (changed) setCursorDisplay({ ...cursorState.current });
+    };
+
     const refresh = () => {
+      const now = performance.now();
       const states = aw.getStates();
       // Group by user.id and keep only the freshest entry per user, so a
       // peer who reconnected with a new clientID doesn't show as two
       // cursors (one frozen, one live) while the old state ages out.
       const newest = new Map();
       const nextCursorTargets = {};
+      const userByClientId = new Map();
       states.forEach((state, clientId) => {
         if (!state?.user) return;
         if (state.user.id === selfId) return;
@@ -82,7 +102,6 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
           clientId,
           updated,
           user: state.user,
-          hasCursor: cursor?.boardId  === boardId,
           cardIds:   sel?.boardId     === boardId ? (sel.cardIds   || []) : [],
           strokeIds: sel?.boardId     === boardId ? (sel.strokeIds || []) : [],
           arrowIds:  sel?.boardId     === boardId ? (sel.arrowIds  || []) : [],
@@ -91,32 +110,38 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
         });
         if (cursor?.boardId === boardId) {
           nextCursorTargets[clientId] = { x: cursor.x, y: cursor.y };
+          userByClientId.set(clientId, state.user);
         }
       });
       setPeers([...newest.values()]);
       cursorTargets.current = nextCursorTargets;
-      // Snap newcomers to their first reported position (no lerp from 0,0).
+      // Snap newcomers to their first reported position; refresh user meta
+      // and lastSeen on every active broadcast.
+      let displayChanged = false;
       for (const id in nextCursorTargets) {
-        if (!(id in cursorState.current)) {
-          cursorState.current[id] = { x: nextCursorTargets[id].x, y: nextCursorTargets[id].y };
+        const t = nextCursorTargets[id];
+        const u = userByClientId.get(id);
+        if (!cursorState.current[id]) {
+          cursorState.current[id] = { x: t.x, y: t.y, user: u, lastSeen: now };
+          displayChanged = true;
+        } else {
+          cursorState.current[id].lastSeen = now;
+          if (u) cursorState.current[id].user = u;
         }
       }
-      // Drop departed peers from the lerp store.
-      let dropped = false;
-      for (const id in cursorState.current) {
-        if (!(id in nextCursorTargets)) {
-          delete cursorState.current[id];
-          dropped = true;
-        }
-      }
-      if (dropped) setCursorDisplay({ ...cursorState.current });
+      if (displayChanged) setCursorDisplay({ ...cursorState.current });
       if (!rafId) rafId = requestAnimationFrame(tick);
+      dropExpired();
     };
     refresh();
     aw.on('change', refresh);
+    // If no awareness changes fire (peer goes silent without disconnecting),
+    // periodically prune entries past the grace window.
+    cleanupId = setInterval(dropExpired, 1000);
     return () => {
       aw.off('change', refresh);
       if (rafId) cancelAnimationFrame(rafId);
+      if (cleanupId) clearInterval(cleanupId);
     };
   }, [getAwareness, boardId, selfId]);
 
@@ -149,17 +174,15 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
         ))}
       </div>
       <div className="cursors-layer">
-        {peers.map(p => {
-          if (!p.hasCursor) return null;
-          const c = cursorDisplay[p.clientId];
-          if (!c) return null;
+        {Object.entries(cursorDisplay).map(([clientId, c]) => {
+          if (!c?.user) return null;
           return (
             <LiveCursor
-              key={p.clientId}
+              key={clientId}
               x={pan.x + c.x * zoom}
               y={pan.y + c.y * zoom}
-              name={(p.user.name || '?').split(' ')[0]}
-              color={p.user.color || 'var(--soleil)'}
+              name={(c.user.name || '?').split(' ')[0]}
+              color={c.user.color || 'var(--soleil)'}
             />
           );
         })}
