@@ -1,14 +1,14 @@
-import { SoleilMark } from './primitives.jsx';
-
-// Soleil wordmark — Brandon Grotesque uppercase, mark substituted for the O.
+// Soleil Clusters wordmark — cluster mark + "CLUSTERS" in Brandon Grotesque
+// uppercase. The mark is a PNG with a light/dark variant; we swap based on the
+// active data-theme attribute so the dashed-orbit stays legible on either bg.
 //   size="display"  → 56px (auth screen)
 //   size="block"    → 24px (sidebar brand area)
 export function SoleilWordmark({ size = 'display', color = 'var(--ink-0)' }) {
   const isDisplay = size === 'display';
   const fontSize = isDisplay ? 56 : 24;
   const tracking = isDisplay ? '0.18em' : '0.16em';
-  const markSize = isDisplay ? 52 : 22;
-  const gap = isDisplay ? 10 : 4;
+  const markSize = isDisplay ? 64 : 28;
+  const gap = isDisplay ? 14 : 8;
 
   return (
     <div
@@ -25,9 +25,24 @@ export function SoleilWordmark({ size = 'display', color = 'var(--ink-0)' }) {
         lineHeight: 1,
       }}
     >
-      <span>S</span>
-      <SoleilMark size={markSize} color="var(--soleil)" glow />
-      <span>LEIL</span>
+      <ClustersMark size={markSize} />
+      <span>Clusters</span>
     </div>
+  );
+}
+
+// Theme-aware cluster mark. Renders both PNG variants and lets CSS show the
+// right one — keeps things synchronous when the theme bootstrap script flips
+// data-theme before React mounts.
+export function ClustersMark({ size = 28 }) {
+  return (
+    <span
+      className="clusters-mark"
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+    >
+      <img src="/clusters-logo-dark.png" alt="" className="clusters-mark-img clusters-mark-dark" />
+      <img src="/clusters-logo-light.png" alt="" className="clusters-mark-img clusters-mark-light" />
+    </span>
   );
 }

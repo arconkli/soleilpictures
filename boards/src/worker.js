@@ -38,7 +38,7 @@ async function handleOg(url, request) {
     const upstream = await fetch(absolute, {
       method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; SoleilBoardsPreview/1.0; +https://boards.soleilpictures.com)',
+        'User-Agent': 'Mozilla/5.0 (compatible; SoleilClustersPreview/1.0; +https://clusters.soleilpictures.com)',
         'Accept': 'text/html,application/xhtml+xml',
         'Accept-Language': 'en-US,en;q=0.5',
       },

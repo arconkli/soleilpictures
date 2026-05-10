@@ -112,7 +112,7 @@ export function PublicBoardView({ token }) {
   return (
     <div className="public-shell" style={{ background: board.bg_color || 'var(--bg-0)' }}>
       <div className="public-topbar">
-        <a className="public-brand" href="/" title="Soleil Boards home">
+        <a className="public-brand" href="/" title="Soleil Clusters home">
           <SoleilMark size={20} color="var(--soleil)" glow />
           <span className="public-brand-name">Soleil</span>
         </a>

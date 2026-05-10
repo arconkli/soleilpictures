@@ -1,4 +1,4 @@
-/* Soleil Boards — neutral grayscale chrome with soleil-gold as a precise
+/* Soleil Clusters — neutral grayscale chrome with soleil-gold as a precise
    accent only (selection rings, focused state, the wordmark mark, the
    active sidebar bar). Backgrounds and text stay neutral so the canvas
    doesn't read as warm-tinted. */
@@ -6,6 +6,15 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap');
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Clusters mark — show the dark-bg variant by default, swap to the
+   light-bg variant under [data-theme="light"]. Keeps the theme bootstrap
+   script's pre-mount data-theme swap synchronous (no React flash). */
+.clusters-mark { position: relative; display: inline-block; line-height: 0; flex-shrink: 0; }
+.clusters-mark-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.clusters-mark-light { display: none; }
+[data-theme="light"] .clusters-mark-dark { display: none; }
+[data-theme="light"] .clusters-mark-light { display: block; }
 
 :root {
   /* neutral dark (default) */
