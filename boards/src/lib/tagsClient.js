@@ -35,26 +35,31 @@ async function authedFetch(path, body) {
 
 // Embed a batch of texts via /api/tags/embed.
 // cards: [{ id, text }]
-// Returns: [{ id, vector }] or null on failure.
+// Returns: { embeddings: [{ id, vector }], usage: {...}, ms } or null on failure.
 export async function embedCards(cards) {
-  if (!cards?.length) return [];
+  if (!cards?.length) return { embeddings: [], usage: null, ms: 0 };
+  const t0 = performance.now();
   const data = await authedFetch('/api/tags/embed', { cards });
-  return data?.embeddings || null;
+  if (!data) return null;
+  return { embeddings: data.embeddings || [], usage: data.usage || null, ms: performance.now() - t0 };
 }
 
-// Convenience: embed a single text. Returns Float32Array-like array or null.
+// Convenience: embed a single text. Returns { vector, usage, ms } or null.
 export async function embedOne(id, text) {
   const out = await embedCards([{ id: String(id), text: String(text || '') }]);
-  return out?.[0]?.vector || null;
+  if (!out?.embeddings?.[0]?.vector) return null;
+  return { vector: out.embeddings[0].vector, usage: out.usage, ms: out.ms };
 }
 
 // Score a batch of cards against candidate tags via /api/tags/apply.
 // cards: [{ id, text, candidate_tags: [{ id, name, description? }] }]
-// Returns: [{ card_id, tags: [{ tag_id, confidence: "high"|"medium"|"low" }] }] or null.
+// Returns: { verdicts: [...], usage: {...}, ms } or null on failure.
 export async function applyCards(cards) {
-  if (!cards?.length) return [];
+  if (!cards?.length) return { verdicts: [], usage: null, ms: 0 };
+  const t0 = performance.now();
   const data = await authedFetch('/api/tags/apply', { cards });
-  return data?.verdicts || null;
+  if (!data) return null;
+  return { verdicts: data.verdicts || [], usage: data.usage || null, ms: performance.now() - t0 };
 }
 
 // Name an emergent cluster via /api/tags/cluster-name (Phase 2).

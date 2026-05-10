@@ -24,9 +24,11 @@ import { supabase } from '../lib/supabase.js';
 import { embedOne, embedCards, applyCards, parsePgvector, formatPgvector } from '../lib/tagsClient.js';
 import {
   partitionTagsByEmbedding,
+  cosineDist,
   SILENT_APPLY_DIST,
   NO_MATCH_DIST,
 } from '../lib/clusterMath.js';
+import { logDecision, recordCall } from '../lib/aiTaggerLog.js';
 
 export function useAiTagger(workspaceId) {
   const [ready, setReady] = useState(false);
@@ -101,8 +103,9 @@ export function useAiTagger(workspaceId) {
     promise = (async () => {
       const text = (tag.name || tag.slug || '').trim();
       if (!text) return null;
-      const vec = await embedOne(tag.id, text);
-      if (!vec) return null;
+      const result = await embedOne(tag.id, text);
+      if (!result?.vector) return null;
+      const vec = result.vector;
       centroidsRef.current.set(tag.id, vec);
       // Persist for cold-start performance. Fire-and-forget; the in-memory
       // copy is the source of truth for this session.
@@ -134,8 +137,11 @@ export function useAiTagger(workspaceId) {
     if (!tags.length) return [];
 
     // 1. Embed the query.
-    const queryVec = await embedOne(target?.id || 'q', text);
-    if (!queryVec) return [];
+    const queryResult = await embedOne(target?.id || 'q', text);
+    if (!queryResult?.vector) return [];
+    const queryVec = queryResult.vector;
+    const embedMs = queryResult.ms;
+    const embedUsage = queryResult.usage;
 
     // 2. Make sure every tag has a centroid (lazy seed from name on miss).
     //    Run concurrently — these are independent network calls.
@@ -148,21 +154,52 @@ export function useAiTagger(workspaceId) {
     const ready_tags = tagsWithCentroids.filter(Boolean);
     if (!ready_tags.length) return [];
 
-    // 3. Partition by embedding distance.
+    // 3. Partition by embedding distance. We also compute a per-tag
+    //    breakdown here for logging, since clusterMath only returns the
+    //    bucketed view.
     const { silentApply, candidates } = partitionTagsByEmbedding(queryVec, ready_tags);
+    const perTag = ready_tags.map(({ tag, centroid }) => {
+      const distance = cosineDist(queryVec, centroid);
+      let outcome;
+      if (distance < SILENT_APPLY_DIST) outcome = 'silent';
+      else if (distance > NO_MATCH_DIST) outcome = 'dropped';
+      else outcome = 'candidate';
+      return { tagId: tag.id, tagName: tag.name, distance, outcome };
+    });
 
     // 4. For middle-band candidates, ask the model.
     let verdicts = [];
+    let applyMs = 0;
+    let applyUsage = null;
     if (candidates.length > 0) {
       const apply = await applyCards([{
         id: target?.id || 'q',
         text,
         candidate_tags: candidates.map(c => ({ id: c.tag.id, name: c.tag.name })),
       }]);
-      verdicts = apply?.[0]?.tags || [];
+      verdicts = apply?.verdicts?.[0]?.tags || [];
+      applyMs = apply?.ms || 0;
+      applyUsage = apply?.usage || null;
+      // Annotate perTag with AI verdict for the logger
+      for (const v of verdicts) {
+        const p = perTag.find(p => p.tagId === v.tag_id);
+        if (p) p.aiConfidence = v.confidence;
+      }
     }
 
-    // 5. Convert to the legacy suggestion shape.
+    // 5. Emit instrumentation.
+    logDecision({
+      input: text,
+      target,
+      perTag,
+      verdicts,
+      embedMs,
+      applyMs,
+      embedUsage,
+      applyUsage,
+    });
+
+    // 6. Convert to the legacy suggestion shape.
     const out = [];
     for (const s of silentApply) {
       out.push({ tagId: s.tag_id, score: 1.0, reason: 'embedding-near' });
