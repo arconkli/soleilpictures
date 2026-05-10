@@ -424,25 +424,84 @@ export function CanvasSurface({
   // (cardId → {x, y}) so we can render the card at the peer's reported
   // position while they're dragging it. Y.Doc commit on drag-end snaps it
   // into the final position.
+  //
+  // We don't render straight off the awareness change events — those arrive
+  // at the sender's broadcast cadence + network jitter, so the card visibly
+  // hops between discrete positions. Instead we keep a target ref and lerp
+  // a separate display ref toward it inside a rAF loop. ALPHA 0.35 means
+  // ~5–7 frames to reach a stationary target after the sender stops moving,
+  // which reads as smooth without floaty lag.
   const [peerDrags, setPeerDrags] = useState({});
   useEffect(() => {
     const aw = getAwareness?.();
     if (!aw) return;
+    const ALPHA = 0.35;
+    const SNAP_PX = 0.5;
+    const targetsRef = { current: {} };
+    const displayRef = { current: {} };
+    let rafId = 0;
+
+    const tick = () => {
+      rafId = 0;
+      const display = displayRef.current;
+      const targets = targetsRef.current;
+      let moved = false;
+      for (const id in display) {
+        const t = targets[id];
+        if (!t) continue;
+        const dx = t.x - display[id].x;
+        const dy = t.y - display[id].y;
+        if (Math.abs(dx) < SNAP_PX && Math.abs(dy) < SNAP_PX) {
+          if (display[id].x !== t.x || display[id].y !== t.y) {
+            display[id] = { x: t.x, y: t.y };
+            moved = true;
+          }
+        } else {
+          display[id] = { x: display[id].x + dx * ALPHA, y: display[id].y + dy * ALPHA };
+          moved = true;
+        }
+      }
+      if (moved) {
+        setPeerDrags({ ...display });
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+
     const refresh = () => {
-      const map = {};
+      const next = {};
       aw.getStates().forEach((state) => {
         if (!state?.user || state.user.id === currentUser?.id) return;
         const drag = state.liveDrag;
         if (!drag || drag.boardId !== board.id) return;
         for (const dc of (drag.cards || [])) {
-          if (dc?.id) map[dc.id] = { x: dc.x, y: dc.y };
+          if (dc?.id) next[dc.id] = { x: dc.x, y: dc.y };
         }
       });
-      setPeerDrags(map);
+      targetsRef.current = next;
+      // Snap newly-arrived cards to their first target (no lerp from 0,0).
+      for (const id in next) {
+        if (!(id in displayRef.current)) {
+          displayRef.current[id] = { x: next[id].x, y: next[id].y };
+        }
+      }
+      // Drop cards no longer being dragged. The card snaps back to its
+      // Y.Doc-committed position via the regular render path immediately.
+      let cleared = false;
+      for (const id in displayRef.current) {
+        if (!(id in next)) {
+          delete displayRef.current[id];
+          cleared = true;
+        }
+      }
+      if (cleared) setPeerDrags({ ...displayRef.current });
+      if (!rafId) rafId = requestAnimationFrame(tick);
     };
     refresh();
     aw.on('change', refresh);
-    return () => aw.off('change', refresh);
+    return () => {
+      aw.off('change', refresh);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [getAwareness, board.id, currentUser?.id]);
 
   // Marquee broadcast — write the live marquee box to awareness so peers
@@ -1524,6 +1583,21 @@ export function CanvasSurface({
     };
     setDrag({ ids: dragIds, dx: 0, dy: 0, startPositions });
 
+    // rAF-coalesced liveDrag broadcast. pointermove can fire ~120/sec;
+    // peers only need ~60/sec (display refresh). We hold the latest
+    // payload in a closure and flush once per animation frame.
+    let pendingLiveDrag = null;
+    let liveDragRafId = 0;
+    const flushLiveDrag = () => {
+      liveDragRafId = 0;
+      if (!pendingLiveDrag) return;
+      const aw = getAwareness?.();
+      if (aw) {
+        try { aw.setLocalStateField('liveDrag', pendingLiveDrag); } catch (_) {}
+      }
+      pendingLiveDrag = null;
+    };
+
     const onMove = (ev) => {
       const rawDx = (ev.clientX - startClient.x) / zoom;
       const rawDy = (ev.clientY - startClient.y) / zoom;
@@ -1558,19 +1632,17 @@ export function CanvasSurface({
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
         detail: { sourceBoardId: board.id, clientX: ev.clientX, clientY: ev.clientY },
       }));
-      // Broadcast the live drag positions to peers via awareness so they can
-      // see the card move in real time (Y.Doc only commits on drag END, so
-      // without this peers wouldn't see anything until the user lets go).
-      const aw = getAwareness?.();
-      if (aw) {
-        aw.setLocalStateField('liveDrag', {
-          boardId: board.id,
-          cards: dragIds.map(id => {
-            const start = startPositions[id];
-            return start ? { id, x: Math.round(start.x + dx), y: Math.round(start.y + dy) } : null;
-          }).filter(Boolean),
-        });
-      }
+      // Queue liveDrag broadcast for the next animation frame (peers see
+      // ~60Hz updates instead of ~120Hz, and the local main thread is
+      // freed from JSON-encoding + WebSocket-sending on every pointermove).
+      pendingLiveDrag = {
+        boardId: board.id,
+        cards: dragIds.map(id => {
+          const start = startPositions[id];
+          return start ? { id, x: Math.round(start.x + dx), y: Math.round(start.y + dy) } : null;
+        }).filter(Boolean),
+      };
+      if (!liveDragRafId) liveDragRafId = requestAnimationFrame(flushLiveDrag);
     };
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
@@ -1581,6 +1653,11 @@ export function CanvasSurface({
       const snapEnd = skip ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
       const { dx, dy } = snapEnd;
       setSnapHints(null);
+      // Cancel any queued mid-drag broadcast so a stale rAF can't fire
+      // AFTER we clear liveDrag and momentarily flash the card back to
+      // the previous position.
+      if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
+      pendingLiveDrag = null;
       // Clear our live-drag awareness so peers see the card snap to its
       // committed position. (The Y.Doc updateCards call below propagates
       // the final position via Yjs sync.)
