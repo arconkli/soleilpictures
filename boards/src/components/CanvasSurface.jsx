@@ -584,6 +584,19 @@ export function CanvasSurface({
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
 
+  // Holds the most-recently-created card whose Yjs write hasn't yet
+  // surfaced through the useYBoard subscription back to `cards` here.
+  // pickStrokeTarget falls back to this so a stroke drawn immediately
+  // after a SketchPad commit still finds its target instead of leaking
+  // to the board's free-strokes layer.
+  const pendingCardRef = useRef(null);
+  useEffect(() => {
+    const p = pendingCardRef.current;
+    if (p && (cards || []).some(c => c.id === p.id)) {
+      pendingCardRef.current = null;
+    }
+  }, [cards]);
+
   // groupId → array of member cards. Drives the group-outline render
   // and the drag-together logic. Also used by "Ungroup" / "Toggle
   // outline" menu actions to know whether a card is in a group.
@@ -2061,9 +2074,12 @@ export function CanvasSurface({
         const liveCards = cardsRef.current || [];
         const liveSelected = selectedRef.current;
         if (liveSelected && liveSelected.size === 1) {
-          const sel = liveCards.find(c => c.id === [...liveSelected][0]);
+          const selId = [...liveSelected][0];
+          const sel = liveCards.find(c => c.id === selId)
+                   || (pendingCardRef.current?.id === selId ? pendingCardRef.current : null);
           if (sel) {
-            console.log('[draw] route → SELECTED card', sel.id, 'kind:', sel.kind);
+            const viaPending = pendingCardRef.current?.id === selId && !liveCards.find(c => c.id === selId);
+            console.log('[draw] route → SELECTED card', sel.id, 'kind:', sel.kind, viaPending ? '(via pendingCardRef)' : '');
             return sel;
           }
         }
@@ -4274,6 +4290,16 @@ export function CanvasSurface({
             x: cardX, y: cardY, w: cardW, h: cardH,
             bg, strokes: localStrokes,
           });
+          // Stash the freshly-created card so pickStrokeTarget can find
+          // it during the few ms before the Yjs subscription updates
+          // `cards` for this component. Cleared by the cards effect
+          // once the card actually appears in the snapshot.
+          pendingCardRef.current = {
+            id: newId,
+            kind: 'art',
+            x: cardX, y: cardY, w: cardW, h: cardH,
+            bg, strokes: localStrokes,
+          };
           // Drop the user back on the board with the new canvas selected
           // and the draw tool active, so they can keep painting straight
           // into it (selection-based routing keeps strokes on the card).
