@@ -56,6 +56,7 @@ interface ShareBundleBody { token?: string }
 function corsHeaders(origin: string | null): HeadersInit {
   const allowed = new Set([
     "https://boards.soleilpictures.com",
+    "https://clusters.soleilpictures.com",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
   ]);
