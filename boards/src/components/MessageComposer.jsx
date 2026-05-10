@@ -158,7 +158,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
         <div className="msg-composer-attachments">
           {attachments.map((a, i) => (
             <div key={i} className="msg-composer-att-chip">
-              <span>{a.name || a.kind}</span>
+              <span>{a.name || a.title || (a.kind === 'url' ? a.href : a.kind)}</span>
               <button type="button" onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}>×</button>
             </div>
           ))}

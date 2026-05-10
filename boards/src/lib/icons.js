@@ -119,7 +119,6 @@ export {
   Microphone,
   Globe as GlobeIcon,
   Compass,
-  Telescope,
   Rocket,
   Planet,
   Moon as MoonIcon,
