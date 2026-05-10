@@ -12,6 +12,14 @@ compatibility_date = "2025-01-01"
 # here, because zone provisioning needs to happen interactively).
 workers_dev = true
 
+# Public Supabase config used by the /api/tags/* routes to verify the
+# user's JWT against /auth/v1/user. Both values are public-by-design
+# (the anon key is gated by RLS, not secrecy) — safe to commit.
+# OPENAI_API_KEY is set separately via `wrangler secret put OPENAI_API_KEY`.
+[vars]
+SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVobGhsbWJwd3dhbG1laXN2bWRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NzYxNTIsImV4cCI6MjA5MzM1MjE1Mn0.gEySom06_L90FXAuTAz2S9rbQk-WNk6K3aReb2EwH1Y"
+
 [assets]
 directory = "./dist"
 not_found_handling = "single-page-application"
