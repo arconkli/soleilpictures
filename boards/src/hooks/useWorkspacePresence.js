@@ -50,7 +50,7 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
       handleRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, user?.id]);
+  }, [workspaceId, user?.id, user?.name, user?.color]);
 
   // Push a fresh heartbeat whenever the location changes so peers see the
   // navigation immediately rather than waiting for the next interval tick.

@@ -141,10 +141,23 @@ export async function getMyWorkspaceRole(workspaceId) {
 // Fetch the caller's own profile (name + color + avatar + settings).
 // Returns null if no row exists yet — callers should fall back to
 // email-derived defaults and {} settings.
+//
+// MUST filter by auth.uid() explicitly. The profiles table has TWO
+// permissive SELECT policies — `self read profile` (user_id = auth.uid())
+// and `ws-mate read profile` (workspace mates can read each other's
+// profiles). With no row of your own and a workspace mate who DOES have
+// a row, an unfiltered `.maybeSingle()` happily returned the workspace
+// mate's row as if it were yours, which then propagated into userInfo
+// (name + color) and out through workspace presence — every collaborator
+// ended up sharing the same identity in the UI.
 export async function getOwnProfile() {
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData?.user?.id;
+  if (!uid) return null;
   const { data, error } = await supabase
     .from('profiles')
     .select('user_id, display_name, color, avatar_url, settings, updated_at')
+    .eq('user_id', uid)
     .maybeSingle();
   if (error) throw error;
   return data || null;
