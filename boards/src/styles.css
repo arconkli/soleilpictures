@@ -2486,6 +2486,90 @@ body {
   white-space: nowrap;
   border-radius: 2px;
 }
+/* Arrow color tokens — referenced from arrowGeometry.js. */
+:root {
+  --arrow-ink:    var(--ink-2);
+  --arrow-red:    #ef4444;
+  --arrow-orange: #f59e0b;
+  --arrow-green:  #10b981;
+  --arrow-blue:   #3b82f6;
+  --arrow-purple: #a855f7;
+}
+
+/* ── Arrow popover — inline editor floating above the selected arrow. */
+.arrow-popover {
+  position: fixed;
+  z-index: 999999;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.18), 0 1px 2px rgba(0,0,0,.12);
+  font-family: var(--font-sans);
+  color: var(--ink-1);
+  user-select: none;
+  pointer-events: auto;
+}
+.arrow-popover .ap-row { display: inline-flex; align-items: center; gap: 4px; }
+.arrow-popover .ap-divider {
+  width: 1px; height: 18px; background: var(--line-1); margin: 0 2px;
+}
+.arrow-popover button { background: transparent; border: 1px solid transparent;
+  border-radius: 6px; color: var(--ink-2); cursor: pointer; padding: 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.arrow-popover button:hover { background: var(--bg-3); color: var(--ink-1); }
+.arrow-popover button.is-on { background: var(--bg-3); color: var(--ink-1); border-color: var(--line-2); }
+
+.ap-swatch {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid transparent !important; padding: 0 !important;
+  box-shadow: 0 0 0 1px var(--line-1) inset;
+}
+.ap-swatch.is-on { border-color: var(--ink-1) !important; box-shadow: none; }
+
+.ap-thick { width: 22px; height: 22px; }
+.ap-thick-line {
+  display: block; width: 14px; background: currentColor; border-radius: 1px;
+}
+.ap-thick-line.ap-thick-thin   { height: 1.2px; }
+.ap-thick-line.ap-thick-medium { height: 2px; }
+.ap-thick-line.ap-thick-thick  { height: 3px; }
+
+.ap-head {
+  width: 26px; height: 22px;
+  font: 600 13px/1 var(--font-sans);
+  color: var(--ink-2);
+}
+.ap-head.is-on { color: var(--ink-1); }
+
+.ap-toggle { width: 26px; height: 22px; color: var(--ink-2); }
+.ap-toggle.is-on { color: var(--ink-1); }
+
+.ap-label-input {
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 6px;
+  color: var(--ink-1);
+  font-family: var(--font-mono); font-size: 10.5px;
+  height: 22px;
+  padding: 0 8px;
+  width: 130px;
+  outline: none;
+}
+.ap-label-input:focus { border-color: var(--line-2); }
+
+.ap-delete { color: var(--ink-3); }
+.ap-delete:hover { color: #ef4444 !important; background: rgba(239,68,68,.12) !important; }
+
+/* Group label arrow-source highlight */
+.group-label.is-arrow-source {
+  outline: 2px solid var(--soleil);
+  outline-offset: 1px;
+}
 
 /* Sit above all cards. Cards use inline z from c.z which can climb high
    as users bring-to-front; keep cursors floating clearly on top. */
@@ -4106,6 +4190,46 @@ body {
   transform: scaleX(.85);
 }
 .ctx-has-submenu:hover .ctx-chevron { color: var(--ink-1); }
+
+/* Applied-tag chips strip at the top of the card right-click menu. */
+.ctx-tags-head {
+  font: 700 9.5px/1 var(--font-display);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 8px 12px 4px;
+}
+.ctx-tags-row {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  padding: 0 10px 8px;
+}
+.ctx-tag-chip {
+  appearance: none;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px 3px 6px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 999px;
+  cursor: pointer;
+  font: 500 11px/1.2 var(--font-sans);
+  color: var(--ink-1);
+  transition: background-color 100ms ease, border-color 100ms ease;
+}
+.ctx-tag-chip:hover {
+  background: var(--bg-0);
+  border-color: var(--line-2);
+  color: var(--ink-0);
+}
+.ctx-tag-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.ctx-tag-name {
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden; text-overflow: ellipsis;
+}
 
 /* Image card link overlay (top-right). Title now lives in-flow below the
    image — see ".ic-title" rules further down. */

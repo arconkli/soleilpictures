@@ -16,6 +16,10 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   // other cards. Drives the "Linked from N places" menu label so the
   // user sees how rich the backlinks panel will be before opening it.
   const [refCount, setRefCount] = useState(null);
+  // Tags currently applied to this card. Shown at the top of the menu
+  // so the user knows what concepts the system has attached before they
+  // pick an action.
+  const [appliedTags, setAppliedTags] = useState([]);
 
   useEffect(() => {
     if (!supabase || !workspaceId || !boardId || !card?.id) return;
@@ -41,9 +45,41 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
         } catch (_) {}
       }
       if (!cancelled) setRefCount(n);
+
+      // Tags applied directly to this card. Hydrate color + name.
+      try {
+        const { data: links } = await supabase.from('entity_links')
+          .select('target_id, source')
+          .eq('source_kind', 'card')
+          .eq('source_id', String(card.id))
+          .eq('source_board_id', boardId)
+          .eq('target_kind', 'tag')
+          .eq('link_kind', 'applied');
+        const tagIds = Array.from(new Set((links || []).map(r => r.target_id).filter(Boolean)));
+        if (tagIds.length === 0) {
+          if (!cancelled) setAppliedTags([]);
+          return;
+        }
+        const { data: tags } = await supabase.from('tags')
+          .select('id, name, color')
+          .in('id', tagIds);
+        const sourceById = new Map((links || []).map(r => [r.target_id, r.source]));
+        const hydrated = (tags || []).map(t => ({
+          id: t.id,
+          name: t.name || 'Tag',
+          color: t.color || fallbackColor(t.name || t.id),
+          source: sourceById.get(t.id) || 'user',
+        }));
+        if (!cancelled) setAppliedTags(hydrated);
+      } catch (_) { if (!cancelled) setAppliedTags([]); }
     })();
     return () => { cancelled = true; };
   }, [workspaceId, boardId, card?.id, card?.title, card?.name]);
+
+  const openTag = (tagId) => {
+    onClose();
+    document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId } }));
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -67,6 +103,23 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
 
   return (
     <div className="ctx-menu" style={{ left: px, top: py }} role="menu">
+      {card?.id && appliedTags.length > 0 && (
+        <>
+          <div className="ctx-tags-head">TAGS</div>
+          <div className="ctx-tags-row">
+            {appliedTags.map(t => (
+              <button key={t.id}
+                      className="ctx-tag-chip"
+                      title={`Open tag "${t.name}"${t.source && t.source !== 'user' ? ' · ' + t.source : ''}`}
+                      onClick={() => openTag(t.id)}>
+                <span className="ctx-tag-dot" style={{ background: t.color }} />
+                <span className="ctx-tag-name">{t.name}</span>
+              </button>
+            ))}
+          </div>
+          <div className="ctx-divider" />
+        </>
+      )}
       {items.map((it, i) => {
         if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
         if (it.submenu) return <SubmenuItem key={it.id || i} item={it} onClose={onClose} />;
@@ -186,4 +239,14 @@ function SubmenuItem({ item, onClose }) {
       )}
     </div>
   );
+}
+
+const TAG_PALETTE = [
+  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
+  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
+];
+function fallbackColor(s) {
+  const str = (s || '').toString();
+  let h = 0; for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
 }

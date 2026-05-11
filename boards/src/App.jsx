@@ -514,11 +514,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ydoc.transact(() => {
         idSet.forEach(id => m.delete(id));
         if (a) {
+          // An arrow endpoint can be a bare card id (legacy), a tagged
+          // ref {type, id}, or a free {x,y} point. Only card refs cascade.
+          const cardIdOf = (r) => {
+            if (typeof r === 'string') return r;
+            if (r && typeof r === 'object' && r.type === 'card') return r.id;
+            return null;
+          };
           for (let i = a.length - 1; i >= 0; i--) {
             const ar = a.get(i);
-            const fromId = ar?.from ?? ar?.get?.('from');
-            const toId   = ar?.to   ?? ar?.get?.('to');
-            if (idSet.has(fromId) || idSet.has(toId)) a.delete(i, 1);
+            const fromCard = cardIdOf(ar?.from ?? ar?.get?.('from'));
+            const toCard   = cardIdOf(ar?.to   ?? ar?.get?.('to'));
+            if ((fromCard && idSet.has(fromCard)) || (toCard && idSet.has(toCard))) a.delete(i, 1);
           }
         }
       }, 'local');
@@ -584,9 +591,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!groupId) return;
       const m = cardsMap(); const gm = groupsMap();
       if (!m || !gm) return;
+      const a = arrowsArr();
       ydoc.transact(() => {
         m.forEach((ym) => { if (ym.get('groupId') === groupId) ym.set('groupId', null); });
         gm.delete(groupId);
+        // Cascade: drop any arrows that pointed at this group.
+        if (a) {
+          for (let i = a.length - 1; i >= 0; i--) {
+            const ar = a.get(i);
+            const ref = (r) => r && typeof r === 'object' && r.type === 'group' && r.id === groupId;
+            if (ref(ar?.from) || ref(ar?.to)) a.delete(i, 1);
+          }
+        }
       }, 'local');
     };
     const renameGroup = (groupId, name) => {
@@ -632,7 +648,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     const addArrow = (fromId, toId, opts = {}) => {
-      if (!fromId || !toId || fromId === toId) return;
+      if (!fromId || !toId) return;
+      // Compare by anchor identity, not object identity — refs may be
+      // bare strings (card id) or tagged objects ({type, id}).
+      const idOf  = (r) => typeof r === 'string' ? r : r?.id;
+      const typeOf = (r) => typeof r === 'string' ? 'card' : (r?.type || 'card');
+      if (typeOf(fromId) === typeOf(toId) && idOf(fromId) === idOf(toId)) return;
       const a = arrowsArr(); if (!a) return;
       ydoc.transact(() => { a.push([{ from: fromId, to: toId, ...opts }]); }, 'local');
     };
@@ -1577,6 +1598,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     document.addEventListener('soleil-open-backlinks', onOpen);
     return () => document.removeEventListener('soleil-open-backlinks', onOpen);
   }, []);
+
+  // Right-click "open tag" chips and other prop-drill-less callers
+  // dispatch soleil-open-tag { tagId }. Resolve to the tag row and
+  // open the tag detail surface.
+  useEffect(() => {
+    const onOpen = (e) => {
+      const { tagId } = e.detail || {};
+      if (!tagId) return;
+      const tag = (wsTagsForSidebar.tags || []).find(t => t.id === tagId);
+      if (tag) openTagSurface(tag);
+    };
+    document.addEventListener('soleil-open-tag', onOpen);
+    return () => document.removeEventListener('soleil-open-tag', onOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsTagsForSidebar.tags]);
 
   // Drag-onto-board: CanvasSurface fires this when a card drag releases
   // over a board card. We load the target board's snapshot, inject the
