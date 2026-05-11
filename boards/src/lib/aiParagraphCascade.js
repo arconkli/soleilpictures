@@ -311,18 +311,28 @@ export async function runParagraphCascade({
   const toAdd = [...currentKeys].filter(k => !prevKeys.has(k));
   const toRemove = [...prevKeys].filter(k => !currentKeys.has(k));
 
-  // Insert new range rows.
+  // Insert new range rows. Track which keys ACTUALLY landed so that
+  // a failed insert (network glitch, transient RLS error) gets retried
+  // on the next cascade fire instead of being marked applied.
+  const successKeys = new Set();
   await Promise.allSettled(tierResults.filter(e =>
     toAdd.includes(buildApplyKey(pageId, e.pHash, e.tagId, e.startOffset, e.length))
-  ).map(e => tagDocRange({
-    workspaceId,
-    docCardId,
-    pageId,
-    boardId,
-    tagId: e.tagId,
-    source: e.attribution,
-    sourceAnchor: { pHash: e.pHash, startOffset: e.startOffset, length: e.length },
-  })));
+  ).map(async e => {
+    try {
+      await tagDocRange({
+        workspaceId,
+        docCardId,
+        pageId,
+        boardId,
+        tagId: e.tagId,
+        source: e.attribution,
+        sourceAnchor: { pHash: e.pHash, startOffset: e.startOffset, length: e.length },
+      });
+      successKeys.add(buildApplyKey(pageId, e.pHash, e.tagId, e.startOffset, e.length));
+    } catch (err) {
+      console.warn('[paragraph-cascade] insert failed', err?.message || err);
+    }
+  }));
 
   // Delete stale range rows. Match by source_anchor jsonb fields.
   for (const k of toRemove) {
@@ -340,7 +350,16 @@ export async function runParagraphCascade({
       .then(({ error }) => { if (error) console.warn('[paragraph-cascade] delete stale', error.message); });
   }
 
-  lastAppliedKeysRef.set(pageId, currentKeys);
+  // Only carry forward keys whose insert actually succeeded, plus
+  // pre-existing keys (those already in prevKeys, not in toAdd) that
+  // we kept. Failed inserts stay out of the set so a future cascade
+  // retries them.
+  const carry = new Set();
+  for (const k of currentKeys) {
+    if (prevKeys.has(k)) carry.add(k);
+    else if (successKeys.has(k)) carry.add(k);
+  }
+  lastAppliedKeysRef.set(pageId, carry);
   // Dev log so it's easy to verify the cascade is actually firing in
   // the user's console — silent in prod once we trust it.
   try {
