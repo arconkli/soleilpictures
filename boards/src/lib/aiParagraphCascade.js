@@ -180,19 +180,32 @@ export async function runParagraphCascade({
   }
 
   // 3. Tier 2 + 3: for paragraphs that did NOT match a tag at tier 1
-  //    but contain entity-name matches for that tag, run sentence-level
-  //    apply. Tier 2 = sentence; tier 3 = word+context if medium.
-  if (trie?.findMatches) {
+  //    but contain a meaningful word from a tag's name, run sentence-
+  //    level apply. We match on WORDS, not the whole tag phrase, so
+  //    "pricing" in body text triggers the Pricing Plans tag check
+  //    even though the literal phrase doesn't appear.
+  //
+  // Pre-build a per-tag word matcher from the centroid map.
+  const tagWordMatchers = buildTagWordMatchers(tagCentroids);
+  if (tagWordMatchers.length > 0) {
     for (const p of paragraphs) {
       const matchedTagsForPara = tier1MatchedByPara.get(p.pHash) || new Set();
-      // Group trie matches by tag id within this paragraph.
       const matchesByTag = new Map(); // tagId → [{ start, end, name }]
-      for (const m of trie.findMatches(p.text)) {
-        for (const rec of (m.records || [])) {
-          if (rec.kind !== 'tag' || !rec.id) continue;
-          if (matchedTagsForPara.has(rec.id)) continue; // already paragraph-tagged
-          if (!matchesByTag.has(rec.id)) matchesByTag.set(rec.id, []);
-          matchesByTag.get(rec.id).push({ start: m.start, end: m.end, name: rec.name });
+      for (const tm of tagWordMatchers) {
+        if (matchedTagsForPara.has(tm.tagId)) continue;
+        for (const re of tm.regexes) {
+          re.lastIndex = 0;
+          let m;
+          while ((m = re.exec(p.text)) !== null) {
+            if (!matchesByTag.has(tm.tagId)) matchesByTag.set(tm.tagId, []);
+            matchesByTag.get(tm.tagId).push({
+              start: m.index,
+              end: m.index + m[0].length,
+              name: tm.tagName,
+            });
+            // Safety: bail on zero-width matches that would loop forever.
+            if (m[0].length === 0) re.lastIndex++;
+          }
         }
       }
       if (matchesByTag.size === 0) continue;
@@ -334,6 +347,34 @@ export async function runParagraphCascade({
     console.info(`[paragraph-cascade] page ${pageId.slice(0, 8)} → ${paragraphs.length} paragraph${paragraphs.length === 1 ? '' : 's'}, ${tierResults.length} range${tierResults.length === 1 ? '' : 's'} (added: ${toAdd.length}, removed: ${toRemove.length})`);
   } catch (_) {}
   return { applied: tierResults.length, added: toAdd.length, removed: toRemove.length };
+}
+
+// Build `[{ tagId, tagName, regexes: [RegExp] }]` for word-level
+// matching. Tag "Pricing Plans" → regexes match `\bpricing\b` and
+// `\bplans\b` so either word in body text counts as a candidate
+// trigger for tier-2 sentence /apply. Stopwords + tokens shorter
+// than 4 chars filtered to avoid matching every "for" / "the".
+const STOPWORDS = new Set([
+  'the','and','for','with','from','that','this','will','your','our',
+  'into','onto','over','about','also','some','more','than','then',
+  'when','what','where','which','have','has','had','are','was','were',
+  'you','they','them','their','its','it','an','a','of','in','on','at',
+  'to','as','is','be','or','if','so','do','no','yes',
+]);
+function buildTagWordMatchers(tagCentroids) {
+  const out = [];
+  for (const [tagId, t] of tagCentroids.entries()) {
+    const name = t?.name || '';
+    if (!name) continue;
+    const words = name
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(w => w.length >= 4 && !STOPWORDS.has(w));
+    if (words.length === 0) continue;
+    const regexes = words.map(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'));
+    out.push({ tagId, tagName: name, regexes });
+  }
+  return out;
 }
 
 async function wipePageRangeRows({ docCardId, pageId }) {
