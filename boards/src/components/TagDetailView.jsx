@@ -345,12 +345,13 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       kind: c.kind, id: c.card_id, boardId: c.board_id,
       source: directSource, // null if it's a child preview, not directly tagged
     };
-    // Pull the registry's rich preview for the kind — image thumbnail,
-    // palette swatches, etc. Falls back to the text excerpt when the
-    // preview returns null (notes/cards/docs without specialized art).
+    // Pull the registry's rich preview ONLY for visual kinds
+    // (image, palette). Text kinds (note / card / doc) have a
+    // previewMini that re-renders the body, which would duplicate
+    // the meta-row excerpt below.
     const def = getKind(c.kind);
-    const richPreview = def?.previewMini?.(c) || null;
     const isVisualKind = c.kind === 'image' || c.kind === 'palette';
+    const richPreview = isVisualKind ? (def?.previewMini?.(c) || null) : null;
     return (
       <button key={`c:${c.board_id}:${c.card_id}`}
               className={`tag-detail-card-preview ${isVisualKind ? 'is-visual' : ''} ${richPreview ? 'has-rich' : ''}`}

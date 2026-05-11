@@ -4,9 +4,12 @@
 // would show each card individually as an orphan instead of nested
 // under the obvious group header.
 //
-// Threshold: ≥3 tagged cards in a group → tag the group.
-// (Mirrors MIN_CLUSTER_SIZE — the same "this is a real theme, not a
-// coincidence" guardrail used in cluster discovery.)
+// Threshold: ≥2 tagged cards AND ≥50% of the group's members. This
+// covers two real cases:
+//   - "Personal Pricing" group with 4 cards, 3 tagged (≥3, ratio 0.75)
+//   - "Business Pricing" group with 2 cards, both tagged (2/2 = 1.0)
+// And rejects noise like "tagged 2 of 20" where the group isn't
+// really about that topic.
 //
 // Idempotent: existing group→tag entity_links rows are skipped.
 // Source attribution: 'auto' (distinguished from card-level source
@@ -14,7 +17,8 @@
 
 import { supabase } from './supabase.js';
 
-const MIN_GROUP_MEMBERS_TAGGED = 3;
+const MIN_GROUP_MEMBERS_TAGGED = 2;
+const MIN_GROUP_TAG_RATIO = 0.5;
 
 // Scoped propagation: scan all groups in the workspace where this tag
 // is applied to enough card members, and apply the tag at the group
@@ -47,14 +51,41 @@ export async function propagateTagToGroups({ workspaceId, tagId, boardId = null 
   if (e2) { console.warn('[group-propagate] load card_index', e2.message); return { applied: 0 }; }
 
   // 3. Count tagged cards per (boardId, groupId).
-  const counts = new Map(); // key = `${boardId}::${groupId}` → count
+  const taggedCounts = new Map(); // key = `${boardId}::${groupId}` → count
   for (const r of (idxRows || [])) {
     const gid = r?.meta?.groupId;
     if (!gid) continue;
     const k = `${r.board_id}::${gid}`;
-    counts.set(k, (counts.get(k) || 0) + 1);
+    taggedCounts.set(k, (taggedCounts.get(k) || 0) + 1);
   }
-  const eligible = [...counts.entries()].filter(([, n]) => n >= MIN_GROUP_MEMBERS_TAGGED);
+  const candidateKeys = [...taggedCounts.entries()]
+    .filter(([, n]) => n >= MIN_GROUP_MEMBERS_TAGGED)
+    .map(([k]) => k);
+  if (candidateKeys.length === 0) return { applied: 0 };
+
+  // 3b. Pull total card counts per candidate group so we can apply
+  //     the majority rule. One query, filtered by the candidate group
+  //     ids — much cheaper than a workspace-wide group-by.
+  const candidateGroupIds = candidateKeys.map(k => k.split('::')[1]);
+  const candidateBoardIds = candidateKeys.map(k => k.split('::')[0]);
+  const { data: totalRows, error: e3 } = await supabase
+    .from('card_index')
+    .select('board_id, meta')
+    .in('board_id', candidateBoardIds)
+    .eq('workspace_id', workspaceId);
+  if (e3) { console.warn('[group-propagate] load group totals', e3.message); return { applied: 0 }; }
+  const totalCounts = new Map(); // key → count of ALL cards in that group
+  for (const r of (totalRows || [])) {
+    const gid = r?.meta?.groupId;
+    if (!gid || !candidateGroupIds.includes(gid)) continue;
+    const k = `${r.board_id}::${gid}`;
+    totalCounts.set(k, (totalCounts.get(k) || 0) + 1);
+  }
+
+  // Apply the threshold rule: ≥2 tagged AND ratio ≥ 0.5.
+  const eligible = candidateKeys
+    .map(k => [k, taggedCounts.get(k), totalCounts.get(k) || taggedCounts.get(k)])
+    .filter(([, tagged, total]) => tagged / total >= MIN_GROUP_TAG_RATIO);
   if (eligible.length === 0) return { applied: 0 };
 
   // 4. Dedupe against existing group→tag rows.
