@@ -23,7 +23,7 @@ import { extractParagraphTags } from '../lib/extractParagraphTags.js';
 import { splitSentences, wordContextSpan } from '../lib/sentenceSpan.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { applyCards } from '../lib/tagsClient.js';
-import { makeTagRangePlugin } from './docExtensions/TagRangePlugin.js';
+import { makeTagRangePlugin, TAG_RANGE_KEY } from './docExtensions/TagRangePlugin.js';
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
 import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
@@ -197,7 +197,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     // changed (e.g. a new entity_links row just landed).
     const ed = editorRef.current;
     if (ed?.view) {
-      const tr = ed.state.tr.setMeta('tagRange', { changed: true });
+      const tr = ed.state.tr.setMeta(TAG_RANGE_KEY, { changed: true });
       ed.view.dispatch(tr);
     }
   }, [appliedTagRanges]);
@@ -1021,6 +1021,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
           const anchor = e?.currentTarget?.getBoundingClientRect?.()
             || e?.target?.getBoundingClientRect?.()
             || null;
+          console.info('[doc-tag-gutter] onOpen fired — anchor:', !!anchor, 'tag:', range.tagName);
           if (!anchor) return;
           cancelHoverTimers();
           setLinkHover(null);

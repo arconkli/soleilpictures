@@ -90,8 +90,14 @@ export function DocTagGutter({ editor, ranges, onOpen }) {
           className="doc-tag-gutter-dot"
           style={{ top: p.top + 'px', background: p.range.tagColor }}
           title={`${p.range.tagName || 'Tag'} · ${labelForSource(p.range.source)}`}
-          onClick={(e) => onOpen?.(e, p.range)}
-          onMouseEnter={(e) => onOpen?.(e, p.range, { hover: true })}
+          onClick={(e) => {
+            console.info('[doc-tag-gutter] dot click', p.range.tagName);
+            onOpen?.(e, p.range);
+          }}
+          onMouseEnter={(e) => {
+            console.info('[doc-tag-gutter] dot hover-enter', p.range.tagName);
+            onOpen?.(e, p.range, { hover: true });
+          }}
         />
       ))}
     </div>
