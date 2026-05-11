@@ -69,6 +69,7 @@ function buildDecorations(doc, ranges) {
       style: `--tag-color: ${r.tagColor}`,
       'data-tag-id': r.tagId,
       'data-tag-name': r.tagName,
+      'data-source': r.source || '',
     }));
   }
   return DecorationSet.create(doc, decos);

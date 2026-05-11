@@ -328,6 +328,11 @@ export async function runParagraphCascade({
   }
 
   lastAppliedKeysRef.set(pageId, currentKeys);
+  // Dev log so it's easy to verify the cascade is actually firing in
+  // the user's console — silent in prod once we trust it.
+  try {
+    console.info(`[paragraph-cascade] page ${pageId.slice(0, 8)} → ${paragraphs.length} paragraph${paragraphs.length === 1 ? '' : 's'}, ${tierResults.length} range${tierResults.length === 1 ? '' : 's'} (added: ${toAdd.length}, removed: ${toRemove.length})`);
+  } catch (_) {}
   return { applied: tierResults.length, added: toAdd.length, removed: toRemove.length };
 }
 

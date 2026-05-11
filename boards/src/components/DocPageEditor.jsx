@@ -26,6 +26,7 @@ import { applyCards } from '../lib/tagsClient.js';
 import { makeTagRangePlugin } from './docExtensions/TagRangePlugin.js';
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
+import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
@@ -436,6 +437,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   // (which happen as the cursor crosses internal sub-spans created by
   // overlapping decorations) don't reset the open timer.
   const [linkHover, setLinkHover] = useState(null);
+  const [tagHover, setTagHover] = useState(null);  // { anchor, tagId, tagName, tagColor, source }
   const hoverTimers = useRef({ open: null, close: null });
   const lastChipRef = useRef(null);
   const cancelHoverTimers = () => {
@@ -445,17 +447,31 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     hoverTimers.current.close = null;
   };
   const handleLinkHoverEnter = (e) => {
-    const manualEl = e.target.closest?.('[data-link-id]');
-    const autoEl   = manualEl ? null : e.target.closest?.('.tt-link-auto[data-records]');
-    const el = manualEl || autoEl;
+    // Tag-range hover wins over entity-name hover when both happen at
+    // the same point (a name match inside an applied tag range). The
+    // colored underline already tells the user "this is tag X" — the
+    // popover should be tag-focused, not a generic entity list.
+    const tagRange = readTagRangeFromEl(e.target);
+    const manualEl = !tagRange && e.target.closest?.('[data-link-id]');
+    const autoEl   = !tagRange && !manualEl && e.target.closest?.('.tt-link-auto[data-records]');
+    const el = tagRange?.el || manualEl || autoEl;
     if (!el) return;
-    // Same chip we were already hovering → don't reset the timer or
-    // we'll never actually open the popover.
-    if (lastChipRef.current === el && (hoverTimers.current.open || linkHover)) return;
+    if (lastChipRef.current === el && (hoverTimers.current.open || linkHover || tagHover)) return;
     lastChipRef.current = el;
     cancelHoverTimers();
     hoverTimers.current.open = setTimeout(() => {
       hoverTimers.current.open = null;
+      if (tagRange) {
+        setTagHover({
+          anchor: el.getBoundingClientRect(),
+          tagId: tagRange.tagId,
+          tagName: tagRange.tagName,
+          tagColor: tagRange.tagColor,
+          source: el.getAttribute('data-source') || 'auto-paragraph',
+        });
+        setLinkHover(null);
+        return;
+      }
       let refs = null, term = el.textContent || '';
       if (manualEl) refs = buildRefsFromManualLink(manualEl.dataset.linkId);
       else if (autoEl) {
@@ -467,17 +483,17 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     }, 250);
   };
   const handleLinkHoverLeave = (e) => {
-    const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records]');
+    const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records], .tt-tag-range');
     if (!fromChip) return;
-    // If the cursor is moving to another element INSIDE the same chip,
-    // don't trigger the close — that's an internal sub-span boundary,
-    // not a real exit.
-    const toChip = e.relatedTarget?.closest?.('[data-link-id], .tt-link-auto[data-records]');
+    const toChip = e.relatedTarget?.closest?.('[data-link-id], .tt-link-auto[data-records], .tt-tag-range');
     if (toChip && toChip === fromChip) return;
     lastChipRef.current = null;
     clearTimeout(hoverTimers.current.open);
     hoverTimers.current.open = null;
-    hoverTimers.current.close = setTimeout(() => setLinkHover(null), 200);
+    hoverTimers.current.close = setTimeout(() => {
+      setLinkHover(null);
+      setTagHover(null);
+    }, 200);
   };
   useEffect(() => () => cancelHoverTimers(), []);
 
@@ -959,6 +975,19 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
             setLinkHover(null);
             if (ref) setBacklinksRef(ref);
           }}
+        />
+      )}
+      {tagHover && (
+        <TagRangeHoverPopover
+          anchor={tagHover.anchor}
+          tagId={tagHover.tagId}
+          tagName={tagHover.tagName}
+          tagColor={tagHover.tagColor}
+          source={tagHover.source}
+          workspaceId={workspaceId}
+          onMouseEnter={cancelHoverTimers}
+          onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setTagHover(null), 200); }}
+          onClose={() => setTagHover(null)}
         />
       )}
       {backlinksRef && (
