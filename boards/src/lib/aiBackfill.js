@@ -15,9 +15,28 @@
 import { supabase } from './supabase.js';
 import { applyCards, parsePgvector } from './tagsClient.js';
 import { cosineDist, SILENT_APPLY_DIST, NO_MATCH_DIST } from './clusterMath.js';
-import { tagCard } from './tagsApi.js';
+import { tagCard, tagGroup, tagBoard } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
 import { propagateTagToGroups } from './aiGroupPropagation.js';
+
+// Dispatch a tag application to the right helper for an entity kind.
+// All three resolve to entity_links inserts under the hood; this just
+// keeps the call site clean as we process a mixed kind list.
+async function applyTagToEntity({ entityKind, entityId, boardId, workspaceId, tagId }) {
+  if (entityKind === 'group') {
+    return tagGroup({ workspaceId, boardId, groupId: entityId, tagId, source: 'auto' });
+  }
+  if (entityKind === 'board') {
+    return tagBoard({ workspaceId, boardId: entityId, tagId, source: 'auto' });
+  }
+  return tagCard({ workspaceId, boardId, cardId: entityId, tagId, source: 'auto' });
+}
+
+// Build the cache key the entity_links realtime sub uses to track
+// applied tags. Mirrors useAiTagger's `${source_kind}:${source_id}`.
+function appliedCacheKey(entityKind, entityId) {
+  return `${entityKind}:${entityId}`;
+}
 
 const BATCH_SIZE = 8; // cards per /api/tags/apply call
 const LOCK_STALE_MS = 10 * 60 * 1000; // re-claim after 10 minutes
@@ -51,10 +70,10 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
     return null;
   }
 
-  // 1. Load all card embeddings.
+  // 1. Load all embeddings (every kind: card, group, board).
   const { data: rows, error } = await supabase
     .from('card_embeddings')
-    .select('card_id, board_id, embedding')
+    .select('card_id, entity_kind, board_id, embedding')
     .eq('workspace_id', workspaceId);
   if (error) {
     console.warn('[ai-backfill] load embeddings failed', error.message);
@@ -62,56 +81,66 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
   }
   if (!rows?.length) return null;
 
-  // 2. Distance-partition.
-  const silent = [];      // cards within SILENT_APPLY_DIST — apply without AI
-  const middle = [];      // cards in 0.20–0.55 — send to AI for verdict
+  // 2. Distance-partition. Each row already carries its entity_kind so
+  //    the dispatcher downstream knows whether to call tagCard /
+  //    tagGroup / tagBoard. Skip rows where this tag is already applied.
+  const silent = [];      // within SILENT_APPLY_DIST — apply without AI
+  const middle = [];      // in 0.20–0.55 — send to AI for verdict
   for (const r of rows) {
-    // Skip cards that already have this tag applied.
-    const key = `card:${r.card_id}`;
+    const kind = r.entity_kind || 'card';
+    const key = appliedCacheKey(kind, r.card_id);
     if (appliedRef?.current?.get(key)?.has(tag.id)) continue;
-    const vec = embeddingCache?.get(r.card_id)?.vector || parsePgvector(r.embedding);
+    const vec = (kind === 'card' && embeddingCache?.get(r.card_id)?.vector)
+      || parsePgvector(r.embedding);
     if (!vec) continue;
     const d = cosineDist(vec, centroid);
-    if (d < SILENT_APPLY_DIST) {
-      silent.push(r);
-    } else if (d < NO_MATCH_DIST) {
-      middle.push(r);
-    }
-    // else: too far, ignore
+    const annotated = { ...r, _kind: kind };
+    if (d < SILENT_APPLY_DIST) silent.push(annotated);
+    else if (d < NO_MATCH_DIST) middle.push(annotated);
   }
 
   if (isDebug()) {
     console.log(`[ai-backfill] tag "${tag.name}" → ${silent.length} silent, ${middle.length} ai-candidates, ${rows.length - silent.length - middle.length} dropped`);
   }
 
-  // 3. Silent applies — bulk-insert without paying for AI. Parallel
-  //    (independent DB inserts; tagCard swallows 23505 conflicts).
-  await Promise.allSettled(silent.map(r => tagCard({
+  // 3. Silent applies — parallel inserts dispatched by kind.
+  await Promise.allSettled(silent.map(r => applyTagToEntity({
+    entityKind: r._kind,
+    entityId:   r.card_id,
+    boardId:    r.board_id,
     workspaceId,
-    boardId: r.board_id,
-    cardId: r.card_id,
-    tagId: tag.id,
-    source: 'auto',
+    tagId:      tag.id,
   })));
 
   // 4. Middle band — batch-call /apply for tier verdict, then apply 'high'.
   if (middle.length === 0) {
-    // Even if AI is skipped, propagate silent applies to groups.
     const grp = await propagateTagToGroups({ workspaceId, tagId: tag.id });
     if (isDebug() && grp?.applied) console.log(`[ai-backfill] propagated tag to ${grp.applied} group(s)`);
     return { silent: silent.length, applied_high: 0, ai_calls: 0, groups_applied: grp?.applied || 0 };
   }
 
-  // We need card text for the AI call. Pull from card_index.
-  const cardIds = middle.map(r => r.card_id);
-  const { data: idx } = await supabase
-    .from('card_index')
-    .select('card_id, board_id, title, body')
-    .eq('workspace_id', workspaceId)
-    .in('card_id', cardIds);
-  const textById = new Map();
-  const boardById = new Map();
-  for (const r of (idx || [])) {
+  // Pull text for each entity in the middle band. Cards get title +
+  // body from card_index; groups + boards get just their title from
+  // entity_search (composite id format: groups are '${boardId}:g:${id}',
+  // boards are the bare uuid).
+  const cardIds  = middle.filter(r => r._kind === 'card').map(r => r.card_id);
+  const groupSearchIds = middle.filter(r => r._kind === 'group')
+    .map(r => `${r.board_id}:g:${r.card_id}`);
+  const boardSearchIds = middle.filter(r => r._kind === 'board').map(r => r.card_id);
+  const [cardIdxResp, groupResp, boardResp] = await Promise.all([
+    cardIds.length > 0
+      ? supabase.from('card_index').select('card_id, board_id, title, body').eq('workspace_id', workspaceId).in('card_id', cardIds)
+      : Promise.resolve({ data: [] }),
+    groupSearchIds.length > 0
+      ? supabase.from('entity_search').select('id, kind, board_id, title').eq('workspace_id', workspaceId).eq('kind', 'group').in('id', groupSearchIds)
+      : Promise.resolve({ data: [] }),
+    boardSearchIds.length > 0
+      ? supabase.from('entity_search').select('id, kind, board_id, title').eq('workspace_id', workspaceId).eq('kind', 'board').in('id', boardSearchIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const textByKey = new Map();
+  const boardByKey = new Map();
+  for (const r of (cardIdxResp.data || [])) {
     const text = [r.title || '', r.body || '']
       .filter(Boolean)
       .join(' ')
@@ -119,44 +148,62 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
       .replace(/&[a-z]+;/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-    textById.set(r.card_id, text);
-    boardById.set(r.card_id, r.board_id);
+    textByKey.set(appliedCacheKey('card', r.card_id), text);
+    boardByKey.set(appliedCacheKey('card', r.card_id), r.board_id);
+  }
+  for (const r of (groupResp.data || [])) {
+    const m = (r.id || '').split(':g:');
+    const groupId = m[1] || r.id;
+    textByKey.set(appliedCacheKey('group', groupId), (r.title || '').trim());
+    boardByKey.set(appliedCacheKey('group', groupId), r.board_id || null);
+  }
+  for (const r of (boardResp.data || [])) {
+    const boardId = r.board_id || r.id;
+    textByKey.set(appliedCacheKey('board', boardId), (r.title || '').trim());
+    boardByKey.set(appliedCacheKey('board', boardId), boardId);
   }
 
-  // Chunk the middle band into independent batches and fire them in
-  // parallel. The worker enforces its own concurrency cap upstream;
-  // here we just stop waiting on each batch serially (which was the
-  // visible "took a while" lag on new-tag backfill).
+  // Chunk + fire batches in parallel. Composite id encodes the kind
+  // so verdicts come back uniquely identifiable.
   const batches = [];
   for (let i = 0; i < middle.length; i += BATCH_SIZE) {
     const slice = middle.slice(i, i + BATCH_SIZE);
     const cards = slice
-      .map(r => ({
-        id: r.card_id,
-        text: textById.get(r.card_id) || '',
-        candidate_tags: [{ id: tag.id, name: tag.name }],
-      }))
+      .map(r => {
+        const k = appliedCacheKey(r._kind, r.card_id);
+        return {
+          id: `${r._kind}|${r.card_id}`,
+          text: textByKey.get(k) || '',
+          candidate_tags: [{ id: tag.id, name: tag.name }],
+        };
+      })
       .filter(c => c.text);
     if (cards.length > 0) batches.push(cards);
   }
   const responses = await Promise.allSettled(batches.map(b => applyCards(b)));
   const aiCalls = batches.length;
 
-  // Collect high-confidence card ids, then apply them in parallel.
-  const highCardIds = [];
+  // Collect high-confidence ids and dispatch the applies in parallel.
+  const highTargets = []; // [{ kind, id, boardId }]
   for (const r of responses) {
     if (r.status !== 'fulfilled' || !r.value) continue;
     const verdicts = r.value.verdicts || [];
     for (const v of verdicts) {
       const high = (v.tags || []).find(t => t.tag_id === tag.id && t.confidence === 'high');
-      if (high) highCardIds.push(v.card_id);
+      if (!high) continue;
+      const [kind, ...rest] = (v.card_id || '').split('|');
+      const entityId = rest.join('|');
+      const boardId = boardByKey.get(appliedCacheKey(kind, entityId)) || null;
+      highTargets.push({ kind, id: entityId, boardId });
     }
   }
-  const applyResults = await Promise.allSettled(highCardIds.map(cardId => {
-    const boardId = boardById.get(cardId);
-    if (!boardId) return Promise.resolve(false);
-    return tagCard({ workspaceId, boardId, cardId, tagId: tag.id, source: 'auto' }).then(() => true);
-  }));
+  const applyResults = await Promise.allSettled(highTargets.map(t => applyTagToEntity({
+    entityKind: t.kind,
+    entityId:   t.id,
+    boardId:    t.boardId,
+    workspaceId,
+    tagId:      tag.id,
+  }).then(() => true)));
   const appliedHigh = applyResults.filter(r => r.status === 'fulfilled' && r.value === true).length;
 
   // 5. Propagate to groups. Now that all card-level applies have

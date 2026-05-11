@@ -29,14 +29,21 @@ function stripHtml(s) {
 export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache }) {
   if (!supabase || !workspaceId) return null;
 
-  // 1. Pull all cards' text + the set of already-embedded card ids.
-  //    Two parallel queries — typical workspace fits in one round-trip.
-  const [cardResp, embResp] = await Promise.all([
+  // 1. Pull text for every taggable entity in the workspace, plus the
+  //    set of already-embedded rows. Three parallel queries — cards
+  //    come from card_index (title + body), groups + boards come from
+  //    entity_search (title only — that's what gives them their
+  //    semantic identity at the tag-application layer).
+  const [cardResp, esResp, embResp] = await Promise.all([
     supabase.from('card_index')
       .select('card_id, board_id, title, body')
       .eq('workspace_id', workspaceId),
+    supabase.from('entity_search')
+      .select('id, kind, board_id, title')
+      .eq('workspace_id', workspaceId)
+      .in('kind', ['group', 'board']),
     supabase.from('card_embeddings')
-      .select('card_id, content_hash')
+      .select('card_id, entity_kind, content_hash')
       .eq('workspace_id', workspaceId),
   ]);
   if (cardResp.error) {
@@ -44,50 +51,91 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
     return null;
   }
   const cards = cardResp.data || [];
-  if (cards.length === 0) return { embedded: 0, alreadyHad: 0, total: 0 };
+  const groupBoardRows = esResp.data || [];
 
+  // Index existing embeddings by (entity_kind, entity_id) so we can
+  // skip anything whose content_hash is already current.
   const existingByHash = new Map();
   for (const r of (embResp.data || [])) {
-    existingByHash.set(r.card_id, r.content_hash);
-    // Don't drop in-memory cache here; the hook seeds it lazily.
+    existingByHash.set(`${r.entity_kind || 'card'}::${r.card_id}`, r.content_hash);
   }
 
-  // 2. Compute the actual text to embed (title + stripped body). Skip
-  //    cards with empty content — embedding an empty string is wasted
-  //    and produces garbage matches.
+  // 2. Compute the text to embed for each entity kind.
+  //    cards  → title + stripped body (rich content)
+  //    groups → title (just the name — the semantic concept)
+  //    boards → title (same)
   const needed = [];
   let alreadyHad = 0;
+
+  const considerEntity = ({ kind, id, board_id, text }) => {
+    const t = (text || '').trim();
+    if (t.length < 2) return;
+    const hash = contentHash(t);
+    const key = `${kind}::${id}`;
+    if (existingByHash.get(key) === hash) { alreadyHad++; return; }
+    needed.push({ kind, id, board_id, text: t, hash });
+  };
+
   for (const c of cards) {
-    const text = [c.title || '', stripHtml(c.body)].filter(Boolean).join(' ').trim();
-    if (text.length < 2) continue;
-    const hash = contentHash(text);
-    if (existingByHash.get(c.card_id) === hash) {
-      alreadyHad++;
-      continue;
+    considerEntity({
+      kind: 'card',
+      id: c.card_id,
+      board_id: c.board_id,
+      text: [c.title || '', stripHtml(c.body)].filter(Boolean).join(' '),
+    });
+  }
+  for (const r of groupBoardRows) {
+    // For groups, entity_id is the suffix after `:g:` in the
+    // entity_search.id ('${boardId}:g:${groupId}'). For boards, just
+    // use the row's id which is the board uuid.
+    let id;
+    if (r.kind === 'group') {
+      const m = (r.id || '').split(':g:');
+      id = m[1] || r.id;
+    } else {
+      id = r.board_id || r.id;
     }
-    needed.push({ id: c.card_id, board_id: c.board_id, text, hash });
+    considerEntity({
+      kind: r.kind,                              // 'group' | 'board'
+      id,
+      board_id: r.board_id || null,
+      text: r.title || '',
+    });
   }
+
+  const totalEntities = cards.length + groupBoardRows.length;
   if (needed.length === 0) {
-    if (isDebug()) console.log(`[ai-warmup] all ${alreadyHad} cards already embedded`);
-    return { embedded: 0, alreadyHad, total: cards.length };
+    if (isDebug()) console.log(`[ai-warmup] all ${alreadyHad} entities already embedded`);
+    return { embedded: 0, alreadyHad, total: totalEntities };
   }
 
-  if (isDebug()) console.log(`[ai-warmup] embedding ${needed.length} new card${needed.length === 1 ? '' : 's'}...`);
+  if (isDebug()) console.log(`[ai-warmup] embedding ${needed.length} new entity${needed.length === 1 ? '' : 'ies'}...`);
 
-  // 3. Batch-embed via /api/tags/embed.
+  // 3. Batch-embed via /api/tags/embed. The worker route only knows
+  //    about "cards" by name — we send a composite id so we can
+  //    map verdicts back to (kind, entity_id). Format: `${kind}|${id}`.
   let embedded = 0;
   for (let i = 0; i < needed.length; i += BATCH_SIZE) {
     const slice = needed.slice(i, i + BATCH_SIZE);
-    const resp = await embedCards(slice.map(s => ({ id: s.id, text: s.text })));
+    const resp = await embedCards(slice.map(s => ({
+      id: `${s.kind}|${s.id}`,
+      text: s.text,
+    })));
     if (!resp?.embeddings?.length) continue;
-    // Persist each embedding + update in-memory cache.
     const rowsToUpsert = [];
     for (const e of resp.embeddings) {
-      const meta = slice.find(s => s.id === e.id);
+      const [kind, ...rest] = (e.id || '').split('|');
+      const entityId = rest.join('|');
+      const meta = slice.find(s => s.kind === kind && s.id === entityId);
       if (!meta || !e.vector) continue;
-      embeddingCache?.set(e.id, { hash: meta.hash, vector: e.vector });
+      // Seed cache only for cards (existing consumers only read cards
+      // out of this cache). Group/board lookups read from the DB.
+      if (kind === 'card') {
+        embeddingCache?.set(entityId, { hash: meta.hash, vector: e.vector });
+      }
       rowsToUpsert.push({
-        card_id: meta.id,
+        card_id: entityId,
+        entity_kind: kind,
         workspace_id: workspaceId,
         board_id: meta.board_id,
         content_hash: meta.hash,
@@ -97,12 +145,12 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
     if (rowsToUpsert.length > 0) {
       const { error } = await supabase
         .from('card_embeddings')
-        .upsert(rowsToUpsert, { onConflict: 'card_id' });
+        .upsert(rowsToUpsert, { onConflict: 'entity_kind,card_id' });
       if (error) console.warn('[ai-warmup] upsert failed', error.message);
       else embedded += rowsToUpsert.length;
     }
   }
 
   if (isDebug()) console.log(`[ai-warmup] embedded ${embedded}/${needed.length}, ${alreadyHad} already cached`);
-  return { embedded, alreadyHad, total: cards.length };
+  return { embedded, alreadyHad, total: totalEntities };
 }
