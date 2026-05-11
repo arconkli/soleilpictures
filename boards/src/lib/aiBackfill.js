@@ -15,26 +15,32 @@
 import { supabase } from './supabase.js';
 import { applyCards, parsePgvector } from './tagsClient.js';
 import { cosineDist, SILENT_APPLY_DIST, NO_MATCH_DIST } from './clusterMath.js';
-import { tagCard, tagGroup, tagBoard } from './tagsApi.js';
+import { tagCard, tagGroup, tagBoard, tagDocPage } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
 import { propagateTagToGroups } from './aiGroupPropagation.js';
 
 // Dispatch a tag application to the right helper for an entity kind.
-// All three resolve to entity_links inserts under the hood; this just
+// All four resolve to entity_links inserts under the hood; this just
 // keeps the call site clean as we process a mixed kind list.
-async function applyTagToEntity({ entityKind, entityId, boardId, workspaceId, tagId }) {
+async function applyTagToEntity({ entityKind, entityId, boardId, docCardId, workspaceId, tagId }) {
   if (entityKind === 'group') {
     return tagGroup({ workspaceId, boardId, groupId: entityId, tagId, source: 'auto' });
   }
   if (entityKind === 'board') {
     return tagBoard({ workspaceId, boardId: entityId, tagId, source: 'auto' });
   }
+  if (entityKind === 'doc-page') {
+    return tagDocPage({ workspaceId, docCardId, pageId: entityId, boardId, tagId, source: 'auto' });
+  }
   return tagCard({ workspaceId, boardId, cardId: entityId, tagId, source: 'auto' });
 }
 
 // Build the cache key the entity_links realtime sub uses to track
 // applied tags. Mirrors useAiTagger's `${source_kind}:${source_id}`.
+// Doc pages collapse to source_kind='doc' since that's what the
+// entity_links row uses.
 function appliedCacheKey(entityKind, entityId) {
+  if (entityKind === 'doc-page') return `doc:${entityId}`;
   return `${entityKind}:${entityId}`;
 }
 
@@ -70,10 +76,10 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
     return null;
   }
 
-  // 1. Load all embeddings (every kind: card, group, board).
+  // 1. Load all embeddings (every kind: card, group, board, doc-page).
   const { data: rows, error } = await supabase
     .from('card_embeddings')
-    .select('card_id, entity_kind, board_id, embedding')
+    .select('card_id, entity_kind, board_id, doc_card_id, embedding')
     .eq('workspace_id', workspaceId);
   if (error) {
     console.warn('[ai-backfill] load embeddings failed', error.message);
@@ -108,6 +114,7 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
     entityKind: r._kind,
     entityId:   r.card_id,
     boardId:    r.board_id,
+    docCardId:  r.doc_card_id || null,
     workspaceId,
     tagId:      tag.id,
   })));
@@ -121,13 +128,13 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
 
   // Pull text for each entity in the middle band. Cards get title +
   // body from card_index; groups + boards get just their title from
-  // entity_search (composite id format: groups are '${boardId}:g:${id}',
-  // boards are the bare uuid).
+  // entity_search; doc pages get title + page text from doc_page_index.
   const cardIds  = middle.filter(r => r._kind === 'card').map(r => r.card_id);
   const groupSearchIds = middle.filter(r => r._kind === 'group')
     .map(r => `${r.board_id}:g:${r.card_id}`);
   const boardSearchIds = middle.filter(r => r._kind === 'board').map(r => r.card_id);
-  const [cardIdxResp, groupResp, boardResp] = await Promise.all([
+  const docPageIds = middle.filter(r => r._kind === 'doc-page').map(r => r.card_id);
+  const [cardIdxResp, groupResp, boardResp, docPageResp] = await Promise.all([
     cardIds.length > 0
       ? supabase.from('card_index').select('card_id, board_id, title, body').eq('workspace_id', workspaceId).in('card_id', cardIds)
       : Promise.resolve({ data: [] }),
@@ -137,9 +144,13 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
     boardSearchIds.length > 0
       ? supabase.from('entity_search').select('id, kind, board_id, title').eq('workspace_id', workspaceId).eq('kind', 'board').in('id', boardSearchIds)
       : Promise.resolve({ data: [] }),
+    docPageIds.length > 0
+      ? supabase.from('doc_page_index').select('doc_card_id, page_id, page_title, page_text').eq('workspace_id', workspaceId).in('page_id', docPageIds)
+      : Promise.resolve({ data: [] }),
   ]);
   const textByKey = new Map();
   const boardByKey = new Map();
+  const docCardByKey = new Map();
   for (const r of (cardIdxResp.data || [])) {
     const text = [r.title || '', r.body || '']
       .filter(Boolean)
@@ -161,6 +172,13 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
     const boardId = r.board_id || r.id;
     textByKey.set(appliedCacheKey('board', boardId), (r.title || '').trim());
     boardByKey.set(appliedCacheKey('board', boardId), boardId);
+  }
+  for (const r of (docPageResp.data || [])) {
+    const k = appliedCacheKey('doc-page', r.page_id);
+    textByKey.set(k, [r.page_title || '', r.page_text || ''].filter(s => s && s.trim()).join('\n'));
+    docCardByKey.set(k, r.doc_card_id);
+    // board_id resolution defers to the embedding row's stored value
+    // (already on `middle` items) so we don't need a card_index join.
   }
 
   // Chunk + fire batches in parallel. Composite id encodes the kind
@@ -184,7 +202,15 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
   const aiCalls = batches.length;
 
   // Collect high-confidence ids and dispatch the applies in parallel.
-  const highTargets = []; // [{ kind, id, boardId }]
+  // Also pull the doc_card_id from the middle band so doc-page applies
+  // can write the right entity_links row.
+  const boardByMiddleId = new Map();
+  const docCardByMiddleId = new Map();
+  for (const r of middle) {
+    boardByMiddleId.set(`${r._kind}|${r.card_id}`, r.board_id);
+    if (r.doc_card_id) docCardByMiddleId.set(`${r._kind}|${r.card_id}`, r.doc_card_id);
+  }
+  const highTargets = []; // [{ kind, id, boardId, docCardId }]
   for (const r of responses) {
     if (r.status !== 'fulfilled' || !r.value) continue;
     const verdicts = r.value.verdicts || [];
@@ -193,14 +219,18 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
       if (!high) continue;
       const [kind, ...rest] = (v.card_id || '').split('|');
       const entityId = rest.join('|');
-      const boardId = boardByKey.get(appliedCacheKey(kind, entityId)) || null;
-      highTargets.push({ kind, id: entityId, boardId });
+      const boardId = boardByKey.get(appliedCacheKey(kind, entityId))
+        || boardByMiddleId.get(v.card_id) || null;
+      const docCardId = docCardByKey.get(appliedCacheKey(kind, entityId))
+        || docCardByMiddleId.get(v.card_id) || null;
+      highTargets.push({ kind, id: entityId, boardId, docCardId });
     }
   }
   const applyResults = await Promise.allSettled(highTargets.map(t => applyTagToEntity({
     entityKind: t.kind,
     entityId:   t.id,
     boardId:    t.boardId,
+    docCardId:  t.docCardId,
     workspaceId,
     tagId:      tag.id,
   }).then(() => true)));

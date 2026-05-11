@@ -30,11 +30,12 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
   if (!supabase || !workspaceId) return null;
 
   // 1. Pull text for every taggable entity in the workspace, plus the
-  //    set of already-embedded rows. Three parallel queries — cards
-  //    come from card_index (title + body), groups + boards come from
-  //    entity_search (title only — that's what gives them their
-  //    semantic identity at the tag-application layer).
-  const [cardResp, esResp, embResp] = await Promise.all([
+  //    set of already-embedded rows. Four parallel queries:
+  //      - card_index: cards (title + body)
+  //      - entity_search: groups + boards (title only)
+  //      - doc_page_index: doc pages (page_text)
+  //      - card_embeddings: existing rows (skip if content_hash matches)
+  const [cardResp, esResp, docResp, embResp] = await Promise.all([
     supabase.from('card_index')
       .select('card_id, board_id, title, body')
       .eq('workspace_id', workspaceId),
@@ -42,6 +43,9 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
       .select('id, kind, board_id, title')
       .eq('workspace_id', workspaceId)
       .in('kind', ['group', 'board']),
+    supabase.from('doc_page_index')
+      .select('doc_card_id, page_id, page_title, page_text')
+      .eq('workspace_id', workspaceId),
     supabase.from('card_embeddings')
       .select('card_id, entity_kind, content_hash')
       .eq('workspace_id', workspaceId),
@@ -52,6 +56,19 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
   }
   const cards = cardResp.data || [];
   const groupBoardRows = esResp.data || [];
+  const docPages = docResp.data || [];
+  // Doc pages don't store board_id directly. Resolve via the parent
+  // doc card's row in card_index — keyed by the unique doc_card_id.
+  const docCardIds = [...new Set(docPages.map(p => p.doc_card_id).filter(Boolean))];
+  let docCardBoardById = new Map();
+  if (docCardIds.length > 0) {
+    const { data: docCards } = await supabase
+      .from('card_index')
+      .select('card_id, board_id')
+      .in('card_id', docCardIds)
+      .eq('workspace_id', workspaceId);
+    for (const c of (docCards || [])) docCardBoardById.set(c.card_id, c.board_id);
+  }
 
   // Index existing embeddings by (entity_kind, entity_id) so we can
   // skip anything whose content_hash is already current.
@@ -67,13 +84,13 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
   const needed = [];
   let alreadyHad = 0;
 
-  const considerEntity = ({ kind, id, board_id, text }) => {
+  const considerEntity = ({ kind, id, board_id, doc_card_id = null, text }) => {
     const t = (text || '').trim();
     if (t.length < 2) return;
     const hash = contentHash(t);
     const key = `${kind}::${id}`;
     if (existingByHash.get(key) === hash) { alreadyHad++; return; }
-    needed.push({ kind, id, board_id, text: t, hash });
+    needed.push({ kind, id, board_id, doc_card_id, text: t, hash });
   };
 
   for (const c of cards) {
@@ -82,6 +99,22 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
       id: c.card_id,
       board_id: c.board_id,
       text: [c.title || '', stripHtml(c.body)].filter(Boolean).join(' '),
+    });
+  }
+  for (const p of docPages) {
+    if (!p?.page_id || !p?.doc_card_id) continue;
+    // The page text is already plain (doc_page_index syncs the
+    // stripped version). Combine with page_title so the embedding
+    // picks up section names like "Pricing", "Onboarding", etc.
+    const text = [p.page_title || '', p.page_text || '']
+      .filter(s => s && s.trim())
+      .join('\n');
+    considerEntity({
+      kind: 'doc-page',
+      id: p.page_id,
+      board_id: docCardBoardById.get(p.doc_card_id) || null,
+      doc_card_id: p.doc_card_id,
+      text,
     });
   }
   for (const r of groupBoardRows) {
@@ -138,6 +171,7 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
         entity_kind: kind,
         workspace_id: workspaceId,
         board_id: meta.board_id,
+        doc_card_id: meta.doc_card_id || null,
         content_hash: meta.hash,
         embedding: formatPgvector(e.vector),
       });

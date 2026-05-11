@@ -259,6 +259,28 @@ export async function tagGroup({ workspaceId, boardId, groupId, tagId, source = 
   }
 }
 
+// Doc pages are taggable too. source_kind='doc' + source_page_id pins
+// the application to a specific page within a doc card. Used by the
+// AI tagger backfill when a page's embedding matches a tag centroid.
+export async function tagDocPage({ workspaceId, docCardId, pageId, boardId = null, tagId, source = 'user' }) {
+  if (!workspaceId || !docCardId || !pageId || !tagId) {
+    throw new Error('tagDocPage: missing required field');
+  }
+  const row = {
+    source_kind:      'doc',
+    source_id:        String(docCardId),
+    source_workspace: workspaceId,
+    source_board_id:  boardId,
+    source_page_id:   String(pageId),
+    target_kind:      'tag',
+    target_id:        tagId,
+    link_kind:        'applied',
+    source,
+  };
+  const { error } = await supabase.from('entity_links').insert(row);
+  if (error && error.code !== '23505') throw error;
+}
+
 export async function untagGroup({ boardId, groupId, tagId }) {
   if (!boardId || !groupId || !tagId) return;
   const { error } = await supabase.from('entity_links').delete()

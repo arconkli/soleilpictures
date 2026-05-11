@@ -119,12 +119,17 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     // text. Surfaced as a separate "Mentioned in" list under the
     // primary applied items so the tag page reads like connective
     // tissue across the workspace, not just an apply list.
+    //
+    // ALSO loads doc-page APPLIED rows (link_kind='applied' for doc
+    // sources) so AI-applied doc pages appear here too — title +
+    // snippet preview, distinct from card/group/board hierarchy.
     const loadMentions = () => {
       return supabase.from('entity_links')
-        .select('source_kind, source_id, source_page_id, context_text')
+        .select('source_kind, source_id, source_page_id, context_text, link_kind')
         .eq('target_kind', 'tag')
         .eq('target_id', tag.id)
-        .eq('link_kind', 'mention')
+        .in('link_kind', ['mention', 'applied'])
+        .eq('source_kind', 'doc')
         .then(async ({ data, error }) => {
           if (cancelled) return;
           if (error) { console.warn('[tags] mentions fetch failed', error); setMentions([]); return; }
@@ -172,8 +177,8 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           (n.target_kind === 'tag' && n.target_id === tag.id && n.link_kind === 'applied') ||
           (o.target_kind === 'tag' && o.target_id === tag.id && o.link_kind === 'applied');
         const isMention =
-          (n.target_kind === 'tag' && n.target_id === tag.id && n.link_kind === 'mention') ||
-          (o.target_kind === 'tag' && o.target_id === tag.id && o.link_kind === 'mention');
+          (n.target_kind === 'tag' && n.target_id === tag.id && (n.link_kind === 'mention' || (n.link_kind === 'applied' && n.source_kind === 'doc'))) ||
+          (o.target_kind === 'tag' && o.target_id === tag.id && (o.link_kind === 'mention' || (o.link_kind === 'applied' && o.source_kind === 'doc')));
         if (isApplied) {
           supabase.rpc('get_things_tagged', { p_tag_id: tag.id, p_limit: 300 })
             .then(({ data }) => { if (!cancelled) setRows(Array.isArray(data) ? data : []); })
