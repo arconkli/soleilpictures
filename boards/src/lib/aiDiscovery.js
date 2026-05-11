@@ -45,22 +45,32 @@ function clusterFingerprint(memberCardIds) {
 const DISCOVERY_LOCK_STALE_MS = 5 * 60 * 1000;
 
 // Workspace-wide single-flight. First connected client to claim the
-// lock runs the pass; everyone else short-circuits. Tries INSERT first;
-// if a row exists, falls back to atomic stale-UPDATE.
+// lock runs the pass; everyone else short-circuits.
+//
+// Two-phase: upsert with ignoreDuplicates (won't 409 on conflict — just
+// returns 0 rows back), then if no row was inserted, attempt the atomic
+// stale-UPDATE. Net effect: clean console (no failed network requests),
+// same single-flight semantics.
 async function claimDiscoveryLock(workspaceId) {
   const nowIso = new Date().toISOString();
-  // Fast path: no row yet.
-  const { error: insertErr } = await supabase
+  // Fast path: try to insert. ignoreDuplicates sends
+  // Prefer: resolution=ignore-duplicates, so conflicts return 201 with
+  // an empty body instead of 409.
+  const { data: inserted, error: insertErr } = await supabase
     .from('workspace_discovery_locks')
-    .insert({ workspace_id: workspaceId, last_run_at: nowIso });
-  if (!insertErr) return true;
-  if (insertErr.code !== '23505') {
-    console.warn('[ai-discovery] lock insert failed', insertErr.message);
+    .upsert(
+      { workspace_id: workspaceId, last_run_at: nowIso },
+      { onConflict: 'workspace_id', ignoreDuplicates: true },
+    )
+    .select('workspace_id');
+  if (insertErr) {
+    console.warn('[ai-discovery] lock upsert failed', insertErr.message);
     return false;
   }
-  // Slow path: row exists, atomic-update if stale.
+  if (Array.isArray(inserted) && inserted.length > 0) return true;
+  // Row already existed — try the atomic stale-UPDATE.
   const staleBefore = new Date(Date.now() - DISCOVERY_LOCK_STALE_MS).toISOString();
-  const { data, error: updErr } = await supabase
+  const { data: updated, error: updErr } = await supabase
     .from('workspace_discovery_locks')
     .update({ last_run_at: nowIso })
     .eq('workspace_id', workspaceId)
@@ -70,7 +80,7 @@ async function claimDiscoveryLock(workspaceId) {
     console.warn('[ai-discovery] lock update failed', updErr.message);
     return false;
   }
-  return Array.isArray(data) && data.length > 0;
+  return Array.isArray(updated) && updated.length > 0;
 }
 
 export async function runWorkspaceDiscovery({ workspaceId, tagCentroids, embeddingCache }) {
