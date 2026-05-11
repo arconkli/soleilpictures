@@ -33,6 +33,7 @@ import {
 import { logDecision, recordCall, isDebug } from '../lib/aiTaggerLog.js';
 import { runWorkspaceDiscovery } from '../lib/aiDiscovery.js';
 import { backfillTagAgainstWorkspace } from '../lib/aiBackfill.js';
+import { warmupWorkspaceEmbeddings } from '../lib/aiWarmup.js';
 
 // Strip HTML tags / entities and collapse whitespace before sending text to
 // the embedding model. Saves tokens and improves quality — `<span style=...>`
@@ -192,6 +193,30 @@ export function useAiTagger(workspaceId) {
         console.log(`[ai-tagger] hydrate done — ${tagsRef.current.length} tags, ${centroidsRef.current.size} centroids, ${appliedRef.current.size} tagged entities`);
       }
       setReady(true);
+
+      // Warm up embeddings + run discovery in the background after the
+      // hook is ready. Idempotent — embeds only cards that don't already
+      // have a matching content_hash row. After warmup, if we have ≥3
+      // cards and few/no tags, kick off discovery immediately so the
+      // user sees suggested tags appear without having to edit anything.
+      (async () => {
+        const result = await warmupWorkspaceEmbeddings({
+          workspaceId,
+          embeddingCache: cardEmbeddingCacheRef.current,
+        });
+        if (cancelled) return;
+        const totalEmbeddings = (result?.embedded || 0) + (result?.alreadyHad || 0);
+        // Trigger discovery if we have enough cards. The lock at the DB
+        // level keeps multiple connected clients from doubling up.
+        if (totalEmbeddings >= 3) {
+          if (isDebug()) console.log(`[ai-tagger] kicking off discovery against ${totalEmbeddings} cards`);
+          runWorkspaceDiscovery({
+            workspaceId,
+            tagCentroids: centroidsRef.current,
+            embeddingCache: cardEmbeddingCacheRef.current,
+          }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
+        }
+      })().catch(err => console.warn('[ai-warmup] failed', err?.message || err));
     }
     load().catch(err => console.warn('[ai-tagger] hydrate failed', err));
     return () => { cancelled = true; };
