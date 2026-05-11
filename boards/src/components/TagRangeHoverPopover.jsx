@@ -178,7 +178,12 @@ export function TagRangeHoverPopover({
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
     const onDown = (e) => {
-      if (popRef.current && !popRef.current.contains(e.target)) onClose?.();
+      if (!popRef.current) return;
+      if (popRef.current.contains(e.target)) return;
+      // Don't close if the click was on the dot or tinted word that
+      // OPENED the popover — that just causes a flash close+reopen.
+      if (e.target.closest?.('.doc-tag-gutter-dot, .tt-tag-word')) return;
+      onClose?.();
     };
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onDown);

@@ -70,6 +70,11 @@ function buildDecorations(doc, ranges) {
     decos.push(Decoration.inline(start, end, {
       class: 'tt-tag-word',
       style: `--tag-color: ${r.tagColor}`,
+      // Carry tag identity on the DOM so hovering the tinted word
+      // can open the same popover as hovering the margin dot.
+      'data-tag-id': r.tagId,
+      'data-tag-name': r.tagName,
+      'data-source': r.source || '',
     }));
   }
   return DecorationSet.create(doc, decos);

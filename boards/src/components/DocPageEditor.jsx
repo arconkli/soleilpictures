@@ -26,7 +26,7 @@ import { applyCards } from '../lib/tagsClient.js';
 import { makeTagRangePlugin } from './docExtensions/TagRangePlugin.js';
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
-import { TagRangeHoverPopover } from './TagRangeHoverPopover.jsx';
+import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
 import { DocTagGutter } from './DocTagGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
@@ -450,18 +450,30 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     hoverTimers.current.close = null;
   };
   const handleLinkHoverEnter = (e) => {
-    // Text is no longer a tag-hover surface — the margin dot in
-    // DocTagGutter is the only way to open the tag popover. Here we
-    // only look at manual links + entity-name auto-detect spans.
-    const manualEl = e.target.closest?.('[data-link-id]');
-    const autoEl   = !manualEl && e.target.closest?.('.tt-link-auto[data-records]');
-    const el = manualEl || autoEl;
+    // Tag-color tint (.tt-tag-word) hover opens the SAME tag popover
+    // that the margin dot opens. Wins over manual / auto-detect spans
+    // when both happen at the same point.
+    const tagRange = readTagRangeFromEl(e.target);
+    const manualEl = !tagRange && e.target.closest?.('[data-link-id]');
+    const autoEl   = !tagRange && !manualEl && e.target.closest?.('.tt-link-auto[data-records]');
+    const el = tagRange?.el || manualEl || autoEl;
     if (!el) return;
-    if (lastChipRef.current === el && (hoverTimers.current.open || linkHover)) return;
+    if (lastChipRef.current === el && (hoverTimers.current.open || linkHover || tagHover)) return;
     lastChipRef.current = el;
     cancelHoverTimers();
     hoverTimers.current.open = setTimeout(() => {
       hoverTimers.current.open = null;
+      if (tagRange) {
+        setTagHover({
+          anchor: el.getBoundingClientRect(),
+          tagId: tagRange.tagId,
+          tagName: tagRange.tagName,
+          tagColor: tagRange.tagColor,
+          source: el.getAttribute('data-source') || 'auto-word',
+        });
+        setLinkHover(null);
+        return;
+      }
       let refs = null, term = el.textContent || '';
       if (manualEl) refs = buildRefsFromManualLink(manualEl.dataset.linkId);
       else if (autoEl) {
@@ -473,14 +485,17 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     }, 250);
   };
   const handleLinkHoverLeave = (e) => {
-    const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records]');
+    const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records], .tt-tag-word');
     if (!fromChip) return;
-    const toChip = e.relatedTarget?.closest?.('[data-link-id], .tt-link-auto[data-records]');
+    const toChip = e.relatedTarget?.closest?.('[data-link-id], .tt-link-auto[data-records], .tt-tag-word');
     if (toChip && toChip === fromChip) return;
     lastChipRef.current = null;
     clearTimeout(hoverTimers.current.open);
     hoverTimers.current.open = null;
-    hoverTimers.current.close = setTimeout(() => setLinkHover(null), 200);
+    hoverTimers.current.close = setTimeout(() => {
+      setLinkHover(null);
+      setTagHover(null);
+    }, 200);
   };
   useEffect(() => () => cancelHoverTimers(), []);
 
