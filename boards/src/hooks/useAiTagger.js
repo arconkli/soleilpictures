@@ -147,22 +147,18 @@ export function useAiTagger(workspaceId) {
   // reasons), the hook stays in the not-ready state and never sends
   // card content to OpenAI for this workspace.
   useEffect(() => {
-    console.log('[ai-tagger] hook effect fired, workspaceId=', workspaceId, 'supabase=', !!supabase);
     if (!workspaceId || !supabase) { setReady(false); return; }
     let cancelled = false;
     setReady(false);
     async function load() {
-      console.log('[ai-tagger] load() starting');
       // Per-workspace AI opt-out check. If disabled, short-circuit.
-      const wsResp = await supabase.from('workspaces')
+      const { data: ws } = await supabase.from('workspaces')
         .select('ai_tagger_enabled')
         .eq('id', workspaceId)
         .maybeSingle();
-      const { data: ws, error: wsErr } = wsResp;
-      console.log('[ai-tagger] workspace query →', { ws, wsErr });
       if (cancelled) return;
       if (ws && ws.ai_tagger_enabled === false) {
-        console.log('[ai-tagger] disabled for workspace', workspaceId);
+        if (isDebug()) console.log('[ai-tagger] disabled for workspace', workspaceId);
         return; // never sets ready=true; suggestTags returns [] forever
       }
       const [tagsResp, centroidsResp, appliedResp] = await Promise.all([
@@ -192,10 +188,9 @@ export function useAiTagger(workspaceId) {
         if (!appliedRef.current.has(key)) appliedRef.current.set(key, new Set());
         appliedRef.current.get(key).add(r.target_id);
       }
-      console.log('[ai-tagger] hydrate done, tags=', tagsRef.current.length,
-        'centroids=', centroidsRef.current.size,
-        'applied entries=', appliedRef.current.size,
-        '— setting ready=true');
+      if (isDebug()) {
+        console.log(`[ai-tagger] hydrate done — ${tagsRef.current.length} tags, ${centroidsRef.current.size} centroids, ${appliedRef.current.size} tagged entities`);
+      }
       setReady(true);
     }
     load().catch(err => console.warn('[ai-tagger] hydrate failed', err));
