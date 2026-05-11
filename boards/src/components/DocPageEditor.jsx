@@ -753,13 +753,19 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   // wired; for root docs or freshly-created doc cards that's not
   // always true. This listener fires the cascade on every editor
   // update (debounced 2s) so paragraph tagging works regardless.
+  //
+  // Crucial: depend on stable primitive values, NOT the `scope`
+  // object — scope is a new identity each render so depending on it
+  // remounts the effect on every keystroke, cancelling the timer
+  // before it can fire (the cascade would never run).
+  const scopeDocCardId = scope?.docCardId || null;
+  const scopeBoardId   = scope?.boardId   || null;
   useEffect(() => {
-    const docCardId = (scope && scope.docCardId) || null;
     console.info('[paragraph-cascade] mount check — editor:', !!editor,
-      'workspaceId:', !!workspaceId, 'docCardId:', !!docCardId,
+      'workspaceId:', !!workspaceId, 'docCardId:', !!scopeDocCardId,
       'activePageId:', !!activePageId);
     if (!editor || !workspaceId) return;
-    if (!docCardId || !activePageId) {
+    if (!scopeDocCardId || !activePageId) {
       console.info('[paragraph-cascade] gated — needs both a docCardId and an activePageId to run');
       return;
     }
@@ -778,8 +784,8 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
         }
         await runParagraphCascade({
           workspaceId,
-          docCardId,
-          boardId: (scope && scope.boardId) || null,
+          docCardId: scopeDocCardId,
+          boardId: scopeBoardId,
           pageId: activePageId,
           paragraphs,
           tagCentroids: centroids,
@@ -798,7 +804,7 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       if (timer) clearTimeout(timer);
       editor.off('update', onUpdate);
     };
-  }, [editor, workspaceId, scope, activePageId]);
+  }, [editor, workspaceId, scopeDocCardId, scopeBoardId, activePageId]);
 
   // One-time idempotent migration: legacy bookmarks → kind='docPos' Links.
   // Runs whenever ydoc binds (or changes), safe to call repeatedly.
