@@ -267,6 +267,15 @@ Be strict. A common word appearing in a card does NOT mean a tag applies — the
 
 Tag descriptions, if provided, take precedence over tag names alone.
 
+For "high" and "medium" verdicts, ALSO return the specific words or short phrases in the card text that anchor the tag. These can be the tag name itself, related words ("pricing", "subscription", "tier" for a Pricing tag), or any noun/keyword that obviously evokes the topic. For each anchor word, return:
+- "text": the exact substring as it appears in the card (preserve case + punctuation)
+- "start_offset": 0-based character index of the substring's first character in the card text
+- "length": substring length in characters
+
+Pick the SMALLEST meaningful anchors — usually a single word or two-word phrase. Skip filler ("the", "a", "and"). If no specific anchor word stands out (e.g. the whole card is about the topic without any one trigger word), return an empty words array.
+
+For "low" verdicts, words must be an empty array.
+
 Return JSON matching the schema. Do not add prose.`;
 
 const APPLY_RESPONSE_SCHEMA = {
@@ -287,10 +296,23 @@ const APPLY_RESPONSE_SCHEMA = {
             items: {
               type: 'object',
               additionalProperties: false,
-              required: ['tag_id', 'confidence'],
+              required: ['tag_id', 'confidence', 'words'],
               properties: {
                 tag_id: { type: 'string' },
                 confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+                words: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['text', 'start_offset', 'length'],
+                    properties: {
+                      text: { type: 'string' },
+                      start_offset: { type: 'integer' },
+                      length: { type: 'integer' },
+                    },
+                  },
+                },
               },
             },
           },
