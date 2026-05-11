@@ -109,6 +109,11 @@ export async function runParagraphCascade({
       try {
         const resp = await applyCards(cards);
         verdicts = resp?.verdicts || [];
+        // Inspect the model's raw output so we can see when it's
+        // returning low everywhere vs returning empty-words on a
+        // high/medium (the latter would mean the prompt fix didn't
+        // take effect).
+        if (isDebug()) console.info('[paragraph-cascade] verdicts:', JSON.stringify(verdicts).slice(0, 1200));
       } catch (e) {
         console.warn('[paragraph-cascade] /apply failed', e?.message || e);
         continue;
@@ -138,12 +143,14 @@ export async function runParagraphCascade({
             const claimed = String(w.text || '').slice(0, len);
             if (actual.toLowerCase() !== claimed.toLowerCase()) continue;
             validWords.push({ startOffset: start, length: len, confidence: ta.confidence });
+            const contextText = buildContextSnippet(c.p.text, start, start + len);
             tierResults.push({
               pHash: c.p.pHash,
               startOffset: start,
               length: len,
               tagId: ta.tag_id,
               attribution: ta.confidence === 'high' ? 'auto-word' : 'auto-word-medium',
+              contextText,
             });
           }
           paragraphVerdictCache.set(`${c.p.pHash}::${ta.tag_id}`, validWords);
@@ -183,6 +190,7 @@ export async function runParagraphCascade({
         tagId: e.tagId,
         source: e.attribution,
         sourceAnchor: { pHash: e.pHash, startOffset: e.startOffset, length: e.length },
+        contextText: e.contextText || null,
       });
       successKeys.add(buildApplyKey(pageId, e.pHash, e.tagId, e.startOffset, e.length));
     } catch (err) {
@@ -240,6 +248,30 @@ export async function runParagraphCascade({
     console.info(`[paragraph-cascade] page ${pageId.slice(0, 8)} → ${paragraphs.length} paragraph${paragraphs.length === 1 ? '' : 's'}, ${finalResults.length} word${finalResults.length === 1 ? '' : 's'} (added: ${toAdd.length}, removed: ${toRemove.length})`);
   } catch (_) {}
   return { applied: finalResults.length, added: toAdd.length, removed: toRemove.length };
+}
+
+// Build a short snippet of `text` around the [start,end) range, with
+// ellipsis when truncated. Used as context_text on the entity_links
+// row so the tag detail view can show the surrounding sentence.
+function buildContextSnippet(text, start, end) {
+  const PAD = 60;
+  let s = Math.max(0, start - PAD);
+  let e = Math.min(text.length, end + PAD);
+  // Trim leading partial word.
+  if (s > 0) {
+    const ws = text.slice(s, start).search(/\s/);
+    if (ws >= 0 && ws < 25) s = s + ws + 1;
+  }
+  if (e < text.length) {
+    const tail = text.slice(end, e);
+    const lastWs = tail.lastIndexOf(' ');
+    if (lastWs > 0 && (tail.length - lastWs) < 25) e = end + lastWs;
+  }
+  let snippet = text.slice(s, e).replace(/\s+/g, ' ').trim();
+  if (!snippet) return '';
+  if (s > 0) snippet = '…' + snippet;
+  if (e < text.length) snippet = snippet + '…';
+  return snippet.slice(0, 200);
 }
 
 async function wipePageRangeRows({ docCardId, pageId }) {

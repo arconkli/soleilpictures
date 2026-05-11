@@ -256,25 +256,27 @@ async function handleClusterName(request, env) {
 // (c) `["string","null"]` union for optional fields. The schemas below
 // follow those rules.
 
-const APPLY_SYSTEM_PROMPT = `You are a tagging assistant for a notes/board app. Each request gives you a batch of cards, each card with a list of candidate tags. For every (card, tag) pair, decide whether the tag actually applies to the card content.
+const APPLY_SYSTEM_PROMPT = `You are a tagging assistant for a notes/board app. Each request gives you a batch of cards, each card with a list of candidate tags. For every (card, tag) pair, decide whether the tag applies and pick the WORDS in the text that triggered the decision.
 
 Confidence levels:
-- "high": the card is clearly and substantially about this topic. Apply silently.
-- "medium": the card touches on this topic but isn't primarily about it. Surface as a suggestion the user can accept or dismiss.
-- "low": the tag doesn't really apply, or the candidate is too weak. Drop.
+- "high": the card is clearly and substantially about this topic.
+- "medium": the card touches on this topic — a clear mention or related concept, but not the primary focus.
+- "low": the tag doesn't really apply.
 
-Be strict. A common word appearing in a card does NOT mean a tag applies — the card must be ABOUT the topic. When in doubt, choose lower confidence. Most candidate tags should be "low".
+Be strict on relevance, generous on anchoring.
 
-Tag descriptions, if provided, take precedence over tag names alone.
+For EVERY "high" and "medium" verdict you MUST return at least one word in the "words" array. The word does NOT have to be the tag's name — pick any single word or short phrase in the card that obviously evokes the topic. Examples for a "Pricing Plans" tag: "pricing", "tier", "tiers", "subscription", "monthly", "$10", "free plan", "billing". A "Marketing" tag could be anchored by "campaign", "audience", "ads", "launch", "brand". Use the surrounding sentence as context to confirm the word genuinely refers to the tag's concept.
 
-For "high" and "medium" verdicts, ALSO return the specific words or short phrases in the card text that anchor the tag. These can be the tag name itself, related words ("pricing", "subscription", "tier" for a Pricing tag), or any noun/keyword that obviously evokes the topic. For each anchor word, return:
-- "text": the exact substring as it appears in the card (preserve case + punctuation)
-- "start_offset": 0-based character index of the substring's first character in the card text
-- "length": substring length in characters
+Rules for each anchor:
+- "text": the EXACT substring as it appears in the card (preserve case + punctuation, including any leading "$" or trailing punctuation that is part of the meaningful token).
+- "start_offset": 0-based character index of the substring's first character in the card text.
+- "length": substring length in characters.
 
-Pick the SMALLEST meaningful anchors — usually a single word or two-word phrase. Skip filler ("the", "a", "and"). If no specific anchor word stands out (e.g. the whole card is about the topic without any one trigger word), return an empty words array.
+Pick the SMALLEST meaningful anchors — usually a single word or two-word phrase. Skip filler ("the", "a", "and", "or", "of"). Multiple anchors per tag are fine (e.g. both "pricing" and "tier" in the same paragraph).
 
-For "low" verdicts, words must be an empty array.
+If a verdict would be "high" or "medium" but you cannot identify any specific word that points at the topic, downgrade the verdict to "low" — never return an empty "words" array on a high/medium verdict.
+
+For "low" verdicts, "words" must be an empty array.
 
 Return JSON matching the schema. Do not add prose.`;
 

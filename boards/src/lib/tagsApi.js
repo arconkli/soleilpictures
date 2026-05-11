@@ -285,7 +285,9 @@ export async function tagDocPage({ workspaceId, docCardId, pageId, boardId = nul
 // span). source_anchor carries { pHash, startOffset, length } —
 // pHash is the FNV-1a of the paragraph text so the renderer can
 // re-locate the span after the user edits unrelated paragraphs.
-export async function tagDocRange({ workspaceId, docCardId, pageId, boardId = null, tagId, source = 'auto-paragraph', sourceAnchor }) {
+// contextText is an optional snippet (~150 chars around the anchor)
+// that the tag detail view can show as a preview in "Mentioned in".
+export async function tagDocRange({ workspaceId, docCardId, pageId, boardId = null, tagId, source = 'auto-paragraph', sourceAnchor, contextText = null }) {
   if (!workspaceId || !docCardId || !pageId || !tagId || !sourceAnchor?.pHash) {
     throw new Error('tagDocRange: missing required field');
   }
@@ -296,6 +298,7 @@ export async function tagDocRange({ workspaceId, docCardId, pageId, boardId = nu
     source_board_id:  boardId,
     source_page_id:   String(pageId),
     source_anchor:    sourceAnchor,
+    context_text:     contextText ? String(contextText).slice(0, 300) : null,
     target_kind:      'tag',
     target_id:        tagId,
     link_kind:        'applied',

@@ -152,14 +152,30 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
               .in('card_id', docIds);
             for (const d of (docs || [])) docTitleById.set(d.card_id, { title: d.title, board_id: d.board_id });
           }
-          const hydrated = links.map(l => ({
-            kind: l.source_kind,
-            doc_card_id: l.source_id,
-            page_id: l.source_page_id,
-            page_title: l.source_page_id ? (pageTitleById.get(l.source_page_id) || '') : '',
-            doc_title: docTitleById.get(l.source_id)?.title || '',
-            board_id: docTitleById.get(l.source_id)?.board_id || null,
-            context_text: l.context_text || '',
+          // Dedupe by (doc, page) — a page with multiple AI word
+          // applies for the same tag should show once, with the
+          // snippets joined into a single preview.
+          const groupedByPage = new Map();
+          for (const l of links) {
+            const k = `${l.source_id}::${l.source_page_id || ''}`;
+            if (!groupedByPage.has(k)) {
+              groupedByPage.set(k, {
+                kind: l.source_kind,
+                doc_card_id: l.source_id,
+                page_id: l.source_page_id,
+                page_title: l.source_page_id ? (pageTitleById.get(l.source_page_id) || '') : '',
+                doc_title: docTitleById.get(l.source_id)?.title || '',
+                board_id: docTitleById.get(l.source_id)?.board_id || null,
+                contexts: [],
+              });
+            }
+            const t = (l.context_text || '').trim();
+            if (t) groupedByPage.get(k).contexts.push(t);
+          }
+          const hydrated = [...groupedByPage.values()].map(g => ({
+            ...g,
+            // Up to 2 distinct snippets per page, joined with a separator.
+            context_text: [...new Set(g.contexts)].slice(0, 2).join('  ·  '),
           }));
           setMentions(hydrated);
         });
