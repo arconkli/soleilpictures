@@ -699,11 +699,14 @@ export async function updateBacklinks({ workspaceId, docCardId, pageId, links })
     .eq('source_page_id', pageId);
   if (delLegacy.error) console.warn('doc_backlinks delete failed', delLegacy.error);
 
+  // Scope to source='user' so auto-detected mentions (which we write
+  // with source='auto') aren't wiped on a manual-link save.
   const delNew = await supabase
     .from('entity_links').delete()
     .eq('source_kind', 'doc')
     .eq('source_id', docCardId)
-    .eq('source_page_id', pageId);
+    .eq('source_page_id', pageId)
+    .eq('source', 'user');
   if (delNew.error) console.warn('entity_links delete failed', delNew.error);
 
   // 2. Insert one row per (link, target) into both tables. We keep

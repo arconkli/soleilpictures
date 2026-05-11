@@ -18,6 +18,8 @@ import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
 import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
+import { extractTagMentions } from '../lib/extractTagMentions.js';
+import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
@@ -675,6 +677,26 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       try {
         const pages = readPagesWithText(ydoc, scope);
         syncDocPageIndex({ workspaceId, docCardId, pages });
+        // Persist auto-detected tag mentions per page so the tag detail
+        // view can show "this doc mentions X" with the surrounding
+        // sentence as preview. We scope the replace to (target_kind=tag,
+        // source=auto) so manual links + AI applies aren't touched.
+        const trie = nameIndexRef.current;
+        if (trie?.findMatches) {
+          for (const p of pages) {
+            if (!p?.id) continue;
+            const mentions = extractTagMentions(p.text || '', trie);
+            recordEntityLinks({
+              source: { kind: 'doc', id: docCardId, workspace: workspaceId, pageId: p.id },
+              refs: mentions,
+              replaceForSource: true,
+              replaceTargetKind: 'tag',
+              replaceSourceAttribution: 'auto',
+              linkKind: 'mention',
+              attribution: 'auto',
+            }).catch((e) => console.warn('tag-mention persist', e?.message || e));
+          }
+        }
       } catch (e) { console.warn('doc_page_index sync', e); }
     };
     const onChange = () => {

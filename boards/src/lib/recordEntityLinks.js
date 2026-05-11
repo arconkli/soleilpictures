@@ -16,13 +16,18 @@ export async function recordEntityLinks({
   source, refs = [], replaceForSource = false,
   linkKind = 'mention',                  // 'mention' (default) | 'applied' | 'reply' | 'attached'
   attribution = 'user',                  // 'user' | 'auto' | 'ai'
+  replaceTargetKind = null,              // narrow the replace-scope to one target kind
+  replaceSourceAttribution = null,       // narrow the replace-scope by source attribution
 }) {
   if (!supabase || !source?.kind || !source?.id || !source?.workspace) return;
   const filtered = (refs || []).filter(r => r && r.ref && r.ref.kind);
 
   // Wipe prior rows for this source so updates re-stamp cleanly.
   // Scope the delete by (kind, id, [pageId,linkId], link_kind) so
-  // unrelated sources on the same doc card aren't touched.
+  // unrelated sources on the same doc card aren't touched. Optional
+  // target-kind + attribution scoping lets two flows (manual links,
+  // auto-detected tag mentions) coexist on the same (doc,page) without
+  // one wiping the other.
   if (replaceForSource) {
     let q = supabase.from('entity_links').delete()
       .eq('source_kind', source.kind)
@@ -30,6 +35,8 @@ export async function recordEntityLinks({
       .eq('link_kind', linkKind);
     if (source.pageId) q = q.eq('source_page_id', source.pageId);
     if (source.linkId) q = q.eq('source_link_id', source.linkId);
+    if (replaceTargetKind) q = q.eq('target_kind', replaceTargetKind);
+    if (replaceSourceAttribution) q = q.eq('source', replaceSourceAttribution);
     await q;
   }
 

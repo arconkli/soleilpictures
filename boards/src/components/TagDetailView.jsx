@@ -59,6 +59,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   const [rows, setRows] = useState([]);
   const [boardCards, setBoardCards] = useState(new Map());
   const [groupCards, setGroupCards] = useState(new Map());
+  const [mentions, setMentions] = useState([]);   // [{ doc_card_id, page_id, page_title, context_text }]
   const [loading, setLoading] = useState(true);
   // Filter: 'all' | 'auto' | 'user'. Stored in localStorage so the
   // user's choice persists across reloads / tab switches.
@@ -100,6 +101,52 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       .catch(err => { console.warn('[tags] get_things_tagged failed', err); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
+    // Mentions: docs / pages that reference this tag in their body
+    // text. Surfaced as a separate "Mentioned in" list under the
+    // primary applied items so the tag page reads like connective
+    // tissue across the workspace, not just an apply list.
+    const loadMentions = () => {
+      return supabase.from('entity_links')
+        .select('source_kind, source_id, source_page_id, context_text')
+        .eq('target_kind', 'tag')
+        .eq('target_id', tag.id)
+        .eq('link_kind', 'mention')
+        .then(async ({ data, error }) => {
+          if (cancelled) return;
+          if (error) { console.warn('[tags] mentions fetch failed', error); setMentions([]); return; }
+          const links = data || [];
+          if (links.length === 0) { setMentions([]); return; }
+          // Hydrate doc titles. Group page lookups by doc_card_id.
+          const docIds = Array.from(new Set(links.filter(l => l.source_kind === 'doc').map(l => l.source_id)));
+          const pageIds = links.filter(l => l.source_page_id).map(l => l.source_page_id);
+          let pageTitleById = new Map();
+          let docTitleById = new Map();
+          if (pageIds.length > 0) {
+            const { data: pages } = await supabase.from('doc_page_index')
+              .select('doc_card_id, page_id, page_title')
+              .in('page_id', pageIds);
+            for (const p of (pages || [])) pageTitleById.set(p.page_id, p.page_title);
+          }
+          if (docIds.length > 0) {
+            const { data: docs } = await supabase.from('card_index')
+              .select('card_id, board_id, title')
+              .in('card_id', docIds);
+            for (const d of (docs || [])) docTitleById.set(d.card_id, { title: d.title, board_id: d.board_id });
+          }
+          const hydrated = links.map(l => ({
+            kind: l.source_kind,
+            doc_card_id: l.source_id,
+            page_id: l.source_page_id,
+            page_title: l.source_page_id ? (pageTitleById.get(l.source_page_id) || '') : '',
+            doc_title: docTitleById.get(l.source_id)?.title || '',
+            board_id: docTitleById.get(l.source_id)?.board_id || null,
+            context_text: l.context_text || '',
+          }));
+          setMentions(hydrated);
+        });
+    };
+    loadMentions();
+
     const sfx = Math.random().toString(36).slice(2, 9);
     const chan = supabase.channel(`tag-detail:${tag.id}:${sfx}`)
       .on('postgres_changes', {
@@ -107,13 +154,18 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       }, (payload) => {
         const n = payload?.new || {};
         const o = payload?.old || {};
-        const isThisTag =
+        const isApplied =
           (n.target_kind === 'tag' && n.target_id === tag.id && n.link_kind === 'applied') ||
           (o.target_kind === 'tag' && o.target_id === tag.id && o.link_kind === 'applied');
-        if (!isThisTag) return;
-        supabase.rpc('get_things_tagged', { p_tag_id: tag.id, p_limit: 300 })
-          .then(({ data }) => { if (!cancelled) setRows(Array.isArray(data) ? data : []); })
-          .catch(() => {});
+        const isMention =
+          (n.target_kind === 'tag' && n.target_id === tag.id && n.link_kind === 'mention') ||
+          (o.target_kind === 'tag' && o.target_id === tag.id && o.link_kind === 'mention');
+        if (isApplied) {
+          supabase.rpc('get_things_tagged', { p_tag_id: tag.id, p_limit: 300 })
+            .then(({ data }) => { if (!cancelled) setRows(Array.isArray(data) ? data : []); })
+            .catch(() => {});
+        }
+        if (isMention) loadMentions();
       })
       .subscribe();
 
@@ -454,6 +506,41 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
                 title: c.title, body: c.card_body || c.body,
                 applied_source: c.applied_source,
               }))}
+            </div>
+          </div>
+        )}
+
+        {mentions.length > 0 && (
+          <div className="tag-detail-mentions">
+            <div className="tag-detail-block-head">
+              <Icon as={FileText} size={12} />
+              <span className="tag-detail-block-title">Mentioned in</span>
+              <span className="tag-detail-block-attr is-count">{mentions.length}</span>
+            </div>
+            <div className="tag-detail-mention-list">
+              {mentions.map(m => {
+                const navTarget = m.kind === 'doc'
+                  ? { kind: 'doc', id: m.doc_card_id, board_id: m.board_id, card_id: m.doc_card_id, page_id: m.page_id }
+                  : null;
+                const title = m.page_title || m.doc_title || 'Untitled';
+                return (
+                  <button key={`mention:${m.doc_card_id}:${m.page_id || ''}`}
+                          className="tag-detail-mention-row"
+                          onClick={() => navTarget && navigate(navTarget)}
+                          title={navTarget ? 'Open page' : ''}>
+                    <span className="tag-detail-mention-head">
+                      <Icon as={FileText} size={11} />
+                      <span className="tag-detail-mention-title">{title}</span>
+                      {m.page_title && m.doc_title && m.doc_title !== m.page_title && (
+                        <span className="tag-detail-mention-crumb">{m.doc_title}</span>
+                      )}
+                    </span>
+                    {m.context_text && (
+                      <span className="tag-detail-mention-snippet">{m.context_text}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
