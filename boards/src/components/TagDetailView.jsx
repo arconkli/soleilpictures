@@ -27,6 +27,7 @@ import {
   confirmAppliedTag, dismissAutotagSuggestion,
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { getKind } from '../lib/entityKinds.js';
 
 const KIND_ICON = {
   board: LayoutGrid, doc: FileText, group: LayoutGrid,
@@ -73,6 +74,19 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   const setFilter = (v) => {
     setSourceFilter(v);
     try { localStorage.setItem('soleil.tags.detail.filter', v); } catch (_) {}
+  };
+  // Type filter: 'all' or any card kind ('image', 'palette', 'note',
+  // 'card', 'doc', 'link', 'schedule', 'board', 'group'). Stored per-tag
+  // would be excessive — keep it per-tag-detail session as a single
+  // global preference (matches the source filter behavior).
+  const [typeFilter, setTypeFilter] = useState(() => {
+    if (typeof localStorage === 'undefined') return 'all';
+    try { return localStorage.getItem('soleil.tags.detail.typefilter') || 'all'; }
+    catch (_) { return 'all'; }
+  });
+  const setTypeFilterPersist = (v) => {
+    setTypeFilter(v);
+    try { localStorage.setItem('soleil.tags.detail.typefilter', v); } catch (_) {}
   };
   // Right-click menu state.
   const [menu, setMenu] = useState(null); // { x, y, kind, id, boardId, source }
@@ -331,21 +345,32 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       kind: c.kind, id: c.card_id, boardId: c.board_id,
       source: directSource, // null if it's a child preview, not directly tagged
     };
+    // Pull the registry's rich preview for the kind — image thumbnail,
+    // palette swatches, etc. Falls back to the text excerpt when the
+    // preview returns null (notes/cards/docs without specialized art).
+    const def = getKind(c.kind);
+    const richPreview = def?.previewMini?.(c) || null;
+    const isVisualKind = c.kind === 'image' || c.kind === 'palette';
     return (
       <button key={`c:${c.board_id}:${c.card_id}`}
-              className="tag-detail-card-preview"
+              className={`tag-detail-card-preview ${isVisualKind ? 'is-visual' : ''} ${richPreview ? 'has-rich' : ''}`}
               title="Click to open · right-click for actions"
               onClick={() => navigate(navTarget)}
               onContextMenu={(e) => openMenu(e, menuTarget)}>
-        <span className="tag-detail-card-preview-kind">
-          <Icon as={Icn} size={11} />
-        </span>
-        <span className="tag-detail-card-preview-text">
-          {excerpt || <span className="tag-detail-card-preview-empty">empty {c.kind}</span>}
-        </span>
-        {directSource && directSource !== 'user' && (
-          <span className="tag-detail-card-preview-badge">{directSource}</span>
+        {richPreview && (
+          <div className="tag-detail-card-preview-rich">{richPreview}</div>
         )}
+        <div className="tag-detail-card-preview-meta">
+          <span className="tag-detail-card-preview-kind">
+            <Icon as={Icn} size={11} />
+          </span>
+          <span className="tag-detail-card-preview-text">
+            {excerpt || <span className="tag-detail-card-preview-empty">empty {c.kind}</span>}
+          </span>
+          {directSource && directSource !== 'user' && (
+            <span className="tag-detail-card-preview-badge">{directSource}</span>
+          )}
+        </div>
       </button>
     );
   };
@@ -442,6 +467,52 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     return { all: rows.length, auto, user };
   }, [rows]);
 
+  // Flat list of every card that appears anywhere in this view —
+  // direct-tagged cards + children of tagged boards + children of
+  // tagged groups, deduped by (board_id, card_id). Used for:
+  //   (a) computing which type-filter pills are available, and
+  //   (b) the flat-grid render when a type filter is on.
+  const allCardsFlat = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    const push = (c) => {
+      if (!c?.card_id || !c?.board_id) return;
+      const k = `${c.board_id}:${c.card_id}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(c);
+    };
+    for (const c of direct.cards) push({ ...c, _direct: true });
+    for (const arr of boardCards.values()) for (const c of arr) push(c);
+    for (const arr of groupCards.values()) for (const c of arr) push(c);
+    return out;
+  }, [direct.cards, boardCards, groupCards]);
+
+  // Set of kinds that actually exist in the current rows + child cards.
+  // We only show pills for types the user can realistically filter by.
+  const typeCounts = useMemo(() => {
+    const m = new Map();
+    for (const c of allCardsFlat) m.set(c.kind, (m.get(c.kind) || 0) + 1);
+    return m;
+  }, [allCardsFlat]);
+
+  // Apply both filters in sequence: source filter (handled by
+  // filteredRows above for the hierarchy view) and type filter (here
+  // for the flat-grid view).
+  const typedFlat = useMemo(() => {
+    if (typeFilter === 'all') return allCardsFlat;
+    return allCardsFlat.filter(c => c.kind === typeFilter);
+  }, [allCardsFlat, typeFilter]);
+
+  // Pretty labels for the pill row. Order is intentional — visual
+  // kinds (image / palette) first, then text-y kinds. Hidden if the
+  // workspace has no items of that kind on this tag.
+  const TYPE_PILL_ORDER = ['image', 'palette', 'note', 'card', 'doc', 'link', 'schedule'];
+  const typeLabel = (k) => {
+    const def = getKind(k);
+    return def?.label || k;
+  };
+
   return (
     <div className="tag-detail">
       <div className="grain-surface" aria-hidden="true" />
@@ -474,6 +545,28 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
         </div>
       )}
 
+      {allCardsFlat.length > 0 && (
+        <div className="tag-detail-filter tag-detail-filter-type">
+          <button className={`tag-detail-filter-pill ${typeFilter === 'all' ? 'is-on' : ''}`}
+                  onClick={() => setTypeFilterPersist('all')}>
+            All types <span className="tag-detail-filter-count">{allCardsFlat.length}</span>
+          </button>
+          {TYPE_PILL_ORDER.filter(k => typeCounts.get(k)).map(k => {
+            const def = getKind(k);
+            const Icn = def?.icon;
+            return (
+              <button key={k}
+                      className={`tag-detail-filter-pill ${typeFilter === k ? 'is-on' : ''}`}
+                      onClick={() => setTypeFilterPersist(k)}>
+                {Icn && <Icon as={Icn} size={11} />}
+                {typeLabel(k)}
+                <span className="tag-detail-filter-count">{typeCounts.get(k)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="tag-detail-body">
         {loading && <div className="tag-detail-empty">Loading…</div>}
         {!loading && rows.length === 0 && (
@@ -490,24 +583,51 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           </div>
         )}
 
-        {direct.boards.map(renderBoardBlock)}
-        {orphanGroups.map(g => renderGroupBlock(g, { boardCrumb: true }))}
+        {typeFilter === 'all' ? (
+          <>
+            {direct.boards.map(renderBoardBlock)}
+            {orphanGroups.map(g => renderGroupBlock(g, { boardCrumb: true }))}
 
-        {orphanCards.length > 0 && (
-          <div className="tag-detail-loose-cards">
-            <div className="tag-detail-block-head">
-              <Icon as={StickyNote} size={12} />
-              <span className="tag-detail-block-title">Other items</span>
-              <span className="tag-detail-block-attr is-count">{orphanCards.length}</span>
+            {orphanCards.length > 0 && (
+              <div className="tag-detail-loose-cards">
+                <div className="tag-detail-block-head">
+                  <Icon as={StickyNote} size={12} />
+                  <span className="tag-detail-block-title">Other items</span>
+                  <span className="tag-detail-block-attr is-count">{orphanCards.length}</span>
+                </div>
+                <div className="tag-detail-card-grid">
+                  {orphanCards.map(c => renderCardPreview({
+                    board_id: c.board_id, card_id: c.card_id, kind: c.kind,
+                    title: c.title, body: c.card_body || c.body, meta: c.meta,
+                    applied_source: c.applied_source,
+                  }))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          // Type filter active: flatten everything into a single grid
+          // for a clean "all the images for this tag" / "all the
+          // palettes for this tag" view. Board/group context drops away
+          // — the user is looking by content type now, not by location.
+          typedFlat.length > 0 ? (
+            <div className="tag-detail-typed-grid-wrap">
+              <div className="tag-detail-block-head">
+                <Icon as={getKind(typeFilter)?.icon || StickyNote} size={12} />
+                <span className="tag-detail-block-title">
+                  {typeLabel(typeFilter)}{typedFlat.length === 1 ? '' : 's'}
+                </span>
+                <span className="tag-detail-block-attr is-count">{typedFlat.length}</span>
+              </div>
+              <div className="tag-detail-card-grid">
+                {typedFlat.map(renderCardPreview)}
+              </div>
             </div>
-            <div className="tag-detail-card-grid">
-              {orphanCards.map(c => renderCardPreview({
-                board_id: c.board_id, card_id: c.card_id, kind: c.kind,
-                title: c.title, body: c.card_body || c.body,
-                applied_source: c.applied_source,
-              }))}
+          ) : (
+            <div className="tag-detail-empty">
+              No {typeLabel(typeFilter).toLowerCase()}s tagged.
             </div>
-          </div>
+          )
         )}
 
         {mentions.length > 0 && (
