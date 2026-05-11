@@ -9771,6 +9771,21 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .tt-link[draggable="true"] { cursor: pointer; }
 .tt-link-manual.tt-link-auto { /* manual wins */ }
 
+/* Tag-range underlines — painted by TagRangePlugin over a paragraph,
+   sentence, or word+context span that's been applied to a tag. Color
+   is the tag's color, set inline via the --tag-color CSS variable. */
+.tt-tag-range {
+  text-decoration: underline;
+  text-decoration-color: var(--tag-color, var(--soleil));
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-skip-ink: none;
+}
+/* Stacked underlines when multiple tags cover the same span. Each
+   stack-N adds another underline below by nudging the offset. */
+.tt-tag-range-stack-1 { text-underline-offset: 6px; }
+.tt-tag-range-stack-2 { text-underline-offset: 9px; }
+
 /* ─────────────────── Hover popover (EntityHoverPopover) ────────────────── */
 
 .ent-pop {

@@ -19,8 +19,13 @@ import { uploadImage } from '../lib/uploads.js';
 import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
+import { extractParagraphTags } from '../lib/extractParagraphTags.js';
+import { splitSentences, wordContextSpan } from '../lib/sentenceSpan.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { applyCards } from '../lib/tagsClient.js';
+import { makeTagRangePlugin } from './docExtensions/TagRangePlugin.js';
+import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
+import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
@@ -166,6 +171,67 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   const { trie: workspaceTrie } = useEntityNameTrie(workspaceId);
   const nameIndexRef = useRef(createNameIndex());
   useEffect(() => { nameIndexRef.current = workspaceTrie; }, [workspaceTrie]);
+
+  // Applied tag ranges for the active page — painted as tag-color
+  // underlines by TagRangePlugin. Refs let the plugins read fresh
+  // values without re-mounting the editor.
+  const appliedTagRanges = useAppliedTagRanges({
+    workspaceId,
+    docCardId: scope?.docCardId || null,
+    pageId: activePageId || null,
+  });
+  const appliedTagRangesRef = useRef([]);
+  const appliedRangeBoxesRef = useRef([]);
+  useEffect(() => {
+    appliedTagRangesRef.current = appliedTagRanges || [];
+    // Compute absolute doc positions for each range so the auto-detect
+    // plugin can ask "does this entity-name match overlap an applied
+    // range?" without re-walking. Updates whenever ranges change OR
+    // the editor doc changes (handled below in the transaction hook).
+    refreshAppliedRangeBoxes();
+    // Force the TagRangePlugin to recompute even when the doc hasn't
+    // changed (e.g. a new entity_links row just landed).
+    const ed = editorRef.current;
+    if (ed?.view) {
+      const tr = ed.state.tr.setMeta('tagRange', { changed: true });
+      ed.view.dispatch(tr);
+    }
+  }, [appliedTagRanges]);
+
+  // Recompute the absolute-position boxes for each applied range so
+  // AutoDetectPlugin can suppress decorations that overlap them. Re-runs
+  // on every editor transaction so paragraphs that move (because a
+  // paragraph above grew/shrank) keep their boxes accurate.
+  const refreshAppliedRangeBoxes = () => {
+    const ed = editorRef.current;
+    if (!ed?.state?.doc) { appliedRangeBoxesRef.current = []; return; }
+    const ranges = appliedTagRangesRef.current || [];
+    if (ranges.length === 0) { appliedRangeBoxesRef.current = []; return; }
+    // Walk the doc, hash each paragraph, look up matching ranges.
+    const byHash = new Map();
+    ed.state.doc.descendants((node, pos) => {
+      if (node.type?.name !== 'paragraph') return true;
+      const text = (node.textContent || '').trim();
+      if (text.length < 20) return false;
+      // Re-import contentHash here would be heavy; use the same FNV-1a
+      // by reusing what the plugin already does. Cheap to compute.
+      let h = 2166136261;
+      for (let i = 0; i < text.length; i++) {
+        h ^= text.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      const hash = (h >>> 0).toString(16);
+      if (!byHash.has(hash)) byHash.set(hash, pos + 1);
+      return false;
+    });
+    const boxes = [];
+    for (const r of ranges) {
+      const paraFrom = byHash.get(r.pHash);
+      if (paraFrom == null) continue;
+      boxes.push({ from: paraFrom + r.startOffset, to: paraFrom + r.startOffset + r.length });
+    }
+    appliedRangeBoxesRef.current = boxes;
+  };
 
   // Per-doc ignore set: terms the user has marked "don't auto-link
   // here" for this specific doc card. Populated from
@@ -500,6 +566,17 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
         addProseMirrorPlugins: () => [makeAutoDetectPlugin({
           getIndex:   () => nameIndexRef.current,
           getIgnored: () => docIgnoreRef.current,
+          // Suppress dotted-underline decorations inside any applied
+          // tag range — the colored underline wins.
+          getAppliedRangeSet: () => appliedRangeBoxesRef.current || [],
+        })],
+      }),
+      // Paint tag-color underlines over applied tag ranges (paragraph,
+      // sentence, or word+context spans persisted by the AI tagger).
+      Extension.create({
+        name: 'soleilTagRange',
+        addProseMirrorPlugins: () => [makeTagRangePlugin({
+          getRanges: () => appliedTagRangesRef.current || [],
         })],
       }),
       // Enter key handler: if caret is inside an auto-detect candidate span,
@@ -642,6 +719,18 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     }
   }, [editor, onEditorReady]);
 
+  // Keep applied-range absolute boxes in sync with the live doc so the
+  // auto-detect plugin can suppress decorations under colored ranges.
+  // Paragraph positions shift as the user types above/below; the
+  // hashes don't, so we re-derive boxes on every transaction.
+  useEffect(() => {
+    if (!editor) return;
+    const onTr = () => refreshAppliedRangeBoxes();
+    editor.on('transaction', onTr);
+    onTr();
+    return () => editor.off('transaction', onTr);
+  }, [editor]);
+
   // One-time idempotent migration: legacy bookmarks → kind='docPos' Links.
   // Runs whenever ydoc binds (or changes), safe to call repeatedly.
   useEffect(() => {
@@ -764,6 +853,29 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
             }
           }
         }
+
+        // Tier 1-3 paragraph cascade — runs on the active page only
+        // (other pages aren't in this editor instance). Scoped to the
+        // workspace's existing tag centroids.
+        try {
+          if (editorRef.current && activePageId) {
+            const paragraphs = extractParagraphTags(editorRef.current.state.doc);
+            if (paragraphs.length > 0) {
+              const centroids = await loadWorkspaceTagCentroids(workspaceId);
+              if (centroids.size > 0) {
+                await runParagraphCascade({
+                  workspaceId,
+                  docCardId,
+                  boardId: (scope && scope.boardId) || null,
+                  pageId: activePageId,
+                  paragraphs,
+                  tagCentroids: centroids,
+                  trie,
+                });
+              }
+            }
+          }
+        } catch (e) { console.warn('paragraph-cascade', e?.message || e); }
 
         // Step 3: per-page, bucket by verdict and persist.
         for (const { pageId, mentions } of perPage) {

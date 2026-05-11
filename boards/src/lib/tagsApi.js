@@ -281,6 +281,30 @@ export async function tagDocPage({ workspaceId, docCardId, pageId, boardId = nul
   if (error && error.code !== '23505') throw error;
 }
 
+// Range-anchored doc apply: a tag scoped to a paragraph (or smaller
+// span). source_anchor carries { pHash, startOffset, length } —
+// pHash is the FNV-1a of the paragraph text so the renderer can
+// re-locate the span after the user edits unrelated paragraphs.
+export async function tagDocRange({ workspaceId, docCardId, pageId, boardId = null, tagId, source = 'auto-paragraph', sourceAnchor }) {
+  if (!workspaceId || !docCardId || !pageId || !tagId || !sourceAnchor?.pHash) {
+    throw new Error('tagDocRange: missing required field');
+  }
+  const row = {
+    source_kind:      'doc',
+    source_id:        String(docCardId),
+    source_workspace: workspaceId,
+    source_board_id:  boardId,
+    source_page_id:   String(pageId),
+    source_anchor:    sourceAnchor,
+    target_kind:      'tag',
+    target_id:        tagId,
+    link_kind:        'applied',
+    source,
+  };
+  const { error } = await supabase.from('entity_links').insert(row);
+  if (error && error.code !== '23505') throw error;
+}
+
 export async function untagGroup({ boardId, groupId, tagId }) {
   if (!boardId || !groupId || !tagId) return;
   const { error } = await supabase.from('entity_links').delete()
