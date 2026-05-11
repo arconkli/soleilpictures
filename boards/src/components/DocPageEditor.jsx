@@ -754,10 +754,13 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
   // always true. This listener fires the cascade on every editor
   // update (debounced 2s) so paragraph tagging works regardless.
   useEffect(() => {
-    if (!editor || !workspaceId) return;
     const docCardId = (scope && scope.docCardId) || null;
+    console.info('[paragraph-cascade] mount check — editor:', !!editor,
+      'workspaceId:', !!workspaceId, 'docCardId:', !!docCardId,
+      'activePageId:', !!activePageId);
+    if (!editor || !workspaceId) return;
     if (!docCardId || !activePageId) {
-      console.info('[paragraph-cascade] gated: docCardId =', !!docCardId, 'activePageId =', !!activePageId);
+      console.info('[paragraph-cascade] gated — needs both a docCardId and an activePageId to run');
       return;
     }
     let timer = null;

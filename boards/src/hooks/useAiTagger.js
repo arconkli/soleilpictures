@@ -347,10 +347,11 @@ export function useAiTagger(workspaceId) {
     // we just won't have a persistent cache; next session will re-embed.
     supabase.from('card_embeddings').upsert({
       card_id: cardId,
+      entity_kind: 'card',
       workspace_id: workspaceId,
       content_hash: hash,
       embedding: formatPgvector(result.vector),
-    }, { onConflict: 'card_id' }).then(({ error }) => {
+    }, { onConflict: 'entity_kind,card_id' }).then(({ error }) => {
       if (error) console.warn('[ai-tagger] persist card embedding failed', error.message);
     });
     return { vector: result.vector, usage: result.usage, ms: result.ms, cached: false };

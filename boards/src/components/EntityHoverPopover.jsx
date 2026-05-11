@@ -461,8 +461,11 @@ function BoardInlineExpansion({ boardId, onNavigate }) {
         {cards.map(c => {
           const def = getKind(c.kind);
           const Icn = def?.icon;
-          const rich = def?.previewMini?.(c) || null;
+          // Rich preview only for visual kinds — for text-y cards the
+          // registry previewMini just re-renders the body, which then
+          // duplicates whatever ends up in the meta row below.
           const isVisual = c.kind === 'image' || c.kind === 'palette';
+          const rich = isVisual ? (def?.previewMini?.(c) || null) : null;
           return (
             <button key={`${c.board_id}:${c.card_id}`}
                     className={`ent-pop-expand-card ${isVisual ? 'is-visual' : ''}`}
