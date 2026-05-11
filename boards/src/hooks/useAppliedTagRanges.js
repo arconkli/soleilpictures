@@ -52,6 +52,10 @@ export function useAppliedTagRanges({ workspaceId, docCardId, pageId }) {
           pHash: a.pHash,
           startOffset: a.startOffset,
           length: a.length,
+          // Optional — only set on word/sentence-tier rows. Drives
+          // whether TagRangePlugin paints an inline keyword tint.
+          keywordOffset: typeof a.keywordOffset === 'number' ? a.keywordOffset : null,
+          keywordLength: typeof a.keywordLength === 'number' ? a.keywordLength : null,
           tagId: r.target_id,
           tagColor: t.color || fallbackColor(t.name || r.target_id),
           tagName: t.name || 'Tag',

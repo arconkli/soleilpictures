@@ -37,39 +37,39 @@ export function makeTagRangePlugin({ getRanges }) {
   });
 }
 
-// Re-walk the doc, build a hash → paragraph-position map, then resolve
-// each applied range into an inline decoration.
+// Re-walk the doc, build a hash → paragraph-position map, then paint
+// a single inline decoration over the trigger word (when known).
+// Paragraph-tier applies have no keyword position — they render
+// margin-only via DocTagGutter, so we skip them here.
+//
+// The decoration is purely visual: no data-tag-* attributes so
+// hovering the text doesn't open a popover (the margin dot does).
 function buildDecorations(doc, ranges) {
   if (!ranges?.length || !doc?.descendants) return DecorationSet.empty;
-  const byHash = new Map(); // pHash → { paraFrom, paraText, count }
+  const byHash = new Map(); // pHash → { paraFrom, paraText }
   doc.descendants((node, pos) => {
     if (node.type?.name !== 'paragraph') return true;
     const text = (node.textContent || '').trim();
     if (text.length < 20) return false;
     const h = contentHash(text);
-    if (!byHash.has(h)) byHash.set(h, { paraFrom: pos + 1, paraText: text, count: 0 });
-    // If the same hash exists twice in the doc (duplicated paragraphs),
-    // we attach decorations to the FIRST occurrence — good enough for v1.
+    if (!byHash.has(h)) byHash.set(h, { paraFrom: pos + 1, paraText: text });
+    // First-occurrence wins on duplicate paragraphs.
     return false;
   });
 
-  // Group by paragraph so we can stack offset for multi-tag overlaps.
-  const stackByHash = new Map(); // pHash → next stack index
   const decos = [];
   for (const r of ranges) {
+    // Skip paragraph-tier applies — no keyword position, no inline tint.
+    if (typeof r.keywordOffset !== 'number' || typeof r.keywordLength !== 'number') continue;
+    if (r.keywordLength <= 0) continue;
     const p = byHash.get(r.pHash);
     if (!p) continue;
-    const start = p.paraFrom + Math.max(0, r.startOffset);
-    const end = Math.min(p.paraFrom + p.paraText.length, start + Math.max(1, r.length));
+    const start = p.paraFrom + Math.max(0, r.keywordOffset);
+    const end = Math.min(p.paraFrom + p.paraText.length, start + r.keywordLength);
     if (end <= start) continue;
-    const stackIdx = stackByHash.get(r.pHash) || 0;
-    stackByHash.set(r.pHash, stackIdx + 1);
     decos.push(Decoration.inline(start, end, {
-      class: `tt-tag-range tt-tag-range-stack-${Math.min(stackIdx, 2)}`,
+      class: 'tt-tag-word',
       style: `--tag-color: ${r.tagColor}`,
-      'data-tag-id': r.tagId,
-      'data-tag-name': r.tagName,
-      'data-source': r.source || '',
     }));
   }
   return DecorationSet.create(doc, decos);

@@ -9918,20 +9918,19 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .tt-link[draggable="true"] { cursor: pointer; }
 .tt-link-manual.tt-link-auto { /* manual wins */ }
 
-/* Tag-range underlines — painted by TagRangePlugin over a paragraph,
-   sentence, or word+context span that's been applied to a tag. Color
-   is the tag's color, set inline via the --tag-color CSS variable. */
-.tt-tag-range {
-  text-decoration: underline;
-  text-decoration-color: var(--tag-color, var(--soleil));
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-  text-decoration-skip-ink: none;
+/* Tag-color keyword tint — painted by TagRangePlugin on JUST the
+   trigger word (sentence/word-tier applies). Paragraph-tier applies
+   leave the body un-tinted and are surfaced only by the margin dot
+   in DocTagGutter. The hover popover is reached via the dot, not
+   the word — no data-* attrs here. */
+.tt-tag-word {
+  background-color: color-mix(in oklab, var(--tag-color, var(--soleil)) 18%, transparent);
+  border-radius: 3px;
+  padding: 0 2px;
+  margin: 0 -2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
-/* Stacked underlines when multiple tags cover the same span. Each
-   stack-N adds another underline below by nudging the offset. */
-.tt-tag-range-stack-1 { text-underline-offset: 6px; }
-.tt-tag-range-stack-2 { text-underline-offset: 9px; }
 
 /* ─────────────────── Hover popover (EntityHoverPopover) ────────────────── */
 

@@ -235,6 +235,8 @@ export async function runParagraphCascade({
               pHash: p.pHash,
               startOffset: sentence.startOffset,
               length: sentence.length,
+              keywordOffset: m.start,
+              keywordLength: m.end - m.start,
               tagId,
               attribution: 'auto-sentence',
             });
@@ -244,6 +246,8 @@ export async function runParagraphCascade({
               pHash: p.pHash,
               startOffset: span.startOffset,
               length: span.length,
+              keywordOffset: m.start,
+              keywordLength: m.end - m.start,
               tagId,
               attribution: 'auto-word',
             });
@@ -284,6 +288,8 @@ export async function runParagraphCascade({
               pHash: c.p.pHash,
               startOffset: c.sentence.startOffset,
               length: c.sentence.length,
+              keywordOffset: c.match.start,
+              keywordLength: c.match.end - c.match.start,
               tagId: c.tagId,
               attribution: 'auto-sentence',
             });
@@ -293,6 +299,8 @@ export async function runParagraphCascade({
               pHash: c.p.pHash,
               startOffset: span.startOffset,
               length: span.length,
+              keywordOffset: c.match.start,
+              keywordLength: c.match.end - c.match.start,
               tagId: c.tagId,
               attribution: 'auto-word',
             });
@@ -319,6 +327,14 @@ export async function runParagraphCascade({
     toAdd.includes(buildApplyKey(pageId, e.pHash, e.tagId, e.startOffset, e.length))
   ).map(async e => {
     try {
+      // Only the word-tier rows carry keyword fields. Tier-1
+      // (paragraph) applies omit them so the renderer skips the
+      // inline tint and renders the margin dot only.
+      const anchor = { pHash: e.pHash, startOffset: e.startOffset, length: e.length };
+      if (typeof e.keywordOffset === 'number' && typeof e.keywordLength === 'number') {
+        anchor.keywordOffset = e.keywordOffset;
+        anchor.keywordLength = e.keywordLength;
+      }
       await tagDocRange({
         workspaceId,
         docCardId,
@@ -326,7 +342,7 @@ export async function runParagraphCascade({
         boardId,
         tagId: e.tagId,
         source: e.attribution,
-        sourceAnchor: { pHash: e.pHash, startOffset: e.startOffset, length: e.length },
+        sourceAnchor: anchor,
       });
       successKeys.add(buildApplyKey(pageId, e.pHash, e.tagId, e.startOffset, e.length));
     } catch (err) {

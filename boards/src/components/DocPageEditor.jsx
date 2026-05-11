@@ -26,7 +26,7 @@ import { applyCards } from '../lib/tagsClient.js';
 import { makeTagRangePlugin } from './docExtensions/TagRangePlugin.js';
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
-import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
+import { TagRangeHoverPopover } from './TagRangeHoverPopover.jsx';
 import { DocTagGutter } from './DocTagGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
@@ -68,7 +68,9 @@ import { createNameIndex } from '../lib/entityNameTrie.js';
 import { useEntityNameTrie } from '../hooks/useEntityNameTrie.js';
 import { CommentGutter } from './CommentGutter.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
-import { DocPageTagChips } from './DocPageTagChips.jsx';
+// DocPageTagChips intentionally not mounted — the margin dot
+// (DocTagGutter) is the canonical tag surface in the doc body now.
+// import { DocPageTagChips } from './DocPageTagChips.jsx';
 
 // In-memory cache for /api/tags/apply verdicts, keyed by
 // (pageId, tagId, snippetHash). Typing in a doc only re-fires the API
@@ -448,31 +450,18 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     hoverTimers.current.close = null;
   };
   const handleLinkHoverEnter = (e) => {
-    // Tag-range hover wins over entity-name hover when both happen at
-    // the same point (a name match inside an applied tag range). The
-    // colored underline already tells the user "this is tag X" — the
-    // popover should be tag-focused, not a generic entity list.
-    const tagRange = readTagRangeFromEl(e.target);
-    const manualEl = !tagRange && e.target.closest?.('[data-link-id]');
-    const autoEl   = !tagRange && !manualEl && e.target.closest?.('.tt-link-auto[data-records]');
-    const el = tagRange?.el || manualEl || autoEl;
+    // Text is no longer a tag-hover surface — the margin dot in
+    // DocTagGutter is the only way to open the tag popover. Here we
+    // only look at manual links + entity-name auto-detect spans.
+    const manualEl = e.target.closest?.('[data-link-id]');
+    const autoEl   = !manualEl && e.target.closest?.('.tt-link-auto[data-records]');
+    const el = manualEl || autoEl;
     if (!el) return;
-    if (lastChipRef.current === el && (hoverTimers.current.open || linkHover || tagHover)) return;
+    if (lastChipRef.current === el && (hoverTimers.current.open || linkHover)) return;
     lastChipRef.current = el;
     cancelHoverTimers();
     hoverTimers.current.open = setTimeout(() => {
       hoverTimers.current.open = null;
-      if (tagRange) {
-        setTagHover({
-          anchor: el.getBoundingClientRect(),
-          tagId: tagRange.tagId,
-          tagName: tagRange.tagName,
-          tagColor: tagRange.tagColor,
-          source: el.getAttribute('data-source') || 'auto-paragraph',
-        });
-        setLinkHover(null);
-        return;
-      }
       let refs = null, term = el.textContent || '';
       if (manualEl) refs = buildRefsFromManualLink(manualEl.dataset.linkId);
       else if (autoEl) {
@@ -484,17 +473,14 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     }, 250);
   };
   const handleLinkHoverLeave = (e) => {
-    const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records], .tt-tag-range');
+    const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records]');
     if (!fromChip) return;
-    const toChip = e.relatedTarget?.closest?.('[data-link-id], .tt-link-auto[data-records], .tt-tag-range');
+    const toChip = e.relatedTarget?.closest?.('[data-link-id], .tt-link-auto[data-records]');
     if (toChip && toChip === fromChip) return;
     lastChipRef.current = null;
     clearTimeout(hoverTimers.current.open);
     hoverTimers.current.open = null;
-    hoverTimers.current.close = setTimeout(() => {
-      setLinkHover(null);
-      setTagHover(null);
-    }, 200);
+    hoverTimers.current.close = setTimeout(() => setLinkHover(null), 200);
   };
   useEffect(() => () => cancelHoverTimers(), []);
 
@@ -1010,13 +996,8 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       <DocEditorContextMenu editor={editor}
                             onOpenLinkPicker={openLinkPicker}
                             onAddComment={addComment.open} />
-      {workspaceId && (scope?.docCardId) && activePageId && (
-        <DocPageTagChips
-          workspaceId={workspaceId}
-          docCardId={scope.docCardId}
-          pageId={activePageId}
-        />
-      )}
+      {/* Page-level applied-tag chip strip removed — margin dots are
+          the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
       <DocTagGutter
         editor={editor}
