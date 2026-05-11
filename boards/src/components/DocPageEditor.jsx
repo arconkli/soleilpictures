@@ -27,6 +27,7 @@ import { makeTagRangePlugin } from './docExtensions/TagRangePlugin.js';
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
 import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
+import { DocTagGutter } from './DocTagGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
@@ -747,6 +748,55 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     return () => editor.off('transaction', onTr);
   }, [editor]);
 
+  // Independent paragraph-cascade trigger. The doc_page_index sync
+  // effect only runs when scope.docCardId AND Y.Type observation is
+  // wired; for root docs or freshly-created doc cards that's not
+  // always true. This listener fires the cascade on every editor
+  // update (debounced 2s) so paragraph tagging works regardless.
+  useEffect(() => {
+    if (!editor || !workspaceId) return;
+    const docCardId = (scope && scope.docCardId) || null;
+    if (!docCardId || !activePageId) {
+      console.info('[paragraph-cascade] gated: docCardId =', !!docCardId, 'activePageId =', !!activePageId);
+      return;
+    }
+    let timer = null;
+    const fire = async () => {
+      try {
+        const paragraphs = extractParagraphTags(editor.state.doc);
+        if (paragraphs.length === 0) {
+          console.info('[paragraph-cascade] no >=20-char paragraphs on this page yet');
+          return;
+        }
+        const centroids = await loadWorkspaceTagCentroids(workspaceId);
+        if (centroids.size === 0) {
+          console.info('[paragraph-cascade] no tag centroids in workspace — create / use a tag first');
+          return;
+        }
+        await runParagraphCascade({
+          workspaceId,
+          docCardId,
+          boardId: (scope && scope.boardId) || null,
+          pageId: activePageId,
+          paragraphs,
+          tagCentroids: centroids,
+          trie: nameIndexRef.current,
+        });
+      } catch (e) { console.warn('[paragraph-cascade] failed', e?.message || e); }
+    };
+    const onUpdate = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(fire, 2000);
+    };
+    editor.on('update', onUpdate);
+    // Initial fire shortly after mount so existing content gets tagged.
+    timer = setTimeout(fire, 1500);
+    return () => {
+      if (timer) clearTimeout(timer);
+      editor.off('update', onUpdate);
+    };
+  }, [editor, workspaceId, scope, activePageId]);
+
   // One-time idempotent migration: legacy bookmarks → kind='docPos' Links.
   // Runs whenever ydoc binds (or changes), safe to call repeatedly.
   useEffect(() => {
@@ -959,6 +1009,25 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
         />
       )}
       <EditorContent editor={editor} />
+      <DocTagGutter
+        editor={editor}
+        ranges={appliedTagRanges}
+        onOpen={(e, range, opts) => {
+          const anchor = e?.currentTarget?.getBoundingClientRect?.()
+            || e?.target?.getBoundingClientRect?.()
+            || null;
+          if (!anchor) return;
+          cancelHoverTimers();
+          setLinkHover(null);
+          setTagHover({
+            anchor,
+            tagId: range.tagId,
+            tagName: range.tagName,
+            tagColor: range.tagColor,
+            source: range.source,
+          });
+        }}
+      />
       {addComment.node}
       {linkHover && (
         <EntityHoverPopover

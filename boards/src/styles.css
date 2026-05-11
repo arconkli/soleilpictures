@@ -10222,6 +10222,26 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-3);
   flex-shrink: 0;
 }
+.ent-pop-row-snippet-inline {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 2px 0 2px 0;
+  color: var(--ink-1);
+}
+.ent-pop-row-snippet-inline .icon {
+  color: var(--ink-3);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.ent-pop-row-snippet-text {
+  flex: 1 1 auto;
+  font: 500 12.5px/1.4 var(--font-sans);
+  color: var(--ink-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
 .ent-pop-row-snippet {
   margin-left: 22px;
   font: 400 12px/1.4 var(--font-sans);
@@ -11294,6 +11314,32 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   opacity: 0.012;
   z-index: -1;
   border-radius: inherit;
+}
+
+/* ─────────────────── DocTagGutter ───────────────────────────────── */
+.doc-tag-gutter {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -34px;
+  width: 22px;
+  pointer-events: none;
+  z-index: 5;
+}
+.doc-tag-gutter-dot {
+  position: absolute;
+  left: 4px;
+  appearance: none;
+  border: 0;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+  transition: transform 90ms ease, box-shadow 90ms ease;
+}
+.doc-tag-gutter-dot:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.15), 0 1px 4px rgba(0,0,0,.25);
 }
 
 /* ─────────────────── TagRangeHoverPopover ───────────────────────── */

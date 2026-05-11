@@ -493,23 +493,43 @@ function BoardInlineExpansion({ boardId, onNavigate }) {
   );
 }
 
-// One "appears in" row — text excerpt + source metadata.
+// One "appears in" row — text excerpt + source metadata. Notes and
+// messages often have no real title (just body text), so we suppress
+// the placeholder "Untitled" / "Message" line when there's a snippet
+// — the snippet already carries the only meaningful content.
 function AppearsRow({ row, onClick }) {
   const IconCmp = row.source_kind === 'doc'     ? FileText
                  : row.source_kind === 'message' ? MessageSquare
                  : StickyNote;
   const when = row.updated_at ? relativeTimeShort(row.updated_at) : '';
-  const title = row.source_title || (row.source_kind === 'message' ? 'Message' : 'Untitled');
+  const rawTitle = (row.source_title || '').trim();
+  const snippet = (row.snippet || '').trim();
+  const hasRealTitle = rawTitle.length > 0;
+  const title = hasRealTitle
+    ? rawTitle
+    : (row.source_kind === 'message' ? 'Message' : 'Untitled');
+  // Skip rendering a redundant title row when:
+  //   - there's no real title AND
+  //   - the snippet conveys the entity (notes/messages without titles)
+  const showTitleLine = hasRealTitle || !snippet;
   return (
     <button className="ent-pop-row" onClick={onClick} title="Open">
-      <div className="ent-pop-row-head">
-        <Icon as={IconCmp} size={13} />
-        <span className="ent-pop-row-kind">{row.source_kind}</span>
-        <span className="ent-pop-row-title">{title}</span>
-        {when && <span className="ent-pop-row-when">· {when}</span>}
-      </div>
-      {row.snippet && (
-        <div className="ent-pop-row-snippet">{row.snippet.trim()}…</div>
+      {showTitleLine ? (
+        <div className="ent-pop-row-head">
+          <Icon as={IconCmp} size={13} />
+          <span className="ent-pop-row-kind">{row.source_kind}</span>
+          <span className="ent-pop-row-title">{title}</span>
+          {when && <span className="ent-pop-row-when">· {when}</span>}
+        </div>
+      ) : (
+        <div className="ent-pop-row-snippet-inline">
+          <Icon as={IconCmp} size={13} />
+          <span className="ent-pop-row-snippet-text">{snippet}…</span>
+          {when && <span className="ent-pop-row-when">· {when}</span>}
+        </div>
+      )}
+      {snippet && showTitleLine && (
+        <div className="ent-pop-row-snippet">{snippet}…</div>
       )}
     </button>
   );
