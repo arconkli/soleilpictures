@@ -17,6 +17,7 @@ import { applyCards, parsePgvector } from './tagsClient.js';
 import { cosineDist, SILENT_APPLY_DIST, NO_MATCH_DIST } from './clusterMath.js';
 import { tagCard } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
+import { propagateTagToGroups } from './aiGroupPropagation.js';
 
 const BATCH_SIZE = 8; // cards per /api/tags/apply call
 const LOCK_STALE_MS = 10 * 60 * 1000; // re-claim after 10 minutes
@@ -83,24 +84,23 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
     console.log(`[ai-backfill] tag "${tag.name}" → ${silent.length} silent, ${middle.length} ai-candidates, ${rows.length - silent.length - middle.length} dropped`);
   }
 
-  // 3. Silent applies — bulk-insert without paying for AI.
-  for (const r of silent) {
-    try {
-      await tagCard({
-        workspaceId,
-        boardId: r.board_id,
-        cardId: r.card_id,
-        tagId: tag.id,
-        source: 'auto',
-      });
-    } catch (e) {
-      // tagCard swallows 23505 internally; anything else is logged.
-      console.warn('[ai-backfill] silent apply failed', e?.message || e);
-    }
-  }
+  // 3. Silent applies — bulk-insert without paying for AI. Parallel
+  //    (independent DB inserts; tagCard swallows 23505 conflicts).
+  await Promise.allSettled(silent.map(r => tagCard({
+    workspaceId,
+    boardId: r.board_id,
+    cardId: r.card_id,
+    tagId: tag.id,
+    source: 'auto',
+  })));
 
   // 4. Middle band — batch-call /apply for tier verdict, then apply 'high'.
-  if (middle.length === 0) return { silent: silent.length, applied_high: 0, ai_calls: 0 };
+  if (middle.length === 0) {
+    // Even if AI is skipped, propagate silent applies to groups.
+    const grp = await propagateTagToGroups({ workspaceId, tagId: tag.id });
+    if (isDebug() && grp?.applied) console.log(`[ai-backfill] propagated tag to ${grp.applied} group(s)`);
+    return { silent: silent.length, applied_high: 0, ai_calls: 0, groups_applied: grp?.applied || 0 };
+  }
 
   // We need card text for the AI call. Pull from card_index.
   const cardIds = middle.map(r => r.card_id);
@@ -123,8 +123,11 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
     boardById.set(r.card_id, r.board_id);
   }
 
-  let appliedHigh = 0;
-  let aiCalls = 0;
+  // Chunk the middle band into independent batches and fire them in
+  // parallel. The worker enforces its own concurrency cap upstream;
+  // here we just stop waiting on each batch serially (which was the
+  // visible "took a while" lag on new-tag backfill).
+  const batches = [];
   for (let i = 0; i < middle.length; i += BATCH_SIZE) {
     const slice = middle.slice(i, i + BATCH_SIZE);
     const cards = slice
@@ -134,29 +137,40 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
         candidate_tags: [{ id: tag.id, name: tag.name }],
       }))
       .filter(c => c.text);
-    if (cards.length === 0) continue;
-    const resp = await applyCards(cards);
-    aiCalls++;
-    const verdicts = resp?.verdicts || [];
+    if (cards.length > 0) batches.push(cards);
+  }
+  const responses = await Promise.allSettled(batches.map(b => applyCards(b)));
+  const aiCalls = batches.length;
+
+  // Collect high-confidence card ids, then apply them in parallel.
+  const highCardIds = [];
+  for (const r of responses) {
+    if (r.status !== 'fulfilled' || !r.value) continue;
+    const verdicts = r.value.verdicts || [];
     for (const v of verdicts) {
       const high = (v.tags || []).find(t => t.tag_id === tag.id && t.confidence === 'high');
-      if (!high) continue;
-      const boardId = boardById.get(v.card_id);
-      if (!boardId) continue;
-      try {
-        await tagCard({
-          workspaceId,
-          boardId,
-          cardId: v.card_id,
-          tagId: tag.id,
-          source: 'auto',
-        });
-        appliedHigh++;
-      } catch (e) {
-        console.warn('[ai-backfill] verdict apply failed', e?.message || e);
-      }
+      if (high) highCardIds.push(v.card_id);
     }
   }
+  const applyResults = await Promise.allSettled(highCardIds.map(cardId => {
+    const boardId = boardById.get(cardId);
+    if (!boardId) return Promise.resolve(false);
+    return tagCard({ workspaceId, boardId, cardId, tagId: tag.id, source: 'auto' }).then(() => true);
+  }));
+  const appliedHigh = applyResults.filter(r => r.status === 'fulfilled' && r.value === true).length;
 
-  return { silent: silent.length, applied_high: appliedHigh, ai_calls: aiCalls };
+  // 5. Propagate to groups. Now that all card-level applies have
+  //    landed for this tag, any group with ≥3 tagged members gets
+  //    the tag itself so the detail view nests them correctly.
+  const grp = await propagateTagToGroups({ workspaceId, tagId: tag.id });
+  if (isDebug() && grp?.applied) {
+    console.log(`[ai-backfill] propagated tag "${tag.name}" to ${grp.applied} group(s)`);
+  }
+
+  return {
+    silent: silent.length,
+    applied_high: appliedHigh,
+    ai_calls: aiCalls,
+    groups_applied: grp?.applied || 0,
+  };
 }

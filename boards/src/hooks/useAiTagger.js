@@ -34,6 +34,7 @@ import { logDecision, recordCall, isDebug } from '../lib/aiTaggerLog.js';
 import { runWorkspaceDiscovery } from '../lib/aiDiscovery.js';
 import { backfillTagAgainstWorkspace } from '../lib/aiBackfill.js';
 import { warmupWorkspaceEmbeddings } from '../lib/aiWarmup.js';
+import { propagateTagToGroups } from '../lib/aiGroupPropagation.js';
 
 // Strip HTML tags / entities and collapse whitespace before sending text to
 // the embedding model. Saves tokens and improves quality — `<span style=...>`
@@ -235,6 +236,22 @@ export function useAiTagger(workspaceId) {
     centroidDebounceRef.current.set(tagId, handle);
   }, [workspaceId]);
 
+  // Same pattern for group propagation: debounce per-tag so a burst
+  // of card applies for the same tag coalesces into one workspace
+  // scan. 1.5s settle matches centroid recompute and keeps the two
+  // effects aligned.
+  const groupPropagateDebounceRef = useRef(new Map());
+  const scheduleGroupPropagate = useCallback((tagId) => {
+    if (!tagId || !workspaceId) return;
+    const existing = groupPropagateDebounceRef.current.get(tagId);
+    if (existing) clearTimeout(existing);
+    const handle = setTimeout(() => {
+      groupPropagateDebounceRef.current.delete(tagId);
+      propagateTagToGroups({ workspaceId, tagId }).catch(() => {});
+    }, 1500);
+    groupPropagateDebounceRef.current.set(tagId, handle);
+  }, [workspaceId]);
+
   // Track applied-tag inserts/deletes so the filter stays current as the
   // user (or our own auto-applies) modify tags. Subscribed only after
   // initial hydrate so the in-memory map starts in sync.
@@ -251,6 +268,10 @@ export function useAiTagger(workspaceId) {
             if (!appliedRef.current.has(key)) appliedRef.current.set(key, new Set());
             appliedRef.current.get(key).add(r.target_id);
             scheduleCentroidRecompute(r.target_id);
+            // Only trigger group propagation on CARD applies. Group
+            // applies (which propagation itself emits) would loop back
+            // through here otherwise.
+            if (r.source_kind === 'card') scheduleGroupPropagate(r.target_id);
           })
       .on('postgres_changes',
           { event: 'DELETE', schema: 'public', table: 'entity_links', filter: `source_workspace=eq.${workspaceId}` },
@@ -265,11 +286,13 @@ export function useAiTagger(workspaceId) {
     ch.subscribe();
     return () => {
       try { supabase.removeChannel(ch); } catch {}
-      // Cancel any pending recomputes on unmount.
+      // Cancel any pending recomputes / propagations on unmount.
       for (const h of centroidDebounceRef.current.values()) clearTimeout(h);
       centroidDebounceRef.current.clear();
+      for (const h of groupPropagateDebounceRef.current.values()) clearTimeout(h);
+      groupPropagateDebounceRef.current.clear();
     };
-  }, [workspaceId, ready, scheduleCentroidRecompute]);
+  }, [workspaceId, ready, scheduleCentroidRecompute, scheduleGroupPropagate]);
 
   // After hydrate, seed centroids for any tag that already has applied
   // cards. This pulls workspaces with pre-existing tag applications onto
