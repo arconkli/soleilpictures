@@ -48,6 +48,16 @@ export function EntityHoverPopover({
   const [appearsIn, setAppearsIn] = useState([]);
   const [totalAppears, setTotalAppears] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Container entities (boards, groups) can be expanded inline to show
+  // their actual contents. The set is keyed by entity_search id.
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
+  const toggleExpanded = (id) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   // Resolve the term: explicit prop wins, otherwise derive from the
   // first ref's title (we'll learn this via entity_search lookup
@@ -221,13 +231,34 @@ export function EntityHoverPopover({
             <div className="ent-pop-section-head">
               ENTITIES NAMED THIS <span className="ent-pop-section-count">({nonTagEntities.length})</span>
             </div>
-            {nonTagEntities.slice(0, 6).map(row => (
-              <EntityRow
-                key={row.id}
-                row={row}
-                onClick={() => { navigate(rowToRef(row)); onClose?.(); }}
-              />
-            ))}
+            {nonTagEntities.slice(0, 6).map(row => {
+              // Boards (and groups, conceptually) hold contents — let the
+              // user expand them inline so the popover surfaces what's
+              // actually in there without forcing a navigation. Other
+              // kinds (doc / card / note / user) just navigate on click.
+              const isExpandable = row.kind === 'board';
+              const isExpanded = expandedIds.has(row.id);
+              return (
+                <div key={row.id} className="ent-pop-row-wrap">
+                  <EntityRow
+                    row={row}
+                    onClick={() => { navigate(rowToRef(row)); onClose?.(); }}
+                    expandable={isExpandable}
+                    expanded={isExpanded}
+                    onToggleExpand={(e) => {
+                      e.stopPropagation();
+                      toggleExpanded(row.id);
+                    }}
+                  />
+                  {isExpandable && isExpanded && (
+                    <BoardInlineExpansion
+                      boardId={row.board_id || row.id}
+                      onNavigate={(target) => { navigate(target); onClose?.(); }}
+                    />
+                  )}
+                </div>
+              );
+            })}
             {nonTagEntities.length > 6 && (
               <button className="ent-pop-more" onClick={() => onSeeAll?.()}>
                 + {nonTagEntities.length - 6} more →
@@ -363,21 +394,102 @@ function fallbackTagColor(s) {
   return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
 }
 
-function EntityRow({ row, onClick }) {
+function EntityRow({ row, onClick, expandable = false, expanded = false, onToggleExpand }) {
   const def = getKind(row.kind);
   const IconCmp = def?.icon;
   const previewMini = def?.previewMini;
   return (
-    <button className="ent-pop-row" onClick={onClick} title={`Open ${row.title || row.kind}`}>
-      <div className="ent-pop-row-head">
-        {IconCmp && <Icon as={IconCmp} size={13} />}
-        <span className="ent-pop-row-kind">{def?.label || row.kind}</span>
-        <span className="ent-pop-row-title">{row.title || 'Untitled'}</span>
-      </div>
-      {previewMini && (
-        <div className="ent-pop-row-preview">{previewMini(row)}</div>
+    <div className={`ent-pop-row ${expandable ? 'is-expandable' : ''}`}>
+      <button className="ent-pop-row-main"
+              onClick={onClick}
+              title={`Open ${row.title || row.kind}`}>
+        <div className="ent-pop-row-head">
+          {IconCmp && <Icon as={IconCmp} size={13} />}
+          <span className="ent-pop-row-kind">{def?.label || row.kind}</span>
+          <span className="ent-pop-row-title">{row.title || 'Untitled'}</span>
+        </div>
+        {previewMini && (
+          <div className="ent-pop-row-preview">{previewMini(row)}</div>
+        )}
+      </button>
+      {expandable && (
+        <button className={`ent-pop-row-expand ${expanded ? 'is-on' : ''}`}
+                onClick={onToggleExpand}
+                title={expanded ? 'Hide contents' : 'Show contents'}>
+          {expanded ? 'Hide' : 'Expand'}
+        </button>
       )}
-    </button>
+    </div>
+  );
+}
+
+// Inline contents preview for a board referenced from the popover.
+// Lazy-loads the most-recent ~12 cards via card_index, renders them
+// using the same rich previews the tag detail view uses (image thumbs,
+// palette swatches, text excerpts). Click a card → navigate to it.
+function BoardInlineExpansion({ boardId, onNavigate }) {
+  const [cards, setCards] = useState(null); // null = loading; [] = empty
+  useEffect(() => {
+    let cancelled = false;
+    if (!boardId || !supabase) { setCards([]); return; }
+    supabase.from('card_index')
+      .select('board_id, card_id, kind, title, body, meta, updated_at')
+      .eq('board_id', boardId)
+      .order('updated_at', { ascending: false })
+      .limit(12)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) { setCards([]); return; }
+        const filtered = (data || []).filter(c => {
+          // Skip empty cards — they're noise in this compact view.
+          return (c.title && c.title.trim()) || (c.body && c.body.trim()) || c.meta?.src || c.meta?.swatches?.length;
+        });
+        setCards(filtered);
+      });
+    return () => { cancelled = true; };
+  }, [boardId]);
+
+  if (cards === null) {
+    return <div className="ent-pop-expand-empty">Loading…</div>;
+  }
+  if (cards.length === 0) {
+    return <div className="ent-pop-expand-empty">This board is empty.</div>;
+  }
+  return (
+    <div className="ent-pop-expand">
+      <div className="ent-pop-expand-grid">
+        {cards.map(c => {
+          const def = getKind(c.kind);
+          const Icn = def?.icon;
+          const rich = def?.previewMini?.(c) || null;
+          const isVisual = c.kind === 'image' || c.kind === 'palette';
+          return (
+            <button key={`${c.board_id}:${c.card_id}`}
+                    className={`ent-pop-expand-card ${isVisual ? 'is-visual' : ''}`}
+                    title={c.title || c.kind}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate?.({ kind: c.kind, boardId: c.board_id, cardId: c.card_id });
+                    }}>
+              {rich && <div className="ent-pop-expand-card-rich">{rich}</div>}
+              <div className="ent-pop-expand-card-meta">
+                {Icn && <Icon as={Icn} size={10} />}
+                <span className="ent-pop-expand-card-text">
+                  {c.title?.trim() || (c.body || '').slice(0, 60) || c.kind}
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <button className="ent-pop-expand-foot"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNavigate?.({ kind: 'board', id: boardId });
+              }}>
+        Open full board →
+      </button>
+    </div>
   );
 }
 
