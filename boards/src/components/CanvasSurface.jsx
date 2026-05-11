@@ -44,6 +44,11 @@ import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex } from '../lib/boardsApi.js';
+import {
+  computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
+  arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
+} from '../lib/arrowGeometry.js';
+import { ArrowPopover } from './ArrowPopover.jsx';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -742,26 +747,38 @@ export function CanvasSurface({
     return [...new Set(out)];
   }, [palettes]);
 
-  // Resolve an arrow endpoint reference to a center point.
-  // ref is either a card id (string) or a free point ({x,y}).
-  const resolveCenter = (ref) => {
-    if (!ref) return { x: 0, y: 0 };
-    if (typeof ref === 'object') return { x: ref.x, y: ref.y };
-    const c = cardById[ref];
-    return c ? { x: c.x + c.w/2, y: c.y + c.h/2 } : { x: 0, y: 0 };
-  };
-  const resolveEdge = (ref, tx, ty) => {
-    if (!ref) return { x: tx, y: ty };
-    if (typeof ref === 'object') return { x: ref.x, y: ref.y };
-    const c = cardById[ref]; if (!c) return { x: tx, y: ty };
-    const cx = c.x + c.w/2, cy = c.y + c.h/2;
-    const dx = tx - cx, dy = ty - cy;
-    if (!dx && !dy) return { x: cx, y: cy };
-    const sx = (c.w/2 + 4) / Math.abs(dx || 1e-4);
-    const sy = (c.h/2 + 4) / Math.abs(dy || 1e-4);
-    const s = Math.min(sx, sy);
-    return { x: cx + dx*s, y: cy + dy*s };
-  };
+  // Group bounding box (computed from member cards) — used by arrow
+  // anchoring so arrows can attach to groups, not just cards.
+  const groupBoundsById = useMemo(() => {
+    const out = {};
+    cardsByGroup.forEach((members, gid) => {
+      if (!members?.length) return;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const c of members) {
+        if (c.x < minX) minX = c.x;
+        if (c.y < minY) minY = c.y;
+        if (c.x + c.w > maxX) maxX = c.x + c.w;
+        if (c.y + c.h > maxY) maxY = c.y + c.h;
+      }
+      out[gid] = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    });
+    return out;
+  }, [cardsByGroup]);
+
+  // Context object passed to arrowGeometry helpers. Memoized so the
+  // attachments map below recomputes only when inputs change.
+  const arrowCtx = useMemo(() => ({
+    cardById,
+    resolveGroupBBox: (gid) => groupBoundsById[gid] || null,
+  }), [cardById, groupBoundsById]);
+
+  // Per-arrow attachment points (handles fan-out when multiple arrows
+  // share an anchor side). Keyed by array index; falsy entries mean the
+  // arrow has missing endpoints and shouldn't render.
+  const arrowAttachments = useMemo(
+    () => computeArrowAttachments(arrows || [], arrowCtx),
+    [arrows, arrowCtx]
+  );
 
   const clientToCanvas = useCallback((clientX, clientY) => {
     const rect = wrapRef.current.getBoundingClientRect();
@@ -1337,7 +1354,7 @@ export function CanvasSurface({
       e.stopPropagation();
       if (!arrowFrom) setArrowFrom(c.id);
       else {
-        if (arrowFrom !== c.id) {
+        if (!arrowRefEquals(arrowFrom, c.id)) {
           mutators.addArrow?.(arrowFrom, c.id, arrowOptions);
           setSelectedTool('select');
         }
@@ -2512,9 +2529,10 @@ export function CanvasSurface({
           .map((stroke, index) => strokeIntersectsRect(stroke, rect) ? index : null)
           .filter(index => index !== null);
         const arrowHits = (arrows || [])
-          .map((arrow, index) => {
-            const fc = resolveCenter(arrow.from), tc = resolveCenter(arrow.to);
-            const s = resolveEdge(arrow.from, tc.x, tc.y), e = resolveEdge(arrow.to, fc.x, fc.y);
+          .map((_, index) => {
+            const att = arrowAttachments[index];
+            if (!att?.from || !att?.to) return null;
+            const s = att.from.point, e = att.to.point;
             return (pointInRect(s, rect) || pointInRect(e, rect) ||
               (Math.min(s.x, e.x) <= rect.maxX && Math.max(s.x, e.x) >= rect.minX &&
                Math.min(s.y, e.y) <= rect.maxY && Math.max(s.y, e.y) >= rect.minY)) ? index : null;
@@ -3122,9 +3140,10 @@ export function CanvasSurface({
     const y = peerDrag ? peerDrag.y : (c.y + (dragDelta?.dy || 0));
     const w = Math.max(MIN_W, c.w + (resizeDelta?.dw || 0));
     const h = Math.max(MIN_H, c.h + (resizeDelta?.dh || 0));
+    const isArrowSource = arrowRefEquals(arrowFrom, c.id);
     const isSelected = selected.has(c.id)
       || (marqueePreviewIds && marqueePreviewIds.has(c.id))
-      || arrowFrom === c.id;
+      || isArrowSource;
     const rotation = (rotateState && rotateState.id === c.id ? rotateState.rot : c.rotation) || 0;
     const canRotate = ROTATABLE.has(c.kind);
 
@@ -3157,7 +3176,7 @@ export function CanvasSurface({
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${arrowFrom === c.id ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
@@ -3791,8 +3810,10 @@ export function CanvasSurface({
               // group still exists and its outline still renders; we just
               // suppress the chip so the canvas reads cleaner when the
               // grouping is decorative rather than semantic.
+              const groupRef = { type: 'group', id: g.id };
+              const isArrowGroupSource = arrowRefEquals(arrowFrom, groupRef);
               const labelEl = (g.name && !g.options?.hideLabel) ? (
-                <div className="group-label"
+                <div className={`group-label${isArrowGroupSource ? ' is-arrow-source' : ''}`}
                      key={`${g.id}-label`}
                      style={{
                        position: 'absolute',
@@ -3806,10 +3827,25 @@ export function CanvasSurface({
                        borderRadius: 4,
                        border: g.outline ? `1px solid ${stroke}` : '1px solid var(--line-1)',
                        pointerEvents: 'auto',
-                       cursor: 'context-menu',
+                       cursor: selectedTool === 'arrow' ? 'crosshair' : 'context-menu',
                        whiteSpace: 'nowrap',
                      }}
-                     title={`${g.name} — right-click for group actions`}
+                     title={selectedTool === 'arrow'
+                       ? `${g.name} — click to ${arrowFrom ? 'connect to' : 'start an arrow from'} this group`
+                       : `${g.name} — right-click for group actions`}
+                     onPointerDown={selectedTool === 'arrow' ? (e) => {
+                       if (e.button !== 0) return;
+                       e.stopPropagation();
+                       e.preventDefault();
+                       if (!arrowFrom) setArrowFrom(groupRef);
+                       else {
+                         if (!arrowRefEquals(arrowFrom, groupRef)) {
+                           mutators.addArrow?.(arrowFrom, groupRef, arrowOptions);
+                           setSelectedTool('select');
+                         }
+                         setArrowFrom(null);
+                       }
+                     } : undefined}
                      onContextMenu={(e) => {
                        e.preventDefault();
                        e.stopPropagation();
@@ -4052,52 +4088,38 @@ export function CanvasSurface({
                         pointerEvents: 'none',
                         overflow: 'visible' }}>
             {(arrows || []).map((a, i) => {
-              const fc = resolveCenter(a.from), tc = resolveCenter(a.to);
-              const s = resolveEdge(a.from, tc.x, tc.y), e = resolveEdge(a.to, fc.x, fc.y);
-              const dx = e.x - s.x, dy = e.y - s.y;
-              const len = Math.hypot(dx, dy) || 1;
-              // Tangent at endpoint differs for curved vs straight arrows.
-              let path, ux, uy;
-              if (a.straight) {
-                path = `M${s.x},${s.y} L${e.x},${e.y}`;
-                ux = dx/len; uy = dy/len;
-              } else {
-                const ox = (-dy/len) * Math.min(36, len*0.12);
-                const oy = (dx/len) * Math.min(36, len*0.12);
-                const cx = (s.x+e.x)/2 + ox, cy = (s.y+e.y)/2 + oy;
-                path = `M${s.x},${s.y} Q${cx},${cy} ${e.x},${e.y}`;
-                const tdx = e.x - cx, tdy = e.y - cy;
-                const tl = Math.hypot(tdx, tdy) || 1;
-                ux = tdx/tl; uy = tdy/tl;
-              }
-              const head = `${e.x},${e.y} ${e.x-ux*9-uy*4},${e.y-uy*9+ux*4} ${e.x-ux*9+uy*4},${e.y-uy*9-ux*4}`;
-              // Optional reverse arrowhead at the start when a.bidir is on.
-              // The tangent at the start is the negative of the start->end
-              // direction (or, for curves, the start tangent towards the
-              // control point). Reuse ux/uy by inverting them.
-              const tail = a.bidir
-                ? `${s.x},${s.y} ${s.x+ux*9-uy*4},${s.y+uy*9+ux*4} ${s.x+ux*9+uy*4},${s.y+uy*9-ux*4}`
-                : null;
-              // Label position — same offset logic for both styles
-              const cx = (s.x+e.x)/2 + (a.straight ? 0 : (-dy/len) * Math.min(36, len*0.12));
-              const cy = (s.y+e.y)/2 + (a.straight ? 0 : (dx/len)  * Math.min(36, len*0.12));
+              const att = arrowAttachments[i];
+              if (!att?.from || !att?.to) return null;
+              const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight } });
+              if (!built) return null;
+              const { path, midPoint, fromTangentIn, toTangentIn } = built;
+              const stroke = arrowColor(a.color);
+              const sw = arrowStrokeWidth(a.thickness);
+              const hd = arrowHeadSize(a.thickness);
+              const headStyle = arrowHeadStyle(a);
+              const showForwardHead = headStyle !== 'none';
+              const showReverseHead = headStyle === 'double';
+              const headForward = showForwardHead ? arrowHeadPolygon(att.to.point, toTangentIn, hd) : null;
+              const headReverse = showReverseHead ? arrowHeadPolygon(att.from.point, fromTangentIn, hd) : null;
               const sel = selectedArrows.has(i);
               return (
                 <g key={i} data-arrow-idx={i}>
                   {/* Hit target — only path with pointer-events; svg root is none. */}
-                  <path d={path} fill="none" stroke="transparent" strokeWidth="14"
+                  <path d={path} fill="none" stroke="transparent" strokeWidth={Math.max(14, sw + 12)}
                         pointerEvents={strokesInteractive ? 'stroke' : 'none'}
                         style={{ cursor: strokesInteractive ? 'pointer' : 'default' }}
                         onPointerDown={strokesInteractive ? (ev) => onArrowClick(ev, i) : undefined}
                         onContextMenu={strokesInteractive ? (ev) => onArrowContextMenu(ev, i) : undefined} />
-                  {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)" strokeWidth="6" strokeLinecap="round" pointerEvents="none" />}
-                  <path data-arrow-line d={path} fill="none" stroke="currentColor" strokeWidth="1.1" opacity=".5"
-                        strokeDasharray={a.dashed ? '4 4' : '0'} strokeLinecap="round" pointerEvents="none" />
-                  <polygon points={head} fill="currentColor" opacity=".5" pointerEvents="none" />
-                  {tail && <polygon points={tail} fill="currentColor" opacity=".5" pointerEvents="none" />}
+                  {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)"
+                                strokeWidth={sw + 5} strokeLinecap="round" pointerEvents="none" />}
+                  <path data-arrow-line d={path} fill="none" stroke={stroke} strokeWidth={sw}
+                        strokeDasharray={a.dashed ? `${sw * 4} ${sw * 3}` : '0'}
+                        strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
+                  {headForward && <polygon points={headForward} fill={stroke} pointerEvents="none" />}
+                  {headReverse && <polygon points={headReverse} fill={stroke} pointerEvents="none" />}
                   {a.label && (
-                    <foreignObject x={cx-70} y={cy-11} width="140" height="22" pointerEvents="none">
-                      <div className="arrow-label">{a.label}</div>
+                    <foreignObject x={midPoint.x - 70} y={midPoint.y - 11} width="140" height="22" pointerEvents="none">
+                      <div className="arrow-label" style={{ color: stroke }}>{a.label}</div>
                     </foreignObject>
                   )}
                 </g>
@@ -4169,6 +4191,32 @@ export function CanvasSurface({
         />
 
       </div>
+
+      {/* Inline arrow-editor popover — shown when exactly one arrow is
+          selected. Lives in screen-space (position:fixed) so it doesn't
+          scale with the canvas transform. */}
+      {canEdit && selectedArrows.size === 1 && (() => {
+        const idx = [...selectedArrows][0];
+        const a = (arrows || [])[idx];
+        const att = arrowAttachments[idx];
+        if (!a || !att?.from || !att?.to) return null;
+        const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight } });
+        if (!built) return null;
+        return (
+          <ArrowPopover
+            arrow={a}
+            arrowIndex={idx}
+            midPoint={built.midPoint}
+            canvasToViewport={canvasToViewport}
+            onChange={(patch) => mutators.updateArrow?.(idx, patch)}
+            onDelete={() => {
+              mutators.deleteArrows?.([idx]);
+              setSelectedArrows(new Set());
+            }}
+            onClose={() => setSelectedArrows(new Set())}
+          />
+        );
+      })()}
 
       {/* Off-screen BoardThumbnail used as the source SVG for PNG/PDF
           exports. Sized 0×0 + visibility:hidden so it stays in the DOM

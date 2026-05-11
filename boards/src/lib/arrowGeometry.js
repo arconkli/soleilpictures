@@ -1,0 +1,327 @@
+// Arrow geometry — anchor resolution, cubic-bezier path math, fan-out, and
+// arrowhead polygons. Shared between the editor (CanvasSurface) and the
+// public read-only viewer so both render the same curves.
+//
+// Anchor reference forms (legacy + new are both accepted):
+//   "cardId"                     legacy bare string  → card lookup
+//   { type: 'card',  id }        explicit card
+//   { type: 'group', id }        group bounding box (computed from members)
+//   { type: 'point', x, y }      free point (no shape)
+//   { x, y }                     legacy free point
+//   null / undefined             missing
+//
+// All numeric outputs are in *board-space* coordinates. The caller is
+// responsible for any pan/zoom transform.
+
+const PAD_GROUP = 12;                  // mirrors the groups-layer padding
+const FAN_T_MIN = 0.12;                // keep arrows off the corners
+const FAN_T_MAX = 0.88;
+const HANDLE_MIN = 32;                 // cubic bezier control magnitude floor
+const HANDLE_MAX = 200;                //   …and ceiling
+const HANDLE_K   = 0.42;               //   …× distance between anchors
+
+// Normalize a ref into one of: {kind:'shape', shape, side?}, {kind:'point', x,y}, or null.
+// `ctx` provides lookups: { cardById, groupById, cardsByGroup } (any shape map).
+function resolveShape(ref, ctx) {
+  if (ref == null) return null;
+  if (typeof ref === 'string') {
+    const c = ctx.cardById?.[ref];
+    if (c) return { kind: 'shape', shape: { x: c.x, y: c.y, w: c.w, h: c.h }, id: ref, type: 'card' };
+    // Legacy strings could theoretically be a group id too — try.
+    const g = ctx.resolveGroupBBox?.(ref);
+    if (g) return { kind: 'shape', shape: g, id: ref, type: 'group' };
+    return null;
+  }
+  if (typeof ref !== 'object') return null;
+  if (ref.type === 'card' && ref.id) {
+    const c = ctx.cardById?.[ref.id];
+    if (!c) return null;
+    return { kind: 'shape', shape: { x: c.x, y: c.y, w: c.w, h: c.h }, id: ref.id, type: 'card' };
+  }
+  if (ref.type === 'group' && ref.id) {
+    const g = ctx.resolveGroupBBox?.(ref.id);
+    if (!g) return null;
+    const pad = PAD_GROUP;
+    return {
+      kind: 'shape',
+      shape: { x: g.x - pad, y: g.y - pad, w: g.w + pad * 2, h: g.h + pad * 2 },
+      id: ref.id,
+      type: 'group',
+    };
+  }
+  if (ref.type === 'point' && Number.isFinite(ref.x) && Number.isFinite(ref.y)) {
+    return { kind: 'point', x: ref.x, y: ref.y };
+  }
+  if (Number.isFinite(ref.x) && Number.isFinite(ref.y)) {
+    return { kind: 'point', x: ref.x, y: ref.y };
+  }
+  return null;
+}
+
+// Center of a resolved ref (shape or point). Used as the "look-at" target
+// when figuring out which side of the OTHER shape an arrow exits.
+function refCenter(resolved) {
+  if (!resolved) return null;
+  if (resolved.kind === 'point') return { x: resolved.x, y: resolved.y };
+  const s = resolved.shape;
+  return { x: s.x + s.w / 2, y: s.y + s.h / 2 };
+}
+
+// Pick which side of a rect a line from its center to (tx,ty) exits through.
+function sideFromCenterTo(rect, tx, ty) {
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const dx = tx - cx;
+  const dy = ty - cy;
+  if (!dx && !dy) return 'right';
+  // Compare normalized projections — whichever axis is "further along"
+  // relative to the rect's half-extent is the side the line exits.
+  const ax = Math.abs(dx) / Math.max(1, rect.w / 2);
+  const ay = Math.abs(dy) / Math.max(1, rect.h / 2);
+  if (ax >= ay) return dx >= 0 ? 'right' : 'left';
+  return dy >= 0 ? 'bottom' : 'top';
+}
+
+// Outward unit normal of a side.
+function sideNormal(side) {
+  if (side === 'top')    return { ux: 0,  uy: -1 };
+  if (side === 'bottom') return { ux: 0,  uy:  1 };
+  if (side === 'left')   return { ux: -1, uy:  0 };
+  return                        { ux:  1, uy:  0 }; // right
+}
+
+// Position along a side at parameter t in [0,1].
+function sidePoint(rect, side, t) {
+  const u = Math.max(0, Math.min(1, t));
+  if (side === 'top')    return { x: rect.x + rect.w * u, y: rect.y };
+  if (side === 'bottom') return { x: rect.x + rect.w * u, y: rect.y + rect.h };
+  if (side === 'left')   return { x: rect.x,              y: rect.y + rect.h * u };
+  return                        { x: rect.x + rect.w,     y: rect.y + rect.h * u }; // right
+}
+
+// For sorting fan-out arrows on a side: project the "other endpoint" onto
+// the axis parallel to the side.
+function sortKey(side, otherX, otherY) {
+  return (side === 'top' || side === 'bottom') ? otherX : otherY;
+}
+
+// Compute attachment points for every arrow, distributing arrows that share
+// the same (anchor, side) along the side. Free-point endpoints attach at
+// themselves and are skipped for fan-out. Returns an array indexed parallel
+// to `arrows` of objects: { from: {point, tangent, side, kind}, to: {...} }.
+export function computeArrowAttachments(arrows, ctx) {
+  const N = (arrows || []).length;
+  // First pass: resolve refs + compute the "look-at" center used for side determination.
+  const ends = new Array(N);
+  for (let i = 0; i < N; i++) {
+    const a = arrows[i] || {};
+    ends[i] = {
+      from: resolveShape(a.from, ctx),
+      to:   resolveShape(a.to,   ctx),
+    };
+  }
+
+  // Build buckets per (anchorKey, side).
+  // anchorKey = `${type}:${id}` for shape refs, or null for points.
+  const buckets = new Map();
+  const placements = new Array(N);
+  for (let i = 0; i < N; i++) {
+    placements[i] = { from: null, to: null };
+    const { from, to } = ends[i];
+    const fromCenter = refCenter(from);
+    const toCenter   = refCenter(to);
+    if (!fromCenter || !toCenter) continue;
+
+    const bucketize = (which, self, other) => {
+      if (!self || self.kind !== 'shape') return;
+      const side = sideFromCenterTo(self.shape, other.x, other.y);
+      const key = `${self.type}:${self.id}|${side}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push({
+        arrowIdx: i,
+        which,                    // 'from' | 'to'
+        side,
+        otherX: other.x,
+        otherY: other.y,
+        rect: self.shape,
+      });
+    };
+    bucketize('from', from, toCenter);
+    bucketize('to',   to,   fromCenter);
+  }
+
+  // Second pass: within each bucket, distribute attachment points.
+  for (const list of buckets.values()) {
+    list.sort((a, b) => sortKey(a.side, a.otherX, a.otherY) - sortKey(b.side, b.otherX, b.otherY));
+    const n = list.length;
+    for (let j = 0; j < n; j++) {
+      const e = list[j];
+      const t = n === 1
+        ? 0.5
+        : FAN_T_MIN + (FAN_T_MAX - FAN_T_MIN) * (j / (n - 1));
+      const point = sidePoint(e.rect, e.side, t);
+      const nrm = sideNormal(e.side);
+      placements[e.arrowIdx][e.which] = {
+        point,
+        tangent: { ux: nrm.ux, uy: nrm.uy }, // outward
+        side: e.side,
+        kind: 'shape',
+      };
+    }
+  }
+
+  // Fill in free-point endpoints (no bucket entry).
+  for (let i = 0; i < N; i++) {
+    const { from, to } = ends[i];
+    const fromCenter = refCenter(from);
+    const toCenter   = refCenter(to);
+    if (!fromCenter || !toCenter) continue;
+
+    if (from && from.kind === 'point' && !placements[i].from) {
+      const dx = toCenter.x - fromCenter.x;
+      const dy = toCenter.y - fromCenter.y;
+      const len = Math.hypot(dx, dy) || 1;
+      placements[i].from = {
+        point: { x: fromCenter.x, y: fromCenter.y },
+        tangent: { ux: dx / len, uy: dy / len }, // toward other end → "outward"
+        side: null,
+        kind: 'point',
+      };
+    }
+    if (to && to.kind === 'point' && !placements[i].to) {
+      const dx = fromCenter.x - toCenter.x;
+      const dy = fromCenter.y - toCenter.y;
+      const len = Math.hypot(dx, dy) || 1;
+      placements[i].to = {
+        point: { x: toCenter.x, y: toCenter.y },
+        tangent: { ux: dx / len, uy: dy / len },
+        side: null,
+        kind: 'point',
+      };
+    }
+  }
+
+  return placements;
+}
+
+// Build the SVG path string + arrowhead direction for a single arrow given
+// its already-resolved attachment endpoints. `style.straight` switches off
+// the cubic-bezier curving.
+//
+// Returns: { path, midPoint, fromTangentIn, toTangentIn } where the *In*
+// tangents are unit vectors pointing INTO the respective endpoints (i.e.
+// the direction of arrow travel at that point — what arrowheads should
+// face).
+export function buildArrowPath({ from, to, style = {} }) {
+  if (!from || !to) return null;
+  const s = from.point, e = to.point;
+  const dx = e.x - s.x, dy = e.y - s.y;
+  const len = Math.hypot(dx, dy) || 1;
+
+  if (style.straight) {
+    const ux = dx / len, uy = dy / len;
+    return {
+      path: `M${s.x},${s.y} L${e.x},${e.y}`,
+      midPoint: { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 },
+      // At target, travel direction is (ux,uy). At source, travel direction
+      // (for reverse heads) is (-ux,-uy) into the source.
+      toTangentIn:   { ux,  uy  },
+      fromTangentIn: { ux: -ux, uy: -uy },
+    };
+  }
+
+  // Cubic bezier with directional control points. The control magnitude
+  // is proportional to the gap so short connections curve gently and long
+  // connections sweep wider.
+  const mag = Math.max(HANDLE_MIN, Math.min(HANDLE_MAX, len * HANDLE_K));
+  const c1 = { x: s.x + from.tangent.ux * mag, y: s.y + from.tangent.uy * mag };
+  const c2 = { x: e.x + to.tangent.ux   * mag, y: e.y + to.tangent.uy   * mag };
+  const path = `M${s.x},${s.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${e.x},${e.y}`;
+
+  // Approximate the midpoint of the bezier (t=0.5 of a cubic is the average
+  // of all four points weighted: B(0.5) = (P0 + 3P1 + 3P2 + P3)/8).
+  const midPoint = {
+    x: (s.x + 3 * c1.x + 3 * c2.x + e.x) / 8,
+    y: (s.y + 3 * c1.y + 3 * c2.y + e.y) / 8,
+  };
+
+  // Travel direction at the endpoints = direction from the control point
+  // toward the endpoint (cubic bezier derivative at t=0 is 3(c1-s),
+  // at t=1 is 3(e-c2)). Then normalize.
+  const dx0 = c1.x - s.x, dy0 = c1.y - s.y;
+  const l0 = Math.hypot(dx0, dy0) || 1;
+  const dx1 = e.x - c2.x, dy1 = e.y - c2.y;
+  const l1 = Math.hypot(dx1, dy1) || 1;
+  return {
+    path,
+    midPoint,
+    fromTangentIn: { ux: -dx0 / l0, uy: -dy0 / l0 }, // into source (reverse-head dir)
+    toTangentIn:   { ux:  dx1 / l1, uy:  dy1 / l1 }, // into target (forward-head dir)
+  };
+}
+
+// Triangle arrowhead polygon points (string) at `point` pointing along
+// `tangentIn` (unit vector, direction of travel into the endpoint).
+//   size = length along the tangent; width = wing half-width perpendicular.
+export function arrowHeadPolygon(point, tangentIn, { size = 10, width = 4.5 } = {}) {
+  const ux = tangentIn.ux, uy = tangentIn.uy;
+  // Tip = point. Base center sits `size` back from the tip along -tangent.
+  // The two wings sit ±width perpendicular to the tangent.
+  const bx = point.x - ux * size;
+  const by = point.y - uy * size;
+  const px = -uy, py = ux; // perpendicular
+  return `${point.x},${point.y} ${bx + px * width},${by + py * width} ${bx - px * width},${by - py * width}`;
+}
+
+// Convenience: pixel widths per token.
+export function arrowStrokeWidth(thickness) {
+  if (thickness === 'thick') return 2.6;
+  if (thickness === 'medium') return 1.8;
+  return 1.1; // 'thin' or unset
+}
+
+// Convenience: arrowhead size scales with stroke width.
+export function arrowHeadSize(thickness) {
+  if (thickness === 'thick') return { size: 14, width: 6.5 };
+  if (thickness === 'medium') return { size: 12, width: 5.5 };
+  return { size: 10, width: 4.5 };
+}
+
+// Map color token → CSS variable. The actual var values live in styles.css.
+// "ink" is the default and renders against the existing ink palette.
+const COLOR_TOKENS = {
+  ink:    'var(--arrow-ink, var(--ink-2))',
+  red:    'var(--arrow-red, #ef4444)',
+  orange: 'var(--arrow-orange, #f59e0b)',
+  green:  'var(--arrow-green, #10b981)',
+  blue:   'var(--arrow-blue, #3b82f6)',
+  purple: 'var(--arrow-purple, #a855f7)',
+};
+export const ARROW_COLOR_TOKENS = COLOR_TOKENS;
+export const ARROW_COLOR_KEYS = Object.keys(COLOR_TOKENS);
+
+export function arrowColor(color) {
+  if (!color || !COLOR_TOKENS[color]) return COLOR_TOKENS.ink;
+  return COLOR_TOKENS[color];
+}
+
+// Read head-style with backwards compat for the old `bidir` boolean.
+export function arrowHeadStyle(a) {
+  if (a?.head === 'none' || a?.head === 'single' || a?.head === 'double') return a.head;
+  if (a?.bidir) return 'double';
+  return 'single';
+}
+
+// Compare two arrow endpoint refs, treating a bare string as `{type:'card',id}`.
+// Returns true if they refer to the same anchor.
+export function arrowRefEquals(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  const aId   = typeof a === 'string' ? a : a.id;
+  const bId   = typeof b === 'string' ? b : b.id;
+  const aType = typeof a === 'string' ? 'card' : (a.type || (Number.isFinite(a.x) ? 'point' : 'card'));
+  const bType = typeof b === 'string' ? 'card' : (b.type || (Number.isFinite(b.x) ? 'point' : 'card'));
+  if (aType !== bType) return false;
+  if (aType === 'point') return a.x === b.x && a.y === b.y;
+  return aId === bId;
+}

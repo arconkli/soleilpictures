@@ -11,10 +11,14 @@
 // "Sign in" CTA in the corner. Snapshot is loaded once on mount and
 // stays static; the visitor reloads to refresh.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as Y from 'yjs';
-import { b64ToBytes, readCards, readArrows, readStrokes } from '../lib/yhelpers.js';
+import { b64ToBytes, readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.js';
 import { ImagePlaceholder, SoleilMark } from './primitives.jsx';
+import {
+  computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
+  arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle,
+} from '../lib/arrowGeometry.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
@@ -59,13 +63,14 @@ export function PublicBoardView({ token }) {
         const cards   = readCards(ydoc);
         const arrows  = readArrows(ydoc);
         const strokes = readStrokes(ydoc);
+        const groups  = readGroups(ydoc);
         ydoc.destroy();
 
         setState({
           status: 'ok',
           board: bundle.board || {},
           imageUrls: bundle.image_urls || {},
-          cards, arrows, strokes,
+          cards, arrows, strokes, groups,
         });
       } catch (e) {
         console.error('[share] bundle fetch failed', e);
@@ -94,13 +99,46 @@ export function PublicBoardView({ token }) {
     );
   }
 
-  const { board, imageUrls, cards, arrows, strokes } = state;
-  // Compute canvas extents so we can center the content. Cards live
-  // in board space; we offset by the min x/y so everything starts
-  // near (0,0) in our static canvas.
+  const { board, imageUrls, cards, arrows, strokes, groups = [] } = state;
+
+  // Shared arrow-geometry context (cards-by-id, group bounding boxes).
+  const cardById = useMemo(() => {
+    const m = {}; cards.forEach(c => { m[c.id] = c; }); return m;
+  }, [cards]);
+  const groupBoundsById = useMemo(() => {
+    const byGroup = new Map();
+    cards.forEach(c => {
+      if (!c.groupId) return;
+      if (!byGroup.has(c.groupId)) byGroup.set(c.groupId, []);
+      byGroup.get(c.groupId).push(c);
+    });
+    const out = {};
+    byGroup.forEach((members, gid) => {
+      let mnX = Infinity, mnY = Infinity, mxX = -Infinity, mxY = -Infinity;
+      members.forEach(c => {
+        mnX = Math.min(mnX, c.x); mnY = Math.min(mnY, c.y);
+        mxX = Math.max(mxX, c.x + c.w); mxY = Math.max(mxY, c.y + c.h);
+      });
+      out[gid] = { x: mnX, y: mnY, w: mxX - mnX, h: mxY - mnY };
+    });
+    return out;
+  }, [cards]);
+  const arrowCtx = useMemo(() => ({
+    cardById,
+    resolveGroupBBox: (gid) => groupBoundsById[gid] || null,
+  }), [cardById, groupBoundsById]);
+  const arrowAttachments = useMemo(
+    () => computeArrowAttachments(arrows, arrowCtx),
+    [arrows, arrowCtx]
+  );
+
+  // Compute canvas extents so we can center the content. Includes
+  // every card AND every arrow's resolved endpoints so a free-point
+  // arrow that floats far from any card doesn't get clipped.
   const allRects = [
     ...cards.map(c => ({ x: c.x || 0, y: c.y || 0, w: c.w || 100, h: c.h || 80 })),
-    ...arrows.flatMap(a => [a?.from, a?.to].filter(Boolean).map(p => ({ x: p.x || 0, y: p.y || 0, w: 0, h: 0 }))),
+    ...arrowAttachments.flatMap(att => [att?.from?.point, att?.to?.point].filter(Boolean)
+        .map(p => ({ x: p.x, y: p.y, w: 0, h: 0 }))),
   ];
   const minX = allRects.length ? Math.min(...allRects.map(r => r.x)) : 0;
   const minY = allRects.length ? Math.min(...allRects.map(r => r.y)) : 0;
@@ -144,17 +182,42 @@ export function PublicBoardView({ token }) {
             </svg>
           )}
 
-          {/* Arrows — straight lines for v1. */}
+          {/* Arrows — shares geometry with the editor so curves, colors
+              and fan-out match what the author saw. */}
           {arrows.length > 0 && (
             <svg className="public-arrows" width={width} height={height}
                  viewBox={`${minX - 40} ${minY - 40} ${width} ${height}`}
                  style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-              {arrows.map((a, i) => a?.from && a?.to && (
-                <line key={i} x1={a.from.x} y1={a.from.y} x2={a.to.x} y2={a.to.y}
-                      stroke={a.color || 'var(--ink-2)'}
-                      strokeWidth={a.width || 2}
-                      strokeLinecap="round" />
-              ))}
+              {arrows.map((a, i) => {
+                const att = arrowAttachments[i];
+                if (!att?.from || !att?.to) return null;
+                const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight } });
+                if (!built) return null;
+                const stroke = arrowColor(a.color);
+                const sw = arrowStrokeWidth(a.thickness);
+                const hd = arrowHeadSize(a.thickness);
+                const headStyle = arrowHeadStyle(a);
+                const showForwardHead = headStyle !== 'none';
+                const showReverseHead = headStyle === 'double';
+                return (
+                  <g key={i}>
+                    <path d={built.path} fill="none" stroke={stroke} strokeWidth={sw}
+                          strokeDasharray={a.dashed ? `${sw * 4} ${sw * 3}` : '0'}
+                          strokeLinecap="round" strokeLinejoin="round" />
+                    {showForwardHead && (
+                      <polygon points={arrowHeadPolygon(att.to.point, built.toTangentIn, hd)} fill={stroke} />
+                    )}
+                    {showReverseHead && (
+                      <polygon points={arrowHeadPolygon(att.from.point, built.fromTangentIn, hd)} fill={stroke} />
+                    )}
+                    {a.label && (
+                      <foreignObject x={built.midPoint.x - 70} y={built.midPoint.y - 11} width="140" height="22">
+                        <div className="arrow-label" style={{ color: stroke }}>{a.label}</div>
+                      </foreignObject>
+                    )}
+                  </g>
+                );
+              })}
             </svg>
           )}
 
