@@ -9,6 +9,8 @@
 // makes upserts trivial and matches how applied tags already work).
 // The full multi-mention story can come later via a sidecar table.
 
+import { contentHash } from './clusterMath.js';
+
 const MAX_SNIPPET = 220;
 const PAD = 100;
 
@@ -35,9 +37,12 @@ function buildSnippet(text, start, end) {
   return snippet.slice(0, MAX_SNIPPET);
 }
 
-// Returns [{ ref: { kind:'tag', id }, contextText, name }] — one entry
-// per distinct tag mentioned anywhere in `text`. Snippet captures the
-// FIRST mention's surroundings.
+// Returns [{ ref: { kind:'tag', id }, name, contextText, snippetHash }]
+// — one entry per distinct tag mentioned anywhere in `text`. Snippet
+// captures the FIRST mention's surroundings. snippetHash is FNV-1a of
+// (tagId + contextText), used by the doc-save caller to memoize AI
+// verdicts so we only re-call /apply when the surrounding text
+// actually changes.
 export function extractTagMentions(text, trie) {
   if (!text || !trie?.findMatches) return [];
   const seen = new Set();
@@ -47,10 +52,12 @@ export function extractTagMentions(text, trie) {
       if (rec.kind !== 'tag' || !rec.id) continue;
       if (seen.has(rec.id)) continue;
       seen.add(rec.id);
+      const contextText = buildSnippet(text, m.start, m.end);
       out.push({
         ref: { kind: 'tag', id: rec.id },
         name: rec.name || null,
-        contextText: buildSnippet(text, m.start, m.end),
+        contextText,
+        snippetHash: contentHash(`${rec.id}::${contextText}`),
       });
     }
   }

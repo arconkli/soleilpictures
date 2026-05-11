@@ -20,6 +20,7 @@ import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
+import { applyCards } from '../lib/tagsClient.js';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
@@ -60,6 +61,15 @@ import { createNameIndex } from '../lib/entityNameTrie.js';
 import { useEntityNameTrie } from '../hooks/useEntityNameTrie.js';
 import { CommentGutter } from './CommentGutter.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
+import { DocPageTagChips } from './DocPageTagChips.jsx';
+
+// In-memory cache for /api/tags/apply verdicts, keyed by
+// (pageId, tagId, snippetHash). Typing in a doc only re-fires the API
+// when the surrounding-snippet content actually changes.
+const verdictCache = new Map();
+function verdictKey(pageId, tagId, snippetHash) {
+  return `${pageId}::${tagId}::${snippetHash}`;
+}
 
 // Comprehensive keyboard shortcuts beyond the StarterKit defaults. Mirrors
 // what users expect from Google Docs / Notion.
@@ -336,6 +346,15 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       try { records = JSON.parse(autoEl.dataset.records || '[]'); } catch {}
       const refs = buildRefsFromCandidate(records);
       e.preventDefault();
+      // Tag wins. If any record is a tag, the user is invoking that
+      // concept — navigate directly instead of opening the disambiguation
+      // popover. Hold cmd/ctrl to see the full match list.
+      const tagRef = (refs || []).find(r => r?.kind === 'tag');
+      if (tagRef && !(e.metaKey || e.ctrlKey)) {
+        setLinkHover(null);
+        navigateRef(tagRef);
+        return;
+      }
       setLinkHover({
         anchor: autoEl.getBoundingClientRect(),
         refs: refs || [],
@@ -673,29 +692,110 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
     const contentType = scope.content;
     if (!pagesType || !contentType) return;
     let timer = null;
-    const fire = () => {
+    const fire = async () => {
       try {
         const pages = readPagesWithText(ydoc, scope);
         syncDocPageIndex({ workspaceId, docCardId, pages });
-        // Persist auto-detected tag mentions per page so the tag detail
-        // view can show "this doc mentions X" with the surrounding
-        // sentence as preview. We scope the replace to (target_kind=tag,
-        // source=auto) so manual links + AI applies aren't touched.
+        // Persist auto-detected tag mentions per page with an AI verdict
+        // gate. The trie already gave us name-match candidates; for each
+        // mention we ask /api/tags/apply whether the surrounding sentence
+        // is genuinely about that tag's concept:
+        //   high   → link_kind='applied', source='auto-doc' (chip on doc)
+        //   medium → link_kind='mention' (shows under "Mentioned in")
+        //   low    → link_kind='mention' (same — still useful breadcrumb)
+        // Verdicts are memoized per (page,tag,snippetHash) so typing in
+        // the doc only re-calls /apply when the surrounding text changes.
         const trie = nameIndexRef.current;
-        if (trie?.findMatches) {
-          for (const p of pages) {
-            if (!p?.id) continue;
-            const mentions = extractTagMentions(p.text || '', trie);
-            recordEntityLinks({
-              source: { kind: 'doc', id: docCardId, workspace: workspaceId, pageId: p.id },
-              refs: mentions,
-              replaceForSource: true,
-              replaceTargetKind: 'tag',
-              replaceSourceAttribution: 'auto',
-              linkKind: 'mention',
-              attribution: 'auto',
-            }).catch((e) => console.warn('tag-mention persist', e?.message || e));
+        if (!trie?.findMatches) return;
+
+        // Step 1: collect mentions per page; partition cached vs uncached.
+        const perPage = [];                  // [{ pageId, mentions, uncached }]
+        const uncachedToFetch = [];          // [{ id, text, candidate_tags, meta }]
+        for (const p of pages) {
+          if (!p?.id) continue;
+          const mentions = extractTagMentions(p.text || '', trie);
+          if (mentions.length === 0) {
+            // No mentions on this page — still need to wipe prior auto rows
+            // so removed text actually disappears from the tag detail view.
+            perPage.push({ pageId: p.id, mentions: [], uncached: [] });
+            continue;
           }
+          const uncached = [];
+          for (const m of mentions) {
+            const k = verdictKey(p.id, m.ref.id, m.snippetHash);
+            if (!verdictCache.has(k)) uncached.push({ ...m, _key: k, _pageId: p.id });
+          }
+          perPage.push({ pageId: p.id, mentions, uncached });
+          // Build /apply payload — composite id encodes both page and tag.
+          for (const m of uncached) {
+            uncachedToFetch.push({
+              id: `${m._pageId}|${m.ref.id}`,
+              text: m.contextText || '',
+              candidate_tags: [{ id: m.ref.id, name: m.name || '' }],
+              _key: m._key,
+            });
+          }
+        }
+
+        // Step 2: fetch missing verdicts in chunks of 16 (worker cap).
+        if (uncachedToFetch.length > 0) {
+          for (let i = 0; i < uncachedToFetch.length; i += 16) {
+            const slice = uncachedToFetch.slice(i, i + 16);
+            try {
+              const resp = await applyCards(slice.map(({ _key, ...c }) => c));
+              const verdicts = resp?.verdicts || [];
+              const byId = new Map(slice.map(s => [s.id, s._key]));
+              for (const v of verdicts) {
+                const key = byId.get(v.card_id);
+                if (!key) continue;
+                // worker returns tags[]; first entry is the only candidate we sent.
+                const c = (v.tags || [])[0]?.confidence || 'low';
+                verdictCache.set(key, c);
+              }
+              // Any cards the model didn't return a verdict for → 'low' so
+              // we don't keep refetching.
+              for (const s of slice) {
+                if (!verdictCache.has(s._key)) verdictCache.set(s._key, 'low');
+              }
+            } catch (e) {
+              console.warn('tag-apply verdict', e?.message || e);
+              // Don't poison the cache on transient errors — leave uncached so
+              // next sync retries.
+            }
+          }
+        }
+
+        // Step 3: per-page, bucket by verdict and persist.
+        for (const { pageId, mentions } of perPage) {
+          const applied = [];
+          const mention = [];
+          for (const m of mentions) {
+            const k = verdictKey(pageId, m.ref.id, m.snippetHash);
+            const v = verdictCache.get(k);
+            if (v === 'high') applied.push(m); else mention.push(m);
+          }
+          // Two upserts per page, each scoped by source-attribution so they
+          // don't trample each other (the recordEntityLinks delete filters
+          // on `source`). 'auto-doc' = doc-name-match + AI-confirmed apply.
+          // 'auto' = unconfirmed mention.
+          recordEntityLinks({
+            source: { kind: 'doc', id: docCardId, workspace: workspaceId, pageId },
+            refs: applied,
+            replaceForSource: true,
+            replaceTargetKind: 'tag',
+            replaceSourceAttribution: 'auto-doc',
+            linkKind: 'applied',
+            attribution: 'auto-doc',
+          }).catch((e) => console.warn('tag-applied persist', e?.message || e));
+          recordEntityLinks({
+            source: { kind: 'doc', id: docCardId, workspace: workspaceId, pageId },
+            refs: mention,
+            replaceForSource: true,
+            replaceTargetKind: 'tag',
+            replaceSourceAttribution: 'auto',
+            linkKind: 'mention',
+            attribution: 'auto',
+          }).catch((e) => console.warn('tag-mention persist', e?.message || e));
         }
       } catch (e) { console.warn('doc_page_index sync', e); }
     };
@@ -723,6 +823,13 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       <DocEditorContextMenu editor={editor}
                             onOpenLinkPicker={openLinkPicker}
                             onAddComment={addComment.open} />
+      {workspaceId && (scope?.docCardId) && activePageId && (
+        <DocPageTagChips
+          workspaceId={workspaceId}
+          docCardId={scope.docCardId}
+          pageId={activePageId}
+        />
+      )}
       <EditorContent editor={editor} />
       {addComment.node}
       {linkHover && (

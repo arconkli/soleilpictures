@@ -9777,6 +9777,83 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .ent-pop-section { padding: 4px 0; }
 .ent-pop-section + .ent-pop-section { border-top: 1px solid var(--line-1); }
+
+.doc-page-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0 10px;
+  margin: 0 0 8px;
+}
+.doc-page-tag-chip {
+  appearance: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 7px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 999px;
+  cursor: pointer;
+  font: 500 11.5px/1.2 var(--font-sans);
+  color: var(--ink-1);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.doc-page-tag-chip:hover {
+  background: var(--bg-0);
+  border-color: var(--line-2);
+  color: var(--ink-0);
+}
+.doc-page-tag-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.doc-page-tag-name {
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+.ent-pop-tag-feature {
+  padding-top: 6px;
+  padding-bottom: 4px;
+}
+.ent-pop-tag-row {
+  appearance: none;
+  display: flex; align-items: center; gap: 10px;
+  width: calc(100% - 16px);
+  margin: 4px 8px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+.ent-pop-tag-row:hover {
+  background: var(--bg-0);
+  border-color: var(--line-2);
+}
+.ent-pop-tag-row:active { transform: translateY(1px); }
+.ent-pop-tag-dot {
+  flex: 0 0 auto;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-1);
+}
+.ent-pop-tag-name {
+  flex: 1 1 auto;
+  font: 600 13.5px/1.2 var(--font-sans);
+  color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ent-pop-tag-arrow {
+  font: 500 14px/1 var(--font-sans);
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.ent-pop-tag-row:hover .ent-pop-tag-arrow { color: var(--ink-1); }
+
 .ent-pop-section-head {
   display: flex; align-items: baseline; gap: 6px;
   padding: 6px 12px 4px;

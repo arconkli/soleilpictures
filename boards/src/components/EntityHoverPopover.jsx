@@ -119,6 +119,18 @@ export function EntityHoverPopover({
     });
   }, [entityRows]);
 
+  // Partition: tags are the "concept" abstraction the user invoked
+  // when they typed this word — they get a featured top block.
+  // Everything else falls through to the existing flat ENTITIES section.
+  const tagEntities = useMemo(
+    () => sortedEntities.filter(r => r.kind === 'tag'),
+    [sortedEntities],
+  );
+  const nonTagEntities = useMemo(
+    () => sortedEntities.filter(r => r.kind !== 'tag'),
+    [sortedEntities],
+  );
+
   // Position the portal near the anchor — flip above when no room
   // below; clamp to viewport. Re-measure on scroll/resize so the
   // popover follows the line during reflow.
@@ -189,21 +201,36 @@ export function EntityHoverPopover({
           <div className="ent-pop-empty">Nothing linked here yet.</div>
         )}
 
-        {sortedEntities.length > 0 && (
+        {tagEntities.length > 0 && (
+          <div className="ent-pop-section ent-pop-tag-feature">
+            <div className="ent-pop-section-head">
+              {tagEntities.length === 1 ? 'TAG' : 'TAGS'}
+            </div>
+            {tagEntities.map(row => (
+              <TagFeatureRow
+                key={row.id}
+                row={row}
+                onClick={() => { navigate(rowToRef(row)); onClose?.(); }}
+              />
+            ))}
+          </div>
+        )}
+
+        {nonTagEntities.length > 0 && (
           <div className="ent-pop-section">
             <div className="ent-pop-section-head">
-              ENTITIES NAMED THIS <span className="ent-pop-section-count">({sortedEntities.length})</span>
+              ENTITIES NAMED THIS <span className="ent-pop-section-count">({nonTagEntities.length})</span>
             </div>
-            {sortedEntities.slice(0, 6).map(row => (
+            {nonTagEntities.slice(0, 6).map(row => (
               <EntityRow
                 key={row.id}
                 row={row}
                 onClick={() => { navigate(rowToRef(row)); onClose?.(); }}
               />
             ))}
-            {sortedEntities.length > 6 && (
+            {nonTagEntities.length > 6 && (
               <button className="ent-pop-more" onClick={() => onSeeAll?.()}>
-                + {sortedEntities.length - 6} more →
+                + {nonTagEntities.length - 6} more →
               </button>
             )}
           </div>
@@ -312,6 +339,30 @@ export function EntityHoverPopover({
   );
 }
 
+// Featured tag row. Shows a color dot + name with prominent visual
+// weight — the user typed a word that maps to this concept, so we
+// want it to feel like "this is the tag you're talking about."
+function TagFeatureRow({ row, onClick }) {
+  const color = row?.meta?.color || fallbackTagColor(row.title || row.id);
+  return (
+    <button className="ent-pop-tag-row" onClick={onClick} title={`Open ${row.title || 'tag'}`}>
+      <span className="ent-pop-tag-dot" style={{ background: color }} />
+      <span className="ent-pop-tag-name">{row.title || 'Untitled'}</span>
+      <span className="ent-pop-tag-arrow">→</span>
+    </button>
+  );
+}
+
+const TAG_PALETTE = [
+  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
+  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
+];
+function fallbackTagColor(s) {
+  const str = (s || '').toString();
+  let h = 0; for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
+}
+
 function EntityRow({ row, onClick }) {
   const def = getKind(row.kind);
   const IconCmp = def?.icon;
@@ -373,6 +424,7 @@ function rowToRef(row) {
     case 'user':    return { kind: 'user', id: row.id };
     case 'url':     return { kind: 'url', href: row.title };
     case 'group':   return { kind: 'group', id: row.card_id, boardId: row.board_id };
+    case 'tag':     return { kind: 'tag', id: row.id };
     default:        return { kind: 'card', boardId: row.board_id, cardId: row.card_id };
   }
 }
@@ -387,6 +439,7 @@ function refToSearchId(r) {
     case 'card':    return `${r.boardId}:${r.cardId}`;
     case 'user':    return r.id;
     case 'group':   return r.boardId ? `${r.boardId}:g:${r.id}` : null;
+    case 'tag':     return r.id;
     default:        return null;
   }
 }
