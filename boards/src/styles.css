@@ -899,8 +899,8 @@ body {
   flex-shrink: 0;
 }
 .sb-tag-suggestion-add:hover {
-  background: var(--soleil-soft);
-  color: var(--soleil);
+  background: rgba(16, 185, 129, 0.14);
+  color: #10b981;
 }
 .sb-tag-suggestion-x:hover {
   background: var(--bg-1);
