@@ -66,6 +66,12 @@ export function DocTagGutter({ editor, ranges, onOpen }) {
         });
       }
       setPositioned(out);
+      // Dev log: makes it easy to tell from devtools whether the
+      // gutter is "no ranges given," "ranges given but paragraph
+      // hashes don't match," or "rendering N dots."
+      const rsLen = rs.length;
+      const matchedHashes = new Set([...byPara.values()].flatMap(items => items.map(it => it.range.pHash))).size;
+      console.info(`[doc-tag-gutter] paragraphs:${paraByHash.size} ranges:${rsLen} matched:${matchedHashes} dots:${out.length}`);
     };
     recompute();
     editor.on('transaction', recompute);

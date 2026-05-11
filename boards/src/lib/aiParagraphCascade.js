@@ -20,6 +20,7 @@ import { embedCards, applyCards, formatPgvector, parsePgvector } from './tagsCli
 import { cosineDist, SILENT_APPLY_DIST, NO_MATCH_DIST } from './clusterMath.js';
 import { splitSentences, wordContextSpan } from './sentenceSpan.js';
 import { tagDocRange } from './tagsApi.js';
+import { isDebug } from './aiTaggerLog.js';
 
 // In-memory caches scoped to the module so repeated saves of the same
 // page (the common case while editing) skip embed + AI calls.
@@ -376,6 +377,31 @@ export async function runParagraphCascade({
     else if (successKeys.has(k)) carry.add(k);
   }
   lastAppliedKeysRef.set(pageId, carry);
+
+  // Stale GC: paragraphs that existed in a previous save but no
+  // longer exist (text edited, hash changed) leave orphan
+  // entity_links rows whose pHash will never resolve at render
+  // time. Delete them so the realtime sub propagates a clean state
+  // to consumers.
+  const currentHashes = new Set(paragraphs.map(p => p.pHash));
+  try {
+    const { data: existing } = await supabase.from('entity_links')
+      .select('id, source_anchor')
+      .eq('source_kind', 'doc')
+      .eq('source_id', docCardId)
+      .eq('source_page_id', pageId)
+      .eq('target_kind', 'tag')
+      .eq('link_kind', 'applied')
+      .not('source_anchor', 'is', null);
+    const orphans = (existing || []).filter(r => {
+      const h = r?.source_anchor?.pHash;
+      return h && !currentHashes.has(h);
+    }).map(r => r.id);
+    if (orphans.length > 0) {
+      await supabase.from('entity_links').delete().in('id', orphans);
+      if (isDebug()) console.info(`[paragraph-cascade] GC removed ${orphans.length} orphan range row${orphans.length === 1 ? '' : 's'}`);
+    }
+  } catch (e) { console.warn('[paragraph-cascade] GC failed', e?.message || e); }
   // Dev log so it's easy to verify the cascade is actually firing in
   // the user's console — silent in prod once we trust it.
   try {
