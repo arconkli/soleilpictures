@@ -19,6 +19,63 @@ const FAN_T_MAX = 0.88;
 const HANDLE_MIN = 32;                 // cubic bezier control magnitude floor
 const HANDLE_MAX = 200;                //   …and ceiling
 const HANDLE_K   = 0.42;               //   …× distance between anchors
+const OBSTACLE_PAD = 10;               // breathing room around cards
+const DEFLECT_ITERS = 4;               // # of repulsion passes
+const DEFLECT_SAMPLES = 16;            // bezier sample points per pass
+const DEFLECT_BOOST = 1.6;             // over-push so the smoothed curve clears
+
+// Cubic-bezier point at parameter t.
+function bezierPoint(s, c1, c2, e, t) {
+  const u = 1 - t;
+  return {
+    x: u*u*u*s.x + 3*u*u*t*c1.x + 3*u*t*t*c2.x + t*t*t*e.x,
+    y: u*u*u*s.y + 3*u*u*t*c1.y + 3*u*t*t*c2.y + t*t*t*e.y,
+  };
+}
+
+// Push the two control points away from any obstacle the curve passes
+// through, weighting the push by how close along the curve the conflict
+// sits to each control point. Cheap, iterative, and visually plausible —
+// doesn't guarantee no overlap in pathological dense layouts.
+function deflectControlPoints(s, c1, c2, e, obstacles) {
+  if (!obstacles || obstacles.length === 0) return { c1, c2 };
+  for (let iter = 0; iter < DEFLECT_ITERS; iter++) {
+    let dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;
+    let hit = false;
+    for (let i = 1; i < DEFLECT_SAMPLES; i++) {
+      const t = i / DEFLECT_SAMPLES;
+      const p = bezierPoint(s, c1, c2, e, t);
+      for (const ob of obstacles) {
+        const halfW = ob.w / 2 + OBSTACLE_PAD;
+        const halfH = ob.h / 2 + OBSTACLE_PAD;
+        const cx = ob.x + ob.w / 2, cy = ob.y + ob.h / 2;
+        const offX = p.x - cx, offY = p.y - cy;
+        if (Math.abs(offX) >= halfW || Math.abs(offY) >= halfH) continue;
+        hit = true;
+        // Push out through the closer face. If the curve sample is dead-
+        // center on the obstacle, fall back to a perpendicular kick so we
+        // don't get stuck at a stable equilibrium.
+        const overX = halfW - Math.abs(offX);
+        const overY = halfH - Math.abs(offY);
+        let pushX = 0, pushY = 0;
+        if (overX < overY) {
+          pushX = (offX === 0 ? 1 : Math.sign(offX)) * overX;
+        } else {
+          pushY = (offY === 0 ? 1 : Math.sign(offY)) * overY;
+        }
+        const w1 = 1 - t, w2 = t;
+        dx1 += pushX * w1 * DEFLECT_BOOST;
+        dy1 += pushY * w1 * DEFLECT_BOOST;
+        dx2 += pushX * w2 * DEFLECT_BOOST;
+        dy2 += pushY * w2 * DEFLECT_BOOST;
+      }
+    }
+    if (!hit) break;
+    c1 = { x: c1.x + dx1, y: c1.y + dy1 };
+    c2 = { x: c2.x + dx2, y: c2.y + dy2 };
+  }
+  return { c1, c2 };
+}
 
 // Normalize a ref into one of: {kind:'shape', shape, side?}, {kind:'point', x,y}, or null.
 // `ctx` provides lookups: { cardById, groupById, cardsByGroup } (any shape map).
@@ -212,7 +269,7 @@ export function computeArrowAttachments(arrows, ctx) {
 // tangents are unit vectors pointing INTO the respective endpoints (i.e.
 // the direction of arrow travel at that point — what arrowheads should
 // face).
-export function buildArrowPath({ from, to, style = {} }) {
+export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
   if (!from || !to) return null;
   const s = from.point, e = to.point;
   const dx = e.x - s.x, dy = e.y - s.y;
@@ -234,8 +291,16 @@ export function buildArrowPath({ from, to, style = {} }) {
   // is proportional to the gap so short connections curve gently and long
   // connections sweep wider.
   const mag = Math.max(HANDLE_MIN, Math.min(HANDLE_MAX, len * HANDLE_K));
-  const c1 = { x: s.x + from.tangent.ux * mag, y: s.y + from.tangent.uy * mag };
-  const c2 = { x: e.x + to.tangent.ux   * mag, y: e.y + to.tangent.uy   * mag };
+  let c1 = { x: s.x + from.tangent.ux * mag, y: s.y + from.tangent.uy * mag };
+  let c2 = { x: e.x + to.tangent.ux   * mag, y: e.y + to.tangent.uy   * mag };
+
+  // Deflect the curve around any card rects the caller marked as obstacles.
+  if (obstacles && obstacles.length) {
+    const deflected = deflectControlPoints(s, c1, c2, e, obstacles);
+    c1 = deflected.c1;
+    c2 = deflected.c2;
+  }
+
   const path = `M${s.x},${s.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${e.x},${e.y}`;
 
   // Approximate the midpoint of the bezier (t=0.5 of a cubic is the average
@@ -301,8 +366,17 @@ export const ARROW_COLOR_TOKENS = COLOR_TOKENS;
 export const ARROW_COLOR_KEYS = Object.keys(COLOR_TOKENS);
 
 export function arrowColor(color) {
-  if (!color || !COLOR_TOKENS[color]) return COLOR_TOKENS.ink;
-  return COLOR_TOKENS[color];
+  if (!color) return COLOR_TOKENS.ink;
+  // Custom hex string from the user's color picker.
+  if (typeof color === 'string' && color.startsWith('#')) return color;
+  if (COLOR_TOKENS[color]) return COLOR_TOKENS[color];
+  return COLOR_TOKENS.ink;
+}
+
+// True for any color value that isn't one of the named palette tokens —
+// used by the popover to know whether to highlight the "+" custom swatch.
+export function isCustomArrowColor(color) {
+  return typeof color === 'string' && color.startsWith('#');
 }
 
 // Read head-style with backwards compat for the old `bidir` boolean.

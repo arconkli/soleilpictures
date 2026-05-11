@@ -131,6 +131,29 @@ export function PublicBoardView({ token }) {
     () => computeArrowAttachments(arrows, arrowCtx),
     [arrows, arrowCtx]
   );
+  const publicObstacleRects = useMemo(
+    () => cards.map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w, h: c.h })),
+    [cards]
+  );
+  // Card IDs we should NOT treat as obstacles for a given arrow ref.
+  const cardsByGroup = useMemo(() => {
+    const m = new Map();
+    cards.forEach(c => {
+      if (!c.groupId) return;
+      if (!m.has(c.groupId)) m.set(c.groupId, []);
+      m.get(c.groupId).push(c);
+    });
+    return m;
+  }, [cards]);
+  const excludedCardIdsForRef = (ref) => {
+    if (!ref) return null;
+    if (typeof ref === 'string') return [ref];
+    if (ref.type === 'card' && ref.id) return [ref.id];
+    if (ref.type === 'group' && ref.id) {
+      return (cardsByGroup.get(ref.id) || []).map(c => c.id);
+    }
+    return null;
+  };
 
   // Compute canvas extents so we can center the content. Includes
   // every card AND every arrow's resolved endpoints so a free-point
@@ -191,7 +214,14 @@ export function PublicBoardView({ token }) {
               {arrows.map((a, i) => {
                 const att = arrowAttachments[i];
                 if (!att?.from || !att?.to) return null;
-                const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight } });
+                const excludeFrom = excludedCardIdsForRef(a.from);
+                const excludeTo   = excludedCardIdsForRef(a.to);
+                const excludeSet = new Set();
+                if (excludeFrom) for (const id of excludeFrom) excludeSet.add(id);
+                if (excludeTo)   for (const id of excludeTo)   excludeSet.add(id);
+                const obstacles = a.straight ? null
+                  : publicObstacleRects.filter(r => !excludeSet.has(r.id));
+                const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
                 if (!built) return null;
                 const stroke = arrowColor(a.color);
                 const sw = arrowStrokeWidth(a.thickness);
@@ -199,9 +229,10 @@ export function PublicBoardView({ token }) {
                 const headStyle = arrowHeadStyle(a);
                 const showForwardHead = headStyle !== 'none';
                 const showReverseHead = headStyle === 'double';
+                const pathId = `pub-arr-${i}`;
                 return (
                   <g key={i}>
-                    <path d={built.path} fill="none" stroke={stroke} strokeWidth={sw}
+                    <path id={pathId} d={built.path} fill="none" stroke={stroke} strokeWidth={sw}
                           strokeDasharray={a.dashed ? `${sw * 4} ${sw * 3}` : '0'}
                           strokeLinecap="round" strokeLinejoin="round" />
                     {showForwardHead && (
@@ -211,9 +242,11 @@ export function PublicBoardView({ token }) {
                       <polygon points={arrowHeadPolygon(att.from.point, built.fromTangentIn, hd)} fill={stroke} />
                     )}
                     {a.label && (
-                      <foreignObject x={built.midPoint.x - 70} y={built.midPoint.y - 11} width="140" height="22">
-                        <div className="arrow-label" style={{ color: stroke }}>{a.label}</div>
-                      </foreignObject>
+                      <text className="arrow-label-text" fill={stroke} dy="-4">
+                        <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle" side="left">
+                          {a.label}
+                        </textPath>
+                      </text>
                     )}
                   </g>
                 );

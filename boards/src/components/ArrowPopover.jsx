@@ -5,17 +5,44 @@
 // and zoom without scaling its own typography.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ARROW_COLOR_KEYS, ARROW_COLOR_TOKENS, arrowHeadStyle } from '../lib/arrowGeometry.js';
+import {
+  ARROW_COLOR_KEYS, ARROW_COLOR_TOKENS, arrowHeadStyle, isCustomArrowColor,
+} from '../lib/arrowGeometry.js';
 
 const THICKNESS_LABELS = { thin: 'Thin', medium: 'Medium', thick: 'Thick' };
 
 export function ArrowPopover({
   arrow, arrowIndex, midPoint, canvasToViewport,
-  onChange, onDelete, onClose,
+  onChange, onDelete, onClose, onOpenColorPicker,
 }) {
   const popRef = useRef(null);
   const [labelDraft, setLabelDraft] = useState(arrow?.label || '');
   const [labelEditing, setLabelEditing] = useState(false);
+
+  // Refs that mirror the latest draft + arrow.label. Used by the unmount
+  // cleanup below so a mid-typed label survives if the popover tears down
+  // (selection cleared, arrow tool switched) before onBlur fires.
+  const labelDraftRef = useRef(labelDraft);
+  useEffect(() => { labelDraftRef.current = labelDraft; }, [labelDraft]);
+  const arrowLabelRef = useRef(arrow?.label || '');
+  useEffect(() => { arrowLabelRef.current = arrow?.label || ''; }, [arrow?.label]);
+  // `onChange` may be a fresh closure on every parent render — mirror it
+  // through a ref so the unmount cleanup commits via the latest mutator,
+  // not a stale snapshot from when the popover first mounted.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  // Only commit-on-unmount when we know the user actually edited (focused
+  // the input). Otherwise a popover that flashed open during a selection
+  // would otherwise paint an empty-string commit over an existing label.
+  const labelTouchedRef = useRef(false);
+  useEffect(() => () => {
+    if (!labelTouchedRef.current) return;
+    const v = (labelDraftRef.current || '').trim();
+    if (v !== (arrowLabelRef.current || '')) {
+      onChangeRef.current?.({ label: v || null });
+    }
+  }, []);
+
   // Sync the local draft when the arrow swaps under us (e.g. selection
   // moves to a different arrow) — but don't stomp on mid-typing edits.
   useEffect(() => {
@@ -38,7 +65,9 @@ export function ArrowPopover({
 
   if (!arrow) return null;
 
-  const color = arrow.color || 'ink';
+  const rawColor = arrow.color;
+  const isCustom = isCustomArrowColor(rawColor);
+  const tokenColor = isCustom ? null : (rawColor || 'ink');
   const thickness = arrow.thickness || 'thin';
   const head = arrowHeadStyle(arrow);
   const curveStraight = !!arrow.straight;
@@ -60,14 +89,27 @@ export function ArrowPopover({
           <button
             key={k}
             type="button"
-            className={`ap-swatch ${color === k ? 'is-on' : ''}`}
+            className={`ap-swatch ${tokenColor === k ? 'is-on' : ''}`}
             style={{ background: ARROW_COLOR_TOKENS[k] }}
             aria-label={`Color ${k}`}
-            aria-checked={color === k}
+            aria-checked={tokenColor === k}
             role="radio"
             onClick={() => commit({ color: k })}
           />
         ))}
+        <button
+          type="button"
+          className={`ap-swatch ap-swatch-custom ${isCustom ? 'is-on' : ''}`}
+          style={isCustom ? { background: rawColor } : undefined}
+          title="Custom color…"
+          aria-label="Custom color"
+          onClick={() => onOpenColorPicker?.(rawColor)}>
+          {!isCustom && (
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+              <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          )}
+        </button>
       </div>
 
       <div className="ap-divider" />
@@ -144,7 +186,7 @@ export function ArrowPopover({
           value={labelDraft}
           placeholder="Label…"
           maxLength={60}
-          onFocus={() => setLabelEditing(true)}
+          onFocus={() => { setLabelEditing(true); labelTouchedRef.current = true; }}
           onChange={(e) => setLabelDraft(e.target.value)}
           onBlur={() => {
             setLabelEditing(false);
@@ -155,6 +197,7 @@ export function ArrowPopover({
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') {
               setLabelDraft(arrow.label || '');
+              labelTouchedRef.current = false;
               setLabelEditing(false);
               e.currentTarget.blur();
             }

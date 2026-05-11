@@ -780,6 +780,35 @@ export function CanvasSurface({
     [arrows, arrowCtx]
   );
 
+  // Rect list used as obstacles when shaping each arrow's bezier. Includes
+  // every card; per-arrow we then drop its own endpoints (and any group
+  // members for a group-anchored end) before handing the list to the
+  // geometry helper.
+  const arrowObstacleRects = useMemo(() => {
+    return (cards || []).map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w, h: c.h }));
+  }, [cards]);
+
+  // Stable SVG id prefix for arrow paths (textPath references). Scoped by
+  // board so the editor's main + split panes don't collide on duplicate ids.
+  const arrowPathIdPrefix = useMemo(
+    () => `arr-${String(board?.id || 'b').replace(/[^a-zA-Z0-9_-]/g, '')}-`,
+    [board?.id]
+  );
+
+  // Given an arrow ref (string card id | {type,id} | {x,y} | null), return
+  // the set of card ids that should be excluded from obstacle avoidance —
+  // the anchor itself for cards, the full member list for groups.
+  const excludedCardIdsForRef = useCallback((ref) => {
+    if (!ref) return null;
+    if (typeof ref === 'string') return [ref];
+    if (ref.type === 'card' && ref.id) return [ref.id];
+    if (ref.type === 'group' && ref.id) {
+      const members = cardsByGroup.get(ref.id) || [];
+      return members.map(c => c.id);
+    }
+    return null;
+  }, [cardsByGroup]);
+
   const clientToCanvas = useCallback((clientX, clientY) => {
     const rect = wrapRef.current.getBoundingClientRect();
     return {
@@ -4090,9 +4119,19 @@ export function CanvasSurface({
             {(arrows || []).map((a, i) => {
               const att = arrowAttachments[i];
               if (!att?.from || !att?.to) return null;
-              const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight } });
+              // Drop the arrow's own anchor cards (or group members) from
+              // the obstacle list — otherwise deflection would push the
+              // curve away from its own start/end.
+              const excludeFrom = excludedCardIdsForRef(a.from);
+              const excludeTo   = excludedCardIdsForRef(a.to);
+              const excludeSet = new Set();
+              if (excludeFrom) for (const id of excludeFrom) excludeSet.add(id);
+              if (excludeTo)   for (const id of excludeTo)   excludeSet.add(id);
+              const obstacles = a.straight ? null
+                : arrowObstacleRects.filter(r => !excludeSet.has(r.id));
+              const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
               if (!built) return null;
-              const { path, midPoint, fromTangentIn, toTangentIn } = built;
+              const { path, fromTangentIn, toTangentIn } = built;
               const stroke = arrowColor(a.color);
               const sw = arrowStrokeWidth(a.thickness);
               const hd = arrowHeadSize(a.thickness);
@@ -4102,6 +4141,7 @@ export function CanvasSurface({
               const headForward = showForwardHead ? arrowHeadPolygon(att.to.point, toTangentIn, hd) : null;
               const headReverse = showReverseHead ? arrowHeadPolygon(att.from.point, fromTangentIn, hd) : null;
               const sel = selectedArrows.has(i);
+              const pathId = `${arrowPathIdPrefix}${i}`;
               return (
                 <g key={i} data-arrow-idx={i}>
                   {/* Hit target — only path with pointer-events; svg root is none. */}
@@ -4112,15 +4152,17 @@ export function CanvasSurface({
                         onContextMenu={strokesInteractive ? (ev) => onArrowContextMenu(ev, i) : undefined} />
                   {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)"
                                 strokeWidth={sw + 5} strokeLinecap="round" pointerEvents="none" />}
-                  <path data-arrow-line d={path} fill="none" stroke={stroke} strokeWidth={sw}
+                  <path id={pathId} data-arrow-line d={path} fill="none" stroke={stroke} strokeWidth={sw}
                         strokeDasharray={a.dashed ? `${sw * 4} ${sw * 3}` : '0'}
                         strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
                   {headForward && <polygon points={headForward} fill={stroke} pointerEvents="none" />}
                   {headReverse && <polygon points={headReverse} fill={stroke} pointerEvents="none" />}
                   {a.label && (
-                    <foreignObject x={midPoint.x - 70} y={midPoint.y - 11} width="140" height="22" pointerEvents="none">
-                      <div className="arrow-label" style={{ color: stroke }}>{a.label}</div>
-                    </foreignObject>
+                    <text className="arrow-label-text" fill={stroke} pointerEvents="none" dy="-4">
+                      <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle" side="left">
+                        {a.label}
+                      </textPath>
+                    </text>
                   )}
                 </g>
               );
@@ -4200,7 +4242,14 @@ export function CanvasSurface({
         const a = (arrows || [])[idx];
         const att = arrowAttachments[idx];
         if (!a || !att?.from || !att?.to) return null;
-        const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight } });
+        const excludeFrom = excludedCardIdsForRef(a.from);
+        const excludeTo   = excludedCardIdsForRef(a.to);
+        const excludeSet = new Set();
+        if (excludeFrom) for (const id of excludeFrom) excludeSet.add(id);
+        if (excludeTo)   for (const id of excludeTo)   excludeSet.add(id);
+        const obstacles = a.straight ? null
+          : arrowObstacleRects.filter(r => !excludeSet.has(r.id));
+        const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
         if (!built) return null;
         return (
           <ArrowPopover
@@ -4214,6 +4263,17 @@ export function CanvasSurface({
               setSelectedArrows(new Set());
             }}
             onClose={() => setSelectedArrows(new Set())}
+            onOpenColorPicker={(currentColor) => {
+              const rect = wrapRef.current?.getBoundingClientRect();
+              setPicker({
+                value: (typeof currentColor === 'string' && currentColor.startsWith('#'))
+                  ? currentColor : '#3b82f6',
+                onChange: (col) => mutators.updateArrow?.(idx, { color: col }),
+                x: rect ? rect.right - 280 : 200,
+                y: rect ? rect.top + 60 : 200,
+                allowTransparent: false,
+              });
+            }}
           />
         );
       })()}

@@ -2486,6 +2486,17 @@ body {
   white-space: nowrap;
   border-radius: 2px;
 }
+/* SVG text rendered along the arrow path via <textPath>. A stroked
+   outline in the canvas background keeps it readable against any
+   underlying card or arrow color. */
+.arrow-label-text {
+  font: 600 10.5px/1 var(--font-sans);
+  letter-spacing: .02em;
+  paint-order: stroke fill;
+  stroke: var(--canvas-bg, var(--bg-1));
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
 /* Arrow color tokens — referenced from arrowGeometry.js. */
 :root {
   --arrow-ink:    var(--ink-2);
@@ -2530,6 +2541,18 @@ body {
   box-shadow: 0 0 0 1px var(--line-1) inset;
 }
 .ap-swatch.is-on { border-color: var(--ink-1) !important; box-shadow: none; }
+/* The "+" custom swatch — sits at the end of the swatch row and opens
+   the full ColorPicker. Empty until the user picks a custom hex; then
+   it paints with that hex and snaps into the selected state. */
+.ap-swatch-custom {
+  background: var(--bg-1);
+  color: var(--ink-2);
+  display: inline-flex !important;
+  align-items: center; justify-content: center;
+  border: 1px dashed var(--line-2) !important;
+}
+.ap-swatch-custom:hover { color: var(--ink-1); }
+.ap-swatch-custom.is-on { border-style: solid !important; }
 
 .ap-thick { width: 22px; height: 22px; }
 .ap-thick-line {
