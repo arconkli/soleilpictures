@@ -133,21 +133,35 @@ export async function runParagraphCascade({
           const words = Array.isArray(ta.words) ? ta.words : [];
           const validWords = [];
           for (const w of words) {
-            const start = Number(w.start_offset);
-            const len = Number(w.length);
-            if (!Number.isFinite(start) || !Number.isFinite(len) || len <= 0) continue;
-            if (start < 0 || start + len > c.p.text.length) continue;
-            // Sanity: confirm the substring at that offset still
-            // matches what the model claimed it was.
-            const actual = c.p.text.slice(start, start + len);
-            const claimed = String(w.text || '').slice(0, len);
-            if (actual.toLowerCase() !== claimed.toLowerCase()) continue;
-            validWords.push({ startOffset: start, length: len, confidence: ta.confidence });
-            const contextText = buildContextSnippet(c.p.text, start, start + len);
+            const claimed = String(w.text || '').trim();
+            if (!claimed) continue;
+            // Don't trust the AI's start_offset — it's frequently off
+            // by a character or two. Use it as a HINT: regex-find every
+            // occurrence of the claimed word, then pick the one closest
+            // to the AI's guess.
+            const aiStart = Number(w.start_offset);
+            const escaped = claimed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const re = new RegExp(escaped, 'gi');
+            let bestStart = -1;
+            let bestLen = 0;
+            let bestDist = Infinity;
+            let m;
+            while ((m = re.exec(c.p.text)) !== null) {
+              const dist = Number.isFinite(aiStart) ? Math.abs(m.index - aiStart) : 0;
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestStart = m.index;
+                bestLen = m[0].length;
+              }
+              if (m[0].length === 0) re.lastIndex++;
+            }
+            if (bestStart < 0) continue;
+            validWords.push({ startOffset: bestStart, length: bestLen, confidence: ta.confidence });
+            const contextText = buildContextSnippet(c.p.text, bestStart, bestStart + bestLen);
             tierResults.push({
               pHash: c.p.pHash,
-              startOffset: start,
-              length: len,
+              startOffset: bestStart,
+              length: bestLen,
               tagId: ta.tag_id,
               attribution: ta.confidence === 'high' ? 'auto-word' : 'auto-word-medium',
               contextText,
