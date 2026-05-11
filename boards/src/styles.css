@@ -11344,7 +11344,10 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 /* ─────────────────── Tag popover (TagRangeHoverPopover) ────────── */
 .tag-pop {
   position: fixed;
-  z-index: 1100;
+  /* Other UI elements use max-int z-index for their own popovers /
+     overlays. Match that so we sit on top of doc shadows, comment
+     gutters, find-replace bars, etc. */
+  z-index: 2147483647;
   border: 1px solid var(--line-1);
   border-radius: 12px;
   background: var(--bg-1);

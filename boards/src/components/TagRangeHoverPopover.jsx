@@ -164,6 +164,7 @@ export function TagRangeHoverPopover({
       // Vertically center on the dot, then clamp.
       const desiredTop = anchor.top + (anchor.height / 2) - (popH / 2);
       const top = Math.max(PAD, Math.min(vh - popH - PAD, desiredTop));
+      console.info('[tag-pop] measure — anchor:', { top: anchor.top, left: anchor.left, right: anchor.right }, '→ pop:', { top, left, popH });
       setPos({ top, left });
     };
     measure();
