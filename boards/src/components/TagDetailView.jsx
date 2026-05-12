@@ -235,6 +235,13 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   const hasOwnText = (c) =>
     (c.title && c.title.trim().length > 0) ||
     (c.body  && c.body.trim().length  > 0);
+  // Image and palette cards are visual — their content IS the
+  // thumbnail / swatches — so they should pass the inclusion gate
+  // even when they have no title or body. Without this check,
+  // an image-heavy group tagged for a character would render as
+  // empty in the tag detail view.
+  const passesContentGate = (c) =>
+    c.kind === 'image' || c.kind === 'palette' || hasOwnText(c);
 
   // Keep these queries on the UNFILTERED boards/groups so changing
   // the filter doesn't re-fetch. The filter is purely a render gate.
@@ -254,7 +261,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
         if (cancelled) return;
         const m = new Map();
         for (const c of (data || [])) {
-          if (!hasOwnText(c)) continue;
+          if (!passesContentGate(c)) continue;
           if (!m.has(c.board_id)) m.set(c.board_id, []);
           m.get(c.board_id).push(c);
         }
@@ -275,7 +282,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
         if (cancelled) return;
         const m = new Map();
         for (const c of (data || [])) {
-          if (!hasOwnText(c)) continue;
+          if (!passesContentGate(c)) continue;
           const gid = c.meta?.groupId;
           if (!gid) continue;
           const key = `${c.board_id}::${gid}`;
