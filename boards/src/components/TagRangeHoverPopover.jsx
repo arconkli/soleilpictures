@@ -77,8 +77,10 @@ export function TagRangeHoverPopover({
   // When the user clicks an image thumb we open a fullscreen
   // lightbox INSTEAD of navigating to the source board — they're
   // browsing the popover, not trying to leave it. Closing the
-  // lightbox drops them back into the popover scroll.
-  const [lightbox, setLightbox] = useState(null);
+  // lightbox drops them back into the popover scroll. We track an
+  // index into data.images so ArrowLeft/ArrowRight can flip through
+  // the whole tag's image set fullscreen.
+  const [lightboxIdx, setLightboxIdx] = useState(null);
   const navigate = useEntityNavigate();
 
   const [data, setData] = useState({
@@ -280,11 +282,23 @@ export function TagRangeHoverPopover({
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key !== 'Escape') return;
-      // If the lightbox is open, let it handle Escape first — the
-      // user wants to close the image, not the popover.
-      if (lightbox) return;
-      onClose?.();
+      if (lightboxIdx != null) {
+        // While the lightbox is open it owns the keyboard: Escape
+        // closes it, ←/→ flip through the popover's image list.
+        if (e.key === 'Escape') { setLightboxIdx(null); e.stopPropagation(); return; }
+        if (e.key === 'ArrowLeft' && data.images.length > 0) {
+          e.preventDefault(); e.stopPropagation();
+          setLightboxIdx((i) => (i - 1 + data.images.length) % data.images.length);
+          return;
+        }
+        if (e.key === 'ArrowRight' && data.images.length > 0) {
+          e.preventDefault(); e.stopPropagation();
+          setLightboxIdx((i) => (i + 1) % data.images.length);
+          return;
+        }
+        return;
+      }
+      if (e.key === 'Escape') onClose?.();
     };
     const onDown = (e) => {
       if (!popRef.current) return;
@@ -295,13 +309,13 @@ export function TagRangeHoverPopover({
       if (e.target.closest?.('.lightbox')) return;
       onClose?.();
     };
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     document.addEventListener('mousedown', onDown);
     return () => {
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       document.removeEventListener('mousedown', onDown);
     };
-  }, [onClose, lightbox]);
+  }, [onClose, lightboxIdx, data.images.length]);
 
   const openTag = () => {
     onClose?.();
@@ -337,7 +351,7 @@ export function TagRangeHoverPopover({
         <div className="tag-pop-images">
           {data.images.map((im, i) => (
             <button key={i} className="tag-pop-thumb"
-                    onClick={() => setLightbox({ src: im.src, title: im.title || '', alt: im.title || '' })}
+                    onClick={() => setLightboxIdx(i)}
                     title={im.title || 'Image'}>
               <R2Image src={im.src} alt="" />
             </button>
@@ -380,12 +394,12 @@ export function TagRangeHoverPopover({
         View tag <span aria-hidden="true">→</span>
       </button>
     </div>
-    {lightbox && (
+    {lightboxIdx != null && data.images[lightboxIdx] && (
       <ImageLightbox
-        src={lightbox.src}
-        title={lightbox.title}
-        alt={lightbox.alt}
-        onClose={() => setLightbox(null)}
+        src={data.images[lightboxIdx].src}
+        title={data.images[lightboxIdx].title || ''}
+        alt={data.images[lightboxIdx].title || ''}
+        onClose={() => setLightboxIdx(null)}
       />
     )}
     </>,

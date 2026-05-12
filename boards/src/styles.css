@@ -6644,7 +6644,9 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
    actual size with drag-to-pan. Click backdrop or Esc to close.            */
 .lightbox {
   position: fixed; inset: 0;
-  z-index: 2147483640;
+  /* Sit on top of every other overlay (tag popover, comments,
+     find-replace) so it owns the screen until dismissed. */
+  z-index: 2147483647;
   background: rgba(8,8,10,.86);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
