@@ -1,22 +1,33 @@
-// Compact tag popover that opens from a left-margin dot (DocTagGutter).
+// Rich tag popover that opens from a left-margin dot (DocTagGutter).
 //
-// Layout (~260px wide):
+// Layout (~320px wide). The popover prefers VISUAL content first so a
+// character tag actually shows the look — clothes/refs/etc — instead of
+// just listing titles. Three sections, each conditional on having
+// content, in priority order:
+//
 //   ┌──────────────────────────────────────┐
-//   │ ▣  Pricing Plans            14 items │   chip header (color stamp + name + count)
-//   │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄ │
-//   │ ▢ thumb   Free plan                  │   peek rows (cap 4)
-//   │ ▢▢▢       Pricing palette            │
-//   │ ◇         Pricing tiers doc          │
-//   │ ◇         Personal Pricing           │
-//   │                       View tag →     │   footer link (on hover)
+//   │ ▣  Pricing Plans            14 items │   chip header
+//   │ ────────────────────────────────────  │
+//   │ ┌──┐┌──┐┌──┐                          │
+//   │ │  ││  ││  │      Image grid          │   tagged image thumbs
+//   │ └──┘└──┘└──┘                          │
+//   │ ┌──┐┌──┐┌──┐                          │
+//   │ │  ││  ││  │                          │
+//   │ └──┘└──┘└──┘                          │
+//   │ ────────────────────────────────────  │
+//   │ ▢▢▢▢▢▢▢▢  Spring palette              │   palette strips
+//   │ ▢▢▢▢▢▢▢▢  Warm tones                  │
+//   │ ────────────────────────────────────  │
+//   │ ◇ Pricing tiers doc                   │   text rows (other kinds)
+//   │ ◇ Personal pricing board               │
+//   │                       View tag →     │
 //   └──────────────────────────────────────┘
 //
-// Tag color appears as a small rounded stamp in the header and tints
-// the box-shadow so the popover feels bound to the tag without the
-// heavy left stripe of the prior design. Translucent backdrop + a
-// short slide-in from the anchor side complete the lighter feel.
+// Tag color is carried via a small color stamp in the header + a soft
+// tag-tinted box shadow under the panel. Each cell/strip/row is its
+// own button → navigates to the source entity.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette as PaletteIcon, Calendar, Link as LinkIcon, Tag as TagIcon } from '../lib/icons.js';
@@ -25,8 +36,16 @@ import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 
 const PAD = 8;
-const W = 260;
-const MAX_PEEK = 4;
+const W = 320;
+// Per-section caps. The popover stays scannable — the full list lives
+// behind "View tag →". Images cap at 9 (3x3) so a character with 50
+// looks still gets a meaningful preview, not all of them.
+const MAX_IMAGES = 9;
+const MAX_PALETTES = 3;
+const MAX_OTHER = 4;
+// We fetch more than we'll show so each section has enough candidates
+// to fill its cap. Caps apply per-kind, not globally.
+const FETCH_LIMIT = 80;
 
 const KIND_ICON = {
   board: LayoutGrid, group: LayoutGrid, doc: FileText,
@@ -48,14 +67,15 @@ export function TagRangeHoverPopover({
 }) {
   const popRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
-  const [openSide, setOpenSide] = useState('right'); // which side of the anchor we ended up on
+  const [openSide, setOpenSide] = useState('right');
   const [enter, setEnter] = useState(false);
   const navigate = useEntityNavigate();
 
-  const [peeks, setPeeks] = useState({ rows: [], total: 0, loading: true });
+  const [data, setData] = useState({
+    images: [], palettes: [], other: [], total: 0, loading: true,
+  });
 
   useEffect(() => {
-    // Trigger entrance transition on the next frame.
     const id = requestAnimationFrame(() => setEnter(true));
     return () => cancelAnimationFrame(id);
   }, []);
@@ -72,10 +92,9 @@ export function TagRangeHoverPopover({
           .eq('target_id', tagId)
           .eq('link_kind', 'applied')
           .order('created_at', { ascending: false })
-          .limit(40);
+          .limit(FETCH_LIMIT);
         if (cancelled) return;
         const rows = links || [];
-        // Hydrate via entity_search for the bulk of kinds.
         const esIds = [];
         const pageIds = [];
         for (const r of rows) {
@@ -103,7 +122,9 @@ export function TagRangeHoverPopover({
         const byEs = new Map((esResp.data || []).map(r => [r.id, r]));
         const byPage = new Map((pageResp.data || []).map(r => [r.page_id, r]));
         const seenKeys = new Set();
-        const hydrated = [];
+        const images = [];
+        const palettes = [];
+        const other = [];
         for (const r of rows) {
           let key, navTarget, hit;
           if (r.source_kind === 'board') {
@@ -131,21 +152,37 @@ export function TagRangeHoverPopover({
             navTarget = { kind: r.source_kind, boardId: r.source_board_id, cardId: r.source_id };
           }
           if (!hit) continue;
-          const title = (hit.title || '').trim() || (hit.body || '').trim().slice(0, 40);
-          if (!title) continue;
           if (seenKeys.has(key)) continue;
           seenKeys.add(key);
-          hydrated.push({
-            kind: hit.kind || r.source_kind,
-            title,
-            row: hit,
-            navTarget,
-          });
-          if (hydrated.length >= MAX_PEEK) break;
+          const meta = hit.meta || null;
+          const title = (hit.title || '').trim() || (hit.body || '').trim().slice(0, 40);
+
+          // Route into the right section. Image + palette skip the
+          // title-required gate since their visual IS the content.
+          if (hit.kind === 'image' && meta?.src) {
+            if (images.length < MAX_IMAGES) {
+              images.push({ src: meta.src, title, navTarget });
+            }
+            continue;
+          }
+          if (hit.kind === 'palette' && Array.isArray(meta?.swatches) && meta.swatches.length) {
+            if (palettes.length < MAX_PALETTES) {
+              palettes.push({ swatches: meta.swatches, title, navTarget });
+            }
+            continue;
+          }
+          if (!title) continue;
+          if (other.length < MAX_OTHER) {
+            other.push({ kind: hit.kind || r.source_kind, title, navTarget });
+          }
         }
-        if (!cancelled) setPeeks({ rows: hydrated, total: count ?? rows.length, loading: false });
+        if (!cancelled) setData({
+          images, palettes, other,
+          total: count ?? rows.length,
+          loading: false,
+        });
       } catch (_) {
-        if (!cancelled) setPeeks({ rows: [], total: 0, loading: false });
+        if (!cancelled) setData({ images: [], palettes: [], other: [], total: 0, loading: false });
       }
     })();
     return () => { cancelled = true; };
@@ -161,7 +198,6 @@ export function TagRangeHoverPopover({
       const left = openLeft
         ? Math.max(PAD, anchor.left - W - 12)
         : Math.min(vw - W - PAD, anchor.right + 12);
-      // Vertically center on the dot, then clamp.
       const desiredTop = anchor.top + (anchor.height / 2) - (popH / 2);
       const top = Math.max(PAD, Math.min(vh - popH - PAD, desiredTop));
       setPos({ top, left });
@@ -174,15 +210,13 @@ export function TagRangeHoverPopover({
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
     };
-  }, [anchor, peeks.rows.length]);
+  }, [anchor, data.images.length, data.palettes.length, data.other.length]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
     const onDown = (e) => {
       if (!popRef.current) return;
       if (popRef.current.contains(e.target)) return;
-      // Don't close if the click was on the dot or tinted word that
-      // OPENED the popover — that just causes a flash close+reopen.
       if (e.target.closest?.('.doc-tag-gutter-dot, .tt-tag-word')) return;
       onClose?.();
     };
@@ -199,7 +233,9 @@ export function TagRangeHoverPopover({
     document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId } }));
   };
 
-  const total = peeks.total;
+  const total = data.total;
+  const hasAny = data.images.length || data.palettes.length || data.other.length;
+  const go = (target) => { onClose?.(); navigate(target); };
 
   return createPortal(
     <div ref={popRef}
@@ -214,61 +250,60 @@ export function TagRangeHoverPopover({
           <span className="tag-pop-count">{total} {total === 1 ? 'item' : 'items'}</span>
         )}
       </button>
-      {peeks.loading && (
-        <div className="tag-pop-empty">Loading…</div>
-      )}
-      {!peeks.loading && peeks.rows.length === 0 && (
+
+      {data.loading && <div className="tag-pop-empty">Loading…</div>}
+
+      {!data.loading && !hasAny && (
         <div className="tag-pop-empty">No other items tagged.</div>
       )}
-      {peeks.rows.length > 0 && (
-        <div className="tag-pop-list">
-          {peeks.rows.map((p, i) => (
-            <PeekRow key={i} peek={p}
-                     onClick={() => { onClose?.(); navigate(p.navTarget); }} />
+
+      {data.images.length > 0 && (
+        <div className="tag-pop-images">
+          {data.images.map((im, i) => (
+            <button key={i} className="tag-pop-thumb"
+                    onClick={() => go(im.navTarget)} title={im.title || 'Image'}>
+              <R2Image src={im.src} alt="" />
+            </button>
           ))}
         </div>
       )}
+
+      {data.palettes.length > 0 && (
+        <div className="tag-pop-palettes">
+          {data.palettes.map((p, i) => (
+            <button key={i} className="tag-pop-palette"
+                    onClick={() => go(p.navTarget)} title={p.title || 'Palette'}>
+              <span className="tag-pop-palette-swatches">
+                {p.swatches.slice(0, 10).map((c, j) => (
+                  <span key={j} style={{ background: c }} />
+                ))}
+              </span>
+              {p.title && <span className="tag-pop-palette-title">{p.title}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {data.other.length > 0 && (
+        <div className="tag-pop-list">
+          {data.other.map((p, i) => {
+            const Icn = KIND_ICON[p.kind] || StickyNote;
+            return (
+              <button key={i} className="tag-pop-row"
+                      onClick={() => go(p.navTarget)} title={p.title}>
+                <span className="tag-pop-row-icon"><Icon as={Icn} size={12} /></span>
+                <span className="tag-pop-row-title">{p.title}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <button className="tag-pop-footer" onClick={openTag}>
         View tag <span aria-hidden="true">→</span>
       </button>
     </div>,
     document.body,
-  );
-}
-
-function PeekRow({ peek, onClick }) {
-  const Icn = KIND_ICON[peek.kind] || StickyNote;
-  const meta = peek.row?.meta || null;
-  // Visual preview where it makes sense — same rule the tag detail
-  // view uses: image + palette get a thumbnail; everything else
-  // shows just the kind icon.
-  let visual = null;
-  if (peek.kind === 'image' && meta?.src) {
-    visual = (
-      <span className="tag-pop-row-thumb is-image">
-        <R2Image src={meta.src} alt="" />
-      </span>
-    );
-  } else if (peek.kind === 'palette' && Array.isArray(meta?.swatches) && meta.swatches.length) {
-    visual = (
-      <span className="tag-pop-row-thumb is-palette">
-        {meta.swatches.slice(0, 4).map((c, i) => (
-          <span key={i} style={{ background: c }} />
-        ))}
-      </span>
-    );
-  } else {
-    visual = (
-      <span className="tag-pop-row-thumb is-icon">
-        <Icon as={Icn} size={12} />
-      </span>
-    );
-  }
-  return (
-    <button className="tag-pop-row" onClick={onClick} title={peek.title}>
-      {visual}
-      <span className="tag-pop-row-title">{peek.title}</span>
-    </button>
   );
 }
 

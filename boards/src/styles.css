@@ -11459,32 +11459,97 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   color: var(--ink-0);
   background: color-mix(in oklab, var(--tag-color, var(--soleil)) 10%, transparent);
 }
+.tag-pop-row-icon {
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-3);
+  transition: color 90ms ease;
+}
+.tag-pop-row:hover .tag-pop-row-icon { color: var(--ink-1); }
 .tag-pop-row-title {
   flex: 1 1 auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tag-pop-row-thumb {
-  flex-shrink: 0;
-  width: 28px; height: 22px;
+
+/* Image grid — 3 columns of square thumbs. Cells inherit the
+   tag-tinted hover treatment of other clickable sections. */
+.tag-pop-images {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 6px 10px 8px;
+  border-top: 1px solid color-mix(in oklab, var(--line-1) 70%, transparent);
+}
+.tag-pop-thumb {
+  appearance: none;
+  position: relative;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-2);
+  box-shadow: 0 0 0 1px var(--line-1);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.tag-pop-thumb:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--tag-color, var(--soleil)) 70%, transparent),
+              0 6px 18px -8px color-mix(in oklab, var(--tag-color, var(--soleil)) 60%, transparent);
+  z-index: 1;
+}
+.tag-pop-thumb img,
+.tag-pop-thumb .r2-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Palette strips — full-width swatch row + name underneath. Each
+   palette is one clickable block so the user can jump straight to
+   the source card. */
+.tag-pop-palettes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px 8px;
+  border-top: 1px solid color-mix(in oklab, var(--line-1) 70%, transparent);
+}
+.tag-pop-palette {
+  appearance: none;
+  display: flex; flex-direction: column; gap: 4px;
+  width: 100%;
+  padding: 4px 4px 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 90ms ease;
+}
+.tag-pop-palette:hover {
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 12%, transparent);
+}
+.tag-pop-palette-swatches {
+  display: flex;
+  height: 18px;
   border-radius: 4px;
   overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--bg-2);
-  border: 1px solid var(--line-1);
+  box-shadow: 0 0 0 1px var(--line-1);
 }
-.tag-pop-row-thumb.is-icon { color: var(--ink-3); background: transparent; border-color: transparent; }
-.tag-pop-row:hover .tag-pop-row-thumb.is-icon { color: var(--ink-1); }
-.tag-pop-row-thumb.is-image img,
-.tag-pop-row-thumb.is-image .r2-img {
-  width: 100%; height: 100%; object-fit: cover; display: block;
-}
-.tag-pop-row-thumb.is-palette {
-  display: flex;
-  padding: 0;
-}
-.tag-pop-row-thumb.is-palette > span {
+.tag-pop-palette-swatches > span {
   flex: 1 1 0;
   height: 100%;
+}
+.tag-pop-palette-title {
+  font: 500 11px/1.2 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
 }
