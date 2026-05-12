@@ -482,6 +482,10 @@ async function _doSyncCardIndex(boardId, ydoc) {
   } catch (_) {}
   const rows = [];
   const liveIds = new Set();
+  // Image cards that lack a Y.Doc src — typically because the upload
+  // hadn't completed (or wrote its src after the throttled sync ran).
+  // We patch their meta.src from the `images` table after the walk.
+  const imageCardsNeedingSrc = [];
   cardsMap.forEach((v, id) => {
     if (!v) return;
     const get = (k) => v?.get?.(k) ?? v?.[k];
@@ -500,6 +504,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
     const meta = (groupId || groupName)
       ? { ...baseMeta, groupId, groupName }
       : baseMeta;
+    if (kind === 'image' && !meta.src) imageCardsNeedingSrc.push(id);
     rows.push({
       workspace_id: workspaceId,
       board_id: boardId,
@@ -511,6 +516,33 @@ async function _doSyncCardIndex(boardId, ydoc) {
     });
     liveIds.add(id);
   });
+
+  // Recovery: for image cards with no Y.Doc src, look up the images
+  // table by (board_id, card_id) and graft storage_path → meta.src.
+  // The images row is written by uploadImage at upload-complete time;
+  // having card_id stamped there lets us recover even if the Y.Doc
+  // never got the updateCard({src}) (e.g. user closed the tab right
+  // after dropping).
+  if (imageCardsNeedingSrc.length > 0) {
+    try {
+      const { data: imgRows } = await supabase.from('images')
+        .select('card_id, storage_path')
+        .eq('board_id', boardId)
+        .in('card_id', imageCardsNeedingSrc);
+      const byCardId = new Map();
+      for (const r of (imgRows || [])) {
+        if (r.card_id && r.storage_path) byCardId.set(r.card_id, r.storage_path);
+      }
+      if (byCardId.size > 0) {
+        for (const row of rows) {
+          if (row.kind !== 'image' || row.meta?.src) continue;
+          const sp = byCardId.get(row.card_id);
+          if (!sp) continue;
+          row.meta = { ...(row.meta || {}), src: `r2:${sp}` };
+        }
+      }
+    } catch (e) { console.warn('syncCardIndex image-src recovery failed', e?.message || e); }
+  }
 
   if (rows.length > 0) {
     // UPSERT on (board_id, card_id). Idempotent — no race if two windows

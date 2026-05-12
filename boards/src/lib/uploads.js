@@ -87,9 +87,15 @@ function putWithProgress(url, file, { onProgress } = {}) {
 // upload originated from. RLS uses board_id to extend image read
 // access to per-board shares.
 //
+// `cardId` is optional but strongly recommended: it lets card_index
+// recover meta.src from the images table when the Y.Doc → card_index
+// sync misses the field (e.g. when the card was added BEFORE the
+// upload completed, and no later edit triggered a re-sync). Without
+// it, card_index has no way to link an image card to its R2 key.
+//
 // `onProgress(p)` (0..1) fires during the PUT step so callers can
 // render a progress chip on the placeholder card.
-export async function uploadImage({ file, workspaceId, boardId, userId, onProgress = null }) {
+export async function uploadImage({ file, workspaceId, boardId, cardId = null, userId, onProgress = null }) {
   if (!workspaceId) throw new Error('workspaceId required');
 
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
@@ -103,6 +109,7 @@ export async function uploadImage({ file, workspaceId, boardId, userId, onProgre
     .insert({
       workspace_id: workspaceId,
       board_id: boardId || null,
+      card_id: cardId || null,
       storage_path: key,
       width: dims.w,
       height: dims.h,

@@ -799,7 +799,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setAutoFocusId(id);
     };
     const addTextLink = addNote; // identical for now
-    const dropImageBlob = ({ publicUrl, width, height, x, y }) => {
+    const dropImageBlob = ({ id, publicUrl, width, height, x, y }) => {
       let w = 240, h = 200;
       if (width && height) {
         const ar = width / height;
@@ -809,7 +809,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         w = Math.max(80, Math.min(420, w));
       }
       addCard({
-        id: `img-${Date.now()}`, kind: 'image', src: publicUrl,
+        id: id || `img-${Date.now()}`, kind: 'image', src: publicUrl,
         x: Math.max(8, Math.round((x ?? 200) - w / 2)),
         y: Math.max(8, Math.round((y ?? 200) - h / 2)),
         w, h,
@@ -820,9 +820,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       input.type = 'file'; input.accept = 'image/*';
       input.onchange = async () => {
         const f = input.files?.[0]; if (!f) return;
+        // Pre-generate the card id so it can be stamped onto the
+        // images row (lets card_index recover src later if needed)
+        // and so dropImageBlob uses the same id, keeping the card
+        // ↔ image link consistent end-to-end.
+        const cardId = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
         try {
-          const up = await uploadImage({ file: f, workspaceId: workspace.id, boardId: boardId, userId: user.id });
-          dropImageBlob({ ...up, x: clickPos?.x, y: clickPos?.y });
+          const up = await uploadImage({ file: f, workspaceId: workspace.id, boardId: boardId, cardId, userId: user.id });
+          dropImageBlob({ ...up, id: cardId, x: clickPos?.x, y: clickPos?.y });
         } catch (e) {
           console.error(e);
           feedback.toast({ type: 'error', message: 'Image upload failed: ' + (e.message || e) });

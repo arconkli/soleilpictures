@@ -880,7 +880,7 @@ export function CanvasSurface({
       const onProgress = (frac) => {
         setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       };
-      const up = await uploadImage({ file, workspaceId, boardId: board?.id, userId, onProgress });
+      const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
       mutators.updateCard?.(id, { src: up.src, pending: false });
     } catch (err) {
       console.error('image upload failed', err);
