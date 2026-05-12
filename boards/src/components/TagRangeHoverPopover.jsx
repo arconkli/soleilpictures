@@ -32,6 +32,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette as PaletteIcon, Calendar, Link as LinkIcon, Tag as TagIcon } from '../lib/icons.js';
 import { R2Image } from './R2Image.jsx';
+import { ImageLightbox } from './ImageLightbox.jsx';
 import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 
@@ -73,6 +74,11 @@ export function TagRangeHoverPopover({
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const [openSide, setOpenSide] = useState('right');
   const [enter, setEnter] = useState(false);
+  // When the user clicks an image thumb we open a fullscreen
+  // lightbox INSTEAD of navigating to the source board — they're
+  // browsing the popover, not trying to leave it. Closing the
+  // lightbox drops them back into the popover scroll.
+  const [lightbox, setLightbox] = useState(null);
   const navigate = useEntityNavigate();
 
   const [data, setData] = useState({
@@ -273,11 +279,20 @@ export function TagRangeHoverPopover({
   }, [anchor, data.images.length, data.palettes.length, data.other.length]);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      // If the lightbox is open, let it handle Escape first — the
+      // user wants to close the image, not the popover.
+      if (lightbox) return;
+      onClose?.();
+    };
     const onDown = (e) => {
       if (!popRef.current) return;
       if (popRef.current.contains(e.target)) return;
       if (e.target.closest?.('.doc-tag-gutter-dot, .tt-tag-word')) return;
+      // Lightbox is a sibling portal — clicks inside it (including
+      // the backdrop) should never close the popover behind it.
+      if (e.target.closest?.('.lightbox')) return;
       onClose?.();
     };
     document.addEventListener('keydown', onKey);
@@ -286,7 +301,7 @@ export function TagRangeHoverPopover({
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onDown);
     };
-  }, [onClose]);
+  }, [onClose, lightbox]);
 
   const openTag = () => {
     onClose?.();
@@ -298,6 +313,7 @@ export function TagRangeHoverPopover({
   const go = (target) => { onClose?.(); navigate(target); };
 
   return createPortal(
+    <>
     <div ref={popRef}
          className={`tag-pop tag-pop-from-${openSide} ${enter ? 'is-in' : ''}`}
          style={{ top: pos.top, left: pos.left, width: W, '--tag-color': tagColor }}
@@ -321,7 +337,8 @@ export function TagRangeHoverPopover({
         <div className="tag-pop-images">
           {data.images.map((im, i) => (
             <button key={i} className="tag-pop-thumb"
-                    onClick={() => go(im.navTarget)} title={im.title || 'Image'}>
+                    onClick={() => setLightbox({ src: im.src, title: im.title || '', alt: im.title || '' })}
+                    title={im.title || 'Image'}>
               <R2Image src={im.src} alt="" />
             </button>
           ))}
@@ -362,7 +379,16 @@ export function TagRangeHoverPopover({
       <button className="tag-pop-footer" onClick={openTag}>
         View tag <span aria-hidden="true">→</span>
       </button>
-    </div>,
+    </div>
+    {lightbox && (
+      <ImageLightbox
+        src={lightbox.src}
+        title={lightbox.title}
+        alt={lightbox.alt}
+        onClose={() => setLightbox(null)}
+      />
+    )}
+    </>,
     document.body,
   );
 }
