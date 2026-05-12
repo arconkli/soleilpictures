@@ -37,15 +37,19 @@ import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 
 const PAD = 8;
 const W = 320;
-// Per-section caps. The popover stays scannable — the full list lives
-// behind "View tag →". Images cap at 9 (3x3) so a character with 50
-// looks still gets a meaningful preview, not all of them.
-const MAX_IMAGES = 9;
+// Per-section caps. The image grid is scrollable, so we collect a lot
+// — including images pulled transitively from tagged groups/boards.
+// The AI can't see image content, so almost no images are ever tagged
+// directly; the only realistic path is via a tagged container.
+const MAX_IMAGES = 120;
 const MAX_PALETTES = 3;
 const MAX_OTHER = 4;
 // We fetch more than we'll show so each section has enough candidates
 // to fill its cap. Caps apply per-kind, not globally.
 const FETCH_LIMIT = 80;
+// Per-container scan cap. A board with thousands of images shouldn't
+// pull every row into a hover popover.
+const IMAGES_PER_CONTAINER = 60;
 
 const KIND_ICON = {
   board: LayoutGrid, group: LayoutGrid, doc: FileText,
@@ -122,9 +126,24 @@ export function TagRangeHoverPopover({
         const byEs = new Map((esResp.data || []).map(r => [r.id, r]));
         const byPage = new Map((pageResp.data || []).map(r => [r.page_id, r]));
         const seenKeys = new Set();
+        // Dedup images by their card identity, not by section key —
+        // the same image card might be reachable directly AND via its
+        // tagged group, and we should only show it once.
+        const seenImageCards = new Set();
         const images = [];
         const palettes = [];
         const other = [];
+        // Track tagged groups + boards so we can pull their images
+        // transitively after the direct pass below.
+        const taggedGroups = []; // [{ boardId, groupId }]
+        const taggedBoards = []; // [boardId]
+        for (const r of rows) {
+          if (r.source_kind === 'group' && r.source_board_id && r.source_id) {
+            taggedGroups.push({ boardId: r.source_board_id, groupId: r.source_id });
+          } else if (r.source_kind === 'board' && r.source_id) {
+            taggedBoards.push(r.source_id);
+          }
+        }
         for (const r of rows) {
           let key, navTarget, hit;
           if (r.source_kind === 'board') {
@@ -160,7 +179,9 @@ export function TagRangeHoverPopover({
           // Route into the right section. Image + palette skip the
           // title-required gate since their visual IS the content.
           if (hit.kind === 'image' && meta?.src) {
-            if (images.length < MAX_IMAGES) {
+            const cardKey = `${hit.board_id || r.source_board_id}:${hit.card_id || r.source_id}`;
+            if (!seenImageCards.has(cardKey) && images.length < MAX_IMAGES) {
+              seenImageCards.add(cardKey);
               images.push({ src: meta.src, title, navTarget });
             }
             continue;
@@ -176,6 +197,45 @@ export function TagRangeHoverPopover({
             other.push({ kind: hit.kind || r.source_kind, title, navTarget });
           }
         }
+
+        // Transitive pass: any tagged group or board pulls in its
+        // image cards. The AI can't see image content so directly-
+        // tagged images are rare; tagging the container is the
+        // realistic path.
+        if (taggedGroups.length || taggedBoards.length) {
+          const groupQueries = taggedGroups.map(g => supabase.from('card_index')
+            .select('board_id, card_id, title, meta')
+            .eq('workspace_id', workspaceId)
+            .eq('board_id', g.boardId)
+            .eq('kind', 'image')
+            .filter('meta->>groupId', 'eq', g.groupId)
+            .limit(IMAGES_PER_CONTAINER));
+          const boardQueries = taggedBoards.map(b => supabase.from('card_index')
+            .select('board_id, card_id, title, meta')
+            .eq('workspace_id', workspaceId)
+            .eq('board_id', b)
+            .eq('kind', 'image')
+            .limit(IMAGES_PER_CONTAINER));
+          const responses = await Promise.all([...groupQueries, ...boardQueries]);
+          if (cancelled) return;
+          for (const resp of responses) {
+            for (const c of (resp.data || [])) {
+              if (images.length >= MAX_IMAGES) break;
+              const src = c.meta?.src;
+              if (!src) continue;
+              const cardKey = `${c.board_id}:${c.card_id}`;
+              if (seenImageCards.has(cardKey)) continue;
+              seenImageCards.add(cardKey);
+              images.push({
+                src,
+                title: c.title || '',
+                navTarget: { kind: 'image', boardId: c.board_id, cardId: c.card_id },
+              });
+            }
+            if (images.length >= MAX_IMAGES) break;
+          }
+        }
+
         if (!cancelled) setData({
           images, palettes, other,
           total: count ?? rows.length,

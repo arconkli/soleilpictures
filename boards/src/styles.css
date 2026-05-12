@@ -11474,15 +11474,31 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   text-overflow: ellipsis;
 }
 
-/* Image grid — 3 columns of square thumbs. Cells inherit the
-   tag-tinted hover treatment of other clickable sections. */
+/* Image grid — 3 columns of square thumbs. Scrollable so a tag with
+   dozens of looks/refs (mainly inherited from a tagged group) can be
+   browsed without leaving the popover. Cells inherit the tag-tinted
+   hover treatment of other clickable sections. */
 .tag-pop-images {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   padding: 6px 10px 8px;
   border-top: 1px solid color-mix(in oklab, var(--line-1) 70%, transparent);
+  max-height: 312px;     /* about 3 rows visible at this width */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-3) transparent;
 }
+.tag-pop-images::-webkit-scrollbar { width: 8px; }
+.tag-pop-images::-webkit-scrollbar-track { background: transparent; }
+.tag-pop-images::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.tag-pop-images:hover::-webkit-scrollbar-thumb { background: var(--line-3); background-clip: content-box; }
 .tag-pop-thumb {
   appearance: none;
   position: relative;
