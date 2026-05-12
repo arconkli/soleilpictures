@@ -1,21 +1,20 @@
 // Compact tag popover that opens from a left-margin dot (DocTagGutter).
 //
-// Layout:
-//   ┌─────────────────────────────────────┐
-//   │█ Pricing Plans              14 items│   tag color stripe + name + count
-//   │█ ─────────────────────────────────  │
-//   │█ ▢ thumbnail   Free plan            │   image card → R2 thumb
-//   │█ ▢▢▢ swatches  Pricing palette      │   palette card → color strip
-//   │█ ◇ Pricing board                    │   board → icon only
-//   │█ ◇ Personal Pricing                 │   group → icon only
-//   │█ ◇ Pricing tiers doc                │   doc → icon
-//   └─────────────────────────────────────┘
+// Layout (~260px wide):
+//   ┌──────────────────────────────────────┐
+//   │ ▣  Pricing Plans            14 items │   chip header (color stamp + name + count)
+//   │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄ │
+//   │ ▢ thumb   Free plan                  │   peek rows (cap 4)
+//   │ ▢▢▢       Pricing palette            │
+//   │ ◇         Pricing tiers doc          │
+//   │ ◇         Personal Pricing           │
+//   │                       View tag →     │   footer link (on hover)
+//   └──────────────────────────────────────┘
 //
-// The header chip and any row are clickable to navigate. Tag color
-// stripe on the left binds the whole popover visually to the tag.
-// No source line, no section heading, no separate footer — every
-// section was load-bearing of nothing; the user already knows why
-// the popover is showing.
+// Tag color appears as a small rounded stamp in the header and tints
+// the box-shadow so the popover feels bound to the tag without the
+// heavy left stripe of the prior design. Translucent backdrop + a
+// short slide-in from the anchor side complete the lighter feel.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -26,8 +25,8 @@ import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 
 const PAD = 8;
-const W = 300;
-const MAX_PEEK = 6;
+const W = 260;
+const MAX_PEEK = 4;
 
 const KIND_ICON = {
   board: LayoutGrid, group: LayoutGrid, doc: FileText,
@@ -49,6 +48,7 @@ export function TagRangeHoverPopover({
 }) {
   const popRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [openSide, setOpenSide] = useState('right'); // which side of the anchor we ended up on
   const [enter, setEnter] = useState(false);
   const navigate = useEntityNavigate();
 
@@ -164,8 +164,8 @@ export function TagRangeHoverPopover({
       // Vertically center on the dot, then clamp.
       const desiredTop = anchor.top + (anchor.height / 2) - (popH / 2);
       const top = Math.max(PAD, Math.min(vh - popH - PAD, desiredTop));
-      console.info('[tag-pop] measure — anchor:', { top: anchor.top, left: anchor.left, right: anchor.right }, '→ pop:', { top, left, popH });
       setPos({ top, left });
+      setOpenSide(openLeft ? 'left' : 'right');
     };
     measure();
     window.addEventListener('resize', measure);
@@ -203,12 +203,12 @@ export function TagRangeHoverPopover({
 
   return createPortal(
     <div ref={popRef}
-         className={`tag-pop ${enter ? 'is-in' : ''}`}
+         className={`tag-pop tag-pop-from-${openSide} ${enter ? 'is-in' : ''}`}
          style={{ top: pos.top, left: pos.left, width: W, '--tag-color': tagColor }}
          onMouseEnter={onMouseEnter}
          onMouseLeave={onMouseLeave}>
-      <div className="tag-pop-stripe" aria-hidden="true" />
       <button className="tag-pop-header" onClick={openTag} title="Open tag detail">
+        <span className="tag-pop-stamp" aria-hidden="true" />
         <span className="tag-pop-name">{tagName || 'Tag'}</span>
         {total > 0 && (
           <span className="tag-pop-count">{total} {total === 1 ? 'item' : 'items'}</span>
@@ -228,6 +228,9 @@ export function TagRangeHoverPopover({
           ))}
         </div>
       )}
+      <button className="tag-pop-footer" onClick={openTag}>
+        View tag <span aria-hidden="true">→</span>
+      </button>
     </div>,
     document.body,
   );

@@ -11348,30 +11348,29 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
      overlays. Match that so we sit on top of doc shadows, comment
      gutters, find-replace bars, etc. */
   z-index: 2147483647;
-  border: 1px solid var(--line-1);
-  border-radius: 12px;
-  background: var(--bg-1);
-  box-shadow: 0 24px 48px -16px rgba(0,0,0,.42), 0 2px 0 rgba(0,0,0,.04);
+  border-radius: 14px;
+  /* Tag-color-tinted glow underneath a translucent panel — gives the
+     popover a quiet visual link to the tag without a heavy stripe.
+     The 1px inset ring keeps the edge crisp on busy backgrounds. */
+  background: color-mix(in oklab, var(--bg-1) 84%, transparent);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+          backdrop-filter: saturate(140%) blur(14px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.04) inset,
+    0 0 0 1px var(--line-1),
+    0 18px 50px -20px color-mix(in oklab, var(--tag-color, var(--soleil)) 55%, transparent),
+    0 24px 48px -16px rgba(0,0,0,.45);
   overflow: hidden;
   font-family: var(--font-sans);
   color: var(--ink-0);
-  /* The whole popover starts slightly offset + faded; the .is-in
-     class triggers the entrance transition. */
+  /* Entrance: opacity + a 4px slide-in from the anchor side. The
+     .tag-pop-from-{right,left} classes pick the starting offset. */
   opacity: 0;
-  transform: translateY(-3px);
-  transition: opacity 120ms ease, transform 120ms ease;
-  padding-left: 6px;             /* room for the color stripe */
+  transition: opacity 100ms ease, transform 140ms cubic-bezier(.22,.61,.36,1);
 }
-.tag-pop.is-in {
-  opacity: 1;
-  transform: translateY(0);
-}
-.tag-pop-stripe {
-  position: absolute;
-  top: 0; bottom: 0; left: 0;
-  width: 4px;
-  background: var(--tag-color, var(--soleil));
-}
+.tag-pop-from-right { transform: translateX(-4px); }
+.tag-pop-from-left  { transform: translateX( 4px); }
+.tag-pop.is-in { opacity: 1; transform: translateX(0); }
 .tag-pop-header {
   appearance: none;
   display: flex; align-items: center; gap: 10px;
@@ -11379,34 +11378,48 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background: transparent;
   border: 0;
   text-align: left;
-  padding: 12px 14px 10px;
+  padding: 11px 14px 10px;
   cursor: pointer;
   color: inherit;
   transition: background-color 100ms ease;
 }
-.tag-pop-header:hover { background: var(--bg-0); }
+.tag-pop-header:hover {
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 10%, transparent);
+}
+.tag-pop-stamp {
+  flex-shrink: 0;
+  width: 14px; height: 14px;
+  border-radius: 4px;
+  background: var(--tag-color, var(--soleil));
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--tag-color, var(--soleil)) 60%, transparent),
+    0 0 8px -2px color-mix(in oklab, var(--tag-color, var(--soleil)) 70%, transparent);
+}
 .tag-pop-name {
   flex: 1 1 auto;
-  font: 600 14px/1.2 var(--font-sans);
+  font: 600 13.5px/1.2 var(--font-sans);
   color: var(--ink-0);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  letter-spacing: -0.005em;
 }
 .tag-pop-count {
-  font: 500 11px/1 var(--font-mono);
+  font: 500 10.5px/1 var(--font-mono);
   color: var(--ink-3);
   flex-shrink: 0;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .tag-pop-empty {
-  padding: 12px 14px;
+  padding: 8px 14px 12px;
   font: 400 12px/1.4 var(--font-sans);
   color: var(--ink-3);
 }
 .tag-pop-list {
-  padding: 4px 6px 8px;
+  padding: 2px 6px 6px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  border-top: 1px solid color-mix(in oklab, var(--line-1) 70%, transparent);
 }
 .tag-pop-row {
   appearance: none;
@@ -11423,8 +11436,28 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   transition: background-color 90ms ease, color 90ms ease;
 }
 .tag-pop-row:hover {
-  background: var(--bg-hov);
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 12%, transparent);
   color: var(--ink-0);
+}
+.tag-pop-footer {
+  appearance: none;
+  display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid color-mix(in oklab, var(--line-1) 70%, transparent);
+  padding: 7px 12px 8px;
+  cursor: pointer;
+  font: 500 11.5px/1 var(--font-sans);
+  color: var(--ink-3);
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
+  letter-spacing: -0.005em;
+}
+.tag-pop:hover .tag-pop-footer { opacity: 1; }
+.tag-pop-footer:hover {
+  color: var(--ink-0);
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 10%, transparent);
 }
 .tag-pop-row-title {
   flex: 1 1 auto;

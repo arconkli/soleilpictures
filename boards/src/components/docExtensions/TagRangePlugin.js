@@ -59,13 +59,19 @@ function buildDecorations(doc, ranges) {
 
   const decos = [];
   for (const r of ranges) {
-    // Skip paragraph-tier applies — no keyword position, no inline tint.
-    if (typeof r.keywordOffset !== 'number' || typeof r.keywordLength !== 'number') continue;
-    if (r.keywordLength <= 0) continue;
+    // The cascade is word-only now — `startOffset`/`length` ARE the
+    // keyword position. Older rows might have explicit `keywordOffset`
+    // /`keywordLength` from a prior schema; honor those when present,
+    // otherwise fall back to startOffset/length.
+    const kwOff = (typeof r.keywordOffset === 'number') ? r.keywordOffset : r.startOffset;
+    const kwLen = (typeof r.keywordLength === 'number' && r.keywordLength > 0)
+      ? r.keywordLength
+      : r.length;
+    if (typeof kwOff !== 'number' || !(kwLen > 0)) continue;
     const p = byHash.get(r.pHash);
     if (!p) continue;
-    const start = p.paraFrom + Math.max(0, r.keywordOffset);
-    const end = Math.min(p.paraFrom + p.paraText.length, start + r.keywordLength);
+    const start = p.paraFrom + Math.max(0, kwOff);
+    const end = Math.min(p.paraFrom + p.paraText.length, start + kwLen);
     if (end <= start) continue;
     decos.push(Decoration.inline(start, end, {
       class: 'tt-tag-word',

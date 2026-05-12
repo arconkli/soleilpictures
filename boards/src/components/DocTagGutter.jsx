@@ -60,7 +60,12 @@ export function DocTagGutter({ editor, ranges, onOpen }) {
         items.forEach((it, i) => {
           out.push({
             key: `${it.range.pHash}|${it.range.tagId}|${it.range.startOffset}`,
-            top: it.top + i * 11,        // 11px vertical step per stacked dot
+            top: it.top,
+            // First dot keeps the gutter's natural left position; each
+            // additional dot steps 11px further left into the margin,
+            // so a paragraph with multiple tags reads as a horizontal
+            // row of dots instead of a vertical pile.
+            leftStep: i,
             range: it.range,
           });
         });
@@ -88,7 +93,13 @@ export function DocTagGutter({ editor, ranges, onOpen }) {
         <button
           key={p.key}
           className="doc-tag-gutter-dot"
-          style={{ top: p.top + 'px', background: p.range.tagColor }}
+          style={{
+            top: p.top + 'px',
+            // CSS rule sets left:4px by default for the first dot;
+            // override to step further left for stacked dots.
+            left: (4 - p.leftStep * 11) + 'px',
+            background: p.range.tagColor,
+          }}
           title={`${p.range.tagName || 'Tag'} · ${labelForSource(p.range.source)}`}
           onClick={(e) => {
             console.info('[doc-tag-gutter] dot click', p.range.tagName);
