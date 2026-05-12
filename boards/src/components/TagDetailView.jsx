@@ -394,7 +394,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             <Icon as={Icn} size={11} />
           </span>
           <span className="tag-detail-card-preview-text">
-            {excerpt || <span className="tag-detail-card-preview-empty">empty {c.kind}</span>}
+            {excerpt || (isVisualKind
+              ? null
+              : <span className="tag-detail-card-preview-empty">empty {c.kind}</span>)}
           </span>
           {directSource && directSource !== 'user' && (
             <span className="tag-detail-card-preview-badge">{directSource}</span>
