@@ -11,11 +11,15 @@
 
 import { handleTagsRoute } from './worker-tags.js';
 
+const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/og') return handleOg(url, request);
     if (url.pathname.startsWith('/api/tags/')) return handleTagsRoute(url, request, env);
+    const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
+    if (resetMatch) return handleBoardReset(resetMatch[1], request);
     return env.ASSETS.fetch(request);
   },
   async scheduled(event, env, ctx) {
@@ -95,6 +99,45 @@ async function rpc(env, fn, params) {
     throw new Error(`rpc ${fn} ${res.status}: ${text.slice(0, 200)}`);
   }
   return await res.json();
+}
+
+// Same-origin proxy for PartyKit's /reset endpoint. The browser would
+// otherwise CORS-block the cross-origin POST (PartyKit's CORS headers
+// work via curl but get flaky from real browsers — different deploy
+// edges, cached preflight failures, etc.). Going through the worker
+// avoids CORS entirely since the call is same-origin from the client's
+// perspective and worker-to-PartyKit is server-to-server.
+async function handleBoardReset(boardId, request) {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+  const auth = request.headers.get('authorization') || '';
+  const token = auth.replace(/^Bearer\s+/i, '');
+  if (!token) return new Response('Missing token', { status: 401 });
+
+  const target = `https://${PARTYKIT_HOST}/parties/main/${encodeURIComponent(boardId)}/reset`;
+  try {
+    const res = await fetch(target, {
+      method: 'POST',
+      headers: {
+        'authorization': `Bearer ${token}`,
+        'content-type': 'application/json',
+      },
+    });
+    const body = await res.text();
+    return new Response(body, {
+      status: res.status,
+      headers: {
+        'content-type': res.headers.get('content-type') || 'application/json',
+        'cache-control': 'no-store',
+      },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String(e?.message || e) }), {
+      status: 502,
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    });
+  }
 }
 
 async function handleOg(url, request) {

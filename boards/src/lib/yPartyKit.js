@@ -34,12 +34,18 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   let provider = null;
   let destroyed = false;
   let buildSeq = 0;
+  // Hoisted here so `buildProvider` (defined below and called immediately)
+  // can update lastBuiltAt before the rebuild-coalescing infra runs.
+  let lastBuiltAt = 0;
+  let resetCooldownUntil = 0;
+  let rebuildTimer = null;
 
   // (Re)build the WS provider with a fresh token. Cheap to call —
   // tears down the old socket, opens a new one. Y.Doc + Awareness
   // instances are kept across rebuilds so app state is unaffected.
   const buildProvider = async () => {
     const seq = ++buildSeq;
+    lastBuiltAt = Date.now();
     let accessToken = '';
     try {
       const { data } = await supabase.auth.getSession();
@@ -99,26 +105,57 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   // a debounce, each event tore down the in-flight WebSocket before
   // it finished opening, producing a "closed before connection
   // established" loop.
-  let rebuildTimer = null;
-  const scheduleRebuild = () => {
+  //
+  // Coalescing rules (stricter than the original 250ms):
+  //  - 750ms debounce on the rebuild itself
+  //  - any auth event within 1500ms of the LAST completed build is a
+  //    no-op (Supabase often fires TOKEN_REFRESHED + SIGNED_IN within
+  //    100ms of each other; we only want one rebuild for that pair)
+  //  - 2000ms cooldown after a `soleil-board-reset` event: the reset
+  //    flow remounts the entire useYBoard handle (which destroys+
+  //    recreates this provider), so an auth-driven rebuild on top of
+  //    that pile-up causes the "closed before connection established"
+  //    storm we just shipped a fix for. Sit out for 2s.
+  const scheduleRebuild = (reason) => {
+    const now = Date.now();
+    if (now < resetCooldownUntil) {
+      console.log('[partykit] board', boardId, 'skip rebuild (', reason, ') — in reset cooldown for', resetCooldownUntil - now, 'ms');
+      return;
+    }
+    if (now - lastBuiltAt < 1500) {
+      console.log('[partykit] board', boardId, 'skip rebuild (', reason, ') — already rebuilt', now - lastBuiltAt, 'ms ago');
+      return;
+    }
     if (rebuildTimer) clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(() => {
       rebuildTimer = null;
       if (destroyed) return;
+      lastBuiltAt = Date.now();
       buildProvider();
-    }, 250);
+    }, 750);
   };
   const authSub = supabase.auth.onAuthStateChange((event) => {
     if (destroyed) return;
     if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-      console.log('[partykit] board', boardId, 'auth event', event, '→ rebuilding socket');
-      scheduleRebuild();
+      console.log('[partykit] board', boardId, 'auth event', event);
+      scheduleRebuild(event);
     } else if (event === 'SIGNED_OUT') {
       if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = null; }
       try { provider?.destroy(); } catch (_) {}
       provider = null;
     }
   });
+
+  // When a restore flow fires soleil-board-reset, useYBoard will tear
+  // down + recreate this provider. We don't want auth events to also
+  // pile a rebuild on top of that — set a cooldown.
+  const onBoardReset = (e) => {
+    if (e?.detail?.boardId && e.detail.boardId !== boardId) return;
+    resetCooldownUntil = Date.now() + 2000;
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('soleil-board-reset', onBoardReset);
+  }
 
   return {
     awareness,
@@ -127,6 +164,9 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       if (rebuildTimer) clearTimeout(rebuildTimer);
       try { provider?.destroy(); } catch (_) {}
       try { authSub?.data?.subscription?.unsubscribe(); } catch (_) {}
+      if (typeof window !== 'undefined') {
+        try { window.removeEventListener('soleil-board-reset', onBoardReset); } catch (_) {}
+      }
     },
   };
 }

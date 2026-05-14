@@ -884,6 +884,9 @@ export async function fetchNextChange(boardId, currentAt) {
 //      empty room. The fresh state becomes authoritative.
 
 // POST /reset to the board room. Returns { ok, kicked } or throws.
+// Goes through the same-origin Pages worker (boards/src/worker.js) so
+// browsers don't CORS-block the call. The worker forwards server-to-
+// server to PartyKit's /reset, preserving the Bearer-token auth.
 export async function forceResetBoardRoom(boardId) {
   if (!boardId) throw new Error('forceResetBoardRoom: missing boardId');
   let accessToken = '';
@@ -892,9 +895,9 @@ export async function forceResetBoardRoom(boardId) {
     accessToken = data?.session?.access_token || '';
   } catch (_) {}
   if (!accessToken) throw new Error('not signed in');
-  // PartyKit default party route: /parties/main/{roomId}
-  const proto = /^localhost/.test(PARTYKIT_HOST) ? 'http' : 'https';
-  const url = `${proto}://${PARTYKIT_HOST}/parties/main/${encodeURIComponent(boardId)}/reset`;
+  // Same-origin path → no CORS preflight. The Pages worker proxies to
+  // PartyKit's /parties/main/{boardId}/reset server-to-server.
+  const url = `/api/board/${encodeURIComponent(boardId)}/reset`;
   const res = await fetch(url, {
     method: 'POST',
     headers: {
