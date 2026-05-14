@@ -28,6 +28,39 @@ import {
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { getKind } from '../lib/entityKinds.js';
+import { ImageLightbox } from './ImageLightbox.jsx';
+
+// Patch missing meta.src on image-kind card_index rows by looking up
+// `images.storage_path` via card_id. card_index.meta.src is populated
+// by the board's Y.Doc sync, which only runs while the board is open
+// — so for a tag detail view opened cold (without visiting the source
+// board) the image thumbnails would otherwise be invisible until the
+// next sync runs. The images table is the upload-of-record and has
+// card_id post-migration 0042, so we can join at query time.
+async function recoverImageSrc(rows, workspaceId) {
+  if (!workspaceId || !Array.isArray(rows) || rows.length === 0) return rows;
+  const missing = rows.filter(c => c?.kind === 'image' && !c?.meta?.src && c?.card_id);
+  if (missing.length === 0) return rows;
+  try {
+    const { data: imgRows } = await supabase.from('images')
+      .select('card_id, board_id, storage_path')
+      .eq('workspace_id', workspaceId)
+      .in('card_id', missing.map(c => c.card_id));
+    if (!imgRows?.length) return rows;
+    const byKey = new Map();
+    for (const r of imgRows) {
+      if (r.card_id && r.storage_path) byKey.set(`${r.board_id}:${r.card_id}`, r.storage_path);
+    }
+    return rows.map(c => {
+      if (c?.kind !== 'image' || c?.meta?.src) return c;
+      const sp = byKey.get(`${c.board_id}:${c.card_id}`);
+      if (!sp) return c;
+      return { ...c, meta: { ...(c.meta || {}), src: `r2:${sp}` } };
+    });
+  } catch (_) {
+    return rows;
+  }
+}
 
 const KIND_ICON = {
   board: LayoutGrid, doc: FileText, group: LayoutGrid,
@@ -62,6 +95,10 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   const [groupCards, setGroupCards] = useState(new Map());
   const [mentions, setMentions] = useState([]);   // [{ doc_card_id, page_id, page_title, context_text }]
   const [loading, setLoading] = useState(true);
+  // Lightbox state — image clicks open it instead of navigating to
+  // the source board. The index points into imageCardsFlat (derived
+  // below) so arrow keys can flip through the tag's whole image set.
+  const [lightboxIdx, setLightboxIdx] = useState(null);
   // Filter: 'all' | 'auto' | 'user'. Stored in localStorage so the
   // user's choice persists across reloads / tab switches.
   const [sourceFilter, setSourceFilter] = useState(() => {
@@ -253,46 +290,50 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     let cancelled = false;
     const ids = allBoards.map(b => b.board_id || b.id).filter(Boolean);
     if (ids.length === 0) return;
-    supabase.from('card_index')
-      .select('board_id, card_id, kind, title, body, meta, updated_at')
-      .in('board_id', ids)
-      .order('updated_at', { ascending: false })
-      .then(({ data }) => {
-        if (cancelled) return;
-        const m = new Map();
-        for (const c of (data || [])) {
-          if (!passesContentGate(c)) continue;
-          if (!m.has(c.board_id)) m.set(c.board_id, []);
-          m.get(c.board_id).push(c);
-        }
-        setBoardCards(m);
-      });
+    (async () => {
+      const { data } = await supabase.from('card_index')
+        .select('board_id, card_id, kind, title, body, meta, updated_at')
+        .in('board_id', ids)
+        .order('updated_at', { ascending: false });
+      if (cancelled) return;
+      const patched = await recoverImageSrc(data || [], workspaceId);
+      if (cancelled) return;
+      const m = new Map();
+      for (const c of patched) {
+        if (!passesContentGate(c)) continue;
+        if (!m.has(c.board_id)) m.set(c.board_id, []);
+        m.get(c.board_id).push(c);
+      }
+      setBoardCards(m);
+    })();
     return () => { cancelled = true; };
-  }, [allBoards]);
+  }, [allBoards, workspaceId]);
 
   useEffect(() => {
     if (allGroups.length === 0) return;
     let cancelled = false;
     const allBoardIds = allGroups.map(g => g.board_id).filter(Boolean);
     if (allBoardIds.length === 0) return;
-    supabase.from('card_index')
-      .select('board_id, card_id, kind, title, body, meta, updated_at')
-      .in('board_id', allBoardIds)
-      .then(({ data }) => {
-        if (cancelled) return;
-        const m = new Map();
-        for (const c of (data || [])) {
-          if (!passesContentGate(c)) continue;
-          const gid = c.meta?.groupId;
-          if (!gid) continue;
-          const key = `${c.board_id}::${gid}`;
-          if (!m.has(key)) m.set(key, []);
-          m.get(key).push(c);
-        }
-        setGroupCards(m);
-      });
+    (async () => {
+      const { data } = await supabase.from('card_index')
+        .select('board_id, card_id, kind, title, body, meta, updated_at')
+        .in('board_id', allBoardIds);
+      if (cancelled) return;
+      const patched = await recoverImageSrc(data || [], workspaceId);
+      if (cancelled) return;
+      const m = new Map();
+      for (const c of patched) {
+        if (!passesContentGate(c)) continue;
+        const gid = c.meta?.groupId;
+        if (!gid) continue;
+        const key = `${c.board_id}::${gid}`;
+        if (!m.has(key)) m.set(key, []);
+        m.get(key).push(c);
+      }
+      setGroupCards(m);
+    })();
     return () => { cancelled = true; };
-  }, [allGroups]);
+  }, [allGroups, workspaceId]);
 
   if (!tag) return null;
   const dot = tag.color || fallbackColor(tag.slug || tag.name);
@@ -380,11 +421,27 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     const def = getKind(c.kind);
     const isVisualKind = c.kind === 'image' || c.kind === 'palette';
     const richPreview = isVisualKind ? (def?.previewMini?.(c) || null) : null;
+    // Image cards open the fullscreen lightbox in-place instead of
+    // navigating to the source board — the user is browsing the tag,
+    // not trying to leave it. Other kinds (palette, doc, note...)
+    // still navigate as before.
+    const openLightboxAt = () => {
+      const idx = imageCardsFlat.findIndex(
+        x => x.board_id === c.board_id && x.card_id === c.card_id,
+      );
+      if (idx >= 0) setLightboxIdx(idx);
+      else navigate(navTarget);
+    };
+    const onPreviewClick = (c.kind === 'image' && c.meta?.src)
+      ? openLightboxAt
+      : () => navigate(navTarget);
     return (
       <button key={`c:${c.board_id}:${c.card_id}`}
               className={`tag-detail-card-preview ${isVisualKind ? 'is-visual' : ''} ${richPreview ? 'has-rich' : ''}`}
-              title="Click to open · right-click for actions"
-              onClick={() => navigate(navTarget)}
+              title={c.kind === 'image' && c.meta?.src
+                ? 'Click to preview · right-click for actions'
+                : 'Click to open · right-click for actions'}
+              onClick={onPreviewClick}
               onContextMenu={(e) => openMenu(e, menuTarget)}>
         {richPreview && (
           <div className="tag-detail-card-preview-rich">{richPreview}</div>
@@ -518,6 +575,39 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     for (const arr of groupCards.values()) for (const c of arr) push(c);
     return out;
   }, [direct.cards, boardCards, groupCards]);
+
+  // Every image card the user can currently see, in display order.
+  // Drives the click-to-lightbox jump (index lookup) and the
+  // ArrowLeft/ArrowRight slideshow once the lightbox is open.
+  const imageCardsFlat = useMemo(
+    () => allCardsFlat.filter(c => c.kind === 'image' && c.meta?.src),
+    [allCardsFlat],
+  );
+
+  // Capture-phase keyboard handler scoped to when the lightbox is
+  // open. Escape closes it; ←/→ wrap-around through the image set.
+  // stopPropagation prevents ImageLightbox's own Esc listener (which
+  // would also call onClose) from running, so we don't double-close.
+  useEffect(() => {
+    if (lightboxIdx == null) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setLightboxIdx(null);
+        return;
+      }
+      if (imageCardsFlat.length === 0) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault(); e.stopPropagation();
+        setLightboxIdx((i) => (i - 1 + imageCardsFlat.length) % imageCardsFlat.length);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault(); e.stopPropagation();
+        setLightboxIdx((i) => (i + 1) % imageCardsFlat.length);
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [lightboxIdx, imageCardsFlat.length]);
 
   // Set of kinds that actually exist in the current rows + child cards.
   // We only show pills for types the user can realistically filter by.
@@ -732,6 +822,15 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             </span>
           )}
         </div>
+      )}
+
+      {lightboxIdx != null && imageCardsFlat[lightboxIdx] && (
+        <ImageLightbox
+          src={imageCardsFlat[lightboxIdx].meta?.src}
+          title={imageCardsFlat[lightboxIdx].title || ''}
+          alt={imageCardsFlat[lightboxIdx].title || ''}
+          onClose={() => setLightboxIdx(null)}
+        />
       )}
     </div>
   );

@@ -226,21 +226,50 @@ export function TagRangeHoverPopover({
             .limit(IMAGES_PER_CONTAINER));
           const responses = await Promise.all([...groupQueries, ...boardQueries]);
           if (cancelled) return;
+          // Collect every candidate up-front, then recover missing
+          // meta.src in one batched lookup against the `images` table.
+          // This makes the popover work without first visiting the
+          // source board (card_index.meta.src is otherwise stale until
+          // the board's Y.Doc sync runs).
+          const candidates = [];
           for (const resp of responses) {
             for (const c of (resp.data || [])) {
-              if (images.length >= MAX_IMAGES) break;
-              const src = c.meta?.src;
-              if (!src) continue;
-              const cardKey = `${c.board_id}:${c.card_id}`;
-              if (seenImageCards.has(cardKey)) continue;
-              seenImageCards.add(cardKey);
-              images.push({
-                src,
-                title: c.title || '',
-                navTarget: { kind: 'image', boardId: c.board_id, cardId: c.card_id },
-              });
+              candidates.push(c);
             }
+          }
+          const missingCardIds = candidates
+            .filter(c => !c.meta?.src && c.card_id)
+            .map(c => c.card_id);
+          let srcByCardId = new Map();
+          if (missingCardIds.length > 0) {
+            try {
+              const { data: imgRows } = await supabase.from('images')
+                .select('card_id, board_id, storage_path')
+                .eq('workspace_id', workspaceId)
+                .in('card_id', missingCardIds);
+              for (const r of (imgRows || [])) {
+                if (r.card_id && r.storage_path) {
+                  srcByCardId.set(`${r.board_id}:${r.card_id}`, r.storage_path);
+                }
+              }
+            } catch (_) { /* leave missing src as-is */ }
+          }
+          for (const c of candidates) {
             if (images.length >= MAX_IMAGES) break;
+            let src = c.meta?.src;
+            if (!src) {
+              const sp = srcByCardId.get(`${c.board_id}:${c.card_id}`);
+              if (sp) src = `r2:${sp}`;
+            }
+            if (!src) continue;
+            const cardKey = `${c.board_id}:${c.card_id}`;
+            if (seenImageCards.has(cardKey)) continue;
+            seenImageCards.add(cardKey);
+            images.push({
+              src,
+              title: c.title || '',
+              navTarget: { kind: 'image', boardId: c.board_id, cardId: c.card_id },
+            });
           }
         }
 
