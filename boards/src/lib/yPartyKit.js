@@ -62,6 +62,30 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     provider.on('status', ({ status }) => {
       console.log('[partykit] board', boardId, status);
     });
+    // Intercept text frames on the underlying WS. y-partykit's protocol
+    // is binary (Uint8Array) Yjs frames; the server uses TEXT frames for
+    // out-of-band control signals like "soleil-board-reset" that tell
+    // peers to remount their useYBoard so a restore propagates without
+    // a CRDT-merge race. y-partykit ignores text frames internally, so
+    // our handler is the only consumer.
+    const ws = provider.ws;
+    if (ws && typeof ws.addEventListener === 'function') {
+      ws.addEventListener('message', (e) => {
+        if (typeof e.data !== 'string') return;
+        let msg;
+        try { msg = JSON.parse(e.data); } catch (_) { return; }
+        if (!msg || msg.type !== 'soleil-board-reset') return;
+        if (msg.boardId && msg.boardId !== boardId) return;
+        console.log('[partykit] board', boardId, '← reset signal');
+        try {
+          if (typeof window !== 'undefined' && typeof window.__soleilEmitBoardReset === 'function') {
+            window.__soleilEmitBoardReset(boardId);
+          } else {
+            window.dispatchEvent(new CustomEvent('soleil-board-reset', { detail: { boardId } }));
+          }
+        } catch (_) {}
+      });
+    }
   };
 
   buildProvider();

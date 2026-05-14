@@ -76,6 +76,30 @@ export default class BoardParty implements Party.Server {
     const canWrite = await canWriteBoard(token, boardId);
     if (!canWrite) return new Response("Read-only", { status: 403 });
 
+    // ── Collab-safe reset sequence ───────────────────────────────────────
+    // The order matters. If we close the WS connections first, peers'
+    // partysocket auto-reconnects fire instantly — they hit the now-empty
+    // DO with their stale local Y.Doc state in memory and push the bad
+    // ops back up. To eliminate that race, BROADCAST a remount signal as
+    // a text frame to every connection BEFORE wiping/closing. The client
+    // intercepts the text frame and triggers a useYBoard remount, which
+    // destroys the local Y.Doc and re-cold-loads from board_state (which
+    // the restoring client has already written with the restored bytes).
+    //
+    // We give the broadcast ~150ms to propagate before tearing the
+    // connections down — long enough for the WS frame to deliver, short
+    // enough that the restore feels instant.
+    const signal = JSON.stringify({
+      type: "soleil-board-reset",
+      boardId,
+      ts: Date.now(),
+    });
+    try { this.room.broadcast(signal); }
+    catch (e) { console.error("[board/reset] broadcast failed", e); }
+
+    // Give the text frame time to flush.
+    await new Promise((r) => setTimeout(r, 150));
+
     // Wipe the entire DO storage — this clears every key y-partykit
     // wrote (snapshot, updates, awareness, etc). Next connection cold-
     // loads from scratch.
@@ -90,7 +114,7 @@ export default class BoardParty implements Party.Server {
       try { conn.close(4030, "room reset"); kicked++; } catch (_) {}
     }
 
-    return new Response(JSON.stringify({ ok: true, kicked }), {
+    return new Response(JSON.stringify({ ok: true, kicked, signaled: true }), {
       status: 200,
       headers: { "content-type": "application/json" },
     });

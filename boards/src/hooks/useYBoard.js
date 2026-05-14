@@ -35,10 +35,22 @@ export function useYBoard(boardId, userId, user = null) {
   // Listen for explicit reset events targeting this board. Bumping
   // resetEpoch invalidates the main effect's deps → it tears down the
   // current Y.Doc + WebSocket and rebuilds from scratch.
+  //
+  // Reset signals can fire from two sources for the same restore:
+  //   1) the WS text-frame broadcast from PartyKit /reset (reaches ALL
+  //      connected tabs, including the initiator's)
+  //   2) the local window.__soleilEmitBoardReset() call from
+  //      bulletproofRestore (fallback in case /reset failed to broadcast)
+  // Dedupe within 600ms so the initiator's tab doesn't remount twice
+  // and waste a fresh Y.Doc + WS handshake.
+  const lastResetAtRef = useRef(0);
   useEffect(() => {
     if (!boardId) return;
     const onReset = (e) => {
       if (e?.detail?.boardId && e.detail.boardId !== boardId) return;
+      const now = Date.now();
+      if (now - lastResetAtRef.current < 600) return;
+      lastResetAtRef.current = now;
       setResetEpoch(n => n + 1);
     };
     window.addEventListener('soleil-board-reset', onReset);
