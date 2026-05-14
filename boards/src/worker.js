@@ -18,7 +18,84 @@ export default {
     if (url.pathname.startsWith('/api/tags/')) return handleTagsRoute(url, request, env);
     return env.ASSETS.fetch(request);
   },
+  async scheduled(event, env, ctx) {
+    // Daily R2 orphan sweep. Finds images rows whose card no longer
+    // exists in card_index AND which are older than 30 days, then
+    // deletes both the R2 object and the images row.
+    //
+    // Required env:
+    //   SUPABASE_URL                 — already configured
+    //   SUPABASE_SERVICE_ROLE_KEY    — wrangler secret put
+    //   IMAGES                       — [[r2_buckets]] binding
+    ctx.waitUntil(runR2Sweep(env));
+  },
 };
+
+async function runR2Sweep(env) {
+  if (!env?.IMAGES) {
+    console.log('[r2-sweep] skipped: IMAGES R2 binding not configured');
+    return;
+  }
+  if (!env?.SUPABASE_SERVICE_ROLE_KEY) {
+    console.log('[r2-sweep] skipped: SUPABASE_SERVICE_ROLE_KEY not set');
+    return;
+  }
+  const startedAt = Date.now();
+  let totalSwept = 0;
+  let totalAttempted = 0;
+  const errors = [];
+  try {
+    const rows = await rpc(env, 'find_orphan_images', { p_limit: 500 });
+    if (!Array.isArray(rows) || rows.length === 0) {
+      console.log(`[r2-sweep] no orphans (${Date.now() - startedAt}ms)`);
+      return;
+    }
+    totalAttempted = rows.length;
+    const successfullyDeletedIds = [];
+    for (const row of rows) {
+      try {
+        if (row.storage_path) await env.IMAGES.delete(row.storage_path);
+        successfullyDeletedIds.push(row.id);
+      } catch (e) {
+        // If the R2 object is already gone, keep going and still
+        // clean up the images row.
+        const msg = String(e?.message || e);
+        if (msg.includes('NoSuchKey') || msg.includes('404')) {
+          successfullyDeletedIds.push(row.id);
+        } else {
+          errors.push({ id: row.id, storage_path: row.storage_path, error: msg });
+        }
+      }
+    }
+    if (successfullyDeletedIds.length > 0) {
+      const deleted = await rpc(env, 'delete_image_rows', { p_ids: successfullyDeletedIds });
+      totalSwept = Number(deleted) || successfullyDeletedIds.length;
+    }
+    console.log(`[r2-sweep] ${totalSwept}/${totalAttempted} cleaned in ${Date.now() - startedAt}ms`,
+      errors.length > 0 ? { errorCount: errors.length, firstError: errors[0] } : '');
+  } catch (e) {
+    console.error('[r2-sweep] failed', e);
+  }
+}
+
+async function rpc(env, fn, params) {
+  const url = `${env.SUPABASE_URL}/rest/v1/rpc/${fn}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+      'authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'content-type': 'application/json',
+      'accept': 'application/json',
+    },
+    body: JSON.stringify(params || {}),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`rpc ${fn} ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return await res.json();
+}
 
 async function handleOg(url, request) {
   const target = url.searchParams.get('url');

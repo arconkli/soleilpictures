@@ -2381,9 +2381,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <HistoryModal
         open={historyOpen}
         boardId={currentBoard.id}
+        workspaceId={workspace.id}
         ydoc={currentYDoc}
         userId={user.id}
         wsPeers={wsPeers}
+        onBoardRestored={() => refreshBoards()}
         onClose={() => setHistoryOpen(false)}
       />
 

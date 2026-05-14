@@ -24,3 +24,24 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 directory = "./dist"
 not_found_handling = "single-page-application"
 binding = "ASSETS"
+
+# Scheduled R2 orphan sweep — runs daily at 04:00 UTC, after the pg_cron
+# retention jobs (03:00–03:10) have finished hard-purging soft-deleted
+# rows. The Worker scans the `images` table for rows whose card no longer
+# exists in card_index and which are older than 30 days, then deletes
+# both the R2 object and the images row. Safe no-ops if the R2 binding
+# or SUPABASE_SERVICE_ROLE_KEY secret is missing.
+[triggers]
+crons = ["0 4 * * *"]
+
+# R2 binding for the orphan sweeper. Bucket name must match the bucket
+# uploads go to (set via PartyKit's R2_BUCKET env var). Uncomment + set
+# the correct bucket_name before relying on the sweep; until then the
+# scheduled() handler logs and skips.
+# [[r2_buckets]]
+# binding    = "IMAGES"
+# bucket_name = "soleil-images"
+
+# Required secret (set via `wrangler secret put SUPABASE_SERVICE_ROLE_KEY`)
+# for the R2 sweep to call SECURITY DEFINER RPCs (find_orphan_images,
+# delete_image_rows). Without it the sweep logs and skips.

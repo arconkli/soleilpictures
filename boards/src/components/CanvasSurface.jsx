@@ -43,7 +43,7 @@ import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlac
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
-import { syncCardIndex, saveBoardVersion, fetchPrevVersion, fetchNextVersion, loadBoardVersionDoc, restoreBoard } from '../lib/boardsApi.js';
+import { syncCardIndex, saveBoardVersion, fetchPrevChange, fetchNextChange, loadBoardVersionDoc, restoreBoard, applyMetaChangeUndo } from '../lib/boardsApi.js';
 import { restoreVersionInto } from '../lib/yboard.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
@@ -719,15 +719,28 @@ export function CanvasSurface({
   const ttForwardRef = useRef([]);
   const ttBusyRef = useRef(false);
   const ttSnapshotTakenRef = useRef(false);
+  // Restore the boards referenced as kind=board cards in the current Y.Doc,
+  // so an undone delete brings everything back.
+  const restoreReferencedBoards = useCallback(async () => {
+    try {
+      const cardsMap = ydoc.getMap('cards');
+      const ids = [];
+      cardsMap.forEach((ym, id) => {
+        if (ym?.get?.('kind') === 'board') ids.push(id);
+      });
+      for (const bid of ids) {
+        try { await restoreBoard(bid); } catch (_) {}
+      }
+    } catch (_) {}
+  }, [ydoc]);
+
   const timeTravelUndo = useCallback(async () => {
     if (!ydoc || !board?.id) return;
     if (ttBusyRef.current) return;
     ttBusyRef.current = true;
     try {
-      // First time we drop into time-travel from "live" state, capture
-      // the current state as a pre-restore checkpoint so the user can
-      // always come back to where they were. Subsequent walks through
-      // history don't re-snapshot to avoid pollution.
+      // First fall-through from live: pre-restore checkpoint so user can
+      // come back to where they were no matter how far they walk.
       if (!ttSnapshotTakenRef.current && ttPointerRef.current === null) {
         await saveBoardVersion(board.id, ydoc, {
           triggerKind: 'pre-restore',
@@ -738,87 +751,62 @@ export function CanvasSurface({
         });
         ttSnapshotTakenRef.current = true;
       }
-      const prev = await fetchPrevVersion(board.id, ttPointerRef.current);
-      if (!prev) {
+      const change = await fetchPrevChange(board.id, ttPointerRef.current);
+      if (!change) {
         try { feedback.toast({ type: 'info', message: 'Nothing further to undo' }); } catch (_) {}
         return;
       }
-      const b64 = await loadBoardVersionDoc(prev.id);
-      if (!b64) {
-        console.warn('[timeTravelUndo] version doc missing', prev.id);
-        return;
-      }
-      // Push the previous pointer onto the forward stack so redo can walk back.
       ttForwardRef.current.push(ttPointerRef.current);
-      ttPointerRef.current = prev.snapshot_at;
-      restoreVersionInto(ydoc, b64);
-      // Un-soft-delete any sub-boards referenced by board-kind cards in
-      // the restored doc so an undone "delete board" fully comes back.
-      try {
-        const cardsMap = ydoc.getMap('cards');
-        const boardIds = [];
-        cardsMap.forEach((ym, id) => {
-          if (ym?.get?.('kind') === 'board') boardIds.push(id);
-        });
-        for (const bid of boardIds) {
-          try { await restoreBoard(bid); } catch (_) {}
+      ttPointerRef.current = change.at;
+      if (change.type === 'version') {
+        const b64 = await loadBoardVersionDoc(change.row.id);
+        if (!b64) {
+          console.warn('[timeTravelUndo] version doc missing', change.row.id);
+          return;
         }
-      } catch (_) {}
-      try { feedback.toast({ type: 'success', message: `Rolled back to ${new Date(prev.snapshot_at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
+        restoreVersionInto(ydoc, b64);
+        await restoreReferencedBoards();
+      } else {
+        // Meta change: apply its before_value back to boards.
+        await applyMetaChangeUndo(change.row, { userId, sessionId });
+      }
+      try { feedback.toast({ type: 'success', message: `Rolled back to ${new Date(change.at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
     } catch (e) {
       console.error('[timeTravelUndo]', e);
       try { feedback.toast({ type: 'error', message: 'Undo failed: ' + (e.message || e) }); } catch (_) {}
     } finally {
       ttBusyRef.current = false;
     }
-  }, [ydoc, board?.id, sessionId, userId, feedback]);
+  }, [ydoc, board?.id, sessionId, userId, feedback, restoreReferencedBoards]);
+
   const timeTravelRedo = useCallback(async () => {
     if (!ydoc || !board?.id) return;
     if (ttBusyRef.current) return;
     ttBusyRef.current = true;
     try {
-      let targetAt = ttForwardRef.current.pop();
-      if (targetAt === undefined) {
-        // No in-memory forward step; query the database for the next-newer.
-        const next = await fetchNextVersion(board.id, ttPointerRef.current);
-        if (!next) {
-          try { feedback.toast({ type: 'info', message: 'Nothing further to redo' }); } catch (_) {}
-          return;
-        }
-        targetAt = next.snapshot_at;
-      }
-      if (targetAt === null) {
-        // Forward back to "live" — re-load the latest saved state.
-        // We can't reconstruct head trivially, so load the most recent
-        // version (which the pre-undo checkpoint above guarantees exists).
-        const head = await fetchPrevVersion(board.id, null);
-        if (head) {
-          const b64 = await loadBoardVersionDoc(head.id);
-          if (b64) restoreVersionInto(ydoc, b64);
-          ttPointerRef.current = head.snapshot_at;
-        }
+      const change = await fetchNextChange(board.id, ttPointerRef.current);
+      if (!change) {
+        try { feedback.toast({ type: 'info', message: 'Nothing further to redo' }); } catch (_) {}
         return;
       }
-      // Walk forward to targetAt.
-      const { data, error } = await supabase
-        .from('board_versions')
-        .select('id, snapshot_at, doc')
-        .eq('board_id', board.id)
-        .eq('snapshot_at', targetAt)
-        .limit(1);
-      if (error) throw error;
-      const row = data?.[0];
-      if (!row) return;
-      restoreVersionInto(ydoc, row.doc);
-      ttPointerRef.current = row.snapshot_at;
-      try { feedback.toast({ type: 'success', message: `Forward to ${new Date(row.snapshot_at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
+      ttPointerRef.current = change.at;
+      if (change.type === 'version') {
+        const b64 = await loadBoardVersionDoc(change.row.id);
+        if (b64) restoreVersionInto(ydoc, b64);
+        await restoreReferencedBoards();
+      } else {
+        // Forward through a meta reversal: apply ITS before_value (which is
+        // the post-original state we're "redoing forward into").
+        await applyMetaChangeUndo(change.row, { userId, sessionId });
+      }
+      try { feedback.toast({ type: 'success', message: `Forward to ${new Date(change.at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
     } catch (e) {
       console.error('[timeTravelRedo]', e);
       try { feedback.toast({ type: 'error', message: 'Redo failed: ' + (e.message || e) }); } catch (_) {}
     } finally {
       ttBusyRef.current = false;
     }
-  }, [ydoc, board?.id, feedback]);
+  }, [ydoc, board?.id, sessionId, userId, feedback, restoreReferencedBoards]);
   // Any local edit clears the forward stack (classic redo semantics) and
   // resets the "park" pointer to live. Watching the `cards` length is a
   // simple proxy — granular update events would also work but this avoids

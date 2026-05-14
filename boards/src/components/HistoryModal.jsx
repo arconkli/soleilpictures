@@ -1,14 +1,17 @@
-// Floating history modal for the current board. Two tabs:
-//   • Versions — snapshot history with a Restore button per row
-//   • Comments — every comment on this board (open / resolved / hidden)
+// Floating history modal for the current board. Three tabs:
+//   • Versions — snapshot history (with metadata-change rows interleaved)
+//   • Comments — every comment on this board, including trashed
+//   • Trash    — workspace-wide soft-deleted boards waiting on the 30-day purge
 //
 // Restoring a version replaces the live Y.Doc state with the version's
-// saved bytes (the change becomes a normal local edit, so it's undoable
-// in turn). Comments are read-only here — managing them happens on the
-// canvas itself via the bubble actions.
+// saved bytes. Restoring a metadata-change row writes its before_value
+// back to the boards table. Restoring a board flips deleted_at back to NULL.
 
 import { useEffect, useMemo, useState } from 'react';
-import { listBoardVersions, loadBoardVersionDoc, saveBoardVersion, restoreBoard } from '../lib/boardsApi.js';
+import {
+  listBoardVersions, loadBoardVersionDoc, saveBoardVersion, restoreBoard,
+  listBoardMetaHistory, applyMetaChangeUndo, listDeletedBoards, hardDeleteBoard,
+} from '../lib/boardsApi.js';
 import { listAllBoardComments, updateComment, deleteComment, restoreComment } from '../lib/commentsApi.js';
 import { restoreVersionInto } from '../lib/yboard.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -32,28 +35,69 @@ function fmtDate(iso) {
   return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
 }
 
-export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [] }) {
+export function HistoryModal({ open, boardId, workspaceId = null, ydoc, userId, onClose, onBoardRestored = null, wsPeers = [] }) {
   const [tab, setTab] = useState('versions');
   const [versions, setVersions] = useState([]);
+  const [metaHistory, setMetaHistory] = useState([]);
   const [loadingV, setLoadingV] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [comments, setComments] = useState([]);
   const [loadingC, setLoadingC] = useState(true);
   const [commentFilter, setCommentFilter] = useState('all');
+  const [trash, setTrash] = useState([]);
+  const [loadingT, setLoadingT] = useState(true);
   const feedback = useFeedback();
 
-  // ── Versions ────────────────────────────────────────────────────────
+  // ── Versions + Meta history ─────────────────────────────────────────
+  const refreshVersions = async () => {
+    if (!boardId) return;
+    setLoadingV(true);
+    try {
+      const [vs, mh] = await Promise.all([
+        listBoardVersions(boardId, 200),
+        listBoardMetaHistory(boardId, 200),
+      ]);
+      setVersions(vs);
+      setMetaHistory(mh);
+    } catch (e) { console.error(e); }
+    finally { setLoadingV(false); }
+  };
   useEffect(() => {
     if (!open || !boardId) return;
     let cancelled = false;
     setLoadingV(true);
-    listBoardVersions(boardId, 200).then(rows => {
+    Promise.all([
+      listBoardVersions(boardId, 200),
+      listBoardMetaHistory(boardId, 200),
+    ]).then(([vs, mh]) => {
       if (cancelled) return;
-      setVersions(rows);
+      setVersions(vs);
+      setMetaHistory(mh);
       setLoadingV(false);
     }).catch(e => { console.error(e); setLoadingV(false); });
     return () => { cancelled = true; };
   }, [open, boardId]);
+
+  // ── Trash (workspace-wide soft-deleted boards) ──────────────────────
+  const refreshTrash = async () => {
+    if (!workspaceId) return;
+    setLoadingT(true);
+    try {
+      const rows = await listDeletedBoards(workspaceId);
+      setTrash(rows);
+    } catch (e) { console.warn('trash fetch failed', e); }
+    finally { setLoadingT(false); }
+  };
+  useEffect(() => {
+    if (!open || !workspaceId) return;
+    let cancelled = false;
+    setLoadingT(true);
+    listDeletedBoards(workspaceId)
+      .then(rows => { if (!cancelled) setTrash(rows); })
+      .catch(e => console.warn('trash fetch failed', e))
+      .finally(() => { if (!cancelled) setLoadingT(false); });
+    return () => { cancelled = true; };
+  }, [open, workspaceId]);
 
   // Group versions into "sessions" — (session_id, made_by) pairs. Rows
   // without a session_id fall under "Legacy". Inside a session, snapshots
@@ -269,6 +313,64 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
     catch (e) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (e.message || e) }); }
   };
 
+  // ── Trash actions ───────────────────────────────────────────────────
+  const onRestoreTrash = async (b) => {
+    setBusyId(b.id);
+    try {
+      await restoreBoard(b.id);
+      refreshTrash();
+      try { onBoardRestored?.(); } catch (_) {}
+      feedback.toast({ type: 'success', message: `Restored "${b.name || 'Untitled board'}"` });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Restore failed: ' + (e.message || e) });
+    } finally {
+      setBusyId(null);
+    }
+  };
+  const onHardDelete = async (b) => {
+    const ok = await feedback.confirm({
+      title: 'Permanently delete board?', confirmLabel: 'Delete forever', danger: true,
+      message: `"${b.name || 'Untitled board'}" and ALL its content (cards, doc pages, version history, comments) will be permanently removed. This cannot be undone.`,
+    });
+    if (!ok) return;
+    setBusyId(b.id);
+    try {
+      await hardDeleteBoard(b.id);
+      refreshTrash();
+      feedback.toast({ type: 'success', message: 'Permanently deleted.' });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Delete failed: ' + (e.message || e) });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // ── Meta history actions ────────────────────────────────────────────
+  const describeMetaRow = (m) => {
+    const before = m.before_value?.v ?? null;
+    const after = m.after_value?.v ?? null;
+    const who = resolveName(m.changed_by);
+    const fmt = (v) => v === null || v === undefined ? '∅' : String(v);
+    if (m.field === 'name') return `${who} renamed "${fmt(before)}" → "${fmt(after)}"`;
+    if (m.field === 'cover') return `${who} changed cover ${fmt(before)} → ${fmt(after)}`;
+    if (m.field === 'view') return `${who} switched view ${fmt(before)} → ${fmt(after)}`;
+    if (m.field === 'bg_color') return `${who} changed background ${fmt(before)} → ${fmt(after)}`;
+    if (m.field === 'meta') return `${who} updated meta`;
+    return `${who} changed ${m.field}`;
+  };
+  const onRestoreMeta = async (m) => {
+    setBusyId(m.id);
+    try {
+      await applyMetaChangeUndo(m, { userId });
+      refreshVersions();
+      feedback.toast({ type: 'success', message: 'Reversed.' });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Reverse failed: ' + (e.message || e) });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -289,6 +391,11 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
             Comments
             <span className="hist-tab-count">{counts.all}</span>
           </button>
+          <button className={`hist-tab ${tab === 'trash' ? 'is-active' : ''}`}
+                  onClick={() => setTab('trash')}>
+            Trash
+            <span className="hist-tab-count">{trash.length}</span>
+          </button>
         </div>
 
         {tab === 'versions' && (
@@ -299,7 +406,17 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
             </div>
             <div className="modal-body">
               {loadingV && <div className="modal-empty">Loading…</div>}
-              {!loadingV && versions.length === 0 && <div className="modal-empty">No versions yet — keep editing and they'll start appearing here.</div>}
+              {!loadingV && versions.length === 0 && metaHistory.length === 0 && (
+                <div className="modal-empty">No versions yet — keep editing and they'll start appearing here.</div>
+              )}
+              {!loadingV && metaHistory.length > 0 && (
+                <MetaHistoryGroup
+                  rows={metaHistory}
+                  describe={describeMetaRow}
+                  busyId={busyId}
+                  onRestore={onRestoreMeta}
+                />
+              )}
               {!loadingV && versions.length > 0 && (
                 <div className="hist-list hist-list-sessions">
                   {sessionGroups.sessions.map((s, idx) => (
@@ -421,6 +538,45 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
             </div>
           </>
         )}
+
+        {tab === 'trash' && (
+          <>
+            <div className="modal-actions">
+              <span className="modal-hint">Deleted boards stay here for 30 days before being permanently removed.</span>
+            </div>
+            <div className="modal-body">
+              {loadingT && <div className="modal-empty">Loading…</div>}
+              {!loadingT && trash.length === 0 && (
+                <div className="modal-empty">
+                  Nothing in the trash. Deleted boards land here automatically.
+                </div>
+              )}
+              {!loadingT && trash.length > 0 && (
+                <div className="hist-list">
+                  {trash.map(b => (
+                    <div key={b.id} className="hist-row">
+                      <div className="hist-meta">
+                        <div className="hist-when" title={fmtDate(b.deleted_at)}>
+                          {b.name || 'Untitled board'}
+                        </div>
+                        <div className="hist-sub">
+                          <span>deleted {relTime(b.deleted_at)}</span>
+                          <span className="hist-label">{b.view || 'canvas'}</span>
+                        </div>
+                      </div>
+                      <button className="tb-btn" disabled={busyId === b.id} onClick={() => onRestoreTrash(b)}>
+                        {busyId === b.id ? 'Restoring…' : 'Restore'}
+                      </button>
+                      <button className="tb-btn tb-btn-sm tb-btn-danger"
+                              disabled={busyId === b.id}
+                              onClick={() => onHardDelete(b)}>Delete now</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -484,6 +640,37 @@ function LegacyGroup({ rows, describeRow, busyId, onRestore }) {
               </div>
               <button className="tb-btn" disabled={busyId === v.id} onClick={() => onRestore(v)}>
                 {busyId === v.id ? 'Restoring…' : 'Restore'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetaHistoryGroup({ rows, describe, busyId, onRestore }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`hist-session hist-session-meta ${open ? 'is-open' : ''}`} style={{ marginBottom: 8 }}>
+      <button className="hist-session-head" onClick={() => setOpen(o => !o)}>
+        <span className="hist-session-caret">{open ? '▾' : '▸'}</span>
+        <span className="hist-session-user">Metadata changes</span>
+        <span className="hist-session-when">renames, cover, view, background</span>
+        <span className="hist-session-count">{rows.length}</span>
+      </button>
+      {open && (
+        <div className="hist-session-body">
+          {rows.map(m => (
+            <div key={m.id} className="hist-row">
+              <div className="hist-meta">
+                <div className="hist-when" title={fmtDate(m.changed_at)}>{relTime(m.changed_at)}</div>
+                <div className="hist-sub">
+                  <span className="hist-trigger">{describe(m)}</span>
+                </div>
+              </div>
+              <button className="tb-btn" disabled={busyId === m.id} onClick={() => onRestore(m)}>
+                {busyId === m.id ? '…' : 'Reverse'}
               </button>
             </div>
           ))}
