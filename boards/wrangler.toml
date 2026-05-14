@@ -34,13 +34,11 @@ binding = "ASSETS"
 [triggers]
 crons = ["0 4 * * *"]
 
-# R2 binding for the orphan sweeper. Bucket name must match the bucket
-# uploads go to (set via PartyKit's R2_BUCKET env var). Uncomment + set
-# the correct bucket_name before relying on the sweep; until then the
-# scheduled() handler logs and skips.
-# [[r2_buckets]]
-# binding    = "IMAGES"
-# bucket_name = "soleil-images"
+# R2 binding for the orphan sweeper. Matches PartyKit's R2_BUCKET so
+# the same bucket uploads go into is the one being swept.
+[[r2_buckets]]
+binding     = "IMAGES"
+bucket_name = "soleil-boards-images"
 
 # Required secret (set via `wrangler secret put SUPABASE_SERVICE_ROLE_KEY`)
 # for the R2 sweep to call SECURITY DEFINER RPCs (find_orphan_images,
