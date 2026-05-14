@@ -62,19 +62,36 @@ export default class BoardParty implements Party.Server {
   // POST body is optional — we don't read it; the bytes are written
   // to board_state separately by the client.
   async onRequest(req: Party.Request) {
-    if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+    // CORS preflight. The browser sends OPTIONS before the actual POST
+    // because the request carries an Authorization header (custom). Reply
+    // with the headers permitting the actual request.
+    const origin = req.headers.get("origin") || "*";
+    const corsHeaders: Record<string, string> = {
+      "access-control-allow-origin": origin,
+      "access-control-allow-methods": "POST, OPTIONS",
+      "access-control-allow-headers": "authorization, content-type",
+      "access-control-max-age": "86400",
+      "vary": "Origin",
+    };
+
+    if (req.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+    if (req.method !== "POST") {
+      return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+    }
     const url = new URL(req.url);
     if (!url.pathname.endsWith("/reset")) {
-      return new Response("Not found", { status: 404 });
+      return new Response("Not found", { status: 404, headers: corsHeaders });
     }
     const auth = req.headers.get("authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
-    if (!token) return new Response("Missing token", { status: 401 });
+    if (!token) return new Response("Missing token", { status: 401, headers: corsHeaders });
     const boardId = this.room.id;
     const a = await authBoard(token, boardId);
-    if (!a.ok) return new Response(a.reason || "Unauthorized", { status: 401 });
+    if (!a.ok) return new Response(a.reason || "Unauthorized", { status: 401, headers: corsHeaders });
     const canWrite = await canWriteBoard(token, boardId);
-    if (!canWrite) return new Response("Read-only", { status: 403 });
+    if (!canWrite) return new Response("Read-only", { status: 403, headers: corsHeaders });
 
     // ── Collab-safe reset sequence ───────────────────────────────────────
     // The order matters. If we close the WS connections first, peers'
@@ -116,7 +133,7 @@ export default class BoardParty implements Party.Server {
 
     return new Response(JSON.stringify({ ok: true, kicked, signaled: true }), {
       status: 200,
-      headers: { "content-type": "application/json" },
+      headers: { ...corsHeaders, "content-type": "application/json" },
     });
   }
 }
