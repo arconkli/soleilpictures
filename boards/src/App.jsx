@@ -1657,6 +1657,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const { sourceBoardId, targetBoardId, cards: movedCards } = e.detail || {};
       if (!sourceBoardId || !targetBoardId || !movedCards?.length) return;
       if (sourceBoardId === targetBoardId) return;
+      console.log('[xbm] start', { sourceBoardId, targetBoardId, movedCount: movedCards.length, movedIds: movedCards.map(c => c.id), movedKinds: movedCards.map(c => c.kind) });
       try {
         // ── ID remapping ──
         const stamp = Date.now().toString(36);
@@ -1723,14 +1724,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const dx = 60 - minX;
         const dy = 60 - minY;
 
+        console.log('[xbm:load] loading target snapshot', { targetBoardId });
         const snap = await loadBoardSnapshot(targetBoardId);
+        console.log('[xbm:load] result', { targetBoardId, hasSnap: !!snap, snapBytes: snap?.length || 0 });
         // CRITICAL: if loadBoardSnapshot returns null/empty for a board
         // that already exists, we'd start with an empty tmp Y.Doc and
         // overwrite the live state with only the moved cards — wiping
         // every existing card on the target. Refuse the move and surface
         // a clear error so the user can retry rather than lose data.
         if (!snap) {
-          console.error('[cross-board-move] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
+          console.error('[xbm] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
           feedback.toast({
             type: 'error',
             message: 'Could not load the destination board’s state. Drag cancelled to prevent data loss. Try again in a moment.',
@@ -1741,6 +1744,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const tmp = new Y.Doc();
         Y.applyUpdate(tmp, b64ToBytes(snap));
         const targetCardCountBefore = tmp.getMap('cards').size;
+        console.log('[xbm:tmp-init] target cards before mutation', { targetCardCountBefore });
         // Pre-drop snapshot for the TARGET board — ALWAYS, regardless of
         // whether snap was non-empty (always is now thanks to the abort
         // above, but be defensive). Captures target state right before
@@ -1826,7 +1830,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
           return;
         }
+        const tmpFinalCount = tmp.getMap('cards').size;
+        console.log('[xbm:save] writing target board_state', { targetBoardId, tmpFinalCount });
         await saveBoardSnapshot(targetBoardId, tmp);
+        console.log('[xbm:save] done');
         tmp.destroy();
 
         // ── Repoint attached comments ──
@@ -1972,8 +1979,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // instead of deleting from the Y.Doc. Cheap O(n) filter — runs only
   // when cards or boards change.
   const isOrphanRef = (c) => {
-    if (c.kind === 'board')     return !boards[c.id];
-    if (c.kind === 'boardlink') return !boards[c.target];
+    if (c.kind === 'board') {
+      const orphan = !boards[c.id];
+      // This is a known render-time filter — should ONLY hide
+      // board/boardlink cards. If we ever log here for a card whose
+      // kind is NOT board/boardlink, that's the bug.
+      if (orphan) console.warn('[isOrphanRef] hiding board card', c.id);
+      return orphan;
+    }
+    if (c.kind === 'boardlink') {
+      const orphan = !boards[c.target];
+      if (orphan) console.warn('[isOrphanRef] hiding boardlink card', c.id, '→', c.target);
+      return orphan;
+    }
     return false;
   };
   const currentCards = useMemo(() => {

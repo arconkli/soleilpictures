@@ -1961,38 +1961,127 @@ export function CanvasSurface({
       if (targetBoardId && (Math.abs(dx) + Math.abs(dy) > 4)) {
         const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
         if (movedCards.length) {
-          // Pre-drop snapshot of THIS board (source) before deleteCards runs.
-          // The target board snapshot is taken by its own pane via the
-          // `soleil-card-into-board-drop` listener in App.jsx.
-          if (ydoc && board?.id) {
-            saveBoardVersion(board.id, ydoc, {
-              triggerKind: 'pre-drop',
-              sessionId,
-              userId,
-              label: 'pre-drop-into-board',
-              opSummary: {
-                action: 'drop-into-board',
-                target_board: targetBoardId,
-                card_count: movedCards.length,
-              },
-            }).then((snapId) => {
-              offerUndoToast(`Moved ${movedCards.length} ${movedCards.length === 1 ? 'card' : 'cards'} into board`, snapId);
-            });
-          }
-          // Collect groupIds referenced by the moved cards so we can
-          // optimistically clear comments anchored to those groups
-          // too — supabase realtime will catch up but the local UI
-          // shouldn't ghost-render the bubbles.
-          const movedGroupIds = [...new Set(movedCards.map(c => c.groupId).filter(Boolean))];
-          removeCommentsByAnchorIds([...dragIds, ...movedGroupIds]);
-          document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
-            detail: {
+          // Run the drop as an async transaction so we can capture
+          // before/after state around mutators.deleteCards and roll
+          // back via bulletproofRestore if the invariant fails.
+          (async () => {
+            const cardsMap = ydoc?.getMap?.('cards');
+            const beforeKeys = cardsMap ? [...cardsMap.keys()] : [];
+            const beforeCount = beforeKeys.length;
+            const expectedDelta = dragIds.length;
+            console.log('[drag-into-board] start', {
               sourceBoardId: board.id,
               targetBoardId,
-              cards: movedCards,
-            },
-          }));
-          mutators.deleteCards?.(dragIds);
+              dragIds,
+              movedCardKinds: movedCards.map(c => c.kind),
+              beforeCount,
+              expectedDelta,
+            });
+
+            // Pre-drop snapshot — awaited so we have the snapshot id BEFORE
+            // the delete fires. If anything goes wrong we can roll back
+            // from this exact snapshot via bulletproofRestore.
+            let preDropSnapshotId = null;
+            if (ydoc && board?.id) {
+              try {
+                preDropSnapshotId = await saveBoardVersion(board.id, ydoc, {
+                  triggerKind: 'pre-drop',
+                  sessionId,
+                  userId,
+                  label: 'pre-drop-into-board',
+                  opSummary: {
+                    action: 'drop-into-board',
+                    target_board: targetBoardId,
+                    card_count: movedCards.length,
+                    drag_ids: dragIds,
+                    moved_card_kinds: movedCards.map(c => c.kind),
+                  },
+                });
+                offerUndoToast(`Moved ${movedCards.length} ${movedCards.length === 1 ? 'card' : 'cards'} into board`, preDropSnapshotId);
+              } catch (e) {
+                console.warn('[drag-into-board] pre-drop snapshot failed', e);
+              }
+            }
+
+            // Clear local comment bubbles before the realtime push
+            // catches up (the cards are leaving this canvas).
+            const movedGroupIds = [...new Set(movedCards.map(c => c.groupId).filter(Boolean))];
+            removeCommentsByAnchorIds([...dragIds, ...movedGroupIds]);
+
+            // Hand the cards off to the target via App.jsx onDrop.
+            document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
+              detail: {
+                sourceBoardId: board.id,
+                targetBoardId,
+                cards: movedCards,
+              },
+            }));
+
+            // Source-side delete. Wrap with the invariant check.
+            mutators.deleteCards?.(dragIds);
+
+            const afterKeys = cardsMap ? [...cardsMap.keys()] : [];
+            const afterCount = afterKeys.length;
+            const actualDelta = beforeCount - afterCount;
+            console.log('[drag-into-board] post-delete', {
+              afterCount,
+              actualDelta,
+              expectedDelta,
+              keysRemoved: beforeKeys.filter(k => !afterKeys.includes(k)),
+              keysAdded:   afterKeys.filter(k => !beforeKeys.includes(k)),
+            });
+
+            // CRITICAL INVARIANT: source must lose exactly dragIds.length
+            // cards. If we lost more (or fewer), something is silently
+            // mutating the cards map and we need to roll back hard.
+            if (actualDelta !== expectedDelta) {
+              console.error('[drag-into-board] INVARIANT VIOLATED — auto-rolling back', {
+                beforeCount, afterCount, expectedDelta, actualDelta,
+                dragIds, beforeKeys, afterKeys,
+                keysUnexpectedlyRemoved: beforeKeys.filter(k => !dragIds.includes(k) && !afterKeys.includes(k)),
+              });
+              try {
+                if (preDropSnapshotId) {
+                  const b64 = await loadBoardVersionDoc(preDropSnapshotId);
+                  if (b64) {
+                    await bulletproofRestore(board.id, b64);
+                    feedback.toast({
+                      type: 'error',
+                      message: `Drag aborted — source board lost ${actualDelta} cards instead of ${expectedDelta}. Restored automatically.`,
+                      ttl: 12000,
+                    });
+                  } else {
+                    feedback.toast({ type: 'error', message: 'Drag caused unexpected state loss; manual recovery needed (History → Restore).' });
+                  }
+                } else {
+                  feedback.toast({ type: 'error', message: 'Drag caused unexpected state loss; manual recovery needed.' });
+                }
+              } catch (rbErr) {
+                console.error('[drag-into-board] rollback failed', rbErr);
+                feedback.toast({ type: 'error', message: 'Rollback failed: ' + (rbErr.message || rbErr) });
+              }
+              return;
+            }
+
+            // Post-drop snapshot so every cross-board drag has a paired
+            // before/after for diffing. Fire-and-forget.
+            if (ydoc && board?.id) {
+              saveBoardVersion(board.id, ydoc, {
+                triggerKind: 'post-drop',
+                sessionId,
+                userId,
+                label: 'post-drop-source',
+                opSummary: {
+                  action: 'drop-into-board-completed',
+                  target_board: targetBoardId,
+                  card_count_before: beforeCount,
+                  card_count_after: afterCount,
+                  expected_delta: expectedDelta,
+                  actual_delta: actualDelta,
+                },
+              });
+            }
+          })();
           setDrag(null);
           return;
         }
