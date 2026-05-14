@@ -1810,6 +1810,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             .from('comments')
             .select('id, anchor_id')
             .eq('board_id', sourceBoardId)
+            .is('deleted_at', null)
             .in('anchor_kind', ['card', 'group'])
             .in('anchor_id', [...oldCardIds, ...Object.keys(groupMap)]);
           if (cErr) throw cErr;

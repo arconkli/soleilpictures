@@ -1283,6 +1283,7 @@ export function CanvasSurface({
           .from('comments')
           .select('*')
           .eq('board_id', board.id)
+          .is('deleted_at', null)
           .in('anchor_kind', ['card', 'group'])
           .in('anchor_id', anchorIds);
         if (srcComments?.length) {

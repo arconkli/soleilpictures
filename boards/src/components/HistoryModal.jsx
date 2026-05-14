@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { listBoardVersions, loadBoardVersionDoc, saveBoardVersion, restoreBoard } from '../lib/boardsApi.js';
-import { listAllBoardComments, updateComment, deleteComment } from '../lib/commentsApi.js';
+import { listAllBoardComments, updateComment, deleteComment, restoreComment } from '../lib/commentsApi.js';
 import { restoreVersionInto } from '../lib/yboard.js';
 import { useFeedback } from './AppFeedback.jsx';
 
@@ -120,10 +120,13 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
     }
     return roots
       .filter(r => {
-        if (commentFilter === 'open')     return !r.resolved && !r.hidden;
-        if (commentFilter === 'resolved') return !!r.resolved;
-        if (commentFilter === 'hidden')   return !!r.hidden;
-        return true;
+        if (commentFilter === 'open')     return !r.deleted_at && !r.resolved && !r.hidden;
+        if (commentFilter === 'resolved') return !r.deleted_at && !!r.resolved;
+        if (commentFilter === 'hidden')   return !r.deleted_at && !!r.hidden;
+        if (commentFilter === 'deleted')  return !!r.deleted_at;
+        // 'all' tab shows live comments (any state) but not deleted ones —
+        // deleted have their own tab.
+        return !r.deleted_at;
       })
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .map(r => ({ root: r, replies: (byParent.get(r.id) || [])
@@ -131,14 +134,15 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
   }, [comments, commentFilter]);
 
   const counts = useMemo(() => {
-    let open = 0, resolved = 0, hidden = 0;
+    let open = 0, resolved = 0, hidden = 0, deleted = 0;
     for (const c of comments) {
       if (c.reply_to) continue;
+      if (c.deleted_at) { deleted++; continue; }
       if (c.hidden) hidden++;
       else if (c.resolved) resolved++;
       else open++;
     }
-    return { all: open + resolved + hidden, open, resolved, hidden };
+    return { all: open + resolved + hidden, open, resolved, hidden, deleted };
   }, [comments]);
 
   // Author name resolution — we have wsPeers available, fall back to
@@ -253,11 +257,16 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
   const onDeleteForever = async (c) => {
     const ok = await feedback.confirm({
       title: 'Delete comment?', confirmLabel: 'Delete', danger: true,
-      message: 'This is permanent and removes any replies.',
+      message: 'You can restore this from the Deleted tab for 30 days.',
     });
     if (!ok) return;
     try { await deleteComment(c.id); refreshComments(); }
     catch (e) { feedback.toast({ type: 'error', message: 'Delete failed: ' + (e.message || e) }); }
+  };
+
+  const onRestoreComment = async (c) => {
+    try { await restoreComment(c.id); refreshComments(); }
+    catch (e) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (e.message || e) }); }
   };
 
   if (!open) return null;
@@ -330,6 +339,8 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
                         onClick={() => setCommentFilter('resolved')}>Resolved <span>{counts.resolved}</span></button>
                 <button className={`hist-pill ${commentFilter === 'hidden' ? 'is-active' : ''}`}
                         onClick={() => setCommentFilter('hidden')}>Hidden <span>{counts.hidden}</span></button>
+                <button className={`hist-pill ${commentFilter === 'deleted' ? 'is-active' : ''}`}
+                        onClick={() => setCommentFilter('deleted')}>Deleted <span>{counts.deleted}</span></button>
               </div>
             </div>
             <div className="modal-body">
@@ -339,13 +350,17 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
                   {commentFilter === 'all' ? 'No comments on this board yet.' :
                    commentFilter === 'resolved' ? 'No resolved comments.' :
                    commentFilter === 'hidden' ? 'No hidden comments.' :
+                   commentFilter === 'deleted' ? 'Nothing in the trash. Deleted comments are recoverable for 30 days.' :
                    'No open comments.'}
                 </div>
               )}
               {!loadingC && commentTree.length > 0 && (
                 <div className="hist-comment-list">
                   {commentTree.map(({ root, replies }) => {
-                    const status = root.resolved ? 'resolved' : root.hidden ? 'hidden' : 'open';
+                    const status = root.deleted_at ? 'deleted'
+                                 : root.resolved ? 'resolved'
+                                 : root.hidden ? 'hidden'
+                                 : 'open';
                     return (
                       <div key={root.id} className={`hist-comment-card is-${status}`}>
                         <div className="hist-comment-head">
@@ -356,6 +371,11 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
                           <span className="hist-comment-author">{resolveName(root.author)}</span>
                           <span className="hist-comment-when">{fmtDate(root.created_at)}</span>
                           <span className={`hist-comment-status hist-comment-status-${status}`}>{status}</span>
+                          {root.deleted_at && (
+                            <span className="hist-comment-when" style={{ marginLeft: 'auto' }}>
+                              deleted {relTime(root.deleted_at)}
+                            </span>
+                          )}
                         </div>
                         <div className="hist-comment-body">{root.body}</div>
                         {replies.length > 0 && (
@@ -377,13 +397,21 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
                               : root.anchor_kind === 'doc_range' ? 'a doc'
                               : 'the board'}
                           </span>
-                          {(root.resolved || root.hidden) && (
-                            <button className="tb-btn tb-btn-sm" onClick={() => onReopen(root)}>
-                              {root.hidden ? 'Unhide' : 'Reopen'}
+                          {root.deleted_at ? (
+                            <button className="tb-btn tb-btn-sm" onClick={() => onRestoreComment(root)}>
+                              Restore
                             </button>
+                          ) : (
+                            <>
+                              {(root.resolved || root.hidden) && (
+                                <button className="tb-btn tb-btn-sm" onClick={() => onReopen(root)}>
+                                  {root.hidden ? 'Unhide' : 'Reopen'}
+                                </button>
+                              )}
+                              <button className="tb-btn tb-btn-sm tb-btn-danger"
+                                      onClick={() => onDeleteForever(root)}>Delete</button>
+                            </>
                           )}
-                          <button className="tb-btn tb-btn-sm tb-btn-danger"
-                                  onClick={() => onDeleteForever(root)}>Delete</button>
                         </div>
                       </div>
                     );

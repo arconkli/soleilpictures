@@ -6,13 +6,14 @@
 import { supabase } from './supabase.js';
 
 // List comments visible on a board. Includes resolved + hidden — let the
-// UI decide what to render.
+// UI decide what to render. Excludes soft-deleted rows.
 export async function listComments(boardId) {
   if (!boardId) return [];
   const { data, error } = await supabase
     .from('comments')
     .select('*')
     .eq('board_id', boardId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true });
   if (error) throw error;
   return data || [];
@@ -76,10 +77,34 @@ export async function updateComment(id, patch) {
   if (error) throw error;
 }
 
+// Soft-delete a comment. Recoverable for 30 days via restoreComment, or
+// from the History modal's Comments tab (deleted comments still show
+// there with a Restore action). The 30-day window is enforced by the
+// purge_old_deleted_comments() RPC.
 export async function deleteComment(id) {
-  const { error } = await supabase
-    .from('comments').delete().eq('id', id);
-  if (error) throw error;
+  const { error } = await supabase.rpc('soft_delete_comment', { p_comment_id: id });
+  if (error) {
+    console.warn('[deleteComment] RPC failed, falling back to UPDATE', error);
+    const upd = await supabase
+      .from('comments')
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .is('deleted_at', null);
+    if (upd.error) throw upd.error;
+  }
+}
+
+// Reverse a soft-delete.
+export async function restoreComment(id) {
+  const { error } = await supabase.rpc('restore_comment', { p_comment_id: id });
+  if (error) {
+    console.warn('[restoreComment] RPC failed, falling back to UPDATE', error);
+    const upd = await supabase
+      .from('comments')
+      .update({ deleted_at: null, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (upd.error) throw upd.error;
+  }
 }
 
 // Bulk-unhide every individually-hidden comment on a board. Used by the
@@ -96,14 +121,15 @@ export async function unhideAllOnBoard(boardId) {
     .update({ hidden: false })
     .eq('board_id', boardId)
     .eq('hidden', true)
+    .is('deleted_at', null)
     .select('id');
   if (error) throw error;
   return (data || []).length;
 }
 
 // Comment history for a single board — every comment ever, including
-// resolved + hidden ones. Used by the History modal's Comments tab so
-// users can audit what conversations happened on a board.
+// resolved + hidden + SOFT-DELETED. Used by the History modal's Comments
+// tab so users can audit conversations and restore deleted comments.
 export async function listAllBoardComments(boardId, limit = 200) {
   if (!boardId) return [];
   const { data, error } = await supabase
@@ -127,6 +153,7 @@ export async function listCommentsByAuthor({ workspaceId, authorId, limit = 50 }
     .select('*')
     .eq('workspace_id', workspaceId)
     .eq('author', authorId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
