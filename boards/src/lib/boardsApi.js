@@ -585,20 +585,58 @@ function buildCardMeta(kind, get) {
 
 // ── Version history ─────────────────────────────────────────────────────────
 
-export async function saveBoardVersion(boardId, ydoc, { label = null, userId = null } = {}) {
-  const update = Y.encodeStateAsUpdate(ydoc);
-  const b64 = bytesToB64(update);
-  const cardCount = ydoc.getMap('cards').size;
-  const { error } = await supabase
-    .from('board_versions')
-    .insert({ board_id: boardId, doc: b64, card_count: cardCount, label, made_by: userId });
-  if (error) throw error;
+// Snapshot the current Y.Doc into board_versions. Returns the inserted row's
+// id (or null on failure). MUST NEVER THROW — callers run this inline before
+// risky writes and we don't want to block the actual operation if the
+// snapshot insert hits a network blip.
+export async function saveBoardVersion(boardId, ydoc, {
+  label = null,
+  userId = null,
+  sessionId = null,
+  triggerKind = null,
+  opSummary = null,
+  parentVersionId = null,
+} = {}) {
+  try {
+    const update = Y.encodeStateAsUpdate(ydoc);
+    const b64 = bytesToB64(update);
+    const cardCount = ydoc.getMap('cards').size;
+    const row = {
+      board_id: boardId,
+      doc: b64,
+      card_count: cardCount,
+      label,
+      made_by: userId,
+    };
+    if (sessionId) row.session_id = sessionId;
+    if (triggerKind) row.trigger_kind = triggerKind;
+    if (opSummary) row.op_summary = opSummary;
+    if (parentVersionId) row.parent_version_id = parentVersionId;
+    const { data, error } = await supabase
+      .from('board_versions')
+      .insert(row)
+      .select('id')
+      .single();
+    if (error) {
+      console.warn('[saveBoardVersion] insert failed', error);
+      return null;
+    }
+    // Fire-and-forget retention prune; never block on it.
+    supabase.rpc('prune_board_versions', { p_board_id: boardId }).then(
+      () => {},
+      (e) => console.warn('[saveBoardVersion] prune failed', e),
+    );
+    return data?.id || null;
+  } catch (e) {
+    console.warn('[saveBoardVersion] threw', e);
+    return null;
+  }
 }
 
-export async function listBoardVersions(boardId, limit = 50) {
+export async function listBoardVersions(boardId, limit = 200) {
   const { data, error } = await supabase
     .from('board_versions')
-    .select('id, snapshot_at, card_count, label, made_by')
+    .select('id, snapshot_at, card_count, label, made_by, session_id, trigger_kind, op_summary, parent_version_id')
     .eq('board_id', boardId)
     .order('snapshot_at', { ascending: false })
     .limit(limit);
@@ -614,6 +652,38 @@ export async function loadBoardVersionDoc(versionId) {
     .single();
   if (error) throw error;
   return data?.doc || null;
+}
+
+// Fetch the most recent version row STRICTLY OLDER than `currentSnapshotAt`
+// (or the latest one when currentSnapshotAt is null). Used by the Cmd+Z
+// fallthrough to walk back through history one step at a time.
+export async function fetchPrevVersion(boardId, currentSnapshotAt = null) {
+  let q = supabase
+    .from('board_versions')
+    .select('id, snapshot_at, card_count, label, made_by, session_id, trigger_kind, op_summary')
+    .eq('board_id', boardId)
+    .order('snapshot_at', { ascending: false })
+    .limit(1);
+  if (currentSnapshotAt) q = q.lt('snapshot_at', currentSnapshotAt);
+  const { data, error } = await q;
+  if (error) { console.warn('[fetchPrevVersion]', error); return null; }
+  return (data && data[0]) || null;
+}
+
+// Fetch the next version row STRICTLY NEWER than `currentSnapshotAt`.
+// Used by Cmd+Shift+Z to walk forward through history when no in-memory
+// forward stack is available (e.g. after page reload).
+export async function fetchNextVersion(boardId, currentSnapshotAt) {
+  if (!currentSnapshotAt) return null;
+  const { data, error } = await supabase
+    .from('board_versions')
+    .select('id, snapshot_at, card_count, label, made_by, session_id, trigger_kind, op_summary')
+    .eq('board_id', boardId)
+    .gt('snapshot_at', currentSnapshotAt)
+    .order('snapshot_at', { ascending: true })
+    .limit(1);
+  if (error) { console.warn('[fetchNextVersion]', error); return null; }
+  return (data && data[0]) || null;
 }
 
 // ── Card group index (mirror of Y.Doc 'groups' map) ───────────────────────

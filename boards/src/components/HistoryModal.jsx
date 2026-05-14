@@ -47,13 +47,46 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
     if (!open || !boardId) return;
     let cancelled = false;
     setLoadingV(true);
-    listBoardVersions(boardId, 100).then(rows => {
+    listBoardVersions(boardId, 200).then(rows => {
       if (cancelled) return;
       setVersions(rows);
       setLoadingV(false);
     }).catch(e => { console.error(e); setLoadingV(false); });
     return () => { cancelled = true; };
   }, [open, boardId]);
+
+  // Group versions into "sessions" — (session_id, made_by) pairs. Rows
+  // without a session_id fall under "Legacy". Inside a session, snapshots
+  // stay chronological newest-first. Sessions themselves are ordered by
+  // their newest snapshot.
+  const sessionGroups = useMemo(() => {
+    const bySession = new Map(); // sessionId|null|legacy → { sessionId, userId, rows[], maxAt, minAt }
+    const legacyRows = [];
+    for (const v of versions) {
+      if (!v.session_id) {
+        legacyRows.push(v);
+        continue;
+      }
+      const key = `${v.session_id}|${v.made_by || ''}`;
+      let bucket = bySession.get(key);
+      if (!bucket) {
+        bucket = {
+          key,
+          sessionId: v.session_id,
+          userId: v.made_by || null,
+          rows: [],
+          maxAt: v.snapshot_at,
+          minAt: v.snapshot_at,
+        };
+        bySession.set(key, bucket);
+      }
+      bucket.rows.push(v);
+      if (v.snapshot_at > bucket.maxAt) bucket.maxAt = v.snapshot_at;
+      if (v.snapshot_at < bucket.minAt) bucket.minAt = v.snapshot_at;
+    }
+    const sessions = [...bySession.values()].sort((a, b) => (a.maxAt < b.maxAt ? 1 : -1));
+    return { sessions, legacyRows };
+  }, [versions]);
 
   // ── Comments ────────────────────────────────────────────────────────
   const refreshComments = async () => {
@@ -132,11 +165,15 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
     if (!ok) return;
     setBusyId(v.id);
     try {
-      try { await saveBoardVersion(boardId, ydoc, { label: 'before-restore', userId }); }
-      catch (e) { console.warn('pre-restore version save failed', e); }
+      await saveBoardVersion(boardId, ydoc, {
+        label: 'before-restore',
+        userId,
+        triggerKind: 'pre-restore',
+        opSummary: { restoring_to: v.id, restoring_to_at: v.snapshot_at },
+      });
       const b64 = await loadBoardVersionDoc(v.id);
       restoreVersionInto(ydoc, b64);
-      const rows = await listBoardVersions(boardId, 100);
+      const rows = await listBoardVersions(boardId, 200);
       setVersions(rows);
     } catch (e) {
       console.error(e);
@@ -157,13 +194,40 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
     });
     if (label == null) return;
     try {
-      await saveBoardVersion(boardId, ydoc, { label: label || 'manual', userId });
-      const rows = await listBoardVersions(boardId, 100);
+      await saveBoardVersion(boardId, ydoc, {
+        label: label || 'manual',
+        userId,
+        triggerKind: 'manual',
+      });
+      const rows = await listBoardVersions(boardId, 200);
       setVersions(rows);
       feedback.toast({ type: 'success', message: 'Snapshot saved.' });
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Save failed: ' + (e.message || e) });
     }
+  };
+
+  // Human-readable label for a row's trigger reason. Prefers op_summary
+  // (rich) → trigger_kind → label.
+  const describeRow = (v) => {
+    const op = v.op_summary || {};
+    const action = op.action;
+    const count = op.card_count;
+    if (action === 'drag-in-multi' || action === 'drag-in-single') {
+      return `Drag-in ${count || ''} card${count === 1 ? '' : 's'}`.trim();
+    }
+    if (action === 'drag-out') return `Drag-out ${count || ''} card${count === 1 ? '' : 's'}`.trim();
+    if (action === 'drop-into-board') return `Move ${count || ''} card${count === 1 ? '' : 's'} into board`.trim();
+    if (action === 'receive-cross-board-drop') return `Receive ${count || ''} card${count === 1 ? '' : 's'} from another board`.trim();
+    if (action === 'bulk-delete') return `Bulk delete ${count || ''} card${count === 1 ? '' : 's'}`.trim();
+    if (action === 'paste') return `Paste ${count || ''} card${count === 1 ? '' : 's'}`.trim();
+    if (action === 'time-travel-undo-from-live') return 'Pre-undo checkpoint';
+    if (v.trigger_kind === 'periodic') return 'Periodic checkpoint';
+    if (v.trigger_kind === 'idle') return 'Session end (idle)';
+    if (v.trigger_kind === 'destroy') return 'Tab closed';
+    if (v.trigger_kind === 'manual') return v.label || 'Manual snapshot';
+    if (v.trigger_kind === 'pre-restore') return 'Pre-restore checkpoint';
+    return v.label || '—';
   };
 
   const onReopen = async (c) => {
@@ -210,28 +274,32 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
           <>
             <div className="modal-actions">
               <button className="tb-btn" onClick={onSaveCurrent}>Save snapshot now</button>
-              <span className="modal-hint">Auto-snapshots every minute of editing</span>
+              <span className="modal-hint">Auto-snapshots before risky ops + every 2 min of editing</span>
             </div>
             <div className="modal-body">
               {loadingV && <div className="modal-empty">Loading…</div>}
               {!loadingV && versions.length === 0 && <div className="modal-empty">No versions yet — keep editing and they'll start appearing here.</div>}
               {!loadingV && versions.length > 0 && (
-                <div className="hist-list">
-                  {versions.map(v => (
-                    <div key={v.id} className="hist-row">
-                      <div className="hist-meta">
-                        <div className="hist-when" title={fmtDate(v.snapshot_at)}>{relTime(v.snapshot_at)}</div>
-                        <div className="hist-sub">
-                          <span>{fmtDate(v.snapshot_at)}</span>
-                          {v.label && <span className="hist-label">{v.label}</span>}
-                          <span>{v.card_count ?? '?'} cards</span>
-                        </div>
-                      </div>
-                      <button className="tb-btn" disabled={busyId === v.id} onClick={() => onRestore(v)}>
-                        {busyId === v.id ? 'Restoring…' : 'Restore'}
-                      </button>
-                    </div>
+                <div className="hist-list hist-list-sessions">
+                  {sessionGroups.sessions.map((s, idx) => (
+                    <SessionGroup
+                      key={s.key}
+                      session={s}
+                      defaultOpen={idx === 0}
+                      describeRow={describeRow}
+                      resolveName={resolveName}
+                      busyId={busyId}
+                      onRestore={onRestore}
+                    />
                   ))}
+                  {sessionGroups.legacyRows.length > 0 && (
+                    <LegacyGroup
+                      rows={sessionGroups.legacyRows}
+                      describeRow={describeRow}
+                      busyId={busyId}
+                      onRestore={onRestore}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -314,6 +382,73 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function SessionGroup({ session, defaultOpen, describeRow, resolveName, busyId, onRestore }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const userLabel = resolveName(session.userId);
+  return (
+    <div className={`hist-session ${open ? 'is-open' : ''}`}>
+      <button className="hist-session-head" onClick={() => setOpen(o => !o)}>
+        <span className="hist-session-caret">{open ? '▾' : '▸'}</span>
+        <span className="hist-session-user">{userLabel}</span>
+        <span className="hist-session-when">
+          {fmtDate(session.minAt)} – {fmtDate(session.maxAt)}
+        </span>
+        <span className="hist-session-count">{session.rows.length} snapshot{session.rows.length === 1 ? '' : 's'}</span>
+      </button>
+      {open && (
+        <div className="hist-session-body">
+          {session.rows.map(v => (
+            <div key={v.id} className="hist-row">
+              <div className="hist-meta">
+                <div className="hist-when" title={fmtDate(v.snapshot_at)}>{relTime(v.snapshot_at)}</div>
+                <div className="hist-sub">
+                  <span className="hist-trigger">{describeRow(v)}</span>
+                  <span>{v.card_count ?? '?'} cards</span>
+                </div>
+              </div>
+              <button className="tb-btn" disabled={busyId === v.id} onClick={() => onRestore(v)}>
+                {busyId === v.id ? 'Restoring…' : 'Restore'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LegacyGroup({ rows, describeRow, busyId, onRestore }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`hist-session hist-session-legacy ${open ? 'is-open' : ''}`}>
+      <button className="hist-session-head" onClick={() => setOpen(o => !o)}>
+        <span className="hist-session-caret">{open ? '▾' : '▸'}</span>
+        <span className="hist-session-user">Legacy history</span>
+        <span className="hist-session-when">snapshots from before session tracking</span>
+        <span className="hist-session-count">{rows.length}</span>
+      </button>
+      {open && (
+        <div className="hist-session-body">
+          {rows.map(v => (
+            <div key={v.id} className="hist-row">
+              <div className="hist-meta">
+                <div className="hist-when" title={fmtDate(v.snapshot_at)}>{relTime(v.snapshot_at)}</div>
+                <div className="hist-sub">
+                  <span className="hist-trigger">{describeRow(v)}</span>
+                  <span>{v.card_count ?? '?'} cards</span>
+                </div>
+              </div>
+              <button className="tb-btn" disabled={busyId === v.id} onClick={() => onRestore(v)}>
+                {busyId === v.id ? 'Restoring…' : 'Restore'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

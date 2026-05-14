@@ -57,7 +57,7 @@ import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
-import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta, updateOwnSettings } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
@@ -860,6 +860,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const undo = () => undoManager?.undo();
     const redo = () => undoManager?.redo();
+    const canUndo = () => !!(undoManager && undoManager.undoStack.length > 0);
+    const canRedo = () => !!(undoManager && undoManager.redoStack.length > 0);
 
     return {
       updateCard, updateCards, deleteCard, deleteCards,
@@ -874,7 +876,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setBoardCover,
       // Workspace-scoped mutators (rename, delete, clone) close over outer
       // scope and are filled in below since they don't need ydoc.
-      undo, redo,
+      undo, redo, canUndo, canRedo,
       // Internal helper exposed so addLink / dropInboxItem / dropFileImage
       // (which sit at parent scope and need to know which pane they target)
       // can drop a card directly without re-implementing addCard.
@@ -1705,6 +1707,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const snap = await loadBoardSnapshot(targetBoardId);
         const tmp = new Y.Doc();
         if (snap) Y.applyUpdate(tmp, b64ToBytes(snap));
+        // Pre-drop snapshot for the TARGET board — capture its state BEFORE
+        // we mutate it, so the recipient can roll back if the bundle is bad.
+        // The session_id of the user doing the drag is what's stamped (the
+        // target board isn't necessarily open in this tab).
+        if (snap) {
+          try {
+            await saveBoardVersion(targetBoardId, tmp, {
+              triggerKind: 'pre-drop',
+              sessionId: yb?.sessionId || null,
+              userId: user?.id || null,
+              label: 'pre-drop-target',
+              opSummary: {
+                action: 'receive-cross-board-drop',
+                from_board: sourceBoardId,
+                card_count: movedCards.length,
+              },
+            });
+          } catch (_) {}
+        }
 
         tmp.transact(() => {
           // Groups first so cards can reference their new ids.
@@ -1982,7 +2003,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        selectedTool={selectedTool} setSelectedTool={setSelectedTool}
                        mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
                        autotagSuggest={autotagSuggest}
-                       autotagReady={autotagReady} />
+                       autotagReady={autotagReady}
+                       sessionId={yh?.sessionId || null} />
       );
     })();
     return (

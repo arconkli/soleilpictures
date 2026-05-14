@@ -43,7 +43,8 @@ import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlac
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
-import { syncCardIndex } from '../lib/boardsApi.js';
+import { syncCardIndex, saveBoardVersion, fetchPrevVersion, fetchNextVersion, loadBoardVersionDoc } from '../lib/boardsApi.js';
+import { restoreVersionInto } from '../lib/yboard.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
@@ -186,6 +187,7 @@ export function CanvasSurface({
                            // and gray the toolbar (RLS is the real defense)
   autotagSuggest,          // (content, target) => Promise<[{tagId,score,reason}]>
   autotagReady = false,    // worker hydration finished
+  sessionId = null,        // per-tab session id for board_versions grouping
 }) {
   const wrapRef = useRef(null);
 
@@ -684,6 +686,142 @@ export function CanvasSurface({
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
 
+  // Tracks IDs that the user has explicitly dragged out of this canvas. The
+  // deleteCards guard in App.jsx consults this (via a CustomEvent) so the
+  // cross-pane `soleil-card-transferred` flow can only ever delete IDs that
+  // were *actually* picked up — a defense against a runaway delete that
+  // could nuke an entire board if `cardIds` is malformed.
+  const recentDragRef = useRef(new Set());
+  const recentDragTimerRef = useRef(null);
+  const markRecentDrag = (ids) => {
+    if (!Array.isArray(ids)) return;
+    recentDragRef.current = new Set(ids);
+    if (recentDragTimerRef.current) clearTimeout(recentDragTimerRef.current);
+    recentDragTimerRef.current = setTimeout(() => {
+      recentDragRef.current = new Set();
+    }, 5000);
+    // Make the allowlist available to listeners that didn't capture this
+    // closure (e.g. App.jsx's deleteCards guard).
+    try {
+      document.dispatchEvent(new CustomEvent('soleil-card-drag-start', {
+        detail: { boardId: board?.id, ids: [...ids] },
+      }));
+    } catch (_) {}
+  };
+
+  // Universal undo via time-travel restore. When the in-tab UndoManager is
+  // exhausted (or wiped by a page reload), Cmd+Z walks back through the
+  // board_versions snapshots one at a time. Cmd+Shift+Z walks forward.
+  // ttPointerRef: snapshot_at of the version we're currently parked at,
+  // or null = "live state" (the head). ttForwardRef: in-memory stack of
+  // (snapshot_at) values we've stepped over, so Cmd+Shift+Z can replay.
+  const ttPointerRef = useRef(null);
+  const ttForwardRef = useRef([]);
+  const ttBusyRef = useRef(false);
+  const ttSnapshotTakenRef = useRef(false);
+  const timeTravelUndo = useCallback(async () => {
+    if (!ydoc || !board?.id) return;
+    if (ttBusyRef.current) return;
+    ttBusyRef.current = true;
+    try {
+      // First time we drop into time-travel from "live" state, capture
+      // the current state as a pre-restore checkpoint so the user can
+      // always come back to where they were. Subsequent walks through
+      // history don't re-snapshot to avoid pollution.
+      if (!ttSnapshotTakenRef.current && ttPointerRef.current === null) {
+        await saveBoardVersion(board.id, ydoc, {
+          triggerKind: 'pre-restore',
+          sessionId,
+          userId,
+          label: 'pre-undo',
+          opSummary: { action: 'time-travel-undo-from-live' },
+        });
+        ttSnapshotTakenRef.current = true;
+      }
+      const prev = await fetchPrevVersion(board.id, ttPointerRef.current);
+      if (!prev) {
+        try { feedback.toast({ type: 'info', message: 'Nothing further to undo' }); } catch (_) {}
+        return;
+      }
+      const b64 = await loadBoardVersionDoc(prev.id);
+      if (!b64) {
+        console.warn('[timeTravelUndo] version doc missing', prev.id);
+        return;
+      }
+      // Push the previous pointer onto the forward stack so redo can walk back.
+      ttForwardRef.current.push(ttPointerRef.current);
+      ttPointerRef.current = prev.snapshot_at;
+      restoreVersionInto(ydoc, b64);
+      try { feedback.toast({ type: 'success', message: `Rolled back to ${new Date(prev.snapshot_at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
+    } catch (e) {
+      console.error('[timeTravelUndo]', e);
+      try { feedback.toast({ type: 'error', message: 'Undo failed: ' + (e.message || e) }); } catch (_) {}
+    } finally {
+      ttBusyRef.current = false;
+    }
+  }, [ydoc, board?.id, sessionId, userId, feedback]);
+  const timeTravelRedo = useCallback(async () => {
+    if (!ydoc || !board?.id) return;
+    if (ttBusyRef.current) return;
+    ttBusyRef.current = true;
+    try {
+      let targetAt = ttForwardRef.current.pop();
+      if (targetAt === undefined) {
+        // No in-memory forward step; query the database for the next-newer.
+        const next = await fetchNextVersion(board.id, ttPointerRef.current);
+        if (!next) {
+          try { feedback.toast({ type: 'info', message: 'Nothing further to redo' }); } catch (_) {}
+          return;
+        }
+        targetAt = next.snapshot_at;
+      }
+      if (targetAt === null) {
+        // Forward back to "live" — re-load the latest saved state.
+        // We can't reconstruct head trivially, so load the most recent
+        // version (which the pre-undo checkpoint above guarantees exists).
+        const head = await fetchPrevVersion(board.id, null);
+        if (head) {
+          const b64 = await loadBoardVersionDoc(head.id);
+          if (b64) restoreVersionInto(ydoc, b64);
+          ttPointerRef.current = head.snapshot_at;
+        }
+        return;
+      }
+      // Walk forward to targetAt.
+      const { data, error } = await supabase
+        .from('board_versions')
+        .select('id, snapshot_at, doc')
+        .eq('board_id', board.id)
+        .eq('snapshot_at', targetAt)
+        .limit(1);
+      if (error) throw error;
+      const row = data?.[0];
+      if (!row) return;
+      restoreVersionInto(ydoc, row.doc);
+      ttPointerRef.current = row.snapshot_at;
+      try { feedback.toast({ type: 'success', message: `Forward to ${new Date(row.snapshot_at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
+    } catch (e) {
+      console.error('[timeTravelRedo]', e);
+      try { feedback.toast({ type: 'error', message: 'Redo failed: ' + (e.message || e) }); } catch (_) {}
+    } finally {
+      ttBusyRef.current = false;
+    }
+  }, [ydoc, board?.id, feedback]);
+  // Any local edit clears the forward stack (classic redo semantics) and
+  // resets the "park" pointer to live. Watching the `cards` length is a
+  // simple proxy — granular update events would also work but this avoids
+  // wiring into the ydoc update listener directly.
+  useEffect(() => {
+    if (!ttBusyRef.current && ttPointerRef.current !== null) {
+      // New edit happened while we were parked — assume the user is now
+      // moving forward from the restored state. Clear forward stack and
+      // reset pointer so the next Cmd+Z snapshots fresh.
+      ttForwardRef.current = [];
+      ttPointerRef.current = null;
+      ttSnapshotTakenRef.current = false;
+    }
+  }, [cards.length]);
+
   // Holds the most-recently-created card whose Yjs write hasn't yet
   // surfaced through the useYBoard subscription back to `cards` here.
   // pickStrokeTarget falls back to this so a stroke drawn immediately
@@ -999,13 +1137,23 @@ export function CanvasSurface({
       });
       if (!ok) return;
     }
+    // Pre-bulk-delete safety snapshot — N >= 5 is the threshold for "risky."
+    if (ids.length >= 5 && ydoc && board?.id) {
+      saveBoardVersion(board.id, ydoc, {
+        triggerKind: 'pre-bulk-delete',
+        sessionId,
+        userId,
+        label: 'pre-bulk-delete',
+        opSummary: { action: 'bulk-delete', card_count: ids.length },
+      });
+    }
     mutators.deleteCards?.(ids);
     setSelected(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.delete(id));
       return next;
     });
-  }, [buildDeleteMessage, feedback, mutators]);
+  }, [buildDeleteMessage, feedback, mutators, ydoc, board?.id, sessionId, userId]);
 
   // Delete-selected handles cards, strokes, AND arrows.
   const doDeleteSelected = useCallback(async () => {
@@ -1037,6 +1185,17 @@ export function CanvasSurface({
   const doPaste = useCallback(async (atCanvas) => {
     const items = getClipboard();
     if (!items.length) return;
+    // Pre-paste safety snapshot. Anything pasting > 1 card is treated as
+    // "risky" since paste can stamp many cards at once.
+    if (ydoc && board?.id && items.length > 0) {
+      saveBoardVersion(board.id, ydoc, {
+        triggerKind: 'pre-paste',
+        sessionId,
+        userId,
+        label: 'pre-paste',
+        opSummary: { action: 'paste', card_count: items.length },
+      });
+    }
     const minX = Math.min(...items.map(c => c.x));
     const minY = Math.min(...items.map(c => c.y));
     const target = atCanvas || lastMouseCanvasRef.current;
@@ -1217,8 +1376,28 @@ export function CanvasSurface({
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
       const cmd = e.metaKey || e.ctrlKey;
 
-      if (cmd && e.key === 'z' && !e.shiftKey) { e.preventDefault(); mutators.undo?.(); return; }
-      if ((cmd && e.key === 'z' && e.shiftKey) || (cmd && e.key === 'y')) { e.preventDefault(); mutators.redo?.(); return; }
+      if (cmd && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        // Universal undo: try the in-tab UndoManager first (fine-grained
+        // local edits). If it's exhausted, fall through to a time-travel
+        // restore that walks back through board_versions snapshots.
+        if (mutators.canUndo && mutators.canUndo()) {
+          mutators.undo?.();
+        } else {
+          timeTravelUndo();
+        }
+        return;
+      }
+      if ((cmd && e.key === 'z' && e.shiftKey) || (cmd && e.key === 'y')) {
+        e.preventDefault();
+        // Mirror logic: try UndoManager redo first, then time-travel redo.
+        if (mutators.canRedo && mutators.canRedo()) {
+          mutators.redo?.();
+        } else {
+          timeTravelRedo();
+        }
+        return;
+      }
       if (cmd && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
       if (cmd && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); doDuplicate(); return; }
       if (cmd && (e.key === 'c' || e.key === 'C')) { doCopy(); return; }
@@ -1249,7 +1428,7 @@ export function CanvasSurface({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform]);
+  }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform, timeTravelUndo, timeTravelRedo]);
 
   // ── Pan helpers ───────────────────────────────────────────────────────────
   const startPan = (e) => {
@@ -1426,6 +1605,7 @@ export function CanvasSurface({
     const expanded = expandWithGroupmates(nextSelected);
     const dragIds = [...expanded];
     const dragSet = new Set(dragIds);
+    markRecentDrag(dragIds);
     const startPositions = {};
     dragIds.forEach(id => {
       const dc = cardById[id];
@@ -1725,6 +1905,22 @@ export function CanvasSurface({
       if (targetBoardId && (Math.abs(dx) + Math.abs(dy) > 4)) {
         const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
         if (movedCards.length) {
+          // Pre-drop snapshot of THIS board (source) before deleteCards runs.
+          // The target board snapshot is taken by its own pane via the
+          // `soleil-card-into-board-drop` listener in App.jsx.
+          if (ydoc && board?.id) {
+            saveBoardVersion(board.id, ydoc, {
+              triggerKind: 'pre-drop',
+              sessionId,
+              userId,
+              label: 'pre-drop-into-board',
+              opSummary: {
+                action: 'drop-into-board',
+                target_board: targetBoardId,
+                card_count: movedCards.length,
+              },
+            });
+          }
           // Collect groupIds referenced by the moved cards so we can
           // optimistically clear comments anchored to those groups
           // too — supabase realtime will catch up but the local UI
@@ -3560,6 +3756,20 @@ export function CanvasSurface({
       catch (_) { return; }
       if (!payload?.card) return;
       const isCopy = e.metaKey || e.ctrlKey;
+      // Pre-drop safety snapshot. Fire-and-forget; never block the actual drop.
+      if (ydoc && board?.id) {
+        saveBoardVersion(board.id, ydoc, {
+          triggerKind: 'pre-drop',
+          sessionId,
+          userId,
+          label: 'pre-drop',
+          opSummary: {
+            action: 'drag-in-single',
+            from_board: payload.sourceBoardId || null,
+            card_count: 1,
+          },
+        });
+      }
       const c = { ...payload.card };
       // Re-id unless we're moving (same id is fine for move, but using a
       // new id is safest if it's the same board → would otherwise clobber).
@@ -3633,13 +3843,42 @@ export function CanvasSurface({
   // the source after a successful cross-pane move.
   useEffect(() => {
     const onTransferred = (e) => {
-      const { sourceBoardId, cardIds } = e.detail || {};
+      const { sourceBoardId, cardIds, cardId } = e.detail || {};
       if (sourceBoardId !== board.id) return;
-      mutators.deleteCards?.(cardIds);
+      const idList = Array.isArray(cardIds)
+        ? cardIds
+        : (cardId ? [cardId] : []);
+      if (idList.length === 0) return;
+      // GUARD: refuse to delete IDs that aren't in our recent-drag allowlist.
+      // This is the defense-in-depth against the catastrophic-drag bug where
+      // a malformed cardIds payload could nuke the entire source board.
+      const allowed = recentDragRef.current;
+      const bogus = idList.filter((id) => !allowed.has(id));
+      if (bogus.length > 0) {
+        console.error('[soleil-card-transferred] refused: ids outside recent drag', {
+          bogus, boardId: board.id, dragSize: allowed.size,
+        });
+        return;
+      }
+      // Pre-drop snapshot for the SOURCE board too (this side loses cards).
+      if (ydoc && board?.id) {
+        saveBoardVersion(board.id, ydoc, {
+          triggerKind: 'pre-drop',
+          sessionId,
+          userId,
+          label: 'pre-drop-source',
+          opSummary: {
+            action: 'drag-out',
+            card_count: idList.length,
+          },
+        });
+      }
+      mutators.deleteCards?.(idList);
     };
     document.addEventListener('soleil-card-transferred', onTransferred);
     return () => document.removeEventListener('soleil-card-transferred', onTransferred);
-  }, [board.id, mutators]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id, mutators, ydoc, sessionId, userId]);
 
   // Highlight ourselves as a drop target while another pane's pointer drag
   // is over us. The source pane fires "hover" on every pointermove and "end"
@@ -3673,6 +3912,22 @@ export function CanvasSurface({
       // Only accept if the pointer is actually over THIS wrap.
       const dropEl = document.elementFromPoint(clientX, clientY);
       if (!dropEl || !wrap.contains(dropEl)) return;
+      // Pre-drop safety snapshot: capture the target board BEFORE we mutate it,
+      // and the source board's state too (via its own canvas) before the
+      // soleil-card-transferred event nukes the originals. Fire-and-forget.
+      if (ydoc && board?.id) {
+        saveBoardVersion(board.id, ydoc, {
+          triggerKind: 'pre-drop',
+          sessionId,
+          userId,
+          label: 'pre-drop',
+          opSummary: {
+            action: 'drag-in-multi',
+            from_board: sourceBoardId || null,
+            card_count: payload.length,
+          },
+        });
+      }
       const { x: cx, y: cy } = clientToCanvas(clientX, clientY);
       // Maintain relative positions between the dragged group's items.
       let minX = Infinity, minY = Infinity;

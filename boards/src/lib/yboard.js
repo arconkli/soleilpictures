@@ -29,7 +29,19 @@ const attachRealtime = import.meta.env.VITE_USE_PARTYKIT === 'true'
 
 const SNAP_DEBOUNCE_MS = 250;
 const SESSION_IDLE_MS = 5 * 60 * 1000; // 5 min of inactivity = session boundary
+// Active-editing periodic checkpoint: every 2 min of edits, take a snapshot.
+// Capped per session so a runaway session doesn't fill the table.
+const PERIODIC_VERSION_MS = 2 * 60 * 1000;
+const PERIODIC_VERSIONS_PER_SESSION = 30;
 const LOCAL_DRAFT_PREFIX = 'soleil.boards.ydoc.';
+
+function genSessionId() {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  } catch (_) {}
+  // Fallback: time-based pseudo-uuid (good enough for grouping).
+  return 'sess-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
 
 function draftKey(boardId) {
   return `${LOCAL_DRAFT_PREFIX}${boardId}`;
@@ -93,10 +105,13 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
 
   let snapTimer = null;
   let idleTimer = null;
+  let periodicTimer = null;
+  let periodicCount = 0;
   let dirty = false;
   let destroyed = false;
   let initialized = false;
   let draftVersion = 0;
+  const sessionId = genSessionId();
 
   const persistSoon = () => {
     const version = saveLocalDraft(boardId, ydoc, ++draftVersion);
@@ -117,18 +132,41 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
     idleTimer = setTimeout(() => {
       idleTimer = null;
       if (destroyed || !dirty) return;
-      saveBoardVersion(boardId, ydoc, { label: 'session', userId })
-        .then(() => { dirty = false; })
-        .catch((e) => console.warn('session-idle saveBoardVersion failed', e));
+      saveBoardVersion(boardId, ydoc, {
+        label: 'session',
+        userId,
+        sessionId,
+        triggerKind: 'idle',
+      }).then(() => { dirty = false; });
     }, SESSION_IDLE_MS);
+  };
+
+  const armPeriodicVersion = () => {
+    if (periodicTimer) return; // one in flight already
+    if (periodicCount >= PERIODIC_VERSIONS_PER_SESSION) return;
+    periodicTimer = setTimeout(() => {
+      periodicTimer = null;
+      if (destroyed || !dirty) return;
+      if (periodicCount >= PERIODIC_VERSIONS_PER_SESSION) return;
+      periodicCount += 1;
+      saveBoardVersion(boardId, ydoc, {
+        label: 'periodic',
+        userId,
+        sessionId,
+        triggerKind: 'periodic',
+        opSummary: { tick: periodicCount },
+      });
+    }, PERIODIC_VERSION_MS);
   };
 
   const onUpdate = (_update, origin) => {
     if (!initialized) return;
     if (origin === 'snapshot') return;
+    if (origin === 'restore') return;
     dirty = true;
     persistSoon();
     armIdleVersion();
+    armPeriodicVersion();
   };
   ydoc.on('update', onUpdate);
 
@@ -175,34 +213,40 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
     destroyed = true;
     if (snapTimer) clearTimeout(snapTimer);
     if (idleTimer) clearTimeout(idleTimer);
+    if (periodicTimer) clearTimeout(periodicTimer);
     if (typeof window !== 'undefined') window.removeEventListener('pagehide', onPageHide);
     try { realtime?.destroy?.(); } catch (_) {}
     ydoc.off('update', onUpdate);
-    // CRITICAL: only flush if we actually finished loading. Otherwise we'd
-    // overwrite the real persisted state with our empty pre-load state —
-    // which is exactly what happens during a React StrictMode double-mount
-    // (mount → cleanup → mount) before the async ready promise resolves.
     if (initialized) {
       const version = saveLocalDraft(boardId, ydoc, ++draftVersion);
       saveBoardSnapshot(boardId, ydoc)
         .then(() => {
           clearLocalDraft(boardId, version);
-          // Force-refresh thumbnail caches for this board (parent canvases
-          // showing it will refetch the latest snapshot).
           invalidateBoardPreview(boardId);
-          // Drop the prefetch cache too — next navigation should pull fresh.
           invalidatePrefetch(`board:${boardId}`);
         })
         .catch(() => {});
       if (dirty) {
-        saveBoardVersion(boardId, ydoc, { label: 'close', userId }).catch(() => {});
+        saveBoardVersion(boardId, ydoc, {
+          label: 'close',
+          userId,
+          sessionId,
+          triggerKind: 'destroy',
+        });
       }
     }
     undoManager.destroy();
     ydoc.destroy();
   };
 
-  return { ydoc, undoManager, ready, destroy, getAwareness: () => realtime?.awareness || null };
+  return {
+    ydoc,
+    undoManager,
+    ready,
+    destroy,
+    sessionId,
+    getAwareness: () => realtime?.awareness || null,
+  };
 }
 
 export function restoreVersionInto(ydoc, b64) {
@@ -215,6 +259,16 @@ export function restoreVersionInto(ydoc, b64) {
     if (arrows.length > 0) arrows.delete(0, arrows.length);
     const strokes = ydoc.getArray('strokes');
     if (strokes.length > 0) strokes.delete(0, strokes.length);
+    const groups = ydoc.getMap('groups');
+    groups.forEach((_v, k) => groups.delete(k));
+    const docPages = ydoc.getArray('docPages');
+    if (docPages.length > 0) docPages.delete(0, docPages.length);
+    const docPageContent = ydoc.getMap('docPageContent');
+    docPageContent.forEach((_v, k) => docPageContent.delete(k));
+    const docBookmarks = ydoc.getMap('docBookmarks');
+    docBookmarks.forEach((_v, k) => docBookmarks.delete(k));
+    const docComments = ydoc.getMap('docComments');
+    docComments.forEach((_v, k) => docComments.delete(k));
   }, 'restore');
   Y.applyUpdate(ydoc, bytes, 'restore');
 }

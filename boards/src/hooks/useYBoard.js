@@ -6,11 +6,11 @@ export function useYBoard(boardId, userId, user = null) {
   const handleRef = useRef(null);
   const emptySnapshot = (nextBoardId = null) => ({
     ready: false, cards: [], arrows: [], strokes: [], groups: [], ydoc: null, boardId: nextBoardId,
-    undoManager: null, canUndo: false, canRedo: false,
+    undoManager: null, canUndo: false, canRedo: false, sessionId: null,
   });
   const [snapshot, setSnapshot] = useState({
     ready: false, cards: [], arrows: [], strokes: [], groups: [], ydoc: null, boardId: null,
-    undoManager: null, canUndo: false, canRedo: false,
+    undoManager: null, canUndo: false, canRedo: false, sessionId: null,
   });
 
   useEffect(() => {
@@ -38,6 +38,7 @@ export function useYBoard(boardId, userId, user = null) {
         undoManager: handle.undoManager,
         canUndo: handle.undoManager.undoStack.length > 0,
         canRedo: handle.undoManager.redoStack.length > 0,
+        sessionId: handle.sessionId || null,
         getAwareness: handle.getAwareness,
       });
     };

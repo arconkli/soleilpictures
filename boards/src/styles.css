@@ -4406,6 +4406,65 @@ body {
   background: var(--bg-3); color: var(--ink-2);
   padding: 1px 6px; border-radius: 3px;
 }
+.hist-trigger {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+/* Session grouping (universal-undo / time-travel history) */
+.hist-list-sessions {
+  display: flex; flex-direction: column;
+  gap: 8px;
+}
+.hist-session {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-1);
+}
+.hist-session-head {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: 500 13px/1.3 var(--font-sans);
+  color: var(--ink-1);
+  transition: background var(--dur-fast) var(--ease);
+}
+.hist-session-head:hover { background: var(--bg-hov); }
+.hist-session-caret {
+  display: inline-block;
+  width: 12px;
+  color: var(--ink-3);
+}
+.hist-session-user {
+  font-weight: 600;
+  color: var(--ink-0);
+}
+.hist-session-when {
+  flex: 1; min-width: 0;
+  font-weight: 400;
+  color: var(--ink-3);
+  font-size: 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hist-session-count {
+  font-weight: 400;
+  color: var(--ink-3);
+  font-size: 11px;
+  background: var(--bg-3);
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+.hist-session-body {
+  display: flex; flex-direction: column;
+  gap: 1px;
+  padding: 0 6px 6px;
+}
+.hist-session-legacy .hist-session-head { color: var(--ink-3); }
 
 /* History modal tabs (Versions / Comments) */
 .hist-tabs {
