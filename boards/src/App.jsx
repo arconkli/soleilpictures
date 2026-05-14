@@ -57,7 +57,7 @@ import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
-import { createBoard, deleteBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
@@ -499,6 +499,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         boardIdsToCascade,
         boardThisIsOn: boardId,
       });
+      // Pre-delete-board snapshot for THIS board (the one the card lives
+      // on) so the boardcard itself comes back via time-travel undo. The
+      // underlying sub-board is now soft-deleted (boardsApi.deleteBoard)
+      // so its content is preserved automatically for 30 days; restoring
+      // the boardcard plus calling restoreBoard() brings everything back.
+      if (boardIdsToCascade.length && ydoc && boardId) {
+        try {
+          await saveBoardVersion(boardId, ydoc, {
+            triggerKind: 'pre-bulk-delete',
+            userId,
+            label: 'pre-board-delete',
+            opSummary: {
+              action: 'delete-board-cards',
+              card_count: boardIdsToCascade.length,
+              soft_deleted_board_ids: boardIdsToCascade,
+            },
+          });
+        } catch (_) {}
+      }
       for (const bid of boardIdsToCascade) {
         try { await deleteBoard(bid); }
         catch (e) {

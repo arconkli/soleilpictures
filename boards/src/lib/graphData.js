@@ -16,7 +16,8 @@ export async function assembleGraph({ workspaceId, options = {} }) {
 
   const { data: rawBoards = [] } = await supabase.from('boards')
     .select('id,name,parent_board_id,workspace_id')
-    .eq('workspace_id', workspaceId);
+    .eq('workspace_id', workspaceId)
+    .is('deleted_at', null);
 
   const { data: cards = [] } = await supabase.from('card_index')
     .select('board_id,card_id,kind,title,meta')

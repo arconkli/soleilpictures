@@ -62,7 +62,7 @@ export function useSuggestedTags({ workspaceId, existingTagSlugs }) {
     (async () => {
       try {
         const [b, ci, dp] = await Promise.all([
-          supabase.from('boards').select('id, name').eq('workspace_id', workspaceId),
+          supabase.from('boards').select('id, name').eq('workspace_id', workspaceId).is('deleted_at', null),
           supabase.from('card_index').select('board_id, card_id, title, body').eq('workspace_id', workspaceId),
           // Doc pages — the column is page_text (not "text"). Earlier
           // bug returned an error and silently dropped doc content

@@ -43,7 +43,7 @@ import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlac
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
-import { syncCardIndex, saveBoardVersion, fetchPrevVersion, fetchNextVersion, loadBoardVersionDoc } from '../lib/boardsApi.js';
+import { syncCardIndex, saveBoardVersion, fetchPrevVersion, fetchNextVersion, loadBoardVersionDoc, restoreBoard } from '../lib/boardsApi.js';
 import { restoreVersionInto } from '../lib/yboard.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
@@ -752,6 +752,18 @@ export function CanvasSurface({
       ttForwardRef.current.push(ttPointerRef.current);
       ttPointerRef.current = prev.snapshot_at;
       restoreVersionInto(ydoc, b64);
+      // Un-soft-delete any sub-boards referenced by board-kind cards in
+      // the restored doc so an undone "delete board" fully comes back.
+      try {
+        const cardsMap = ydoc.getMap('cards');
+        const boardIds = [];
+        cardsMap.forEach((ym, id) => {
+          if (ym?.get?.('kind') === 'board') boardIds.push(id);
+        });
+        for (const bid of boardIds) {
+          try { await restoreBoard(bid); } catch (_) {}
+        }
+      } catch (_) {}
       try { feedback.toast({ type: 'success', message: `Rolled back to ${new Date(prev.snapshot_at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
     } catch (e) {
       console.error('[timeTravelUndo]', e);
@@ -1114,12 +1126,12 @@ export function CanvasSurface({
     if (bn > 0 && total === bn) {
       if (bn === 1) {
         const name = boards[boardCards[0].id]?.name || 'this board';
-        return `Delete board "${name}" and ALL its content? This cannot be undone.`;
+        return `Delete board "${name}" and all its content?\n\nYou can undo this with Cmd+Z. The board is fully recoverable for 30 days.`;
       }
-      return `Delete ${bn} boards and ALL their content? This cannot be undone.`;
+      return `Delete ${bn} boards and all their content?\n\nYou can undo this with Cmd+Z. The boards are fully recoverable for 30 days.`;
     }
     if (bn > 0) {
-      return `Delete ${total} items, including ${bn} board${bn > 1 ? 's' : ''} (their content will also be lost)? This cannot be undone.`;
+      return `Delete ${total} items, including ${bn} board${bn > 1 ? 's' : ''}?\n\nYou can undo this with Cmd+Z. Anything deleted is recoverable for 30 days.`;
     }
     if (total === 1) return 'Delete this card?';
     return `Delete ${total} cards?`;

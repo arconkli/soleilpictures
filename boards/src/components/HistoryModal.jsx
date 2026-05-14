@@ -8,7 +8,7 @@
 // canvas itself via the bubble actions.
 
 import { useEffect, useMemo, useState } from 'react';
-import { listBoardVersions, loadBoardVersionDoc, saveBoardVersion } from '../lib/boardsApi.js';
+import { listBoardVersions, loadBoardVersionDoc, saveBoardVersion, restoreBoard } from '../lib/boardsApi.js';
 import { listAllBoardComments, updateComment, deleteComment } from '../lib/commentsApi.js';
 import { restoreVersionInto } from '../lib/yboard.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -173,6 +173,18 @@ export function HistoryModal({ open, boardId, ydoc, userId, onClose, wsPeers = [
       });
       const b64 = await loadBoardVersionDoc(v.id);
       restoreVersionInto(ydoc, b64);
+      // Un-soft-delete any sub-boards referenced by board-kind cards in
+      // the restored doc so an undone "delete board" fully comes back.
+      try {
+        const cardsMap = ydoc.getMap('cards');
+        const boardIds = [];
+        cardsMap.forEach((ym, id) => {
+          if (ym?.get?.('kind') === 'board') boardIds.push(id);
+        });
+        for (const bid of boardIds) {
+          try { await restoreBoard(bid); } catch (_) {}
+        }
+      } catch (_) {}
       const rows = await listBoardVersions(boardId, 200);
       setVersions(rows);
     } catch (e) {

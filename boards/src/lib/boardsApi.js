@@ -312,7 +312,19 @@ export async function listBoards(workspaceId) {
     .from('boards')
     .select('*')
     .eq('workspace_id', workspaceId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function listDeletedBoards(workspaceId) {
+  const { data, error } = await supabase
+    .from('boards')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false });
   if (error) throw error;
   return data || [];
 }
@@ -323,6 +335,7 @@ export async function getRootBoard(workspaceId) {
     .select('*')
     .eq('workspace_id', workspaceId)
     .is('parent_board_id', null)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
     .limit(1);
   if (error) throw error;
@@ -372,15 +385,49 @@ export async function updateBoardMeta(boardId, patch) {
   if (error) throw error;
 }
 
+// Soft-delete a board so it (and all its content) can be undone for 30
+// days. The `boards.deleted_at` filter is applied on every read path
+// (listBoards, getRootBoard, fetchBoardById). After 30 days the
+// purge_old_deleted_boards() cron sweeps them and FK cascades take care
+// of their board_state / board_versions / card_index / etc.
 export async function deleteBoard(boardId) {
-  console.log('[delete] deleteBoard request', { boardId });
-  const { data, error, count } = await supabase
-    .from('boards').delete({ count: 'exact' }).eq('id', boardId).select('id');
+  console.log('[delete] deleteBoard (soft) request', { boardId });
+  const { error } = await supabase.rpc('soft_delete_board', { p_board_id: boardId });
   if (error) {
-    console.warn('[delete] deleteBoard error', { boardId, error });
-    throw error;
+    // Fall back to direct UPDATE if the RPC isn't deployed yet.
+    console.warn('[delete] soft_delete_board RPC failed, falling back to UPDATE', error);
+    const upd = await supabase
+      .from('boards')
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', boardId)
+      .is('deleted_at', null);
+    if (upd.error) {
+      console.warn('[delete] soft-delete fallback also failed', upd.error);
+      throw upd.error;
+    }
   }
-  console.log('[delete] deleteBoard ok', { boardId, count, rows: data });
+  console.log('[delete] deleteBoard (soft) ok', { boardId });
+}
+
+// Reverse a soft-delete. Used by the time-travel restore path so an
+// undone delete fully comes back, and by the Trash UI.
+export async function restoreBoard(boardId) {
+  const { error } = await supabase.rpc('restore_board', { p_board_id: boardId });
+  if (error) {
+    console.warn('[restoreBoard] RPC failed, falling back to UPDATE', error);
+    const upd = await supabase
+      .from('boards')
+      .update({ deleted_at: null, updated_at: new Date().toISOString() })
+      .eq('id', boardId);
+    if (upd.error) throw upd.error;
+  }
+}
+
+// Hard-delete a board (admin-only path; not wired into the UI yet). Use
+// the existing DELETE for cases where the user explicitly wants to purge.
+export async function hardDeleteBoard(boardId) {
+  const { error } = await supabase.from('boards').delete().eq('id', boardId);
+  if (error) throw error;
 }
 
 // ── Board state (Y.Doc snapshot, base64-encoded text) ───────────────────────
