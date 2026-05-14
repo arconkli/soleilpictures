@@ -718,49 +718,6 @@ export function CanvasSurface({
   const ttForwardRef = useRef([]);
   const ttBusyRef = useRef(false);
   const ttSnapshotTakenRef = useRef(false);
-  // After a destructive op (drag/paste/bulk-delete), show a toast with
-  // an Undo button. Clicking restores via bulletproofRestore using the
-  // pre-op snapshot id. Toast TTL is generous so the user has time to
-  // notice the catastrophe and click Undo before it disappears.
-  const offerUndoToast = useCallback((label, snapshotId) => {
-    if (!snapshotId) return;
-    try {
-      feedback.toast({
-        type: 'info',
-        message: label,
-        action: {
-          label: 'Undo',
-          onClick: async () => {
-            try {
-              const b64 = await loadBoardVersionDoc(snapshotId);
-              if (!b64) {
-                feedback.toast({ type: 'error', message: 'Could not load snapshot to undo.' });
-                return;
-              }
-              try {
-                const tmp = decodeSnapshotBytes(b64);
-                const cardsMap = tmp.getMap('cards');
-                const ids = [];
-                cardsMap.forEach((ym, id) => {
-                  if (ym?.get?.('kind') === 'board') ids.push(id);
-                });
-                tmp.destroy();
-                for (const bid of ids) {
-                  try { await restoreBoard(bid); } catch (_) {}
-                }
-              } catch (_) {}
-              await bulletproofRestore(board.id, b64);
-              feedback.toast({ type: 'success', message: 'Undone.' });
-            } catch (e) {
-              console.error('[offerUndoToast]', e);
-              feedback.toast({ type: 'error', message: 'Undo failed: ' + (e.message || e) });
-            }
-          },
-        },
-        ttl: 12000,
-      });
-    } catch (_) {}
-  }, [feedback, board?.id]);
 
   // Restore the boards referenced as kind=board cards in a Y.Doc
   // produced from snapshot bytes — so an undone delete brings every
@@ -1196,8 +1153,6 @@ export function CanvasSurface({
         userId,
         label: 'pre-bulk-delete',
         opSummary: { action: 'bulk-delete', card_count: ids.length },
-      }).then((snapId) => {
-        offerUndoToast(`Deleted ${ids.length} cards`, snapId);
       });
     }
     mutators.deleteCards?.(ids);
@@ -1247,8 +1202,6 @@ export function CanvasSurface({
         userId,
         label: 'pre-paste',
         opSummary: { action: 'paste', card_count: items.length },
-      }).then((snapId) => {
-        offerUndoToast(`Pasted ${items.length} ${items.length === 1 ? 'card' : 'cards'}`, snapId);
       });
     }
     const minX = Math.min(...items.map(c => c.x));
@@ -1997,7 +1950,6 @@ export function CanvasSurface({
                     moved_card_kinds: movedCards.map(c => c.kind),
                   },
                 });
-                offerUndoToast(`Moved ${movedCards.length} ${movedCards.length === 1 ? 'card' : 'cards'} into board`, preDropSnapshotId);
               } catch (e) {
                 console.warn('[drag-into-board] pre-drop snapshot failed', e);
               }
@@ -3915,8 +3867,6 @@ export function CanvasSurface({
             from_board: payload.sourceBoardId || null,
             card_count: 1,
           },
-        }).then((snapId) => {
-          offerUndoToast(`1 card dropped on this board`, snapId);
         });
       }
       const c = { ...payload.card };
@@ -4020,8 +3970,6 @@ export function CanvasSurface({
             action: 'drag-out',
             card_count: idList.length,
           },
-        }).then((snapId) => {
-          offerUndoToast(`${idList.length} ${idList.length === 1 ? 'card' : 'cards'} moved out`, snapId);
         });
       }
       mutators.deleteCards?.(idList);
@@ -4077,8 +4025,6 @@ export function CanvasSurface({
             from_board: sourceBoardId || null,
             card_count: payload.length,
           },
-        }).then((snapId) => {
-          offerUndoToast(`${payload.length} ${payload.length === 1 ? 'card' : 'cards'} dropped on this board`, snapId);
         });
       }
       const { x: cx, y: cy } = clientToCanvas(clientX, clientY);

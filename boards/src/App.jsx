@@ -1836,15 +1836,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         console.log('[xbm:save] done');
         tmp.destroy();
 
-        // ── Repoint attached comments ──
-        // Track the exact comment-id → original-anchor mapping so the
-        // Undo path can reverse it.
-        const commentRedirects = []; // [{ id, oldAnchorId }]
+        // ── Repoint attached comments to the target board. ──
         try {
           const oldCardIds = movedCards.map(c => c.id);
-          // Pull the matching rows so we can update one at a time
-          // (anchor_id needs to change per-row; supabase update doesn't
-          // support a CASE-style remap in a single call).
           const { data: cmts, error: cErr } = await supabase
             .from('comments')
             .select('id, anchor_id')
@@ -1860,92 +1854,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               board_id: targetBoardId,
               anchor_id: newAnchor,
             }).eq('id', row.id);
-            commentRedirects.push({ id: row.id, oldAnchorId: row.anchor_id });
           }
         } catch (cmtErr) {
-          // Don't fail the whole drop if comments couldn't move —
-          // log and let the user know.
           console.warn('comment move failed', cmtErr);
         }
 
-        const targetName = boards[targetBoardId]?.name || 'board';
-        const extras = [];
-        if (sourceArrows.length) extras.push(`${sourceArrows.length} arrow${sourceArrows.length === 1 ? '' : 's'}`);
-        if (sourceGroups.length) extras.push(`${sourceGroups.length} group${sourceGroups.length === 1 ? '' : 's'}`);
-        const tail = extras.length ? ` (+${extras.join(', ')})` : '';
-
-        // ── Undo handler: reverses everything (target snapshot mutates,
-        //    source card restoration via current ydoc if user is still
-        //    on the source board, and comment re-anchoring).
-        const undoMove = async () => {
-          try {
-            // Reverse target: load snapshot, delete the cards/groups/
-            // arrows we added, save back.
-            const snap2 = await loadBoardSnapshot(targetBoardId);
-            const tmp2 = new Y.Doc();
-            if (snap2) Y.applyUpdate(tmp2, b64ToBytes(snap2));
-            tmp2.transact(() => {
-              const tcm2 = tmp2.getMap('cards');
-              for (const newCardId of Object.values(idMap)) tcm2.delete(newCardId);
-              const tgm2 = tmp2.getMap('groups');
-              for (const newGroupId of Object.values(groupMap)) tgm2.delete(newGroupId);
-              // Drop the cloned arrows. We push them at the END so we
-              // can safely delete the last N entries — find where the
-              // original arrows ended by counting from total length.
-              const tar2 = tmp2.getArray('arrows');
-              for (let i = 0; i < sourceArrows.length && tar2.length > 0; i++) {
-                tar2.delete(tar2.length - 1, 1);
-              }
-            }, 'cross-board-undo');
-            await saveBoardSnapshot(targetBoardId, tmp2);
-            tmp2.destroy();
-
-            // Reverse source: re-add the deleted cards if we're still
-            // on the source board (currentYDoc points at it). If the
-            // user has navigated away, load + patch its snapshot.
-            if (sourceBoardId === currentBoard?.id && currentYDoc) {
-              const tcm = currentYDoc.getMap('cards');
-              currentYDoc.transact(() => {
-                for (const c of movedCards) {
-                  tcm.set(c.id, cardToYMap({ ...c }));
-                }
-              }, 'cross-board-undo');
-            } else {
-              const ssnap = await loadBoardSnapshot(sourceBoardId);
-              const stmp = new Y.Doc();
-              if (ssnap) Y.applyUpdate(stmp, b64ToBytes(ssnap));
-              stmp.transact(() => {
-                const scm = stmp.getMap('cards');
-                for (const c of movedCards) scm.set(c.id, cardToYMap({ ...c }));
-              }, 'cross-board-undo');
-              await saveBoardSnapshot(sourceBoardId, stmp);
-              stmp.destroy();
-            }
-
-            // Reverse comments: send each redirected row back to its
-            // original anchor + source board.
-            for (const r of commentRedirects) {
-              await supabase.from('comments').update({
-                board_id: sourceBoardId,
-                anchor_id: r.oldAnchorId,
-              }).eq('id', r.id);
-            }
-
-            feedback.toast({ type: 'success', message: 'Move undone.' });
-          } catch (err) {
-            console.error('cross-board undo failed', err);
-            feedback.toast({ type: 'error', message: 'Undo failed: ' + (err.message || err) });
-          }
-        };
-
-        feedback.toast({
-          type: 'success',
-          message: movedCards.length === 1
-            ? `Moved into "${targetName}"${tail}.`
-            : `Moved ${movedCards.length} cards into "${targetName}"${tail}.`,
-          action: { label: 'Undo', onClick: undoMove },
-          ttl: 8000,
-        });
       } catch (err) {
         console.error('cross-board move failed', err);
         feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
