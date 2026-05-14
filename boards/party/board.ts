@@ -49,4 +49,50 @@ export default class BoardParty implements Party.Server {
       readOnly: !canWrite,
     });
   }
+
+  // Admin POST that nukes the room's Durable Object storage and kicks
+  // every connected client. Used by the bulletproof-restore flow: the
+  // client first writes the restored bytes to board_state (Supabase),
+  // then POSTs here to wipe the stale y-partykit snapshot that would
+  // otherwise merge the deleted state back in. After this returns the
+  // client triggers a Y.Doc remount; cold-load reads the restored
+  // bytes from board_state and re-establishes the room from scratch.
+  //
+  // Auth: same Bearer token as the WebSocket. Requires can_write_board.
+  // POST body is optional — we don't read it; the bytes are written
+  // to board_state separately by the client.
+  async onRequest(req: Party.Request) {
+    if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+    const url = new URL(req.url);
+    if (!url.pathname.endsWith("/reset")) {
+      return new Response("Not found", { status: 404 });
+    }
+    const auth = req.headers.get("authorization") || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
+    if (!token) return new Response("Missing token", { status: 401 });
+    const boardId = this.room.id;
+    const a = await authBoard(token, boardId);
+    if (!a.ok) return new Response(a.reason || "Unauthorized", { status: 401 });
+    const canWrite = await canWriteBoard(token, boardId);
+    if (!canWrite) return new Response("Read-only", { status: 403 });
+
+    // Wipe the entire DO storage — this clears every key y-partykit
+    // wrote (snapshot, updates, awareness, etc). Next connection cold-
+    // loads from scratch.
+    try { await this.room.storage.deleteAll(); }
+    catch (e) { console.error("[board/reset] deleteAll failed", e); }
+
+    // Close every active connection so they don't immediately
+    // re-broadcast their stale local state into the now-empty room.
+    // Code 4030 = our convention for "room reset; please reload".
+    let kicked = 0;
+    for (const conn of this.room.getConnections()) {
+      try { conn.close(4030, "room reset"); kicked++; } catch (_) {}
+    }
+
+    return new Response(JSON.stringify({ ok: true, kicked }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
 }

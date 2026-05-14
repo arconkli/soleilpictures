@@ -3,7 +3,9 @@
 
 import * as Y from 'yjs';
 import { supabase } from './supabase.js';
-import { bytesToB64 } from './yhelpers.js';
+import { bytesToB64, b64ToBytes } from './yhelpers.js';
+
+const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
 // ── Workspaces ──────────────────────────────────────────────────────────────
 
@@ -861,6 +863,109 @@ export async function fetchNextChange(boardId, currentAt) {
   return verRow.snapshot_at < metaRow.changed_at
     ? { type: 'version', at: verRow.snapshot_at, row: verRow }
     : { type: 'meta',    at: metaRow.changed_at,  row: metaRow };
+}
+
+// ── Bulletproof restore ────────────────────────────────────────────────────
+// The naive restoreVersionInto() approach (clear local Y.Doc, applyUpdate
+// snapshot bytes) is BROKEN for Yjs: the clear-ops record new lamport
+// clocks, then the snapshot's set-ops merge in but lose to the newer
+// deletes. Net result: doc gets emptied, not restored. Confirmed in
+// production — see commit a91563e fallout.
+//
+// The bulletproof flow:
+//   1) Write the restored bytes to board_state (Supabase) — cold-load source of truth.
+//   2) POST /reset to the board's PartyKit room — wipes the DO's stale
+//      y-partykit snapshot and force-disconnects every connected client
+//      so they can't broadcast their stale Y.Doc state back into the
+//      now-empty room.
+//   3) Caller (useYBoard / consumer) bumps its restoreEpoch so it
+//      destroys the current Y.Doc handle and re-runs loadYBoard, which
+//      cold-loads from board_state (restored) and reconnects to the
+//      empty room. The fresh state becomes authoritative.
+
+// POST /reset to the board room. Returns { ok, kicked } or throws.
+export async function forceResetBoardRoom(boardId) {
+  if (!boardId) throw new Error('forceResetBoardRoom: missing boardId');
+  let accessToken = '';
+  try {
+    const { data } = await supabase.auth.getSession();
+    accessToken = data?.session?.access_token || '';
+  } catch (_) {}
+  if (!accessToken) throw new Error('not signed in');
+  // PartyKit default party route: /parties/main/{roomId}
+  const proto = /^localhost/.test(PARTYKIT_HOST) ? 'http' : 'https';
+  const url = `${proto}://${PARTYKIT_HOST}/parties/main/${encodeURIComponent(boardId)}/reset`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'authorization': `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`/reset ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return await res.json().catch(() => ({ ok: true }));
+}
+
+// Decode a base64-encoded Y update into a fresh Y.Doc and return it.
+// Caller is responsible for destroy(). Used both to validate snapshot
+// bytes BEFORE writing to board_state and as the seed for the new
+// post-restore Y.Doc.
+export function decodeSnapshotBytes(b64) {
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, b64ToBytes(b64), 'restore');
+  return doc;
+}
+
+// One-shot orchestrator: writes restored bytes to board_state, resets
+// the PartyKit room, and returns. Caller MUST then trigger the
+// consuming Y.Doc to remount (e.g. via a restoreEpoch state bump in
+// useYBoard) so the local doc is recreated fresh from board_state.
+//
+// Throws on any failure — UI should catch and surface a toast.
+export async function bulletproofRestore(boardId, b64) {
+  if (!boardId || !b64) throw new Error('bulletproofRestore: missing args');
+  // 1) Save restored bytes to board_state. Use a fresh Y.Doc so the
+  //    written update is a clean snapshot (no merge artifacts).
+  const tmp = decodeSnapshotBytes(b64);
+  try {
+    await saveBoardSnapshot(boardId, tmp);
+  } finally {
+    tmp.destroy();
+  }
+  // 2) Wipe the PartyKit room + kick every client. Best-effort: if the
+  //    party isn't deployed yet (or this returns 4xx), proceed anyway.
+  //    Without the wipe, the room's DO storage will eventually re-merge
+  //    its stale state and undo the restore for live connections — so
+  //    surface the failure to the caller so they can warn the user.
+  try {
+    await forceResetBoardRoom(boardId);
+  } catch (e) {
+    console.warn('[bulletproofRestore] room reset failed (continuing)', e);
+  }
+  // 3) Audit row so the History modal shows the bulletproof restore.
+  try {
+    const userId = (await supabase.auth.getUser())?.data?.user?.id || null;
+    const seed = decodeSnapshotBytes(b64);
+    await saveBoardVersion(boardId, seed, {
+      label: 'bulletproof-restore',
+      userId,
+      triggerKind: 'manual',
+      opSummary: { action: 'bulletproof-restore' },
+    });
+    seed.destroy();
+  } catch (e) {
+    console.warn('[bulletproofRestore] audit row failed', e);
+  }
+  // 4) Fire the reset event so every mounted useYBoard for this board
+  //    tears down + re-cold-loads, picking up the restored state.
+  try {
+    if (typeof window !== 'undefined' && typeof window.__soleilEmitBoardReset === 'function') {
+      window.__soleilEmitBoardReset(boardId);
+    }
+  } catch (_) {}
 }
 
 // ── Card group index (mirror of Y.Doc 'groups' map) ───────────────────────

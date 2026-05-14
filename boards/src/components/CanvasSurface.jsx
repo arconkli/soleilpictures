@@ -43,8 +43,7 @@ import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlac
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
-import { syncCardIndex, saveBoardVersion, fetchPrevChange, fetchNextChange, loadBoardVersionDoc, restoreBoard, applyMetaChangeUndo } from '../lib/boardsApi.js';
-import { restoreVersionInto } from '../lib/yboard.js';
+import { syncCardIndex, saveBoardVersion, fetchPrevChange, fetchNextChange, loadBoardVersionDoc, restoreBoard, applyMetaChangeUndo, bulletproofRestore, decodeSnapshotBytes } from '../lib/boardsApi.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
@@ -719,20 +718,68 @@ export function CanvasSurface({
   const ttForwardRef = useRef([]);
   const ttBusyRef = useRef(false);
   const ttSnapshotTakenRef = useRef(false);
-  // Restore the boards referenced as kind=board cards in the current Y.Doc,
-  // so an undone delete brings everything back.
-  const restoreReferencedBoards = useCallback(async () => {
+  // After a destructive op (drag/paste/bulk-delete), show a toast with
+  // an Undo button. Clicking restores via bulletproofRestore using the
+  // pre-op snapshot id. Toast TTL is generous so the user has time to
+  // notice the catastrophe and click Undo before it disappears.
+  const offerUndoToast = useCallback((label, snapshotId) => {
+    if (!snapshotId) return;
     try {
-      const cardsMap = ydoc.getMap('cards');
+      feedback.toast({
+        type: 'info',
+        message: label,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            try {
+              const b64 = await loadBoardVersionDoc(snapshotId);
+              if (!b64) {
+                feedback.toast({ type: 'error', message: 'Could not load snapshot to undo.' });
+                return;
+              }
+              try {
+                const tmp = decodeSnapshotBytes(b64);
+                const cardsMap = tmp.getMap('cards');
+                const ids = [];
+                cardsMap.forEach((ym, id) => {
+                  if (ym?.get?.('kind') === 'board') ids.push(id);
+                });
+                tmp.destroy();
+                for (const bid of ids) {
+                  try { await restoreBoard(bid); } catch (_) {}
+                }
+              } catch (_) {}
+              await bulletproofRestore(board.id, b64);
+              feedback.toast({ type: 'success', message: 'Undone.' });
+            } catch (e) {
+              console.error('[offerUndoToast]', e);
+              feedback.toast({ type: 'error', message: 'Undo failed: ' + (e.message || e) });
+            }
+          },
+        },
+        ttl: 12000,
+      });
+    } catch (_) {}
+  }, [feedback, board?.id]);
+
+  // Restore the boards referenced as kind=board cards in a Y.Doc
+  // produced from snapshot bytes — so an undone delete brings every
+  // linked sub-board back from the soft-delete state. Called BEFORE
+  // bulletproofRestore tears down the live Y.Doc.
+  const restoreReferencedBoardsFromBytes = useCallback(async (b64) => {
+    try {
+      const tmp = decodeSnapshotBytes(b64);
+      const cardsMap = tmp.getMap('cards');
       const ids = [];
       cardsMap.forEach((ym, id) => {
         if (ym?.get?.('kind') === 'board') ids.push(id);
       });
+      tmp.destroy();
       for (const bid of ids) {
         try { await restoreBoard(bid); } catch (_) {}
       }
     } catch (_) {}
-  }, [ydoc]);
+  }, []);
 
   const timeTravelUndo = useCallback(async () => {
     if (!ydoc || !board?.id) return;
@@ -764,10 +811,14 @@ export function CanvasSurface({
           console.warn('[timeTravelUndo] version doc missing', change.row.id);
           return;
         }
-        restoreVersionInto(ydoc, b64);
-        await restoreReferencedBoards();
+        await restoreReferencedBoardsFromBytes(b64);
+        // Bulletproof: writes board_state, kicks the PartyKit room, and
+        // fires soleil-board-reset → useYBoard tears this CanvasSurface
+        // down and re-cold-loads with the restored state.
+        await bulletproofRestore(board.id, b64);
       } else {
-        // Meta change: apply its before_value back to boards.
+        // Meta change: apply its before_value back to boards. No Y.Doc
+        // mutation, no room reset needed.
         await applyMetaChangeUndo(change.row, { userId, sessionId });
       }
       try { feedback.toast({ type: 'success', message: `Rolled back to ${new Date(change.at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
@@ -777,7 +828,7 @@ export function CanvasSurface({
     } finally {
       ttBusyRef.current = false;
     }
-  }, [ydoc, board?.id, sessionId, userId, feedback, restoreReferencedBoards]);
+  }, [ydoc, board?.id, sessionId, userId, feedback, restoreReferencedBoardsFromBytes]);
 
   const timeTravelRedo = useCallback(async () => {
     if (!ydoc || !board?.id) return;
@@ -792,11 +843,11 @@ export function CanvasSurface({
       ttPointerRef.current = change.at;
       if (change.type === 'version') {
         const b64 = await loadBoardVersionDoc(change.row.id);
-        if (b64) restoreVersionInto(ydoc, b64);
-        await restoreReferencedBoards();
+        if (b64) {
+          await restoreReferencedBoardsFromBytes(b64);
+          await bulletproofRestore(board.id, b64);
+        }
       } else {
-        // Forward through a meta reversal: apply ITS before_value (which is
-        // the post-original state we're "redoing forward into").
         await applyMetaChangeUndo(change.row, { userId, sessionId });
       }
       try { feedback.toast({ type: 'success', message: `Forward to ${new Date(change.at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
@@ -806,7 +857,7 @@ export function CanvasSurface({
     } finally {
       ttBusyRef.current = false;
     }
-  }, [ydoc, board?.id, sessionId, userId, feedback, restoreReferencedBoards]);
+  }, [ydoc, board?.id, sessionId, userId, feedback, restoreReferencedBoardsFromBytes]);
   // Any local edit clears the forward stack (classic redo semantics) and
   // resets the "park" pointer to live. Watching the `cards` length is a
   // simple proxy — granular update events would also work but this avoids
@@ -1145,6 +1196,8 @@ export function CanvasSurface({
         userId,
         label: 'pre-bulk-delete',
         opSummary: { action: 'bulk-delete', card_count: ids.length },
+      }).then((snapId) => {
+        offerUndoToast(`Deleted ${ids.length} cards`, snapId);
       });
     }
     mutators.deleteCards?.(ids);
@@ -1194,6 +1247,8 @@ export function CanvasSurface({
         userId,
         label: 'pre-paste',
         opSummary: { action: 'paste', card_count: items.length },
+      }).then((snapId) => {
+        offerUndoToast(`Pasted ${items.length} ${items.length === 1 ? 'card' : 'cards'}`, snapId);
       });
     }
     const minX = Math.min(...items.map(c => c.x));
@@ -1920,6 +1975,8 @@ export function CanvasSurface({
                 target_board: targetBoardId,
                 card_count: movedCards.length,
               },
+            }).then((snapId) => {
+              offerUndoToast(`Moved ${movedCards.length} ${movedCards.length === 1 ? 'card' : 'cards'} into board`, snapId);
             });
           }
           // Collect groupIds referenced by the moved cards so we can
@@ -3769,6 +3826,8 @@ export function CanvasSurface({
             from_board: payload.sourceBoardId || null,
             card_count: 1,
           },
+        }).then((snapId) => {
+          offerUndoToast(`1 card dropped on this board`, snapId);
         });
       }
       const c = { ...payload.card };
@@ -3872,6 +3931,8 @@ export function CanvasSurface({
             action: 'drag-out',
             card_count: idList.length,
           },
+        }).then((snapId) => {
+          offerUndoToast(`${idList.length} ${idList.length === 1 ? 'card' : 'cards'} moved out`, snapId);
         });
       }
       mutators.deleteCards?.(idList);
@@ -3927,6 +3988,8 @@ export function CanvasSurface({
             from_board: sourceBoardId || null,
             card_count: payload.length,
           },
+        }).then((snapId) => {
+          offerUndoToast(`${payload.length} ${payload.length === 1 ? 'card' : 'cards'} dropped on this board`, snapId);
         });
       }
       const { x: cx, y: cy } = clientToCanvas(clientX, clientY);

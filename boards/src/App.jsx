@@ -1724,27 +1724,41 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const dy = 60 - minY;
 
         const snap = await loadBoardSnapshot(targetBoardId);
-        const tmp = new Y.Doc();
-        if (snap) Y.applyUpdate(tmp, b64ToBytes(snap));
-        // Pre-drop snapshot for the TARGET board — capture its state BEFORE
-        // we mutate it, so the recipient can roll back if the bundle is bad.
-        // The session_id of the user doing the drag is what's stamped (the
-        // target board isn't necessarily open in this tab).
-        if (snap) {
-          try {
-            await saveBoardVersion(targetBoardId, tmp, {
-              triggerKind: 'pre-drop',
-              sessionId: yb?.sessionId || null,
-              userId: user?.id || null,
-              label: 'pre-drop-target',
-              opSummary: {
-                action: 'receive-cross-board-drop',
-                from_board: sourceBoardId,
-                card_count: movedCards.length,
-              },
-            });
-          } catch (_) {}
+        // CRITICAL: if loadBoardSnapshot returns null/empty for a board
+        // that already exists, we'd start with an empty tmp Y.Doc and
+        // overwrite the live state with only the moved cards — wiping
+        // every existing card on the target. Refuse the move and surface
+        // a clear error so the user can retry rather than lose data.
+        if (!snap) {
+          console.error('[cross-board-move] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
+          feedback.toast({
+            type: 'error',
+            message: 'Could not load the destination board’s state. Drag cancelled to prevent data loss. Try again in a moment.',
+            duration: 8000,
+          });
+          return;
         }
+        const tmp = new Y.Doc();
+        Y.applyUpdate(tmp, b64ToBytes(snap));
+        const targetCardCountBefore = tmp.getMap('cards').size;
+        // Pre-drop snapshot for the TARGET board — ALWAYS, regardless of
+        // whether snap was non-empty (always is now thanks to the abort
+        // above, but be defensive). Captures target state right before
+        // we mutate it.
+        try {
+          await saveBoardVersion(targetBoardId, tmp, {
+            triggerKind: 'pre-drop',
+            sessionId: yb?.sessionId || null,
+            userId: user?.id || null,
+            label: 'pre-drop-target',
+            opSummary: {
+              action: 'receive-cross-board-drop',
+              from_board: sourceBoardId,
+              card_count: movedCards.length,
+              target_card_count_before: targetCardCountBefore,
+            },
+          });
+        } catch (_) {}
 
         tmp.transact(() => {
           // Groups first so cards can reference their new ids.
@@ -1794,6 +1808,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             }
           }
         }, 'cross-board-move');
+        // Final invariant check: tmp.cards must contain AT LEAST the
+        // original target cards + the moved cards. If somehow it's
+        // fewer (shouldn't happen — we only add to the map — but if
+        // anything goes weird, abort instead of writing a wiped state).
+        const tmpCardCount = tmp.getMap('cards').size;
+        const expectedMin = targetCardCountBefore + movedCards.length;
+        if (tmpCardCount < expectedMin) {
+          console.error('[cross-board-move] aborting: tmp card count below expected', {
+            tmpCardCount, expectedMin, targetCardCountBefore, moved: movedCards.length,
+          });
+          tmp.destroy();
+          feedback.toast({
+            type: 'error',
+            message: 'Drag aborted — target board state looked unsafe to overwrite.',
+            duration: 8000,
+          });
+          return;
+        }
         await saveBoardSnapshot(targetBoardId, tmp);
         tmp.destroy();
 

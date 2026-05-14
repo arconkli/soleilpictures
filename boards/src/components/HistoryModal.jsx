@@ -11,9 +11,9 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   listBoardVersions, loadBoardVersionDoc, saveBoardVersion, restoreBoard,
   listBoardMetaHistory, applyMetaChangeUndo, listDeletedBoards, hardDeleteBoard,
+  bulletproofRestore, decodeSnapshotBytes,
 } from '../lib/boardsApi.js';
 import { listAllBoardComments, updateComment, deleteComment, restoreComment } from '../lib/commentsApi.js';
-import { restoreVersionInto } from '../lib/yboard.js';
 import { useFeedback } from './AppFeedback.jsx';
 
 function relTime(iso) {
@@ -213,6 +213,9 @@ export function HistoryModal({ open, boardId, workspaceId = null, ydoc, userId, 
     if (!ok) return;
     setBusyId(v.id);
     try {
+      // Pre-restore checkpoint of the CURRENT live state so the user
+      // can always come back. saveBoardVersion is best-effort, never
+      // throws upward.
       await saveBoardVersion(boardId, ydoc, {
         label: 'before-restore',
         userId,
@@ -220,21 +223,29 @@ export function HistoryModal({ open, boardId, workspaceId = null, ydoc, userId, 
         opSummary: { restoring_to: v.id, restoring_to_at: v.snapshot_at },
       });
       const b64 = await loadBoardVersionDoc(v.id);
-      restoreVersionInto(ydoc, b64);
-      // Un-soft-delete any sub-boards referenced by board-kind cards in
-      // the restored doc so an undone "delete board" fully comes back.
+      // Bulletproof restore: writes board_state, resets the PartyKit
+      // room, fires the soleil-board-reset event. useYBoard listeners
+      // tear down and re-cold-load with the restored state. Replaces
+      // the broken restoreVersionInto() merge approach.
+      await bulletproofRestore(boardId, b64);
+      // Un-soft-delete sub-boards referenced by board-kind cards in
+      // the restored snapshot. Decode the bytes locally just to
+      // enumerate them (the live Y.Doc is about to be discarded).
       try {
-        const cardsMap = ydoc.getMap('cards');
+        const tmp = decodeSnapshotBytes(b64);
+        const cardsMap = tmp.getMap('cards');
         const boardIds = [];
         cardsMap.forEach((ym, id) => {
           if (ym?.get?.('kind') === 'board') boardIds.push(id);
         });
+        tmp.destroy();
         for (const bid of boardIds) {
           try { await restoreBoard(bid); } catch (_) {}
         }
       } catch (_) {}
       const rows = await listBoardVersions(boardId, 200);
       setVersions(rows);
+      feedback.toast({ type: 'success', message: `Restored to ${fmtDate(v.snapshot_at)}` });
     } catch (e) {
       console.error(e);
       feedback.toast({ type: 'error', message: 'Restore failed: ' + (e.message || e) });
