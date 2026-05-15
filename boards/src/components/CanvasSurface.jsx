@@ -4748,6 +4748,118 @@ export function CanvasSurface({
                   strokeWidth={activeStroke.width}
                   strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
           )}
+          {/* Selected-stroke transform overlay: bbox + corner handles for
+              moving / uniform-scaling the selected strokes. Lives inside
+              the strokes-layer SVG so it shares the canvas transform. */}
+          {canEdit && selectedStrokes.size > 0 && (() => {
+            const sel = [...selectedStrokes].map(i => (strokes || [])[i]).filter(Boolean);
+            if (sel.length === 0) return null;
+            // Union bbox of all selected strokes.
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const s of sel) {
+              for (const [x, y] of (s.points || [])) {
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
+              }
+            }
+            if (!isFinite(minX)) return null;
+            const w = Math.max(2, maxX - minX);
+            const h = Math.max(2, maxY - minY);
+            const handleR = 6 / zoom;
+            const strokeW = 1 / zoom;
+            const onBodyDown = (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              const startC = clientToCanvas(ev.clientX, ev.clientY);
+              const startPoints = sel.map(s => s.points.map(p => [p[0], p[1]]));
+              const selIndexes = [...selectedStrokes];
+              let last = startC;
+              const onMove = (mv) => {
+                last = clientToCanvas(mv.clientX, mv.clientY);
+                const dx = last.x - startC.x, dy = last.y - startC.y;
+                const next = (strokes || []).slice();
+                for (let k = 0; k < selIndexes.length; k++) {
+                  const idx = selIndexes[k];
+                  const orig = startPoints[k];
+                  next[idx] = { ...next[idx], points: orig.map(p => [p[0] + dx, p[1] + dy]) };
+                }
+                mutators.replaceStrokes?.(next);
+              };
+              const onUp = () => {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+              };
+              window.addEventListener('pointermove', onMove);
+              window.addEventListener('pointerup', onUp);
+            };
+            const onHandleDown = (which) => (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              const startC = clientToCanvas(ev.clientX, ev.clientY);
+              const startPoints = sel.map(s => s.points.map(p => [p[0], p[1]]));
+              const selIndexes = [...selectedStrokes];
+              // Anchor = the OPPOSITE corner of the dragged handle.
+              const ax = (which === 'nw' || which === 'sw') ? (minX + w) : minX;
+              const ay = (which === 'nw' || which === 'ne') ? (minY + h) : minY;
+              const startD = { dx: startC.x - ax, dy: startC.y - ay };
+              const onMove = (mv) => {
+                const cur = clientToCanvas(mv.clientX, mv.clientY);
+                const newDx = cur.x - ax, newDy = cur.y - ay;
+                // Uniform scale: use the larger absolute ratio so the
+                // selection stays in lockstep along both axes.
+                const sx = startD.dx === 0 ? 1 : newDx / startD.dx;
+                const sy = startD.dy === 0 ? 1 : newDy / startD.dy;
+                const sNoSign = Math.max(0.05, Math.max(Math.abs(sx), Math.abs(sy)));
+                // Keep sign so the user can flip the selection by dragging past the anchor.
+                const sFinal = sNoSign * (Math.sign(sx) || 1) * (Math.sign(sy) || 1);
+                const next = (strokes || []).slice();
+                for (let k = 0; k < selIndexes.length; k++) {
+                  const idx = selIndexes[k];
+                  const orig = startPoints[k];
+                  next[idx] = {
+                    ...next[idx],
+                    points: orig.map(p => [
+                      ax + (p[0] - ax) * sFinal,
+                      ay + (p[1] - ay) * sFinal,
+                    ]),
+                  };
+                }
+                mutators.replaceStrokes?.(next);
+              };
+              const onUp = () => {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+              };
+              window.addEventListener('pointermove', onMove);
+              window.addEventListener('pointerup', onUp);
+            };
+            return (
+              <Fragment>
+                <rect x={minX} y={minY} width={w} height={h}
+                      fill="rgba(245,158,11,0.04)"
+                      stroke="rgba(245,158,11,.6)"
+                      strokeWidth={strokeW}
+                      strokeDasharray={`${4 / zoom} ${3 / zoom}`}
+                      pointerEvents="all"
+                      style={{ cursor: 'grab' }}
+                      onPointerDown={onBodyDown} />
+                {[
+                  ['nw', minX,         minY],
+                  ['ne', minX + w,     minY],
+                  ['se', minX + w,     minY + h],
+                  ['sw', minX,         minY + h],
+                ].map(([k, x, y]) => (
+                  <circle key={k} cx={x} cy={y} r={handleR}
+                          fill="#fff"
+                          stroke="rgba(245,158,11,.95)"
+                          strokeWidth={1.5 / zoom}
+                          pointerEvents="all"
+                          style={{ cursor: 'nwse-resize' }}
+                          onPointerDown={onHandleDown(k)} />
+                ))}
+              </Fragment>
+            );
+          })()}
         </svg>
 
         {/* Anywhere-comment bubbles. Mounted INSIDE the canvas transform
