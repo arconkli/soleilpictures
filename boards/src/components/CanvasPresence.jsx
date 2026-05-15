@@ -161,6 +161,14 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
           if (u) cursorState.current[id].user = u;
         }
       }
+      // TEMP diagnostic: log every refresh outcome so we can tell if
+      // cursorDisplay is actually getting populated or stays empty.
+      console.log('[canvaspres] refresh-out', {
+        nextCursorTargetIds: Object.keys(nextCursorTargets),
+        cursorStateIds: Object.keys(cursorState.current),
+        peerCount: newest.size,
+        displayChanged,
+      });
       if (displayChanged) setCursorDisplay({ ...cursorState.current });
       if (!rafId) rafId = requestAnimationFrame(tick);
       dropExpired();
@@ -180,6 +188,20 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
   // Cursors get rendered in canvas-space, then transformed by the same
   // pan/zoom the canvas itself uses, so a peer's screen-space cursor
   // follows the same coordinate system as the cards.
+  // TEMP diagnostic: log cursorDisplay state once per render.
+  if (typeof window !== 'undefined' && !window.__cursorRenderLogThrottle) {
+    window.__cursorRenderLogThrottle = setTimeout(() => {
+      window.__cursorRenderLogThrottle = null;
+    }, 500);
+    console.log('[canvaspres] render-tick', {
+      cursorDisplayKeys: Object.keys(cursorDisplay),
+      cursorDisplayValues: Object.entries(cursorDisplay).map(([id, c]) => ({
+        id, hasUser: !!c?.user, name: c?.user?.name, x: c?.x, y: c?.y,
+      })),
+      peerCount: peers.length,
+      pan, zoom, boardId,
+    });
+  }
   return (
     <>
       {/* Peer marquee rectangles — drawn in canvas-space, transformed by the
