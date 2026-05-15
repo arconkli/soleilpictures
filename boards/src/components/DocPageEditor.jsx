@@ -12,6 +12,7 @@ import { Extension } from '@tiptap/core';
 import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
+import { yUndoPlugin, undo as yUndoCmd, redo as yRedoCmd } from 'y-prosemirror';
 import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, addBookmark, readPagesWithText } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
@@ -637,6 +638,19 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
         showOnlyCurrent: true,
       }),
       ...(fragment ? [Collaboration.configure({ fragment })] : []),
+      // Bridge Cmd+Z / Cmd+Shift+Z (and Cmd+Y) to the Yjs UndoManager.
+      // StarterKit's `history` is disabled (yjs owns history), and the
+      // bare Collaboration extension doesn't register undo keymaps —
+      // without this plugin doc edits weren't undoable.
+      ...(fragment ? [Extension.create({
+        name: 'soleilDocUndo',
+        addProseMirrorPlugins: () => [yUndoPlugin()],
+        addKeyboardShortcuts: () => ({
+          'Mod-z': () => { yUndoCmd(editorRef.current?.state); return true; },
+          'Mod-Shift-z': () => { yRedoCmd(editorRef.current?.state); return true; },
+          'Mod-y': () => { yRedoCmd(editorRef.current?.state); return true; },
+        }),
+      })] : []),
       // CollaborationCursor was unreliable in our setup — replaced with a
       // custom DocPresence overlay that uses the same awareness-based
       // cursor system as the canvas (LiveCursor with rAF-lerp).
