@@ -930,10 +930,31 @@ export function decodeSnapshotBytes(b64) {
 // Throws on any failure — UI should catch and surface a toast.
 export async function bulletproofRestore(boardId, b64) {
   if (!boardId || !b64) throw new Error('bulletproofRestore: missing args');
+  // Sanity-check the bytes BEFORE writing. An empty or corrupt snapshot
+  // would silently wipe the board if we proceeded — refuse instead.
+  try {
+    const raw = b64ToBytes(b64);
+    if (!raw || raw.length < 32) {
+      throw new Error('Version snapshot is empty or corrupt; refusing to restore.');
+    }
+  } catch (e) {
+    throw new Error('Version snapshot could not be decoded: ' + (e?.message || e));
+  }
   // 1) Save restored bytes to board_state. Use a fresh Y.Doc so the
-  //    written update is a clean snapshot (no merge artifacts).
+  //    written update is a clean snapshot (no merge artifacts). Verify
+  //    the snapshot actually contains something — if the decoded Y.Doc
+  //    has zero cards, the user almost certainly didn't mean to restore
+  //    an empty board. Surface that as a hard error.
   const tmp = decodeSnapshotBytes(b64);
   try {
+    const cardCount = tmp.getMap('cards')?.size || 0;
+    if (cardCount === 0) {
+      const totalKeys = ['cards', 'arrows', 'strokes', 'groups', 'docPages']
+        .reduce((sum, k) => sum + (tmp.getMap(k)?.size || 0), 0);
+      if (totalKeys === 0) {
+        throw new Error('Snapshot has 0 cards / arrows / strokes — restore would empty the board.');
+      }
+    }
     await saveBoardSnapshot(boardId, tmp);
   } finally {
     tmp.destroy();
