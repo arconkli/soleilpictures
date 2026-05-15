@@ -3,10 +3,14 @@
 // notified after each change so React hooks can re-render.
 
 const STORAGE_KEY = 'soleil.boards.recentColors';
+const SAVED_KEY = 'soleil.boards.savedColors';
 const MAX = 16;
+const SAVED_MAX = 32;
 
 let listeners = new Set();
+let savedListeners = new Set();
 let cache = null;
+let savedCache = null;
 
 function load() {
   if (cache) return cache;
@@ -58,4 +62,57 @@ export function clearRecentColors() {
 export function subscribeRecent(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+// ─── Saved colors (pinned by the user; survive across sessions) ────────
+function loadSaved() {
+  if (savedCache) return savedCache;
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(SAVED_KEY);
+    savedCache = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(savedCache)) savedCache = [];
+  } catch (_) { savedCache = []; }
+  return savedCache;
+}
+
+function saveSaved(list) {
+  savedCache = list;
+  if (typeof localStorage === 'undefined') return;
+  try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch (_) {}
+}
+
+export function getSavedColors() {
+  return loadSaved().slice();
+}
+
+export function addSavedColor(color) {
+  const c = normalize(color);
+  if (!c) return;
+  const list = loadSaved();
+  if (list.includes(c)) return; // already saved
+  const next = [c, ...list].slice(0, SAVED_MAX);
+  saveSaved(next);
+  for (const fn of savedListeners) fn(next);
+}
+
+export function removeSavedColor(color) {
+  const c = normalize(color);
+  if (!c) return;
+  const list = loadSaved();
+  const next = list.filter(x => x !== c);
+  if (next.length === list.length) return;
+  saveSaved(next);
+  for (const fn of savedListeners) fn(next);
+}
+
+export function isColorSaved(color) {
+  const c = normalize(color);
+  if (!c) return false;
+  return loadSaved().includes(c);
+}
+
+export function subscribeSaved(fn) {
+  savedListeners.add(fn);
+  return () => savedListeners.delete(fn);
 }

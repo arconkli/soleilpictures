@@ -69,6 +69,7 @@ export function ToolOptionsBar({
   paletteColors = [],
   openColorPicker,
   onOpenSketchpad,      // launch the fullscreen sketch pad from inside Draw tool
+  onUndo,               // global Yjs undo — surfaced as a toolbar button on Draw
 }) {
   const recentColors = useRecentColors();
   const openPickerAt = (e, opts) => {
@@ -135,6 +136,21 @@ export function ToolOptionsBar({
     const isEraser = drawOptions.mode === 'eraser';
     return (
       <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
+        {onUndo && (
+          <>
+            <button className="tob-action tob-icon-btn"
+                    title="Undo last stroke (⌘Z)"
+                    aria-label="Undo"
+                    onClick={onUndo}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4 7 L1 4 L4 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M1 4 H10 C12.7614 4 15 6.23858 15 9 C15 11.7614 12.7614 14 10 14 H7"
+                      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+              </svg>
+            </button>
+            <span className="tob-sep" />
+          </>
+        )}
         <span className="tob-label">Brush</span>
         <div className="tob-segmented">
           <button aria-label="Pen"

@@ -5047,6 +5047,7 @@ export function CanvasSurface({
         }}
         paletteColors={paletteColors}
         openColorPicker={(opts) => setPicker(opts)}
+        onUndo={() => mutators.undo?.()}
       />
 
       {picker && (

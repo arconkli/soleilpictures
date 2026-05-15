@@ -5334,6 +5334,20 @@ html, body { overscroll-behavior: none; }
 }
 .cp-eyedropper-btn:hover { color: var(--ink-0); border-color: var(--line-3); background: var(--bg-hov); }
 .cp-eyedropper-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+
+.cp-star-btn {
+  appearance: none;
+  width: 26px; height: 26px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-1);
+  color: var(--ink-3);
+  border-radius: 4px;
+  cursor: pointer;
+  display: grid; place-items: center;
+  margin-left: 4px;
+}
+.cp-star-btn:hover { color: var(--ink-0); border-color: var(--line-3); background: var(--bg-hov); }
+.cp-star-btn.is-saved { color: var(--accent, #f59e0b); border-color: var(--accent, #f59e0b); }
 .cp-presets {
   display: grid;
   grid-template-columns: repeat(8, 1fr);

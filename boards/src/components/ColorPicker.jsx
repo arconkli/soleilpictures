@@ -7,8 +7,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { addRecentColor } from '../lib/recentColors.js';
-import { useRecentColors } from '../hooks/useRecentColors.js';
+import { addRecentColor, addSavedColor, removeSavedColor, isColorSaved } from '../lib/recentColors.js';
+import { useRecentColors, useSavedColors } from '../hooks/useRecentColors.js';
 
 const PRESETS = [
   '#ffffff', '#0a0a0c', '#f5f5f6', '#5b5c61',
@@ -219,6 +219,7 @@ export function ColorPicker({
   };
 
   const recentColors = useRecentColors();
+  const savedColors = useSavedColors();
 
   // ── Saturation / Value pad ────────────────────────────────────────────────
   const onSvDown = (e) => {
@@ -349,8 +350,36 @@ export function ColorPicker({
                   title="Transparent"
                   onClick={() => onChange('transparent')}>None</button>
         )}
+        <button className={`cp-star-btn ${isColorSaved(currentHex) ? 'is-saved' : ''}`}
+                title={isColorSaved(currentHex) ? 'Remove from Saved' : 'Save this color'}
+                aria-label="Save color"
+                onClick={() => {
+                  if (isColorSaved(currentHex)) removeSavedColor(currentHex);
+                  else addSavedColor(currentHex);
+                }}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 1 L10 6 L15 6 L11 9 L13 14 L8 11 L3 14 L5 9 L1 6 L6 6 Z"
+                  stroke="currentColor" strokeWidth="1.2"
+                  fill={isColorSaved(currentHex) ? 'currentColor' : 'none'}
+                  strokeLinejoin="round" />
+          </svg>
+        </button>
       </div>
 
+      {savedColors.length > 0 && (
+        <>
+          <div className="cp-section">Saved</div>
+          <div className="cp-presets">
+            {savedColors.slice(0, 24).map(c => (
+              <button key={'s' + c} className={`cp-sw ${currentHex.toLowerCase() === c.toLowerCase() ? 'is-active' : ''}`}
+                      style={{ background: c }}
+                      title={`${c.toUpperCase()} — right-click to remove`}
+                      onClick={() => pickHex(c)}
+                      onContextMenu={(e) => { e.preventDefault(); removeSavedColor(c); }} />
+            ))}
+          </div>
+        </>
+      )}
       {recentColors.length > 0 && (
         <>
           <div className="cp-section">Recent</div>
