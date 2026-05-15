@@ -2833,7 +2833,14 @@ export function CanvasSurface({
       const onUp = (ev) => {
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
-        if (moved && lastBounds && lastBounds.w > 6 && lastBounds.h > 6) {
+        // For line/arrow shapes a flat horizontal or vertical drag is the
+        // most natural input — accept any drag longer than 12px diagonal.
+        // Other shapes need real area in both dimensions.
+        const isLinear = shapeOptions.shape === 'line' || shapeOptions.shape === 'arrow';
+        const dragOk = isLinear
+          ? lastBounds && Math.hypot(lastBounds.w, lastBounds.h) > 12
+          : lastBounds && lastBounds.w > 6 && lastBounds.h > 6;
+        if (moved && dragOk) {
           // Create at the bounds (NOT centered on click point)
           const id = `shape-${Date.now()}`;
           mutators.addCard?.({
@@ -2845,8 +2852,10 @@ export function CanvasSurface({
             dash: shapeOptions.dash || 'solid',
             x: Math.round(lastBounds.x),
             y: Math.round(lastBounds.y),
-            w: Math.round(lastBounds.w),
-            h: Math.round(lastBounds.h),
+            // Lines/arrows need a clickable bounding box even when the
+            // user dragged perfectly horizontally or vertically.
+            w: Math.max(isLinear ? 16 : 1, Math.round(lastBounds.w)),
+            h: Math.max(isLinear ? 16 : 1, Math.round(lastBounds.h)),
           });
         } else {
           // Simple click — drop default-sized at click point

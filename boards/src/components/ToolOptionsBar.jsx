@@ -20,7 +20,7 @@ const STROKE_COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#
 const FILL_COLORS  = ['transparent', '#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#0a0a0c'];
 const TEXT_COLORS  = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 const BG_COLORS    = ['#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#fde68a', '#ffffff'];
-const STROKE_WIDTHS = [1, 2, 4, 8];
+const STROKE_WIDTHS = [0, 1, 2, 4, 8];
 const DRAW_THICKNESS = [2, 4, 8, 16];
 const FONTS = [
   { id: 'sans', name: 'Sans', css: 'Inter, system-ui, sans-serif' },
@@ -268,7 +268,7 @@ export function ToolOptionsBar({
         <span className="tob-label">Width</span>
         <select className="tob-select" value={opts.strokeWidth}
                 onChange={(e) => setOpts({ ...opts, strokeWidth: Number(e.target.value) })}>
-          {STROKE_WIDTHS.map(w => <option key={w} value={w}>{w}px</option>)}
+          {STROKE_WIDTHS.map(w => <option key={w} value={w}>{w === 0 ? 'None' : `${w}px`}</option>)}
         </select>
         <span className="tob-sep" />
         <span className="tob-label">Style</span>

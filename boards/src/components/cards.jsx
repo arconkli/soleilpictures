@@ -942,9 +942,15 @@ export function ScheduleCard({ title, rows }) {
 // No inline text — shapes are just shapes; edit colors / stroke / etc. via
 // the toolbar (revealed when a shape is selected).
 export function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid' }) {
-  const sw = strokeWidth;
+  // strokeWidth: 0 = "No Border" for fillable shapes (rect, ellipse, etc.).
+  // Line/arrow shapes have no fill, so 0 would make them invisible — clamp
+  // to 1 in that case so the user can still see what they're editing.
+  const isStrokeOnly = shape === 'line' || shape === 'arrow';
+  const sw = strokeWidth === 0 && isStrokeOnly ? 1 : strokeWidth;
   const dashArray = dash === 'dashed' ? '6,4' : dash === 'dotted' ? '2,3' : undefined;
-  const common = { stroke, fill, strokeWidth: sw, vectorEffect: 'non-scaling-stroke', strokeDasharray: dashArray };
+  const common = sw === 0
+    ? { stroke: 'none', fill, vectorEffect: 'non-scaling-stroke' }
+    : { stroke, fill, strokeWidth: sw, vectorEffect: 'non-scaling-stroke', strokeDasharray: dashArray };
   return (
     <div className="shape">
       <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
