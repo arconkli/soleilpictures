@@ -3638,6 +3638,41 @@ body {
 .card.is-selected .lc-preview-x { display: inline-flex; }
 .lc-preview-x:hover { background: rgba(10, 10, 12, 0.92); }
 
+/* Embed (YouTube / Spotify / TikTok / IG / Vimeo / X) */
+.lc.lc-embed { padding: 0; background: #000; }
+.lc-embed[data-provider="spotify"] { background: var(--bg-3); }
+.lc-embed-frame {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.lc-embed-frame iframe {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  border: 0; display: block;
+}
+.lc-embed-meta {
+  padding: 8px 12px 10px;
+  background: var(--bg-3);
+  border-top: 1px solid var(--line-1);
+  flex: 0 0 auto;
+}
+.lc-embed-meta .lc-title { font-size: 12px; }
+.lc-embed-meta .lc-src { margin-top: 4px; }
+.lc-provider-badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  background: var(--bg-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+
 /* Palette */
 .pc {
   width: 100%; height: 100%;

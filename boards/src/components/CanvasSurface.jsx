@@ -32,6 +32,7 @@ import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { fetchLinkPreview } from '../lib/linkPreview.js';
+import { detectEmbed } from '../lib/oembed.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportBoard.js';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
@@ -1378,14 +1379,55 @@ export function CanvasSurface({
           }
         }
       }
+      // Internal clipboard takes precedence over plain-text URL paste so
+      // copying a card in-app and pasting wins over a random URL still
+      // sitting in the OS clipboard. Plain URL pasted with internal
+      // clipboard empty → make an embed/link card.
       if (!handled && getClipboard().length > 0) {
         e.preventDefault();
         doPaste();
+        handled = true;
+      }
+      if (!handled) {
+        const text = e.clipboardData?.getData('text/plain') || '';
+        const urlMatch = text.match(/^\s*(https?:\/\/\S+)\s*$/i);
+        if (urlMatch) {
+          e.preventDefault();
+          const url = urlMatch[1];
+          const pos = lastMouseCanvasRef.current;
+          const embed = detectEmbed(url);
+          const w = embed ? embed.defaultW : 280;
+          const h = embed ? embed.defaultH : 110;
+          let title = url;
+          try { title = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
+          const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+          const card = {
+            id: newId, kind: 'link',
+            source: url, link: url, title,
+            x: Math.max(8, Math.round(pos.x - w / 2)),
+            y: Math.max(8, Math.round(pos.y - h / 2)),
+            w, h,
+          };
+          if (embed) card.embed = embed;
+          mutators.addCard?.(card);
+          if (!embed) {
+            fetchLinkPreview(url).then(p => {
+              if (!p) return;
+              const patch = {};
+              if (p.title) patch.title = p.title;
+              if (p.image) patch.image = p.image;
+              if (p.description) patch.description = p.description;
+              if (p.favicon) patch.favicon = p.favicon;
+              if (p.image) { patch.w = 280; patch.h = 290; }
+              if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
+            });
+          }
+        }
       }
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [feedback, optimisticDropImage, doPaste]);
+  }, [feedback, optimisticDropImage, doPaste, mutators]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -2985,29 +3027,36 @@ export function CanvasSurface({
         if (!v) return;
         const url = v.trim();
         if (!url) return;
-        const w = 280, h = 110;
+        const embed = detectEmbed(url);
         let title = url;
         try { title = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
         const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-        mutators.addCard?.({
+        const w = embed ? embed.defaultW : 280;
+        const h = embed ? embed.defaultH : 110;
+        const card = {
           id: newId,
           kind: 'link', source: url, link: url, title,
           x: Math.max(8, Math.round(pos.x - w / 2)),
           y: Math.max(8, Math.round(pos.y - h / 2)),
           w, h,
-        });
+        };
+        if (embed) card.embed = embed;
+        mutators.addCard?.(card);
         // Fire-and-forget OG fetch — when it resolves, patch the card
-        // with the preview fields and grow it to fit the image.
-        fetchLinkPreview(url).then(p => {
-          if (!p) return;
-          const patch = {};
-          if (p.title) patch.title = p.title;
-          if (p.image) patch.image = p.image;
-          if (p.description) patch.description = p.description;
-          if (p.favicon) patch.favicon = p.favicon;
-          if (p.image) { patch.w = 280; patch.h = 290; }
-          if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
-        });
+        // with the preview fields and grow it to fit the image. Skip
+        // OG enrichment for embeds since the iframe is the preview.
+        if (!embed) {
+          fetchLinkPreview(url).then(p => {
+            if (!p) return;
+            const patch = {};
+            if (p.title) patch.title = p.title;
+            if (p.image) patch.image = p.image;
+            if (p.description) patch.description = p.description;
+            if (p.favicon) patch.favicon = p.favicon;
+            if (p.image) { patch.w = 280; patch.h = 290; }
+            if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
+          });
+        }
       }},
       { divider: true },
       { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
@@ -3581,6 +3630,7 @@ export function CanvasSurface({
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
     else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target}
                                                        image={c.image} description={c.description} favicon={c.favicon}
+                                                       embed={c.embed}
                                                        onUpdate={onUpdate} autoFocus={af}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} onUpdate={onUpdate} autoFocus={af} />;
@@ -3838,17 +3888,22 @@ export function CanvasSurface({
         } catch (_) {}
         return;
       }
-      const w = 280, h = 130;
+      const embed = detectEmbed(url);
+      const w = embed ? embed.defaultW : 280;
+      const h = embed ? embed.defaultH : 130;
       const newId = `link-${Date.now()}`;
       let initialTitle = url;
       try { initialTitle = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
-      mutators.addCard?.({
+      const dropCard = {
         id: newId,
         kind: 'link', source: url, link: url, title: initialTitle,
         x: Math.max(8, Math.round(cx - w / 2)),
         y: Math.max(8, Math.round(cy - h / 2)),
         w, h,
-      });
+      };
+      if (embed) dropCard.embed = embed;
+      mutators.addCard?.(dropCard);
+      if (embed) return;
       fetchLinkPreview(url).then(p => {
         if (!p) return;
         const patch = {};

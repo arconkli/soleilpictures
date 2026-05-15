@@ -604,7 +604,7 @@ export function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   );
 }
 
-export function LinkCard({ title, source, target, image, description, favicon, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+export function LinkCard({ title, source, target, image, description, favicon, embed, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // Title editing is controlled here (not by EditableText's internal state) so
   // dbl-click ANYWHERE on the card body — not just on the title text — can
   // re-enter edit mode. Bumped via editTitleAt from the canvas.
@@ -650,6 +650,51 @@ export function LinkCard({ title, source, target, image, description, favicon, o
     e.stopPropagation();
     window.open(openHref, '_blank', 'noopener,noreferrer');
   };
+  // Embed mode: a known provider (YouTube, Spotify, TikTok, Vimeo, IG, X)
+  // renders an iframe full-bleed. Title + source still readable below.
+  if (embed && embed.embedUrl) {
+    return (
+      <div className="lc lc-embed" data-provider={embed.provider} onDoubleClick={onBodyDouble}>
+        <div className="lc-embed-frame" onPointerDown={(e) => e.stopPropagation()}>
+          <iframe
+            src={embed.embedUrl}
+            title={title || embed.provider}
+            allow={embed.allow || 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture'}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms"
+            style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
+          />
+        </div>
+        {(title || source) && (
+          <div className="lc-meta lc-embed-meta">
+            {onUpdate
+              ? <EditableText className="lc-title" value={title || ''} placeholder={embed.provider || 'Embed'}
+                              onChange={(v) => onUpdate({ title: v })}
+                              editing={editingTitle}
+                              setEditing={setEditingTitle}
+                              autoFocus={autoFocus}
+                              selectAllOnFocus={autoFocus || editTitleAt > 0} />
+              : <div className="lc-title">{title || embed.provider}</div>}
+            <div className="lc-src">
+              <span className="lc-provider-badge">{embed.provider}</span>
+              {openHref && (
+                <button type="button" className="lc-open" title="Open original"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={openLink}>
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M5 2 H10 V7 M10 2 L5 7 M3 4 V9 H8 V8" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const hasPreview = !!(image || description);
   return (
     <div className={`lc ${hasPreview ? 'lc-has-preview' : ''}`} onDoubleClick={onBodyDouble}>
