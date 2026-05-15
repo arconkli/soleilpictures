@@ -626,15 +626,23 @@ export function CanvasSurface({
     if (fitOnceForRef.current === board.id) return;
     const r = wrapRef.current.getBoundingClientRect();
     if (r.width < 50 || r.height < 50) return;
-    // Empty-board branch: jump to default viewport once we're ready.
-    if (cards.length === 0) {
-      if (!ydoc) return; // not ready yet — try again after Yjs sync
-      fitOnceForRef.current = board.id;
-      setPan({ x: 40, y: 60 });
-      setZoom(1);
-      return;
-    }
+    if (!ydoc && cards.length === 0) return; // not ready yet
     fitOnceForRef.current = board.id;
+    // Open every board at the same explicit zoom/pan so the user gets
+    // a predictable starting view. Boards with one huge note no longer
+    // open at 17%. Use "Full Board" (double-tap zoom button) to fit
+    // content into view on demand.
+    setZoom(1);
+    setPan({ x: 40, y: 60 });
+  }, [cards, board.id, ydoc]);
+
+  // Fit the entire board content into the viewport. Wired to a
+  // double-tap on the zoom % control (replaces what used to happen
+  // automatically on every open).
+  const fitToContent = useCallback(() => {
+    if (!wrapRef.current || !cards || cards.length === 0) return;
+    const r = wrapRef.current.getBoundingClientRect();
+    if (r.width < 50 || r.height < 50) return;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const c of cards) {
       minX = Math.min(minX, c.x);
@@ -645,7 +653,7 @@ export function CanvasSurface({
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
     const margin = 80;
-    const z = Math.max(ZOOM_MIN, Math.min(1, Math.min(
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
       (r.width - margin * 2) / contentW,
       (r.height - margin * 2) / contentH,
     )));
@@ -654,7 +662,7 @@ export function CanvasSurface({
       x: (r.width  - contentW * z) / 2 - minX * z,
       y: (r.height - contentH * z) / 2 - minY * z,
     });
-  }, [cards, board.id, ydoc]);
+  }, [cards]);
 
   useEffect(() => { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
   useEffect(() => {
@@ -1106,7 +1114,12 @@ export function CanvasSurface({
       e.preventDefault();
       const rect = el.getBoundingClientRect();
       if (e.ctrlKey || e.metaKey) {
-        const factor = Math.exp(-e.deltaY * 0.0009);
+        // Trackpads send pixel-mode deltas; mouse wheels send line-mode.
+        // Use a 2.8× faster pixel sensitivity but compensate when delta
+        // looks chunky (line scroll) to avoid runaway zoom on mice.
+        const isLine = e.deltaMode === 1; // WheelEvent.DOM_DELTA_LINE
+        const sensitivity = isLine ? 0.05 : 0.0025;
+        const factor = Math.exp(-e.deltaY * sensitivity);
         const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * factor));
         if (newZoom === zoom) return;
         const cx = (e.clientX - rect.left - pan.x) / zoom;
@@ -4833,8 +4846,32 @@ export function CanvasSurface({
 
       <div className="cnv-zoom">
         <button onClick={() => { enableSmoothTransform(); setZoom(z => Math.max(ZOOM_MIN, z / 1.25)); }}>−</button>
-        <span className="cnv-zoom-val" title="Reset zoom (⌘0)"
-              onClick={() => { enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); }}>
+        <input
+          className="cnv-zoom-slider"
+          type="range"
+          min="0" max="1000" step="1"
+          // log scale: 0..1000 → ZOOM_MIN..ZOOM_MAX
+          value={Math.round(1000 * Math.log(zoom / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN))}
+          onInput={(e) => {
+            const v = Number(e.target.value) / 1000;
+            const z = ZOOM_MIN * Math.pow(ZOOM_MAX / ZOOM_MIN, v);
+            const el = wrapRef.current;
+            if (!el) { setZoom(z); return; }
+            // Keep the centre point of the viewport stable while sliding.
+            const rect = el.getBoundingClientRect();
+            const cx = (rect.width / 2 - pan.x) / zoom;
+            const cy = (rect.height / 2 - pan.y) / zoom;
+            const newPanX = rect.width / 2 - cx * z;
+            const newPanY = rect.height / 2 - cy * z;
+            setZoom(z);
+            setPan({ x: newPanX, y: newPanY });
+          }}
+          title="Drag to zoom"
+        />
+        <span className="cnv-zoom-val"
+              title="Click: 100% · Double-click: Full Board"
+              onClick={() => { enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); }}
+              onDoubleClick={() => { enableSmoothTransform(); fitToContent(); }}>
           {Math.round(zoom * 100)}%
         </span>
         <button onClick={() => { enableSmoothTransform(); setZoom(z => Math.min(ZOOM_MAX, z * 1.25)); }}>+</button>
