@@ -5358,6 +5358,14 @@ html, body { overscroll-behavior: none; }
   position: relative;
   width: 64px;
   display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  cursor: grab;
+  transition: transform .12s, opacity .12s;
+}
+.pc-cell:active { cursor: grabbing; }
+.pc-cell-dragging { opacity: 0.4; }
+.pc-cell-drop-target {
+  transform: translateX(4px);
+  box-shadow: -3px 0 0 0 var(--accent, #3b82f6);
 }
 .pc-chip {
   appearance: none;
@@ -5410,19 +5418,30 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 .pc-add {
   appearance: none;
-  width: 48px; height: 48px;
+  min-width: 64px;
+  height: 48px;
+  padding: 0 10px;
   border-radius: 6px;
-  border: 1px dashed var(--line-3);
+  border: 1.5px dashed var(--accent, var(--ink-3));
   background: transparent;
-  color: var(--ink-3);
+  color: var(--accent, var(--ink-1));
   cursor: pointer;
-  padding: 0;
-  display: grid; place-items: center;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   align-self: flex-start;
-  margin-top: 0;
-  transition: background .12s, color .12s, border-color .12s;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background .12s, color .12s, border-color .12s, transform .12s;
 }
-.pc-add:hover { background: var(--bg-hov); color: var(--ink-0); border-color: var(--ink-3); }
+.pc-add:hover {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 12%, transparent);
+  color: var(--ink-0);
+  border-color: var(--accent, var(--ink-2));
+  transform: translateY(-1px);
+}
+.pc-add-label { font: inherit; }
+.pc-chips-only .pc-add { min-width: 40px; padding: 0; }
+.pc-chips-only .pc-add-label { display: none; }
 
 
 .tob-sw-custom {

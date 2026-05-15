@@ -756,6 +756,8 @@ export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels 
   const [pickerIdx, setPickerIdx] = useState(null);
   const [pickerPos, setPickerPos] = useState(null);
   const [copiedIdx, setCopiedIdx] = useState(null);
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
   const isEditable = !!onUpdate;
   // chipsOnly is the user-facing toggle (eye button); hideHex/hideLabels are
   // legacy props that still drive the same visibility paths.
@@ -787,6 +789,35 @@ export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels 
       setCopiedIdx(i);
       setTimeout(() => setCopiedIdx((cur) => (cur === i ? null : cur)), 900);
     }).catch(() => {});
+  };
+  const reorderSwatches = (from, to) => {
+    if (from === to || from == null || to == null) return;
+    const next = swatches.slice();
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onUpdate({ swatches: next });
+  };
+  const onCellDragStart = (i, e) => {
+    e.stopPropagation();
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); } catch (_) {}
+    setDragIdx(i);
+  };
+  const onCellDragOver = (i, e) => {
+    if (dragIdx == null) return;
+    e.preventDefault();
+    try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+    if (dragOverIdx !== i) setDragOverIdx(i);
+  };
+  const onCellDrop = (i, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    reorderSwatches(dragIdx, i);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
+  const onCellDragEnd = () => {
+    setDragIdx(null);
+    setDragOverIdx(null);
   };
 
   const count = swatches.length;
@@ -851,9 +882,15 @@ export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels 
       {!showHead && eyeBtn}
       <div className="pc-strip">
         {swatches.map((s, i) => (
-          <div key={i} className="pc-cell">
+          <div key={i}
+               className={`pc-cell ${dragIdx === i ? 'pc-cell-dragging' : ''} ${dragOverIdx === i && dragIdx !== null && dragIdx !== i ? 'pc-cell-drop-target' : ''}`}
+               draggable={isEditable}
+               onDragStart={(e) => onCellDragStart(i, e)}
+               onDragOver={(e) => onCellDragOver(i, e)}
+               onDrop={(e) => onCellDrop(i, e)}
+               onDragEnd={onCellDragEnd}>
             <button className="pc-chip" style={{ background: s.hex }}
-                    title={showHex ? 'Click to edit color' : `${(s.hex || '').toUpperCase()} — click to edit`}
+                    title={showHex ? 'Click to edit · drag to reorder' : `${(s.hex || '').toUpperCase()} — click to edit · drag to reorder`}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => openPicker(i, e)} />
             {showHex && (
@@ -872,9 +909,10 @@ export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels 
         <button className="pc-add" title="Add color"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={addSwatch}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M6 1 V11 M1 6 H11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <path d="M9 3 V15 M3 9 H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
+          <span className="pc-add-label">Add</span>
         </button>
       </div>
       {pickerIdx != null && (
