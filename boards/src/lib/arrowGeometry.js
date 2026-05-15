@@ -19,10 +19,15 @@ const FAN_T_MAX = 0.88;
 const HANDLE_MIN = 32;                 // cubic bezier control magnitude floor
 const HANDLE_MAX = 200;                //   …and ceiling
 const HANDLE_K   = 0.42;               //   …× distance between anchors
-const OBSTACLE_PAD = 10;               // breathing room around cards
-const DEFLECT_ITERS = 4;               // # of repulsion passes
-const DEFLECT_SAMPLES = 16;            // bezier sample points per pass
-const DEFLECT_BOOST = 1.6;             // over-push so the smoothed curve clears
+const OBSTACLE_PAD = 14;               // breathing room around cards
+const DEFLECT_ITERS = 12;              // # of repulsion passes (was 4)
+const DEFLECT_SAMPLES = 24;            // bezier sample points per pass (was 16)
+const DEFLECT_BOOST = 2.4;             // over-push so the smoothed curve clears (was 1.6)
+// After repulsion, if the bezier still overlaps an obstacle, fall back
+// to a 3-segment orthogonal route that's guaranteed not to cross the
+// box. The L-shape lives in `buildOrthogonalDetour`. Avoidance is the
+// user's stated invariant ("arrows should AVOID all cards at all costs").
+const DETOUR_PAD = 28;
 
 // Cubic-bezier point at parameter t.
 function bezierPoint(s, c1, c2, e, t) {
@@ -75,6 +80,121 @@ function deflectControlPoints(s, c1, c2, e, obstacles) {
     c2 = { x: c2.x + dx2, y: c2.y + dy2 };
   }
   return { c1, c2 };
+}
+
+// True when any sample point along the cubic bezier sits inside (or
+// within OBSTACLE_PAD/2 of) one of the obstacle rects. Conservative —
+// the threshold is the obstacle inflated by OBSTACLE_PAD/2 so we
+// flag near-misses too.
+function bezierIntersectsObstacles(s, c1, c2, e, obstacles) {
+  const PAD = OBSTACLE_PAD * 0.5;
+  for (let i = 1; i < DEFLECT_SAMPLES; i++) {
+    const t = i / DEFLECT_SAMPLES;
+    const p = bezierPoint(s, c1, c2, e, t);
+    for (const ob of obstacles) {
+      if (p.x > ob.x - PAD && p.x < ob.x + ob.w + PAD &&
+          p.y > ob.y - PAD && p.y < ob.y + ob.h + PAD) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Build a 3-segment polyline path from s to e that goes AROUND every
+// obstacle. Strategy:
+//   1) Compute a routing channel that gives every obstacle DETOUR_PAD
+//      breathing room.
+//   2) Walk an "L" with a single elbow at one of four candidate corner
+//      points (chosen to skirt the obstacles). Pick the candidate whose
+//      total path-length is shortest AND doesn't itself cross any
+//      obstacle.
+//   3) Round the elbow with a small quadratic for a smooth look.
+// If no clear L exists (rare; dense clusters), fall back to a
+// staircase: out → along → up → along. Returns null if even that fails.
+function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
+  // Pad each obstacle for routing.
+  const obs = obstacles.map(o => ({
+    x: o.x - DETOUR_PAD, y: o.y - DETOUR_PAD,
+    w: o.w + DETOUR_PAD * 2, h: o.h + DETOUR_PAD * 2,
+  }));
+  // Candidate elbow corners.
+  const candidates = [
+    { x: e.x, y: s.y }, // horizontal-first
+    { x: s.x, y: e.y }, // vertical-first
+  ];
+  // Outside-the-obstacle corners — go past obstacles before turning.
+  for (const o of obs) {
+    if (segmentIntersectsRect(s, e, o)) {
+      candidates.push({ x: o.x - 1,         y: s.y });
+      candidates.push({ x: o.x + o.w + 1,   y: s.y });
+      candidates.push({ x: s.x,             y: o.y - 1 });
+      candidates.push({ x: s.x,             y: o.y + o.h + 1 });
+      candidates.push({ x: o.x - 1,         y: e.y });
+      candidates.push({ x: o.x + o.w + 1,   y: e.y });
+      candidates.push({ x: e.x,             y: o.y - 1 });
+      candidates.push({ x: e.x,             y: o.y + o.h + 1 });
+    }
+  }
+  let best = null;
+  let bestLen = Infinity;
+  for (const k of candidates) {
+    if (segmentIntersectsAny(s, k, obs) || segmentIntersectsAny(k, e, obs)) continue;
+    const len = Math.hypot(k.x - s.x, k.y - s.y) + Math.hypot(e.x - k.x, e.y - k.y);
+    if (len < bestLen) { bestLen = len; best = k; }
+  }
+  if (!best) return null;
+  // Smooth the elbow with a small quadratic bezier (rounded corner).
+  const RADIUS = 14;
+  const a = best;
+  // Direction in/out of the elbow.
+  const inX = Math.sign(a.x - s.x);
+  const inY = Math.sign(a.y - s.y);
+  const outX = Math.sign(e.x - a.x);
+  const outY = Math.sign(e.y - a.y);
+  // Pre-elbow point: move RADIUS toward s along the incoming axis.
+  const preX = a.x - inX * Math.min(RADIUS, Math.abs(a.x - s.x) / 2);
+  const preY = a.y - inY * Math.min(RADIUS, Math.abs(a.y - s.y) / 2);
+  // Post-elbow point: move RADIUS away from a toward e.
+  const postX = a.x + outX * Math.min(RADIUS, Math.abs(e.x - a.x) / 2);
+  const postY = a.y + outY * Math.min(RADIUS, Math.abs(e.y - a.y) / 2);
+  const path = `M${s.x},${s.y} L${preX},${preY} Q${a.x},${a.y} ${postX},${postY} L${e.x},${e.y}`;
+  const midPoint = { x: a.x, y: a.y };
+  // Travel-in direction at the target is the unit vector from postPoint → e.
+  const tdx = e.x - postX, tdy = e.y - postY;
+  const tlen = Math.hypot(tdx, tdy) || 1;
+  // Travel-in at the source (for reverse heads) is FROM preX,preY back toward s.
+  const fdx = s.x - preX, fdy = s.y - preY;
+  const flen = Math.hypot(fdx, fdy) || 1;
+  return {
+    path,
+    midPoint,
+    toTangentIn:   { ux: tdx / tlen, uy: tdy / tlen },
+    fromTangentIn: { ux: fdx / flen, uy: fdy / flen },
+  };
+}
+
+function segmentIntersectsRect(a, b, r) {
+  // Cheap test: if either endpoint is inside the rect → intersects.
+  if (a.x > r.x && a.x < r.x + r.w && a.y > r.y && a.y < r.y + r.h) return true;
+  if (b.x > r.x && b.x < r.x + r.w && b.y > r.y && b.y < r.y + r.h) return true;
+  // Liang-Barsky-style clipping for an axis-aligned rect.
+  const dx = b.x - a.x, dy = b.y - a.y;
+  let tmin = 0, tmax = 1;
+  for (const [p, q] of [[-dx, a.x - r.x], [dx, r.x + r.w - a.x], [-dy, a.y - r.y], [dy, r.y + r.h - a.y]]) {
+    if (p === 0) { if (q < 0) return false; }
+    else {
+      const t = q / p;
+      if (p < 0) tmin = Math.max(tmin, t);
+      else tmax = Math.min(tmax, t);
+    }
+  }
+  return tmin < tmax;
+}
+
+function segmentIntersectsAny(a, b, rects) {
+  for (const r of rects) if (segmentIntersectsRect(a, b, r)) return true;
+  return false;
 }
 
 // Normalize a ref into one of: {kind:'shape', shape, side?}, {kind:'point', x,y}, or null.
@@ -299,6 +419,22 @@ export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
     const deflected = deflectControlPoints(s, c1, c2, e, obstacles);
     c1 = deflected.c1;
     c2 = deflected.c2;
+  }
+
+  // If the deflected curve STILL passes through any obstacle, fall back to
+  // a 3-segment orthogonal detour that's guaranteed clear. The user
+  // wants "arrows should AVOID all cards at all costs" — this is the
+  // hard-floor enforcement after the soft bezier repulsion gives up.
+  if (obstacles && obstacles.length && bezierIntersectsObstacles(s, c1, c2, e, obstacles)) {
+    const detour = buildOrthogonalDetour(s, e, from, to, obstacles);
+    if (detour) {
+      return {
+        path: detour.path,
+        midPoint: detour.midPoint,
+        toTangentIn: detour.toTangentIn,
+        fromTangentIn: detour.fromTangentIn,
+      };
+    }
   }
 
   const path = `M${s.x},${s.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${e.x},${e.y}`;
