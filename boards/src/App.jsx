@@ -1654,9 +1654,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //    update.
   useEffect(() => {
     const onDrop = async (e) => {
-      const { sourceBoardId, targetBoardId, cards: movedCards } = e.detail || {};
-      if (!sourceBoardId || !targetBoardId || !movedCards?.length) return;
-      if (sourceBoardId === targetBoardId) return;
+      const { sourceBoardId, targetBoardId, cards: movedCards,
+              onTargetSaved, onTargetFailed } = e.detail || {};
+      const ack    = () => { try { onTargetSaved?.(); } catch (_) {} };
+      const reject = (err) => { try { onTargetFailed?.(err); } catch (_) {} };
+      if (!sourceBoardId || !targetBoardId || !movedCards?.length) { reject(new Error('bad event')); return; }
+      if (sourceBoardId === targetBoardId) { ack(); return; }
       console.log('[xbm] start', { sourceBoardId, targetBoardId, movedCount: movedCards.length, movedIds: movedCards.map(c => c.id), movedKinds: movedCards.map(c => c.kind) });
       try {
         // ── ID remapping ──
@@ -1739,6 +1742,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             message: 'Could not load the destination board’s state. Drag cancelled to prevent data loss. Try again in a moment.',
             duration: 8000,
           });
+          reject(new Error('target board_state empty'));
           return;
         }
         const tmp = new Y.Doc();
@@ -1828,13 +1832,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             message: 'Drag aborted — target board state looked unsafe to overwrite.',
             duration: 8000,
           });
+          reject(new Error('tmp card count below expected'));
           return;
         }
         const tmpFinalCount = tmp.getMap('cards').size;
         console.log('[xbm:save] writing target board_state', { targetBoardId, tmpFinalCount });
-        await saveBoardSnapshot(targetBoardId, tmp);
+        try {
+          await saveBoardSnapshot(targetBoardId, tmp);
+        } catch (saveErr) {
+          console.error('[xbm:save] saveBoardSnapshot threw', saveErr);
+          tmp.destroy();
+          feedback.toast({ type: 'error', message: 'Could not save destination board: ' + (saveErr.message || saveErr) });
+          reject(saveErr);
+          return;
+        }
         console.log('[xbm:save] done');
         tmp.destroy();
+        // Target save complete — tell the source it's safe to delete.
+        ack();
 
         // ── Repoint attached comments to the target board. ──
         try {
@@ -1862,6 +1877,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (err) {
         console.error('cross-board move failed', err);
         feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
+        reject(err);
       }
     };
     document.addEventListener('soleil-card-into-board-drop', onDrop);

@@ -2029,16 +2029,39 @@ export function CanvasSurface({
             // Clear local comment bubbles before the realtime push
             // catches up (the cards are leaving this canvas).
             const movedGroupIds = [...new Set(movedCards.map(c => c.groupId).filter(Boolean))];
-            removeCommentsByAnchorIds([...dragIds, ...movedGroupIds]);
 
             // Hand the cards off to the target via App.jsx onDrop.
+            // App.jsx writes the target board_state then resolves
+            // `onTargetSaved`. We only delete the source cards once
+            // that resolves successfully — otherwise the cards live in
+            // limbo (or worse, get deleted with no destination).
+            let resolveTargetSaved, rejectTargetSaved;
+            const targetSaved = new Promise((res, rej) => {
+              resolveTargetSaved = res;
+              rejectTargetSaved = rej;
+            });
             document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
               detail: {
                 sourceBoardId: board.id,
                 targetBoardId,
                 cards: movedCards,
+                onTargetSaved: resolveTargetSaved,
+                onTargetFailed: rejectTargetSaved,
               },
             }));
+            try {
+              await targetSaved;
+            } catch (err) {
+              console.error('[drag-into-board] target save failed; NOT deleting source', err);
+              feedback.toast({
+                type: 'error',
+                message: 'Drop failed — source cards preserved. ' + (err?.message || err),
+                duration: 8000,
+              });
+              return;
+            }
+            // Now safe to clear local comments + delete source.
+            removeCommentsByAnchorIds([...dragIds, ...movedGroupIds]);
 
             // Source-side delete. Wrap with the invariant check.
             mutators.deleteCards?.(dragIds);
