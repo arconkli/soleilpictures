@@ -58,7 +58,9 @@ export async function runParagraphCascade({
   const candidateTags = [];
   for (const [tagId, t] of tagCentroids.entries()) {
     if (!t?.name) continue;
-    candidateTags.push({ id: tagId, name: t.name });
+    const entry = { id: tagId, name: t.name };
+    if (t.description) entry.description = t.description;
+    candidateTags.push(entry);
   }
   if (candidateTags.length === 0) {
     lastAppliedKeysRef.set(pageId, new Set());

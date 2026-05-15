@@ -192,7 +192,7 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
         return {
           id: `${r._kind}|${r.card_id}`,
           text: textByKey.get(k) || '',
-          candidate_tags: [{ id: tag.id, name: tag.name }],
+          candidate_tags: [{ id: tag.id, name: tag.name, ...(tag.description ? { description: tag.description } : {}) }],
         };
       })
       .filter(c => c.text);

@@ -19,6 +19,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { setTagDescription } from '../lib/tagsApi.js';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
@@ -82,6 +83,61 @@ const TAG_PALETTE = [
   '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
   '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
 ];
+// Inline editor for a tag's description. The AI tagger reads this when
+// deciding whether the tag applies — gives workspaces a way to disambiguate
+// tags whose names are too generic (e.g. "Cast" the film term vs "cast"
+// the verb) without retraining anything.
+function TagDescriptionRow({ tag }) {
+  const [value, setValue] = useState(tag?.description || '');
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(0);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => { setValue(tag?.description || ''); }, [tag?.id, tag?.description]);
+  if (!tag?.id) return null;
+  const commit = async () => {
+    setEditing(false);
+    if ((value || '').trim() === (tag.description || '').trim()) return;
+    setSaving(true);
+    try {
+      await setTagDescription(tag.id, value);
+      setSavedAt(Date.now());
+    } catch (e) {
+      console.warn('[tag] description save failed', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+  const placeholder = 'Describe what this tag means — the AI uses this to decide when to apply it.';
+  return (
+    <div className="tag-detail-description">
+      {editing ? (
+        <textarea
+          autoFocus
+          className="tag-detail-description-input"
+          value={value}
+          maxLength={500}
+          placeholder={placeholder}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') { setValue(tag?.description || ''); setEditing(false); }
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
+          }}
+        />
+      ) : (
+        <button className={`tag-detail-description-display ${value ? '' : 'is-empty'}`}
+                onClick={() => setEditing(true)}
+                title="Click to edit (the AI reads this)">
+          {value || placeholder}
+        </button>
+      )}
+      <div className="tag-detail-description-meta">
+        {saving ? 'Saving…' : (savedAt && Date.now() - savedAt < 2000 ? 'Saved' : `${value.length}/500`)}
+      </div>
+    </div>
+  );
+}
+
 function fallbackColor(slugOrName) {
   const s = (slugOrName || '').toString();
   let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
@@ -648,6 +704,8 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           <button className="tag-detail-close" onClick={onClose} aria-label="Close">×</button>
         )}
       </div>
+
+      <TagDescriptionRow tag={tag} />
 
       {rows.length > 0 && (
         <div className="tag-detail-filter">

@@ -19,11 +19,18 @@ export async function listWorkspaceTags(workspaceId) {
   if (!workspaceId) return [];
   const { data, error } = await supabase
     .from('tags')
-    .select('id, workspace_id, name, slug, color, kind, created_by, created_at')
+    .select('id, workspace_id, name, slug, color, kind, description, created_by, created_at')
     .eq('workspace_id', workspaceId)
     .order('name', { ascending: true });
   if (error) throw error;
   return data || [];
+}
+
+export async function setTagDescription(tagId, description) {
+  const trimmed = description == null ? null : String(description).trim().slice(0, 500);
+  const { error } = await supabase.from('tags').update({ description: trimmed || null })
+    .eq('id', tagId);
+  if (error) throw error;
 }
 
 // Find or create a tag by name. Trims + dedupes by slug.

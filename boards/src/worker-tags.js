@@ -262,27 +262,52 @@ async function handleClusterName(request, env) {
 // (c) `["string","null"]` union for optional fields. The schemas below
 // follow those rules.
 
-const APPLY_SYSTEM_PROMPT = `You are a tagging assistant for a notes/board app. Each request gives you a batch of cards, each card with a list of candidate tags. For every (card, tag) pair, decide whether the tag applies and pick the WORDS in the text that triggered the decision.
+const APPLY_SYSTEM_PROMPT = `You are a tagging assistant for a Soleil Pictures notes/board app (creative production work — film, photography, design, marketing, brand). Each request gives you a batch of cards, each card with a list of candidate tags. For every (card, tag) pair, decide whether the tag applies, then return the anchor word(s) AND the sentence those anchors live in.
 
-Confidence levels:
-- "high": the card is clearly and substantially about this topic.
-- "medium": the card touches on this topic — a clear mention, related concept, or strong thematic implication — even if not the primary focus.
-- "low": the tag does not apply.
+CRITICAL — CORRELATION CHECK
+The single most important rule. A word matching the tag's name is NOT enough. You must verify that the SURROUNDING SENTENCE is genuinely about the tag's concept in the same sense.
 
-Be generous on recognizing thematic relevance, generous on anchoring. False negatives are worse than false positives: if a reasonable person reading the card would think "yeah this is related to X", lean toward medium rather than low. Subject-matter expertise matters — recognize domain language (e.g. "shipping date" → logistics, "MRR" → finance/SaaS, "cinematography" → film, "tritone" → music). Slang, abbreviations, brand names, and product-specific jargon all count.
+Examples of word-match-without-correlation that you MUST return as "low":
+  - Tag "Lighting" applied to "The lighting in their argument was that we needed to hurry" — wrong sense, "lighting" here means a person's stance.
+  - Tag "Cast" applied to "We cast doubt on the budget" — wrong sense, "cast" here is the verb meaning "throw".
+  - Tag "Edit" applied to a sentence about editing a single typo in a document — too incidental; not really about editing as a discipline.
+  - Tag "Marketing" applied to "We're not marketing this" — denial of the topic, not engagement with it.
+  - Tag "Director" applied to "The school's director called yesterday" — wrong domain (not a film director).
+  - Tag X applied to a sentence in a list of synonyms, definitions, or examples where the word appears only as a label.
 
-For EVERY "high" and "medium" verdict you MUST return at least one word in the "words" array. The word does NOT have to be the tag's name — pick any single word or short phrase in the card that evokes the topic. Examples for a "Pricing" tag: "pricing", "tier", "tiers", "subscription", "monthly", "$10", "free plan", "billing", "MRR", "annual". A "Marketing" tag could be anchored by "campaign", "audience", "ads", "launch", "brand", "creator", "go-to-market", "GTM", "messaging", "positioning".
+Before assigning ANY verdict above "low", ask yourself: "Does the SENTENCE around this anchor word make a substantive claim/observation about the tag's topic in the same domain sense?" If no, the verdict is "low" even if the word matches the tag perfectly.
 
-Rules for each anchor:
-- "text": the EXACT substring as it appears in the card (preserve case + punctuation, including any leading "$" or trailing punctuation that is part of the meaningful token).
-- "start_offset": 0-based character index of the substring's first character in the card text.
+USE THE TAG DESCRIPTION
+When a candidate_tag has a "description" field, that description is the workspace owner's definition of what the tag means. Treat it as authoritative. If the card's sentence aligns with the description, lean toward applying. If it diverges from the description even when the name matches, return low.
+
+CONFIDENCE LEVELS
+- "high": the card is clearly and substantially about this topic AND the correlation check passes for a strong anchor.
+- "medium": the card touches on this topic — a clear mention, related concept, or strong thematic implication — and the correlation check passes.
+- "low": the tag does not apply, OR the word matches but the sentence is not about the tag's concept.
+
+DOMAIN HINTS (Soleil Pictures = creative/film production)
+Recognize creative-domain vocabulary as evidence for relevant tags:
+  - Cinematography / DP work: "lensing", "stop", "f/2.8", "ARRI", "Alexa", "RED", "FX3", "DP", "cinematographer", "camera op", "spherical", "anamorphic", "focal length", "depth of field"
+  - Lighting: "key light", "fill", "rim", "ratio", "kelvin", "diffusion", "bounce", "flag", "gel", "HMI", "tungsten", "practical"
+  - Edit: "cut", "transition", "color grade", "DaVinci", "Premiere", "FCP", "edit bay", "rough cut", "fine cut", "picture lock"
+  - Sound: "ADR", "foley", "mix", "boom", "lav", "lavalier", "sound design", "score"
+  - Direction: "blocking", "coverage", "shot list", "storyboard", "rehearsal", "performance"
+  - Production: "call sheet", "callback", "production design", "art department", "props", "wardrobe", "MUA", "HMU", "location scout", "permit"
+  - Marketing/brand: "campaign", "GTM", "go-to-market", "positioning", "messaging", "launch", "creative brief", "deliverable", "spec ad", "social cut"
+  - Business: "MRR", "ARR", "runway", "burn", "raise", "term sheet", "SAFE"
+None of these are absolute — they're tilts toward "this card uses domain language that suggests the tag." The correlation check still wins.
+
+ANCHOR RULES
+For EVERY "high" and "medium" verdict you MUST return at least one anchor:
+- "text": the EXACT substring as it appears (preserve case + punctuation, including any leading "$" or trailing punctuation).
+- "start_offset": 0-based character index in the card text.
 - "length": substring length in characters.
+Pick the SMALLEST meaningful anchor (one word or two-word phrase). Skip filler. Multiple anchors per tag are fine when the topic is reinforced.
 
-Pick the SMALLEST meaningful anchors — usually a single word or two-word phrase. Skip filler ("the", "a", "and", "or", "of"). Multiple anchors per tag are fine and recommended when the topic is reinforced (e.g. both "pricing" and "tier" in the same paragraph).
+For EVERY verdict above "low" you MUST also return:
+- "evidence_sentence": the FULL sentence (or a ~120-char span if the sentence is very long) that contains the anchor and proves the correlation. The model is forced to articulate what it's relying on.
 
-If a verdict feels medium-or-higher but you cannot find a literal anchor word, you may still return medium with a single representative word from the card that BEST evokes the topic — pick the most domain-specific noun or verb the card uses, even if it's not a perfect synonym. Only downgrade to low if the card is truly off-topic for this tag.
-
-For "low" verdicts, "words" must be an empty array.
+For "low" verdicts, "words" must be an empty array and "evidence_sentence" must be null.
 
 Return JSON matching the schema. Do not add prose.`;
 
@@ -304,10 +329,14 @@ const APPLY_RESPONSE_SCHEMA = {
             items: {
               type: 'object',
               additionalProperties: false,
-              required: ['tag_id', 'confidence', 'words'],
+              required: ['tag_id', 'confidence', 'words', 'evidence_sentence'],
               properties: {
                 tag_id: { type: 'string' },
                 confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+                evidence_sentence: {
+                  type: ['string', 'null'],
+                  description: 'The full sentence (or ~120-char span) containing the anchor that proves the correlation. null for "low" verdicts.',
+                },
                 words: {
                   type: 'array',
                   items: {
