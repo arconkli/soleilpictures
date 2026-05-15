@@ -26,7 +26,7 @@ import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
-import { setClipboard, getClipboard, clipboardSize } from '../lib/clipboard.js';
+import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy } from '../lib/clipboard.js';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
@@ -1363,7 +1363,18 @@ export function CanvasSurface({
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
       const items = e.clipboardData?.items;
       let handled = false;
-      if (items) {
+      // 1) Internal clipboard ALWAYS wins if the user has done a recent
+      //    in-app Cmd+C — without this, an image still sitting in the OS
+      //    clipboard from earlier (Finder copy, screenshot, etc.) would
+      //    hijack the paste. Use a 5-minute recency cap so stale state
+      //    doesn't haunt the user days later.
+      if (hasRecentInternalCopy()) {
+        e.preventDefault();
+        doPaste();
+        handled = true;
+      }
+      // 2) Otherwise prefer an actual image in the OS clipboard.
+      if (!handled && items) {
         for (const item of items) {
           if (item.type.startsWith('image/')) {
             e.preventDefault();
@@ -1371,18 +1382,14 @@ export function CanvasSurface({
             const file = item.getAsFile();
             if (file) {
               const pos = lastMouseCanvasRef.current;
-              // Adds an optimistic card immediately + uploads in the
-              // background; spinner overlay shows progress.
               optimisticDropImage(file, pos.x, pos.y);
             }
             break;
           }
         }
       }
-      // Internal clipboard takes precedence over plain-text URL paste so
-      // copying a card in-app and pasting wins over a random URL still
-      // sitting in the OS clipboard. Plain URL pasted with internal
-      // clipboard empty → make an embed/link card.
+      // 3) Internal clipboard fallback (stale but populated) when no
+      //    OS image is present — better than nothing.
       if (!handled && getClipboard().length > 0) {
         e.preventDefault();
         doPaste();
