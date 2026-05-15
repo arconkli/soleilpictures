@@ -26,7 +26,12 @@
 //   SUPABASE_URL       — used to validate user JWTs (already known publicly)
 //   SUPABASE_ANON_KEY  — required by Supabase /auth/v1/user as the apikey hdr
 
-const COMPLETIONS_MODEL = 'gpt-4o-mini';
+// Tagger quality. gpt-4o-mini is fast and cheap but misses subtler
+// associations ("startup launch" → "marketing"). gpt-4o gets these
+// right at ~5× cost. Cluster naming can stay on mini since the cards
+// pre-filter via embedding similarity.
+const APPLY_MODEL = 'gpt-4o';
+const CLUSTER_NAME_MODEL = 'gpt-4o-mini';
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIM = 1536;
 
@@ -164,7 +169,8 @@ async function handleApply(request, env) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: COMPLETIONS_MODEL,
+      model: APPLY_MODEL,
+      temperature: 0.1,
       messages: [
         { role: 'system', content: APPLY_SYSTEM_PROMPT },
         { role: 'user', content: JSON.stringify(userPayload) },
@@ -219,7 +225,7 @@ async function handleClusterName(request, env) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: COMPLETIONS_MODEL,
+      model: CLUSTER_NAME_MODEL,
       messages: [
         { role: 'system', content: CLUSTER_NAME_SYSTEM_PROMPT },
         { role: 'user', content: JSON.stringify({ cards: members }) },
@@ -260,21 +266,21 @@ const APPLY_SYSTEM_PROMPT = `You are a tagging assistant for a notes/board app. 
 
 Confidence levels:
 - "high": the card is clearly and substantially about this topic.
-- "medium": the card touches on this topic — a clear mention or related concept, but not the primary focus.
-- "low": the tag doesn't really apply.
+- "medium": the card touches on this topic — a clear mention, related concept, or strong thematic implication — even if not the primary focus.
+- "low": the tag does not apply.
 
-Be strict on relevance, generous on anchoring.
+Be generous on recognizing thematic relevance, generous on anchoring. False negatives are worse than false positives: if a reasonable person reading the card would think "yeah this is related to X", lean toward medium rather than low. Subject-matter expertise matters — recognize domain language (e.g. "shipping date" → logistics, "MRR" → finance/SaaS, "cinematography" → film, "tritone" → music). Slang, abbreviations, brand names, and product-specific jargon all count.
 
-For EVERY "high" and "medium" verdict you MUST return at least one word in the "words" array. The word does NOT have to be the tag's name — pick any single word or short phrase in the card that obviously evokes the topic. Examples for a "Pricing Plans" tag: "pricing", "tier", "tiers", "subscription", "monthly", "$10", "free plan", "billing". A "Marketing" tag could be anchored by "campaign", "audience", "ads", "launch", "brand". Use the surrounding sentence as context to confirm the word genuinely refers to the tag's concept.
+For EVERY "high" and "medium" verdict you MUST return at least one word in the "words" array. The word does NOT have to be the tag's name — pick any single word or short phrase in the card that evokes the topic. Examples for a "Pricing" tag: "pricing", "tier", "tiers", "subscription", "monthly", "$10", "free plan", "billing", "MRR", "annual". A "Marketing" tag could be anchored by "campaign", "audience", "ads", "launch", "brand", "creator", "go-to-market", "GTM", "messaging", "positioning".
 
 Rules for each anchor:
 - "text": the EXACT substring as it appears in the card (preserve case + punctuation, including any leading "$" or trailing punctuation that is part of the meaningful token).
 - "start_offset": 0-based character index of the substring's first character in the card text.
 - "length": substring length in characters.
 
-Pick the SMALLEST meaningful anchors — usually a single word or two-word phrase. Skip filler ("the", "a", "and", "or", "of"). Multiple anchors per tag are fine (e.g. both "pricing" and "tier" in the same paragraph).
+Pick the SMALLEST meaningful anchors — usually a single word or two-word phrase. Skip filler ("the", "a", "and", "or", "of"). Multiple anchors per tag are fine and recommended when the topic is reinforced (e.g. both "pricing" and "tier" in the same paragraph).
 
-If a verdict would be "high" or "medium" but you cannot identify any specific word that points at the topic, downgrade the verdict to "low" — never return an empty "words" array on a high/medium verdict.
+If a verdict feels medium-or-higher but you cannot find a literal anchor word, you may still return medium with a single representative word from the card that BEST evokes the topic — pick the most domain-specific noun or verb the card uses, even if it's not a perfect synonym. Only downgrade to low if the card is truly off-topic for this tag.
 
 For "low" verdicts, "words" must be an empty array.
 
