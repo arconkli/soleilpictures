@@ -1991,8 +1991,18 @@ body {
   background: var(--bg-3);
   font: 700 11px/1 var(--font-sans);
   color: var(--ink-0);
+  position: relative;
 }
 .sb-foot-avatar:hover { background: var(--bg-4); }
+.sb-foot-avatar-dot {
+  position: absolute;
+  left: -1px; bottom: -1px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-1, #0a0a0c);
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4);
+  pointer-events: none;
+}
 .sb-mid-title {
   font: 600 13px/1.4 var(--font-sans);
   color: var(--ink-0);

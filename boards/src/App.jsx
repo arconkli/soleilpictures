@@ -2164,6 +2164,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="sb-foot-avatar" title="Account"
                     onClick={() => setAccountOpen(true)}>
               {(user.email?.[0] || 'Y').toUpperCase()}
+              <span className="sb-foot-avatar-dot"
+                    style={{ background: userInfo.color || pickPresenceColor(user.id) }}
+                    aria-hidden="true" />
             </button>
           </div>
         </div>
