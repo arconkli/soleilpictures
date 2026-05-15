@@ -1003,13 +1003,22 @@ export function CanvasSurface({
     try { blobUrl = URL.createObjectURL(file); } catch (_) {}
     let dims = { width: 0, height: 0 };
     try { dims = await readImageDims(file); } catch (_) {}
-    let w = 240, h = 200;
+    // Preserve natural dimensions. Only scale DOWN if the source is bigger
+    // than MAX_PASTE_DIM along either axis; never zoom up. Minimum 80px so
+    // tiny assets stay clickable.
+    const MAX_PASTE_DIM = 1200;
+    const MIN_PASTE_DIM = 80;
+    let w = 320, h = 240; // fallback for when readImageDims fails
     if (dims.width && dims.height) {
-      const ar = dims.width / dims.height;
-      if (ar >= 1) { w = 280; h = Math.round(280 / ar); }
-      else { h = 240; w = Math.round(240 * ar); }
-      h = Math.max(80, Math.min(360, h));
-      w = Math.max(80, Math.min(420, w));
+      w = dims.width;
+      h = dims.height;
+      if (w > MAX_PASTE_DIM || h > MAX_PASTE_DIM) {
+        const k = MAX_PASTE_DIM / Math.max(w, h);
+        w = Math.round(w * k);
+        h = Math.round(h * k);
+      }
+      w = Math.max(MIN_PASTE_DIM, w);
+      h = Math.max(MIN_PASTE_DIM, h);
     }
     const id = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     if (blobUrl) setLocalImagePreview(prev => ({ ...prev, [id]: blobUrl }));
@@ -3796,14 +3805,37 @@ export function CanvasSurface({
       // but for cross-tab drags from outside the app.
       const isImage = /\.(png|jpe?g|gif|webp|svg|avif)(\?|#|$)/i.test(url);
       if (isImage) {
-        const w = 320, h = 240;
+        // Optimistic 320x240 placeholder; patch to natural dims once the
+        // browser has loaded the image (cap at 1200 along longer axis).
+        const id = `image-${Date.now()}`;
+        const fallbackW = 320, fallbackH = 240;
         mutators.addCard?.({
-          id: `image-${Date.now()}`,
+          id,
           kind: 'image', src: url,
-          x: Math.max(8, Math.round(cx - w / 2)),
-          y: Math.max(8, Math.round(cy - h / 2)),
-          w, h,
+          x: Math.max(8, Math.round(cx - fallbackW / 2)),
+          y: Math.max(8, Math.round(cy - fallbackH / 2)),
+          w: fallbackW, h: fallbackH,
         });
+        try {
+          const probe = new Image();
+          probe.onload = () => {
+            let w = probe.naturalWidth, h = probe.naturalHeight;
+            if (!w || !h) return;
+            const MAX_DIM = 1200;
+            if (w > MAX_DIM || h > MAX_DIM) {
+              const k = MAX_DIM / Math.max(w, h);
+              w = Math.round(w * k);
+              h = Math.round(h * k);
+            }
+            w = Math.max(80, w); h = Math.max(80, h);
+            mutators.updateCard?.(id, {
+              w, h,
+              x: Math.max(8, Math.round(cx - w / 2)),
+              y: Math.max(8, Math.round(cy - h / 2)),
+            });
+          };
+          probe.src = url;
+        } catch (_) {}
         return;
       }
       const w = 280, h = 130;
