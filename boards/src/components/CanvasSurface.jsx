@@ -3719,7 +3719,7 @@ export function CanvasSurface({
     return (
       <div key={c.id} {...wrapper}>
         {inner}
-        <CardStrokesOverlay strokes={c.strokes} w={c.w} h={c.h} />
+        <CardStrokesOverlay strokes={c.strokes} w={w} h={h} />
         {cardTags.length > 0 && (
           <div className="card-tags-strip" data-card-id={c.id}>
             {cardTags.slice(0, 4).map(t => (
