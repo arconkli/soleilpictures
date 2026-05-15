@@ -4665,6 +4665,52 @@ export function CanvasSurface({
               const path = `M${s.x},${s.y} L${e.x},${e.y}`;
               return <path d={path} stroke="rgba(245,158,11,.8)" strokeWidth="1.5" strokeDasharray="4 3" fill="none" pointerEvents="none" />;
             })()}
+            {/* Endpoint handles for the selected arrow. Only render when
+                exactly one arrow is selected so the handles aren't a mess
+                across multi-select. Drag either end to retarget. */}
+            {canEdit && selectedArrows.size === 1 && (() => {
+              const idx = [...selectedArrows][0];
+              const a = arrows?.[idx];
+              const att = arrowAttachments[idx];
+              if (!a || !att?.from || !att?.to) return null;
+              const HANDLE_R = 6 / zoom;
+              const onHandleDown = (which) => (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                const startCanvas = clientToCanvas(ev.clientX, ev.clientY);
+                let lastCanvas = startCanvas;
+                const onMove = (mv) => {
+                  lastCanvas = clientToCanvas(mv.clientX, mv.clientY);
+                  // Live-update the arrow endpoint as a free point.
+                  // Snap to a card if the pointer is hovering one.
+                  const overEl = document.elementFromPoint(mv.clientX, mv.clientY);
+                  const cardEl = overEl?.closest?.('[data-card-id]');
+                  const cardId = cardEl?.getAttribute?.('data-card-id');
+                  const next = cardId ? cardId : { x: Math.round(lastCanvas.x), y: Math.round(lastCanvas.y) };
+                  mutators.updateArrow?.(idx, which === 'from' ? { from: next } : { to: next });
+                };
+                const onUp = () => {
+                  window.removeEventListener('pointermove', onMove);
+                  window.removeEventListener('pointerup', onUp);
+                };
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+              };
+              return (
+                <Fragment>
+                  <circle cx={att.from.point.x} cy={att.from.point.y} r={HANDLE_R}
+                          fill="#fff" stroke="rgba(245,158,11,.95)" strokeWidth={1.5 / zoom}
+                          pointerEvents="all"
+                          style={{ cursor: 'grab' }}
+                          onPointerDown={onHandleDown('from')} />
+                  <circle cx={att.to.point.x} cy={att.to.point.y} r={HANDLE_R}
+                          fill="#fff" stroke="rgba(245,158,11,.95)" strokeWidth={1.5 / zoom}
+                          pointerEvents="all"
+                          style={{ cursor: 'grab' }}
+                          onPointerDown={onHandleDown('to')} />
+                </Fragment>
+              );
+            })()}
           </svg>
         )}
 
