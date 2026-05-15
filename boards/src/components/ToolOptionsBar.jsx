@@ -7,7 +7,7 @@
 // lose what the user had highlighted.
 
 import { useState } from 'react';
-import { withSelection, wrapSelectionStyle } from '../lib/editorSelection.js';
+import { withSelection, wrapSelectionStyle, toggleList } from '../lib/editorSelection.js';
 import { useRecentColors } from '../hooks/useRecentColors.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { useCustomFonts, useRecentFonts } from '../hooks/useCustomFonts.js';
@@ -101,10 +101,9 @@ export function ToolOptionsBar({
         <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" />
         <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" />
         <span className="tob-sep" />
-        <FormatBtn label="•"  title="Bulleted list" cmd="insertUnorderedList" />
-        <FormatBtn label="1." title="Numbered list" cmd="insertOrderedList" />
-        <FormatBtn label="☐"  title="Checklist" cmd="insertHTML"
-                   val={'<ul class="note-checklist"><li class="ck"><span class="ck-box" contenteditable="false" role="checkbox" aria-checked="false"></span><span class="ck-text">&#8203;</span></li></ul>'} />
+        <ListBtn label="•"  title="Bulleted list" type="ul" />
+        <ListBtn label="1." title="Numbered list" type="ol" />
+        <ListBtn label="☐"  title="Checklist"     type="task" />
         <span className="tob-sep" />
         <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft" />
         <FormatBtn label="≡" title="Align center" cmd="justifyCenter" />
@@ -315,6 +314,17 @@ function FormatBtn({ label, title, cmd, val, bold }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => execCmd(cmd, val)}
             style={bold ? { fontWeight: 700 } : undefined}>
+      {label}
+    </button>
+  );
+}
+
+function ListBtn({ label, title, type }) {
+  return (
+    <button className="tob-btn"
+            title={title}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => withSelection(() => toggleList(type))}>
       {label}
     </button>
   );
