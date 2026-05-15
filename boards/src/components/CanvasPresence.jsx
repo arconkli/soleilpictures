@@ -205,14 +205,29 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
                }} />
         ))}
       </div>
-      <div className="cursors-layer">
+      <div className="cursors-layer" data-cursor-count={Object.keys(cursorDisplay).length}>
         {Object.entries(cursorDisplay).map(([clientId, c]) => {
           if (!c?.user) return null;
+          const sx = pan.x + c.x * zoom;
+          const sy = pan.y + c.y * zoom;
+          // TEMP diagnostic: log every render-time position so we can tell
+          // if cursors are being placed off-screen / at NaN.
+          if (typeof window !== 'undefined' && !window.__cursorRenderLogThrottle) {
+            window.__cursorRenderLogThrottle = setTimeout(() => {
+              window.__cursorRenderLogThrottle = null;
+            }, 500);
+            console.log('[canvaspres] render', clientId, {
+              name: c.user.name,
+              canvasXY: { x: c.x, y: c.y },
+              screenXY: { x: sx, y: sy },
+              pan, zoom,
+            });
+          }
           return (
             <LiveCursor
               key={clientId}
-              x={pan.x + c.x * zoom}
-              y={pan.y + c.y * zoom}
+              x={sx}
+              y={sy}
               name={(c.user.name || '?').split(' ')[0]}
               color={c.user.color || 'var(--soleil)'}
             />
