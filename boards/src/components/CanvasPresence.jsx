@@ -83,6 +83,38 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
       const nextCursorTargets = {};
       const userByClientId = new Map();
       states.forEach((state, clientId) => {
+        // TEMP diagnostic: which silent-skip branch is dropping peers?
+        // Remove once the cursor-visibility regression is identified.
+        const _cursor = state?.canvasCursor;
+        const _sel = state?.canvasSelection;
+        const _drag = state?.liveDrag;
+        const _mq = state?.marquee;
+        const _onBoard = (_cursor?.boardId === boardId)
+                     || (_sel?.boardId === boardId)
+                     || (_drag?.boardId === boardId)
+                     || (_mq?.boardId === boardId);
+        const _reason =
+          !state ? 'no-state'
+          : !state.user ? 'no-user'
+          : state.user.id === selfId ? 'is-self'
+          : !_onBoard ? 'wrong-board'
+          : 'ok';
+        if (_reason !== 'ok') {
+          console.log('[canvaspres] drop', clientId, _reason, {
+            hasUser: !!state?.user,
+            peerUserId: state?.user?.id,
+            selfId,
+            cursorBoardId: _cursor?.boardId,
+            boardId,
+            isOwnClient: clientId === aw.clientID,
+          });
+        } else {
+          console.log('[canvaspres] ok', clientId, {
+            peerUserId: state.user.id,
+            peerName: state.user.name,
+            hasCursor: !!_cursor,
+          });
+        }
         if (!state?.user) return;
         if (state.user.id === selfId) return;
         const cursor = state.canvasCursor;
