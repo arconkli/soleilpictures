@@ -2450,12 +2450,51 @@ export function CanvasSurface({
     const startClient = { x: e.clientX, y: e.clientY };
     const startFrom = { x: a.from.x, y: a.from.y };
     const startTo   = { x: a.to.x,   y: a.to.y };
+    // Snap targets captured at drag start: every OTHER arrow's
+    // endpoints + every card's corners. While translating the body,
+    // if either of this arrow's endpoints lands within SNAP_DIST of
+    // a target, nudge the WHOLE arrow so the endpoint clicks onto
+    // the target. The nearer of the two (from/to) wins.
+    const SNAP_DIST = 12 / zoom;
+    const snapTargets = [];
+    (arrowAttachments || []).forEach((oAtt, j) => {
+      if (j === idx) return;
+      if (oAtt?.from?.point) snapTargets.push({ x: oAtt.from.point.x, y: oAtt.from.point.y });
+      if (oAtt?.to?.point)   snapTargets.push({ x: oAtt.to.point.x,   y: oAtt.to.point.y });
+    });
+    (cards || []).forEach(c => {
+      snapTargets.push({ x: c.x,         y: c.y });
+      snapTargets.push({ x: c.x + c.w,   y: c.y });
+      snapTargets.push({ x: c.x,         y: c.y + c.h });
+      snapTargets.push({ x: c.x + c.w,   y: c.y + c.h });
+    });
     let dragged = false;
     const onMove = (mv) => {
-      const dx = (mv.clientX - startClient.x) / zoom;
-      const dy = (mv.clientY - startClient.y) / zoom;
-      if (!dragged && Math.hypot(dx * zoom, dy * zoom) < 3) return;
+      const dxRaw = (mv.clientX - startClient.x) / zoom;
+      const dyRaw = (mv.clientY - startClient.y) / zoom;
+      if (!dragged && Math.hypot(dxRaw * zoom, dyRaw * zoom) < 3) return;
       dragged = true;
+      // Candidate (un-snapped) endpoint positions.
+      const candFromX = startFrom.x + dxRaw;
+      const candFromY = startFrom.y + dyRaw;
+      const candToX   = startTo.x + dxRaw;
+      const candToY   = startTo.y + dyRaw;
+      // For each of the two endpoints, find its nearest target. The
+      // smaller of the two distances wins; apply the delta to BOTH
+      // endpoints so the line translates as a unit onto the snap.
+      let bestEnd = null; // 'from' | 'to'
+      let bestD = SNAP_DIST;
+      let bestAdjX = 0, bestAdjY = 0;
+      for (const t of snapTargets) {
+        const dFx = t.x - candFromX, dFy = t.y - candFromY;
+        const dF  = Math.hypot(dFx, dFy);
+        if (dF < bestD) { bestD = dF; bestEnd = 'from'; bestAdjX = dFx; bestAdjY = dFy; }
+        const dTx = t.x - candToX,   dTy = t.y - candToY;
+        const dT  = Math.hypot(dTx, dTy);
+        if (dT < bestD) { bestD = dT; bestEnd = 'to';   bestAdjX = dTx; bestAdjY = dTy; }
+      }
+      const dx = dxRaw + (bestEnd ? bestAdjX : 0);
+      const dy = dyRaw + (bestEnd ? bestAdjY : 0);
       mutators.updateArrow?.(idx, {
         from: { x: Math.round(startFrom.x + dx), y: Math.round(startFrom.y + dy) },
         to:   { x: Math.round(startTo.x + dx),   y: Math.round(startTo.y + dy) },
