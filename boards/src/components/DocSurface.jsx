@@ -13,7 +13,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
-import { addBookmark, addPage, addPageSheet } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet } from '../lib/docState.js';
+import { useFeedback } from './AppFeedback.jsx';
 import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocPresence } from './DocPresence.jsx';
@@ -239,6 +240,22 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     addPageSheet(ydoc, activePageId, scope);
   }, [activePageId, ydoc, scope]);
 
+  // Delete a (non-primary) sheet from the active page. The primary sheet
+  // (sheetId === pageId) is protected — to remove that, the user deletes
+  // the whole page from the tree.
+  const feedback = useFeedback();
+  const deleteSheet = useCallback(async (sheetId) => {
+    if (!activePageId || !sheetId || sheetId === activePageId) return;
+    const ok = await feedback.confirm({
+      title: 'Delete this page?',
+      message: 'The page and its contents will be removed.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    deletePageSheet(ydoc, activePageId, sheetId, scope);
+  }, [activePageId, ydoc, scope, feedback]);
+
   // Auto-add a sheet when the last sheet in the current page fills up. Fires
   // at most once per sheet — once a sheet has triggered, even further growth
   // won't fire again until the user navigates to a new last-sheet.
@@ -441,11 +458,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                         onClose={() => setFindOpen(false)} />
         <div className="doc-paper" ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': zoom }}>
-          {/* Same grain layer the canvas uses — opacity:0.03 ambient
-              noise — so the doc's dark gutter matches the canvas's
-              texture exactly. CSS makes it sticky-100vh so it stays
-              glued to the viewport as the user scrolls. */}
-          <div className="grain-canvas" aria-hidden="true" />
+          {/* Grain texture is painted as a background-image on .doc-paper
+              with background-attachment:local so it tiles across the
+              full scrollHeight — no separate <div> needed. */}
           {activePageId && awareness && (
             <DocPresence getAwareness={getAwareness} boardId={board.id} pageId={activePageId}
                          paperRef={paperRef} editor={editorRef.current}
@@ -475,6 +490,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 registerOpenAddComment={registerOpenAddComment}
                 boards={Object.values(boards || {})}
                 editable={canEdit}
+                onDeleteSheet={canEdit && sid !== activePageId ? () => deleteSheet(sid) : null}
               />
             ))
           ) : (

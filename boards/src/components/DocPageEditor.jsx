@@ -141,7 +141,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorReady, onEditorFocus, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorReady, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -1027,6 +1027,15 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
 
   return (
     <div className="doc-editor-wrap" onClick={handleEditorClick} onMouseOver={handleLinkHoverEnter} onMouseOut={handleLinkHoverLeave}>
+      {onDeleteSheet && (
+        <button className="doc-sheet-delete"
+                type="button"
+                title="Delete this page"
+                aria-label="Delete this page"
+                onClick={(e) => { e.stopPropagation(); onDeleteSheet(); }}>
+          ×
+        </button>
+      )}
       {/* No floating menus — they crowded the cursor. Format from the top
           toolbar (always visible) or right-click for a context menu. */}
       <DocEditorContextMenu editor={editor}

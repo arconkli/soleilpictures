@@ -7300,34 +7300,58 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
-  background: var(--bg-0);
+  background-color: var(--bg-0);
+  /* Grain texture painted directly on the scrollable surface. The
+     translucent top layer is the base color at 97% opacity, so the
+     grain image under it shows through at ~3% effective opacity —
+     same look as the canvas's separate <div class="grain-canvas">.
+     background-attachment: local tiles the bg across the entire
+     scrollHeight so the dark gutter stays grained no matter how many
+     sheets stack on top of each other. */
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--bg-0) 97%, transparent),
+      color-mix(in srgb, var(--bg-0) 97%, transparent)
+    ),
+    url('/grain.gif');
+  background-repeat: repeat, repeat;
+  background-size: auto, 320px 240px;
+  background-attachment: local, local;
   display: flex; flex-direction: column;
   align-items: center;
   padding: 32px 24px 96px;
-}
-/* The grain canvas (declared globally as position:absolute;inset:0)
-   would otherwise be clipped to .doc-paper's visible client area when
-   the doc scrolls. Override to a sticky 100vh layer that pins to the
-   top of the scrolling region — as the user scrolls, the grain stays
-   glued to the viewport so it visually covers the entire dark gutter.
-   Negative margin-bottom cancels its own main-axis size in the flex
-   flow so it doesn't push content down. align-self:stretch overrides
-   the parent's align-items:center so the grain spans the full width. */
-.doc-paper > .grain-canvas {
-  position: sticky;
-  top: 0;
-  inset: auto;
-  align-self: stretch;
-  width: auto;
-  height: 100vh;
-  margin: 0 0 -100vh 0;
-  flex: none;
-  z-index: 0;
 }
 /* Stacked sheets — each .doc-editor-wrap is its own page sheet. Add a
    visual gap between consecutive sheets so they read as distinct pages. */
 .doc-paper > .doc-editor-wrap + .doc-editor-wrap {
   margin-top: 24px;
+}
+/* Delete button for a non-primary sheet. Sits in the top-right corner
+   of the page sheet; faint by default, lights up on hover. */
+.doc-editor-wrap > .doc-sheet-delete {
+  appearance: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: color-mix(in oklab, var(--ink-3) 70%, transparent);
+  font: 600 16px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  z-index: 2;
+}
+.doc-editor-wrap > .doc-sheet-delete:hover {
+  background: var(--bg-1);
+  border-color: color-mix(in oklab, var(--ink-3) 30%, transparent);
+  color: var(--ink-0);
 }
 .doc-add-page-below {
   appearance: none;
