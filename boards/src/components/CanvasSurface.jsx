@@ -143,9 +143,16 @@ function readImageDims(file) {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
+      console.log('[paste-debug] readImageDims onload', {
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+        fileType: file.type,
+        fileSize: file.size,
+      });
       resolve({ width: img.naturalWidth, height: img.naturalHeight, url });
     };
-    img.onerror = () => {
+    img.onerror = (ev) => {
+      console.warn('[paste-debug] readImageDims onerror', { fileType: file.type, fileSize: file.size });
       resolve({ width: null, height: null, url });
     };
     img.src = url;
@@ -998,10 +1005,15 @@ export function CanvasSurface({
   // pending. On failure, we drop the card and toast the error.
   const optimisticDropImage = useCallback(async (file, cx, cy) => {
     if (!file) return;
+    console.log('[paste-debug] optimisticDropImage start', {
+      useLocalImages, fileName: file.name, fileSize: file.size, fileType: file.type,
+      cx, cy,
+    });
     if (useLocalImages) {
       // Local QA path — no upload. Just add the card directly.
       try {
         const dims = await readImageDims(file);
+        console.log('[paste-debug] localImages path, dims:', dims);
         onDropFileImage?.({ publicUrl: dims.url, width: dims.width, height: dims.height, x: cx, y: cy });
       } catch (err) {
         feedback.toast({ type: 'error', message: 'Image failed: ' + (err.message || err) });
@@ -1011,7 +1023,10 @@ export function CanvasSurface({
     let blobUrl = null;
     try { blobUrl = URL.createObjectURL(file); } catch (_) {}
     let dims = { width: 0, height: 0 };
-    try { dims = await readImageDims(file); } catch (_) {}
+    try { dims = await readImageDims(file); } catch (err) {
+      console.warn('[paste-debug] readImageDims threw', err);
+    }
+    console.log('[paste-debug] readImageDims result', dims);
     // Preserve natural dimensions AND aspect ratio. Scale down if the
     // source exceeds MAX along either axis; scale UP (proportionally) if
     // either axis is below MIN so very thin/wide images stay clickable
@@ -1032,7 +1047,13 @@ export function CanvasSurface({
         w = Math.round(w * k);
         h = Math.round(h * k);
       }
+    } else {
+      console.warn('[paste-debug] FALLBACK SIZE used (dims missing). dims=', dims);
     }
+    console.log('[paste-debug] final card dimensions', {
+      naturalW: dims.width, naturalH: dims.height,
+      cardW: w, cardH: h,
+    });
     const id = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     if (blobUrl) setLocalImagePreview(prev => ({ ...prev, [id]: blobUrl }));
     // src omitted here — blob URLs aren't useful to peers, so we keep the
@@ -1044,6 +1065,7 @@ export function CanvasSurface({
       w, h,
       pending: true,
     });
+    console.log('[paste-debug] addCard fired', { id, w, h });
     try {
       const onProgress = (frac) => {
         setUploadProgressById(prev => ({ ...prev, [id]: frac }));
@@ -1377,8 +1399,19 @@ export function CanvasSurface({
   useEffect(() => {
     const onPaste = async (e) => {
       const tag = e.target.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) {
+        console.log('[paste-debug] paste ignored: focus in', tag, 'contentEditable=', e.target.isContentEditable);
+        return;
+      }
       const items = e.clipboardData?.items;
+      const types = e.clipboardData?.types ? Array.from(e.clipboardData.types) : [];
+      console.log('[paste-debug] paste fired', {
+        types,
+        itemCount: items?.length || 0,
+        itemTypes: items ? Array.from(items).map(i => `${i.kind}/${i.type}`) : [],
+        hasInternalRecent: hasRecentInternalCopy(),
+        internalCount: getClipboard().length,
+      });
       let handled = false;
       // 1) Internal clipboard ALWAYS wins if the user has done a recent
       //    in-app Cmd+C — without this, an image still sitting in the OS
@@ -1386,6 +1419,7 @@ export function CanvasSurface({
       //    hijack the paste. Use a 5-minute recency cap so stale state
       //    doesn't haunt the user days later.
       if (hasRecentInternalCopy()) {
+        console.log('[paste-debug] path=internal-recent');
         e.preventDefault();
         doPaste();
         handled = true;
@@ -1397,6 +1431,12 @@ export function CanvasSurface({
             e.preventDefault();
             handled = true;
             const file = item.getAsFile();
+            console.log('[paste-debug] path=os-image', {
+              itemType: item.type,
+              fileName: file?.name,
+              fileSize: file?.size,
+              fileType: file?.type,
+            });
             if (file) {
               const pos = lastMouseCanvasRef.current;
               optimisticDropImage(file, pos.x, pos.y);
