@@ -66,6 +66,8 @@ export function ToolOptionsBar({
   onUpdateEditingNote,
   editingShapeCard,
   onUpdateEditingShape,
+  editingLineArrow,       // { idx, arrow } when a single line-arrow is selected
+  onUpdateEditingLineArrow, // (patch) => updates that arrow
   paletteColors = [],
   openColorPicker,
   onOpenSketchpad,      // launch the fullscreen sketch pad from inside Draw tool
@@ -209,6 +211,84 @@ export function ToolOptionsBar({
             </button>
           </>
         )}
+      </div>
+    );
+  }
+
+  // ── Line-arrow options ──────────────────────────────────────────────────
+  // A "line" is an arrow with head='none' created via the Shape tool's
+  // Line option (see CanvasSurface.jsx). When one is selected, surface
+  // color / width / dash AND a precise angle input here.
+  if (editingLineArrow && onUpdateEditingLineArrow) {
+    const a = editingLineArrow.arrow;
+    const stroke = a.customStroke || '#f5f5f6';
+    const strokeWidth = (typeof a.customStrokeWidth === 'number') ? a.customStrokeWidth : 2;
+    const dash = a.customDash || 'solid';
+    // Geometry helpers.
+    const fx = a.from?.x ?? 0, fy = a.from?.y ?? 0;
+    const tx = a.to?.x   ?? 0, ty = a.to?.y   ?? 0;
+    const length = Math.hypot(tx - fx, ty - fy);
+    // Angle in screen degrees: 0° = horizontal right, 90° = down,
+    // -90° = up. Display normalized to [0, 360) so the user types a
+    // familiar number like "92".
+    const rawAng = Math.atan2(ty - fy, tx - fx) * 180 / Math.PI;
+    const currentAngle = ((rawAng % 360) + 360) % 360;
+    const setAngle = (degRaw) => {
+      const deg = Number(degRaw);
+      if (!Number.isFinite(deg)) return;
+      const rad = deg * Math.PI / 180;
+      const len = length || 1;
+      const newTo = {
+        x: Math.round(fx + Math.cos(rad) * len),
+        y: Math.round(fy + Math.sin(rad) * len),
+      };
+      onUpdateEditingLineArrow({ to: newTo });
+    };
+    return (
+      <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
+        <span className="tob-label">Line</span>
+        <span className="tob-sep" />
+        <span className="tob-label">Color</span>
+        <div className="tob-swatches">
+          {[...new Set([...recentColors, ...paletteColors, ...STROKE_COLORS])].slice(0, 8).map(c => (
+            <button key={c} className={`tob-sw ${stroke === c ? 'is-active' : ''}`}
+                    style={{ background: c }}
+                    onClick={() => { onUpdateEditingLineArrow({ customStroke: c }); addRecentColor(c); }} />
+          ))}
+          <button className="tob-sw tob-sw-custom" title="Custom hex…"
+                  onClick={(e) => openPickerAt(e, {
+                    value: stroke,
+                    onChange: (col) => onUpdateEditingLineArrow({ customStroke: col }),
+                  })}>+</button>
+        </div>
+        <span className="tob-sep" />
+        <span className="tob-label">Width</span>
+        <select className="tob-select" value={strokeWidth}
+                onChange={(e) => onUpdateEditingLineArrow({ customStrokeWidth: Number(e.target.value) })}>
+          {STROKE_WIDTHS.map(w => <option key={w} value={w}>{w === 0 ? 'None' : `${w}px`}</option>)}
+        </select>
+        <span className="tob-sep" />
+        <span className="tob-label">Style</span>
+        <select className="tob-select" value={dash}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  onUpdateEditingLineArrow({ customDash: v === 'solid' ? null : v });
+                }}>
+          {DASH_STYLES.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+        </select>
+        <span className="tob-sep" />
+        <span className="tob-label">Angle</span>
+        <input
+          type="number"
+          className="tob-select"
+          step="1"
+          value={Math.round(currentAngle * 10) / 10}
+          onChange={(e) => setAngle(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          style={{ width: 64 }}
+          title="Line angle in degrees (0 = horizontal right, 90 = straight down)"
+        />
+        <span className="tob-label" style={{ marginLeft: -4 }}>°</span>
       </div>
     );
   }

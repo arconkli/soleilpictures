@@ -2992,7 +2992,15 @@ export function CanvasSurface({
           y: Math.min(startC.y, startC.y + h),
           w: Math.abs(w), h: Math.abs(h),
         };
-        setActiveShape(lastBounds);
+        // For line shapes, carry the actual drag direction in the
+        // preview state so the on-screen preview draws from startC
+        // to lastCur (matches what will be committed). Other shapes
+        // use the bounding rect as today.
+        if (shapeOptions.shape === 'line') {
+          setActiveShape({ ...lastBounds, kind: 'line', from: startC, to: lastCur });
+        } else {
+          setActiveShape(lastBounds);
+        }
       };
       const onUp = (ev) => {
         window.removeEventListener('pointermove', onMove);
@@ -4732,7 +4740,23 @@ export function CanvasSurface({
           <div className="marquee" style={marqueeRect} />
         )}
 
-        {activeShape && (
+        {activeShape && activeShape.kind === 'line' && (
+          // Line preview drawn directly from drag-start to drag-current
+          // so the on-screen preview matches the line that will be
+          // committed (preserving the user's drag direction).
+          <svg className="shape-preview" width={VIRTUAL_CANVAS_PX} height={VIRTUAL_CANVAS_PX}
+               style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', overflow: 'visible' }}>
+            <line x1={activeShape.from.x} y1={activeShape.from.y}
+                  x2={activeShape.to.x}   y2={activeShape.to.y}
+                  stroke={shapeOptions.stroke || '#f5f5f6'}
+                  strokeWidth={Math.max(0.5, shapeOptions.strokeWidth || 2)}
+                  strokeDasharray={shapeOptions.dash === 'dashed' ? '6,4'
+                                  : shapeOptions.dash === 'dotted' ? '2,3'
+                                  : undefined}
+                  strokeLinecap="round" />
+          </svg>
+        )}
+        {activeShape && activeShape.kind !== 'line' && (
           <div className="shape-preview"
                style={{
                  position: 'absolute',
@@ -5352,6 +5376,24 @@ export function CanvasSurface({
           if (selected.size !== 1) return;
           const id = [...selected][0];
           mutators.updateCard?.(id, patch);
+        }}
+        editingLineArrow={(() => {
+          // One selected arrow with head:'none' is a "line" — surface
+          // it to the toolbar so the user can adjust color/width/dash
+          // AND type a precise angle.
+          if (selectedArrows.size !== 1 || selected.size > 0) return null;
+          const idx = [...selectedArrows][0];
+          const a = (arrows || [])[idx];
+          if (!a || a.head !== 'none') return null;
+          const fromIsFree = a.from && typeof a.from === 'object' && !a.from.cardId && !a.from.id;
+          const toIsFree   = a.to   && typeof a.to   === 'object' && !a.to.cardId   && !a.to.id;
+          if (!fromIsFree || !toIsFree) return null;
+          return { idx, arrow: a };
+        })()}
+        onUpdateEditingLineArrow={(patch) => {
+          if (selectedArrows.size !== 1) return;
+          const idx = [...selectedArrows][0];
+          mutators.updateArrow?.(idx, patch);
         }}
         paletteColors={paletteColors}
         openColorPicker={(opts) => setPicker(opts)}
