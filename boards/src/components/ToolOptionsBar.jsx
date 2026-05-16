@@ -263,10 +263,11 @@ export function ToolOptionsBar({
         </div>
         <span className="tob-sep" />
         <span className="tob-label">Width</span>
-        <select className="tob-select" value={strokeWidth}
-                onChange={(e) => onUpdateEditingLineArrow({ customStrokeWidth: Number(e.target.value) })}>
-          {STROKE_WIDTHS.map(w => <option key={w} value={w}>{w === 0 ? 'None' : `${w}px`}</option>)}
-        </select>
+        <LinePxInput
+          value={strokeWidth}
+          onCommit={(n) => onUpdateEditingLineArrow({ customStrokeWidth: n })}
+        />
+        <span className="tob-label" style={{ marginLeft: -4 }}>px</span>
         <span className="tob-sep" />
         <span className="tob-label">Style</span>
         <select className="tob-select" value={dash}
@@ -440,6 +441,45 @@ function LineAngleInput({ angle, onCommit }) {
       }}
       style={{ width: 56, textAlign: 'right' }}
       title="Line angle in degrees (0 = horizontal right, 90 = straight down)"
+    />
+  );
+}
+
+// Free-form pixel input for line stroke width. Same UX shape as
+// LineAngleInput — no spinner arrows, no forced decimal display,
+// commits on blur or Enter. Clamps to >= 0 (0 means "no line").
+function LinePxInput({ value, onCommit }) {
+  const [draft, setDraft] = useState(() => formatAngleForDisplay(value));
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!editing) setDraft(formatAngleForDisplay(value));
+  }, [value, editing]);
+  const commit = () => {
+    setEditing(false);
+    const n = parseFloat(draft);
+    if (Number.isFinite(n) && n >= 0) {
+      const clamped = Math.min(200, n);
+      onCommit(clamped);
+      setDraft(formatAngleForDisplay(clamped));
+    } else {
+      setDraft(formatAngleForDisplay(value));
+    }
+  };
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className="tob-select tob-px-input"
+      value={draft}
+      onFocus={(e) => { setEditing(true); e.target.select(); }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { setDraft(formatAngleForDisplay(value)); setEditing(false); e.currentTarget.blur(); }
+      }}
+      style={{ width: 56, textAlign: 'right' }}
+      title="Line width in pixels (0 = none)"
     />
   );
 }
