@@ -17,6 +17,7 @@ import { getOrCreatePageContent, getOrCreateSheetContent, addBookmark, readPages
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
 import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
+import { untagDocRange } from '../lib/tagsApi.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
 import { extractParagraphTags } from '../lib/extractParagraphTags.js';
@@ -477,6 +478,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
           tagName: tagRange.tagName,
           tagColor: tagRange.tagColor,
           source: el.getAttribute('data-source') || 'auto-word',
+          sourceAnchor: tagRange.sourceAnchor,
         });
         setLinkHover(null);
         return;
@@ -1040,7 +1042,21 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
           toolbar (always visible) or right-click for a context menu. */}
       <DocEditorContextMenu editor={editor}
                             onOpenLinkPicker={openLinkPicker}
-                            onAddComment={addComment.open} />
+                            onAddComment={addComment.open}
+                            closeTagHover={() => setTagHover(null)}
+                            onRemoveTag={editable && scope?.docCardId ? async (info) => {
+                              try {
+                                await untagDocRange({
+                                  workspaceId,
+                                  docCardId: scope.docCardId,
+                                  pageId,
+                                  tagId: info.tagId,
+                                  sourceAnchor: info.sourceAnchor,
+                                });
+                              } catch (err) {
+                                feedback.toast({ type: 'error', message: 'Remove tag failed: ' + (err.message || err) });
+                              }
+                            } : null} />
       {/* Page-level applied-tag chip strip removed — margin dots are
           the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
@@ -1061,6 +1077,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
             tagName: range.tagName,
             tagColor: range.tagColor,
             source: range.source,
+            sourceAnchor: {
+              pHash: range.pHash,
+              startOffset: range.startOffset,
+              length: range.length,
+            },
           });
         }}
       />
@@ -1090,6 +1111,21 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
           tagColor={tagHover.tagColor}
           source={tagHover.source}
           workspaceId={workspaceId}
+          sourceAnchor={tagHover.sourceAnchor}
+          onRemove={editable && tagHover.sourceAnchor && scope?.docCardId ? async (anchor) => {
+            setTagHover(null);
+            try {
+              await untagDocRange({
+                workspaceId,
+                docCardId: scope.docCardId,
+                pageId,
+                tagId: tagHover.tagId,
+                sourceAnchor: anchor,
+              });
+            } catch (err) {
+              feedback.toast({ type: 'error', message: 'Remove tag failed: ' + (err.message || err) });
+            }
+          } : null}
           onMouseEnter={cancelHoverTimers}
           onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setTagHover(null), 200); }}
           onClose={() => setTagHover(null)}
@@ -1166,9 +1202,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
   );
 }
 
-// Right-click context menu — appears at click position; lists the most-used
-// inline + block formatting actions for the current selection.
-function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment }) {
+// Right-click context menu — concise; quick formatting + comment + remove tag.
+// Headings/lists/quote/highlight/code/strikethrough live on the always-visible
+// top toolbar so they're not duplicated here.
+function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTagHover, onRemoveTag }) {
   const [pos, setPos] = useState(null);
   useEffect(() => {
     const root = editor?.view?.dom;
@@ -1176,11 +1213,34 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment }) {
     const onCtx = (e) => {
       // Only intercept when the cursor is inside the editor itself.
       e.preventDefault();
-      setPos({ x: e.clientX, y: e.clientY, hasSelection: !editor.state.selection.empty });
+      // Close any hover popover (esp. the tag popover) so it doesn't
+      // overlap the right-click menu.
+      closeTagHover?.();
+      // Capture tag-range data if the click landed on a tagged word so
+      // we can offer "Remove tag" for it.
+      const tagged = e.target?.closest?.('.tt-tag-word');
+      let tagInfo = null;
+      if (tagged) {
+        const tagId = tagged.getAttribute('data-tag-id') || null;
+        const tagName = tagged.getAttribute('data-tag-name') || null;
+        const pHash = tagged.getAttribute('data-phash') || null;
+        const startStr = tagged.getAttribute('data-start');
+        const lengthStr = tagged.getAttribute('data-length');
+        const startOffset = Number(startStr);
+        const length = Number(lengthStr);
+        if (tagId && pHash && Number.isFinite(startOffset) && Number.isFinite(length)) {
+          tagInfo = { tagId, tagName, sourceAnchor: { pHash, startOffset, length } };
+        }
+      }
+      setPos({
+        x: e.clientX, y: e.clientY,
+        hasSelection: !editor.state.selection.empty,
+        tagInfo,
+      });
     };
     root.addEventListener('contextmenu', onCtx);
     return () => root.removeEventListener('contextmenu', onCtx);
-  }, [editor]);
+  }, [editor, closeTagHover]);
   useEffect(() => {
     if (!pos) return;
     const onDown = (e) => {
@@ -1201,7 +1261,7 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment }) {
   const isActive = (name, attrs) => editor.isActive(name, attrs);
 
   // Clamp menu inside viewport.
-  const W = 220, H = 360, PAD = 8;
+  const W = 220, H = 220, PAD = 8;
   const left = Math.max(PAD, Math.min(window.innerWidth - W - PAD, pos.x));
   const top  = Math.max(PAD, Math.min(window.innerHeight - H - PAD, pos.y));
 
@@ -1222,20 +1282,9 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment }) {
             onClick={run(() => editor.chain().focus().toggleItalic().run())} />
       <Item icon={<u>U</u>} label="Underline" shortcut="⌘U" active={isActive('underline')}
             onClick={run(() => editor.chain().focus().toggleUnderline().run())} />
-      <Item icon={<s>S</s>} label="Strikethrough" shortcut="⌘⇧X" active={isActive('strike')}
-            onClick={run(() => editor.chain().focus().toggleStrike().run())} />
       <Sep />
-      <Item icon={<HighlightIcon />} label="Highlight" active={isActive('highlight')}
-            onClick={run(() => editor.chain().focus().toggleHighlight({ color: '#fff7a8' }).run())} />
-      <Item icon={<CodeIcon />} label="Inline code" shortcut="⌘E" active={isActive('code')}
-            onClick={run(() => editor.chain().focus().toggleCode().run())} />
       <Item icon={<LinkIcon />} label="Link" shortcut="⌘K"
             onClick={run(() => onOpenLinkPicker?.(editor))} />
-      {/* Text color row — quick swatches + a native picker for custom.
-          Clicking a swatch applies setColor to the current selection
-          (TextStyle + Color extensions are loaded in baseDocExtensions).
-          The "×" swatch unsets the color and falls back to the doc's
-          default ink. */}
       <div className="doc-ctx-color-row" role="group" aria-label="Text color">
         <span className="doc-ctx-color-label">Color</span>
         {['#f5f5f7', '#ffa500', '#cf6a4f', '#7c5cc9', '#5b8fc7', '#3fa39a', '#10b981'].map(c => (
@@ -1256,27 +1305,20 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment }) {
           <span aria-hidden="true">⋯</span>
         </label>
       </div>
-      <Sep />
-      <Item icon={<H1Icon />} label="Heading 1" shortcut="⌘⌥1" active={isActive('heading', { level: 1 })}
-            onClick={run(() => editor.chain().focus().toggleHeading({ level: 1 }).run())} />
-      <Item icon={<H2Icon />} label="Heading 2" shortcut="⌘⌥2" active={isActive('heading', { level: 2 })}
-            onClick={run(() => editor.chain().focus().toggleHeading({ level: 2 }).run())} />
-      <Item icon={<H3Icon />} label="Heading 3" shortcut="⌘⌥3" active={isActive('heading', { level: 3 })}
-            onClick={run(() => editor.chain().focus().toggleHeading({ level: 3 }).run())} />
-      <Sep />
-      <Item icon={<UlIcon />} label="Bulleted list" shortcut="⌘⇧8" active={isActive('bulletList')}
-            onClick={run(() => editor.chain().focus().toggleBulletList().run())} />
-      <Item icon={<OlIcon />} label="Numbered list" shortcut="⌘⇧7" active={isActive('orderedList')}
-            onClick={run(() => editor.chain().focus().toggleOrderedList().run())} />
-      <Item icon={<TaskIcon />} label="Task list" shortcut="⌘⇧9" active={isActive('taskList')}
-            onClick={run(() => editor.chain().focus().toggleTaskList().run())} />
-      <Item icon={<QuoteIcon />} label="Quote" active={isActive('blockquote')}
-            onClick={run(() => editor.chain().focus().toggleBlockquote().run())} />
       {pos.hasSelection && (
         <>
           <Sep />
           <Item icon={<CommentIcon />} label="Add comment" shortcut="⌘⌥M"
                 onClick={run(() => onAddComment?.())} />
+        </>
+      )}
+      {pos.tagInfo && onRemoveTag && (
+        <>
+          <Sep />
+          <Item icon={<RemoveTagIcon />}
+                label={pos.tagInfo.tagName ? `Remove "${pos.tagInfo.tagName}"` : 'Remove tag'}
+                danger
+                onClick={run(() => onRemoveTag(pos.tagInfo))} />
         </>
       )}
     </div>
@@ -1296,6 +1338,7 @@ const OlIcon    = () => svg({}, <><text x="1.4" y="5.5" fontSize="3.2" fontFamil
 const TaskIcon  = () => svg({}, <><rect x="2" y="2.5" width="4" height="4" rx="1" /><path d="M3 4.5 L4 5.5 L5.5 3.8" /><path d="M8 4.5 H12" /><rect x="2" y="8.5" width="4" height="4" rx="1" /><path d="M8 10.5 H12" /></>);
 const QuoteIcon = () => svg({}, <><path d="M2 5 Q2 3 4 3 V6 H2 V5 Q2 7 4 8" /><path d="M8 5 Q8 3 10 3 V6 H8 V5 Q8 7 10 8" /></>);
 const CommentIcon = () => svg({}, <><path d="M2 4 A1 1 0 0 1 3 3 H11 A1 1 0 0 1 12 4 V9 A1 1 0 0 1 11 10 H6 L4 12 V10 H3 A1 1 0 0 1 2 9 Z" /></>);
+const RemoveTagIcon = () => svg({}, <><path d="M2 7 L7 2 H11 V6 L6 11 Z" /><circle cx="9" cy="4" r=".7" fill="currentColor" stroke="none" /><path d="M4 9 L8 13 M8 9 L4 13" strokeWidth="1.6" /></>);
 
 function promptLink(editor) {
   const previous = editor.getAttributes('link').href || '';

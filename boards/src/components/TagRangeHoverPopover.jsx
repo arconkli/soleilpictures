@@ -66,6 +66,8 @@ export function TagRangeHoverPopover({
   tagColor,
   source,
   workspaceId,
+  sourceAnchor,
+  onRemove,
   onMouseEnter,
   onMouseLeave,
   onClose,
@@ -390,17 +392,27 @@ export function TagRangeHoverPopover({
 
       {data.palettes.length > 0 && (
         <div className="tag-pop-palettes">
-          {data.palettes.map((p, i) => (
-            <button key={i} className="tag-pop-palette"
-                    onClick={() => go(p.navTarget)} title={p.title || 'Palette'}>
-              <span className="tag-pop-palette-swatches">
-                {p.swatches.slice(0, 10).map((c, j) => (
-                  <span key={j} style={{ background: c }} />
-                ))}
-              </span>
-              {p.title && <span className="tag-pop-palette-title">{p.title}</span>}
-            </button>
-          ))}
+          {data.palettes.map((p, i) => {
+            // Palette swatches come from card metadata as either plain
+            // hex strings (legacy) or { name, hex } objects (current —
+            // see cards.jsx / CanvasSurface.jsx). Normalize before
+            // setting background, or invalid CSS makes the strip blank.
+            const colors = (p.swatches || [])
+              .map(c => (typeof c === 'string' ? c : c?.hex))
+              .filter(Boolean)
+              .slice(0, 10);
+            return (
+              <button key={i} className="tag-pop-palette"
+                      onClick={() => go(p.navTarget)} title={p.title || 'Palette'}>
+                <span className="tag-pop-palette-swatches">
+                  {colors.map((color, j) => (
+                    <span key={j} style={{ background: color }} />
+                  ))}
+                </span>
+                {p.title && <span className="tag-pop-palette-title">{p.title}</span>}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -419,9 +431,17 @@ export function TagRangeHoverPopover({
         </div>
       )}
 
-      <button className="tag-pop-footer" onClick={openTag}>
-        View tag <span aria-hidden="true">→</span>
-      </button>
+      <div className="tag-pop-footer-row">
+        {onRemove && sourceAnchor && (
+          <button className="tag-pop-footer tag-pop-footer-danger"
+                  onClick={() => onRemove(sourceAnchor)}>
+            Remove tag
+          </button>
+        )}
+        <button className="tag-pop-footer" onClick={openTag}>
+          View tag <span aria-hidden="true">→</span>
+        </button>
+      </div>
     </div>
     {lightboxIdx != null && data.images[lightboxIdx] && (
       <ImageLightbox
@@ -447,5 +467,15 @@ export function readTagRangeFromEl(el) {
   const style = target.getAttribute('style') || '';
   const colorMatch = style.match(/--tag-color:\s*([^;]+)/);
   const tagColor = colorMatch ? colorMatch[1].trim() : '#888';
-  return { el: target, tagId, tagName, tagColor };
+  // Read the source_anchor that the TagRangePlugin painted onto the
+  // element so callers can identify the exact entity_links row (for
+  // remove-tag, for example).
+  const pHash = target.getAttribute('data-phash') || null;
+  const startStr = target.getAttribute('data-start');
+  const lengthStr = target.getAttribute('data-length');
+  const startOffset = startStr === '' || startStr == null ? null : Number(startStr);
+  const length = lengthStr === '' || lengthStr == null ? null : Number(lengthStr);
+  const sourceAnchor = pHash && Number.isFinite(startOffset) && Number.isFinite(length)
+    ? { pHash, startOffset, length } : null;
+  return { el: target, tagId, tagName, tagColor, sourceAnchor };
 }

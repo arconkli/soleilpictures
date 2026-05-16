@@ -76,11 +76,15 @@ function buildDecorations(doc, ranges) {
     decos.push(Decoration.inline(start, end, {
       class: 'tt-tag-word',
       style: `--tag-color: ${r.tagColor}`,
-      // Carry tag identity on the DOM so hovering the tinted word
-      // can open the same popover as hovering the margin dot.
+      // Carry tag identity AND the source_anchor (pHash + startOffset
+      // + length) on the DOM so the hover popover / right-click
+      // "Remove tag" can identify the exact entity_links row.
       'data-tag-id': r.tagId,
       'data-tag-name': r.tagName,
       'data-source': r.source || '',
+      'data-phash': r.pHash || '',
+      'data-start': String(r.startOffset ?? ''),
+      'data-length': String(r.length ?? ''),
     }));
   }
   return DecorationSet.create(doc, decos);

@@ -301,6 +301,30 @@ export async function tagDocPage({ workspaceId, docCardId, pageId, boardId = nul
   if (error && error.code !== '23505') throw error;
 }
 
+// Remove a tag from one specific range inside a doc page. Matched by the
+// source_anchor JSON (pHash + startOffset + length) so other ranges of the
+// same tag on the same page aren't affected.
+export async function untagDocRange({ workspaceId, docCardId, pageId, tagId, sourceAnchor }) {
+  if (!workspaceId || !docCardId || !pageId || !tagId || !sourceAnchor?.pHash) return;
+  let q = supabase.from('entity_links').delete()
+    .eq('source_kind', 'doc')
+    .eq('source_id', String(docCardId))
+    .eq('source_workspace', workspaceId)
+    .eq('source_page_id', String(pageId))
+    .eq('target_kind', 'tag')
+    .eq('target_id', tagId)
+    .eq('link_kind', 'applied')
+    .filter('source_anchor->>pHash', 'eq', String(sourceAnchor.pHash));
+  if (typeof sourceAnchor.startOffset === 'number') {
+    q = q.filter('source_anchor->>startOffset', 'eq', String(sourceAnchor.startOffset));
+  }
+  if (typeof sourceAnchor.length === 'number') {
+    q = q.filter('source_anchor->>length', 'eq', String(sourceAnchor.length));
+  }
+  const { error } = await q;
+  if (error) throw error;
+}
+
 export async function untagDocPage({ workspaceId, docCardId, pageId, tagId }) {
   if (!workspaceId || !docCardId || !pageId || !tagId) return;
   const { error } = await supabase.from('entity_links').delete()
