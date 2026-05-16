@@ -3855,8 +3855,12 @@ export function CanvasSurface({
     const rotation = (rotateState && rotateState.id === c.id ? rotateState.rot : c.rotation) || 0;
     const canRotate = ROTATABLE.has(c.kind);
 
+    // Stacking is driven entirely by DOM order — `sortedCards` is already
+    // sorted by `c.z` (see useMemo above). Setting a CSS z-index here was
+    // active harm: a negative `c.z` (after Send to Back) became `z-index: -1`,
+    // pulling the card behind its stacking context and out of pointer reach.
     const wrapperStyle = {
-      position: 'absolute', left: x, top: y, width: w, height: h, zIndex: c.z || 0,
+      position: 'absolute', left: x, top: y, width: w, height: h,
     };
     if (rotation) {
       wrapperStyle.transform = `rotate(${rotation}deg)`;
