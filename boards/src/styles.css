@@ -7305,22 +7305,19 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   align-items: center;
   padding: 32px 24px 96px;
 }
-/* The grain canvas (declared as position:absolute;inset:0 globally)
-   gets clipped to the visible client area inside an overflow:auto
-   parent. Override to sticky so it stays glued to the top of the
-   scrolling region — visually, the gutter stays grained no matter
-   how far the user scrolls. flex:0 0 0 keeps it from taking main-axis
-   space in the column flow; align-self:stretch spans the cross axis
-   despite the parent's align-items:center. */
-.doc-paper > .grain-canvas {
-  position: sticky;
-  top: 0;
-  inset: auto;
-  align-self: stretch;
-  width: auto;
-  height: 100%;
-  flex: 0 0 0;
-  margin: 0;
+/* The grain canvas (declared globally as position:absolute;inset:0)
+   would otherwise be clipped to .doc-paper's visible client area when
+   the doc scrolls. Wrapping the contents in .doc-paper-inner gives the
+   grain a positioning context that grows with content, so the grain
+   covers the entire scrollable height of the doc. */
+.doc-paper-inner {
+  position: relative;
+  width: 100%;
+  flex: 1 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .doc-add-page-below {
   appearance: none;
