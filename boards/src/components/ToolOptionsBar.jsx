@@ -353,10 +353,11 @@ export function ToolOptionsBar({
         </div>
         <span className="tob-sep" />
         <span className="tob-label">Width</span>
-        <select className="tob-select" value={opts.strokeWidth}
-                onChange={(e) => setOpts({ ...opts, strokeWidth: Number(e.target.value) })}>
-          {STROKE_WIDTHS.map(w => <option key={w} value={w}>{w === 0 ? 'None' : `${w}px`}</option>)}
-        </select>
+        <LinePxInput
+          value={opts.strokeWidth ?? 2}
+          onCommit={(n) => setOpts({ ...opts, strokeWidth: n })}
+        />
+        <span className="tob-label" style={{ marginLeft: -4 }}>px</span>
         <span className="tob-sep" />
         <span className="tob-label">Style</span>
         <select className="tob-select" value={opts.dash}
