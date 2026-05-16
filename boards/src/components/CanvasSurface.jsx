@@ -1786,7 +1786,6 @@ export function CanvasSurface({
     setSelected(nextSelected);
     setSelectedStrokes(new Set());
     setSelectedArrows(new Set());
-    if (nextSelected.has(c.id)) mutators.bringToFront?.(c.id);
     if (e.shiftKey) return;
 
     // Expand the drag set to cover every groupmate of every selected
