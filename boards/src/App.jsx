@@ -580,6 +580,56 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const bringToFront = (cardId) => updateCard(cardId, { z: nextZ() });
 
+    const sendToBack = (cardId) => {
+      const m = cardsMap(); if (!m) return;
+      let min = 0;
+      m.forEach((ym, id) => {
+        if (id === cardId) return;
+        const z = ym.get('z') || 0;
+        if (z < min) min = z;
+      });
+      updateCard(cardId, { z: min - 1 });
+    };
+
+    // Move one step toward the front: slot between the next two cards above
+    // me, or to (top + 1) if I'm already directly under the top card.
+    // Fractional z values are fine — the render sort handles them.
+    const bringForward = (cardId) => {
+      const m = cardsMap(); if (!m) return;
+      const me = m.get(cardId); if (!me) return;
+      const myZ = me.get('z') || 0;
+      const above = [];
+      m.forEach((ym, id) => {
+        if (id === cardId) return;
+        const z = ym.get('z') || 0;
+        if (z > myZ) above.push(z);
+      });
+      if (above.length === 0) return;
+      above.sort((a, b) => a - b);
+      const next = above[0];
+      const nextNext = above[1];
+      const newZ = nextNext !== undefined ? (next + nextNext) / 2 : next + 1;
+      updateCard(cardId, { z: newZ });
+    };
+
+    const sendBackward = (cardId) => {
+      const m = cardsMap(); if (!m) return;
+      const me = m.get(cardId); if (!me) return;
+      const myZ = me.get('z') || 0;
+      const below = [];
+      m.forEach((ym, id) => {
+        if (id === cardId) return;
+        const z = ym.get('z') || 0;
+        if (z < myZ) below.push(z);
+      });
+      if (below.length === 0) return;
+      below.sort((a, b) => b - a); // descending
+      const next = below[0];
+      const nextNext = below[1];
+      const newZ = nextNext !== undefined ? (next + nextNext) / 2 : next - 1;
+      updateCard(cardId, { z: newZ });
+    };
+
     // ── Card grouping ──────────────────────────────────────────────
     // Each group is a Y.Map keyed by groupId in `ydoc.getMap('groups')`
     // with { id, name, outline:bool, color, width }. Cards reference
@@ -896,7 +946,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     return {
       updateCard, updateCards, deleteCard, deleteCards,
-      duplicateCard, duplicateCards, addCard, addCards, bringToFront,
+      duplicateCard, duplicateCards, addCard, addCards,
+      bringToFront, sendToBack, bringForward, sendBackward,
       createGroup, ungroup, renameGroup, setGroupOutline,
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,

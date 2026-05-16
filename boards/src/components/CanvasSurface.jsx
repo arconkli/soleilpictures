@@ -2779,10 +2779,33 @@ export function CanvasSurface({
     items.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: `${cmdKey}X`, run: doCut });
     items.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: `${cmdKey}C`, run: doCopy });
     items.push({ id: 'duplicate', label: multi ? `Duplicate (${selected.size})` : 'Duplicate', shortcut: `${cmdKey}D`, run: doDuplicate });
-    items.push({ id: 'front', label: 'Bring to front', run: () => {
+    // Arrange (z-order): mutators are singular, so for multi-select we
+    // iterate in an order that preserves relative stacking:
+    //   front:    low-z first  → top-most selected ends up top-most
+    //   back:     high-z first → bottom-most selected stays bottom-most
+    //   forward:  high-z first → no leap-frog among selected
+    //   backward: low-z first  → same, mirrored
+    const arrangeRun = (op) => {
       const ids = multi ? [...selected] : [c.id];
-      ids.forEach(id => mutators.bringToFront?.(id));
-    }});
+      const zOf = (id) => (cardById[id]?.z || 0);
+      const order =
+        op === 'front'    ? ids.slice().sort((a, b) => zOf(a) - zOf(b)) :
+        op === 'back'     ? ids.slice().sort((a, b) => zOf(b) - zOf(a)) :
+        op === 'forward'  ? ids.slice().sort((a, b) => zOf(b) - zOf(a)) :
+        /* backward */      ids.slice().sort((a, b) => zOf(a) - zOf(b));
+      const fn =
+        op === 'front'    ? mutators.bringToFront :
+        op === 'back'     ? mutators.sendToBack :
+        op === 'forward'  ? mutators.bringForward :
+        /* backward */      mutators.sendBackward;
+      order.forEach(id => fn?.(id));
+    };
+    items.push({ id: 'arrange', label: 'Arrange', submenu: [
+      { id: 'front',    label: 'Bring to front', run: () => arrangeRun('front') },
+      { id: 'forward',  label: 'Bring forward',  run: () => arrangeRun('forward') },
+      { id: 'backward', label: 'Send backward',  run: () => arrangeRun('backward') },
+      { id: 'back',     label: 'Send to back',   run: () => arrangeRun('back') },
+    ]});
 
     // Grouping ──
     items.push({ divider: true });
