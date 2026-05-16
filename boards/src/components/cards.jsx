@@ -436,7 +436,14 @@ export function ImageCard({ src, label, title, link, tone, aspect, caption,
   // it on the fly). Hover affordance for adding a caption. Right-click in
   // canvas can also remote-trigger inline edit via editTitleAt / editCaptionAt
   // monotonic-counter signals — same UX as board-name editing, no popup.
-  const [editingTitle, setEditingTitle] = useState(autoFocus);
+  // Do NOT auto-open the title editor on paste/drop. Paste creates the
+  // card with autoFocus=true, which used to flip editingTitle on and
+  // mount the (empty, opacity-0) .ic-title row below the image —
+  // invisibly stealing ~30px of vertical layout. That made object-fit:
+  // cover crop the top/bottom of the image. Title editor now only
+  // opens via explicit user action (double-click image, editTitleAt
+  // signal from right-click) or when the card already has a title.
+  const [editingTitle, setEditingTitle] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
 
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
@@ -540,7 +547,10 @@ export function ImageCard({ src, label, title, link, tone, aspect, caption,
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
 export function VideoCard({ src, title, onUpdate, autoFocus = false }) {
-  const [editingTitle, setEditingTitle] = useState(autoFocus);
+  // Same fix as ImageCard: don't auto-open the title row on paste; it
+  // silently eats vertical layout and makes object-fit:cover crop the
+  // video. Double-click to edit instead.
+  const [editingTitle, setEditingTitle] = useState(false);
   const showTitle = !!title || editingTitle;
   const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
   return (
