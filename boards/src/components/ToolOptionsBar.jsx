@@ -643,12 +643,16 @@ function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, o
       const topAbs = preferTopAbs < PAD
         ? Math.min(vh - h - PAD, wr.bottom + 6)
         : preferTopAbs;
-      setPopStyle({
-        position: 'fixed',
-        left: leftAbs,
-        top: Math.max(PAD, topAbs),
-        bottom: 'auto',
-        right: 'auto',
+      const topClamped = Math.max(PAD, topAbs);
+      setPopStyle(prev => {
+        if (prev && prev.left === leftAbs && prev.top === topClamped) return prev;
+        return {
+          position: 'fixed',
+          left: leftAbs,
+          top: topClamped,
+          bottom: 'auto',
+          right: 'auto',
+        };
       });
     };
     place();

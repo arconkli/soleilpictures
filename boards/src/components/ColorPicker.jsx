@@ -273,8 +273,12 @@ export function ColorPicker({
     top: position.y - 12,
     visibility: 'hidden',
   } : undefined);
+  const posX = position?.x;
+  const posY = position?.y;
+  const palCount = palettes?.length || 0;
+  const palColorCount = paletteColors?.length || 0;
   useLayoutEffect(() => {
-    if (!position || !ref.current) return;
+    if (posX == null || posY == null || !ref.current) return;
     const place = () => {
       const el = ref.current;
       if (!el) return;
@@ -283,14 +287,23 @@ export function ColorPicker({
       const w = el.offsetWidth || PANEL_W;
       const maxH = Math.min(vh - PAD * 2, 720);
       const h = Math.min(el.offsetHeight || 0, maxH);
-      const spaceAbove = position.y - PAD;
-      const spaceBelow = vh - position.y - PAD;
+      const spaceAbove = posY - PAD;
+      const spaceBelow = vh - posY - PAD;
       const placeAbove = spaceAbove >= h + 12 || spaceAbove > spaceBelow;
       const top = placeAbove
-        ? Math.max(PAD, position.y - h - 12)
-        : Math.max(PAD, Math.min(vh - h - PAD, position.y + 36));
-      const left = Math.max(PAD, Math.min(vw - w - PAD, position.x - w / 2));
-      setStyle({ position: 'fixed', left, top, maxHeight: maxH });
+        ? Math.max(PAD, posY - h - 12)
+        : Math.max(PAD, Math.min(vh - h - PAD, posY + 36));
+      const left = Math.max(PAD, Math.min(vw - w - PAD, posX - w / 2));
+      // Bail out when nothing actually changed — returning the same ref
+      // skips the re-render and breaks the parent-renders-→-setStyle-→-
+      // child-renders chain that triggered React error #185.
+      setStyle(prev => {
+        if (prev && prev.left === left && prev.top === top && prev.maxHeight === maxH
+            && prev.position === 'fixed' && !prev.visibility) {
+          return prev;
+        }
+        return { position: 'fixed', left, top, maxHeight: maxH };
+      });
     };
     place();
     const id = requestAnimationFrame(place);
@@ -299,7 +312,7 @@ export function ColorPicker({
       cancelAnimationFrame(id);
       window.removeEventListener('resize', place);
     };
-  }, [position, palettes, paletteColors]);
+  }, [posX, posY, palCount, palColorCount]);
 
   const hueColor = `hsl(${hsv.h}, 100%, 50%)`;
   const cursorOnLight = hsv.v > 0.6 && hsv.s < 0.4;
