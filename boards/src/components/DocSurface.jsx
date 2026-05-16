@@ -441,12 +441,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                         onClose={() => setFindOpen(false)} />
         <div className="doc-paper" ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': zoom }}>
-         <div className="doc-paper-inner">
           {/* Same grain layer the canvas uses — opacity:0.03 ambient
               noise — so the doc's dark gutter matches the canvas's
-              texture exactly. Lives inside .doc-paper-inner so its
-              position:absolute / inset:0 fills the full scrollable
-              height as the doc grows, not just the visible client area. */}
+              texture exactly. CSS makes it sticky-100vh so it stays
+              glued to the viewport as the user scrolls. */}
           <div className="grain-canvas" aria-hidden="true" />
           {activePageId && awareness && (
             <DocPresence getAwareness={getAwareness} boardId={board.id} pageId={activePageId}
@@ -490,7 +488,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               + New page
             </button>
           )}
-         </div>
         </div>
         <DocStatusFooter editor={editorRef.current} ydoc={ydoc} />
       </section>

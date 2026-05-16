@@ -13,7 +13,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { cardScope, readDocSummary } from '../lib/docState.js';
+import { cardScope, readDocSummary, initCardDocStore } from '../lib/docState.js';
 import { DocSurface } from './DocSurface.jsx';
 import { Avatar } from './primitives.jsx';
 import { EditableText } from './EditableText.jsx';
@@ -33,6 +33,13 @@ export function RichDocCard({
   canEdit = true,
   autoFocus = false, onUpdate,
 }) {
+  // Backfill any newly-introduced Y types on cards created before this
+  // code shipped. initCardDocStore is idempotent — it only sets keys that
+  // don't already exist — so it's safe to call on every mount. Without
+  // this, sheets won't work on legacy cards because cardYMap.get(
+  // 'docPageSheets'/'docSheetContent') returns undefined and addPageSheet
+  // bails.
+  if (cardYMap) initCardDocStore(ydoc, cardYMap);
   // Augment cardScope with the card's id under both `cardId` and
   // `docCardId` so downstream callers (DocSurface header, link/page-
   // index sync) can identify which card this scope belongs to.
