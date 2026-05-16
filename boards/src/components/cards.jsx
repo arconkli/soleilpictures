@@ -661,8 +661,12 @@ export function LinkCard({ title, source, target, image, description, favicon, e
     window.open(openHref, '_blank', 'noopener,noreferrer');
   };
   // Embed mode: a known provider (YouTube, Spotify, TikTok, Vimeo, IG, X)
-  // renders an iframe full-bleed. Title + source still readable below.
+  // renders an iframe full-bleed. The meta bar only appears when the user
+  // has set a title (or is currently editing one) — otherwise the card is
+  // JUST the embed. A tiny hover-revealed "title" pill lets them add one.
   if (embed && embed.embedUrl) {
+    const hasTitle = !!(title && title.trim());
+    const showMeta = hasTitle || editingTitle;
     return (
       <div className="lc lc-embed" data-provider={embed.provider} onDoubleClick={onBodyDouble}>
         <div className="lc-embed-frame" onPointerDown={(e) => e.stopPropagation()}>
@@ -676,8 +680,19 @@ export function LinkCard({ title, source, target, image, description, favicon, e
             sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms"
             style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
           />
+          {!showMeta && onUpdate && (
+            <button
+              type="button"
+              className="lc-embed-title-add"
+              title="Add title"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setEditingTitle(true); }}
+            >
+              + Title
+            </button>
+          )}
         </div>
-        {(title || source) && (
+        {showMeta && (
           <div className="lc-meta lc-embed-meta">
             {onUpdate
               ? <EditableText className="lc-title" value={title || ''} placeholder={embed.provider || 'Embed'}

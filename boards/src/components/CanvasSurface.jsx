@@ -1442,8 +1442,14 @@ export function CanvasSurface({
       const embed = detectEmbed(url);
       const w = embed ? embed.defaultW : 280;
       const h = embed ? embed.defaultH : 110;
-      let title = url;
-      try { title = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
+      // Non-embed links default to hostname so the preview card has
+      // something to show; embeds stay title-less so the iframe renders
+      // alone — user adds a title later if they want one.
+      let title = '';
+      if (!embed) {
+        title = url;
+        try { title = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
+      }
       const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
       const card = {
         id: newId, kind: 'link',

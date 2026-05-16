@@ -3742,6 +3742,26 @@ body {
 }
 .lc-embed-meta .lc-title { font-size: 12px; }
 .lc-embed-meta .lc-src { margin-top: 4px; }
+.lc-embed-title-add {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  padding: 3px 7px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  background: rgba(20, 20, 22, 0.78);
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  cursor: pointer;
+}
+.lc.lc-embed:hover .lc-embed-title-add { opacity: 1; }
+.lc-embed-title-add:hover { color: var(--ink-1); background: rgba(20, 20, 22, 0.95); }
 .lc-provider-badge {
   font-family: var(--font-mono);
   font-size: 9.5px;
