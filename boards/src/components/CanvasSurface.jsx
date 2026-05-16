@@ -26,7 +26,7 @@ import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
-import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy } from '../lib/clipboard.js';
+import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
@@ -1421,79 +1421,123 @@ export function CanvasSurface({
   }, [cards]);
 
   // ── System clipboard ─────────────────────────────────────────────────────
+  // Priority order:
+  //   1. Image in OS clipboard       → image card (unambiguous "paste this")
+  //   2. OS text matches our sentinel → internal-card paste (`doPaste`)
+  //   3. OS text is stale sentinel    → swallow (don't make junk note)
+  //   4. OS text is a bare URL        → link/embed card
+  //   5. OS text is anything else     → note card with the text
+  //   6. OS clipboard empty + we have internal items (sentinel write failed)
+  //                                    → fallback to `doPaste`
   useEffect(() => {
+    const createLinkCardFromUrl = (url, pos) => {
+      const embed = detectEmbed(url);
+      const w = embed ? embed.defaultW : 280;
+      const h = embed ? embed.defaultH : 110;
+      let title = url;
+      try { title = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
+      const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const card = {
+        id: newId, kind: 'link',
+        source: url, link: url, title,
+        x: Math.max(8, Math.round(pos.x - w / 2)),
+        y: Math.max(8, Math.round(pos.y - h / 2)),
+        w, h,
+      };
+      if (embed) card.embed = embed;
+      mutators.addCard?.(card);
+      if (!embed) {
+        fetchLinkPreview(url).then(p => {
+          if (!p) return;
+          const patch = {};
+          if (p.title) patch.title = p.title;
+          if (p.image) patch.image = p.image;
+          if (p.description) patch.description = p.description;
+          if (p.favicon) patch.favicon = p.favicon;
+          if (p.image) { patch.w = 280; patch.h = 290; }
+          if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
+        });
+      }
+    };
+
+    const createNoteCardFromText = (text, pos) => {
+      const escape = (s) => s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      const html = text
+        .split(/\r?\n/)
+        .map(line => `<div>${escape(line) || '<br>'}</div>`)
+        .join('');
+      const w = 240, h = 160;
+      const newId = `note-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      mutators.addCard?.({
+        id: newId, kind: 'note', html,
+        x: Math.max(8, Math.round(pos.x - w / 2)),
+        y: Math.max(8, Math.round(pos.y - h / 2)),
+        w, h,
+      });
+    };
+
     const onPaste = async (e) => {
       const tag = e.target.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+
+      // 1) Image in OS clipboard wins outright.
       const items = e.clipboardData?.items;
-      let handled = false;
-      // 1) Internal clipboard ALWAYS wins if the user has done a recent
-      //    in-app Cmd+C — without this, an image still sitting in the OS
-      //    clipboard from earlier (Finder copy, screenshot, etc.) would
-      //    hijack the paste. Use a 5-minute recency cap so stale state
-      //    doesn't haunt the user days later.
-      if (hasRecentInternalCopy()) {
-        e.preventDefault();
-        doPaste();
-        handled = true;
-      }
-      // 2) Otherwise prefer an actual image in the OS clipboard.
-      if (!handled && items) {
+      if (items) {
         for (const item of items) {
           if (item.type.startsWith('image/')) {
             e.preventDefault();
-            handled = true;
             const file = item.getAsFile();
             if (file) {
               const pos = lastMouseCanvasRef.current;
               optimisticDropImage(file, pos.x, pos.y);
             }
-            break;
+            return;
           }
         }
       }
-      // 3) Internal clipboard fallback (stale but populated) when no
-      //    OS image is present — better than nothing.
-      if (!handled && getClipboard().length > 0) {
+
+      const text = e.clipboardData?.getData('text/plain') || '';
+
+      // 2) Our sentinel → internal paste.
+      if (matchesSentinel(text) && getClipboard().length > 0) {
         e.preventDefault();
         doPaste();
-        handled = true;
+        return;
       }
-      if (!handled) {
-        const text = e.clipboardData?.getData('text/plain') || '';
-        const urlMatch = text.match(/^\s*(https?:\/\/\S+)\s*$/i);
-        if (urlMatch) {
-          e.preventDefault();
-          const url = urlMatch[1];
-          const pos = lastMouseCanvasRef.current;
-          const embed = detectEmbed(url);
-          const w = embed ? embed.defaultW : 280;
-          const h = embed ? embed.defaultH : 110;
-          let title = url;
-          try { title = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
-          const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-          const card = {
-            id: newId, kind: 'link',
-            source: url, link: url, title,
-            x: Math.max(8, Math.round(pos.x - w / 2)),
-            y: Math.max(8, Math.round(pos.y - h / 2)),
-            w, h,
-          };
-          if (embed) card.embed = embed;
-          mutators.addCard?.(card);
-          if (!embed) {
-            fetchLinkPreview(url).then(p => {
-              if (!p) return;
-              const patch = {};
-              if (p.title) patch.title = p.title;
-              if (p.image) patch.image = p.image;
-              if (p.description) patch.description = p.description;
-              if (p.favicon) patch.favicon = p.favicon;
-              if (p.image) { patch.w = 280; patch.h = 290; }
-              if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
-            });
-          }
-        }
+      // 3) Stale/foreign sentinel → swallow so we don't make a junk note.
+      if (looksLikeSentinel(text)) {
+        e.preventDefault();
+        return;
+      }
+
+      const pos = lastMouseCanvasRef.current;
+      const urlMatch = text.match(/^\s*(https?:\/\/\S+)\s*$/i);
+
+      // 4) Bare URL → link / embed card.
+      if (urlMatch) {
+        e.preventDefault();
+        createLinkCardFromUrl(urlMatch[1], pos);
+        return;
+      }
+
+      // 5) Any other non-empty text → note card.
+      if (text.trim().length > 0) {
+        e.preventDefault();
+        createNoteCardFromText(text, pos);
+        return;
+      }
+
+      // 6) OS clipboard had nothing usable — fall back to internal if present
+      //    (covers the rare case where `navigator.clipboard.writeText` of the
+      //    sentinel was silently blocked).
+      if (hasRecentInternalCopy()) {
+        e.preventDefault();
+        doPaste();
       }
     };
     window.addEventListener('paste', onPaste);
