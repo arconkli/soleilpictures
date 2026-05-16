@@ -63,10 +63,18 @@ export async function applyCards(cards) {
 }
 
 // Name an emergent cluster via /api/tags/cluster-name (Phase 2).
-// member_cards: 3-8 representative cards. Returns { name, description } or null.
-export async function nameCluster(memberCards) {
+// member_cards: 3-8 representative cards.
+// opts.existingNames: strings the model must NOT collide with (existing tags
+//   in the workspace + names already given to other pending clusters). The
+//   model returns name: null when its only honest name would duplicate one.
+// Returns { name, description } or null.
+export async function nameCluster(memberCards, opts = {}) {
   if (!Array.isArray(memberCards) || memberCards.length < 3) return null;
-  return authedFetch('/api/tags/cluster-name', { member_cards: memberCards });
+  const existingNames = Array.isArray(opts.existingNames) ? opts.existingNames : [];
+  return authedFetch('/api/tags/cluster-name', {
+    member_cards: memberCards,
+    existing_names: existingNames,
+  });
 }
 
 // ─── pgvector helpers ──────────────────────────────────────────────────

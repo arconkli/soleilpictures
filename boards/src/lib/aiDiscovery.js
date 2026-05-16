@@ -156,17 +156,51 @@ export async function runWorkspaceDiscovery({ workspaceId, tagCentroids, embeddi
   //    Anything we've already named, dismissed, or rejected for the same
   //    member set should not re-fire (rejected especially — we don't want
   //    to keep asking the model to name a confirmed-incoherent group).
+  //    While we're here, harvest the names of already-named/promoted
+  //    clusters so the LLM doesn't propose duplicates for new clusters.
   const fingerprints = candidates.map(clusterFingerprint);
   const { data: existing } = await supabase
     .from('pending_clusters')
-    .select('id, member_card_ids, status')
+    .select('id, member_card_ids, status, proposed_name')
     .eq('workspace_id', workspaceId);
   const seen = new Set();
+  const existingClusterNames = [];
   for (const row of (existing || [])) {
     if (row.status === 'dismissed' || row.status === 'rejected'
         || row.status === 'named' || row.status === 'promoted') {
       seen.add(clusterFingerprint(row.member_card_ids || []));
     }
+    if ((row.status === 'named' || row.status === 'promoted') && row.proposed_name) {
+      existingClusterNames.push(row.proposed_name);
+    }
+  }
+
+  // 5b. Pull existing workspace tag names — the model must not propose a
+  //     name that collides with one. Failure here is non-fatal: we proceed
+  //     with whatever names we have.
+  const existingTagNames = [];
+  try {
+    const { data: tagRows } = await supabase
+      .from('tags')
+      .select('name')
+      .eq('workspace_id', workspaceId);
+    for (const r of (tagRows || [])) {
+      if (r?.name) existingTagNames.push(r.name);
+    }
+  } catch (e) {
+    if (isDebug()) console.log('[ai-discovery] tag-name load failed', e?.message || e);
+  }
+
+  // Combined, de-duplicated list of names the model must avoid. We dedup
+  // by normalized form (lowercase + collapsed whitespace) to keep the
+  // payload small.
+  const dedupSet = new Set();
+  const existingNames = [];
+  for (const n of [...existingTagNames, ...existingClusterNames]) {
+    const key = (n || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    if (!key || dedupSet.has(key)) continue;
+    dedupSet.add(key);
+    existingNames.push(n);
   }
 
   // 6. For each new cluster, name it and persist.
@@ -210,13 +244,25 @@ export async function runWorkspaceDiscovery({ workspaceId, tagCentroids, embeddi
     const clusterCentroid = meanCentroid(memberVectors);
     if (!clusterCentroid) continue;
 
-    // Ask the model to name it.
-    const named = await nameCluster(memberCards);
+    // Ask the model to name it. existingNames keeps the model from
+    // proposing a name that collides with an existing tag or another
+    // already-named pending cluster.
+    const named = await nameCluster(memberCards, { existingNames });
     const name = named?.name || null;
     const description = named?.description || null;
     const status = name ? 'named' : 'rejected';
     if (isDebug()) {
       console.log(`[ai-discovery] cluster of ${members.length} → ${status}${name ? `: "${name}"` : ''}`);
+    }
+
+    // Feed successfully-named clusters back into existingNames so subsequent
+    // clusters in this same pass don't get named the same thing.
+    if (name) {
+      const key = name.toLowerCase().trim().replace(/\s+/g, ' ');
+      if (key && !dedupSet.has(key)) {
+        dedupSet.add(key);
+        existingNames.push(name);
+      }
     }
 
     // Persist.

@@ -3,18 +3,29 @@
 // shape that the legacy useSuggestedTags hook used, so the existing
 // SidebarTags renderer wires up without changes.
 //
-// On accept: creates the tag, applies it to the cluster's member cards,
-// marks the cluster 'promoted'.
+// Two clusters of related cards can independently be named the same (or
+// near-same) thing by the LLM. We collapse them at read time so the user
+// sees one row per concept; accepting that row promotes every underlying
+// cluster, dismissing dismisses every underlying cluster. Each suggestion
+// therefore carries a `clusterIds: string[]` (not a single `clusterId`).
 //
-// On dismiss: marks the cluster 'dismissed' so we don't surface it again.
-// The cluster row stays in the table so re-discovery doesn't re-fire it.
+// We also filter out any cluster whose name matches an existing workspace
+// tag — the AI shouldn't be suggesting a tag the user already has.
+//
+// On accept: creates the tag, applies it to every cluster's member cards,
+// marks all underlying clusters 'promoted'.
+//
+// On dismiss: marks every underlying cluster 'dismissed' so we don't
+// surface them again. The rows stay in the table so re-discovery doesn't
+// re-fire them.
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { ensureTag, tagCard } from '../lib/tagsApi.js';
+import { namesAreSimilar, normalizeName } from '../lib/stringSim.js';
 
-export function useDiscoveredTags({ workspaceId, userId, onWorkspaceTagsChanged }) {
-  const [clusters, setClusters] = useState([]); // [{id, member_card_ids, proposed_name, description, centroid}]
+export function useDiscoveredTags({ workspaceId, userId, existingTagSlugs = [], onWorkspaceTagsChanged }) {
+  const [clusters, setClusters] = useState([]); // [{id, member_card_ids, proposed_name, named_at}]
 
   const refresh = useCallback(async () => {
     if (!workspaceId || !supabase) return;
@@ -46,27 +57,100 @@ export function useDiscoveredTags({ workspaceId, userId, onWorkspaceTagsChanged 
     return () => { try { supabase.removeChannel(ch); } catch {} };
   }, [workspaceId, refresh]);
 
+  // Memoize to keep the existing-name set stable across renders (callers
+  // pass a fresh array each render even when the contents are the same).
+  const existingNormalized = useMemo(() => {
+    const out = [];
+    for (const s of existingTagSlugs || []) {
+      const n = normalizeName(s);
+      if (n) out.push(n);
+    }
+    return out;
+  }, [existingTagSlugs]);
+
   // Suggestion shape matches the legacy useSuggestedTags output so the
   // existing SidebarTags renderer can iterate either source.
-  const suggestions = clusters.map(c => ({
-    term: c.proposed_name,
-    items: (c.member_card_ids || []).length,
-    boards: 1,
-    clusterId: c.id,
-    memberCardIds: c.member_card_ids || [],
-  }));
+  const suggestions = useMemo(() => {
+    // Step 1: drop clusters whose name collides with an existing tag.
+    const eligible = [];
+    for (const c of clusters) {
+      const name = (c.proposed_name || '').trim();
+      if (!name) continue;
+      let collides = false;
+      for (const e of existingNormalized) {
+        if (namesAreSimilar(name, e)) { collides = true; break; }
+      }
+      if (!collides) eligible.push(c);
+    }
 
-  // Accept: create the tag, apply to all member cards, mark cluster promoted.
-  const promoteCluster = useCallback(async (clusterId) => {
-    if (!workspaceId || !clusterId || !supabase) return;
-    const cluster = clusters.find(c => c.id === clusterId);
-    if (!cluster || !cluster.proposed_name) return;
+    // Step 2: stronger clusters win — they keep their name when a weaker
+    // sibling folds in. Sort by member count desc, then by name length asc
+    // (shorter / more general names preferred for ties), then by named_at desc.
+    const ordered = [...eligible].sort((a, b) => {
+      const ac = (a.member_card_ids || []).length;
+      const bc = (b.member_card_ids || []).length;
+      if (bc !== ac) return bc - ac;
+      const al = (a.proposed_name || '').length;
+      const bl = (b.proposed_name || '').length;
+      if (al !== bl) return al - bl;
+      return new Date(b.named_at || 0) - new Date(a.named_at || 0);
+    });
+
+    // Step 3: walk in order, folding similar names into the existing group.
+    const groups = []; // { term, items: Set<cardId>, clusterIds: [] }
+    for (const c of ordered) {
+      const name = c.proposed_name;
+      const memberIds = c.member_card_ids || [];
+      let folded = false;
+      for (const g of groups) {
+        const kind = namesAreSimilar(g.term, name);
+        if (!kind) continue;
+        for (const id of memberIds) g.items.add(id);
+        g.clusterIds.push(c.id);
+        // If the new cluster has a shorter name that's a substring of the
+        // rep, swap the rep to the more general label.
+        if (kind === 'substring' && name.length < g.term.length) {
+          g.term = name;
+        }
+        folded = true;
+        break;
+      }
+      if (!folded) {
+        groups.push({
+          term: name,
+          items: new Set(memberIds),
+          clusterIds: [c.id],
+        });
+      }
+    }
+
+    return groups.map(g => ({
+      term: g.term,
+      items: g.items.size,
+      boards: 1,
+      clusterIds: g.clusterIds,
+      memberCardIds: Array.from(g.items),
+    }));
+  }, [clusters, existingNormalized]);
+
+  // Accept: create the tag, apply to every member card across all underlying
+  // clusters, mark every underlying cluster promoted.
+  const promoteCluster = useCallback(async (clusterIds) => {
+    if (!workspaceId || !supabase) return;
+    const ids = Array.isArray(clusterIds) ? clusterIds : [clusterIds];
+    if (ids.length === 0) return;
+    const rows = clusters.filter(c => ids.includes(c.id));
+    if (rows.length === 0) return;
+    // Prefer the rep we showed the user; fall back to the first row's name.
+    const name = rows[0]?.proposed_name;
+    if (!name) return;
+
     // 1. Create the tag.
     let tag;
     try {
       tag = await ensureTag({
         workspaceId,
-        name: cluster.proposed_name,
+        name,
         kind: 'user',
         createdBy: userId,
       });
@@ -76,42 +160,43 @@ export function useDiscoveredTags({ workspaceId, userId, onWorkspaceTagsChanged 
     }
     if (!tag?.id) return;
 
-    // 2. Apply to every member card. We need board_id per card; pull from card_index.
-    const cardIds = cluster.member_card_ids || [];
-    if (cardIds.length > 0) {
+    // 2. Apply to every member card across all underlying clusters.
+    const allCardIds = Array.from(new Set(rows.flatMap(r => r.member_card_ids || [])));
+    if (allCardIds.length > 0) {
       const { data: idx } = await supabase.from('card_index')
         .select('card_id, board_id')
         .eq('workspace_id', workspaceId)
-        .in('card_id', cardIds);
+        .in('card_id', allCardIds);
       const boardByCard = new Map((idx || []).map(r => [r.card_id, r.board_id]));
-      for (const cardId of cardIds) {
+      for (const cardId of allCardIds) {
         const boardId = boardByCard.get(cardId);
         if (!boardId) continue;
         try {
           await tagCard({ workspaceId, boardId, cardId, tagId: tag.id, source: 'auto' });
         } catch (e) {
-          // 23505 is swallowed inside tagCard; anything else gets logged.
           console.warn('[discovered-tags] tagCard failed', e?.message || e);
         }
       }
     }
 
-    // 3. Mark cluster promoted.
+    // 3. Mark every underlying cluster promoted.
     await supabase.from('pending_clusters')
       .update({ status: 'promoted' })
-      .eq('id', clusterId);
+      .in('id', ids);
 
     // 4. Refresh the sidebar list + the workspace tags index.
     refresh();
     onWorkspaceTagsChanged?.();
   }, [workspaceId, userId, clusters, refresh, onWorkspaceTagsChanged]);
 
-  // Dismiss: mark the cluster dismissed so we don't keep showing it.
-  const dismissCluster = useCallback(async (clusterId) => {
-    if (!supabase || !clusterId) return;
+  // Dismiss: mark every underlying cluster dismissed.
+  const dismissCluster = useCallback(async (clusterIds) => {
+    if (!supabase) return;
+    const ids = Array.isArray(clusterIds) ? clusterIds : [clusterIds];
+    if (ids.length === 0) return;
     await supabase.from('pending_clusters')
       .update({ status: 'dismissed' })
-      .eq('id', clusterId);
+      .in('id', ids);
     refresh();
   }, [refresh]);
 

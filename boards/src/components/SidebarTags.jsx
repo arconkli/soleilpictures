@@ -22,6 +22,7 @@ import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
 import { useSuggestedTags } from '../hooks/useSuggestedTags.js';
 import { useDiscoveredTags } from '../hooks/useDiscoveredTags.js';
 import { isAiTaggerEnabled } from '../lib/aiTaggerFlag.js';
+import { levenshtein } from '../lib/stringSim.js';
 import { ColorPicker } from './ColorPicker.jsx';
 
 const EXPAND_KEY = 'soleil.tags.sb.expanded';
@@ -45,32 +46,6 @@ function fallbackColor(slugOrName) {
   const s = (slugOrName || '').toString();
   let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
   return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
-}
-
-// Minimal Levenshtein for short strings (tag names are typically <30
-// chars). Used to surface "did you mean an existing tag?" matches as
-// the user types a new tag name. Caps at maxDist for early-exit.
-function levenshtein(a, b, maxDist = 3) {
-  if (a === b) return 0;
-  const al = a.length, bl = b.length;
-  if (Math.abs(al - bl) > maxDist) return maxDist + 1;
-  if (!al) return bl;
-  if (!bl) return al;
-  let prev = new Array(bl + 1);
-  for (let j = 0; j <= bl; j++) prev[j] = j;
-  for (let i = 1; i <= al; i++) {
-    const curr = new Array(bl + 1);
-    curr[0] = i;
-    let rowMin = i;
-    for (let j = 1; j <= bl; j++) {
-      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
-      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
-      if (curr[j] < rowMin) rowMin = curr[j];
-    }
-    if (rowMin > maxDist) return maxDist + 1;
-    prev = curr;
-  }
-  return prev[bl];
 }
 
 // Score existing tags as candidates for "did you mean" against draft
@@ -133,6 +108,7 @@ export function SidebarTags({
   const discovered = useDiscoveredTags({
     workspaceId: aiTaggerEnabled ? workspaceId : null,
     userId,
+    existingTagSlugs: existingSlugs,
     onWorkspaceTagsChanged,
   });
   const suggestions = aiTaggerEnabled ? discovered.suggestions : legacySuggested.suggestions;
@@ -148,11 +124,11 @@ export function SidebarTags({
     () => (suggestions || []).filter(s => !dismissedSuggestions.has(s.term)),
     [suggestions, dismissedSuggestions],
   );
-  const dismissSuggestion = (term, clusterId) => {
+  const dismissSuggestion = (term, clusterIds) => {
     // AI-discovered: persist dismissal server-side so other sessions don't
     // keep re-surfacing it. Legacy: localStorage is fine.
-    if (aiTaggerEnabled && clusterId) {
-      discovered.dismissCluster(clusterId);
+    if (aiTaggerEnabled && Array.isArray(clusterIds) && clusterIds.length > 0) {
+      discovered.dismissCluster(clusterIds);
       return;
     }
     setDismissedSuggestions(prev => {
@@ -161,12 +137,12 @@ export function SidebarTags({
       return next;
     });
   };
-  const acceptSuggestion = async (term, clusterId) => {
+  const acceptSuggestion = async (term, clusterIds) => {
     if (!workspaceId || !term) return;
     try {
-      if (aiTaggerEnabled && clusterId) {
+      if (aiTaggerEnabled && Array.isArray(clusterIds) && clusterIds.length > 0) {
         // Promotion creates the tag AND applies it to every cluster member.
-        await discovered.promoteCluster(clusterId);
+        await discovered.promoteCluster(clusterIds);
       } else {
         await ensureTag({ workspaceId, name: term.charAt(0).toUpperCase() + term.slice(1), kind: 'user', createdBy: userId });
         onWorkspaceTagsChanged?.();
@@ -457,21 +433,21 @@ export function SidebarTags({
                 </span>
               </div>
               {visibleSuggestions.slice(0, 3).map(s => (
-                <div key={s.clusterId || s.term}
+                <div key={s.clusterIds?.[0] || s.term}
                      className="sb-tag-suggestion"
-                     title={s.clusterId
+                     title={s.clusterIds?.length
                        ? `Found in ${s.items} related card${s.items > 1 ? 's' : ''}`
                        : `Mentioned in ${s.items} item${s.items > 1 ? 's' : ''} across ${s.boards} board${s.boards > 1 ? 's' : ''}`}>
                   <span className="sb-dot" style={{ background: fallbackColor(s.term) }} />
                   <span className="sb-tag-suggestion-name">{s.term}</span>
                   <span className="sb-tag-suggestion-count">{s.items}</span>
                   <button className="sb-tag-suggestion-add"
-                          onClick={() => acceptSuggestion(s.term, s.clusterId)}
+                          onClick={() => acceptSuggestion(s.term, s.clusterIds)}
                           title={`Accept "${s.term}" as a tag`}>
                     <Icon as={Plus} size={11} />
                   </button>
                   <button className="sb-tag-suggestion-x"
-                          onClick={() => dismissSuggestion(s.term, s.clusterId)}
+                          onClick={() => dismissSuggestion(s.term, s.clusterIds)}
                           title="Don't suggest this">
                     ×
                   </button>

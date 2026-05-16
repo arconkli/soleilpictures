@@ -211,9 +211,13 @@ async function handleApply(request, env) {
 
 // ─────────────────────────────────────────────────────────────────────
 // /api/tags/cluster-name (Phase 2 — exposed now, used by client later)
-// Body: { member_cards: [{ id, text }] }   // 3–8 representative cards
+// Body: {
+//   member_cards: [{ id, text }],   // 3–8 representative cards
+//   existing_names?: string[],      // names the model must NOT collide with
+// }
 // Returns: { name: string|null, description: string|null }
-//   name === null → cards don't share a coherent theme; mark cluster rejected.
+//   name === null → cards don't share a coherent theme OR the only honest
+//   name would duplicate an existing one. Either way: cluster gets rejected.
 async function handleClusterName(request, env) {
   if (!env.OPENAI_API_KEY) return json({ error: 'openai key not configured' }, 500);
   const body = await request.json().catch(() => null);
@@ -224,6 +228,9 @@ async function handleClusterName(request, env) {
     id: String(c.id),
     text: String(c.text || '').slice(0, 1500),
   }));
+  const existingNames = Array.isArray(body?.existing_names)
+    ? body.existing_names.slice(0, 100).map(n => String(n || '').slice(0, 80)).filter(Boolean)
+    : [];
 
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -235,7 +242,7 @@ async function handleClusterName(request, env) {
       model: CLUSTER_NAME_MODEL,
       messages: [
         { role: 'system', content: CLUSTER_NAME_SYSTEM_PROMPT },
-        { role: 'user', content: JSON.stringify({ cards: members }) },
+        { role: 'user', content: JSON.stringify({ cards: members, existing_names: existingNames }) },
       ],
       response_format: {
         type: 'json_schema',
@@ -390,6 +397,14 @@ Your job: decide whether they share a coherent theme worth tagging, and if so, n
 Output a name (1-3 words, title case, the kind of label a person would actually use as a tag like "Project Phoenix" or "Onboarding flow") and a one-sentence description suitable for a tag tooltip.
 
 If the cards do NOT share a meaningful theme — for example, they're a coincidental grouping of common words, or each card is about something different — return name: null and description: null. This is the validation gate against bad emergent clusters.
+
+DO NOT DUPLICATE EXISTING NAMES
+The user message may include an "existing_names" array — names already in use as workspace tags or as proposed names for other clusters. Your "name" MUST NOT collide with any entry in that list. A collision is any of:
+  - exact case-insensitive match ("Social Media" ↔ "social media")
+  - one name is a substring of the other when both are ≥ 4 chars ("Social Media" ↔ "Social Media Platforms")
+  - trivial variants (plural/singular, hyphen vs space, minor typo)
+
+If your honest name for this cluster would collide with an existing_names entry, return name: null and description: null. The cluster will be rejected rather than create a duplicate tag — that's the right outcome, since the existing name already covers this concept.
 
 Return JSON matching the schema. Do not add prose.`;
 
