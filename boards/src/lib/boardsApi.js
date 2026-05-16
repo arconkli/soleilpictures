@@ -697,6 +697,36 @@ function buildCardMeta(kind, get) {
   }
 }
 
+// Workspace-wide palette library. Pulls from card_index (synced after every
+// board save by syncCardIndex / buildCardMeta), so swatches are queryable
+// without decoding every board's Y.Doc. RLS on card_index already restricts
+// to workspace members + readable boards.
+export async function listWorkspacePalettes(workspaceId) {
+  if (!supabase || !workspaceId) return [];
+  const { data, error } = await supabase
+    .from('card_index')
+    .select('board_id, card_id, title, meta, updated_at')
+    .eq('workspace_id', workspaceId)
+    .eq('kind', 'palette')
+    .order('updated_at', { ascending: false });
+  if (error) { console.warn('listWorkspacePalettes', error); return []; }
+  return (data || [])
+    .map(r => {
+      const swatches = Array.isArray(r.meta?.swatches)
+        ? r.meta.swatches.filter(s => s && s.hex)
+        : [];
+      if (swatches.length === 0) return null;
+      return {
+        id: `${r.board_id}:${r.card_id}`,
+        boardId: r.board_id,
+        cardId: r.card_id,
+        name: r.title || 'Palette',
+        swatches,
+      };
+    })
+    .filter(Boolean);
+}
+
 // ── Version history ─────────────────────────────────────────────────────────
 
 // Snapshot the current Y.Doc into board_versions. Returns the inserted row's

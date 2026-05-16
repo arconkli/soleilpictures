@@ -44,6 +44,7 @@ import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
+import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, fetchPrevChange, fetchNextChange, loadBoardVersionDoc, restoreBoard, applyMetaChangeUndo, bulletproofRestore, decodeSnapshotBytes } from '../lib/boardsApi.js';
 import {
@@ -588,6 +589,9 @@ export function CanvasSurface({
   const [ctx, setCtx] = useState({ open: false, x: 0, y: 0, cardId: null });
   const [bgCtx, setBgCtx] = useState({ open: false, x: 0, y: 0, canvasPos: null });
   const [picker, setPicker] = useState(null); // { value, onChange, x, y, allowTransparent } | null
+  const { palettes: workspacePalettes, ensureLoaded: ensureWorkspacePalettes } =
+    useWorkspacePalettes(workspaceId);
+  useEffect(() => { if (picker) ensureWorkspacePalettes(); }, [picker, ensureWorkspacePalettes]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
@@ -935,14 +939,18 @@ export function CanvasSurface({
   // them; `paletteColors` is the legacy flat list still used by callers
   // that just want a quick swatch rail (e.g. ToolOptionsBar shape rows).
   const palettes = useMemo(() => {
-    return (cards || [])
+    const boardId = board?.id;
+    const local = (cards || [])
       .filter(c => c.kind === 'palette' && Array.isArray(c.swatches) && c.swatches.length > 0)
       .map((c, i) => ({
-        id: c.id,
+        id: `${boardId}:${c.id}`,
         name: c.title || `Palette ${i + 1}`,
         swatches: c.swatches.filter(s => s && s.hex),
       }));
-  }, [cards]);
+    const localIds = new Set(local.map(p => p.id));
+    const remote = (workspacePalettes || []).filter(p => !localIds.has(p.id));
+    return [...local, ...remote];
+  }, [cards, board?.id, workspacePalettes]);
   const paletteColors = useMemo(() => {
     const out = [];
     palettes.forEach(p => p.swatches.forEach(s => { if (s.hex) out.push(s.hex); }));

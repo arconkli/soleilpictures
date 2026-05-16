@@ -6,7 +6,8 @@
 // restores the saved selection before each command so the toolbar doesn't
 // lose what the user had highlighted.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   withSelection, wrapSelectionStyle, toggleList,
   captureSelection, captureSelectionOffsets, restoreSelectionFromOffsets,
@@ -617,31 +618,93 @@ function SizePicker() {
 
 function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, onCustom }) {
   const [open, setOpen] = useState(false);
+  const [popStyle, setPopStyle] = useState(null);
+  const wrapRef = useRef(null);
+  const popRef = useRef(null);
   const recentColors = useRecentColors();
   const allSwatches = [...new Set([...recentColors, ...paletteColors, ...swatches])];
+
+  // Position the swatch popover relative to its trigger, clamped to the
+  // viewport so it never clips on the right/top edges of the screen.
+  useLayoutEffect(() => {
+    if (!open || !wrapRef.current || !popRef.current) return;
+    const place = () => {
+      const wrap = wrapRef.current;
+      const pop = popRef.current;
+      if (!wrap || !pop) return;
+      const wr = wrap.getBoundingClientRect();
+      const w = pop.offsetWidth;
+      const h = pop.offsetHeight;
+      const PAD = 8;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const leftAbs = Math.max(PAD, Math.min(vw - w - PAD, wr.left));
+      const preferTopAbs = wr.top - h - 6;
+      const topAbs = preferTopAbs < PAD
+        ? Math.min(vh - h - PAD, wr.bottom + 6)
+        : preferTopAbs;
+      setPopStyle({
+        position: 'fixed',
+        left: leftAbs,
+        top: Math.max(PAD, topAbs),
+        bottom: 'auto',
+        right: 'auto',
+      });
+    };
+    place();
+    const id = requestAnimationFrame(place);
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open, allSwatches.length]);
+
+  // Outside click closes.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (popRef.current?.contains(e.target)) return;
+      if (wrapRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown, true);
+    return () => document.removeEventListener('mousedown', onDown, true);
+  }, [open]);
+
+  // The bottom bar (.tob) has a translateX transform, which establishes a
+  // containing block for position:fixed descendants. Portal to body so the
+  // popover is anchored to the viewport instead of the (transformed) bar.
+  const popNode = open && (
+    <span className="tob-pop" ref={popRef}
+          style={popStyle || { position: 'fixed', visibility: 'hidden' }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => e.stopPropagation()}>
+      {allSwatches.slice(0, 16).map(c => (
+        <button key={c} className="tob-sw" style={{ background: c }}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { onPick(c); addRecentColor(c); setOpen(false); }} />
+      ))}
+      {onCustom && (
+        <button className="tob-sw tob-sw-custom" title="Custom…"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => { setOpen(false); onCustom(e); }}>+</button>
+      )}
+    </span>
+  );
+
   return (
-    <span className="tob-pop-wrap">
+    <span className="tob-pop-wrap" ref={wrapRef}>
       <button className="tob-btn" title={title}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setOpen(o => !o)}>
         <span className="tob-sw-dot" style={{ background: defaultColor }} />
       </button>
-      {open && (
-        <span className="tob-pop"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => e.stopPropagation()}>
-          {allSwatches.slice(0, 16).map(c => (
-            <button key={c} className="tob-sw" style={{ background: c }}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => { onPick(c); addRecentColor(c); setOpen(false); }} />
-          ))}
-          {onCustom && (
-            <button className="tob-sw tob-sw-custom" title="Custom…"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={(e) => { setOpen(false); onCustom(e); }}>+</button>
-          )}
-        </span>
-      )}
+      {popNode && typeof document !== 'undefined'
+        ? createPortal(popNode, document.body)
+        : popNode}
     </span>
   );
 }

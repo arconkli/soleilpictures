@@ -5,7 +5,7 @@
 // the viewport (cards live inside a transformed canvas which would otherwise
 // re-anchor any "fixed" descendant).
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { addRecentColor, addSavedColor, removeSavedColor, isColorSaved } from '../lib/recentColors.js';
 import { useRecentColors, useSavedColors } from '../hooks/useRecentColors.js';
@@ -263,17 +263,43 @@ export function ColorPicker({
   };
 
   // Position the popover above the anchor when there's room, below otherwise.
-  const PANEL_H = 308 + (paletteColors.length > 0 ? 38 : 0);
-  const style = position ? (() => {
-    const preferredLeft = position.x - PANEL_W / 2;
-    const preferredTop = position.y - PANEL_H - 12;
-    const top = preferredTop < PAD ? position.y + 36 : preferredTop;
-    return {
-      position: 'fixed',
-      left: Math.max(PAD, Math.min(window.innerWidth - PANEL_W - PAD, preferredLeft)),
-      top: Math.max(PAD, Math.min(window.innerHeight - PANEL_H - PAD, top)),
+  // We measure the rendered panel (palette/preset sections can swing height
+  // by 100+px), then clamp top/left so the panel never leaves the viewport.
+  // maxHeight caps content so very tall pickers scroll internally instead of
+  // hanging off-screen.
+  const [style, setStyle] = useState(() => position ? {
+    position: 'fixed',
+    left: Math.max(PAD, Math.min(window.innerWidth - PANEL_W - PAD, position.x - PANEL_W / 2)),
+    top: position.y - 12,
+    visibility: 'hidden',
+  } : undefined);
+  useLayoutEffect(() => {
+    if (!position || !ref.current) return;
+    const place = () => {
+      const el = ref.current;
+      if (!el) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const w = el.offsetWidth || PANEL_W;
+      const maxH = Math.min(vh - PAD * 2, 720);
+      const h = Math.min(el.offsetHeight || 0, maxH);
+      const spaceAbove = position.y - PAD;
+      const spaceBelow = vh - position.y - PAD;
+      const placeAbove = spaceAbove >= h + 12 || spaceAbove > spaceBelow;
+      const top = placeAbove
+        ? Math.max(PAD, position.y - h - 12)
+        : Math.max(PAD, Math.min(vh - h - PAD, position.y + 36));
+      const left = Math.max(PAD, Math.min(vw - w - PAD, position.x - w / 2));
+      setStyle({ position: 'fixed', left, top, maxHeight: maxH });
     };
-  })() : undefined;
+    place();
+    const id = requestAnimationFrame(place);
+    window.addEventListener('resize', place);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener('resize', place);
+    };
+  }, [position, palettes, paletteColors]);
 
   const hueColor = `hsl(${hsv.h}, 100%, 50%)`;
   const cursorOnLight = hsv.v > 0.6 && hsv.s < 0.4;
