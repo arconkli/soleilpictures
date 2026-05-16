@@ -19,11 +19,11 @@ const FAN_T_MAX = 0.88;
 const HANDLE_MIN = 32;                 // cubic bezier control magnitude floor
 const HANDLE_MAX = 200;                //   …and ceiling
 const HANDLE_K   = 0.42;               //   …× distance between anchors
-const OBSTACLE_PAD = 14;               // breathing room around cards (default; overridable per obstacle)
-const DEFLECT_ITERS = 12;              // # of repulsion passes (was 4)
+const OBSTACLE_PAD = 18;               // breathing room around cards (default; overridable per obstacle)
+const DEFLECT_ITERS = 20;              // # of repulsion passes
 const DEFLECT_SAMPLES = 24;            // bezier sample points per deflection pass
 const CHECK_SAMPLES = 48;              // higher-resolution sampling for the final clip check
-const DEFLECT_BOOST = 2.4;             // over-push so the smoothed curve clears (was 1.6)
+const DEFLECT_BOOST = 3.0;             // over-push so the smoothed curve clears
 // After repulsion, if the bezier still overlaps an obstacle, fall back
 // to a 3-segment orthogonal route that's guaranteed not to cross the
 // box. The L-shape lives in `buildOrthogonalDetour`. Avoidance is the
@@ -96,7 +96,10 @@ function bezierIntersectsObstacles(s, c1, c2, e, obstacles) {
     const t = i / CHECK_SAMPLES;
     const p = bezierPoint(s, c1, c2, e, t);
     for (const ob of obstacles) {
-      const pad = (ob.pad != null ? ob.pad : OBSTACLE_PAD) * 0.5;
+      // Use the full pad here — same target as the deflection loop —
+      // so there's no "close but not touching" gap where the curve
+      // hugs an edge but the detour never fires.
+      const pad = (ob.pad != null ? ob.pad : OBSTACLE_PAD);
       if (p.x > ob.x - pad && p.x < ob.x + ob.w + pad &&
           p.y > ob.y - pad && p.y < ob.y + ob.h + pad) {
         return true;
@@ -158,10 +161,33 @@ function buildSmoothPolyline(points) {
 // Returns null only if even the 2-elbow search fails (extremely rare).
 function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
   // Pad each obstacle for routing.
-  const obs = obstacles.map(o => ({
+  const allObs = obstacles.map(o => ({
     x: o.x - DETOUR_PAD, y: o.y - DETOUR_PAD,
     w: o.w + DETOUR_PAD * 2, h: o.h + DETOUR_PAD * 2,
   }));
+  // Drop obstacles entirely outside the routing region — they can't lie
+  // on any reasonable detour between s and e, but they'd pollute the
+  // corner pool and quadratically blow up the 2-elbow search on dense
+  // boards. The region is the bbox of (s, e) expanded by 4× OBSTACLE_PAD.
+  const RX_MIN = Math.min(s.x, e.x) - OBSTACLE_PAD * 4;
+  const RX_MAX = Math.max(s.x, e.x) + OBSTACLE_PAD * 4;
+  const RY_MIN = Math.min(s.y, e.y) - OBSTACLE_PAD * 4;
+  const RY_MAX = Math.max(s.y, e.y) + OBSTACLE_PAD * 4;
+  let obs = allObs.filter(o =>
+    !(o.x + o.w < RX_MIN || o.x > RX_MAX ||
+      o.y + o.h < RY_MIN || o.y > RY_MAX)
+  );
+  // Defensive cap on dense regions: keep the 40 obstacles whose centers
+  // are closest to the chord midpoint. Avoids worst-case O(n²) blowups
+  // in the 2-elbow search.
+  if (obs.length > 40) {
+    const cx = (s.x + e.x) / 2, cy = (s.y + e.y) / 2;
+    obs = obs
+      .map(o => ({ o, d: Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 40)
+      .map(p => p.o);
+  }
   // ── 1-elbow candidates ──────────────────────────────────────────────
   const oneElbow = [
     { x: e.x, y: s.y }, // horizontal-first
@@ -242,6 +268,37 @@ function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
       }
     }
     if (bestPair) waypoints = [s, bestPair[0], bestPair[1], e];
+  }
+  if (!waypoints) {
+    // Last resort: walk around the bounding box of all relevant
+    // obstacles. Guaranteed not to cross any obstacle as long as the
+    // bbox itself is axis-aligned (it is). May be a long detour, but
+    // the user wants "avoid cards at all costs".
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const o of obs) {
+      if (o.x < minX) minX = o.x;
+      if (o.y < minY) minY = o.y;
+      if (o.x + o.w > maxX) maxX = o.x + o.w;
+      if (o.y + o.h > maxY) maxY = o.y + o.h;
+    }
+    if (Number.isFinite(minX)) {
+      const above = minY - 2;
+      const below = maxY + 2;
+      const left  = minX - 2;
+      const right = maxX + 2;
+      // Pick whichever side (horizontal rail / vertical rail) gives the
+      // shortest 3-segment detour. The rail runs strictly outside the
+      // obstacle bbox so the cross segment is guaranteed clear.
+      const hAbove = Math.abs(above - s.y) + Math.abs(e.x - s.x) + Math.abs(e.y - above);
+      const hBelow = Math.abs(below - s.y) + Math.abs(e.x - s.x) + Math.abs(e.y - below);
+      const vLeft  = Math.abs(left  - s.x) + Math.abs(e.y - s.y) + Math.abs(e.x - left);
+      const vRight = Math.abs(right - s.x) + Math.abs(e.y - s.y) + Math.abs(e.x - right);
+      const best4 = Math.min(hAbove, hBelow, vLeft, vRight);
+      if (best4 === hAbove)      waypoints = [s, { x: s.x, y: above }, { x: e.x, y: above }, e];
+      else if (best4 === hBelow) waypoints = [s, { x: s.x, y: below }, { x: e.x, y: below }, e];
+      else if (best4 === vLeft)  waypoints = [s, { x: left,  y: s.y }, { x: left,  y: e.y }, e];
+      else                       waypoints = [s, { x: right, y: s.y }, { x: right, y: e.y }, e];
+    }
   }
   if (!waypoints) return null;
   const smooth = buildSmoothPolyline(waypoints);
