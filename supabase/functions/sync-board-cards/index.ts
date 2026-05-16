@@ -40,6 +40,29 @@ function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
+// Per-kind preview data — drives the universal popover's visual previews
+// (image thumbnails, palette swatches, etc.) and powers workspace-wide
+// palette aggregation in the ColorPicker. MUST stay in sync with the
+// client-side buildCardMeta in boards/src/lib/boardsApi.js.
+function buildCardMeta(kind: string, get: (k: string) => any): any {
+  switch (kind) {
+    case "image":
+      return { src: get("src") || null, alt: get("alt") || null,
+               w: get("w") || null, h: get("h") || null };
+    case "palette":
+      return { swatches: ((get("swatches") as any[]) || []).slice(0, 12) };
+    case "link":
+      return { url: get("link") || get("source") || get("url") || null };
+    case "board":
+    case "boardlink":
+      return { boardId: get("id") || get("target") || null };
+    case "doc":
+      return { pageCount: ((get("pages") as any[]) || []).length || null };
+    default:
+      return null;
+  }
+}
+
 async function syncBoard(boardId: string): Promise<{ ok: boolean; n: number; error?: string }> {
   const board = await sb.from("boards").select("workspace_id").eq("id", boardId).maybeSingle();
   if (board.error || !board.data) {
@@ -81,7 +104,10 @@ async function syncBoard(boardId: string): Promise<{ ok: boolean; n: number; err
     const body = rawBody || htmlToText(get("html") || "");
     const groupId = get("groupId") || null;
     const groupName = groupId ? (groupNameById.get(String(groupId)) || "") : "";
-    const meta = (groupId || groupName) ? { groupId, groupName } : null;
+    const baseMeta = buildCardMeta(kind, get) || {};
+    const meta = (groupId || groupName)
+      ? { ...baseMeta, groupId, groupName }
+      : (Object.keys(baseMeta).length > 0 ? baseMeta : null);
     rows.push({
       workspace_id: wsId,
       board_id: boardId,
