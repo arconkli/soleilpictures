@@ -1217,21 +1217,12 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
       // overlap the right-click menu.
       closeTagHover?.();
       // Capture tag-range data if the click landed on a tagged word so
-      // we can offer "Remove tag" for it.
-      const tagged = e.target?.closest?.('.tt-tag-word');
-      let tagInfo = null;
-      if (tagged) {
-        const tagId = tagged.getAttribute('data-tag-id') || null;
-        const tagName = tagged.getAttribute('data-tag-name') || null;
-        const pHash = tagged.getAttribute('data-phash') || null;
-        const startStr = tagged.getAttribute('data-start');
-        const lengthStr = tagged.getAttribute('data-length');
-        const startOffset = Number(startStr);
-        const length = Number(lengthStr);
-        if (tagId && pHash && Number.isFinite(startOffset) && Number.isFinite(length)) {
-          tagInfo = { tagId, tagName, sourceAnchor: { pHash, startOffset, length } };
-        }
-      }
+      // we can offer "Remove tag" for it. Reuse readTagRangeFromEl —
+      // same helper the popover uses — to keep parsing consistent.
+      const tagRange = readTagRangeFromEl(e.target);
+      const tagInfo = tagRange && tagRange.tagId && tagRange.sourceAnchor
+        ? { tagId: tagRange.tagId, tagName: tagRange.tagName, sourceAnchor: tagRange.sourceAnchor }
+        : null;
       setPos({
         x: e.clientX, y: e.clientY,
         hasSelection: !editor.state.selection.empty,
