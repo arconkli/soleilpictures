@@ -5645,8 +5645,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .cp-pal-name {
   flex: 1 1 auto;
-  font-size: 11.5px; font-weight: 600;
-  color: var(--ink-0);
+  font-size: 11.5px; font-weight: 450;
+  color: var(--ink-1);
   letter-spacing: -0.005em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
