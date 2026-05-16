@@ -33,6 +33,19 @@ export async function setTagDescription(tagId, description) {
   if (error) throw error;
 }
 
+// One-shot cleanup: removes auto-applied tag applications where the
+// tag's name shares no meaningful token with the source's text. Also
+// inserts the (source, tag) into autotag_ignored so the engine
+// doesn't re-apply. Returns the count of rows deleted.
+export async function purgeBogusAutoappliedTags(workspaceId) {
+  if (!workspaceId) throw new Error('purgeBogusAutoappliedTags: workspaceId required');
+  const { data, error } = await supabase.rpc('purge_bogus_autoapplied_tags', {
+    p_workspace_id: workspaceId,
+  });
+  if (error) throw error;
+  return data || 0;
+}
+
 // Find or create a tag by name. Trims + dedupes by slug.
 //
 // On first creation, fires backfill_tag_applications which scans

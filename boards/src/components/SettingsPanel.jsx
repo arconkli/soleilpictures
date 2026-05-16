@@ -22,6 +22,7 @@ import {
   updateOwnSettings,
 } from '../lib/boardsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { purgeBogusAutoappliedTags } from '../lib/tagsApi.js';
 import { ColorPicker } from './ColorPicker.jsx';
 import { COVER_TINTS } from './primitives.jsx';
 import { HARDCODED_FALLBACKS } from '../hooks/useResolvedDefaults.js';
@@ -505,7 +506,66 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, refresh }) {
                  onChange={(e) => setKey('shape', 'strokeWidth', Number(e.target.value) || 2)} />
         </Field>
       </SettingsCategory>
+
+      <AiTaggerCleanup workspaceId={workspaceId} canEdit={canEdit} />
     </div>
+  );
+}
+
+// AI tagger cleanup — removes auto-applied tag rows where the tag's
+// name shares no meaningful token with the source text. Sweep is
+// workspace-wide and idempotent; also writes to autotag_ignored so
+// the same row can't be re-applied.
+function AiTaggerCleanup({ workspaceId, canEdit }) {
+  const feedback = useFeedback();
+  const [busy, setBusy] = useState(false);
+  const onClick = async () => {
+    if (!workspaceId || !canEdit || busy) return;
+    const ok = await feedback.confirm({
+      title: 'Remove bogus tag applications',
+      message:
+        'Sweeps the workspace and removes auto-applied tag rows where the tag name and the underlying text don’t share any meaningful word. ' +
+        'Also marks those pairs as ignored so they can’t be re-applied. Manual / user-applied tags are not touched.',
+      confirmLabel: 'Remove',
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const removed = await purgeBogusAutoappliedTags(workspaceId);
+      feedback.toast({
+        type: 'success',
+        message: removed > 0
+          ? `Removed ${removed} bogus tag application${removed === 1 ? '' : 's'}.`
+          : 'No bogus tag applications found. ✨',
+      });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Cleanup failed: ' + (e.message || e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <SettingsCategory title="AI tagger" desc="Clean up over-eager tag applications">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 0' }}>
+        <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.45 }}>
+          Removes auto-applied tag rows where the tag’s name shares no
+          word with the text it was applied to (e.g. <em>Clusters logo</em>
+          {' '}getting attached to the word <em>ad</em>). Manual tags stay.
+        </div>
+        <button type="button"
+                className="settings-btn settings-btn-primary"
+                disabled={!canEdit || busy}
+                style={{ alignSelf: 'flex-start' }}
+                onClick={onClick}>
+          {busy ? 'Cleaning…' : 'Remove bogus tag applications'}
+        </button>
+        {!canEdit && (
+          <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+            Editors and owners only.
+          </div>
+        )}
+      </div>
+    </SettingsCategory>
   );
 }
 
