@@ -196,10 +196,53 @@ async function handleApply(request, env) {
   try { parsed = JSON.parse(text); } catch (_) {
     return json({ error: 'malformed json from model', detail: text.slice(0, 500) }, 502);
   }
-  return json(
-    { verdicts: parsed.verdicts || [], usage: data.usage || null },
-    200,
-  );
+  // Deterministic safety net: if a high/medium verdict's evidence
+  // sentence contains NO meaningful token from the tag's own name,
+  // the model was probably hallucinating. Downgrade to low. Belt-
+  // and-braces for the prompt rules above.
+  const verdicts = parsed.verdicts || [];
+  downgradeIfNoTagTokenInEvidence(verdicts, userPayload.cards);
+  return json({ verdicts, usage: data.usage || null }, 200);
+}
+
+// Tag-name tokenizer for the safety-net check. Splits on non-word
+// characters, lowercases, and keeps tokens >= 4 chars so short
+// generic words ("the", "of") don't false-positive the check. If a
+// tag has only short tokens, the caller should skip the check.
+function tagNameTokens(name) {
+  return String(name || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(t => t.length >= 4);
+}
+
+function downgradeIfNoTagTokenInEvidence(verdicts, requestCards) {
+  // Build cardId → (tagId → tagName) lookup from the request payload
+  // so we know each tag's name even if the model didn't echo it.
+  const tagNamesByCard = new Map();
+  for (const c of (requestCards || [])) {
+    const m = new Map();
+    for (const t of (c.candidate_tags || [])) m.set(String(t.id), String(t.name || ''));
+    tagNamesByCard.set(String(c.id), m);
+  }
+  for (const v of verdicts) {
+    const cardTags = tagNamesByCard.get(String(v.card_id));
+    if (!cardTags) continue;
+    for (const t of (v.tags || [])) {
+      if (t.confidence === 'low') continue;
+      const name = cardTags.get(String(t.tag_id));
+      if (!name) continue;
+      const tokens = tagNameTokens(name);
+      if (tokens.length === 0) continue; // tag has only short tokens — skip
+      const haystack = String(t.evidence_sentence || '').toLowerCase();
+      const hit = tokens.some(tok => haystack.includes(tok));
+      if (!hit) {
+        t.confidence = 'low';
+        t.words = [];
+        t.evidence_sentence = null;
+      }
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -274,6 +317,17 @@ Examples of word-match-without-correlation that you MUST return as "low":
   - Tag "Marketing" applied to "We're not marketing this" — denial of the topic, not engagement with it.
   - Tag "Director" applied to "The school's director called yesterday" — wrong domain (not a film director).
   - Tag X applied to a sentence in a list of synonyms, definitions, or examples where the word appears only as a label.
+
+NAMED ENTITY GUARDRAIL
+If the tag name reads like a specific named entity — a brand, product, person, place, project, logo, or proper-noun compound (Title Case; contains "logo", "brand", "campaign", "pitch deck", "reel"; or is a non-generic compound like "Project Phoenix") — the tag MUST NOT apply unless that SAME named entity is referenced in the card. Generic creative vocabulary, industry words, or related domain terms are NOT enough.
+
+Concrete failure patterns that you MUST return "low" for:
+  - Tag "Clusters logo" applied to a paragraph containing "ad", "collab", "collaborative", "exclusive", "campaign", "industries", "brand", or any general creative/marketing vocabulary that doesn't actually NAME the Clusters logo. The tag refers to ONE specific logo, not the concept of logos in general.
+  - Tag "Acme Pitch Deck" applied to text mentioning "deck", "pitch", "slides", or "presentation" — those are generic; only apply if "Acme" (the specific company/project) is referenced.
+  - Tag "Tom's Reel" applied to a sentence about reels in general or about another person's reel — wrong specificity.
+  - Tag "Soleil Pictures Brand Guide" applied to a sentence mentioning "brand" generically — only applies when the specific Soleil Pictures brand guide is the subject.
+
+For a named-entity tag, the bar is: would a reader naturally say "this paragraph is referring to THAT specific thing?" If not, return "low" with empty words.
 
 Before assigning ANY verdict above "low", ask yourself: "Does the SENTENCE around this anchor word make a substantive claim/observation about the tag's topic in the same domain sense?" If no, the verdict is "low" even if the word matches the tag perfectly.
 
