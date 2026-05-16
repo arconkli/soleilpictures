@@ -2262,7 +2262,13 @@ export function CanvasSurface({
         setDrag(null);
         return;
       }
-      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+      // Click-vs-drag decision: use raw SCREEN-space distance, not the snapped
+      // canvas dx/dy. Snap absorbs small movements back to 0, which used to
+      // mis-classify intent-to-drag gestures as clicks and open boards.
+      const screenDx = ev.clientX - startClient.x;
+      const screenDy = ev.clientY - startClient.y;
+      const wasClick = Math.hypot(screenDx, screenDy) <= 4;
+      if (!wasClick) {
         const updates = dragIds.map(id => ({
           id, patch: {
             x: Math.round(startPositions[id].x + dx),
@@ -3961,6 +3967,7 @@ export function CanvasSurface({
     else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target}
                                                        image={c.image} description={c.description} favicon={c.favicon}
                                                        embed={c.embed}
+                                                       isSelected={isSelected}
                                                        onUpdate={onUpdate} autoFocus={af}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} onUpdate={onUpdate} autoFocus={af} />;

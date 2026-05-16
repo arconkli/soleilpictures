@@ -2496,7 +2496,7 @@ body {
   contain: paint;
   box-shadow: var(--shadow-1);
 }
-.card:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); z-index: 5; }
+.card:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); }
 /* Shape cards render a non-rectangular SVG primitive (ellipse, triangle,
    etc.) — but the wrapper is still a rectangle. The wrapper's
    box-shadow appears as a rectangular halo around the actual shape,
@@ -3742,6 +3742,14 @@ body {
 }
 .lc-embed-meta .lc-title { font-size: 12px; }
 .lc-embed-meta .lc-src { margin-top: 4px; }
+.lc-embed-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: transparent;
+  cursor: grab;
+}
+.lc-embed-overlay:active { cursor: grabbing; }
 .lc-embed-title-add {
   position: absolute;
   top: 6px;

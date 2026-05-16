@@ -614,12 +614,19 @@ export function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   );
 }
 
-export function LinkCard({ title, source, target, image, description, favicon, embed, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+export function LinkCard({ title, source, target, image, description, favicon, embed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // Title editing is controlled here (not by EditableText's internal state) so
   // dbl-click ANYWHERE on the card body — not just on the title text — can
   // re-enter edit mode. Bumped via editTitleAt from the canvas.
   const [editingTitle, setEditingTitle] = useState(autoFocus);
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
+  // Embed activation: iframes (Spotify/YouTube/…) consume pointer events
+  // natively, which blocks dragging the card. Default state is INACTIVE —
+  // a transparent overlay sits on top of the iframe so pointerdown bubbles
+  // to the canvas drag handler. Double-click activates the iframe; deselecting
+  // the card on the canvas locks it again.
+  const [embedActive, setEmbedActive] = useState(false);
+  useEffect(() => { if (!isSelected) setEmbedActive(false); }, [isSelected]);
   const onBodyDouble = (e) => {
     if (!onUpdate) return;
     if (e.target.closest && e.target.closest('.editable')) return; // let inner editors win
@@ -668,8 +675,11 @@ export function LinkCard({ title, source, target, image, description, favicon, e
     const hasTitle = !!(title && title.trim());
     const showMeta = hasTitle || editingTitle;
     return (
-      <div className="lc lc-embed" data-provider={embed.provider} onDoubleClick={onBodyDouble}>
-        <div className="lc-embed-frame" onPointerDown={(e) => e.stopPropagation()}>
+      <div className={`lc lc-embed ${embedActive ? 'is-embed-active' : ''}`} data-provider={embed.provider} onDoubleClick={onBodyDouble}>
+        <div
+          className="lc-embed-frame"
+          onPointerDown={(e) => { if (embedActive) e.stopPropagation(); }}
+        >
           <iframe
             src={embed.embedUrl}
             title={title || embed.provider}
@@ -680,6 +690,13 @@ export function LinkCard({ title, source, target, image, description, favicon, e
             sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms"
             style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
           />
+          {!embedActive && (
+            <div
+              className="lc-embed-overlay"
+              title="Double-click to interact"
+              onDoubleClick={(e) => { e.stopPropagation(); setEmbedActive(true); }}
+            />
+          )}
           {!showMeta && onUpdate && (
             <button
               type="button"
