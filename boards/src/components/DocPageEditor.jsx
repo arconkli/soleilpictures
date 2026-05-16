@@ -13,7 +13,7 @@ import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { v4 as uuid } from 'uuid';
-import { getOrCreatePageContent, addBookmark, readPagesWithText } from '../lib/docState.js';
+import { getOrCreatePageContent, getOrCreateSheetContent, addBookmark, readPagesWithText } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
 import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
@@ -141,8 +141,15 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true }) {
-  const fragment = pageId ? getOrCreatePageContent(ydoc, pageId, scope) : null;
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorReady, onEditorFocus, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true }) {
+  // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
+  // we fall back to the page's primary content (back-compat with one-sheet
+  // pages). sheetId === pageId also lands on the primary fragment.
+  const fragment = pageId
+    ? (sheetId && sheetId !== pageId
+       ? getOrCreateSheetContent(ydoc, pageId, sheetId, scope)
+       : getOrCreatePageContent(ydoc, pageId, scope))
+    : null;
   // Held so editorProps drop/paste handlers (constructed at editor-init time,
   // before `editor` exists) can reach the live instance.
   const editorRef = useRef(null);
@@ -740,6 +747,16 @@ export function DocPageEditor({ ydoc, scope, pageId, onEditorReady, workspaceId,
       onEditorReady?.(editor);
     }
   }, [editor, onEditorReady]);
+
+  // With stacked sheets, DocSurface needs to know which editor the user is
+  // currently editing so the toolbar / find / link picker target the right
+  // instance. Fire onEditorFocus with our editor on every focus.
+  useEffect(() => {
+    if (!editor || !onEditorFocus) return;
+    const onFocus = () => onEditorFocus(editor);
+    editor.on('focus', onFocus);
+    return () => { editor.off('focus', onFocus); };
+  }, [editor, onEditorFocus]);
 
   // Keep applied-range absolute boxes in sync with the live doc so the
   // auto-detect plugin can suppress decorations under colored ranges.

@@ -8,8 +8,8 @@
 
 import { useEffect, useState } from 'react';
 import {
-  pagesArray, bookmarksMap, commentsMap,
-  readPages, readBookmarks, readComments,
+  pagesArray, bookmarksMap, commentsMap, pageSheetsMap,
+  readPages, readBookmarks, readComments, getPageSheetIds,
 } from '../lib/docState.js';
 
 export function useDocBoard(ydoc, scope) {
@@ -51,4 +51,49 @@ export function useDocBoard(ydoc, scope) {
   }, [ydoc, scope]);
 
   return snapshot;
+}
+
+// Reactive list of sheet IDs for one page. Always includes the implicit
+// primary sheet (id === pageId) followed by any extra sheets in their stored
+// order. Observes the page's Y.Array of sheets so adding/removing sheets
+// re-renders consumers.
+export function usePageSheets(ydoc, pageId, scope) {
+  const [ids, setIds] = useState(() => (ydoc && pageId ? getPageSheetIds(ydoc, pageId, scope) : []));
+
+  useEffect(() => {
+    if (!ydoc || !pageId) {
+      setIds(pageId ? [pageId] : []);
+      return;
+    }
+    const refresh = () => setIds(getPageSheetIds(ydoc, pageId, scope));
+    refresh();
+    const sm = pageSheetsMap(ydoc, scope);
+    if (!sm) return;
+    // Two layers to observe: (a) the per-page Y.Array of sheets so insert/
+    // delete fire, and (b) the parent map so we catch the case where the
+    // array is first created (Y.Map set after this hook runs).
+    const mapObserver = () => {
+      refresh();
+      const arr = sm.get(pageId);
+      if (arr && !arrayObservers.has(arr)) {
+        arr.observe(refresh);
+        arrayObservers.set(arr, refresh);
+      }
+    };
+    sm.observe(mapObserver);
+    const arrayObservers = new Map();
+    const initialArr = sm.get(pageId);
+    if (initialArr) {
+      initialArr.observe(refresh);
+      arrayObservers.set(initialArr, refresh);
+    }
+    return () => {
+      sm.unobserve(mapObserver);
+      for (const [arr, cb] of arrayObservers) {
+        try { arr.unobserve(cb); } catch (_) {}
+      }
+    };
+  }, [ydoc, pageId, scope]);
+
+  return ids;
 }

@@ -12,8 +12,8 @@
 // per board so a refresh reopens the same page.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useDocBoard } from '../hooks/useDocBoard.js';
-import { addBookmark, addPage } from '../lib/docState.js';
+import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
+import { addBookmark, addPage, addPageSheet } from '../lib/docState.js';
 import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocPresence } from './DocPresence.jsx';
@@ -28,8 +28,9 @@ const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 const RAILS_KEY = 'soleil.boards.docRails';
 const ZOOM_KEY = 'soleil.boards.docZoom';
 const ZOOM_MIN = 0.5;
-// Auto-create a sibling page when the editor wrap grows past ~90% of one
-// printed page (1056px = 11" at 96dpi). Fires at most once per active page.
+// Auto-create a new sheet under the active page when the last sheet's wrap
+// grows past ~90% of a printed page (1056px = 11" at 96dpi). Fires at most
+// once per sheet so it doesn't keep stacking pages forever.
 const AUTO_NEW_PAGE_THRESHOLD = 950;
 const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1;
@@ -226,45 +227,46 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pages.length]);
 
-  // Add a sibling page right after the active page (no view switch).
-  // Used by both the manual "+ New page" button below the editor and the
+  // Reactive list of sheet ids for the active page. Always starts with the
+  // implicit primary (id === activePageId) and grows with addPageSheet calls.
+  const sheetIds = usePageSheets(ydoc, activePageId, scope);
+
+  // Append a new sheet to the active page (visually stacks below the last
+  // sheet). Used by the manual "+ New page" button and by the
   // ResizeObserver-driven auto-create below.
-  const pagesRef = useRef(pages);
-  useEffect(() => { pagesRef.current = pages; }, [pages]);
-  const addSiblingBelow = useCallback(() => {
-    const cur = pagesRef.current.find(p => p.id === activePageId);
-    if (!cur) return;
-    addPage(ydoc, { parent_id: cur.parent_id ?? null, scope });
+  const addSheetBelow = useCallback(() => {
+    if (!activePageId) return;
+    addPageSheet(ydoc, activePageId, scope);
   }, [activePageId, ydoc, scope]);
 
-  // Auto-create a sibling when the current page's editor wrap fills up.
-  // Keyed by activePageId so each page fires at most once. Skipped if a
-  // next-sibling already exists.
-  const autoFiredRef = useRef(new Map());
+  // Auto-add a sheet when the last sheet in the current page fills up. Fires
+  // at most once per sheet — once a sheet has triggered, even further growth
+  // won't fire again until the user navigates to a new last-sheet.
+  const autoFiredRef = useRef(new Set());
+  // Clear the fired set on page switch so the new page starts fresh.
+  useEffect(() => { autoFiredRef.current = new Set(); }, [activePageId]);
   useEffect(() => {
     if (!ready || !activePageId) return;
     const paper = paperRef.current;
     if (!paper) return;
-    const wrap = paper.querySelector('.doc-editor-wrap');
-    if (!wrap) return;
+    const wraps = paper.querySelectorAll('.doc-editor-wrap');
+    if (!wraps.length) return;
+    // Only observe the LAST sheet's wrap — that's the one a user is
+    // adding content to when they "reach the end."
+    const lastWrap = wraps[wraps.length - 1];
+    const lastSheetId = sheetIds[sheetIds.length - 1];
+    if (!lastSheetId) return;
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
         if (e.contentRect.height < AUTO_NEW_PAGE_THRESHOLD) continue;
-        if (autoFiredRef.current.get(activePageId)) continue;
-        const all = pagesRef.current;
-        const cur = all.find(p => p.id === activePageId);
-        if (!cur) continue;
-        const hasNext = all.some(p =>
-          p.parent_id === cur.parent_id && (p.order ?? 0) > (cur.order ?? 0)
-        );
-        if (hasNext) continue;
-        autoFiredRef.current.set(activePageId, true);
-        addPage(ydoc, { parent_id: cur.parent_id ?? null, scope });
+        if (autoFiredRef.current.has(lastSheetId)) continue;
+        autoFiredRef.current.add(lastSheetId);
+        addPageSheet(ydoc, activePageId, scope);
       }
     });
-    ro.observe(wrap);
+    ro.observe(lastWrap);
     return () => ro.disconnect();
-  }, [activePageId, ready, ydoc, scope]);
+  }, [activePageId, ready, ydoc, scope, sheetIds]);
 
   // Honor a "jump to this bookmark on open" request that came in via a
   // soleil:// link from another doc. Switch to its page first; the editor
@@ -306,10 +308,25 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   };
 
   // Hold the live Tiptap editor instance so the toolbar + bookmarks can
-  // operate on it. DocPageEditor passes it up via onEditorReady.
+  // operate on it. With stacked sheets there are N editor instances; we
+  // route the toolbar to whichever editor the user most recently focused.
+  // onEditorReady fires on mount (used to seed editorRef when the page
+  // first loads); onEditorFocus fires every time the user clicks into a
+  // particular sheet and re-points editorRef at that editor.
   const editorRef = useRef(null);
   const [, force] = useState(0);
-  const onEditorReady = (ed) => { editorRef.current = ed; force(n => n + 1); };
+  const onEditorReady = (ed) => {
+    if (!editorRef.current) {
+      editorRef.current = ed;
+      force(n => n + 1);
+    }
+  };
+  const onEditorFocus = (ed) => {
+    if (editorRef.current !== ed) {
+      editorRef.current = ed;
+      force(n => n + 1);
+    }
+  };
 
   // Broadcast scrollTop on the doc-paper so workspace presence can carry
   // it for click-to-jump. Throttle to 200ms — peer scroll-sync only needs
@@ -437,35 +454,39 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                          currentUser={currentUser} />
           )}
           {activePageId ? (
-            // key forces a fresh editor instance on page switch (Collaboration
-            // extension can't re-bind to a different fragment).
-            <DocPageEditor
-              key={activePageId}
-              ydoc={ydoc}
-              scope={scope}
-              pageId={activePageId}
-              activePageId={activePageId}
-              workspaceId={workspaceId}
-              userId={userId}
-              currentUser={currentUser}
-              onEditorReady={onEditorReady}
-              onRequestBoardEmbed={requestBoardEmbed}
-              onRequestLink={requestLink}
-              awareness={awareness}
-              onNavigateTarget={handleNavigateTarget}
-              registerOpenLinkPicker={registerOpenLinkPicker}
-              registerOpenAddComment={registerOpenAddComment}
-              boards={Object.values(boards || {})}
-              editable={canEdit}
-            />
+            sheetIds.map(sid => (
+              // key forces a fresh editor instance per sheet — Tiptap's
+              // Collaboration extension can't re-bind to a different fragment.
+              <DocPageEditor
+                key={sid}
+                ydoc={ydoc}
+                scope={scope}
+                pageId={activePageId}
+                sheetId={sid}
+                activePageId={activePageId}
+                workspaceId={workspaceId}
+                userId={userId}
+                currentUser={currentUser}
+                onEditorReady={onEditorReady}
+                onEditorFocus={onEditorFocus}
+                onRequestBoardEmbed={requestBoardEmbed}
+                onRequestLink={requestLink}
+                awareness={awareness}
+                onNavigateTarget={handleNavigateTarget}
+                registerOpenLinkPicker={registerOpenLinkPicker}
+                registerOpenAddComment={registerOpenAddComment}
+                boards={Object.values(boards || {})}
+                editable={canEdit}
+              />
+            ))
           ) : (
             <div className="doc-empty">No page selected.</div>
           )}
           {activePageId && canEdit && (
             <button className="doc-add-page-below"
                     type="button"
-                    onClick={addSiblingBelow}
-                    title="Add a new page after this one">
+                    onClick={addSheetBelow}
+                    title="Add a new page below">
               + New page
             </button>
           )}

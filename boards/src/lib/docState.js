@@ -23,6 +23,12 @@ export function rootScope(ydoc) {
     content: ydoc.getMap('docPageContent'),
     bookmarks: ydoc.getMap('docBookmarks'),
     comments: ydoc.getMap('docComments'),
+    // Multi-sheet support: a page can have N stacked sheets. Sheet 0 (the
+    // "primary") uses the existing pageContentMap entry keyed by pageId so
+    // pre-existing data keeps working untouched. Extra sheets (sheet 1 +)
+    // live in these new maps and are referenced by their own sheet ID.
+    pageSheets: ydoc.getMap('docPageSheets'),       // pageId → Y.Array<{ id }>
+    sheetContent: ydoc.getMap('docSheetContent'),   // sheetId → Y.XmlFragment
   };
 }
 export function cardScope(cardYMap) {
@@ -31,16 +37,20 @@ export function cardScope(cardYMap) {
     content: cardYMap.get('docPageContent'),
     bookmarks: cardYMap.get('docBookmarks'),
     comments: cardYMap.get('docComments'),
+    pageSheets: cardYMap.get('docPageSheets'),
+    sheetContent: cardYMap.get('docSheetContent'),
   };
 }
-// Initialize the four Y types on a fresh card YMap so cardScope(...) returns
+// Initialize the Y types on a fresh card YMap so cardScope(...) returns
 // real values. Call once when a new doc card is created.
 export function initCardDocStore(ydoc, cardYMap) {
   ydoc.transact(() => {
-    if (!cardYMap.get('docPages'))       cardYMap.set('docPages', new Y.Array());
-    if (!cardYMap.get('docPageContent')) cardYMap.set('docPageContent', new Y.Map());
-    if (!cardYMap.get('docBookmarks'))   cardYMap.set('docBookmarks', new Y.Map());
-    if (!cardYMap.get('docComments'))    cardYMap.set('docComments', new Y.Map());
+    if (!cardYMap.get('docPages'))         cardYMap.set('docPages', new Y.Array());
+    if (!cardYMap.get('docPageContent'))   cardYMap.set('docPageContent', new Y.Map());
+    if (!cardYMap.get('docBookmarks'))     cardYMap.set('docBookmarks', new Y.Map());
+    if (!cardYMap.get('docComments'))      cardYMap.set('docComments', new Y.Map());
+    if (!cardYMap.get('docPageSheets'))    cardYMap.set('docPageSheets', new Y.Map());
+    if (!cardYMap.get('docSheetContent'))  cardYMap.set('docSheetContent', new Y.Map());
   }, 'local');
 }
 
@@ -50,6 +60,8 @@ export function pagesArray(ydoc, scope)        { return S(ydoc, scope).pages; }
 export function pageContentMap(ydoc, scope)    { return S(ydoc, scope).content; }
 export function bookmarksMap(ydoc, scope)      { return S(ydoc, scope).bookmarks; }
 export function commentsMap(ydoc, scope)       { return S(ydoc, scope).comments; }
+export function pageSheetsMap(ydoc, scope)     { return S(ydoc, scope).pageSheets; }
+export function sheetContentMap(ydoc, scope)   { return S(ydoc, scope).sheetContent; }
 
 export function readPages(ydoc, scope) {
   const arr = pagesArray(ydoc, scope);
@@ -119,6 +131,101 @@ export function getOrCreatePageContent(ydoc, pageId, scope) {
   return frag;
 }
 
+// ── Sheets ───────────────────────────────────────────────────────────────────
+// A "sheet" is one of N stacked page-sheets within a single doc page. Every
+// page has an implicit primary sheet (id = pageId) whose content lives in
+// pageContentMap — this keeps legacy data untouched. Additional sheets live
+// in pageSheetsMap (pageId → Y.Array of {id}) and their content lives in
+// sheetContentMap (sheetId → Y.XmlFragment).
+
+function nextSheetId() {
+  return 's_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+// Return the ordered list of sheet IDs for a page. Always starts with the
+// primary (= pageId) and is followed by any extra sheets in their stored
+// order. Reactive consumers should observe pageSheetsMap(scope).get(pageId)
+// to know when the list changes.
+export function getPageSheetIds(ydoc, pageId, scope) {
+  const out = [pageId];
+  if (!pageId) return out;
+  const sm = pageSheetsMap(ydoc, scope);
+  const arr = sm?.get(pageId);
+  if (arr && typeof arr.toArray === 'function') {
+    for (const entry of arr.toArray()) {
+      if (entry?.id) out.push(entry.id);
+    }
+  }
+  return out;
+}
+
+// Resolve a sheet's content fragment. Sheet 0 (id === pageId) uses the
+// existing pageContentMap entry so legacy pages render unchanged.
+export function getOrCreateSheetContent(ydoc, pageId, sheetId, scope) {
+  if (!pageId || !sheetId) return null;
+  if (sheetId === pageId) return getOrCreatePageContent(ydoc, pageId, scope);
+  const map = sheetContentMap(ydoc, scope);
+  if (!map) return null;
+  let frag = map.get(sheetId);
+  if (!frag) {
+    frag = new Y.XmlFragment();
+    ydoc.transact(() => { map.set(sheetId, frag); }, 'local');
+  }
+  return frag;
+}
+
+// Add a new sheet to a page. Returns the new sheet id. By default the sheet
+// is appended at the end of the stack. Pass `afterSheetId` to insert it
+// right after a specific sheet (useful when the user clicks "+ New page"
+// from the middle of the stack).
+export function addPageSheet(ydoc, pageId, scope, opts = {}) {
+  const { afterSheetId = null } = opts;
+  if (!pageId) return null;
+  const sm = pageSheetsMap(ydoc, scope);
+  const sc = sheetContentMap(ydoc, scope);
+  if (!sm || !sc) return null;
+  const id = nextSheetId();
+  ydoc.transact(() => {
+    let arr = sm.get(pageId);
+    if (!arr) {
+      arr = new Y.Array();
+      sm.set(pageId, arr);
+    }
+    let insertIdx = arr.length;
+    if (afterSheetId) {
+      if (afterSheetId === pageId) {
+        // Right after the implicit primary = beginning of extras.
+        insertIdx = 0;
+      } else {
+        const cur = arr.toArray();
+        const idx = cur.findIndex(s => s?.id === afterSheetId);
+        if (idx >= 0) insertIdx = idx + 1;
+      }
+    }
+    arr.insert(insertIdx, [{ id }]);
+    sc.set(id, new Y.XmlFragment());
+  }, 'local');
+  return id;
+}
+
+// Delete a non-primary sheet. The primary (id === pageId) can't be deleted
+// via this helper — use deletePage for that.
+export function deletePageSheet(ydoc, pageId, sheetId, scope) {
+  if (!pageId || !sheetId || sheetId === pageId) return;
+  const sm = pageSheetsMap(ydoc, scope);
+  const sc = sheetContentMap(ydoc, scope);
+  if (!sm || !sc) return;
+  ydoc.transact(() => {
+    const arr = sm.get(pageId);
+    if (arr) {
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr.get(i)?.id === sheetId) arr.delete(i, 1);
+      }
+    }
+    sc.delete(sheetId);
+  }, 'local');
+}
+
 function nextPageId() {
   return 'p_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 }
@@ -164,6 +271,8 @@ export function deletePage(ydoc, id, scope) {
   const arr = pagesArray(ydoc, scope);
   const content = pageContentMap(ydoc, scope);
   const bookmarks = bookmarksMap(ydoc, scope);
+  const sheets = pageSheetsMap(ydoc, scope);
+  const sContent = sheetContentMap(ydoc, scope);
   if (!arr || !content || !bookmarks) return;
   ydoc.transact(() => {
     const all = arr.toArray();
@@ -176,7 +285,16 @@ export function deletePage(ydoc, id, scope) {
     for (let i = arr.length - 1; i >= 0; i--) {
       if (toRemove.has(arr.get(i).id)) arr.delete(i, 1);
     }
-    toRemove.forEach(pid => content.delete(pid));
+    toRemove.forEach(pid => {
+      content.delete(pid);
+      const sheetList = sheets?.get(pid);
+      if (sheetList && typeof sheetList.toArray === 'function') {
+        for (const s of sheetList.toArray()) {
+          if (s?.id) sContent?.delete(s.id);
+        }
+      }
+      sheets?.delete(pid);
+    });
     bookmarks.forEach((v, k) => { if (toRemove.has(v.pageId)) bookmarks.delete(k); });
   }, 'local');
 }
