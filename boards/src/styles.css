@@ -4907,12 +4907,12 @@ body {
 /* Image card layout — title BELOW the image is now primary */
 .ic { display: flex; flex-direction: column; }
 .ic-imgwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-/* `contain` so pasted/dropped images keep their natural aspect ratio
-   and are never cropped. The card was sized to match natural dims at
-   paste-time (optimisticDropImage), but inner padding / title space /
-   sub-pixel rounding made `cover` shave a few pixels off; users read
-   that as a forced crop. */
-.ic .ic-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+/* `cover` works here because image cards are aspect-locked on resize
+   (see onResizePointerDown — lockAspect for kind='image'). Default
+   resize keeps the card aspect matched to the image, so cover fills
+   exactly without cropping. If the user holds Cmd/Ctrl to free-resize,
+   they've explicitly opted into cropping. */
+.ic .ic-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ic .img-ph { width: 100%; height: 100%; }
 /* Upload-in-progress overlay — sits on top of the local blob preview
    while the file uploads to R2. Subtle scrim + soleil-tinted spinner

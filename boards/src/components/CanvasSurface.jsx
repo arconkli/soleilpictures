@@ -1012,9 +1012,10 @@ export function CanvasSurface({
     try { blobUrl = URL.createObjectURL(file); } catch (_) {}
     let dims = { width: 0, height: 0 };
     try { dims = await readImageDims(file); } catch (_) {}
-    // Preserve natural dimensions. Only scale DOWN if the source is bigger
-    // than MAX_PASTE_DIM along either axis; never zoom up. Minimum 80px so
-    // tiny assets stay clickable.
+    // Preserve natural dimensions AND aspect ratio. Scale down if the
+    // source exceeds MAX along either axis; scale UP (proportionally) if
+    // either axis is below MIN so very thin/wide images stay clickable
+    // without distorting their aspect.
     const MAX_PASTE_DIM = 1200;
     const MIN_PASTE_DIM = 80;
     let w = 320, h = 240; // fallback for when readImageDims fails
@@ -1026,8 +1027,11 @@ export function CanvasSurface({
         w = Math.round(w * k);
         h = Math.round(h * k);
       }
-      w = Math.max(MIN_PASTE_DIM, w);
-      h = Math.max(MIN_PASTE_DIM, h);
+      if (w < MIN_PASTE_DIM || h < MIN_PASTE_DIM) {
+        const k = MIN_PASTE_DIM / Math.min(w, h);
+        w = Math.round(w * k);
+        h = Math.round(h * k);
+      }
     }
     const id = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     if (blobUrl) setLocalImagePreview(prev => ({ ...prev, [id]: blobUrl }));
@@ -2265,19 +2269,48 @@ export function CanvasSurface({
       return { dw, dh, hints };
     };
 
+    // Image and video cards lock their aspect ratio on resize so the
+    // user always sees the whole image without letterboxing or
+    // unintended cropping. Hold Cmd/Ctrl during the drag to bypass and
+    // resize freely (which then makes object-fit:cover crop the image).
+    const aspectLockKinds = new Set(['image', 'video']);
+    const lockAspect = aspectLockKinds.has(c.kind) && c.w > 0 && c.h > 0;
+    const startAspect = lockAspect ? c.w / c.h : null;
+
+    // Project a raw (dw, dh) onto the locked aspect, following the
+    // axis the user is pushing more aggressively (proportionally).
+    const applyAspectLock = (rawDw, rawDh, bypass) => {
+      if (!lockAspect || bypass) return { dw: rawDw, dh: rawDh };
+      const ratioW = (c.w + rawDw) / c.w;
+      const ratioH = (c.h + rawDh) / c.h;
+      // Use the dominant scale factor so dragging right OR down works
+      // intuitively; preserve sign so dragging past the anchor mirrors.
+      const useW = Math.abs(rawDw) * c.h >= Math.abs(rawDh) * c.w;
+      const k = useW ? ratioW : ratioH;
+      const newW = c.w * k;
+      const newH = newW / startAspect;
+      return { dw: newW - c.w, dh: newH - c.h };
+    };
+
     const onMove = (ev) => {
-      const rawDw = (ev.clientX - startClient.x) / zoom;
-      const rawDh = (ev.clientY - startClient.y) / zoom;
-      const { dw, dh, hints } = computeResizeSnap(rawDw, rawDh, ev.altKey);
+      const rawDwRaw = (ev.clientX - startClient.x) / zoom;
+      const rawDhRaw = (ev.clientY - startClient.y) / zoom;
+      const bypass = ev.metaKey || ev.ctrlKey;
+      const { dw: rawDw, dh: rawDh } = applyAspectLock(rawDwRaw, rawDhRaw, bypass);
+      // Aspect-locked resize skips edge/numeric snapping (would break the
+      // lock); Alt continues to also disable snap for the free-resize case.
+      const { dw, dh, hints } = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey);
       setResize({ id: c.id, dw, dh });
       setSnapHints(hints);
     };
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      const rawDw = (ev.clientX - startClient.x) / zoom;
-      const rawDh = (ev.clientY - startClient.y) / zoom;
-      const { dw, dh } = computeResizeSnap(rawDw, rawDh, ev.altKey);
+      const rawDwRaw = (ev.clientX - startClient.x) / zoom;
+      const rawDhRaw = (ev.clientY - startClient.y) / zoom;
+      const bypass = ev.metaKey || ev.ctrlKey;
+      const { dw: rawDw, dh: rawDh } = applyAspectLock(rawDwRaw, rawDhRaw, bypass);
+      const { dw, dh } = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey);
       const newW = Math.max(MIN_W, Math.round(c.w + dw));
       const newH = Math.max(MIN_H, Math.round(c.h + dh));
       if (newW !== c.w || newH !== c.h) {
@@ -3924,12 +3957,17 @@ export function CanvasSurface({
             let w = probe.naturalWidth, h = probe.naturalHeight;
             if (!w || !h) return;
             const MAX_DIM = 1200;
+            const MIN_DIM = 80;
             if (w > MAX_DIM || h > MAX_DIM) {
               const k = MAX_DIM / Math.max(w, h);
               w = Math.round(w * k);
               h = Math.round(h * k);
             }
-            w = Math.max(80, w); h = Math.max(80, h);
+            if (w < MIN_DIM || h < MIN_DIM) {
+              const k = MIN_DIM / Math.min(w, h);
+              w = Math.round(w * k);
+              h = Math.round(h * k);
+            }
             mutators.updateCard?.(id, {
               w, h,
               x: Math.max(8, Math.round(cx - w / 2)),
