@@ -4885,16 +4885,19 @@ export function CanvasSurface({
             {(arrows || []).map((a, i) => {
               const att = arrowAttachments[i];
               if (!att?.from || !att?.to) return null;
-              // Drop the arrow's own anchor cards (or group members) from
-              // the obstacle list — otherwise deflection would push the
-              // curve away from its own start/end.
-              const excludeFrom = excludedCardIdsForRef(a.from);
-              const excludeTo   = excludedCardIdsForRef(a.to);
-              const excludeSet = new Set();
-              if (excludeFrom) for (const id of excludeFrom) excludeSet.add(id);
-              if (excludeTo)   for (const id of excludeTo)   excludeSet.add(id);
+              // Keep the arrow's anchor cards (or group members) in the
+              // obstacle set but with a 1px pad so the bezier can attach
+              // at the edge while the body still can't sweep back across
+              // its own card. All other cards keep the geometry helper's
+              // default OBSTACLE_PAD.
+              const anchorIds = new Set();
+              const ef = excludedCardIdsForRef(a.from);
+              const et = excludedCardIdsForRef(a.to);
+              if (ef) ef.forEach(id => anchorIds.add(id));
+              if (et) et.forEach(id => anchorIds.add(id));
               const obstacles = a.straight ? null
-                : arrowObstacleRects.filter(r => !excludeSet.has(r.id));
+                : arrowObstacleRects.map(r =>
+                    anchorIds.has(r.id) ? { ...r, pad: 1 } : r);
               const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
               if (!built) return null;
               const { path, fromTangentIn, toTangentIn } = built;

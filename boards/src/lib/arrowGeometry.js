@@ -19,9 +19,10 @@ const FAN_T_MAX = 0.88;
 const HANDLE_MIN = 32;                 // cubic bezier control magnitude floor
 const HANDLE_MAX = 200;                //   …and ceiling
 const HANDLE_K   = 0.42;               //   …× distance between anchors
-const OBSTACLE_PAD = 14;               // breathing room around cards
+const OBSTACLE_PAD = 14;               // breathing room around cards (default; overridable per obstacle)
 const DEFLECT_ITERS = 12;              // # of repulsion passes (was 4)
-const DEFLECT_SAMPLES = 24;            // bezier sample points per pass (was 16)
+const DEFLECT_SAMPLES = 24;            // bezier sample points per deflection pass
+const CHECK_SAMPLES = 48;              // higher-resolution sampling for the final clip check
 const DEFLECT_BOOST = 2.4;             // over-push so the smoothed curve clears (was 1.6)
 // After repulsion, if the bezier still overlaps an obstacle, fall back
 // to a 3-segment orthogonal route that's guaranteed not to cross the
@@ -51,8 +52,9 @@ function deflectControlPoints(s, c1, c2, e, obstacles) {
       const t = i / DEFLECT_SAMPLES;
       const p = bezierPoint(s, c1, c2, e, t);
       for (const ob of obstacles) {
-        const halfW = ob.w / 2 + OBSTACLE_PAD;
-        const halfH = ob.h / 2 + OBSTACLE_PAD;
+        const pad = ob.pad != null ? ob.pad : OBSTACLE_PAD;
+        const halfW = ob.w / 2 + pad;
+        const halfH = ob.h / 2 + pad;
         const cx = ob.x + ob.w / 2, cy = ob.y + ob.h / 2;
         const offX = p.x - cx, offY = p.y - cy;
         if (Math.abs(offX) >= halfW || Math.abs(offY) >= halfH) continue;
@@ -83,17 +85,20 @@ function deflectControlPoints(s, c1, c2, e, obstacles) {
 }
 
 // True when any sample point along the cubic bezier sits inside (or
-// within OBSTACLE_PAD/2 of) one of the obstacle rects. Conservative —
-// the threshold is the obstacle inflated by OBSTACLE_PAD/2 so we
-// flag near-misses too.
+// within the obstacle's pad/2 of) one of the rects. Per-obstacle pad
+// lets the caller mark source/target anchor cards with a tight pad
+// so the curve can attach at the edge but still flags any mid-curve
+// re-entry. Sample resolution (CHECK_SAMPLES) is higher than the
+// deflection loop's so tall-narrow obstacles between widely-spaced
+// endpoints aren't slipped past.
 function bezierIntersectsObstacles(s, c1, c2, e, obstacles) {
-  const PAD = OBSTACLE_PAD * 0.5;
-  for (let i = 1; i < DEFLECT_SAMPLES; i++) {
-    const t = i / DEFLECT_SAMPLES;
+  for (let i = 1; i < CHECK_SAMPLES; i++) {
+    const t = i / CHECK_SAMPLES;
     const p = bezierPoint(s, c1, c2, e, t);
     for (const ob of obstacles) {
-      if (p.x > ob.x - PAD && p.x < ob.x + ob.w + PAD &&
-          p.y > ob.y - PAD && p.y < ob.y + ob.h + PAD) {
+      const pad = (ob.pad != null ? ob.pad : OBSTACLE_PAD) * 0.5;
+      if (p.x > ob.x - pad && p.x < ob.x + ob.w + pad &&
+          p.y > ob.y - pad && p.y < ob.y + ob.h + pad) {
         return true;
       }
     }
@@ -101,74 +106,158 @@ function bezierIntersectsObstacles(s, c1, c2, e, obstacles) {
   return false;
 }
 
-// Build a 3-segment polyline path from s to e that goes AROUND every
+// Build an SVG path string through N waypoints with rounded elbows. The
+// path is M p0 [L pre1 Q p1 post1 L pre2 Q p2 post2 ...] L pN. Each interior
+// waypoint becomes a quadratic-bezier rounded corner. Also returns the
+// pre/post points for the first and last elbow so the caller can compute
+// arrowhead travel directions.
+function buildSmoothPolyline(points) {
+  const RADIUS = 14;
+  if (points.length < 2) return null;
+  if (points.length === 2) {
+    const [p, q] = points;
+    return {
+      path: `M${p.x},${p.y} L${q.x},${q.y}`,
+      firstPre: p,
+      lastPost: q,
+    };
+  }
+  let d = `M${points[0].x},${points[0].y}`;
+  let firstPre = null;
+  let lastPost = null;
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const cur = points[i];
+    const next = points[i + 1];
+    const inX = Math.sign(cur.x - prev.x);
+    const inY = Math.sign(cur.y - prev.y);
+    const outX = Math.sign(next.x - cur.x);
+    const outY = Math.sign(next.y - cur.y);
+    const preX = cur.x - inX * Math.min(RADIUS, Math.abs(cur.x - prev.x) / 2);
+    const preY = cur.y - inY * Math.min(RADIUS, Math.abs(cur.y - prev.y) / 2);
+    const postX = cur.x + outX * Math.min(RADIUS, Math.abs(next.x - cur.x) / 2);
+    const postY = cur.y + outY * Math.min(RADIUS, Math.abs(next.y - cur.y) / 2);
+    d += ` L${preX},${preY} Q${cur.x},${cur.y} ${postX},${postY}`;
+    if (i === 1) firstPre = { x: preX, y: preY };
+    if (i === points.length - 2) lastPost = { x: postX, y: postY };
+  }
+  const last = points[points.length - 1];
+  d += ` L${last.x},${last.y}`;
+  return { path: d, firstPre, lastPost };
+}
+
+// Build a 2+-segment polyline path from s to e that goes AROUND every
 // obstacle. Strategy:
-//   1) Compute a routing channel that gives every obstacle DETOUR_PAD
-//      breathing room.
-//   2) Walk an "L" with a single elbow at one of four candidate corner
-//      points (chosen to skirt the obstacles). Pick the candidate whose
-//      total path-length is shortest AND doesn't itself cross any
-//      obstacle.
-//   3) Round the elbow with a small quadratic for a smooth look.
-// If no clear L exists (rare; dense clusters), fall back to a
-// staircase: out → along → up → along. Returns null if even that fails.
+//   1) Inflate each obstacle by DETOUR_PAD to give breathing room.
+//   2) Try a 1-elbow L: pick a corner waypoint k such that s→k and k→e
+//      are both axis-aligned and obstacle-clear. Score by total length.
+//   3) If no L works, try a 2-elbow Z/staircase: pick a pair k1,k2 from
+//      the obstacle corners (+ endpoint axis projections) such that
+//      s→k1→k2→e is fully axis-aligned and clear.
+//   4) Round elbows with quadratic beziers for a tidy look.
+// Returns null only if even the 2-elbow search fails (extremely rare).
 function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
   // Pad each obstacle for routing.
   const obs = obstacles.map(o => ({
     x: o.x - DETOUR_PAD, y: o.y - DETOUR_PAD,
     w: o.w + DETOUR_PAD * 2, h: o.h + DETOUR_PAD * 2,
   }));
-  // Candidate elbow corners.
-  const candidates = [
+  // ── 1-elbow candidates ──────────────────────────────────────────────
+  const oneElbow = [
     { x: e.x, y: s.y }, // horizontal-first
     { x: s.x, y: e.y }, // vertical-first
   ];
-  // Outside-the-obstacle corners — go past obstacles before turning.
   for (const o of obs) {
     if (segmentIntersectsRect(s, e, o)) {
-      candidates.push({ x: o.x - 1,         y: s.y });
-      candidates.push({ x: o.x + o.w + 1,   y: s.y });
-      candidates.push({ x: s.x,             y: o.y - 1 });
-      candidates.push({ x: s.x,             y: o.y + o.h + 1 });
-      candidates.push({ x: o.x - 1,         y: e.y });
-      candidates.push({ x: o.x + o.w + 1,   y: e.y });
-      candidates.push({ x: e.x,             y: o.y - 1 });
-      candidates.push({ x: e.x,             y: o.y + o.h + 1 });
+      oneElbow.push({ x: o.x - 1,       y: s.y });
+      oneElbow.push({ x: o.x + o.w + 1, y: s.y });
+      oneElbow.push({ x: s.x,           y: o.y - 1 });
+      oneElbow.push({ x: s.x,           y: o.y + o.h + 1 });
+      oneElbow.push({ x: o.x - 1,       y: e.y });
+      oneElbow.push({ x: o.x + o.w + 1, y: e.y });
+      oneElbow.push({ x: e.x,           y: o.y - 1 });
+      oneElbow.push({ x: e.x,           y: o.y + o.h + 1 });
     }
   }
   let best = null;
   let bestLen = Infinity;
-  for (const k of candidates) {
+  for (const k of oneElbow) {
     if (segmentIntersectsAny(s, k, obs) || segmentIntersectsAny(k, e, obs)) continue;
     const len = Math.hypot(k.x - s.x, k.y - s.y) + Math.hypot(e.x - k.x, e.y - k.y);
     if (len < bestLen) { bestLen = len; best = k; }
   }
-  if (!best) return null;
-  // Smooth the elbow with a small quadratic bezier (rounded corner).
-  const RADIUS = 14;
-  const a = best;
-  // Direction in/out of the elbow.
-  const inX = Math.sign(a.x - s.x);
-  const inY = Math.sign(a.y - s.y);
-  const outX = Math.sign(e.x - a.x);
-  const outY = Math.sign(e.y - a.y);
-  // Pre-elbow point: move RADIUS toward s along the incoming axis.
-  const preX = a.x - inX * Math.min(RADIUS, Math.abs(a.x - s.x) / 2);
-  const preY = a.y - inY * Math.min(RADIUS, Math.abs(a.y - s.y) / 2);
-  // Post-elbow point: move RADIUS away from a toward e.
-  const postX = a.x + outX * Math.min(RADIUS, Math.abs(e.x - a.x) / 2);
-  const postY = a.y + outY * Math.min(RADIUS, Math.abs(e.y - a.y) / 2);
-  const path = `M${s.x},${s.y} L${preX},${preY} Q${a.x},${a.y} ${postX},${postY} L${e.x},${e.y}`;
-  const midPoint = { x: a.x, y: a.y };
-  // Travel-in direction at the target is the unit vector from postPoint → e.
-  const tdx = e.x - postX, tdy = e.y - postY;
+  let waypoints = null;
+  if (best) {
+    waypoints = [s, best, e];
+  } else {
+    // ── 2-elbow Z/staircase candidates ───────────────────────────────
+    // Corner pool: each inflated obstacle's 4 corners, plus axis
+    // projections that snap a corner's x or y onto the endpoints'
+    // x/y so the three-segment route stays axis-aligned.
+    const corners = [];
+    for (const o of obs) {
+      const cs = [
+        { x: o.x,         y: o.y },
+        { x: o.x + o.w,   y: o.y },
+        { x: o.x,         y: o.y + o.h },
+        { x: o.x + o.w,   y: o.y + o.h },
+      ];
+      for (const c of cs) {
+        corners.push(c);
+        // Axis-projected variants so we can link s/e to this corner
+        // via a single axis-aligned segment.
+        corners.push({ x: c.x, y: s.y });
+        corners.push({ x: c.x, y: e.y });
+        corners.push({ x: s.x, y: c.y });
+        corners.push({ x: e.x, y: c.y });
+      }
+    }
+    let bestLen2 = Infinity;
+    let bestPair = null;
+    for (let i = 0; i < corners.length; i++) {
+      const k1 = corners[i];
+      // s→k1 must be axis-aligned (either x or y matches s).
+      if (k1.x !== s.x && k1.y !== s.y) continue;
+      if (segmentIntersectsAny(s, k1, obs)) continue;
+      const dSk1 = Math.hypot(k1.x - s.x, k1.y - s.y);
+      if (dSk1 >= bestLen2) continue; // prune
+      for (let j = 0; j < corners.length; j++) {
+        if (i === j) continue;
+        const k2 = corners[j];
+        // k1→k2 must be axis-aligned.
+        if (k1.x !== k2.x && k1.y !== k2.y) continue;
+        // s→k1 and k1→k2 must turn (not be the same axis), else this
+        // is effectively a 1-elbow we already tried.
+        const seg1Horiz = (k1.y === s.y);
+        const seg2Horiz = (k1.y === k2.y);
+        if (seg1Horiz === seg2Horiz) continue;
+        // k2→e must be axis-aligned.
+        if (k2.x !== e.x && k2.y !== e.y) continue;
+        if (segmentIntersectsAny(k1, k2, obs)) continue;
+        if (segmentIntersectsAny(k2, e, obs)) continue;
+        const len = dSk1
+                  + Math.hypot(k2.x - k1.x, k2.y - k1.y)
+                  + Math.hypot(e.x - k2.x, e.y - k2.y);
+        if (len < bestLen2) { bestLen2 = len; bestPair = [k1, k2]; }
+      }
+    }
+    if (bestPair) waypoints = [s, bestPair[0], bestPair[1], e];
+  }
+  if (!waypoints) return null;
+  const smooth = buildSmoothPolyline(waypoints);
+  if (!smooth) return null;
+  // Travel-in direction at target = unit vector from lastPost → e.
+  const tdx = e.x - smooth.lastPost.x;
+  const tdy = e.y - smooth.lastPost.y;
   const tlen = Math.hypot(tdx, tdy) || 1;
-  // Travel-in at the source (for reverse heads) is FROM preX,preY back toward s.
-  const fdx = s.x - preX, fdy = s.y - preY;
+  // Travel-in at source (for reverse heads) = unit vector from firstPre → s.
+  const fdx = s.x - smooth.firstPre.x;
+  const fdy = s.y - smooth.firstPre.y;
   const flen = Math.hypot(fdx, fdy) || 1;
+  const mid = waypoints[Math.floor(waypoints.length / 2)];
   return {
-    path,
-    midPoint,
+    path: smooth.path,
+    midPoint: { x: mid.x, y: mid.y },
     toTangentIn:   { ux: tdx / tlen, uy: tdy / tlen },
     fromTangentIn: { ux: fdx / flen, uy: fdy / flen },
   };
