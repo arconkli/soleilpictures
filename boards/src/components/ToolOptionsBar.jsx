@@ -278,16 +278,7 @@ export function ToolOptionsBar({
         </select>
         <span className="tob-sep" />
         <span className="tob-label">Angle</span>
-        <input
-          type="number"
-          className="tob-select"
-          step="1"
-          value={Math.round(currentAngle * 10) / 10}
-          onChange={(e) => setAngle(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-          style={{ width: 64 }}
-          title="Line angle in degrees (0 = horizontal right, 90 = straight down)"
-        />
+        <LineAngleInput angle={currentAngle} onCommit={setAngle} />
         <span className="tob-label" style={{ marginLeft: -4 }}>°</span>
       </div>
     );
@@ -402,6 +393,56 @@ export function ToolOptionsBar({
 }
 
 // ── Format buttons ────────────────────────────────────────────────────────
+
+// Display-helper: format an angle without a trailing ".0" — show
+// the integer when the value rounds clean, otherwise one decimal.
+function formatAngleForDisplay(n) {
+  if (!Number.isFinite(n)) return '';
+  const rounded = Math.round(n * 10) / 10;
+  if (Number.isInteger(rounded)) return String(Math.round(rounded));
+  return rounded.toFixed(1);
+}
+
+// Decoupled text-style angle input so the user can type partial /
+// decimal values without React rewriting the field on every keystroke.
+// Only commits on blur or Enter; type=text + inputMode=decimal so
+// no browser spinner arrows.
+function LineAngleInput({ angle, onCommit }) {
+  const [draft, setDraft] = useState(() => formatAngleForDisplay(angle));
+  const [editing, setEditing] = useState(false);
+  // Sync with external angle changes (e.g. user drags an endpoint)
+  // only when the input isn't currently being edited.
+  useEffect(() => {
+    if (!editing) setDraft(formatAngleForDisplay(angle));
+  }, [angle, editing]);
+  const commit = () => {
+    setEditing(false);
+    const n = parseFloat(draft);
+    if (Number.isFinite(n)) {
+      onCommit(n);
+      setDraft(formatAngleForDisplay(n));
+    } else {
+      setDraft(formatAngleForDisplay(angle));
+    }
+  };
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className="tob-select tob-angle-input"
+      value={draft}
+      onFocus={(e) => { setEditing(true); e.target.select(); }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { setDraft(formatAngleForDisplay(angle)); setEditing(false); e.currentTarget.blur(); }
+      }}
+      style={{ width: 56, textAlign: 'right' }}
+      title="Line angle in degrees (0 = horizontal right, 90 = straight down)"
+    />
+  );
+}
 
 function FormatBtn({ label, title, cmd, val, bold }) {
   return (
