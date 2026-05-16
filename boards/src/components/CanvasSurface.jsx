@@ -31,6 +31,7 @@ import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
 import { addRecentColor } from '../lib/recentColors.js';
+import { loadBoardView, saveBoardView } from '../lib/boardViewState.js';
 import { fetchLinkPreview } from '../lib/linkPreview.js';
 import { detectEmbed } from '../lib/oembed.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
@@ -628,13 +629,30 @@ export function CanvasSurface({
     if (r.width < 50 || r.height < 50) return;
     if (!ydoc && cards.length === 0) return; // not ready yet
     fitOnceForRef.current = board.id;
-    // Open every board at the same explicit zoom/pan so the user gets
-    // a predictable starting view. Boards with one huge note no longer
-    // open at 17%. Use "Full Board" (double-tap zoom button) to fit
-    // content into view on demand.
-    setZoom(1);
-    setPan({ x: 40, y: 60 });
+    // Restore the user's last zoom/pan for this board if we have one.
+    // Otherwise fall back to a predictable default. Use "Full Board"
+    // (double-tap zoom button) to fit content into view on demand.
+    const saved = loadBoardView(board.id);
+    if (saved) {
+      setZoom(saved.zoom);
+      setPan(saved.pan);
+    } else {
+      setZoom(1);
+      setPan({ x: 40, y: 60 });
+    }
   }, [cards, board.id, ydoc]);
+
+  // Persist zoom+pan changes per board so reopening the board resumes
+  // where the user left off. Debounced so rapid wheel/pan gestures
+  // produce one write at rest, not one per frame.
+  useEffect(() => {
+    if (!board?.id) return;
+    // Don't save until the load effect has run for THIS board (avoids
+    // overwriting saved state with the mount-time defaults).
+    if (fitOnceForRef.current !== board.id) return;
+    const tid = setTimeout(() => saveBoardView(board.id, { zoom, pan }), 400);
+    return () => clearTimeout(tid);
+  }, [zoom, pan.x, pan.y, board.id]);
 
   // Fit the entire board content into the viewport. Wired to a
   // double-tap on the zoom % control (replaces what used to happen
