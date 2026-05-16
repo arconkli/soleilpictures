@@ -280,6 +280,10 @@ export function CanvasSurface({
   // a captured closure goes stale across React re-renders).
   const [boardDropTarget, setBoardDropTarget] = useState(null);
   const boardDropTargetRef = useRef(null);
+  // Tracks the last endpoint-handle click so a second click within
+  // ~350ms on the same endpoint spawns a sibling line/arrow (see
+  // onHandleDown's dblclick branch).
+  const lastEndpointClickRef = useRef({ time: 0, idx: -1, which: null });
   // 80ms hover-prefetch debounce for board/boardlink cards. Mouse-sweep
   // across many cards won't trigger fetches; pausing on a single card
   // for >80ms warms its snapshot.
@@ -4882,6 +4886,38 @@ export function CanvasSurface({
               const onHandleDown = (which) => (ev) => {
                 ev.preventDefault();
                 ev.stopPropagation();
+                // Double-click detection: a second pointerdown on the
+                // same endpoint within 350ms spawns a NEW line/arrow
+                // from that endpoint with the source's exact style.
+                // Lets the user "branch" / continue from an existing
+                // line without redoing color/width/dash each time.
+                const now = Date.now();
+                const prev = lastEndpointClickRef.current;
+                if (prev.time && now - prev.time < 350 && prev.idx === idx && prev.which === which) {
+                  lastEndpointClickRef.current = { time: 0, idx: -1, which: null };
+                  // Anchor at the existing endpoint's canvas-space position.
+                  const anchorPt = which === 'from' ? att.from.point : att.to.point;
+                  const offsetX = 80 / zoom;
+                  const newFrom = { x: Math.round(anchorPt.x), y: Math.round(anchorPt.y) };
+                  const newTo   = { x: Math.round(anchorPt.x + offsetX), y: Math.round(anchorPt.y) };
+                  const opts = {
+                    straight: !!a.straight,
+                    head: a.head ?? 'single',
+                  };
+                  if (a.color != null) opts.color = a.color;
+                  if (a.thickness != null) opts.thickness = a.thickness;
+                  if (a.customStroke != null) opts.customStroke = a.customStroke;
+                  if (a.customStrokeWidth != null) opts.customStrokeWidth = a.customStrokeWidth;
+                  if (a.customDash != null) opts.customDash = a.customDash;
+                  if (a.dashed) opts.dashed = a.dashed;
+                  const newIdx = (arrows || []).length;
+                  mutators.addFreeArrow?.(newFrom, newTo, opts);
+                  setSelectedArrows(new Set([newIdx]));
+                  setSelected(new Set());
+                  setSelectedStrokes(new Set());
+                  return;
+                }
+                lastEndpointClickRef.current = { time: now, idx, which };
                 const snapTargets = collectSnapTargets();
                 const onMove = (mv) => {
                   const canvas = clientToCanvas(mv.clientX, mv.clientY);
