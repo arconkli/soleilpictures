@@ -819,13 +819,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const addTextLink = addNote; // identical for now
     const dropImageBlob = ({ id, publicUrl, width, height, x, y }) => {
-      let w = 240, h = 200;
+      // Preserve natural dimensions and aspect ratio. Same sizing
+      // approach as optimisticDropImage in CanvasSurface: scale DOWN
+      // proportionally above MAX, scale UP proportionally below MIN,
+      // never distort the aspect. Replaces an older width=280 /
+      // height=240 cage that made every image come in at the same
+      // size regardless of source dimensions.
+      const MAX_IMAGE_DIM = 1200;
+      const MIN_IMAGE_DIM = 80;
+      let w = 320, h = 240;
       if (width && height) {
-        const ar = width / height;
-        if (ar >= 1) { w = 280; h = Math.round(280 / ar); }
-        else { h = 240; w = Math.round(240 * ar); }
-        h = Math.max(80, Math.min(360, h));
-        w = Math.max(80, Math.min(420, w));
+        w = width; h = height;
+        if (w > MAX_IMAGE_DIM || h > MAX_IMAGE_DIM) {
+          const k = MAX_IMAGE_DIM / Math.max(w, h);
+          w = Math.round(w * k); h = Math.round(h * k);
+        }
+        if (w < MIN_IMAGE_DIM || h < MIN_IMAGE_DIM) {
+          const k = MIN_IMAGE_DIM / Math.min(w, h);
+          w = Math.round(w * k); h = Math.round(h * k);
+        }
       }
       addCard({
         id: id || `img-${Date.now()}`, kind: 'image', src: publicUrl,
