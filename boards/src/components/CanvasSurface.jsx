@@ -2424,6 +2424,47 @@ export function CanvasSurface({
     }
   };
 
+  // Pointer-down on an arrow's hit-path. Selects the arrow, then if
+  // the user keeps dragging, translates the whole arrow (both
+  // endpoints) — only valid when BOTH endpoints are free points,
+  // not card-anchored (card anchors stay attached to their cards).
+  const onArrowBodyPointerDown = (e, idx) => {
+    if (e.button !== 0) return;
+    if (selectedTool !== 'select') return;
+    e.stopPropagation();
+    // Select first (matches onArrowClick behavior).
+    const sel = e.shiftKey ? new Set(selectedArrows) : new Set();
+    if (sel.has(idx)) sel.delete(idx); else sel.add(idx);
+    setSelectedArrows(sel);
+    if (!e.shiftKey) { setSelected(new Set()); setSelectedStrokes(new Set()); }
+    // Only support body-drag when both endpoints are free {x,y} points.
+    const a = (arrows || [])[idx];
+    if (!a) return;
+    const fromIsFree = a.from && typeof a.from === 'object' && !a.from.cardId && !a.from.id;
+    const toIsFree   = a.to   && typeof a.to   === 'object' && !a.to.cardId   && !a.to.id;
+    if (!fromIsFree || !toIsFree) return;
+    const startClient = { x: e.clientX, y: e.clientY };
+    const startFrom = { x: a.from.x, y: a.from.y };
+    const startTo   = { x: a.to.x,   y: a.to.y };
+    let dragged = false;
+    const onMove = (mv) => {
+      const dx = (mv.clientX - startClient.x) / zoom;
+      const dy = (mv.clientY - startClient.y) / zoom;
+      if (!dragged && Math.hypot(dx * zoom, dy * zoom) < 3) return;
+      dragged = true;
+      mutators.updateArrow?.(idx, {
+        from: { x: Math.round(startFrom.x + dx), y: Math.round(startFrom.y + dy) },
+        to:   { x: Math.round(startTo.x + dx),   y: Math.round(startTo.y + dy) },
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   // Right-click on an arrow → small menu with edit-label + toggle
   // double-sided + delete. Uses bgCtx state so the existing
   // BackgroundContextMenu component can render it.
@@ -2925,16 +2966,27 @@ export function CanvasSurface({
       const startClient = { x: e.clientX, y: e.clientY };
       let moved = false;
       let lastBounds = null;
+      let lastCur = startC; // preserves actual pointer direction for line tool
       const onMove = (ev) => {
         if (!moved && Math.abs(ev.clientX - startClient.x) < 4 && Math.abs(ev.clientY - startClient.y) < 4) return;
         moved = true;
         const cur = clientToCanvas(ev.clientX, ev.clientY);
         let w = cur.x - startC.x, h = cur.y - startC.y;
-        // Shift = constrain to square
+        // Shift = constrain to square (for non-line shapes). For lines,
+        // shift = constrain to 0/45/90 degree angles.
         if (ev.shiftKey) {
-          const m = Math.max(Math.abs(w), Math.abs(h));
-          w = Math.sign(w || 1) * m; h = Math.sign(h || 1) * m;
+          if (shapeOptions.shape === 'line') {
+            const ang = Math.atan2(h, w);
+            const snapAng = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
+            const len = Math.hypot(w, h);
+            w = Math.cos(snapAng) * len;
+            h = Math.sin(snapAng) * len;
+          } else {
+            const m = Math.max(Math.abs(w), Math.abs(h));
+            w = Math.sign(w || 1) * m; h = Math.sign(h || 1) * m;
+          }
         }
+        lastCur = { x: startC.x + w, y: startC.y + h };
         lastBounds = {
           x: Math.min(startC.x, startC.x + w),
           y: Math.min(startC.y, startC.y + h),
@@ -2952,7 +3004,21 @@ export function CanvasSurface({
         const dragOk = isLinear
           ? lastBounds && Math.hypot(lastBounds.w, lastBounds.h) > 12
           : lastBounds && lastBounds.w > 6 && lastBounds.h > 6;
-        if (moved && dragOk) {
+        if (moved && dragOk && shapeOptions.shape === 'line') {
+          // Lines route through the arrow infrastructure (no head) so
+          // they get endpoint handles, snap-to-cards, and body-drag
+          // for free. Shape-tool color/width/dash carry over via a
+          // `customStroke` field that the arrow renderer honors.
+          const from = { x: Math.round(startC.x), y: Math.round(startC.y) };
+          const to   = { x: Math.round(lastCur.x), y: Math.round(lastCur.y) };
+          mutators.addFreeArrow?.(from, to, {
+            straight: true,
+            head: 'none',
+            customStroke: shapeOptions.stroke || null,
+            customStrokeWidth: shapeOptions.strokeWidth ?? null,
+            customDash: shapeOptions.dash === 'solid' ? null : (shapeOptions.dash || null),
+          });
+        } else if (moved && dragOk) {
           // Create at the bounds (NOT centered on click point)
           const id = `shape-${Date.now()}`;
           mutators.addCard?.({
@@ -2964,8 +3030,9 @@ export function CanvasSurface({
             dash: shapeOptions.dash || 'solid',
             x: Math.round(lastBounds.x),
             y: Math.round(lastBounds.y),
-            // Lines/arrows need a clickable bounding box even when the
-            // user dragged perfectly horizontally or vertically.
+            // Arrow shape cards still need a clickable bounding box for
+            // flat drags. (Line shapes now use the arrow path above so
+            // this branch only handles rect/ellipse/diamond/etc.)
             w: Math.max(isLinear ? 16 : 1, Math.round(lastBounds.w)),
             h: Math.max(isLinear ? 16 : 1, Math.round(lastBounds.h)),
           });
@@ -4706,14 +4773,25 @@ export function CanvasSurface({
               const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
               if (!built) return null;
               const { path, fromTangentIn, toTangentIn } = built;
-              const stroke = arrowColor(a.color);
-              const sw = arrowStrokeWidth(a.thickness);
+              // Lines created via the Shape tool override the arrow's
+              // palette/thickness tokens with raw values so the user's
+              // chosen color, stroke width, and dash style apply directly.
+              const stroke = a.customStroke || arrowColor(a.color);
+              const sw = (typeof a.customStrokeWidth === 'number' && a.customStrokeWidth >= 0)
+                ? Math.max(0.5, a.customStrokeWidth)
+                : arrowStrokeWidth(a.thickness);
               const hd = arrowHeadSize(a.thickness);
               const headStyle = arrowHeadStyle(a);
               const showForwardHead = headStyle !== 'none';
               const showReverseHead = headStyle === 'double';
               const headForward = showForwardHead ? arrowHeadPolygon(att.to.point, toTangentIn, hd) : null;
               const headReverse = showReverseHead ? arrowHeadPolygon(att.from.point, fromTangentIn, hd) : null;
+              // Dash pattern: customDash from shape-line ('dashed' / 'dotted'),
+              // legacy a.dashed boolean, or solid.
+              let dashArray = '0';
+              if (a.customDash === 'dashed') dashArray = `${sw * 4} ${sw * 3}`;
+              else if (a.customDash === 'dotted') dashArray = `${sw * 1} ${sw * 2}`;
+              else if (a.dashed) dashArray = `${sw * 4} ${sw * 3}`;
               const sel = selectedArrows.has(i);
               const pathId = `${arrowPathIdPrefix}${i}`;
               return (
@@ -4721,13 +4799,13 @@ export function CanvasSurface({
                   {/* Hit target — only path with pointer-events; svg root is none. */}
                   <path d={path} fill="none" stroke="transparent" strokeWidth={Math.max(14, sw + 12)}
                         pointerEvents={strokesInteractive ? 'stroke' : 'none'}
-                        style={{ cursor: strokesInteractive ? 'pointer' : 'default' }}
-                        onPointerDown={strokesInteractive ? (ev) => onArrowClick(ev, i) : undefined}
+                        style={{ cursor: strokesInteractive ? 'move' : 'default' }}
+                        onPointerDown={strokesInteractive ? (ev) => onArrowBodyPointerDown(ev, i) : undefined}
                         onContextMenu={strokesInteractive ? (ev) => onArrowContextMenu(ev, i) : undefined} />
                   {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)"
                                 strokeWidth={sw + 5} strokeLinecap="round" pointerEvents="none" />}
                   <path id={pathId} data-arrow-line d={path} fill="none" stroke={stroke} strokeWidth={sw}
-                        strokeDasharray={a.dashed ? `${sw * 4} ${sw * 3}` : '0'}
+                        strokeDasharray={dashArray}
                         strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
                   {headForward && <polygon points={headForward} fill={stroke} pointerEvents="none" />}
                   {headReverse && <polygon points={headReverse} fill={stroke} pointerEvents="none" />}
@@ -4755,19 +4833,56 @@ export function CanvasSurface({
               const att = arrowAttachments[idx];
               if (!a || !att?.from || !att?.to) return null;
               const HANDLE_R = 6 / zoom;
+              // Snap distance in canvas units (12px on screen at any zoom).
+              const SNAP_DIST = 12 / zoom;
+              // Collect snap targets: other arrows' endpoints + card corners.
+              // Recomputed inside the handler so it's a fresh capture each drag.
+              const collectSnapTargets = () => {
+                const targets = [];
+                // Other arrows' endpoints (both ends of every arrow except this one).
+                (arrows || []).forEach((other, j) => {
+                  if (j === idx) return;
+                  const oAtt = arrowAttachments[j];
+                  if (oAtt?.from?.point) targets.push({ x: oAtt.from.point.x, y: oAtt.from.point.y });
+                  if (oAtt?.to?.point)   targets.push({ x: oAtt.to.point.x,   y: oAtt.to.point.y });
+                });
+                // Card corners.
+                (cards || []).forEach(c => {
+                  targets.push({ x: c.x,         y: c.y });
+                  targets.push({ x: c.x + c.w,   y: c.y });
+                  targets.push({ x: c.x,         y: c.y + c.h });
+                  targets.push({ x: c.x + c.w,   y: c.y + c.h });
+                });
+                return targets;
+              };
               const onHandleDown = (which) => (ev) => {
                 ev.preventDefault();
                 ev.stopPropagation();
-                const startCanvas = clientToCanvas(ev.clientX, ev.clientY);
-                let lastCanvas = startCanvas;
+                const snapTargets = collectSnapTargets();
                 const onMove = (mv) => {
-                  lastCanvas = clientToCanvas(mv.clientX, mv.clientY);
-                  // Live-update the arrow endpoint as a free point.
-                  // Snap to a card if the pointer is hovering one.
+                  const canvas = clientToCanvas(mv.clientX, mv.clientY);
+                  // 1) Card snap: pointer hovering a card → anchor the
+                  //    endpoint to that card (the existing behavior).
                   const overEl = document.elementFromPoint(mv.clientX, mv.clientY);
                   const cardEl = overEl?.closest?.('[data-card-id]');
                   const cardId = cardEl?.getAttribute?.('data-card-id');
-                  const next = cardId ? cardId : { x: Math.round(lastCanvas.x), y: Math.round(lastCanvas.y) };
+                  if (cardId) {
+                    mutators.updateArrow?.(idx, which === 'from' ? { from: cardId } : { to: cardId });
+                    return;
+                  }
+                  // 2) Point snap: nearest other endpoint or card corner
+                  //    within SNAP_DIST takes priority over the raw
+                  //    pointer position. Lets the user connect line
+                  //    endpoints to other lines / shape corners.
+                  let best = null;
+                  let bestD = SNAP_DIST;
+                  for (const t of snapTargets) {
+                    const d = Math.hypot(t.x - canvas.x, t.y - canvas.y);
+                    if (d < bestD) { bestD = d; best = t; }
+                  }
+                  const next = best
+                    ? { x: Math.round(best.x), y: Math.round(best.y) }
+                    : { x: Math.round(canvas.x), y: Math.round(canvas.y) };
                   mutators.updateArrow?.(idx, which === 'from' ? { from: next } : { to: next });
                 };
                 const onUp = () => {
