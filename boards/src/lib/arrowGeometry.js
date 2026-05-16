@@ -19,7 +19,10 @@ const FAN_T_MAX = 0.88;
 const HANDLE_MIN = 32;                 // cubic bezier control magnitude floor
 const HANDLE_MAX = 200;                //   …and ceiling
 const HANDLE_K   = 0.42;               //   …× distance between anchors
-const OBSTACLE_PAD = 18;               // breathing room around cards (default; overridable per obstacle)
+const OBSTACLE_PAD = 14;               // aspirational breathing room for deflection (overridable per obstacle)
+const CHECK_PAD = 2;                   // detour-trigger threshold — only flag samples that ACTUALLY clip
+                                       // (separate from OBSTACLE_PAD so curves can pass close to cards
+                                       //  without forcing a blocky orthogonal fallback)
 const DEFLECT_ITERS = 20;              // # of repulsion passes
 const DEFLECT_SAMPLES = 24;            // bezier sample points per deflection pass
 const CHECK_SAMPLES = 48;              // higher-resolution sampling for the final clip check
@@ -84,22 +87,22 @@ function deflectControlPoints(s, c1, c2, e, obstacles) {
   return { c1, c2 };
 }
 
-// True when any sample point along the cubic bezier sits inside (or
-// within the obstacle's pad/2 of) one of the rects. Per-obstacle pad
-// lets the caller mark source/target anchor cards with a tight pad
-// so the curve can attach at the edge but still flags any mid-curve
-// re-entry. Sample resolution (CHECK_SAMPLES) is higher than the
-// deflection loop's so tall-narrow obstacles between widely-spaced
-// endpoints aren't slipped past.
+// True when any sample point along the cubic bezier ACTUALLY clips an
+// obstacle — uses a tight CHECK_PAD (~2px) so curves are allowed to pass
+// close to cards without forcing an orthogonal fallback. Anchor cards
+// keep their own per-obstacle pad (smaller) so endpoint attachment isn't
+// mis-flagged. Sample resolution is higher than the deflection loop's so
+// tall-narrow obstacles between widely-spaced endpoints aren't slipped
+// past.
 function bezierIntersectsObstacles(s, c1, c2, e, obstacles) {
   for (let i = 1; i < CHECK_SAMPLES; i++) {
     const t = i / CHECK_SAMPLES;
     const p = bezierPoint(s, c1, c2, e, t);
     for (const ob of obstacles) {
-      // Use the full pad here — same target as the deflection loop —
-      // so there's no "close but not touching" gap where the curve
-      // hugs an edge but the detour never fires.
-      const pad = (ob.pad != null ? ob.pad : OBSTACLE_PAD);
+      // Anchor cards: respect their tight per-obstacle pad. Other cards:
+      // use the small CHECK_PAD so we only flag near-true overlap, not
+      // any "close pass" within the aspirational deflection target.
+      const pad = ob.pad != null ? ob.pad : CHECK_PAD;
       if (p.x > ob.x - pad && p.x < ob.x + ob.w + pad &&
           p.y > ob.y - pad && p.y < ob.y + ob.h + pad) {
         return true;
@@ -160,11 +163,17 @@ function buildSmoothPolyline(points) {
 //   4) Round elbows with quadratic beziers for a tidy look.
 // Returns null only if even the 2-elbow search fails (extremely rare).
 function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
-  // Pad each obstacle for routing.
-  const allObs = obstacles.map(o => ({
-    x: o.x - DETOUR_PAD, y: o.y - DETOUR_PAD,
-    w: o.w + DETOUR_PAD * 2, h: o.h + DETOUR_PAD * 2,
-  }));
+  // Pad each obstacle for routing. Respect the per-obstacle pad so that
+  // anchor cards (which the caller marks with pad=1) don't inflate to
+  // DETOUR_PAD=28 and trap the endpoint inside their own inflated rect —
+  // that would make every candidate L/Z segment from s fail clearance.
+  const allObs = obstacles.map(o => {
+    const pad = o.pad != null ? o.pad : DETOUR_PAD;
+    return {
+      x: o.x - pad, y: o.y - pad,
+      w: o.w + pad * 2, h: o.h + pad * 2,
+    };
+  });
   // Drop obstacles entirely outside the routing region — they can't lie
   // on any reasonable detour between s and e, but they'd pollute the
   // corner pool and quadratically blow up the 2-elbow search on dense
@@ -271,9 +280,11 @@ function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
   }
   if (!waypoints) {
     // Last resort: walk around the bounding box of all relevant
-    // obstacles. Guaranteed not to cross any obstacle as long as the
-    // bbox itself is axis-aligned (it is). May be a long detour, but
-    // the user wants "avoid cards at all costs".
+    // obstacles. May be a long detour, but the user wants "avoid
+    // cards at all costs". Try all four rails (above/below/left/right)
+    // and pick the shortest one whose ALL segments are clear — the
+    // vertical/horizontal exits from s/e can still cross cards if a
+    // card sits between s/e and the rail, so we must check.
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const o of obs) {
       if (o.x < minX) minX = o.x;
@@ -282,22 +293,25 @@ function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
       if (o.y + o.h > maxY) maxY = o.y + o.h;
     }
     if (Number.isFinite(minX)) {
-      const above = minY - 2;
-      const below = maxY + 2;
-      const left  = minX - 2;
-      const right = maxX + 2;
-      // Pick whichever side (horizontal rail / vertical rail) gives the
-      // shortest 3-segment detour. The rail runs strictly outside the
-      // obstacle bbox so the cross segment is guaranteed clear.
-      const hAbove = Math.abs(above - s.y) + Math.abs(e.x - s.x) + Math.abs(e.y - above);
-      const hBelow = Math.abs(below - s.y) + Math.abs(e.x - s.x) + Math.abs(e.y - below);
-      const vLeft  = Math.abs(left  - s.x) + Math.abs(e.y - s.y) + Math.abs(e.x - left);
-      const vRight = Math.abs(right - s.x) + Math.abs(e.y - s.y) + Math.abs(e.x - right);
-      const best4 = Math.min(hAbove, hBelow, vLeft, vRight);
-      if (best4 === hAbove)      waypoints = [s, { x: s.x, y: above }, { x: e.x, y: above }, e];
-      else if (best4 === hBelow) waypoints = [s, { x: s.x, y: below }, { x: e.x, y: below }, e];
-      else if (best4 === vLeft)  waypoints = [s, { x: left,  y: s.y }, { x: left,  y: e.y }, e];
-      else                       waypoints = [s, { x: right, y: s.y }, { x: right, y: e.y }, e];
+      const rails = [
+        { wp: [s, { x: s.x, y: minY - 2 }, { x: e.x, y: minY - 2 }, e] },
+        { wp: [s, { x: s.x, y: maxY + 2 }, { x: e.x, y: maxY + 2 }, e] },
+        { wp: [s, { x: minX - 2, y: s.y }, { x: minX - 2, y: e.y }, e] },
+        { wp: [s, { x: maxX + 2, y: s.y }, { x: maxX + 2, y: e.y }, e] },
+      ];
+      let bestRail = null;
+      let bestLen = Infinity;
+      for (const r of rails) {
+        const w = r.wp;
+        if (segmentIntersectsAny(w[0], w[1], obs)) continue;
+        if (segmentIntersectsAny(w[1], w[2], obs)) continue;
+        if (segmentIntersectsAny(w[2], w[3], obs)) continue;
+        const len = Math.hypot(w[1].x - w[0].x, w[1].y - w[0].y) +
+                    Math.hypot(w[2].x - w[1].x, w[2].y - w[1].y) +
+                    Math.hypot(w[3].x - w[2].x, w[3].y - w[2].y);
+        if (len < bestLen) { bestLen = len; bestRail = w; }
+      }
+      if (bestRail) waypoints = bestRail;
     }
   }
   if (!waypoints) return null;
