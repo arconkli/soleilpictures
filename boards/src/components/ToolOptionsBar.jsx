@@ -430,7 +430,7 @@ function LineAngleInput({ angle, onCommit }) {
     <input
       type="text"
       inputMode="decimal"
-      className="tob-select tob-angle-input"
+      className="tob-numinput tob-angle-input"
       value={draft}
       onFocus={(e) => { setEditing(true); e.target.select(); }}
       onChange={(e) => setDraft(e.target.value)}
@@ -469,7 +469,7 @@ function LinePxInput({ value, onCommit }) {
     <input
       type="text"
       inputMode="decimal"
-      className="tob-select tob-px-input"
+      className="tob-numinput tob-px-input"
       value={draft}
       onFocus={(e) => { setEditing(true); e.target.select(); }}
       onChange={(e) => setDraft(e.target.value)}
