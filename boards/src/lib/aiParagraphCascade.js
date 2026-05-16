@@ -15,9 +15,10 @@
 // the word as the user edits text around it.
 
 import { supabase } from './supabase.js';
-import { applyCards, parsePgvector } from './tagsClient.js';
+import { applyCards, embedCards, parsePgvector } from './tagsClient.js';
 import { tagDocRange } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
+import { cosineDist, NO_MATCH_DIST } from './clusterMath.js';
 
 // Verdict cache: skip the /apply round-trip when we've already
 // scored a (paragraph, tag) pair for this content. Keyed by
@@ -95,18 +96,67 @@ export async function runParagraphCascade({
     }
   }
 
-  // 2. Batched /apply for uncached paragraphs. Each "card" is one
-  //    paragraph + the full candidate tag list. The AI returns word
-  //    annotations per tag verdict (see worker-tags.js).
+  // 2. Embedding pre-filter. Embed each uncached paragraph and drop
+  //    candidate tags whose centroid is too far (cosine > NO_MATCH_DIST)
+  //    BEFORE the gpt-4o call. Without this, every workspace tag is a
+  //    candidate for every paragraph, so the model gets dozens of
+  //    chances per paragraph to misfire on a brand-name tag (e.g.
+  //    "Clusters logo" applied to a paragraph about networking events).
+  //    Tags with no centroid yet (cold start) skip the filter.
+  const paraEmbeddingByHash = new Map();
+  if (needCalls.length > 0) {
+    try {
+      const r = await embedCards(needCalls.map(c => ({ id: c.p.pHash, text: c.p.text })));
+      for (const e of (r?.embeddings || [])) {
+        if (e?.id && Array.isArray(e.vector)) paraEmbeddingByHash.set(e.id, e.vector);
+      }
+    } catch (e) {
+      console.warn('[paragraph-cascade] embed pre-filter failed; falling back to full tag list', e?.message || e);
+    }
+  }
+  const candidatesForParagraph = (pHash) => {
+    const emb = paraEmbeddingByHash.get(pHash);
+    if (!emb) return candidateTags; // no embedding → don't filter
+    const out = [];
+    for (const t of candidateTags) {
+      const cent = tagCentroids.get(t.id)?.vector;
+      // Cold-start (no centroid yet) → keep; otherwise drop if too far.
+      if (!cent) { out.push(t); continue; }
+      const d = cosineDist(emb, cent);
+      if (d <= NO_MATCH_DIST) out.push(t);
+    }
+    return out;
+  };
+
+  // 3. Batched /apply for uncached paragraphs. Each "card" is one
+  //    paragraph + the (now-filtered) candidate tag list.
   if (needCalls.length > 0) {
     const BATCH = 4; // paragraphs per /apply call (each carries the full tag list — keep batches small)
     for (let i = 0; i < needCalls.length; i += BATCH) {
       const slice = needCalls.slice(i, i + BATCH);
-      const cards = slice.map(c => ({
-        id: c.p.pHash,
-        text: c.p.text,
-        candidate_tags: candidateTags,
-      }));
+      // Per-paragraph filtered candidate list; remember which tags were
+      // filtered out so we can cache them as "no words" below and skip
+      // refetching next save.
+      const filteredByHash = new Map();
+      for (const c of slice) filteredByHash.set(c.p.pHash, candidatesForParagraph(c.p.pHash));
+      const cards = slice
+        .map(c => ({
+          id: c.p.pHash,
+          text: c.p.text,
+          candidate_tags: filteredByHash.get(c.p.pHash) || candidateTags,
+        }))
+        .filter(card => card.candidate_tags.length > 0);
+      // For paragraphs whose entire candidate list was filtered out,
+      // still cache empty verdicts so we don't refetch next save.
+      for (const c of slice) {
+        const cands = filteredByHash.get(c.p.pHash) || candidateTags;
+        if (cands.length === 0) {
+          for (const t of candidateTags) {
+            paragraphVerdictCache.set(`${c.p.pHash}::${t.id}`, []);
+          }
+        }
+      }
+      if (cards.length === 0) continue;
       let verdicts = [];
       try {
         const resp = await applyCards(cards);
@@ -305,15 +355,36 @@ async function wipePageRangeRows({ docCardId, pageId }) {
 // fall back to the raw tags table when centroids aren't there yet.
 export async function loadWorkspaceTagCentroids(workspaceId) {
   if (!supabase || !workspaceId) return new Map();
-  // Always grab the tags table directly — names + colors are what we
-  // need for the /apply call. Centroids exist for cards but not all
-  // workspaces have one for every tag.
-  const { data: tags, error } = await supabase
-    .from('tags')
-    .select('id, name, color')
-    .eq('workspace_id', workspaceId);
-  if (error) { console.warn('[paragraph-cascade] tag load', error.message); return new Map(); }
+  // Tags + their AI descriptions + their embedding centroids (when
+  // present). The centroid is what we use to filter unrelated tags
+  // out of the apply-call candidate list — tags whose centroid is
+  // > NO_MATCH_DIST from a paragraph never get evaluated. Tags
+  // without a centroid yet (cold start) skip the filter.
+  const [tagsRes, centroidsRes] = await Promise.all([
+    supabase.from('tags').select('id, name, color, description').eq('workspace_id', workspaceId),
+    supabase.from('tag_centroids').select('tag_id, centroid').eq('workspace_id', workspaceId),
+  ]);
+  if (tagsRes.error) {
+    console.warn('[paragraph-cascade] tag load', tagsRes.error.message);
+    return new Map();
+  }
+  if (centroidsRes.error) {
+    // Non-fatal — just means we skip the embedding pre-filter.
+    console.warn('[paragraph-cascade] centroid load', centroidsRes.error.message);
+  }
+  const centroidById = new Map();
+  for (const r of (centroidsRes.data || [])) {
+    const v = parsePgvector(r.centroid);
+    if (v) centroidById.set(r.tag_id, v);
+  }
   const out = new Map();
-  for (const t of (tags || [])) out.set(t.id, { vector: null, name: t.name, color: t.color });
+  for (const t of (tagsRes.data || [])) {
+    out.set(t.id, {
+      vector: centroidById.get(t.id) || null,
+      name: t.name,
+      color: t.color,
+      description: t.description || null,
+    });
+  }
   return out;
 }
