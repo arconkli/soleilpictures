@@ -28,6 +28,9 @@ const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 const RAILS_KEY = 'soleil.boards.docRails';
 const ZOOM_KEY = 'soleil.boards.docZoom';
 const ZOOM_MIN = 0.5;
+// Auto-create a sibling page when the editor wrap grows past ~90% of one
+// printed page (1056px = 11" at 96dpi). Fires at most once per active page.
+const AUTO_NEW_PAGE_THRESHOLD = 950;
 const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1;
 const clampZoom = (z) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(z * 100) / 100));
@@ -223,6 +226,46 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pages.length]);
 
+  // Add a sibling page right after the active page (no view switch).
+  // Used by both the manual "+ New page" button below the editor and the
+  // ResizeObserver-driven auto-create below.
+  const pagesRef = useRef(pages);
+  useEffect(() => { pagesRef.current = pages; }, [pages]);
+  const addSiblingBelow = useCallback(() => {
+    const cur = pagesRef.current.find(p => p.id === activePageId);
+    if (!cur) return;
+    addPage(ydoc, { parent_id: cur.parent_id ?? null, scope });
+  }, [activePageId, ydoc, scope]);
+
+  // Auto-create a sibling when the current page's editor wrap fills up.
+  // Keyed by activePageId so each page fires at most once. Skipped if a
+  // next-sibling already exists.
+  const autoFiredRef = useRef(new Map());
+  useEffect(() => {
+    if (!ready || !activePageId) return;
+    const paper = paperRef.current;
+    if (!paper) return;
+    const wrap = paper.querySelector('.doc-editor-wrap');
+    if (!wrap) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        if (e.contentRect.height < AUTO_NEW_PAGE_THRESHOLD) continue;
+        if (autoFiredRef.current.get(activePageId)) continue;
+        const all = pagesRef.current;
+        const cur = all.find(p => p.id === activePageId);
+        if (!cur) continue;
+        const hasNext = all.some(p =>
+          p.parent_id === cur.parent_id && (p.order ?? 0) > (cur.order ?? 0)
+        );
+        if (hasNext) continue;
+        autoFiredRef.current.set(activePageId, true);
+        addPage(ydoc, { parent_id: cur.parent_id ?? null, scope });
+      }
+    });
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, [activePageId, ready, ydoc, scope]);
+
   // Honor a "jump to this bookmark on open" request that came in via a
   // soleil:// link from another doc. Switch to its page first; the editor
   // mounts and we scroll once it's ready.
@@ -415,6 +458,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             />
           ) : (
             <div className="doc-empty">No page selected.</div>
+          )}
+          {activePageId && canEdit && (
+            <button className="doc-add-page-below"
+                    type="button"
+                    onClick={addSiblingBelow}
+                    title="Add a new page after this one">
+              + New page
+            </button>
           )}
         </div>
         <DocStatusFooter editor={editorRef.current} ydoc={ydoc} />

@@ -301,6 +301,19 @@ export async function tagDocPage({ workspaceId, docCardId, pageId, boardId = nul
   if (error && error.code !== '23505') throw error;
 }
 
+export async function untagDocPage({ workspaceId, docCardId, pageId, tagId }) {
+  if (!workspaceId || !docCardId || !pageId || !tagId) return;
+  const { error } = await supabase.from('entity_links').delete()
+    .eq('source_kind', 'doc')
+    .eq('source_id', String(docCardId))
+    .eq('source_workspace', workspaceId)
+    .eq('source_page_id', String(pageId))
+    .eq('target_kind', 'tag')
+    .eq('target_id', tagId)
+    .eq('link_kind', 'applied');
+  if (error) throw error;
+}
+
 // Range-anchored doc apply: a tag scoped to a paragraph (or smaller
 // span). source_anchor carries { pHash, startOffset, length } —
 // pHash is the FNV-1a of the paragraph text so the renderer can

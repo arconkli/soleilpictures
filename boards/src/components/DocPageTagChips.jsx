@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
+import { untagDocPage } from '../lib/tagsApi.js';
 
 const TAG_PALETTE = [
   '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
@@ -23,6 +24,7 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
   const navigate = useEntityNavigate();
   const [tagIds, setTagIds] = useState([]);
   const [tagsById, setTagsById] = useState(new Map());
+  const [menuFor, setMenuFor] = useState(null); // { tagId, name, x, y } when right-click is active
 
   // Fetch applied-tag ids for this page.
   useEffect(() => {
@@ -88,23 +90,66 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
     }).filter(c => c.name);
   }, [tagIds, tagsById]);
 
+  // Outside-click + Escape close the right-click menu.
+  useEffect(() => {
+    if (!menuFor) return;
+    const onDown = (e) => {
+      if (e.target.closest && e.target.closest('.doc-page-tag-menu')) return;
+      setMenuFor(null);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setMenuFor(null); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuFor]);
+
+  const removeTag = async (tagId) => {
+    setMenuFor(null);
+    // Optimistic local drop — realtime will reconcile.
+    setTagIds(prev => prev.filter(id => id !== tagId));
+    try {
+      await untagDocPage({ workspaceId, docCardId, pageId, tagId });
+    } catch (_) {
+      // On failure, the realtime sub will restore the row on next load.
+    }
+  };
+
   if (chips.length === 0) return null;
 
   return (
-    <div className="doc-page-tag-chips" role="list">
-      {chips.map(c => (
-        <button key={c.id}
-                className="doc-page-tag-chip"
-                role="listitem"
-                title={`Open tag "${c.name}"`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate({ kind: 'tag', id: c.id });
-                }}>
-          <span className="doc-page-tag-dot" style={{ background: c.color }} />
-          <span className="doc-page-tag-name">{c.name}</span>
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="doc-page-tag-chips" role="list">
+        {chips.map(c => (
+          <button key={c.id}
+                  className="doc-page-tag-chip"
+                  role="listitem"
+                  title={`Open tag "${c.name}" — right-click to remove`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate({ kind: 'tag', id: c.id });
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setMenuFor({ tagId: c.id, name: c.name, x: e.clientX, y: e.clientY });
+                  }}>
+            <span className="doc-page-tag-dot" style={{ background: c.color }} />
+            <span className="doc-page-tag-name">{c.name}</span>
+          </button>
+        ))}
+      </div>
+      {menuFor && (
+        <div className="doc-page-tag-menu"
+             style={{ position: 'fixed', top: menuFor.y, left: menuFor.x, zIndex: 1000 }}>
+          <button className="doc-page-tag-menu-item"
+                  onClick={() => removeTag(menuFor.tagId)}>
+            Remove tag
+          </button>
+        </div>
+      )}
+    </>
   );
 }
