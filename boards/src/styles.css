@@ -10245,18 +10245,24 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .tt-link[draggable="true"] { cursor: pointer; }
 .tt-link-manual.tt-link-auto { /* manual wins */ }
 
-/* Tag-color keyword tint — painted by TagRangePlugin on JUST the
-   trigger word (sentence/word-tier applies). Paragraph-tier applies
-   leave the body un-tinted and are surfaced only by the margin dot
-   in DocTagGutter. The hover popover is reached via the dot, not
-   the word — no data-* attrs here. */
+/* Tag indicator — dashed box around the trigger word in the tag's
+   color. Painted by TagRangePlugin on sentence/word-tier applies.
+   Paragraph-tier applies leave the body unmarked; the margin dot in
+   DocTagGutter is their only surface. */
 .tt-tag-word {
-  background-color: color-mix(in oklab, var(--tag-color, var(--soleil)) 18%, transparent);
+  background-color: transparent;
+  border: 1px dashed color-mix(in oklab, var(--tag-color, var(--soleil)) 65%, transparent);
   border-radius: 3px;
   padding: 0 2px;
   margin: 0 -2px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+}
+.tt-tag-word:hover {
+  /* Solidify the dashes on hover so the user gets a clear affordance
+     that this word is interactive (popover / right-click). */
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--tag-color, var(--soleil)) 80%, transparent);
 }
 
 /* ─────────────────── Hover popover (EntityHoverPopover) ────────────────── */
