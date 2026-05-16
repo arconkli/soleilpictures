@@ -10251,12 +10251,13 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
    DocTagGutter is their only surface. */
 .tt-tag-word {
   background-color: transparent;
-  border: 1px dashed color-mix(in oklab, var(--tag-color, var(--soleil)) 65%, transparent);
+  border: 1px dashed color-mix(in oklab, var(--tag-color, var(--soleil)) 35%, transparent);
   border-radius: 3px;
   padding: 0 2px;
   margin: 0 -2px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+  transition: border-color 120ms ease, border-style 0s;
 }
 .tt-tag-word:hover {
   /* Solidify the dashes on hover so the user gets a clear affordance
