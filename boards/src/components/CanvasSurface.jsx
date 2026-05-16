@@ -5107,12 +5107,16 @@ export function CanvasSurface({
 
       {/* Inline arrow-editor popover — shown when exactly one arrow is
           selected. Lives in screen-space (position:fixed) so it doesn't
-          scale with the canvas transform. */}
+          scale with the canvas transform. Lines (arrows with
+          head:'none' created via the Shape tool) use the bottom
+          ToolOptionsBar instead; suppress this popover for them so
+          the user doesn't see two editors with different controls. */}
       {canEdit && selectedArrows.size === 1 && (() => {
         const idx = [...selectedArrows][0];
         const a = (arrows || [])[idx];
         const att = arrowAttachments[idx];
         if (!a || !att?.from || !att?.to) return null;
+        if (a.head === 'none') return null;
         const excludeFrom = excludedCardIdsForRef(a.from);
         const excludeTo   = excludedCardIdsForRef(a.to);
         const excludeSet = new Set();
