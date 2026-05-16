@@ -6,7 +6,7 @@
 // restores the saved selection before each command so the toolbar doesn't
 // lose what the user had highlighted.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { withSelection, wrapSelectionStyle, toggleList } from '../lib/editorSelection.js';
 import { useRecentColors } from '../hooks/useRecentColors.js';
 import { addRecentColor } from '../lib/recentColors.js';
