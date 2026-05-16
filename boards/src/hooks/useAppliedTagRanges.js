@@ -71,12 +71,21 @@ export function useAppliedTagRanges({ workspaceId, docCardId, pageId }) {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'entity_links',
       }, (payload) => {
+        // Supabase realtime DELETE payloads only carry the primary key
+        // (REPLICA IDENTITY DEFAULT), so we can't filter by row fields
+        // for deletes. INSERT / UPDATE payloads do carry the full row.
+        // Strategy: when fields are present, scope to this doc page;
+        // when they aren't (DELETE), just reload — the query itself is
+        // cheap and already filtered server-side to this page.
         const r = payload?.new || payload?.old || {};
-        if (r.target_kind !== 'tag') return;
-        if (r.source_kind !== 'doc') return;
-        if (r.source_id !== docCardId) return;
-        if (r.source_page_id !== pageId) return;
-        // Reload — cheap query.
+        const knownTagDoc =
+          r.target_kind && r.source_kind && r.source_id && r.source_page_id;
+        if (knownTagDoc) {
+          if (r.target_kind !== 'tag') return;
+          if (r.source_kind !== 'doc') return;
+          if (r.source_id !== docCardId) return;
+          if (r.source_page_id !== pageId) return;
+        }
         load();
       })
       .subscribe();
