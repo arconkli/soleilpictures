@@ -628,18 +628,43 @@ export function CanvasSurface({
     const r = wrapRef.current.getBoundingClientRect();
     if (r.width < 50 || r.height < 50) return;
     if (!ydoc && cards.length === 0) return; // not ready yet
-    fitOnceForRef.current = board.id;
-    // Restore the user's last zoom/pan for this board if we have one.
-    // Otherwise fall back to a predictable default. Use "Full Board"
-    // (double-tap zoom button) to fit content into view on demand.
+    // 1) Saved view wins — instant restore, then we're done.
     const saved = loadBoardView(board.id);
     if (saved) {
+      fitOnceForRef.current = board.id;
       setZoom(saved.zoom);
       setPan(saved.pan);
-    } else {
+      return;
+    }
+    // 2) No saved view: fit everything into the viewport. But if the
+    //    board hasn't surfaced any cards yet (Yjs sync still en route)
+    //    don't commit the fit — leave fitOnceForRef unset so we retry
+    //    once cards populate. Empty board → default zoom, also no lock.
+    if (cards.length === 0) {
       setZoom(1);
       setPan({ x: 40, y: 60 });
+      return;
     }
+    fitOnceForRef.current = board.id;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of cards) {
+      minX = Math.min(minX, c.x);
+      minY = Math.min(minY, c.y);
+      maxX = Math.max(maxX, c.x + c.w);
+      maxY = Math.max(maxY, c.y + c.h);
+    }
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+    const margin = 80;
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
+      (r.width - margin * 2) / contentW,
+      (r.height - margin * 2) / contentH,
+    )));
+    setZoom(z);
+    setPan({
+      x: (r.width  - contentW * z) / 2 - minX * z,
+      y: (r.height - contentH * z) / 2 - minY * z,
+    });
   }, [cards, board.id, ydoc]);
 
   // Persist zoom+pan changes per board so reopening the board resumes
