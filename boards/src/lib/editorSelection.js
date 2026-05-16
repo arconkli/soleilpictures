@@ -41,6 +41,74 @@ export function withSelection(fn) {
   return true;
 }
 
+// Capture the current selection as character offsets within `editable`'s
+// textContent. Unlike `captureSelection` (which stores a live Range that
+// dies when its nodes are removed from the DOM), offsets survive an
+// `innerHTML = ...` rewrite of the editable — the font picker resets
+// innerHTML between hover previews, so we need offset-based selection
+// tracking to recover the user's selection after each reset.
+export function captureSelectionOffsets(editable) {
+  if (!editable) return null;
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const r = sel.getRangeAt(0);
+  if (!editable.contains(r.startContainer) || !editable.contains(r.endContainer)) return null;
+  try {
+    const a = document.createRange();
+    a.setStart(editable, 0);
+    a.setEnd(r.startContainer, r.startOffset);
+    const start = a.toString().length;
+    const b = document.createRange();
+    b.setStart(editable, 0);
+    b.setEnd(r.endContainer, r.endOffset);
+    const end = b.toString().length;
+    return { start, end };
+  } catch (_) {
+    return null;
+  }
+}
+
+// Re-establish a selection inside `editable` at the given character offsets
+// (as produced by `captureSelectionOffsets`). Walks `editable`'s text nodes
+// to find the node + local offset corresponding to each absolute index.
+export function restoreSelectionFromOffsets(editable, start, end) {
+  if (!editable || start == null || end == null) return false;
+  const startPos = boundaryFromIndex(editable, start);
+  const endPos = boundaryFromIndex(editable, end);
+  if (!startPos || !endPos) return false;
+  try { editable.focus(); } catch (_) { return false; }
+  try {
+    const range = document.createRange();
+    range.setStart(startPos.node, startPos.offset);
+    range.setEnd(endPos.node, endPos.offset);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function boundaryFromIndex(editable, targetIndex) {
+  if (targetIndex < 0) return null;
+  let remaining = targetIndex;
+  const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+  let n;
+  let lastNode = null;
+  while ((n = walker.nextNode())) {
+    lastNode = n;
+    const len = n.nodeValue.length;
+    if (remaining <= len) {
+      return { node: n, offset: remaining };
+    }
+    remaining -= len;
+  }
+  // Past the end — clamp to the end of the last text node.
+  if (lastNode) return { node: lastNode, offset: lastNode.nodeValue.length };
+  return null;
+}
+
 // Wrap the current selection in a span with the given inline styles.
 // Walks the text nodes inside the range and wraps each one individually
 // so cross-element selections don't get mangled by surroundContents /

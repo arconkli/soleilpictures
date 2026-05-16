@@ -6,8 +6,11 @@
 // restores the saved selection before each command so the toolbar doesn't
 // lose what the user had highlighted.
 
-import { useState, useEffect } from 'react';
-import { withSelection, wrapSelectionStyle, toggleList } from '../lib/editorSelection.js';
+import { useState, useEffect, useRef } from 'react';
+import {
+  withSelection, wrapSelectionStyle, toggleList,
+  captureSelection, captureSelectionOffsets, restoreSelectionFromOffsets,
+} from '../lib/editorSelection.js';
 import { useRecentColors } from '../hooks/useRecentColors.js';
 import { addRecentColor } from '../lib/recentColors.js';
 import { useCustomFonts, useRecentFonts } from '../hooks/useCustomFonts.js';
@@ -514,12 +517,17 @@ function FontPicker() {
   const allFonts = combineAllFonts(FONTS, customFonts);
   const [open, setOpen] = useState(false);
 
-  // Preview-on-hover support. The contenteditable selection collapses every
-  // time we wrap, so previewing across many fonts would nest spans. To keep
-  // the DOM clean we snapshot the editable's innerHTML on first hover and
-  // restore it on each subsequent preview before re-wrapping.
-  let snapshot = null;
-  let snapshotRoot = null;
+  // Preview-on-hover support. To keep the DOM clean across many hovers we
+  // snapshot the editable's innerHTML on first hover and restore that
+  // baseline before each subsequent preview. The innerHTML reset destroys
+  // the DOM nodes the user's selection Range points at, so we also
+  // capture the selection as character offsets within the editable and
+  // re-establish it from those offsets after every reset. Refs (not
+  // closure vars) so the snapshot survives re-renders of FontPicker.
+  const snapshotRef = useRef(null);
+  const snapshotRootRef = useRef(null);
+  const offsetsRef = useRef(null);
+
   function takeSnapshot() {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
@@ -528,29 +536,49 @@ function FontPicker() {
     if (node.nodeType === 3) node = node.parentNode;
     const editable = node.closest && node.closest('[contenteditable="true"]');
     if (!editable) return;
-    snapshotRoot = editable;
-    snapshot = editable.innerHTML;
+    snapshotRootRef.current = editable;
+    snapshotRef.current = editable.innerHTML;
+    offsetsRef.current = captureSelectionOffsets(editable);
+  }
+  function clearSnapshot() {
+    snapshotRef.current = null;
+    snapshotRootRef.current = null;
+    offsetsRef.current = null;
   }
   function restoreSnapshot() {
-    if (snapshot != null && snapshotRoot && document.contains(snapshotRoot)) {
-      snapshotRoot.innerHTML = snapshot;
+    const root = snapshotRootRef.current;
+    if (snapshotRef.current != null && root && document.contains(root)) {
+      root.innerHTML = snapshotRef.current;
     }
-    snapshot = null; snapshotRoot = null;
+    clearSnapshot();
+  }
+  // Reset innerHTML to the snapshot AND re-establish the saved selection
+  // (the Range stored in editorSelection.js's savedRange is now stale
+  // because its nodes were destroyed — captureSelection() after the
+  // offset-based restore refreshes it so applyStyle()'s withSelection
+  // wrapper finds a live Range).
+  function resetToSnapshotAndSelection() {
+    const root = snapshotRootRef.current;
+    if (snapshotRef.current == null || !root || !document.contains(root)) return false;
+    root.innerHTML = snapshotRef.current;
+    const off = offsetsRef.current;
+    if (off && restoreSelectionFromOffsets(root, off.start, off.end)) {
+      captureSelection();
+      return true;
+    }
+    return false;
   }
   const handlePreview = (css) => {
     if (css == null) { restoreSnapshot(); return; }
-    if (snapshot == null) takeSnapshot();
-    else if (snapshotRoot) snapshotRoot.innerHTML = snapshot;  // reset before wrap
+    if (snapshotRef.current == null) takeSnapshot();
+    else resetToSnapshotAndSelection();
     applyStyle({ fontFamily: css });
   };
   const handleCommit = (entry) => {
     if (entry?.gfName) ensureGoogleFontLoaded(entry.gfName);
-    if (snapshot != null && snapshotRoot) {
-      // Use the snapshot as the baseline, then apply the picked font.
-      snapshotRoot.innerHTML = snapshot;
-    }
-    snapshot = null; snapshotRoot = null;
+    if (snapshotRef.current != null) resetToSnapshotAndSelection();
     applyStyle({ fontFamily: entry.css });
+    clearSnapshot();
     if (entry?.label || entry?.name) {
       addRecentFont({ name: entry.label || entry.name, css: entry.css, gfName: entry.gfName || null });
     }
