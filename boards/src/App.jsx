@@ -1580,6 +1580,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
   }, [user?.id, user?.email]);
 
+  // Once the real profile row (display_name + color) loads, overwrite
+  // the email-derived defaults in the cache. Marks hasProfile=true so
+  // resolve() doesn't bother fetching our own row.
+  useEffect(() => {
+    if (!user?.id) return;
+    userProfiles.populateFromOwnProfile({
+      id: user.id,
+      displayName: ownProfile?.display_name || null,
+      color:       ownProfile?.color || null,
+    });
+  }, [user?.id, ownProfile?.display_name, ownProfile?.color]);
+
+  // One realtime sub on public.profiles so any workspace mate changing
+  // their name/color reflects everywhere (comments, archive, etc.)
+  // within ~1s, without us having to refetch on a timer.
+  useEffect(() => {
+    const unsub = userProfiles.subscribeToProfileChanges();
+    return unsub;
+  }, []);
+
   const { peers: wsPeers, status: wsStatus } = useWorkspacePresence({
     workspaceId: workspace.id,
     // Broadcast the user's CHOSEN color (from Account settings). The

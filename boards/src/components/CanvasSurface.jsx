@@ -40,6 +40,7 @@ import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { saveBoardTemplate } from '../lib/templatesApi.js';
 import { CanvasCommentLayer, CommentArchivePopover } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
+import * as userProfiles from '../lib/userProfiles.js';
 import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.js';
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
@@ -2884,10 +2885,10 @@ export function CanvasSurface({
           const lines = [`${memberCount} member${memberCount === 1 ? '' : 's'}`];
           if (g.createdAt) lines.push(`created ${relativeTimeShort(g.createdAt)}`);
           if (g.createdBy) {
-            const peer = (wsPeers || []).find(p => p?.user?.id === g.createdBy);
-            const name = peer?.user?.name
-                      || peer?.user?.email?.split('@')[0]
-                      || (g.createdBy === userId ? 'you' : (g.createdBy || '').slice(0, 6));
+            const cached = userProfiles.resolve(g.createdBy);
+            const name = g.createdBy === userId
+              ? 'you'
+              : (cached?.name || (cached?.email ? cached.email.split('@')[0] : null) || 'someone');
             lines.push(`by ${name}`);
           }
           feedback.toast({ type: 'info', message: lines.join(' · ') });
@@ -2904,10 +2905,10 @@ export function CanvasSurface({
       const resolveName = (uid) => {
         if (!uid) return 'unknown';
         if (uid === userId) return 'you';
-        const peer = (wsPeers || []).find(p => p?.user?.id === uid);
-        return peer?.user?.name
-            || peer?.user?.email?.split('@')[0]
-            || uid.slice(0, 6);
+        const cached = userProfiles.resolve(uid);
+        return cached?.name
+            || (cached?.email ? cached.email.split('@')[0] : null)
+            || 'someone';
       };
       const lines = [];
       if (c.createdAt) {
@@ -3641,7 +3642,8 @@ export function CanvasSurface({
   // Live anywhere-comments. Bubbles render anchored to cards / groups /
   // empty-canvas points; a right-click menu item shows an inline draft
   // input (no popup) at the click position.
-  const { comments, removeLocally: removeCommentLocally, removeByAnchorIds: removeCommentsByAnchorIds } = useCanvasComments(board?.id);
+  const { comments, removeLocally: removeCommentLocally, removeByAnchorIds: removeCommentsByAnchorIds,
+          viewsByRootId: commentViewsByRootId, markViewed: markCommentViewed } = useCanvasComments(board?.id);
   // Inline-draft state. When the user picks "Add comment" from a
   // right-click menu, we set commentDraft to the anchor + viewport
   // position; CanvasCommentLayer renders an inline draft input there.
@@ -5270,6 +5272,8 @@ export function CanvasSurface({
           onCancelDraft={() => setCommentDraft(null)}
           onLocallyRemoved={removeCommentLocally}
           layerVisible={commentsVisible}
+          viewsByRootId={commentViewsByRootId}
+          onMarkViewed={markCommentViewed}
         />
 
       </div>

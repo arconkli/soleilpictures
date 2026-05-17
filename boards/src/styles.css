@@ -6054,6 +6054,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 
 .canvas-comment-card {
+  position: relative;
   display: flex; flex-direction: column; gap: 4px;
   width: 100%;
   text-align: left;
@@ -6069,6 +6070,23 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   transition: transform var(--dur-fast) var(--ease),
               box-shadow var(--dur-fast) var(--ease),
               border-color var(--dur-fast) var(--ease);
+}
+
+/* Unread-reply indicator on a closed bubble. Small warm dot in the
+   top-right corner with a subtle ring so it pops against either
+   theme. Hidden as soon as the bubble opens (we mark the thread
+   viewed on the open transition; see CanvasCommentBubble). */
+.canvas-comment-unread-dot {
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--soleil, #ffa500);
+  box-shadow: 0 0 0 2px rgba(20,20,24,.94), 0 1px 3px rgba(0,0,0,.45);
+  pointer-events: none;
+}
+[data-theme='light'] .canvas-comment-unread-dot {
+  box-shadow: 0 0 0 2px rgba(252,251,247,.96), 0 1px 3px rgba(0,0,0,.25);
 }
 [data-theme='light'] .canvas-comment-card {
   background: rgba(252,251,247,.96);

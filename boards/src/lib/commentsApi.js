@@ -142,6 +142,42 @@ export async function listAllBoardComments(boardId, limit = 200) {
   return data || [];
 }
 
+// View-state for top-level comment threads — used to drive the small
+// "unread reply" dot on canvas bubbles. Per-user; RLS scopes to self.
+// We pass the root ids in explicitly (rather than join via SQL) so
+// supabase-js can do this with a single .in() filter.
+export async function listMyCommentViews(rootIds) {
+  if (!rootIds || rootIds.length === 0) return new Map();
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData?.user?.id;
+  if (!uid) return new Map();
+  const { data, error } = await supabase
+    .from('comment_views')
+    .select('root_comment_id, last_viewed_at')
+    .eq('user_id', uid)
+    .in('root_comment_id', rootIds);
+  if (error) throw error;
+  const m = new Map();
+  (data || []).forEach(r => m.set(r.root_comment_id, r.last_viewed_at));
+  return m;
+}
+
+// Upsert (user, root_comment) → now(). Fire-and-forget from the UI; if
+// it fails the worst case is the dot reappears on next reload.
+export async function markCommentViewed(rootCommentId) {
+  if (!rootCommentId) return;
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData?.user?.id;
+  if (!uid) return;
+  const { error } = await supabase
+    .from('comment_views')
+    .upsert(
+      { user_id: uid, root_comment_id: rootCommentId, last_viewed_at: new Date().toISOString() },
+      { onConflict: 'user_id,root_comment_id' }
+    );
+  if (error) throw error;
+}
+
 // Comments by a given author across a workspace — used by the right-click
 // peer-icon viewer ("see this person's recent comments"). RLS already
 // gates rows the caller can't see (peer is in shared workspace ⇒ usually

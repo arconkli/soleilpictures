@@ -11,16 +11,18 @@
 //   anchor_kind = 'board'  → fixed top-right of canvas wrap
 //   anchor_kind = 'doc_range' → ignored on canvas (shown inside doc)
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { addComment, updateComment, deleteComment } from '../lib/commentsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { relativeTimeShort } from '../lib/relativeTime.js';
+import * as userProfiles from '../lib/userProfiles.js';
+import { pickPresenceColor } from '../lib/presenceColor.js';
 
 export function CanvasCommentLayer({
   comments, boardId, workspaceId, userId, wsPeers = [],
-  // Current user (id, name, color) — see resolvePeerName/Color. Lets
-  // the local user's name/color stay consistent even when they're
-  // not in wsPeers (e.g. fresh page load before presence syncs).
+  // Current user (id, name, color). Lets the local user's name/color
+  // stay consistent even when they're not in wsPeers (e.g. fresh page
+  // load before presence syncs).
   currentUser,
   // Current zoom — used by drag handlers to convert pointer-pixel
   // deltas into canvas-space deltas. Bubble positions themselves are
@@ -42,7 +44,18 @@ export function CanvasCommentLayer({
   // we render small "anchor dots" instead so the user can still see
   // WHERE comments live without the bubble chrome.
   layerVisible = true,
+  // Per-user "last viewed" timestamps for top-level threads. Used to
+  // render the small unread-reply dot. onMarkViewed is called when a
+  // bubble opens to clear the dot.
+  viewsByRootId = new Map(),
+  onMarkViewed,
 }) {
+  // Re-render whenever the userProfiles cache resolves a new entry.
+  // One subscription for the whole layer (cheaper than per-bubble),
+  // and the cache itself is what feeds resolveAuthor below.
+  const [, tickProfiles] = useReducer(x => x + 1, 0);
+  useEffect(() => userProfiles.subscribe(tickProfiles), []);
+
   // Index replies by parent so the top-level bubble can render its thread.
   // Skip resolved + hidden comments entirely; resolved goes to the
   // History tab and the comment archive popover, hidden goes to the
@@ -75,7 +88,7 @@ export function CanvasCommentLayer({
           });
           const p = layout.dot;
           if (!p) return null;
-          const color = resolvePeerColor(c.author, wsPeers, currentUser);
+          const color = resolveAuthor(c.author, currentUser).color;
           return (
             <CommentAnchorDot key={c.id}
                               x={p.x} y={p.y}
@@ -103,6 +116,8 @@ export function CanvasCommentLayer({
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
           onLocallyRemoved={onLocallyRemoved}
+          lastViewedAt={viewsByRootId.get(c.id) || null}
+          onMarkViewed={onMarkViewed}
         />
       ))}
       {draft && (
@@ -278,38 +293,52 @@ function snapBubbleToBox(box, ox, oy, W, H) {
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
 // Resolve a name/color for any author id. The local user always
-// resolves to currentUser (their saved profile), so the same color +
-// name appear everywhere they show up — comment cards, archive list,
-// peer-icon viewer — regardless of whether they happen to be in
-// wsPeers at the moment (presence may not have synced yet on a fresh
-// load, etc.). Falls back to wsPeers for everyone else, then to a
-// short id slice as a last resort.
-function resolvePeerName(authorId, wsPeers, currentUser) {
-  if (currentUser && authorId === currentUser.id) {
-    return currentUser.name || currentUser.email?.split('@')[0] || 'you';
+// resolves to currentUser (their saved profile) so they stay
+// consistent everywhere they appear. For everyone else we consult
+// the userProfiles cache — populated synchronously from workspace
+// presence AND asynchronously from the profiles table (display_name
+// / color) + users_by_ids (email fallback). resolve() schedules a
+// fetch the first time we see an unknown id and the layer re-renders
+// when it arrives. The deterministic palette color from
+// pickPresenceColor() makes sure even a never-resolved id renders
+// with a stable, non-default avatar.
+function resolveAuthor(authorId, currentUser) {
+  if (authorId && currentUser && authorId === currentUser.id) {
+    return {
+      name:  currentUser.name  || (currentUser.email ? currentUser.email.split('@')[0] : null) || 'you',
+      color: currentUser.color || pickPresenceColor(authorId),
+    };
   }
-  const peer = (wsPeers || []).find(p => p?.user?.id === authorId);
-  if (peer?.user?.name) return peer.user.name;
-  if (peer?.user?.email) return peer.user.email.split('@')[0];
-  return (authorId || '').slice(0, 6) || 'someone';
-}
-function resolvePeerColor(authorId, wsPeers, currentUser) {
-  if (currentUser && authorId === currentUser.id && currentUser.color) {
-    return currentUser.color;
-  }
-  const peer = (wsPeers || []).find(p => p?.user?.id === authorId);
-  return peer?.user?.color || '#4f8df8';
+  const entry = userProfiles.resolve(authorId);
+  return {
+    name:  entry?.name || (entry?.email ? entry.email.split('@')[0] : null) || 'Member',
+    color: entry?.color || pickPresenceColor(authorId || ''),
+  };
 }
 
-function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, currentUser, zoom = 1, resolveCardBBox, resolveGroupBBox, onLocallyRemoved }) {
+function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, wsPeers, currentUser, zoom = 1, resolveCardBBox, resolveGroupBBox, onLocallyRemoved, lastViewedAt = null, onMarkViewed }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
   const isAuthor = comment.author === userId;
-  const author = resolvePeerName(comment.author, wsPeers, currentUser);
-  const authorColor = resolvePeerColor(comment.author, wsPeers, currentUser);
+  const _resolved = resolveAuthor(comment.author, currentUser);
+  const author = _resolved.name;
+  const authorColor = _resolved.color;
   const replyCount = replies?.length || 0;
+
+  // Unread = any reply not authored by me, newer than my last-viewed
+  // timestamp on this thread. No view row yet → every other-author
+  // reply is unread until the user opens it.
+  const hasUnreadReplies = !!replies?.some(r =>
+    r.author !== userId &&
+    (!lastViewedAt || (r.created_at && r.created_at > lastViewedAt))
+  );
+
+  // Mark viewed the moment the user opens the thread. Fire-and-forget.
+  useEffect(() => {
+    if (open && onMarkViewed) onMarkViewed(comment.id);
+  }, [open, comment.id, onMarkViewed]);
 
   // baseRef is what WE believe the comment's offsets are. While idle,
   // it tracks the prop. On commit we update it synchronously to the
@@ -620,14 +649,19 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
             {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
           </span>
         )}
+        {hasUnreadReplies && !open && (
+          <span className="canvas-comment-unread-dot" aria-label="Unread reply" />
+        )}
       </button>
       {open && (
         <div className="canvas-comment-thread">
-          {replies.map(r => (
+          {replies.map(r => {
+            const ra = resolveAuthor(r.author, currentUser);
+            return (
             <CommentLine key={r.id}
                          c={r}
-                         authorName={resolvePeerName(r.author, wsPeers, currentUser)}
-                         authorColor={resolvePeerColor(r.author, wsPeers, currentUser)}
+                         authorName={ra.name}
+                         authorColor={ra.color}
                          canManage={r.author === userId}
                          onDelete={async () => {
                            const ok = await feedback.confirm({
@@ -639,7 +673,8 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                              onLocallyRemoved?.(r.id);
                            } catch (err) { feedback.toast({ type: 'error', message: 'Delete failed' }); }
                          }} />
-          ))}
+            );
+          })}
           <form className="canvas-comment-reply" onSubmit={submitReply}>
             <input className="canvas-comment-reply-input"
                    placeholder="Reply…"
@@ -780,6 +815,9 @@ export function CommentArchivePopover({
 }) {
   const feedback = useFeedback();
   const ref = useRef(null);
+  // Re-render when userProfiles cache resolves any author async.
+  const [, tickProfiles] = useReducer(x => x + 1, 0);
+  useEffect(() => userProfiles.subscribe(tickProfiles), []);
   useEffect(() => {
     const onDown = (e) => {
       if (ref.current?.contains(e.target)) return;
@@ -845,8 +883,9 @@ export function CommentArchivePopover({
           </div>
         )}
         {archived.map(c => {
-          const name = resolvePeerName(c.author, wsPeers, currentUser);
-          const color = resolvePeerColor(c.author, wsPeers, currentUser);
+          const ra = resolveAuthor(c.author, currentUser);
+          const name = ra.name;
+          const color = ra.color;
           const status = c.resolved ? 'resolved' : 'hidden';
           return (
             <div key={c.id} className={`comment-archive-row is-${status}`}>
