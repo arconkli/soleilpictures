@@ -60,19 +60,6 @@ body {
   opacity: 0.03;
 }
 
-.circle {
-  --circle-size: 40px;
-  position: fixed;
-  height: var(--circle-size);
-  width: var(--circle-size);
-  border: 1px solid white;
-  border-radius: 100%;
-  top: calc(var(--circle-size) / 2 * -1);
-  left: calc(var(--circle-size) / 2 * -1);
-  pointer-events: none;
-  z-index: 9999;
-}
-
 /* Logo text */
 .logo-text h1 {
   font-size: inherit;
@@ -645,10 +632,6 @@ body.projects-page {
 
 /* Media queries */
 @media only screen and (max-width: 768px) {
-  .circle {
-    display: none;
-  }
-
   .content {
     line-height: 1.6;
     padding: 20px;

@@ -29,57 +29,6 @@ function map(n, start1, end1, start2, end2) {
   return ((n - start1) / (end1 - start1)) * (end2 - start2) + start2;
 }
 
-// Mouse tracking setup
-const circleElement = document.querySelector('.circle');
-const mouse = { x: 0, y: 0 };
-const previousMouse = { x: 0, y: 0 };
-const circle = { x: 0, y: 0 };
-let currentScale = 0;
-let currentAngle = 0;
-
-// Mouse movement handler
-window.addEventListener('mousemove', (e) => {
-  mouse.x = e.x;
-  mouse.y = e.y;
-});
-
-// Animation speed
-const speed = 0.17;
-
-// Animation tick function
-function tick() {
-  // Movement
-  circle.x += (mouse.x - circle.x) * speed;
-  circle.y += (mouse.y - circle.y) * speed;
-  const translateTransform = `translate(${circle.x}px, ${circle.y}px)`;
-
-  // Squeeze effect
-  const deltaMouseX = mouse.x - previousMouse.x;
-  const deltaMouseY = mouse.y - previousMouse.y;
-  previousMouse.x = mouse.x;
-  previousMouse.y = mouse.y;
-  const mouseVelocity = Math.min(Math.sqrt(deltaMouseX**2 + deltaMouseY**2) * 4, 150);
-  const scaleValue = (mouseVelocity / 150) * 0.5;
-  currentScale += (scaleValue - currentScale) * speed;
-  const scaleTransform = `scale(${1 + currentScale}, ${1 - currentScale})`;
-
-  // Rotation
-  const angle = Math.atan2(deltaMouseY, deltaMouseX) * 180 / Math.PI;
-  if (mouseVelocity > 20) {
-    currentAngle = angle;
-  }
-  const rotateTransform = `rotate(${currentAngle}deg)`;
-
-  // Apply transforms
-  circleElement.style.transform = `${translateTransform} ${rotateTransform} ${scaleTransform}`;
-
-  // Continue animation
-  requestAnimationFrame(tick);
-}
-
-// Start animation
-tick();
-
 // Color Palette Class - Warmer golden/amber tones for sun-like feel
 class ColorPalette {
   constructor() {
