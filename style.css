@@ -70,6 +70,7 @@ body {
   top: calc(var(--circle-size) / 2 * -1);
   left: calc(var(--circle-size) / 2 * -1);
   pointer-events: none;
+  z-index: 9999;
 }
 
 /* Logo text */
