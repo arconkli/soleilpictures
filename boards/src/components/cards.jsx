@@ -1108,16 +1108,16 @@ function formatTime(t) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
-// Audio card — waveform via WaveSurfer.js, play/pause, optional cover image.
-// Right-click → "Set cover image" increments `coverPickAt` which toggles
-// drop-zone mode here. In drop-zone mode the card accepts an image file
-// dropped onto it OR opens a native file picker on click; the resolved
-// File is passed to onPickCover(file).
+// Audio card — waveform via WaveSurfer.js bound to a native <audio>
+// element with crossOrigin so playback works even if peak decoding
+// fails. Right-click → "Set cover image" puts the card into drop-zone
+// mode so the user can drag an image onto it or click to file-pick.
 export function AudioCard({ src, title, duration, cover,
                             onUpdate, autoFocus = false,
                             coverPickAt = 0,
                             onPickCover = null }) {
   const waveRef = useRef(null);
+  const audioElRef = useRef(null);
   const wavesurferRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -1127,13 +1127,14 @@ export function AudioCard({ src, title, duration, cover,
   const [coverDropMode, setCoverDropMode] = useState(false);
   const [coverDragOver, setCoverDragOver] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
+  const [waveReady, setWaveReady] = useState(false);
 
   // Right-click signal from canvas → open cover drop-zone.
   useEffect(() => {
     if (coverPickAt > 0) setCoverDropMode(true);
   }, [coverPickAt]);
 
-  // Resolve src → signed URL.
+  // Resolve audio src → signed URL.
   useEffect(() => {
     let cancelled = false;
     if (!src) { setResolvedUrl(null); return; }
@@ -1141,8 +1142,7 @@ export function AudioCard({ src, title, duration, cover,
     return () => { cancelled = true; };
   }, [src]);
 
-  // Resolve cover → signed URL (R2Image handles its own resolution, but
-  // we duplicate here so the split layout's preview gets a URL too).
+  // Resolve cover → signed URL.
   useEffect(() => {
     let cancelled = false;
     if (!cover) { setCoverUrl(null); return; }
@@ -1150,37 +1150,47 @@ export function AudioCard({ src, title, duration, cover,
     return () => { cancelled = true; };
   }, [cover]);
 
-  // Mount WaveSurfer when the URL is resolved.
+  // Mount WaveSurfer once we have a URL + DOM refs. Bind it to the
+  // native <audio> element so play/seek go through the element directly
+  // (browser may block WebAudio playback under autoplay rules, but a
+  // user-gesture click on <audio> always works). WaveSurfer still
+  // fetches peaks if R2 returns CORS headers; if it doesn't, playback
+  // works and the bar shows as a flat fallback.
   useEffect(() => {
-    if (!resolvedUrl || !waveRef.current) return;
-    const stop = () => {
-      try { wavesurferRef.current?.pause(); } catch (_) {}
-    };
-    const ws = WaveSurfer.create({
-      container: waveRef.current,
-      url: resolvedUrl,
-      waveColor: 'rgba(255,255,255,0.35)',
-      progressColor: '#9b6df0',
-      cursorColor: 'rgba(255,255,255,0.7)',
-      cursorWidth: 1,
-      barWidth: 2,
-      barRadius: 1,
-      barGap: 1,
-      height: 'auto',
-      normalize: true,
-      interact: true,
-    });
+    if (!resolvedUrl || !waveRef.current || !audioElRef.current) return;
+    const audio = audioElRef.current;
+    setWaveReady(false);
+    const stop = () => { try { wavesurferRef.current?.pause(); } catch (_) {} };
+    let ws;
+    try {
+      ws = WaveSurfer.create({
+        container: waveRef.current,
+        media: audio,
+        height: 44,
+        waveColor: 'rgba(255,255,255,0.35)',
+        progressColor: '#ffffff',
+        cursorColor: 'rgba(255,255,255,0.85)',
+        cursorWidth: 1.5,
+        barWidth: 2,
+        barRadius: 2,
+        barGap: 2,
+        normalize: true,
+        interact: true,
+      });
+    } catch (err) {
+      console.warn('[AudioCard] WaveSurfer init failed', err);
+      return;
+    }
     wavesurferRef.current = ws;
-    ws.on('ready', () => setDecodedDuration(ws.getDuration() || 0));
+    ws.on('ready', () => {
+      setDecodedDuration(ws.getDuration() || audio.duration || 0);
+      setWaveReady(true);
+    });
+    ws.on('decode', () => setWaveReady(true));
+    ws.on('error', (err) => console.warn('[AudioCard] WaveSurfer error', err));
     ws.on('timeupdate', (t) => setPosition(t));
-    ws.on('play', () => {
-      setIsPlaying(true);
-      audioBus.claim(stop);
-    });
-    ws.on('pause', () => {
-      setIsPlaying(false);
-      audioBus.release(stop);
-    });
+    ws.on('play', () => { setIsPlaying(true); audioBus.claim(stop); });
+    ws.on('pause', () => { setIsPlaying(false); audioBus.release(stop); });
     ws.on('finish', () => {
       setIsPlaying(false);
       setPosition(0);
@@ -1193,12 +1203,49 @@ export function AudioCard({ src, title, duration, cover,
     };
   }, [resolvedUrl]);
 
+  // Track playback through the native <audio> element as a backstop in
+  // case WaveSurfer wasn't able to mount (e.g. peak decode failed but
+  // we still rendered the bare audio element).
+  useEffect(() => {
+    const audio = audioElRef.current;
+    if (!audio) return;
+    const onPlay = () => { setIsPlaying(true); };
+    const onPause = () => { setIsPlaying(false); };
+    const onTime = () => setPosition(audio.currentTime || 0);
+    const onMeta = () => setDecodedDuration(audio.duration || decodedDuration || 0);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('loadedmetadata', onMeta);
+    return () => {
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('loadedmetadata', onMeta);
+    };
+  }, []);
+
   const togglePlay = (e) => {
     e.stopPropagation();
-    const ws = wavesurferRef.current;
-    if (!ws) return;
-    if (ws.isPlaying()) ws.pause();
-    else ws.play();
+    const audio = audioElRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      const p = audio.play();
+      if (p && typeof p.catch === 'function') p.catch(err => console.warn('[AudioCard] play failed', err));
+    } else {
+      audio.pause();
+    }
+  };
+
+  const onProgressClick = (e) => {
+    // Fallback scrubber when the waveform isn't visible. Click anywhere
+    // on the progress strip to seek.
+    e.stopPropagation();
+    const audio = audioElRef.current;
+    if (!audio || !decodedDuration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const frac = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = Math.max(0, Math.min(decodedDuration, frac * decodedDuration));
   };
 
   const handleCoverFile = (file) => {
@@ -1227,9 +1274,8 @@ export function AudioCard({ src, title, duration, cover,
     const f = e.dataTransfer.files?.[0];
     handleCoverFile(f);
   };
-  const onCoverClick = (e) => {
-    if (!coverDropMode) return;
-    e.stopPropagation();
+  const openCoverPicker = (e) => {
+    e?.stopPropagation();
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -1238,6 +1284,7 @@ export function AudioCard({ src, title, duration, cover,
   };
 
   const dur = decodedDuration || duration || 0;
+  const fillPct = dur > 0 ? Math.min(100, (position / dur) * 100) : 0;
   const showTitle = !!title || editingTitle;
   const onTitleDouble = (e) => { e.stopPropagation(); setEditingTitle(true); };
 
@@ -1247,20 +1294,20 @@ export function AudioCard({ src, title, duration, cover,
             onClick={togglePlay}
             aria-label={isPlaying ? 'Pause' : 'Play'}>
       {isPlaying ? (
-        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-          <rect x="3" y="2" width="3" height="10" fill="currentColor" />
-          <rect x="8" y="2" width="3" height="10" fill="currentColor" />
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <rect x="4" y="3" width="3" height="10" rx="0.8" fill="currentColor" />
+          <rect x="9" y="3" width="3" height="10" rx="0.8" fill="currentColor" />
         </svg>
       ) : (
-        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-          <polygon points="3,2 12,7 3,12" fill="currentColor" />
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M5 3.3 L12 8 L5 12.7 Z" fill="currentColor" />
         </svg>
       )}
     </button>
   );
 
   const timeDisplay = (
-    <span className="ac-time">{formatTime(position)} / {formatTime(dur)}</span>
+    <span className="ac-time">{formatTime(position)} <span className="ac-time-sep">/</span> {formatTime(dur)}</span>
   );
 
   const titleEl = onUpdate ? (
@@ -1275,28 +1322,59 @@ export function AudioCard({ src, title, duration, cover,
     />
   ) : <div className="ac-title">{title}</div>;
 
-  // Split layout (with cover): cover image on the left, waveform/controls on the right.
-  if (cover) {
+  // Hidden audio element drives playback. crossOrigin='anonymous' so
+  // WaveSurfer can decode peaks if R2 returns CORS headers; falls back
+  // to plain playback if the decode fails.
+  const audioEl = (
+    <audio ref={audioElRef}
+           src={resolvedUrl || undefined}
+           crossOrigin="anonymous"
+           preload="metadata"
+           style={{ display: 'none' }} />
+  );
+
+  // Fallback flat progress strip when the waveform hasn't decoded
+  // (e.g. CORS prevented peak fetch). Keeps the card usable.
+  const fallbackBar = (
+    <div className="ac-fallback" onClick={onProgressClick}>
+      <div className="ac-fallback-fill" style={{ width: `${fillPct}%` }} />
+    </div>
+  );
+
+  const waveBox = (
+    <div className="ac-wave-wrap">
+      <div className="ac-wave" ref={waveRef} />
+      {!waveReady && fallbackBar}
+    </div>
+  );
+
+  // Split layout (with cover): cover left, waveform + controls right.
+  if (cover || coverDropMode) {
     return (
       <div className={`ac ac-with-cover ${coverDropMode ? 'ac-cover-mode' : ''} ${coverDragOver ? 'ac-cover-drop-hover' : ''}`}>
+        {audioEl}
         <div className="ac-cover-wrap"
              onDoubleClick={onTitleDouble}
              onDragOver={onCoverDragOver}
              onDragLeave={onCoverDragLeave}
              onDrop={onCoverDrop}
-             onClick={onCoverClick}>
+             onClick={coverDropMode ? openCoverPicker : undefined}>
           {coverUrl
             ? <img className="ac-cover-img" src={coverUrl} alt="" draggable="false" />
-            : <ImagePlaceholder tone="neutral" />}
-          {coverDropMode && (
-            <div className="ac-cover-hint">Drop image or click</div>
-          )}
+            : <div className="ac-cover-fallback">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                  <path d="M5 16 L5 6 L17 4 L17 14" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                  <ellipse cx="5" cy="16" rx="2.4" ry="1.8" stroke="currentColor" strokeWidth="1.4" fill="none"/>
+                  <ellipse cx="17" cy="14" rx="2.4" ry="1.8" stroke="currentColor" strokeWidth="1.4" fill="none"/>
+                </svg>
+              </div>}
+          {coverDropMode && <div className="ac-cover-hint">Drop image or click</div>}
         </div>
         <div className="ac-body">
-          {showTitle && (
-            <div className="ac-title-row" onDoubleClick={onTitleDouble}>{titleEl}</div>
-          )}
-          <div className="ac-wave" ref={waveRef} />
+          <div className="ac-title-row" onDoubleClick={onTitleDouble}>
+            {showTitle ? titleEl : <span className="ac-title ac-title-placeholder">Audio</span>}
+          </div>
+          {waveBox}
           <div className="ac-controls">
             {playButton}
             {timeDisplay}
@@ -1306,24 +1384,18 @@ export function AudioCard({ src, title, duration, cover,
     );
   }
 
-  // Default layout: waveform fills the card; title above (if set); controls below.
+  // Default layout: gradient card, title + waveform + controls.
   return (
-    <div className={`ac ${coverDropMode ? 'ac-cover-mode' : ''} ${coverDragOver ? 'ac-cover-drop-hover' : ''}`}
-         onDragOver={onCoverDragOver}
-         onDragLeave={onCoverDragLeave}
-         onDrop={onCoverDrop}
-         onClick={coverDropMode ? onCoverClick : undefined}>
-      {showTitle && (
-        <div className="ac-title-row" onDoubleClick={onTitleDouble}>{titleEl}</div>
-      )}
-      <div className="ac-wave" ref={waveRef} />
+    <div className={`ac ${coverDropMode ? 'ac-cover-mode' : ''}`}>
+      {audioEl}
+      <div className="ac-title-row" onDoubleClick={onTitleDouble}>
+        {showTitle ? titleEl : <span className="ac-title ac-title-placeholder">Audio</span>}
+      </div>
+      {waveBox}
       <div className="ac-controls">
         {playButton}
         {timeDisplay}
       </div>
-      {coverDropMode && (
-        <div className="ac-cover-hint ac-cover-hint-overlay">Drop image or click to add cover</div>
-      )}
     </div>
   );
 }

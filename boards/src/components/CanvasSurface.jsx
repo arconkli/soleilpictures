@@ -1170,7 +1170,7 @@ export function CanvasSurface({
   const dropAudioFile = useCallback(async (file, cx, cy) => {
     if (!workspaceId) throw new Error('workspaceId required');
     const up = await uploadAudio({ file, workspaceId, boardId: board?.id, userId });
-    const w = 360, h = 92;
+    const w = 380, h = 130;
     mutators.addCard?.({
       id: `aud-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
       kind: 'audio',
@@ -1191,8 +1191,8 @@ export function CanvasSurface({
       const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId, userId });
       const target = (cards || []).find(c => c.id === cardId);
       const patch = { cover: up.src };
-      if (target && target.w < 420) patch.w = 420;
-      if (target && target.h < 140) patch.h = 140;
+      if (target && target.w < 460) patch.w = 460;
+      if (target && target.h < 150) patch.h = 150;
       mutators.updateCard?.(cardId, patch);
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Cover upload failed: ' + (err.message || err) });
@@ -4934,13 +4934,13 @@ export function CanvasSurface({
         )}
         <div className="cards-layer">{sortedCards.map(renderCard)}</div>
 
-        {/* Multi-selection / group resize handles. Visible whenever the
-            effective selection has 2+ cards. During an active drag, the
-            displayed bounds track the live (in-progress) rect so the
-            outline stays glued to the cards as they scale. */}
+        {/* Multi-selection resize — a single bottom-right corner handle
+            matching the per-card resize affordance, but operating on
+            the bounding box of every selected card. Drag to uniformly
+            scale the whole selection (Shift to free-stretch). */}
         {selectedTool === 'select' && multiSelectionBounds && (() => {
           // While dragging, derive bounds from multiResize.live so the
-          // overlay updates with the scale.
+          // handle tracks the live (in-progress) rect.
           let bounds = multiSelectionBounds;
           if (multiResize?.live) {
             const liveItems = [];
@@ -4950,49 +4950,18 @@ export function CanvasSurface({
           }
           const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
           const startBounds = multiResize?.startBounds || multiSelectionBounds;
-          const handlePx = RESIZE_HANDLE_PX;
-          const half = handlePx / 2;
-          const onHandleDown = (handle) => (e) => onMultiResizePointerDown(e, handle, items, startBounds);
-          // Handles laid out at corners + edge midpoints. Positions are
-          // canvas-space; the parent div sits at (0,0) and shares the
-          // same transform as cards-layer.
-          const handleSpecs = [
-            { id: 'tl', x: bounds.x,                 y: bounds.y,                  cursor: 'nwse-resize' },
-            { id: 'tm', x: bounds.x + bounds.w / 2,  y: bounds.y,                  cursor: 'ns-resize' },
-            { id: 'tr', x: bounds.x + bounds.w,      y: bounds.y,                  cursor: 'nesw-resize' },
-            { id: 'mr', x: bounds.x + bounds.w,      y: bounds.y + bounds.h / 2,   cursor: 'ew-resize' },
-            { id: 'br', x: bounds.x + bounds.w,      y: bounds.y + bounds.h,       cursor: 'nwse-resize' },
-            { id: 'bm', x: bounds.x + bounds.w / 2,  y: bounds.y + bounds.h,       cursor: 'ns-resize' },
-            { id: 'bl', x: bounds.x,                 y: bounds.y + bounds.h,       cursor: 'nesw-resize' },
-            { id: 'ml', x: bounds.x,                 y: bounds.y + bounds.h / 2,   cursor: 'ew-resize' },
-          ];
           return (
-            <div className="multi-select-bounds"
-                 style={{ position: 'absolute', left: bounds.x, top: bounds.y,
-                          width: bounds.w, height: bounds.h,
-                          border: '1px solid var(--soleil, #f5c075)',
-                          borderRadius: 2,
-                          pointerEvents: 'none',
-                          zIndex: 999996 }}>
-              {handleSpecs.map(h => (
-                <div key={h.id}
-                     className={`multi-select-handle multi-select-handle-${h.id}`}
-                     onPointerDown={onHandleDown(h.id)}
-                     style={{
-                       position: 'absolute',
-                       // Position relative to the overlay's origin (bounds.x, bounds.y).
-                       left: (h.x - bounds.x) - half,
-                       top:  (h.y - bounds.y) - half,
-                       width: handlePx,
-                       height: handlePx,
-                       background: '#fff',
-                       border: '1px solid var(--soleil, #f5c075)',
-                       borderRadius: 2,
-                       cursor: h.cursor,
-                       pointerEvents: 'auto',
-                     }} />
-              ))}
-            </div>
+            <div className="card-resize multi-resize"
+                 onPointerDown={(e) => onMultiResizePointerDown(e, 'br', items, startBounds)}
+                 style={{
+                   position: 'absolute',
+                   left: bounds.x + bounds.w - RESIZE_HANDLE_PX / 2,
+                   top:  bounds.y + bounds.h - RESIZE_HANDLE_PX / 2,
+                   width: RESIZE_HANDLE_PX,
+                   height: RESIZE_HANDLE_PX,
+                   zIndex: 999996,
+                   pointerEvents: 'auto',
+                 }} />
           );
         })()}
 
