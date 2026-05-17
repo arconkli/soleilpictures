@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { Search, X, Check } from '../lib/icons.js';
 import { useWorkspaceMembers } from '../hooks/useWorkspaceMembers.js';
@@ -10,12 +11,21 @@ import { findOrCreateDm, createGroupConversation } from '../lib/messages.js';
 //   workspaceId
 //   currentUserId — excluded from the member list
 //   anchor — DOMRect to position against
+//   suggestedUserIds — set of user_ids to float to the top under
+//                      a "ON THIS BOARD" heading (e.g. active peers
+//                      + board-share recipients). Falls through to
+//                      workspace members otherwise.
 //   onCreated(conversationId) — called once the conversation exists
 //   onClose()
+//
+// Rendered via a portal because the parent .msg-panel has
+// backdrop-filter, which creates a containing block for position:fixed
+// descendants — without the portal the picker gets clipped by the
+// panel's overflow:hidden.
 const PAD = 8;
 const WIDTH = 320;
 
-export function NewConversationPicker({ workspaceId, currentUserId, anchor, onCreated, onClose }) {
+export function NewConversationPicker({ workspaceId, currentUserId, anchor, suggestedUserIds, onCreated, onClose }) {
   const { members } = useWorkspaceMembers(workspaceId);
   const [stage, setStage] = useState('pick');           // 'pick' | 'name'
   const [query, setQuery] = useState('');
@@ -65,9 +75,10 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, onCr
 
   useEffect(() => { inputRef.current?.focus(); }, [stage]);
 
-  const visibleMembers = useMemo(() => {
+  const { suggested, others } = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (members || [])
+    const sugg = suggestedUserIds instanceof Set ? suggestedUserIds : null;
+    const rows = (members || [])
       .filter(m => m.user_id !== currentUserId)
       .map(m => {
         const p = userProfiles.get(m.user_id);
@@ -80,7 +91,11 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, onCr
       })
       .filter(m => !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [members, query, currentUserId]);
+    if (!sugg || sugg.size === 0) return { suggested: [], others: rows };
+    const s = [], o = [];
+    for (const r of rows) (sugg.has(r.user_id) ? s : o).push(r);
+    return { suggested: s, others: o };
+  }, [members, query, currentUserId, suggestedUserIds]);
 
   const togglePick = (userId) => {
     setPicked(p => p.includes(userId) ? p.filter(x => x !== userId) : [...p, userId]);
@@ -121,7 +136,31 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, onCr
     }
   };
 
-  return (
+  const renderMemberRow = (m) => {
+    const sel = picked.includes(m.user_id);
+    return (
+      <button
+        key={m.user_id}
+        className={`msg-newconv-row ${sel ? 'is-picked' : ''}`}
+        onClick={() => togglePick(m.user_id)}
+      >
+        <span className="msg-row-avatar" style={{ background: m.color }}>
+          {(m.name || 'M').charAt(0).toUpperCase()}
+        </span>
+        <span className="msg-row-text">
+          <span className="msg-row-name">{m.name}</span>
+          {m.email && m.email !== m.name && (
+            <span className="msg-row-preview t-meta">{m.email}</span>
+          )}
+        </span>
+        {sel && <Icon as={Check} size={14} />}
+      </button>
+    );
+  };
+
+  const totalVisible = suggested.length + others.length;
+
+  const node = (
     <div
       ref={popRef}
       className="msg-newconv-pop"
@@ -163,30 +202,21 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, onCr
             </div>
           )}
           <div className="msg-newconv-list">
-            {visibleMembers.length === 0 && (
-              <div className="msg-empty t-meta">No members match.</div>
+            {totalVisible === 0 && (
+              <div className="msg-empty t-meta">
+                {query.trim() ? 'No members match.' : 'No other workspace members to message. Invite people via Share.'}
+              </div>
             )}
-            {visibleMembers.map(m => {
-              const sel = picked.includes(m.user_id);
-              return (
-                <button
-                  key={m.user_id}
-                  className={`msg-newconv-row ${sel ? 'is-picked' : ''}`}
-                  onClick={() => togglePick(m.user_id)}
-                >
-                  <span className="msg-row-avatar" style={{ background: m.color }}>
-                    {(m.name || 'M').charAt(0).toUpperCase()}
-                  </span>
-                  <span className="msg-row-text">
-                    <span className="msg-row-name">{m.name}</span>
-                    {m.email && m.email !== m.name && (
-                      <span className="msg-row-preview t-meta">{m.email}</span>
-                    )}
-                  </span>
-                  {sel && <Icon as={Check} size={14} />}
-                </button>
-              );
-            })}
+            {suggested.length > 0 && (
+              <>
+                <div className="msg-newconv-sectionhead t-eyebrow">ON THIS BOARD</div>
+                {suggested.map(renderMemberRow)}
+              </>
+            )}
+            {suggested.length > 0 && others.length > 0 && (
+              <div className="msg-newconv-sectionhead t-eyebrow">EVERYONE ELSE</div>
+            )}
+            {others.map(renderMemberRow)}
           </div>
           <div className="msg-newconv-foot">
             <button
@@ -229,4 +259,6 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, onCr
       )}
     </div>
   );
+
+  return createPortal(node, document.body);
 }

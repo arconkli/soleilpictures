@@ -10179,6 +10179,13 @@ button.msg-panel-name:hover { color: var(--soleil); }
   padding: 6px 4px;
   max-height: 320px;
 }
+.msg-newconv-sectionhead {
+  padding: 8px 10px 4px;
+  color: var(--ink-3);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  font: 700 9px/1.2 var(--font-sans);
+}
 .msg-newconv-row {
   display: flex; align-items: center; gap: 10px;
   width: 100%;

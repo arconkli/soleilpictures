@@ -2451,6 +2451,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           initialOpenConversationId={permalinkTarget?.conversationId || null}
           jumpToMessageId={permalinkTarget?.messageId || null}
           pendingOpenPeerId={pendingDmPeerId}
+          suggestedUserIds={
+            new Set([
+              ...((peersHereByBoard.get(currentBoard.id) || []).map(p => p?.user?.id).filter(Boolean)),
+              ...((peersBelowByBoard.get(currentBoard.id) || []).map(p => p?.user?.id).filter(Boolean)),
+            ])
+          }
           onRefreshRequested={() => setMsgRefreshTick(t => t + 1)}
           onPermalinkConsumed={() => setPermalinkTarget(null)}
           onPeerConsumed={() => setPendingDmPeerId(null)}

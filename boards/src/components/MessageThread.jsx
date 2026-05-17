@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit } from '../lib/icons.js';
 import { useMessageThread } from '../hooks/useMessageThread.js';
@@ -617,7 +618,7 @@ function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) 
     };
   }, [onClose]);
 
-  return (
+  return createPortal((
     <div ref={popRef} className="msg-group-menu" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
       <button className="msg-group-menu-item" onClick={onRename}>
         <Icon as={Edit} size={12} /> Rename
@@ -634,7 +635,7 @@ function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) 
         <Icon as={LogOut} size={12} /> Leave
       </button>
     </div>
-  );
+  ), document.body);
 }
 
 // ── Add-participants picker (workspace member list + addParticipants) ──
@@ -717,7 +718,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
     }
   };
 
-  return (
+  return createPortal((
     <div
       ref={popRef}
       className="msg-newconv-pop"
@@ -772,7 +773,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
         </button>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 function dayKey(iso) {

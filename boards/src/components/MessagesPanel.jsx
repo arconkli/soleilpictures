@@ -23,6 +23,7 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 export function MessagesPanel({
   workspaceId, currentUser,
   initialOpenConversationId, jumpToMessageId, pendingOpenPeerId,
+  suggestedUserIds,
   refreshTick, onRefreshRequested, onPermalinkConsumed, onPeerConsumed,
   onClose,
 }) {
@@ -162,6 +163,7 @@ export function MessagesPanel({
           workspaceId={workspaceId}
           currentUserId={userId}
           anchor={composeAnchor}
+          suggestedUserIds={suggestedUserIds}
           onCreated={(convId) => { setComposeAnchor(null); handleConversationCreated(convId); }}
           onClose={() => setComposeAnchor(null)}
         />
