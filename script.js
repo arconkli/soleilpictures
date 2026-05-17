@@ -253,12 +253,42 @@ class Orb {
 
 // Create PixiJS app once the document is loaded
 document.addEventListener('DOMContentLoaded', () => {
+  // Cinematic entrance: split SOLEIL PICTURES into per-letter spans
+  // (wrap each word so line-breaks only happen on whitespace, never mid-word)
+  const logoH1 = document.querySelector('.logo-text h1');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (logoH1 && !reducedMotion) {
+    const words = logoH1.textContent.split(' ');
+    logoH1.textContent = '';
+    let visibleIdx = 0;
+    words.forEach((word, wordIdx) => {
+      const wordEl = document.createElement('span');
+      wordEl.className = 'logo-word';
+      Array.from(word).forEach((ch) => {
+        const span = document.createElement('span');
+        span.className = 'logo-letter';
+        span.textContent = ch;
+        span.style.setProperty('--stagger-i', visibleIdx);
+        wordEl.appendChild(span);
+        visibleIdx += 1;
+      });
+      logoH1.appendChild(wordEl);
+      if (wordIdx < words.length - 1) {
+        logoH1.appendChild(document.createTextNode(' '));
+      }
+    });
+    logoH1.classList.add('split');
+  }
+
   const app = new PIXI.Application({
     view: document.querySelector(".orb-canvas"),
     resizeTo: window,
     transparent: true,
     backgroundAlpha: 0
   });
+
+  // Element whose text-shadow we modulate with the sun's breath
+  const logoTextEl = document.querySelector('.logo-text');
 
   // Create subtle background stars (no blur - added directly to stage first)
   const starsContainer = new PIXI.Graphics();
@@ -354,6 +384,19 @@ document.addEventListener('DOMContentLoaded', () => {
       // Update center glow - gets brighter/whiter as sun expands
       const globalTime = Date.now() * 0.001;
       const breathCycle = (Math.sin(globalTime * 0.15 - Math.PI / 2) + 1) / 2;
+
+      // Sun-synced glow + depth shadow on the SOLEIL PICTURES wordmark
+      if (logoTextEl) {
+        const a1 = 0.45 + breathCycle * 0.2;
+        const a2 = 0.22 + breathCycle * 0.18;
+        const r1 = 14 + breathCycle * 10;
+        const r2 = 34 + breathCycle * 22;
+        logoTextEl.style.textShadow =
+          `0 0 ${r1}px rgba(255,255,255,${a1}),` +
+          `0 0 ${r2}px rgba(255,255,255,${a2}),` +
+          `0 6px 20px rgba(0,0,0,0.6),` +
+          `0 1px 2px rgba(0,0,0,0.45)`;
+      }
 
       const originX = window.innerWidth * 0.78;
       const originY = window.innerHeight * 0.78;
