@@ -1,7 +1,6 @@
 // All card kinds. Most accept onUpdate(patch) so they can self-edit inline.
 
-import { useEffect, useRef, useState } from 'react';
-import WaveSurfer from 'wavesurfer.js';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
 import { resolveSrc } from '../lib/r2.js';
@@ -1108,17 +1107,36 @@ function formatTime(t) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
-// Audio card — waveform via WaveSurfer.js bound to a native <audio>
-// element with crossOrigin so playback works even if peak decoding
-// fails. Right-click → "Set cover image" puts the card into drop-zone
-// mode so the user can drag an image onto it or click to file-pick.
+// Deterministic-but-musical-looking peaks seeded from a string so each
+// track gets a stable, unique-ish waveform without needing the audio
+// bytes (R2 signed URLs aren't CORS-readable, so real decoding is out).
+function generatePeaks(seed, count = 56) {
+  const s = String(seed || 'audio');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  const peaks = [];
+  for (let i = 0; i < count; i++) {
+    h = (h * 1664525 + 1013904223) | 0;
+    const r = ((h >>> 0) / 4294967296);
+    // Mix random + sinusoid so it reads as music, not noise.
+    const sine = Math.sin(i * 0.42 + (h >>> 24) * 0.01) * 0.5 + 0.5;
+    const env = Math.sin((i / (count - 1)) * Math.PI) * 0.4 + 0.6; // soft envelope
+    const p = (0.35 + 0.65 * (0.55 * r + 0.45 * sine)) * env;
+    peaks.push(p);
+  }
+  return peaks;
+}
+
+// Audio card — native <audio> for playback (no crossOrigin so it works
+// regardless of R2 CORS), decorative waveform rendered as SVG bars that
+// fill as playback progresses. Right-click → "Set cover image" puts
+// the card into drop-zone mode so the user can drag an image onto it
+// or click to file-pick.
 export function AudioCard({ src, title, duration, cover,
                             onUpdate, autoFocus = false,
                             coverPickAt = 0,
                             onPickCover = null }) {
-  const waveRef = useRef(null);
   const audioElRef = useRef(null);
-  const wavesurferRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [decodedDuration, setDecodedDuration] = useState(duration || 0);
@@ -1127,7 +1145,9 @@ export function AudioCard({ src, title, duration, cover,
   const [coverDropMode, setCoverDropMode] = useState(false);
   const [coverDragOver, setCoverDragOver] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
-  const [waveReady, setWaveReady] = useState(false);
+  const stopFnRef = useRef(null);
+
+  const peaks = useMemo(() => generatePeaks(src || title || 'audio'), [src, title]);
 
   // Right-click signal from canvas → open cover drop-zone.
   useEffect(() => {
@@ -1150,76 +1170,27 @@ export function AudioCard({ src, title, duration, cover,
     return () => { cancelled = true; };
   }, [cover]);
 
-  // Mount WaveSurfer once we have a URL + DOM refs. Bind it to the
-  // native <audio> element so play/seek go through the element directly
-  // (browser may block WebAudio playback under autoplay rules, but a
-  // user-gesture click on <audio> always works). WaveSurfer still
-  // fetches peaks if R2 returns CORS headers; if it doesn't, playback
-  // works and the bar shows as a flat fallback.
-  useEffect(() => {
-    if (!resolvedUrl || !waveRef.current || !audioElRef.current) return;
-    const audio = audioElRef.current;
-    setWaveReady(false);
-    const stop = () => { try { wavesurferRef.current?.pause(); } catch (_) {} };
-    let ws;
-    try {
-      ws = WaveSurfer.create({
-        container: waveRef.current,
-        media: audio,
-        height: 44,
-        waveColor: 'rgba(255,255,255,0.35)',
-        progressColor: '#ffffff',
-        cursorColor: 'rgba(255,255,255,0.85)',
-        cursorWidth: 1.5,
-        barWidth: 2,
-        barRadius: 2,
-        barGap: 2,
-        normalize: true,
-        interact: true,
-      });
-    } catch (err) {
-      console.warn('[AudioCard] WaveSurfer init failed', err);
-      return;
-    }
-    wavesurferRef.current = ws;
-    ws.on('ready', () => {
-      setDecodedDuration(ws.getDuration() || audio.duration || 0);
-      setWaveReady(true);
-    });
-    ws.on('decode', () => setWaveReady(true));
-    ws.on('error', (err) => console.warn('[AudioCard] WaveSurfer error', err));
-    ws.on('timeupdate', (t) => setPosition(t));
-    ws.on('play', () => { setIsPlaying(true); audioBus.claim(stop); });
-    ws.on('pause', () => { setIsPlaying(false); audioBus.release(stop); });
-    ws.on('finish', () => {
-      setIsPlaying(false);
-      setPosition(0);
-      audioBus.release(stop);
-    });
-    return () => {
-      audioBus.release(stop);
-      try { ws.destroy(); } catch (_) {}
-      wavesurferRef.current = null;
-    };
-  }, [resolvedUrl]);
-
-  // Track playback through the native <audio> element as a backstop in
-  // case WaveSurfer wasn't able to mount (e.g. peak decode failed but
-  // we still rendered the bare audio element).
+  // Wire the native audio element to React state.
   useEffect(() => {
     const audio = audioElRef.current;
     if (!audio) return;
-    const onPlay = () => { setIsPlaying(true); };
-    const onPause = () => { setIsPlaying(false); };
+    const stop = () => { try { audio.pause(); } catch (_) {} };
+    stopFnRef.current = stop;
+    const onPlay = () => { setIsPlaying(true); audioBus.claim(stop); };
+    const onPause = () => { setIsPlaying(false); audioBus.release(stop); };
+    const onEnded = () => { setIsPlaying(false); setPosition(0); audioBus.release(stop); };
     const onTime = () => setPosition(audio.currentTime || 0);
     const onMeta = () => setDecodedDuration(audio.duration || decodedDuration || 0);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
     audio.addEventListener('timeupdate', onTime);
     audio.addEventListener('loadedmetadata', onMeta);
     return () => {
+      audioBus.release(stop);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('timeupdate', onTime);
       audio.removeEventListener('loadedmetadata', onMeta);
     };
@@ -1237,15 +1208,16 @@ export function AudioCard({ src, title, duration, cover,
     }
   };
 
-  const onProgressClick = (e) => {
-    // Fallback scrubber when the waveform isn't visible. Click anywhere
-    // on the progress strip to seek.
-    e.stopPropagation();
+  const seekByFraction = (frac) => {
     const audio = audioElRef.current;
-    if (!audio || !decodedDuration) return;
+    const dur = decodedDuration || audio?.duration || 0;
+    if (!audio || !dur) return;
+    audio.currentTime = Math.max(0, Math.min(dur, frac * dur));
+  };
+  const onWaveClick = (e) => {
+    e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
-    const frac = (e.clientX - rect.left) / rect.width;
-    audio.currentTime = Math.max(0, Math.min(decodedDuration, frac * decodedDuration));
+    seekByFraction((e.clientX - rect.left) / rect.width);
   };
 
   const handleCoverFile = (file) => {
@@ -1322,29 +1294,36 @@ export function AudioCard({ src, title, duration, cover,
     />
   ) : <div className="ac-title">{title}</div>;
 
-  // Hidden audio element drives playback. crossOrigin='anonymous' so
-  // WaveSurfer can decode peaks if R2 returns CORS headers; falls back
-  // to plain playback if the decode fails.
+  // Hidden audio element drives playback. No crossOrigin — that would
+  // require R2 to return CORS preflight on signed URLs, and a missing
+  // header silently blocks playback. Without it, audio just plays.
   const audioEl = (
     <audio ref={audioElRef}
            src={resolvedUrl || undefined}
-           crossOrigin="anonymous"
            preload="metadata"
            style={{ display: 'none' }} />
   );
 
-  // Fallback flat progress strip when the waveform hasn't decoded
-  // (e.g. CORS prevented peak fetch). Keeps the card usable.
-  const fallbackBar = (
-    <div className="ac-fallback" onClick={onProgressClick}>
-      <div className="ac-fallback-fill" style={{ width: `${fillPct}%` }} />
-    </div>
-  );
-
+  // SVG bar waveform. Bars left of the playhead fill with the accent
+  // color; bars to the right stay muted. Click anywhere on the strip
+  // to seek to that point.
+  const barCount = peaks.length;
+  const filledIdx = Math.round(fillPct / 100 * barCount);
   const waveBox = (
-    <div className="ac-wave-wrap">
-      <div className="ac-wave" ref={waveRef} />
-      {!waveReady && fallbackBar}
+    <div className="ac-wave-wrap" onPointerDown={(e) => e.stopPropagation()} onClick={onWaveClick}>
+      <svg className="ac-wave" viewBox={`0 0 ${barCount * 4} 40`} preserveAspectRatio="none">
+        {peaks.map((p, i) => {
+          const h = Math.max(2, p * 36);
+          const x = i * 4 + 0.5;
+          const y = (40 - h) / 2;
+          const isFilled = i < filledIdx;
+          return (
+            <rect key={i} x={x} y={y} width={3} height={h} rx={1.2}
+                  fill={isFilled ? '#9b6df0' : 'rgba(255,255,255,0.12)'}
+                  className={isFilled ? 'ac-bar ac-bar-on' : 'ac-bar'} />
+          );
+        })}
+      </svg>
     </div>
   );
 
