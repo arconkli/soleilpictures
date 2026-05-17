@@ -171,6 +171,13 @@ export function RichNoteEditor({
       e.preventDefault();
       if (e.shiftKey) return;
       try { document.execCommand('insertText', false, '  '); } catch (_) {}
+      return;
+    }
+    if (e.key === 'Enter' || e.key === 'Backspace') {
+      if (handleChecklistKey(e)) {
+        broadcastLive();
+        if (!manuallyResized) measureAndReport();
+      }
     }
   };
 
@@ -202,6 +209,46 @@ export function RichNoteEditor({
       ref.current.appendChild(marker);
     }
     onChangeHTML(ref.current.innerHTML);
+  };
+
+  // While editing, clicks on the checkbox span (contentEditable=false) would
+  // otherwise let the editor place a caret next to the box and steal focus
+  // from the checkmark gesture. Swallow the pointerdown for boxes, but
+  // still propagate other pointerdowns so text selection works normally.
+  const onEditingPointerDown = (e) => {
+    e.stopPropagation();
+    if (e.target.closest?.('.ck-box')) e.preventDefault();
+  };
+
+  // Handle Backspace / Enter inside a checklist item. Returns true if the
+  // event was consumed (caller should not run any default behavior).
+  const handleChecklistKey = (e) => {
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+    const range = sel.getRangeAt(0);
+    if (!range.collapsed) return false;
+    let node = range.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+    const text = node?.closest?.('.ck-text');
+    if (!text) return false;
+    const li = text.closest('.ck');
+    const list = li?.parentElement;
+    if (!li || !list || list.tagName !== 'UL') return false;
+
+    if (e.key === 'Backspace') {
+      if (!isRangeAtStartOf(text, range)) return false;
+      e.preventDefault();
+      convertChecklistItemToParagraph(li, list);
+      return true;
+    }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const isEmpty = text.textContent.length === 0;
+      if (isEmpty) exitChecklist(li, list);
+      else splitChecklistItem(li, text, range);
+      return true;
+    }
+    return false;
   };
 
   const bg = bgColor || undefined;
@@ -303,12 +350,12 @@ export function RichNoteEditor({
            className="note-body"
            contentEditable={editing}
            suppressContentEditableWarning
-           onPointerDown={editing ? (e) => e.stopPropagation() : onBodyClick}
+           onPointerDown={editing ? onEditingPointerDown : undefined}
            onMouseDown={editing ? (e) => e.stopPropagation() : undefined}
            onBlur={editing ? commit : undefined}
            onKeyDown={editing ? onKey : undefined}
            onInput={editing ? onMentionInput : undefined}
-           onClick={!editing ? onBodyClick : undefined}
+           onClick={onBodyClick}
            onDoubleClick={!editing ? onOuterDouble : undefined}
       />
       {mention && workspaceId && (
@@ -387,6 +434,116 @@ function linkifyNoteHtml(html) {
   });
 
   return root.innerHTML;
+}
+
+// ── Checklist key behaviors ────────────────────────────────────────────
+// Backspace at start of a checklist item → unwrap into a plain paragraph.
+// Enter inside a non-empty checklist item → split into a new item below.
+// Enter on an empty checklist item → exit the list back to a paragraph.
+// All three keep the .ck/.ck-box/.ck-text HTML shape the rest of the
+// editor expects.
+
+function isRangeAtStartOf(el, range) {
+  if (!el.contains(range.startContainer)) return false;
+  try {
+    const probe = document.createRange();
+    probe.setStart(el, 0);
+    probe.setEnd(range.startContainer, range.startOffset);
+    return probe.toString().length === 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+function makeEmptyCheckbox(doc) {
+  const box = doc.createElement('span');
+  box.className = 'ck-box';
+  box.contentEditable = 'false';
+  box.setAttribute('role', 'checkbox');
+  box.setAttribute('aria-checked', 'false');
+  return box;
+}
+
+// Insert `block` adjacent to `li` in `list`, splitting the list if needed
+// so the block ends up between the items on either side.
+function insertBlockNearChecklistItem(block, li, list) {
+  const before = li.previousElementSibling;
+  const after = li.nextElementSibling;
+  if (!before && !after) {
+    list.parentNode.insertBefore(block, list);
+    return;
+  }
+  if (!before) {
+    list.parentNode.insertBefore(block, list);
+    return;
+  }
+  if (!after) {
+    list.parentNode.insertBefore(block, list.nextSibling);
+    return;
+  }
+  // Middle of the list: split. Move all items after `li` into a fresh
+  // list of the same tag/classes and place the block between the two.
+  const tail = list.cloneNode(false);
+  let cur = li.nextElementSibling;
+  while (cur) {
+    const next = cur.nextElementSibling;
+    tail.appendChild(cur);
+    cur = next;
+  }
+  list.parentNode.insertBefore(block, list.nextSibling);
+  block.parentNode.insertBefore(tail, block.nextSibling);
+}
+
+function caretAtStart(el) {
+  const sel = window.getSelection?.();
+  if (!sel) return;
+  const r = document.createRange();
+  r.setStart(el, 0);
+  r.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(r);
+}
+
+function convertChecklistItemToParagraph(li, list) {
+  const doc = li.ownerDocument;
+  const div = doc.createElement('div');
+  const text = li.querySelector('.ck-text');
+  if (text) while (text.firstChild) div.appendChild(text.firstChild);
+  if (!div.firstChild) div.appendChild(doc.createElement('br'));
+  insertBlockNearChecklistItem(div, li, list);
+  li.remove();
+  if (!list.querySelector('li')) list.remove();
+  caretAtStart(div);
+}
+
+function exitChecklist(li, list) {
+  const doc = li.ownerDocument;
+  const div = doc.createElement('div');
+  div.appendChild(doc.createElement('br'));
+  insertBlockNearChecklistItem(div, li, list);
+  li.remove();
+  if (!list.querySelector('li')) list.remove();
+  caretAtStart(div);
+}
+
+function splitChecklistItem(li, text, range) {
+  const doc = li.ownerDocument;
+  // Extract everything from caret to end of .ck-text into a fragment.
+  const after = document.createRange();
+  after.setStart(range.startContainer, range.startOffset);
+  after.setEnd(text, text.childNodes.length);
+  const frag = after.extractContents();
+
+  const newLi = doc.createElement('li');
+  newLi.className = 'ck';
+  newLi.appendChild(makeEmptyCheckbox(doc));
+  const newText = doc.createElement('span');
+  newText.className = 'ck-text';
+  if (frag.childNodes.length) newText.appendChild(frag);
+  newLi.appendChild(newText);
+
+  li.parentNode.insertBefore(newLi, li.nextSibling);
+  caretAtStart(newText);
 }
 
 // ── Caret preservation helpers ─────────────────────────────────────────

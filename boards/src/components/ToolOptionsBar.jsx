@@ -61,6 +61,52 @@ function applyStyle(style) {
   withSelection(() => wrapSelectionStyle(style));
 }
 
+// Parse "rgb(r, g, b)" / "rgba(r, g, b, a)" into "#rrggbb". Returns null on
+// failure (e.g. unsupported color syntax). Used to round-trip computed
+// styles back into the hex form our color swatches and picker expect.
+function rgbToHex(rgb) {
+  if (!rgb) return null;
+  const m = rgb.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (!m) return null;
+  const [, r, g, b] = m;
+  return '#' + [r, g, b].map(n => Number(n).toString(16).padStart(2, '0')).join('');
+}
+
+// Reflect the actual foreground color at the caret inside a .note-body, so
+// the text-color toolbar swatch shows the real color of the text (not a
+// static default). Re-evaluates on `selectionchange` and after the caret
+// moves between spans with different inline `color` styles. Idle / no
+// editable selection → returns the last value.
+function useNoteForeColor(active) {
+  const [color, setColor] = useState('#f5f5f6');
+  useEffect(() => {
+    if (!active) return;
+    let raf = null;
+    const update = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const sel = window.getSelection?.();
+        if (!sel || sel.rangeCount === 0) return;
+        let node = sel.getRangeAt(0).startContainer;
+        if (node && node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+        if (!node || !node.closest?.('.note-body')) return;
+        try {
+          const hex = rgbToHex(window.getComputedStyle(node).color);
+          if (hex) setColor(prev => (prev === hex ? prev : hex));
+        } catch (_) {}
+      });
+    };
+    document.addEventListener('selectionchange', update);
+    update();
+    return () => {
+      document.removeEventListener('selectionchange', update);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [active]);
+  return color;
+}
+
 export function ToolOptionsBar({
   selectedTool,
   drawOptions, setDrawOptions,
@@ -97,43 +143,13 @@ export function ToolOptionsBar({
 
   // ── Note rich text bar ──────────────────────────────────────────────────
   if (editingNoteCard) {
-    return (
-      <div {...tobProps}
-           onPointerDown={(e) => e.stopPropagation()}>
-        <FontPicker />
-        <SizePicker />
-        <span className="tob-sep" />
-        <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold />
-        <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" />
-        <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" />
-        <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" />
-        <span className="tob-sep" />
-        <ListBtn label="•"  title="Bulleted list" type="ul" />
-        <ListBtn label="1." title="Numbered list" type="ol" />
-        <ListBtn label="☐"  title="Checklist"     type="task" />
-        <span className="tob-sep" />
-        <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft" />
-        <FormatBtn label="≡" title="Align center" cmd="justifyCenter" />
-        <FormatBtn label="⇥" title="Align right"  cmd="justifyRight" />
-        <span className="tob-sep" />
-        <ColorBtn title="Text color" defaultColor="#f5f5f6"
-                  swatches={TEXT_COLORS}
-                  paletteColors={paletteColors}
-                  onPick={(c) => applyStyle({ color: c })}
-                  onCustom={(e) => openPickerAt(e, {
-                    value: '#f5f5f6',
-                    onChange: (c) => applyStyle({ color: c }),
-                  })} />
-        <ColorBtn title="Card background" defaultColor={editingNoteCard?.bgColor || '#1c1c1f'}
-                  swatches={BG_COLORS}
-                  paletteColors={paletteColors}
-                  onPick={(c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c })}
-                  onCustom={(e) => openPickerAt(e, {
-                    value: editingNoteCard?.bgColor || '#1c1c1f',
-                    onChange: (c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
-                  })} />
-      </div>
-    );
+    return <NoteRichTextBar
+      tobProps={tobProps}
+      paletteColors={paletteColors}
+      openPickerAt={openPickerAt}
+      editingNoteCard={editingNoteCard}
+      onUpdateEditingNote={onUpdateEditingNote}
+    />;
   }
 
   // ── Drawing options ──────────────────────────────────────────────────────
@@ -398,6 +414,51 @@ export function ToolOptionsBar({
   return null;
 }
 
+// Split out so we can call the `useNoteForeColor` hook (which subscribes to
+// selectionchange while the note is being edited). Keeping it inside the
+// main ToolOptionsBar function would mean the hook runs in every render of
+// every tool's bar.
+function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote }) {
+  const currentFore = useNoteForeColor(true);
+  return (
+    <div {...tobProps}
+         onPointerDown={(e) => e.stopPropagation()}>
+      <FontPicker />
+      <SizePicker />
+      <span className="tob-sep" />
+      <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold />
+      <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" />
+      <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" />
+      <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" />
+      <span className="tob-sep" />
+      <ListBtn label="•"  title="Bulleted list" type="ul" />
+      <ListBtn label="1." title="Numbered list" type="ol" />
+      <ListBtn label="☐"  title="Checklist"     type="task" />
+      <span className="tob-sep" />
+      <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft" />
+      <FormatBtn label="≡" title="Align center" cmd="justifyCenter" />
+      <FormatBtn label="⇥" title="Align right"  cmd="justifyRight" />
+      <span className="tob-sep" />
+      <ColorBtn title="Text color" glyph="A" defaultColor={currentFore}
+                swatches={TEXT_COLORS}
+                paletteColors={paletteColors}
+                onPick={(c) => applyStyle({ color: c })}
+                onCustom={(e) => openPickerAt(e, {
+                  value: currentFore,
+                  onChange: (c) => applyStyle({ color: c }),
+                })} />
+      <ColorBtn title="Card background" defaultColor={editingNoteCard?.bgColor || '#1c1c1f'}
+                swatches={BG_COLORS}
+                paletteColors={paletteColors}
+                onPick={(c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c })}
+                onCustom={(e) => openPickerAt(e, {
+                  value: editingNoteCard?.bgColor || '#1c1c1f',
+                  onChange: (c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
+                })} />
+    </div>
+  );
+}
+
 // ── Format buttons ────────────────────────────────────────────────────────
 
 // Display-helper: format an angle without a trailing ".0" — show
@@ -616,7 +677,7 @@ function SizePicker() {
   );
 }
 
-function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, onCustom }) {
+function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, onCustom, glyph = null }) {
   const [open, setOpen] = useState(false);
   const [popStyle, setPopStyle] = useState(null);
   const wrapRef = useRef(null);
@@ -701,10 +762,17 @@ function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, o
 
   return (
     <span className="tob-pop-wrap" ref={wrapRef}>
-      <button className="tob-btn" title={title}
+      <button className={`tob-btn ${glyph ? 'tob-color-btn' : ''}`} title={title}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setOpen(o => !o)}>
-        <span className="tob-sw-dot" style={{ background: defaultColor }} />
+        {glyph ? (
+          <span className="tob-color-stack">
+            <span className="tob-color-glyph">{glyph}</span>
+            <span className="tob-color-bar" style={{ background: defaultColor }} />
+          </span>
+        ) : (
+          <span className="tob-sw-dot" style={{ background: defaultColor }} />
+        )}
       </button>
       {popNode && typeof document !== 'undefined'
         ? createPortal(popNode, document.body)

@@ -307,6 +307,23 @@ function wrapInList(blocks, wantedTag, wantedClass) {
   const doc = blocks[0].ownerDocument;
   const list = doc.createElement(wantedTag);
   if (wantedClass) list.classList.add(wantedClass);
+
+  // Special case: the "block" we picked up IS the contentEditable root
+  // (the note body had no block-level wrapper around the typed text, so
+  // `blockAncestor` fell back to the editable). Removing it would tear the
+  // editor's root node out of the DOM. Instead, build a single <li>
+  // containing the editable's existing children and append the new list
+  // INSIDE the editable.
+  if (blocks.length === 1 && blocks[0].isContentEditable) {
+    const root = blocks[0];
+    const li = doc.createElement('li');
+    while (root.firstChild) li.appendChild(root.firstChild);
+    list.appendChild(li);
+    root.appendChild(list);
+    decorateChecklistItem(li, wantedClass, doc);
+    return;
+  }
+
   // Insert the list before the first block, then append each block as
   // an <li> (converting existing <li> by lifting its children).
   const parent = blocks[0].parentNode;
@@ -329,27 +346,28 @@ function wrapInList(blocks, wantedTag, wantedClass) {
       block.remove();
       list.appendChild(li);
     }
-    if (wantedClass === 'note-checklist') {
-      li.classList.add('ck');
-      // Prepend the checkbox span if not already present.
-      if (!li.querySelector('.ck-box')) {
-        const box = doc.createElement('span');
-        box.className = 'ck-box';
-        box.contentEditable = 'false';
-        box.setAttribute('role', 'checkbox');
-        box.setAttribute('aria-checked', 'false');
-        li.insertBefore(box, li.firstChild);
-      }
-      // Wrap remaining text in a .ck-text span if needed.
-      if (!li.querySelector('.ck-text')) {
-        const text = doc.createElement('span');
-        text.className = 'ck-text';
-        while (li.childNodes.length > 1) {
-          text.appendChild(li.childNodes[1]);
-        }
-        li.appendChild(text);
-      }
+    decorateChecklistItem(li, wantedClass, doc);
+  }
+}
+
+function decorateChecklistItem(li, wantedClass, doc) {
+  if (wantedClass !== 'note-checklist') return;
+  li.classList.add('ck');
+  if (!li.querySelector('.ck-box')) {
+    const box = doc.createElement('span');
+    box.className = 'ck-box';
+    box.contentEditable = 'false';
+    box.setAttribute('role', 'checkbox');
+    box.setAttribute('aria-checked', 'false');
+    li.insertBefore(box, li.firstChild);
+  }
+  if (!li.querySelector('.ck-text')) {
+    const text = doc.createElement('span');
+    text.className = 'ck-text';
+    while (li.childNodes.length > 1) {
+      text.appendChild(li.childNodes[1]);
     }
+    li.appendChild(text);
   }
 }
 

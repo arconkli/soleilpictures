@@ -3580,7 +3580,11 @@ body {
 .note-checklist { list-style: none; padding-left: 0; margin: 6px 0; }
 .note-checklist .ck { display: flex; gap: 8px; align-items: flex-start; padding: 2px 0; }
 .note-checklist .ck-box {
-  flex: 0 0 14px; width: 14px; height: 14px; margin-top: 4px;
+  flex: 0 0 14px; width: 14px; height: 14px;
+  /* Center the box on the first line of text: half the leading above and below.
+     Falls back to a fixed margin on browsers without `lh` unit support. */
+  margin-top: 4px;
+  margin-top: calc((1lh - 14px) / 2);
   border: 1px solid rgba(245,245,246,.4);
   border-radius: 3px;
   cursor: pointer;
@@ -3596,6 +3600,8 @@ body {
   width: 4px; height: 8px;
   border: solid #1c1c1f; border-width: 0 1.4px 1.4px 0;
   transform: rotate(45deg);
+  /* Don't intercept clicks — the box itself is the toggle target. */
+  pointer-events: none;
 }
 .note-checklist .ck-text { flex: 1; min-width: 0; }
 .note-checklist .ck-box.is-checked + .ck-text {
@@ -5172,6 +5178,24 @@ body {
   width: 12px; height: 12px;
   border-radius: 3px;
   border: 1px solid var(--line-3);
+}
+/* Text-color button: an "A" with a chunky color bar beneath, so the
+   button reads as "font color" at a glance and the current color is
+   prominently visible (instead of a tiny corner dot). */
+.tob-color-btn { padding: 0 6px; }
+.tob-color-stack {
+  display: inline-flex; flex-direction: column; align-items: center;
+  gap: 2px; line-height: 1;
+}
+.tob-color-glyph {
+  font-weight: 700; font-size: 13px; line-height: 1;
+  color: var(--ink-0);
+}
+.tob-color-bar {
+  display: block; width: 16px; height: 3px;
+  border-radius: 2px;
+  /* Subtle hairline so very-light colors (white on light theme) stay visible. */
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);
 }
 .tob-thickness { display: flex; gap: 4px; align-items: center; }
 .tob-thick {
