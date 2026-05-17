@@ -181,9 +181,11 @@ export function readAudioMeta(file) {
   });
 }
 
-// Upload an audio file (mp3 / wav / etc) to R2. No `images` row — like
-// video, the card carries the metadata. Returns the same shape as
-// uploadVideo with width/height omitted.
+// Upload an audio file (mp3 / wav / etc) to R2. Inserts an `images`
+// row even though the file isn't an image — the sign-reads endpoint
+// uses the table as the "uploaded R2 objects" allowlist for RLS, so a
+// missing row means no signed read URL gets issued and `<audio>`
+// silently fails to load.
 export async function uploadAudio({ file, workspaceId, boardId, userId, onProgress = null,
                                     maxBytes = 50 * 1024 * 1024 }) {
   if (!workspaceId) throw new Error('workspaceId required');
@@ -193,6 +195,19 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
   const meta = await readAudioMeta(file);
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
   await putWithProgress(uploadUrl, file, { onProgress });
+
+  const { error: rowErr } = await supabase
+    .from('images')
+    .insert({
+      workspace_id: workspaceId,
+      board_id: boardId || null,
+      storage_path: key,
+      width: null,
+      height: null,
+      uploaded_by: userId,
+    });
+  if (rowErr) console.warn('[uploads] audio images row insert failed', rowErr);
+
   return {
     src: `r2:${key}`,
     storagePath: key,
@@ -218,8 +233,21 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
   }
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
   await putWithProgress(uploadUrl, file, { onProgress });
-  // No images-table row for videos — we'd want a separate `videos` table,
-  // but for now the card itself carries enough metadata for playback.
+
+  // Insert an `images` row so sign-reads authorizes the key. Without
+  // this the video element gets src=undefined and never plays.
+  const { error: rowErr } = await supabase
+    .from('images')
+    .insert({
+      workspace_id: workspaceId,
+      board_id: boardId || null,
+      storage_path: key,
+      width: meta.w,
+      height: meta.h,
+      uploaded_by: userId,
+    });
+  if (rowErr) console.warn('[uploads] video images row insert failed', rowErr);
+
   return {
     src: `r2:${key}`,
     storagePath: key,

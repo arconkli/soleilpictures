@@ -1158,7 +1158,11 @@ export function AudioCard({ src, title, duration, cover,
   useEffect(() => {
     let cancelled = false;
     if (!src) { setResolvedUrl(null); return; }
-    resolveSrc(src).then(u => { if (!cancelled) setResolvedUrl(u); });
+    resolveSrc(src).then(u => {
+      if (cancelled) return;
+      setResolvedUrl(u);
+      if (!u) console.warn('[AudioCard] no signed URL for', src);
+    });
     return () => { cancelled = true; };
   }, [src]);
 
