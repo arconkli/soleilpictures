@@ -21,6 +21,15 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
   // last-known position visible across these transient gaps so the cursor
   // doesn't pop in and out of existence.
   const [cursorDisplay, setCursorDisplay] = useState({});
+  // Refs (not effect-locals) so they survive effect re-runs. Otherwise
+  // when deps churn (parent re-renders pass a new `currentUser` object
+  // identity, etc.), the effect tears down and rebuilds with fresh empty
+  // maps — but React's `cursorDisplay` state still holds stale entries
+  // from the previous run. That desync produced an invisible-cursor bug
+  // where state thought a peer existed but no `.cursor` element was in
+  // the DOM. Keeping these as refs means peer state outlives effect deps.
+  const cursorTargetsRef = useRef({});
+  const cursorStateRef = useRef({});
 
   useEffect(() => {
     const aw = getAwareness?.();
@@ -28,8 +37,8 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
     const ALPHA = 0.35;
     const SNAP_PX = 0.5;
     const GRACE_MS = 700;
-    const cursorTargets = { current: {} };  // clientId → { x, y }  (current target if currently broadcasting)
-    const cursorState   = { current: {} };  // clientId → { x, y, user, lastSeen }
+    const cursorTargets = cursorTargetsRef;
+    const cursorState = cursorStateRef;
     let rafId = 0;
     let cleanupId = 0;
 
@@ -83,38 +92,6 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
       const nextCursorTargets = {};
       const userByClientId = new Map();
       states.forEach((state, clientId) => {
-        // TEMP diagnostic: which silent-skip branch is dropping peers?
-        // Remove once the cursor-visibility regression is identified.
-        const _cursor = state?.canvasCursor;
-        const _sel = state?.canvasSelection;
-        const _drag = state?.liveDrag;
-        const _mq = state?.marquee;
-        const _onBoard = (_cursor?.boardId === boardId)
-                     || (_sel?.boardId === boardId)
-                     || (_drag?.boardId === boardId)
-                     || (_mq?.boardId === boardId);
-        const _reason =
-          !state ? 'no-state'
-          : !state.user ? 'no-user'
-          : state.user.id === selfId ? 'is-self'
-          : !_onBoard ? 'wrong-board'
-          : 'ok';
-        if (_reason !== 'ok') {
-          console.log('[canvaspres] drop', clientId, _reason, {
-            hasUser: !!state?.user,
-            peerUserId: state?.user?.id,
-            selfId,
-            cursorBoardId: _cursor?.boardId,
-            boardId,
-            isOwnClient: clientId === aw.clientID,
-          });
-        } else {
-          console.log('[canvaspres] ok', clientId, {
-            peerUserId: state.user.id,
-            peerName: state.user.name,
-            hasCursor: !!_cursor,
-          });
-        }
         if (!state?.user) return;
         if (state.user.id === selfId) return;
         const cursor = state.canvasCursor;
@@ -152,7 +129,12 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
       let displayChanged = false;
       for (const id in nextCursorTargets) {
         const t = nextCursorTargets[id];
-        const u = userByClientId.get(id);
+        // Belt-and-braces: prefer userByClientId, but fall back to scanning
+        // `newest` so we never insert a cursor entry without user metadata
+        // (the render gates on `c?.user` and would silently drop it).
+        const u = userByClientId.get(id)
+          ?? [...newest.values()].find(p => p.clientId === id)?.user
+          ?? null;
         if (!cursorState.current[id]) {
           cursorState.current[id] = { x: t.x, y: t.y, user: u, lastSeen: now };
           displayChanged = true;
@@ -161,14 +143,6 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
           if (u) cursorState.current[id].user = u;
         }
       }
-      // TEMP diagnostic: log every refresh outcome so we can tell if
-      // cursorDisplay is actually getting populated or stays empty.
-      console.log('[canvaspres] refresh-out', {
-        nextCursorTargetIds: Object.keys(nextCursorTargets),
-        cursorStateIds: Object.keys(cursorState.current),
-        peerCount: newest.size,
-        displayChanged,
-      });
       if (displayChanged) setCursorDisplay({ ...cursorState.current });
       if (!rafId) rafId = requestAnimationFrame(tick);
       dropExpired();
@@ -188,20 +162,6 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
   // Cursors get rendered in canvas-space, then transformed by the same
   // pan/zoom the canvas itself uses, so a peer's screen-space cursor
   // follows the same coordinate system as the cards.
-  // TEMP diagnostic: log cursorDisplay state once per render.
-  if (typeof window !== 'undefined' && !window.__cursorRenderLogThrottle) {
-    window.__cursorRenderLogThrottle = setTimeout(() => {
-      window.__cursorRenderLogThrottle = null;
-    }, 500);
-    console.log('[canvaspres] render-tick', {
-      cursorDisplayKeys: Object.keys(cursorDisplay),
-      cursorDisplayValues: Object.entries(cursorDisplay).map(([id, c]) => ({
-        id, hasUser: !!c?.user, name: c?.user?.name, x: c?.x, y: c?.y,
-      })),
-      peerCount: peers.length,
-      pan, zoom, boardId,
-    });
-  }
   return (
     <>
       {/* Peer marquee rectangles — drawn in canvas-space, transformed by the
@@ -227,24 +187,12 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
                }} />
         ))}
       </div>
-      <div className="cursors-layer" data-cursor-count={Object.keys(cursorDisplay).length}>
+      <div className="cursors-layer">
         {Object.entries(cursorDisplay).map(([clientId, c]) => {
           if (!c?.user) return null;
           const sx = pan.x + c.x * zoom;
           const sy = pan.y + c.y * zoom;
-          // TEMP diagnostic: log every render-time position so we can tell
-          // if cursors are being placed off-screen / at NaN.
-          if (typeof window !== 'undefined' && !window.__cursorRenderLogThrottle) {
-            window.__cursorRenderLogThrottle = setTimeout(() => {
-              window.__cursorRenderLogThrottle = null;
-            }, 500);
-            console.log('[canvaspres] render', clientId, {
-              name: c.user.name,
-              canvasXY: { x: c.x, y: c.y },
-              screenXY: { x: sx, y: sy },
-              pan, zoom,
-            });
-          }
+          if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
           return (
             <LiveCursor
               key={clientId}
