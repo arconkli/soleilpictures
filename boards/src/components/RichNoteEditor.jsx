@@ -95,6 +95,11 @@ export function RichNoteEditor({
   useEffect(() => {
     if (!editing) return;
     try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
+    // Self-heal any pre-existing broken checklist items (stray text nodes
+    // outside .ck-text, empty .ck-text without a <br> placeholder). Notes
+    // saved before the placeholder fix may have one of those shapes; this
+    // makes them editable again on entry.
+    if (ref.current) normalizeChecklists(ref.current);
     setTimeout(() => {
       if (!ref.current) return;
       ref.current.focus();
@@ -382,9 +387,31 @@ function normalizeUrl(url) {
   return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
 }
 
+// Move any stray children inside a checklist <li> (typed when the caret
+// landed outside the .ck-text span) back into .ck-text. Without this, the
+// Enter/Backspace handlers can't find the editable span and the user's
+// text floats next to the contentEditable=false checkbox.
+function normalizeChecklists(root) {
+  root.querySelectorAll('li.ck').forEach(li => {
+    let text = li.querySelector('.ck-text');
+    if (!text) {
+      text = li.ownerDocument.createElement('span');
+      text.className = 'ck-text';
+      li.appendChild(text);
+    }
+    for (const child of Array.from(li.childNodes)) {
+      if (child === text) continue;
+      if (child.nodeType === Node.ELEMENT_NODE && child.classList?.contains('ck-box')) continue;
+      text.appendChild(child);
+    }
+    ensureCkTextPlaceholder(text);
+  });
+}
+
 function linkifyNoteHtml(html) {
   const root = document.createElement('div');
   root.innerHTML = html || '';
+  normalizeChecklists(root);
   root.querySelectorAll('.note-link-preview').forEach(node => node.remove());
   const hidden = new Set(Array.from(root.querySelectorAll('.note-preview-hidden')).map(node => node.dataset.url));
   const urls = new Map();
@@ -543,7 +570,37 @@ function splitChecklistItem(li, text, range) {
   newLi.appendChild(newText);
 
   li.parentNode.insertBefore(newLi, li.nextSibling);
-  caretAtStart(newText);
+  // Empty inline .ck-text spans can't anchor a caret without a placeholder
+  // (browsers won't paint a caret inside a zero-dimension inline element).
+  // Add a <br> to either side that is now empty, then place the caret
+  // before the placeholder so the first typed character replaces it.
+  ensureCkTextPlaceholder(text);
+  ensureCkTextPlaceholder(newText);
+  caretAtStartOfCkText(newText);
+}
+
+function ensureCkTextPlaceholder(textEl) {
+  // extractContents() at a text-node boundary leaves an empty "" text node
+  // behind. Strip those first so the "no children" check correctly detects
+  // an empty span that needs a placeholder.
+  Array.from(textEl.childNodes).forEach(n => {
+    if (n.nodeType === Node.TEXT_NODE && !n.nodeValue) n.remove();
+  });
+  if (!textEl.firstChild) textEl.appendChild(textEl.ownerDocument.createElement('br'));
+}
+
+function caretAtStartOfCkText(textEl) {
+  const sel = window.getSelection?.();
+  if (!sel) return;
+  const r = document.createRange();
+  if (textEl.firstChild?.nodeName === 'BR' && textEl.childNodes.length === 1) {
+    r.setStartBefore(textEl.firstChild);
+  } else {
+    r.setStart(textEl, 0);
+  }
+  r.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(r);
 }
 
 // ── Caret preservation helpers ─────────────────────────────────────────

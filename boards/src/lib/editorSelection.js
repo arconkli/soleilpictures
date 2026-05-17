@@ -247,16 +247,40 @@ export function toggleList(type) {
 
   if (allMatch) {
     unwrapList(blocks);
-  } else {
-    wrapInList(blocks, wantedTag, wantedClass);
+    // Restore selection to the unwrapped content (still represented by
+    // the original block elements lifted out of their <li>s).
+    try {
+      const newRange = document.createRange();
+      newRange.selectNodeContents(blocks[blocks.length - 1]);
+      newRange.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    } catch (_) {}
+    return;
   }
 
-  // Restore selection to the wrapped/unwrapped content so follow-up
-  // formats apply to the same range.
+  const list = wrapInList(blocks, wantedTag, wantedClass);
+  // Place the caret INSIDE the last <li> of the new list — for checklists
+  // that means inside the .ck-text span, so subsequent typing lands inside
+  // the editable text (not next to the contentEditable=false checkbox)
+  // and the Enter/Backspace handlers (which look for .ck-text ancestry)
+  // can fire.
   try {
     const newRange = document.createRange();
-    newRange.selectNodeContents(blocks[blocks.length - 1]);
-    newRange.collapse(false);
+    const lastLi = list?.lastElementChild;
+    const target = lastLi
+      ? (lastLi.querySelector('.ck-text') || lastLi)
+      : blocks[blocks.length - 1];
+    // If `target` only contains a <br> placeholder (decorateChecklistItem
+    // adds one to empty .ck-text spans so they can hold a caret), put the
+    // caret BEFORE the <br> so the first typed character replaces it.
+    if (target.firstChild?.nodeName === 'BR' && target.childNodes.length === 1) {
+      newRange.setStartBefore(target.firstChild);
+      newRange.collapse(true);
+    } else {
+      newRange.selectNodeContents(target);
+      newRange.collapse(false);
+    }
     sel.removeAllRanges();
     sel.addRange(newRange);
   } catch (_) {}
@@ -303,7 +327,7 @@ function blockAncestor(node, editable) {
 }
 
 function wrapInList(blocks, wantedTag, wantedClass) {
-  if (!blocks.length) return;
+  if (!blocks.length) return null;
   const doc = blocks[0].ownerDocument;
   const list = doc.createElement(wantedTag);
   if (wantedClass) list.classList.add(wantedClass);
@@ -321,7 +345,7 @@ function wrapInList(blocks, wantedTag, wantedClass) {
     list.appendChild(li);
     root.appendChild(list);
     decorateChecklistItem(li, wantedClass, doc);
-    return;
+    return list;
   }
 
   // Insert the list before the first block, then append each block as
@@ -348,6 +372,7 @@ function wrapInList(blocks, wantedTag, wantedClass) {
     }
     decorateChecklistItem(li, wantedClass, doc);
   }
+  return list;
 }
 
 function decorateChecklistItem(li, wantedClass, doc) {
@@ -369,6 +394,12 @@ function decorateChecklistItem(li, wantedClass, doc) {
     }
     li.appendChild(text);
   }
+  // Empty inline spans can't hold a caret in contentEditable — without a
+  // placeholder the browser inserts typed text into the parent <li>
+  // instead of the .ck-text span. A <br> is the standard placeholder for
+  // empty editable blocks; it gets replaced on the first input.
+  const text = li.querySelector('.ck-text');
+  if (text && !text.firstChild) text.appendChild(doc.createElement('br'));
 }
 
 function unwrapList(blocks) {
