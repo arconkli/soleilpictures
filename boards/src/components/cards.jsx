@@ -1,8 +1,11 @@
 // All card kinds. Most accept onUpdate(patch) so they can self-edit inline.
 
 import { useEffect, useRef, useState } from 'react';
+import WaveSurfer from 'wavesurfer.js';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
+import { resolveSrc } from '../lib/r2.js';
+import * as audioBus from '../lib/audioBus.js';
 import { EditableText } from './EditableText.jsx';
 import { RichNoteEditor } from './RichNoteEditor.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -45,6 +48,8 @@ const KIND_DOTS = {
   schedule: '#f472b6',
   board:    '#52525b',
   boardlink:'#6b6b75',
+  audio:    '#9b6df0',
+  video:    '#ef4444',
 };
 function htmlToText(html, max = 80) {
   if (!html) return '';
@@ -200,6 +205,12 @@ function describeListItem(card, boards = {}) {
   }
   if (card.kind === 'schedule') {
     return { ...base, name: card.title || 'Schedule', meta: 'schedule' };
+  }
+  if (card.kind === 'audio') {
+    return { ...base, name: card.title || 'Audio', meta: 'audio' };
+  }
+  if (card.kind === 'video') {
+    return { ...base, name: card.title || 'Video', meta: 'video' };
   }
   // shape / unknown — skip from the list
   return null;
@@ -1085,6 +1096,233 @@ function BoardCardPresence({ peers = [] }) {
         <span className="bc-presence-dot bc-presence-overflow" title={`+${overflow} more`}>
           +{overflow}
         </span>
+      )}
+    </div>
+  );
+}
+
+function formatTime(t) {
+  if (!Number.isFinite(t) || t < 0) return '0:00';
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+// Audio card — waveform via WaveSurfer.js, play/pause, optional cover image.
+// Right-click → "Set cover image" increments `coverPickAt` which toggles
+// drop-zone mode here. In drop-zone mode the card accepts an image file
+// dropped onto it OR opens a native file picker on click; the resolved
+// File is passed to onPickCover(file).
+export function AudioCard({ src, title, duration, cover,
+                            onUpdate, autoFocus = false,
+                            coverPickAt = 0,
+                            onPickCover = null }) {
+  const waveRef = useRef(null);
+  const wavesurferRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [position, setPosition] = useState(0);
+  const [decodedDuration, setDecodedDuration] = useState(duration || 0);
+  const [resolvedUrl, setResolvedUrl] = useState(null);
+  const [coverUrl, setCoverUrl] = useState(null);
+  const [coverDropMode, setCoverDropMode] = useState(false);
+  const [coverDragOver, setCoverDragOver] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+
+  // Right-click signal from canvas → open cover drop-zone.
+  useEffect(() => {
+    if (coverPickAt > 0) setCoverDropMode(true);
+  }, [coverPickAt]);
+
+  // Resolve src → signed URL.
+  useEffect(() => {
+    let cancelled = false;
+    if (!src) { setResolvedUrl(null); return; }
+    resolveSrc(src).then(u => { if (!cancelled) setResolvedUrl(u); });
+    return () => { cancelled = true; };
+  }, [src]);
+
+  // Resolve cover → signed URL (R2Image handles its own resolution, but
+  // we duplicate here so the split layout's preview gets a URL too).
+  useEffect(() => {
+    let cancelled = false;
+    if (!cover) { setCoverUrl(null); return; }
+    resolveSrc(cover).then(u => { if (!cancelled) setCoverUrl(u); });
+    return () => { cancelled = true; };
+  }, [cover]);
+
+  // Mount WaveSurfer when the URL is resolved.
+  useEffect(() => {
+    if (!resolvedUrl || !waveRef.current) return;
+    const stop = () => {
+      try { wavesurferRef.current?.pause(); } catch (_) {}
+    };
+    const ws = WaveSurfer.create({
+      container: waveRef.current,
+      url: resolvedUrl,
+      waveColor: 'rgba(255,255,255,0.35)',
+      progressColor: '#9b6df0',
+      cursorColor: 'rgba(255,255,255,0.7)',
+      cursorWidth: 1,
+      barWidth: 2,
+      barRadius: 1,
+      barGap: 1,
+      height: 'auto',
+      normalize: true,
+      interact: true,
+    });
+    wavesurferRef.current = ws;
+    ws.on('ready', () => setDecodedDuration(ws.getDuration() || 0));
+    ws.on('timeupdate', (t) => setPosition(t));
+    ws.on('play', () => {
+      setIsPlaying(true);
+      audioBus.claim(stop);
+    });
+    ws.on('pause', () => {
+      setIsPlaying(false);
+      audioBus.release(stop);
+    });
+    ws.on('finish', () => {
+      setIsPlaying(false);
+      setPosition(0);
+      audioBus.release(stop);
+    });
+    return () => {
+      audioBus.release(stop);
+      try { ws.destroy(); } catch (_) {}
+      wavesurferRef.current = null;
+    };
+  }, [resolvedUrl]);
+
+  const togglePlay = (e) => {
+    e.stopPropagation();
+    const ws = wavesurferRef.current;
+    if (!ws) return;
+    if (ws.isPlaying()) ws.pause();
+    else ws.play();
+  };
+
+  const handleCoverFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    onPickCover?.(file);
+    setCoverDropMode(false);
+    setCoverDragOver(false);
+  };
+
+  const onCoverDragOver = (e) => {
+    if (!coverDropMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!coverDragOver) setCoverDragOver(true);
+  };
+  const onCoverDragLeave = (e) => {
+    if (!coverDropMode) return;
+    e.stopPropagation();
+    setCoverDragOver(false);
+  };
+  const onCoverDrop = (e) => {
+    if (!coverDropMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const f = e.dataTransfer.files?.[0];
+    handleCoverFile(f);
+  };
+  const onCoverClick = (e) => {
+    if (!coverDropMode) return;
+    e.stopPropagation();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => handleCoverFile(input.files?.[0]);
+    input.click();
+  };
+
+  const dur = decodedDuration || duration || 0;
+  const showTitle = !!title || editingTitle;
+  const onTitleDouble = (e) => { e.stopPropagation(); setEditingTitle(true); };
+
+  const playButton = (
+    <button type="button" className="ac-play"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={togglePlay}
+            aria-label={isPlaying ? 'Pause' : 'Play'}>
+      {isPlaying ? (
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <rect x="3" y="2" width="3" height="10" fill="currentColor" />
+          <rect x="8" y="2" width="3" height="10" fill="currentColor" />
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <polygon points="3,2 12,7 3,12" fill="currentColor" />
+        </svg>
+      )}
+    </button>
+  );
+
+  const timeDisplay = (
+    <span className="ac-time">{formatTime(position)} / {formatTime(dur)}</span>
+  );
+
+  const titleEl = onUpdate ? (
+    <EditableText
+      className="ac-title editable"
+      value={title || ''}
+      placeholder="Audio"
+      editing={editingTitle}
+      setEditing={setEditingTitle}
+      onChange={(v) => onUpdate({ title: v || null })}
+      selectAllOnFocus={autoFocus}
+    />
+  ) : <div className="ac-title">{title}</div>;
+
+  // Split layout (with cover): cover image on the left, waveform/controls on the right.
+  if (cover) {
+    return (
+      <div className={`ac ac-with-cover ${coverDropMode ? 'ac-cover-mode' : ''} ${coverDragOver ? 'ac-cover-drop-hover' : ''}`}>
+        <div className="ac-cover-wrap"
+             onDoubleClick={onTitleDouble}
+             onDragOver={onCoverDragOver}
+             onDragLeave={onCoverDragLeave}
+             onDrop={onCoverDrop}
+             onClick={onCoverClick}>
+          {coverUrl
+            ? <img className="ac-cover-img" src={coverUrl} alt="" draggable="false" />
+            : <ImagePlaceholder tone="neutral" />}
+          {coverDropMode && (
+            <div className="ac-cover-hint">Drop image or click</div>
+          )}
+        </div>
+        <div className="ac-body">
+          {showTitle && (
+            <div className="ac-title-row" onDoubleClick={onTitleDouble}>{titleEl}</div>
+          )}
+          <div className="ac-wave" ref={waveRef} />
+          <div className="ac-controls">
+            {playButton}
+            {timeDisplay}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default layout: waveform fills the card; title above (if set); controls below.
+  return (
+    <div className={`ac ${coverDropMode ? 'ac-cover-mode' : ''} ${coverDragOver ? 'ac-cover-drop-hover' : ''}`}
+         onDragOver={onCoverDragOver}
+         onDragLeave={onCoverDragLeave}
+         onDrop={onCoverDrop}
+         onClick={coverDropMode ? onCoverClick : undefined}>
+      {showTitle && (
+        <div className="ac-title-row" onDoubleClick={onTitleDouble}>{titleEl}</div>
+      )}
+      <div className="ac-wave" ref={waveRef} />
+      <div className="ac-controls">
+        {playButton}
+        {timeDisplay}
+      </div>
+      {coverDropMode && (
+        <div className="ac-cover-hint ac-cover-hint-overlay">Drop image or click to add cover</div>
       )}
     </div>
   );

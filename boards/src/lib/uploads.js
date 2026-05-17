@@ -161,6 +161,46 @@ export function readVideoMeta(file) {
   });
 }
 
+// Read duration from an audio File. Returns null if metadata fails.
+export function readAudioMeta(file) {
+  return new Promise((res) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement('audio');
+      a.preload = 'metadata';
+      a.onloadedmetadata = () => {
+        const out = { duration: Number.isFinite(a.duration) ? a.duration : null };
+        URL.revokeObjectURL(url);
+        res(out);
+      };
+      a.onerror = () => { URL.revokeObjectURL(url); res({ duration: null }); };
+      a.src = url;
+    } catch (_) {
+      res({ duration: null });
+    }
+  });
+}
+
+// Upload an audio file (mp3 / wav / etc) to R2. No `images` row — like
+// video, the card carries the metadata. Returns the same shape as
+// uploadVideo with width/height omitted.
+export async function uploadAudio({ file, workspaceId, boardId, userId, onProgress = null,
+                                    maxBytes = 50 * 1024 * 1024 }) {
+  if (!workspaceId) throw new Error('workspaceId required');
+  if (file.size > maxBytes) {
+    throw new Error(`Audio too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
+  }
+  const meta = await readAudioMeta(file);
+  const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
+  await putWithProgress(uploadUrl, file, { onProgress });
+  return {
+    src: `r2:${key}`,
+    storagePath: key,
+    key,
+    duration: meta.duration,
+  };
+}
+
 // Upload a short video to R2. Caller is expected to enforce constraints
 // (max duration, max bytes) BEFORE calling — we still validate here as
 // a backstop. Returns the same shape as uploadImage so callers can

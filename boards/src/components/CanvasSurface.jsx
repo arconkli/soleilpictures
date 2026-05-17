@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, ArtCanvasCard,
+  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard,
 } from './cards.jsx';
 import { RichDocCard } from './DocCard.jsx';
 
@@ -23,7 +23,7 @@ import { Icon } from './Icon.jsx';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, inboxItemToCard } from '../lib/dragMimes.js';
 import { coerceRef } from '../lib/entityRef.js';
-import { uploadImage, uploadVideo } from '../lib/uploads.js';
+import { uploadImage, uploadVideo, uploadAudio } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
@@ -52,6 +52,7 @@ import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
 } from '../lib/arrowGeometry.js';
+import { boundsOfCards, oppositeCorner } from '../lib/canvasGeom.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
 
 const RESIZE_HANDLE_PX = 14;
@@ -258,6 +259,12 @@ export function CanvasSurface({
     };
   }, [snapHints]);
   const [resize, setResize] = useState(null);
+  // Multi-selection / group resize. When active, drives a live overlay
+  // of new bounds on every affected card so the user sees the scale
+  // before pointer-up commits a single Yjs batch.
+  //   { handle, anchor:{x,y,axisX,axisY}, startBounds, startById:Map<id, {x,y,w,h}>,
+  //     live:Map<id, {x,y,w,h}> | null }
+  const [multiResize, setMultiResize] = useState(null);
   const [rotateState, setRotateState] = useState(null); // { id, rot }
   const [marquee, setMarquee] = useState(null);
   const [arrowFrom, setArrowFrom] = useState(null);
@@ -958,6 +965,27 @@ export function CanvasSurface({
     return [...new Set(out)];
   }, [palettes]);
 
+  // Effective multi-selection — current `selected` set expanded with
+  // every groupmate of any card in a group of 2+ members. Drives the
+  // SelectionBoundsOverlay (visible when size >= 2) and gates the
+  // single-card resize handle so it doesn't compete with the multi-
+  // resize handles for the same cards.
+  const effectiveSelectedIds = useMemo(() => {
+    if (!selected || selected.size === 0) return new Set();
+    return expandWithGroupmates(selected);
+    // expandWithGroupmates depends on cardsByGroup/cardById; both
+    // already feed memo invalidation via `cards`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, cards, cardsByGroup]);
+
+  // Union bounds of the effective multi-selection. Null when < 2 cards
+  // are selected so the overlay stays hidden for single-card edits.
+  const multiSelectionBounds = useMemo(() => {
+    if (effectiveSelectedIds.size < 2) return null;
+    const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
+    return boundsOfCards(items);
+  }, [effectiveSelectedIds, cards]);
+
   // Group bounding box (computed from member cards) — used by arrow
   // anchoring so arrows can attach to groups, not just cards.
   const groupBoundsById = useMemo(() => {
@@ -1135,6 +1163,41 @@ export function CanvasSurface({
       w, h,
     });
   }, [workspaceId, board?.id, userId, mutators]);
+
+  // Audio file → audio card centered on (cx, cy). Default size matches
+  // a compact waveform; the card carries the duration for instant later
+  // renders. 50 MB cap enforced inside uploadAudio.
+  const dropAudioFile = useCallback(async (file, cx, cy) => {
+    if (!workspaceId) throw new Error('workspaceId required');
+    const up = await uploadAudio({ file, workspaceId, boardId: board?.id, userId });
+    const w = 360, h = 92;
+    mutators.addCard?.({
+      id: `aud-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+      kind: 'audio',
+      src: up.src,
+      title: file.name || 'Audio',
+      duration: up.duration || null,
+      x: Math.round(cx - w / 2),
+      y: Math.round(cy - h / 2),
+      w, h,
+    });
+  }, [workspaceId, board?.id, userId, mutators]);
+
+  // Right-click "Set cover image" → upload an image file and stamp it
+  // onto the audio card's `cover` field. Also widens the card so the
+  // split layout reads properly.
+  const pickAudioCover = useCallback(async (cardId, file) => {
+    try {
+      const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId, userId });
+      const target = (cards || []).find(c => c.id === cardId);
+      const patch = { cover: up.src };
+      if (target && target.w < 420) patch.w = 420;
+      if (target && target.h < 140) patch.h = 140;
+      mutators.updateCard?.(cardId, patch);
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Cover upload failed: ' + (err.message || err) });
+    }
+  }, [workspaceId, board?.id, userId, mutators, cards, feedback]);
 
   useEffect(() => {
     const onMove = (e) => {
@@ -2439,6 +2502,101 @@ export function CanvasSurface({
     window.addEventListener('pointerup', onUp);
   };
 
+  // Multi-selection / group resize. Activated by handles on the
+  // SelectionBoundsOverlay. Default behaviour: uniform scale, preserve
+  // each item's aspect, anchor at the opposite corner. Hold Shift to
+  // free-stretch (independent sx, sy). Items below the per-card minimum
+  // clamp the whole scale so the union doesn't deform.
+  const onMultiResizePointerDown = (e, handle, items, startBounds) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const anchor = oppositeCorner(handle, startBounds);
+    const startById = new Map();
+    items.forEach(c => startById.set(c.id, { x: c.x, y: c.y, w: c.w, h: c.h, kind: c.kind, manuallyResized: !!c.manuallyResized }));
+    const startClient = { x: e.clientX, y: e.clientY };
+    // Pointer-down corresponds to a specific corner / edge of the union
+    // bounds. We track where that corner *started* in canvas space so
+    // we can convert pointer movement into a new corner position.
+    const startCorner = {
+      x: handle.includes('l') ? startBounds.x : (handle.includes('r') ? startBounds.right : (startBounds.x + startBounds.right) / 2),
+      y: handle.includes('t') ? startBounds.y : (handle.includes('b') ? startBounds.bottom : (startBounds.y + startBounds.bottom) / 2),
+    };
+    setMultiResize({ handle, anchor, startBounds, startById, live: null });
+
+    const computeUpdates = (ev) => {
+      const dx = (ev.clientX - startClient.x) / zoom;
+      const dy = (ev.clientY - startClient.y) / zoom;
+      const newCornerX = startCorner.x + dx;
+      const newCornerY = startCorner.y + dy;
+      const denomX = (startCorner.x - anchor.x);
+      const denomY = (startCorner.y - anchor.y);
+      let sx = anchor.axisX && denomX !== 0 ? (newCornerX - anchor.x) / denomX : 1;
+      let sy = anchor.axisY && denomY !== 0 ? (newCornerY - anchor.y) / denomY : 1;
+      // Disallow mirroring across the anchor — clamp at a tiny positive
+      // scale so cards never flip negative.
+      if (sx < 0.05) sx = 0.05;
+      if (sy < 0.05) sy = 0.05;
+      // Uniform scale unless Shift is held. Take the average of the two
+      // axis factors, applied to both axes the user can actually drag
+      // (mid-edge handles only drive one axis).
+      if (!ev.shiftKey) {
+        if (anchor.axisX && anchor.axisY) {
+          const s = (sx + sy) / 2;
+          sx = s; sy = s;
+        } else if (anchor.axisX) {
+          sy = sx;
+        } else if (anchor.axisY) {
+          sx = sy;
+        }
+      }
+      // Clamp so the smallest item won't fall below its min.
+      let clamp = 1;
+      for (const start of startById.values()) {
+        const wClamp = MIN_W / Math.max(1, start.w * sx);
+        const hClamp = MIN_H / Math.max(1, start.h * sy);
+        if (wClamp > 1) clamp = Math.max(clamp, wClamp);
+        if (hClamp > 1) clamp = Math.max(clamp, hClamp);
+      }
+      if (clamp > 1) { sx *= clamp; sy *= clamp; }
+      const live = new Map();
+      for (const [id, start] of startById) {
+        const nx = anchor.x + (start.x - anchor.x) * sx;
+        const ny = anchor.y + (start.y - anchor.y) * sy;
+        const nw = Math.max(MIN_W, start.w * sx);
+        const nh = Math.max(MIN_H, start.h * sy);
+        live.set(id, { x: nx, y: ny, w: nw, h: nh });
+      }
+      return live;
+    };
+
+    const onMove = (ev) => {
+      const live = computeUpdates(ev);
+      setMultiResize(prev => prev ? { ...prev, live } : prev);
+    };
+    const onUp = (ev) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const live = computeUpdates(ev);
+      const updates = [];
+      for (const [id, lv] of live) {
+        const start = startById.get(id);
+        const newX = Math.round(lv.x);
+        const newY = Math.round(lv.y);
+        const newW = Math.max(MIN_W, Math.round(lv.w));
+        const newH = Math.max(MIN_H, Math.round(lv.h));
+        if (newX === start.x && newY === start.y && newW === start.w && newH === start.h) continue;
+        const patch = { x: newX, y: newY, w: newW, h: newH };
+        if (start.kind === 'note' && !start.manuallyResized) patch.manuallyResized = true;
+        updates.push({ id, patch });
+      }
+      if (updates.length) mutators.updateCards?.(updates);
+      setMultiResize(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   const onRotatePointerDown = (e, c) => {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -2761,6 +2919,18 @@ export function CanvasSurface({
             const url = c.link || c.source;
             window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener');
           }});
+        }
+      } else if (c.kind === 'audio') {
+        items.push({ id: 'audio-title', label: c.title ? 'Edit title' : 'Add title',
+                     run: () => triggerInlineEdit(c.id, 'title') });
+        if (c.cover) {
+          items.push({ id: 'audio-cover-replace', label: 'Replace cover image…',
+                       run: () => triggerInlineEdit(c.id, 'audioCover') });
+          items.push({ id: 'audio-cover-remove', label: 'Remove cover image',
+                       run: () => mutators.updateCard?.(c.id, { cover: null }) });
+        } else {
+          items.push({ id: 'audio-cover-set', label: 'Set cover image…',
+                       run: () => triggerInlineEdit(c.id, 'audioCover') });
         }
       }
       if (items.length > 0) items.push({ divider: true });
@@ -3852,10 +4022,14 @@ export function CanvasSurface({
     // awareness-reported live position so we see the card move in realtime.
     // Local drag still wins (we never read peer position for our own drag).
     const peerDrag = !inDrag ? peerDrags[c.id] : null;
-    const x = peerDrag ? peerDrag.x : (c.x + (dragDelta?.dx || 0));
-    const y = peerDrag ? peerDrag.y : (c.y + (dragDelta?.dy || 0));
-    const w = Math.max(MIN_W, c.w + (resizeDelta?.dw || 0));
-    const h = Math.max(MIN_H, c.h + (resizeDelta?.dh || 0));
+    // Multi-resize live override — while the user is dragging a handle
+    // on the SelectionBoundsOverlay, every affected card gets a live
+    // (x,y,w,h) from the active drag instead of its committed values.
+    const multiLive = multiResize?.live?.get?.(c.id) || null;
+    const x = multiLive ? multiLive.x : (peerDrag ? peerDrag.x : (c.x + (dragDelta?.dx || 0)));
+    const y = multiLive ? multiLive.y : (peerDrag ? peerDrag.y : (c.y + (dragDelta?.dy || 0)));
+    const w = multiLive ? Math.max(MIN_W, multiLive.w) : Math.max(MIN_W, c.w + (resizeDelta?.dw || 0));
+    const h = multiLive ? Math.max(MIN_H, multiLive.h) : Math.max(MIN_H, c.h + (resizeDelta?.dh || 0));
     const isArrowSource = arrowRefEquals(arrowFrom, c.id);
     const isSelected = selected.has(c.id)
       || (marqueePreviewIds && marqueePreviewIds.has(c.id))
@@ -3974,6 +4148,10 @@ export function CanvasSurface({
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} onUpdate={onUpdate} autoFocus={af} />;
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} title={c.title} onUpdate={onUpdate} autoFocus={af} />;
+    else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover}
+                                                        onUpdate={onUpdate} autoFocus={af}
+                                                        coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}
+                                                        onPickCover={(file) => pickAudioCover(c.id, file)} />;
     else if (c.kind === 'doc') {
       // Rich doc card. Pull the live cardYMap so RichDocCard can read its
       // per-card pages/content/bookmarks/comments via cardScope().
@@ -4031,7 +4209,7 @@ export function CanvasSurface({
             )}
           </div>
         )}
-        {selectedTool === 'select' && (
+        {selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
                style={{ width: RESIZE_HANDLE_PX, height: RESIZE_HANDLE_PX }} />
         )}
@@ -4344,12 +4522,13 @@ export function CanvasSurface({
       return;
     }
 
-    // Files (images / videos dragged from Finder).
+    // Files (images / videos / audio dragged from Finder).
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       e.preventDefault();
       const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
       const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
+      const audioFiles = Array.from(files).filter(f => f.type.startsWith('audio/'));
       let offsetX = 0;
       for (const f of imageFiles) {
         // Optimistic — adds the card and uploads in the background so
@@ -4364,6 +4543,15 @@ export function CanvasSurface({
         } catch (err) {
           console.error(err);
           feedback.toast({ type: 'error', message: 'Video upload failed: ' + (err.message || err) });
+        }
+      }
+      for (const f of audioFiles) {
+        try {
+          await dropAudioFile(f, cx + offsetX, cy);
+          offsetX += 380;
+        } catch (err) {
+          console.error(err);
+          feedback.toast({ type: 'error', message: 'Audio upload failed: ' + (err.message || err) });
         }
       }
     }
@@ -4745,6 +4933,68 @@ export function CanvasSurface({
           </div>
         )}
         <div className="cards-layer">{sortedCards.map(renderCard)}</div>
+
+        {/* Multi-selection / group resize handles. Visible whenever the
+            effective selection has 2+ cards. During an active drag, the
+            displayed bounds track the live (in-progress) rect so the
+            outline stays glued to the cards as they scale. */}
+        {selectedTool === 'select' && multiSelectionBounds && (() => {
+          // While dragging, derive bounds from multiResize.live so the
+          // overlay updates with the scale.
+          let bounds = multiSelectionBounds;
+          if (multiResize?.live) {
+            const liveItems = [];
+            for (const [, lv] of multiResize.live) liveItems.push(lv);
+            const b = boundsOfCards(liveItems);
+            if (b) bounds = b;
+          }
+          const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
+          const startBounds = multiResize?.startBounds || multiSelectionBounds;
+          const handlePx = RESIZE_HANDLE_PX;
+          const half = handlePx / 2;
+          const onHandleDown = (handle) => (e) => onMultiResizePointerDown(e, handle, items, startBounds);
+          // Handles laid out at corners + edge midpoints. Positions are
+          // canvas-space; the parent div sits at (0,0) and shares the
+          // same transform as cards-layer.
+          const handleSpecs = [
+            { id: 'tl', x: bounds.x,                 y: bounds.y,                  cursor: 'nwse-resize' },
+            { id: 'tm', x: bounds.x + bounds.w / 2,  y: bounds.y,                  cursor: 'ns-resize' },
+            { id: 'tr', x: bounds.x + bounds.w,      y: bounds.y,                  cursor: 'nesw-resize' },
+            { id: 'mr', x: bounds.x + bounds.w,      y: bounds.y + bounds.h / 2,   cursor: 'ew-resize' },
+            { id: 'br', x: bounds.x + bounds.w,      y: bounds.y + bounds.h,       cursor: 'nwse-resize' },
+            { id: 'bm', x: bounds.x + bounds.w / 2,  y: bounds.y + bounds.h,       cursor: 'ns-resize' },
+            { id: 'bl', x: bounds.x,                 y: bounds.y + bounds.h,       cursor: 'nesw-resize' },
+            { id: 'ml', x: bounds.x,                 y: bounds.y + bounds.h / 2,   cursor: 'ew-resize' },
+          ];
+          return (
+            <div className="multi-select-bounds"
+                 style={{ position: 'absolute', left: bounds.x, top: bounds.y,
+                          width: bounds.w, height: bounds.h,
+                          border: '1px solid var(--soleil, #f5c075)',
+                          borderRadius: 2,
+                          pointerEvents: 'none',
+                          zIndex: 999996 }}>
+              {handleSpecs.map(h => (
+                <div key={h.id}
+                     className={`multi-select-handle multi-select-handle-${h.id}`}
+                     onPointerDown={onHandleDown(h.id)}
+                     style={{
+                       position: 'absolute',
+                       // Position relative to the overlay's origin (bounds.x, bounds.y).
+                       left: (h.x - bounds.x) - half,
+                       top:  (h.y - bounds.y) - half,
+                       width: handlePx,
+                       height: handlePx,
+                       background: '#fff',
+                       border: '1px solid var(--soleil, #f5c075)',
+                       borderRadius: 2,
+                       cursor: h.cursor,
+                       pointerEvents: 'auto',
+                     }} />
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Snap-alignment guidelines — gold hairlines along the matched
             edge / center / dimension while a drag is snapping.
