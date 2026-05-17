@@ -6113,6 +6113,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: block;
 }
 .ac-bar { transition: fill 80ms ease; }
+.ac-bar-on  { fill: var(--soleil); }
+.ac-bar-off { fill: var(--ink-4); }
 .ac-controls {
   display: flex;
   align-items: center;
@@ -6127,14 +6129,15 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   justify-content: center;
   border-radius: 50%;
   border: none;
-  background: #9b6df0;
-  color: #fff;
+  background: var(--soleil);
+  color: #1a1a1a;
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 100ms ease, background 100ms ease;
+  transition: transform 100ms ease, filter 100ms ease;
+  box-shadow: var(--soleil-glow, 0 0 12px rgba(255,165,0,0.18));
 }
 .ac-play:hover {
-  background: #8a5be8;
+  filter: brightness(1.08);
   transform: scale(1.05);
 }
 .ac-play:active { transform: scale(0.96); }
@@ -6149,10 +6152,10 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-3);
   margin: 0 2px;
 }
-.ac.ac-cover-mode { outline: 2px dashed #9b6df0; outline-offset: -2px; }
+.ac.ac-cover-mode { outline: 2px dashed var(--soleil); outline-offset: -2px; }
 .ac.ac-cover-mode.ac-cover-drop-hover {
-  outline-color: #c39df8;
-  background: color-mix(in srgb, var(--bg-3) 92%, #9b6df0 8%);
+  outline-color: var(--soleil);
+  background: color-mix(in srgb, var(--bg-3) 88%, var(--soleil) 12%);
 }
 .ac-cover-hint {
   position: absolute;

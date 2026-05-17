@@ -47,7 +47,7 @@ const KIND_DOTS = {
   schedule: '#f472b6',
   board:    '#52525b',
   boardlink:'#6b6b75',
-  audio:    '#9b6df0',
+  audio:    '#ffa500',
   video:    '#ef4444',
 };
 function htmlToText(html, max = 80) {
@@ -1137,6 +1137,7 @@ export function AudioCard({ src, title, duration, cover,
                             coverPickAt = 0,
                             onPickCover = null }) {
   const audioElRef = useRef(null);
+  const rootRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [decodedDuration, setDecodedDuration] = useState(duration || 0);
@@ -1153,6 +1154,30 @@ export function AudioCard({ src, title, duration, cover,
   useEffect(() => {
     if (coverPickAt > 0) setCoverDropMode(true);
   }, [coverPickAt]);
+
+  // Exit cover-drop mode when the user clicks anywhere outside the
+  // card or presses Escape — the dashed outline shouldn't linger.
+  useEffect(() => {
+    if (!coverDropMode) return;
+    const onDocDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) {
+        setCoverDropMode(false);
+        setCoverDragOver(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setCoverDropMode(false);
+        setCoverDragOver(false);
+      }
+    };
+    document.addEventListener('pointerdown', onDocDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDocDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [coverDropMode]);
 
   // Resolve audio src → signed URL.
   useEffect(() => {
@@ -1323,8 +1348,7 @@ export function AudioCard({ src, title, duration, cover,
           const isFilled = i < filledIdx;
           return (
             <rect key={i} x={x} y={y} width={3} height={h} rx={1.2}
-                  fill={isFilled ? '#9b6df0' : 'rgba(255,255,255,0.12)'}
-                  className={isFilled ? 'ac-bar ac-bar-on' : 'ac-bar'} />
+                  className={isFilled ? 'ac-bar ac-bar-on' : 'ac-bar ac-bar-off'} />
           );
         })}
       </svg>
@@ -1334,7 +1358,8 @@ export function AudioCard({ src, title, duration, cover,
   // Split layout (with cover): cover left, waveform + controls right.
   if (cover || coverDropMode) {
     return (
-      <div className={`ac ac-with-cover ${coverDropMode ? 'ac-cover-mode' : ''} ${coverDragOver ? 'ac-cover-drop-hover' : ''}`}>
+      <div ref={rootRef}
+           className={`ac ac-with-cover ${coverDropMode ? 'ac-cover-mode' : ''} ${coverDragOver ? 'ac-cover-drop-hover' : ''}`}>
         {audioEl}
         <div className="ac-cover-wrap"
              onDoubleClick={onTitleDouble}
@@ -1367,9 +1392,9 @@ export function AudioCard({ src, title, duration, cover,
     );
   }
 
-  // Default layout: gradient card, title + waveform + controls.
+  // Default layout: title + waveform + controls.
   return (
-    <div className={`ac ${coverDropMode ? 'ac-cover-mode' : ''}`}>
+    <div ref={rootRef} className={`ac ${coverDropMode ? 'ac-cover-mode' : ''}`}>
       {audioEl}
       <div className="ac-title-row" onDoubleClick={onTitleDouble}>
         {showTitle ? titleEl : <span className="ac-title ac-title-placeholder">Audio</span>}
