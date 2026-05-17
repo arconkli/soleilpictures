@@ -1,34 +1,44 @@
-import { useEffect, useState, useCallback } from 'react';
-import { fetchBoardChannelMessages, fetchDmThreadMessages, markRead } from '../lib/messages.js';
-import { subscribeBoardChat, subscribeDmChat } from '../lib/messageRealtime.js';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { fetchConversationMessages, markRead } from '../lib/messages.js';
+import { subscribeConversation } from '../lib/messageRealtime.js';
 
-// Returns { messages, typingUsers, refetch } for a single thread.
-//   thread = { kind:'board', boardId, name } | { kind:'dm', peerId, name }
-//   userId = current user (for marking read + filtering self typing)
-export function useMessageThread({ workspaceId, userId, thread }) {
+// Returns { messages, typingUsers, refetch } for a single conversation.
+//   conversationId — the conversation to load
+//   userId         — current user (filters self typing, marks read)
+//   onMarkedRead   — optional callback fired after a successful
+//                    last_read_at write, so the parent (useConversationList)
+//                    can refresh its unread counts. Fixes the
+//                    "stuck at 1" bug from the old useChannelList.
+export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Map()); // userId → ts
+  const onMarkedReadRef = useRef(onMarkedRead);
+  onMarkedReadRef.current = onMarkedRead;
 
   const refetch = useCallback(async () => {
-    if (!workspaceId || !thread) return;
-    let rows = [];
-    if (thread.kind === 'board') rows = await fetchBoardChannelMessages({ boardId: thread.boardId });
-    else if (thread.kind === 'dm') rows = await fetchDmThreadMessages({ workspaceId, userA: userId, userB: thread.peerId });
+    if (!conversationId) { setMessages([]); return; }
+    const rows = await fetchConversationMessages({ conversationId });
     setMessages(rows);
-  }, [workspaceId, userId, thread?.kind, thread?.boardId, thread?.peerId]);
+  }, [conversationId]);
 
   useEffect(() => { refetch(); }, [refetch]);
 
-  // Mark read whenever the thread or its message list changes.
+  // Mark read whenever the conversation opens or new messages arrive.
+  // After marking, notify the parent so unread counts refresh.
   useEffect(() => {
-    if (!userId || !thread) return;
-    if (thread.kind === 'board') markRead({ userId, boardId: thread.boardId });
-    if (thread.kind === 'dm')    markRead({ userId, dmPeerId: thread.peerId });
-  }, [userId, thread?.kind, thread?.boardId, thread?.peerId, messages.length]);
+    if (!userId || !conversationId) return;
+    let cancelled = false;
+    (async () => {
+      const ok = await markRead({ conversationId, userId });
+      if (cancelled) return;
+      if (ok) onMarkedReadRef.current?.();
+    })();
+    return () => { cancelled = true; };
+  }, [userId, conversationId, messages.length]);
 
   // Realtime subscribe.
   useEffect(() => {
-    if (!thread) return;
+    if (!conversationId) return;
     const onMessage = () => refetch();
     const onTyping = ({ user_id, ts }) => {
       if (user_id === userId) return;
@@ -41,11 +51,9 @@ export function useMessageThread({ workspaceId, userId, thread }) {
         });
       }, 3000);
     };
-    let unsub = () => {};
-    if (thread.kind === 'board') unsub = subscribeBoardChat({ boardId: thread.boardId, onMessage, onTyping });
-    if (thread.kind === 'dm')    unsub = subscribeDmChat({ userA: userId, userB: thread.peerId, onMessage, onTyping });
+    const unsub = subscribeConversation({ conversationId, onMessage, onTyping });
     return () => unsub();
-  }, [thread?.kind, thread?.boardId, thread?.peerId, userId, refetch]);
+  }, [conversationId, userId, refetch]);
 
   return { messages, typingUsers, refetch };
 }

@@ -1,53 +1,36 @@
 import { supabase } from './supabase.js';
 
-// Subscribe to a board channel's chat events. Returns an unsubscribe fn.
-//   onMessage({ id, body, sender, attachments, mentions, ts })  — peer sent
-//   onTyping ({ user_id, ts })                                   — peer typing
+// Realtime broadcast for a single conversation. Channel name is
+// `conv:{conversationId}`; auth is enforced by the
+// "realtime conv: participants" / "...participants write" policies
+// (migration 0058). Returns an unsubscribe fn.
 //
-// Reuses the existing board:{id} broadcast channel that Yjs already
-// subscribes to (Supabase de-dupes channel instances per name).
-export function subscribeBoardChat({ boardId, onMessage, onTyping }) {
-  const channel = supabase.channel(`board:${boardId}`, { config: { broadcast: { self: false }, private: true } });
+//   onMessage({ id, body, sender_id, attachments, mentions, ts, ... })
+//   onTyping ({ user_id, ts })
+
+function convChannelName(conversationId) {
+  return `conv:${conversationId}`;
+}
+
+export function subscribeConversation({ conversationId, onMessage, onTyping }) {
+  if (!conversationId) return () => {};
+  const channel = supabase.channel(convChannelName(conversationId), {
+    config: { broadcast: { self: false }, private: true },
+  });
   channel.on('broadcast', { event: 'chat-message' }, ({ payload }) => onMessage?.(payload));
   channel.on('broadcast', { event: 'chat-typing'  }, ({ payload }) => onTyping?.(payload));
   channel.subscribe();
   return () => { try { supabase.removeChannel(channel); } catch (_) {} };
 }
 
-// Channels created here use {private: true} so realtime.messages RLS
-// applies. The same {private:true} must be set everywhere a sender opens
-// the channel — Supabase de-dupes channel instances, so a previously
-// public-config call (no private) would persist.
-export function broadcastBoardMessage({ boardId, payload }) {
-  const channel = supabase.channel(`board:${boardId}`, { config: { private: true } });
+export function broadcastConversationMessage({ conversationId, payload }) {
+  if (!conversationId) return Promise.resolve();
+  const channel = supabase.channel(convChannelName(conversationId), { config: { private: true } });
   return channel.send({ type: 'broadcast', event: 'chat-message', payload });
 }
 
-export function broadcastBoardTyping({ boardId, userId }) {
-  const channel = supabase.channel(`board:${boardId}`, { config: { private: true } });
-  return channel.send({ type: 'broadcast', event: 'chat-typing', payload: { user_id: userId, ts: Date.now() } });
-}
-
-// DM channel — name is "dm:{loId}:{hiId}" so both ends subscribe to the same one.
-function dmChannelName(a, b) {
-  const [lo, hi] = a < b ? [a, b] : [b, a];
-  return `dm:${lo}:${hi}`;
-}
-
-export function subscribeDmChat({ userA, userB, onMessage, onTyping }) {
-  const channel = supabase.channel(dmChannelName(userA, userB), { config: { broadcast: { self: false }, private: true } });
-  channel.on('broadcast', { event: 'chat-message' }, ({ payload }) => onMessage?.(payload));
-  channel.on('broadcast', { event: 'chat-typing'  }, ({ payload }) => onTyping?.(payload));
-  channel.subscribe();
-  return () => { try { supabase.removeChannel(channel); } catch (_) {} };
-}
-
-export function broadcastDmMessage({ userA, userB, payload }) {
-  const channel = supabase.channel(dmChannelName(userA, userB), { config: { private: true } });
-  return channel.send({ type: 'broadcast', event: 'chat-message', payload });
-}
-
-export function broadcastDmTyping({ userA, userB, userId }) {
-  const channel = supabase.channel(dmChannelName(userA, userB), { config: { private: true } });
+export function broadcastConversationTyping({ conversationId, userId }) {
+  if (!conversationId) return Promise.resolve();
+  const channel = supabase.channel(convChannelName(conversationId), { config: { private: true } });
   return channel.send({ type: 'broadcast', event: 'chat-typing', payload: { user_id: userId, ts: Date.now() } });
 }

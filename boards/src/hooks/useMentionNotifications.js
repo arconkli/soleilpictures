@@ -17,7 +17,7 @@ export function useMentionNotifications(userId) {
     try {
       const { data, error } = await supabase
         .from('mention_notifications')
-        .select('id, message_id, workspace_id, board_id, dm_peer_id, mentioned_by, created_at')
+        .select('id, message_id, workspace_id, conversation_id, mentioned_by, created_at')
         .eq('user_id', userId)
         .is('dismissed_at', null)
         .order('created_at', { ascending: true });

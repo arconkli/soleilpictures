@@ -14,6 +14,7 @@ import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
 import { fetchMessageById } from './lib/messages.js';
 import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
+import { OpenDmContext } from './hooks/useOpenDm.js';
 import { useEntityNameTrie, EntityTrieContext } from './hooks/useEntityNameTrie.js';
 import { refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
 // Side-effect import: registers the v1 entity kinds so any surface
@@ -46,14 +47,13 @@ import { useAllWorkspaces } from './hooks/useAllWorkspaces.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
 import { useYBoard } from './hooks/useYBoard.js';
-import { useChannelList } from './hooks/useChannelList.js';
+import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
 import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
-import { subscribeBoardChat } from './lib/messageRealtime.js';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
@@ -337,26 +337,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => window.removeEventListener('keydown', onKey);
   }, [mySettings, refreshSettings]);
 
-  // Messages: list/unread/title-badge. msgRefreshTick lets realtime pings
-  // bump the sidebar count without a full refetch loop.
+  // Messages: list/unread/title-badge. msgRefreshTick lets markRead / send /
+  // membership changes bump the panel without a full refetch loop. Realtime
+  // refreshes are per-conversation; this tick is for cross-thread cache busting.
   const [msgRefreshTick, setMsgRefreshTick] = useState(0);
-  const channelList = useChannelList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
-  const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByKey: channelList.unreadByKey });
+  const conversationList = useConversationList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
+  const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByConv: conversationList.unreadByConv });
   useTitleBadge({ total: messagesUnread, mentions: messagesMentions });
 
   const yb = useYBoard(currentBoard.id, user.id, userInfo);
 
-  // When a peer chats in the currently-open board, refresh the panel list
-  // so the row + unread dot update without requiring you to open the panel.
-  useEffect(() => {
-    if (!currentBoard?.id) return;
-    const unsub = subscribeBoardChat({
-      boardId: currentBoard.id,
-      onMessage: () => setMsgRefreshTick(t => t + 1),
-      onTyping: () => {},
-    });
-    return () => unsub();
-  }, [currentBoard?.id]);
+  // Avatar-click → open DM with a workspace member. Exposed via context.
+  const [pendingDmPeerId, setPendingDmPeerId] = useState(null);
+  const openDmWith = React.useCallback((peerId) => {
+    if (!peerId || peerId === user.id) return;
+    setPendingDmPeerId(peerId);
+    setTweak('showMessages', true);
+  }, [user?.id, setTweak]);
   const currentYDoc = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
 
   // Side-by-side: when set, the workspace splits 50/50 with a draggable
@@ -1326,7 +1323,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Permalink target (drives MessagesPanel for ?to=m:<uuid> / legacy
   // ?m=<uuid>). Other ref kinds navigate via setStack + custom events.
-  const [permalinkTarget, setPermalinkTarget] = useState(null);  // { messageId, openThread }
+  const [permalinkTarget, setPermalinkTarget] = useState(null);  // { messageId, conversationId }
 
   // Open a message thread by id. Used by both the URL resolver and
   // the EntityNavigate provider for { kind:'message' } refs.
@@ -1334,19 +1331,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!messageId || !user?.id) return;
     try {
       const row = await fetchMessageById(messageId);
-      if (!row) return;
-      let openThread;
-      if (row.board_id) {
-        openThread = { kind: 'board', boardId: row.board_id, name: boards[row.board_id]?.name || 'Board' };
-      } else if (row.dm_peer_id) {
-        const peerId = row.sender_id === user.id ? row.dm_peer_id : row.sender_id;
-        openThread = { kind: 'dm', peerId, name: 'Direct message' };
-      } else { return; }
-      setPermalinkTarget({ messageId, openThread });
+      if (!row || !row.conversation_id) return;
+      setPermalinkTarget({ messageId, conversationId: row.conversation_id });
       setTweak('showMessages', true);
     } catch (e) { console.warn('message permalink resolve failed', e); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, boards, setTweak]);
+  }, [user?.id, setTweak]);
 
   // ?to=<token> / ?m=<id> — universal entity permalink resolver.
   // Resolves once on mount (after user is ready) and strips the param
@@ -1458,9 +1448,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     },
     message: (ref) => openMessageThread(ref.id),
     user: (ref) => {
-      // Phase 1 will open a user-card popover. For now, opening the
-      // messages panel is the closest existing affordance.
-      setTweak('showMessages', true);
+      // Clicking a user entity opens a DM with them.
+      if (ref?.id) openDmWith(ref.id);
+      else setTweak('showMessages', true);
     },
     url: (ref) => { window.open(ref.href, '_blank', 'noopener,noreferrer'); },
     group: async (ref) => {
@@ -1481,7 +1471,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }));
       }, 250);
     },
-  }), [boards, recents, openMessageThread, setTweak]);
+  }), [boards, recents, openMessageThread, openDmWith, setTweak]);
 
   // Surface "X shared a board with you" notifications as toasts on
   // first load. Each toast has a "View" action that opens the board
@@ -2104,6 +2094,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   return (
     <EntityNavigateContext.Provider value={navHandlers}>
+    <OpenDmContext.Provider value={openDmWith}>
     <AppTrieProvider workspaceId={workspace.id}>
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
@@ -2456,11 +2447,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
-          currentBoard={currentBoard}
           refreshTick={msgRefreshTick}
-          initialOpenThread={permalinkTarget?.openThread || null}
+          initialOpenConversationId={permalinkTarget?.conversationId || null}
           jumpToMessageId={permalinkTarget?.messageId || null}
+          pendingOpenPeerId={pendingDmPeerId}
+          onRefreshRequested={() => setMsgRefreshTick(t => t + 1)}
           onPermalinkConsumed={() => setPermalinkTarget(null)}
+          onPeerConsumed={() => setPendingDmPeerId(null)}
           onClose={() => setTweak('showMessages', false)}
         />
       )}
@@ -2486,6 +2479,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     </div>
     </AppTrieProvider>
+    </OpenDmContext.Provider>
     </EntityNavigateContext.Provider>
   );
 }

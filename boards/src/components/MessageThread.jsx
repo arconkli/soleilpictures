@@ -1,29 +1,66 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { Icon } from './Icon.jsx';
-import { ChevronLeft, X, Search, Pin } from '../lib/icons.js';
+import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit } from '../lib/icons.js';
 import { useMessageThread } from '../hooks/useMessageThread.js';
+import { useWorkspaceMembers } from '../hooks/useWorkspaceMembers.js';
 import {
   sendMessage, deleteMessage, editMessage, toggleReaction,
-  searchMessagesInBoard, searchMessagesInDm,
+  searchMessagesInConversation,
   fetchReplies, replyCountsFor, togglePin,
-  listPinnedForBoard, listPinnedForDm,
+  listPinnedForConversation,
+  addParticipants, leaveConversation, renameConversation,
 } from '../lib/messages.js';
 import {
-  broadcastBoardMessage, broadcastDmMessage,
-  broadcastBoardTyping,  broadcastDmTyping,
+  broadcastConversationMessage, broadcastConversationTyping,
 } from '../lib/messageRealtime.js';
 import { MessageBubble } from './MessageBubble.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
 import { INBOX_MIME } from '../lib/dragMimes.js';
 import { inboxPayloadFor } from '../lib/messageAttachments.js';
 import { SoleilMark } from './primitives.jsx';
+import * as userProfiles from '../lib/userProfiles.js';
+import { pickPresenceColor } from '../lib/presenceColor.js';
 
 const STICK_THRESHOLD_PX = 80;
 
-export function MessageThread({ workspaceId, currentUser, thread, onBack, onClose, jumpToMessageId }) {
+// conversation = { id, title, participants: [{ user_id, left_at, ... }] }
+export function MessageThread({
+  workspaceId, currentUser, conversation,
+  onBack, onClose, onChanged, jumpToMessageId,
+}) {
   const userId = currentUser?.id;
-  const { messages, typingUsers, refetch } = useMessageThread({ workspaceId, userId, thread });
+  const conversationId = conversation?.id;
+
+  const { messages, typingUsers, refetch } = useMessageThread({
+    conversationId, userId,
+    onMarkedRead: onChanged,
+  });
+
   const scrollRef = useRef(null);
+
+  // ── Active participants (for title + group menu) ─────────────────────
+  const activeParticipants = useMemo(
+    () => (conversation?.participants || []).filter(p => !p.left_at),
+    [conversation?.participants],
+  );
+  const peers = useMemo(
+    () => activeParticipants.filter(p => p.user_id !== userId),
+    [activeParticipants, userId],
+  );
+  const isDm = activeParticipants.length === 2;
+
+  // Resolve display names.
+  useEffect(() => {
+    for (const p of peers) userProfiles.resolve(p.user_id);
+  }, [peers]);
+  const [, force] = useState(0);
+  useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
+
+  const peerLabels = peers.map(p => {
+    const u = userProfiles.get(p.user_id);
+    return u?.name || u?.email || 'Member';
+  });
+  const titleText = conversation?.title || (peerLabels.length ? peerLabels.join(', ') : 'New conversation');
 
   // ── Sticky-scroll behavior ───────────────────────────────────────────
   const wasAtBottomRef = useRef(true);
@@ -46,14 +83,14 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
     setUnseenCount(0);
   };
 
-  // Initial mount + thread switch: jump to bottom instantly.
+  // Initial mount + conversation switch: jump to bottom instantly.
   useEffect(() => {
     wasAtBottomRef.current = true;
     setUnseenCount(0);
     prevLenRef.current = 0;
     requestAnimationFrame(() => jumpToBottom(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [thread?.kind, thread?.boardId, thread?.peerId]);
+  }, [conversationId]);
 
   useEffect(() => {
     const prev = prevLenRef.current;
@@ -77,26 +114,20 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
 
   useEffect(() => {
     const q = searchQuery.trim();
-    if (!searchOpen || !q) { setSearchResults([]); setSearching(false); return; }
+    if (!searchOpen || !q || !conversationId) { setSearchResults([]); setSearching(false); return; }
     setSearching(true);
     const seq = ++searchSeqRef.current;
     const t = setTimeout(async () => {
       let rows = [];
       try {
-        if (thread.kind === 'board') {
-          rows = await searchMessagesInBoard({ boardId: thread.boardId, query: q, limit: 50 });
-        } else if (thread.kind === 'dm') {
-          rows = await searchMessagesInDm({
-            workspaceId, userA: userId, userB: thread.peerId, query: q, limit: 50,
-          });
-        }
+        rows = await searchMessagesInConversation({ conversationId, query: q, limit: 50 });
       } catch (e) { console.warn('search failed', e); }
       if (seq !== searchSeqRef.current) return;
       setSearchResults(rows);
       setSearching(false);
     }, 150);
     return () => clearTimeout(t);
-  }, [searchQuery, searchOpen, thread, workspaceId, userId]);
+  }, [searchQuery, searchOpen, conversationId]);
 
   const closeSearch = () => {
     setSearchOpen(false);
@@ -105,13 +136,10 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
   };
 
   // ── Threaded replies ─────────────────────────────────────────────────
-  // When non-null, the panel renders in "thread mode": just the parent
-  // message + its replies + a composer scoped to that parent_id.
   const [replyParent, setReplyParent] = useState(null);
   const [replies, setReplies] = useState([]);
   const [replyCounts, setReplyCounts] = useState(new Map());
 
-  // Refetch replies for the open parent on every refetch tick.
   useEffect(() => {
     if (!replyParent) return;
     let cancelled = false;
@@ -121,8 +149,6 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
     return () => { cancelled = true; };
   }, [replyParent, messages.length]);
 
-  // Bulk-load reply counts for messages in the main view (only top-
-  // level messages — those without parent_id — can have replies).
   useEffect(() => {
     if (replyParent) return;
     const topLevelIds = (messages || []).filter(m => !m.parent_id).map(m => m.id);
@@ -138,15 +164,11 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
   const [pinned, setPinned] = useState([]);
   const [pinnedExpanded, setPinnedExpanded] = useState(false);
   useEffect(() => {
+    if (!conversationId) return;
     let cancelled = false;
-    const fn = thread.kind === 'board'
-      ? listPinnedForBoard({ boardId: thread.boardId })
-      : thread.kind === 'dm'
-        ? listPinnedForDm({ workspaceId, userA: userId, userB: thread.peerId })
-        : Promise.resolve([]);
-    fn.then(rows => { if (!cancelled) setPinned(rows); });
+    listPinnedForConversation({ conversationId }).then(rows => { if (!cancelled) setPinned(rows); });
     return () => { cancelled = true; };
-  }, [thread, workspaceId, userId, messages.length]);
+  }, [conversationId, messages.length]);
 
   // ── Permalink scroll ─────────────────────────────────────────────────
   useEffect(() => {
@@ -160,9 +182,7 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
   const [focusedId, setFocusedId] = useState(null);
   useEffect(() => {
     const onKey = (e) => {
-      // Only when the messages panel is on screen / under focus.
       if (!e.target?.closest?.('.msg-panel')) return;
-      // Don't intercept keys while typing in inputs / textareas.
       const inField = ['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable;
 
       if ((e.metaKey || e.ctrlKey) && (e.key === 'f' || e.key === 'F')) {
@@ -199,7 +219,6 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
         const m = list.find(x => x.id === focusedId);
         if (m && m.sender_id === userId) {
           e.preventDefault();
-          // Bubble's own edit handler is gated; signal via a custom event.
           document.dispatchEvent(new CustomEvent('soleil-msg-edit', { detail: { id: m.id }}));
         }
       }
@@ -219,9 +238,6 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
     });
   };
 
-  // Map of message id → message, used to render a parent-preview chip
-  // on top of each reply in the main feed (iMessage-style). The thread
-  // panel still owns full back-and-forth via the "X replies" badge.
   const messagesById = useMemo(() => {
     const m = new Map();
     for (const x of messages || []) m.set(x.id, x);
@@ -232,9 +248,6 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
   const groupedMessages = useMemo(() => {
     const groups = [];
     let lastKey = null;
-    // Main view shows everything — top-level messages AND their replies
-    // (each reply gets a small preview chip pointing at its parent). The
-    // thread mode below renders parent + replies separately.
     const list = replyParent ? [] : (messages || []);
     for (const m of list) {
       const k = dayKey(m.created_at);
@@ -249,23 +262,22 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
 
   // ── Send / Edit / Delete / React / Reply / Pin / Copy-link ──────────
   const handleSend = useCallback(async ({ body, attachments, mentions }) => {
-    const dmPeerId = thread.kind === 'dm' ? thread.peerId : null;
-    const boardId  = thread.kind === 'board' ? thread.boardId : null;
+    if (!conversationId) return;
     try {
       const inserted = await sendMessage({
-        workspaceId, boardId, dmPeerId,
+        workspaceId, conversationId,
         senderId: userId,
         senderEmail: currentUser?.email || null,
         parentId: replyParent?.id || null,
         body, attachments, mentions,
       });
       const payload = { ...inserted, sender_name: currentUser?.name || currentUser?.email };
-      if (boardId) await broadcastBoardMessage({ boardId, payload });
-      else         await broadcastDmMessage({ userA: userId, userB: dmPeerId, payload });
+      await broadcastConversationMessage({ conversationId, payload });
       wasAtBottomRef.current = true;
       refetch();
+      onChanged?.();
     } catch (e) { console.warn('send failed', e); }
-  }, [workspaceId, userId, thread, currentUser, refetch, replyParent]);
+  }, [workspaceId, userId, conversationId, currentUser, refetch, replyParent, onChanged]);
 
   const handleDelete = useCallback(async (msg) => {
     await deleteMessage({ id: msg.id });
@@ -291,15 +303,11 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
   const handlePin = useCallback(async (msg) => {
     try {
       await togglePin(msg.id);
-      // Refetch pinned + main list.
       refetch();
-      const fn = thread.kind === 'board'
-        ? listPinnedForBoard({ boardId: thread.boardId })
-        : listPinnedForDm({ workspaceId, userA: userId, userB: thread.peerId });
-      const rows = await fn;
+      const rows = await listPinnedForConversation({ conversationId });
       setPinned(rows);
     } catch (e) { console.warn('pin failed', e); }
-  }, [thread, workspaceId, userId, refetch]);
+  }, [conversationId, refetch]);
 
   const handleCopyLink = useCallback(async (msg) => {
     const url = `${window.location.origin}${window.location.pathname}?m=${msg.id}`;
@@ -307,9 +315,9 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
   }, []);
 
   const handleTyping = useCallback(() => {
-    if (thread.kind === 'board') broadcastBoardTyping({ boardId: thread.boardId, userId });
-    else                          broadcastDmTyping({ userA: userId, userB: thread.peerId, userId });
-  }, [thread, userId]);
+    if (!conversationId) return;
+    broadcastConversationTyping({ conversationId, userId });
+  }, [conversationId, userId]);
 
   const handleAttachmentDragStart = (e, att) => {
     const payload = inboxPayloadFor(att);
@@ -318,43 +326,107 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
     e.dataTransfer.setData(INBOX_MIME, JSON.stringify(payload));
   };
 
+  // ── Group chat actions ───────────────────────────────────────────────
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [addPickerAnchor, setAddPickerAnchor] = useState(null);
+
+  const beginRename = () => {
+    setRenameValue(conversation?.title || '');
+    setRenaming(true);
+    setMenuAnchor(null);
+  };
+  const commitRename = async () => {
+    const next = renameValue.trim();
+    setRenaming(false);
+    if (next === (conversation?.title || '')) return;
+    try {
+      await renameConversation({ conversationId, title: next });
+      onChanged?.();
+    } catch (e) { console.warn('rename failed', e); }
+  };
+
+  const openLeaveConfirm = async () => {
+    if (isDm) return;
+    setMenuAnchor(null);
+    if (!window.confirm(`Leave "${titleText}"?`)) return;
+    try {
+      await leaveConversation({ conversationId, userId });
+      onChanged?.();
+      onBack?.();
+    } catch (e) { console.warn('leave failed', e); }
+  };
+
   // ── Render ───────────────────────────────────────────────────────────
   const isEmpty = !searchOpen && !replyParent && messages.length === 0;
-  const subtitle = replyParent ? 'THREAD' : (thread?.kind === 'dm' ? 'DIRECT MESSAGE' : 'BOARD CHAT');
-  const titleText = replyParent ? 'Reply in thread' : (thread?.name || 'Thread');
+  const subtitle = replyParent ? 'THREAD' : (isDm ? 'DIRECT MESSAGE' : 'GROUP CHAT');
 
-  // Threading mode: only parent + its replies are shown.
   const threadList = replyParent
     ? [{ kind: 'msg', key: replyParent.id, msg: replyParent }, ...replies.map(r => ({ kind: 'msg', key: r.id, msg: r }))]
     : null;
 
-  // Pinned strip is hidden in thread mode + search mode.
   const showPinned = !replyParent && !searchOpen && pinned.length > 0;
 
-  // Draft-key for the composer (so reply-mode has its own draft).
-  const draftKey = thread?.kind === 'board'
-    ? (replyParent ? `b:${thread.boardId}:r:${replyParent.id}` : `b:${thread.boardId}`)
-    : (replyParent ? `d:${thread.peerId}:r:${replyParent.id}` : `d:${thread.peerId}`);
+  const draftKey = conversationId
+    ? (replyParent ? `${conversationId}:r:${replyParent.id}` : conversationId)
+    : '';
 
   return (
     <div className="msg-panel">
       <div className="msg-panel-head">
-        <button className="msg-panel-icon"
-                onClick={() => { if (replyParent) setReplyParent(null); else onBack?.(); }}
-                title={replyParent ? 'Back to thread' : 'Back'}
-                aria-label="Back">
+        <button
+          className="msg-panel-icon"
+          onClick={() => { if (replyParent) setReplyParent(null); else onBack?.(); }}
+          title={replyParent ? 'Back to thread' : 'Back'}
+          aria-label="Back"
+        >
           <Icon as={ChevronLeft} size={14} />
         </button>
         <div className="msg-panel-title">
           <div className="t-eyebrow msg-panel-eyebrow">{subtitle}</div>
-          <div className="msg-panel-name" title={titleText}>{titleText}</div>
+          {renaming ? (
+            <input
+              className="msg-panel-name-input"
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                if (e.key === 'Escape') { setRenaming(false); }
+              }}
+              onBlur={commitRename}
+              maxLength={80}
+            />
+          ) : (
+            <button
+              className="msg-panel-name"
+              title={titleText}
+              onClick={!isDm && !replyParent ? beginRename : undefined}
+            >
+              {titleText}
+            </button>
+          )}
         </div>
-        <button className={`msg-panel-icon ${searchOpen ? 'is-active' : ''}`}
-                onClick={() => {
-                  if (searchOpen) closeSearch();
-                  else { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }
-                }}
-                title="Search messages (⌘F)" aria-label="Search messages">
+        {!isDm && !replyParent && (
+          <button
+            className="msg-panel-icon"
+            onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
+            title="Conversation actions"
+            aria-label="Conversation actions"
+          >
+            <Icon as={MoreHorizontal} size={14} />
+          </button>
+        )}
+        <button
+          className={`msg-panel-icon ${searchOpen ? 'is-active' : ''}`}
+          onClick={() => {
+            if (searchOpen) closeSearch();
+            else { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }
+          }}
+          title="Search messages (⌘F)"
+          aria-label="Search messages"
+        >
           <Icon as={Search} size={14} />
         </button>
         <button className="msg-panel-icon" onClick={onClose} title="Close (Esc)" aria-label="Close messages">
@@ -362,14 +434,40 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
         </button>
       </div>
 
+      {menuAnchor && (
+        <GroupChatMenu
+          anchor={menuAnchor}
+          onRename={beginRename}
+          onAdd={() => { setAddPickerAnchor(menuAnchor); setMenuAnchor(null); }}
+          onLeave={openLeaveConfirm}
+          canLeave={activeParticipants.length > 2}
+          onClose={() => setMenuAnchor(null)}
+        />
+      )}
+
+      {addPickerAnchor && (
+        <AddParticipantsPicker
+          workspaceId={workspaceId}
+          conversationId={conversationId}
+          existingIds={new Set(activeParticipants.map(p => p.user_id))}
+          anchor={addPickerAnchor}
+          onClose={() => setAddPickerAnchor(null)}
+          onAdded={() => { setAddPickerAnchor(null); onChanged?.(); refetch(); }}
+          actorId={userId}
+          currentUser={currentUser}
+        />
+      )}
+
       {searchOpen && (
         <div className="msg-search">
           <Icon as={Search} size={12} />
-          <input ref={searchInputRef}
-                 className="msg-search-input"
-                 placeholder="Find in conversation…"
-                 value={searchQuery}
-                 onChange={(e) => setSearchQuery(e.target.value)} />
+          <input
+            ref={searchInputRef}
+            className="msg-search-input"
+            placeholder="Find in conversation…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
           <button className="msg-search-clear" onClick={closeSearch}>×</button>
         </div>
       )}
@@ -384,10 +482,12 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
           {pinnedExpanded && (
             <div className="msg-pinned-list">
               {pinned.map(p => (
-                <button key={p.id}
-                        className="msg-pinned-item"
-                        onClick={() => flashMessage(p.id)}
-                        title={`Jump to message · ${new Date(p.created_at).toLocaleString()}`}>
+                <button
+                  key={p.id}
+                  className="msg-pinned-item"
+                  onClick={() => flashMessage(p.id)}
+                  title={`Jump to message · ${new Date(p.created_at).toLocaleString()}`}
+                >
                   <span className="msg-pinned-item-body">{(p.body || '').slice(0, 80)}</span>
                 </button>
               ))}
@@ -406,14 +506,17 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
               <div className="msg-empty">No matches for "{searchQuery}".</div>
             )}
             {searchResults.map(m => (
-              <button key={m.id}
-                      className="msg-search-result"
-                      onClick={() => flashMessage(m.id)}>
+              <button
+                key={m.id}
+                className="msg-search-result"
+                onClick={() => flashMessage(m.id)}
+              >
                 <MessageBubble msg={m} selfId={userId} highlight={searchQuery}
-                               onDelete={handleDelete}
-                               onAttachmentDragStart={handleAttachmentDragStart}
-                               onReact={handleReact}
-                               onEdit={handleEdit} />
+                  onDelete={handleDelete}
+                  onAttachmentDragStart={handleAttachmentDragStart}
+                  onReact={handleReact}
+                  onEdit={handleEdit}
+                />
               </button>
             ))}
           </>
@@ -430,19 +533,22 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
             </div>
             {threadList.map(g => (
               <MessageBubble key={g.key} msg={g.msg} selfId={userId}
-                             isFocused={focusedId === g.msg.id}
-                             onDelete={handleDelete}
-                             onReact={handleReact}
-                             onEdit={handleEdit}
-                             onPin={handlePin}
-                             onCopyLink={handleCopyLink}
-                             onAttachmentDragStart={handleAttachmentDragStart} />
+                isFocused={focusedId === g.msg.id}
+                onDelete={handleDelete}
+                onReact={handleReact}
+                onEdit={handleEdit}
+                onPin={handlePin}
+                onCopyLink={handleCopyLink}
+                onAttachmentDragStart={handleAttachmentDragStart}
+              />
             ))}
           </>
         ) : (
           <>
             {groupedMessages.map(g => g.kind === 'divider' ? (
               <div key={g.key} className="msg-day-divider"><span>{g.label}</span></div>
+            ) : g.msg.kind === 'system' ? (
+              <div key={g.key} className="msg-system-row t-meta">{g.msg.body}</div>
             ) : (
               <MessageBubble
                 key={g.key} msg={g.msg} selfId={userId}
@@ -481,7 +587,190 @@ export function MessageThread({ workspaceId, currentUser, thread, onBack, onClos
         workspaceId={workspaceId}
         userId={userId}
         draftKey={draftKey}
-        placeholder={replyParent ? 'Reply…' : 'Message…'} />
+        placeholder={replyParent ? 'Reply…' : 'Message…'}
+      />
+    </div>
+  );
+}
+
+// ── Group chat menu (rename / add / leave) ──────────────────────────
+function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) {
+  const popRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useLayoutEffect(() => {
+    if (!anchor) return;
+    const vw = window.innerWidth;
+    const top = anchor.bottom + 4;
+    const left = Math.min(anchor.left, vw - 180);
+    setPos({ top, left });
+  }, [anchor]);
+
+  useEffect(() => {
+    const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('mousedown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div ref={popRef} className="msg-group-menu" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
+      <button className="msg-group-menu-item" onClick={onRename}>
+        <Icon as={Edit} size={12} /> Rename
+      </button>
+      <button className="msg-group-menu-item" onClick={onAdd}>
+        <Icon as={UserPlus} size={12} /> Add people
+      </button>
+      <button
+        className="msg-group-menu-item is-danger"
+        onClick={canLeave ? onLeave : undefined}
+        disabled={!canLeave}
+        title={canLeave ? 'Leave conversation' : 'Need 3+ members to leave'}
+      >
+        <Icon as={LogOut} size={12} /> Leave
+      </button>
+    </div>
+  );
+}
+
+// ── Add-participants picker (workspace member list + addParticipants) ──
+function AddParticipantsPicker({ workspaceId, conversationId, existingIds, anchor, onClose, onAdded, actorId, currentUser }) {
+  const { members } = useWorkspaceMembers(workspaceId);
+  const [query, setQuery] = useState('');
+  const [picked, setPicked] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const popRef = useRef(null);
+  const inputRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, maxHeight: 480 });
+
+  useEffect(() => {
+    for (const m of members || []) userProfiles.resolve(m.user_id);
+  }, [members]);
+  const [, force] = useState(0);
+  useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
+
+  useLayoutEffect(() => {
+    if (!anchor) return;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const top = Math.min(anchor.bottom + 8, vh - 360);
+    const left = Math.min(anchor.left, vw - 328);
+    setPos({ top, left, maxHeight: Math.round(vh * 0.7) });
+  }, [anchor]);
+
+  useEffect(() => {
+    const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('mousedown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const visibleMembers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (members || [])
+      .filter(m => !existingIds.has(m.user_id))
+      .map(m => {
+        const p = userProfiles.get(m.user_id);
+        return {
+          user_id: m.user_id,
+          name: p?.name || p?.email || 'Member',
+          email: p?.email || '',
+          color: p?.color || pickPresenceColor(m.user_id),
+        };
+      })
+      .filter(m => !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [members, existingIds, query]);
+
+  const handleAdd = async () => {
+    if (picked.length === 0 || busy) return;
+    setBusy(true);
+    try {
+      await addParticipants({ conversationId, userIds: picked });
+      // Post a system message announcing the additions.
+      const names = picked.map(uid => userProfiles.get(uid)?.name || userProfiles.get(uid)?.email || 'someone');
+      const verb = picked.length === 1 ? 'added' : 'added';
+      const me = currentUser?.name || currentUser?.email || 'Someone';
+      const body = `${me} ${verb} ${names.join(', ')}`;
+      await sendMessage({
+        workspaceId,
+        conversationId,
+        senderId: actorId,
+        senderEmail: currentUser?.email || null,
+        body,
+        kind: 'system',
+      });
+      onAdded?.();
+    } catch (e) {
+      console.warn('add participants failed', e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      ref={popRef}
+      className="msg-newconv-pop"
+      style={{ position: 'fixed', top: pos.top, left: pos.left, width: 320, maxHeight: pos.maxHeight }}
+    >
+      <div className="msg-newconv-head">
+        <span className="t-eyebrow">ADD PEOPLE</span>
+        <button className="msg-panel-icon" onClick={onClose} aria-label="Close">
+          <Icon as={X} size={12} />
+        </button>
+      </div>
+      <div className="msg-newconv-search">
+        <Icon as={Search} size={12} />
+        <input
+          ref={inputRef}
+          className="msg-newconv-input"
+          placeholder="Find people…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+      <div className="msg-newconv-list">
+        {visibleMembers.length === 0 && (
+          <div className="msg-empty t-meta">No more members to add.</div>
+        )}
+        {visibleMembers.map(m => {
+          const sel = picked.includes(m.user_id);
+          return (
+            <button
+              key={m.user_id}
+              className={`msg-newconv-row ${sel ? 'is-picked' : ''}`}
+              onClick={() => setPicked(p => sel ? p.filter(x => x !== m.user_id) : [...p, m.user_id])}
+            >
+              <span className="msg-row-avatar" style={{ background: m.color }}>
+                {(m.name || 'M').charAt(0).toUpperCase()}
+              </span>
+              <span className="msg-row-text">
+                <span className="msg-row-name">{m.name}</span>
+                {m.email && m.email !== m.name && <span className="msg-row-preview t-meta">{m.email}</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="msg-newconv-foot">
+        <button
+          className="msg-newconv-btn primary"
+          disabled={picked.length === 0 || busy}
+          onClick={handleAdd}
+        >
+          Add {picked.length || ''}
+        </button>
+      </div>
     </div>
   );
 }

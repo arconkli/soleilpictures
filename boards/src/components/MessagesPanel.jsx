@@ -1,66 +1,118 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Icon } from './Icon.jsx';
-import { Plus, MessageSquare, X } from '../lib/icons.js';
-import { useChannelList } from '../hooks/useChannelList.js';
-import { hideRow } from '../lib/messages.js';
-import { NewDMPicker } from './NewDMPicker.jsx';
+import { Plus, X } from '../lib/icons.js';
+import { useConversationList } from '../hooks/useConversationList.js';
+import { findOrCreateDm, leaveConversation } from '../lib/messages.js';
+import { NewConversationPicker } from './NewConversationPicker.jsx';
 import { MessageThread } from './MessageThread.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
-// Right-drawer slot. Two modes: list (BOARDS + DIRECT) or thread (one open
-// conversation). The currently-open board is pinned at the bottom of BOARDS
-// even if it has no messages yet (option-C "currently-open pin").
+// Right-drawer slot. Single unified conversation list (DMs + group
+// chats interleaved by recency). Two modes: list, or thread (one open
+// conversation).
+//
+//   workspaceId, currentUser
+//   initialOpenConversationId — set by permalink resolver to deep-link
+//   jumpToMessageId           — passed through to MessageThread
+//   pendingOpenPeerId         — when set, find/create a DM with this
+//                               user and open it (used by avatar-click)
+//   refreshTick               — bumped externally to invalidate caches
+//   onRefreshRequested        — called by children when they need a list refresh
+//   onClose
 export function MessagesPanel({
-  workspaceId, currentUser, currentBoard, refreshTick,
-  initialOpenThread, jumpToMessageId, onPermalinkConsumed,
+  workspaceId, currentUser,
+  initialOpenConversationId, jumpToMessageId, pendingOpenPeerId,
+  refreshTick, onRefreshRequested, onPermalinkConsumed, onPeerConsumed,
   onClose,
 }) {
   const userId = currentUser?.id;
-  const { boardChannels, dmThreads, unreadByKey, hidden } = useChannelList({ workspaceId, userId, refreshTick });
-  const [openThread, setOpenThread] = useState(initialOpenThread || null);
-  const [pendingJumpMessageId, setPendingJumpMessageId] = useState(jumpToMessageId || null);
-  const [newDmAnchor, setNewDmAnchor] = useState(null);
+  const {
+    conversations, participantsByConv, myStateByConv, unreadByConv,
+  } = useConversationList({ workspaceId, userId, refreshTick });
 
-  // When App injects a permalink target, open that thread on mount.
+  const [openConversationId, setOpenConversationId] = useState(initialOpenConversationId || null);
+  const [pendingJumpMessageId, setPendingJumpMessageId] = useState(jumpToMessageId || null);
+  const [composeAnchor, setComposeAnchor] = useState(null);
+
+  // Permalink: respond to changes from above.
   useEffect(() => {
-    if (initialOpenThread) {
-      setOpenThread(initialOpenThread);
+    if (initialOpenConversationId) {
+      setOpenConversationId(initialOpenConversationId);
       setPendingJumpMessageId(jumpToMessageId || null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOpenThread?.boardId, initialOpenThread?.peerId, jumpToMessageId]);
-  // Subscribe to userProfiles so unresolved peer names re-render when
-  // the batched users_by_ids RPC returns. Pre-warm the cache for
-  // every DM peer so first paint already has names.
+  }, [initialOpenConversationId, jumpToMessageId]);
+
+  // Avatar-click DM open: find/create a DM with the requested peer
+  // and open the thread.
+  useEffect(() => {
+    if (!pendingOpenPeerId || !workspaceId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const convId = await findOrCreateDm({ workspaceId, peerId: pendingOpenPeerId });
+        if (cancelled || !convId) return;
+        setOpenConversationId(convId);
+        onRefreshRequested?.();
+      } catch (e) { console.warn('[MessagesPanel] open peer failed', e); }
+      finally { onPeerConsumed?.(); }
+    })();
+    return () => { cancelled = true; };
+  }, [pendingOpenPeerId, workspaceId, onPeerConsumed, onRefreshRequested]);
+
+  // Resolve names for every participant we encounter so the list and
+  // thread bar render real labels instead of "Member".
+  useEffect(() => {
+    for (const list of participantsByConv.values()) {
+      for (const p of list) {
+        if (p.user_id !== userId) userProfiles.resolve(p.user_id);
+      }
+    }
+  }, [participantsByConv, userId]);
   const [, force] = useState(0);
   useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
-  useEffect(() => {
-    for (const t of (dmThreads || [])) {
-      const peerId = t.user_a === userId ? t.user_b : t.user_a;
-      if (peerId) userProfiles.resolve(peerId);
-    }
-  }, [dmThreads, userId]);
 
-  const visibleBoardChannels = useMemo(() => {
-    const seenIds = new Set();
-    const list = [];
-    for (const ch of boardChannels) {
-      if (hidden.has(`b:${ch.board_id}`)) continue;
-      seenIds.add(ch.board_id);
-      list.push(ch);
-    }
-    return { active: list, currentPin: currentBoard && !seenIds.has(currentBoard.id) ? currentBoard : null };
-  }, [boardChannels, hidden, currentBoard]);
+  // Filter out conversations the current user has left.
+  const visibleConversations = useMemo(() => {
+    return (conversations || []).filter(c => {
+      const me = myStateByConv.get(c.conversation_id);
+      // If we're not a participant (shouldn't happen via RLS, but safety) — hide.
+      if (!me) return false;
+      if (me.left_at) return false;
+      return true;
+    });
+  }, [conversations, myStateByConv]);
 
-  if (openThread) {
+  const handleConversationCreated = useCallback((convId) => {
+    setOpenConversationId(convId);
+    onRefreshRequested?.();
+  }, [onRefreshRequested]);
+
+  const handleHideRow = useCallback(async (convId) => {
+    if (!userId || !convId) return;
+    await leaveConversation({ conversationId: convId, userId });
+    onRefreshRequested?.();
+  }, [userId, onRefreshRequested]);
+
+  if (openConversationId) {
+    const conv = conversations.find(c => c.conversation_id === openConversationId);
+    const parts = participantsByConv.get(openConversationId) || [];
     return (
       <MessageThread
         workspaceId={workspaceId}
         currentUser={currentUser}
-        thread={openThread}
+        conversation={{
+          id: openConversationId,
+          title: conv?.title || null,
+          participants: parts,
+        }}
         jumpToMessageId={pendingJumpMessageId}
-        onBack={() => { setOpenThread(null); setPendingJumpMessageId(null); onPermalinkConsumed?.(); }}
+        onChanged={onRefreshRequested}
+        onBack={() => {
+          setOpenConversationId(null);
+          setPendingJumpMessageId(null);
+          onPermalinkConsumed?.();
+        }}
         onClose={() => { onPermalinkConsumed?.(); onClose?.(); }}
       />
     );
@@ -73,103 +125,115 @@ export function MessagesPanel({
           <div className="t-eyebrow msg-panel-eyebrow">MESSAGES</div>
           <div className="msg-panel-name">All conversations</div>
         </div>
+        <button
+          className="msg-panel-icon"
+          onClick={(e) => setComposeAnchor(e.currentTarget.getBoundingClientRect())}
+          title="New chat"
+          aria-label="New chat"
+        >
+          <Icon as={Plus} size={14} />
+        </button>
         <button className="msg-panel-icon" onClick={onClose} title="Close (Esc)" aria-label="Close messages">
           <Icon as={X} size={14} />
         </button>
       </div>
 
       <div className="msg-panel-body">
-        <div className="msg-section">
-          <div className="msg-section-head">
-            <span className="t-eyebrow">DIRECT</span>
-            <button className="msg-section-add"
-                    onClick={(e) => setNewDmAnchor(e.currentTarget.getBoundingClientRect())}
-                    title="New message">
-              <Icon as={Plus} size={14} />
-            </button>
+        {visibleConversations.length === 0 && (
+          <div className="msg-empty t-meta">
+            No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.
           </div>
-          {dmThreads.filter(t => !hidden.has(`d:${t.user_a === userId ? t.user_b : t.user_a}`)).map(t => {
-            const peerId = t.user_a === userId ? t.user_b : t.user_a;
-            const unreadCount = unreadByKey.get(`d:${peerId}`) || 0;
-            const isUnread = unreadCount > 0;
-            const peer = userProfiles.get(peerId);
-            const peerName = peer?.name || peer?.email || 'Member';
-            const peerColor = peer?.color || pickPresenceColor(peerId || '');
-            return (
-              <button key={peerId}
-                      className={`msg-row ${isUnread ? 'is-unread' : ''}`}
-                      onClick={() => setOpenThread({ kind: 'dm', peerId, name: peerName })}
-                      onContextMenu={(e) => { e.preventDefault(); hideRow({ userId, dmPeerId: peerId }); }}>
-                {isUnread && <span className="msg-row-dot" />}
-                <span className="msg-row-avatar" style={{ background: peerColor }}>
-                  {peerName.charAt(0).toUpperCase()}
-                </span>
-                <span className="msg-row-text">
-                  <span className="msg-row-name">{peerName}</span>
-                  {t.last_message && (
-                    <span className="msg-row-preview">{t.last_message.slice(0, 60)}</span>
-                  )}
-                </span>
-                {isUnread
-                  ? <span className="msg-row-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
-                  : <span className="msg-row-time t-meta">{relTime(t.last_message_at)}</span>}
-              </button>
-            );
-          })}
-          {dmThreads.length === 0 && (
-            <div className="msg-empty t-meta">No direct messages yet.</div>
-          )}
-        </div>
-
-        <div className="msg-section">
-          <div className="msg-section-head">
-            <span className="t-eyebrow">BOARDS</span>
-          </div>
-          {visibleBoardChannels.active.map(ch => {
-            const unreadCount = unreadByKey.get(`b:${ch.board_id}`) || 0;
-            const isUnread = unreadCount > 0;
-            return (
-              <button key={ch.board_id}
-                      className={`msg-row ${isUnread ? 'is-unread' : ''}`}
-                      onClick={() => setOpenThread({ kind: 'board', boardId: ch.board_id, name: ch.board_name })}
-                      onContextMenu={(e) => { e.preventDefault(); hideRow({ userId, boardId: ch.board_id }); }}>
-                {isUnread && <span className="msg-row-dot" />}
-                <span className="msg-row-avatar msg-row-avatar-board">#</span>
-                <span className="msg-row-text">
-                  <span className="msg-row-name">{ch.board_name}</span>
-                  {ch.last_message && (
-                    <span className="msg-row-preview">{String(ch.last_message).slice(0, 60)}</span>
-                  )}
-                </span>
-                {isUnread
-                  ? <span className="msg-row-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
-                  : <span className="msg-row-time t-meta">{relTime(ch.last_message_at)}</span>}
-              </button>
-            );
-          })}
-          {visibleBoardChannels.currentPin && (
-            <>
-              <div className="msg-section-sub t-meta">— currently open</div>
-              <button className="msg-row msg-row-pinned"
-                      onClick={() => setOpenThread({ kind: 'board', boardId: visibleBoardChannels.currentPin.id, name: visibleBoardChannels.currentPin.name })}>
-                <Icon as={MessageSquare} size={12} />
-                <span className="msg-row-name">{visibleBoardChannels.currentPin.name}</span>
-                <span className="msg-row-time t-meta">empty</span>
-              </button>
-            </>
-          )}
-        </div>
+        )}
+        {visibleConversations.map(conv => (
+          <ConversationRow
+            key={conv.conversation_id}
+            conv={conv}
+            participants={participantsByConv.get(conv.conversation_id) || []}
+            unreadCount={unreadByConv.get(conv.conversation_id) || 0}
+            currentUserId={userId}
+            onOpen={() => setOpenConversationId(conv.conversation_id)}
+            onHide={() => handleHideRow(conv.conversation_id)}
+          />
+        ))}
       </div>
 
-      {newDmAnchor && (
-        <NewDMPicker
+      {composeAnchor && (
+        <NewConversationPicker
           workspaceId={workspaceId}
-          anchor={newDmAnchor}
-          onPick={(u) => { setNewDmAnchor(null); setOpenThread({ kind: 'dm', peerId: u.id, name: u.name }); }}
-          onClose={() => setNewDmAnchor(null)}
+          currentUserId={userId}
+          anchor={composeAnchor}
+          onCreated={(convId) => { setComposeAnchor(null); handleConversationCreated(convId); }}
+          onClose={() => setComposeAnchor(null)}
         />
       )}
     </div>
+  );
+}
+
+function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpen, onHide }) {
+  const isUnread = unreadCount > 0;
+  const peers = participants.filter(p => p.user_id !== currentUserId && !p.left_at);
+  const isDm = participants.filter(p => !p.left_at).length === 2;
+
+  // Title: explicit title > participant names > fallback.
+  const peerProfiles = peers.map(p => ({
+    id: p.user_id,
+    name: userProfiles.get(p.user_id)?.name
+       || userProfiles.get(p.user_id)?.email
+       || 'Member',
+    color: userProfiles.get(p.user_id)?.color || pickPresenceColor(p.user_id || ''),
+  }));
+  const title = conv.title || peerProfiles.map(p => p.name).join(', ') || 'New conversation';
+
+  // Avatar: 1 peer = single circle. Multi = stacked 2-3.
+  const avatarPeers = peerProfiles.slice(0, 3);
+
+  // Last-message preview: prefix with sender for group chats.
+  let preview = conv.last_message_body || '';
+  if (conv.last_message_kind === 'system') {
+    preview = preview || '— event —';
+  } else if (!isDm && conv.last_message_sender_id && conv.last_message_sender_id !== currentUserId) {
+    const senderName =
+      userProfiles.get(conv.last_message_sender_id)?.name
+      || conv.last_message_sender_email
+      || 'Member';
+    preview = `${senderName.split(' ')[0]}: ${preview}`;
+  } else if (conv.last_message_sender_id === currentUserId && preview) {
+    preview = `You: ${preview}`;
+  }
+
+  return (
+    <button
+      className={`msg-row ${isUnread ? 'is-unread' : ''}`}
+      onClick={onOpen}
+      onContextMenu={(e) => { e.preventDefault(); onHide(); }}
+      title={title}
+    >
+      {isUnread && <span className="msg-row-dot" />}
+      <span className={`msg-row-avatar ${avatarPeers.length > 1 ? 'is-stack' : ''}`}>
+        {avatarPeers.length === 0 ? '·' : avatarPeers.map((p, i) => (
+          <span
+            key={p.id}
+            className="msg-row-avatar-chip"
+            style={{
+              background: p.color,
+              zIndex: avatarPeers.length - i,
+            }}
+          >
+            {(p.name || 'M').charAt(0).toUpperCase()}
+          </span>
+        ))}
+      </span>
+      <span className="msg-row-text">
+        <span className="msg-row-name">{title}</span>
+        {preview && (
+          <span className="msg-row-preview">{preview.slice(0, 60)}</span>
+        )}
+      </span>
+      {isUnread
+        ? <span className="msg-row-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
+        : <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>}
+    </button>
   );
 }
 

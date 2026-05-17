@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { listCommentsByAuthor } from '../lib/commentsApi.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
+import { useOpenDm } from '../hooks/useOpenDm.js';
 
 const STATUS_LABEL = {
   connecting: 'Connecting…',
@@ -80,6 +81,7 @@ function PeerCommentsAudit({ peer, anchorRect, workspaceId, onClose, onJumpTo })
   const [rows, setRows] = useState(null);
   const [error, setError] = useState(null);
   const ref = useRef(null);
+  const openDm = useOpenDm();
 
   useEffect(() => {
     if (!workspaceId || !peer?.user?.id) return;
@@ -118,6 +120,15 @@ function PeerCommentsAudit({ peer, anchorRect, workspaceId, onClose, onJumpTo })
           {peer.user.name || peer.user.email}
         </span>
         <span className="ws-presence-audit-sub">recent comments</span>
+        {openDm && peer?.user?.id && (
+          <button
+            className="ws-presence-audit-dm"
+            onClick={() => { openDm(peer.user.id); onClose?.(); }}
+            title="Send a direct message"
+          >
+            Message
+          </button>
+        )}
       </div>
       <div className="ws-presence-audit-body">
         {error && <div className="ws-presence-audit-empty">Couldn't load comments.</div>}

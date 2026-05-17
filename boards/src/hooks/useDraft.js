@@ -1,9 +1,8 @@
 // Per-thread message draft, persisted to localStorage.
 //
-// threadKey is "b:<boardId>" for board chats and "d:<peerId>" for
-// DMs — same key shape useChannelList already uses for unread state.
-// The draft lives in the user's browser; never synced. Cleared on
-// successful send.
+// threadKey is the conversation id (optionally with a "r:<parentId>"
+// suffix when composing a threaded reply). The draft lives in the
+// user's browser; never synced. Cleared on successful send.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 

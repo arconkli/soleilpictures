@@ -8,6 +8,7 @@ import { renderMessageBody } from '../lib/renderMessageBody.jsx';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { EntityLink } from './EntityLink.jsx';
 import { coerceRef } from '../lib/entityRef.js';
+import { useOpenDm } from '../hooks/useOpenDm.js';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -33,6 +34,7 @@ export function MessageBubble({
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(msg.body);
   const [, force] = useState(0);
+  const openDm = useOpenDm();
   useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
 
   const { trie, workspaceId } = useEntityTrie();
@@ -87,11 +89,23 @@ export function MessageBubble({
         </div>
       )}
       <div className="msg-bubble-head">
-        <span className="msg-bubble-avatar"
-              aria-hidden="true"
-              style={{ background: senderColor }}>
-          {senderName.charAt(0).toUpperCase()}
-        </span>
+        {!isMine && openDm ? (
+          <button
+            type="button"
+            className="msg-bubble-avatar is-clickable"
+            style={{ background: senderColor }}
+            onClick={() => openDm(msg.sender_id)}
+            title={`Message ${senderName}`}
+          >
+            {senderName.charAt(0).toUpperCase()}
+          </button>
+        ) : (
+          <span className="msg-bubble-avatar"
+                aria-hidden="true"
+                style={{ background: senderColor }}>
+            {senderName.charAt(0).toUpperCase()}
+          </span>
+        )}
         <span className="msg-bubble-author">{senderName}</span>
         <time className="msg-bubble-time" dateTime={msg.created_at} title={fullTime}>
           {time}{msg.edited_at ? ' · edited' : ''}

@@ -1,121 +1,136 @@
 import { supabase } from './supabase.js';
 
-// All message CRUD lives here. Realtime broadcast is in messageRealtime.js
-// — callers do both: write to Postgres via these helpers and broadcast on
-// the appropriate channel so peers update without a refetch.
+// All message + conversation CRUD lives here. Realtime broadcast is in
+// messageRealtime.js — callers do both: write to Postgres via these
+// helpers and broadcast on the conversation channel so peers update
+// without a refetch.
+//
+// Model:
+//   conversations               (workspace-scoped chat thread)
+//   conversation_participants   (membership + last_read_at + soft-leave)
+//   messages.conversation_id    (FK)
+//
+// DMs are 2-participant conversations; group chats are 3+.
 
-export async function fetchBoardChannelMessages({ boardId, limit = 200 }) {
-  const { data, error } = await supabase.from('messages')
+// ── Conversation list ────────────────────────────────────────────────
+
+// Returns the rows of conversation_summary visible to the current user
+// (RLS scopes to conversations you participate in), sorted by recency.
+export async function listConversations({ workspaceId }) {
+  if (!workspaceId) return [];
+  const { data, error } = await supabase
+    .from('conversation_summary')
     .select('*')
-    .eq('board_id', boardId)
+    .eq('workspace_id', workspaceId)
+    .order('last_message_at', { ascending: false, nullsFirst: false });
+  if (error) { console.warn('listConversations', error); return []; }
+  return data || [];
+}
+
+// Returns conversation_participants for the conversations the current
+// user can see (RLS scopes to conversations you participate in).
+export async function listMyConversationParticipants({ workspaceId }) {
+  if (!workspaceId) return [];
+  // Join participants → conversations to filter by workspace.
+  const { data, error } = await supabase
+    .from('conversation_participants')
+    .select('conversation_id, user_id, joined_at, left_at, last_read_at, conversation:conversations!inner(workspace_id)')
+    .eq('conversation.workspace_id', workspaceId);
+  if (error) { console.warn('listMyConversationParticipants', error); return []; }
+  // Flatten — drop the nested workspace_id wrapper.
+  return (data || []).map(r => ({
+    conversation_id: r.conversation_id,
+    user_id: r.user_id,
+    joined_at: r.joined_at,
+    left_at: r.left_at,
+    last_read_at: r.last_read_at,
+  }));
+}
+
+// ── Message fetching ────────────────────────────────────────────────
+
+export async function fetchConversationMessages({ conversationId, limit = 200 }) {
+  if (!conversationId) return [];
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
     .is('deleted_at', null)
     .order('created_at', { ascending: true })
     .limit(limit);
-  if (error) { console.warn('fetchBoardChannelMessages', error); return []; }
+  if (error) { console.warn('fetchConversationMessages', error); return []; }
   return data || [];
 }
 
-export async function fetchDmThreadMessages({ workspaceId, userA, userB, limit = 200 }) {
-  const [lo, hi] = userA < userB ? [userA, userB] : [userB, userA];
+export async function fetchMessageById(id) {
+  if (!id) return null;
   const { data, error } = await supabase.from('messages')
     .select('*')
-    .eq('workspace_id', workspaceId)
-    .or(`and(sender_id.eq.${lo},dm_peer_id.eq.${hi}),and(sender_id.eq.${hi},dm_peer_id.eq.${lo})`)
+    .eq('id', id)
     .is('deleted_at', null)
-    .order('created_at', { ascending: true })
-    .limit(limit);
-  if (error) { console.warn('fetchDmThreadMessages', error); return []; }
-  return data || [];
+    .maybeSingle();
+  if (error) { console.warn('fetchMessageById', error); return null; }
+  return data || null;
 }
 
-export async function listBoardChannels({ workspaceId }) {
-  const { data, error } = await supabase.from('board_channel_summary')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .order('last_message_at', { ascending: false });
-  if (error) { console.warn('listBoardChannels', error); return []; }
-  return data || [];
-}
+// ── Send / Edit / Delete ────────────────────────────────────────────
 
-export async function listDmThreads({ workspaceId }) {
-  const { data, error } = await supabase.from('dm_thread_summary')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .order('last_message_at', { ascending: false });
-  if (error) { console.warn('listDmThreads', error); return []; }
-  return data || [];
-}
-
-export async function listMessageReadsForUser({ userId }) {
-  const { data, error } = await supabase.from('message_reads')
-    .select('*')
-    .eq('user_id', userId);
-  if (error) { console.warn('listMessageReadsForUser', error); return []; }
-  return data || [];
-}
-
-export async function sendMessage({ workspaceId, boardId, dmPeerId, senderId, senderEmail, parentId, body, attachments = [], mentions = [] }) {
+export async function sendMessage({
+  workspaceId, conversationId, senderId, senderEmail,
+  parentId, body, attachments = [], mentions = [], kind = 'user',
+}) {
   // sender_email is also stamped server-side via the
-  // messages_set_sender_email trigger (migration 0019), so this is
-  // belt-and-suspenders. parentId (migration 0020) attaches the
-  // message as a reply in a threaded conversation.
+  // messages_set_sender_email trigger (migration 0019).
   const row = {
     workspace_id: workspaceId,
-    board_id: boardId || null,
-    dm_peer_id: dmPeerId || null,
+    conversation_id: conversationId,
     sender_id: senderId,
     sender_email: senderEmail || null,
     parent_id: parentId || null,
     body,
     attachments,
     mentions,
+    kind,
   };
   const { data, error } = await supabase.from('messages').insert(row).select().single();
   if (error) { console.warn('sendMessage', error); throw error; }
   return data;
 }
 
-// Per-thread message search via Postgres ILIKE on body. Both helpers
-// return rows in the same shape as the regular fetchers so callers
-// can swap them in without touching MessageBubble logic.
+export async function editMessage({ id, body, attachments }) {
+  const patch = { body, edited_at: new Date().toISOString() };
+  if (attachments) patch.attachments = attachments;
+  const { error } = await supabase.from('messages').update(patch).eq('id', id);
+  if (error) { console.warn('editMessage', error); throw error; }
+}
+
+export async function deleteMessage({ id }) {
+  const { error } = await supabase.from('messages').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+  if (error) { console.warn('deleteMessage', error); throw error; }
+}
+
+// ── Search ──────────────────────────────────────────────────────────
 
 function escapeIlike(q) {
-  // Postgres ILIKE pattern escape — % and _ are wildcards.
   return String(q || '').replace(/[\\%_]/g, ch => '\\' + ch);
 }
 
-export async function searchMessagesInBoard({ boardId, query, limit = 50 }) {
+export async function searchMessagesInConversation({ conversationId, query, limit = 50 }) {
   const q = String(query || '').trim();
-  if (!q || !boardId) return [];
+  if (!q || !conversationId) return [];
   const pattern = '%' + escapeIlike(q) + '%';
   const { data, error } = await supabase.from('messages')
     .select('*')
-    .eq('board_id', boardId)
+    .eq('conversation_id', conversationId)
     .is('deleted_at', null)
     .ilike('body', pattern)
     .order('created_at', { ascending: false })
     .limit(limit);
-  if (error) { console.warn('searchMessagesInBoard', error); return []; }
+  if (error) { console.warn('searchMessagesInConversation', error); return []; }
   return data || [];
 }
 
-export async function searchMessagesInDm({ workspaceId, userA, userB, query, limit = 50 }) {
-  const q = String(query || '').trim();
-  if (!q || !workspaceId) return [];
-  const pattern = '%' + escapeIlike(q) + '%';
-  const { data, error } = await supabase.from('messages')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .or(`and(sender_id.eq.${userA},dm_peer_id.eq.${userB}),and(sender_id.eq.${userB},dm_peer_id.eq.${userA})`)
-    .is('deleted_at', null)
-    .ilike('body', pattern)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) { console.warn('searchMessagesInDm', error); return []; }
-  return data || [];
-}
-
-// ── Threaded replies ─────────────────────────────────────────────────
+// ── Threaded replies ────────────────────────────────────────────────
 
 export async function fetchReplies({ parentId }) {
   if (!parentId) return [];
@@ -128,9 +143,6 @@ export async function fetchReplies({ parentId }) {
   return data || [];
 }
 
-// Bulk reply count for a list of parent message ids — used by the
-// main thread to render an "N replies" badge per parent without N+1.
-// Returns Map<parentId, { count, lastAt }>.
 export async function replyCountsFor(parentIds) {
   if (!Array.isArray(parentIds) || parentIds.length === 0) return new Map();
   const { data, error } = await supabase.from('messages')
@@ -148,19 +160,7 @@ export async function replyCountsFor(parentIds) {
   return out;
 }
 
-// Look up a single message's full row (for permalink resolution).
-export async function fetchMessageById(id) {
-  if (!id) return null;
-  const { data, error } = await supabase.from('messages')
-    .select('*')
-    .eq('id', id)
-    .is('deleted_at', null)
-    .maybeSingle();
-  if (error) { console.warn('fetchMessageById', error); return null; }
-  return data || null;
-}
-
-// ── Pin / unpin ──────────────────────────────────────────────────────
+// ── Pin / unpin ─────────────────────────────────────────────────────
 
 export async function togglePin(messageId) {
   const { data, error } = await supabase.rpc('toggle_pin', { p_message_id: messageId });
@@ -168,55 +168,21 @@ export async function togglePin(messageId) {
   return data === true;
 }
 
-export async function listPinnedForBoard({ boardId }) {
-  if (!boardId) return [];
+export async function listPinnedForConversation({ conversationId }) {
+  if (!conversationId) return [];
   const { data, error } = await supabase.from('messages')
     .select('*')
-    .eq('board_id', boardId)
+    .eq('conversation_id', conversationId)
     .eq('is_pinned', true)
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
-  if (error) { console.warn('listPinnedForBoard', error); return []; }
+  if (error) { console.warn('listPinnedForConversation', error); return []; }
   return data || [];
 }
 
-export async function listPinnedForDm({ workspaceId, userA, userB }) {
-  if (!workspaceId) return [];
-  const { data, error } = await supabase.from('messages')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .or(`and(sender_id.eq.${userA},dm_peer_id.eq.${userB}),and(sender_id.eq.${userB},dm_peer_id.eq.${userA})`)
-    .eq('is_pinned', true)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true });
-  if (error) { console.warn('listPinnedForDm', error); return []; }
-  return data || [];
-}
-
-// ── Unread counts (real numbers, not binary) ─────────────────────────
-
-export async function getUnreadCounts() {
-  const { data, error } = await supabase.rpc('get_unread_counts');
-  if (error) { console.warn('getUnreadCounts', error); return {}; }
-  return data || {};
-}
-
-
-export async function editMessage({ id, body, attachments }) {
-  const patch = { body, edited_at: new Date().toISOString() };
-  if (attachments) patch.attachments = attachments;
-  const { error } = await supabase.from('messages').update(patch).eq('id', id);
-  if (error) { console.warn('editMessage', error); throw error; }
-}
-
-export async function deleteMessage({ id }) {
-  const { error } = await supabase.from('messages').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-  if (error) { console.warn('deleteMessage', error); throw error; }
-}
+// ── Reactions ───────────────────────────────────────────────────────
 
 export async function toggleReaction({ messageId, emoji, userId }) {
-  // Postgres-side toggle would need a function; do a read-modify-write
-  // on the client. Acceptable for v1 — reactions are low-frequency.
   const { data: msg } = await supabase.from('messages').select('reactions').eq('id', messageId).maybeSingle();
   const reactions = { ...(msg?.reactions || {}) };
   const existing = new Set(reactions[emoji] || []);
@@ -227,37 +193,94 @@ export async function toggleReaction({ messageId, emoji, userId }) {
   await supabase.from('messages').update({ reactions }).eq('id', messageId);
 }
 
-// message_reads upsert: PostgREST's onConflict can't target our coalesce()
-// unique index, so we do a read-then-update-or-insert. One row per
-// (user, board|dm_peer) target.
-async function upsertReadRow({ userId, boardId, dmPeerId, hidden }) {
-  const now = new Date().toISOString();
-  let q = supabase.from('message_reads').select('id').eq('user_id', userId);
-  q = boardId ? q.eq('reads_board_id', boardId) : q.is('reads_board_id', null);
-  q = dmPeerId ? q.eq('reads_dm_peer',  dmPeerId) : q.is('reads_dm_peer',  null);
-  const { data: existing } = await q.maybeSingle();
-  const patch = {
-    last_read_at: now,
-    hidden_at:    hidden ? now : null,
-  };
-  if (existing?.id) {
-    const { error } = await supabase.from('message_reads').update(patch).eq('id', existing.id);
-    if (error) console.warn('upsertReadRow update', error);
-    return;
-  }
-  const { error } = await supabase.from('message_reads').insert({
-    user_id: userId,
-    reads_board_id: boardId || null,
-    reads_dm_peer:  dmPeerId || null,
-    ...patch,
+// ── Unread counts ───────────────────────────────────────────────────
+
+export async function getUnreadCounts() {
+  const { data, error } = await supabase.rpc('get_unread_counts');
+  if (error) { console.warn('getUnreadCounts', error); return {}; }
+  return data || {};
+}
+
+// ── Read state ──────────────────────────────────────────────────────
+
+// Update conversation_participants.last_read_at = now() for (conv, me).
+// Returns true on success so the caller can decide to bump a refresh
+// tick (the unread badge cache lives upstream).
+export async function markRead({ conversationId, userId }) {
+  if (!conversationId || !userId) return false;
+  const { error } = await supabase
+    .from('conversation_participants')
+    .update({ last_read_at: new Date().toISOString() })
+    .eq('conversation_id', conversationId)
+    .eq('user_id', userId);
+  if (error) { console.warn('markRead', error); return false; }
+  return true;
+}
+
+// Hide / "leave" a conversation from your panel.
+// For 2-person DMs, this is the equivalent of the old hideRow.
+// For 3+ group chats, this is the explicit "leave" action.
+export async function leaveConversation({ conversationId, userId }) {
+  if (!conversationId || !userId) return false;
+  const { error } = await supabase
+    .from('conversation_participants')
+    .update({ left_at: new Date().toISOString() })
+    .eq('conversation_id', conversationId)
+    .eq('user_id', userId);
+  if (error) { console.warn('leaveConversation', error); return false; }
+  return true;
+}
+
+// ── Conversation lifecycle ──────────────────────────────────────────
+
+// Find an existing DM with peer (in this workspace) or create one.
+// Re-engages your participation if you'd previously left.
+// Returns the conversation id.
+export async function findOrCreateDm({ workspaceId, peerId }) {
+  if (!workspaceId || !peerId) return null;
+  const { data, error } = await supabase.rpc('find_or_create_dm', {
+    p_workspace: workspaceId,
+    p_peer: peerId,
   });
-  if (error) console.warn('upsertReadRow insert', error);
+  if (error) { console.warn('findOrCreateDm', error); throw error; }
+  return data || null;
 }
 
-export async function markRead({ userId, boardId, dmPeerId }) {
-  await upsertReadRow({ userId, boardId, dmPeerId, hidden: false });
+// Create a new group conversation with the given members (+ me).
+// Returns the conversation id.
+export async function createGroupConversation({ workspaceId, title, memberIds }) {
+  if (!workspaceId || !Array.isArray(memberIds) || memberIds.length === 0) return null;
+  const { data, error } = await supabase.rpc('create_group_conversation', {
+    p_workspace: workspaceId,
+    p_title: title || null,
+    p_member_ids: memberIds,
+  });
+  if (error) { console.warn('createGroupConversation', error); throw error; }
+  return data || null;
 }
 
-export async function hideRow({ userId, boardId, dmPeerId }) {
-  await upsertReadRow({ userId, boardId, dmPeerId, hidden: true });
+// Add workspace members to an existing conversation.
+export async function addParticipants({ conversationId, userIds }) {
+  if (!conversationId || !Array.isArray(userIds) || userIds.length === 0) return false;
+  const rows = userIds.map(uid => ({ conversation_id: conversationId, user_id: uid }));
+  // upsert so adding an existing-but-left participant resets nothing on
+  // the existing row (it stays left_at non-null unless they re-engage themselves).
+  // For freshly-added users, the row is inserted.
+  const { error } = await supabase
+    .from('conversation_participants')
+    .upsert(rows, { onConflict: 'conversation_id,user_id', ignoreDuplicates: true });
+  if (error) { console.warn('addParticipants', error); throw error; }
+  return true;
+}
+
+// Rename a conversation's title. Null/empty clears it.
+export async function renameConversation({ conversationId, title }) {
+  if (!conversationId) return false;
+  const next = (title || '').trim() || null;
+  const { error } = await supabase
+    .from('conversations')
+    .update({ title: next })
+    .eq('id', conversationId);
+  if (error) { console.warn('renameConversation', error); throw error; }
+  return true;
 }
