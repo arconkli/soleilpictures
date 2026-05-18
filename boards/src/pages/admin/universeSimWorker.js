@@ -37,15 +37,17 @@ const ALPHA_RESTART = 0.3;
 // + spiral arms layered on top. So no per-kind disk flattening, no
 // degree-weighted gravity, no bulge — just two extra forces.
 
-// Center attraction — uniform pull on every node toward the origin.
-// Stronger than d3's forceCenter (which only pins the centroid).
-const GRAVITY_PULL = 0.05;
+// Center attraction — MINIMAL. Just enough to keep the universe
+// bounded so the spiral force has something to wind around; the
+// equilibrium between this and repulsion is what sets the overall
+// universe radius. Was 0.05 — felt too dense.
+const GRAVITY_PULL = 0.008;
+
+// Repulsion between every pair of nodes. Higher → clusters push
+// each other further apart, things "feel far apart". Was -90.
+const CHARGE_STRENGTH = -200;
 
 // Very gentle Y-flattening so spiral arms can actually read as arms.
-// Without ANY disk bias the simulation is fully 3D and the spiral
-// force shows as random tangential drift instead of structure.
-// Tuned weak so each cluster still has the same 3D volume the home
-// graph has.
 const DISK_PULL = 0.03;
 
 // Spiral arms.
@@ -155,7 +157,7 @@ function linkStrength(l) {
 function buildSim() {
   sim = forceSimulation(nodes, 3)
     .force('link',    forceLink(links).id(d => d.id).distance(linkDistance).strength(linkStrength))
-    .force('charge',  forceManyBody().strength(-90))
+    .force('charge',  forceManyBody().strength(CHARGE_STRENGTH))
     .force('center',  forceCenter())
     .force('pull',    forcePull())
     .force('disk',    forceDiskLite())
