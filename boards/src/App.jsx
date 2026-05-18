@@ -37,7 +37,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon, Clock } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
@@ -65,6 +65,7 @@ import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore } from './lib/docState.js';
 import { uploadImage } from './lib/uploads.js';
 import { HistoryModal } from './components/HistoryModal.jsx';
+import { TimeTravelModal } from './components/TimeTravelModal.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
 import { HomeGraph } from './components/HomeGraph.jsx';
 
@@ -376,6 +377,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   }, [splitId, boards, boardsLoading]);
   const currentUndoManager = yb.ready && yb.boardId === currentBoard.id ? yb.undoManager : null;
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [timeTravelOpen, setTimeTravelOpen] = useState(false);
 
   const recents = useRecents(workspace.id);
   const openBoard = (id) => { setStack(s => [...s, id]); recents.push(id); };
@@ -2321,6 +2323,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-icon" title="Version history" onClick={() => setHistoryOpen(true)}>
               <Icon as={History} size={16} />
             </button>
+            <button className="tb-icon" title="Time travel — browse + restore any snapshot" onClick={() => setTimeTravelOpen(true)}>
+              <Icon as={Clock} size={16} />
+            </button>
             <span className="tb-divider" aria-hidden="true" />
             <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
                                     workspaceId={workspace.id}
@@ -2430,6 +2435,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         wsPeers={wsPeers}
         onBoardRestored={() => refreshBoards()}
         onClose={() => setHistoryOpen(false)}
+      />
+
+      <TimeTravelModal
+        open={timeTravelOpen}
+        boardId={currentBoard.id}
+        onBoardRestored={() => refreshBoards()}
+        onClose={() => setTimeTravelOpen(false)}
       />
 
       {tweak.showMessages && (

@@ -788,6 +788,23 @@ export async function listBoardVersions(boardId, limit = 200) {
   return data || [];
 }
 
+// Phase 5: list snapshots from the new board_snapshots table for the
+// TimeTravelModal. Includes migrated legacy versions (kind='legacy-*'),
+// pre/post-restore snapshots, manual saves, and future auto-* tiers.
+//
+// Returns rows in reverse chronological order. Does NOT pull doc_b64 —
+// that's fetched lazily when a row is previewed (it can be hundreds of KB).
+export async function listBoardSnapshots(boardId, limit = 500) {
+  const { data, error } = await supabase
+    .from('board_snapshots')
+    .select('id, at_ts, at_seq, storage, kind, label, created_by, created_at, legacy_version_id, r2_keys_referenced')
+    .eq('board_id', boardId)
+    .order('at_ts', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
 export async function loadBoardVersionDoc(versionId) {
   const { data, error } = await supabase
     .from('board_versions')
