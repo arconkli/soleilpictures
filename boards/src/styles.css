@@ -4537,11 +4537,14 @@ body {
 
 /* ── Admin dashboard ───────────────────────────────────────────────────── */
 .admin-screen {
-  min-height: 100vh;
+  /* Pin the shell to the viewport so the body can own its own scroll;
+     header stays sticky at top, body scrolls everything below. */
+  height: 100vh;
   background: var(--bg-0);
   color: var(--ink-1);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .admin-header {
   display: flex;
@@ -4551,6 +4554,7 @@ body {
   border-bottom: 1px solid var(--line-1);
   background: var(--bg-1);
   gap: 18px;
+  flex: 0 0 auto;
 }
 .admin-tabs { display: flex; gap: 4px; }
 .admin-tab {
@@ -4565,8 +4569,23 @@ body {
 .admin-tab:hover { color: var(--ink-0); }
 .admin-tab.is-active { background: var(--soleil-soft); color: var(--soleil); }
 .admin-header-right { display: flex; gap: 6px; }
-.admin-body { padding: 24px; overflow: auto; }
+.admin-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  -webkit-overflow-scrolling: touch;
+}
 .admin-section { max-width: 1100px; margin: 0 auto; }
+/* Tables can overflow horizontally on narrow viewports — wrap them. */
+.admin-table { display: table; }
+.admin-chart-panel .admin-table,
+.admin-section .admin-table {
+  display: table;
+  width: 100%;
+}
+.admin-chart-panel { overflow-x: auto; }
 .admin-empty {
   color: var(--ink-3);
   text-align: center;
