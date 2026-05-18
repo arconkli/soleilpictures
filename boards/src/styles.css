@@ -13888,49 +13888,87 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   position: relative;
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
   background: #0a0a0c;
 }
 
-/* Sticky ticker row at the top */
+/* Floating ticker — compact pill anchored to top-center of the canvas.
+   No layout flow: cosmograph fills the entire .universe-tab and the
+   ticker hovers above it. */
 .universe-ticker {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(120px, 1fr));
-  gap: 12px;
-  padding: 14px 20px;
-  background: linear-gradient(180deg, rgba(0,0,0,0.65), rgba(0,0,0,0.25));
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  flex-shrink: 0;
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 8px 6px;
+  border-radius: 999px;
+  background: rgba(10,10,12,0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+  font: 500 13px/1.1 var(--font-sans);
+  color: var(--ink-0);
+  pointer-events: auto;
+  max-width: calc(100vw - 24px);
 }
-.universe-ticker .admin-stat-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
+.universe-ticker-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 60px;
+  padding: 2px 14px;
+  border-right: 1px solid rgba(255,255,255,0.07);
+}
+.universe-ticker-cell:last-of-type { border-right: none; }
+.universe-ticker-value {
+  font: 600 13px/1 var(--font-sans);
+  color: var(--ink-0);
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.universe-ticker-cell.is-accent .universe-ticker-value { color: var(--soleil); }
+.universe-ticker-label {
+  font: 600 9px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 .universe-ticker-warn {
   position: absolute;
-  right: 20px;
-  bottom: 4px;
-  color: rgba(255,165,0,0.8);
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,165,0,0.85);
+  box-shadow: 0 0 0 2px #0a0a0c;
 }
 
-@media (max-width: 1100px) {
-  .universe-ticker { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 640px) {
-  .universe-ticker { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 720px) {
+  .universe-ticker {
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: 16px;
+    max-width: calc(100vw - 16px);
+  }
+  .universe-ticker-cell {
+    min-width: 50px;
+    padding: 2px 10px;
+  }
 }
 
-/* Cosmograph canvas fills the remaining space */
+/* Cosmograph canvas fills the entire tab now that the ticker floats. */
 .universe-canvas {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
 }
 .universe-canvas > * {
   width: 100%;

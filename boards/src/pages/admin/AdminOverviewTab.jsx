@@ -12,6 +12,7 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid,
 } from 'recharts';
 import { supabase } from '../../lib/supabase.js';
+import { formatDuration } from '../../lib/formatDuration.js';
 import { AdminStatCard } from './AdminStatCard.jsx';
 
 const TIER_COLORS = {
@@ -46,6 +47,7 @@ export function AdminOverviewTab() {
   const [signups, setSignups]   = useState([]);
   const [funnel, setFunnel]     = useState([]);
   const [recent, setRecent]     = useState([]);
+  const [conv, setConv]         = useState(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
 
@@ -57,13 +59,17 @@ export function AdminOverviewTab() {
       supabase.rpc('admin_signups_by_day', { p_days: 30 }),
       supabase.rpc('admin_waitlist_funnel', { p_days: 30 }),
       supabase.rpc('admin_list_users', { p_limit: 10, p_offset: 0 }),
+      supabase.rpc('admin_avg_time_to_paid'),
     ])
-      .then(([s, sb, f, rl]) => {
+      .then(([s, sb, f, rl, c]) => {
         if (cancelled) return;
         if (s.error)   throw s.error;
         if (sb.error)  throw sb.error;
         if (f.error)   throw f.error;
         if (rl.error)  throw rl.error;
+        // admin_avg_time_to_paid is non-critical for the page; tolerate
+        // its absence in case the migration hasn't rolled out yet.
+        if (!c.error) setConv(c.data || null);
         setStats(s.data || null);
         setSignups(sb.data || []);
         setFunnel(f.data || []);
@@ -107,6 +113,15 @@ export function AdminOverviewTab() {
           value={(stats?.waitlist_pending ?? 0).toLocaleString()}
           sub={`${stats?.waitlist_total ?? 0} total ever joined`}
         />
+        {conv && (
+          <AdminStatCard
+            label="Avg time to paid"
+            value={conv.paid_users > 0 ? formatDuration(conv.median_seconds) : '—'}
+            sub={conv.paid_users > 0
+              ? `${conv.paid_users} converted · avg ${formatDuration(conv.avg_seconds)}`
+              : 'no conversions yet'}
+          />
+        )}
       </div>
 
       {/* Charts row */}

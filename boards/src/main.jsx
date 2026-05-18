@@ -6,6 +6,7 @@ import { TierRouter } from './auth/TierRouter.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { PublicBoardView } from './components/PublicBoardView.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
+import { startHeartbeat } from './lib/heartbeat.js';
 import './styles.css';
 
 // Cloudflare Web Analytics beacon. Lazy-injected when VITE_CF_ANALYTICS_TOKEN
@@ -75,6 +76,10 @@ if (typeof window !== 'undefined' &&
 // non-account-holders can preview a board without signing up. Any
 // other path falls through to the normal app + auth gate.
 const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$/i);
+
+// Platform-wide time-in-app counter. Visibility-aware; runs even
+// pre-auth so landing-page time also counts.
+startHeartbeat();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
