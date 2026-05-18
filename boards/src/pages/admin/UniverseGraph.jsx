@@ -182,6 +182,13 @@ export function UniverseGraph({ onNodeClick }) {
     pendingNodes: [],               // delta buffer
     pendingEdges: [],               // [{ raw, attempts }]
     onNodeClickFn: onNodeClick,
+    // Auto-fit state. didInitialFit gates the first snap-to-fit.
+    // fitAnimating drives a smooth pull-back when the universe grows.
+    interacting: false,
+    didInitialFit: false,
+    lastFitAt: 0,
+    fitFromPos: null, fitFromTarget: null, fitToPos: null, fitToTarget: null,
+    fitStart: 0, fitDuration: 700, fitAnimating: false,
   }).current;
 
   // Keep onNodeClick fresh without re-mounting the whole scene.
@@ -297,17 +304,27 @@ export function UniverseGraph({ onNodeClick }) {
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup',   onPointerUp);
 
-    // rAF loop — controls + tilted drift + render.
+    // rAF loop — controls + tilted drift + fit animation + render.
     const tiltAxis = new THREE.Vector3(0.35, 1, 0.18).normalize();
     let last = performance.now();
-    let interacting = false;
-    controls.addEventListener('start', () => { interacting = true; });
-    controls.addEventListener('end',   () => { interacting = false; });
+    controls.addEventListener('start', () => { refs.interacting = true; });
+    controls.addEventListener('end',   () => { refs.interacting = false; });
     const loop = () => {
       const now = performance.now();
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (!interacting) {
+
+      // Fit animation — interpolate camera position + controls.target
+      // from "from" to "to" over fitDuration. Cubic ease-out.
+      if (refs.fitAnimating) {
+        const t = Math.min(1, (now - refs.fitStart) / refs.fitDuration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        camera.position.lerpVectors(refs.fitFromPos, refs.fitToPos, eased);
+        controls.target.lerpVectors(refs.fitFromTarget, refs.fitToTarget, eased);
+        if (t >= 1) refs.fitAnimating = false;
+      } else if (!refs.interacting) {
+        // Idle drift — pauses during interaction AND during a fit
+        // animation so the two motions don't fight.
         const rel = camera.position.clone().sub(controls.target);
         rel.applyAxisAngle(tiltAxis, 0.085 * dt);
         camera.position.copy(rel.add(controls.target));
@@ -687,6 +704,96 @@ function uploadPositions(refs, count) {
   }
   ep.needsUpdate = true;
   refs.edgeLines.geometry.setDrawRange(0, refs.edges.length * 2);
+
+  // Pull the camera back so the whole universe stays in view as more
+  // nodes arrive. Cheap to check; the heavy work only fires when the
+  // bounding sphere has actually grown past the current frustum.
+  maybeAutoFit(refs, count);
+}
+
+// Compute the bounding sphere of the current node positions (single
+// pass for the center, second pass for the max radius). O(N).
+function computeBoundingSphere(refs, count) {
+  if (count === 0) return null;
+  const pos = refs.positions;
+  let cx = 0, cy = 0, cz = 0;
+  for (let i = 0; i < count; i++) {
+    cx += pos[i * 3]; cy += pos[i * 3 + 1]; cz += pos[i * 3 + 2];
+  }
+  cx /= count; cy /= count; cz /= count;
+  let maxD2 = 0;
+  for (let i = 0; i < count; i++) {
+    const dx = pos[i * 3]     - cx;
+    const dy = pos[i * 3 + 1] - cy;
+    const dz = pos[i * 3 + 2] - cz;
+    const d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 > maxD2) maxD2 = d2;
+  }
+  return { cx, cy, cz, radius: Math.sqrt(maxD2) };
+}
+
+// Distance the camera needs to be from `center` to fit a sphere of
+// `radius` in view, considering both the vertical and horizontal FoV.
+function fitDistance(radius, camera, padding = 1.30) {
+  const vFov = (camera.fov * Math.PI) / 180;
+  const distV = radius / Math.tan(vFov / 2);
+  const distH = radius / (Math.tan(vFov / 2) * camera.aspect);
+  return Math.max(distV, distH, 50) * padding;
+}
+
+// Decide whether to refit the camera and, if so, kick off the
+// interpolation. Rules:
+//   • First call (didInitialFit=false): snap to fit, no animation.
+//     This is the moment after the worker's first stable tick.
+//   • Subsequent calls: only refit if the universe has grown enough
+//     that the camera's current distance is now < ~90% of what we'd
+//     need to see everything. Don't refit while the user is actively
+//     orbiting (don't fight their input). Don't refit more than once
+//     every 700ms (avoid jitter while the layout is settling).
+function maybeAutoFit(refs, count) {
+  if (!refs.camera || !refs.controls || count === 0) return;
+  const now = performance.now();
+
+  const bs = computeBoundingSphere(refs, count);
+  if (!bs || !isFinite(bs.radius)) return;
+  const targetCenter = new THREE.Vector3(bs.cx, bs.cy, bs.cz);
+  const needed = fitDistance(bs.radius, refs.camera);
+
+  if (!refs.didInitialFit) {
+    // First fit — snap. Preserve the camera's existing direction so
+    // we don't override OrbitControls' initial pose orientation.
+    const dir = refs.camera.position.clone().sub(refs.controls.target).normalize();
+    if (dir.lengthSq() === 0) dir.set(0, 0, 1);
+    refs.camera.position.copy(targetCenter).add(dir.multiplyScalar(needed));
+    refs.controls.target.copy(targetCenter);
+    refs.didInitialFit = true;
+    refs.lastFitAt = now;
+    return;
+  }
+  if (refs.interacting) return;
+  if (refs.fitAnimating) return;
+  if (now - refs.lastFitAt < 700) return;
+
+  const currentDist = refs.camera.position.distanceTo(refs.controls.target);
+  // Re-fit if visible universe extends beyond the current view, or if
+  // the centroid drifted far from where we last looked.
+  const centerDrift = refs.controls.target.distanceTo(targetCenter);
+  const needsExpand = currentDist < needed * 0.90;
+  const needsRecenter = centerDrift > bs.radius * 0.25;
+  if (!needsExpand && !needsRecenter) return;
+
+  // Set up animation. Preserve the camera's direction relative to the
+  // target so the orbit pose stays put — we just zoom out and slide
+  // the look-at point to the new center.
+  const dir = refs.camera.position.clone().sub(refs.controls.target).normalize();
+  if (dir.lengthSq() === 0) dir.set(0, 0, 1);
+  refs.fitFromPos    = refs.camera.position.clone();
+  refs.fitFromTarget = refs.controls.target.clone();
+  refs.fitToPos      = targetCenter.clone().add(dir.multiplyScalar(Math.max(needed, currentDist)));
+  refs.fitToTarget   = targetCenter.clone();
+  refs.fitStart      = now;
+  refs.fitAnimating  = true;
+  refs.lastFitAt     = now;
 }
 
 function ensureNodeCapacity(refs, needed) {
