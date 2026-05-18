@@ -4349,6 +4349,221 @@ body {
   gap: 6px;
 }
 
+/* ── Upgrade chip + in-app modal ──────────────────────────────────────── */
+.upgrade-chip {
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  z-index: 2147483630;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans);
+  letter-spacing: .04em;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.upgrade-chip:hover {
+  background: var(--soleil-soft);
+  color: var(--soleil);
+  border-color: var(--soleil);
+  box-shadow: var(--soleil-glow);
+}
+.upgrade-chip-near {
+  color: var(--soleil);
+  border-color: var(--soleil);
+  background: var(--soleil-soft);
+}
+.upgrade-chip-label  { letter-spacing: .08em; text-transform: uppercase; }
+.upgrade-chip-sep    { color: var(--ink-3); }
+.upgrade-chip-count  { font-variant-numeric: tabular-nums; }
+
+.upgrade-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483640;
+  background: rgba(0,0,0,.65);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.upgrade-modal {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-soft, 0 8px 32px rgba(0,0,0,.18));
+  padding: 28px 26px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: left;
+}
+.upgrade-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: transparent;
+  border: 0;
+  font: 400 22px/1 var(--font-sans);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.upgrade-close:hover { color: var(--ink-0); }
+.upgrade-intro { display: flex; flex-direction: column; gap: 6px; }
+.upgrade-eyebrow { color: var(--soleil); letter-spacing: .2em; }
+.upgrade-title {
+  font: 700 22px/1.2 var(--font-display, var(--font-sans));
+  color: var(--ink-0);
+  margin: 0;
+}
+.upgrade-sub { color: var(--ink-1); margin: 0; }
+.upgrade-card { box-shadow: none; }
+.upgrade-later {
+  align-self: center;
+  background: transparent;
+  border: 0;
+  color: var(--ink-2);
+  cursor: pointer;
+  font: 500 13px/1 var(--font-sans);
+  padding: 6px 10px;
+}
+.upgrade-later:hover { color: var(--ink-0); }
+
+/* ── Billing page summary ─────────────────────────────────────────────── */
+.billing-summary {
+  width: 100%;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.billing-row { display: flex; justify-content: space-between; gap: 12px; font: 500 13px/1.4 var(--font-sans); }
+.billing-label { color: var(--ink-2); }
+.billing-value { color: var(--ink-0); text-align: right; }
+
+/* ── Admin dashboard ───────────────────────────────────────────────────── */
+.admin-screen {
+  min-height: 100vh;
+  background: var(--bg-0);
+  color: var(--ink-1);
+  display: flex;
+  flex-direction: column;
+}
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-1);
+  gap: 18px;
+}
+.admin-tabs { display: flex; gap: 4px; }
+.admin-tab {
+  background: transparent;
+  border: 0;
+  color: var(--ink-2);
+  font: 600 13px/1 var(--font-sans);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.admin-tab:hover { color: var(--ink-0); }
+.admin-tab.is-active { background: var(--soleil-soft); color: var(--soleil); }
+.admin-header-right { display: flex; gap: 6px; }
+.admin-body { padding: 24px; overflow: auto; }
+.admin-section { max-width: 1100px; margin: 0 auto; }
+.admin-empty {
+  color: var(--ink-3);
+  text-align: center;
+  padding: 60px 20px;
+  font: 500 14px/1.4 var(--font-sans);
+}
+.admin-search-row { display: flex; gap: 8px; margin-bottom: 20px; max-width: 480px; }
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font: 500 13px/1.4 var(--font-sans);
+}
+.admin-table th {
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line-2);
+}
+.admin-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line-1);
+  color: var(--ink-1);
+  vertical-align: top;
+}
+.admin-email { color: var(--ink-0); font-weight: 600; }
+.admin-links { display: flex; flex-wrap: wrap; gap: 4px 8px; max-width: 280px; }
+.admin-link { color: var(--soleil); text-decoration: none; }
+.admin-link:hover { text-decoration: underline; }
+.admin-muted { color: var(--ink-3); }
+.admin-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.admin-status-pending  { background: rgba(255,165,0,.14); color: var(--soleil); }
+.admin-status-accepted { background: rgba(80,200,120,.14); color: rgb(80,200,120); }
+.admin-status-rejected { background: rgba(220,80,80,.14); color: rgb(220,120,120); }
+.admin-status-canceled { background: rgba(255,255,255,.08); color: var(--ink-3); }
+.admin-status-admin    { background: rgba(255,165,0,.14); color: var(--soleil); }
+.admin-status-paid     { background: rgba(80,200,120,.14); color: rgb(80,200,120); }
+.admin-status-demo     { background: rgba(255,255,255,.08); color: var(--ink-1); }
+.admin-status-waitlist { background: rgba(150,160,180,.12); color: var(--ink-2); }
+.admin-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.admin-action {
+  background: var(--bg-3);
+  color: var(--ink-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm, 6px);
+  padding: 6px 10px;
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.admin-action:hover:not(:disabled) { background: var(--bg-4); }
+.admin-action:disabled { opacity: 0.5; cursor: not-allowed; }
+.admin-action-primary { background: var(--soleil); color: var(--bg-0); border-color: var(--soleil); }
+.admin-action-primary:hover:not(:disabled) { box-shadow: var(--shadow-1); }
+.admin-action-danger  { color: rgb(220,120,120); border-color: rgba(220,80,80,.4); }
+.admin-action-danger:hover:not(:disabled) { background: rgba(220,80,80,.12); }
+
+/* Inline upgrade prompt embedded in ShareModal's hint for demo callers. */
+.share-upgrade-inline {
+  background: transparent;
+  border: 0;
+  color: var(--soleil);
+  font: 500 12px/1 var(--font-sans);
+  padding: 0;
+  cursor: pointer;
+}
+.share-upgrade-inline:hover { text-decoration: underline; }
+
 /* Dev mode banner — quiet so it doesn't fight the canvas. */
 .dev-banner {
   position: fixed; top: 0; left: 0; right: 0;

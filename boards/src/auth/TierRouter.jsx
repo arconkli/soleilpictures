@@ -20,6 +20,9 @@ import { WaitlistForm } from './WaitlistForm.jsx';
 import { WaitlistConfirm } from './WaitlistConfirm.jsx';
 import { PricingPage } from './PricingPage.jsx';
 import { PricingSuccess } from './PricingSuccess.jsx';
+import { BillingPage } from '../pages/BillingPage.jsx';
+import { AdminPage } from '../pages/AdminPage.jsx';
+import { UpgradeChip } from '../components/UpgradeChip.jsx';
 import { SoleilMark } from '../components/primitives.jsx';
 
 export function TierRouter({ children }) {
@@ -65,8 +68,17 @@ export function TierRouter({ children }) {
     return hasEntry ? <WaitlistConfirm /> : <WelcomePage />;
   }
 
-  // tier in (admin, paid, demo) → app
-  return children;
+  // tier in (admin, paid, demo) — signed-in-only side pages
+  if (path === '/settings/billing')  return <BillingPage />;
+  if (path === '/admin')             return <AdminPage />;
+
+  // Default → app, with the UpgradeChip overlay for demo users.
+  return (
+    <>
+      {children}
+      <UpgradeChip />
+    </>
+  );
 }
 
 function Splash() {

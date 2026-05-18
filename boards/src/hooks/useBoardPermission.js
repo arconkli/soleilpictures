@@ -3,7 +3,7 @@
 //
 //   { role: 'owner' | 'editor' | 'viewer' | 'none',
 //     canEdit: boolean,
-//     source:  'workspace' | 'share' | null }
+//     source:  'workspace' | 'share' | 'tier-demoted' | 'tier-blocked' | null }
 //
 // "owner" = workspace owner (workspaces.created_by === userId).
 // "editor" = workspace member (workspace_members) OR per-board editor share.
@@ -12,6 +12,12 @@
 // Cascade: per-board shares apply to the board AND every descendant
 // (via boards.parent_board_id chain). A board has the HIGHEST role
 // among its own share row + every ancestor's share row.
+//
+// Tier gates (applied AFTER the workspace-owner shortcut):
+//   tier='waitlist' → blocked from everything (defensive)
+//   tier='demo'     → forced to viewer on any board they don't own outright
+//                     (workspace.created_by must match userId), regardless of
+//                     editor shares. Editing other people's boards is paid-only.
 
 import { useMemo } from 'react';
 
@@ -22,15 +28,32 @@ export function useBoardPermission({
   workspaceMembers, // array of { user_id, role }
   sharedBoards,     // array of list_shared_boards rows
   userId,
+  tier,             // 'admin' | 'paid' | 'demo' | 'waitlist' | null (optional)
 }) {
   return useMemo(() => {
     if (!board || !userId) {
       return { role: 'none', canEdit: false, source: null };
     }
 
-    // Workspace owner trumps everything.
+    // Workspace owner trumps everything — applies to all tiers (demo users
+    // can edit their own workspace just fine, subject to the 100-card cap
+    // enforced in addCard).
     if (workspace?.created_by === userId && board.workspace_id === workspace?.id) {
       return { role: 'owner', canEdit: true, source: 'workspace' };
+    }
+
+    // tier='waitlist' — defensive block. Shouldn't reach here in practice
+    // because TierRouter sends waitlist users to /welcome before the app
+    // mounts, but a stale session could leak through.
+    if (tier === 'waitlist') {
+      return { role: 'none', canEdit: false, source: 'tier-blocked' };
+    }
+
+    // tier='demo' — viewer-only on any board they don't own. Editing
+    // others' boards is a paid feature; the server-side can_write_board
+    // RPC enforces the same rule, this is the client-side mirror.
+    if (tier === 'demo') {
+      return { role: 'viewer', canEdit: false, source: 'tier-demoted' };
     }
 
     // Workspace member of THE BOARD'S workspace (not necessarily the
@@ -61,5 +84,5 @@ export function useBoardPermission({
     }
 
     return { role: 'none', canEdit: false, source: null };
-  }, [board, boards, workspace, workspaceMembers, sharedBoards, userId]);
+  }, [board, boards, workspace, workspaceMembers, sharedBoards, userId, tier]);
 }

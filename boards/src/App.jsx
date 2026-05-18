@@ -9,6 +9,8 @@ import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
+import { useMyTier } from './hooks/useMyTier.js';
+import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
@@ -445,6 +447,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const addCard = (card) => {
       const m = cardsMap(); if (!m) return;
+      // Demo-tier cap: hard-block at 100 cards total across the user's
+      // own boards. The trigger on card_index keeps demo_card_count in
+      // sync server-side; the chip and this check read the cached value.
+      if (myTier.tier === 'demo') {
+        if (myTier.demoCardCount >= 100) {
+          setUpgradeReason('cap-hit');
+          return;
+        }
+        if (myTier.demoCardCount === 90) {
+          feedback.toast({
+            type: 'warning',
+            message: "You're at 90/100 cards in your demo workspace. Upgrade for unlimited.",
+            action: { label: 'Upgrade', onClick: () => setUpgradeReason('manual') },
+          });
+        }
+      }
       ydoc.transact(() => {
         const c = stampCreate({ z: nextZ(), ...card });
         m.set(c.id, cardToYMap(c));
@@ -453,6 +471,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const addCards = (cardsToAdd) => {
       const m = cardsMap(); if (!m || !cardsToAdd?.length) return;
+      if (myTier.tier === 'demo') {
+        const remaining = Math.max(0, 100 - myTier.demoCardCount);
+        if (remaining === 0) { setUpgradeReason('cap-hit'); return; }
+        if (cardsToAdd.length > remaining) {
+          cardsToAdd = cardsToAdd.slice(0, remaining);
+          setUpgradeReason('cap-hit');
+        } else if (myTier.demoCardCount + cardsToAdd.length >= 90 && myTier.demoCardCount < 90) {
+          feedback.toast({
+            type: 'warning',
+            message: "You're approaching the 100-card demo limit. Upgrade for unlimited.",
+            action: { label: 'Upgrade', onClick: () => setUpgradeReason('manual') },
+          });
+        }
+      }
       ydoc.transact(() => {
         let z = nextZ();
         for (const card of cardsToAdd) {
@@ -1521,6 +1553,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareNotifs]);
+  // Tier (admin / paid / demo / waitlist) drives the upgrade chip,
+  // the demo-cap on addCard, and the tier-aware viewer fallback in
+  // useBoardPermission for non-owned boards.
+  const myTier = useMyTier({ userId: user.id });
+  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | null
+
   // Permission for the currently-active board — drives VIEW ONLY pill
   // in the topbar + canvas/doc readonly states.
   const currentBoardPerm = useBoardPermission({
@@ -1530,6 +1568,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     workspaceMembers,
     sharedBoards,
     userId: user.id,
+    tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
   // Pre-compute a sync set of board ids the user can read — used by the
@@ -2484,6 +2523,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           workspaceMembers={workspaceMembers}
           wsPeers={wsPeers}
           selfUserId={user.id}
+          tier={myTier.tier}
+          onUpgrade={() => setUpgradeReason('manual')}
           onClose={() => setShareOpen(false)}
           onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
           onSharesChanged={() => { refreshSharedBoards?.(); }}
@@ -2494,6 +2535,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           ref={backlinksRef}
           onClose={() => setBacklinksRef(null)}
         />
+      )}
+
+      {upgradeReason && (
+        <UpgradeModal onClose={() => setUpgradeReason(null)} />
       )}
 
     </div>
