@@ -114,22 +114,23 @@ export function WaitlistConfirm() {
           </button>
         </div>
       ) : (
-        <article className="waitlist-status-card">
-          <div className="waitlist-status-eyebrow t-eyebrow">
-            <span className="waitlist-status-dot" aria-hidden="true" />
-            On the waitlist
-          </div>
+        <>
+          {/* Status — floating text, no container. */}
+          <section className="waitlist-status">
+            <div className="waitlist-status-eyebrow t-eyebrow">
+              <span className="waitlist-status-dot" aria-hidden="true" />
+              On the waitlist
+            </div>
+            <h2 className="waitlist-status-title">We'll be in touch soon.</h2>
+            <p className="waitlist-status-sub t-body">
+              We're reviewing your application and will email you when a spot opens.
+            </p>
+          </section>
 
-          <h2 className="waitlist-status-title">We'll be in touch soon.</h2>
-          <p className="waitlist-status-sub t-body">
-            We're reviewing your application and will email you when a spot opens.
-          </p>
-
-          <div className="waitlist-status-divider" aria-hidden="true" />
-
-          <div className="waitlist-status-skip">
-            <div className="waitlist-status-skip-label t-meta">Don't want to wait?</div>
-            <div className="waitlist-status-skip-row">
+          {/* Skip — small subtle box. */}
+          <section className="waitlist-skip">
+            <div className="waitlist-skip-label t-meta">Don't want to wait?</div>
+            <div className="waitlist-skip-row">
               <div className="pricing-card-toggle" role="tablist" aria-label="Billing interval">
                 <button
                   role="tab"
@@ -151,18 +152,18 @@ export function WaitlistConfirm() {
                 </button>
               </div>
               <button
-                className="waitlist-status-skip-link"
+                className="waitlist-skip-cta"
                 onClick={startCheckout}
                 disabled={checkoutBusy}
               >
                 {checkoutBusy
                   ? 'Opening…'
-                  : <>Subscribe for ${plan === 'annual' ? 20 : 25}/mo →</>}
+                  : <>Subscribe — ${plan === 'annual' ? 20 : 25}/mo</>}
               </button>
             </div>
             {checkoutError && <div className="auth-error t-meta">{checkoutError}</div>}
-          </div>
-        </article>
+          </section>
+        </>
       )}
 
       <footer className="pricing-foot t-meta">

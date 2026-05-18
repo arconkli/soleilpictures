@@ -4925,23 +4925,19 @@ body {
   white-space: nowrap;
 }
 
-/* ── WaitlistConfirm: minimal status card ───────────────────────────── */
-.waitlist-status-card {
-  position: relative;
+/* ── WaitlistConfirm: floating status + subtle skip pill ─────────────── */
+
+/* Floating status — no card surface, no border, just centered text. */
+.waitlist-status {
   width: 100%;
-  max-width: 460px;
-  background: var(--bg-2);
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-lg, 14px);
-  padding: 32px 28px;
+  max-width: 440px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  text-align: center;
   align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 8px 16px 4px;
 }
-.waitlist-status-card-loading { padding: 48px 28px; color: var(--ink-3); }
-
 .waitlist-status-eyebrow {
   display: inline-flex;
   align-items: center;
@@ -4965,10 +4961,9 @@ body {
   70%  { box-shadow: 0 0 0 9px rgba(255, 184, 64, 0);    }
   100% { box-shadow: 0 0 0 0   rgba(255, 184, 64, 0);    }
 }
-
 .waitlist-status-title {
   margin: 4px 0 0;
-  font: 600 22px/1.25 var(--font-display, var(--font-sans));
+  font: 600 26px/1.2 var(--font-display, var(--font-sans));
   color: var(--ink-0);
   letter-spacing: -0.01em;
 }
@@ -4976,9 +4971,26 @@ body {
   margin: 0;
   color: var(--ink-2);
   line-height: 1.55;
-  max-width: 340px;
+  max-width: 360px;
 }
 
+/* Fallback states (no-entry / rejected) still want a card surface so
+   they don't look unfinished — they have CTAs and longer copy. */
+.waitlist-status-card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 14px);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+  align-items: center;
+}
+.waitlist-status-card-loading { padding: 40px 24px; color: var(--ink-3); }
 .waitlist-status-cta-row {
   display: flex;
   flex-wrap: wrap;
@@ -4988,42 +5000,45 @@ body {
 }
 .waitlist-status-cta { flex: 1; min-width: 160px; padding: 0 18px; }
 
-/* Hairline divider + quiet skip section. No card surface, no big CTA —
-   just a label, an inline pill toggle, and a small text link. */
-.waitlist-status-divider {
-  width: 56px;
-  height: 1px;
-  background: var(--line-2);
-  margin: 8px auto 4px;
-}
-.waitlist-status-skip {
+/* Skip — small subtle box, sits below the floating status. Holds the
+   plan toggle and a compact pill-shaped Subscribe button that matches
+   the rest of the app's button language. */
+.waitlist-skip {
+  margin-top: 24px;
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  width: 100%;
 }
-.waitlist-status-skip-label {
+.waitlist-skip-label {
   color: var(--ink-3);
 }
-.waitlist-status-skip-row {
+.waitlist-skip-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
 }
-.waitlist-status-skip-link {
-  background: transparent;
+.waitlist-skip-cta {
+  height: 34px;
+  padding: 0 16px;
   border: 0;
-  padding: 4px 2px;
-  color: var(--soleil);
+  border-radius: var(--radius);
+  background: var(--soleil);
+  color: var(--bg-0);
   font: 600 13px/1 var(--font-sans);
   cursor: pointer;
-  transition: opacity var(--dur-fast) var(--ease);
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease), opacity var(--dur-fast) var(--ease);
 }
-.waitlist-status-skip-link:hover:not(:disabled) { opacity: 0.78; }
-.waitlist-status-skip-link:disabled { opacity: 0.5; cursor: not-allowed; }
+.waitlist-skip-cta:hover:not(:disabled) { box-shadow: var(--shadow-1); transform: translateY(-1px); }
+.waitlist-skip-cta:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── WaitlistModal (pricing-card aesthetic) ─────────────────────────── */
 .waitlist-modal-card {
