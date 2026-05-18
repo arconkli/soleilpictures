@@ -4925,46 +4925,36 @@ body {
   white-space: nowrap;
 }
 
-/* ── WaitlistConfirm: status panel + skip-the-wait card ─────────────── */
-.waitlist-status-card,
-.waitlist-skip-card {
+/* ── WaitlistConfirm: minimal status card ───────────────────────────── */
+.waitlist-status-card {
   position: relative;
   width: 100%;
-  max-width: 520px;
+  max-width: 460px;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg, 14px);
-  padding: 28px 26px;
+  padding: 32px 28px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  text-align: left;
-}
-.waitlist-status-card-loading {
-  align-items: center;
   text-align: center;
-  padding: 40px 26px;
-  color: var(--ink-2);
+  align-items: center;
 }
-.waitlist-status-card { border-color: var(--soleil); box-shadow: var(--soleil-glow); }
-.waitlist-skip-card {
-  margin-top: 14px;
-  background: var(--bg-1);
-}
+.waitlist-status-card-loading { padding: 48px 28px; color: var(--ink-3); }
 
 .waitlist-status-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: var(--soleil);
-  letter-spacing: .14em;
+  letter-spacing: .18em;
   text-transform: uppercase;
-  font: 700 11px/1 var(--font-sans);
+  font: 600 10px/1 var(--font-sans);
 }
-.waitlist-status-eyebrow-muted { color: var(--ink-2); }
+.waitlist-status-eyebrow-muted { color: var(--ink-3); }
 .waitlist-status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: var(--soleil);
   box-shadow: 0 0 0 0 rgba(255, 184, 64, 0.55);
@@ -4972,104 +4962,68 @@ body {
 }
 @keyframes waitlist-pulse {
   0%   { box-shadow: 0 0 0 0   rgba(255, 184, 64, 0.55); }
-  70%  { box-shadow: 0 0 0 10px rgba(255, 184, 64, 0);    }
+  70%  { box-shadow: 0 0 0 9px rgba(255, 184, 64, 0);    }
   100% { box-shadow: 0 0 0 0   rgba(255, 184, 64, 0);    }
 }
 
 .waitlist-status-title {
-  margin: 0;
-  font: 700 24px/1.2 var(--font-display, var(--font-sans));
+  margin: 4px 0 0;
+  font: 600 22px/1.25 var(--font-display, var(--font-sans));
   color: var(--ink-0);
+  letter-spacing: -0.01em;
 }
 .waitlist-status-sub {
   margin: 0;
-  color: var(--ink-1);
+  color: var(--ink-2);
   line-height: 1.55;
+  max-width: 340px;
 }
-.waitlist-status-date { color: var(--ink-0); }
 
 .waitlist-status-cta-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 4px;
+  width: 100%;
 }
-.waitlist-status-cta { flex: 1; min-width: 180px; padding: 0 18px; }
+.waitlist-status-cta { flex: 1; min-width: 160px; padding: 0 18px; }
 
-/* Hero date — centered, soft surface, the only visual anchor in the
-   status panel besides the title. */
-.waitlist-status-hero {
-  margin: 4px 0 2px;
-  padding: 18px 16px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius);
-  text-align: center;
+/* Hairline divider + quiet skip section. No card surface, no big CTA —
+   just a label, an inline pill toggle, and a small text link. */
+.waitlist-status-divider {
+  width: 56px;
+  height: 1px;
+  background: var(--line-2);
+  margin: 8px auto 4px;
+}
+.waitlist-status-skip {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
 }
-.waitlist-status-hero-label {
+.waitlist-status-skip-label {
   color: var(--ink-3);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  font: 600 10px/1 var(--font-sans);
 }
-.waitlist-status-hero-date {
-  color: var(--ink-0);
-  font: 700 22px/1.2 var(--font-display, var(--font-sans));
-}
-.waitlist-status-hero-sub { color: var(--ink-2); }
-
-.waitlist-skip-head { display: flex; flex-direction: column; gap: 6px; }
-.waitlist-skip-eyebrow {
-  color: var(--ink-2);
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  font: 700 11px/1 var(--font-sans);
-}
-.waitlist-skip-title {
-  font: 700 16px/1.2 var(--font-sans);
-  color: var(--ink-0);
-}
-.waitlist-skip-plan-row {
+.waitlist-status-skip-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 4px;
-}
-.waitlist-skip-price {
-  font: 700 22px/1 var(--font-display, var(--font-sans));
-  color: var(--ink-0);
-  white-space: nowrap;
-}
-.waitlist-skip-price-unit {
-  font: 500 12px/1 var(--font-sans);
-  color: var(--ink-2);
-  margin-left: 2px;
-}
-.waitlist-skip-sub {
-  color: var(--ink-2);
-  line-height: 1.5;
-  margin: 0;
-}
-.waitlist-skip-cta-row {
-  display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 14px;
-  margin-top: 6px;
+  justify-content: center;
+  gap: 12px;
 }
-.waitlist-skip-cta { flex: 1; min-width: 200px; padding: 0 18px; }
-.waitlist-skip-link {
+.waitlist-status-skip-link {
   background: transparent;
   border: 0;
-  color: var(--ink-2);
+  padding: 4px 2px;
+  color: var(--soleil);
+  font: 600 13px/1 var(--font-sans);
   cursor: pointer;
-  padding: 6px 4px;
+  transition: opacity var(--dur-fast) var(--ease);
 }
-.waitlist-skip-link:hover { color: var(--ink-0); }
+.waitlist-status-skip-link:hover:not(:disabled) { opacity: 0.78; }
+.waitlist-status-skip-link:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── WaitlistModal (pricing-card aesthetic) ─────────────────────────── */
 .waitlist-modal-card {
