@@ -1,21 +1,20 @@
 // AdminUniverseTicker — compact, frosted pill floating over the
-// cosmograph canvas. Each cell is a tiny stack of value + label;
-// values animate between updates so growth is visible mid-glance.
+// cosmograph canvas. Each cell shows a value, a small label, and
+// (when fresh signups arrived today) a tiny "+N" growth indicator
+// pinned below the label.
 
 import { useEffect, useRef, useState } from 'react';
 import { formatDuration } from '../../lib/formatDuration.js';
 
 const CELLS = [
-  { key: 'total_users',          label: 'Users' },
-  { key: 'total_workspaces',     label: 'WS' },
-  { key: 'total_boards',         label: 'Boards' },
-  { key: 'total_cards',          label: 'Cards' },
-  { key: 'total_links',          label: 'Conn' },
-  { key: 'nodes_created_24h',    label: '24h',     accent: true },
-  { key: 'total_seconds_in_app', label: 'Time',    format: 'duration' },
+  { key: 'total_users',          label: 'Users',  todayKey: 'users' },
+  { key: 'total_workspaces',     label: 'WS',     todayKey: 'workspaces' },
+  { key: 'total_boards',         label: 'Boards', todayKey: 'boards' },
+  { key: 'total_cards',          label: 'Cards',  todayKey: 'cards' },
+  { key: 'nodes_created_24h',    label: '24h',    accent: true },
+  { key: 'total_seconds_in_app', label: 'Time',   format: 'duration' },
 ];
 
-// Compact integer formatter: 12_481 → '12.5K', 2_140_000 → '2.1M'.
 function fmtCompact(n) {
   const v = Math.round(Number(n) || 0);
   if (v < 1000)      return v.toLocaleString();
@@ -24,9 +23,16 @@ function fmtCompact(n) {
   return (v / 1e9).toFixed(1) + 'B';
 }
 
-// AnimatedValue — tweens between consecutive values over ~600ms using
-// requestAnimationFrame. Renders via a supplied formatter so it works
-// for both compact integers and duration strings.
+function fmtFull(n, format) {
+  const v = Math.round(Number(n) || 0);
+  if (format === 'duration') {
+    const days  = Math.floor(v / 86400);
+    const hours = Math.floor((v % 86400) / 3600);
+    return `${v.toLocaleString()} seconds (~${days}d ${hours}h)`;
+  }
+  return v.toLocaleString();
+}
+
 function AnimatedValue({ value, format }) {
   const [shown, setShown] = useState(Number(value) || 0);
   const fromRef = useRef(Number(value) || 0);
@@ -54,17 +60,33 @@ function AnimatedValue({ value, format }) {
 }
 
 export function AdminUniverseTicker({ stats, error }) {
+  const today = stats?.today || {};
   return (
     <div className="universe-ticker" role="status" aria-live="polite">
-      {CELLS.map((c, i) => (
-        <div key={c.key} className={`universe-ticker-cell ${c.accent ? 'is-accent' : ''}`}>
-          <div className="universe-ticker-value">
-            <AnimatedValue value={stats?.[c.key] ?? 0} format={c.format} />
+      {CELLS.map((c) => {
+        const value = stats?.[c.key] ?? 0;
+        const todayValue = c.todayKey ? Number(today[c.todayKey] || 0) : 0;
+        return (
+          <div
+            key={c.key}
+            className={`universe-ticker-cell ${c.accent ? 'is-accent' : ''}`}
+            title={fmtFull(value, c.format)}
+          >
+            <div className="universe-ticker-value">
+              <AnimatedValue value={value} format={c.format} />
+            </div>
+            <div className="universe-ticker-label">
+              {c.label}
+              {todayValue > 0 && (
+                <span className="universe-ticker-today" title={`${todayValue.toLocaleString()} today`}>
+                  +{fmtCompact(todayValue)}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="universe-ticker-label">{c.label}</div>
-        </div>
-      ))}
-      {error && <div className="universe-ticker-warn" title={error}>•</div>}
+        );
+      })}
+      {error && <div className="universe-ticker-warn" title={error} />}
     </div>
   );
 }

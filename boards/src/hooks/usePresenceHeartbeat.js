@@ -13,10 +13,13 @@ export function usePresenceHeartbeat(user) {
   useEffect(() => {
     if (!user || !supabase) return;
     let alive = true;
-    const beat = () => {
+    const beat = async () => {
       if (!alive) return;
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-      supabase.rpc('touch_presence').catch(() => {});
+      // PostgrestBuilder is thenable but its .catch isn't always present
+      // across supabase-js patch versions; awaiting inside try/catch is
+      // the safe-everywhere form.
+      try { await supabase.rpc('touch_presence'); } catch (_) {}
     };
     beat();
     const interval = setInterval(beat, 60_000);

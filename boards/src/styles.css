@@ -13938,6 +13938,15 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-3);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.universe-ticker-today {
+  font: 600 9px/1 var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--soleil);
 }
 .universe-ticker-warn {
   position: absolute;
@@ -13981,6 +13990,13 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   color: var(--ink-2);
   padding: 40px;
   text-align: center;
+}
+.universe-error-inner {
+  max-width: 480px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 24px 28px;
+  border-radius: 14px;
 }
 
 .universe-overlay {
