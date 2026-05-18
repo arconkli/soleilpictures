@@ -186,6 +186,11 @@ export function SettingsPanel({
   // Settings hook output — passed in so the panel and the rest of the
   // app share one source of truth and refresh together.
   defaults, role, refresh, workspaceSettings, mySettings,
+  // Opens the WorkspaceRecoveryModal (catastrophic rewind). Wired into
+  // the Defaults tab as a low-key entry for owners. Primary entry point
+  // for recovery is the top-of-app alert banner that fires automatically
+  // when a mass-delete is detected; this is the manual fallback.
+  onOpenRecovery,
 }) {
   // Filter tabs by mode + pick the first as default.
   //   account   = personal identity stuff (Profile + Billing)
@@ -261,7 +266,8 @@ export function SettingsPanel({
                            role={role}
                            workspaceSettings={workspaceSettings}
                            mySettings={mySettings}
-                           refresh={refresh} />
+                           refresh={refresh}
+                           onOpenRecovery={onOpenRecovery} />
             )}
             {tab === 'theme' && (
               <ThemeTab mySettings={mySettings} refresh={refresh} />
@@ -389,9 +395,10 @@ function ProfileTab({ user, onSaved }) {
 // Editable by workspace editors and owners only. Viewers see the values
 // for context but the inputs are disabled. Changes apply to every member
 // when they create a new card next.
-function DefaultsTab({ workspaceId, role, workspaceSettings, refresh }) {
+function DefaultsTab({ workspaceId, role, workspaceSettings, refresh, onOpenRecovery }) {
   const feedback = useFeedback();
   const canEdit = role === 'editor' || role === 'owner';
+  const isOwner = role === 'owner';
   const disabled = !canEdit;
   // "Saved ✓" flash that fades after each successful save.
   const [savedAt, setSavedAt] = useState(0);
@@ -515,6 +522,13 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, refresh }) {
         </Field>
       </SettingsCategory>
 
+      {isOwner && onOpenRecovery && (
+        <SettingsCategory title="Workspace recovery" subtitle="Owner-only. Rewinds every board in this workspace atomically — useful after an accidental mass-delete. Each board's pre-rewind state is preserved so the operation is reversible.">
+          <button type="button" className="settings-link-btn" onClick={onOpenRecovery}>
+            Open recovery →
+          </button>
+        </SettingsCategory>
+      )}
     </div>
   );
 }

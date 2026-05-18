@@ -13294,4 +13294,47 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   content: 'No edits in this window';
 }
 
+/* ──────────────────────────── WorkspaceAlertBanner ─────────────────────── */
+.ws-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(220, 60, 60, 0.10);
+  border-bottom: 1px solid rgba(220, 60, 60, 0.35);
+  color: var(--ink-0);
+  font: 400 13px/1.4 var(--font-sans);
+}
+.ws-alert-banner-icon {
+  font-size: 18px;
+  line-height: 1;
+  color: #d96b3e;
+}
+.ws-alert-banner-body { flex: 1; min-width: 0; }
+.ws-alert-banner-title {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ws-alert-banner-more {
+  font: 500 10px/1 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: rgba(220, 60, 60, 0.22);
+  color: #d96b3e;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.ws-alert-banner-meta {
+  font: 400 11px/1.4 var(--font-sans);
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+.ws-alert-banner-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 

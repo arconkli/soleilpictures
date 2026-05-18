@@ -39,7 +39,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon, Warning } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
@@ -68,6 +68,7 @@ import { initCardDocStore } from './lib/docState.js';
 import { uploadImage } from './lib/uploads.js';
 import { TimeTravelModal } from './components/TimeTravelModal.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
+import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
 import { HomeGraph } from './components/HomeGraph.jsx';
 
@@ -2333,11 +2334,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               settings (defaults, theme, templates, display). Avatar
               opens identity (name, presence color, sign out). */}
           <div className="sb-foot">
-            <button className="sb-foot-icon" title="Workspace recovery — atomically rewind every board after a catastrophic delete"
-                    aria-label="Workspace recovery"
-                    onClick={() => setWorkspaceRecoveryOpen(true)}>
-              <Icon as={Warning} size={14} />
-            </button>
             <button className="sb-foot-icon" title="Workspace settings" aria-label="Workspace settings"
                     onClick={() => setSettingsOpen(true)}>
               <Icon as={Settings} size={14} />
@@ -2379,9 +2375,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         role={workspaceRole}
         refresh={refreshSettings}
         workspaceSettings={workspaceSettings}
-        mySettings={mySettings} />
+        mySettings={mySettings}
+        onOpenRecovery={() => { setSettingsOpen(false); setWorkspaceRecoveryOpen(true); }} />
 
       <main className="main">
+        <WorkspaceAlertBanner
+          workspaceId={workspace?.id}
+          onOpenRecovery={() => setWorkspaceRecoveryOpen(true)}
+        />
         <div className="topbar">
           <div className="tb-left">
             {tweak.compactSidebar && (
