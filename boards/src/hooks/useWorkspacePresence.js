@@ -56,9 +56,11 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
   // navigation immediately rather than waiting for the next interval tick.
   // pageId / docCardId are included so doc-page switches and doc-card
   // open/close are visible to peers within ~50ms (vs the 5s heartbeat).
+  // isActive is included so tab-foreground/background changes propagate
+  // immediately to consumers that hide background-tab presence dots.
   useEffect(() => {
     handleRef.current?.ping?.();
-  }, [location?.boardId, location?.surface, location?.pageId, location?.docCardId]);
+  }, [location?.boardId, location?.surface, location?.pageId, location?.docCardId, location?.isActive]);
 
   // Filter own-user out of the peer list. Multi-tab and stale-after-
   // close scenarios used to make the user appear as a peer in boards
