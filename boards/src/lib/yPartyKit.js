@@ -67,6 +67,12 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     });
     provider.on('status', ({ status }) => {
       console.log('[partykit] board', boardId, status);
+      // If the connection drops or fails to open (e.g. the WS upgrade
+      // returned 401 because the token we used was already stale), clear
+      // the coalescing window so a subsequent TOKEN_REFRESHED can rebuild
+      // with the new token. Otherwise the 1500ms "already rebuilt" skip
+      // suppresses the very retry that would have used the fresh JWT.
+      if (status === 'disconnected') lastBuiltAt = 0;
     });
     // Intercept text frames on the underlying WS. y-partykit's protocol
     // is binary (Uint8Array) Yjs frames; the server uses TEXT frames for

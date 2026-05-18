@@ -1981,19 +1981,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // instead of deleting from the Y.Doc. Cheap O(n) filter — runs only
   // when cards or boards change.
   const isOrphanRef = (c) => {
-    if (c.kind === 'board') {
-      const orphan = !boards[c.id];
-      // This is a known render-time filter — should ONLY hide
-      // board/boardlink cards. If we ever log here for a card whose
-      // kind is NOT board/boardlink, that's the bug.
-      if (orphan) console.warn('[isOrphanRef] hiding board card', c.id);
-      return orphan;
-    }
-    if (c.kind === 'boardlink') {
-      const orphan = !boards[c.target];
-      if (orphan) console.warn('[isOrphanRef] hiding boardlink card', c.id, '→', c.target);
-      return orphan;
-    }
+    if (c.kind === 'board') return !boards[c.id];
+    if (c.kind === 'boardlink') return !boards[c.target];
     return false;
   };
   const currentCards = useMemo(() => {

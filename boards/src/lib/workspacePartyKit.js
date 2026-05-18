@@ -28,6 +28,9 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   let socket = null;
   let heartbeatTimer = null;
   let buildSeq = 0;
+  // For rebuild coalescing — see scheduleRebuild below.
+  let lastBuiltAt = 0;
+  let rebuildTimer = null;
   // tabId → record. Mirror of server-side state for our local consumers.
   const peers = new Map();
 
@@ -44,6 +47,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
 
   const open = async () => {
     const seq = ++buildSeq;
+    lastBuiltAt = Date.now();
     let accessToken = '';
     try {
       const { data } = await supabase.auth.getSession();
@@ -77,11 +81,16 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
       onStatus?.('disconnected');
       if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
       // partysocket auto-reconnects; on reconnect we'll see another open.
+      // Clear the coalescing window so a subsequent auth event can rebuild
+      // immediately — otherwise a failed-open inside the 1500ms window
+      // would suppress the rebuild that uses the freshly-rotated token.
+      lastBuiltAt = 0;
     });
 
     socket.addEventListener('error', (e) => {
       console.warn('[partykit] workspace', workspaceId, 'ERROR', e);
       onStatus?.('error');
+      lastBuiltAt = 0;
     });
 
     socket.addEventListener('message', (event) => {
@@ -123,23 +132,35 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   // it, the socket reconnects with a stale JWT after ~60 minutes and
   // gets stuck in a 401 retry loop).
   //
-  // Debounced because TOKEN_REFRESHED + SIGNED_IN can fire back-to-
-  // back during session recovery — opening twice in <100ms produced
-  // "WebSocket closed before connection established" loops.
-  let rebuildTimer = null;
-  const scheduleRebuild = () => {
+  // Coalescing rules (ported from yPartyKit.js — the original 250ms
+  // debounce here was not enough; TOKEN_REFRESHED + SIGNED_IN firing
+  // 50-150ms apart still produced "closed before connection established"
+  // loops on the workspace WS):
+  //   - 750ms debounce on the rebuild itself
+  //   - skip if a build started within the last 1500ms (Supabase often
+  //     fires TOKEN_REFRESHED + SIGNED_IN within 100ms of each other;
+  //     only one rebuild for that pair)
+  // The `close`/`error` handlers above clear `lastBuiltAt = 0` so a
+  // failed open does not suppress the next rebuild attempt.
+  const scheduleRebuild = (reason) => {
+    const now = Date.now();
+    if (now - lastBuiltAt < 1500) {
+      console.log('[partykit] workspace', workspaceId, 'skip rebuild (', reason, ') — already rebuilt', now - lastBuiltAt, 'ms ago');
+      return;
+    }
     if (rebuildTimer) clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(() => {
       rebuildTimer = null;
       if (destroyed) return;
+      lastBuiltAt = Date.now();
       open();
-    }, 250);
+    }, 750);
   };
   const authSub = supabase.auth.onAuthStateChange((event) => {
     if (destroyed) return;
     if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-      console.log('[partykit] workspace', workspaceId, 'auth event', event, '→ rebuilding socket');
-      scheduleRebuild();
+      console.log('[partykit] workspace', workspaceId, 'auth event', event);
+      scheduleRebuild(event);
     } else if (event === 'SIGNED_OUT') {
       if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = null; }
       try { socket?.close(); } catch (_) {}
