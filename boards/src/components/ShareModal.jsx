@@ -28,16 +28,21 @@ export function ShareModal({
   workspaceMembers = [],  // [{ user_id, role, ... }]
   wsPeers = [],           // workspace presence — used to resolve names/emails
   selfUserId,
+  tier,                   // caller's tier — 'demo' restricts invites to viewer
+  onUpgrade,              // open the in-app PricingModal
   onClose,
   onMembersChanged,       // refetch trigger after remove-member
   onSharesChanged,        // refetch trigger after share / unshare
 }) {
   const feedback = useFeedback();
   const isOwner = workspace?.created_by === selfUserId;
+  const isDemo  = tier === 'demo';
   const [shares, setShares] = useState([]);          // per-board shares
   const [loadingShares, setLoadingShares] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('editor'); // 'viewer' | 'editor' | 'workspace'
+  // Demo callers can only invite viewers; force the initial role so the
+  // first submit doesn't bounce off the server's tier check.
+  const [inviteRole, setInviteRole] = useState(isDemo ? 'viewer' : 'editor');
   const [inviting, setInviting] = useState(false);
   const [publicLinks, setPublicLinks] = useState([]);  // active links
   const [creatingLink, setCreatingLink] = useState(false);
@@ -336,9 +341,15 @@ export function ShareModal({
               <select className="share-role-select"
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}>
-                <option value="editor">Editor (this board)</option>
-                <option value="viewer">Viewer (this board)</option>
-                <option value="workspace">Workspace member (all boards)</option>
+                {isDemo ? (
+                  <option value="viewer">Viewer (this board)</option>
+                ) : (
+                  <>
+                    <option value="editor">Editor (this board)</option>
+                    <option value="viewer">Viewer (this board)</option>
+                    <option value="workspace">Workspace member (all boards)</option>
+                  </>
+                )}
               </select>
               <button className="share-invite-btn"
                       onClick={submitInvite}
@@ -347,9 +358,20 @@ export function ShareModal({
               </button>
             </div>
             <div className="share-hint">
-              Editors can edit this board and any sub-boards. Viewers can
-              see them but not edit. Workspace members get full access to
-              every board in this workspace.
+              {isDemo ? (
+                <>
+                  On Demo you can invite <b>viewers</b> only.{' '}
+                  <button className="share-upgrade-inline" onClick={onUpgrade}>
+                    Upgrade to invite editors
+                  </button>
+                </>
+              ) : (
+                <>
+                  Editors can edit this board and any sub-boards. Viewers can
+                  see them but not edit. Workspace members get full access to
+                  every board in this workspace.
+                </>
+              )}
             </div>
           </div>
         )}
