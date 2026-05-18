@@ -952,10 +952,54 @@ export function decodeSnapshotBytes(b64) {
   return doc;
 }
 
-// One-shot orchestrator: writes restored bytes to board_state, resets
-// the PartyKit room, and returns. Caller MUST then trigger the
-// consuming Y.Doc to remount (e.g. via a restoreEpoch state bump in
-// useYBoard) so the local doc is recreated fresh from board_state.
+// Phase 5: new reliable restore path. Calls the board-restore edge function
+// which atomically:
+//   1. Takes a pre-restore snapshot (so the restore is itself undoable)
+//   2. Writes the target bytes into board_state (cold-load source)
+//   3. Inserts a post-restore snapshot
+//   4. Bumps board_state_version.version
+//   5. Notifies PartyKit /reset
+//
+// Clients receive the version bump via Supabase Realtime (see restoreSignal.js)
+// and remount their Y.Doc. The durable DB signal replaces the previous
+// fire-and-forget window event + PartyKit broadcast.
+//
+// Accepts EITHER a target_snapshot_id (new system) or a target_legacy_version_id
+// (a board_versions.id, mapped via legacy_version_id on board_snapshots).
+//
+// Throws on failure — caller should catch and toast.
+export async function restoreBoardToTarget(boardId, target, { reason = null, clientRequestId = null } = {}) {
+  if (!boardId || !target) throw new Error('restoreBoardToTarget: missing args');
+  const session = await supabase.auth.getSession();
+  const accessToken = session?.data?.session?.access_token;
+  if (!accessToken) throw new Error('not signed in');
+
+  const url = `${supabase.supabaseUrl}/functions/v1/board-restore`;
+  const body = { board_id: boardId, reason, client_request_id: clientRequestId };
+  if (target.snapshotId != null) body.target_snapshot_id = target.snapshotId;
+  else if (target.legacyVersionId) body.target_legacy_version_id = target.legacyVersionId;
+  else throw new Error('restoreBoardToTarget: target must include snapshotId or legacyVersionId');
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.ok) {
+    throw new Error(json?.error || `restore failed (${res.status})`);
+  }
+  return json;
+}
+
+// Legacy wrapper. The old bulletproofRestore took raw bytes; some callers
+// might still pass them. New code should call restoreBoardToTarget directly.
+// This wrapper finds the matching board_snapshots row for the given bytes
+// (if any) and uses the new endpoint; otherwise it falls back to the
+// pre-Phase-5 client-driven flow.
 //
 // Throws on any failure — UI should catch and surface a toast.
 export async function bulletproofRestore(boardId, b64) {
