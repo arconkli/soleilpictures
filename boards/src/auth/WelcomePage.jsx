@@ -32,9 +32,9 @@ export function WelcomePage() {
 
       <p className="welcome-intro t-body">
         Due to the large number of new creators, there is a waitlist to try our
-        demo version. As we unable to support everyone please submit your creative
-        socials for review and we will get back to you soon. Or skip the wait and
-        get a creator subscription for instant usage.
+        demo version. As we are unable to support everyone please submit your
+        creative socials for review and we will get back to you soon. Or skip
+        the wait and get a creator subscription for instant usage.
       </p>
 
       <div className="pricing-grid">

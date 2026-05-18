@@ -14,8 +14,6 @@ import { useAuth } from '../auth/AuthGate.jsx';
 
 const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/submit-waitlist';
 
-const SUGGESTIONS = ['Instagram', 'TikTok', 'YouTube', 'Vimeo', 'Behance', 'Portfolio', 'X'];
-
 export function WaitlistModal({ onClose }) {
   const { user } = useAuth();
   const [rows, setRows]   = useState(['']);
@@ -60,59 +58,69 @@ export function WaitlistModal({ onClose }) {
 
   return createPortal(
     <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div className="upgrade-modal waitlist-modal">
+      <div className="upgrade-modal waitlist-modal-card">
         <button className="upgrade-close" onClick={onClose} aria-label="Close" disabled={busy}>×</button>
 
-        <div className="upgrade-intro">
-          <div className="upgrade-eyebrow t-eyebrow">
-            Submit your socials <span className="waitlist-optional">· optional</span>
+        {/* Header (mirrors PricingModal's intro shape) */}
+        <div className="waitlist-card-head">
+          <div className="waitlist-card-eyebrow t-eyebrow">
+            Submit your socials <span className="waitlist-optional-tag">Optional</span>
           </div>
-          <h2 className="upgrade-title">Show us your work.</h2>
-          <p className="upgrade-sub t-body">
-            Drop any links that represent your creative work — it speeds up review.
-            You can skip and we'll still accept based on your email.
+          <h2 className="waitlist-card-title">Show us your work.</h2>
+          <p className="waitlist-card-sub t-body">
+            Drop links to your creative work — Instagram, TikTok, YouTube,
+            portfolio, anything. Or skip and we'll accept based on email alone.
           </p>
         </div>
 
-        <div className="waitlist-suggestions">
-          {SUGGESTIONS.map((s) => (
-            <span key={s} className="waitlist-chip">{s}</span>
-          ))}
-        </div>
+        {/* Form section — matches the pricing-card "field list" feel */}
+        <form className="waitlist-card-form" onSubmit={submit}>
+          <label className="waitlist-card-label">Your links</label>
 
-        <form className="waitlist-form" onSubmit={submit}>
-          {rows.map((row, i) => (
-            <div key={i} className="waitlist-row">
-              <input
-                className="waitlist-input"
-                type="text"
-                placeholder={i === 0 ? 'https://instagram.com/your-handle' : 'https:// or @handle'}
-                value={row}
-                onChange={(e) => updateRow(i, e.target.value)}
-                disabled={busy}
-                autoFocus={i === 0}
-              />
-              {rows.length > 1 && (
-                <button type="button" className="waitlist-remove"
-                        onClick={() => removeRow(i)} aria-label="Remove">×</button>
-              )}
-            </div>
-          ))}
+          <div className="waitlist-card-fields">
+            {rows.map((row, i) => (
+              <div key={i} className="waitlist-card-field">
+                <input
+                  className="waitlist-card-input"
+                  type="text"
+                  placeholder={i === 0
+                    ? 'instagram.com/your-handle'
+                    : i === 1
+                      ? 'tiktok.com/@your-handle'
+                      : 'https:// or @handle'}
+                  value={row}
+                  onChange={(e) => updateRow(i, e.target.value)}
+                  disabled={busy}
+                  autoFocus={i === 0}
+                />
+                {rows.length > 1 && (
+                  <button type="button"
+                          className="waitlist-card-remove"
+                          onClick={() => removeRow(i)}
+                          aria-label="Remove">
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
 
-          <button
-            type="button"
-            className="waitlist-add"
-            onClick={addRow}
-            disabled={busy || rows.length >= 20}
-          >
-            + Add another link
-          </button>
+          {rows.length < 20 && (
+            <button
+              type="button"
+              className="waitlist-card-add"
+              onClick={addRow}
+              disabled={busy}
+            >
+              + Add another link
+            </button>
+          )}
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
           <button
             type="submit"
-            className="pricing-cta pricing-cta-primary waitlist-submit"
+            className="pricing-cta pricing-cta-primary waitlist-card-cta"
             disabled={busy}
           >
             {busy
@@ -121,7 +129,7 @@ export function WaitlistModal({ onClose }) {
                 ? 'Join the waitlist'
                 : 'Skip & join the waitlist'}
           </button>
-          <div className="waitlist-submit-hint t-meta">
+          <div className="waitlist-card-hint t-meta">
             We'll email you within ~7 days.
           </div>
         </form>
