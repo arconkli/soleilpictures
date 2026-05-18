@@ -90,7 +90,11 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
       // cursors (one frozen, one live) while the old state ages out.
       const newest = new Map();
       const nextCursorTargets = {};
-      const userByClientId = new Map();
+      // Plain object (not Map) — y-awareness yields numeric clientIDs but
+      // `for…in nextCursorTargets` below stringifies keys, and Map is
+      // type-strict so `userByClientId.get('123')` would miss `123`.
+      // Using an object here matches nextCursorTargets' stringification.
+      const userByClientId = {};
       states.forEach((state, clientId) => {
         if (!state?.user) return;
         if (state.user.id === selfId) return;
@@ -119,7 +123,7 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
         });
         if (cursor?.boardId === boardId) {
           nextCursorTargets[clientId] = { x: cursor.x, y: cursor.y };
-          userByClientId.set(clientId, state.user);
+          userByClientId[clientId] = state.user;
         }
       });
       setPeers([...newest.values()]);
@@ -132,8 +136,9 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
         // Belt-and-braces: prefer userByClientId, but fall back to scanning
         // `newest` so we never insert a cursor entry without user metadata
         // (the render gates on `c?.user` and would silently drop it).
-        const u = userByClientId.get(id)
-          ?? [...newest.values()].find(p => p.clientId === id)?.user
+        // Stringify p.clientId since `id` is a string from `for…in`.
+        const u = userByClientId[id]
+          ?? [...newest.values()].find(p => String(p.clientId) === id)?.user
           ?? null;
         if (!cursorState.current[id]) {
           cursorState.current[id] = { x: t.x, y: t.y, user: u, lastSeen: now };
@@ -187,43 +192,12 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
                }} />
         ))}
       </div>
-      <div
-        className="cursors-layer"
-        data-cursor-keys={Object.keys(cursorDisplay).join(',')}
-        ref={(el) => {
-          // TEMP cursor-visibility diagnostic. Throttled to 1/sec.
-          if (!el || typeof window === 'undefined') return;
-          if (window.__cpLogAt && Date.now() - window.__cpLogAt < 1000) return;
-          window.__cpLogAt = Date.now();
-          const keys = Object.keys(cursorDisplay);
-          const inDom = el.querySelectorAll('.cursor').length;
-          const detail = keys.map(k => {
-            const c = cursorDisplay[k];
-            const sx = pan?.x + c?.x * zoom;
-            const sy = pan?.y + c?.y * zoom;
-            return {
-              id: k,
-              hasUser: !!c?.user,
-              userName: c?.user?.name,
-              userId: c?.user?.id,
-              cx: c?.x, cy: c?.y,
-              sx, sy,
-              panX: pan?.x, panY: pan?.y, zoom,
-              sxFinite: Number.isFinite(sx),
-              syFinite: Number.isFinite(sy),
-            };
-          });
-          console.log('[cursor-diag]', { stateKeys: keys.length, domCount: inDom, layerRect: el.getBoundingClientRect(), detail });
-        }}>
+      <div className="cursors-layer">
         {Object.entries(cursorDisplay).map(([clientId, c]) => {
           if (!c?.user) return null;
           const sx = pan.x + c.x * zoom;
           const sy = pan.y + c.y * zoom;
-          if (!Number.isFinite(sx) || !Number.isFinite(sy)) {
-            // TEMP: surface why this would-be cursor is being dropped.
-            console.warn('[cursor-diag] dropping non-finite', { clientId, cx: c.x, cy: c.y, sx, sy, pan, zoom });
-            return null;
-          }
+          if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
           return (
             <LiveCursor
               key={clientId}
