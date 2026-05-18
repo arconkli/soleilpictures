@@ -31,9 +31,10 @@ export function WelcomePage() {
       </header>
 
       <p className="welcome-intro t-body">
-        Due to the large number of new creators, there is a waitlist of a few days
-        to try our demo version only for our most creative users. Submit your
-        creative socials for review, or skip the wait and go Creator for instant usage.
+        Due to the large number of new creators, there is a waitlist to try our
+        demo version. As we unable to support everyone please submit your creative
+        socials for review and we will get back to you soon. Or skip the wait and
+        get a creator subscription for instant usage.
       </p>
 
       <div className="pricing-grid">
