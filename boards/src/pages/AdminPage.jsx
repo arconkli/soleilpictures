@@ -8,13 +8,15 @@ import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { AdminOverviewTab } from './admin/AdminOverviewTab.jsx';
+import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 
 const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'users',    label: 'Users' },
-  { id: 'waitlist', label: 'Waitlist' },
+  { id: 'overview',  label: 'Overview' },
+  { id: 'analytics', label: 'Analytics' },
+  { id: 'users',     label: 'Users' },
+  { id: 'waitlist',  label: 'Waitlist' },
 ];
 
 export function AdminPage() {
@@ -55,9 +57,10 @@ export function AdminPage() {
       </header>
 
       <main className="admin-body">
-        {tab === 'overview' && <AdminOverviewTab />}
-        {tab === 'users'    && <AdminUsersTab />}
-        {tab === 'waitlist' && <AdminWaitlistTab />}
+        {tab === 'overview'  && <AdminOverviewTab />}
+        {tab === 'analytics' && <AdminAnalyticsTab />}
+        {tab === 'users'     && <AdminUsersTab />}
+        {tab === 'waitlist'  && <AdminWaitlistTab />}
       </main>
     </div>
   );

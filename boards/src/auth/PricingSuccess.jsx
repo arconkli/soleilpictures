@@ -7,12 +7,15 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
+import { logEvent } from '../lib/analytics.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 
 export function PricingSuccess() {
   const { user, signOut } = useAuth();
   const { tier, refetch } = useMyTier({ userId: user?.id });
   const [waited, setWaited] = useState(0);
+
+  useEffect(() => { logEvent('checkout_success'); }, []);
 
   useEffect(() => {
     if (tier === 'paid' || tier === 'admin') {

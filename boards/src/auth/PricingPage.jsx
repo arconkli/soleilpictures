@@ -7,8 +7,9 @@
 // Available signed-in to anyone; tier='waitlist' uses it to skip the
 // wait, tier='demo' uses it to upgrade.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { logEvent } from '../lib/analytics.js';
 import { useAuth } from './AuthGate.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 
@@ -20,6 +21,8 @@ export function PricingPage() {
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => { logEvent('pricing_view', { surface: 'page' }); }, []);
+
   const startCheckout = async () => {
     setError(null);
     setBusy(true);
@@ -27,6 +30,7 @@ export function PricingPage() {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not signed in.');
+      logEvent('checkout_open', { plan, surface: 'page' });
       const res = await fetch(EDGE_URL, {
         method: 'POST',
         headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },

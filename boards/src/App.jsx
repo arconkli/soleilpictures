@@ -11,6 +11,7 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
+import { logEvent } from './lib/analytics.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
@@ -1583,6 +1584,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
   const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | null
+
+  // Funnel: app_open fires once per mount with the caller's tier so we
+  // can correlate retention (app opens / unique user / week).
+  useEffect(() => {
+    if (myTier.tier) logEvent('app_open', { tier: myTier.tier });
+  }, [myTier.tier]);
 
   // Permission for the currently-active board — drives VIEW ONLY pill
   // in the topbar + canvas/doc readonly states.

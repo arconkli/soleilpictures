@@ -4796,6 +4796,71 @@ body {
   font: 500 12px/1 var(--font-sans);
 }
 
+/* ── Analytics tab: funnel + top users ────────────────────────────── */
+.admin-analytics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.admin-funnel-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 1.5fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .admin-funnel-grid { grid-template-columns: 1fr; }
+}
+.admin-funnel-chart {
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.admin-funnel-table .admin-table { font-size: 12px; }
+.admin-funnel-num { font-variant-numeric: tabular-nums; color: var(--ink-0); }
+.admin-funnel-pct { font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.admin-funnel-drop { font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.admin-funnel-drop.is-loss { color: rgb(220, 120, 120); }
+
+/* Top users lists (Demo + Paid side-by-side). */
+.admin-top-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+.admin-top-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-1);
+  font: 500 13px/1.4 var(--font-sans);
+}
+.admin-top-row:last-child { border-bottom: 0; }
+.admin-top-rank {
+  font: 700 12px/1 var(--font-sans);
+  color: var(--ink-3);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.admin-top-email {
+  color: var(--ink-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-top-count {
+  font: 600 13px/1 var(--font-sans);
+  color: var(--soleil);
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: right;
+}
+
 /* Dev mode banner — quiet so it doesn't fight the canvas. */
 .dev-banner {
   position: fixed; top: 0; left: 0; right: 0;

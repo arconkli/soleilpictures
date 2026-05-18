@@ -6,9 +6,10 @@
 //   • header={null}     → generic upgrade prompt
 //   • header="cap-hit"  → "You've reached your 100-card demo limit"
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
+import { logEvent } from '../lib/analytics.js';
 
 const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
 
@@ -17,6 +18,8 @@ export function PricingModal({ onClose, header = null }) {
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => { logEvent('pricing_view', { surface: 'modal', header }); }, [header]);
+
   const startCheckout = async () => {
     setError(null);
     setBusy(true);
@@ -24,6 +27,7 @@ export function PricingModal({ onClose, header = null }) {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not signed in.');
+      logEvent('checkout_open', { plan, surface: 'modal' });
       const res = await fetch(EDGE_URL, {
         method: 'POST',
         headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },

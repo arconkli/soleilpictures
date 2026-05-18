@@ -5,9 +5,10 @@
 //
 // On success → /waitlist/status. On error → inline message.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
+import { logEvent } from '../lib/analytics.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 
 const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/submit-waitlist';
@@ -17,6 +18,8 @@ export function WaitlistModal({ onClose }) {
   const [rows, setRows]   = useState(['']);
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => { logEvent('submit_socials_open'); }, []);
 
   const updateRow = (i, v) => setRows((arr) => arr.map((x, idx) => idx === i ? v : x));
   const addRow    = ()      => setRows((arr) => arr.length < 20 ? [...arr, ''] : arr);
@@ -40,6 +43,7 @@ export function WaitlistModal({ onClose }) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      logEvent('submit_socials_done', { link_count: links.length });
       window.location.assign('/waitlist/status');
     } catch (err) {
       setError(err?.message || String(err));

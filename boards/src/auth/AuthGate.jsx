@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState, createContext, useContext } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
+import { logEvent } from '../lib/analytics.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 
@@ -146,6 +147,9 @@ function SignIn() {
     return () => clearInterval(t);
   }, [resendCooldown]);
 
+  // Funnel: landing_view fires once when the SignIn screen mounts.
+  useEffect(() => { logEvent('landing_view'); }, []);
+
   // Auto-focus the code field when it appears.
   useEffect(() => {
     if (stage === 'code') {
@@ -168,6 +172,7 @@ function SignIn() {
         },
       });
       if (error) throw error;
+      logEvent('email_submit', { resend: !!resending });
       if (!resending) setStage('code');
       setResendCooldown(60);
     } catch (e) {
@@ -191,6 +196,7 @@ function SignIn() {
         type: 'email',
       });
       if (error) throw error;
+      logEvent('otp_verify');
       // onAuthStateChange will fire SIGNED_IN; AuthGate re-renders to children.
     } catch (e) {
       setError(humanError(e));

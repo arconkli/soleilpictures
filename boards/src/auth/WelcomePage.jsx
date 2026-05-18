@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from './AuthGate.jsx';
+import { logEvent } from '../lib/analytics.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { WaitlistModal } from '../components/WaitlistModal.jsx';
 
@@ -19,6 +20,7 @@ export function WelcomePage() {
   useEffect(() => {
     if (window.location.pathname === '/waitlist') setSocialsOpen(true);
   }, []);
+  useEffect(() => { logEvent('welcome_view'); }, []);
 
   return (
     <div className="pricing-screen">
