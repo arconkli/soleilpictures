@@ -107,6 +107,28 @@ export async function canWriteBoard(
   } catch (_) { return false; }
 }
 
+// authAdmin — verify that the bearer is an authenticated user whose
+// profile carries tier='admin'. Used by the universe party to gate
+// every endpoint to platform admins. Returns { ok, userId } so the
+// caller can log who looked at the universe.
+export async function authAdmin(accessToken: string): Promise<AuthCheckResult> {
+  if (!accessToken) return { ok: false, reason: "missing token" };
+  const claims = decodeJwtSub(accessToken);
+  if (!claims?.sub) return { ok: false, reason: "invalid token" };
+  // Users can read their own profile (workspace-member RLS) and admins
+  // can read all profiles (added by 0070_admin_dashboard_rpcs.sql).
+  // Either way this row appears for legitimate admin requests.
+  const rows = await supabaseGet(
+    `profiles?user_id=eq.${claims.sub}&select=tier`,
+    accessToken,
+  );
+  if (rows === null) return { ok: false, reason: "auth check failed" };
+  if (rows.length === 0 || rows[0]?.tier !== "admin") {
+    return { ok: false, reason: "admin only" };
+  }
+  return { ok: true, userId: claims.sub, email: claims.email };
+}
+
 export async function authWorkspace(
   accessToken: string,
   workspaceId: string,

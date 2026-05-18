@@ -1,18 +1,23 @@
-// AdminPage — /admin. Visible only to tier='admin'. Three tabs:
-//   • Overview — KPIs + signups bar + tier-distribution pie + waitlist funnel
-//   • Users    — paginated list with tier mutation buttons
-//   • Waitlist — pending entries with Accept now / Reject / Reschedule
+// AdminPage — /admin. Visible only to tier='admin'. Tabs:
+//   • Universe  — anonymous, real-time graph of every node every user
+//                 has created across the platform, with a stats ticker
+//   • Overview  — KPIs + signups bar + tier-distribution pie + waitlist funnel
+//   • Analytics — deeper analytics
+//   • Users     — paginated list with tier mutation buttons
+//   • Waitlist  — pending entries with Accept now / Reject / Reschedule
 
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
+import { AdminUniverseTab } from './admin/AdminUniverseTab.jsx';
 import { AdminOverviewTab } from './admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 
 const TABS = [
+  { id: 'universe',  label: 'Universe' },
   { id: 'overview',  label: 'Overview' },
   { id: 'analytics', label: 'Analytics' },
   { id: 'users',     label: 'Users' },
@@ -22,7 +27,7 @@ const TABS = [
 export function AdminPage() {
   const { user, signOut } = useAuth();
   const { tier, loading } = useMyTier({ userId: user?.id });
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState('universe');
 
   if (loading) return <Splash />;
   if (tier !== 'admin') {
@@ -56,7 +61,8 @@ export function AdminPage() {
         </div>
       </header>
 
-      <main className="admin-body">
+      <main className={`admin-body ${tab === 'universe' ? 'admin-body-flush' : ''}`}>
+        {tab === 'universe'  && <AdminUniverseTab />}
         {tab === 'overview'  && <AdminOverviewTab />}
         {tab === 'analytics' && <AdminAnalyticsTab />}
         {tab === 'users'     && <AdminUsersTab />}
