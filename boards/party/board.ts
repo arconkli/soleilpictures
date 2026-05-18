@@ -10,8 +10,9 @@
 // Unauthorized connections are closed with code 4401.
 
 import type * as Party from "partykit/server";
-import { onConnect } from "y-partykit";
+import { onConnect, unstable_getYDoc } from "y-partykit";
 import { authBoard, canWriteBoard } from "./auth";
+import { installOpLogCapture } from "./opLog";
 
 export default class BoardParty implements Party.Server {
   constructor(readonly room: Party.Room) {}
@@ -39,15 +40,35 @@ export default class BoardParty implements Party.Server {
 
   async onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
     const canWrite = ctx.request.headers.get("x-can-write") === "1";
+
+    const yPartyOpts = {
+      persist: { mode: "snapshot" as const },
+      readOnly: !canWrite,
+    };
+
     // y-partykit handles the Y wire protocol over this socket. The
     // server holds an authoritative Y.Doc for this room; clients sync
     // against it. Awareness is built in. readOnly drops doc-update
     // messages from viewer-share connections; awareness still flows so
     // viewers' cursors/presence are visible to peers.
-    await onConnect(conn, this.room, {
-      persist: { mode: "snapshot" },
-      readOnly: !canWrite,
-    });
+    await onConnect(conn, this.room, yPartyOpts);
+
+    // Phase 4: dual-write op capture. Install once per DO boot — the
+    // installOpLogCapture function is idempotent (uses WeakSet) so
+    // repeated onConnect calls don't double-wire the same Y.Doc.
+    // No-ops if SUPABASE_SERVICE_ROLE_KEY env var is unset.
+    try {
+      const yDoc = await unstable_getYDoc(this.room, yPartyOpts);
+      installOpLogCapture({
+        boardId: this.room.id,
+        yDoc,
+        supabaseUrl: (this.room.env as any)?.SUPABASE_URL
+          || "https://ehlhlmbpwwalmeisvmdp.supabase.co",
+        serviceRoleKey: (this.room.env as any)?.SUPABASE_SERVICE_ROLE_KEY,
+      });
+    } catch (e) {
+      console.warn(`[board ${this.room.id}] opLog install failed`, e);
+    }
   }
 
   // Admin POST that nukes the room's Durable Object storage and kicks
