@@ -265,8 +265,6 @@ function SignIn() {
               {resendCooldown > 0
                 ? <span>Resend in {resendCooldown}s</span>
                 : <button type="button" className="auth-link" onClick={() => sendCode(true)} disabled={busy}>Resend code</button>}
-              <span className="auth-hint-sep"> · </span>
-              <span>Or click the link in the email.</span>
             </div>
           </form>
         )}
