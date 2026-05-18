@@ -18,8 +18,26 @@ import { renderTemplate, TEMPLATE_NAMES, type TemplateName } from "../_shared/em
 
 const RESEND_API_KEY    = Deno.env.get("RESEND_API_KEY") || "";
 const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
-const FROM_ADDRESS      = "Clusters <hello@clusters.soleilpictures.com>";
-const REPLY_TO          = "hello@clusters.soleilpictures.com";
+
+// Per-template From routing.
+//   • hello@clusters.soleilpictures.com  → onboarding-class (waitlist).
+//     Replies to this inbox are deliberately welcomed.
+//   • noreply@updates.soleilpictures.com → activity-class (invites, shares,
+//     mentions, comment replies). Replies aren't expected; reply_to still
+//     points at hello@ so any stray reply lands somewhere a human reads.
+const FROM_HELLO   = "Clusters <hello@clusters.soleilpictures.com>";
+const FROM_NOREPLY = "Clusters <noreply@updates.soleilpictures.com>";
+const REPLY_TO     = "hello@clusters.soleilpictures.com";
+
+function fromAddress(template: string): string {
+  switch (template) {
+    case "waitlist_submitted":
+    case "waitlist_accepted":
+      return FROM_HELLO;
+    default:
+      return FROM_NOREPLY;
+  }
+}
 
 const cors = {
   "access-control-allow-origin":  "*",
@@ -81,7 +99,7 @@ Deno.serve(async (req) => {
       "content-type":  "application/json",
     },
     body: JSON.stringify({
-      from:     FROM_ADDRESS,
+      from:     fromAddress(body.template as TemplateName),
       to:       [body.to],
       subject:  rendered.subject,
       html:     rendered.html,
