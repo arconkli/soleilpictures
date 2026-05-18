@@ -23,18 +23,34 @@ export default {
     return env.ASSETS.fetch(request);
   },
   async scheduled(event, env, ctx) {
-    // Daily R2 orphan sweep. Finds images rows whose card no longer
-    // exists in card_index AND which are older than 30 days, then
-    // deletes both the R2 object and the images row.
+    // Daily R2 orphan sweep. History-aware as of Phase 7 of the backups
+    // rework: consults images.ref_count + board_snapshots.r2_keys_referenced
+    // + board_ops.r2_keys before considering anything for deletion, so
+    // historical versions can render their attached media on restore.
+    //
+    // Default mode: dry-run. Decisions are logged to r2_sweep_audit;
+    // R2 objects are NOT actually deleted. To enable actual deletes,
+    // set the worker env var R2_SWEEP_MODE=delete (via `wrangler secret`).
+    // Recommended: run dry-run for at least 30 days post-rollout and
+    // operator-review the audit table before flipping.
     //
     // Required env:
     //   SUPABASE_URL                 — already configured
     //   SUPABASE_SERVICE_ROLE_KEY    — wrangler secret put
     //   IMAGES                       — [[r2_buckets]] binding
+    //   R2_SWEEP_MODE                — optional; 'delete' to actually delete (default: 'dryrun')
     ctx.waitUntil(runR2Sweep(env));
   },
 };
 
+// History-aware R2 orphan sweep. Replaces the previous find_orphan_images
+// version (which only looked at card_index) with find_history_safe_orphan_images,
+// which additionally requires that the storage_path appears in NO retained
+// snapshot's r2_keys_referenced AND NO op's r2_keys array.
+//
+// Every candidate considered — kept or deleted — is recorded in
+// r2_sweep_audit for operator review. Defaults to dry-run; actual deletes
+// require R2_SWEEP_MODE=delete env var.
 async function runR2Sweep(env) {
   if (!env?.IMAGES) {
     console.log('[r2-sweep] skipped: IMAGES R2 binding not configured');
@@ -45,38 +61,70 @@ async function runR2Sweep(env) {
     return;
   }
   const startedAt = Date.now();
-  let totalSwept = 0;
-  let totalAttempted = 0;
+  const mode = (env.R2_SWEEP_MODE || 'dryrun').toLowerCase();
+  const dryRun = mode !== 'delete';
+  const runId = crypto.randomUUID();
+
+  let kept = 0;
+  let toDelete = 0;
+  let deleted = 0;
   const errors = [];
+
   try {
-    const rows = await rpc(env, 'find_orphan_images', { p_limit: 500 });
+    // p_dryrun is passed to the RPC so its `decision` column reflects mode;
+    // the worker still applies the gate itself before any R2 op below.
+    const rows = await rpc(env, 'find_history_safe_orphan_images', {
+      p_limit: 500,
+      p_dryrun: dryRun,
+    });
     if (!Array.isArray(rows) || rows.length === 0) {
-      console.log(`[r2-sweep] no orphans (${Date.now() - startedAt}ms)`);
+      console.log(`[r2-sweep] run=${runId} mode=${mode} no candidates (${Date.now() - startedAt}ms)`);
       return;
     }
-    totalAttempted = rows.length;
-    const successfullyDeletedIds = [];
+
+    // Audit every candidate first, regardless of whether we proceed.
+    try {
+      await rpc(env, 'record_r2_sweep_audit', { p_run_id: runId, p_rows: rows });
+    } catch (e) {
+      console.warn('[r2-sweep] audit insert failed', e);
+    }
+
+    const deletedIds = [];
     for (const row of rows) {
+      if (row.decision === 'keep') {
+        kept++;
+        continue;
+      }
+      if (dryRun || row.decision === 'skipped_dryrun') {
+        toDelete++;
+        continue;
+      }
+      // decision === 'delete' and not in dry-run mode → actually delete.
       try {
         if (row.storage_path) await env.IMAGES.delete(row.storage_path);
-        successfullyDeletedIds.push(row.id);
+        deletedIds.push(row.id);
+        deleted++;
       } catch (e) {
-        // If the R2 object is already gone, keep going and still
-        // clean up the images row.
         const msg = String(e?.message || e);
         if (msg.includes('NoSuchKey') || msg.includes('404')) {
-          successfullyDeletedIds.push(row.id);
+          // R2 object already gone — still close the loop in Postgres.
+          deletedIds.push(row.id);
+          deleted++;
         } else {
           errors.push({ id: row.id, storage_path: row.storage_path, error: msg });
         }
       }
     }
-    if (successfullyDeletedIds.length > 0) {
-      const deleted = await rpc(env, 'delete_image_rows', { p_ids: successfullyDeletedIds });
-      totalSwept = Number(deleted) || successfullyDeletedIds.length;
+
+    if (deletedIds.length > 0) {
+      try { await rpc(env, 'mark_image_rows_swept', { p_ids: deletedIds }); }
+      catch (e) { console.warn('[r2-sweep] mark_swept rpc failed', e); }
     }
-    console.log(`[r2-sweep] ${totalSwept}/${totalAttempted} cleaned in ${Date.now() - startedAt}ms`,
-      errors.length > 0 ? { errorCount: errors.length, firstError: errors[0] } : '');
+
+    console.log(
+      `[r2-sweep] run=${runId} mode=${mode} candidates=${rows.length} kept=${kept} would-delete=${toDelete} deleted=${deleted} errors=${errors.length} took=${Date.now() - startedAt}ms`,
+      errors.length > 0 ? { firstError: errors[0] } : '',
+    );
   } catch (e) {
     console.error('[r2-sweep] failed', e);
   }
