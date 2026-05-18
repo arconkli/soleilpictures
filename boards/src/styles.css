@@ -4927,9 +4927,14 @@ body {
   user-select: text;
   -webkit-user-select: text;
 }
-.cards-layer img {
+.cards-layer img,
+.cards-layer video,
+.cards-layer a,
+.cards-layer picture {
   -webkit-user-drag: none;
   user-drag: none;
+}
+.cards-layer img {
   pointer-events: none; /* avoid stealing the drag from the card */
 }
 

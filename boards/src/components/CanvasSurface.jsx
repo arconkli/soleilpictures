@@ -4736,6 +4736,7 @@ export function CanvasSurface({
          onDragOver={handleDragOver}
          onDragLeave={handleDragLeave}
          onDrop={handleDrop}
+         onDragStart={(e) => e.preventDefault()}
          onPointerDown={onBackgroundPointerDown}
          onContextMenu={onBackgroundContextMenu}>
       {/* Grain texture — sits behind cards on the canvas surface
