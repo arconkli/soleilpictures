@@ -8,6 +8,22 @@ import { PublicBoardView } from './components/PublicBoardView.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import './styles.css';
 
+// Cloudflare Web Analytics beacon. Lazy-injected when VITE_CF_ANALYTICS_TOKEN
+// is set so dev / unconfigured deploys silently skip it. The `spa: true`
+// option tells CWA to fire pageview events on History API changes — our
+// hand-rolled router uses window.history.replaceState, so this picks up
+// /welcome, /pricing, /waitlist/status, etc. without extra wiring.
+(function injectCfAnalytics() {
+  if (typeof document === 'undefined') return;
+  const token = import.meta.env.VITE_CF_ANALYTICS_TOKEN;
+  if (!token) return;
+  const s = document.createElement('script');
+  s.defer = true;
+  s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+  s.setAttribute('data-cf-beacon', JSON.stringify({ token, spa: true }));
+  document.head.appendChild(s);
+})();
+
 // Diagnostic: confirm the panel grain is actually rendering on each
 // dark surface. Logs once after first paint with each surface's
 // computed background-image + blend mode. Toggle off via

@@ -57,11 +57,45 @@ export function AdminAnalyticsTab() {
 
   return (
     <div className="admin-analytics">
+      <CloudflareAnalyticsLink />
       <AdminFunnel rows={funnel} />
       <AdminCardsSection perDay={perDay} cardStats={cardStats} />
       <AdminTierCompareTable rows={tierCompare} />
       <AdminTopUsersList topDemo={topDemo} topPaid={topPaid} />
       <AdminStorageSection />
     </div>
+  );
+}
+
+// Small banner pointing to the Cloudflare Web Analytics dashboard.
+// CWA covers anonymous marketing-side metrics (visits, referrers,
+// countries, Web Vitals) that we don't replicate here — the custom
+// funnel above owns the authed product-side metrics (tier conversion,
+// per-user activity). Two complementary surfaces, one click apart.
+function CloudflareAnalyticsLink() {
+  const cwaUrl = 'https://dash.cloudflare.com/?to=/:account/web-analytics';
+  const tokenSet = !!import.meta.env.VITE_CF_ANALYTICS_TOKEN;
+  return (
+    <section className="admin-chart-panel admin-chart-panel-wide admin-cwa-link">
+      <div className="admin-cwa-row">
+        <div>
+          <div className="admin-stat-label">Marketing analytics</div>
+          <div className="admin-cwa-title">Cloudflare Web Analytics</div>
+          <div className="admin-cwa-sub t-meta">
+            Anonymous visits, referrers, top pages, country breakdown, and Web Vitals
+            — covers what the custom funnel below can't (anon-visit attribution).
+            {!tokenSet && ' Beacon not wired — set VITE_CF_ANALYTICS_TOKEN.'}
+          </div>
+        </div>
+        <a
+          className="admin-action admin-action-primary"
+          href={cwaUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open Cloudflare ↗
+        </a>
+      </div>
+    </section>
   );
 }

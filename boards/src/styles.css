@@ -4880,6 +4880,30 @@ body {
   text-align: right;
 }
 
+/* Cloudflare Web Analytics link banner at the top of the Analytics tab. */
+.admin-cwa-link { padding: 16px 20px; }
+.admin-cwa-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.admin-cwa-title {
+  font: 700 16px/1.2 var(--font-display, var(--font-sans));
+  color: var(--ink-0);
+  margin: 4px 0 6px;
+}
+.admin-cwa-sub {
+  color: var(--ink-2);
+  max-width: 620px;
+  line-height: 1.5;
+}
+.admin-cwa-link a.admin-action {
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 /* Dev mode banner — quiet so it doesn't fight the canvas. */
 .dev-banner {
   position: fixed; top: 0; left: 0; right: 0;
