@@ -1,20 +1,24 @@
-// TimeTravelModal — the user-facing payoff of the backups rework.
+// TimeTravelModal — the unified history modal.
 //
-// Lists every snapshot in board_snapshots (migrated legacy + new pre/post-
-// restore + future auto/manual tiers), with a live preview pane showing
-// the cards that existed at that moment. One click restores the whole
-// board via the new edge function.
+// Three tabs:
+//   • Time travel — every snapshot in board_snapshots (legacy migrated +
+//                   new pre/post-restore + future auto/manual tiers),
+//                   with preview pane + cherry-pick + op-density bar.
+//   • Comments    — every comment on this board, including soft-deleted
+//                   (Trash) ones, with filters for open/resolved/hidden.
+//   • Trash       — workspace-wide soft-deleted boards waiting for the
+//                   30-day purge. Each row has Restore + Delete-now.
 //
-// Distinct from HistoryModal — that one still exists and handles the
-// versions/comments/trash tabs against legacy tables. This modal is
-// scoped to "go back in time on this board's state" via the new system.
-//
-// Phase 5 scope: whole-board restore, no cherry-pick yet, no op-level
-// scrubbing (board_ops will be empty until Phase 4 capture has time to
-// accumulate).
+// Replaces the previous HistoryModal (now retired); same underlying
+// commentsApi + listDeletedBoards calls.
 
 import { useEffect, useMemo, useState } from 'react';
-import { listBoardSnapshots, restoreBoardToTarget, restoreBoard, fetchBoardOpDensity } from '../lib/boardsApi.js';
+import {
+  listBoardSnapshots, restoreBoardToTarget, restoreBoard,
+  fetchBoardOpDensity,
+  listDeletedBoards, hardDeleteBoard,
+} from '../lib/boardsApi.js';
+import { listAllBoardComments, updateComment, deleteComment, restoreComment } from '../lib/commentsApi.js';
 import { buildSnapshotPreview, fetchSnapshotBytes, kindLabel, kindBadgeClass, KIND_ICONS, cherryPickCardsFromSnapshot } from '../lib/snapshotPreview.js';
 import { useFeedback } from './AppFeedback.jsx';
 
@@ -41,7 +45,12 @@ function relTime(iso) {
   return `${mo}mo ago`;
 }
 
-export function TimeTravelModal({ open, boardId, ydoc = null, onClose, onBoardRestored = null }) {
+export function TimeTravelModal({
+  open, boardId, ydoc = null,
+  workspaceId = null, userId = null, wsPeers = [],
+  onClose, onBoardRestored = null,
+}) {
+  const [tab, setTab] = useState('versions');
   const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
@@ -53,6 +62,14 @@ export function TimeTravelModal({ open, boardId, ydoc = null, onClose, onBoardRe
   const [pickedCards, setPickedCards] = useState(() => new Set());
   const [density, setDensity] = useState([]);
   const [densityWindow, setDensityWindow] = useState('24h');
+  // Comments tab state
+  const [comments, setComments] = useState([]);
+  const [loadingC, setLoadingC] = useState(false);
+  const [commentFilter, setCommentFilter] = useState('all');
+  // Trash tab state
+  const [trash, setTrash] = useState([]);
+  const [loadingT, setLoadingT] = useState(false);
+  const [trashBusyId, setTrashBusyId] = useState(null);
   const feedback = useFeedback();
 
   // Load snapshot list when modal opens.
@@ -234,6 +251,135 @@ export function TimeTravelModal({ open, boardId, ydoc = null, onClose, onBoardRe
     }
   };
 
+  // ── Comments tab ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open || !boardId || tab !== 'comments') return;
+    let cancelled = false;
+    setLoadingC(true);
+    listAllBoardComments(boardId, 300)
+      .then((rows) => { if (!cancelled) setComments(rows); })
+      .catch((e) => console.warn('comments fetch failed', e))
+      .finally(() => { if (!cancelled) setLoadingC(false); });
+    return () => { cancelled = true; };
+  }, [open, boardId, tab]);
+
+  const refreshComments = async () => {
+    try { setComments(await listAllBoardComments(boardId, 300)); }
+    catch (e) { console.warn(e); }
+  };
+
+  const commentTree = useMemo(() => {
+    const byParent = new Map();
+    const roots = [];
+    for (const c of comments) {
+      if (c.reply_to) {
+        if (!byParent.has(c.reply_to)) byParent.set(c.reply_to, []);
+        byParent.get(c.reply_to).push(c);
+      } else roots.push(c);
+    }
+    return roots
+      .filter((r) => {
+        if (commentFilter === 'open')     return !r.deleted_at && !r.resolved && !r.hidden;
+        if (commentFilter === 'resolved') return !r.deleted_at && !!r.resolved;
+        if (commentFilter === 'hidden')   return !r.deleted_at && !!r.hidden;
+        if (commentFilter === 'deleted')  return !!r.deleted_at;
+        return !r.deleted_at;
+      })
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .map((r) => ({
+        root: r,
+        replies: (byParent.get(r.id) || []).sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
+      }));
+  }, [comments, commentFilter]);
+
+  const commentCounts = useMemo(() => {
+    let open = 0, resolved = 0, hidden = 0, deleted = 0;
+    for (const c of comments) {
+      if (c.reply_to) continue;
+      if (c.deleted_at) { deleted++; continue; }
+      if (c.hidden) hidden++;
+      else if (c.resolved) resolved++;
+      else open++;
+    }
+    return { all: open + resolved + hidden, open, resolved, hidden, deleted };
+  }, [comments]);
+
+  const resolveName = (uid) => {
+    if (!uid) return 'unknown';
+    if (uid === userId) return 'you';
+    const peer = (wsPeers || []).find((p) => p?.user?.id === uid);
+    return peer?.user?.name || peer?.user?.email?.split('@')[0] || (uid || '').slice(0, 6);
+  };
+  const resolveColor = (uid) => {
+    const peer = (wsPeers || []).find((p) => p?.user?.id === uid);
+    return peer?.user?.color || '#4f8df8';
+  };
+
+  const onReopenComment = async (c) => {
+    try { await updateComment(c.id, { resolved: false, hidden: false }); refreshComments(); }
+    catch (e) { feedback.toast({ type: 'error', message: 'Reopen failed: ' + (e?.message || e) }); }
+  };
+  const onDeleteCommentForever = async (c) => {
+    const ok = await feedback.confirm({
+      title: 'Delete comment?', confirmLabel: 'Delete', danger: true,
+      message: 'You can restore this from the Deleted filter for 30 days.',
+    });
+    if (!ok) return;
+    try { await deleteComment(c.id); refreshComments(); }
+    catch (e) { feedback.toast({ type: 'error', message: 'Delete failed: ' + (e?.message || e) }); }
+  };
+  const onRestoreCommentClicked = async (c) => {
+    try { await restoreComment(c.id); refreshComments(); }
+    catch (e) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (e?.message || e) }); }
+  };
+
+  // ── Trash tab ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open || !workspaceId || tab !== 'trash') return;
+    let cancelled = false;
+    setLoadingT(true);
+    listDeletedBoards(workspaceId)
+      .then((rows) => { if (!cancelled) setTrash(rows); })
+      .catch((e) => console.warn('trash fetch failed', e))
+      .finally(() => { if (!cancelled) setLoadingT(false); });
+    return () => { cancelled = true; };
+  }, [open, workspaceId, tab]);
+
+  const refreshTrash = async () => {
+    try { setTrash(await listDeletedBoards(workspaceId)); }
+    catch (e) { console.warn(e); }
+  };
+  const onRestoreTrashBoard = async (b) => {
+    setTrashBusyId(b.id);
+    try {
+      await restoreBoard(b.id);
+      refreshTrash();
+      onBoardRestored?.();
+      feedback.toast({ type: 'success', message: `Restored "${b.name || 'Untitled board'}"` });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Restore failed: ' + (e?.message || e) });
+    } finally {
+      setTrashBusyId(null);
+    }
+  };
+  const onHardDeleteBoard = async (b) => {
+    const ok = await feedback.confirm({
+      title: 'Permanently delete board?', confirmLabel: 'Delete forever', danger: true,
+      message: `"${b.name || 'Untitled board'}" and ALL its content will be permanently removed. This cannot be undone.`,
+    });
+    if (!ok) return;
+    setTrashBusyId(b.id);
+    try {
+      await hardDeleteBoard(b.id);
+      refreshTrash();
+      feedback.toast({ type: 'success', message: 'Permanently deleted.' });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Delete failed: ' + (e?.message || e) });
+    } finally {
+      setTrashBusyId(null);
+    }
+  };
+
   if (!open) return null;
 
   const selected = selectedId ? snapshots.find((s) => s.id === selectedId) : null;
@@ -242,10 +388,27 @@ export function TimeTravelModal({ open, boardId, ydoc = null, onClose, onBoardRe
     <div className="modal-bg" onClick={onClose}>
       <div className="modal modal-timetravel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-hd">
-          <div className="modal-title">Time travel</div>
+          <div className="modal-title">History</div>
           <button className="modal-x" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
+        <div className="hist-tabs">
+          <button className={`hist-tab ${tab === 'versions' ? 'is-active' : ''}`}
+                  onClick={() => setTab('versions')}>
+            Time travel <span className="hist-tab-count">{snapshots.length}</span>
+          </button>
+          <button className={`hist-tab ${tab === 'comments' ? 'is-active' : ''}`}
+                  onClick={() => setTab('comments')}>
+            Comments <span className="hist-tab-count">{commentCounts.all + commentCounts.deleted}</span>
+          </button>
+          <button className={`hist-tab ${tab === 'trash' ? 'is-active' : ''}`}
+                  onClick={() => setTab('trash')}>
+            Trash <span className="hist-tab-count">{trash.length}</span>
+          </button>
+        </div>
+
+        {tab === 'versions' && (
+        <>
         {/* Op-density bar (Phase 4 op log visualization). Compact horizontal
             chart over the last 1h/24h/7d/30d, one bar per bucket. Empty
             until board_ops accumulates data. */}
@@ -399,6 +562,140 @@ export function TimeTravelModal({ open, boardId, ydoc = null, onClose, onBoardRe
             )}
           </div>
         </div>
+        </>
+        )}
+
+        {tab === 'comments' && (
+          <>
+            <div className="modal-actions">
+              <div className="hist-comment-filter">
+                {['all', 'open', 'resolved', 'hidden', 'deleted'].map((f) => (
+                  <button key={f}
+                          className={`hist-pill ${commentFilter === f ? 'is-active' : ''}`}
+                          onClick={() => setCommentFilter(f)}>
+                    {f[0].toUpperCase() + f.slice(1)}{' '}
+                    <span>{commentCounts[f] ?? 0}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="modal-body">
+              {loadingC && <div className="modal-empty">Loading…</div>}
+              {!loadingC && commentTree.length === 0 && (
+                <div className="modal-empty">
+                  {commentFilter === 'all' ? 'No comments on this board yet.' :
+                   commentFilter === 'resolved' ? 'No resolved comments.' :
+                   commentFilter === 'hidden' ? 'No hidden comments.' :
+                   commentFilter === 'deleted' ? 'Nothing in the trash. Deleted comments are recoverable for 30 days.' :
+                   'No open comments.'}
+                </div>
+              )}
+              {!loadingC && commentTree.length > 0 && (
+                <div className="hist-comment-list">
+                  {commentTree.map(({ root, replies }) => {
+                    const status = root.deleted_at ? 'deleted'
+                                 : root.resolved ? 'resolved'
+                                 : root.hidden ? 'hidden'
+                                 : 'open';
+                    return (
+                      <div key={root.id} className={`hist-comment-card is-${status}`}>
+                        <div className="hist-comment-head">
+                          <span className="hist-comment-avatar"
+                                style={{ background: resolveColor(root.author) }}>
+                            {(resolveName(root.author) || '?')[0].toUpperCase()}
+                          </span>
+                          <span className="hist-comment-author">{resolveName(root.author)}</span>
+                          <span className="hist-comment-when">{fmtDate(root.created_at)}</span>
+                          <span className={`hist-comment-status hist-comment-status-${status}`}>{status}</span>
+                          {root.deleted_at && (
+                            <span className="hist-comment-when" style={{ marginLeft: 'auto' }}>
+                              deleted {relTime(root.deleted_at)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="hist-comment-body">{root.body}</div>
+                        {replies.length > 0 && (
+                          <div className="hist-comment-replies">
+                            {replies.map((r) => (
+                              <div key={r.id} className="hist-comment-reply">
+                                <span className="hist-comment-author">{resolveName(r.author)}</span>
+                                <span className="hist-comment-when">{relTime(r.created_at)}</span>
+                                <div className="hist-comment-body">{r.body}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="hist-comment-actions">
+                          <span className="hist-comment-anchor-tag">
+                            on {root.anchor_kind === 'card' ? 'a card'
+                              : root.anchor_kind === 'group' ? 'a group'
+                              : root.anchor_kind === 'point' ? 'the canvas'
+                              : root.anchor_kind === 'doc_range' ? 'a doc'
+                              : 'the board'}
+                          </span>
+                          {root.deleted_at ? (
+                            <button className="tb-btn tb-btn-sm" onClick={() => onRestoreCommentClicked(root)}>
+                              Restore
+                            </button>
+                          ) : (
+                            <>
+                              {(root.resolved || root.hidden) && (
+                                <button className="tb-btn tb-btn-sm" onClick={() => onReopenComment(root)}>
+                                  {root.hidden ? 'Unhide' : 'Reopen'}
+                                </button>
+                              )}
+                              <button className="tb-btn tb-btn-sm tb-btn-danger"
+                                      onClick={() => onDeleteCommentForever(root)}>Delete</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {tab === 'trash' && (
+          <>
+            <div className="modal-actions">
+              <span className="modal-hint">Deleted boards stay here for 30 days before being permanently removed.</span>
+            </div>
+            <div className="modal-body">
+              {loadingT && <div className="modal-empty">Loading…</div>}
+              {!loadingT && trash.length === 0 && (
+                <div className="modal-empty">
+                  Nothing in the trash. Deleted boards land here automatically.
+                </div>
+              )}
+              {!loadingT && trash.length > 0 && (
+                <div className="hist-list">
+                  {trash.map((b) => (
+                    <div key={b.id} className="hist-row">
+                      <div className="hist-meta">
+                        <div className="hist-when" title={fmtDate(b.deleted_at)}>
+                          {b.name || 'Untitled board'}
+                        </div>
+                        <div className="hist-sub">
+                          <span>deleted {relTime(b.deleted_at)}</span>
+                          <span className="hist-label">{b.view || 'canvas'}</span>
+                        </div>
+                      </div>
+                      <button className="tb-btn" disabled={trashBusyId === b.id} onClick={() => onRestoreTrashBoard(b)}>
+                        {trashBusyId === b.id ? 'Restoring…' : 'Restore'}
+                      </button>
+                      <button className="tb-btn tb-btn-sm tb-btn-danger"
+                              disabled={trashBusyId === b.id}
+                              onClick={() => onHardDeleteBoard(b)}>Delete now</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
