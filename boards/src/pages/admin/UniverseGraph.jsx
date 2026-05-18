@@ -69,9 +69,14 @@ function premul(hex, alpha) {
   const c = new THREE.Color(hex);
   return new THREE.Color(c.r * alpha, c.g * alpha, c.b * alpha);
 }
-const SCAFFOLD_RGB   = premul('#ffffff',      0.05);
-const STRUCTURAL_RGB = premul('rgb(91,87,78)', 0.45);
-const SEMANTIC_RGB   = premul('rgb(255,165,0)', 0.55);
+// Brighter than before — the addition of FogExp2 was eating the
+// previous values toward black against the dark background.
+// Material now opts out of fog (see makeEdgeLines) and these alphas
+// are tuned so structural reads as a legible warm-gray skeleton and
+// semantic gold pops, while scaffold stays whispery.
+const SCAFFOLD_RGB   = premul('#ffffff',           0.08);
+const STRUCTURAL_RGB = premul('rgb(120,110,95)',   0.70);
+const SEMANTIC_RGB   = premul('rgb(255,178,40)',   0.85);
 
 const SCAFFOLD_EDGE_KINDS = new Set(['scaffold', 'membership', 'wsroot', 'share']);
 const STRUCTURAL_EDGE_KINDS = new Set(['hierarchy', 'structural']);
@@ -94,8 +99,17 @@ const GALAXY = {
   starMaxLerp:       0.30,       // ...lerped this far toward white
   starMaxScale:      2.0,        // sqrt(degree) scale clamp for size
   bulgeColor:        new THREE.Color('#fff4e0'),
-  bulgeBaseSize:     90,         // halo size for ws bulge points
-  bulgeAlpha:        0.20,
+  bulgeBaseSize:     40,         // smaller so projected px stays under shader clamp
+  bulgeAlpha:        0.16,
+
+  // Infinite zoom + LOD
+  zoomMin:           0.5,
+  zoomMax:           1e6,
+  cameraFar:         1e6,
+  lodMinPixels:      0.75,       // nodes below this projected size get culled
+  lodRecomputeMs:    120,        // throttle the LOD walk
+  lodDistanceGatePct: 0.10,      // ignore camera changes smaller than this
+  lodMidDegreeKeep:  8,          // boards with ≥this many links stay visible one band longer
 };
 
 function readTheme() {
@@ -188,7 +202,11 @@ function makeHaloMaterial() {
       void main() {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * (uScale / max(-mv.z, 1.0));
+        // Clamp to ~220px so we stay below the WebGL implementation's
+        // MAX_POINT_SIZE clamp. Above the driver clamp the radial halo
+        // texture would render as a near-opaque square (the bright
+        // central plateau) instead of a soft glow.
+        gl_PointSize = min(size * (uScale / max(-mv.z, 1.0)), 220.0);
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -225,7 +243,10 @@ function makeFxMaterial() {
         vColor = color;
         vAlpha = alpha;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * (uScale / max(-mv.z, 1.0));
+        // See halo material — clamp to stay under MAX_POINT_SIZE.
+        // Critical for the bulge glow, which can request very large
+        // sizes when the camera is close to a ws node.
+        gl_PointSize = min(size * (uScale / max(-mv.z, 1.0)), 220.0);
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -287,6 +308,14 @@ export function UniverseGraph({ onNodeClick }) {
     activeFx: [],                   // [{ kind:'pulse'|'flash', src, tgt, nodeIdx, start, dur, color }]
     degrees: new Map(),             // node_id → degree (from worker)
     starWhite: new THREE.Color('#fffaf0'),
+    // Parallel arrays indexed like refs.nodes — uploadPositions multiplies
+    // all three when writing the instance matrix so degree-based growth
+    // AND LOD culling both stay in effect on every worker tick.
+    baseScale:   new Float32Array(INITIAL_NODE_CAP),   // (val * 0.4) per node
+    degreeBoost: new Float32Array(INITIAL_NODE_CAP),   // sqrt(degree) multiplier ≥ 1
+    lodVisible:  new Uint8Array(INITIAL_NODE_CAP),     // 1 = render, 0 = LOD-culled
+    lastLodAt:   0,
+    lastLodDist: 0,
     nodeCapacity: INITIAL_NODE_CAP, edgeCapacity: INITIAL_EDGE_CAP,
     nodes: [],                      // [{id, threeColor, val, ...}]
     nodeIndex: new Map(),           // node_id → array index
@@ -326,7 +355,7 @@ export function UniverseGraph({ onNodeClick }) {
     // framing still shows the universe clearly.
     scene.fog = new THREE.FogExp2(BG_FOR[theme], GALAXY.fogDensity);
 
-    const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 12000);
+    const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, GALAXY.cameraFar);
     // Start ABOVE the disk plane so the rotation has perspective —
     // looking edge-on at a disk shows a line, not a galaxy. Auto-fit
     // preserves direction when it pulls back, so the inclined view
@@ -346,8 +375,8 @@ export function UniverseGraph({ onNodeClick }) {
     controls.zoomSpeed   = 0.7;
     controls.panSpeed    = 0.6;
     controls.enablePan   = true;
-    controls.minDistance = 30;
-    controls.maxDistance = 5000;
+    controls.minDistance = GALAXY.zoomMin;
+    controls.maxDistance = GALAXY.zoomMax;
 
     // GPU buffers — allocated empty; filled when snapshot arrives.
     const nodeMesh = makeNodeMesh(INITIAL_NODE_CAP);
@@ -383,6 +412,11 @@ export function UniverseGraph({ onNodeClick }) {
     refs.bulgeIndices = [];
     refs.activeFx = [];
     refs.degrees = new Map();
+    refs.baseScale   = new Float32Array(INITIAL_NODE_CAP);
+    refs.degreeBoost = new Float32Array(INITIAL_NODE_CAP).fill(1);
+    refs.lodVisible  = new Uint8Array(INITIAL_NODE_CAP).fill(1);
+    refs.lastLodAt = 0;
+    refs.lastLodDist = 0;
     refs.nodeCapacity = INITIAL_NODE_CAP;
     refs.edgeCapacity = INITIAL_EDGE_CAP;
     refs.nodes = [];
@@ -440,10 +474,17 @@ export function UniverseGraph({ onNodeClick }) {
       ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
       raycaster.setFromCamera(ndc, camera);
       const hits = raycaster.intersectObject(nodeMesh, false);
-      if (hits.length > 0 && typeof hits[0].instanceId === 'number') {
-        const node = refs.nodes[hits[0].instanceId];
-        if (node && refs.onNodeClickFn) refs.onNodeClickFn(node);
+      // Walk hits front-to-back so a LOD-hidden node doesn't shadow
+      // the visible node behind it. (Hidden nodes have scale 0 but
+      // can still produce a degenerate raycast hit at the centroid.)
+      let picked = null;
+      for (const h of hits) {
+        if (typeof h.instanceId !== 'number') continue;
+        if (refs.lodVisible[h.instanceId] === 0) continue;
+        picked = refs.nodes[h.instanceId];
+        if (picked) break;
       }
+      if (picked && refs.onNodeClickFn) refs.onNodeClickFn(picked);
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup',   onPointerUp);
@@ -479,6 +520,8 @@ export function UniverseGraph({ onNodeClick }) {
       // Update live FX (pulses + spawn flashes) — cheap walk over
       // activeFx, splat into the fxPoints buffer, drop expired.
       updateFx(refs, now);
+      // LOD culling — throttled. Cheap when nothing has changed.
+      maybeRecomputeLOD(refs, now);
       controls.update();
       renderer.render(scene, camera);
       refs.rafId = requestAnimationFrame(loop);
@@ -594,6 +637,8 @@ export function UniverseGraph({ onNodeClick }) {
         refs.nodeIndex = new Map();
         refs.edges = [];
         refs.bulgeIndices = [];
+        refs.lastLodAt = 0;
+        refs.lastLodDist = 0;
         for (const raw of allRawNodes) {
           const node = toNode(raw);
           const idx = refs.nodes.length;
@@ -781,10 +826,10 @@ function makeEdgeLines(edgeCapacity) {
   geom.attributes.position.setUsage(THREE.DynamicDrawUsage);
   geom.attributes.color.setUsage(THREE.DynamicDrawUsage);
   // opacity stays at 1 because per-edge alpha is baked into the
-  // vertex colors (see premul() above). Lets scaffold lines be MUCH
-  // fainter than structural/semantic without a custom shader.
+  // vertex colors (see premul() above). fog disabled so the scene
+  // fog doesn't dim already-dim edges into invisibility.
   const mat = new THREE.LineBasicMaterial({
-    vertexColors: true, transparent: true, opacity: 1.0, depthWrite: false,
+    vertexColors: true, transparent: true, opacity: 1.0, depthWrite: false, fog: false,
   });
   const lines = new THREE.LineSegments(geom, mat);
   lines.frustumCulled = false;
@@ -800,8 +845,14 @@ const _tmpPos    = new THREE.Vector3();
 const _tmpScale  = new THREE.Vector3();
 
 function writeNodeAppearance(refs, idx, node) {
-  // Matrix — translate to (0,0,0) for now; sphere radius via scale.
+  // Cache the per-node scale components so uploadPositions can
+  // multiply baseScale × degreeBoost × lodVisible every tick.
   const r = (node.val || 8) * 0.4;
+  refs.baseScale[idx]   = r;
+  refs.degreeBoost[idx] = 1;
+  refs.lodVisible[idx]  = 1;
+
+  // Initial matrix — final scale comes from uploadPositions next tick.
   _tmpScale.set(r, r, r);
   _tmpPos.set(0, 0, 0);
   _tmpMatrix.compose(_tmpPos, new THREE.Quaternion(), _tmpScale);
@@ -825,14 +876,23 @@ function writeNodeAppearance(refs, idx, node) {
 
 function writeEdgeColors(refs) {
   const ca = refs.edgeLines.geometry.attributes.color;
+  const lv = refs.lodVisible;
   for (let i = 0; i < refs.edges.length; i++) {
     const e = refs.edges[i];
-    const c = e.kind === 'scaffold'   ? SCAFFOLD_RGB
+    const visible = (lv[e.sourceIdx] !== 0) && (lv[e.targetIdx] !== 0);
+    const c = !visible              ? null
+            : e.kind === 'scaffold'   ? SCAFFOLD_RGB
             : e.kind === 'structural' ? STRUCTURAL_RGB
-            : SEMANTIC_RGB;
+            :                           SEMANTIC_RGB;
     const base = i * 6;
-    ca.array[base]     = c.r; ca.array[base + 1] = c.g; ca.array[base + 2] = c.b;
-    ca.array[base + 3] = c.r; ca.array[base + 4] = c.g; ca.array[base + 5] = c.b;
+    if (c) {
+      ca.array[base]     = c.r; ca.array[base + 1] = c.g; ca.array[base + 2] = c.b;
+      ca.array[base + 3] = c.r; ca.array[base + 4] = c.g; ca.array[base + 5] = c.b;
+    } else {
+      // LOD-culled — black vertex color blends to background, invisible.
+      ca.array[base] = ca.array[base + 1] = ca.array[base + 2] = 0;
+      ca.array[base + 3] = ca.array[base + 4] = ca.array[base + 5] = 0;
+    }
   }
   ca.needsUpdate = true;
 }
@@ -843,12 +903,17 @@ function writeEdgeColors(refs) {
 function uploadPositions(refs, count) {
   const pos = refs.positions;
   const haloPos = refs.haloPoints.geometry.attributes.position;
+  const haloSize = refs.haloPoints.geometry.attributes.size;
   const quat = new THREE.Quaternion();
+  const base = refs.baseScale, boost = refs.degreeBoost, lv = refs.lodVisible;
   for (let i = 0; i < count; i++) {
     const node = refs.nodes[i];
     if (!node) continue;
     const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
-    const r = (node.val || 8) * 0.4;
+    // Final scale = base × degree-boost × LOD visibility. Hidden nodes
+    // get scale 0, which collapses the sphere to a point and stops it
+    // drawing anything visible.
+    const r = base[i] * boost[i] * (lv[i] ? 1 : 0);
     _tmpPos.set(x, y, z);
     _tmpScale.set(r, r, r);
     _tmpMatrix.compose(_tmpPos, quat, _tmpScale);
@@ -856,9 +921,11 @@ function uploadPositions(refs, count) {
     haloPos.array[i * 3]     = x;
     haloPos.array[i * 3 + 1] = y;
     haloPos.array[i * 3 + 2] = z;
+    haloSize.array[i] = r * 3.7;
   }
   refs.nodeMesh.instanceMatrix.needsUpdate = true;
   haloPos.needsUpdate = true;
+  haloSize.needsUpdate = true;
   refs.nodeMesh.count = Math.min(refs.nodeCapacity, refs.nodes.length);
   refs.haloPoints.geometry.setDrawRange(0, Math.min(refs.nodeCapacity, refs.nodes.length));
 
@@ -933,22 +1000,17 @@ function rebrightenAllNodes(refs) {
   const maxDeg = sorted[0] || 1;
 
   const ca = refs.haloPoints.geometry.attributes.color;
-  const sa = refs.haloPoints.geometry.attributes.size;
-  const quat = new THREE.Quaternion();
   const tint = new THREE.Color();
 
   for (let i = 0; i < refs.nodes.length; i++) {
     const n = refs.nodes[i];
     const d = degVals[i];
-    // sqrt scale so a 100-degree hub is ~10x denser-feeling than a
-    // 1-degree leaf without dwarfing the rest of the scene.
-    const scale = 1 + Math.min(GALAXY.starMaxScale - 1, Math.sqrt(d) * 0.08);
-    const r = (n.val || 8) * 0.4 * scale;
-
-    _tmpScale.set(r, r, r);
-    _tmpPos.set(refs.positions[i * 3], refs.positions[i * 3 + 1], refs.positions[i * 3 + 2]);
-    _tmpMatrix.compose(_tmpPos, quat, _tmpScale);
-    refs.nodeMesh.setMatrixAt(i, _tmpMatrix);
+    // sqrt scale: a 100-degree hub is ~10× denser-feeling than a
+    // 1-degree leaf without dwarfing the rest of the scene. Stored
+    // in degreeBoost; uploadPositions multiplies it onto base every
+    // tick, so we don't touch the matrix here.
+    const boost = 1 + Math.min(GALAXY.starMaxScale - 1, Math.sqrt(d) * 0.08);
+    refs.degreeBoost[i] = boost;
 
     // Color: keep stock for normal nodes; lerp toward star-white for
     // the top hubs so they read hot.
@@ -958,17 +1020,12 @@ function rebrightenAllNodes(refs) {
       tint.lerp(refs.starWhite, t);
     }
     refs.nodeMesh.setColorAt(i, tint);
-
-    // Halo grows with the sphere.
-    sa.array[i] = r * 3.7;
     ca.array[i * 3]     = tint.r;
     ca.array[i * 3 + 1] = tint.g;
     ca.array[i * 3 + 2] = tint.b;
   }
-  refs.nodeMesh.instanceMatrix.needsUpdate = true;
   if (refs.nodeMesh.instanceColor) refs.nodeMesh.instanceColor.needsUpdate = true;
   ca.needsUpdate = true;
-  sa.needsUpdate = true;
 }
 
 // Compute the bounding sphere of the current node positions (single
@@ -1098,6 +1155,17 @@ function ensureNodeCapacity(refs, needed) {
   newPositions.set(refs.positions.subarray(0, oldCount * 3));
   refs.positions = newPositions;
 
+  // Parallel per-node arrays (kept in sync with refs.nodes order).
+  const newBase  = new Float32Array(newCap);
+  const newBoost = new Float32Array(newCap).fill(1);
+  const newVis   = new Uint8Array(newCap).fill(1);
+  newBase .set(refs.baseScale  .subarray(0, oldCount));
+  newBoost.set(refs.degreeBoost.subarray(0, oldCount));
+  newVis  .set(refs.lodVisible .subarray(0, oldCount));
+  refs.baseScale   = newBase;
+  refs.degreeBoost = newBoost;
+  refs.lodVisible  = newVis;
+
   // Swap in, dispose old.
   refs.scene.remove(oldMesh);
   refs.scene.remove(oldHalos);
@@ -1108,6 +1176,53 @@ function ensureNodeCapacity(refs, needed) {
   refs.nodeMesh   = newMesh;
   refs.haloPoints = newHalos;
   refs.nodeCapacity = newCap;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LOD — Nanite-ish culling. Hides nodes whose projected screen size
+// falls below GALAXY.lodMinPixels, except for anchors (user/ws) and
+// dense boards (degree ≥ GALAXY.lodMidDegreeKeep) which stay visible
+// at every zoom so the macro structure never disappears.
+// ─────────────────────────────────────────────────────────────────
+
+function maybeRecomputeLOD(refs, now) {
+  if (!refs.camera || !refs.nodes.length) return;
+  const dist = refs.camera.position.distanceTo(refs.controls.target);
+  const dueByTime = now - refs.lastLodAt >= GALAXY.lodRecomputeMs;
+  // Camera moved enough to matter, OR enough time has passed for a
+  // periodic re-check. Either trigger suffices.
+  const moved = Math.abs(dist - refs.lastLodDist) / Math.max(1, refs.lastLodDist) > GALAXY.lodDistanceGatePct;
+  if (!dueByTime && !moved) return;
+  refs.lastLodAt = now;
+  refs.lastLodDist = dist;
+  recomputeLOD(refs, dist);
+}
+
+function recomputeLOD(refs, dist) {
+  const screenH = refs.renderer.domElement.height || 1;
+  const fov = (refs.camera.fov * Math.PI) / 180;
+  const worldPerPx = (2 * dist * Math.tan(fov / 2)) / screenH;
+
+  const lv = refs.lodVisible;
+  let changed = false;
+  for (let i = 0; i < refs.nodes.length; i++) {
+    const n = refs.nodes[i];
+    const screenPx = (n.val || 8) / worldPerPx;
+    const deg = refs.degrees.get(n.id) || 0;
+    let vis = 0;
+    if (n.kind === 'user' || n.kind === 'ws') vis = 1;
+    else if (screenPx >= GALAXY.lodMinPixels) vis = 1;
+    else if (n.kind === 'board' && deg >= GALAXY.lodMidDegreeKeep) vis = 1;
+    if (lv[i] !== vis) { lv[i] = vis; changed = true; }
+  }
+  // If visibility flipped for any node, rewrite edge colors AND
+  // re-upload sphere matrices so the change shows up this frame
+  // instead of waiting for the next (possibly 250ms-later) worker
+  // tick when the layout is settled into its cold loop.
+  if (changed) {
+    writeEdgeColors(refs);
+    uploadPositions(refs, refs.nodes.length);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────

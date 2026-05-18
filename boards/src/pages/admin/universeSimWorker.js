@@ -45,6 +45,15 @@ const DISK_STRENGTH = {
 const GRAVITY_BASE   = 0.04;   // floor pull for everyone
 const GRAVITY_DEGREE = 0.012;  // extra per sqrt(degree)
 
+// Spiral arm tunables. Two arms = classic milky way silhouette.
+// Pitch controls how tight the arms wind; strength keeps the bias
+// subtle so clusters stay together inside an arm rather than getting
+// shredded along it.
+const NUM_ARMS        = 2;
+const SPIRAL_PITCH    = 0.45;
+const SPIRAL_STRENGTH = 0.06;
+const SPIRAL_INNER_R  = 60;
+
 let nodes = [];
 let links = [];
 let sim   = null;
@@ -119,6 +128,43 @@ function forceGalacticGrav() {
   return force;
 }
 
+// Tangential nudge that biases each node toward its nearest of N
+// logarithmic spiral arms. Bulge nodes (r < SPIRAL_INNER_R) are
+// exempt. The bias composes additively with the radial gravity and
+// disk forces — clusters stay clustered, they just lean into arms.
+function forceSpiral() {
+  let ns;
+  const armOffsets = new Float32Array(NUM_ARMS);
+  for (let i = 0; i < NUM_ARMS; i++) armOffsets[i] = (2 * Math.PI * i) / NUM_ARMS;
+  function force(alpha) {
+    const strength = SPIRAL_STRENGTH * alpha;
+    for (const n of ns) {
+      const x = n.x || 0, z = n.z || 0;
+      const r2 = x * x + z * z;
+      if (r2 < SPIRAL_INNER_R * SPIRAL_INNER_R) continue;
+      const r = Math.sqrt(r2);
+      const theta = Math.atan2(z, x);
+      const curve = SPIRAL_PITCH * Math.log(r);
+      // Find the arm whose target angle is closest to the node's theta.
+      let bestDelta = Infinity;
+      for (let a = 0; a < NUM_ARMS; a++) {
+        let d = curve + armOffsets[a] - theta;
+        // Wrap to (-π, π].
+        d = ((d + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+        if (Math.abs(d) < Math.abs(bestDelta)) bestDelta = d;
+      }
+      // Tangent direction at (x, z) in the disk plane is (-z, x) / r.
+      // Velocity nudge perpendicular to position, magnitude scales with
+      // how far off the arm we are.
+      const k = bestDelta * strength;
+      n.vx = (n.vx || 0) + (-z) * k;
+      n.vz = (n.vz || 0) + ( x) * k;
+    }
+  }
+  force.initialize = (n) => { ns = n; };
+  return force;
+}
+
 function buildSim() {
   sim = forceSimulation(nodes, 3)
     .force('link',    forceLink(links).id(d => d.id).distance(36).strength(0.6))
@@ -126,6 +172,7 @@ function buildSim() {
     .force('center',  forceCenter())
     .force('disk',    forceDisk())
     .force('gravity', forceGalacticGrav())
+    .force('spiral',  forceSpiral())
     .alphaDecay(0.04)
     .velocityDecay(0.32)
     .stop();
