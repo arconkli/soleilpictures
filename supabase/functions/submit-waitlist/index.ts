@@ -110,10 +110,10 @@ Deno.serve(async (req) => {
   let body: Body;
   try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
+  // Socials are optional — users can join without submitting any links.
   const links = Array.isArray(body.links)
     ? body.links.map((l) => String(l ?? "").trim()).filter(Boolean).slice(0, 20).map((l) => l.slice(0, 500))
     : [];
-  if (links.length === 0) return json({ error: "add at least one link" }, 400);
 
   const timezone = typeof body.timezone === "string" && isValidTimezone(body.timezone) ? body.timezone : null;
 

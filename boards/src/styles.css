@@ -4925,6 +4925,41 @@ body {
   white-space: nowrap;
 }
 
+/* ── WaitlistModal polish ────────────────────────────────────────────── */
+.waitlist-modal { max-width: 520px; }
+.waitlist-optional {
+  font: 500 10px/1 var(--font-sans);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-left: 4px;
+}
+.waitlist-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 4px;
+}
+.waitlist-chip {
+  background: var(--bg-3);
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: 500 11px/1 var(--font-sans);
+  letter-spacing: .02em;
+}
+.waitlist-submit {
+  margin-top: 6px;
+  height: 46px;
+  font-size: 15px;
+}
+.waitlist-submit-hint {
+  text-align: center;
+  color: var(--ink-3);
+  margin-top: 6px;
+}
+
 /* Dev mode banner — quiet so it doesn't fight the canvas. */
 .dev-banner {
   position: fixed; top: 0; left: 0; right: 0;

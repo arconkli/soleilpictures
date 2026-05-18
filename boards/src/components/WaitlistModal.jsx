@@ -1,17 +1,20 @@
 // WaitlistModal — in-app socials-submission popup. Triggered from
-// WelcomePage's "Submit Socials" card. Same payload as the old
-// /waitlist full-page form: a freeform list of links + the user's
-// timezone, posted to the submit-waitlist Edge Function.
+// WelcomePage's "Submit Socials" card. Posts the user's freeform link
+// list + timezone to the submit-waitlist Edge Function.
 //
-// On success → /waitlist/status. On error → inline message.
+// Socials are optional — they're useful for review but not required to
+// join the waitlist. The button label flips between "Join the waitlist"
+// and "Skip & join the waitlist" based on whether anything's been typed.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
 import { logEvent } from '../lib/analytics.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 
 const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/submit-waitlist';
+
+const SUGGESTIONS = ['Instagram', 'TikTok', 'YouTube', 'Vimeo', 'Behance', 'Portfolio', 'X'];
 
 export function WaitlistModal({ onClose }) {
   const { user } = useAuth();
@@ -25,11 +28,15 @@ export function WaitlistModal({ onClose }) {
   const addRow    = ()      => setRows((arr) => arr.length < 20 ? [...arr, ''] : arr);
   const removeRow = (i)     => setRows((arr) => arr.length === 1 ? [''] : arr.filter((_, idx) => idx !== i));
 
+  const validLinks = useMemo(
+    () => rows.map((r) => r.trim()).filter(Boolean),
+    [rows]
+  );
+  const hasLinks = validLinks.length > 0;
+
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
-    const links = rows.map((r) => r.trim()).filter(Boolean);
-    if (links.length === 0) { setError('Add at least one link.'); return; }
     setBusy(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -39,11 +46,11 @@ export function WaitlistModal({ onClose }) {
       const res = await fetch(EDGE_URL, {
         method: 'POST',
         headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ links, timezone: tz }),
+        body: JSON.stringify({ links: validLinks, timezone: tz }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-      logEvent('submit_socials_done', { link_count: links.length });
+      logEvent('submit_socials_done', { link_count: validLinks.length });
       window.location.assign('/waitlist/status');
     } catch (err) {
       setError(err?.message || String(err));
@@ -53,16 +60,24 @@ export function WaitlistModal({ onClose }) {
 
   return createPortal(
     <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div className="upgrade-modal">
+      <div className="upgrade-modal waitlist-modal">
         <button className="upgrade-close" onClick={onClose} aria-label="Close" disabled={busy}>×</button>
 
         <div className="upgrade-intro">
-          <div className="upgrade-eyebrow t-eyebrow">SUBMIT YOUR SOCIALS</div>
+          <div className="upgrade-eyebrow t-eyebrow">
+            Submit your socials <span className="waitlist-optional">· optional</span>
+          </div>
           <h2 className="upgrade-title">Show us your work.</h2>
           <p className="upgrade-sub t-body">
-            Drop any links that represent your creative work — Instagram, TikTok,
-            YouTube, portfolio, anything. Average wait is ~7 days.
+            Drop any links that represent your creative work — it speeds up review.
+            You can skip and we'll still accept based on your email.
           </p>
+        </div>
+
+        <div className="waitlist-suggestions">
+          {SUGGESTIONS.map((s) => (
+            <span key={s} className="waitlist-chip">{s}</span>
+          ))}
         </div>
 
         <form className="waitlist-form" onSubmit={submit}>
@@ -71,14 +86,15 @@ export function WaitlistModal({ onClose }) {
               <input
                 className="waitlist-input"
                 type="text"
-                placeholder="https:// or @handle"
+                placeholder={i === 0 ? 'https://instagram.com/your-handle' : 'https:// or @handle'}
                 value={row}
                 onChange={(e) => updateRow(i, e.target.value)}
                 disabled={busy}
                 autoFocus={i === 0}
               />
               {rows.length > 1 && (
-                <button type="button" className="waitlist-remove" onClick={() => removeRow(i)} aria-label="Remove">×</button>
+                <button type="button" className="waitlist-remove"
+                        onClick={() => removeRow(i)} aria-label="Remove">×</button>
               )}
             </div>
           ))}
@@ -89,18 +105,25 @@ export function WaitlistModal({ onClose }) {
             onClick={addRow}
             disabled={busy || rows.length >= 20}
           >
-            + Add another
+            + Add another link
           </button>
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
           <button
             type="submit"
-            className="pricing-cta pricing-cta-primary"
+            className="pricing-cta pricing-cta-primary waitlist-submit"
             disabled={busy}
           >
-            {busy ? 'Submitting…' : 'Join the waitlist'}
+            {busy
+              ? 'Submitting…'
+              : hasLinks
+                ? 'Join the waitlist'
+                : 'Skip & join the waitlist'}
           </button>
+          <div className="waitlist-submit-hint t-meta">
+            We'll email you within ~7 days.
+          </div>
         </form>
 
         <div className="upgrade-foot t-meta">
