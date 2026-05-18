@@ -2,11 +2,11 @@
 // returning to /waitlist/status as an authed tier='waitlist' user.
 //
 // Two halves:
-//   1. A polished status panel — eyebrow + pulsing dot, big "we'll be in
-//      touch" headline, the scheduled accept date called out, and a
-//      3-step progress ladder (Received → Under review → Welcome email).
-//   2. A compact "skip the wait" upgrade card with a single one-click
-//      annual checkout button + a quieter "compare plans" link below.
+//   1. A minimal status panel — eyebrow + pulsing dot, big headline, and
+//      the scheduled accept date as a centered "around …" hero line with
+//      a small days-remaining caption below.
+//   2. A compact "skip the wait" card with a monthly/annual toggle and
+//      a single "Get instant access" button that opens Stripe Checkout.
 //
 // Reads the user's own entry via the RLS-allowed select on their email
 // (after migration 0073 fixed the profiles-policy recursion that made
@@ -24,6 +24,7 @@ export function WaitlistConfirm() {
   const { user, signOut } = useAuth();
   const [entry, setEntry] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [plan, setPlan] = useState('annual');
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
 
@@ -44,7 +45,7 @@ export function WaitlistConfirm() {
     return () => { cancelled = true; };
   }, [user?.email]);
 
-  const startCheckout = async (plan) => {
+  const startCheckout = async () => {
     setCheckoutError(null);
     setCheckoutBusy(true);
     try {
@@ -67,18 +68,15 @@ export function WaitlistConfirm() {
   };
 
   const fmt = useMemo(() => {
-    if (!entry) return null;
-    const accept = entry.scheduled_accept_at ? new Date(entry.scheduled_accept_at) : null;
-    const created = entry.created_at ? new Date(entry.created_at) : null;
+    if (!entry?.scheduled_accept_at) return null;
+    const accept = new Date(entry.scheduled_accept_at);
     const now = new Date();
     const msPerDay = 24 * 60 * 60 * 1000;
-    const daysLeft = accept ? Math.max(0, Math.ceil((accept - now) / msPerDay)) : null;
+    const daysLeft = Math.max(0, Math.ceil((accept - now) / msPerDay));
     return {
-      acceptLong: accept?.toLocaleDateString(undefined, {
+      acceptLong: accept.toLocaleDateString(undefined, {
         weekday: 'long', month: 'long', day: 'numeric',
       }),
-      acceptShort: accept?.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      submittedShort: created?.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
       daysLeft,
     };
   }, [entry]);
@@ -96,14 +94,12 @@ export function WaitlistConfirm() {
           <p className="t-body">Loading…</p>
         </div>
       ) : !entry ? (
-        // No entry — shouldn't happen post-0073 unless they really
-        // haven't submitted yet. Fall back to a clear two-choice prompt.
         <div className="waitlist-status-card">
           <div className="waitlist-status-eyebrow t-eyebrow">No application yet</div>
           <h2 className="waitlist-status-title">Pick a path to continue.</h2>
           <p className="waitlist-status-sub t-body">
-            We don't see a waitlist entry for <b>{user?.email}</b>. You can
-            submit your socials for review, or skip the wait with a paid plan.
+            We don't see a waitlist entry for <b>{user?.email}</b>. Submit
+            your socials for review, or skip the wait with a paid plan.
           </p>
           <div className="waitlist-status-cta-row">
             <button
@@ -127,8 +123,8 @@ export function WaitlistConfirm() {
           </div>
           <h2 className="waitlist-status-title">Your demo wasn't approved.</h2>
           <p className="waitlist-status-sub t-body">
-            We weren't able to offer you free demo access this round — but
-            you can still skip the wait with a paid plan and get instant access.
+            We weren't able to offer you free demo access — but you can
+            still skip the wait with a paid plan and get instant access.
           </p>
           <button
             className="pricing-cta pricing-cta-primary waitlist-status-cta"
@@ -139,68 +135,68 @@ export function WaitlistConfirm() {
         </div>
       ) : (
         <>
-          {/* Status panel */}
+          {/* Status panel — minimal, date as the visual hero. */}
           <article className="waitlist-status-card">
             <div className="waitlist-status-eyebrow t-eyebrow">
               <span className="waitlist-status-dot" aria-hidden="true" />
               You're on the list
             </div>
             <h2 className="waitlist-status-title">We'll be in touch soon.</h2>
-            <p className="waitlist-status-sub t-body">
-              We'll email you when your spot opens
-              {fmt?.acceptLong ? <> — around <b className="waitlist-status-date">{fmt.acceptLong}</b></> : ''}.
-              Average wait is ~7 days.
-            </p>
 
-            <ol className="waitlist-status-steps">
-              <li className="waitlist-status-step waitlist-status-step-done">
-                <span className="waitlist-status-step-marker" aria-hidden="true">✓</span>
-                <div className="waitlist-status-step-body">
-                  <div className="waitlist-status-step-name">Application received</div>
-                  <div className="waitlist-status-step-when t-meta">
-                    {fmt?.submittedShort || 'Just now'}
-                  </div>
+            {fmt?.acceptLong && (
+              <div className="waitlist-status-hero">
+                <div className="waitlist-status-hero-label t-meta">Around</div>
+                <div className="waitlist-status-hero-date">{fmt.acceptLong}</div>
+                <div className="waitlist-status-hero-sub t-meta">
+                  {fmt.daysLeft === 0
+                    ? 'Reviewing today'
+                    : `~${fmt.daysLeft} day${fmt.daysLeft === 1 ? '' : 's'} remaining`}
                 </div>
-              </li>
-              <li className="waitlist-status-step waitlist-status-step-active">
-                <span className="waitlist-status-step-marker" aria-hidden="true" />
-                <div className="waitlist-status-step-body">
-                  <div className="waitlist-status-step-name">Under review</div>
-                  <div className="waitlist-status-step-when t-meta">
-                    {fmt?.daysLeft != null
-                      ? fmt.daysLeft === 0
-                        ? 'Reviewing today'
-                        : `~${fmt.daysLeft} day${fmt.daysLeft === 1 ? '' : 's'} remaining`
-                      : 'In progress'}
-                  </div>
-                </div>
-              </li>
-              <li className="waitlist-status-step">
-                <span className="waitlist-status-step-marker" aria-hidden="true" />
-                <div className="waitlist-status-step-body">
-                  <div className="waitlist-status-step-name">Welcome email</div>
-                  <div className="waitlist-status-step-when t-meta">
-                    {fmt?.acceptShort ? `Around ${fmt.acceptShort}` : 'Coming soon'}
-                  </div>
-                </div>
-              </li>
-            </ol>
+              </div>
+            )}
+
+            <p className="waitlist-status-sub t-meta">
+              We'll email you the moment your spot opens.
+            </p>
           </article>
 
-          {/* Skip-the-wait upgrade panel */}
+          {/* Skip-the-wait — plan toggle + single CTA. */}
           <article className="waitlist-skip-card">
             <div className="waitlist-skip-head">
               <div className="waitlist-skip-eyebrow t-eyebrow">Don't want to wait?</div>
-              <div className="waitlist-skip-price-row">
-                <div className="waitlist-skip-title">Skip the wait</div>
-                <div className="waitlist-skip-price">
-                  $20<span className="waitlist-skip-price-unit">/mo</span>
-                </div>
+              <div className="waitlist-skip-title">Skip the wait — get instant access.</div>
+            </div>
+
+            <div className="waitlist-skip-plan-row">
+              <div className="pricing-card-toggle" role="tablist" aria-label="Billing interval">
+                <button
+                  role="tab"
+                  aria-selected={plan === 'monthly'}
+                  className={`pricing-toggle-pill ${plan === 'monthly' ? 'is-active' : ''}`}
+                  onClick={() => setPlan('monthly')}
+                  disabled={checkoutBusy}
+                >
+                  Monthly
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={plan === 'annual'}
+                  className={`pricing-toggle-pill ${plan === 'annual' ? 'is-active' : ''}`}
+                  onClick={() => setPlan('annual')}
+                  disabled={checkoutBusy}
+                >
+                  Annual
+                </button>
               </div>
-              <p className="waitlist-skip-sub t-meta">
-                Instant access · Unlimited cards · Edit on others' boards ·
-                Billed annually, cancel anytime.
-              </p>
+              <div className="waitlist-skip-price">
+                ${plan === 'annual' ? 20 : 25}
+                <span className="waitlist-skip-price-unit">/mo</span>
+              </div>
+            </div>
+            <div className="waitlist-skip-sub t-meta">
+              {plan === 'annual'
+                ? <>billed annually · <b>save $60/yr</b></>
+                : <>billed monthly · cancel anytime</>}
             </div>
 
             {checkoutError && <div className="auth-error t-meta">{checkoutError}</div>}
@@ -208,7 +204,7 @@ export function WaitlistConfirm() {
             <div className="waitlist-skip-cta-row">
               <button
                 className="pricing-cta pricing-cta-primary waitlist-skip-cta"
-                onClick={() => startCheckout('annual')}
+                onClick={startCheckout}
                 disabled={checkoutBusy}
               >
                 {checkoutBusy ? 'Opening checkout…' : 'Get instant access →'}
