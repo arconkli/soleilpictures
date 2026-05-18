@@ -12667,4 +12667,80 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 
 .wsr-footer { justify-content: flex-end; }
 
+/* TimeTravelModal cherry-pick checkboxes + action bar */
+.tt-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tt-card {
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.tt-card:hover { border-color: var(--line-2); }
+.tt-card.is-picked {
+  background: rgba(90, 130, 240, 0.10);
+  border-color: rgba(90, 130, 240, 0.45);
+}
+.tt-card-pick {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--soleil, #4f8df8);
+}
+
+/* Op-density bar (Phase 4 visualization) */
+.tt-density {
+  padding: 10px 14px 14px;
+  border-bottom: 1px solid var(--line-1);
+  background: rgba(0,0,0,.06);
+}
+.tt-density-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.tt-density-title {
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.tt-density-meta {
+  margin-left: auto;
+  font: 400 11px/1.4 var(--font-sans);
+  color: var(--ink-3);
+}
+.tt-density-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 44px;
+  background: var(--bg-1);
+  border-radius: var(--radius);
+  padding: 4px;
+  overflow: hidden;
+}
+.tt-density-cell {
+  flex: 1;
+  min-width: 2px;
+  background: var(--soleil, #4f8df8);
+  border-radius: 1px;
+  opacity: 0.7;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.tt-density-cell:hover { opacity: 1; }
+.tt-density-cell.is-delete-heavy { background: #d96b3e; }
+.tt-density-empty {
+  flex: 1;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font: 400 11px/1.4 var(--font-sans);
+  color: var(--ink-3);
+}
+.tt-density-empty::after {
+  content: 'No edits in this window';
+}
+
 

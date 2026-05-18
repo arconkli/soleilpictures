@@ -788,6 +788,20 @@ export async function listBoardVersions(boardId, limit = 200) {
   return data || [];
 }
 
+// Follow-up 3: op-density histogram for the TimeTravelModal density bar.
+// Returns [{bucket_start, op_count, delete_count, authors}, ...].
+// Empty array until Phase 4 captures board_ops data.
+export async function fetchBoardOpDensity(boardId, fromTs, toTs, bucketSeconds = 300) {
+  const { data, error } = await supabase.rpc('board_op_density', {
+    p_board_id: boardId,
+    p_from_ts: fromTs,
+    p_to_ts: toTs,
+    p_bucket_seconds: bucketSeconds,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
 // Follow-up 1: workspace-wide rewind preview. Returns per-board rows
 // showing what each board would look like if rewound to target_ts.
 export async function previewWorkspaceRewind(workspaceId, targetTs) {

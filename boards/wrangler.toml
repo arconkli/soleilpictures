@@ -32,7 +32,12 @@ binding = "ASSETS"
 # both the R2 object and the images row. Safe no-ops if the R2 binding
 # or SUPABASE_SERVICE_ROLE_KEY secret is missing.
 [triggers]
-crons = ["0 4 * * *"]
+# Daily 04:00 UTC: history-aware R2 orphan sweep (dry-run by default).
+# Hourly at :15:     Job 1 compaction — board_ops → R2 hourly batches (dry-run by default).
+# event.cron lets the worker dispatch to the right handler in scheduled().
+# To enable actual writes/deletes, set HISTORY_COMPACTION_MODE=run and/or
+# R2_SWEEP_MODE=delete via `wrangler secret put`.
+crons = ["0 4 * * *", "15 * * * *"]
 
 # R2 binding for the orphan sweeper. Matches PartyKit's R2_BUCKET so
 # the same bucket uploads go into is the one being swept.

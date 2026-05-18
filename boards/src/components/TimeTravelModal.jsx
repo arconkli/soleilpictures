@@ -14,8 +14,8 @@
 // accumulate).
 
 import { useEffect, useMemo, useState } from 'react';
-import { listBoardSnapshots, restoreBoardToTarget, restoreBoard } from '../lib/boardsApi.js';
-import { buildSnapshotPreview, fetchSnapshotBytes, kindLabel, kindBadgeClass, KIND_ICONS } from '../lib/snapshotPreview.js';
+import { listBoardSnapshots, restoreBoardToTarget, restoreBoard, fetchBoardOpDensity } from '../lib/boardsApi.js';
+import { buildSnapshotPreview, fetchSnapshotBytes, kindLabel, kindBadgeClass, KIND_ICONS, cherryPickCardsFromSnapshot } from '../lib/snapshotPreview.js';
 import { useFeedback } from './AppFeedback.jsx';
 
 function fmtDate(iso) {
@@ -41,7 +41,7 @@ function relTime(iso) {
   return `${mo}mo ago`;
 }
 
-export function TimeTravelModal({ open, boardId, onClose, onBoardRestored = null }) {
+export function TimeTravelModal({ open, boardId, ydoc = null, onClose, onBoardRestored = null }) {
   const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
@@ -50,6 +50,9 @@ export function TimeTravelModal({ open, boardId, onClose, onBoardRestored = null
   const [previewError, setPreviewError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [kindFilter, setKindFilter] = useState('all');
+  const [pickedCards, setPickedCards] = useState(() => new Set());
+  const [density, setDensity] = useState([]);
+  const [densityWindow, setDensityWindow] = useState('24h');
   const feedback = useFeedback();
 
   // Load snapshot list when modal opens.
@@ -65,6 +68,27 @@ export function TimeTravelModal({ open, boardId, onClose, onBoardRestored = null
       .catch((e) => { if (!cancelled) { console.error(e); setLoading(false); } });
     return () => { cancelled = true; };
   }, [open, boardId]);
+
+  // Load op density when modal opens or window changes.
+  useEffect(() => {
+    if (!open || !boardId) return;
+    let cancelled = false;
+    const now = new Date();
+    const window_ms = densityWindow === '1h' ? 3600_000
+                    : densityWindow === '24h' ? 86_400_000
+                    : densityWindow === '7d' ? 7 * 86_400_000
+                    : 30 * 86_400_000;
+    const bucket_s = densityWindow === '1h' ? 60
+                   : densityWindow === '24h' ? 300
+                   : densityWindow === '7d' ? 3600
+                   : 86400;
+    const fromTs = new Date(now.getTime() - window_ms).toISOString();
+    const toTs = now.toISOString();
+    fetchBoardOpDensity(boardId, fromTs, toTs, bucket_s)
+      .then((rows) => { if (!cancelled) setDensity(rows); })
+      .catch((e) => { if (!cancelled) console.warn('density fetch failed', e); });
+    return () => { cancelled = true; };
+  }, [open, boardId, densityWindow]);
 
   // Apply kind filter (memoized).
   const filtered = useMemo(() => {
@@ -101,15 +125,21 @@ export function TimeTravelModal({ open, boardId, onClose, onBoardRestored = null
     return sections.filter((sec) => sec.rows.length > 0);
   }, [filtered]);
 
+  // Track decoded bytes for the currently-selected snapshot so cherry-pick
+  // doesn't need a second fetch.
+  const [previewBytes, setPreviewBytes] = useState(null);
+
   // Load preview for the selected row.
   useEffect(() => {
-    if (!selectedId) { setPreview(null); return; }
+    if (!selectedId) { setPreview(null); setPreviewBytes(null); setPickedCards(new Set()); return; }
     let cancelled = false;
     setPreviewLoading(true);
     setPreviewError(null);
+    setPickedCards(new Set());
     fetchSnapshotBytes(selectedId)
       .then((b64) => {
         if (cancelled) return;
+        setPreviewBytes(b64 || null);
         if (!b64) {
           setPreview({ cards: [], groups: [], cardCount: 0 });
         } else {
@@ -120,6 +150,46 @@ export function TimeTravelModal({ open, boardId, onClose, onBoardRestored = null
       .finally(() => { if (!cancelled) setPreviewLoading(false); });
     return () => { cancelled = true; };
   }, [selectedId]);
+
+  const toggleCard = (cardId) => {
+    setPickedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  };
+
+  const onCherryPick = async () => {
+    if (!ydoc) {
+      feedback.toast({ type: 'error', message: 'Live board not connected — cherry-pick requires the canvas to be open.' });
+      return;
+    }
+    if (pickedCards.size === 0 || !previewBytes) return;
+    const sel = snapshots.find((s) => s.id === selectedId);
+    const ok = await feedback.confirm({
+      title: 'Cherry-pick cards',
+      message: `Bring ${pickedCards.size} card${pickedCards.size === 1 ? '' : 's'} from ${fmtDate(sel?.at_ts)} into the current board? Same-id cards in the live board will be overwritten; other cards are untouched.`,
+      confirmLabel: `Cherry-pick ${pickedCards.size}`,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const result = cherryPickCardsFromSnapshot(ydoc, previewBytes, Array.from(pickedCards));
+      const total = result.addedCardIds.length + result.overwroteCardIds.length;
+      feedback.toast({
+        type: 'success',
+        message: `Cherry-picked ${total} card${total === 1 ? '' : 's'}` +
+          (result.skippedCardIds.length > 0 ? ` (${result.skippedCardIds.length} skipped)` : ''),
+      });
+      setPickedCards(new Set());
+    } catch (e) {
+      console.error(e);
+      feedback.toast({ type: 'error', message: 'Cherry-pick failed: ' + (e?.message || e) });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const onRestore = async () => {
     if (!selectedId) return;
@@ -174,6 +244,48 @@ export function TimeTravelModal({ open, boardId, onClose, onBoardRestored = null
         <div className="modal-hd">
           <div className="modal-title">Time travel</div>
           <button className="modal-x" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+
+        {/* Op-density bar (Phase 4 op log visualization). Compact horizontal
+            chart over the last 1h/24h/7d/30d, one bar per bucket. Empty
+            until board_ops accumulates data. */}
+        <div className="tt-density">
+          <div className="tt-density-hd">
+            <span className="tt-density-title">Edit activity</span>
+            <select
+              className="tt-filter-select"
+              value={densityWindow}
+              onChange={(e) => setDensityWindow(e.target.value)}
+            >
+              <option value="1h">Last hour</option>
+              <option value="24h">Last 24h</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+            </select>
+            <span className="tt-density-meta">
+              {density.length === 0
+                ? 'No op-level history yet — appears once Phase 4 capture starts.'
+                : `${density.reduce((s, b) => s + Number(b.op_count || 0), 0)} ops · ${density.reduce((s, b) => s + Number(b.delete_count || 0), 0)} deletes`}
+            </span>
+          </div>
+          <div className="tt-density-bar">
+            {(() => {
+              if (density.length === 0) return <div className="tt-density-empty" />;
+              const max = Math.max(1, ...density.map((b) => Number(b.op_count || 0)));
+              return density.map((b, i) => {
+                const h = Math.round((Number(b.op_count || 0) / max) * 100);
+                const isDelHeavy = Number(b.delete_count || 0) >= Math.max(1, Number(b.op_count || 0) * 0.5);
+                return (
+                  <div
+                    key={i}
+                    className={`tt-density-cell ${isDelHeavy ? 'is-delete-heavy' : ''}`}
+                    style={{ height: `${Math.max(3, h)}%` }}
+                    title={`${new Date(b.bucket_start).toLocaleString()}\n${b.op_count} ops, ${b.delete_count} deletes`}
+                  />
+                );
+              });
+            })()}
+          </div>
         </div>
 
         <div className="tt-body">
@@ -237,28 +349,50 @@ export function TimeTravelModal({ open, boardId, onClose, onBoardRestored = null
                       )}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="tb-btn tb-btn-primary"
-                    onClick={onRestore}
-                    disabled={busy}
-                  >
-                    {busy ? 'Restoring…' : 'Restore whole board to this state'}
-                  </button>
+                  <div className="tt-preview-actions">
+                    {pickedCards.size > 0 && (
+                      <button
+                        type="button"
+                        className="tb-btn"
+                        onClick={onCherryPick}
+                        disabled={busy || !ydoc}
+                        title={!ydoc ? 'Cherry-pick requires the live board to be open' : ''}
+                      >
+                        {busy ? 'Working…' : `Cherry-pick ${pickedCards.size} into current`}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="tb-btn tb-btn-primary"
+                      onClick={onRestore}
+                      disabled={busy}
+                    >
+                      {busy ? 'Restoring…' : 'Restore whole board to this state'}
+                    </button>
+                  </div>
                 </div>
                 <div className="tt-preview-grid">
                   {preview.cards.length === 0 && (
                     <div className="modal-empty">This snapshot has no cards.</div>
                   )}
                   {preview.cards.map((c) => (
-                    <div key={c.id} className="tt-card">
+                    <label
+                      key={c.id}
+                      className={`tt-card ${pickedCards.has(c.id) ? 'is-picked' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="tt-card-pick"
+                        checked={pickedCards.has(c.id)}
+                        onChange={() => toggleCard(c.id)}
+                      />
                       <div className="tt-card-icon">{KIND_ICONS[c.kind] || '•'}</div>
                       <div className="tt-card-body">
                         <div className="tt-card-kind">{c.kind}</div>
                         {c.title && <div className="tt-card-title">{c.title}</div>}
                         {c.body && c.body !== c.title && <div className="tt-card-text">{c.body}</div>}
                       </div>
-                    </div>
+                    </label>
                   ))}
                 </div>
               </>

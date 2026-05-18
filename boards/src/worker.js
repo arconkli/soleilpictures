@@ -10,6 +10,7 @@
 //                       against the user's Supabase JWT.
 
 import { handleTagsRoute } from './worker-tags.js';
+import { runCompactionJob1 } from './worker-compaction.js';
 
 const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
 
@@ -23,23 +24,21 @@ export default {
     return env.ASSETS.fetch(request);
   },
   async scheduled(event, env, ctx) {
-    // Daily R2 orphan sweep. History-aware as of Phase 7 of the backups
-    // rework: consults images.ref_count + board_snapshots.r2_keys_referenced
-    // + board_ops.r2_keys before considering anything for deletion, so
-    // historical versions can render their attached media on restore.
+    // The worker has TWO cron schedules (see wrangler.toml):
+    //   "0 4 * * *"   — daily 04:00 UTC; runs the history-aware R2 orphan sweep
+    //   "15 * * * *"  — hourly at :15; runs Job 1 compaction (board_ops → R2 batches)
     //
-    // Default mode: dry-run. Decisions are logged to r2_sweep_audit;
-    // R2 objects are NOT actually deleted. To enable actual deletes,
-    // set the worker env var R2_SWEEP_MODE=delete (via `wrangler secret`).
-    // Recommended: run dry-run for at least 30 days post-rollout and
-    // operator-review the audit table before flipping.
+    // Both default to dry-run mode. Flip via env vars when ready:
+    //   R2_SWEEP_MODE=delete            (actually delete R2 orphans)
+    //   HISTORY_COMPACTION_MODE=run     (actually merge + PUT + delete source ops)
     //
-    // Required env:
-    //   SUPABASE_URL                 — already configured
-    //   SUPABASE_SERVICE_ROLE_KEY    — wrangler secret put
-    //   IMAGES                       — [[r2_buckets]] binding
-    //   R2_SWEEP_MODE                — optional; 'delete' to actually delete (default: 'dryrun')
-    ctx.waitUntil(runR2Sweep(env));
+    // event.cron lets us distinguish which schedule fired this invocation.
+    const which = event?.cron || '';
+    if (which === '15 * * * *') {
+      ctx.waitUntil(runCompactionJob1(env));
+    } else {
+      ctx.waitUntil(runR2Sweep(env));
+    }
   },
 };
 

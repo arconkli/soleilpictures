@@ -2447,6 +2447,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <TimeTravelModal
         open={timeTravelOpen}
         boardId={currentBoard.id}
+        ydoc={currentYDoc}
         onBoardRestored={() => refreshBoards()}
         onClose={() => setTimeTravelOpen(false)}
       />

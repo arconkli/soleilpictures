@@ -115,6 +115,67 @@ export async function fetchSnapshotBytes(snapshotId) {
   throw new Error('unknown snapshot storage: ' + data.storage);
 }
 
+// Cherry-pick: copy specific cards from a target snapshot into the live
+// Y.Doc. Same-id cards in current state are overwritten; others are
+// untouched. Runs as one Y.Doc transaction so the change appears as a
+// single undoable operation on the user's undo stack AND flows to peers
+// via the normal y-partykit update channel.
+//
+// Returns { addedCardIds, overwroteCardIds, skippedCardIds }
+export function cherryPickCardsFromSnapshot(currentYDoc, targetB64, cardIds) {
+  if (!currentYDoc || !targetB64 || !Array.isArray(cardIds) || cardIds.length === 0) {
+    return { addedCardIds: [], overwroteCardIds: [], skippedCardIds: cardIds || [] };
+  }
+  const target = new Y.Doc();
+  try { Y.applyUpdate(target, b64ToBytes(targetB64), 'snapshot-cherry-pick'); }
+  catch (e) {
+    target.destroy();
+    throw new Error('could not decode target snapshot: ' + (e?.message || e));
+  }
+
+  const added = [];
+  const overwrote = [];
+  const skipped = [];
+
+  try {
+    const liveCards = currentYDoc.getMap('cards');
+    const targetCards = target.getMap('cards');
+    const targetGroups = target.getMap('groups');
+    const liveGroups = currentYDoc.getMap('groups');
+
+    currentYDoc.transact(() => {
+      for (const cardId of cardIds) {
+        const targetCard = targetCards.get(cardId);
+        if (!targetCard) { skipped.push(cardId); continue; }
+        const targetData = targetCard.toJSON ? targetCard.toJSON() : null;
+        if (!targetData) { skipped.push(cardId); continue; }
+        const existing = liveCards.get(cardId);
+        const ym = new Y.Map();
+        for (const [k, v] of Object.entries(targetData)) ym.set(k, v);
+        liveCards.set(cardId, ym);
+        if (existing) overwrote.push(cardId);
+        else added.push(cardId);
+
+        // Bring along the card's group if not present locally — preserves
+        // cluster name/color when cherry-picking a clustered card.
+        const groupId = targetData.group_id;
+        if (groupId && targetGroups.has(groupId) && !liveGroups.has(groupId)) {
+          const targetGroup = targetGroups.get(groupId);
+          if (targetGroup && targetGroup.toJSON) {
+            const gymap = new Y.Map();
+            for (const [k, v] of Object.entries(targetGroup.toJSON())) gymap.set(k, v);
+            liveGroups.set(groupId, gymap);
+          }
+        }
+      }
+    }, 'local');
+  } finally {
+    target.destroy();
+  }
+
+  return { addedCardIds: added, overwroteCardIds: overwrote, skippedCardIds: skipped };
+}
+
 export const SNAPSHOT_KIND_LABELS = {
   'auto-5min': 'auto',
   'auto-hourly': 'auto',
