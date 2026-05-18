@@ -174,9 +174,10 @@ begin
   perform public._require_admin();
 
   return query
+  -- t_tier alias avoids ambiguity with the RETURNS TABLE OUT param `tier`.
   with user_stats as (
     select
-      coalesce(p.tier, 'demo')::text as tier,
+      coalesce(p.tier, 'demo')::text as t_tier,
       u.id as user_id,
       coalesce(
         (select count(*) from public.boards b where b.created_by = u.id),
@@ -192,15 +193,15 @@ begin
     left join public.profiles p on p.user_id = u.id
   )
   select
-    tier,
-    count(*)::bigint as users,
-    round(avg(card_count)::numeric, 1) as avg_cards,
+    t_tier                              as tier,
+    count(*)::bigint                    as users,
+    round(avg(card_count)::numeric, 1)  as avg_cards,
     round(avg(board_count)::numeric, 1) as avg_boards,
-    sum(card_count)::bigint as total_cards,
-    sum(board_count)::bigint as total_boards
+    sum(card_count)::bigint             as total_cards,
+    sum(board_count)::bigint            as total_boards
   from user_stats
-  group by tier
-  order by case tier
+  group by t_tier
+  order by case t_tier
     when 'admin'    then 1
     when 'paid'     then 2
     when 'demo'     then 3
