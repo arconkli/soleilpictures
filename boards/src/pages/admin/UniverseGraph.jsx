@@ -84,6 +84,20 @@ function classifyEdge(rawKind) {
   return 'semantic';
 }
 
+// ── Galactic look tunables ────────────────────────────────────────
+const GALAXY = {
+  fogDensity:        0.00045,    // FogExp2 — far nodes fade to bg
+  rotationRate:      0.04,       // rad/s around the disk normal (Y)
+  cameraInitialY:    200,        // tilt above the disk plane
+  cameraInitialZ:    400,
+  starWhiteFraction: 0.06,       // top this many percent get a hot-white tint
+  starMaxLerp:       0.30,       // ...lerped this far toward white
+  starMaxScale:      2.0,        // sqrt(degree) scale clamp for size
+  bulgeColor:        new THREE.Color('#fff4e0'),
+  bulgeBaseSize:     90,         // halo size for ws bulge points
+  bulgeAlpha:        0.20,
+};
+
 function readTheme() {
   if (typeof document === 'undefined') return 'dark';
   return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
@@ -268,7 +282,11 @@ export function UniverseGraph({ onNodeClick }) {
   const refs = useRef({
     scene: null, camera: null, renderer: null, controls: null,
     nodeMesh: null, haloPoints: null, edgeLines: null, fxPoints: null,
+    bulgePoints: null,              // persistent halo at each ws node
+    bulgeIndices: [],               // refs.nodes indices that are ws kind
     activeFx: [],                   // [{ kind:'pulse'|'flash', src, tgt, nodeIdx, start, dur, color }]
+    degrees: new Map(),             // node_id → degree (from worker)
+    starWhite: new THREE.Color('#fffaf0'),
     nodeCapacity: INITIAL_NODE_CAP, edgeCapacity: INITIAL_EDGE_CAP,
     nodes: [],                      // [{id, threeColor, val, ...}]
     nodeIndex: new Map(),           // node_id → array index
@@ -303,9 +321,17 @@ export function UniverseGraph({ onNodeClick }) {
     // Scene + camera + renderer.
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(BG_FOR[theme]);
+    // Exponential fog so far nodes melt into the background and the
+    // disk reads with real depth. Density tuned so the auto-fit
+    // framing still shows the universe clearly.
+    scene.fog = new THREE.FogExp2(BG_FOR[theme], GALAXY.fogDensity);
 
     const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 12000);
-    camera.position.set(0, 0, 400);
+    // Start ABOVE the disk plane so the rotation has perspective —
+    // looking edge-on at a disk shows a line, not a galaxy. Auto-fit
+    // preserves direction when it pulls back, so the inclined view
+    // is maintained at every zoom level.
+    camera.position.set(0, GALAXY.cameraInitialY, GALAXY.cameraInitialZ);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -339,6 +365,12 @@ export function UniverseGraph({ onNodeClick }) {
     const fxPoints = makeFxPoints(FX_CAPACITY);
     scene.add(fxPoints);
 
+    // Persistent bulge glow — one large warm-white halo per ws node.
+    // Same FX shader (per-vertex color/size/alpha) so we get the same
+    // additive, distance-scaled sprite as everything else.
+    const bulgePoints = makeFxPoints(INITIAL_NODE_CAP);
+    scene.add(bulgePoints);
+
     refs.scene = scene;
     refs.camera = camera;
     refs.renderer = renderer;
@@ -347,7 +379,10 @@ export function UniverseGraph({ onNodeClick }) {
     refs.haloPoints = haloPoints;
     refs.edgeLines = edgeLines;
     refs.fxPoints = fxPoints;
+    refs.bulgePoints = bulgePoints;
+    refs.bulgeIndices = [];
     refs.activeFx = [];
+    refs.degrees = new Map();
     refs.nodeCapacity = INITIAL_NODE_CAP;
     refs.edgeCapacity = INITIAL_EDGE_CAP;
     refs.nodes = [];
@@ -372,6 +407,12 @@ export function UniverseGraph({ onNodeClick }) {
           refs.positions.set(msg.positions.subarray(0, msg.count * 3));
           uploadPositions(refs, msg.count);
         }
+      } else if (msg.type === 'degrees') {
+        // Snapshot the worker's degree map into refs and re-skin
+        // every active node so hubs read as brighter stars.
+        const map = msg.byId || {};
+        refs.degrees = new Map(Object.entries(map));
+        rebrightenAllNodes(refs);
       } else if (msg.type === 'ready') {
         setCalibrating(false);
       } else if (msg.type === 'error') {
@@ -407,8 +448,11 @@ export function UniverseGraph({ onNodeClick }) {
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup',   onPointerUp);
 
-    // rAF loop — controls + tilted drift + fit animation + render.
-    const tiltAxis = new THREE.Vector3(0.35, 1, 0.18).normalize();
+    // rAF loop — controls + galactic rotation + fit animation + render.
+    // Rotation is around the disk's normal (Y axis) so it reads as
+    // an actual galaxy spinning, not as random drift on an arbitrary
+    // axis. Camera tilt is from the initial position above the disk.
+    const rotationAxis = new THREE.Vector3(0, 1, 0);
     let last = performance.now();
     controls.addEventListener('start', () => { refs.interacting = true; });
     controls.addEventListener('end',   () => { refs.interacting = false; });
@@ -426,10 +470,10 @@ export function UniverseGraph({ onNodeClick }) {
         controls.target.lerpVectors(refs.fitFromTarget, refs.fitToTarget, eased);
         if (t >= 1) refs.fitAnimating = false;
       } else if (!refs.interacting) {
-        // Idle drift — pauses during interaction AND during a fit
-        // animation so the two motions don't fight.
+        // Idle drift = galactic rotation. Pauses during interaction
+        // AND during a fit animation so the motions don't fight.
         const rel = camera.position.clone().sub(controls.target);
-        rel.applyAxisAngle(tiltAxis, 0.085 * dt);
+        rel.applyAxisAngle(rotationAxis, GALAXY.rotationRate * dt);
         camera.position.copy(rel.add(controls.target));
       }
       // Update live FX (pulses + spawn flashes) — cheap walk over
@@ -488,18 +532,26 @@ export function UniverseGraph({ onNodeClick }) {
       edgeLines.material.dispose();
       fxPoints.geometry.dispose();
       fxPoints.material.dispose();
+      bulgePoints.geometry.dispose();
+      bulgePoints.material.dispose();
       renderer.dispose();
       refs.scene = null; refs.camera = null; refs.renderer = null; refs.controls = null;
       refs.nodeMesh = null; refs.haloPoints = null; refs.edgeLines = null; refs.fxPoints = null;
+      refs.bulgePoints = null;
+      refs.bulgeIndices = [];
       refs.activeFx = [];
+      refs.degrees = new Map();
     };
     // theme is read once at mount — the bg color update below patches it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey]);
 
-  // Patch background color when theme flips without re-mounting.
+  // Patch background + fog color when theme flips without re-mounting.
   useEffect(() => {
-    if (refs.scene) refs.scene.background = new THREE.Color(BG_FOR[theme]);
+    if (refs.scene) {
+      refs.scene.background = new THREE.Color(BG_FOR[theme]);
+      if (refs.scene.fog) refs.scene.fog.color = new THREE.Color(BG_FOR[theme]);
+    }
   }, [theme, refs]);
 
   // ── Snapshot loader ──────────────────────────────────────────────
@@ -541,12 +593,14 @@ export function UniverseGraph({ onNodeClick }) {
         refs.nodes = [];
         refs.nodeIndex = new Map();
         refs.edges = [];
+        refs.bulgeIndices = [];
         for (const raw of allRawNodes) {
           const node = toNode(raw);
           const idx = refs.nodes.length;
           refs.nodes.push(node);
           refs.nodeIndex.set(node.id, idx);
           writeNodeAppearance(refs, idx, node);
+          if (node.kind === 'ws') refs.bulgeIndices.push(idx);
         }
         // Resolve edges; drop orphans.
         const resolvedEdges = [];
@@ -610,6 +664,7 @@ export function UniverseGraph({ onNodeClick }) {
           refs.nodes.push(n);
           refs.nodeIndex.set(n.id, idx);
           writeNodeAppearance(refs, idx, n);
+          if (n.kind === 'ws') refs.bulgeIndices.push(idx);
           // Spawn a brief halo flash on every new node so the user
           // can see it appear in the universe.
           spawnFlash(refs, idx, n.threeColor);
@@ -823,10 +878,97 @@ function uploadPositions(refs, count) {
   ep.needsUpdate = true;
   refs.edgeLines.geometry.setDrawRange(0, refs.edges.length * 2);
 
+  // Persistent bulge halo at each ws node — refreshed every tick so
+  // it tracks the workspace anchor as the layout settles. Reads as a
+  // galactic core glowing at the center of each cluster.
+  if (refs.bulgePoints && refs.bulgeIndices.length) {
+    const bg = refs.bulgePoints.geometry;
+    const bp = bg.attributes.position.array;
+    const bc = bg.attributes.color.array;
+    const bs = bg.attributes.size.array;
+    const ba = bg.attributes.alpha.array;
+    const bcap = bs.length;
+    let w = 0;
+    for (let i = 0; i < refs.bulgeIndices.length && w < bcap; i++) {
+      const ni = refs.bulgeIndices[i];
+      if (ni >= count) continue;
+      bp[w * 3]     = pos[ni * 3];
+      bp[w * 3 + 1] = pos[ni * 3 + 1];
+      bp[w * 3 + 2] = pos[ni * 3 + 2];
+      bc[w * 3]     = GALAXY.bulgeColor.r;
+      bc[w * 3 + 1] = GALAXY.bulgeColor.g;
+      bc[w * 3 + 2] = GALAXY.bulgeColor.b;
+      bs[w]         = GALAXY.bulgeBaseSize;
+      ba[w]         = GALAXY.bulgeAlpha;
+      w++;
+    }
+    bg.attributes.position.needsUpdate = true;
+    bg.attributes.color.needsUpdate    = true;
+    bg.attributes.size.needsUpdate     = true;
+    bg.attributes.alpha.needsUpdate    = true;
+    bg.setDrawRange(0, w);
+  } else if (refs.bulgePoints) {
+    refs.bulgePoints.geometry.setDrawRange(0, 0);
+  }
+
   // Pull the camera back so the whole universe stays in view as more
   // nodes arrive. Cheap to check; the heavy work only fires when the
   // bounding sphere has actually grown past the current frustum.
   maybeAutoFit(refs, count);
+}
+
+// Re-skin every node so high-degree hubs read as visibly larger and
+// hotter (whiter). Called whenever the worker posts a 'degrees'
+// update. Pure pass through refs.nodes — touches the InstancedMesh
+// matrix + color and the halo size attribute.
+function rebrightenAllNodes(refs) {
+  if (!refs.nodeMesh || !refs.haloPoints || refs.nodes.length === 0) return;
+  // Compute a "top hub" threshold: the degree above which a node
+  // gets the white-hot color treatment.
+  const degVals = [];
+  for (const n of refs.nodes) degVals.push(refs.degrees.get(n.id) || 0);
+  const sorted = [...degVals].sort((a, b) => b - a);
+  const hotIdx = Math.max(0, Math.floor(sorted.length * GALAXY.starWhiteFraction) - 1);
+  const hotCut = sorted[hotIdx] || Infinity;
+  const maxDeg = sorted[0] || 1;
+
+  const ca = refs.haloPoints.geometry.attributes.color;
+  const sa = refs.haloPoints.geometry.attributes.size;
+  const quat = new THREE.Quaternion();
+  const tint = new THREE.Color();
+
+  for (let i = 0; i < refs.nodes.length; i++) {
+    const n = refs.nodes[i];
+    const d = degVals[i];
+    // sqrt scale so a 100-degree hub is ~10x denser-feeling than a
+    // 1-degree leaf without dwarfing the rest of the scene.
+    const scale = 1 + Math.min(GALAXY.starMaxScale - 1, Math.sqrt(d) * 0.08);
+    const r = (n.val || 8) * 0.4 * scale;
+
+    _tmpScale.set(r, r, r);
+    _tmpPos.set(refs.positions[i * 3], refs.positions[i * 3 + 1], refs.positions[i * 3 + 2]);
+    _tmpMatrix.compose(_tmpPos, quat, _tmpScale);
+    refs.nodeMesh.setMatrixAt(i, _tmpMatrix);
+
+    // Color: keep stock for normal nodes; lerp toward star-white for
+    // the top hubs so they read hot.
+    tint.copy(n.threeColor);
+    if (d >= hotCut && hotCut > 0) {
+      const t = Math.min(1, d / maxDeg) * GALAXY.starMaxLerp;
+      tint.lerp(refs.starWhite, t);
+    }
+    refs.nodeMesh.setColorAt(i, tint);
+
+    // Halo grows with the sphere.
+    sa.array[i] = r * 3.7;
+    ca.array[i * 3]     = tint.r;
+    ca.array[i * 3 + 1] = tint.g;
+    ca.array[i * 3 + 2] = tint.b;
+  }
+  refs.nodeMesh.instanceMatrix.needsUpdate = true;
+  if (refs.nodeMesh.instanceColor) refs.nodeMesh.instanceColor.needsUpdate = true;
+  ca.needsUpdate = true;
+  sa.needsUpdate = true;
 }
 
 // Compute the bounding sphere of the current node positions (single
