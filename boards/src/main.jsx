@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.jsx';
 import { AuthGate } from './auth/AuthGate.jsx';
+import { TierRouter } from './auth/TierRouter.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { PublicBoardView } from './components/PublicBoardView.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
@@ -67,7 +68,9 @@ createRoot(document.getElementById('root')).render(
           <PublicBoardView token={shareMatch[1]} />
         ) : (
           <AuthGate>
-            <App />
+            <TierRouter>
+              <App />
+            </TierRouter>
           </AuthGate>
         )}
       </FeedbackProvider>

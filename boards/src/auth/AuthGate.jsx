@@ -1,9 +1,19 @@
 // AuthGate — three modes:
 //   1. supabase === null  → no env vars; render children with a dev banner.
-//   2. signed out          → render the magic-link sign-in screen.
+//   2. signed out          → render the OTP sign-in screen.
 //   3. signed in           → render children + expose user via context.
+//
+// Sign-in flow (post-rework):
+//   • User types email → we call signInWithOtp (shouldCreateUser defaults true,
+//     so new emails get an account created at verify time).
+//   • The email contains BOTH a clickable magic link AND a 6-digit code.
+//   • A 6-digit code input slides in on the same page. The user can type the
+//     code from any device (e.g. read on phone, type on desktop) OR click the
+//     magic link to land back here with ?code=… and consume that.
+//   • Tier='waitlist' is the default for new accounts (set in migration 0067).
+//     The TierRouter handles where to send them after sign-in.
 
-import { useEffect, useState, createContext, useContext } from 'react';
+import { useEffect, useRef, useState, createContext, useContext } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
 import { SoleilMark } from '../components/primitives.jsx';
@@ -24,13 +34,12 @@ function clearAuthUrl() {
 
 async function consumeAuthCallback() {
   if (typeof window === 'undefined') return null;
-
   const query = new URLSearchParams(window.location.search);
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  const code = query.get('code');
-  const accessToken = hash.get('access_token');
+  const hash  = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const code         = query.get('code');
+  const accessToken  = hash.get('access_token');
   const refreshToken = hash.get('refresh_token');
-  const expiresAt = Number(hash.get('expires_at') || 0);
+  const expiresAt    = Number(hash.get('expires_at') || 0);
 
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
@@ -38,14 +47,11 @@ async function consumeAuthCallback() {
     if (error) throw error;
     return data.session;
   }
-
   if (!accessToken || !refreshToken) return null;
-
   if (expiresAt && expiresAt <= Math.floor(Date.now() / 1000) + 30) {
     clearAuthUrl();
     return null;
   }
-
   const { data, error } = await supabase.auth.setSession({
     access_token: accessToken,
     refresh_token: refreshToken,
@@ -101,7 +107,6 @@ export function AuthGate({ children }) {
     );
   }
 
-  // Dev mode: no Supabase configured.
   if (!isSupabaseConfigured) {
     return (
       <AuthContext.Provider value={{ user: null, signOut: () => {} }}>
@@ -112,7 +117,6 @@ export function AuthGate({ children }) {
   }
 
   if (loading) return <SplashLoading />;
-
   if (!session) return <SignIn />;
 
   const signOut = async () => { await supabase.auth.signOut(); };
@@ -124,23 +128,80 @@ export function AuthGate({ children }) {
   );
 }
 
-function SignIn() {
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState(null);
+// ── Sign-in screen with OTP code ────────────────────────────────────────────
 
-  const submit = async (e) => {
-    e.preventDefault();
+function SignIn() {
+  const [email, setEmail]       = useState('');
+  const [stage, setStage]       = useState('email'); // 'email' | 'code'
+  const [busy,  setBusy]        = useState(false);
+  const [code,  setCode]        = useState('');
+  const [error, setError]       = useState(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const codeRef = useRef(null);
+
+  // Tick down the resend cooldown (Supabase rate-limits OTP requests at ~60s).
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
+
+  // Auto-focus the code field when it appears.
+  useEffect(() => {
+    if (stage === 'code') {
+      const t = setTimeout(() => codeRef.current?.focus(), 0);
+      return () => clearTimeout(t);
+    }
+  }, [stage]);
+
+  const sendCode = async (resending = false) => {
     setError(null);
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: window.location.origin },
-    });
-    setBusy(false);
-    if (error) setError(error.message);
-    else setSent(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: {
+          // shouldCreateUser defaults to true — new emails get an account
+          // at verify time. The 0067 migration sets tier='waitlist' so
+          // they're routed through /welcome before they can use the app.
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      if (!resending) setStage('code');
+      setResendCooldown(60);
+    } catch (e) {
+      setError(humanError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyCode = async (e) => {
+    e?.preventDefault?.();
+    if (busy) return;
+    const token = code.replace(/\s+/g, '');
+    if (token.length < 6) { setError('Enter the 6-digit code from your email.'); return; }
+    setError(null);
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token,
+        type: 'email',
+      });
+      if (error) throw error;
+      // onAuthStateChange will fire SIGNED_IN; AuthGate re-renders to children.
+    } catch (e) {
+      setError(humanError(e));
+      setBusy(false);
+    }
+  };
+
+  const editEmail = () => {
+    setStage('email');
+    setCode('');
+    setError(null);
   };
 
   return (
@@ -148,39 +209,74 @@ function SignIn() {
       <div className="auth-glow" aria-hidden="true" />
       <div className="auth-card">
         <SoleilWordmark size="display" />
-        <div className="auth-eyebrow t-eyebrow">INTERNAL WORKSPACE · SOLEIL PICTURES</div>
 
-        {sent ? (
-          <div className="auth-sent">
-            <div className="auth-sent-title t-h3">Check your inbox</div>
-            <div className="auth-sent-sub t-body">We sent a magic link to <b>{email}</b>.</div>
-            <button className="auth-link" onClick={() => { setSent(false); setEmail(''); }}>
-              Use a different email
-            </button>
-          </div>
-        ) : (
-          <form className="auth-form" onSubmit={submit}>
+        {stage === 'email' ? (
+          <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) sendCode(false); }}>
             <input
               className="auth-input"
               type="email"
               autoFocus
               required
-              placeholder="you@soleilpictures.com"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={busy}
             />
             <button className="auth-btn" type="submit" disabled={busy || !email.trim()}>
-              {busy ? 'Sending…' : 'Send magic link'}
+              {busy ? 'Sending…' : 'Send code'}
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
-            <div className="auth-hint t-meta">We'll email you a link to sign in.</div>
+            <div className="auth-hint t-meta">We'll email you a 6-digit code (and a one-click link).</div>
+          </form>
+        ) : (
+          <form className="auth-form" onSubmit={verifyCode}>
+            <div className="auth-email-row">
+              <span className="auth-email-readonly">{email}</span>
+              <button type="button" className="auth-link" onClick={editEmail} disabled={busy}>
+                edit
+              </button>
+            </div>
+            <input
+              ref={codeRef}
+              className="auth-input auth-code-input"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]*"
+              maxLength={6}
+              required
+              placeholder="• • • • • •"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              disabled={busy}
+            />
+            <button className="auth-btn" type="submit" disabled={busy || code.length < 6}>
+              {busy ? 'Verifying…' : 'Sign in'}
+            </button>
+            {error && <div className="auth-error t-meta">{error}</div>}
+            <div className="auth-hint t-meta">
+              Check your inbox.{' '}
+              {resendCooldown > 0
+                ? <span>Resend in {resendCooldown}s</span>
+                : <button type="button" className="auth-link" onClick={() => sendCode(true)} disabled={busy}>Resend code</button>}
+              <span className="auth-hint-sep"> · </span>
+              <span>Or click the link in the email.</span>
+            </div>
           </form>
         )}
       </div>
       <div className="auth-foot t-meta">© Soleil Pictures</div>
     </div>
   );
+}
+
+function humanError(e) {
+  const msg = (e?.message || String(e || '')).toLowerCase();
+  if (msg.includes('rate') || msg.includes('too many')) return 'Hold on — too many attempts. Try again in a minute.';
+  if (msg.includes('expired'))                          return "That code expired. Request a new one.";
+  if (msg.includes('invalid') && msg.includes('token')) return "That code didn't work. Try again or request a new one.";
+  if (msg.includes('email') && msg.includes('invalid')) return "That email doesn't look right.";
+  return e?.message || String(e || 'Something went wrong.');
 }
 
 function SplashLoading() {
