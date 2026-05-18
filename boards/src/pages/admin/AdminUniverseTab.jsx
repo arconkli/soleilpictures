@@ -10,6 +10,8 @@ import { UniverseGraph } from './UniverseGraph.jsx';
 import { useUniverseStats } from './useUniverseStream.js';
 
 const KIND_LABELS = {
+  user:  'User',
+  ws:    'Workspace',
   board: 'Board',
   doc:   'Doc',
   note:  'Note',
@@ -41,10 +43,12 @@ function UniverseDrawer({ node, onClose }) {
         <button className="universe-drawer-x" onClick={onClose} aria-label="Close">×</button>
       </header>
       <div className="universe-drawer-body">
-        <div className="universe-drawer-row">
-          <div className="t-eyebrow">Workspace</div>
-          <div className="universe-drawer-mono">{node.workspace_id || '—'}</div>
-        </div>
+        {node.kind !== 'user' && (
+          <div className="universe-drawer-row">
+            <div className="t-eyebrow">{node.kind === 'ws' ? 'Workspace ID' : 'Workspace'}</div>
+            <div className="universe-drawer-mono">{node.workspace_id || '—'}</div>
+          </div>
+        )}
         <div className="universe-drawer-row">
           <div className="t-eyebrow">Created</div>
           <div className="t-body">{shortTs(node.created_at)}</div>

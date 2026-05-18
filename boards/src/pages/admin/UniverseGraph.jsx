@@ -31,8 +31,13 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import SimWorker from './universeSimWorker.js?worker';
 import { fetchSnapshotPage, useUniverseDeltas } from './useUniverseStream.js';
 
-// ── Per-kind palette — copied from boards/src/lib/graphData.js. ───
+// ── Per-kind palette — copied from boards/src/lib/graphData.js
+//    with two admin-only additions (user + ws). User reads as a
+//    warm-white sun the workspaces orbit around; ws is a muted
+//    lavender anchor that doesn't compete with the gold board suns.
 const COLOR = {
+  user:      '#fff4d8',
+  ws:        '#8b8aa8',
   board:     '#ffa500',
   doc:       '#f1d9a3',
   note:      '#cf6a4f',
@@ -86,19 +91,30 @@ const INITIAL_EDGE_CAP  = 2048;
 // fitting in the frame budget.
 const SOFT_NODE_LIMIT   = 250_000;
 
+// FX (live activity).
+const FX_CAPACITY       = 512;     // max concurrent pulses + flashes
+const PULSE_DURATION_MS = 1500;
+const FLASH_DURATION_MS = 1200;
+const PULSE_COLOR       = new THREE.Color('#ffd06b');  // bright Soleil gold
+
 function nextPow2(n, base) { let c = base; while (c < n) c *= 2; return c; }
 
 // Map a snapshot row → render node. `val` is the sphere radius
-// proxy; same numbers HomeGraph uses (14 for boards, 12 for docs,
-// 8 for everything else).
+// proxy; bigger numbers for the higher-level anchors (users biggest,
+// then workspaces, then boards, then docs, then cards).
 function toNode(raw) {
   const broad = raw.node_id.split(':')[0];
-  let kind, cardKind = null;
-  if (broad === 'board') {
-    kind = 'board';
+  let kind, cardKind = null, val;
+  if (broad === 'user') {
+    kind = 'user'; val = 20;
+  } else if (broad === 'ws') {
+    kind = 'ws'; val = 16;
+  } else if (broad === 'board') {
+    kind = 'board'; val = 14;
   } else {
     kind = raw.kind === 'doc' ? 'doc' : 'card';
     cardKind = raw.kind;
+    val = kind === 'doc' ? 12 : 8;
   }
   const colorKey = cardKind || kind;
   const colorHex = COLOR[colorKey] || COLOR[kind] || COLOR.card;
@@ -108,7 +124,7 @@ function toNode(raw) {
     cardKind,
     color: colorHex,
     threeColor: new THREE.Color(colorHex),
-    val: kind === 'board' ? 14 : (kind === 'doc' ? 12 : 8),
+    val,
     workspace_id: raw.workspace_id,
     created_at: raw.created_at,
   };
@@ -150,6 +166,59 @@ function makeHaloMaterial() {
   });
 }
 
+// FX material — same idea as halo, with an extra per-vertex `alpha`
+// attribute so pulses/flashes can fade independently per particle.
+function makeFxMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      map:    { value: HALO_TEXTURE },
+      uScale: { value: 350 },
+    },
+    vertexShader: /* glsl */`
+      attribute float size;
+      attribute float alpha;
+      varying vec3 vColor;
+      varying float vAlpha;
+      void main() {
+        vColor = color;
+        vAlpha = alpha;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (uScale / max(-mv.z, 1.0));
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform sampler2D map;
+      varying vec3 vColor;
+      varying float vAlpha;
+      void main() {
+        vec4 tex = texture2D(map, gl_PointCoord);
+        gl_FragColor = vec4(vColor, tex.a * vAlpha);
+      }
+    `,
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+}
+
+function makeFxPoints(capacity) {
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(capacity * 3), 3));
+  geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(capacity * 3), 3));
+  geom.setAttribute('size',     new THREE.BufferAttribute(new Float32Array(capacity),     1));
+  geom.setAttribute('alpha',    new THREE.BufferAttribute(new Float32Array(capacity),     1));
+  geom.attributes.position.setUsage(THREE.DynamicDrawUsage);
+  geom.attributes.color.setUsage(THREE.DynamicDrawUsage);
+  geom.attributes.size.setUsage(THREE.DynamicDrawUsage);
+  geom.attributes.alpha.setUsage(THREE.DynamicDrawUsage);
+  geom.setDrawRange(0, 0);
+  const points = new THREE.Points(geom, makeFxMaterial());
+  points.frustumCulled = false;
+  return points;
+}
+
 export function UniverseGraph({ onNodeClick }) {
   const containerRef = useRef(null);
 
@@ -170,7 +239,8 @@ export function UniverseGraph({ onNodeClick }) {
   // ── Refs to all the Three.js + sim state (kept out of React) ─────
   const refs = useRef({
     scene: null, camera: null, renderer: null, controls: null,
-    nodeMesh: null, haloPoints: null, edgeLines: null,
+    nodeMesh: null, haloPoints: null, edgeLines: null, fxPoints: null,
+    activeFx: [],                   // [{ kind:'pulse'|'flash', src, tgt, nodeIdx, start, dur, color }]
     nodeCapacity: INITIAL_NODE_CAP, edgeCapacity: INITIAL_EDGE_CAP,
     nodes: [],                      // [{id, threeColor, val, ...}]
     nodeIndex: new Map(),           // node_id → array index
@@ -238,6 +308,9 @@ export function UniverseGraph({ onNodeClick }) {
     edgeLines.geometry.setDrawRange(0, 0);
     scene.add(edgeLines);
 
+    const fxPoints = makeFxPoints(FX_CAPACITY);
+    scene.add(fxPoints);
+
     refs.scene = scene;
     refs.camera = camera;
     refs.renderer = renderer;
@@ -245,6 +318,8 @@ export function UniverseGraph({ onNodeClick }) {
     refs.nodeMesh = nodeMesh;
     refs.haloPoints = haloPoints;
     refs.edgeLines = edgeLines;
+    refs.fxPoints = fxPoints;
+    refs.activeFx = [];
     refs.nodeCapacity = INITIAL_NODE_CAP;
     refs.edgeCapacity = INITIAL_EDGE_CAP;
     refs.nodes = [];
@@ -329,6 +404,9 @@ export function UniverseGraph({ onNodeClick }) {
         rel.applyAxisAngle(tiltAxis, 0.085 * dt);
         camera.position.copy(rel.add(controls.target));
       }
+      // Update live FX (pulses + spawn flashes) — cheap walk over
+      // activeFx, splat into the fxPoints buffer, drop expired.
+      updateFx(refs, now);
       controls.update();
       renderer.render(scene, camera);
       refs.rafId = requestAnimationFrame(loop);
@@ -380,9 +458,12 @@ export function UniverseGraph({ onNodeClick }) {
       haloPoints.material.dispose();
       edgeLines.geometry.dispose();
       edgeLines.material.dispose();
+      fxPoints.geometry.dispose();
+      fxPoints.material.dispose();
       renderer.dispose();
       refs.scene = null; refs.camera = null; refs.renderer = null; refs.controls = null;
-      refs.nodeMesh = null; refs.haloPoints = null; refs.edgeLines = null;
+      refs.nodeMesh = null; refs.haloPoints = null; refs.edgeLines = null; refs.fxPoints = null;
+      refs.activeFx = [];
     };
     // theme is read once at mount — the bg color update below patches it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -507,6 +588,9 @@ export function UniverseGraph({ onNodeClick }) {
           refs.nodes.push(n);
           refs.nodeIndex.set(n.id, idx);
           writeNodeAppearance(refs, idx, n);
+          // Spawn a brief halo flash on every new node so the user
+          // can see it appear in the universe.
+          spawnFlash(refs, idx, n.threeColor);
         }
         refs.worker.postMessage({
           type: 'addNodes',
@@ -524,6 +608,8 @@ export function UniverseGraph({ onNodeClick }) {
             target: refs.nodes[e.targetIdx].id,
           })),
         });
+        // Pulse traveling along each newly-formed connection.
+        for (const e of newEdges) spawnPulse(refs, e.sourceIdx, e.targetIdx);
       }
     }, DELTA_FLUSH_MS);
     return () => clearInterval(id);
@@ -848,6 +934,98 @@ function ensureNodeCapacity(refs, needed) {
   refs.nodeMesh   = newMesh;
   refs.haloPoints = newHalos;
   refs.nodeCapacity = newCap;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Live FX — pulses on new edges + spawn flashes on new nodes
+// ─────────────────────────────────────────────────────────────────
+
+function spawnPulse(refs, sourceIdx, targetIdx) {
+  if (sourceIdx == null || targetIdx == null) return;
+  pushFx(refs, {
+    kind: 'pulse',
+    src: sourceIdx, tgt: targetIdx,
+    start: performance.now(),
+    dur: PULSE_DURATION_MS,
+    color: PULSE_COLOR,
+  });
+}
+
+function spawnFlash(refs, nodeIdx, color) {
+  pushFx(refs, {
+    kind: 'flash',
+    nodeIdx,
+    start: performance.now(),
+    dur: FLASH_DURATION_MS,
+    color: color || PULSE_COLOR,
+    val: refs.nodes[nodeIdx]?.val || 8,
+  });
+}
+
+function pushFx(refs, entry) {
+  // Bounded buffer — drop oldest if we'd exceed FX_CAPACITY.
+  if (refs.activeFx.length >= FX_CAPACITY) refs.activeFx.shift();
+  refs.activeFx.push(entry);
+}
+
+// Splat all active FX into the fxPoints buffer. Drops expired ones
+// in-place. Called every rAF tick.
+function updateFx(refs, now) {
+  const fx = refs.fxPoints;
+  if (!fx || refs.activeFx.length === 0) {
+    if (fx) fx.geometry.setDrawRange(0, 0);
+    return;
+  }
+  const pos = refs.positions;
+  const geom = fx.geometry;
+  const ap = geom.attributes.position.array;
+  const ac = geom.attributes.color.array;
+  const as = geom.attributes.size.array;
+  const aa = geom.attributes.alpha.array;
+  let writeIdx = 0;
+  // Walk activeFx, keeping non-expired entries (rebuild list in place).
+  const kept = [];
+  for (let i = 0; i < refs.activeFx.length; i++) {
+    if (writeIdx >= FX_CAPACITY) break;
+    const f = refs.activeFx[i];
+    const t = (now - f.start) / f.dur;
+    if (t >= 1) continue;
+    let x = 0, y = 0, z = 0, size = 0, alpha = 0;
+    if (f.kind === 'pulse') {
+      const sx = pos[f.src * 3],     sy = pos[f.src * 3 + 1], sz = pos[f.src * 3 + 2];
+      const tx = pos[f.tgt * 3],     ty = pos[f.tgt * 3 + 1], tz = pos[f.tgt * 3 + 2];
+      x = sx + (tx - sx) * t;
+      y = sy + (ty - sy) * t;
+      z = sz + (tz - sz) * t;
+      size = 14;
+      // sin-shaped envelope: bright in the middle, faded at endpoints.
+      alpha = Math.sin(Math.PI * t) * 0.85;
+    } else if (f.kind === 'flash') {
+      x = pos[f.nodeIdx * 3];
+      y = pos[f.nodeIdx * 3 + 1];
+      z = pos[f.nodeIdx * 3 + 2];
+      // Starts ~3x normal halo, shrinks back to the node size.
+      const base = (f.val || 8) * 3.7;
+      size  = base * (1 + 2 * (1 - t));
+      alpha = (1 - t) * 0.7;
+    }
+    ap[writeIdx * 3]     = x;
+    ap[writeIdx * 3 + 1] = y;
+    ap[writeIdx * 3 + 2] = z;
+    ac[writeIdx * 3]     = f.color.r;
+    ac[writeIdx * 3 + 1] = f.color.g;
+    ac[writeIdx * 3 + 2] = f.color.b;
+    as[writeIdx]         = size;
+    aa[writeIdx]         = alpha;
+    writeIdx++;
+    kept.push(f);
+  }
+  refs.activeFx = kept;
+  geom.attributes.position.needsUpdate = true;
+  geom.attributes.color.needsUpdate    = true;
+  geom.attributes.size.needsUpdate     = true;
+  geom.attributes.alpha.needsUpdate    = true;
+  geom.setDrawRange(0, writeIdx);
 }
 
 function ensureEdgeCapacity(refs, needed) {
