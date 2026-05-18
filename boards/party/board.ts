@@ -34,6 +34,7 @@ export default class BoardParty implements Party.Server {
     const canWrite = await canWriteBoard(token, boardId);
     req.headers.set("x-user-id", auth.userId ?? "");
     req.headers.set("x-user-email", auth.email ?? "");
+    req.headers.set("x-workspace-id", auth.workspaceId ?? "");
     req.headers.set("x-can-write", canWrite ? "1" : "0");
     return req;
   }
@@ -53,14 +54,16 @@ export default class BoardParty implements Party.Server {
     // viewers' cursors/presence are visible to peers.
     await onConnect(conn, this.room, yPartyOpts);
 
-    // Phase 4: dual-write op capture. Install once per DO boot — the
-    // installOpLogCapture function is idempotent (uses WeakSet) so
-    // repeated onConnect calls don't double-wire the same Y.Doc.
+    // Phase 4: dual-write op capture + Phase 6 anomaly detection.
+    // Install once per DO boot — installOpLogCapture is idempotent
+    // (uses WeakSet) so repeated onConnect calls don't double-wire.
     // No-ops if SUPABASE_SERVICE_ROLE_KEY env var is unset.
     try {
       const yDoc = await unstable_getYDoc(this.room, yPartyOpts);
+      const workspaceId = ctx.request.headers.get("x-workspace-id") || undefined;
       installOpLogCapture({
         boardId: this.room.id,
+        workspaceId,
         yDoc,
         supabaseUrl: (this.room.env as any)?.SUPABASE_URL
           || "https://ehlhlmbpwwalmeisvmdp.supabase.co",

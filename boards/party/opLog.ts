@@ -24,6 +24,7 @@
 
 import * as Y from "yjs";
 import { classifyUpdate, hashUpdateBytes } from "../src/lib/op_classifier.js";
+import { installAnomalyDetector } from "./anomalyDetector";
 
 // Base64 encode/decode (Cloudflare Workers have atob/btoa globally).
 function bytesToB64(bytes: Uint8Array): string {
@@ -48,6 +49,7 @@ function shouldSkip(origin: unknown): boolean {
 
 interface InstallOptions {
   boardId: string;
+  workspaceId?: string;
   yDoc: Y.Doc;
   supabaseUrl: string;
   serviceRoleKey: string | undefined;
@@ -64,7 +66,7 @@ interface InstallOptions {
 const WIRED_DOCS = new WeakSet<Y.Doc>();
 
 export function installOpLogCapture(opts: InstallOptions): void {
-  const { boardId, yDoc, supabaseUrl, serviceRoleKey } = opts;
+  const { boardId, workspaceId, yDoc, supabaseUrl, serviceRoleKey } = opts;
   if (WIRED_DOCS.has(yDoc)) return;
   WIRED_DOCS.add(yDoc);
 
@@ -72,6 +74,17 @@ export function installOpLogCapture(opts: InstallOptions): void {
     console.warn(`[opLog ${boardId}] SUPABASE_SERVICE_ROLE_KEY missing; op capture disabled`);
     return;
   }
+
+  // Anomaly detector for mass-delete patterns. Installs once per DO and
+  // is fed every classified op below.
+  const detector = workspaceId
+    ? installAnomalyDetector(yDoc, {
+        boardId,
+        workspaceId,
+        supabaseUrl,
+        serviceRoleKey,
+      })
+    : null;
 
   // Maintain the "before" state for the classifier. We update this AFTER
   // each successful capture so subsequent updates see the prior state.
@@ -91,6 +104,19 @@ export function installOpLogCapture(opts: InstallOptions): void {
       const classification = classifyUpdate(stateAtCapture, update);
       const update_b64 = bytesToB64(update);
       const update_hash = await hashUpdateBytes(update);
+
+      // Feed the anomaly detector. cardCountNow is read from the live
+      // Y.Doc map size, which is cheap.
+      if (detector) {
+        const cardCount = (yDoc.getMap("cards") as Y.Map<any>).size;
+        const fired = detector.record(
+          { op_kind: classification.op_kind, card_ids: classification.card_ids },
+          cardCount,
+        );
+        if (fired) {
+          console.warn(`[anomaly ${boardId}] mass-delete detected; alert fired`);
+        }
+      }
 
       const body = {
         p_board_id: boardId,

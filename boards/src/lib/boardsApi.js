@@ -788,6 +788,67 @@ export async function listBoardVersions(boardId, limit = 200) {
   return data || [];
 }
 
+// Follow-up 1: workspace-wide rewind preview. Returns per-board rows
+// showing what each board would look like if rewound to target_ts.
+export async function previewWorkspaceRewind(workspaceId, targetTs) {
+  const session = await supabase.auth.getSession();
+  const accessToken = session?.data?.session?.access_token;
+  if (!accessToken) throw new Error('not signed in');
+  const res = await fetch(`${supabase.supabaseUrl}/functions/v1/workspace-rewind`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'preview', workspace_id: workspaceId, target_ts: targetTs }),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.ok) throw new Error(json?.error || `preview failed (${res.status})`);
+  return json.rows || [];
+}
+
+// Follow-up 1: execute workspace-wide rewind. targets is [{board_id, snapshot_id}]
+export async function performWorkspaceRewind(workspaceId, targets, { reason = null, clientRequestId = null } = {}) {
+  const session = await supabase.auth.getSession();
+  const accessToken = session?.data?.session?.access_token;
+  if (!accessToken) throw new Error('not signed in');
+  const res = await fetch(`${supabase.supabaseUrl}/functions/v1/workspace-rewind`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'rewind',
+      workspace_id: workspaceId,
+      targets,
+      reason,
+      client_request_id: clientRequestId,
+    }),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.ok) throw new Error(json?.error || `rewind failed (${res.status})`);
+  return json;
+}
+
+// Follow-up 1: list open + recent anomaly alerts for a workspace.
+export async function listWorkspaceAlerts(workspaceId, { limit = 50, onlyOpen = false } = {}) {
+  let q = supabase.from('workspace_anomaly_alerts')
+    .select('id, detected_at, kind, severity, payload, acknowledged_at, acknowledged_by, board_ids, auto_paused')
+    .eq('workspace_id', workspaceId)
+    .order('detected_at', { ascending: false })
+    .limit(limit);
+  if (onlyOpen) q = q.is('acknowledged_at', null);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+// Acknowledge an open alert (set acknowledged_at = now()).
+export async function acknowledgeAlert(alertId) {
+  const { data: u } = await supabase.auth.getUser();
+  const userId = u?.user?.id || null;
+  const { error } = await supabase
+    .from('workspace_anomaly_alerts')
+    .update({ acknowledged_at: new Date().toISOString(), acknowledged_by: userId })
+    .eq('id', alertId);
+  if (error) throw error;
+}
+
 // Phase 5: list snapshots from the new board_snapshots table for the
 // TimeTravelModal. Includes migrated legacy versions (kind='legacy-*'),
 // pre/post-restore snapshots, manual saves, and future auto-* tiers.

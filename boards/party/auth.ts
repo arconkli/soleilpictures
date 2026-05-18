@@ -23,6 +23,7 @@ export interface AuthCheckResult {
   ok: boolean;
   userId?: string;
   email?: string;
+  workspaceId?: string;
   reason?: string;
 }
 
@@ -62,14 +63,20 @@ export async function authBoard(
   const claims = decodeJwtSub(accessToken);
   if (!claims?.sub) return { ok: false, reason: "invalid token" };
   // Try fetching the board row — RLS on `boards` will return it only if
-  // the user is a workspace member.
+  // the user is a workspace member. Also pull workspace_id so the
+  // anomaly detector (in opLog) can scope alerts correctly.
   const rows = await supabaseGet(
-    `boards?id=eq.${encodeURIComponent(boardId)}&select=id`,
+    `boards?id=eq.${encodeURIComponent(boardId)}&select=id,workspace_id`,
     accessToken,
   );
   if (rows === null) return { ok: false, reason: "auth check failed" };
   if (rows.length === 0) return { ok: false, reason: "not a member of this board's workspace" };
-  return { ok: true, userId: claims.sub, email: claims.email };
+  return {
+    ok: true,
+    userId: claims.sub,
+    email: claims.email,
+    workspaceId: rows[0].workspace_id,
+  };
 }
 
 // Write check via the can_write_board RPC. Returns false when the
