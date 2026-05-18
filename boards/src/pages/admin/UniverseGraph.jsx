@@ -51,10 +51,38 @@ const COLOR = {
   url:       '#8c7a55',
 };
 
-const STRUCTURAL_COLOR = new THREE.Color('rgb(91,87,78)');
-const SEMANTIC_COLOR   = new THREE.Color('rgb(255,165,0)');
-const STRUCTURAL_ALPHA = 0.45;
-const SEMANTIC_ALPHA   = 0.55;
+// Edge tints. The line material runs with vertexColors=true and
+// opacity=1, so we pre-multiply each kind's alpha INTO its RGB:
+// dark vertex rgb on a dark background reads as a faint line.
+//
+//   scaffold  — cross-workspace connective tissue (user→ws,
+//               ws→board, user→board shares). Barely-there threads
+//               so the eye reads the workspace clusters as the
+//               subjects of the scene, not the people-lines between
+//               them. Layout still uses them for gravity.
+//   structural — board hierarchy + board→card. The skeleton of
+//                each cluster; visible but quiet.
+//   semantic   — explicit links the user typed (entity_links, doc
+//                backlinks). Brightest, gold; these are the
+//                expressive connections.
+function premul(hex, alpha) {
+  const c = new THREE.Color(hex);
+  return new THREE.Color(c.r * alpha, c.g * alpha, c.b * alpha);
+}
+const SCAFFOLD_RGB   = premul('#ffffff',      0.05);
+const STRUCTURAL_RGB = premul('rgb(91,87,78)', 0.45);
+const SEMANTIC_RGB   = premul('rgb(255,165,0)', 0.55);
+
+const SCAFFOLD_EDGE_KINDS = new Set(['scaffold', 'membership', 'wsroot', 'share']);
+const STRUCTURAL_EDGE_KINDS = new Set(['hierarchy', 'structural']);
+
+function classifyEdge(rawKind) {
+  const k = rawKind || '';
+  if (SCAFFOLD_EDGE_KINDS.has(k))    return 'scaffold';
+  if (STRUCTURAL_EDGE_KINDS.has(k))  return 'structural';
+  if (k.startsWith('doc_'))          return 'structural';
+  return 'semantic';
+}
 
 function readTheme() {
   if (typeof document === 'undefined') return 'dark';
@@ -526,10 +554,7 @@ export function UniverseGraph({ onNodeClick }) {
           const s = refs.nodeIndex.get(raw.source_id);
           const t = refs.nodeIndex.get(raw.target_id);
           if (s == null || t == null) continue;
-          const kind = (raw.edge_kind === 'hierarchy' || raw.edge_kind === 'structural'
-                       || (raw.edge_kind || '').startsWith('doc_'))
-            ? 'structural' : 'semantic';
-          resolvedEdges.push({ sourceIdx: s, targetIdx: t, kind });
+          resolvedEdges.push({ sourceIdx: s, targetIdx: t, kind: classifyEdge(raw.edge_kind) });
         }
         ensureEdgeCapacity(refs, resolvedEdges.length);
         refs.edges = resolvedEdges;
@@ -571,10 +596,7 @@ export function UniverseGraph({ onNodeClick }) {
         const s = refs.nodeIndex.get(item.raw.source_id);
         const t = refs.nodeIndex.get(item.raw.target_id);
         if (s != null && t != null) {
-          const kind = (item.raw.edge_kind === 'hierarchy' || item.raw.edge_kind === 'structural'
-                       || (item.raw.edge_kind || '').startsWith('doc_'))
-            ? 'structural' : 'semantic';
-          newEdges.push({ sourceIdx: s, targetIdx: t, kind });
+          newEdges.push({ sourceIdx: s, targetIdx: t, kind: classifyEdge(item.raw.edge_kind) });
         } else if (item.attempts + 1 < ORPHAN_MAX_TRIES) {
           stillPending.push({ raw: item.raw, attempts: item.attempts + 1 });
         }
@@ -608,8 +630,13 @@ export function UniverseGraph({ onNodeClick }) {
             target: refs.nodes[e.targetIdx].id,
           })),
         });
-        // Pulse traveling along each newly-formed connection.
-        for (const e of newEdges) spawnPulse(refs, e.sourceIdx, e.targetIdx);
+        // Pulse traveling along each newly-formed connection — but
+        // not for scaffold edges (memberships/wsroots/shares would
+        // throw bright streaks at scaffolding we just made faint).
+        for (const e of newEdges) {
+          if (e.kind === 'scaffold') continue;
+          spawnPulse(refs, e.sourceIdx, e.targetIdx);
+        }
       }
     }, DELTA_FLUSH_MS);
     return () => clearInterval(id);
@@ -698,8 +725,11 @@ function makeEdgeLines(edgeCapacity) {
   geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(edgeCapacity * 2 * 3), 3));
   geom.attributes.position.setUsage(THREE.DynamicDrawUsage);
   geom.attributes.color.setUsage(THREE.DynamicDrawUsage);
+  // opacity stays at 1 because per-edge alpha is baked into the
+  // vertex colors (see premul() above). Lets scaffold lines be MUCH
+  // fainter than structural/semantic without a custom shader.
   const mat = new THREE.LineBasicMaterial({
-    vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false,
+    vertexColors: true, transparent: true, opacity: 1.0, depthWrite: false,
   });
   const lines = new THREE.LineSegments(geom, mat);
   lines.frustumCulled = false;
@@ -742,7 +772,9 @@ function writeEdgeColors(refs) {
   const ca = refs.edgeLines.geometry.attributes.color;
   for (let i = 0; i < refs.edges.length; i++) {
     const e = refs.edges[i];
-    const c = e.kind === 'structural' ? STRUCTURAL_COLOR : SEMANTIC_COLOR;
+    const c = e.kind === 'scaffold'   ? SCAFFOLD_RGB
+            : e.kind === 'structural' ? STRUCTURAL_RGB
+            : SEMANTIC_RGB;
     const base = i * 6;
     ca.array[base]     = c.r; ca.array[base + 1] = c.g; ca.array[base + 2] = c.b;
     ca.array[base + 3] = c.r; ca.array[base + 4] = c.g; ca.array[base + 5] = c.b;
