@@ -16,7 +16,6 @@ import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { WelcomePage } from './WelcomePage.jsx';
-import { WaitlistForm } from './WaitlistForm.jsx';
 import { WaitlistConfirm } from './WaitlistConfirm.jsx';
 import { PricingPage } from './PricingPage.jsx';
 import { PricingSuccess } from './PricingSuccess.jsx';
@@ -53,11 +52,11 @@ export function TierRouter({ children }) {
   if (path === '/pricing')           return <PricingPage />;
   if (path === '/pricing/success')   return <PricingSuccess />;
 
-  // tier='waitlist' is gated to the welcome/waitlist flow.
+  // tier='waitlist' is gated to the welcome/waitlist flow. /waitlist is
+  // a legacy path that now opens the WaitlistModal inside WelcomePage.
   if (tier === 'waitlist') {
-    if (path === '/waitlist')          return <WaitlistForm />;
     if (path === '/waitlist/status')   return <WaitlistConfirm />;
-    if (path === '/welcome')           return <WelcomePage />;
+    if (path === '/welcome' || path === '/waitlist') return <WelcomePage />;
     // Any other path → bounce them to /welcome or /waitlist/status.
     if (typeof window !== 'undefined') {
       const dest = hasEntry ? '/waitlist/status' : '/welcome';

@@ -666,23 +666,44 @@ body {
 /* Per-row wrapper that overlays a hover-revealed ⋯ button so users
    can delete / leave a workspace without right-clicking. */
 .ws-menu-row-wrap { position: relative; }
-.ws-menu-row-wrap.has-menu .ws-menu-row { padding-right: 32px; }
+.ws-menu-row-wrap.has-menu .ws-menu-row { padding-right: 36px; }
 .ws-menu-row-more {
-  appearance: none; border: 0; background: transparent;
+  appearance: none;
   position: absolute;
-  top: 50%; right: 6px;
+  top: 50%; right: 4px;
   transform: translateY(-50%);
-  width: 22px; height: 22px;
+  width: 26px; height: 26px;
   display: grid; place-items: center;
   border-radius: var(--radius);
   cursor: pointer;
-  color: var(--ink-3);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink-2);
   opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition:
+    opacity var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 .ws-menu-row-wrap:hover .ws-menu-row-more,
-.ws-menu-row-wrap:focus-within .ws-menu-row-more { opacity: 1; }
-.ws-menu-row-more:hover { background: var(--bg-hov); color: var(--ink-0); }
+.ws-menu-row-wrap:focus-within .ws-menu-row-more,
+.ws-menu-row-more.is-open { opacity: 1; }
+.ws-menu-row-more:hover {
+  background: var(--bg-2, var(--bg-hov));
+  border-color: var(--line-2);
+  color: var(--ink-0);
+}
+.ws-menu-row-more.is-open {
+  background: var(--bg-2, var(--bg-hov));
+  border-color: var(--line-2);
+  color: var(--ink-0);
+}
+.ws-menu-row-more:focus-visible {
+  outline: none;
+  border-color: var(--soleil, var(--line-2));
+  box-shadow: 0 0 0 2px var(--soleil-soft, rgba(0,0,0,0.08));
+}
 
 .ws-menu-row-pop {
   position: absolute;
@@ -4347,6 +4368,22 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.welcome-intro {
+  max-width: 540px;
+  margin: 0 auto 32px;
+  color: var(--ink-1);
+  line-height: 1.55;
+  text-align: center;
+  padding: 0 16px;
+}
+
+.upgrade-foot {
+  margin-top: 10px;
+  color: var(--ink-3);
+  text-align: center;
+  font-size: 12px;
 }
 
 /* ── Upgrade chip + in-app modal ──────────────────────────────────────── */

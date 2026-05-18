@@ -1,20 +1,20 @@
-// WaitlistForm — collect a freeform list of social/creative links from
-// a tier='waitlist' user and submit to the submit-waitlist Edge Function.
-// Posts the user's local timezone alongside (browser-supplied) so the
-// cron can target their evening window.
+// WaitlistModal — in-app socials-submission popup. Triggered from
+// WelcomePage's "Submit Socials" card. Same payload as the old
+// /waitlist full-page form: a freeform list of links + the user's
+// timezone, posted to the submit-waitlist Edge Function.
 //
-// On success → /waitlist/status. On failure → inline error.
+// On success → /waitlist/status. On error → inline message.
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
-import { useAuth } from './AuthGate.jsx';
-import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
+import { useAuth } from '../auth/AuthGate.jsx';
 
 const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/submit-waitlist';
 
-export function WaitlistForm() {
-  const { user, signOut } = useAuth();
-  const [rows, setRows]   = useState(['']);   // start with one empty input
+export function WaitlistModal({ onClose }) {
+  const { user } = useAuth();
+  const [rows, setRows]   = useState(['']);
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
 
@@ -32,38 +32,34 @@ export function WaitlistForm() {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not signed in.');
-
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const res = await fetch(EDGE_URL, {
         method: 'POST',
-        headers: {
-          'authorization': `Bearer ${token}`,
-          'content-type': 'application/json',
-        },
+        headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
         body: JSON.stringify({ links, timezone: tz }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-
       window.location.assign('/waitlist/status');
     } catch (err) {
       setError(err?.message || String(err));
-    } finally {
       setBusy(false);
     }
   };
 
-  return (
-    <div className="welcome-screen">
-      <div className="auth-glow" aria-hidden="true" />
-      <div className="welcome-card welcome-card-tight">
-        <SoleilWordmark size="display" />
-        <div className="welcome-eyebrow t-eyebrow">SUBMIT YOUR SOCIALS</div>
-        <p className="welcome-copy welcome-copy-tight t-body">
-          Drop any links that represent your creative work — Instagram,
-          TikTok, YouTube, portfolio, anything.
-          Signed in as <b>{user?.email}</b>.
-        </p>
+  return createPortal(
+    <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+      <div className="upgrade-modal">
+        <button className="upgrade-close" onClick={onClose} aria-label="Close" disabled={busy}>×</button>
+
+        <div className="upgrade-intro">
+          <div className="upgrade-eyebrow t-eyebrow">SUBMIT YOUR SOCIALS</div>
+          <h2 className="upgrade-title">Show us your work.</h2>
+          <p className="upgrade-sub t-body">
+            Drop any links that represent your creative work — Instagram, TikTok,
+            YouTube, portfolio, anything. Average wait is ~7 days.
+          </p>
+        </div>
 
         <form className="waitlist-form" onSubmit={submit}>
           {rows.map((row, i) => (
@@ -78,9 +74,7 @@ export function WaitlistForm() {
                 autoFocus={i === 0}
               />
               {rows.length > 1 && (
-                <button type="button" className="waitlist-remove" onClick={() => removeRow(i)} aria-label="Remove">
-                  ×
-                </button>
+                <button type="button" className="waitlist-remove" onClick={() => removeRow(i)} aria-label="Remove">×</button>
               )}
             </div>
           ))}
@@ -96,29 +90,20 @@ export function WaitlistForm() {
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
-          <div className="waitlist-actions">
-            <button
-              type="button"
-              className="waitlist-back"
-              onClick={() => { window.location.assign('/welcome'); }}
-              disabled={busy}
-            >
-              ← Back
-            </button>
-            <button
-              type="submit"
-              className="welcome-cta welcome-cta-primary waitlist-submit"
-              disabled={busy}
-            >
-              {busy ? 'Submitting…' : 'Join the waitlist'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="pricing-cta pricing-cta-primary"
+            disabled={busy}
+          >
+            {busy ? 'Submitting…' : 'Join the waitlist'}
+          </button>
         </form>
 
-        <button className="auth-link auth-foot-link t-meta" onClick={signOut}>
-          Use a different email
-        </button>
+        <div className="upgrade-foot t-meta">
+          Signed in as <b>{user?.email}</b>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

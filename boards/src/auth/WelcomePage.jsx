@@ -1,52 +1,98 @@
 // WelcomePage — shown to authed users on tier='waitlist' who haven't
-// chosen a path yet. Two CTAs: Submit Socials (→ /waitlist) or
-// Pricing Options (→ /pricing). Mirrors the reference screenshot layout.
+// chosen a path yet. Mirrors the PricingPage's two-card layout:
+//   • Free Demo  → opens WaitlistModal for socials submission
+//   • Creator    → routes to /pricing for Stripe Checkout
+//
+// Auto-opens the WaitlistModal when the URL is /waitlist (preserves the
+// old route's destination without requiring a dedicated page).
 
+import { useEffect, useState } from 'react';
 import { useAuth } from './AuthGate.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
+import { WaitlistModal } from '../components/WaitlistModal.jsx';
 
 export function WelcomePage() {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const [socialsOpen, setSocialsOpen] = useState(false);
+
+  // /waitlist auto-opens the modal so links to it still work.
+  useEffect(() => {
+    if (window.location.pathname === '/waitlist') setSocialsOpen(true);
+  }, []);
 
   return (
-    <div className="welcome-screen">
+    <div className="pricing-screen">
       <div className="auth-glow" aria-hidden="true" />
-      <div className="welcome-card">
+
+      <header className="pricing-header">
         <SoleilWordmark size="display" />
+      </header>
 
-        <p className="welcome-copy t-body">
-          Due to the large number of new creators, there is a waitlist
-          of a few days to try our demo version only for our most
-          creative users. To be accepted, submit any creative social
-          media accounts for evaluation or check our pricing options
-          for instant usage.
-        </p>
+      <p className="welcome-intro t-body">
+        Due to the large number of new creators, there is a waitlist of a few days
+        to try our demo version only for our most creative users. Submit your
+        creative socials for review, or skip the wait and go Creator for instant usage.
+      </p>
 
-        <div className="welcome-cta-row">
+      <div className="pricing-grid">
+
+        {/* DEMO / WAITLIST */}
+        <article className="pricing-card pricing-card-demo">
+          <div className="pricing-card-head">
+            <div className="pricing-card-name">Free Demo</div>
+            <div className="pricing-card-price">~7d<span className="pricing-card-price-unit"> wait</span></div>
+          </div>
+          <ul className="pricing-features">
+            <li>Submit your creative socials for review</li>
+            <li>Average wait time 3 – 7 days</li>
+            <li>100 cards total, view-only on others' boards</li>
+            <li>Email when you're accepted</li>
+          </ul>
           <button
-            className="welcome-cta welcome-cta-secondary"
-            onClick={() => { window.location.assign('/waitlist'); }}
+            className="pricing-cta pricing-cta-secondary"
+            onClick={() => setSocialsOpen(true)}
           >
-            Submit Socials →
+            Submit Socials
           </button>
+        </article>
+
+        {/* CREATOR / SKIP */}
+        <article className="pricing-card pricing-card-creator">
+          <div className="pricing-card-head">
+            <div className="pricing-card-name">Creator</div>
+            <div className="pricing-card-price">$20<span className="pricing-card-price-unit">/mo</span></div>
+          </div>
+          <ul className="pricing-features">
+            <li>Skip the wait — instant access</li>
+            <li>Unlimited cards, boards, exports</li>
+            <li>Edit on others' boards, invite editors</li>
+            <li>All Creative Tools + Virtual + Social events</li>
+          </ul>
           <button
-            className="welcome-cta welcome-cta-primary"
+            className="pricing-cta pricing-cta-primary"
             onClick={() => { window.location.assign('/pricing'); }}
           >
-            Pricing Options →
+            See Pricing →
           </button>
-        </div>
+        </article>
 
-        <div className="welcome-foot t-meta">
-          Average wait time is ~7 days
-          <span className="welcome-foot-sep">·</span>
-          You will receive an email once approved
-        </div>
       </div>
 
-      <button className="auth-link auth-foot-link t-meta" onClick={signOut}>
-        Use a different email
-      </button>
+      <footer className="pricing-foot t-meta">
+        Signed in as <b>{user?.email}</b>
+        <span className="welcome-foot-sep">·</span>
+        <button className="auth-link" onClick={signOut}>Use a different email</button>
+      </footer>
+
+      {socialsOpen && (
+        <WaitlistModal onClose={() => {
+          setSocialsOpen(false);
+          // Restore the URL if we auto-opened from /waitlist
+          if (window.location.pathname === '/waitlist') {
+            window.history.replaceState({}, '', '/welcome');
+          }
+        }} />
+      )}
     </div>
   );
 }
