@@ -22,8 +22,8 @@ const NODE_PAGE = 50000;
 const EDGE_PAGE = 100000;
 const FLUSH_INTERVAL_MS = 200;
 
-function decorateNode(n) {
-  return { ...n, color: colorForWorkspace(n.workspace_id) };
+function decorateNode(n, index) {
+  return { ...n, index, color: colorForWorkspace(n.workspace_id) };
 }
 
 export function UniverseGraph({ onNodeClick }) {
@@ -37,6 +37,10 @@ export function UniverseGraph({ onNodeClick }) {
   // Map of node_id → row for the click handler. Keeps the click
   // payload local (we don't ask cosmograph to round-trip it).
   const nodeMap = useRef(new Map());
+
+  // Monotonic counter for the `index` column cosmograph requires
+  // (pointIndexBy). Increments across the snapshot and every delta.
+  const nextIndex = useRef(0);
 
   // ── 1. Paginated snapshot ────────────────────────────────────────
   useEffect(() => {
@@ -53,7 +57,8 @@ export function UniverseGraph({ onNodeClick }) {
           const page = await fetchSnapshotPage({ cursor, nodeLimit: NODE_PAGE, edgeLimit: EDGE_PAGE });
           if (cancelled) return;
           for (const n of page.nodes || []) {
-            const d = decorateNode(n);
+            if (nodeMap.current.has(n.node_id)) continue;
+            const d = decorateNode(n, nextIndex.current++);
             allNodes.push(d);
             nodeMap.current.set(d.node_id, d);
           }
@@ -108,7 +113,7 @@ export function UniverseGraph({ onNodeClick }) {
     since: undefined,
     onNode: (n) => {
       if (nodeMap.current.has(n.node_id)) return; // dedupe re-saves
-      const d = decorateNode(n);
+      const d = decorateNode(n, nextIndex.current++);
       nodeMap.current.set(d.node_id, d);
       pendingNodes.current.push(d);
     },
@@ -116,7 +121,7 @@ export function UniverseGraph({ onNodeClick }) {
     onBatch: ({ nodes, edges }) => {
       for (const n of nodes) {
         if (nodeMap.current.has(n.node_id)) continue;
-        const d = decorateNode(n);
+        const d = decorateNode(n, nextIndex.current++);
         nodeMap.current.set(d.node_id, d);
         pendingNodes.current.push(d);
       }
@@ -130,6 +135,7 @@ export function UniverseGraph({ onNodeClick }) {
     points: snapshotNodes,
     links: snapshotEdges,
     pointIdBy:      'node_id',
+    pointIndexBy:   'index',
     pointColorBy:   'color',
     linkSourceBy:   'source_id',
     linkTargetBy:   'target_id',
