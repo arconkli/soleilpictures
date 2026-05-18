@@ -128,9 +128,33 @@ function forceSpiral() {
   return force;
 }
 
+// Per-edge link distance + strength. Cross-workspace "scaffold"
+// edges (membership: user→ws, share: user→board) are intentionally
+// near-zero strength + huge ideal distance so they don't yank
+// workspaces together — they barely tug, just enough that connected
+// people lean their clusters in each other's direction. Wsroot
+// (ws→its own top-level boards) is in between: it should keep the
+// workspace anchor near its content without forcing tight packing.
+function linkDistance(l) {
+  switch (l.kind) {
+    case 'membership':
+    case 'share':     return 500;
+    case 'wsroot':    return 80;
+    default:          return 36;
+  }
+}
+function linkStrength(l) {
+  switch (l.kind) {
+    case 'membership':
+    case 'share':     return 0.015;
+    case 'wsroot':    return 0.25;
+    default:          return 0.6;
+  }
+}
+
 function buildSim() {
   sim = forceSimulation(nodes, 3)
-    .force('link',    forceLink(links).id(d => d.id).distance(36).strength(0.6))
+    .force('link',    forceLink(links).id(d => d.id).distance(linkDistance).strength(linkStrength))
     .force('charge',  forceManyBody().strength(-90))
     .force('center',  forceCenter())
     .force('pull',    forcePull())
@@ -225,7 +249,7 @@ self.onmessage = (ev) => {
       for (const l of msg.links) links.push({ ...l });
       // Re-bind forceLink so it picks up the extended array. d3-force
       // resolves string ids → node refs the first time you tick.
-      sim.force('link', forceLink(links).id(d => d.id).distance(36).strength(0.6));
+      sim.force('link', forceLink(links).id(d => d.id).distance(linkDistance).strength(linkStrength));
       sim.alpha(ALPHA_RESTART).restart();
       if (tickTimer) clearTimeout(tickTimer);
       scheduleNext();

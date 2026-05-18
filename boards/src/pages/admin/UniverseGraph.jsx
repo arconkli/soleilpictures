@@ -61,7 +61,7 @@ function premul(hex, alpha) {
   const c = new THREE.Color(hex);
   return new THREE.Color(c.r * alpha, c.g * alpha, c.b * alpha);
 }
-const SCAFFOLD_RGB   = premul('#ffffff',         0.05);
+const SCAFFOLD_RGB   = premul('#ffffff',         0.025);  // barely-there threads
 const STRUCTURAL_RGB = premul('rgb(91,87,78)',   0.315);
 const SEMANTIC_RGB   = premul('rgb(255,165,0)',  0.385);
 
@@ -573,7 +573,11 @@ export function UniverseGraph({ onNodeClick }) {
           const s = refs.nodeIndex.get(raw.source_id);
           const t = refs.nodeIndex.get(raw.target_id);
           if (s == null || t == null) continue;
-          resolvedEdges.push({ sourceIdx: s, targetIdx: t, kind: classifyEdge(raw.edge_kind) });
+          resolvedEdges.push({
+            sourceIdx: s, targetIdx: t,
+            kind:    classifyEdge(raw.edge_kind),   // visual tier (scaffold/structural/semantic)
+            rawKind: raw.edge_kind,                  // raw kind (passed to worker for per-kind link strength)
+          });
         }
         ensureEdgeCapacity(refs, resolvedEdges.length);
         refs.edges = resolvedEdges;
@@ -586,6 +590,7 @@ export function UniverseGraph({ onNodeClick }) {
           const initLinks = refs.edges.map(e => ({
             source: refs.nodes[e.sourceIdx].id,
             target: refs.nodes[e.targetIdx].id,
+            kind:   e.rawKind,   // per-kind strength/distance in the worker
           }));
           refs.worker.postMessage({ type: 'init', nodes: initNodes, links: initLinks });
         }
@@ -615,7 +620,11 @@ export function UniverseGraph({ onNodeClick }) {
         const s = refs.nodeIndex.get(item.raw.source_id);
         const t = refs.nodeIndex.get(item.raw.target_id);
         if (s != null && t != null) {
-          newEdges.push({ sourceIdx: s, targetIdx: t, kind: classifyEdge(item.raw.edge_kind) });
+          newEdges.push({
+            sourceIdx: s, targetIdx: t,
+            kind:    classifyEdge(item.raw.edge_kind),
+            rawKind: item.raw.edge_kind,
+          });
         } else if (item.attempts + 1 < ORPHAN_MAX_TRIES) {
           stillPending.push({ raw: item.raw, attempts: item.attempts + 1 });
         }
@@ -647,6 +656,7 @@ export function UniverseGraph({ onNodeClick }) {
           links: newEdges.map(e => ({
             source: refs.nodes[e.sourceIdx].id,
             target: refs.nodes[e.targetIdx].id,
+            kind:   e.rawKind,
           })),
         });
         // Pulse traveling along each newly-formed connection — but
