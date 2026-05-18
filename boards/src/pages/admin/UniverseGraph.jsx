@@ -1,25 +1,37 @@
-// UniverseGraph — 3D constellation of every node every user has
-// created across the platform. Visually identical to the per-workspace
-// HomeGraph (boards/src/components/HomeGraph.jsx): same react-force-
-// graph-3d + Three.js setup, same per-kind colors (Soleil-gold suns
-// for boards, terracotta notes, jovian violet images, teal palettes,
-// neptune-blue links, pale-cream doc moons), same sphere+halo
-// "planet" geometry, same starfield, same tilted camera drift.
+// UniverseGraph — GPU-instanced 3D constellation of every node and
+// every connection on the platform.
 //
-// Differences from HomeGraph:
-//   • Data is platform-wide (snapshot RPC + delta SSE), not one
-//     workspace via assembleGraph.
-//   • Anonymous — no titles or content. Click drawer shows only
-//     ID / kind / workspace / created_at.
-//   • Nodes never have names, so hover tooltips read as kind labels.
+// Performance shape:
+//   • All node bodies render via a SINGLE THREE.InstancedMesh<Sphere>
+//     (one draw call for any node count).
+//   • All node halos render via a SINGLE THREE.Points cloud with a
+//     custom shader for per-vertex color + size (one draw call).
+//   • All edges render via a SINGLE THREE.LineSegments with one
+//     packed BufferGeometry (one draw call regardless of edge count).
+//   • The d3-force-3d simulation runs in a Web Worker; main thread
+//     never blocks on a tick. Worker posts transferable Float32Array
+//     positions that we splat directly into the GPU buffers.
+//
+// Effective ceiling: ~200–250k nodes at 30+ fps on a typical laptop.
+// Beyond that, see "Stage 3" notes in the plan (server-precomputed
+// layout, viewport LOD, binary snapshot transport).
+//
+// Visual contract: each node looks like a HomeGraph "planet" — sphere
+// + halo, same per-kind palette (board=gold, doc=cream, note=
+// terracotta, image=jovian violet, palette=teal, link=neptune blue).
+// NO background star field (real nodes only, per user request).
+//
+// Privacy: rows carry only id / kind / workspace_id / created_at.
+// No titles or content. Click drawer (in AdminUniverseTab) shows
+// those identity fields only.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import ForceGraph3D from 'react-force-graph-3d';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import SimWorker from './universeSimWorker.js?worker';
 import { fetchSnapshotPage, useUniverseDeltas } from './useUniverseStream.js';
 
-// ── Per-kind palette — copied verbatim from boards/src/lib/graphData.js
-//    so the universe and the per-workspace home read as the same scene.
+// ── Per-kind palette — copied from boards/src/lib/graphData.js. ───
 const COLOR = {
   board:     '#ffa500',
   doc:       '#f1d9a3',
@@ -34,13 +46,18 @@ const COLOR = {
   url:       '#8c7a55',
 };
 
+const STRUCTURAL_COLOR = new THREE.Color('rgb(91,87,78)');
+const SEMANTIC_COLOR   = new THREE.Color('rgb(255,165,0)');
+const STRUCTURAL_ALPHA = 0.45;
+const SEMANTIC_ALPHA   = 0.55;
+
 function readTheme() {
   if (typeof document === 'undefined') return 'dark';
   return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
 }
 const BG_FOR = { dark: '#0a0908', light: '#f5f5f7' };
 
-// Shared additive halo texture — identical to HomeGraph's.
+// Halo texture — radial gradient white sprite, same as HomeGraph.
 const HALO_TEXTURE = (() => {
   if (typeof document === 'undefined') return null;
   const size = 128;
@@ -58,354 +75,459 @@ const HALO_TEXTURE = (() => {
   return tex;
 })();
 
-const NODE_PAGE = 50000;
-const EDGE_PAGE = 100000;
-const FLUSH_INTERVAL_MS = 250;
-const MAX_ORPHAN_ATTEMPTS = 6;
-// react-force-graph + Three.js gets unhappy past ~12k nodes. The
-// admin platform is currently well under this; if we ever cross it
-// we'll either sample to viewport or swap the renderer.
-const SOFT_NODE_LIMIT = 12000;
+const NODE_PAGE         = 50000;
+const EDGE_PAGE         = 100000;
+const DELTA_FLUSH_MS    = 250;
+const ORPHAN_MAX_TRIES  = 12;
+const INITIAL_NODE_CAP  = 1024;
+const INITIAL_EDGE_CAP  = 2048;
+// Hard ceiling so a runaway dataset can't OOM the tab. 250k is
+// comfortably below where the GPU buffer rewrite per tick stops
+// fitting in the frame budget.
+const SOFT_NODE_LIMIT   = 250_000;
 
-// Map our snapshot row into the shape HomeGraph nodes carry, with
-// privacy: name is empty (anonymous), color is by kind.
+function nextPow2(n, base) { let c = base; while (c < n) c *= 2; return c; }
+
+// Map a snapshot row → render node. `val` is the sphere radius
+// proxy; same numbers HomeGraph uses (14 for boards, 12 for docs,
+// 8 for everything else).
 function toNode(raw) {
-  const [broad] = raw.node_id.split(':');
-  let kind;
-  let cardKind = null;
+  const broad = raw.node_id.split(':')[0];
+  let kind, cardKind = null;
   if (broad === 'board') {
     kind = 'board';
   } else {
-    // raw.kind is the card_index.kind: 'doc', 'note', 'image', etc.
     kind = raw.kind === 'doc' ? 'doc' : 'card';
     cardKind = raw.kind;
   }
   const colorKey = cardKind || kind;
+  const colorHex = COLOR[colorKey] || COLOR[kind] || COLOR.card;
   return {
     id: raw.node_id,
     kind,
     cardKind,
-    name: '',
-    color: COLOR[colorKey] || COLOR[kind] || COLOR.card,
+    color: colorHex,
+    threeColor: new THREE.Color(colorHex),
     val: kind === 'board' ? 14 : (kind === 'doc' ? 12 : 8),
     workspace_id: raw.workspace_id,
     created_at: raw.created_at,
   };
 }
 
-function toLink(raw) {
-  return {
-    source: raw.source_id,
-    target: raw.target_id,
-    // edges from boards.parent_board_id arrive with edge_kind='hierarchy';
-    // doc_backlinks come through as 'doc_<targetkind>'; entity_links use
-    // their target_kind directly. Render hierarchy + doc_* edges as
-    // structural (gray); everything else as semantic (gold).
-    kind: (raw.edge_kind === 'hierarchy' || (raw.edge_kind || '').startsWith('doc_'))
-      ? 'structural' : 'semantic',
-  };
+// ── Custom shader material for halos ──────────────────────────────
+// Per-vertex `color` + `size`. Size scales with distance from camera
+// like a real sprite so far-away nodes shrink naturally.
+function makeHaloMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      map:      { value: HALO_TEXTURE },
+      uOpacity: { value: 0.22 },
+      uScale:   { value: 350 },  // tuned to match HomeGraph haloScale ~3.7x at default distance
+    },
+    vertexShader: /* glsl */`
+      attribute float size;
+      varying vec3 vColor;
+      void main() {
+        vColor = color;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (uScale / max(-mv.z, 1.0));
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform sampler2D map;
+      uniform float uOpacity;
+      varying vec3 vColor;
+      void main() {
+        vec4 tex = texture2D(map, gl_PointCoord);
+        gl_FragColor = vec4(vColor, tex.a * uOpacity);
+      }
+    `,
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
 }
 
 export function UniverseGraph({ onNodeClick }) {
-  const fgRef        = useRef(null);
   const containerRef = useRef(null);
-  const [data, setData]       = useState({ nodes: [], links: [] });
-  const [loaded, setLoaded]   = useState(false);
-  const [graphReady, setGraphReady] = useState(false);
-  const [error, setError]     = useState(null);
+
+  // ── React state for shell UI only ────────────────────────────────
+  const [error, setError]         = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [progress, setProgress] = useState({ nodes: 0, edges: 0 });
-  const [size, setSize] = useState({ w: 800, h: 600 });
-  const [theme, setTheme] = useState(readTheme);
+  const [progress, setProgress]   = useState({ nodes: 0, edges: 0 });
+  const [calibrating, setCalibrating] = useState(true);
+  const [theme, setTheme]         = useState(readTheme);
 
-  // node_id → node row, for dedupe and the click handler payload.
-  const nodeMap = useRef(new Map());
-
-  // ── Theme watcher (mirror HomeGraph) ──────────────────────────────
+  // ── Theme watcher ────────────────────────────────────────────────
   useEffect(() => {
     const obs = new MutationObserver(() => setTheme(readTheme()));
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => obs.disconnect();
   }, []);
 
-  // ── Container size ────────────────────────────────────────────────
+  // ── Refs to all the Three.js + sim state (kept out of React) ─────
+  const refs = useRef({
+    scene: null, camera: null, renderer: null, controls: null,
+    nodeMesh: null, haloPoints: null, edgeLines: null,
+    nodeCapacity: INITIAL_NODE_CAP, edgeCapacity: INITIAL_EDGE_CAP,
+    nodes: [],                      // [{id, threeColor, val, ...}]
+    nodeIndex: new Map(),           // node_id → array index
+    edges: [],                      // [{ sourceIdx, targetIdx, kind }]
+    positions: new Float32Array(INITIAL_NODE_CAP * 3),
+    worker: null,
+    rafId: null,
+    onClick: null,
+    pendingNodes: [],               // delta buffer
+    pendingEdges: [],               // [{ raw, attempts }]
+    onNodeClickFn: onNodeClick,
+  }).current;
+
+  // Keep onNodeClick fresh without re-mounting the whole scene.
+  useEffect(() => { refs.onNodeClickFn = onNodeClick; }, [onNodeClick, refs]);
+
+  // ── Mount the Three.js scene (one-time + on reload) ───────────────
   useEffect(() => {
     if (!containerRef.current) return;
-    const measure = () => {
-      const r = containerRef.current.getBoundingClientRect();
-      setSize({ w: Math.max(200, Math.floor(r.width)), h: Math.max(200, Math.floor(r.height)) });
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(containerRef.current);
-    window.addEventListener('resize', measure);
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
-  }, []);
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
+    const w = Math.max(200, Math.floor(rect.width));
+    const h = Math.max(200, Math.floor(rect.height));
 
-  // ── Star field (verbatim from HomeGraph) ──────────────────────────
-  useEffect(() => {
-    if (!fgRef.current) return;
-    let raf = null;
-    let added = null;
-    const tryAttach = () => {
-      const scene = fgRef.current?.scene?.();
-      if (!scene) { raf = requestAnimationFrame(tryAttach); return; }
-      const group = new THREE.Group();
-      const N = 1800;
-      const positions = new Float32Array(N * 3);
-      const colors = new Float32Array(N * 3);
-      for (let i = 0; i < N; i++) {
-        const R = 3500 + Math.random() * 2500;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        positions[i * 3]     = R * Math.sin(phi) * Math.cos(theta);
-        positions[i * 3 + 1] = R * Math.cos(phi);
-        positions[i * 3 + 2] = R * Math.sin(phi) * Math.sin(theta);
-        const warm = Math.random() < 0.2;
-        colors[i * 3]     = 1.0;
-        colors[i * 3 + 1] = warm ? 0.92 : 1.0;
-        colors[i * 3 + 2] = warm ? 0.78 : 1.0;
-      }
-      const geom = new THREE.BufferGeometry();
-      geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      const mat = new THREE.PointsMaterial({
-        size: 1.3, vertexColors: true, transparent: true, opacity: 0.25,
-        depthWrite: false, sizeAttenuation: false, blending: THREE.AdditiveBlending,
-      });
-      const stars = new THREE.Points(geom, mat);
-      group.add(stars);
+    // Scene + camera + renderer.
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(BG_FOR[theme]);
 
-      const REMOTE_HUES = [0xc4a96b, 0x7c5cc9, 0x3fa39a, 0xcf6a4f, 0x5b8fc7, 0xe6c98a];
-      for (let k = 0; k < 9; k++) {
-        const cR = 4200 + Math.random() * 2200;
-        const cTheta = Math.random() * Math.PI * 2;
-        const cPhi = Math.acos(2 * Math.random() - 1);
-        const cx = cR * Math.sin(cPhi) * Math.cos(cTheta);
-        const cy = cR * Math.cos(cPhi);
-        const cz = cR * Math.sin(cPhi) * Math.sin(cTheta);
-        const hue = REMOTE_HUES[k % REMOTE_HUES.length];
-        const M = 6 + Math.floor(Math.random() * 9);
-        const cPos = new Float32Array(M * 3);
-        for (let i = 0; i < M; i++) {
-          const jitter = 80;
-          cPos[i * 3]     = cx + (Math.random() * 2 - 1) * jitter;
-          cPos[i * 3 + 1] = cy + (Math.random() * 2 - 1) * jitter;
-          cPos[i * 3 + 2] = cz + (Math.random() * 2 - 1) * jitter;
+    const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 12000);
+    camera.position.set(0, 0, 400);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(w, h);
+    renderer.domElement.style.display = 'block';
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.rotateSpeed = 0.55;
+    controls.zoomSpeed   = 0.7;
+    controls.panSpeed    = 0.6;
+    controls.enablePan   = true;
+    controls.minDistance = 30;
+    controls.maxDistance = 5000;
+
+    // GPU buffers — allocated empty; filled when snapshot arrives.
+    const nodeMesh = makeNodeMesh(INITIAL_NODE_CAP);
+    nodeMesh.count = 0;
+    scene.add(nodeMesh);
+
+    const haloPoints = makeHaloPoints(INITIAL_NODE_CAP);
+    haloPoints.geometry.setDrawRange(0, 0);
+    scene.add(haloPoints);
+
+    const edgeLines = makeEdgeLines(INITIAL_EDGE_CAP);
+    edgeLines.geometry.setDrawRange(0, 0);
+    scene.add(edgeLines);
+
+    refs.scene = scene;
+    refs.camera = camera;
+    refs.renderer = renderer;
+    refs.controls = controls;
+    refs.nodeMesh = nodeMesh;
+    refs.haloPoints = haloPoints;
+    refs.edgeLines = edgeLines;
+    refs.nodeCapacity = INITIAL_NODE_CAP;
+    refs.edgeCapacity = INITIAL_EDGE_CAP;
+    refs.nodes = [];
+    refs.nodeIndex = new Map();
+    refs.edges = [];
+    refs.positions = new Float32Array(INITIAL_NODE_CAP * 3);
+    refs.pendingNodes = [];
+    refs.pendingEdges = [];
+
+    // Worker.
+    const worker = new SimWorker();
+    refs.worker = worker;
+    worker.onmessage = (ev) => {
+      const msg = ev.data;
+      if (!msg) return;
+      if (msg.type === 'tick') {
+        if (msg.positions && msg.positions.length >= msg.count * 3) {
+          // Keep our local positions array sized correctly.
+          if (refs.positions.length < msg.positions.length) {
+            refs.positions = new Float32Array(msg.positions.length);
+          }
+          refs.positions.set(msg.positions.subarray(0, msg.count * 3));
+          uploadPositions(refs, msg.count);
         }
-        const cGeom = new THREE.BufferGeometry();
-        cGeom.setAttribute('position', new THREE.BufferAttribute(cPos, 3));
-        const cMat = new THREE.PointsMaterial({
-          size: 1.9, color: hue, transparent: true, opacity: 0.20,
-          depthWrite: false, sizeAttenuation: false, blending: THREE.AdditiveBlending,
-        });
-        group.add(new THREE.Points(cGeom, cMat));
+      } else if (msg.type === 'ready') {
+        setCalibrating(false);
+      } else if (msg.type === 'error') {
+        // Non-fatal — log only.
+        // eslint-disable-next-line no-console
+        console.warn('[universeSim]', msg.reason);
       }
-      scene.add(group);
-      added = { group, dispose() {
-        scene.remove(group);
-        group.traverse(o => {
-          if (o.geometry) o.geometry.dispose();
-          if (o.material) o.material.dispose();
-        });
-      }};
     };
-    tryAttach();
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      added?.dispose();
-    };
-  }, [data]);
 
-  // ── Tilted-axis camera drift (verbatim from HomeGraph) ────────────
-  useEffect(() => {
-    if (!fgRef.current) return;
-    let raf;
-    let interacting = false;
-    let lastT = performance.now();
-    let detachInteract = null;
+    // Click picking.
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    let downAt = null, downXY = null;
+    const onPointerDown = (e) => { downAt = e.timeStamp; downXY = [e.clientX, e.clientY]; };
+    const onPointerUp = (e) => {
+      if (!downAt || !downXY) return;
+      const dt = e.timeStamp - downAt;
+      const dx = Math.abs(e.clientX - downXY[0]);
+      const dy = Math.abs(e.clientY - downXY[1]);
+      downAt = null; downXY = null;
+      // Distinguish click from drag — release within 300ms and < 5px movement.
+      if (dt > 300 || dx > 5 || dy > 5) return;
+      const r = renderer.domElement.getBoundingClientRect();
+      ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+      ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObject(nodeMesh, false);
+      if (hits.length > 0 && typeof hits[0].instanceId === 'number') {
+        const node = refs.nodes[hits[0].instanceId];
+        if (node && refs.onNodeClickFn) refs.onNodeClickFn(node);
+      }
+    };
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointerup',   onPointerUp);
+
+    // rAF loop — controls + tilted drift + render.
     const tiltAxis = new THREE.Vector3(0.35, 1, 0.18).normalize();
-    const tryAttach = () => {
-      const controls = fgRef.current?.controls?.();
-      const camera = fgRef.current?.camera?.();
-      if (!controls || !camera) { raf = requestAnimationFrame(tryAttach); return; }
-      controls.autoRotate = false;
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.06;
-      controls.rotateSpeed = 0.55;
-      controls.zoomSpeed = 0.7;
-      controls.panSpeed = 0.6;
-      const onStart = () => { interacting = true; };
-      const onEnd = () => { interacting = false; };
-      controls.addEventListener?.('start', onStart);
-      controls.addEventListener?.('end', onEnd);
-      detachInteract = () => {
-        controls.removeEventListener?.('start', onStart);
-        controls.removeEventListener?.('end', onEnd);
-      };
-      const tick = () => {
-        const now = performance.now();
-        const dt = Math.min(0.05, (now - lastT) / 1000);
-        lastT = now;
-        if (!interacting) {
-          const rel = camera.position.clone().sub(controls.target);
-          rel.applyAxisAngle(tiltAxis, 0.085 * dt);
-          camera.position.copy(rel.add(controls.target));
-        }
-        controls.update();
-        raf = requestAnimationFrame(tick);
-      };
-      lastT = performance.now();
-      raf = requestAnimationFrame(tick);
+    let last = performance.now();
+    let interacting = false;
+    controls.addEventListener('start', () => { interacting = true; });
+    controls.addEventListener('end',   () => { interacting = false; });
+    const loop = () => {
+      const now = performance.now();
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      if (!interacting) {
+        const rel = camera.position.clone().sub(controls.target);
+        rel.applyAxisAngle(tiltAxis, 0.085 * dt);
+        camera.position.copy(rel.add(controls.target));
+      }
+      controls.update();
+      renderer.render(scene, camera);
+      refs.rafId = requestAnimationFrame(loop);
     };
-    tryAttach();
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      detachInteract?.();
-    };
-  }, [data]);
+    refs.rafId = requestAnimationFrame(loop);
 
-  // ── Snapshot loader ───────────────────────────────────────────────
+    // Resize observer.
+    const ro = new ResizeObserver(() => {
+      const r2 = container.getBoundingClientRect();
+      const w2 = Math.max(200, Math.floor(r2.width));
+      const h2 = Math.max(200, Math.floor(r2.height));
+      camera.aspect = w2 / h2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w2, h2);
+    });
+    ro.observe(container);
+    const onWinResize = () => { ro.takeRecords?.(); };
+    window.addEventListener('resize', onWinResize);
+
+    // Tab visibility — pause worker + rAF when hidden.
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        if (!refs.rafId) refs.rafId = requestAnimationFrame(loop);
+        worker.postMessage({ type: 'resume' });
+      } else {
+        if (refs.rafId) { cancelAnimationFrame(refs.rafId); refs.rafId = null; }
+        worker.postMessage({ type: 'pause' });
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+
+    // Cleanup.
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointerup',   onPointerUp);
+      window.removeEventListener('resize', onWinResize);
+      ro.disconnect();
+      if (refs.rafId) cancelAnimationFrame(refs.rafId);
+      refs.rafId = null;
+      try { worker.postMessage({ type: 'stop' }); } catch (_) {}
+      try { worker.terminate(); } catch (_) {}
+      refs.worker = null;
+      try { container.removeChild(renderer.domElement); } catch (_) {}
+      // Dispose GPU resources.
+      nodeMesh.geometry.dispose();
+      nodeMesh.material.dispose();
+      haloPoints.geometry.dispose();
+      haloPoints.material.dispose();
+      edgeLines.geometry.dispose();
+      edgeLines.material.dispose();
+      renderer.dispose();
+      refs.scene = null; refs.camera = null; refs.renderer = null; refs.controls = null;
+      refs.nodeMesh = null; refs.haloPoints = null; refs.edgeLines = null;
+    };
+    // theme is read once at mount — the bg color update below patches it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
+
+  // Patch background color when theme flips without re-mounting.
+  useEffect(() => {
+    if (refs.scene) refs.scene.background = new THREE.Color(BG_FOR[theme]);
+  }, [theme, refs]);
+
+  // ── Snapshot loader ──────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     setError(null);
-    setLoaded(false);
-    setGraphReady(false);
+    setCalibrating(true);
     setProgress({ nodes: 0, edges: 0 });
-    setData({ nodes: [], links: [] });
-    nodeMap.current = new Map();
-    pendingNodes.current = [];
-    pendingEdges.current = [];
 
     (async () => {
       try {
-        const allNodes = [];
-        const rawEdges = [];
-        let cursor = null;
+        const allRawNodes = [];
+        const allRawEdges = [];
+        let nodesCursor = null;
+        let edgesCursor = null;
         for (let i = 0; i < 50; i++) {
-          const page = await fetchSnapshotPage({ cursor, nodeLimit: NODE_PAGE, edgeLimit: EDGE_PAGE });
+          const page = await fetchSnapshotPage({
+            nodesCursor, edgesCursor,
+            nodeLimit: NODE_PAGE,
+            edgeLimit: EDGE_PAGE,
+          });
           if (cancelled) return;
-          for (const n of page.nodes || []) {
-            if (nodeMap.current.has(n.node_id)) continue;
-            const decorated = toNode(n);
-            nodeMap.current.set(decorated.id, decorated);
-            allNodes.push(decorated);
-            if (allNodes.length >= SOFT_NODE_LIMIT) break;
+          for (const n of (page.nodes || [])) {
+            allRawNodes.push(n);
+            if (allRawNodes.length >= SOFT_NODE_LIMIT) break;
           }
-          for (const e of page.edges || []) rawEdges.push(e);
-          setProgress({ nodes: allNodes.length, edges: rawEdges.length });
-          if (allNodes.length >= SOFT_NODE_LIMIT) break;
-          cursor = page.next_cursor;
-          if (page.done || !cursor) break;
+          for (const e of (page.edges || [])) allRawEdges.push(e);
+          setProgress({ nodes: allRawNodes.length, edges: allRawEdges.length });
+          if (allRawNodes.length >= SOFT_NODE_LIMIT) break;
+          nodesCursor = page.next_nodes_cursor || page.next_cursor || nodesCursor;
+          edgesCursor = page.next_edges_cursor || page.next_cursor || edgesCursor;
+          if (page.done) break;
+          if (!nodesCursor && !edgesCursor) break;
         }
         if (cancelled) return;
 
-        // Resolve edges against the node set; drop orphans.
-        const links = [];
-        for (const e of rawEdges) {
-          if (!nodeMap.current.has(e.source_id) || !nodeMap.current.has(e.target_id)) continue;
-          links.push(toLink(e));
+        // Build render state.
+        ensureNodeCapacity(refs, allRawNodes.length);
+        refs.nodes = [];
+        refs.nodeIndex = new Map();
+        refs.edges = [];
+        for (const raw of allRawNodes) {
+          const node = toNode(raw);
+          const idx = refs.nodes.length;
+          refs.nodes.push(node);
+          refs.nodeIndex.set(node.id, idx);
+          writeNodeAppearance(refs, idx, node);
         }
+        // Resolve edges; drop orphans.
+        const resolvedEdges = [];
+        for (const raw of allRawEdges) {
+          const s = refs.nodeIndex.get(raw.source_id);
+          const t = refs.nodeIndex.get(raw.target_id);
+          if (s == null || t == null) continue;
+          const kind = (raw.edge_kind === 'hierarchy' || raw.edge_kind === 'structural'
+                       || (raw.edge_kind || '').startsWith('doc_'))
+            ? 'structural' : 'semantic';
+          resolvedEdges.push({ sourceIdx: s, targetIdx: t, kind });
+        }
+        ensureEdgeCapacity(refs, resolvedEdges.length);
+        refs.edges = resolvedEdges;
+        writeEdgeColors(refs);
 
-        setData({ nodes: allNodes, links });
-        setLoaded(true);
+        // Hand off to the worker. The worker computes positions and
+        // posts them back; we render whatever it gives us.
+        if (refs.worker) {
+          const initNodes = refs.nodes.map(n => ({ id: n.id, val: n.val }));
+          const initLinks = refs.edges.map(e => ({
+            source: refs.nodes[e.sourceIdx].id,
+            target: refs.nodes[e.targetIdx].id,
+          }));
+          refs.worker.postMessage({ type: 'init', nodes: initNodes, links: initLinks });
+        }
       } catch (e) {
-        if (!cancelled) { setError(e?.message || String(e)); setLoaded(true); }
+        if (!cancelled) { setError(e?.message || String(e)); setCalibrating(false); }
       }
     })();
+
     return () => { cancelled = true; };
-  }, [reloadKey]);
+  }, [reloadKey, refs]);
 
-  // ── Reveal after the simulation has settled ──────────────────────
+  // ── Delta integration ────────────────────────────────────────────
+  // Buffer deltas; flush every DELTA_FLUSH_MS by sending addNodes/
+  // addLinks to the worker and growing GPU buffers when we cross
+  // capacity.
   useEffect(() => {
-    if (!loaded) return;
-    if (data.nodes.length === 0) { setGraphReady(true); return; }
-    const t = setTimeout(() => setGraphReady(true), 650);
-    return () => clearTimeout(t);
-  }, [loaded, data]);
-
-  // ── Delta buffer ──────────────────────────────────────────────────
-  // New nodes/edges accumulate here and get applied to the graph as
-  // a single state update every FLUSH_INTERVAL_MS. We keep orphan
-  // edges around for a few flush ticks in case their endpoint
-  // arrives via a subsequent delta.
-  const pendingNodes = useRef([]);
-  const pendingEdges = useRef([]); // [{ raw, attempts }]
-
-  useEffect(() => {
-    if (!loaded) return;
     const id = setInterval(() => {
-      const nodes = pendingNodes.current;
-      pendingNodes.current = [];
+      if (!refs.worker || !refs.nodeMesh) return;
+      const newNodes = refs.pendingNodes;
+      refs.pendingNodes = [];
 
+      // Resolve pending edges; defer ones whose endpoints haven't
+      // arrived yet up to ORPHAN_MAX_TRIES times before dropping.
       const stillPending = [];
-      const readyLinks = [];
-      for (const item of pendingEdges.current) {
-        if (nodeMap.current.has(item.raw.source_id) && nodeMap.current.has(item.raw.target_id)) {
-          readyLinks.push(toLink(item.raw));
-        } else if (item.attempts + 1 < MAX_ORPHAN_ATTEMPTS) {
+      const newEdges = [];
+      for (const item of refs.pendingEdges) {
+        const s = refs.nodeIndex.get(item.raw.source_id);
+        const t = refs.nodeIndex.get(item.raw.target_id);
+        if (s != null && t != null) {
+          const kind = (item.raw.edge_kind === 'hierarchy' || item.raw.edge_kind === 'structural'
+                       || (item.raw.edge_kind || '').startsWith('doc_'))
+            ? 'structural' : 'semantic';
+          newEdges.push({ sourceIdx: s, targetIdx: t, kind });
+        } else if (item.attempts + 1 < ORPHAN_MAX_TRIES) {
           stillPending.push({ raw: item.raw, attempts: item.attempts + 1 });
         }
       }
-      pendingEdges.current = stillPending;
+      refs.pendingEdges = stillPending;
 
-      if (!nodes.length && !readyLinks.length) return;
-      setData(prev => ({
-        nodes: nodes.length ? prev.nodes.concat(nodes) : prev.nodes,
-        links: readyLinks.length ? prev.links.concat(readyLinks) : prev.links,
-      }));
-    }, FLUSH_INTERVAL_MS);
+      if (newNodes.length) {
+        ensureNodeCapacity(refs, refs.nodes.length + newNodes.length);
+        for (const n of newNodes) {
+          const idx = refs.nodes.length;
+          refs.nodes.push(n);
+          refs.nodeIndex.set(n.id, idx);
+          writeNodeAppearance(refs, idx, n);
+        }
+        refs.worker.postMessage({
+          type: 'addNodes',
+          nodes: newNodes.map(n => ({ id: n.id, val: n.val })),
+        });
+      }
+      if (newEdges.length) {
+        ensureEdgeCapacity(refs, refs.edges.length + newEdges.length);
+        refs.edges.push(...newEdges);
+        writeEdgeColors(refs);
+        refs.worker.postMessage({
+          type: 'addLinks',
+          links: newEdges.map(e => ({
+            source: refs.nodes[e.sourceIdx].id,
+            target: refs.nodes[e.targetIdx].id,
+          })),
+        });
+      }
+    }, DELTA_FLUSH_MS);
     return () => clearInterval(id);
-  }, [loaded]);
+  }, [refs]);
 
   useUniverseDeltas({
-    onNode: (n) => {
-      if (nodeMap.current.has(n.node_id)) return;
-      const decorated = toNode(n);
-      nodeMap.current.set(decorated.id, decorated);
-      pendingNodes.current.push(decorated);
+    onNode: (raw) => {
+      if (refs.nodeIndex.has(raw.node_id)) return;
+      refs.pendingNodes.push(toNode(raw));
     },
-    onEdge: (e) => {
-      pendingEdges.current.push({ raw: e, attempts: 0 });
-    },
+    onEdge: (raw) => { refs.pendingEdges.push({ raw, attempts: 0 }); },
     onBatch: ({ nodes, edges }) => {
-      for (const n of nodes) {
-        if (nodeMap.current.has(n.node_id)) continue;
-        const decorated = toNode(n);
-        nodeMap.current.set(decorated.id, decorated);
-        pendingNodes.current.push(decorated);
+      for (const raw of nodes) {
+        if (refs.nodeIndex.has(raw.node_id)) continue;
+        refs.pendingNodes.push(toNode(raw));
       }
-      for (const e of edges) pendingEdges.current.push({ raw: e, attempts: 0 });
+      for (const raw of edges) refs.pendingEdges.push({ raw, attempts: 0 });
     },
   });
 
-  // ── Sphere + halo node renderer (verbatim from HomeGraph) ─────────
-  const nodeThree = useMemo(() => (node) => {
-    const r = (node.val || 8) * 0.4;
-    const color = node.color || '#ffa500';
-    const group = new THREE.Group();
-    const core = new THREE.Mesh(
-      new THREE.SphereGeometry(r, 20, 20),
-      new THREE.MeshBasicMaterial({ color }),
-    );
-    group.add(core);
-    if (HALO_TEXTURE) {
-      const halo = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: HALO_TEXTURE,
-        color,
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }));
-      const haloScale = r * 3.7;
-      halo.scale.set(haloScale, haloScale, 1);
-      group.add(halo);
-    }
-    return group;
-  }, []);
-
-  // ── Error state with retry button ─────────────────────────────────
+  // ── Error / loading UI ───────────────────────────────────────────
   if (error) {
     return (
       <div className="universe-canvas universe-error t-body" ref={containerRef}>
@@ -422,41 +544,8 @@ export function UniverseGraph({ onNodeClick }) {
 
   return (
     <div className="universe-canvas" ref={containerRef} style={{ background: BG_FOR[theme] }}>
-      <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1 }} />
-      <div className={`home-graph-stage ${graphReady ? 'is-ready' : ''}`} style={{ width: '100%', height: '100%' }}>
-        <ForceGraph3D
-          ref={fgRef}
-          graphData={data}
-          width={size.w}
-          height={size.h}
-          backgroundColor={BG_FOR[theme]}
-          nodeThreeObject={nodeThree}
-          nodeLabel={(n) => kindLabel(n)}
-          linkColor={l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(255,165,0,.55)'}
-          linkOpacity={0.7}
-          linkCurvature={0.18}
-          d3AlphaDecay={0.04}
-          d3VelocityDecay={0.32}
-          warmupTicks={200}
-          cooldownTime={4000}
-          onNodeClick={(n) => {
-            if (!n) return;
-            onNodeClick?.(n);
-            if (fgRef.current) {
-              const dist = 220;
-              const distRatio = 1 + dist / Math.hypot(n.x || 1, n.y || 1, n.z || 1);
-              fgRef.current.cameraPosition(
-                { x: (n.x || 0) * distRatio, y: (n.y || 0) * distRatio, z: (n.z || 0) * distRatio },
-                n, 1200,
-              );
-            }
-          }}
-          enableNodeDrag={false}
-          controlType="orbit"
-          showNavInfo={false}
-        />
-      </div>
-      {!loaded && (
+      <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1, pointerEvents: 'none' }} />
+      {calibrating && (
         <div className="universe-overlay">
           <div className="universe-overlay-inner">
             <div className="t-eyebrow">Calibrating universe…</div>
@@ -470,16 +559,205 @@ export function UniverseGraph({ onNodeClick }) {
   );
 }
 
-const KIND_LABEL = {
-  board: 'Board',
-  doc:   'Doc',
-  note:  'Note',
-  image: 'Image',
-  palette: 'Palette',
-  link:  'Link',
-  card:  'Card',
-};
-function kindLabel(n) {
-  const k = n?.cardKind || n?.kind;
-  return KIND_LABEL[k] || (k ? k.charAt(0).toUpperCase() + k.slice(1) : 'Node');
+// ─────────────────────────────────────────────────────────────────
+// Three.js construction helpers
+// ─────────────────────────────────────────────────────────────────
+
+function makeNodeMesh(capacity) {
+  // Unit sphere — per-instance scale lives in the instance matrix.
+  const geom = new THREE.SphereGeometry(1, 16, 16);
+  const mat  = new THREE.MeshBasicMaterial({ vertexColors: false });
+  const mesh = new THREE.InstancedMesh(geom, mat, capacity);
+  mesh.frustumCulled = false;
+  // Per-instance color attribute.
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
+  mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  return mesh;
+}
+
+function makeHaloPoints(capacity) {
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(capacity * 3), 3));
+  geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(capacity * 3), 3));
+  geom.setAttribute('size',     new THREE.BufferAttribute(new Float32Array(capacity),     1));
+  geom.attributes.position.setUsage(THREE.DynamicDrawUsage);
+  geom.attributes.color.setUsage(THREE.DynamicDrawUsage);
+  geom.attributes.size.setUsage(THREE.DynamicDrawUsage);
+  const points = new THREE.Points(geom, makeHaloMaterial());
+  points.frustumCulled = false;
+  return points;
+}
+
+function makeEdgeLines(edgeCapacity) {
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(edgeCapacity * 2 * 3), 3));
+  geom.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(edgeCapacity * 2 * 3), 3));
+  geom.attributes.position.setUsage(THREE.DynamicDrawUsage);
+  geom.attributes.color.setUsage(THREE.DynamicDrawUsage);
+  const mat = new THREE.LineBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false,
+  });
+  const lines = new THREE.LineSegments(geom, mat);
+  lines.frustumCulled = false;
+  return lines;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// GPU buffer maintenance
+// ─────────────────────────────────────────────────────────────────
+
+const _tmpMatrix = new THREE.Matrix4();
+const _tmpPos    = new THREE.Vector3();
+const _tmpScale  = new THREE.Vector3();
+
+function writeNodeAppearance(refs, idx, node) {
+  // Matrix — translate to (0,0,0) for now; sphere radius via scale.
+  const r = (node.val || 8) * 0.4;
+  _tmpScale.set(r, r, r);
+  _tmpPos.set(0, 0, 0);
+  _tmpMatrix.compose(_tmpPos, new THREE.Quaternion(), _tmpScale);
+  refs.nodeMesh.setMatrixAt(idx, _tmpMatrix);
+  refs.nodeMesh.setColorAt(idx, node.threeColor);
+  refs.nodeMesh.count = Math.max(refs.nodeMesh.count, idx + 1);
+
+  // Halo attributes — color + size (per-vertex).
+  const ca = refs.haloPoints.geometry.attributes.color;
+  const sa = refs.haloPoints.geometry.attributes.size;
+  ca.array[idx * 3]     = node.threeColor.r;
+  ca.array[idx * 3 + 1] = node.threeColor.g;
+  ca.array[idx * 3 + 2] = node.threeColor.b;
+  sa.array[idx]         = r * 3.7;
+
+  refs.nodeMesh.instanceMatrix.needsUpdate = true;
+  if (refs.nodeMesh.instanceColor) refs.nodeMesh.instanceColor.needsUpdate = true;
+  ca.needsUpdate = true;
+  sa.needsUpdate = true;
+}
+
+function writeEdgeColors(refs) {
+  const ca = refs.edgeLines.geometry.attributes.color;
+  for (let i = 0; i < refs.edges.length; i++) {
+    const e = refs.edges[i];
+    const c = e.kind === 'structural' ? STRUCTURAL_COLOR : SEMANTIC_COLOR;
+    const base = i * 6;
+    ca.array[base]     = c.r; ca.array[base + 1] = c.g; ca.array[base + 2] = c.b;
+    ca.array[base + 3] = c.r; ca.array[base + 4] = c.g; ca.array[base + 5] = c.b;
+  }
+  ca.needsUpdate = true;
+}
+
+// Splat positions[] (Float32Array of (x,y,z) per node) into both the
+// node instance matrices and the halo position attribute. Then rebuild
+// the edge vertex buffer from the new positions.
+function uploadPositions(refs, count) {
+  const pos = refs.positions;
+  const haloPos = refs.haloPoints.geometry.attributes.position;
+  const quat = new THREE.Quaternion();
+  for (let i = 0; i < count; i++) {
+    const node = refs.nodes[i];
+    if (!node) continue;
+    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+    const r = (node.val || 8) * 0.4;
+    _tmpPos.set(x, y, z);
+    _tmpScale.set(r, r, r);
+    _tmpMatrix.compose(_tmpPos, quat, _tmpScale);
+    refs.nodeMesh.setMatrixAt(i, _tmpMatrix);
+    haloPos.array[i * 3]     = x;
+    haloPos.array[i * 3 + 1] = y;
+    haloPos.array[i * 3 + 2] = z;
+  }
+  refs.nodeMesh.instanceMatrix.needsUpdate = true;
+  haloPos.needsUpdate = true;
+  refs.nodeMesh.count = Math.min(refs.nodeCapacity, refs.nodes.length);
+  refs.haloPoints.geometry.setDrawRange(0, Math.min(refs.nodeCapacity, refs.nodes.length));
+
+  // Edges — rebuild endpoints from the new positions.
+  const ep = refs.edgeLines.geometry.attributes.position;
+  for (let i = 0; i < refs.edges.length; i++) {
+    const e = refs.edges[i];
+    const a = e.sourceIdx, b = e.targetIdx;
+    const base = i * 6;
+    ep.array[base]     = pos[a * 3];
+    ep.array[base + 1] = pos[a * 3 + 1];
+    ep.array[base + 2] = pos[a * 3 + 2];
+    ep.array[base + 3] = pos[b * 3];
+    ep.array[base + 4] = pos[b * 3 + 1];
+    ep.array[base + 5] = pos[b * 3 + 2];
+  }
+  ep.needsUpdate = true;
+  refs.edgeLines.geometry.setDrawRange(0, refs.edges.length * 2);
+}
+
+function ensureNodeCapacity(refs, needed) {
+  if (needed <= refs.nodeCapacity) return;
+  const newCap = nextPow2(needed, refs.nodeCapacity);
+  const oldMesh  = refs.nodeMesh;
+  const oldHalos = refs.haloPoints;
+  const newMesh  = makeNodeMesh(newCap);
+  const newHalos = makeHaloPoints(newCap);
+
+  // Copy existing data.
+  const oldCount = Math.min(oldMesh.count, refs.nodes.length);
+  for (let i = 0; i < oldCount; i++) {
+    oldMesh.getMatrixAt(i, _tmpMatrix);
+    newMesh.setMatrixAt(i, _tmpMatrix);
+    if (oldMesh.instanceColor) {
+      const r = oldMesh.instanceColor.array[i * 3];
+      const g = oldMesh.instanceColor.array[i * 3 + 1];
+      const b = oldMesh.instanceColor.array[i * 3 + 2];
+      newMesh.instanceColor.array[i * 3]     = r;
+      newMesh.instanceColor.array[i * 3 + 1] = g;
+      newMesh.instanceColor.array[i * 3 + 2] = b;
+    }
+  }
+  newMesh.count = oldCount;
+  newMesh.instanceMatrix.needsUpdate = true;
+  if (newMesh.instanceColor) newMesh.instanceColor.needsUpdate = true;
+
+  // Halo: copy positions/colors/sizes.
+  const op = oldHalos.geometry.attributes;
+  const np = newHalos.geometry.attributes;
+  np.position.array.set(op.position.array.subarray(0, oldCount * 3));
+  np.color.array   .set(op.color.array   .subarray(0, oldCount * 3));
+  np.size.array    .set(op.size.array    .subarray(0, oldCount));
+  np.position.needsUpdate = true;
+  np.color.needsUpdate    = true;
+  np.size.needsUpdate     = true;
+  newHalos.geometry.setDrawRange(0, oldCount);
+
+  // Positions ring.
+  const newPositions = new Float32Array(newCap * 3);
+  newPositions.set(refs.positions.subarray(0, oldCount * 3));
+  refs.positions = newPositions;
+
+  // Swap in, dispose old.
+  refs.scene.remove(oldMesh);
+  refs.scene.remove(oldHalos);
+  oldMesh.geometry.dispose();   oldMesh.material.dispose();
+  oldHalos.geometry.dispose();  oldHalos.material.dispose();
+  refs.scene.add(newMesh);
+  refs.scene.add(newHalos);
+  refs.nodeMesh   = newMesh;
+  refs.haloPoints = newHalos;
+  refs.nodeCapacity = newCap;
+}
+
+function ensureEdgeCapacity(refs, needed) {
+  if (needed <= refs.edgeCapacity) return;
+  const newCap = nextPow2(needed, refs.edgeCapacity);
+  const oldLines = refs.edgeLines;
+  const newLines = makeEdgeLines(newCap);
+  const oldVerts = refs.edges.length * 2 * 3;
+  newLines.geometry.attributes.position.array.set(oldLines.geometry.attributes.position.array.subarray(0, oldVerts));
+  newLines.geometry.attributes.color   .array.set(oldLines.geometry.attributes.color   .array.subarray(0, oldVerts));
+  newLines.geometry.attributes.position.needsUpdate = true;
+  newLines.geometry.attributes.color   .needsUpdate = true;
+  newLines.geometry.setDrawRange(0, refs.edges.length * 2);
+  refs.scene.remove(oldLines);
+  oldLines.geometry.dispose();
+  oldLines.material.dispose();
+  refs.scene.add(newLines);
+  refs.edgeLines = newLines;
+  refs.edgeCapacity = newCap;
 }

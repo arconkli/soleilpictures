@@ -38,14 +38,24 @@ async function openSse(path, params = {}) {
 }
 
 // Plain fetch with the bearer header (snapshot is not SSE — supports
-// headers). Returns parsed JSON or throws.
-export async function fetchSnapshotPage({ cursor = null, nodeLimit = 50000, edgeLimit = 100000 } = {}) {
+// headers). Nodes and edges paginate INDEPENDENTLY: pass
+// nodesCursor / edgesCursor (each is the last-seen created_at for
+// that axis) and the Worker returns next_nodes_cursor /
+// next_edges_cursor for the next page. Legacy single-`cursor` param
+// still works server-side as a shared cursor.
+export async function fetchSnapshotPage({
+  nodesCursor = null,
+  edgesCursor = null,
+  nodeLimit   = 50000,
+  edgeLimit   = 100000,
+} = {}) {
   const token = await getToken();
   if (!token) throw new Error('no token');
   const qs = new URLSearchParams();
-  if (cursor != null)         qs.set('cursor',     cursor);
-  if (nodeLimit != null)      qs.set('node_limit', String(nodeLimit));
-  if (edgeLimit != null)      qs.set('edge_limit', String(edgeLimit));
+  if (nodesCursor != null) qs.set('nodes_cursor', nodesCursor);
+  if (edgesCursor != null) qs.set('edges_cursor', edgesCursor);
+  if (nodeLimit   != null) qs.set('node_limit',   String(nodeLimit));
+  if (edgeLimit   != null) qs.set('edge_limit',   String(edgeLimit));
   const url = `${PARTY_BASE}/snapshot?${qs.toString()}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`snapshot ${res.status}: ${await res.text().catch(() => '')}`);

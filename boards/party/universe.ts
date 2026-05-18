@@ -192,17 +192,28 @@ export default class UniverseParty implements Party.Server {
     });
   }
 
-  // GET /snapshot?cursor=<iso>&node_limit=<n>&edge_limit=<n>
-  // One page. Client calls repeatedly with the returned next_cursor
-  // until done=true.
+  // GET /snapshot?nodes_cursor=<iso>&edges_cursor=<iso>&node_limit=<n>&edge_limit=<n>
+  // (Legacy ?cursor=<iso> still accepted: applies to both axes.)
+  //
+  // Nodes and edges paginate INDEPENDENTLY by their own created_at
+  // cursors. Using a single shared cursor was buggy: if edges
+  // extended further into the future than nodes (typical — links
+  // get created after the boards they link), max(node_ts, edge_ts)
+  // would skip past unfetched nodes on the next page.
+  //
+  // Response includes both next cursors; client passes each back on
+  // the next call. `done` flips when both axes returned strictly
+  // fewer than their limits.
   private async handleSnapshot(req: Party.Request, token: string, url: URL): Promise<Response> {
-    const cursor = url.searchParams.get("cursor");
+    const sharedCursor = url.searchParams.get("cursor");
+    const nodesCursor = url.searchParams.get("nodes_cursor") || sharedCursor;
+    const edgesCursor = url.searchParams.get("edges_cursor") || sharedCursor;
     const nodeLimit = clampInt(url.searchParams.get("node_limit"), 1, MAX_PAGE_NODES, MAX_PAGE_NODES);
     const edgeLimit = clampInt(url.searchParams.get("edge_limit"), 1, MAX_PAGE_EDGES, MAX_PAGE_EDGES);
 
     const [nodesRes, edgesRes] = await Promise.all([
-      supaRpc<Node[]>("admin_universe_snapshot", { p_cursor: cursor, p_limit: nodeLimit }, token),
-      supaRpc<Edge[]>("admin_universe_edges",    { p_cursor: cursor, p_limit: edgeLimit }, token),
+      supaRpc<Node[]>("admin_universe_snapshot", { p_cursor: nodesCursor, p_limit: nodeLimit }, token),
+      supaRpc<Edge[]>("admin_universe_edges",    { p_cursor: edgesCursor, p_limit: edgeLimit }, token),
     ]);
 
     if (!nodesRes.ok) {
@@ -220,16 +231,29 @@ export default class UniverseParty implements Party.Server {
 
     const nodes = nodesRes.data || [];
     const edges = edgesRes.data || [];
-    // next_cursor is the max created_at across both pages; done when
-    // both came back under their limits.
-    const allTs = [
-      ...nodes.map((n) => n.created_at),
-      ...edges.map((e) => e.created_at),
-    ];
-    const nextCursor = allTs.length ? allTs.reduce((a, b) => (a > b ? a : b)) : null;
+    // Per-axis next cursors. Null/unchanged when the axis is exhausted.
+    const nextNodesCursor = nodes.length
+      ? nodes.reduce((a, n) => (n.created_at > a ? n.created_at : a), nodes[0].created_at)
+      : nodesCursor;
+    const nextEdgesCursor = edges.length
+      ? edges.reduce((a, e) => (e.created_at > a ? e.created_at : a), edges[0].created_at)
+      : edgesCursor;
     const done = nodes.length < nodeLimit && edges.length < edgeLimit;
+    // Backwards-compat: legacy clients that read `next_cursor` get
+    // the older (smaller) cursor so they don't accidentally skip
+    // unfetched nodes if edges raced ahead.
+    const nextCursor =
+      nextNodesCursor && nextEdgesCursor
+        ? (nextNodesCursor < nextEdgesCursor ? nextNodesCursor : nextEdgesCursor)
+        : (nextNodesCursor || nextEdgesCursor);
 
-    return new Response(JSON.stringify({ nodes, edges, next_cursor: nextCursor, done }), {
+    return new Response(JSON.stringify({
+      nodes, edges,
+      next_cursor: nextCursor,                  // legacy
+      next_nodes_cursor: nextNodesCursor,
+      next_edges_cursor: nextEdgesCursor,
+      done,
+    }), {
       status: 200,
       headers: {
         ...corsHeaders(req),
