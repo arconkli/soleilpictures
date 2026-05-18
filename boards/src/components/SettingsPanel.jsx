@@ -21,8 +21,10 @@ import {
   updateWorkspaceSettings,
   updateOwnSettings,
 } from '../lib/boardsApi.js';
+import { supabase } from '../lib/supabase.js';
 import { useFeedback } from './AppFeedback.jsx';
-import { purgeBogusAutoappliedTags } from '../lib/tagsApi.js';
+import { useMyTier } from '../hooks/useMyTier.js';
+import { PricingModal } from './PricingModal.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { COVER_TINTS } from './primitives.jsx';
 import { HARDCODED_FALLBACKS } from '../hooks/useResolvedDefaults.js';
@@ -32,6 +34,7 @@ import {
 
 const TABS = [
   { id: 'profile',   label: 'Profile' },
+  { id: 'billing',   label: 'Billing' },
   { id: 'defaults',  label: 'Defaults' },
   { id: 'theme',     label: 'Theme' },
   { id: 'templates', label: 'Templates' },
@@ -185,10 +188,13 @@ export function SettingsPanel({
   defaults, role, refresh, workspaceSettings, mySettings,
 }) {
   // Filter tabs by mode + pick the first as default.
+  //   account   = personal identity stuff (Profile + Billing)
+  //   workspace = cog-style settings (Defaults/Theme/Templates/Display)
+  //   full      = every tab
   const visibleTabs = mode === 'account'
-    ? TABS.filter(t => t.id === 'profile')
+    ? TABS.filter(t => t.id === 'profile' || t.id === 'billing')
     : mode === 'workspace'
-      ? TABS.filter(t => t.id !== 'profile')
+      ? TABS.filter(t => t.id !== 'profile' && t.id !== 'billing')
       : TABS;
   const [tab, setTab] = useState(visibleTabs[0]?.id || 'profile');
   // If the user reopens the panel in a different mode, the previously
@@ -201,9 +207,8 @@ export function SettingsPanel({
 
   if (!open) return null;
 
-  // Account mode hides the side tab list (it's a single tab) so the
-  // panel reads as a tight identity modal, not a tabbed settings UI.
-  const showTabRail = mode !== 'account' && visibleTabs.length > 1;
+  // Show tab rail whenever there's more than one tab to switch between.
+  const showTabRail = visibleTabs.length > 1;
   const headTitle = mode === 'account' ? 'Account' : 'Settings';
 
   return createPortal(
@@ -247,6 +252,9 @@ export function SettingsPanel({
           <div className="settings-pane">
             {tab === 'profile' && (
               <ProfileTab user={user} onSaved={onSaved} />
+            )}
+            {tab === 'billing' && (
+              <BillingTab user={user} />
             )}
             {tab === 'defaults' && (
               <DefaultsTab workspaceId={workspaceId}
@@ -507,65 +515,122 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, refresh }) {
         </Field>
       </SettingsCategory>
 
-      <AiTaggerCleanup workspaceId={workspaceId} canEdit={canEdit} />
     </div>
   );
 }
 
-// AI tagger cleanup — removes auto-applied tag rows where the tag's
-// name shares no meaningful token with the source text. Sweep is
-// workspace-wide and idempotent; also writes to autotag_ignored so
-// the same row can't be re-applied.
-function AiTaggerCleanup({ workspaceId, canEdit }) {
+// ── Billing tab ─────────────────────────────────────────────────────────
+// Shows the caller's current plan and an action appropriate to their tier:
+//   admin     → "Unlimited admin access"
+//   paid      → plan + status + next renewal, "Manage billing →" (Stripe Portal)
+//   demo      → card count + "Upgrade to Creator" button (opens PricingModal)
+//   waitlist  → defensive note (this surface shouldn't be reachable)
+function BillingTab({ user }) {
   const feedback = useFeedback();
+  const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, loading } =
+    useMyTier({ userId: user?.id });
+  const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
-  const onClick = async () => {
-    if (!workspaceId || !canEdit || busy) return;
-    const ok = await feedback.confirm({
-      title: 'Remove bogus tag applications',
-      message:
-        'Sweeps the workspace and removes auto-applied tag rows where the tag name and the underlying text don’t share any meaningful word. ' +
-        'Also marks those pairs as ignored so they can’t be re-applied. Manual / user-applied tags are not touched.',
-      confirmLabel: 'Remove',
-    });
-    if (!ok) return;
+  const [pricingOpen, setPricingOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    supabase.from('subscriptions')
+      .select('plan, status, current_period_end, cancel_at_period_end')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => { if (!cancelled) setSub(data || null); });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const openPortal = async () => {
+    if (busy) return;
     setBusy(true);
     try {
-      const removed = await purgeBogusAutoappliedTags(workspaceId);
-      feedback.toast({
-        type: 'success',
-        message: removed > 0
-          ? `Removed ${removed} bogus tag application${removed === 1 ? '' : 's'}.`
-          : 'No bogus tag applications found. ✨',
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not signed in.');
+      const url = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
       });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
+      window.location.assign(body.url);
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Cleanup failed: ' + (e.message || e) });
-    } finally {
+      feedback.toast({ type: 'error', message: 'Could not open billing portal: ' + (e?.message || e) });
       setBusy(false);
     }
   };
+
+  if (loading) {
+    return <div className="settings-section"><div className="settings-empty">Loading…</div></div>;
+  }
+
+  const planLabel =
+    tier === 'admin' ? 'Admin · Unlimited'
+    : tier === 'paid' ? (sub?.plan === 'annual' ? 'Creator · Annual ($240/yr)' : 'Creator · Monthly ($25/mo)')
+    : tier === 'demo' ? `Free Demo · ${demoCardCount}/100 cards`
+    : 'Waitlist · not yet active';
+
+  const periodLabel = currentPeriodEnd || sub?.current_period_end
+    ? new Date(currentPeriodEnd || sub?.current_period_end).toLocaleDateString(undefined,
+        { month: 'long', day: 'numeric', year: 'numeric' })
+    : null;
+
   return (
-    <SettingsCategory title="AI tagger" desc="Clean up over-eager tag applications">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 0' }}>
-        <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.45 }}>
-          Removes auto-applied tag rows where the tag’s name shares no
-          word with the text it was applied to (e.g. <em>Clusters logo</em>
-          {' '}getting attached to the word <em>ad</em>). Manual tags stay.
-        </div>
-        <button type="button"
-                className="settings-btn settings-btn-primary"
-                disabled={!canEdit || busy}
-                style={{ alignSelf: 'flex-start' }}
-                onClick={onClick}>
-          {busy ? 'Cleaning…' : 'Remove bogus tag applications'}
-        </button>
-        {!canEdit && (
-          <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-            Editors and owners only.
-          </div>
+    <div className="settings-section">
+      <h3 className="settings-section-title">Billing</h3>
+      <p className="settings-section-hint">
+        Your current plan and payment management.
+      </p>
+
+      <Field label="Plan">
+        <div className="settings-readonly">{planLabel}</div>
+      </Field>
+
+      {tier === 'paid' && (
+        <>
+          <Field label="Status">
+            <div className="settings-readonly">{subscriptionStatus || sub?.status || '—'}</div>
+          </Field>
+          {periodLabel && (
+            <Field label={sub?.cancel_at_period_end ? 'Ends' : 'Renews'}>
+              <div className="settings-readonly">{periodLabel}</div>
+            </Field>
+          )}
+        </>
+      )}
+
+      {tier === 'admin' && (
+        <p className="settings-section-hint" style={{ marginTop: 8 }}>
+          You have unlimited admin access — no subscription needed.
+        </p>
+      )}
+
+      <div className="settings-row-actions">
+        <span style={{ flex: 1 }} />
+        {tier === 'paid' && (
+          <button type="button"
+                  className="settings-btn settings-btn-primary"
+                  disabled={busy}
+                  onClick={openPortal}>
+            {busy ? 'Opening…' : 'Manage billing →'}
+          </button>
+        )}
+        {tier === 'demo' && (
+          <button type="button"
+                  className="settings-btn settings-btn-primary"
+                  onClick={() => setPricingOpen(true)}>
+            Upgrade to Creator →
+          </button>
         )}
       </div>
-    </SettingsCategory>
+
+      {pricingOpen && <PricingModal onClose={() => setPricingOpen(false)} />}
+    </div>
   );
 }
 
