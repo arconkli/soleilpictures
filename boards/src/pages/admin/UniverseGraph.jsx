@@ -415,9 +415,14 @@ export function UniverseGraph({ onNodeClick }) {
       ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
       raycaster.setFromCamera(ndc, camera);
       const hits = raycaster.intersectObject(nodeMesh, false);
-      if (hits.length > 0 && typeof hits[0].instanceId === 'number') {
-        const node = refs.nodes[hits[0].instanceId];
-        if (node && refs.onNodeClickFn) refs.onNodeClickFn(node);
+      // Walk hits in case the first one is a physics-only user node
+      // (invisible but raycaster can still hit its 0-scale centroid).
+      for (const h of hits) {
+        if (typeof h.instanceId !== 'number') continue;
+        const node = refs.nodes[h.instanceId];
+        if (!node || node.kind === 'user') continue;
+        if (refs.onNodeClickFn) refs.onNodeClickFn(node);
+        break;
       }
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
@@ -774,9 +779,11 @@ const _tmpPos    = new THREE.Vector3();
 const _tmpScale  = new THREE.Vector3();
 
 function writeNodeAppearance(refs, idx, node) {
-  // Sphere radius = (val * 0.4), matching HomeGraph. Cached so the
-  // per-tick uploadPositions doesn't have to re-derive.
-  const r = (node.val || 8) * 0.4;
+  // User nodes are PHYSICS-ONLY — they exist in the simulation so
+  // workspaces with shared people lean toward each other, but they
+  // render nothing (no sphere, no halo). Scale 0 collapses the
+  // instance and a 0 halo size hides the sprite.
+  const r = node.kind === 'user' ? 0 : (node.val || 8) * 0.4;
   refs.baseScale[idx] = r;
 
   // Initial matrix — uploadPositions overwrites with simulated
@@ -806,12 +813,22 @@ function writeEdgeColors(refs) {
   const ca = refs.edgeLines.geometry.attributes.color;
   for (let i = 0; i < refs.edges.length; i++) {
     const e = refs.edges[i];
-    const c = e.kind === 'scaffold'   ? SCAFFOLD_RGB
+    // People-mediated edges render nothing — physics still apply
+    // (workspaces with shared users get a faint tug toward each
+    // other) but no thread is drawn between them.
+    const hidden = e.rawKind === 'membership' || e.rawKind === 'share';
+    const c = hidden                  ? null
+            : e.kind === 'scaffold'   ? SCAFFOLD_RGB
             : e.kind === 'structural' ? STRUCTURAL_RGB
             :                           SEMANTIC_RGB;
     const base = i * 6;
-    ca.array[base]     = c.r; ca.array[base + 1] = c.g; ca.array[base + 2] = c.b;
-    ca.array[base + 3] = c.r; ca.array[base + 4] = c.g; ca.array[base + 5] = c.b;
+    if (c) {
+      ca.array[base]     = c.r; ca.array[base + 1] = c.g; ca.array[base + 2] = c.b;
+      ca.array[base + 3] = c.r; ca.array[base + 4] = c.g; ca.array[base + 5] = c.b;
+    } else {
+      ca.array[base] = ca.array[base + 1] = ca.array[base + 2] = 0;
+      ca.array[base + 3] = ca.array[base + 4] = ca.array[base + 5] = 0;
+    }
   }
   ca.needsUpdate = true;
 }
@@ -864,30 +881,45 @@ function uploadPositions(refs, count) {
   maybeAutoFit(refs, count);
 }
 
-// Compute the bounding sphere of the current node positions (single
-// pass for the center, second pass for the max radius). O(N).
+// Compute the bounding sphere of the current node positions.
+// Skips invisible user nodes (they're physics-only — including them
+// would let an off-the-rim user drag the framing to oblivion) and
+// uses the 95th percentile of distance instead of the max so any
+// single outlier card can't blow up the auto-fit either.
 function computeBoundingSphere(refs, count) {
   if (count === 0) return null;
   const pos = refs.positions;
-  let cx = 0, cy = 0, cz = 0;
+  const nodes = refs.nodes;
+  let cx = 0, cy = 0, cz = 0, used = 0;
   for (let i = 0; i < count; i++) {
+    const n = nodes[i];
+    if (n && n.kind === 'user') continue;
     cx += pos[i * 3]; cy += pos[i * 3 + 1]; cz += pos[i * 3 + 2];
+    used++;
   }
-  cx /= count; cy /= count; cz /= count;
-  let maxD2 = 0;
+  if (used === 0) return null;
+  cx /= used; cy /= used; cz /= used;
+  const d2s = new Float32Array(used);
+  let j = 0;
   for (let i = 0; i < count; i++) {
+    const n = nodes[i];
+    if (n && n.kind === 'user') continue;
     const dx = pos[i * 3]     - cx;
     const dy = pos[i * 3 + 1] - cy;
     const dz = pos[i * 3 + 2] - cz;
-    const d2 = dx * dx + dy * dy + dz * dz;
-    if (d2 > maxD2) maxD2 = d2;
+    d2s[j++] = dx * dx + dy * dy + dz * dz;
   }
-  return { cx, cy, cz, radius: Math.sqrt(maxD2) };
+  // 95th-percentile radius. Cheap O(N log N) sort up to ~250k.
+  d2s.sort();
+  const pct = Math.min(used - 1, Math.floor(used * 0.95));
+  return { cx, cy, cz, radius: Math.sqrt(d2s[pct]) };
 }
 
 // Distance the camera needs to be from `center` to fit a sphere of
 // `radius` in view, considering both the vertical and horizontal FoV.
-function fitDistance(radius, camera, padding = 1.30) {
+// 1.10 padding = tight framing; was 1.30, which overshot noticeably
+// once the universe grew with the weak-gravity / strong-repulsion tune.
+function fitDistance(radius, camera, padding = 1.10) {
   const vFov = (camera.fov * Math.PI) / 180;
   const distV = radius / Math.tan(vFov / 2);
   const distH = radius / (Math.tan(vFov / 2) * camera.aspect);
