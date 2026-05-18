@@ -6,9 +6,14 @@
 // rolling window of recent op classifications and inserts a
 // workspace_anomaly_alerts row when thresholds are crossed:
 //
-//   - >20 card.delete in any 5-second window, OR
-//   - >5% of current cards deleted in any 60-second window (if board has
-//     more than 10 cards)
+//   - >=100 card.delete in any 5-second window, OR
+//   - >=100 absolute card.delete AND >=50% of current cards in any
+//     60-second window (if board has at least 50 cards)
+//
+// Thresholds are intentionally high. The alert is for SUBSTANTIAL,
+// catastrophe-grade deletion (select-all + delete; runaway script;
+// accidental sub-board wipe), not for routine cleanup. Deleting one or
+// two cards must never fire it.
 //
 // On detection: alerts the user via a Realtime row in
 // workspace_anomaly_alerts AND pauses writes for that board for 60s by
@@ -50,9 +55,10 @@ const STATE = new WeakMap<object, {
 
 const WINDOW_5S = 5_000;
 const WINDOW_60S = 60_000;
-const THRESHOLD_5S = 20;
-const THRESHOLD_60S_PCT = 0.05;
-const MIN_CARDS_FOR_PCT = 10;
+const THRESHOLD_5S = 100;
+const THRESHOLD_60S_PCT = 0.50;
+const THRESHOLD_60S_ABS = 100;
+const MIN_CARDS_FOR_PCT = 50;
 const ALERT_COOLDOWN_MS = 60_000;
 const PAUSE_DURATION_MS = 60_000;
 
@@ -113,6 +119,7 @@ export function installAnomalyDetector(roomKey: object, opts: DetectorOpts) {
       const trip5s = count5 >= THRESHOLD_5S;
       const trip60sPct =
         cardCountNow >= MIN_CARDS_FOR_PCT &&
+        count60 >= THRESHOLD_60S_ABS &&
         count60 / cardCountNow >= THRESHOLD_60S_PCT;
 
       if (!trip5s && !trip60sPct) return false;
