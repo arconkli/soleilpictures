@@ -3,17 +3,31 @@
 // Body: { entry_id: uuid, action: 'accept' | 'reject' | 'reschedule', days?: number }
 //
 // Caller's profile.tier must be 'admin'. Actions:
-//   • accept       → run the same flip that the cron does (tier→demo, mark accepted, send signin email)
+//   • accept       → tier→demo, mark accepted, send branded welcome email
+//                    via send-transactional-email (NOT a raw OTP — the user
+//                    requests a fresh code by clicking through to /sign-in)
 //   • reject       → mark entry rejected; the user's account (if any)
-//                    stays on tier='waitlist' so they can't sign in
-//   • reschedule   → bump scheduled_accept_at by `days` (default 7)
+//                    stays on tier='waitlist' so they can't sign in. No email.
+//   • reschedule   → bump scheduled_accept_at by `days` (default 7). No email.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const APP_URL      = Deno.env.get("APP_URL") || "";
+const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
+
+async function sendEmail(template: string, to: string, data: Record<string, unknown> = {}) {
+  if (!SEND_EMAIL_SECRET) { console.warn("SEND_EMAIL_SECRET not set; skipping " + template); return; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
+      method: "POST",
+      headers: { "authorization": `Bearer ${SEND_EMAIL_SECRET}`, "content-type": "application/json" },
+      body: JSON.stringify({ template, to, data }),
+    });
+    if (!res.ok) console.warn(`send-transactional-email ${template} -> ${to} failed: ${res.status}`);
+  } catch (e) { console.warn(`send-transactional-email ${template} -> ${to} threw`, e); }
+}
 
 const cors = {
   "access-control-allow-origin":  "*",
@@ -67,11 +81,9 @@ Deno.serve(async (req) => {
         accepted_at: new Date().toISOString(),
         reviewed_by: u.data.user.id,
       }).eq("id", body.entry_id);
-      const signin = await admin.auth.signInWithOtp({
-        email: entry.data.email,
-        options: { shouldCreateUser: false, emailRedirectTo: APP_URL || undefined },
-      });
-      if (signin.error) throw signin.error;
+      // Welcome email (no OTP — user clicks through to /sign-in and
+      // requests a fresh code via the existing magic_link.html flow).
+      await sendEmail("waitlist_accepted", entry.data.email);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return json({ error: msg }, 500);

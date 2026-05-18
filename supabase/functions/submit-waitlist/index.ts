@@ -13,8 +13,23 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
+
+// Fire-and-forget call to send-transactional-email. Email failures must
+// never fail the waitlist write itself, so we swallow everything.
+async function sendEmail(template: string, to: string, data: Record<string, unknown> = {}) {
+  if (!SEND_EMAIL_SECRET) { console.warn("SEND_EMAIL_SECRET not set; skipping " + template); return; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
+      method: "POST",
+      headers: { "authorization": `Bearer ${SEND_EMAIL_SECRET}`, "content-type": "application/json" },
+      body: JSON.stringify({ template, to, data }),
+    });
+    if (!res.ok) console.warn(`send-transactional-email ${template} -> ${to} failed: ${res.status}`);
+  } catch (e) { console.warn(`send-transactional-email ${template} -> ${to} threw`, e); }
+}
 
 const cors = {
   "access-control-allow-origin":  "*",
@@ -148,6 +163,10 @@ Deno.serve(async (req) => {
       rejected_at: null,
     }, { onConflict: "email" });
   if (upsert.error) return json({ error: upsert.error.message }, 500);
+
+  // Fire-and-forget confirmation email. Awaiting only so Deno doesn't kill
+  // the response before the fetch completes; the helper itself never throws.
+  await sendEmail("waitlist_submitted", email);
 
   return json({ ok: true, status: "queued", scheduled_accept_at: scheduledAcceptAt.toISOString() }, 200);
 });

@@ -7,8 +7,9 @@
 //   2. Flips profile.tier from 'waitlist' to 'demo'. Skips users whose
 //      tier is already 'admin' or 'paid' (defensive).
 //   3. Marks the waitlist row accepted.
-//   4. Sends a fresh magic-link / OTP email so the user has a
-//      one-click sign-in path from the "you're in" email.
+//   4. Sends a branded "you're in" welcome email via send-transactional-email.
+//      No OTP is included — the user clicks through to /sign-in and requests
+//      a fresh code via the existing magic_link.html flow.
 //
 // Authorization: pg_cron calls via net.http_post with the service-role
 // key in the Authorization header. We require Bearer == SERVICE_KEY.
@@ -16,9 +17,21 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const APP_URL      = Deno.env.get("APP_URL") || "";
+const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
+
+async function sendEmail(template: string, to: string, data: Record<string, unknown> = {}) {
+  if (!SEND_EMAIL_SECRET) { console.warn("SEND_EMAIL_SECRET not set; skipping " + template); return; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
+      method: "POST",
+      headers: { "authorization": `Bearer ${SEND_EMAIL_SECRET}`, "content-type": "application/json" },
+      body: JSON.stringify({ template, to, data }),
+    });
+    if (!res.ok) console.warn(`send-transactional-email ${template} -> ${to} failed: ${res.status}`);
+  } catch (e) { console.warn(`send-transactional-email ${template} -> ${to} threw`, e); }
+}
 
 const cors = {
   "access-control-allow-origin":  "*",
@@ -77,17 +90,9 @@ async function acceptOne(admin: ReturnType<typeof createClient>, entryId: string
     .eq("id", entryId);
   if (entryUpd.error) throw entryUpd.error;
 
-  // Welcome email: standard magic-link template, customize subject in
-  // Dashboard → Authentication → Email Templates. shouldCreateUser=false
-  // because the user already exists.
-  const signin = await admin.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser: false,
-      emailRedirectTo: APP_URL || undefined,
-    },
-  });
-  if (signin.error) throw signin.error;
+  // Welcome email — branded "you're in" message with a CTA to /sign-in.
+  // The user requests a fresh OTP at sign-in via the existing magic_link.html flow.
+  await sendEmail("waitlist_accepted", email);
 }
 
 function json(payload: unknown, status: number): Response {
