@@ -118,7 +118,6 @@ export function WaitlistConfirm() {
           {/* Status — floating text, no container. */}
           <section className="waitlist-status">
             <div className="waitlist-status-eyebrow t-eyebrow">
-              <span className="waitlist-status-dot" aria-hidden="true" />
               On the waitlist
             </div>
             <h2 className="waitlist-status-title">We'll be in touch soon.</h2>
