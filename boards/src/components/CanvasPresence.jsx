@@ -187,12 +187,43 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
                }} />
         ))}
       </div>
-      <div className="cursors-layer">
+      <div
+        className="cursors-layer"
+        data-cursor-keys={Object.keys(cursorDisplay).join(',')}
+        ref={(el) => {
+          // TEMP cursor-visibility diagnostic. Throttled to 1/sec.
+          if (!el || typeof window === 'undefined') return;
+          if (window.__cpLogAt && Date.now() - window.__cpLogAt < 1000) return;
+          window.__cpLogAt = Date.now();
+          const keys = Object.keys(cursorDisplay);
+          const inDom = el.querySelectorAll('.cursor').length;
+          const detail = keys.map(k => {
+            const c = cursorDisplay[k];
+            const sx = pan?.x + c?.x * zoom;
+            const sy = pan?.y + c?.y * zoom;
+            return {
+              id: k,
+              hasUser: !!c?.user,
+              userName: c?.user?.name,
+              userId: c?.user?.id,
+              cx: c?.x, cy: c?.y,
+              sx, sy,
+              panX: pan?.x, panY: pan?.y, zoom,
+              sxFinite: Number.isFinite(sx),
+              syFinite: Number.isFinite(sy),
+            };
+          });
+          console.log('[cursor-diag]', { stateKeys: keys.length, domCount: inDom, layerRect: el.getBoundingClientRect(), detail });
+        }}>
         {Object.entries(cursorDisplay).map(([clientId, c]) => {
           if (!c?.user) return null;
           const sx = pan.x + c.x * zoom;
           const sy = pan.y + c.y * zoom;
-          if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
+          if (!Number.isFinite(sx) || !Number.isFinite(sy)) {
+            // TEMP: surface why this would-be cursor is being dropped.
+            console.warn('[cursor-diag] dropping non-finite', { clientId, cx: c.x, cy: c.y, sx, sy, pan, zoom });
+            return null;
+          }
           return (
             <LiveCursor
               key={clientId}
