@@ -11,6 +11,7 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
+import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
 import { useMentionNotifications } from './hooks/useMentionNotifications.js';
@@ -237,11 +238,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Workspace switcher popover (in the sidebar header). Click-outside +
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
-  // When set, the WorkspaceMenu opens with the 3-dots row-pop already
-  // expanded for this workspace id. Used by right-click on the trigger
-  // so a single right-click lands the user on rename/delete actions
-  // for the active workspace.
-  const [wsMenuAutoExpandId, setWsMenuAutoExpandId] = useState(null);
   // Two separate panels:
   //   accountOpen  — avatar (bottom-left, your initial) → identity only
   //                  (Profile tab + sign out)
@@ -2198,22 +2194,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <div className="sb-mid">
           <div className="sb-mid-head">
             <button className="sb-ws-trigger"
-                    onClick={() => { setWsMenuAutoExpandId(null); setWsMenuOpen(o => !o); }}
-                    onContextMenu={(e) => {
-                      // Right-click no longer deletes — that was too easy
-                      // to do by accident. Instead, open the workspace
-                      // switcher with the active row's actions popover
-                      // already expanded so the user is one click away
-                      // from Rename / Delete.
-                      e.preventDefault();
-                      setWsMenuAutoExpandId(workspace.id);
-                      setWsMenuOpen(true);
-                    }}
-                    title={`${workspace.name} · click to switch, right-click for actions`}
+                    onClick={() => setWsMenuOpen(o => !o)}
+                    title={`${workspace.name} · click to switch`}
                     aria-haspopup="menu" aria-expanded={wsMenuOpen}>
-              <span className="sb-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }}>
-                {(workspace.name || '?').trim().charAt(0).toUpperCase()}
-              </span>
+              {(() => {
+                const iconSrc = workspace.settings?.icon_url || '';
+                return iconSrc ? (
+                  <span className="sb-ws-avatar sb-ws-avatar-img">
+                    <R2Image src={iconSrc} alt="" />
+                  </span>
+                ) : (
+                  <span className="sb-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }}>
+                    {(workspace.name || '?').trim().charAt(0).toUpperCase()}
+                  </span>
+                );
+              })()}
               <span className="sb-ws-name">{workspace.name}</span>
               <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
                 <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -2231,12 +2226,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 personalWorkspaceId={personalWorkspaceId}
                 selfUserId={user.id}
                 wsPeers={wsPeers}
-                autoExpandMenuId={wsMenuAutoExpandId}
                 onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
                 onAddNew={addNewWorkspace}
                 onRemove={(ws, action) => removeWorkspace(ws, action)}
                 onRename={(ws) => promptRenameWorkspace(ws)}
-                onClose={() => { setWsMenuOpen(false); setWsMenuAutoExpandId(null); }}
+                onClose={() => setWsMenuOpen(false)}
               />
             )}
           </div>
@@ -2338,11 +2332,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     onClick={() => setSettingsOpen(true)}>
               <Icon as={Settings} size={14} />
             </button>
-            <button className="sb-foot-avatar" title="Account"
-                    style={{ background: userInfo.color || pickPresenceColor(user.id) }}
-                    onClick={() => setAccountOpen(true)}>
-              {(user.email?.[0] || 'Y').toUpperCase()}
-            </button>
+            {(() => {
+              const avatarSrc = ownProfile?.avatar_url || '';
+              if (avatarSrc) {
+                return (
+                  <button className="sb-foot-avatar sb-foot-avatar-img" title="Account"
+                          onClick={() => setAccountOpen(true)}>
+                    <R2Image src={avatarSrc} alt="" />
+                  </button>
+                );
+              }
+              return (
+                <button className="sb-foot-avatar" title="Account"
+                        style={{ background: userInfo.color || pickPresenceColor(user.id) }}
+                        onClick={() => setAccountOpen(true)}>
+                  {(user.email?.[0] || 'Y').toUpperCase()}
+                </button>
+              );
+            })()}
           </div>
         </div>
       </aside>
@@ -2354,6 +2361,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         user={user}
         onSignOut={signOut}
         workspaceId={workspace?.id}
+        workspaceName={workspace?.name}
         onWorkspacesChanged={onWorkspacesChanged}
         onSaved={() => onWorkspacesChanged?.()}
         defaults={defaults}
@@ -2369,6 +2377,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         user={user}
         onSignOut={signOut}
         workspaceId={workspace?.id}
+        workspaceName={workspace?.name}
         onWorkspacesChanged={onWorkspacesChanged}
         onSaved={() => onWorkspacesChanged?.()}
         defaults={defaults}

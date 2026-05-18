@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit, Check } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { R2Image } from './R2Image.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
 // Show the filter input once we have more workspaces than this — on
@@ -21,7 +22,6 @@ export function WorkspaceMenu({
   personalWorkspaceId,
   selfUserId,
   wsPeers = [],
-  autoExpandMenuId = null, // pre-open the row-pop for this workspace id
   onSelect,
   onAddNew,
   onRemove,             // (ws, action: 'delete' | 'leave') => void
@@ -31,10 +31,8 @@ export function WorkspaceMenu({
   const ref = useRef(null);
   const [filter, setFilter] = useState('');
   // Per-row mini-menu state — only one open at a time. Stores the
-  // workspace id whose ⋯ button was clicked. Initialized from
-  // autoExpandMenuId so right-click-on-trigger lands directly on
-  // the active row's Rename / Delete actions.
-  const [openMenuId, setOpenMenuId] = useState(autoExpandMenuId);
+  // workspace id whose ⋯ button was clicked.
+  const [openMenuId, setOpenMenuId] = useState(null);
   // Close on outside click + Escape. Capture-phase mousedown so we beat
   // any handlers that might re-focus or repaint inside the menu.
   // Important: ignore clicks on the trigger button itself — its own
@@ -87,6 +85,7 @@ export function WorkspaceMenu({
                   :              'Shared with you';
     const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
     const tint = pickPresenceColor(w.id);
+    const iconSrc = w.settings?.icon_url || '';
     // Personal workspace is the user's home — not removable. Owners
     // see "Delete workspace" (destroys it for everyone); shared
     // members see "Leave workspace" (removes their own membership).
@@ -99,7 +98,9 @@ export function WorkspaceMenu({
       <div key={w.id} className={`ws-menu-row-wrap ${hasRowMenu ? 'has-menu' : ''}`}>
         <button className={`ws-menu-row ${isActive ? 'is-active' : ''}`}
                 onClick={() => { onSelect?.(w.id); onClose?.(); }}>
-          <span className="ws-menu-avatar" style={{ background: tint }}>{initial}</span>
+          {iconSrc
+            ? <span className="ws-menu-avatar ws-menu-avatar-img"><R2Image src={iconSrc} alt="" /></span>
+            : <span className="ws-menu-avatar" style={{ background: tint }}>{initial}</span>}
           <span className="ws-menu-text">
             <span className="ws-menu-name">{w.name}</span>
             <span className="ws-menu-sub">{subtitle}</span>

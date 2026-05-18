@@ -22,12 +22,15 @@ import {
   updateOwnSettings,
 } from '../lib/boardsApi.js';
 import { supabase } from '../lib/supabase.js';
+import { uploadImage } from '../lib/uploads.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { PricingModal } from './PricingModal.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
+import { R2Image } from './R2Image.jsx';
 import { COVER_TINTS } from './primitives.jsx';
 import { HARDCODED_FALLBACKS } from '../hooks/useResolvedDefaults.js';
+import { pickPresenceColor } from '../lib/presenceColor.js';
 import {
   listBoardTemplates, deleteBoardTemplate, renameBoardTemplate,
 } from '../lib/templatesApi.js';
@@ -177,7 +180,7 @@ const ACCENT_PRESETS = [
 export function SettingsPanel({
   open, onClose,
   user, onSignOut,
-  workspaceId, onWorkspacesChanged,
+  workspaceId, workspaceName, onWorkspacesChanged,
   onSaved,
   // 'account' = avatar-style identity-only modal (Profile tab + sign out).
   // 'workspace' = the cog-style settings (Defaults/Theme/Templates/Display).
@@ -256,17 +259,20 @@ export function SettingsPanel({
           )}
           <div className="settings-pane">
             {tab === 'profile' && (
-              <ProfileTab user={user} onSaved={onSaved} />
+              <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved} />
             )}
             {tab === 'billing' && (
               <BillingTab user={user} />
             )}
             {tab === 'defaults' && (
               <DefaultsTab workspaceId={workspaceId}
+                           workspaceName={workspaceName}
+                           user={user}
                            role={role}
                            workspaceSettings={workspaceSettings}
                            mySettings={mySettings}
                            refresh={refresh}
+                           onWorkspacesChanged={onWorkspacesChanged}
                            onOpenRecovery={onOpenRecovery} />
             )}
             {tab === 'theme' && (
@@ -287,13 +293,15 @@ export function SettingsPanel({
 }
 
 // ── Profile tab (today's AccountSettings, lifted in) ────────────────────
-function ProfileTab({ user, onSaved }) {
+function ProfileTab({ user, workspaceId, onSaved }) {
   const feedback = useFeedback();
   const [name, setName] = useState('');
   const [color, setColor] = useState('');
-  const [initial, setInitial] = useState({ name: '', color: '' });
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [initial, setInitial] = useState({ name: '', color: '', avatarUrl: '' });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [pickerPos, setPickerPos] = useState(null);
   const chipRef = useRef(null);
 
@@ -308,17 +316,46 @@ function ProfileTab({ user, onSaved }) {
                           || user.email?.split('@')[0] || '';
         const n = p?.display_name || fallbackName;
         const c = p?.color || '';
-        setName(n); setColor(c);
-        setInitial({ name: n, color: c });
+        const a = p?.avatar_url || '';
+        setName(n); setColor(c); setAvatarUrl(a);
+        setInitial({ name: n, color: c, avatarUrl: a });
       })
-      .catch(err => {
+      .catch(() => {
         feedback.toast({ type: 'error', message: 'Could not load profile.' });
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  const dirty = name.trim() !== initial.name.trim() || (color || '') !== (initial.color || '');
+  const dirty =
+    name.trim() !== initial.name.trim()
+    || (color || '') !== (initial.color || '')
+    || (avatarUrl || '') !== (initial.avatarUrl || '');
+
+  const onAvatarPick = async (file) => {
+    if (!file || !user?.id) return;
+    if (!workspaceId) {
+      // Uploader uses presign-by-workspace because R2 keys are scoped
+      // to a workspace for RLS. Without an active workspace we can't
+      // ask for an upload URL.
+      feedback.toast({ type: 'error', message: 'Open a workspace before uploading a profile picture.' });
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const { src } = await uploadImage({
+        file,
+        workspaceId,
+        boardId: null,
+        userId: user.id,
+      });
+      setAvatarUrl(src || '');
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const onSave = async () => {
     if (!user?.id || saving) return;
@@ -328,9 +365,11 @@ function ProfileTab({ user, onSaved }) {
         userId: user.id,
         displayName: name.trim() || null,
         color: color || null,
+        avatarUrl: avatarUrl || null,
       });
       feedback.toast({ type: 'success', message: 'Profile saved.' });
-      onSaved?.({ name: name.trim(), color });
+      setInitial({ name: name.trim(), color, avatarUrl });
+      onSaved?.({ name: name.trim(), color, avatarUrl });
     } catch (err) {
       feedback.toast({ type: 'error', message: 'Save failed: ' + (err.message || err) });
     } finally {
@@ -341,6 +380,17 @@ function ProfileTab({ user, onSaved }) {
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">Profile</h3>
+      <Field label="Profile picture">
+        <AvatarUploadRow
+          src={avatarUrl}
+          fallbackColor={color || pickPresenceColor(user.id)}
+          fallbackInitial={(name || user?.email || '?').trim().charAt(0).toUpperCase() || '?'}
+          uploading={uploadingAvatar}
+          disabled={loading || saving}
+          onPick={onAvatarPick}
+          onRemove={() => setAvatarUrl('')}
+        />
+      </Field>
       <Field label="Display name">
         <input className="settings-input"
                value={name}
@@ -391,11 +441,54 @@ function ProfileTab({ user, onSaved }) {
   );
 }
 
+// Avatar / icon preview + file picker + remove button. Used for both
+// the profile picture and the workspace icon — same shape, same flow,
+// just different consumers wiring up state.
+function AvatarUploadRow({ src, fallbackColor, fallbackInitial, uploading, disabled, onPick, onRemove, shape = 'circle' }) {
+  const fileRef = useRef(null);
+  const previewClass = `settings-avatar-preview settings-avatar-${shape}`;
+  return (
+    <div className="settings-avatar-row">
+      <div className={previewClass}
+           style={src ? undefined : { background: fallbackColor }}
+           aria-hidden="true">
+        {src
+          ? <R2Image src={src} alt="" className="settings-avatar-img" />
+          : <span>{fallbackInitial}</span>}
+      </div>
+      <div className="settings-avatar-actions">
+        <button type="button" className="settings-btn"
+                onClick={() => fileRef.current?.click()}
+                disabled={disabled || uploading}>
+          {uploading ? 'Uploading…' : (src ? 'Replace' : 'Upload')}
+        </button>
+        {src && (
+          <button type="button" className="settings-link-btn"
+                  onClick={onRemove}
+                  disabled={disabled || uploading}>
+            Remove
+          </button>
+        )}
+      </div>
+      <input ref={fileRef}
+             type="file"
+             accept="image/*"
+             style={{ display: 'none' }}
+             onChange={(e) => {
+               const f = e.target.files?.[0];
+               // Reset value so picking the same file twice still fires onChange.
+               e.target.value = '';
+               if (f) onPick(f);
+             }} />
+    </div>
+  );
+}
+
 // ── Defaults tab — workspace-wide defaults for new cards ─────────────────
 // Editable by workspace editors and owners only. Viewers see the values
 // for context but the inputs are disabled. Changes apply to every member
 // when they create a new card next.
-function DefaultsTab({ workspaceId, role, workspaceSettings, refresh, onOpenRecovery }) {
+function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings, refresh, onWorkspacesChanged, onOpenRecovery }) {
   const feedback = useFeedback();
   const canEdit = role === 'editor' || role === 'owner';
   const isOwner = role === 'owner';
@@ -408,6 +501,38 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, refresh, onOpenReco
     const t = setTimeout(() => setSavedAt(0), 1600);
     return () => clearTimeout(t);
   }, [savedAt]);
+
+  // Workspace icon upload — top-level key on workspaces.settings so the
+  // sidebar can read it from the workspace row without an extra query.
+  // Owner-only edit; viewers and editors see the section read-only so
+  // the icon is at least visible.
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const iconSrc = workspaceSettings?.icon_url || '';
+  const setIcon = async (nextSrc) => {
+    if (!isOwner || !workspaceId) return;
+    try {
+      await updateWorkspaceSettings(workspaceId, { icon_url: nextSrc || null });
+      await refresh?.();
+      await onWorkspacesChanged?.();
+      flashSaved();
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Could not update icon: ' + (err.message || err) });
+    }
+  };
+  const onIconPick = async (file) => {
+    if (!file || !workspaceId || !user?.id) return;
+    setUploadingIcon(true);
+    try {
+      const { src } = await uploadImage({
+        file, workspaceId, boardId: null, userId: user.id,
+      });
+      await setIcon(src);
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
+    } finally {
+      setUploadingIcon(false);
+    }
+  };
 
   const settings = workspaceSettings;
   const setKey = (cat, key, value) => savePatch(cat, { [key]: value });
@@ -439,6 +564,21 @@ function DefaultsTab({ workspaceId, role, workspaceSettings, refresh, onOpenReco
           ? ' Anyone you create now will pick these up; existing cards aren’t changed.'
           : ' You have viewer access — only editors and owners can change them.'}
       </p>
+
+      <SettingsCategory title="Workspace icon" desc={isOwner ? 'Shows in the sidebar and switcher.' : 'Only owners can change the icon.'}>
+        <Field label={workspaceName || 'Workspace'}>
+          <AvatarUploadRow
+            src={iconSrc}
+            fallbackColor={pickPresenceColor(workspaceId || '')}
+            fallbackInitial={((workspaceName || '?').trim().charAt(0) || '?').toUpperCase()}
+            uploading={uploadingIcon}
+            disabled={!isOwner}
+            shape="square"
+            onPick={onIconPick}
+            onRemove={() => setIcon('')}
+          />
+        </Field>
+      </SettingsCategory>
 
       {/* NOTES */}
       <SettingsCategory title="Notes" desc="When you create a sticky note">
