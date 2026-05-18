@@ -1,6 +1,7 @@
-// AdminUniverseTab — top-level admin landing surface. Ticker pinned
-// to the top; cosmograph fills the rest of the viewport. Clicking a
-// node opens a minimal drawer with IDs + counts only (no titles or
+// AdminUniverseTab — top-level admin landing surface. Floating
+// stats pill at the top; 3D force-graph (same renderer as the
+// per-workspace HomeGraph) fills the viewport. Clicking a node
+// opens a minimal drawer with IDs + counts only (no titles or
 // content — privacy contract is enforced by the snapshot RPC).
 
 import { useState } from 'react';
@@ -35,7 +36,7 @@ function UniverseDrawer({ node, onClose }) {
             <span className="universe-drawer-dot" style={{ background: node.color || '#ffa500' }} />
             <span className="t-eyebrow">{KIND_LABELS[node.kind] || node.kind || 'Node'}</span>
           </div>
-          <div className="universe-drawer-id">{node.node_id}</div>
+          <div className="universe-drawer-id">{node.id || node.node_id}</div>
         </div>
         <button className="universe-drawer-x" onClick={onClose} aria-label="Close">×</button>
       </header>
