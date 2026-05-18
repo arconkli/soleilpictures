@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadYBoard } from '../lib/yboard.js';
 import { readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.js';
+import { watchBoardRestores } from '../lib/restoreSignal.js';
 
 // Fires whenever bulletproofRestore completes for a board. Listeners
 // (useYBoard instances bound to that board) destroy their current
@@ -32,29 +33,48 @@ export function useYBoard(boardId, userId, user = null) {
     undoManager: null, canUndo: false, canRedo: false, sessionId: null,
   });
 
-  // Listen for explicit reset events targeting this board. Bumping
-  // resetEpoch invalidates the main effect's deps → it tears down the
-  // current Y.Doc + WebSocket and rebuilds from scratch.
+  // Reset signals come from THREE sources, all converging on a single
+  // resetEpoch bump that tears down + rebuilds the Y.Doc:
   //
-  // Reset signals can fire from two sources for the same restore:
-  //   1) the WS text-frame broadcast from PartyKit /reset (reaches ALL
-  //      connected tabs, including the initiator's)
-  //   2) the local window.__soleilEmitBoardReset() call from
-  //      bulletproofRestore (fallback in case /reset failed to broadcast)
-  // Dedupe within 600ms so the initiator's tab doesn't remount twice
-  // and waste a fresh Y.Doc + WS handshake.
+  //   1) Durable: Supabase Realtime UPDATE on board_state_version row.
+  //      Bumped by the new restore endpoint atomically with the snapshot
+  //      insert. Survives offline reconnect. Active once migration 0060
+  //      is applied.
+  //   2) Durable fallback: 10s polling of the same row. Works without
+  //      Realtime; catches throttled tabs and degraded network.
+  //   3) Legacy: 'soleil-board-reset' window CustomEvent. Fired by the
+  //      old bulletproofRestore + PartyKit broadcast. Kept during the
+  //      Phase 4-7 migration window for back-compat.
+  //
+  // 600ms dedupe so a single restore that fires via all three doesn't
+  // remount three times.
   const lastResetAtRef = useRef(0);
+  const triggerReset = (reason) => {
+    const now = Date.now();
+    if (now - lastResetAtRef.current < 600) return;
+    lastResetAtRef.current = now;
+    setResetEpoch(n => n + 1);
+    if (reason && typeof console !== 'undefined') {
+      console.info(`[useYBoard] reset triggered via ${reason}`);
+    }
+  };
+
   useEffect(() => {
     if (!boardId) return;
     const onReset = (e) => {
       if (e?.detail?.boardId && e.detail.boardId !== boardId) return;
-      const now = Date.now();
-      if (now - lastResetAtRef.current < 600) return;
-      lastResetAtRef.current = now;
-      setResetEpoch(n => n + 1);
+      triggerReset('window-event');
     };
     window.addEventListener('soleil-board-reset', onReset);
     return () => window.removeEventListener('soleil-board-reset', onReset);
+  }, [boardId]);
+
+  useEffect(() => {
+    if (!boardId) return;
+    const unsubscribe = watchBoardRestores(boardId, ({ version }) => {
+      triggerReset(`realtime-version=${version}`);
+    });
+    return () => { try { unsubscribe(); } catch (_) {} };
   }, [boardId]);
 
   useEffect(() => {
