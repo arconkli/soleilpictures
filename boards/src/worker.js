@@ -21,6 +21,7 @@ export default {
     if (url.pathname.startsWith('/api/tags/')) return handleTagsRoute(url, request, env);
     const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
     if (resetMatch) return handleBoardReset(resetMatch[1], request);
+    if (url.pathname === '/api/admin/backfill-image-sizes') return handleBackfillImageSizes(request, env);
     return env.ASSETS.fetch(request);
   },
   async scheduled(event, env, ctx) {
@@ -323,4 +324,94 @@ function json(data, status = 200, cacheable = false) {
     headers['cache-control'] = 'no-store';
   }
   return new Response(JSON.stringify(data), { status, headers });
+}
+
+// Admin-only: backfill public.images.size_bytes by HEAD-ing every R2
+// object whose row has size_bytes IS NULL. Called manually from
+// /admin Analytics → Storage section. Idempotent; batches of up to 500.
+// Returns counts + how many rows still need backfill so the UI can loop.
+async function handleBackfillImageSizes(request, env) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: {
+      'access-control-allow-origin':  '*',
+      'access-control-allow-methods': 'POST, OPTIONS',
+      'access-control-allow-headers': 'authorization, content-type',
+    } });
+  }
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+
+  const userToken = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!userToken) return json({ error: 'auth required' }, 401);
+
+  // Validate caller is admin via the existing get_my_tier RPC. We use
+  // the user's JWT so RLS / function gate runs as them.
+  const tierRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_my_tier`, {
+    method: 'POST',
+    headers: {
+      apikey:        env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${userToken}`,
+      'content-type': 'application/json',
+    },
+    body: '{}',
+  });
+  if (!tierRes.ok) return json({ error: 'tier check failed' }, 401);
+  const tierData = await tierRes.json();
+  const tier = Array.isArray(tierData) ? tierData[0]?.tier : tierData?.tier;
+  if (tier !== 'admin') return json({ error: 'admin only' }, 403);
+
+  if (!env.IMAGES) return json({ error: 'R2 binding missing' }, 500);
+
+  const url   = new URL(request.url);
+  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 100)));
+
+  const listUrl =
+    `${env.SUPABASE_URL}/rest/v1/images?size_bytes=is.null&deleted_at=is.null` +
+    `&select=id,storage_path&limit=${limit}&order=created_at.desc`;
+  const listRes = await fetch(listUrl, {
+    headers: {
+      apikey:        env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+  });
+  if (!listRes.ok) return json({ error: 'list failed' }, 500);
+  const rows = await listRes.json();
+
+  let processed = 0, notFound = 0, errors = 0;
+  for (const row of rows) {
+    if (!row?.storage_path) continue;
+    try {
+      const obj = await env.IMAGES.head(row.storage_path);
+      if (!obj) { notFound++; continue; }
+      const upd = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/images?id=eq.${row.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            apikey:        env.SUPABASE_SERVICE_ROLE_KEY,
+            authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'content-type': 'application/json',
+            prefer:        'return=minimal',
+          },
+          body: JSON.stringify({ size_bytes: obj.size }),
+        },
+      );
+      if (upd.ok) processed++; else errors++;
+    } catch (_) { errors++; }
+  }
+
+  // Remaining count so the UI can keep looping.
+  const remRes = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/images?size_bytes=is.null&deleted_at=is.null&select=id&limit=1`,
+    {
+      headers: {
+        apikey:        env.SUPABASE_SERVICE_ROLE_KEY,
+        authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        prefer:        'count=exact',
+      },
+    },
+  );
+  const remHeader = remRes.headers.get('content-range') || '';
+  const remaining = parseInt(remHeader.split('/').pop() || '0', 10) || 0;
+
+  return json({ ok: true, processed, not_found: notFound, errors, remaining });
 }

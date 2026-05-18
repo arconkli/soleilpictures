@@ -9,6 +9,7 @@ import { AdminFunnel } from './AdminFunnel.jsx';
 import { AdminCardsSection } from './AdminCardsSection.jsx';
 import { AdminTierCompareTable } from './AdminTierCompareTable.jsx';
 import { AdminTopUsersList } from './AdminTopUsersList.jsx';
+import { AdminStorageSection } from './AdminStorageSection.jsx';
 
 export function AdminAnalyticsTab() {
   const [funnel, setFunnel]         = useState([]);
@@ -60,6 +61,7 @@ export function AdminAnalyticsTab() {
       <AdminCardsSection perDay={perDay} cardStats={cardStats} />
       <AdminTierCompareTable rows={tierCompare} />
       <AdminTopUsersList topDemo={topDemo} topPaid={topPaid} />
+      <AdminStorageSection />
     </div>
   );
 }

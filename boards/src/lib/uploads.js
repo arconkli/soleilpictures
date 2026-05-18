@@ -113,6 +113,7 @@ export async function uploadImage({ file, workspaceId, boardId, cardId = null, u
       storage_path: key,
       width: dims.w,
       height: dims.h,
+      size_bytes: file.size || null,
       uploaded_by: userId,
     })
     .select('*')
@@ -204,6 +205,7 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
       storage_path: key,
       width: null,
       height: null,
+      size_bytes: file.size || null,
       uploaded_by: userId,
     });
   if (rowErr) console.warn('[uploads] audio images row insert failed', rowErr);
@@ -244,6 +246,7 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
       storage_path: key,
       width: meta.w,
       height: meta.h,
+      size_bytes: file.size || null,
       uploaded_by: userId,
     });
   if (rowErr) console.warn('[uploads] video images row insert failed', rowErr);
