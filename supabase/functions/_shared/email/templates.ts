@@ -13,13 +13,17 @@ export type TemplateName =
   | "waitlist_submitted"
   | "waitlist_accepted"
   | "workspace_invite"
-  | "board_shared";
+  | "board_shared"
+  | "mention_email"
+  | "comment_reply_email";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
   "waitlist_accepted",
   "workspace_invite",
   "board_shared",
+  "mention_email",
+  "comment_reply_email",
 ];
 
 export interface RenderedEmail {
@@ -146,6 +150,91 @@ function boardShared(d: BoardSharedData): RenderedEmail {
   };
 }
 
+interface MentionEmailData {
+  mentionerName: string;
+  surface: "dm" | "board" | "workspace";
+  surfaceContext: string;
+  messagePreview: string;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function quoteBlock(preview: string): string {
+  if (!preview) return "";
+  return `<div style="font:400 14px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#b3b3b7; font-style:italic; padding:12px 16px; border-left:2px solid #ffa500; background:rgba(255,165,0,0.06); border-radius:0 4px 4px 0; text-align:left;">${escapeHtml(preview)}</div>`;
+}
+
+function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
+  const subject = d.surface === "dm"
+    ? `${d.mentionerName} mentioned you`
+    : `${d.mentionerName} mentioned you in ${d.surfaceContext}`;
+  const subtitle = d.surface === "dm"
+    ? `In a direct message.`
+    : `In ${d.surfaceContext}.`;
+  return {
+    subject,
+    html: renderEmail({
+      preheader: `${d.mentionerName}: ${d.messagePreview || "mentioned you"}`,
+      eyebrow: "Mention",
+      headline: `${d.mentionerName} mentioned you.`,
+      subtitle,
+      bodyHtml: quoteBlock(d.messagePreview),
+      cta: { label: "Open in Clusters", url: APP_URL },
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      `${d.mentionerName} mentioned you.`,
+      subtitle,
+      d.messagePreview ? `\n  "${d.messagePreview}"` : "",
+      "",
+      "Open in Clusters: " + APP_URL,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+interface CommentReplyEmailData {
+  replierName: string;
+  boardName: string;
+  workspaceName: string;
+  replyPreview: string;
+}
+
+function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
+  const subtitle = `On "${d.boardName}" in ${d.workspaceName}.`;
+  return {
+    subject: `${d.replierName} replied to your comment`,
+    html: renderEmail({
+      preheader: `${d.replierName}: ${d.replyPreview || "replied to your comment"}`,
+      eyebrow: "Reply",
+      headline: `${d.replierName} replied.`,
+      subtitle,
+      bodyHtml: quoteBlock(d.replyPreview),
+      cta: { label: "Open comment", url: APP_URL },
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      `${d.replierName} replied.`,
+      subtitle,
+      d.replyPreview ? `\n  "${d.replyPreview}"` : "",
+      "",
+      "Open comment: " + APP_URL,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
 export function renderTemplate(name: TemplateName, data: Record<string, unknown>): RenderedEmail {
   switch (name) {
     case "waitlist_submitted":
@@ -163,6 +252,24 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardName:  String(data.boardName  ?? "a board"),
         sharerName: String(data.sharerName ?? "Someone"),
         role:       data.role != null ? String(data.role) : undefined,
+      });
+    case "mention_email": {
+      const surfaceRaw = String(data.surface ?? "workspace");
+      const surface = (surfaceRaw === "dm" || surfaceRaw === "board" || surfaceRaw === "workspace")
+        ? surfaceRaw : "workspace";
+      return mentionEmailTpl({
+        mentionerName:  String(data.mentionerName  ?? "Someone"),
+        surface,
+        surfaceContext: String(data.surfaceContext ?? "your workspace"),
+        messagePreview: String(data.messagePreview ?? ""),
+      });
+    }
+    case "comment_reply_email":
+      return commentReplyEmailTpl({
+        replierName:   String(data.replierName   ?? "Someone"),
+        boardName:     String(data.boardName     ?? "a board"),
+        workspaceName: String(data.workspaceName ?? "your workspace"),
+        replyPreview:  String(data.replyPreview  ?? ""),
       });
   }
 }

@@ -17,6 +17,7 @@ import { useEffect, useRef, useState, createContext, useContext } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
+import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 
@@ -124,9 +125,17 @@ export function AuthGate({ children }) {
 
   return (
     <AuthContext.Provider value={{ user: session.user, signOut }}>
+      <PresenceTicker user={session.user} />
       {children}
     </AuthContext.Provider>
   );
+}
+
+// Renders nothing — just runs the heartbeat hook so server-side email
+// triggers can skip notifications when the user is currently in-app.
+function PresenceTicker({ user }) {
+  usePresenceHeartbeat(user);
+  return null;
 }
 
 // ── Sign-in screen with OTP code ────────────────────────────────────────────

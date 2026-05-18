@@ -36,12 +36,13 @@ import {
 } from '../lib/templatesApi.js';
 
 const TABS = [
-  { id: 'profile',   label: 'Profile' },
-  { id: 'billing',   label: 'Billing' },
-  { id: 'defaults',  label: 'Defaults' },
-  { id: 'theme',     label: 'Theme' },
-  { id: 'templates', label: 'Templates' },
-  { id: 'display',   label: 'Display' },
+  { id: 'profile',       label: 'Profile' },
+  { id: 'billing',       label: 'Billing' },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'defaults',      label: 'Defaults' },
+  { id: 'theme',         label: 'Theme' },
+  { id: 'templates',     label: 'Templates' },
+  { id: 'display',       label: 'Display' },
 ];
 
 // Curated quick-pick fonts + a "Custom…" escape hatch that pulls from
@@ -200,9 +201,9 @@ export function SettingsPanel({
   //   workspace = cog-style settings (Defaults/Theme/Templates/Display)
   //   full      = every tab
   const visibleTabs = mode === 'account'
-    ? TABS.filter(t => t.id === 'profile' || t.id === 'billing')
+    ? TABS.filter(t => t.id === 'profile' || t.id === 'billing' || t.id === 'notifications')
     : mode === 'workspace'
-      ? TABS.filter(t => t.id !== 'profile' && t.id !== 'billing')
+      ? TABS.filter(t => t.id !== 'profile' && t.id !== 'billing' && t.id !== 'notifications')
       : TABS;
   const [tab, setTab] = useState(visibleTabs[0]?.id || 'profile');
   // If the user reopens the panel in a different mode, the previously
@@ -263,6 +264,9 @@ export function SettingsPanel({
             )}
             {tab === 'billing' && (
               <BillingTab user={user} />
+            )}
+            {tab === 'notifications' && (
+              <NotificationsTab user={user} />
             )}
             {tab === 'defaults' && (
               <DefaultsTab workspaceId={workspaceId}
@@ -1072,6 +1076,97 @@ function DisplayTab({ mySettings, refresh }) {
         desc="When you launch the app, start with the sidebar expanded."
         value={ui.sidebarOpen !== false}
         onChange={(v) => setUi({ sidebarOpen: v })} />
+    </div>
+  );
+}
+
+// ── Notifications tab ───────────────────────────────────────────────────
+// Per-user email toggles, default-on. Each key in profiles.notification_prefs
+// is consulted by 0075 triggers via _email_pref_enabled() before firing.
+function NotificationsTab({ user }) {
+  const feedback = useFeedback();
+  const [prefs, setPrefs] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('notification_prefs')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        feedback.toast({ type: 'error', message: 'Could not load preferences: ' + (error.message || error) });
+      }
+      setPrefs(data?.notification_prefs || {});
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Missing key = enabled (matches the trigger-side helper).
+  const isOn = (key) => (prefs?.[key] ?? true) !== false;
+
+  const togglePref = async (key, value) => {
+    const next = { ...(prefs || {}), [key]: value };
+    setPrefs(next);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ notification_prefs: next })
+      .eq('user_id', user.id);
+    if (error) {
+      feedback.toast({ type: 'error', message: 'Save failed: ' + (error.message || error) });
+      // Roll back optimistic flip
+      setPrefs(prefs);
+    }
+  };
+
+  if (loading || !prefs) {
+    return (
+      <div className="settings-section">
+        <h3 className="settings-section-title">Notifications</h3>
+        <p className="settings-section-hint">Loading…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">Notifications</h3>
+      <p className="settings-section-hint">
+        Which emails Clusters should send you. Anything you don't toggle on still shows up in-app.
+      </p>
+
+      <Toggle
+        label="@-mentions"
+        desc="When someone @-mentions you in a board, DM, or workspace chat."
+        value={isOn('email_mentions')}
+        onChange={(v) => togglePref('email_mentions', v)} />
+
+      <Toggle
+        label="Comment replies"
+        desc="When someone replies to a comment you left."
+        value={isOn('email_comment_replies')}
+        onChange={(v) => togglePref('email_comment_replies', v)} />
+
+      <Toggle
+        label="Workspace invites"
+        desc="When you're added to a new workspace."
+        value={isOn('email_workspace_invite')}
+        onChange={(v) => togglePref('email_workspace_invite', v)} />
+
+      <Toggle
+        label="Board shares"
+        desc="When a board is shared with you."
+        value={isOn('email_board_shared')}
+        onChange={(v) => togglePref('email_board_shared', v)} />
+
+      <p className="settings-section-hint" style={{ marginTop: 16 }}>
+        Sign-in codes and account-critical emails always send, regardless of these settings.
+      </p>
     </div>
   );
 }
