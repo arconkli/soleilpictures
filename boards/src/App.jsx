@@ -1590,6 +1590,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return unsub;
   }, []);
 
+  // Tab-visibility tick. Bumped on visibilitychange so the location object
+  // re-evaluates `isActive` and useWorkspacePresence pings immediately
+  // (rather than waiting up to 5s for the next heartbeat).
+  const [tabVisible, setTabVisible] = useState(() =>
+    typeof document === 'undefined' ? true : document.visibilityState === 'visible'
+  );
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onVis = () => setTabVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
   const { peers: wsPeers, status: wsStatus } = useWorkspacePresence({
     workspaceId: workspace.id,
     // Broadcast the user's CHOSEN color (from Account settings). The
@@ -1606,6 +1619,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       docCardId: openDocCard?.cardId ?? null,
       pageId:    openDocCard?.pageId ?? null,
       scrollTop: openDocCard?.scrollTop ?? 0,
+      // True only when this tab is foregrounded AND user is on a board.
+      // Peers consume this to hide presence dots from background tabs
+      // (peer has Board X open but is currently viewing Board Y → only
+      // Y shows their dot).
+      isActive: tabVisible && currentSurface === 'board',
     },
   });
   // Hydrate the userProfiles cache from workspace presence — every
@@ -1645,6 +1663,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const here = new Map();
     const below = new Map();
     for (const p of (wsPeers || [])) {
+      // Skip peers whose tab isn't foregrounded on a board surface.
+      // Lenient: missing isActive (older client bundle) is treated as
+      // active so peers on stale tabs keep showing the same as before.
+      // Tighten to `if (!p?.location?.isActive) continue;` once all
+      // sessions have refreshed onto bundles that broadcast it.
+      if (p?.location?.isActive === false) continue;
       const bid = p?.location?.boardId;
       if (!bid) continue;
       if (!here.has(bid)) here.set(bid, []);

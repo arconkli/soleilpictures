@@ -22,13 +22,23 @@ const STATUS_LABEL = {
 export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, workspaceId }) {
   const [hovered, setHovered] = useState(null);
   const [auditPeer, setAuditPeer] = useState(null);   // { peer, anchorRect }
-  // Dedupe by user.id — a single user with two tabs collapses to one avatar
-  // (we keep the most-recent location for the click target).
+  // Dedupe by user.id — a single user with two tabs collapses to one avatar.
+  // Prefer the tab that's foregrounded (isActive) so click-to-jump goes to
+  // the board they're actually viewing, not a random background tab. Fall
+  // back to most-recent lastSeen when nothing's active. `isActive === false`
+  // means "explicitly backgrounded"; undefined (older bundle) is treated as
+  // active for back-compat.
+  const isActive = (p) => p?.location?.isActive !== false;
   const byUser = new Map();
   for (const p of peers || []) {
     if (!p.user || p.user.id === selfId) continue;
     const existing = byUser.get(p.user.id);
-    if (!existing || (p.lastSeen || 0) > (existing.lastSeen || 0)) byUser.set(p.user.id, p);
+    if (!existing) { byUser.set(p.user.id, p); continue; }
+    const pActive = isActive(p);
+    const eActive = isActive(existing);
+    if (pActive && !eActive) { byUser.set(p.user.id, p); continue; }
+    if (eActive && !pActive) continue;
+    if ((p.lastSeen || 0) > (existing.lastSeen || 0)) byUser.set(p.user.id, p);
   }
   const list = [...byUser.values()];
   const visible = list.slice(0, 4);
@@ -43,12 +53,14 @@ export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, worksp
       <span className={`ws-presence-status ${dotClass}`} title={STATUS_LABEL[status] || status} />
       {visible.map(p => {
         const initial = (p.user.name || p.user.email || '?')[0].toUpperCase();
-        const where = p.location?.boardName
+        const inactive = p.location?.isActive === false;
+        const baseLabel = p.location?.boardName
           ? `${p.user.name || p.user.email} · in ${p.location.boardName}`
           : `${p.user.name || p.user.email}`;
+        const where = inactive ? `${baseLabel} · (away)` : baseLabel;
         return (
           <button key={p.key}
-                  className="ws-presence-avatar"
+                  className={`ws-presence-avatar${inactive ? ' is-inactive' : ''}`}
                   style={{ background: p.user.color || '#4f8df8' }}
                   onClick={() => onJumpTo?.(p.location)}
                   onContextMenu={(e) => {

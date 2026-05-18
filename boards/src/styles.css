@@ -10529,6 +10529,11 @@ button.msg-panel-name:hover { color: var(--soleil); }
   border-color: var(--soleil);
   z-index: 1;
 }
+/* Peer has no foregrounded tab on a board surface — dimmed so it's
+   obvious they're "in the workspace but away". Still clickable; click
+   takes you to their most-recent location. */
+.ws-presence-avatar.is-inactive { opacity: 0.45; filter: grayscale(0.6); }
+.ws-presence-avatar.is-inactive:hover { opacity: 0.85; filter: grayscale(0.2); }
 .ws-presence-overflow {
   background: var(--bg-3) !important;
   color: var(--ink-1) !important;
