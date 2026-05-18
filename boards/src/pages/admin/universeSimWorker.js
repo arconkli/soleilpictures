@@ -33,22 +33,22 @@ const HOT_TICK_MS  = 16;
 const COLD_TICK_MS = 250;
 const ALPHA_RESTART = 0.3;
 
-// Galactic tunables. Bigger disk strength = flatter universe.
-// Gravity weight scales how hard hubs sink toward the bulge.
-const DISK_STRENGTH = {
-  user:  0.18,
-  ws:    0.14,
-  board: 0.06,
-  doc:   0.03,
-  card:  0.02,
-};
-const GRAVITY_BASE   = 0.04;   // floor pull for everyone
-const GRAVITY_DEGREE = 0.012;  // extra per sqrt(degree)
+// User said: clusters should look like home; only attract-to-center
+// + spiral arms layered on top. So no per-kind disk flattening, no
+// degree-weighted gravity, no bulge — just two extra forces.
 
-// Spiral arm tunables. Two arms = classic milky way silhouette.
-// Pitch controls how tight the arms wind; strength keeps the bias
-// subtle so clusters stay together inside an arm rather than getting
-// shredded along it.
+// Center attraction — uniform pull on every node toward the origin.
+// Stronger than d3's forceCenter (which only pins the centroid).
+const GRAVITY_PULL = 0.05;
+
+// Very gentle Y-flattening so spiral arms can actually read as arms.
+// Without ANY disk bias the simulation is fully 3D and the spiral
+// force shows as random tangential drift instead of structure.
+// Tuned weak so each cluster still has the same 3D volume the home
+// graph has.
+const DISK_PULL = 0.03;
+
+// Spiral arms.
 const NUM_ARMS        = 2;
 const SPIRAL_PITCH    = 0.45;
 const SPIRAL_STRENGTH = 0.06;
@@ -61,67 +61,30 @@ let positions = null;
 let paused    = false;
 let stopped   = false;
 let tickTimer = null;
-let degreeMap = new Map();
-
-// id prefix → broad kind. Doc cards share the 'card:' prefix with
-// other cards but get a bigger val (12 vs 8); use that to peel them
-// off so they flatten a touch more aggressively than note/image cards.
-function kindFromNode(n) {
-  const id = n.id || '';
-  if (id.startsWith('user:'))  return 'user';
-  if (id.startsWith('ws:'))    return 'ws';
-  if (id.startsWith('board:')) return 'board';
-  if (n.val >= 12)             return 'doc';
-  return 'card';
-}
-
-function diskStrength(n) {
-  return DISK_STRENGTH[kindFromNode(n)] || DISK_STRENGTH.card;
-}
-
-function getDegree(id) {
-  return degreeMap.get(id) || 0;
-}
-
-function recomputeDegrees() {
-  degreeMap = new Map();
-  for (const l of links) {
-    const s = typeof l.source === 'string' ? l.source : l.source?.id;
-    const t = typeof l.target === 'string' ? l.target : l.target?.id;
-    if (s) degreeMap.set(s, (degreeMap.get(s) || 0) + 1);
-    if (t) degreeMap.set(t, (degreeMap.get(t) || 0) + 1);
-  }
-}
-
-function postDegrees() {
-  // Plain-object payload (structured-cloned). At ~250k nodes this is
-  // a few MB but only fires on init + each addLinks, not per tick.
-  const byId = {};
-  for (const [k, v] of degreeMap) byId[k] = v;
-  self.postMessage({ type: 'degrees', byId });
-}
-
 // ── Custom forces ────────────────────────────────────────────────
-function forceDisk() {
+
+// Pull every node toward the origin uniformly. d3's forceCenter only
+// pins the centroid; this is what actually drags everything in.
+function forcePull() {
   let ns;
   function force(alpha) {
     for (const n of ns) {
-      const s = diskStrength(n);
-      n.vy = (n.vy || 0) - (n.y || 0) * s * alpha;
+      const k = GRAVITY_PULL * alpha;
+      n.vx = (n.vx || 0) - (n.x || 0) * k;
+      n.vy = (n.vy || 0) - (n.y || 0) * k;
+      n.vz = (n.vz || 0) - (n.z || 0) * k;
     }
   }
   force.initialize = (n) => { ns = n; };
   return force;
 }
 
-function forceGalacticGrav() {
+// Very gentle pull toward the Y=0 plane so spiral arms can read.
+function forceDiskLite() {
   let ns;
   function force(alpha) {
     for (const n of ns) {
-      const k = GRAVITY_BASE + Math.sqrt(getDegree(n.id)) * GRAVITY_DEGREE;
-      n.vx = (n.vx || 0) - (n.x || 0) * k * alpha;
-      n.vy = (n.vy || 0) - (n.y || 0) * k * alpha;
-      n.vz = (n.vz || 0) - (n.z || 0) * k * alpha;
+      n.vy = (n.vy || 0) - (n.y || 0) * DISK_PULL * alpha;
     }
   }
   force.initialize = (n) => { ns = n; };
@@ -170,8 +133,8 @@ function buildSim() {
     .force('link',    forceLink(links).id(d => d.id).distance(36).strength(0.6))
     .force('charge',  forceManyBody().strength(-90))
     .force('center',  forceCenter())
-    .force('disk',    forceDisk())
-    .force('gravity', forceGalacticGrav())
+    .force('pull',    forcePull())
+    .force('disk',    forceDiskLite())
     .force('spiral',  forceSpiral())
     .alphaDecay(0.04)
     .velocityDecay(0.32)
@@ -232,13 +195,11 @@ self.onmessage = (ev) => {
     case 'init': {
       nodes = (msg.nodes || []).map(n => ({ ...n }));
       links = (msg.links || []).map(l => ({ ...l }));
-      recomputeDegrees();
       buildSim();
       // Run warmup synchronously so the first frame the user sees
       // is already-settled, not bouncing into place.
       for (let i = 0; i < WARMUP_TICKS; i++) sim.tick();
       postTick();
-      postDegrees();
       self.postMessage({ type: 'ready' });
       scheduleNext();
       return;
@@ -265,11 +226,9 @@ self.onmessage = (ev) => {
       // Re-bind forceLink so it picks up the extended array. d3-force
       // resolves string ids → node refs the first time you tick.
       sim.force('link', forceLink(links).id(d => d.id).distance(36).strength(0.6));
-      recomputeDegrees();
       sim.alpha(ALPHA_RESTART).restart();
       if (tickTimer) clearTimeout(tickTimer);
       scheduleNext();
-      postDegrees();
       return;
     }
 
