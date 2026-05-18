@@ -19,7 +19,13 @@ export function useCanvasComments(boardId) {
   const reloadingRef = useRef(false);
 
   useEffect(() => {
-    if (!boardId) { setComments([]); setViewsByRootId(new Map()); return; }
+    // Clear on every boardId change — not just the falsy case. Otherwise
+    // switching board A → board B keeps A's comments rendered until
+    // listComments(B) resolves, which is the "comments flash for a sec
+    // before disappearing" bug on board navigation.
+    setComments([]);
+    setViewsByRootId(new Map());
+    if (!boardId) return;
     let cancelled = false;
     setLoading(true);
     listComments(boardId)

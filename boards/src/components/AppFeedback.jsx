@@ -22,6 +22,11 @@ export function FeedbackProvider({ children }) {
       confirmLabel: options.confirmLabel || 'Confirm',
       cancelLabel: options.cancelLabel || 'Cancel',
       danger: !!options.danger,
+      // Optional "type this exact string to enable the confirm button"
+      // gate. Used for destructive actions like deleting a workspace.
+      confirmText: options.confirmText || null,
+      confirmTextLabel: options.confirmTextLabel || null,
+      confirmTextPlaceholder: options.confirmTextPlaceholder || null,
       resolve,
     });
   }), []);
@@ -87,9 +92,13 @@ export function useFeedback() {
 
 function FeedbackDialog({ dialog, onClose }) {
   const [value, setValue] = useState('');
+  // Separate state for the type-to-confirm input on destructive confirms,
+  // so it doesn't fight with the prompt-kind `value` above.
+  const [typeToConfirm, setTypeToConfirm] = useState('');
 
   useEffect(() => {
     if (!dialog) return;
+    setTypeToConfirm('');
     const onKey = (event) => {
       if (event.key === 'Escape') onClose(dialog.kind === 'confirm' ? false : null);
     };
@@ -99,9 +108,14 @@ function FeedbackDialog({ dialog, onClose }) {
 
   if (!dialog) return null;
 
+  const requiresTyping = dialog.kind === 'confirm' && !!dialog.confirmText;
+  // Trim so trailing whitespace doesn't lock the user out of confirming.
+  const typeMatches = !requiresTyping || typeToConfirm.trim() === dialog.confirmText.trim();
+
   const submit = (event) => {
     event.preventDefault();
     if (dialog.kind === 'prompt') onClose(value);
+    else if (requiresTyping && !typeMatches) return;
     else onClose(true);
   };
 
@@ -123,6 +137,17 @@ function FeedbackDialog({ dialog, onClose }) {
         {dialog.kind === 'prompt' && (
           <PromptField dialog={dialog} value={value} setValue={setValue} />
         )}
+        {requiresTyping && (
+          <label className="feedback-field">
+            {dialog.confirmTextLabel && <span>{dialog.confirmTextLabel}</span>}
+            <input
+              autoFocus
+              value={typeToConfirm}
+              placeholder={dialog.confirmTextPlaceholder || dialog.confirmText}
+              onChange={(event) => setTypeToConfirm(event.target.value)}
+            />
+          </label>
+        )}
         <div className="feedback-actions">
           <button type="button" className="btn-secondary" onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}>
             {dialog.cancelLabel}
@@ -130,7 +155,8 @@ function FeedbackDialog({ dialog, onClose }) {
           <button
             type="submit"
             className={dialog.danger ? 'btn-primary btn-danger' : 'btn-primary'}
-            autoFocus
+            autoFocus={!requiresTyping}
+            disabled={requiresTyping && !typeMatches}
           >
             {dialog.confirmLabel}
           </button>

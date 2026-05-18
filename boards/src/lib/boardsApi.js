@@ -28,12 +28,16 @@ export async function getMyFirstWorkspace() {
 // advisory lock, returns the user's oldest workspace if one exists, or
 // otherwise creates {workspace + member + Studio root} in a single
 // transaction. Replaces the prior racy two-step that produced duplicate
-// "Soleil" workspaces on first sign-in.
+// personal workspaces on first sign-in.
 // Returns the workspaces row (back-compat shape). Internally the
 // RPC also guarantees a root board + empty board_state exist, so
 // callers no longer need a JS-side createBoard fallback (which used
 // to hit RLS in some sessions).
-export async function getOrCreatePersonalWorkspace({ userId, name = 'Soleil' }) {
+// NOTE: default name used to be 'Soleil' which made the personal
+// workspace look like a brand placeholder. 'Personal Workspace' is
+// clearer for first-time users; pre-existing workspaces keep whatever
+// name they already have.
+export async function getOrCreatePersonalWorkspace({ userId, name = 'Personal Workspace' }) {
   const { data, error } = await supabase
     .rpc('get_or_create_personal_workspace', { p_user_id: userId, p_name: name });
   if (error) throw error;

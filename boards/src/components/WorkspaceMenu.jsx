@@ -21,6 +21,7 @@ export function WorkspaceMenu({
   personalWorkspaceId,
   selfUserId,
   wsPeers = [],
+  autoExpandMenuId = null, // pre-open the row-pop for this workspace id
   onSelect,
   onAddNew,
   onRemove,             // (ws, action: 'delete' | 'leave') => void
@@ -30,8 +31,10 @@ export function WorkspaceMenu({
   const ref = useRef(null);
   const [filter, setFilter] = useState('');
   // Per-row mini-menu state — only one open at a time. Stores the
-  // workspace id whose ⋯ button was clicked.
-  const [openMenuId, setOpenMenuId] = useState(null);
+  // workspace id whose ⋯ button was clicked. Initialized from
+  // autoExpandMenuId so right-click-on-trigger lands directly on
+  // the active row's Rename / Delete actions.
+  const [openMenuId, setOpenMenuId] = useState(autoExpandMenuId);
   // Close on outside click + Escape. Capture-phase mousedown so we beat
   // any handlers that might re-focus or repaint inside the menu.
   // Important: ignore clicks on the trigger button itself — its own
@@ -107,9 +110,11 @@ export function WorkspaceMenu({
         </button>
         {hasRowMenu && (
           <>
-            <button className="ws-menu-row-more"
+            <button className={`ws-menu-row-more ${isMenuOpen ? 'is-open' : ''}`}
                     title="More actions"
                     aria-label="More actions"
+                    aria-haspopup="menu"
+                    aria-expanded={isMenuOpen}
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenMenuId(isMenuOpen ? null : w.id);

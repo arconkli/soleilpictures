@@ -4386,6 +4386,29 @@ body {
   font-size: 12px;
 }
 
+/* Admin pill in the topbar — only rendered for tier='admin' callers. */
+.tb-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  background: var(--soleil-soft);
+  color: var(--soleil);
+  border: 1px solid rgba(255, 165, 0, 0.35);
+  border-radius: 999px;
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.tb-admin-btn:hover {
+  background: var(--soleil);
+  color: var(--bg-0);
+  border-color: var(--soleil);
+  box-shadow: var(--soleil-glow);
+}
+
 /* ── Upgrade chip + in-app modal ──────────────────────────────────────── */
 .upgrade-chip {
   position: fixed;

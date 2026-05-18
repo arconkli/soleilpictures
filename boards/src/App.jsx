@@ -104,6 +104,15 @@ export function App() {
   const { loading: wsLoading, workspace: personalWorkspace, rootBoard: personalRoot, error: wsError } = useWorkspace();
   const { workspaces, refresh: refreshWorkspaces } = useAllWorkspaces(user);
 
+  // First-signup race: useAllWorkspaces fetches workspace_members for the
+  // user in parallel with useWorkspace's bootstrap RPC. For brand-new
+  // accounts the membership row doesn't exist yet when the first fetch
+  // runs, so the picker shows empty even though the personal workspace
+  // was just created. Refresh once the personal workspace id appears.
+  useEffect(() => {
+    if (personalWorkspace?.id) refreshWorkspaces();
+  }, [personalWorkspace?.id, refreshWorkspaces]);
+
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   useEffect(() => { document.documentElement.setAttribute('data-theme', tweak.theme); }, [tweak.theme]);
 
@@ -149,7 +158,14 @@ export function App() {
   }, [activeWorkspace?.id, personalWorkspace?.id, personalRoot?.id]);
 
   if (wsError) return <FullScreenError error={wsError} signOut={signOut} />;
-  if (wsLoading || !activeWorkspace || !activeRoot) return <LoadingShell />;
+  // Gate on activeRoot.workspace_id matching the active workspace —
+  // otherwise the render between an activeWorkspaceId change and the
+  // async getRootBoard() finishing mounts <Workspace key={newWs.id}>
+  // with rootBoard={oldRoot}, seeding stack=[oldRoot.id], which makes
+  // useYBoard paint the previous workspace's root cards until the stack
+  // filter effect corrects it. Better to show LoadingShell for that
+  // tick than to flash the wrong canvas.
+  if (wsLoading || !activeWorkspace || !activeRoot || activeRoot.workspace_id !== activeWorkspace.id) return <LoadingShell />;
 
   return (
     <Workspace
@@ -220,6 +236,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Workspace switcher popover (in the sidebar header). Click-outside +
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
+  // When set, the WorkspaceMenu opens with the 3-dots row-pop already
+  // expanded for this workspace id. Used by right-click on the trigger
+  // so a single right-click lands the user on rename/delete actions
+  // for the active workspace.
+  const [wsMenuAutoExpandId, setWsMenuAutoExpandId] = useState(null);
   // Two separate panels:
   //   accountOpen  — avatar (bottom-left, your initial) → identity only
   //                  (Profile tab + sign out)
@@ -1095,7 +1116,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const name = await feedback.prompt({
       title: 'New workspace',
       label: 'Workspace name',
-      placeholder: 'Soleil',
+      placeholder: 'e.g. Marketing team',
       confirmLabel: 'Create workspace',
     });
     if (!name?.trim()) return;
@@ -1112,17 +1133,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
-  // Right-click on a workspace row → confirm + delete (own) or leave (shared).
+  // Open the workspace 3-dots menu and pick an action → confirm + delete (own)
+  // or leave (shared). Deletes require typing the workspace name to enable
+  // the confirm button so accidental clicks can't nuke a workspace.
   // If the user removes the currently-active workspace we switch to personal.
   const removeWorkspace = async (ws, kind /* 'delete' | 'leave' */) => {
     const isDelete = kind === 'delete';
     const ok = await feedback.confirm({
       title: isDelete ? 'Delete workspace' : 'Leave workspace',
       message: isDelete
-        ? `Delete "${ws.name}" and all of its boards, cards, and messages? This cannot be undone.`
+        ? `Deleting "${ws.name}" will permanently remove all of its boards, cards, and messages. This cannot be undone.`
         : `Leave "${ws.name}"? You'll lose access until the owner re-invites you.`,
       confirmLabel: isDelete ? 'Delete workspace' : 'Leave',
       danger: true,
+      confirmText: isDelete ? (ws.name || '') : null,
+      confirmTextLabel: isDelete ? `Type "${ws.name}" to confirm` : null,
+      confirmTextPlaceholder: isDelete ? ws.name : null,
     });
     if (!ok) return;
     try {
@@ -2171,13 +2197,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <div className="sb-mid">
           <div className="sb-mid-head">
             <button className="sb-ws-trigger"
-                    onClick={() => setWsMenuOpen(o => !o)}
+                    onClick={() => { setWsMenuAutoExpandId(null); setWsMenuOpen(o => !o); }}
                     onContextMenu={(e) => {
+                      // Right-click no longer deletes — that was too easy
+                      // to do by accident. Instead, open the workspace
+                      // switcher with the active row's actions popover
+                      // already expanded so the user is one click away
+                      // from Rename / Delete.
                       e.preventDefault();
-                      const action = workspace.created_by === user.id ? 'delete' : 'leave';
-                      removeWorkspace(workspace, action);
+                      setWsMenuAutoExpandId(workspace.id);
+                      setWsMenuOpen(true);
                     }}
-                    title={`${workspace.name} · click to switch`}
+                    title={`${workspace.name} · click to switch, right-click for actions`}
                     aria-haspopup="menu" aria-expanded={wsMenuOpen}>
               <span className="sb-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }}>
                 {(workspace.name || '?').trim().charAt(0).toUpperCase()}
@@ -2199,11 +2230,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 personalWorkspaceId={personalWorkspaceId}
                 selfUserId={user.id}
                 wsPeers={wsPeers}
+                autoExpandMenuId={wsMenuAutoExpandId}
                 onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
                 onAddNew={addNewWorkspace}
                 onRemove={(ws, action) => removeWorkspace(ws, action)}
                 onRename={(ws) => promptRenameWorkspace(ws)}
-                onClose={() => setWsMenuOpen(false)}
+                onClose={() => { setWsMenuOpen(false); setWsMenuAutoExpandId(null); }}
               />
             )}
           </div>
@@ -2382,6 +2414,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
 
           <div className="tb-right">
+            {myTier.tier === 'admin' && (
+              <button className="tb-admin-btn"
+                      title="Admin dashboard"
+                      onClick={() => window.location.assign('/admin')}>
+                Admin
+              </button>
+            )}
             <button className="tb-icon" title="Undo (⌘Z)" disabled={!yb.canUndo} onClick={() => mainMutators.undo?.()}>
               <Icon as={Undo} size={16} />
             </button>
