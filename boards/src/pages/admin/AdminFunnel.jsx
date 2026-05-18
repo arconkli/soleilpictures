@@ -101,10 +101,10 @@ export function AdminFunnel({ rows }) {
                     {d.value.toLocaleString()}
                   </td>
                   <td style={{ textAlign: 'right' }} className="admin-funnel-pct">
-                    {d.fromTopPct.toFixed(0)}%
+                    {(d.fromTopPct ?? 0).toFixed(0)}%
                   </td>
                   <td style={{ textAlign: 'right' }} className="admin-funnel-pct">
-                    {i === 0 ? '—' : `${d.stepPct.toFixed(0)}%`}
+                    {i === 0 || d.stepPct == null ? '—' : `${d.stepPct.toFixed(0)}%`}
                   </td>
                   <td style={{ textAlign: 'right' }} className={`admin-funnel-drop ${i > 0 && d.dropFromPrev > 0 ? 'is-loss' : ''}`}>
                     {i === 0 ? '—' : (d.dropFromPrev > 0 ? `-${d.dropFromPrev.toLocaleString()}` : '0')}
