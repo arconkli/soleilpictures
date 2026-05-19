@@ -34,6 +34,36 @@ function clearAuthUrl() {
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
+// Consume ?w=<workspaceId>&b=<boardId> deep-link params (sent in
+// transactional email CTAs) into the localStorage keys App reads on
+// mount, so a signed-in user lands directly on the right workspace +
+// board without manual navigation. MUST run before App's first render
+// — call this BEFORE setSession() flips us from "loading" → "signed in".
+function consumeDeepLink(userId) {
+  if (typeof window === 'undefined' || !userId) return;
+  const url = new URL(window.location.href);
+  const wsId    = url.searchParams.get('w');
+  const boardId = url.searchParams.get('b');
+  if (!wsId && !boardId) return;
+  try {
+    if (wsId) {
+      const wsKey = `soleil.boards.session.${userId}.workspace`;
+      localStorage.setItem(wsKey, JSON.stringify({ activeWorkspaceId: wsId }));
+    }
+    if (wsId && boardId) {
+      // The board-stack session is workspace-scoped. Preserve any other
+      // keys (viewOverride / splitId / splitRatio) the user already had.
+      const boardKey = `soleil.boards.session.${userId}.${wsId}`;
+      let existing = {};
+      try { existing = JSON.parse(localStorage.getItem(boardKey) || '{}'); } catch (_) {}
+      localStorage.setItem(boardKey, JSON.stringify({ ...existing, stack: [boardId] }));
+    }
+  } catch (_) {}
+  url.searchParams.delete('w');
+  url.searchParams.delete('b');
+  window.history.replaceState({}, document.title, url.pathname + url.search);
+}
+
 async function consumeAuthCallback() {
   if (typeof window === 'undefined') return null;
   const query = new URLSearchParams(window.location.search);
@@ -79,6 +109,10 @@ export function AuthGate({ children }) {
         const { data } = callbackSession
           ? { data: { session: callbackSession } }
           : await supabase.auth.getSession();
+        // Write deep-link params into localStorage BEFORE setSession,
+        // so when App mounts its useState initializer reads the right
+        // workspace + board on the very first render.
+        if (data.session?.user?.id) consumeDeepLink(data.session.user.id);
         if (!cancelled) setSession(data.session);
       } catch (error) {
         console.warn('Auth session could not be restored', error);
@@ -89,6 +123,9 @@ export function AuthGate({ children }) {
       }
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      // Same as above — also handle the post-OTP sign-in path where the
+      // session arrives after initial mount via this listener.
+      if (sess?.user?.id) consumeDeepLink(sess.user.id);
       setSession(sess);
     });
     return () => {

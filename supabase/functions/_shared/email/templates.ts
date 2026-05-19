@@ -35,6 +35,16 @@ export interface RenderedEmail {
 const SIGN_IN_URL = "https://clusters.soleilpictures.com/sign-in";
 const APP_URL     = "https://clusters.soleilpictures.com/";
 
+// Build a deep link that AuthGate consumes into localStorage post-sign-in
+// so the app lands on the right workspace/board automatically.
+function deepLink(params: { w?: string; b?: string } = {}): string {
+  const qs = new URLSearchParams();
+  if (params.w) qs.set("w", params.w);
+  if (params.b) qs.set("b", params.b);
+  const tail = qs.toString();
+  return tail ? `${APP_URL}?${tail}` : APP_URL;
+}
+
 function plain(lines: string[]): string {
   return lines.filter((l) => l !== "").join("\n");
 }
@@ -90,12 +100,14 @@ interface WorkspaceInviteData {
   workspaceName: string;
   inviterName: string;
   role?: string;
+  workspaceId?: string;
 }
 
 function workspaceInvite(d: WorkspaceInviteData): RenderedEmail {
   const role = (d.role || "member").toLowerCase();
   const headline = `You're in ${d.workspaceName}.`;
   const subtitle = `${d.inviterName} added you as ${role}. Jump in to see what they're working on.`;
+  const url = deepLink({ w: d.workspaceId });
   return {
     subject: `${d.inviterName} added you to ${d.workspaceName}`,
     html: renderEmail({
@@ -103,7 +115,7 @@ function workspaceInvite(d: WorkspaceInviteData): RenderedEmail {
       eyebrow: "Workspace",
       headline,
       subtitle,
-      cta: { label: "Open workspace", url: APP_URL },
+      cta: { label: "Open workspace", url },
     }),
     text: plain([
       "CLUSTERS",
@@ -111,7 +123,7 @@ function workspaceInvite(d: WorkspaceInviteData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Open workspace: " + APP_URL,
+      "Open workspace: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -122,12 +134,15 @@ interface BoardSharedData {
   boardName: string;
   sharerName: string;
   role?: string;
+  workspaceId?: string;
+  boardId?: string;
 }
 
 function boardShared(d: BoardSharedData): RenderedEmail {
   const role = (d.role || "viewer").toLowerCase();
   const headline = `${d.sharerName} shared a board.`;
   const subtitle = `You've got ${role} access to "${d.boardName}".`;
+  const url = deepLink({ w: d.workspaceId, b: d.boardId });
   return {
     subject: `${d.sharerName} shared "${d.boardName}" with you`,
     html: renderEmail({
@@ -135,7 +150,7 @@ function boardShared(d: BoardSharedData): RenderedEmail {
       eyebrow: "Board shared",
       headline,
       subtitle,
-      cta: { label: "Open board", url: APP_URL },
+      cta: { label: "Open board", url },
     }),
     text: plain([
       "CLUSTERS",
@@ -143,7 +158,7 @@ function boardShared(d: BoardSharedData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Open board: " + APP_URL,
+      "Open board: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -155,6 +170,8 @@ interface MentionEmailData {
   surface: "dm" | "board" | "workspace";
   surfaceContext: string;
   messagePreview: string;
+  workspaceId?: string;
+  boardId?: string;
 }
 
 function escapeHtml(s: string): string {
@@ -178,6 +195,11 @@ function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
   const subtitle = d.surface === "dm"
     ? `In a direct message.`
     : `In ${d.surfaceContext}.`;
+  // Board mention → land directly on the board. DM/workspace mention →
+  // just open the workspace; the user picks the conversation themselves.
+  const url = d.surface === "board"
+    ? deepLink({ w: d.workspaceId, b: d.boardId })
+    : deepLink({ w: d.workspaceId });
   return {
     subject,
     html: renderEmail({
@@ -186,7 +208,7 @@ function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
       headline: `${d.mentionerName} mentioned you.`,
       subtitle,
       bodyHtml: quoteBlock(d.messagePreview),
-      cta: { label: "Open in Clusters", url: APP_URL },
+      cta: { label: "Open in Clusters", url },
     }),
     text: plain([
       "CLUSTERS",
@@ -195,7 +217,7 @@ function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
       subtitle,
       d.messagePreview ? `\n  "${d.messagePreview}"` : "",
       "",
-      "Open in Clusters: " + APP_URL,
+      "Open in Clusters: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -207,10 +229,13 @@ interface CommentReplyEmailData {
   boardName: string;
   workspaceName: string;
   replyPreview: string;
+  workspaceId?: string;
+  boardId?: string;
 }
 
 function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
   const subtitle = `On "${d.boardName}" in ${d.workspaceName}.`;
+  const url = deepLink({ w: d.workspaceId, b: d.boardId });
   return {
     subject: `${d.replierName} replied to your comment`,
     html: renderEmail({
@@ -219,7 +244,7 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
       headline: `${d.replierName} replied.`,
       subtitle,
       bodyHtml: quoteBlock(d.replyPreview),
-      cta: { label: "Open comment", url: APP_URL },
+      cta: { label: "Open comment", url },
     }),
     text: plain([
       "CLUSTERS",
@@ -228,7 +253,7 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
       subtitle,
       d.replyPreview ? `\n  "${d.replyPreview}"` : "",
       "",
-      "Open comment: " + APP_URL,
+      "Open comment: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -246,12 +271,15 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         workspaceName: String(data.workspaceName ?? "your workspace"),
         inviterName:   String(data.inviterName   ?? "Someone"),
         role:          data.role != null ? String(data.role) : undefined,
+        workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
       });
     case "board_shared":
       return boardShared({
-        boardName:  String(data.boardName  ?? "a board"),
-        sharerName: String(data.sharerName ?? "Someone"),
-        role:       data.role != null ? String(data.role) : undefined,
+        boardName:   String(data.boardName  ?? "a board"),
+        sharerName:  String(data.sharerName ?? "Someone"),
+        role:        data.role != null ? String(data.role) : undefined,
+        workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:     data.boardId != null ? String(data.boardId) : undefined,
       });
     case "mention_email": {
       const surfaceRaw = String(data.surface ?? "workspace");
@@ -262,6 +290,8 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         surface,
         surfaceContext: String(data.surfaceContext ?? "your workspace"),
         messagePreview: String(data.messagePreview ?? ""),
+        workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:        data.boardId != null ? String(data.boardId) : undefined,
       });
     }
     case "comment_reply_email":
@@ -270,6 +300,8 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardName:     String(data.boardName     ?? "a board"),
         workspaceName: String(data.workspaceName ?? "your workspace"),
         replyPreview:  String(data.replyPreview  ?? ""),
+        workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:       data.boardId != null ? String(data.boardId) : undefined,
       });
   }
 }
