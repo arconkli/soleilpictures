@@ -28,6 +28,7 @@ import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { useGesture } from '@use-gesture/react';
+import { useLongPress } from '../hooks/useLongPress.js';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
@@ -1301,6 +1302,19 @@ export function CanvasSurface({
       pinch: { scaleBounds: { min: ZOOM_MIN / 4, max: ZOOM_MAX * 4 }, rubberband: true },
       drag: { pointer: { touch: true }, threshold: 0 },
     },
+  );
+
+  // Touch long-press → background context menu. Right-click already
+  // handles desktop via onContextMenu on the wrap element; this hook
+  // adds the touch equivalent without touching the mouse path.
+  useLongPress(
+    wrapRef,
+    (x, y, e) => {
+      if (e.target.closest?.('.card, .cnv-tool, .cnv-zoom, .inbox')) return;
+      const pos = clientToCanvas(x, y);
+      setBgCtx({ open: true, x, y, canvasPos: pos });
+    },
+    { ms: 480, tolerance: 10, pointerType: 'touch' },
   );
 
   // ── Confirm + delete cards ────────────────────────────────────────────────
