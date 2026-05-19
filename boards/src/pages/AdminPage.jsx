@@ -16,6 +16,8 @@ import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
+import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
 const TABS = [
   { id: 'universe',  label: 'Universe' },
@@ -30,6 +32,12 @@ export function AdminPage() {
   const { user, signOut } = useAuth();
   const { tier, loading } = useMyTier({ userId: user?.id });
   const [tab, setTab] = useState('universe');
+  const { isPhone } = useBreakpoint();
+
+  // Admin is desktop-only on phone. The dashboard's tables, analytics
+  // grids, and GPU-instanced Universe graph aren't worth shrinking to
+  // 375px — better to redirect than serve a broken experience.
+  if (isPhone) return <AdminPhoneGate />;
 
   if (loading) return <Splash />;
   if (tier !== 'admin') {
