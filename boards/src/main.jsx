@@ -6,6 +6,7 @@ import { TierRouter } from './auth/TierRouter.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { PublicBoardView } from './components/PublicBoardView.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
+import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import './styles/breakpoints.css';
 import './styles.css';
@@ -95,6 +96,9 @@ createRoot(document.getElementById('root')).render(
             </TierRouter>
           </AuthGate>
         )}
+        {/* Global "Send feedback" pill. Skip on /share — public viewers
+            shouldn't be prompted to file bugs against someone else's board. */}
+        {!shareMatch && <FeedbackButton />}
       </FeedbackProvider>
     </AppErrorBoundary>
   </StrictMode>

@@ -15,6 +15,7 @@ import { AdminOverviewTab } from './admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
+import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
 
 const TABS = [
   { id: 'universe',  label: 'Universe' },
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'analytics', label: 'Analytics' },
   { id: 'users',     label: 'Users' },
   { id: 'waitlist',  label: 'Waitlist' },
+  { id: 'feedback',  label: 'Feedback' },
 ];
 
 export function AdminPage() {
@@ -67,6 +69,7 @@ export function AdminPage() {
         {tab === 'analytics' && <AdminAnalyticsTab />}
         {tab === 'users'     && <AdminUsersTab />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
+        {tab === 'feedback'  && <AdminFeedbackTab />}
       </main>
     </div>
   );

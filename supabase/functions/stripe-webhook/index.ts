@@ -37,6 +37,22 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+  // Durable audit log — every Stripe event we receive, even ones
+  // we don't act on. Dedups via unique (stripe_id) on replay. Fire
+  // and forget; logging failure should never block webhook handling.
+  try {
+    await admin.from("stripe_webhook_events").insert({
+      stripe_id: event.id,
+      type: event.type,
+      user_id: await extractUserIdFromEvent(admin, event),
+      payload: event as unknown as Record<string, unknown>,
+    });
+  } catch (e) {
+    // Ignore duplicate-key on retry; log other errors but continue.
+    const msg = (e as Error)?.message || String(e);
+    if (!msg.includes("duplicate key")) console.warn("[stripe-webhook] event log insert failed", msg);
+  }
+
   try {
     switch (event.type) {
       case "checkout.session.completed":
@@ -154,6 +170,24 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
     await admin.from("profiles").update({ tier: "paid" }).eq("user_id", userId).neq("tier", "admin");
   }
   // Past-due / unpaid → leave tier as-is, the cancel event will drop them.
+}
+
+// Best-effort: pull a user_id out of any Stripe event so the audit
+// log can correlate to our user model. Returns null when the event
+// doesn't carry an identifiable customer (e.g., setup_intent events
+// that happen pre-checkout).
+async function extractUserIdFromEvent(admin: ReturnType<typeof createClient>, event: Stripe.Event): Promise<string | null> {
+  const obj = event.data?.object as Record<string, unknown> | undefined;
+  if (!obj) return null;
+  const customerId = (typeof obj.customer === "string") ? obj.customer
+                  : (obj.customer as { id?: string } | undefined)?.id;
+  if (!customerId) return null;
+  try {
+    const r = await admin.from("subscriptions").select("user_id").eq("stripe_customer_id", customerId).maybeSingle();
+    return r.data?.user_id || null;
+  } catch (_) {
+    return null;
+  }
 }
 
 async function onSubscriptionDeleted(admin: ReturnType<typeof createClient>, sub: Stripe.Subscription) {
