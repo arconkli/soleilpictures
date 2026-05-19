@@ -4665,6 +4665,35 @@ export function CanvasSurface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board.id, mutators, ydoc, sessionId, userId]);
 
+  // Touch sibling of the HTML5 onDrop(BOARD_REF_MIME) flow. Fired from
+  // SidebarBoardTree when the user touch-drags a board row over a
+  // canvas-wrap and releases. We mirror the same addCard call the
+  // mouse onDrop does — just sourced from a CustomEvent so the
+  // sidebar's pointer-events DnD can reach us without HTML5 DnD
+  // (which doesn't fire on touch).
+  useEffect(() => {
+    const onTouchBoardDrop = (e) => {
+      const { boardId, clientX, clientY, targetBoardId } = e.detail || {};
+      if (!boardId) return;
+      if (targetBoardId && targetBoardId !== board.id) return; // not us
+      const wrap = wrapRef.current;
+      if (!wrap) return;
+      const rect = wrap.getBoundingClientRect();
+      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return;
+      const { x: cx, y: cy } = clientToCanvas(clientX, clientY);
+      const w = 280, h = 220;
+      mutators.addCard?.({
+        id: boardId, kind: 'board',
+        x: Math.max(8, Math.round(cx - w / 2)),
+        y: Math.max(8, Math.round(cy - h / 2)),
+        w, h,
+      });
+    };
+    document.addEventListener('soleil-touch-board-drop', onTouchBoardDrop);
+    return () => document.removeEventListener('soleil-touch-board-drop', onTouchBoardDrop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id, mutators]);
+
   // Highlight ourselves as a drop target while another pane's pointer drag
   // is over us. The source pane fires "hover" on every pointermove and "end"
   // on pointerup. We toggle `dragOver` (which already drives is-drop-target).

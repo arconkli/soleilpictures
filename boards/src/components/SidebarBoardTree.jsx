@@ -135,6 +135,7 @@ export function SidebarBoardTree({
       <div key={board.id} className="sb-tree-node">
         <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${isRenaming ? 'is-renaming' : ''}`}
              style={{ paddingLeft: 6 + depth * 14 }}
+             data-board-id={board.id}
              draggable={!isRenaming}
              onDragStart={(e) => {
                try {
@@ -202,12 +203,90 @@ export function SidebarBoardTree({
     );
   };
 
+  // Touch DnD bridge: the HTML5 onDragStart on each row above is mouse-only.
+  // For touch, we install a single capture-phase pointer listener at the
+  // tree root that detects a hold-and-drag on a board row, follows the
+  // pointer with a small ghost element, and on release dispatches a
+  // 'soleil-touch-board-drop' CustomEvent that CanvasSurface listens for.
+  const treeRef = useRef(null);
+  useEffect(() => {
+    const el = treeRef.current;
+    if (!el) return;
+    let drag = null;
+    const THRESHOLD = 10;
+
+    const startGhost = (name) => {
+      const g = document.createElement('div');
+      g.className = 'sb-tree-touch-ghost';
+      g.textContent = name || 'Board';
+      g.style.position = 'fixed';
+      g.style.zIndex = '2000';
+      g.style.pointerEvents = 'none';
+      g.style.padding = '6px 10px';
+      g.style.background = 'var(--bg-2, #1c1c20)';
+      g.style.color = 'var(--ink-0, #f5f5f7)';
+      g.style.border = '1px solid var(--line-2, #2c2c32)';
+      g.style.borderRadius = '6px';
+      g.style.font = '500 12px/1 var(--font-sans, sans-serif)';
+      g.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
+      document.body.appendChild(g);
+      return g;
+    };
+
+    const onDown = (e) => {
+      if (e.pointerType !== 'touch') return;
+      const row = e.target.closest?.('.sb-tree-row');
+      if (!row) return;
+      // Ignore taps on the chevron toggle — that's expand/collapse, not drag.
+      if (e.target.closest?.('.sb-tree-chev')) return;
+      const boardId = row.dataset.boardId;
+      if (!boardId) return;
+      const name = row.querySelector('.sb-row-label')?.textContent || boardId;
+      drag = { boardId, name, startX: e.clientX, startY: e.clientY, active: false, ghost: null };
+    };
+    const onMove = (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (!drag.active && (dx * dx + dy * dy) > THRESHOLD * THRESHOLD) {
+        drag.active = true;
+        drag.ghost = startGhost(drag.name);
+      }
+      if (drag.active) {
+        drag.ghost.style.left = (e.clientX + 10) + 'px';
+        drag.ghost.style.top  = (e.clientY + 10) + 'px';
+      }
+    };
+    const onUp = (e) => {
+      if (!drag) return;
+      if (drag.active) {
+        document.dispatchEvent(new CustomEvent('soleil-touch-board-drop', {
+          detail: { boardId: drag.boardId, name: drag.name, clientX: e.clientX, clientY: e.clientY },
+        }));
+        drag.ghost?.remove();
+      }
+      drag = null;
+    };
+
+    el.addEventListener('pointerdown', onDown, { passive: true });
+    document.addEventListener('pointermove', onMove, { passive: true });
+    document.addEventListener('pointerup', onUp, { passive: true });
+    document.addEventListener('pointercancel', onUp, { passive: true });
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+      if (drag?.ghost) drag.ghost.remove();
+    };
+  }, []);
+
   if (roots.length === 0) {
     return <div className="sb-tree-empty">No boards yet</div>;
   }
 
   return (
-    <div className="sb-tree">
+    <div className="sb-tree" ref={treeRef}>
       {roots.map(b => renderRow(b, 0))}
     </div>
   );
