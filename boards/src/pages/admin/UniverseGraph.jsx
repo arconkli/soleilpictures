@@ -89,14 +89,19 @@ const GALAXY = {
   // Galactic spin around the disk normal — slow enough that the
   // spiral reads as a turning galaxy, not a spinning logo.
   rotationRate: 0.035,
-  cameraFar:    1e6,
+  // Keep camera.far modest. Bigger ratios (we had 1e6) tank depth-
+  // buffer precision, which makes the bokeh shader misjudge what's
+  // actually at the focal plane — everything ends up softened.
+  // 20k is plenty: a typical universe radius is <5k.
+  cameraFar:    20000,
   zoomMin:      5,
-  zoomMax:      1e6,
-  // Depth of field — whisper-light. focus is set per-frame to the
-  // camera distance so the disk plane is always sharp; everything
-  // else gets a barely-perceptible softening.
-  dofAperture:  0.00004,
-  dofMaxBlur:   0.0015,
+  zoomMax:      18000,
+  // Depth of field. focus tracks the camera-to-target distance so
+  // the disk plane is always sharp; aperture is tiny so only things
+  // genuinely far from focus blur — DoF reads as photographic, not
+  // mushy.
+  dofAperture:  0.00008,
+  dofMaxBlur:   0.005,
 };
 
 function readTheme() {
