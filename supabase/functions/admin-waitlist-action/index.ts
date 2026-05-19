@@ -1,6 +1,11 @@
 // admin-waitlist-action — POST (admin-authed) action on a waitlist entry.
 //
-// Body: { entry_id: uuid, action: 'accept' | 'reject' | 'reschedule', days?: number }
+// Body: {
+//   entry_id: uuid,
+//   action: 'accept' | 'reject' | 'reschedule',
+//   days?: number,           // reschedule: bump by N days (default 7)
+//   scheduled_at?: string,   // reschedule: ISO timestamp — overrides `days`
+// }
 //
 // Caller's profile.tier must be 'admin'. Actions:
 //   • accept       → tier→demo, mark accepted, send branded welcome email
@@ -8,7 +13,9 @@
 //                    requests a fresh code by clicking through to /sign-in)
 //   • reject       → mark entry rejected; the user's account (if any)
 //                    stays on tier='waitlist' so they can't sign in. No email.
-//   • reschedule   → bump scheduled_accept_at by `days` (default 7). No email.
+//   • reschedule   → set scheduled_accept_at. If `scheduled_at` ISO is given,
+//                    use that absolute time. Otherwise bump by `days`
+//                    (default 7) from now. No email either way.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -40,6 +47,7 @@ interface Body {
   entry_id?: string;
   action?: "accept" | "reject" | "reschedule";
   days?: number;
+  scheduled_at?: string;  // absolute ISO timestamp; takes priority over `days`
 }
 
 Deno.serve(async (req) => {
@@ -104,8 +112,21 @@ Deno.serve(async (req) => {
 
   if (body.action === "reschedule") {
     if (entry.data.status !== "pending") return json({ error: `cannot reschedule entry in status ${entry.data.status}` }, 409);
-    const days = Math.max(1, Math.min(30, Number(body.days) || 7));
-    const newAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    let newAt: string;
+    if (body.scheduled_at) {
+      const parsed = new Date(body.scheduled_at);
+      if (Number.isNaN(parsed.getTime())) return json({ error: "invalid scheduled_at" }, 400);
+      // Sanity bound — don't accept anything more than 5 years out or
+      // already past. Past dates would trigger the cron immediately.
+      const now = Date.now();
+      const maxFuture = now + 5 * 365 * 24 * 60 * 60 * 1000;
+      if (parsed.getTime() < now - 60_000) return json({ error: "scheduled_at must be in the future" }, 400);
+      if (parsed.getTime() > maxFuture)    return json({ error: "scheduled_at is too far out" }, 400);
+      newAt = parsed.toISOString();
+    } else {
+      const days = Math.max(1, Math.min(30, Number(body.days) || 7));
+      newAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    }
     const upd = await admin.from("waitlist_entries").update({
       scheduled_accept_at: newAt,
       reviewed_by: u.data.user.id,

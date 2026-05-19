@@ -45,8 +45,15 @@ async function flush() {
   lastVisibleAt = (typeof document !== 'undefined' && document.visibilityState === 'visible') ? Date.now() : 0;
   if (elapsed <= 0) return;
   const sid = ensureSessionId();
+  // Pass user_id when signed in so the per-user seconds_in_app
+  // column accumulates too (admin Users tab reads this).
+  let uid = null;
   try {
-    await supabase.rpc('bump_seconds_in_app', { p_seconds: elapsed, p_session_id: sid });
+    const { data } = await supabase.auth.getSession();
+    uid = data?.session?.user?.id || null;
+  } catch (_) {}
+  try {
+    await supabase.rpc('bump_seconds_in_app', { p_seconds: elapsed, p_session_id: sid, p_user_id: uid });
   } catch (_) { /* fire-and-forget */ }
 }
 

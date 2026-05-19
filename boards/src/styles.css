@@ -4685,6 +4685,21 @@ body {
 .admin-action-danger  { color: rgb(220,120,120); border-color: rgba(220,80,80,.4); }
 .admin-action-danger:hover:not(:disabled) { background: rgba(220,80,80,.12); }
 
+/* Waitlist row actions wrap nicely when many controls don't fit. */
+.admin-waitlist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.admin-waitlist-when {
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-1);
+  padding: 5px 8px;
+  min-width: 175px;
+}
+
 /* Inline upgrade prompt embedded in ShareModal's hint for demo callers. */
 .share-upgrade-inline {
   background: transparent;
@@ -14141,4 +14156,57 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   padding-top: 8px;
   border-top: 1px solid rgba(255,255,255,0.05);
 }
+
+/* =========================================================================
+   Mobile + touch foundation (P1.2). Everything below is scoped so it
+   cannot change desktop pixels:
+
+   - Rules inside @media (max-width: 640px) only apply at phone widths.
+   - Rules inside @media (hover: none) and (pointer: coarse) only apply
+     to touch-input devices regardless of viewport (iPad, iPhone).
+   - touch-action / -webkit-tap-highlight are touch-only directives and
+     have no effect on mouse-driven desktop browsers.
+
+   Per-component tap-target and hover-reveal cleanup lands in P2/P3.
+   Keep this section conservative: it only sets the foundation.
+   ========================================================================= */
+
+/* Touch-action defaults. `manipulation` kills the 300ms double-tap-to-zoom
+   delay on tap-friendly elements without affecting any mouse behavior. */
+button, [role="button"], a, input, select, textarea, label {
+  touch-action: manipulation;
+}
+
+/* Suppress the iOS Safari blue tap highlight; component focus rings already
+   indicate touch acknowledgment. */
+button, [role="button"], a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Utility classes for components that opt in. Applied per-component in P2/P3
+   rather than blanket — keeps desktop density intact. */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+.safe-pad-top    { padding-top:    var(--safe-top); }
+.safe-pad-bottom { padding-bottom: var(--safe-bottom); }
+.safe-pad-left   { padding-left:   var(--safe-left); }
+.safe-pad-right  { padding-right:  var(--safe-right); }
+
+@media (max-width: 640px) {
+  /* Slightly larger base text for phone readability. 13px is fine on a
+     27" monitor at 24" distance but is genuinely hard to read on a
+     phone in landscape. */
+  body { font-size: 15px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  /* Reserve. Per-component hover-reveal disabling and tap-target bumps
+     land in P2/P3 (e.g., MessageBubble action buttons, card edit
+     affordances, DocSurface toolbar). This block exists so future
+     additions have a canonical home and so we can audit one location
+     for the touch-input contract. */
+}
+
 

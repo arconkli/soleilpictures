@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useAuth } from '../../auth/AuthGate.jsx';
 import { useFeedback } from '../../components/AppFeedback.jsx';
+import { formatDuration } from '../../lib/formatDuration.js';
 
 const PAGE_SIZE = 50;
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
@@ -160,6 +161,7 @@ export function AdminUsersTab() {
               <th>Email</th>
               <th>Tier</th>
               <th>Cards</th>
+              <th>Time in app</th>
               <th>Joined</th>
               <th>Last sign-in</th>
               <th>Subscription</th>
@@ -197,6 +199,9 @@ export function AdminUsersTab() {
                     </div>
                   </td>
                   <td className="admin-muted">{r.demo_card_count}</td>
+                  <td className="admin-muted" title={`${(r.seconds_in_app ?? 0).toLocaleString()} seconds`}>
+                    {r.seconds_in_app > 0 ? formatDuration(Number(r.seconds_in_app)) : '—'}
+                  </td>
                   <td className="admin-muted">
                     {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
                   </td>
