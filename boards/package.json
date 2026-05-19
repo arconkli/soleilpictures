@@ -9,9 +9,22 @@
     "build": "vite build",
     "deploy:party": "partykit deploy",
     "test:e2e": "playwright test",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:add:ios": "npx cap add ios",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "cap:run:ios": "npm run build && npx cap sync && npx cap run ios",
+    "cap:run:android": "npm run build && npx cap sync && npx cap run android",
+    "cap:dev:ios": "CAP_DEV=1 npx cap run ios",
+    "cap:dev:android": "CAP_DEV=1 npx cap run android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/ios": "^8.3.4",
     "@cosmograph/react": "^2.3.2",
     "@phosphor-icons/react": "^2.1.10",
     "@supabase/supabase-js": "^2.105.1",
