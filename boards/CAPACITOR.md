@@ -7,37 +7,80 @@ the React app updates both web and native.
 
 ## One-time setup
 
-### Prerequisites
+### iOS prerequisites (you already have Xcode)
 
-- macOS with **Xcode 26+** for iOS — install from the App Store.
-- **CocoaPods** for iOS native dependencies — `brew install cocoapods` (or
-  `sudo gem install cocoapods` on systems without Homebrew).
-- **Android Studio** with the Android SDK + Platform Tools for Android.
-- **JDK 17+** for the Android Gradle build.
+- **Xcode** is installed (`xcodebuild -version` showed 26.3). ✅
+- **CocoaPods** — for iOS native dependencies:
+  ```bash
+  brew install cocoapods
+  pod --version   # verify
+  ```
 
-Verify each is on `PATH`:
+### Android prerequisites — full install (≈ 15 minutes, one-time)
 
-```bash
-xcodebuild -version    # Xcode
-pod --version          # CocoaPods
-adb --version          # Android SDK
-java --version         # JDK
-```
+1. **JDK 17** (Capacitor's recommended runtime — Android Gradle Plugin
+   needs it):
+   ```bash
+   brew install --cask zulu@17
+   java --version   # should say "OpenJDK 17.x"
+   ```
+
+2. **Android Studio** — drag-and-drop install from
+   [developer.android.com/studio](https://developer.android.com/studio).
+   On first launch it runs a setup wizard that installs the **Android
+   SDK**, **SDK Build-Tools**, **Platform-Tools**, and an **Android
+   Emulator**. Accept all defaults — total download is ~3 GB.
+
+3. **Add Android tools to your shell PATH** so `adb`, `sdkmanager`, etc.
+   work outside Android Studio. Add to `~/.zshrc`:
+   ```bash
+   export ANDROID_HOME="$HOME/Library/Android/sdk"
+   export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator"
+   ```
+   Then `source ~/.zshrc` (or open a new terminal).
+
+4. **Accept SDK licenses** (Gradle will refuse to build until you do):
+   ```bash
+   yes | sdkmanager --licenses
+   ```
+
+5. **Verify the install** — all four commands should print versions:
+   ```bash
+   xcodebuild -version    # Xcode 26.3
+   pod --version          # 1.x
+   java --version         # OpenJDK 17.x
+   adb --version          # 35.x or later
+   ```
+
+### Lighter Android alternative (later)
+
+If you don't want to install Android Studio yet, you can ship iOS first
+and add Android later. The web app + Capacitor config already supports
+both — only the local-build tooling differs. Cloudflare Pages keeps
+deploying the web build regardless.
 
 ### Add the native platforms
 
-Once the prerequisites are installed, scaffold the two native projects from
-`boards/`:
+Once the prerequisites above are installed:
 
 ```bash
 cd boards
 npm run cap:add:ios       # creates boards/ios/
 npm run cap:add:android   # creates boards/android/
+
+# Fan out app icons + splash to every platform-specific size.
+# Source assets live in boards/assets/ (already committed — see
+# boards/assets/README.md for what's there).
+npm run cap:assets
 ```
 
-Both directories are committed to the repo so anyone cloning gets a working
-native build. They're separate from the Vite build and won't be rebuilt by
-Cloudflare Pages.
+`cap:assets` is wired to use the soleil sun mark from `boards/assets/`
+on a `#0a0a0c` (dark bg) background. Re-run it any time you swap the
+artwork in `boards/assets/`.
+
+Both `ios/` and `android/` get committed to the repo so anyone cloning
+gets a working native build. They're separate from the Vite build and
+won't be rebuilt by Cloudflare Pages.
 
 ## Day-to-day workflow
 

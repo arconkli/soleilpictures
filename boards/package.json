@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "cap:add:ios": "npx cap add ios",
     "cap:add:android": "npx cap add android",
+    "cap:assets": "npx capacitor-assets generate --iconBackgroundColor '#0a0a0c' --iconBackgroundColorDark '#0a0a0c' --splashBackgroundColor '#0a0a0c' --splashBackgroundColorDark '#0a0a0c'",
     "cap:sync": "npm run build && npx cap sync",
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
@@ -73,6 +74,7 @@
     "yjs": "^13.6.30"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@playwright/test": "^1.59.1",
     "@vitejs/plugin-react": "^4.3.4",
     "vite": "^5.4.11"
