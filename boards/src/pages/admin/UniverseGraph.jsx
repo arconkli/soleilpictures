@@ -92,11 +92,11 @@ const GALAXY = {
   cameraFar:    1e6,
   zoomMin:      5,
   zoomMax:      1e6,
-  // Depth of field — tiny aperture so the blur stays cinematic-
-  // subtle, never crunchy. focus is set per-frame to the camera
-  // distance so the disk plane is always sharp.
-  dofAperture:  0.00012,
-  dofMaxBlur:   0.004,
+  // Depth of field — whisper-light. focus is set per-frame to the
+  // camera distance so the disk plane is always sharp; everything
+  // else gets a barely-perceptible softening.
+  dofAperture:  0.00004,
+  dofMaxBlur:   0.0015,
 };
 
 function readTheme() {
