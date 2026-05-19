@@ -7,6 +7,7 @@ import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { PublicBoardView } from './components/PublicBoardView.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
+import { initCapacitor } from './lib/capacitorInit.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
@@ -81,6 +82,11 @@ const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
 startHeartbeat();
+
+// Capacitor native bootstrap (status bar, keyboard, splash, deep
+// links, Android back button). No-ops in the web build — every
+// plugin checks Capacitor.isNativePlatform() before doing work.
+initCapacitor();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

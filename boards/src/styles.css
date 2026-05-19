@@ -4525,20 +4525,32 @@ body {
 }
 .upgrade-later:hover { color: var(--ink-0); }
 
-/* ── Billing page summary ─────────────────────────────────────────────── */
-.billing-summary {
+/* ── Billing summary (shared by Settings modal + /settings/billing) ────── */
+.settings-billing-grid {
   width: 100%;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 18px;
+  row-gap: 10px;
+  align-items: baseline;
+  padding: 14px 16px;
   background: var(--bg-1);
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin: 6px 0 12px;
+  font: 500 13px/1.4 var(--font-sans);
 }
-.billing-row { display: flex; justify-content: space-between; gap: 12px; font: 500 13px/1.4 var(--font-sans); }
-.billing-label { color: var(--ink-2); }
-.billing-value { color: var(--ink-0); text-align: right; }
+.settings-billing-label {
+  color: var(--ink-3);
+  font-size: 11.5px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.settings-billing-value {
+  color: var(--ink-0);
+  font-weight: 600;
+  word-break: break-word;
+}
 
 /* ── Admin dashboard ───────────────────────────────────────────────────── */
 .admin-screen {
@@ -9597,7 +9609,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-block-handle:hover { color: var(--ink-2); background: transparent; }
 .doc-block-handle:active { cursor: grabbing; }
 
-/* ─────── Doc templates picker ─────── */
+/* ─────── Doc picker shell (shared by link / embed pickers) ─────── */
 .doc-tplbg {
   position: fixed; inset: 0;
   z-index: 2147483646;
@@ -9608,7 +9620,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   padding: 32px;
   animation: ctx-menu-in 120ms ease-out;
 }
-.doc-tpl, .doc-embed-picker {
+.doc-embed-picker {
   width: 600px; max-width: 100%;
   max-height: 80vh;
   background: var(--bg-1);
@@ -9634,35 +9646,6 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: grid; place-items: center;
 }
 .doc-tpl-x:hover { background: var(--bg-hov); color: var(--ink-0); }
-.doc-tpl-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
-  padding: 16px 20px 20px;
-  overflow-y: auto;
-}
-.doc-tpl-card {
-  appearance: none; text-align: left; background: var(--bg-2);
-  border: 1px solid var(--line-2);
-  border-radius: 10px;
-  padding: 14px;
-  cursor: pointer;
-  display: flex; flex-direction: column; gap: 8px;
-  font: inherit;
-  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
-}
-.doc-tpl-card:hover { border-color: #4f8df8; background: var(--bg-3); transform: translateY(-1px); }
-.doc-tpl-card-mini {
-  height: 70px;
-  border-radius: 6px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  padding: 10px 12px;
-  display: flex; flex-direction: column; gap: 4px;
-}
-.doc-tpl-card-bar { height: 5px; background: var(--line-3); border-radius: 3px; }
-.doc-tpl-card-bar.short { width: 70%; }
-.doc-tpl-card-bar.shorter { width: 40%; }
-.doc-tpl-card-name { font-size: 13px; font-weight: 600; color: var(--ink-0); letter-spacing: -0.005em; }
-.doc-tpl-card-blurb { font-size: 11.5px; color: var(--ink-2); line-height: 1.4; }
 
 /* ─────── Embed picker ─────── */
 .doc-embed-search {
@@ -10313,80 +10296,6 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 .doc-card-modal-body { flex: 1 1 auto; min-height: 0; display: flex; }
 .doc-card-modal-body > .doc-surface { flex: 1 1 auto; min-width: 0; }
-
-/* ─────── Template-picker minis ─────── */
-.doc-tpl-mini {
-  height: 92px;
-  border-radius: 6px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  padding: 10px 12px;
-  display: flex; flex-direction: column; gap: 5px;
-  position: relative;
-  overflow: hidden;
-}
-.doc-tpl-mini-blank { background: repeating-linear-gradient(45deg, var(--bg-1) 0 6px, transparent 6px 12px); }
-.doc-tpl-mini-h { height: 8px; background: var(--ink-1); border-radius: 2px; }
-.doc-tpl-mini-rule { height: 1px; background: var(--line-2); margin: 2px 0; }
-.doc-tpl-mini-quote {
-  height: 12px; background: var(--bg-2); border-left: 2px solid var(--line-3);
-  border-radius: 2px;
-}
-.doc-tpl-mini-bar { height: 4px; background: var(--line-3); border-radius: 2px; width: 100%; opacity: .65; }
-.doc-tpl-mini-table {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
-  background: var(--line-2);
-  border: 1px solid var(--line-2);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.doc-tpl-mini-table > div {
-  background: var(--bg-1);
-  height: 12px;
-}
-.doc-tpl-mini-table > div:nth-child(-n+4) { background: var(--bg-3); }
-.doc-tpl-mini-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
-  flex: 1 1 auto; min-height: 0;
-}
-.doc-tpl-mini-grid > span {
-  background: var(--bg-3);
-  border-radius: 2px;
-}
-.doc-tpl-mini-stack {
-  position: relative;
-  display: block;
-}
-.doc-tpl-mini-page {
-  position: absolute; inset: 14px 24px 14px 14px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: 3px;
-  z-index: 3;
-  box-shadow: 0 2px 6px rgba(0,0,0,.2);
-}
-.doc-tpl-mini-page-2 {
-  inset: 10px 18px 18px 20px;
-  z-index: 2;
-  opacity: .7;
-  transform: rotate(1deg);
-}
-.doc-tpl-mini-page-3 {
-  inset: 6px 12px 22px 26px;
-  z-index: 1;
-  opacity: .45;
-  transform: rotate(2deg);
-}
-.doc-tpl-mini-swatches {
-  position: absolute; left: 10px; bottom: 8px;
-  display: inline-flex; gap: 3px;
-  z-index: 5;
-}
-.doc-tpl-mini-swatches > span {
-  width: 10px; height: 10px;
-  border-radius: 2px;
-  border: 1px solid rgba(255,255,255,.1);
-}
 
 /* Doc editor right-click context menu */
 .doc-ctx {
@@ -12534,10 +12443,9 @@ button.msg-panel-name:hover { color: var(--soleil); }
   animation: pickerFade var(--dur-slow) var(--ease);
 }
 .settings-modal-narrow {
-  /* Account mode (avatar → identity-only) — single column, no tab
-     rail, so a tighter width reads as a card edit rather than a
-     full settings UI. */
-  width: min(440px, calc(100vw - 32px)) !important;
+  /* Account mode (avatar → profile / billing / notifications). Wide
+     enough that the two-column billing rows breathe instead of wrapping. */
+  width: min(520px, calc(100vw - 32px)) !important;
 }
 .settings-modal {
   width: min(720px, calc(100vw - 32px));
@@ -12663,24 +12571,45 @@ button.msg-panel-name:hover { color: var(--soleil); }
 .settings-avatar-preview .r2-img { width: 100%; height: 100%; object-fit: cover; }
 .settings-avatar-actions { display: flex; align-items: center; gap: 8px; }
 
-.settings-color-chip {
-  display: flex; align-items: center; gap: 10px;
-  background: #4f8df8;
-  border: 1px solid rgba(255,255,255,.18);
+/* Honest color preview: left tile is the actual color (or a checker
+   pattern for null/transparent), right label tells you whether it's
+   your override or a default. No more blue-placeholder lies. */
+.settings-swatch-chip {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  padding: 6px 12px 6px 10px;
+  padding: 4px 12px 4px 4px;
   cursor: pointer;
-  min-width: 110px;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);
+  min-width: 168px;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.settings-color-chip:disabled { opacity: 0.5; cursor: not-allowed; }
-.settings-color-chip span {
+.settings-swatch-chip:hover { border-color: var(--line-3); background: var(--bg-3); }
+.settings-swatch-chip:disabled, .settings-swatch-chip.is-disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-swatch-chip-block {
+  width: 28px; height: 28px;
+  border-radius: calc(var(--radius) - 3px);
+  border: 1px solid rgba(255,255,255,.08);
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.18);
+}
+.settings-swatch-chip-block.is-empty {
+  background-color: var(--bg-1);
+  background-image:
+    linear-gradient(45deg, var(--line-3) 25%, transparent 25%, transparent 75%, var(--line-3) 75%),
+    linear-gradient(45deg, var(--line-3) 25%, transparent 25%, transparent 75%, var(--line-3) 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 5px 5px;
+}
+.settings-swatch-chip-label {
   font: 600 11px/1 var(--font-mono);
-  color: rgba(0,0,0,.78);
-  mix-blend-mode: luminosity;
+  color: var(--ink-1);
   letter-spacing: .04em;
 }
-.settings-color-chip span em { font-style: italic; opacity: .8; }
+.settings-swatch-chip-label.is-default {
+  color: var(--ink-3);
+  font-weight: 500;
+}
 .settings-link-btn {
   background: transparent; border: 0;
   color: var(--ink-3);
@@ -12835,41 +12764,6 @@ button.msg-panel-name:hover { color: var(--soleil); }
   color: var(--ink-3);
   font: 400 13px/1.4 var(--font-sans);
 }
-.settings-templates-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-}
-.settings-template-tile {
-  display: flex; flex-direction: column;
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--bg-2);
-}
-.settings-template-cover {
-  aspect-ratio: 16/10;
-  display: flex; align-items: flex-end; padding: 8px;
-}
-.settings-template-tag {
-  font: 700 9px/1 var(--font-mono);
-  letter-spacing: .14em;
-  color: rgba(0,0,0,.6);
-  background: rgba(255,255,255,.5);
-  padding: 3px 6px;
-  border-radius: 3px;
-}
-.settings-template-meta {
-  padding: 10px 12px;
-  display: flex; flex-direction: column; gap: 6px;
-}
-.settings-template-name {
-  font: 600 12.5px/1.3 var(--font-sans);
-  color: var(--ink-0);
-  word-wrap: break-word;
-}
-.settings-template-actions { display: flex; gap: 4px; margin-top: 4px; }
 .settings-toggle {
   display: flex; align-items: center; gap: 14px;
   padding: 10px 0;
@@ -13229,7 +13123,6 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .link-hover-card,
 .account-modal,
 .settings-modal,
-.settings-template-tile,
 .home-graph-drawer,
 .home-graph-hud,
 .tag-detail-menu,
@@ -13307,7 +13200,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .cnv-add-menu::after, .topbar-add-menu::after,
 .entity-picker::after, .entity-hover-popover::after,
 .link-popover::after, .link-hover-card::after,
-.account-modal::after, .settings-modal::after, .settings-template-tile::after,
+.account-modal::after, .settings-modal::after,
 .home-graph-drawer::after, .home-graph-hud::after,
 .tag-detail-menu::after, .tag-detail-head::after,
 .tag-detail-block-attr::after, .tag-detail-block-open::after, .tag-detail-group-block::after,
@@ -14446,6 +14339,16 @@ button, [role="button"], a {
      so they don't sit under the tabs, and enlarge the +/- buttons. */
   .cnv-zoom { bottom: calc(56px + var(--safe-bottom) + 12px) !important; }
   .cnv-zoom button { min-width: 32px; min-height: 32px; }
+
+  /* iOS Safari URL-bar collapse fix: 100vh includes the address bar at
+     idle but the bar collapses on scroll, causing visible viewport
+     jumps. 100dvh tracks the dynamic viewport — supported in modern
+     iOS Safari (15.4+) and Chrome. Falls back to the unscoped 100vh
+     in older browsers. */
+  .app                  { height: 100dvh; }
+  .admin-screen         { height: 100dvh; }
+  .ent-backlinks-panel  { height: 100dvh; }
+  .auth-screen          { height: 100dvh; }
 }
 
 @media (hover: none) and (pointer: coarse) {
