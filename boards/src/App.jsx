@@ -11,6 +11,7 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
+import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { logEvent } from './lib/analytics.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
@@ -251,10 +252,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
   // Two separate panels:
-  //   accountOpen  — avatar (bottom-left, your initial) → identity only
-  //                  (Profile tab + sign out)
-  //   settingsOpen — cog (bottom-left, gear) → workspace defaults +
-  //                  theme + templates + display
+  //   accountOpen  — avatar (bottom-left, your initial) → identity, billing,
+  //                  notifications + sign out
+  //   settingsOpen — cog (bottom-left, gear) → workspace defaults, theme,
+  //                  display
   const [accountOpen, setAccountOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -2348,8 +2349,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           />
 
           {/* Footer — settings cog + avatar. Cog opens workspace
-              settings (defaults, theme, templates, display). Avatar
-              opens identity (name, presence color, sign out). */}
+              settings (defaults, theme, display). Avatar opens identity
+              (name, presence color, billing, notifications, sign out). */}
           <div className="sb-foot">
             <button className="sb-foot-icon" title="Workspace settings" aria-label="Workspace settings"
                     onClick={() => setSettingsOpen(true)}>
@@ -2467,6 +2468,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-icon" title="History — time travel, comments, trash" onClick={() => setHistoryOpen(true)}>
               <Icon as={History} size={16} />
             </button>
+            <FeedbackButton as="icon" />
             <span className="tb-divider" aria-hidden="true" />
             <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
                                     workspaceId={workspace.id}

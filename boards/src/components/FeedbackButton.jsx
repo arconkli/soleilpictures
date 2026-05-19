@@ -1,8 +1,12 @@
-// FeedbackButton — small global "Send feedback" affordance.
-// Click → modal with kind picker + textarea → POSTs to the
-// send-feedback Edge function. Works whether signed in or not.
+// FeedbackButton — "Send feedback" trigger + modal.
+//
+// Props:
+//   as = 'floating' (default) — frosted pill, position: fixed
+//   as = 'icon'                — tb-icon-style inline button
+//                                (caller controls placement)
 
 import { useState } from 'react';
+import { ChatTeardrop as ChatIcon } from '@phosphor-icons/react';
 import { supabase } from '../lib/supabase.js';
 
 const FEEDBACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/send-feedback';
@@ -13,7 +17,7 @@ const KINDS = [
   { id: 'other',  label: 'Other',  hint: 'Anything else' },
 ];
 
-export function FeedbackButton() {
+export function FeedbackButton({ as = 'floating' }) {
   const [open, setOpen]       = useState(false);
   const [kind, setKind]       = useState('bug');
   const [message, setMessage] = useState('');
@@ -58,16 +62,29 @@ export function FeedbackButton() {
     }
   };
 
+  const Trigger = as === 'icon' ? (
+    <button
+      className="tb-icon"
+      title="Send feedback"
+      aria-label="Send feedback"
+      onClick={() => { setOpen(true); setStatus(null); setError(''); }}
+    >
+      <ChatIcon size={16} weight="regular" />
+    </button>
+  ) : (
+    <button
+      className="feedback-trigger"
+      onClick={() => { setOpen(true); setStatus(null); setError(''); }}
+      title="Send feedback"
+      aria-label="Send feedback"
+    >
+      Feedback
+    </button>
+  );
+
   return (
     <>
-      <button
-        className="feedback-trigger"
-        onClick={() => { setOpen(true); setStatus(null); setError(''); }}
-        title="Send feedback"
-        aria-label="Send feedback"
-      >
-        Feedback
-      </button>
+      {Trigger}
 
       {open && (
         <div className="feedback-overlay" onClick={() => !busy && setOpen(false)}>

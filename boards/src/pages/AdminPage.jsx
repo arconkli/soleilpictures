@@ -16,6 +16,7 @@ import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
+import { FeedbackButton } from '../components/FeedbackButton.jsx';
 import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
@@ -66,6 +67,7 @@ export function AdminPage() {
           ))}
         </div>
         <div className="admin-header-right">
+          <FeedbackButton as="icon" />
           <button className="auth-link" onClick={() => { window.location.assign('/'); }}>← App</button>
           <button className="auth-link" onClick={signOut}>Sign out</button>
         </div>
