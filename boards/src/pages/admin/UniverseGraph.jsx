@@ -28,9 +28,9 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls }  from 'three/examples/jsm/controls/OrbitControls.js';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass }     from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { BokehPass }      from 'three/examples/jsm/postprocessing/BokehPass.js';
+import { EffectComposer }    from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass }        from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass }   from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import SimWorker from './universeSimWorker.js?worker';
 import { fetchSnapshotPage, useUniverseDeltas } from './useUniverseStream.js';
 
@@ -96,12 +96,13 @@ const GALAXY = {
   cameraFar:    20000,
   zoomMin:      5,
   zoomMax:      18000,
-  // Depth of field. focus tracks the camera-to-target distance so
-  // the disk plane is always sharp; aperture is tiny so only things
-  // genuinely far from focus blur — DoF reads as photographic, not
-  // mushy.
-  dofAperture:  0.00008,
-  dofMaxBlur:   0.005,
+  // Bloom (replaces DoF). UnrealBloomPass makes bright pixels bleed
+  // energy into surrounding ones — gives nodes the pinprick-with-
+  // soft-glow look real stars have in long-exposure astrophotos.
+  // Works correctly at any zoom level because it's screen-space.
+  bloomStrength:  0.45,
+  bloomRadius:    0.85,
+  bloomThreshold: 0.15,
 };
 
 function readTheme() {
@@ -185,8 +186,8 @@ function makeHaloMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: {
       map:      { value: HALO_TEXTURE },
-      uOpacity: { value: 0.22 },
-      uScale:   { value: 350 },  // tuned to match HomeGraph haloScale ~3.7x at default distance
+      uOpacity: { value: 0.30 },  // bumped 0.22→0.30 so the bloom pass has luminance to glow from
+      uScale:   { value: 350 },
     },
     vertexShader: /* glsl */`
       attribute float size;
@@ -296,7 +297,7 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
   // ── Refs to all the Three.js + sim state (kept out of React) ─────
   const refs = useRef({
     scene: null, camera: null, renderer: null, controls: null,
-    composer: null, bokehPass: null,
+    composer: null, bloomPass: null,
     nodeMesh: null, haloPoints: null, edgeLines: null, fxPoints: null,
     activeFx: [],                   // [{ kind:'pulse'|'flash', src, tgt, nodeIdx, start, dur, color }]
     // Per-node base scale (val * 0.4). Cached so uploadPositions on
@@ -355,23 +356,30 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h);
+    // ACES filmic tonemap so blown-out bright pixels (the bloomed
+    // node cores) roll off with a photographic curve instead of
+    // clipping to flat white — gives real "overexposed star" feel.
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
     renderer.domElement.style.display = 'block';
     container.appendChild(renderer.domElement);
 
-    // Post-process chain: standard render → subtle Bokeh DoF.
-    // Focus is set per-frame to the camera-to-target distance so the
-    // disk plane is always crisp; nearer/farther stars soften.
+    // Post-process chain: standard render → bloom. Bright pixels
+    // (node halos / sphere highlights) bleed into neighbors for the
+    // star-glow look. Scaffold edges and dim structural lines stay
+    // below the brightness threshold and don't bloom.
     const composer = new EffectComposer(renderer);
     composer.setPixelRatio(renderer.getPixelRatio());
     composer.setSize(w, h);
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
-    const bokehPass = new BokehPass(scene, camera, {
-      focus:    camera.position.length(),
-      aperture: GALAXY.dofAperture,
-      maxblur:  GALAXY.dofMaxBlur,
-    });
-    composer.addPass(bokehPass);
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(w, h),
+      GALAXY.bloomStrength,
+      GALAXY.bloomRadius,
+      GALAXY.bloomThreshold,
+    );
+    composer.addPass(bloomPass);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -404,7 +412,7 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
     refs.renderer = renderer;
     refs.controls = controls;
     refs.composer = composer;
-    refs.bokehPass = bokehPass;
+    refs.bloomPass = bloomPass;
     refs.nodeMesh = nodeMesh;
     refs.haloPoints = haloPoints;
     refs.edgeLines = edgeLines;
@@ -508,13 +516,10 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
       // activeFx, splat into the fxPoints buffer, drop expired.
       updateFx(refs, now);
       controls.update();
-      // DoF focus tracks the camera-to-target distance so the
-      // disk plane stays sharp wherever the user is looking.
-      const focusDist = camera.position.distanceTo(controls.target);
-      bokehPass.uniforms.focus.value = focusDist;
       // Edge fade by distance — at long zoom the edges drown out
       // the actual node dots; fade them so the nodes shine through.
       // Sharp at typical viewing distance, dims to ~25% at the rim.
+      const focusDist = camera.position.distanceTo(controls.target);
       const edgeFade = THREE.MathUtils.smoothstep(focusDist, 600, 4000);
       edgeLines.material.opacity = 1 - 0.75 * edgeFade;
       composer.render();
@@ -531,6 +536,7 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
       camera.updateProjectionMatrix();
       renderer.setSize(w2, h2);
       composer.setSize(w2, h2);
+      bloomPass.setSize(w2, h2);
     });
     ro.observe(container);
     const onWinResize = () => { ro.takeRecords?.(); };
@@ -573,7 +579,7 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
       composer.dispose();
       renderer.dispose();
       refs.scene = null; refs.camera = null; refs.renderer = null; refs.controls = null;
-      refs.composer = null; refs.bokehPass = null;
+      refs.composer = null; refs.bloomPass = null;
       refs.nodeMesh = null; refs.haloPoints = null; refs.edgeLines = null; refs.fxPoints = null;
       refs.activeFx = [];
     };
