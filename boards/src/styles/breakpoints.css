@@ -1,0 +1,30 @@
+/* Canonical breakpoints for the boards app. Mirrored in
+   src/hooks/useBreakpoint.js — both files must move together.
+
+   phone:   <= 640px        single column, bottom nav, sheets
+   tablet:  641 - 1024px    collapsed sidebar, side modals
+   desktop: >= 1025px       current experience (unchanged)
+
+   Coarse-pointer override (hover:none + pointer:coarse) is a
+   separate axis from viewport size — an iPad in landscape is
+   desktop-width but touch-input. Components and styles that
+   depend on input type should key on that, not on viewport.
+
+   Conventions:
+   - All mobile/tablet styles live in @media blocks scoped here.
+   - The default (unscoped) styles in styles.css remain desktop.
+   - Adding a phone style must NEVER change desktop pixels.
+*/
+
+:root {
+  --bp-phone-max:  640px;
+  --bp-tablet-max: 1024px;
+
+  /* Safe-area helpers — resolve to 0 when not on a native shell
+     (browser). Used by topbar, bottom nav, sheets so the same
+     CSS works in browser, Capacitor iOS, and Capacitor Android. */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+}
