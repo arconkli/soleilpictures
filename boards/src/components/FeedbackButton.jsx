@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Megaphone } from '@phosphor-icons/react';
+import { PaperPlaneTilt } from '@phosphor-icons/react';
 import { supabase } from '../lib/supabase.js';
 
 const FEEDBACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/send-feedback';
@@ -73,7 +73,7 @@ export function FeedbackButton({ as = 'floating' }) {
       aria-label="Send feedback"
       onClick={openModal}
     >
-      <Megaphone size={16} weight="regular" />
+      <PaperPlaneTilt size={16} weight="regular" />
     </button>
   ) : (
     <button
