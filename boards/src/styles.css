@@ -2357,8 +2357,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 48px;
-  padding: 0 16px;
+  /* Content area stays 48px tall; the bar grows visually to fill the
+     iOS status-bar inset on top + left/right safe insets (notch
+     landscape). env() resolves to 0 in non-native browsers so desktop
+     is unchanged. */
+  height: calc(48px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
   background-color: var(--bg-1);
   border-bottom: 1px solid var(--line-1);
   flex-shrink: 0;
@@ -4074,7 +4078,10 @@ body {
   position: relative;
   width: 100%;
   max-width: 420px;
-  padding: 40px 24px;
+  /* Respect the iOS status bar + home indicator (env() resolves to 0 in
+     non-native browsers, so desktop is unchanged). max() guarantees at
+     least the 40px desktop padding. */
+  padding: max(40px, calc(env(safe-area-inset-top) + 24px)) 24px max(40px, calc(env(safe-area-inset-bottom) + 24px));
   display: flex;
   flex-direction: column;
   align-items: center;
