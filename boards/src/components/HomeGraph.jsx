@@ -208,6 +208,16 @@ export function HomeGraph({ workspaceId, onNavigate }) {
       controls.rotateSpeed = 0.55;
       controls.zoomSpeed = 0.7;
       controls.panSpeed = 0.6;
+      // Touch gestures (P4.1): one-finger rotate, two-finger
+      // dolly-pan (pinch zoom + two-finger pan). These map to the
+      // mouse left-drag-orbit + wheel-zoom desktop behavior so the
+      // 3D graph navigates the same way on iPhone / iPad.
+      if (THREE.TOUCH) {
+        controls.touches = {
+          ONE: THREE.TOUCH.ROTATE,
+          TWO: THREE.TOUCH.DOLLY_PAN,
+        };
+      }
       const onStart = () => { interacting = true; };
       const onEnd = () => { interacting = false; };
       controls.addEventListener?.('start', onStart);

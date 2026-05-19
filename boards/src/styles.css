@@ -10714,6 +10714,9 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   height: 100%;
   background: var(--bg-0);
   overflow: hidden;
+  /* P4.1: OrbitControls handles touch gestures itself — block the
+     browser's native pinch-zoom / scroll on the graph surface. */
+  touch-action: none;
 }
 
 /* Hide the constellation while the force simulation is bouncing into
@@ -14431,6 +14434,18 @@ button, [role="button"], a {
     border-right: 0;
     border-bottom: 0;
   }
+
+  /* Canvas tool strip (.cnv-tools) — desktop 30px buttons are below the
+     44px tap minimum. Bump to 40px on phone and add a little more
+     horizontal margin so the strip floats clear of the edge. */
+  .cnv-tools { left: 8px; padding: 6px; gap: 4px; }
+  .cnv-tool { width: 40px; height: 40px; }
+  .cnv-tool-sep { margin: 4px 6px; }
+
+  /* Canvas zoom controls (bottom-right) — push above the bottom nav
+     so they don't sit under the tabs, and enlarge the +/- buttons. */
+  .cnv-zoom { bottom: calc(56px + var(--safe-bottom) + 12px) !important; }
+  .cnv-zoom button { min-width: 32px; min-height: 32px; }
 }
 
 @media (hover: none) and (pointer: coarse) {
