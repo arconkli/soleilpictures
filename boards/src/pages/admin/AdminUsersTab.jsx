@@ -200,7 +200,7 @@ export function AdminUsersTab() {
                   </td>
                   <td className="admin-muted">{r.demo_card_count}</td>
                   <td className="admin-muted" title={`${(r.seconds_in_app ?? 0).toLocaleString()} seconds`}>
-                    {r.seconds_in_app > 0 ? formatDuration(Number(r.seconds_in_app)) : '—'}
+                    {formatDuration(Number(r.seconds_in_app || 0))}
                   </td>
                   <td className="admin-muted">
                     {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
