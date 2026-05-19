@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Soleil Clusters</string>
+    <string name="title_activity_main">Soleil Clusters</string>
+    <string name="package_name">com.soleilpictures.clusters</string>
+    <string name="custom_url_scheme">com.soleilpictures.clusters</string>
+</resources>
