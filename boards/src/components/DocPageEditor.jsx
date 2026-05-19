@@ -565,8 +565,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
 
   const editor = useEditor({
     extensions: [
-      // Schema-defining extensions live in baseDocExtensions so the template
-      // picker can build a matching offline schema for seeding pages.
       ...baseDocExtensions,
       // ⌘K → link picker (URL or entity picker).
       Extension.create({

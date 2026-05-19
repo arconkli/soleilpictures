@@ -12801,20 +12801,30 @@ button.msg-panel-name:hover { color: var(--soleil); }
 
 /* ── Clean mode (data-clean-mode='1' on body) ──────────────────────────
    Hides every chrome surface so just the canvas + cards remain. ⌘.
-   toggles. Re-engaged via Settings → Display. */
+   toggles. Re-engaged via Settings → Display.
+
+   Selectors below mirror the actual class names on the rendered
+   elements; anything that doesn't match is silently ignored, which
+   is why earlier versions only half-hid chrome. If you add a new
+   chrome surface, add its real class here too. */
 body[data-clean-mode='1'] .sidebar,
-body[data-clean-mode='1'] .tob,
 body[data-clean-mode='1'] .topbar,
-body[data-clean-mode='1'] .canvas-presence-stack,
-body[data-clean-mode='1'] .canvas-comments-layer,
-body[data-clean-mode='1'] .messages-panel,
-body[data-clean-mode='1'] .canvas-tools,
+body[data-clean-mode='1'] .crumbs,
+body[data-clean-mode='1'] .tob,
+body[data-clean-mode='1'] .cnv-tools,
 body[data-clean-mode='1'] .cnv-zoom,
-body[data-clean-mode='1'] .cnv-tool,
-body[data-clean-mode='1'] .breadcrumb,
-body[data-clean-mode='1'] .bc-toc-peers {
+body[data-clean-mode='1'] .cnv-hint,
+body[data-clean-mode='1'] .cnv-selcount,
+body[data-clean-mode='1'] .ws-presence,
+body[data-clean-mode='1'] .ws-presence-audit,
+body[data-clean-mode='1'] .canvas-comment-layer,
+body[data-clean-mode='1'] .msg-panel,
+body[data-clean-mode='1'] .split-bar {
   display: none !important;
 }
+/* Collapse the sidebar column so the canvas fills the screen instead
+   of leaving a 240px gutter where the sidebar used to be. */
+body[data-clean-mode='1'] .app { grid-template-columns: 0 1fr !important; }
 .clean-mode-exit {
   position: fixed;
   top: 16px; right: 16px;

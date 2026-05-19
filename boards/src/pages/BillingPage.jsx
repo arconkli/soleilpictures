@@ -1,6 +1,7 @@
-// BillingPage — /settings/billing for paying customers. Shows the
-// caller's current subscription summary and a button that opens the
-// Stripe Customer Portal (cancel, update card, invoice history).
+// BillingPage — /settings/billing for paying customers. This is the
+// Stripe Customer Portal `return_url`, so it has to keep working as a
+// route. Renders the same <BillingSummary /> the in-modal Billing tab
+// uses so plan label + period formatting stay in one place.
 //
 // 404-style empty state for users with no subscription (typically demo
 // users who landed here by typing the URL).
@@ -10,12 +11,14 @@ import { supabase } from '../lib/supabase.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
+import { BillingSummary } from '../components/SettingsPanel.jsx';
 
 const PORTAL_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
 
 export function BillingPage() {
   const { user, signOut } = useAuth();
-  const { tier, subscriptionStatus, currentPeriodEnd, loading } = useMyTier({ userId: user?.id });
+  const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, loading } =
+    useMyTier({ userId: user?.id });
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -54,10 +57,6 @@ export function BillingPage() {
     }
   };
 
-  const formattedPeriodEnd = currentPeriodEnd || sub?.current_period_end
-    ? new Date(currentPeriodEnd || sub?.current_period_end).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
-    : null;
-
   return (
     <div className="welcome-screen">
       <div className="auth-glow" aria-hidden="true" />
@@ -87,30 +86,15 @@ export function BillingPage() {
           </>
         ) : (
           <>
-            <div className="billing-summary">
-              <div className="billing-row">
-                <span className="billing-label">Plan</span>
-                <span className="billing-value">Creator · {sub.plan === 'annual' ? 'Annual ($240/yr)' : 'Monthly ($25/mo)'}</span>
-              </div>
-              <div className="billing-row">
-                <span className="billing-label">Status</span>
-                <span className="billing-value">{subscriptionStatus || sub.status || '—'}</span>
-              </div>
-              {formattedPeriodEnd && (
-                <div className="billing-row">
-                  <span className="billing-label">{sub.cancel_at_period_end ? 'Ends' : 'Renews'}</span>
-                  <span className="billing-value">{formattedPeriodEnd}</span>
-                </div>
-              )}
-            </div>
-
+            <BillingSummary
+              tier={tier}
+              sub={sub}
+              subscriptionStatus={subscriptionStatus}
+              currentPeriodEnd={currentPeriodEnd}
+              demoCardCount={demoCardCount}
+              busy={busy}
+              onManage={openPortal} />
             {error && <div className="auth-error t-meta">{error}</div>}
-
-            <div className="welcome-cta-row">
-              <button className="welcome-cta welcome-cta-primary" onClick={openPortal} disabled={busy}>
-                {busy ? 'Opening…' : 'Manage billing →'}
-              </button>
-            </div>
           </>
         )}
 

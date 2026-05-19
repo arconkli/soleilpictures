@@ -21,7 +21,6 @@ import { DocPresence } from './DocPresence.jsx';
 import { DocToolbar } from './DocToolbar.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
-// Templates removed — new docs land in a single empty page.
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
 import { DocLinkPicker } from './DocLinkPicker.jsx';
 
@@ -214,7 +213,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pages, activePageId]);
 
-  // First-load: brand-new doc → drop a single empty page (no template picker).
+  // First-load: brand-new doc → drop a single empty page.
   // We use a ref-flag because the effect depends on pages.length and we don't
   // want StrictMode's dev double-mount to seed twice.
   const seededRef = useRef(false);

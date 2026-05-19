@@ -1,12 +1,4 @@
 // Settings panel — tabbed home for everything user/workspace-scoped.
-// Replaces the old single-purpose AccountSettings modal:
-//
-//   Profile   — display_name + presence color (per-user, today's UI)
-//   Defaults  — note/board/doc/shape/palette defaults (workspace OR per-user)
-//   Theme     — light/dark, accent color, font picks (per-user)
-//   Templates — list / rename / delete saved board templates
-//   Display   — clean-mode + sidebar default (per-user)
-//
 // Workspace defaults are editable by editors AND owners, read-only for
 // viewers. Per-user defaults are always editable (it's your account).
 // Settings persist via the merge_*_settings RPCs which do atomic
@@ -28,12 +20,9 @@ import { useMyTier } from '../hooks/useMyTier.js';
 import { PricingModal } from './PricingModal.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { R2Image } from './R2Image.jsx';
-import { COVER_TINTS } from './primitives.jsx';
 import { HARDCODED_FALLBACKS } from '../hooks/useResolvedDefaults.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
-import {
-  listBoardTemplates, deleteBoardTemplate, renameBoardTemplate,
-} from '../lib/templatesApi.js';
+import { planLabel, formatPeriodEnd } from '../lib/billingCopy.js';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
@@ -41,7 +30,6 @@ const TABS = [
   { id: 'notifications', label: 'Notifications' },
   { id: 'defaults',      label: 'Defaults' },
   { id: 'theme',         label: 'Theme' },
-  { id: 'templates',     label: 'Templates' },
   { id: 'display',       label: 'Display' },
 ];
 
@@ -183,8 +171,8 @@ export function SettingsPanel({
   user, onSignOut,
   workspaceId, workspaceName, onWorkspacesChanged,
   onSaved,
-  // 'account' = avatar-style identity-only modal (Profile tab + sign out).
-  // 'workspace' = the cog-style settings (Defaults/Theme/Templates/Display).
+  // 'account' = avatar-style identity modal (Profile / Billing / Notifications + sign out).
+  // 'workspace' = the cog-style settings (Defaults / Theme / Display).
   // 'full' = legacy / dev — show every tab in one panel.
   mode = 'full',
   // Settings hook output — passed in so the panel and the rest of the
@@ -197,8 +185,8 @@ export function SettingsPanel({
   onOpenRecovery,
 }) {
   // Filter tabs by mode + pick the first as default.
-  //   account   = personal identity stuff (Profile + Billing)
-  //   workspace = cog-style settings (Defaults/Theme/Templates/Display)
+  //   account   = personal identity stuff (Profile + Billing + Notifications)
+  //   workspace = cog-style settings (Defaults/Theme/Display)
   //   full      = every tab
   const visibleTabs = mode === 'account'
     ? TABS.filter(t => t.id === 'profile' || t.id === 'billing' || t.id === 'notifications')
@@ -282,9 +270,6 @@ export function SettingsPanel({
             {tab === 'theme' && (
               <ThemeTab mySettings={mySettings} refresh={refresh} />
             )}
-            {tab === 'templates' && (
-              <TemplatesTab workspaceId={workspaceId} role={role} />
-            )}
             {tab === 'display' && (
               <DisplayTab mySettings={mySettings} refresh={refresh} />
             )}
@@ -308,6 +293,9 @@ function ProfileTab({ user, workspaceId, onSaved }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [pickerPos, setPickerPos] = useState(null);
   const chipRef = useRef(null);
+  // What other people see when you haven't picked a presence color yourself.
+  // Matches what cursors/avatars actually render on the board.
+  const presenceFallback = pickPresenceColor(user?.id || user?.email || '');
 
   useEffect(() => {
     if (!user?.id) return;
@@ -404,17 +392,16 @@ function ProfileTab({ user, workspaceId, onSaved }) {
       </Field>
       <Field label="Presence color">
         <div className="settings-color-row">
-          <button ref={chipRef}
-                  type="button"
-                  className="settings-color-chip"
-                  style={{ background: color || '#4f8df8' }}
-                  onClick={() => {
-                    const r = chipRef.current?.getBoundingClientRect();
-                    if (r) setPickerPos({ x: r.left + r.width / 2, y: r.top });
-                  }}
-                  disabled={loading || saving}>
-            <span>{color ? color.toUpperCase() : 'Pick'}</span>
-          </button>
+          <SwatchChip
+            refProp={chipRef}
+            color={color || presenceFallback}
+            label={color ? color.toUpperCase() : `Default · ${presenceFallback.toUpperCase()}`}
+            dimmed={!color}
+            disabled={loading || saving}
+            onClick={() => {
+              const r = chipRef.current?.getBoundingClientRect();
+              if (r) setPickerPos({ x: r.left + r.width / 2, y: r.top });
+            }} />
           {color && (
             <button type="button" className="settings-link-btn"
                     onClick={() => setColor('')}
@@ -435,7 +422,7 @@ function ProfileTab({ user, workspaceId, onSaved }) {
       </div>
       {pickerPos && (
         <ColorPicker
-          value={color || '#4f8df8'}
+          value={color || presenceFallback}
           onChange={(c) => setColor(c)}
           onClose={() => setPickerPos(null)}
           position={pickerPos}
@@ -727,17 +714,6 @@ function BillingTab({ user }) {
     return <div className="settings-section"><div className="settings-empty">Loading…</div></div>;
   }
 
-  const planLabel =
-    tier === 'admin' ? 'Admin · Unlimited'
-    : tier === 'paid' ? (sub?.plan === 'annual' ? 'Creator · Annual ($240/yr)' : 'Creator · Monthly ($25/mo)')
-    : tier === 'demo' ? `Free Demo · ${demoCardCount}/100 cards`
-    : 'Waitlist · not yet active';
-
-  const periodLabel = currentPeriodEnd || sub?.current_period_end
-    ? new Date(currentPeriodEnd || sub?.current_period_end).toLocaleDateString(undefined,
-        { month: 'long', day: 'numeric', year: 'numeric' })
-    : null;
-
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">Billing</h3>
@@ -745,22 +721,55 @@ function BillingTab({ user }) {
         Your current plan and payment management.
       </p>
 
-      <Field label="Plan">
-        <div className="settings-readonly">{planLabel}</div>
-      </Field>
+      <BillingSummary
+        tier={tier}
+        sub={sub}
+        subscriptionStatus={subscriptionStatus}
+        currentPeriodEnd={currentPeriodEnd}
+        demoCardCount={demoCardCount}
+        busy={busy}
+        onManage={openPortal}
+        onUpgrade={() => setPricingOpen(true)} />
 
-      {tier === 'paid' && (
-        <>
-          <Field label="Status">
-            <div className="settings-readonly">{subscriptionStatus || sub?.status || '—'}</div>
-          </Field>
-          {periodLabel && (
-            <Field label={sub?.cancel_at_period_end ? 'Ends' : 'Renews'}>
-              <div className="settings-readonly">{periodLabel}</div>
-            </Field>
-          )}
-        </>
-      )}
+      {pricingOpen && <PricingModal onClose={() => setPricingOpen(false)} />}
+    </div>
+  );
+}
+
+// Shared billing block — rows + the primary CTA. Used by the in-modal
+// Billing tab and by the standalone /settings/billing page (the Stripe
+// Customer Portal return target). Callers own data fetching, error UI,
+// and the upgrade modal so each surface can keep its own framing.
+export function BillingSummary({
+  tier, sub, subscriptionStatus, currentPeriodEnd, demoCardCount,
+  busy, onManage, onUpgrade,
+}) {
+  const plan = planLabel({ tier, plan: sub?.plan, demoCardCount });
+  const period = formatPeriodEnd(currentPeriodEnd || sub?.current_period_end, {
+    cancel: !!sub?.cancel_at_period_end,
+  });
+
+  return (
+    <>
+      <div className="settings-billing-grid">
+        <span className="settings-billing-label">Plan</span>
+        <span className="settings-billing-value">{plan}</span>
+
+        {tier === 'paid' && (
+          <>
+            <span className="settings-billing-label">Status</span>
+            <span className="settings-billing-value">
+              {subscriptionStatus || sub?.status || '—'}
+            </span>
+            {period && (
+              <>
+                <span className="settings-billing-label">{period.label}</span>
+                <span className="settings-billing-value">{period.value}</span>
+              </>
+            )}
+          </>
+        )}
+      </div>
 
       {tier === 'admin' && (
         <p className="settings-section-hint" style={{ marginTop: 8 }}>
@@ -770,25 +779,23 @@ function BillingTab({ user }) {
 
       <div className="settings-row-actions">
         <span style={{ flex: 1 }} />
-        {tier === 'paid' && (
+        {tier === 'paid' && onManage && (
           <button type="button"
                   className="settings-btn settings-btn-primary"
                   disabled={busy}
-                  onClick={openPortal}>
+                  onClick={onManage}>
             {busy ? 'Opening…' : 'Manage billing →'}
           </button>
         )}
-        {tier === 'demo' && (
+        {tier === 'demo' && onUpgrade && (
           <button type="button"
                   className="settings-btn settings-btn-primary"
-                  onClick={() => setPricingOpen(true)}>
+                  onClick={onUpgrade}>
             Upgrade to Creator →
           </button>
         )}
       </div>
-
-      {pricingOpen && <PricingModal onClose={() => setPricingOpen(false)} />}
-    </div>
+    </>
   );
 }
 
@@ -806,23 +813,48 @@ function SettingsCategory({ title, desc, children }) {
   );
 }
 
+// Visual preview of a color setting. `color` is the resolved fill (string)
+// or null. When it's null/'transparent', renders a checker pattern instead
+// of pretending — so the chip in Settings actually matches what shows up
+// on the board.
+function SwatchChip({ color, label, dimmed, disabled, onClick, refProp }) {
+  const isEmpty = !color || color === 'transparent';
+  return (
+    <button ref={refProp}
+            type="button"
+            className={`settings-swatch-chip ${disabled ? 'is-disabled' : ''}`}
+            disabled={disabled}
+            onClick={onClick}>
+      <span className={`settings-swatch-chip-block ${isEmpty ? 'is-empty' : ''}`}
+            style={isEmpty ? undefined : { background: color }} />
+      <span className={`settings-swatch-chip-label ${dimmed ? 'is-default' : ''}`}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
 function SwatchInput({ value, fallback, onChange, disabled, allowTransparent = false }) {
   const [pickerPos, setPickerPos] = useState(null);
   const ref = useRef(null);
-  const showing = value || fallback || '#4f8df8';
+  const effective = value ?? fallback;
+  const isEmpty = effective == null || effective === 'transparent';
+  let label;
+  if (value) label = value.toUpperCase();
+  else if (isEmpty) label = 'No fill';
+  else label = `Default · ${String(fallback).toUpperCase()}`;
   return (
     <div className="settings-color-row">
-      <button ref={ref}
-              type="button"
-              className="settings-color-chip"
-              style={{ background: showing }}
-              disabled={disabled}
-              onClick={() => {
-                const r = ref.current?.getBoundingClientRect();
-                if (r) setPickerPos({ x: r.left + r.width / 2, y: r.top });
-              }}>
-        <span>{value ? value.toUpperCase() : <em>default</em>}</span>
-      </button>
+      <SwatchChip
+        refProp={ref}
+        color={effective}
+        label={label}
+        dimmed={!value}
+        disabled={disabled}
+        onClick={() => {
+          const r = ref.current?.getBoundingClientRect();
+          if (r) setPickerPos({ x: r.left + r.width / 2, y: r.top });
+        }} />
       {value && (
         <button type="button" className="settings-link-btn"
                 onClick={() => onChange(null)}
@@ -830,7 +862,7 @@ function SwatchInput({ value, fallback, onChange, disabled, allowTransparent = f
       )}
       {pickerPos && (
         <ColorPicker
-          value={showing}
+          value={isEmpty ? '#888888' : effective}
           onChange={onChange}
           onClose={() => setPickerPos(null)}
           position={pickerPos}
@@ -945,98 +977,6 @@ function AccentPicker({ value, onChange }) {
                      position={pickerPos}
                      allowTransparent={false} />
       )}
-    </div>
-  );
-}
-
-// ── Templates tab ───────────────────────────────────────────────────────
-function TemplatesTab({ workspaceId, role }) {
-  const feedback = useFeedback();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const canManage = role === 'editor' || role === 'owner';
-
-  const refetch = async () => {
-    if (!workspaceId) return;
-    setLoading(true);
-    try {
-      const list = await listBoardTemplates(workspaceId);
-      setItems(list || []);
-    } catch (err) {
-      feedback.toast({ type: 'error', message: 'Could not load templates.' });
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => { refetch(); }, [workspaceId]);
-
-  const onRename = async (t) => {
-    const next = await feedback.prompt({
-      title: 'Rename template',
-      label: 'Name',
-      defaultValue: t.name || '',
-      confirmLabel: 'Rename',
-    });
-    if (next == null) return;
-    const trimmed = next.trim();
-    if (!trimmed || trimmed === t.name) return;
-    try {
-      await renameBoardTemplate(t.id, trimmed);
-      refetch();
-    } catch (err) {
-      feedback.toast({ type: 'error', message: 'Rename failed: ' + (err.message || err) });
-    }
-  };
-
-  const onDelete = async (t) => {
-    const ok = await feedback.confirm({
-      title: 'Delete template',
-      message: `Delete "${t.name || 'Untitled'}"? This can't be undone.`,
-      confirmLabel: 'Delete',
-    });
-    if (!ok) return;
-    try {
-      await deleteBoardTemplate(t.id);
-      refetch();
-    } catch (err) {
-      feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
-    }
-  };
-
-  return (
-    <div className="settings-section">
-      <h3 className="settings-section-title">Templates</h3>
-      <p className="settings-section-hint">
-        Saved board templates show up when you create a new board.
-        Save a template from any board's right-click menu.
-      </p>
-      {loading && <div className="settings-empty">Loading…</div>}
-      {!loading && items.length === 0 && (
-        <div className="settings-empty">No templates yet.</div>
-      )}
-      <div className="settings-templates-grid">
-        {items.map(t => {
-          const tint = COVER_TINTS[t.cover || 'neutral'] || COVER_TINTS.neutral;
-          return (
-            <div key={t.id} className="settings-template-tile">
-              <div className="settings-template-cover" style={{ background: tint }}>
-                <span className="settings-template-tag">{t.scope === 'user' ? 'PERSONAL' : 'WORKSPACE'}</span>
-              </div>
-              <div className="settings-template-meta">
-                <span className="settings-template-name">{t.name || 'Untitled'}</span>
-                {canManage && (
-                  <div className="settings-template-actions">
-                    <button type="button" className="settings-link-btn"
-                            onClick={() => onRename(t)}>Rename</button>
-                    <button type="button" className="settings-link-btn settings-link-btn-danger"
-                            onClick={() => onDelete(t)}>Delete</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

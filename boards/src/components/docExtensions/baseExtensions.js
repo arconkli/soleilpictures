@@ -1,8 +1,4 @@
 // Shared schema-defining Tiptap extensions for the doc editor.
-// Used by DocPageEditor (live editing) AND template seeding (which builds a
-// PM schema offline via getSchema(...) to convert template JSON to a
-// Y.XmlFragment without mounting an editor).
-//
 // Runtime-only stuff (Collaboration, Placeholder, custom keymaps, slash
 // menu, etc.) is added by DocPageEditor on top of this list.
 

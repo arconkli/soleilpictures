@@ -39,7 +39,6 @@ import { detectEmbed } from '../lib/oembed.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportBoard.js';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
-import { saveBoardTemplate } from '../lib/templatesApi.js';
 import { CanvasCommentLayer, CommentArchivePopover } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
 import * as userProfiles from '../lib/userProfiles.js';
@@ -194,6 +193,9 @@ export function CanvasSurface({
   autotagSuggest,          // (content, target) => Promise<[{tagId,score,reason}]>
   autotagReady = false,    // worker hydration finished
   sessionId = null,        // per-tab session id for board_versions grouping
+  defaults,                // useResolvedDefaults() output — drives initial
+                           // tool options so a workspace's shape stroke/fill
+                           // settings actually shape what gets drawn.
 }) {
   const wrapRef = useRef(null);
 
@@ -590,9 +592,28 @@ export function CanvasSurface({
     width: DRAW_DEFAULT_WIDTH,
     eraserWidth: ERASER_DEFAULT_WIDTH,
   });
-  const [shapeOptions, setShapeOptions] = useState({
-    shape: 'rect', stroke: '#f5f5f6', fill: 'transparent', strokeWidth: 2, dash: 'solid',
-  });
+  // Seed shape tool from the resolved workspace defaults. Without this,
+  // workspace shape stroke/fill/width settings have no visible effect.
+  // The user can still override per-shape via the toolbar; switching
+  // workspaces or saving new defaults resyncs to those values.
+  const [shapeOptions, setShapeOptions] = useState(() => ({
+    shape: 'rect',
+    stroke: defaults?.shape?.stroke ?? '#f5f5f6',
+    fill: defaults?.shape?.fill ?? 'transparent',
+    strokeWidth: defaults?.shape?.strokeWidth ?? 2,
+    dash: defaults?.shape?.dash ?? 'solid',
+  }));
+  useEffect(() => {
+    const s = defaults?.shape;
+    if (!s) return;
+    setShapeOptions(prev => ({
+      ...prev,
+      stroke: s.stroke ?? prev.stroke,
+      fill: s.fill ?? prev.fill,
+      strokeWidth: s.strokeWidth ?? prev.strokeWidth,
+      dash: s.dash ?? prev.dash,
+    }));
+  }, [workspaceId, defaults?.shape?.stroke, defaults?.shape?.fill, defaults?.shape?.strokeWidth, defaults?.shape?.dash]);
   const [arrowOptions, setArrowOptions] = useState({ straight: false, dashed: false });
   const [activeShape, setActiveShape] = useState(null); // { x, y, w, h } during shape drag
   const [editingNoteId, setEditingNoteId] = useState(null);
@@ -3657,30 +3678,6 @@ export function CanvasSurface({
       ]},
       { divider: true },
       { id: 'fit', label: 'Reset zoom (⌘0)', run: () => { enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); } },
-      { id: 'save-template', label: 'Save board as template…', run: async () => {
-        if (!userId || !ydoc) return;
-        const name = await feedback.prompt({
-          title: 'Save as template',
-          label: 'Template name',
-          placeholder: board?.name ? `e.g. "${board.name} starter"` : 'Project starter',
-          defaultValue: '',
-          confirmLabel: 'Save',
-        });
-        if (!name?.trim()) return;
-        try {
-          await saveBoardTemplate({
-            ydoc,
-            name: name.trim(),
-            workspaceId,
-            scope: 'workspace',
-            cover: board?.cover || null,
-            createdBy: userId,
-          });
-          feedback.toast({ type: 'success', message: `Saved "${name.trim()}" as a template.` });
-        } catch (err) {
-          feedback.toast({ type: 'error', message: 'Save failed: ' + (err.message || err) });
-        }
-      }},
       { id: 'export', label: 'Export', submenu: [
         { id: 'export-png', label: 'PNG image', run: async () => {
           const svg = exportSvgRef.current?.querySelector?.('svg');

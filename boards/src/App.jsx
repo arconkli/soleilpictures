@@ -2172,7 +2172,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
                        autotagSuggest={autotagSuggest}
                        autotagReady={autotagReady}
-                       sessionId={yh?.sessionId || null} />
+                       sessionId={yh?.sessionId || null}
+                       defaults={defaults} />
       );
     })();
     return (
