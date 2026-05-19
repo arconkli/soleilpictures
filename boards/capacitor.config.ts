@@ -37,6 +37,28 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
   },
+  plugins: {
+    SplashScreen: {
+      // Match the app's dark theme so the user never sees the
+      // Capacitor-default white flash. Hidden as soon as React
+      // mounts (capacitorInit.js calls SplashScreen.hide()).
+      backgroundColor: '#0a0a0c',
+      backgroundColorDark: '#0a0a0c',
+      // Don't auto-hide — wait for the explicit hide() from JS.
+      launchAutoHide: false,
+      // Spinner styling — dim orange ring on dark, matches brand.
+      showSpinner: true,
+      spinnerStyle: 'small',
+      iosSpinnerStyle: 'small',
+      androidSpinnerStyle: 'small',
+      spinnerColor: '#ffa500',
+      // The mark + bg image lives in the platform's native
+      // assets dir already (via cap:assets).
+      androidScaleType: 'CENTER_CROP',
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
+  },
 };
 
 export default config;
