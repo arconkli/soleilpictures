@@ -27,6 +27,12 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'always',
     limitsNavigationsToAppBoundDomains: false,
+    // Stop iOS WebView rubber-band / elastic scrolling — our scroll
+    // containers handle their own overscroll-behavior, and the
+    // horizontal pan a user reported on the auth screen was the
+    // WebView's own bounce. Vertical scroll inside .modal-body /
+    // .picker-list / etc. still works (those use their own scrollers).
+    scrollEnabled: false,
   },
   android: {
     allowMixedContent: true,
