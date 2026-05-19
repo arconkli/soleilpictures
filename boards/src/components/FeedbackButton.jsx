@@ -6,7 +6,8 @@
 //                                (caller controls placement)
 
 import { useState } from 'react';
-import { ChatTeardrop as ChatIcon } from '@phosphor-icons/react';
+import { createPortal } from 'react-dom';
+import { Megaphone } from '@phosphor-icons/react';
 import { supabase } from '../lib/supabase.js';
 
 const FEEDBACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/send-feedback';
@@ -62,19 +63,23 @@ export function FeedbackButton({ as = 'floating' }) {
     }
   };
 
+  const openModal = () => { setOpen(true); setStatus(null); setError(''); };
+
   const Trigger = as === 'icon' ? (
     <button
+      type="button"
       className="tb-icon"
       title="Send feedback"
       aria-label="Send feedback"
-      onClick={() => { setOpen(true); setStatus(null); setError(''); }}
+      onClick={openModal}
     >
-      <ChatIcon size={16} weight="regular" />
+      <Megaphone size={16} weight="regular" />
     </button>
   ) : (
     <button
+      type="button"
       className="feedback-trigger"
-      onClick={() => { setOpen(true); setStatus(null); setError(''); }}
+      onClick={openModal}
       title="Send feedback"
       aria-label="Send feedback"
     >
@@ -82,57 +87,58 @@ export function FeedbackButton({ as = 'floating' }) {
     </button>
   );
 
-  return (
-    <>
-      {Trigger}
-
-      {open && (
-        <div className="feedback-overlay" onClick={() => !busy && setOpen(false)}>
-          <div className="feedback-modal surface-frosted" onClick={(e) => e.stopPropagation()}>
-            <header className="feedback-head">
-              <div className="t-h3">Send feedback</div>
-              <button className="feedback-x" onClick={() => !busy && setOpen(false)} aria-label="Close">×</button>
-            </header>
-            <div className="feedback-body">
-              <div className="feedback-kinds">
-                {KINDS.map((k) => (
-                  <button
-                    key={k.id}
-                    type="button"
-                    className={`feedback-kind ${kind === k.id ? 'is-active' : ''}`}
-                    onClick={() => setKind(k.id)}
-                    title={k.hint}
-                    disabled={busy}
-                  >
-                    {k.label}
-                  </button>
-                ))}
-              </div>
-              <textarea
-                className="feedback-textarea"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder={KINDS.find((k) => k.id === kind)?.hint || 'Tell us…'}
-                rows={5}
-                disabled={busy}
-                autoFocus
-                maxLength={4000}
-              />
-              {error && <div className="feedback-error t-meta">{error}</div>}
-            </div>
-            <footer className="feedback-foot">
-              <button className="auth-link" onClick={() => !busy && setOpen(false)} disabled={busy}>Cancel</button>
+  // The modal is rendered through a portal to document.body so a
+  // parent with backdrop-filter / transform / contain (which create
+  // a containing block for position: fixed) can never clip it.
+  const Modal = open && typeof document !== 'undefined' ? createPortal(
+    <div className="feedback-overlay" onClick={() => !busy && setOpen(false)}>
+      <div className="feedback-modal surface-frosted" onClick={(e) => e.stopPropagation()}>
+        <header className="feedback-head">
+          <div className="t-h3">Send feedback</div>
+          <button type="button" className="feedback-x" onClick={() => !busy && setOpen(false)} aria-label="Close">×</button>
+        </header>
+        <div className="feedback-body">
+          <div className="feedback-kinds">
+            {KINDS.map((k) => (
               <button
-                className="btn-primary"
-                onClick={submit}
-                disabled={busy || message.trim().length < 2}
+                key={k.id}
+                type="button"
+                className={`feedback-kind ${kind === k.id ? 'is-active' : ''}`}
+                onClick={() => setKind(k.id)}
+                title={k.hint}
+                disabled={busy}
               >
-                {status === 'sent' ? 'Thanks!' : busy ? 'Sending…' : 'Send'}
+                {k.label}
               </button>
-            </footer>
+            ))}
           </div>
+          <textarea
+            className="feedback-textarea"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder={KINDS.find((k) => k.id === kind)?.hint || 'Tell us…'}
+            rows={5}
+            disabled={busy}
+            autoFocus
+            maxLength={4000}
+          />
+          {error && <div className="feedback-error t-meta">{error}</div>}
         </div>
-      )}
-    </>
-  );
+        <footer className="feedback-foot">
+          <button type="button" className="auth-link" onClick={() => !busy && setOpen(false)} disabled={busy}>Cancel</button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={submit}
+            disabled={busy || message.trim().length < 2}
+          >
+            {status === 'sent' ? 'Thanks!' : busy ? 'Sending…' : 'Send'}
+          </button>
+        </footer>
+      </div>
+    </div>,
+    document.body,
+  ) : null;
+
+  return (<>{Trigger}{Modal}</>);
 }
