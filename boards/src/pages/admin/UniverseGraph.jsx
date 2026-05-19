@@ -83,8 +83,10 @@ function classifyEdge(rawKind) {
 // (also worker). Camera, rotation, and rendering all match
 // HomeGraph defaults.
 const GALAXY = {
-  rotationRate: 0.085,  // home's tilted-axis drift rate
-  cameraFar:    1e6,    // keep the open zoom range so you can fly out
+  // Galactic spin around the disk normal — slow enough that the
+  // spiral reads as a turning galaxy, not a spinning logo.
+  rotationRate: 0.035,
+  cameraFar:    1e6,
   zoomMin:      5,
   zoomMax:      1e6,
 };
@@ -320,7 +322,10 @@ export function UniverseGraph({ onNodeClick }) {
     scene.background = new THREE.Color(BG_FOR[theme]);
 
     const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, GALAXY.cameraFar);
-    camera.position.set(0, 0, 400);
+    // Start ABOVE the disk plane, looking down at its face. Small Z
+    // offset prevents gimbal lock and gives the spiral a touch of
+    // perspective like in the classic milky-way photos.
+    camera.position.set(0, 500, 60);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -428,11 +433,12 @@ export function UniverseGraph({ onNodeClick }) {
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup',   onPointerUp);
 
-    // rAF loop — controls + tilted drift + fit animation + render.
-    // Tilted-axis drift matches HomeGraph; gives the orbit a leisurely
-    // diagonal float that reads as alive without telegraphing a
-    // specific spin axis.
-    const rotationAxis = new THREE.Vector3(0.35, 1, 0.18).normalize();
+    // rAF loop — controls + galactic drift + fit animation + render.
+    // Drift around the disk normal (Y axis) so the spiral appears to
+    // slowly rotate beneath the top-down camera, like the milky way
+    // viewed from a fixed point above. With the camera off-axis on Z,
+    // the orbit also keeps a hint of changing perspective.
+    const rotationAxis = new THREE.Vector3(0, 1, 0);
     let last = performance.now();
     controls.addEventListener('start', () => { refs.interacting = true; });
     controls.addEventListener('end',   () => { refs.interacting = false; });
