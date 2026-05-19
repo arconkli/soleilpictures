@@ -8364,6 +8364,9 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
   min-height: 0;
+  /* useGesture's onPinch needs the browser to not intercept the
+     gesture as its native page-zoom. No-op for mouse. */
+  touch-action: none;
 }
 .lightbox-mode-actual .lightbox-stage { cursor: grab; }
 .lightbox-mode-actual .lightbox-stage:active { cursor: grabbing; }

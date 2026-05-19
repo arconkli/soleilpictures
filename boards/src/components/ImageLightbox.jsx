@@ -4,14 +4,19 @@
 // to signed URLs and triggers a browser download.
 
 import { useEffect, useRef, useState } from 'react';
+import { useGesture } from '@use-gesture/react';
 import { R2Image } from './R2Image.jsx';
 import { resolveSrc } from '../lib/r2.js';
 
 export function ImageLightbox({ src, title, alt, onClose }) {
   // 'fit'    → contained inside the viewport (default)
   // 'actual' → natural size, pannable
+  // Touch: pinch-zoom interpolates continuously between fit and 4× scale,
+  // stored in `touchScale`. Tap still toggles fit↔actual modes.
   const [mode, setMode] = useState('fit');
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [touchScale, setTouchScale] = useState(1);
+  const stageRef = useRef(null);
   const dragRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -23,7 +28,34 @@ export function ImageLightbox({ src, title, alt, onClose }) {
 
   // Reset pan when switching back to fit mode so the next 'actual' switch
   // starts centered.
-  useEffect(() => { if (mode === 'fit') setPan({ x: 0, y: 0 }); }, [mode]);
+  useEffect(() => {
+    if (mode === 'fit') { setPan({ x: 0, y: 0 }); setTouchScale(1); }
+  }, [mode]);
+
+  // Touch pinch-zoom on the stage. Interpolates a free scale that
+  // overrides the fit/actual mode while the user is pinching. On release
+  // we snap back to whichever mode best matches the final scale: <1.2x
+  // returns to fit, >=1.2x switches to actual.
+  useGesture(
+    {
+      onPinch: ({ event, movement: [ms], memo, last }) => {
+        if (event?.cancelable) event.preventDefault();
+        const start = memo ?? touchScale;
+        const next = Math.max(1, Math.min(4, start * ms));
+        setTouchScale(next);
+        if (last) {
+          if (next < 1.2) { setMode('fit'); setTouchScale(1); }
+          else setMode('actual');
+        }
+        return start;
+      },
+    },
+    {
+      target: stageRef,
+      eventOptions: { passive: false },
+      pinch: { scaleBounds: { min: 0.25, max: 6 }, rubberband: true },
+    },
+  );
 
   const onImgClick = (e) => {
     e.stopPropagation();
@@ -104,6 +136,7 @@ export function ImageLightbox({ src, title, alt, onClose }) {
         </svg>
       </button>
       <div className="lightbox-stage"
+           ref={stageRef}
            onPointerDown={onPanStart}
            onPointerMove={onPanMove}
            onPointerUp={onPanEnd}
@@ -114,9 +147,15 @@ export function ImageLightbox({ src, title, alt, onClose }) {
                  eager
                  draggable="false"
                  onClick={onImgClick}
-                 style={mode === 'actual'
-                   ? { transform: `translate(${pan.x}px, ${pan.y}px)` }
-                   : undefined} />
+                 style={(() => {
+                   // Touch pinch wins while active (touchScale != 1),
+                   // otherwise fall back to the mouse fit/actual modes.
+                   if (touchScale !== 1) {
+                     return { transform: `scale(${touchScale}) translate(${pan.x / touchScale}px, ${pan.y / touchScale}px)` };
+                   }
+                   if (mode === 'actual') return { transform: `translate(${pan.x}px, ${pan.y}px)` };
+                   return undefined;
+                 })()} />
       </div>
       {title && <div className="lightbox-cap">{title}</div>}
     </div>
