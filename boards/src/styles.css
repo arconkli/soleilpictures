@@ -4723,6 +4723,97 @@ body {
   min-width: 140px;
 }
 
+/* ───────── Global Feedback widget ───────── */
+.feedback-trigger {
+  /* bottom-LEFT so it doesn't fight the universe Reset View button
+     in the admin tab (bottom-right) or the App back-link */
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  z-index: 90;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(10,10,12,0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+  color: var(--ink-1);
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.feedback-trigger:hover { color: var(--ink-0); background: rgba(255,255,255,0.10); }
+[data-theme='light'] .feedback-trigger {
+  background: rgba(255,255,255,0.85);
+  border-color: rgba(0,0,0,0.10);
+}
+.feedback-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.feedback-modal {
+  width: min(460px, 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(15,15,18,0.92);
+  color: var(--ink-0);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.feedback-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.feedback-x { background: transparent; color: var(--ink-2); border: 0; font-size: 22px; line-height: 1; width: 28px; height: 28px; cursor: pointer; border-radius: 6px; }
+.feedback-x:hover { color: var(--ink-0); background: rgba(255,255,255,0.06); }
+.feedback-body { padding: 14px 20px; display: flex; flex-direction: column; gap: 12px; }
+.feedback-kinds { display: flex; gap: 6px; flex-wrap: wrap; }
+.feedback-kind {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--ink-2);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font: 600 11px/1 var(--font-sans);
+  cursor: pointer;
+}
+.feedback-kind.is-active { background: var(--soleil-soft); color: var(--soleil); border-color: rgba(255,165,0,0.4); }
+.feedback-textarea {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--ink-0);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: 500 13px/1.4 var(--font-sans);
+  resize: vertical;
+  min-height: 100px;
+}
+.feedback-textarea:focus { outline: none; border-color: rgba(255,165,0,0.5); }
+.feedback-error { color: rgba(220,120,120,1); }
+.feedback-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+
+/* Admin Feedback tab list */
+.admin-feedback-list { display: flex; flex-direction: column; gap: 8px; }
+.admin-feedback-row {
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+  cursor: pointer;
+}
+.admin-feedback-row:hover { background: var(--bg-2); }
+.admin-feedback-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.admin-feedback-message { color: var(--ink-1); font: 500 13px/1.45 var(--font-sans); white-space: pre-wrap; word-break: break-word; }
+
+/* Retention cohort heatmap — compact table with cell bg encoded
+   as retention %. Brighter = more cohort still active that day. */
+.admin-cohort-table { width: 100%; border-collapse: collapse; font: 500 11px/1 var(--font-sans); }
+.admin-cohort-table th { text-align: center; padding: 6px 4px; color: var(--ink-3); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+.admin-cohort-table td { padding: 6px 4px; border-bottom: 1px solid var(--line-1); }
+
 /* Inline upgrade prompt embedded in ShareModal's hint for demo callers. */
 .share-upgrade-inline {
   background: transparent;
@@ -14257,6 +14348,71 @@ button, [role="button"], a {
 
   /* Main area clears the fixed bottom nav. 56px nav + safe-area. */
   .main { padding-bottom: calc(56px + var(--safe-bottom)); }
+
+  /* Modals + BoardPicker fill the phone viewport edge-to-edge instead
+     of overflowing the desktop 520/560px widths. Backdrops drop their
+     12vh top padding so the picker anchors to the top — keeps the
+     close button reachable above the address bar collapse. */
+  .modal-bg,
+  .picker-bg {
+    padding-top: var(--safe-top);
+    grid-template-rows: 1fr;
+    place-items: stretch;
+  }
+  .modal,
+  .picker,
+  .share-modal,
+  .modal-timetravel,
+  .modal-workspace-recovery {
+    width: 100vw;
+    max-width: 100vw;
+    height: calc(100vh - var(--safe-top) - var(--safe-bottom));
+    max-height: none;
+    border-radius: 0;
+    border-left: 0; border-right: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Internal scroll regions stretch to fill the phone-height modal
+     instead of capping at desktop's fixed heights. The .picker-folder
+     .picker-list selector at desktop has 360px max-height which would
+     otherwise win — override it at the same specificity here. */
+  .modal-body,
+  .picker-list,
+  .picker-folder .picker-list {
+    max-height: none;
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+  /* Headers / close buttons get larger tap targets on phone. */
+  .modal-x { width: 40px; height: 40px; }
+  /* Body padding is a bit roomier to feel like a sheet. */
+  .modal-body { padding: 16px; }
+
+  /* TweaksPanel (.twk-panel) is rendered with inline <style> rules from
+     TweaksPanel.jsx that pin it to bottom-right at 280px width. On phone
+     that's a tiny floating box that overlaps the bottom nav. Override
+     to a bottom sheet with full width. !important is required because
+     the component-injected styles have the same specificity. */
+  .twk-panel {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(56px + var(--safe-bottom)) !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 75vh !important;
+    border-radius: 16px 16px 0 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+  }
+  /* Same TweaksPanel gear button — push above the bottom nav so it
+     doesn't sit underneath. */
+  .twk-gear { bottom: calc(56px + var(--safe-bottom) + 12px) !important; }
+
+  /* Feedback floating button — push above the bottom nav. */
+  .feedback-trigger { bottom: calc(56px + var(--safe-bottom) + 12px); }
 }
 
 @media (hover: none) and (pointer: coarse) {

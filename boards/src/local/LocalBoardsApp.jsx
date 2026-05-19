@@ -708,7 +708,11 @@ export function LocalBoardsApp({ user, signOut }) {
             if (k === 'home')     { setCurrentSurface('home'); setPickerOpen(false); setTweak('showMessages', false); }
             if (k === 'search')   { setPickerOpen(true); setTweak('showMessages', false); }
             if (k === 'messages') { setTweak('showMessages', true); setPickerOpen(false); }
-            if (k === 'settings') { document.querySelector('.twk-gear')?.click(); }
+            if (k === 'settings') {
+              setPickerOpen(false);
+              setTweak('showMessages', false);
+              document.querySelector('.twk-gear')?.click();
+            }
           }}
         />
       )}
