@@ -11,14 +11,19 @@
 //      No OTP is included — the user clicks through to /sign-in and requests
 //      a fresh code via the existing magic_link.html flow.
 //
-// Authorization: pg_cron calls via net.http_post with the service-role
-// key in the Authorization header. We require Bearer == SERVICE_KEY.
+// Authorization: accept EITHER
+//   • Bearer <SUPABASE_SERVICE_ROLE_KEY>          (admin tools, manual curl)
+//   • x-cron-secret: <CRON_SECRET>                (pg_cron)
+// The cron.job row at id 6 sends the latter; for months prior to this
+// fix the function only accepted the former, so every scheduled tick
+// returned 401 and the auto-accept flow never worked end-to-end.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const CRON_SECRET       = Deno.env.get("CRON_SECRET") || "";
 const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
 
 async function sendEmail(template: string, to: string, data: Record<string, unknown> = {}) {
@@ -43,9 +48,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
-  const auth = req.headers.get("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
-  if (token !== SERVICE_KEY) return json({ error: "unauthorized" }, 401);
+  const cronHeader = req.headers.get("x-cron-secret") || "";
+  const auth       = req.headers.get("authorization") || "";
+  const bearer     = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
+  const okCron     = !!CRON_SECRET && cronHeader === CRON_SECRET;
+  const okService  = !!SERVICE_KEY && bearer === SERVICE_KEY;
+  if (!okCron && !okService) return json({ error: "unauthorized" }, 401);
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
