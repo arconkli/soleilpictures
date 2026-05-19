@@ -1304,13 +1304,25 @@ export function CanvasSurface({
     },
   );
 
-  // Touch long-press → background context menu. Right-click already
-  // handles desktop via onContextMenu on the wrap element; this hook
-  // adds the touch equivalent without touching the mouse path.
+  // Touch long-press → context menu (background or per-card). Right-click
+  // already handles desktop via onContextMenu on the wrap and on each
+  // card; this hook adds the touch equivalent without touching the mouse
+  // path. We dispatch by inspecting the held element: if a .card was held,
+  // open the card menu; otherwise the background menu.
   useLongPress(
     wrapRef,
     (x, y, e) => {
-      if (e.target.closest?.('.card, .cnv-tool, .cnv-zoom, .inbox')) return;
+      const cardEl = e.target.closest?.('.card');
+      if (cardEl) {
+        const id = cardEl.getAttribute('data-card-id');
+        const c = id ? cardById[id] : null;
+        if (!c) return;
+        if (!selected.has(c.id)) setSelected(new Set([c.id]));
+        setBgCtx(b => ({ ...b, open: false }));
+        setCtx({ open: true, x, y, cardId: c.id });
+        return;
+      }
+      if (e.target.closest?.('.cnv-tool, .cnv-zoom, .inbox')) return;
       const pos = clientToCanvas(x, y);
       setBgCtx({ open: true, x, y, canvasPos: pos });
     },
