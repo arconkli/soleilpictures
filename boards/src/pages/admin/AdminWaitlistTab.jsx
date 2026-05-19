@@ -79,7 +79,7 @@ export function AdminWaitlistTab() {
   return (
     <div className="admin-section">
       {error && <div className="auth-error t-meta">{error}</div>}
-      <table className="admin-table">
+      <table className="admin-table admin-waitlist-table">
         <thead>
           <tr>
             <th>Email</th>
