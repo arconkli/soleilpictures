@@ -14349,6 +14349,30 @@ button, [role="button"], a {
   .admin-screen         { height: 100dvh; }
   .ent-backlinks-panel  { height: 100dvh; }
   .auth-screen          { height: 100dvh; }
+
+  /* HomeGraph node detail drawer — 320px right slide-in on desktop
+     becomes a full sheet above the bottom nav on phone (same pattern
+     as MessagesPanel). */
+  .home-graph-drawer {
+    position: fixed;
+    top: auto; right: 0; left: 0; bottom: calc(56px + var(--safe-bottom));
+    width: 100vw;
+    height: 70vh;
+    max-height: 70vh;
+    border-radius: 16px 16px 0 0;
+    z-index: 50;
+  }
+
+  /* The .ent-backlinks-panel right-side slide-in (480px on desktop)
+     also becomes a full sheet at phone width. Sits above the bottom
+     nav. */
+  .ent-backlinks-panel {
+    width: 100vw;
+    max-width: 100vw;
+    height: calc(100dvh - 56px - var(--safe-bottom));
+    border-left: 0;
+    border-top: 1px solid var(--line-1);
+  }
 }
 
 @media (hover: none) and (pointer: coarse) {
