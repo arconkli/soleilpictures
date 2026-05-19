@@ -488,6 +488,32 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup',   onPointerUp);
 
+    // WASD / Q-E flying — moves the camera AND its orbit target by the
+    // same offset so the orbit pose is preserved. Speed scales with
+    // current zoom distance so a single key-hold travels a sensible
+    // fraction of the visible scene at any scale.
+    const keys = new Set();
+    const isTypingTarget = (el) => {
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (el.isContentEditable) return true;
+      return false;
+    };
+    const onKeyDown = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTypingTarget(document.activeElement)) return;
+      const k = e.key.toLowerCase();
+      if ('wasdqe'.includes(k)) { keys.add(k); e.preventDefault(); }
+    };
+    const onKeyUp = (e) => {
+      const k = e.key.toLowerCase();
+      if ('wasdqe'.includes(k)) keys.delete(k);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup',   onKeyUp);
+    refs.flyKeys = keys;
+
     // rAF loop — controls + galactic drift + fit animation + render.
     // Drift around the disk normal (Y axis) so the spiral appears to
     // slowly rotate beneath the top-down camera, like the milky way
@@ -510,12 +536,36 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
         camera.position.lerpVectors(refs.fitFromPos, refs.fitToPos, eased);
         controls.target.lerpVectors(refs.fitFromTarget, refs.fitToTarget, eased);
         if (t >= 1) refs.fitAnimating = false;
-      } else if (!refs.interacting) {
-        // Idle drift = galactic rotation. Pauses during interaction
-        // AND during a fit animation so the motions don't fight.
+      } else if (!refs.interacting && keys.size === 0) {
+        // Idle drift = galactic rotation. Pauses during interaction,
+        // during a fit animation, and while WASD is active so the
+        // motions don't fight.
         const rel = camera.position.clone().sub(controls.target);
         rel.applyAxisAngle(rotationAxis, GALAXY.rotationRate * dt);
         camera.position.copy(rel.add(controls.target));
+      }
+
+      // WASD / QE flying — applied AFTER fit/drift so movement isn't
+      // overwritten. Move both camera and orbit target by the same
+      // offset so OrbitControls' orbit pose stays consistent.
+      if (keys.size > 0) {
+        const dist = camera.position.distanceTo(controls.target);
+        const speed = Math.max(50, dist * 1.2) * dt;  // travel ~120% of zoom per second
+        const forward = controls.target.clone().sub(camera.position).normalize();
+        const right   = forward.clone().cross(camera.up).normalize();
+        const up      = camera.up.clone().normalize();
+        const move = new THREE.Vector3();
+        if (keys.has('w')) move.add(forward);
+        if (keys.has('s')) move.sub(forward);
+        if (keys.has('d')) move.add(right);
+        if (keys.has('a')) move.sub(right);
+        if (keys.has('e')) move.add(up);
+        if (keys.has('q')) move.sub(up);
+        if (move.lengthSq() > 0) {
+          move.normalize().multiplyScalar(speed);
+          camera.position.add(move);
+          controls.target.add(move);
+        }
       }
       // Update live FX (pulses + spawn flashes) — cheap walk over
       // activeFx, splat into the fxPoints buffer, drop expired.
@@ -561,6 +611,8 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
 
     // Cleanup.
     return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup',   onKeyUp);
       document.removeEventListener('visibilitychange', onVis);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup',   onPointerUp);
