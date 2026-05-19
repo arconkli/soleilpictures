@@ -67,16 +67,32 @@ git push exactly as before — `wrangler.toml`, the Vite config, and the
 Worker entry are unchanged. The native shells point at the same `dist/`
 output for production releases.
 
-## Coming in Phase 4
+## Already wired (in `src/lib/capacitorInit.js`, called from `main.jsx`)
 
-- Splash screen + app icons (via `@capacitor/assets`).
-- Status bar styling (`@capacitor/status-bar`).
-- Keyboard avoidance (`@capacitor/keyboard`).
-- Push notifications (`@capacitor/push-notifications`).
-- Deep links (`@capacitor/app`).
-- Live Updates (optional — `@capacitor/live-updates` or `@capgo/capacitor-updater`)
-  so we can iterate on the web bundle without an app-store re-review for
-  every change.
+- Status bar style tracks `data-theme` (dark theme → light icons, light
+  theme → dark icons; re-applies on theme toggle).
+- Keyboard resize mode = `Native` (the WebView slides up so safe-area
+  insets handle visible spacing).
+- Splash screen auto-hides 350ms after first paint.
+- Deep links: `appUrlOpen` is forwarded into the hand-rolled router via
+  `history.replaceState` + a `popstate` dispatch.
+- Android hardware back button: `history.back` if possible, else
+  `CapApp.exitApp`.
+
+All of the above is a no-op in the web build (every plugin checks
+`Capacitor.isNativePlatform()` first) — Cloudflare Pages deploys keep
+working exactly as before.
+
+## Still to do (after `npx cap add ios/android`)
+
+- **App icons + splash from a single SVG**: install `@capacitor/assets`
+  (dev dep), drop a 1024px icon and a 2732px splash in `assets/`, run
+  `npx capacitor-assets generate`.
+- **Push notifications**: install `@capacitor/push-notifications` and
+  wire token registration to the existing realtime / messages backend.
+- **Live Updates** (optional but useful): `@capacitor/live-updates` or
+  `@capgo/capacitor-updater` so we can iterate on the web bundle without
+  an app-store re-review for every change.
 
 ## App store / store listings
 
