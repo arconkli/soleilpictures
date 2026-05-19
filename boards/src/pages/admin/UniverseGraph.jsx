@@ -543,7 +543,9 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
       return false;
     };
     const onKeyDown = (e) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Cmd/Alt still pass through to the browser (Cmd+W close, etc).
+      // Ctrl is a SPEED MODIFIER for fly mode, not a bypass.
+      if (e.metaKey || e.altKey) return;
       if (isTypingTarget(document.activeElement)) return;
       const k = e.key.toLowerCase();
       if ('wasdqe'.includes(k)) { keys.add(k); e.preventDefault(); }
@@ -555,6 +557,23 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup',   onKeyUp);
     refs.flyKeys = keys;
+
+    // Shift = sprint, Ctrl = precision. Tracked separately from the
+    // WASD set so they apply even mid-press (you can hold W then tap
+    // Shift to accelerate without releasing). Cleared on blur so a
+    // window switch doesn't leave the modifier "stuck on".
+    const onModKey = (e) => {
+      refs.speedFast = e.shiftKey;
+      refs.speedSlow = e.ctrlKey;
+    };
+    const onBlur = () => {
+      refs.speedFast = false;
+      refs.speedSlow = false;
+      keys.clear();
+    };
+    window.addEventListener('keydown', onModKey);
+    window.addEventListener('keyup',   onModKey);
+    window.addEventListener('blur',    onBlur);
 
     // rAF loop — controls + galactic drift + fit animation + render.
     // Drift around the disk normal (Y axis) so the spiral appears to
@@ -592,7 +611,10 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
       // offset so OrbitControls' orbit pose stays consistent.
       if (keys.size > 0) {
         const dist = camera.position.distanceTo(controls.target);
-        const speed = Math.max(50, dist * 1.2) * dt;  // travel ~120% of zoom per second
+        // Speed modifiers: Shift = 3× (sprint), Ctrl = 0.25× (precision).
+        // Both held cancels out roughly to the base rate.
+        const mod = (refs.speedFast ? 3 : 1) * (refs.speedSlow ? 0.25 : 1);
+        const speed = Math.max(50, dist * 1.2) * mod * dt;
         const forward = controls.target.clone().sub(camera.position).normalize();
         const right   = forward.clone().cross(camera.up).normalize();
         const up      = camera.up.clone().normalize();
@@ -655,6 +677,9 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
     return () => {
       window.removeEventListener('keydown',  onKeyDown);
       window.removeEventListener('keyup',    onKeyUp);
+      window.removeEventListener('keydown',  onModKey);
+      window.removeEventListener('keyup',    onModKey);
+      window.removeEventListener('blur',     onBlur);
       window.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('pointerlockchange', onPointerLockChange);
       document.removeEventListener('visibilitychange', onVis);
