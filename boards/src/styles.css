@@ -13972,6 +13972,32 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   }
 }
 
+/* "Reset view" button — small frosted pill floating bottom-right.
+   Same visual language as the ticker so it reads as part of the
+   universe HUD. */
+.universe-reset-btn {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 3;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(10,10,12,0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+  color: var(--ink-1);
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.universe-reset-btn:hover {
+  color: var(--ink-0);
+  background: rgba(255,255,255,0.08);
+}
+
 /* Cosmograph canvas fills the entire tab now that the ticker floats. */
 .universe-canvas {
   position: absolute;

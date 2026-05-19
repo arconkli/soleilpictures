@@ -27,7 +27,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { OrbitControls }  from 'three/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass }     from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { BokehPass }      from 'three/examples/jsm/postprocessing/BokehPass.js';
 import SimWorker from './universeSimWorker.js?worker';
 import { fetchSnapshotPage, useUniverseDeltas } from './useUniverseStream.js';
 
@@ -89,6 +92,11 @@ const GALAXY = {
   cameraFar:    1e6,
   zoomMin:      5,
   zoomMax:      1e6,
+  // Depth of field — tiny aperture so the blur stays cinematic-
+  // subtle, never crunchy. focus is set per-frame to the camera
+  // distance so the disk plane is always sharp.
+  dofAperture:  0.00012,
+  dofMaxBlur:   0.004,
 };
 
 function readTheme() {
@@ -181,11 +189,13 @@ function makeHaloMaterial() {
       void main() {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        // Clamp to ~220px so we stay below the WebGL implementation's
-        // MAX_POINT_SIZE clamp. Above the driver clamp the radial halo
-        // texture would render as a near-opaque square (the bright
-        // central plateau) instead of a soft glow.
-        gl_PointSize = min(size * (uScale / max(-mv.z, 1.0)), 220.0);
+        // Clamp upper bound so we stay under MAX_POINT_SIZE; clamp
+        // LOWER bound so even at extreme zoom-out the halo stays a
+        // visible pinprick instead of vanishing entirely — keeps
+        // the node dots shining through the noise of edges.
+        // Size 0 (e.g. invisible user nodes) opts out of the floor.
+        float px = size * (uScale / max(-mv.z, 1.0));
+        gl_PointSize = size > 0.0 ? clamp(px, 1.6, 220.0) : 0.0;
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -261,7 +271,7 @@ function makeFxPoints(capacity) {
   return points;
 }
 
-export function UniverseGraph({ onNodeClick }) {
+export function UniverseGraph({ onNodeClick, resetSignal }) {
   const containerRef = useRef(null);
 
   // ── React state for shell UI only ────────────────────────────────
@@ -281,6 +291,7 @@ export function UniverseGraph({ onNodeClick }) {
   // ── Refs to all the Three.js + sim state (kept out of React) ─────
   const refs = useRef({
     scene: null, camera: null, renderer: null, controls: null,
+    composer: null, bokehPass: null,
     nodeMesh: null, haloPoints: null, edgeLines: null, fxPoints: null,
     activeFx: [],                   // [{ kind:'pulse'|'flash', src, tgt, nodeIdx, start, dur, color }]
     // Per-node base scale (val * 0.4). Cached so uploadPositions on
@@ -309,6 +320,15 @@ export function UniverseGraph({ onNodeClick }) {
   // Keep onNodeClick fresh without re-mounting the whole scene.
   useEffect(() => { refs.onNodeClickFn = onNodeClick; }, [onNodeClick, refs]);
 
+  // When the parent bumps resetSignal (the "Reset view" button),
+  // pull the camera back to fit the whole universe — same animated
+  // pull-back as the initial fit.
+  useEffect(() => {
+    if (resetSignal == null) return;
+    requestFit(refs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetSignal]);
+
   // ── Mount the Three.js scene (one-time + on reload) ───────────────
   useEffect(() => {
     if (!containerRef.current) return;
@@ -332,6 +352,21 @@ export function UniverseGraph({ onNodeClick }) {
     renderer.setSize(w, h);
     renderer.domElement.style.display = 'block';
     container.appendChild(renderer.domElement);
+
+    // Post-process chain: standard render → subtle Bokeh DoF.
+    // Focus is set per-frame to the camera-to-target distance so the
+    // disk plane is always crisp; nearer/farther stars soften.
+    const composer = new EffectComposer(renderer);
+    composer.setPixelRatio(renderer.getPixelRatio());
+    composer.setSize(w, h);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+    const bokehPass = new BokehPass(scene, camera, {
+      focus:    camera.position.length(),
+      aperture: GALAXY.dofAperture,
+      maxblur:  GALAXY.dofMaxBlur,
+    });
+    composer.addPass(bokehPass);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -363,6 +398,8 @@ export function UniverseGraph({ onNodeClick }) {
     refs.camera = camera;
     refs.renderer = renderer;
     refs.controls = controls;
+    refs.composer = composer;
+    refs.bokehPass = bokehPass;
     refs.nodeMesh = nodeMesh;
     refs.haloPoints = haloPoints;
     refs.edgeLines = edgeLines;
@@ -466,7 +503,16 @@ export function UniverseGraph({ onNodeClick }) {
       // activeFx, splat into the fxPoints buffer, drop expired.
       updateFx(refs, now);
       controls.update();
-      renderer.render(scene, camera);
+      // DoF focus tracks the camera-to-target distance so the
+      // disk plane stays sharp wherever the user is looking.
+      const focusDist = camera.position.distanceTo(controls.target);
+      bokehPass.uniforms.focus.value = focusDist;
+      // Edge fade by distance — at long zoom the edges drown out
+      // the actual node dots; fade them so the nodes shine through.
+      // Sharp at typical viewing distance, dims to ~25% at the rim.
+      const edgeFade = THREE.MathUtils.smoothstep(focusDist, 600, 4000);
+      edgeLines.material.opacity = 1 - 0.75 * edgeFade;
+      composer.render();
       refs.rafId = requestAnimationFrame(loop);
     };
     refs.rafId = requestAnimationFrame(loop);
@@ -479,6 +525,7 @@ export function UniverseGraph({ onNodeClick }) {
       camera.aspect = w2 / h2;
       camera.updateProjectionMatrix();
       renderer.setSize(w2, h2);
+      composer.setSize(w2, h2);
     });
     ro.observe(container);
     const onWinResize = () => { ro.takeRecords?.(); };
@@ -518,8 +565,10 @@ export function UniverseGraph({ onNodeClick }) {
       edgeLines.material.dispose();
       fxPoints.geometry.dispose();
       fxPoints.material.dispose();
+      composer.dispose();
       renderer.dispose();
       refs.scene = null; refs.camera = null; refs.renderer = null; refs.controls = null;
+      refs.composer = null; refs.bokehPass = null;
       refs.nodeMesh = null; refs.haloPoints = null; refs.edgeLines = null; refs.fxPoints = null;
       refs.activeFx = [];
     };
@@ -932,59 +981,46 @@ function fitDistance(radius, camera, padding = 1.10) {
   return Math.max(distV, distH, 50) * padding;
 }
 
-// Decide whether to refit the camera and, if so, kick off the
-// interpolation. Rules:
-//   • First call (didInitialFit=false): snap to fit, no animation.
-//     This is the moment after the worker's first stable tick.
-//   • Subsequent calls: only refit if the universe has grown enough
-//     that the camera's current distance is now < ~90% of what we'd
-//     need to see everything. Don't refit while the user is actively
-//     orbiting (don't fight their input). Don't refit more than once
-//     every 700ms (avoid jitter while the layout is settling).
+// Initial-only auto-fit. The first time we have settled positions,
+// snap the camera to fit the universe (preserving the top-down
+// starting direction). After that, the camera is the user's — we
+// never pull them back from a manual zoom. They can hit the
+// "Reset view" button to request a fit via requestFit().
 function maybeAutoFit(refs, count) {
+  if (refs.didInitialFit) return;
   if (!refs.camera || !refs.controls || count === 0) return;
-  const now = performance.now();
-
   const bs = computeBoundingSphere(refs, count);
   if (!bs || !isFinite(bs.radius)) return;
   const targetCenter = new THREE.Vector3(bs.cx, bs.cy, bs.cz);
   const needed = fitDistance(bs.radius, refs.camera);
-
-  if (!refs.didInitialFit) {
-    // First fit — snap. Preserve the camera's existing direction so
-    // we don't override OrbitControls' initial pose orientation.
-    const dir = refs.camera.position.clone().sub(refs.controls.target).normalize();
-    if (dir.lengthSq() === 0) dir.set(0, 0, 1);
-    refs.camera.position.copy(targetCenter).add(dir.multiplyScalar(needed));
-    refs.controls.target.copy(targetCenter);
-    refs.didInitialFit = true;
-    refs.lastFitAt = now;
-    return;
-  }
-  if (refs.interacting) return;
-  if (refs.fitAnimating) return;
-  if (now - refs.lastFitAt < 700) return;
-
-  const currentDist = refs.camera.position.distanceTo(refs.controls.target);
-  // Re-fit if visible universe extends beyond the current view, or if
-  // the centroid drifted far from where we last looked.
-  const centerDrift = refs.controls.target.distanceTo(targetCenter);
-  const needsExpand = currentDist < needed * 0.90;
-  const needsRecenter = centerDrift > bs.radius * 0.25;
-  if (!needsExpand && !needsRecenter) return;
-
-  // Set up animation. Preserve the camera's direction relative to the
-  // target so the orbit pose stays put — we just zoom out and slide
-  // the look-at point to the new center.
   const dir = refs.camera.position.clone().sub(refs.controls.target).normalize();
   if (dir.lengthSq() === 0) dir.set(0, 0, 1);
+  refs.camera.position.copy(targetCenter).add(dir.multiplyScalar(needed));
+  refs.controls.target.copy(targetCenter);
+  refs.didInitialFit = true;
+  refs.lastFitAt = performance.now();
+}
+
+// Animated "fit everything" — kicked by the Reset view button. Pulls
+// the camera back to frame the whole universe along its CURRENT
+// direction (so the top-down pose is preserved). Animates over ~700ms.
+function requestFit(refs) {
+  if (!refs.camera || !refs.controls) return;
+  const count = refs.nodes.length;
+  if (count === 0) return;
+  const bs = computeBoundingSphere(refs, count);
+  if (!bs || !isFinite(bs.radius)) return;
+  const targetCenter = new THREE.Vector3(bs.cx, bs.cy, bs.cz);
+  const needed = fitDistance(bs.radius, refs.camera);
+  const dir = refs.camera.position.clone().sub(refs.controls.target).normalize();
+  if (dir.lengthSq() === 0) dir.set(0, 1, 0);
   refs.fitFromPos    = refs.camera.position.clone();
   refs.fitFromTarget = refs.controls.target.clone();
-  refs.fitToPos      = targetCenter.clone().add(dir.multiplyScalar(Math.max(needed, currentDist)));
+  refs.fitToPos      = targetCenter.clone().add(dir.multiplyScalar(needed));
   refs.fitToTarget   = targetCenter.clone();
-  refs.fitStart      = now;
+  refs.fitStart      = performance.now();
   refs.fitAnimating  = true;
-  refs.lastFitAt     = now;
+  refs.lastFitAt     = refs.fitStart;
 }
 
 function ensureNodeCapacity(refs, needed) {

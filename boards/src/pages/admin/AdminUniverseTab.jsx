@@ -64,11 +64,23 @@ function UniverseDrawer({ node, onClose }) {
 export function AdminUniverseTab() {
   const { stats, error } = useUniverseStats();
   const [active, setActive] = useState(null);
+  // Incrementing this triggers an animated "fit everything" pull-back
+  // inside UniverseGraph. Lives here so the button is part of the tab
+  // shell rather than the renderer.
+  const [resetSignal, setResetSignal] = useState(0);
 
   return (
     <div className="universe-tab">
       <AdminUniverseTicker stats={stats} error={error} />
-      <UniverseGraph onNodeClick={setActive} />
+      <UniverseGraph onNodeClick={setActive} resetSignal={resetSignal} />
+      <button
+        className="universe-reset-btn"
+        onClick={() => setResetSignal((n) => n + 1)}
+        title="Reset view"
+        aria-label="Reset view"
+      >
+        Reset view
+      </button>
       <UniverseDrawer node={active} onClose={() => setActive(null)} />
     </div>
   );
