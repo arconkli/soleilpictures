@@ -14222,6 +14222,41 @@ button, [role="button"], a {
      27" monitor at 24" distance but is genuinely hard to read on a
      phone in landscape. */
   body { font-size: 15px; }
+
+  /* Single-column shell. The sidebar grid track collapses (it goes
+     position:fixed below) so .main takes the full viewport width. */
+  .app { grid-template-columns: 1fr; }
+  .app.sb-collapsed { grid-template-columns: 1fr; }
+
+  /* Sidebar becomes a slide-out drawer. JSX wires .is-mobile-open
+     from App.jsx mobileNavOpen state. Same DOM, different layout. */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: min(86vw, 320px);
+    z-index: 1100;
+    transform: translateX(-100%);
+    transition: transform 240ms var(--ease);
+    box-shadow: var(--shadow-3);
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    padding-bottom: var(--safe-bottom);
+  }
+  .sidebar.is-mobile-open { transform: translateX(0); }
+  .sidebar-mobile-backdrop {
+    position: fixed; inset: 0; z-index: 1099;
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(2px);
+    animation: md-fade 180ms var(--ease);
+  }
+
+  /* The legacy rail (40px icon column) is hidden — its toggles move to
+     the topbar hamburger + bottom nav. Safe to hide because at desktop
+     widths .rail still renders normally. */
+  .rail { display: none; }
+
+  /* Main area clears the fixed bottom nav. 56px nav + safe-area. */
+  .main { padding-bottom: calc(56px + var(--safe-bottom)); }
 }
 
 @media (hover: none) and (pointer: coarse) {

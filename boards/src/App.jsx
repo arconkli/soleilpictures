@@ -73,6 +73,8 @@ import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx'
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
 import { HomeGraph } from './components/HomeGraph.jsx';
+import { useBreakpoint } from './hooks/useBreakpoint.js';
+import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -236,6 +238,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [stack, setStack] = useState(() => [rootBoard.id]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Mobile shell state. isPhone keys all phone-only UI; mobileNavOpen
+  // controls the slide-out sidebar (which uses the existing .sidebar
+  // markup repositioned as a drawer at phone width).
+  const { isPhone } = useBreakpoint();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Close the drawer whenever the user navigates surfaces or boards —
+  // otherwise you tap a board in the drawer, the board loads behind, and
+  // the drawer stays open obscuring the content.
+  useEffect(() => { if (!isPhone) setMobileNavOpen(false); }, [isPhone]);
   // Workspace switcher popover (in the sidebar header). Click-outside +
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
@@ -2194,7 +2205,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               title="Exit clean mode (⌘.)">
         Exit clean mode
       </button>
-      <aside className="sidebar">
+      {isPhone && mobileNavOpen && (
+        <div className="sidebar-mobile-backdrop"
+             onClick={() => setMobileNavOpen(false)}
+             aria-hidden="true" />
+      )}
+      <aside className={`sidebar${isPhone && mobileNavOpen ? ' is-mobile-open' : ''}`}>
         {/* Single-column sidebar. Workspace switcher is now a popover
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
@@ -2401,9 +2417,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         />
         <div className="topbar">
           <div className="tb-left">
-            {tweak.compactSidebar && (
-              <button className="tb-icon" title="Open sidebar (⌘B)" aria-label="Open sidebar"
-                      onClick={() => setTweak('compactSidebar', false)}>
+            {(tweak.compactSidebar || isPhone) && (
+              <button className="tb-icon" title={isPhone ? 'Open menu' : 'Open sidebar (⌘B)'}
+                      aria-label={isPhone ? 'Open menu' : 'Open sidebar'}
+                      onClick={() => {
+                        if (isPhone) setMobileNavOpen(true);
+                        else setTweak('compactSidebar', false);
+                      }}>
                 <Icon as={PanelLeftOpen} size={16} />
               </button>
             )}
@@ -2609,6 +2629,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       {upgradeReason && (
         <UpgradeModal onClose={() => setUpgradeReason(null)} />
+      )}
+
+      {isPhone && (
+        <MobileBottomNav
+          active={
+            currentSurface === 'home' ? 'home'
+            : tweak.showMessages ? 'messages'
+            : settingsOpen ? 'settings'
+            : pickerOpen ? 'search'
+            : 'home'
+          }
+          tabs={[
+            { key: 'home',     label: 'Home',     icon: <Icon as={Home} size={20} /> },
+            { key: 'search',   label: 'Search',   icon: <Icon as={Search} size={20} /> },
+            { key: 'messages', label: 'Messages', icon: <Icon as={MessageSquare} size={20} /> },
+            { key: 'settings', label: 'Settings', icon: <Icon as={Settings} size={20} /> },
+          ]}
+          onChange={(k) => {
+            // Each tap is a destination; closing the others keeps the
+            // surface stack consistent (only one "primary" overlay at a time).
+            setMobileNavOpen(false);
+            if (k === 'home')     { setCurrentSurface('home'); setPickerOpen(false); setSettingsOpen(false); setTweak('showMessages', false); }
+            if (k === 'search')   { setPickerOpen(true); setSettingsOpen(false); setTweak('showMessages', false); }
+            if (k === 'messages') { setTweak('showMessages', true); setPickerOpen(false); setSettingsOpen(false); }
+            if (k === 'settings') { setSettingsOpen(true); setPickerOpen(false); setTweak('showMessages', false); }
+          }}
+        />
       )}
 
     </div>

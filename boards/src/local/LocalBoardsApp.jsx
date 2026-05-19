@@ -9,6 +9,8 @@ import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as Inbox
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -99,6 +101,9 @@ export function LocalBoardsApp({ user, signOut }) {
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { isPhone } = useBreakpoint();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  useEffect(() => { if (!isPhone) setMobileNavOpen(false); }, [isPhone]);
   const [selectedTool, setSelectedTool] = useState('select');
   const [autoFocusId, setAutoFocusId] = useState(null);
   const [currentSurface, setCurrentSurface] = useState('board');
@@ -479,7 +484,12 @@ export function LocalBoardsApp({ user, signOut }) {
 
   return (
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`} data-screen-label={`Local Board - ${currentBoard.name}`}>
-      <aside className="sidebar">
+      {isPhone && mobileNavOpen && (
+        <div className="sidebar-mobile-backdrop"
+             onClick={() => setMobileNavOpen(false)}
+             aria-hidden="true" />
+      )}
+      <aside className={`sidebar${isPhone && mobileNavOpen ? ' is-mobile-open' : ''}`}>
         {/* Two-tier layout to match real-mode App.jsx — rail (workspaces +
             settings + you) on the left, middle column with nav + boards. */}
         <div className="rail">
@@ -565,6 +575,12 @@ export function LocalBoardsApp({ user, signOut }) {
       <main className="main">
         <div className="topbar">
           <div className="tb-left">
+            {isPhone && (
+              <button className="tb-icon" title="Open menu" aria-label="Open menu"
+                      onClick={() => setMobileNavOpen(true)}>
+                <Icon as={PanelLeftOpen} size={16} />
+              </button>
+            )}
             <div className="crumbs">
               {crumbs.map((crumb, index) => (
                 <React.Fragment key={`${crumb.id}-${index}`}>
@@ -672,6 +688,30 @@ export function LocalBoardsApp({ user, signOut }) {
       )}
 
       <LocalSettingsPanel tweak={tweak} setTweak={setTweak} />
+
+      {isPhone && (
+        <MobileBottomNav
+          active={
+            currentSurface === 'home' ? 'home'
+            : tweak.showMessages ? 'messages'
+            : pickerOpen ? 'search'
+            : 'home'
+          }
+          tabs={[
+            { key: 'home',     label: 'Home',     icon: <Icon as={Home} size={20} /> },
+            { key: 'search',   label: 'Search',   icon: <Icon as={Search} size={20} /> },
+            { key: 'messages', label: 'Messages', icon: <Icon as={MessageSquare} size={20} /> },
+            { key: 'settings', label: 'Settings', icon: <Icon as={Settings} size={20} /> },
+          ]}
+          onChange={(k) => {
+            setMobileNavOpen(false);
+            if (k === 'home')     { setCurrentSurface('home'); setPickerOpen(false); setTweak('showMessages', false); }
+            if (k === 'search')   { setPickerOpen(true); setTweak('showMessages', false); }
+            if (k === 'messages') { setTweak('showMessages', true); setPickerOpen(false); }
+            if (k === 'settings') { document.querySelector('.twk-gear')?.click(); }
+          }}
+        />
+      )}
     </div>
   );
 }
