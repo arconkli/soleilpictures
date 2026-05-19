@@ -4570,6 +4570,7 @@ body {
 .admin-tab.is-active { background: var(--soleil-soft); color: var(--soleil); }
 .admin-header-right { display: flex; gap: 6px; }
 .admin-body {
+  position: relative;        /* anchor for the grain pseudo below */
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -4577,6 +4578,24 @@ body {
   padding: 24px;
   -webkit-overflow-scrolling: touch;
 }
+/* Same animated grain the workspace surfaces use — Overview /
+   Analytics / Users / Waitlist tabs all get it via this pseudo.
+   The Universe tab covers it with its WebGL canvas and paints
+   its own .grain-surface inside that container, so visually
+   every tab carries the same texture. */
+.admin-body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url('/grain.gif');
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  opacity: 0.03;
+  z-index: 0;
+}
+[data-theme='light'] .admin-body::before { opacity: 0.025; }
+.admin-body > * { position: relative; z-index: 1; }
 .admin-section { max-width: 1100px; margin: 0 auto; }
 /* Tables can overflow horizontally on narrow viewports — wrap them. */
 .admin-table { display: table; }
