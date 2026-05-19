@@ -2519,6 +2519,11 @@ body {
   flex: 1;
   position: relative;
   overflow: hidden;
+  /* P3.2: own all gestures on the canvas — the browser must not
+     intercept pinch-zoom (its native page zoom) or two-finger pan
+     (page scroll) since useGesture handles them ourselves.
+     touch-action is a no-op for mouse input so desktop is unaffected. */
+  touch-action: none;
   /* Match the darker tag-detail bg so all surfaces look consistent. */
   background-color: var(--bg-0);
   background-image: radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1px);

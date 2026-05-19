@@ -27,6 +27,7 @@ import { uploadImage, uploadVideo, uploadAudio } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
+import { useGesture } from '@use-gesture/react';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
@@ -1258,6 +1259,49 @@ export function CanvasSurface({
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [pan.x, pan.y, zoom]);
+
+  // ── Touch gestures (P3.2): pinch-zoom + two-finger pan ─────────────────────
+  // Desktop mouse path is untouched — these handlers only fire when the
+  // pointerType is 'touch'. Single-finger drag stays driven by the existing
+  // onBackgroundPointerDown (so cards / lasso / pan-mode keep working).
+  useGesture(
+    {
+      onPinch: ({ event, origin: [ox, oy], movement: [ms], memo }) => {
+        if (event?.cancelable) event.preventDefault();
+        const el = wrapRef.current;
+        if (!el) return memo;
+        const rect = el.getBoundingClientRect();
+        const start = memo || { zoom: zoomRef.current, panX: panRef.current.x, panY: panRef.current.y };
+        const targetZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, start.zoom * ms));
+        if (targetZoom === start.zoom) return start;
+        // World-coord under the gesture origin should stay fixed.
+        const cx = (ox - rect.left - start.panX) / start.zoom;
+        const cy = (oy - rect.top  - start.panY) / start.zoom;
+        setZoom(targetZoom);
+        setPan({
+          x: ox - rect.left - cx * targetZoom,
+          y: oy - rect.top  - cy * targetZoom,
+        });
+        return start;
+      },
+      onDrag: ({ event, delta: [dx, dy], touches, pinching, pointerType }) => {
+        // Two-finger drag pans the canvas regardless of selected tool.
+        // Single-finger / mouse drags stay on the existing onPointerDown
+        // path so card move, lasso, pan-mode, etc. keep their behavior.
+        if (pinching) return;
+        if (pointerType !== 'touch') return;
+        if (touches < 2) return;
+        if (event?.cancelable) event.preventDefault();
+        setPan(p => ({ x: p.x + dx, y: p.y + dy }));
+      },
+    },
+    {
+      target: wrapRef,
+      eventOptions: { passive: false },
+      pinch: { scaleBounds: { min: ZOOM_MIN / 4, max: ZOOM_MAX * 4 }, rubberband: true },
+      drag: { pointer: { touch: true }, threshold: 0 },
+    },
+  );
 
   // ── Confirm + delete cards ────────────────────────────────────────────────
   const buildDeleteMessage = useCallback((ids) => {
