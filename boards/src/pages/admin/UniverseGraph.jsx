@@ -392,6 +392,9 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
     controls.enablePan   = true;
     controls.minDistance = GALAXY.zoomMin;
     controls.maxDistance = GALAXY.zoomMax;
+    // Zoom toward where the cursor is pointing instead of the
+    // orbit center — lets you fly into any specific cluster.
+    controls.zoomToCursor = true;
 
     // GPU buffers — allocated empty; filled when snapshot arrives.
     const nodeMesh = makeNodeMesh(INITIAL_NODE_CAP);
