@@ -14363,6 +14363,20 @@ button, [role="button"], a {
   .ent-backlinks-panel  { height: 100dvh; }
   .auth-screen          { height: 100dvh; }
 
+  /* DocSurface 3-column grid (240/1fr/240) collapses to single-column
+     at phone width. Page-tree rail is hidden (it would eat all the
+     screen) — the rail-toggle in the topbar already lets users open
+     it via the existing collapsed-state. */
+  .doc-surface,
+  .doc-surface.rail-left-collapsed,
+  .doc-surface.rail-right-collapsed,
+  .doc-surface.rail-left-collapsed.rail-right-collapsed,
+  .doc-surface.no-right-rail,
+  .doc-surface.no-right-rail.rail-left-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .doc-rail { display: none; }
+
   /* HomeGraph node detail drawer — 320px right slide-in on desktop
      becomes a full sheet above the bottom nav on phone (same pattern
      as MessagesPanel). */
