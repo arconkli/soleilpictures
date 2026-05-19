@@ -60,3 +60,12 @@ test('bottom nav is not rendered on desktop', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome', 'desktop only');
   await expect(page.locator('.mb-nav')).toHaveCount(0);
 });
+
+test('tablet does not engage phone shell (sidebar visible, no bottom nav)', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'tablet', 'tablet only');
+  // Tablet (>640px) shows the full desktop sidebar inline + no bottom nav.
+  await expect(page.locator('.mb-nav')).toHaveCount(0);
+  await expect(page.locator('.sidebar').first()).toBeVisible();
+  // The sidebar must not have the phone slide-out class applied.
+  await expect(page.locator('.sidebar').first()).not.toHaveClass(/is-mobile-open/);
+});
