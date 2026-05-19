@@ -14449,11 +14449,35 @@ button, [role="button"], a {
 }
 
 @media (hover: none) and (pointer: coarse) {
-  /* Reserve. Per-component hover-reveal disabling and tap-target bumps
-     land in P2/P3 (e.g., MessageBubble action buttons, card edit
-     affordances, DocSurface toolbar). This block exists so future
-     additions have a canonical home and so we can audit one location
-     for the touch-input contract. */
+  /* Coarse-pointer (touch) refinements that apply REGARDLESS of viewport
+     size — e.g., iPad in landscape is desktop-width but touch-input.
+     Rules here keep desktop-mouse density on real mice but enlarge tap
+     targets on touch. */
+
+  /* Doc editor toolbar — 28px buttons → 40px so the user can hit
+     bold/italic/list/etc. with a finger without misfires. */
+  .doc-tb-btn { width: 40px; height: 40px; }
+  .doc-tb-zoom .doc-tb-btn { width: 40px; height: 36px; }
+
+  /* MessageBubble row action buttons that fade in on hover are
+     unreachable on touch. Make the per-row action stack always visible
+     on coarse pointer (per-component opacity audit lands in P3.5;
+     this is the global safety net). */
+  .msg-row-actions { opacity: 1 !important; }
+
+  /* Generic small icon buttons across the chrome that sit below 40px
+     get a comfy tap-target floor. Explicit class list keeps the rule
+     scoped — we don't want to blanket-bump every <button>. */
+  .tb-icon,
+  .modal-x,
+  .twk-x,
+  .picker-back,
+  .sb-mid-collapse,
+  .rail-toggle,
+  .rail-icon {
+    min-width: 40px;
+    min-height: 40px;
+  }
 }
 
 /* -------------------------------------------------------------------------
