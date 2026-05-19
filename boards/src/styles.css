@@ -129,11 +129,10 @@ body {
   -webkit-font-smoothing: antialiased;
   background: var(--bg-0);
   color: var(--ink-1);
-  /* Notch-landscape: reserve the rounded-corner inset so content
-     never sits under the curve. Portrait iPhone: env() = 0, no
-     visible change. */
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+  /* No padding — let content go edge-to-edge. Earlier env() padding
+     was shifting layout off-center on iOS even though insets read 0
+     in portrait. Per-surface safe-area handling lives where it
+     matters (.topbar, .auth-card, .mb-nav, .sheet-panel). */
 }
 
 /* Animated grain texture — ARC browser vibe. Mounted INSIDE each
@@ -4088,6 +4087,11 @@ body {
   display: grid;
   place-items: center;
   overflow: hidden;
+  /* Lock every touch gesture on the auth flow — no horizontal pan,
+     no rubber-band vertical scroll. The OTP code input still fires
+     focus + keyboard via tap because tap isn't a pan gesture. */
+  touch-action: none;
+  overscroll-behavior: none;
 }
 .auth-glow {
   position: absolute;
