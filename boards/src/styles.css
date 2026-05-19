@@ -14368,6 +14368,21 @@ button, [role="button"], a {
      this is the global safety net). */
   .msg-row-actions { opacity: 1 !important; }
 
+  /* Hover-reveal affordances across cards/docs/palettes. On a real
+     mouse, parent:hover reveals these; on touch there's no hover so
+     they stay invisible and the user can't reach them. Always-on
+     here means the action is reachable. We accept a slightly noisier
+     visual on touch — that's the standard mobile UX trade-off. */
+  .lc-embed-title-add,
+  .ic-expand,
+  .ic .ic-title.is-placeholder,
+  .doc-tree-add,
+  .doc-bookmark-x,
+  .pc-cell-x,
+  .ic-add-caption {
+    opacity: 1 !important;
+  }
+
   /* Generic small icon buttons across the chrome that sit below 40px
      get a comfy tap-target floor. Explicit class list keeps the rule
      scoped — we don't want to blanket-bump every <button>. */
