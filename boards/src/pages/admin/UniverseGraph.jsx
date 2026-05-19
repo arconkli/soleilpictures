@@ -477,16 +477,58 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
       const hits = raycaster.intersectObject(nodeMesh, false);
       // Walk hits in case the first one is a physics-only user node
       // (invisible but raycaster can still hit its 0-scale centroid).
+      let picked = null;
       for (const h of hits) {
         if (typeof h.instanceId !== 'number') continue;
         const node = refs.nodes[h.instanceId];
         if (!node || node.kind === 'user') continue;
-        if (refs.onNodeClickFn) refs.onNodeClickFn(node);
-        break;
+        picked = node; break;
+      }
+      if (picked) {
+        if (refs.onNodeClickFn) refs.onNodeClickFn(picked);
+      } else {
+        // Empty space click → enter pointer-lock fly mode.
+        try { renderer.domElement.requestPointerLock(); } catch (_) {}
       }
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup',   onPointerUp);
+
+    // ── FPS-style mouse-look while pointer is locked ────────────────
+    // Pointer-lock hides the cursor and feeds us raw mouse deltas via
+    // movementX/Y. We rotate the controls.target around camera.position
+    // (preserving orbit distance) so when the user ESC's out, the
+    // OrbitControls pose is consistent with where they're looking.
+    const WORLD_UP   = new THREE.Vector3(0, 1, 0);
+    const LOOK_SENS  = 0.0022;
+    const MAX_PITCH  = Math.PI * 0.49;  // stop just shy of ±90°
+    let isPointerLocked = false;
+
+    const onPointerLockChange = () => {
+      isPointerLocked = document.pointerLockElement === renderer.domElement;
+      controls.enabled = !isPointerLocked;  // OrbitControls off while flying
+      refs.lookActive  = isPointerLocked;   // pauses idle drift
+    };
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+
+    const onMouseMove = (e) => {
+      if (!isPointerLocked) return;
+      const dx = e.movementX || 0, dy = e.movementY || 0;
+      if (dx === 0 && dy === 0) return;
+      const dist = camera.position.distanceTo(controls.target);
+      const fwd = controls.target.clone().sub(camera.position).normalize();
+      fwd.applyAxisAngle(WORLD_UP, -dx * LOOK_SENS);                // yaw
+      const right = fwd.clone().cross(WORLD_UP).normalize();
+      const next  = fwd.clone().applyAxisAngle(right, -dy * LOOK_SENS);  // pitch
+      // Reject pitches that put us within MAX_PITCH of vertical so
+      // we don't flip past straight up/down.
+      const angleFromUp = next.angleTo(WORLD_UP);
+      if (angleFromUp > (Math.PI / 2 - MAX_PITCH) && angleFromUp < (Math.PI / 2 + MAX_PITCH)) {
+        fwd.copy(next);
+      }
+      controls.target.copy(camera.position).add(fwd.multiplyScalar(dist));
+    };
+    window.addEventListener('mousemove', onMouseMove);
 
     // WASD / Q-E flying — moves the camera AND its orbit target by the
     // same offset so the orbit pose is preserved. Speed scales with
@@ -536,10 +578,10 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
         camera.position.lerpVectors(refs.fitFromPos, refs.fitToPos, eased);
         controls.target.lerpVectors(refs.fitFromTarget, refs.fitToTarget, eased);
         if (t >= 1) refs.fitAnimating = false;
-      } else if (!refs.interacting && keys.size === 0) {
-        // Idle drift = galactic rotation. Pauses during interaction,
-        // during a fit animation, and while WASD is active so the
-        // motions don't fight.
+      } else if (!refs.interacting && !refs.lookActive && keys.size === 0) {
+        // Idle drift = galactic rotation. Pauses during orbit drag,
+        // pointer-lock look mode, WASD movement, and fit animations
+        // so the various motions never fight.
         const rel = camera.position.clone().sub(controls.target);
         rel.applyAxisAngle(rotationAxis, GALAXY.rotationRate * dt);
         camera.position.copy(rel.add(controls.target));
@@ -611,9 +653,14 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
 
     // Cleanup.
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup',   onKeyUp);
+      window.removeEventListener('keydown',  onKeyDown);
+      window.removeEventListener('keyup',    onKeyUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('pointerlockchange', onPointerLockChange);
       document.removeEventListener('visibilitychange', onVis);
+      if (document.pointerLockElement === renderer.domElement) {
+        try { document.exitPointerLock(); } catch (_) {}
+      }
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup',   onPointerUp);
       window.removeEventListener('resize', onWinResize);
