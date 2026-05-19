@@ -190,6 +190,7 @@ function makeHaloMaterial() {
       uScale:   { value: 350 },
     },
     vertexShader: /* glsl */`
+      uniform float uScale;
       attribute float size;
       varying vec3 vColor;
       void main() {
@@ -230,6 +231,7 @@ function makeFxMaterial() {
       uScale: { value: 350 },
     },
     vertexShader: /* glsl */`
+      uniform float uScale;
       attribute float size;
       attribute float alpha;
       varying vec3 vColor;
