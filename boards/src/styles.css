@@ -4505,7 +4505,11 @@ body {
 .upgrade-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 2147483640;
+  /* Top overlay tier — matches .feedback-bg / .cp-pop. PricingModal can
+     be opened from inside Settings, so it has to outrank .settings-bg
+     (2147483646). Ties with feedback/color-picker resolve by DOM order,
+     so a confirm opened from within Pricing still wins. */
+  z-index: 2147483647;
   background: rgba(0,0,0,.65);
   backdrop-filter: blur(6px);
   display: grid;

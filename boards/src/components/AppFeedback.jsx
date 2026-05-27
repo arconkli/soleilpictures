@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const FeedbackContext = createContext(null);
 
@@ -59,9 +60,12 @@ export function FeedbackProvider({ children }) {
 
   const value = useMemo(() => ({ confirm, prompt, toast }), [confirm, prompt, toast]);
 
-  return (
-    <FeedbackContext.Provider value={value}>
-      {children}
+  // Overlay layer portals to document.body so a high z-index actually
+  // wins over portal-mounted modals (Settings, Pricing, etc.). Without
+  // the portal, any ancestor stacking context above FeedbackProvider
+  // traps the dialog underneath those modals regardless of its z-index.
+  const overlay = (
+    <>
       <FeedbackDialog dialog={dialog} onClose={closeDialog} />
       <div className="toast-stack" aria-live="polite" aria-atomic="false">
         {toasts.map(item => (
@@ -80,6 +84,13 @@ export function FeedbackProvider({ children }) {
           </div>
         ))}
       </div>
+    </>
+  );
+
+  return (
+    <FeedbackContext.Provider value={value}>
+      {children}
+      {typeof document !== 'undefined' && createPortal(overlay, document.body)}
     </FeedbackContext.Provider>
   );
 }
