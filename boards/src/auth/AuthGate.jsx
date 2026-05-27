@@ -278,7 +278,7 @@ function SignIn() {
               {busy ? 'Sending…' : 'Send code'}
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
-            <div className="auth-hint t-meta">We'll email you a 6-digit code. There's no sign-in link — type the code below to continue.</div>
+            <div className="auth-hint t-meta">We'll email you a 6-digit code.</div>
           </form>
         ) : (
           <form className="auth-form" onSubmit={verifyCode}>
