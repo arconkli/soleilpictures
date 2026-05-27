@@ -129,9 +129,10 @@ export function AdminGrantsTab() {
   useEffect(() => { fetchPage(); }, [fetchPage]);
 
   // Opportunistic sweep on mount — applies any grants that expired since
-  // the last cron tick so the list shows accurate state.
+  // the last cron tick so the list shows accurate state. PostgrestBuilder
+  // is thenable but doesn't expose .catch, so use then(_, _) form.
   useEffect(() => {
-    supabase.rpc('sweep_expired_paid_grants').catch(() => {});
+    supabase.rpc('sweep_expired_paid_grants').then(() => {}, () => {});
   }, []);
 
   const onGrant = async (e) => {
