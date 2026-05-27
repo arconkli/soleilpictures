@@ -2558,6 +2558,13 @@ body {
   position: absolute; inset: 0;
   width: 1500px; height: 1100px;
   transform-origin: 40px 30px;
+  /* Hint to the compositor that pan/zoom changes the transform — keep
+     the rasterized layer cached across transforms instead of re-rastering
+     every tile on every wheel tick. Without this, every transform change
+     forced Chrome to re-decode and re-raster every image inside (the
+     Performance trace showed 5 PNGs decoded 17-18 times each, ~7.5s of
+     decode work in a 9s session). */
+  will-change: transform;
 }
 
 .cards-layer { position: absolute; inset: 0; }

@@ -467,6 +467,7 @@ function BoardLinkCard({ targetBoard, note, onOpen }) {
 }
 
 function ImageCard({ src, label, title, link, tone, aspect, caption,
+                            w, h,
                             onUpdate, autoFocus = false,
                             editTitleAt = 0, editCaptionAt = 0,
                             onAfterEdit, onExpand,
@@ -515,7 +516,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
     <div className="ic">
       <div className="ic-imgwrap" onDoubleClick={onImgDblClick}>
         {src
-          ? <R2Image src={src} alt={title || label || ''} className="ic-img" draggable="false" />
+          ? <R2Image src={src} alt={title || label || ''} w={w} h={h} className="ic-img" draggable="false" />
           : <ImagePlaceholder label={label} tone={tone} aspect={aspect} />}
         {pending && (
           <div className="ic-upload-overlay" aria-label="Uploading image">

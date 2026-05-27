@@ -14,7 +14,7 @@ import { cachedUrl, resolveSrc, getSignedUrl } from '../lib/r2.js';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
-export function R2Image({ src, alt = '', eager = false, onError, ...rest }) {
+export function R2Image({ src, alt = '', eager = false, onError, w, h, ...rest }) {
   const initial = cachedUrl(src);
   const [url, setUrl] = useState(initial);
   const [failed, setFailed] = useState(false);
@@ -97,10 +97,18 @@ export function R2Image({ src, alt = '', eager = false, onError, ...rest }) {
     return <div ref={rootRef} className="r2-img r2-img-loading" {...rest} />;
   }
 
+  // Explicit width/height attributes tell Chrome the target render size
+  // so it decodes-at-size and caches that decoded form. Without these,
+  // the browser falls back to decoding at the source PNG's intrinsic
+  // size (often multi-megapixel) — and re-decodes whenever the layer
+  // raster size changes (e.g. canvas zoom/pan). The Performance trace
+  // showed 5 PNGs each decoded 17-18 times for this exact reason.
   return (
     <img ref={rootRef}
          src={url}
          alt={alt}
+         width={w}
+         height={h}
          loading={eager ? 'eager' : 'lazy'}
          decoding="async"
          fetchpriority={eager ? 'high' : 'low'}
