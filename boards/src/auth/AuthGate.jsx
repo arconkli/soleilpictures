@@ -278,7 +278,7 @@ function SignIn() {
               {busy ? 'Sending…' : 'Send code'}
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
-            <div className="auth-hint t-meta">We'll email you a 6-digit code (and a one-click link).</div>
+            <div className="auth-hint t-meta">We'll email you a 6-digit code. There's no sign-in link — type the code below to continue.</div>
           </form>
         ) : (
           <form className="auth-form" onSubmit={verifyCode}>
@@ -307,7 +307,7 @@ function SignIn() {
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
             <div className="auth-hint t-meta">
-              Check your inbox.{' '}
+              Check your inbox for the 6-digit code.{' '}
               {resendCooldown > 0
                 ? <span>Resend in {resendCooldown}s</span>
                 : <button type="button" className="auth-link" onClick={() => sendCode(true)} disabled={busy}>Resend code</button>}

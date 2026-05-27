@@ -4469,6 +4469,30 @@ body {
   padding: 0 16px;
 }
 
+.welcome-contact {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto 18px;
+  padding: 12px 18px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg, 14px);
+  color: var(--ink-1);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.welcome-card { padding: 22px 24px; gap: 16px; }
+.welcome-card-lede { margin: 0; }
+.welcome-card-foot {
+  margin-top: 4px;
+  color: var(--ink-3);
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
 .upgrade-foot {
   margin-top: 10px;
   color: var(--ink-3);
@@ -11599,6 +11623,17 @@ button.msg-panel-name:hover { color: var(--soleil); }
   background: var(--bg-1);
   position: relative;
   transition: background var(--dur-fast) var(--ease);
+}
+.msg-composer-readonly {
+  padding: 12px 14px;
+  border-top: 1px solid var(--line-1);
+  background: var(--bg-1);
+  flex-shrink: 0;
+}
+.msg-composer-readonly-text {
+  display: block;
+  color: var(--ink-2);
+  font: 500 12px/1.4 var(--font-sans);
 }
 /* Drop affordance — gold dashed border + soft tint when dragging
    files or a URL over the composer. The overlay covers the whole

@@ -30,55 +30,36 @@ export function WelcomePage() {
         <SoleilWordmark size="display" />
       </header>
 
-      <p className="welcome-intro t-body">
-        Due to the large number of new creators, there is a waitlist to try our
-        demo version. As we are unable to support everyone please submit your
-        creative socials for review and we will get back to you soon. Or skip
-        the wait and get a creator subscription for instant usage.
-      </p>
+      <div className="welcome-contact t-meta">
+        To report an issue or submit a suggestion please email us at:{' '}
+        <a href="mailto:clusters@soleilpictures.com" className="auth-link">clusters@soleilpictures.com</a>
+      </div>
 
-      <div className="pricing-grid">
-
-        {/* DEMO / WAITLIST */}
-        <article className="pricing-card pricing-card-demo">
-          <div className="pricing-card-head">
-            <div className="pricing-card-name">Free Demo</div>
-            <div className="pricing-card-price">~7d<span className="pricing-card-price-unit"> wait</span></div>
-          </div>
-          <ul className="pricing-features">
-            <li>Submit your creative socials for review</li>
-            <li>Average wait time 3 – 7 days</li>
-            <li>100 cards total, view-only on others' boards</li>
-            <li>Email when you're accepted</li>
-          </ul>
+      <div className="waitlist-status-card welcome-card">
+        <p className="waitlist-status-sub t-body welcome-card-lede">
+          If you are a singular user requesting access to our demo, please
+          submit artist socials for evaluation. Want instant access? Skip the
+          wait with a subscription.
+        </p>
+        <div className="waitlist-status-cta-row">
           <button
-            className="pricing-cta pricing-cta-secondary"
+            className="pricing-cta pricing-cta-secondary waitlist-status-cta"
             onClick={() => setSocialsOpen(true)}
           >
             Submit Socials
           </button>
-        </article>
-
-        {/* CREATOR / SKIP */}
-        <article className="pricing-card pricing-card-creator">
-          <div className="pricing-card-head">
-            <div className="pricing-card-name">Creator</div>
-            <div className="pricing-card-price">$20<span className="pricing-card-price-unit">/mo</span></div>
-          </div>
-          <ul className="pricing-features">
-            <li>Skip the wait — instant access</li>
-            <li>Unlimited cards, boards, exports</li>
-            <li>Edit on others' boards, invite editors</li>
-            <li>All Creative Tools + Virtual + Social events</li>
-          </ul>
           <button
-            className="pricing-cta pricing-cta-primary"
+            className="pricing-cta pricing-cta-primary waitlist-status-cta"
             onClick={() => { window.location.assign('/pricing'); }}
           >
             See Pricing →
           </button>
-        </article>
-
+        </div>
+        <div className="welcome-card-foot t-meta">
+          Average wait time ~10 days
+          <span className="welcome-foot-sep">·</span>
+          You'll receive an email once approved
+        </div>
       </div>
 
       <footer className="pricing-foot t-meta">
