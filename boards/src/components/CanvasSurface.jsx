@@ -1949,26 +1949,55 @@ export function CanvasSurface({
   const startPan = (e) => {
     e.preventDefault();
     const startClient = { x: e.clientX, y: e.clientY };
-    const startPan = { x: panRef.current.x, y: panRef.current.y };
+    const startPanXY = { x: panRef.current.x, y: panRef.current.y };
+    const initialPointerId = e.pointerId;
+    const startedFromTouch = e.pointerType === 'touch';
     document.body.style.cursor = 'grabbing';
+    let aborted = false;
+    const cleanup = () => {
+      document.body.style.cursor = '';
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointerdown', onSecondTouch, true);
+    };
     const onMove = (ev) => {
+      if (aborted) return;
+      // Filter by the pointer that started this pan. Without this, a
+      // second finger's pointermove during a pinch would clobber
+      // panRef with stale values computed from startPanXY + delta and
+      // overwrite whatever useGesture's pinch handler just set.
+      if (ev.pointerId !== initialPointerId) return;
       panRef.current = {
-        x: startPan.x + (ev.clientX - startClient.x),
-        y: startPan.y + (ev.clientY - startClient.y),
+        x: startPanXY.x + (ev.clientX - startClient.x),
+        y: startPanXY.y + (ev.clientY - startClient.y),
       };
       applyCanvasTransform();
       scheduleVisibleRecompute();
     };
-    const onUp = () => {
-      document.body.style.cursor = '';
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+    const onSecondTouch = (ev) => {
+      if (ev.pointerType !== 'touch') return;
+      if (ev.pointerId === initialPointerId) return;
+      // A second finger means the user is pinching / two-finger panning.
+      // Abort our single-finger pan so onUp doesn't commit a setPan that
+      // would override the pinch's deferred commit (scheduleTouchPanCommit).
+      aborted = true;
+      cleanup();
+    };
+    const onUp = (ev) => {
+      if (ev.pointerId !== initialPointerId) return;
+      cleanup();
+      if (aborted) return;
       // Commit once at gesture end so persistence + downstream consumers
       // catch up to the gesture-time ref values.
       setPan({ x: panRef.current.x, y: panRef.current.y });
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    // Only watch for additional fingers when the pan was initiated by
+    // touch — desktop mouse panning is single-pointer-only.
+    if (startedFromTouch) {
+      window.addEventListener('pointerdown', onSecondTouch, true);
+    }
   };
 
   // ── Card pointer handlers ─────────────────────────────────────────────────
