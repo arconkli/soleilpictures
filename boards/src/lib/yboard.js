@@ -14,7 +14,7 @@
 
 import * as Y from 'yjs';
 import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion } from './boardsApi.js';
-import { b64ToBytes, bytesToB64 } from './yhelpers.js';
+import { b64ToBytes, bytesToB64, readCards } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 import { peekBoardSnapshot, prefetchBoard } from './prefetchKinds.js';
 import { invalidate as invalidatePrefetch } from './prefetch.js';
@@ -124,6 +124,26 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
       try {
         await saveBoardSnapshot(boardId, ydoc);
         clearLocalDraft(boardId, version);
+        // Also refresh the localStorage preview cache for this board.
+        // useBoardPreview reads this key, so parent boards (e.g. Marketing
+        // with sub-board tiles) can render the latest preview of this
+        // board instantly on next page load — no Supabase round-trip
+        // required. Same key + envelope shape that useBoardPreview's
+        // _lsRead / _lsWrite use.
+        try {
+          const previewData = {
+            cards: readCards(ydoc),
+            arrows: ydoc.getArray('arrows').toArray().map(a => (a && a.toJSON) ? a.toJSON() : a),
+            strokes: ydoc.getArray('strokes').toArray().map(s => (s && s.toJSON) ? s.toJSON() : s),
+            docPages: [],
+            docText: '',
+          };
+          const envelope = JSON.stringify({ data: previewData, savedAt: Date.now() });
+          // 200KB cap matches useBoardPreview's LS_MAX_PER_BOARD_BYTES.
+          if (envelope.length <= 200 * 1024 && typeof localStorage !== 'undefined') {
+            localStorage.setItem('soleil:preview:' + boardId, envelope);
+          }
+        } catch (_) { /* quota or disabled storage — silent */ }
       }
       catch (e) { console.error('saveBoardSnapshot failed', e); }
     }, SNAP_DEBOUNCE_MS);
