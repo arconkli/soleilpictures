@@ -2578,6 +2578,14 @@ body {
   overflow: hidden;
   border-radius: var(--radius-md);
   contain: paint;
+  /* Force GPU layer promotion per card. Without this, zoom (which
+     changes .canvas's transform scale) triggers re-rasterization of
+     contained content at the new effective resolution. With per-card
+     will-change, each card has its own cached layer that Chrome scales
+     via the compositor instead of re-rastering. Pan was always cheap
+     because translation reuses the cached raster; zoom is now cheap
+     too because scale composites the cached card layers. */
+  will-change: transform;
   box-shadow: var(--shadow-1);
 }
 .card:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); }
@@ -6339,7 +6347,15 @@ body {
    resize keeps the card aspect matched to the image, so cover fills
    exactly without cropping. If the user holds Cmd/Ctrl to free-resize,
    they've explicitly opted into cropping. */
-.ic .ic-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ic .ic-img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  /* Hint Chrome to use the cached decoded raster (with bilinear scaling)
+     during canvas zoom rather than re-decoding the source PNG at the
+     new effective scale on every wheel tick. Combined with round-9's
+     explicit width/height attrs, this means one decode per image per
+     session — zoom is a pure compositor scale. */
+  image-rendering: -webkit-optimize-contrast;
+}
 .ic .img-ph { width: 100%; height: 100%; }
 /* Upload-in-progress overlay — sits on top of the local blob preview
    while the file uploads to R2. Subtle scrim + soleil-tinted spinner
@@ -8322,6 +8338,13 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
      without forcing the GPU layer. */
   opacity: 0.74;
   transition: opacity var(--dur-base) var(--ease);
+  /* SVG content re-rasters at every scale change (vector → raster pass)
+     when the parent canvas zooms. Promoting each thumbnail to its own
+     GPU layer keeps the rasterized SVG cached; canvas scale composites
+     the cached layer instead of re-rasterizing thousands of SVG nodes
+     per zoom tick. This is the dominant zoom-perf fix on Marketing-
+     style parents with many sub-board tiles. */
+  will-change: transform;
 }
 .bc:hover .bc-thumb { opacity: 0.92; }
 [data-theme='light'] .bc-thumb { opacity: 0.78; }
