@@ -11067,7 +11067,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   opacity: 0.5;
 }
 .msg-bubble.is-flashed { background: var(--soleil-soft); transition: background 1.5s ease-out; }
-.msg-bubble-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.msg-bubble-head { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: nowrap; }
 .msg-bubble-avatar {
   width: 22px; height: 22px;
   border-radius: 6px;
@@ -11076,10 +11076,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--bg-0);
   flex-shrink: 0;
 }
-.msg-bubble-author { font: 600 12.5px/1.2 var(--font-sans); color: var(--ink-0); }
+.msg-bubble-author {
+  font: 600 12.5px/1.2 var(--font-sans); color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0;
+}
 .msg-bubble-time {
   color: var(--ink-3);
   font: 500 10.5px/1.2 var(--font-sans);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .msg-bubble-actions {
   margin-left: auto;
