@@ -8301,30 +8301,31 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background-size: 14px 14px;
   background-position: 0 0;
 }
-/* Soft inner ring so cards near the edge feel framed, not clipped. */
+/* Soft inner ring so cards near the edge feel framed, not clipped.
+   Round 11: dropped the inset 0 -28px 36px -28px vignette shadow —
+   wide inset blurs are an expensive compositor pass and we have
+   N tiles on Marketing-style parents. The 1px inner ring stays. */
 .bc-thumb-wrap::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   border-radius: inherit;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.03), inset 0 -28px 36px -28px rgba(0,0,0,.35);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
 }
 .bc-thumb {
   position: absolute; inset: 14px;
   display: block;
   overflow: hidden;
-  /* Quiet the preview so it reads as a representation of the board
-     rather than competing with the live canvas around it. Hover bumps
-     the preview back to full color/contrast as a "this is interactive"
-     affordance. */
-  filter: brightness(0.78) saturate(0.78);
+  /* Quiet the preview via opacity only — the brightness/saturate filter
+     forced every tile's SVG into its own GPU layer + filter pass, which
+     re-evaluated on parent re-renders. With N visible sub-board tiles
+     this multiplied to N filter passes per frame during pan/drag.
+     Opacity over the dark canvas bg yields a near-identical "quiet" look
+     without forcing the GPU layer. */
   opacity: 0.74;
-  transition: filter var(--dur-base) var(--ease), opacity var(--dur-base) var(--ease);
+  transition: opacity var(--dur-base) var(--ease);
 }
-.bc:hover .bc-thumb { filter: brightness(0.88) saturate(0.9); opacity: 0.9; }
-[data-theme='light'] .bc-thumb {
-  filter: brightness(1.02) saturate(0.86);
-  opacity: 0.78;
-}
-[data-theme='light'] .bc:hover .bc-thumb { filter: brightness(0.98) saturate(0.92); opacity: 0.92; }
+.bc:hover .bc-thumb { opacity: 0.92; }
+[data-theme='light'] .bc-thumb { opacity: 0.78; }
+[data-theme='light'] .bc:hover .bc-thumb { opacity: 0.95; }
 
 /* List-mode board card on canvas — no thumbnail, just a clickable list of
    child boards. Header on top, scroll the rest. */

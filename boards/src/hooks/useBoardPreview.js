@@ -7,6 +7,7 @@ import * as Y from 'yjs';
 import { loadBoardSnapshot } from '../lib/boardsApi.js';
 import { b64ToBytes, readCards } from '../lib/yhelpers.js';
 import { readDocSummary } from '../lib/docState.js';
+import { resolveSrc } from '../lib/r2.js';
 import * as perf from '../lib/perf.js';
 
 const TTL = 60_000;
@@ -71,6 +72,26 @@ async function fetchPreview(boardId) {
       perf.mark('preview.decode.ms', ms);
       if (perf.isEnabled()) console.log('[perf] preview decoded', boardId, ms.toFixed(1) + 'ms', data.cards.length + ' cards');
     }
+    // Pre-warm the R2 presign cache for every image src in this preview.
+    // Without this, each <ThumbImage> in BoardThumbnail mounts and fires
+    // its own resolveSrc() in a separate microtask batch — for Marketing
+    // (10 sub-tiles × 10-20 image cards each) that's 10+ parallel
+    // presign batches hammering the worker. By firing them all in this
+    // synchronous loop, r2.js's microtask batcher coalesces them into
+    // a SINGLE request per board's preview decode. By the time
+    // BoardThumbnail renders, cachedUrl() returns synchronously.
+    try {
+      let warmed = 0;
+      for (const c of data.cards) {
+        if (c?.kind === 'image' && typeof c.src === 'string' && c.src.startsWith('r2:')) {
+          resolveSrc(c.src);
+          warmed++;
+        }
+      }
+      if (warmed && perf.isEnabled()) {
+        console.log('[perf] preview prewarm', boardId, `${warmed} r2 srcs queued`);
+      }
+    } catch (_) { /* placeholder rects will fill in if this fails */ }
     perf.bump('preview.fetch.done');
     return data;
   } catch (e) {
