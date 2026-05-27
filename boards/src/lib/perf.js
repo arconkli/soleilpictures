@@ -549,6 +549,10 @@ function _rafTick(now) {
   requestAnimationFrame(_rafTick);
 }
 
+// Tracks the heap size at last tick so we can compute deltas and detect
+// GC pauses (large drops) and allocation pressure (large growth).
+let _lastHeapUsed = 0;
+
 function _tick() {
   if (!enabled) {
     clearInterval(tickInterval);
@@ -560,6 +564,27 @@ function _tick() {
   lastTickFps = elapsed > 0 ? Math.round(frameCount / elapsed) : 0;
   frameCount = 0;
   frameCountAt = now;
+  // Heap sampling — Chrome-only API but exactly what we need to test the
+  // "long tasks are V8 GC pauses" hypothesis. A consistent saw-tooth
+  // pattern (heap grows ~6 MB/s then drops ~30 MB) synced with the 620 ms
+  // long tasks is GC's signature.
+  if (typeof performance !== 'undefined' && performance.memory) {
+    const used = performance.memory.usedJSHeapSize;
+    const limit = performance.memory.jsHeapSizeLimit;
+    gauge('heap.usedMB', +(used / 1048576).toFixed(1));
+    gauge('heap.limitMB', +(limit / 1048576).toFixed(1));
+    if (_lastHeapUsed) {
+      const deltaMB = (used - _lastHeapUsed) / 1048576;
+      if (deltaMB > 10) {
+        bump('heap.pressureSpikes');
+        console.warn('[perf] heap pressure', `+${deltaMB.toFixed(1)}MB in last tick`, `now=${(used / 1048576).toFixed(1)}MB`);
+      } else if (deltaMB < -5) {
+        bump('heap.gcDetected');
+        console.warn('[perf] likely GC', `-${(-deltaMB).toFixed(1)}MB in last tick`, `now=${(used / 1048576).toFixed(1)}MB`);
+      }
+    }
+    _lastHeapUsed = used;
+  }
   // Per-second deltas
   const deltas = {};
   for (const k of Object.keys(counters)) {
