@@ -4533,6 +4533,43 @@ body {
 .upgrade-chip-sep    { color: var(--ink-3); }
 .upgrade-chip-count  { font-variant-numeric: tabular-nums; }
 
+/* ── Read-only banner (demo tier viewing someone else's board) ───────── */
+.readonly-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--ink-1);
+  font: 500 12px/1.2 var(--font-sans);
+  box-shadow: 0 6px 16px rgba(0,0,0,.18);
+  pointer-events: auto;
+}
+.readonly-banner-text {
+  letter-spacing: .01em;
+}
+.readonly-banner-cta {
+  padding: 4px 10px;
+  background: var(--soleil);
+  color: var(--bg-0);
+  border: 1px solid var(--soleil);
+  border-radius: 999px;
+  font: 600 12px/1 var(--font-sans);
+  letter-spacing: .04em;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.readonly-banner-cta:hover {
+  box-shadow: var(--soleil-glow);
+}
+
 .upgrade-backdrop {
   position: fixed;
   inset: 0;
@@ -14523,11 +14560,40 @@ button, [role="button"], a {
      alone communicates it, matching the surrounding icon buttons. */
   .topbar .tb-btn { padding-left: 8px; padding-right: 8px; gap: 0; }
 
-  /* The "Demo · N days left → Upgrade" floating chip is position:fixed
-     with a near-INT_MAX z-index, so on phone it sits on top of the
-     topbar icons AND on top of the slide-out sidebar drawer. Hide on
-     phone — upgrade is still reachable via Settings → Billing. */
-  .upgrade-chip { display: none; }
+  /* The "Demo · N days left → Upgrade" floating chip on desktop sits
+     top-right with z-index near INT_MAX, which on phone overlapped
+     the slimmed topbar and floated above the slide-out drawer. Keep
+     it visible (it's the most discoverable upgrade entry) but
+     reposition below the topbar at the right edge and drop the
+     z-index well below the sidebar drawer (1100) and modals so it
+     gets covered correctly when those open. */
+  .upgrade-chip {
+    top: calc(48px + var(--safe-top, env(safe-area-inset-top)) + 8px);
+    right: 8px;
+    z-index: 90;
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  /* Billing tab buttons (Upgrade / Manage billing) sit in a flex row
+     with a 1fr spacer on desktop, which shrinks the button to ~80px
+     on a 375px phone. Stack the row vertically and let the action
+     button span the full pane width for a comfortable tap target. */
+  .settings-row-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .settings-row-actions > span { display: none; }
+  .settings-btn,
+  .settings-btn-primary {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 14px;
+    justify-content: center;
+  }
 
   /* ── Settings panel: fit the viewport ─────────────────────────────
      Desktop renders a 720px dialog with a 160px left tab rail and

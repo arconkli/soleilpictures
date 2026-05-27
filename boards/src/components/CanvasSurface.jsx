@@ -3696,9 +3696,19 @@ export function CanvasSurface({
     // lasso-select. Tapping a card still selects it (cards have their own
     // handlers); long-press still opens the background context menu.
     // Pen / stylus keeps the desktop lasso behavior so Apple Pencil users
-    // can still marquee-select. Two-finger pan + pinch-zoom remain on the
-    // useGesture handler regardless.
-    if (e.pointerType === 'touch') { startPan(e); return; }
+    // can still marquee-select.
+    //
+    // Only start pan for the PRIMARY pointer (first finger). When the
+    // user adds a second finger for pinch-zoom, that pointerdown also
+    // reaches this handler — if we called startPan(e) again, its
+    // e.preventDefault() would block useGesture from recognising the
+    // second touch and pinch would silently fail. isPrimary is true
+    // only for the first active touch in a sequence; subsequent fingers
+    // bail and useGesture's pinch / two-finger pan handler takes over.
+    if (e.pointerType === 'touch') {
+      if (e.isPrimary) startPan(e);
+      return;
+    }
 
     // Select tool: marquee
     const startClient = { x: e.clientX, y: e.clientY };
