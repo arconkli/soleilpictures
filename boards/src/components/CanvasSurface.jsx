@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
+import * as perf from '../lib/perf.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard,
@@ -200,6 +201,7 @@ export function CanvasSurface({
                            // tool options so a workspace's shape stroke/fill
                            // settings actually shape what gets drawn.
 }) {
+  perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
 
   // Force one syncCardIndex run when the board opens. card_index
@@ -252,6 +254,7 @@ export function CanvasSurface({
     if (visibleRafRef.current) return;
     visibleRafRef.current = requestAnimationFrame(() => {
       visibleRafRef.current = 0;
+      const _t0 = perf.isEnabled() ? performance.now() : 0;
       const z = zoomRef.current;
       const px = panRef.current.x;
       const py = panRef.current.y;
@@ -281,6 +284,8 @@ export function CanvasSurface({
         }
         return next;
       });
+      perf.bump('cull.runs');
+      if (_t0) perf.mark('cull.ms', performance.now() - _t0);
     });
   }, []);
   useLayoutEffect(() => {
@@ -849,6 +854,8 @@ export function CanvasSurface({
   // sorted array, and re-fire a recompute whenever the set of cards changes
   // (add/remove/edit may shift card positions).
   sortedCardsRef.current = sortedCards;
+  perf.gauge('cards.total', sortedCards.length);
+  perf.gauge('cards.visible', visibleIds ? visibleIds.size : sortedCards.length);
   useEffect(() => { scheduleVisibleRecompute(); }, [sortedCards, scheduleVisibleRecompute]);
 
   // cardById has STABLE object identity across snapshots — we mutate the
@@ -1144,7 +1151,13 @@ export function CanvasSurface({
   // computation — cardById has stable identity now and won't trigger by
   // itself.
   const arrowAttachments = useMemo(
-    () => computeArrowAttachments(arrows || [], arrowCtx),
+    () => {
+      const _t0 = perf.isEnabled() ? performance.now() : 0;
+      const out = computeArrowAttachments(arrows || [], arrowCtx);
+      perf.bump('arrows.runs');
+      if (_t0) perf.mark('arrows.ms', performance.now() - _t0);
+      return out;
+    },
     [arrows, arrowCtx, cards]
   );
 
@@ -1383,6 +1396,7 @@ export function CanvasSurface({
     const onWheel = (e) => {
       if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob')) return;
       e.preventDefault();
+      perf.bump('wheel.events');
       const rect = el.getBoundingClientRect();
       const curPan = panRef.current;
       const curZoom = zoomRef.current;
@@ -2354,6 +2368,8 @@ export function CanvasSurface({
       const ev = pendingMoveEv;
       pendingMoveEv = null;
       if (!ev) return;
+      perf.bump('drag.flush');
+      const _t0 = perf.isEnabled() ? performance.now() : 0;
       const rawDx = (ev.clientX - startClient.x) / zoom;
       const rawDy = (ev.clientY - startClient.y) / zoom;
       // Hold Alt/Option to bypass snap.
@@ -2398,6 +2414,7 @@ export function CanvasSurface({
         }).filter(Boolean),
       };
       if (!liveDragRafId) liveDragRafId = requestAnimationFrame(flushLiveDrag);
+      if (_t0) perf.mark('drag.flush.ms', performance.now() - _t0);
     };
     const onMove = (ev) => {
       pendingMoveEv = ev;
@@ -4277,6 +4294,7 @@ export function CanvasSurface({
   // doesn't allocate a Set per render of the canvas.
   const marqueePreviewIds = useMemo(() => {
     if (!marquee) return null;
+    const _t0 = perf.isEnabled() ? performance.now() : 0;
     const minX = Math.min(marquee.x0, marquee.x1);
     const maxX = Math.max(marquee.x0, marquee.x1);
     const minY = Math.min(marquee.y0, marquee.y1);
@@ -4286,6 +4304,7 @@ export function CanvasSurface({
     for (const c of (cards || [])) {
       if (c.x < maxX && c.x + c.w > minX && c.y < maxY && c.y + c.h > minY) out.add(c.id);
     }
+    if (_t0) perf.mark('marquee.ms', performance.now() - _t0);
     return out;
   }, [marquee, cards]);
 

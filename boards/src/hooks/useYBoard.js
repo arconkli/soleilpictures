@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { loadYBoard } from '../lib/yboard.js';
 import { readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.js';
 import { watchBoardRestores } from '../lib/restoreSignal.js';
+import * as perf from '../lib/perf.js';
 
 // Fires whenever bulletproofRestore completes for a board. Listeners
 // (useYBoard instances bound to that board) destroy their current
@@ -97,9 +98,14 @@ export function useYBoard(boardId, userId, user = null) {
 
     const refresh = () => {
       if (unmounted) return;
+      perf.bump('yboard.refresh');
+      const _t0 = perf.isEnabled() ? performance.now() : 0;
+      const _trc = perf.isEnabled() ? performance.now() : 0;
+      const nextCards = readCards(handle.ydoc);
+      if (_trc) perf.mark('yboard.readCards.ms', performance.now() - _trc);
       setSnapshot({
         ready: true,
-        cards: readCards(handle.ydoc),
+        cards: nextCards,
         arrows: readArrows(handle.ydoc),
         strokes: readStrokes(handle.ydoc),
         groups: readGroups(handle.ydoc),
@@ -111,6 +117,7 @@ export function useYBoard(boardId, userId, user = null) {
         sessionId: handle.sessionId || null,
         getAwareness: handle.getAwareness,
       });
+      if (_t0) perf.mark('yboard.refresh.ms', performance.now() - _t0);
     };
 
     const scheduleRefresh = () => {
@@ -122,7 +129,7 @@ export function useYBoard(boardId, userId, user = null) {
       });
     };
 
-    const onUpdate = () => scheduleRefresh();
+    const onUpdate = () => { perf.bump('yboard.update'); scheduleRefresh(); };
     handle.ydoc.on('update', onUpdate);
     handle.undoManager.on('stack-item-added', scheduleRefresh);
     handle.undoManager.on('stack-item-popped', scheduleRefresh);

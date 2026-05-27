@@ -7,6 +7,7 @@ import * as Y from 'yjs';
 import { loadBoardSnapshot } from '../lib/boardsApi.js';
 import { b64ToBytes, readCards } from '../lib/yhelpers.js';
 import { readDocSummary } from '../lib/docState.js';
+import * as perf from '../lib/perf.js';
 
 const TTL = 60_000;
 const cache = new Map(); // boardId -> { data, expiresAt, promise, listeners }
@@ -28,21 +29,30 @@ const _waiters = [];
 function _acquireSlot() {
   if (_inflight < PREVIEW_CONCURRENCY) {
     _inflight++;
+    perf.gauge('preview.inflight', _inflight);
     return Promise.resolve();
   }
+  perf.gauge('preview.queued', _waiters.length + 1);
   return new Promise((resolve) => { _waiters.push(resolve); });
 }
 function _releaseSlot() {
   const next = _waiters.shift();
   if (next) next();
   else _inflight--;
+  perf.gauge('preview.inflight', _inflight);
+  perf.gauge('preview.queued', _waiters.length);
 }
 
 async function fetchPreview(boardId) {
+  perf.bump('preview.fetch.start');
+  if (perf.isEnabled()) console.log('[perf] preview fetch start', boardId);
   await _acquireSlot();
   try {
+    const _tNet0 = perf.isEnabled() ? performance.now() : 0;
     const b64 = await loadBoardSnapshot(boardId);
+    if (_tNet0) perf.mark('preview.net.ms', performance.now() - _tNet0);
     if (!b64) return { cards: [], arrows: [], strokes: [], docPages: [], docText: '' };
+    const _tDec0 = perf.isEnabled() ? performance.now() : 0;
     const ydoc = new Y.Doc();
     Y.applyUpdate(ydoc, b64ToBytes(b64));
     // Doc-mode summary (cheap if there are no doc pages — bails immediately).
@@ -56,6 +66,12 @@ async function fetchPreview(boardId) {
       docFirstPageName: docSummary.firstPageName,
     };
     ydoc.destroy();
+    if (_tDec0) {
+      const ms = performance.now() - _tDec0;
+      perf.mark('preview.decode.ms', ms);
+      if (perf.isEnabled()) console.log('[perf] preview decoded', boardId, ms.toFixed(1) + 'ms', data.cards.length + ' cards');
+    }
+    perf.bump('preview.fetch.done');
     return data;
   } catch (e) {
     console.warn('useBoardPreview fetch failed', e);
