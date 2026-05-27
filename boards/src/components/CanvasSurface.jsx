@@ -237,7 +237,14 @@ export function CanvasSurface({
   const applyCanvasTransform = () => {
     const el = canvasRef.current;
     if (!el) return;
-    el.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
+    // translateZ(0) hint at the end keeps the GPU layer promoted across
+    // transform changes. Round 9's CSS `will-change: transform` can be
+    // silently ignored by Chrome when the resulting layer would exceed
+    // the max raster size — translateZ(0) is the legacy promotion hint
+    // that survives that fallback. We include it on every transform
+    // update because the CSS-side declaration would otherwise be
+    // overwritten by this imperative assignment.
+    el.style.transform = `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${zoomRef.current})`;
   };
   // ── Viewport culling state (D1) ──────────────────────────────────────────
   // visibleIds = Set of card ids currently within (viewport + 1-screen margin).

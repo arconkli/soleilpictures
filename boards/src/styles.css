@@ -256,8 +256,8 @@ body {
 
 .surface-frosted {
   background: rgba(20, 18, 15, 0.72);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3);
@@ -1131,8 +1131,8 @@ body {
   border: 1px solid rgba(255,255,255,.08);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
   padding: 4px;
   min-width: 140px;
   display: flex; flex-direction: column;
@@ -1172,8 +1172,8 @@ body {
   border: 1px solid rgba(255,255,255,.08);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   display: flex; flex-direction: column;
   padding: 14px;
 }
@@ -2558,13 +2558,22 @@ body {
   position: absolute; inset: 0;
   width: 1500px; height: 1100px;
   transform-origin: 40px 30px;
-  /* Hint to the compositor that pan/zoom changes the transform — keep
-     the rasterized layer cached across transforms instead of re-rastering
-     every tile on every wheel tick. Without this, every transform change
-     forced Chrome to re-decode and re-raster every image inside (the
-     Performance trace showed 5 PNGs decoded 17-18 times each, ~7.5s of
-     decode work in a 9s session). */
+  /* Compositor hints — round 10 stack:
+     - will-change: transform — primary promotion hint. Chrome MAY ignore
+       this when the resulting layer would exceed the max raster size
+       (typically 4096×4096), so we belt-and-suspenders below.
+     - The applyCanvasTransform() in CanvasSurface.jsx writes the live
+       transform as `translate3d(x, y, 0) scale(z)` instead of plain
+       translate — the explicit Z keeps the layer GPU-promoted across
+       runs even when will-change is dropped.
+     - contain: layout style paint — bounds layer invalidations to inside
+       this element. Pan/zoom changes inside .canvas can't force a
+       re-layout / restyle / repaint of .canvas-wrap or the topbar.
+     - isolation: isolate — new stacking context so descendants don't
+       contribute to ancestor compositing decisions. */
   will-change: transform;
+  contain: layout style paint;
+  isolation: isolate;
 }
 
 .cards-layer { position: absolute; inset: 0; }
@@ -2904,8 +2913,8 @@ body {
 .picker {
   width: 520px;
   background: rgba(16,16,20,.78);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3);
@@ -3152,8 +3161,8 @@ body {
   background: rgba(20,20,24,.94);
   color: var(--ink-0);
   border: 1px solid rgba(255,255,255,.08);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
   display: flex; flex-direction: column;
@@ -3257,8 +3266,8 @@ body {
   max-height: calc(100% - 32px);
   display: flex; flex-direction: column;
   background: rgba(16,16,20,.85);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-2);
@@ -3983,8 +3992,8 @@ body {
 
 .tweaks-panel {
   background: rgba(16,16,20,.85) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06) !important;
   color: var(--ink-1) !important;
   font-family: var(--font-sans) !important;
@@ -5692,8 +5701,8 @@ body {
   max-height: calc(100vh - 16px);
   overflow: visible;
   background: rgba(16,16,20,.78);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
@@ -5866,8 +5875,8 @@ body {
   width: 560px;
   max-height: calc(100vh - 24vh);
   background-color: rgba(16,16,20,.78);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3);
@@ -6461,8 +6470,8 @@ body {
   transform: translateX(-50%);
   display: flex; align-items: center; gap: 4px;
   background: rgba(16,16,20,.78);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-md);
   padding: 6px 10px;
@@ -6713,8 +6722,8 @@ html, body { overscroll-behavior: none; }
   max-height: calc(100vh - 20px);
   overflow: auto;
   background: rgba(16,16,20,.78);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-md);
   padding: 12px;
@@ -7278,8 +7287,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background: rgba(20,20,24,.92);
   border: 1px solid rgba(255,255,255,.08);
   border-radius: var(--radius-md);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   box-shadow: var(--shadow-3);
   padding: 8px;
   display: flex; flex-direction: column;
@@ -7621,8 +7630,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-radius: var(--radius-md);
   padding: 8px 10px;
   cursor: pointer;
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
   box-shadow: 0 6px 14px rgba(0,0,0,.28);
   transition: transform var(--dur-fast) var(--ease),
               box-shadow var(--dur-fast) var(--ease),
@@ -7734,8 +7743,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background: rgba(20,20,24,.94);
   color: var(--ink-0);
   border: 1px solid rgba(255,255,255,.08);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 24px rgba(0,0,0,.34);
   font-family: var(--font-sans);
@@ -7905,8 +7914,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background: rgba(20,20,24,.92);
   border: 1px solid rgba(255,255,255,.08);
   border-radius: var(--radius-md);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
   box-shadow: var(--shadow-3);
   padding: 8px;
   max-height: 360px;
@@ -8007,8 +8016,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-1);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-lg);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   box-shadow: var(--shadow-3);
   padding: 18px;
   animation: modalRise var(--dur-slow) var(--ease);
@@ -8141,8 +8150,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-1);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-lg);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   box-shadow: var(--shadow-3);
   padding: 18px;
   animation: modalRise var(--dur-slow) var(--ease);
@@ -8882,8 +8891,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   position: absolute; top: calc(100% + 6px); left: 0;
   z-index: 5;
   background: rgba(16,16,20,.85);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-md);
   padding: 8px;
@@ -9637,8 +9646,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-slash {
   width: 280px; max-height: 320px; overflow-y: auto;
   background: rgba(16,16,20,.78);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
@@ -9671,8 +9680,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: flex; align-items: center; gap: 4px;
   padding: 6px 8px;
   background: rgba(16,16,20,.85);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
@@ -9999,8 +10008,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   z-index: 10;
   min-width: 200px;
   background: rgba(16,16,20,.78);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
@@ -10114,8 +10123,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   width: 580px; max-width: 100%;
   max-height: 70vh;
   background: rgba(16,16,20,.78);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3);
@@ -10516,8 +10525,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   width: 540px; max-width: 100%;
   max-height: 80vh;
   background: rgba(16,16,20,.78);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3);
@@ -10909,8 +10918,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   width: 320px;
   z-index: 30;
   background: rgba(16,16,20,.85);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
@@ -12627,8 +12636,8 @@ button.msg-panel-name:hover { color: var(--soleil); }
   color: var(--ink-1);
   border: 1px solid rgba(255,255,255,.06);
   border-radius: var(--radius-lg);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
   box-shadow: var(--shadow-3);
   animation: modalRise var(--dur-slow) var(--ease);
   display: flex; flex-direction: column;
