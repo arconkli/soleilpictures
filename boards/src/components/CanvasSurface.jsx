@@ -3646,6 +3646,14 @@ export function CanvasSurface({
       return;
     }
 
+    // On touch (finger), one-finger drag on empty canvas should pan, not
+    // lasso-select. Tapping a card still selects it (cards have their own
+    // handlers); long-press still opens the background context menu.
+    // Pen / stylus keeps the desktop lasso behavior so Apple Pencil users
+    // can still marquee-select. Two-finger pan + pinch-zoom remain on the
+    // useGesture handler regardless.
+    if (e.pointerType === 'touch') { startPan(e); return; }
+
     // Select tool: marquee
     const startClient = { x: e.clientX, y: e.clientY };
     const startCanvas = clientToCanvas(e.clientX, e.clientY);

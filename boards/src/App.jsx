@@ -2464,7 +2464,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!yb.canRedo} onClick={() => mainMutators.redo?.()}>
               <Icon as={Redo} size={16} />
             </button>
-            <button className="tb-icon" title="History — time travel, comments, trash" onClick={() => setHistoryOpen(true)}>
+            <button className="tb-icon tb-icon-history" title="History — time travel, comments, trash" onClick={() => setHistoryOpen(true)}>
               <Icon as={History} size={16} />
             </button>
             <FeedbackButton as="icon" />
@@ -2476,7 +2476,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             {!canEditCurrent && (
               <span className="tb-viewonly" title="You have view-only access to this board">VIEW ONLY</span>
             )}
-            <button className="tb-icon"
+            <button className="tb-icon tb-icon-link"
                     onClick={() => setBacklinksRef({ kind: 'board', id: currentBoard.id })}
                     title="Linked from — every doc, message, and card that mentions this board">
               <Icon as={LinkIcon} size={16} />
@@ -2484,11 +2484,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this board">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
             </button>
-            <button className="tb-icon" title="Toggle theme"
+            <button className="tb-icon tb-icon-theme" title="Toggle theme"
                     onClick={() => setTweak('theme', tweak.theme === 'dark' ? 'light' : 'dark')}>
               <Icon as={tweak.theme === 'dark' ? Sun : Moon} size={16} />
             </button>
-            <button className="tb-icon"
+            <button className="tb-icon tb-icon-split"
                     onClick={() => splitId ? setSplitId(null) : setSplitPickerOpen(true)}
                     title={splitId ? 'Close split view' : 'Pin alongside…'}>
               <Icon as={Columns2} size={16} />
