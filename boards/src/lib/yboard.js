@@ -18,6 +18,7 @@ import { b64ToBytes, bytesToB64 } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 import { peekBoardSnapshot, prefetchBoard } from './prefetchKinds.js';
 import { invalidate as invalidatePrefetch } from './prefetch.js';
+import * as perf from './perf.js';
 // Feature flag: PartyKit transport vs legacy Supabase Realtime. Set
 // VITE_USE_PARTYKIT=true (and VITE_PARTYKIT_HOST=<deployed-url>) once
 // the party is deployed.
@@ -173,12 +174,33 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
   const ready = (async () => {
     try {
       const localDraft = readLocalDraft(boardId);
-      if (localDraft?.doc) Y.applyUpdate(ydoc, b64ToBytes(localDraft.doc), 'snapshot');
+      if (localDraft?.doc) {
+        const bytes = b64ToBytes(localDraft.doc);
+        const _t0 = perf.isEnabled() ? performance.now() : 0;
+        Y.applyUpdate(ydoc, bytes, 'snapshot');
+        if (_t0) {
+          const ms = performance.now() - _t0;
+          perf.mark('yboard.applyDraft.ms', ms);
+          perf.bump('yboard.applyDraft');
+          if (ms > 100) console.warn('[perf] slow yboard.applyDraft', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`, boardId);
+        }
+      }
       // Consume a hover-warmed snapshot if one is sitting in the
       // prefetch cache; otherwise fall through to the fetcher (which
       // dedupes against any in-flight prefetch from the same hover).
       const b64 = peekBoardSnapshot(boardId) ?? await prefetchBoard(boardId, { lane: 'high' });
-      if (b64) Y.applyUpdate(ydoc, b64ToBytes(b64), 'snapshot');
+      if (b64) {
+        const bytes = b64ToBytes(b64);
+        const _t0 = perf.isEnabled() ? performance.now() : 0;
+        Y.applyUpdate(ydoc, bytes, 'snapshot');
+        if (_t0) {
+          const ms = performance.now() - _t0;
+          perf.mark('yboard.applySnapshot.ms', ms);
+          perf.bump('yboard.applySnapshot');
+          perf.gauge('yboard.lastSnapshotBytes', bytes.length);
+          if (ms > 100) console.warn('[perf] slow yboard.applySnapshot', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`, boardId);
+        }
+      }
     } catch (e) {
       console.error('loadBoardSnapshot failed', e);
     }
@@ -270,5 +292,12 @@ export function restoreVersionInto(ydoc, b64) {
     const docComments = ydoc.getMap('docComments');
     docComments.forEach((_v, k) => docComments.delete(k));
   }, 'restore');
+  const _t0 = perf.isEnabled() ? performance.now() : 0;
   Y.applyUpdate(ydoc, bytes, 'restore');
+  if (_t0) {
+    const ms = performance.now() - _t0;
+    perf.mark('yboard.applyRestore.ms', ms);
+    perf.bump('yboard.applyRestore');
+    if (ms > 100) console.warn('[perf] slow yboard.applyRestore', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`);
+  }
 }

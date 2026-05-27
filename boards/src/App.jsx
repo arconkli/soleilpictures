@@ -3,8 +3,9 @@
 // (parent_board_id). Each board's cards/arrows live in a Y.Doc whose
 // snapshot is persisted to board_state.
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Profiler } from 'react';
 import { pickPresenceColor } from './lib/presenceColor.js';
+import * as perf from './lib/perf.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import * as userProfiles from './lib/userProfiles.js';
@@ -104,7 +105,36 @@ function writeSession(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
 }
 
+// Module-level Profiler callback for the CanvasSurface tree. Cheap when
+// perf is off (perf.bump/mark no-op on a single bool check). Defined
+// outside the component tree so its identity is stable forever.
+function onCanvasRender(id, phase, actualDuration) {
+  perf.bump('cs.render');
+  perf.mark('cs.render.ms', actualDuration);
+  if (perf.isEnabled() && actualDuration > 50) {
+    console.warn('[perf] slow canvas render', { id, phase, ms: +actualDuration.toFixed(1) });
+  }
+}
+
 export function App() {
+  // Perf toggle: ?perf=1 enables (one-shot at mount); Ctrl+Shift+P toggles
+  // at runtime. Sticky via localStorage.perfHud (read inside perf.js). All
+  // diagnostic output goes to the browser console; no UI is rendered.
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('perf') === '1') perf.enable();
+    } catch (_) {}
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+        e.preventDefault();
+        perf.toggle();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const { user, signOut } = useAuth();
   if (isLocalQaMode() || !isSupabaseConfigured) return <LocalBoardsApp user={user} signOut={signOut} />;
 
@@ -2169,27 +2199,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      mutators={muts} />
       );
       return (
-        <CanvasSurface board={board} boards={boards} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
-                       ydoc={yd}
-                       getAwareness={yh.getAwareness}
-                       peersHereByBoard={peersHereByBoard}
-                       peersBelowByBoard={peersBelowByBoard}
-                       wsPeers={wsPeers}
-                       onJumpToPeer={jumpToPeer}
-                       canEdit={isMain ? canEditCurrent : true}
-                       currentUser={currentUser}
-                       onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
-                       onOpenPicker={() => setPickerOpen(true)}
-                       onDropInboxItem={dropInboxItemFor(muts)}
-                       onDropFileImage={dropFileImageFor(muts)}
-                       workspaceId={workspace.id} userId={user.id}
-                       personalWorkspaceId={personalWorkspaceId}
-                       selectedTool={selectedTool} setSelectedTool={setSelectedTool}
-                       mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
-                       autotagSuggest={autotagSuggest}
-                       autotagReady={autotagReady}
-                       sessionId={yh?.sessionId || null}
-                       defaults={defaults} />
+        <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
+          <CanvasSurface board={board} boards={boards} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
+                         ydoc={yd}
+                         getAwareness={yh.getAwareness}
+                         peersHereByBoard={peersHereByBoard}
+                         peersBelowByBoard={peersBelowByBoard}
+                         wsPeers={wsPeers}
+                         onJumpToPeer={jumpToPeer}
+                         canEdit={isMain ? canEditCurrent : true}
+                         currentUser={currentUser}
+                         onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
+                         onOpenPicker={() => setPickerOpen(true)}
+                         onDropInboxItem={dropInboxItemFor(muts)}
+                         onDropFileImage={dropFileImageFor(muts)}
+                         workspaceId={workspace.id} userId={user.id}
+                         personalWorkspaceId={personalWorkspaceId}
+                         selectedTool={selectedTool} setSelectedTool={setSelectedTool}
+                         mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
+                         autotagSuggest={autotagSuggest}
+                         autotagReady={autotagReady}
+                         sessionId={yh?.sessionId || null}
+                         defaults={defaults} />
+        </Profiler>
       );
     })();
     return (

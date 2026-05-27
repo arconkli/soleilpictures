@@ -23,6 +23,7 @@ import * as Y from 'yjs';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
 import { supabase, bounceRealtime } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
+import * as perf from './perf.js';
 
 // 250ms = 4 broadcasts/sec/user. Supabase free-tier realtime enforces
 // a ~10 messages/sec per-tenant limit (verified via realtime logs:
@@ -126,14 +127,34 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     channel.on('broadcast', { event: 'y-sync-step2' }, ({ payload }) => {
       if (!payload || payload.from === CLIENT_ID) return;
       if (payload.to && payload.to !== CLIENT_ID) return;
-      try { Y.applyUpdate(ydoc, b64ToBytes(payload.u), 'remote'); }
+      try {
+        const bytes = b64ToBytes(payload.u);
+        const _t0 = perf.isEnabled() ? performance.now() : 0;
+        Y.applyUpdate(ydoc, bytes, 'remote');
+        if (_t0) {
+          const ms = performance.now() - _t0;
+          perf.mark('yboard.applyRemote.ms', ms);
+          perf.bump('yboard.remoteUpdates');
+          if (ms > 100) console.warn('[perf] slow yboard.applyRemote(sync2)', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`);
+        }
+      }
       catch (e) { console.warn('y-sync-step2 apply failed', e); }
     });
 
     channel.on('broadcast', { event: 'y-update' }, ({ payload }) => {
       if (!payload || payload.from === CLIENT_ID) return;
       lastInbound = Date.now();
-      try { Y.applyUpdate(ydoc, b64ToBytes(payload.u), 'remote'); }
+      try {
+        const bytes = b64ToBytes(payload.u);
+        const _t0 = perf.isEnabled() ? performance.now() : 0;
+        Y.applyUpdate(ydoc, bytes, 'remote');
+        if (_t0) {
+          const ms = performance.now() - _t0;
+          perf.mark('yboard.applyRemote.ms', ms);
+          perf.bump('yboard.remoteUpdates');
+          if (ms > 100) console.warn('[perf] slow yboard.applyRemote(update)', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`);
+        }
+      }
       catch (e) { console.warn('y-update apply failed', e); }
     });
 

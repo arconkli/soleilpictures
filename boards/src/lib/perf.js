@@ -12,15 +12,24 @@
 // any time with `perf.snapshot()` or get a grouped table with `perf.dump()`.
 
 const SAMPLE_CAP = 64;  // rolling samples per mark name
+const LONGTASK_CAP = 32; // rolling buffer of recent long tasks
 
 const counters = Object.create(null);   // name → integer
 const gauges   = Object.create(null);   // name → number
 const samples  = Object.create(null);   // name → { buf: number[], next: int }
 const prevTickCounters = Object.create(null);  // for per-sec delta computation
+const longTasks = [];  // rolling [{ duration, startTime, name, attribution }] cap LONGTASK_CAP
 let lastTickAt = 0;
 let lastTickFps = 0;
+// Slow-frame dedupe: identical (rounded-to-50ms) gaps fire repeatedly during
+// a sustained hitch. Suppress repeats within 1s and surface as a counter
+// so the console doesn't drown.
+let lastSlowFrameBucket = 0;
+let lastSlowFrameAt = 0;
+let suppressedSlowFrames = 0;
 
 let enabled = false;
+let verbose = false;
 
 function _localStorageGet(key) {
   try { return localStorage.getItem(key); } catch (_) { return null; }
@@ -35,7 +44,7 @@ export function enable() {
   if (enabled) return;
   enabled = true;
   _localStorageSet('perfHud', '1');
-  console.log('[perf] enabled — `perf.snapshot()` / `perf.dump()` / `perf.disable()` available on window.perf');
+  console.log('[perf] enabled — `perf.snapshot()` / `perf.dump()` / `perf.disable()` / `perf.verbose(true)` available on window.perf');
   _startLoops();
 }
 
@@ -43,12 +52,22 @@ export function disable() {
   if (!enabled) return;
   enabled = false;
   _localStorageSet('perfHud', '0');
+  _stopLongTaskObserver();
   console.log('[perf] disabled');
 }
 
 export function toggle() {
   if (enabled) disable(); else enable();
   return enabled;
+}
+
+// When verbose is on, the per-second tick line also includes gauges + mark
+// p95/max even when no per-second deltas occurred. Useful for capturing
+// an at-the-moment snapshot without running perf.dump().
+export function setVerbose(on = true) {
+  verbose = !!on;
+  console.log('[perf] verbose', verbose);
+  return verbose;
 }
 
 export function bump(name, n = 1) {
@@ -103,12 +122,21 @@ function _markStats(s) {
 export function snapshot() {
   const markStats = {};
   for (const k of Object.keys(samples)) markStats[k] = _markStats(samples[k]);
+  // Top long tasks, sorted by duration desc, truncated to 10.
+  const topLongTasks = longTasks
+    .slice()
+    .sort((a, b) => b.duration - a.duration)
+    .slice(0, 10)
+    .map(t => ({ dur: +t.duration.toFixed(0), start: +t.startTime.toFixed(0), name: t.name, container: t.attribution }));
   return {
     enabled,
+    verbose,
     fps: lastTickFps,
+    suppressedSlowFrames,
     counters: { ...counters },
     gauges: { ...gauges },
     marks: markStats,
+    longTasks: topLongTasks,
   };
 }
 
@@ -131,6 +159,14 @@ export function dump() {
     console.table(snap.marks);
     console.groupEnd();
   }
+  if (snap.longTasks.length) {
+    console.group('top long tasks (sorted by duration)');
+    console.table(snap.longTasks);
+    console.groupEnd();
+  }
+  if (snap.suppressedSlowFrames) {
+    console.log('suppressed slow-frame duplicates:', snap.suppressedSlowFrames);
+  }
   console.groupEnd();
   return snap;
 }
@@ -140,6 +176,10 @@ export function reset() {
   for (const k of Object.keys(gauges)) delete gauges[k];
   for (const k of Object.keys(samples)) delete samples[k];
   for (const k of Object.keys(prevTickCounters)) delete prevTickCounters[k];
+  longTasks.length = 0;
+  suppressedSlowFrames = 0;
+  lastSlowFrameBucket = 0;
+  lastSlowFrameAt = 0;
   console.log('[perf] reset');
 }
 
@@ -149,6 +189,7 @@ let rafLoopRunning = false;
 let lastFrameAt = 0;
 let frameCount = 0;
 let frameCountAt = 0;
+let longTaskObserver = null;
 
 function _startLoops() {
   if (!tickInterval) {
@@ -162,6 +203,55 @@ function _startLoops() {
     frameCount = 0;
     requestAnimationFrame(_rafTick);
   }
+  _startLongTaskObserver();
+}
+
+// Browser-level long-task observer: fires for any uninterrupted main-thread
+// task >50ms. This is the silver bullet for finding where freezes come
+// from — the entry includes duration + attribution (container script URL
+// when available). Logged immediately + retained in the longTasks ring for
+// later inspection via perf.dump().
+function _startLongTaskObserver() {
+  if (longTaskObserver) return;
+  if (typeof PerformanceObserver === 'undefined') {
+    console.log('[perf] PerformanceObserver unavailable in this runtime');
+    return;
+  }
+  try {
+    longTaskObserver = new PerformanceObserver((list) => {
+      if (!enabled) return;
+      for (const entry of list.getEntries()) {
+        const attribution = entry.attribution && entry.attribution[0]
+          ? (entry.attribution[0].containerType || entry.attribution[0].name || 'unknown')
+          : null;
+        longTasks.push({
+          duration: entry.duration,
+          startTime: entry.startTime,
+          name: entry.name || 'self',
+          attribution,
+        });
+        if (longTasks.length > LONGTASK_CAP) longTasks.shift();
+        // Always log — the user explicitly enabled perf to find these.
+        console.warn(
+          '[perf] longtask',
+          `dur=${entry.duration.toFixed(0)}ms`,
+          `start=${entry.startTime.toFixed(0)}`,
+          `name=${entry.name || 'self'}`,
+          attribution ? `attribution=${attribution}` : null,
+        );
+      }
+    });
+    longTaskObserver.observe({ entryTypes: ['longtask'] });
+  } catch (e) {
+    console.log('[perf] longtask observer failed to start', e);
+    longTaskObserver = null;
+  }
+}
+
+function _stopLongTaskObserver() {
+  if (!longTaskObserver) return;
+  try { longTaskObserver.disconnect(); } catch (_) {}
+  longTaskObserver = null;
 }
 
 function _rafTick(now) {
@@ -169,20 +259,30 @@ function _rafTick(now) {
   const gap = now - lastFrameAt;
   lastFrameAt = now;
   frameCount++;
-  // Slow-frame: any inter-frame gap > 50ms (i.e. < 20fps for one frame)
+  // Slow-frame: any inter-frame gap > 50ms (i.e. < 20fps for one frame).
+  // Dedupe consecutive identical-bucket gaps within 1s — sustained hitches
+  // otherwise spam the console with the same line dozens of times.
   if (gap > 50) {
-    const visible = gauges['cards.visible'];
-    const total = gauges['cards.total'];
-    const lastCsArr = samples['cs.render.ms'];
-    const lastCs = lastCsArr && lastCsArr.count ? lastCsArr.buf[(lastCsArr.next - 1 + SAMPLE_CAP) % SAMPLE_CAP] : null;
-    console.warn(
-      '[perf] slow frame',
-      `gap=${gap.toFixed(0)}ms`,
-      `fps=${lastTickFps}`,
-      lastCs != null ? `lastCsMs=${lastCs.toFixed(1)}` : null,
-      gauges['preview.inflight'] != null ? `inflight=${gauges['preview.inflight']}` : null,
-      visible != null ? `visible=${visible}/${total}` : null,
-    );
+    const bucket = Math.round(gap / 50) * 50;
+    if (bucket === lastSlowFrameBucket && (now - lastSlowFrameAt) < 1000) {
+      suppressedSlowFrames++;
+    } else {
+      lastSlowFrameBucket = bucket;
+      lastSlowFrameAt = now;
+      const visible = gauges['cards.visible'];
+      const total = gauges['cards.total'];
+      const lastCsArr = samples['cs.render.ms'];
+      const lastCs = lastCsArr && lastCsArr.count ? lastCsArr.buf[(lastCsArr.next - 1 + SAMPLE_CAP) % SAMPLE_CAP] : null;
+      console.warn(
+        '[perf] slow frame',
+        `gap=${gap.toFixed(0)}ms`,
+        `fps=${lastTickFps}`,
+        lastCs != null ? `lastCsMs=${lastCs.toFixed(1)}` : 'lastCsMs=?',
+        `inflight=${gauges['preview.inflight'] ?? 0}`,
+        visible != null ? `visible=${visible}/${total}` : 'visible=?',
+        suppressedSlowFrames ? `(suppressed=${suppressedSlowFrames})` : null,
+      );
+    }
   }
   requestAnimationFrame(_rafTick);
 }
@@ -206,16 +306,27 @@ function _tick() {
     if (cur !== prev) deltas[k + '/s'] = cur - prev;
     prevTickCounters[k] = cur;
   }
-  // Compact single-line tick. Suppress when totally idle.
+  // Compact single-line tick. Suppress when totally idle UNLESS verbose.
   const hasActivity = Object.keys(deltas).length > 0;
-  if (hasActivity) {
-    console.log(
+  if (hasActivity || verbose) {
+    const base = [
       '[perf] tick',
       `fps=${lastTickFps}`,
       `visible=${gauges['cards.visible'] ?? '?'}/${gauges['cards.total'] ?? '?'}`,
       `inflight=${gauges['preview.inflight'] ?? 0}`,
       deltas,
-    );
+    ];
+    if (verbose) {
+      // Include p95/max for every active mark so the user can see current
+      // hot paths at a glance without running perf.dump().
+      const marksTopline = {};
+      for (const k of Object.keys(samples)) {
+        const s = _markStats(samples[k]);
+        if (s) marksTopline[k] = `${s.p95}/${s.max}`;
+      }
+      base.push('marks(p95/max):', marksTopline);
+    }
+    console.log(...base);
   }
   lastTickAt = now;
 }
@@ -227,5 +338,5 @@ if (typeof window !== 'undefined') {
     _startLoops();
     console.log('[perf] auto-enabled from localStorage.perfHud');
   }
-  window.perf = { snapshot, dump, reset, enable, disable, toggle, isEnabled, bump, mark, gauge };
+  window.perf = { snapshot, dump, reset, enable, disable, toggle, isEnabled, bump, mark, gauge, verbose: setVerbose };
 }

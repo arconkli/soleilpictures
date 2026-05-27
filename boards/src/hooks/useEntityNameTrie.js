@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState, useContext, createContext } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { createNameIndex } from '../lib/entityNameTrie.js';
+import * as perf from '../lib/perf.js';
 
 // Context lets any surface read the workspace-scoped trie without
 // prop-drilling. App.jsx publishes it once; renderMessageBody, note
@@ -32,6 +33,7 @@ const MIN_LEN = 4;
 // Build a fresh trie from rows. Skips short / stop-word names so the
 // index doesn't try to match every "the" in a doc.
 function buildTrie(rows, aliases, ignored) {
+  const _t0 = perf.isEnabled() ? performance.now() : 0;
   const trie = createNameIndex();
   const ignoredSet = new Set((ignored || []).map(s => s.toLowerCase()));
   const seen = new Set();
@@ -45,6 +47,14 @@ function buildTrie(rows, aliases, ignored) {
                                       || (r.kind === 'board' && a.entity_kind === 'board' && r.board_id === a.entity_id));
     if (!owner) continue;
     addToTrie(trie, owner, a.alias, ignoredSet, seen);
+  }
+  if (_t0) {
+    const ms = performance.now() - _t0;
+    perf.mark('entityTrie.build.ms', ms);
+    perf.bump('entityTrie.runs');
+    perf.gauge('entityTrie.lastRows', (rows || []).length);
+    perf.gauge('entityTrie.lastAliases', (aliases || []).length);
+    if (ms > 50) console.warn('[perf] slow entityTrie.build', `${ms.toFixed(0)}ms`, `rows=${(rows||[]).length}`, `aliases=${(aliases||[]).length}`);
   }
   return trie;
 }

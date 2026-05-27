@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
 import AutotagWorker from '../lib/autotagWorker.js?worker';
+import * as perf from '../lib/perf.js';
 
 function targetKey(kind, id) {
   return `${kind}:${id}`;
@@ -114,6 +115,7 @@ export function useAutotagWorker(workspaceId) {
       }
       for (const b of (bResp.data || [])) boardText.set(b.id, b.name || '');
       // Build the corpus passed to the worker.
+      const _t0 = perf.isEnabled() ? performance.now() : 0;
       const corpus = [];
       for (const r of (linksResp.data || [])) {
         let text = '';
@@ -132,6 +134,13 @@ export function useAutotagWorker(workspaceId) {
         const k = targetKey(r.target_kind, r.target_id);
         if (!ignored[k]) ignored[k] = [];
         ignored[k].push(r.tag_id);
+      }
+      if (_t0) {
+        const ms = performance.now() - _t0;
+        perf.mark('autotag.corpus.ms', ms);
+        perf.bump('autotag.runs');
+        perf.gauge('autotag.corpusSize', corpus.length);
+        if (ms > 50) console.warn('[perf] slow autotag.corpus', `${ms.toFixed(0)}ms`, `${corpus.length} items`);
       }
       if (cancelled) return;
       w.postMessage({

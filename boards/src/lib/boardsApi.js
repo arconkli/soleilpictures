@@ -4,6 +4,7 @@
 import * as Y from 'yjs';
 import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
+import * as perf from './perf.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -604,6 +605,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
   // hadn't completed (or wrote its src after the throttled sync ran).
   // We patch their meta.src from the `images` table after the walk.
   const imageCardsNeedingSrc = [];
+  const _t0 = perf.isEnabled() ? performance.now() : 0;
   cardsMap.forEach((v, id) => {
     if (!v) return;
     const get = (k) => v?.get?.(k) ?? v?.[k];
@@ -634,6 +636,13 @@ async function _doSyncCardIndex(boardId, ydoc) {
     });
     liveIds.add(id);
   });
+  if (_t0) {
+    const ms = performance.now() - _t0;
+    perf.mark('syncCardIndex.iterate.ms', ms);
+    perf.bump('syncCardIndex.runs');
+    perf.gauge('syncCardIndex.lastCount', rows.length);
+    if (ms > 100) console.warn('[perf] slow syncCardIndex.iterate', `${ms.toFixed(0)}ms`, `${rows.length} cards`);
+  }
 
   // Recovery: for image cards with no Y.Doc src, look up the images
   // table by (board_id, card_id) and graft storage_path → meta.src.
