@@ -2558,22 +2558,18 @@ body {
   position: absolute; inset: 0;
   width: 1500px; height: 1100px;
   transform-origin: 40px 30px;
-  /* Compositor hints — round 10 stack:
-     - will-change: transform — primary promotion hint. Chrome MAY ignore
-       this when the resulting layer would exceed the max raster size
-       (typically 4096×4096), so we belt-and-suspenders below.
-     - The applyCanvasTransform() in CanvasSurface.jsx writes the live
-       transform as `translate3d(x, y, 0) scale(z)` instead of plain
-       translate — the explicit Z keeps the layer GPU-promoted across
-       runs even when will-change is dropped.
-     - contain: layout style paint — bounds layer invalidations to inside
-       this element. Pan/zoom changes inside .canvas can't force a
-       re-layout / restyle / repaint of .canvas-wrap or the topbar.
-     - isolation: isolate — new stacking context so descendants don't
-       contribute to ancestor compositing decisions. */
+  /* Compositor hints:
+     - will-change: transform — primary GPU-promotion hint. Chrome may
+       silently ignore this when the resulting layer would exceed the
+       max raster size; applyCanvasTransform() writes translate3d(x,y,0)
+       on every transform update as a belt-and-suspenders fallback.
+     - contain: layout style — bounds layout / restyle invalidations to
+       inside this element. (Dropped `paint` because clipping the box
+       would hide card context menus / popovers / hover cards that
+       extend past the canvas — root-cause of the round-10 board-load
+       weirdness.) */
   will-change: transform;
-  contain: layout style paint;
-  isolation: isolate;
+  contain: layout style;
 }
 
 .cards-layer { position: absolute; inset: 0; }
