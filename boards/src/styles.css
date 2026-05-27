@@ -4258,6 +4258,37 @@ body {
 }
 .welcome-foot-sep { color: var(--line-3); }
 
+/* Payment success — checkmark medallion + inline activation spinner. */
+.payment-check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--soleil) 18%, transparent);
+  color: var(--soleil);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--soleil) 36%, transparent),
+              0 0 32px color-mix(in srgb, var(--soleil) 22%, transparent);
+  animation: payment-check-pop 360ms cubic-bezier(0.18, 1.2, 0.4, 1);
+}
+@keyframes payment-check-pop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.payment-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--ink-2) 30%, transparent);
+  border-top-color: var(--soleil);
+  animation: payment-spinner-rot 720ms linear infinite;
+}
+@keyframes payment-spinner-rot {
+  to { transform: rotate(360deg); }
+}
+
 /* Waitlist form (links list). */
 .waitlist-form {
   width: 100%;
@@ -4587,6 +4618,21 @@ body {
   font-weight: 600;
   word-break: break-word;
 }
+
+/* Soft inline notice for "Subscription canceled, ends on …". Same family
+   as billing-grid (matched padding/border/radius) so it reads as part of
+   the same group rather than an error banner. */
+.settings-billing-cancel-note {
+  width: 100%;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--soleil) 10%, var(--bg-1));
+  border: 1px solid color-mix(in srgb, var(--soleil) 38%, var(--line-2));
+  border-radius: var(--radius);
+  margin: 6px 0 -4px;
+  color: var(--ink-1);
+  font: 500 13px/1.5 var(--font-sans);
+}
+.settings-billing-cancel-note b { color: var(--ink-0); font-weight: 700; }
 
 /* ── Admin dashboard ───────────────────────────────────────────────────── */
 .admin-screen {
@@ -14470,6 +14516,12 @@ button, [role="button"], a {
   /* Share button drops its visible label on phone; the Send icon
      alone communicates it, matching the surrounding icon buttons. */
   .topbar .tb-btn { padding-left: 8px; padding-right: 8px; gap: 0; }
+
+  /* The "Demo · N days left → Upgrade" floating chip is position:fixed
+     with a near-INT_MAX z-index, so on phone it sits on top of the
+     topbar icons AND on top of the slide-out sidebar drawer. Hide on
+     phone — upgrade is still reachable via Settings → Billing. */
+  .upgrade-chip { display: none; }
 
   /* ── Settings panel: fit the viewport ─────────────────────────────
      Desktop renders a 720px dialog with a 160px left tab rail and

@@ -672,7 +672,7 @@ function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings
 //   waitlist  → defensive note (this surface shouldn't be reachable)
 function BillingTab({ user }) {
   const feedback = useFeedback();
-  const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, loading } =
+  const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd, loading } =
     useMyTier({ userId: user?.id });
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -726,6 +726,7 @@ function BillingTab({ user }) {
         sub={sub}
         subscriptionStatus={subscriptionStatus}
         currentPeriodEnd={currentPeriodEnd}
+        cancelAtPeriodEnd={cancelAtPeriodEnd}
         demoCardCount={demoCardCount}
         busy={busy}
         onManage={openPortal}
@@ -741,16 +742,24 @@ function BillingTab({ user }) {
 // Customer Portal return target). Callers own data fetching, error UI,
 // and the upgrade modal so each surface can keep its own framing.
 export function BillingSummary({
-  tier, sub, subscriptionStatus, currentPeriodEnd, demoCardCount,
+  tier, sub, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd, demoCardCount,
   busy, onManage, onUpgrade,
 }) {
   const plan = planLabel({ tier, plan: sub?.plan, demoCardCount });
+  // Prefer the fresh RPC value; fall back to the subscriptions-row query.
+  const cancelPending = cancelAtPeriodEnd ?? !!sub?.cancel_at_period_end;
   const period = formatPeriodEnd(currentPeriodEnd || sub?.current_period_end, {
-    cancel: !!sub?.cancel_at_period_end,
+    cancel: cancelPending,
   });
 
   return (
     <>
+      {tier === 'paid' && cancelPending && period && (
+        <div className="settings-billing-cancel-note">
+          Subscription canceled — Creator access stays on until <b>{period.value}</b>.
+          You can resubscribe anytime before then.
+        </div>
+      )}
       <div className="settings-billing-grid">
         <span className="settings-billing-label">Plan</span>
         <span className="settings-billing-value">{plan}</span>

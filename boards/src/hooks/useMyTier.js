@@ -20,6 +20,7 @@ export function useMyTier({ userId } = {}) {
     demoCardCount: 0,
     subscriptionStatus: null,
     currentPeriodEnd: null,
+    cancelAtPeriodEnd: false,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,6 +36,7 @@ export function useMyTier({ userId } = {}) {
         demoCardCount:      Number(row?.demo_card_count ?? 0),
         subscriptionStatus: row?.subscription_status || null,
         currentPeriodEnd:   row?.current_period_end || null,
+        cancelAtPeriodEnd:  Boolean(row?.cancel_at_period_end),
       });
       setError(null);
     } catch (e) {

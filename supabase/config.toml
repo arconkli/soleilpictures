@@ -1,0 +1,7 @@
+project_id = "ehlhlmbpwwalmeisvmdp"
+
+# Stripe POSTs here with a Stripe-Signature header, never a Supabase user JWT.
+# We verify the signature in the handler (the real auth boundary); the gateway
+# must let the request through unauthenticated.
+[functions.stripe-webhook]
+verify_jwt = false

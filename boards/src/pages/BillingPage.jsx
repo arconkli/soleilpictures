@@ -17,7 +17,7 @@ const PORTAL_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/cr
 
 export function BillingPage() {
   const { user, signOut } = useAuth();
-  const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, loading } =
+  const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd, loading } =
     useMyTier({ userId: user?.id });
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -91,6 +91,7 @@ export function BillingPage() {
               sub={sub}
               subscriptionStatus={subscriptionStatus}
               currentPeriodEnd={currentPeriodEnd}
+              cancelAtPeriodEnd={cancelAtPeriodEnd}
               demoCardCount={demoCardCount}
               busy={busy}
               onManage={openPortal} />

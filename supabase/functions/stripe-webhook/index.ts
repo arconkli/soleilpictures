@@ -2,17 +2,23 @@
 //
 // Handles:
 //   • checkout.session.completed       → flip tier=paid, insert subscription
-//   • customer.subscription.updated    → mirror status / period
+//   • customer.subscription.updated    → mirror status / period / cancel-pending
 //   • customer.subscription.deleted    → flip tier=demo, mark canceled
 //   • invoice.payment_failed           → log only (Stripe retries)
 //
-// Configure this function as "no JWT required" in Supabase Edge Function
-// settings so Stripe can reach it unauthenticated. The Stripe signature
-// header is the auth boundary — we verify it before doing anything.
+// Must be deployed with verify_jwt=false (see supabase/config.toml) so Stripe
+// can reach it without a Supabase user JWT. The Stripe signature header is
+// the auth boundary — we verify it before doing anything.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
+import {
+  activateUserFromSubscription,
+  periodEndFromSubscription,
+  planFromPriceId,
+  resolveUserId,
+} from "../_shared/activate.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -82,31 +88,6 @@ Deno.serve(async (req) => {
   });
 });
 
-function planFromPriceId(priceId: string | undefined): "monthly" | "annual" | null {
-  if (!priceId) return null;
-  const monthly = Deno.env.get("STRIPE_PRICE_MONTHLY");
-  const annual  = Deno.env.get("STRIPE_PRICE_ANNUAL");
-  if (priceId === monthly) return "monthly";
-  if (priceId === annual)  return "annual";
-  return null;
-}
-
-async function resolveUserId(
-  admin: ReturnType<typeof createClient>,
-  customerId: string,
-  metadataUserId: string | null | undefined,
-  emailFallback: string | null,
-): Promise<string | null> {
-  if (metadataUserId) return metadataUserId;
-  const existing = await admin.from("subscriptions").select("user_id").eq("stripe_customer_id", customerId).maybeSingle();
-  if (existing.data?.user_id) return existing.data.user_id;
-  if (emailFallback) {
-    const r = await admin.rpc("user_id_by_email", { p_email: emailFallback.toLowerCase() });
-    if (!r.error && r.data) return r.data as string;
-  }
-  return null;
-}
-
 async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, session: Stripe.Checkout.Session) {
   const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
   if (!customerId) return;
@@ -119,33 +100,14 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
     return;
   }
 
-  // Fetch subscription details (line items, status, period end).
-  let plan: "monthly" | "annual" | null = null;
-  let status: string | null = null;
-  let currentPeriodEnd: string | null = null;
-  if (subId) {
-    const sub = await stripe.subscriptions.retrieve(subId);
-    plan = planFromPriceId(sub.items.data[0]?.price?.id);
-    status = sub.status;
-    currentPeriodEnd = new Date(sub.current_period_end * 1000).toISOString();
-  }
-
-  await admin.from("subscriptions").upsert({
-    user_id: userId,
-    stripe_customer_id: customerId,
-    stripe_subscription_id: subId ?? null,
-    plan,
-    status,
-    current_period_end: currentPeriodEnd,
-    cancel_at_period_end: false,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id" });
-
-  // Flip tier — but don't downgrade admins.
-  await admin.from("profiles")
-    .update({ tier: "paid" })
-    .eq("user_id", userId)
-    .neq("tier", "admin");
+  const subscription = subId ? await stripe.subscriptions.retrieve(subId) : null;
+  const result = await activateUserFromSubscription(admin, {
+    userId,
+    customerId,
+    subscription,
+    subscriptionId: subId ?? null,
+  });
+  if (!result.activated) console.warn("[stripe] activation failed", { userId, reason: result.reason });
 }
 
 async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub: Stripe.Subscription) {
@@ -160,7 +122,7 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
     stripe_subscription_id: sub.id,
     plan,
     status: sub.status,
-    current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+    current_period_end: periodEndFromSubscription(sub),
     cancel_at_period_end: sub.cancel_at_period_end,
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id" });
@@ -184,7 +146,7 @@ async function extractUserIdFromEvent(admin: ReturnType<typeof createClient>, ev
   if (!customerId) return null;
   try {
     const r = await admin.from("subscriptions").select("user_id").eq("stripe_customer_id", customerId).maybeSingle();
-    return r.data?.user_id || null;
+    return (r.data?.user_id as string | undefined) || null;
   } catch (_) {
     return null;
   }
