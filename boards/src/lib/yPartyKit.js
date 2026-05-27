@@ -97,6 +97,24 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     // our handler is the only consumer.
     const ws = provider.ws;
     if (ws && typeof ws.addEventListener === 'function') {
+      // Perf timing: capture how long the synchronous WS message handling
+      // window takes. The lib's own onmessage handler decodes binary Y
+      // frames and calls Y.applyUpdate inline. Our listener captures t0
+      // immediately (we registered AFTER the lib's, so it ran first), then
+      // a queueMicrotask reads the delta — by the time the microtask
+      // fires, the synchronous handler is done. The delta approximates
+      // the message-processing time on the main thread.
+      ws.addEventListener('message', (e) => {
+        if (!perf.isEnabled()) return;
+        const _t0 = performance.now();
+        const sz = (e?.data?.byteLength) ?? (typeof e?.data === 'string' ? e.data.length : 0);
+        queueMicrotask(() => {
+          const ms = performance.now() - _t0;
+          perf.mark('ws.message.ms', ms);
+          perf.bump('ws.messages');
+          if (ms > 50) console.warn('[perf] slow ws.message', `${ms.toFixed(0)}ms`, `${sz}B`);
+        });
+      }, { passive: true });
       ws.addEventListener('message', (e) => {
         if (typeof e.data !== 'string') return;
         let msg;

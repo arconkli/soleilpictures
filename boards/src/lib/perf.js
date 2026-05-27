@@ -12,6 +12,7 @@
 // any time with `perf.snapshot()` or get a grouped table with `perf.dump()`.
 
 import * as Y from 'yjs';
+import { useLayoutEffect } from 'react';
 
 const SAMPLE_CAP = 64;  // rolling samples per mark name
 const LONGTASK_CAP = 32; // rolling buffer of recent long tasks
@@ -114,6 +115,21 @@ export function time(name, fn) {
   const t0 = performance.now();
   try { return fn(); }
   finally { mark(name, performance.now() - t0); }
+}
+
+// React render-time hook: drop into a component body to time its render +
+// commit window. Captures performance.now() during render; the
+// useLayoutEffect (no deps) fires synchronously after every commit and
+// marks the delta. Production-safe — works regardless of whether React
+// is the profiling build (unlike <Profiler> which no-ops in production).
+//
+// Use as: `usePerfRenderTime('CanvasSurface')` at the TOP of the
+// component body. The mark name is `render.<name>.ms`.
+export function usePerfRenderTime(name) {
+  const t0 = enabled ? performance.now() : 0;
+  useLayoutEffect(() => {
+    if (t0) mark(`render.${name}.ms`, performance.now() - t0);
+  });
 }
 
 function _markStats(s) {
@@ -313,6 +329,37 @@ function _patchYDocTransact() {
 // Patch at module load (not gated on enabled — the patched fn itself is
 // gated so cost is one bool check while disabled).
 _patchYDocTransact();
+
+// Synthetic verification: spin up a throwaway Y.Doc and run one
+// transaction with perf temporarily enabled. If our patched body
+// executes, the sentinel gauge gets set. Logs PASS/FAIL so the user
+// can tell immediately whether library Y.applyUpdate calls will
+// surface in marks. The previous rounds showed `Y.transact` missing
+// from marks — this proves whether that's "patch broken" vs "no
+// transactions happened in the window".
+(function _verifyTransactPatch() {
+  try {
+    if (typeof Y === 'undefined' || !Y.Doc) return;
+    const wasEnabled = enabled;
+    enabled = true;
+    let bodyRan = false;
+    const testDoc = new Y.Doc();
+    testDoc.transact(() => { bodyRan = true; }, 'patch-test', false);
+    testDoc.destroy();
+    enabled = wasEnabled;
+    const patchHit = gauges['Y.transactPatchHit'] === 1;
+    // Clear the sentinel + counters created by the synthetic run so they
+    // don't pollute the real session's data.
+    delete gauges['Y.transactPatchHit'];
+    delete counters['Y.transact'];
+    delete counters['Y.transact.origin.patch-test'];
+    delete samples['Y.transact.ms'];
+    console.log('[perf] Y.transact patch verification:', patchHit ? 'PASS' : 'FAIL',
+                `(bodyRan=${bodyRan})`);
+  } catch (e) {
+    console.warn('[perf] Y.transact patch verification threw:', e?.message || e);
+  }
+})();
 
 // ── Timer hooks ─────────────────────────────────────────────────────────
 // Round-3 instrumentation surfaced repeating 600ms+ long tasks AFTER
