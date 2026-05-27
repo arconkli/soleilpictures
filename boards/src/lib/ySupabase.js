@@ -161,7 +161,17 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     channel.on('broadcast', { event: 'y-awareness' }, ({ payload }) => {
       if (!payload || payload.from === CLIENT_ID) return;
       lastInbound = Date.now();
-      try { applyAwarenessUpdate(awareness, b64ToBytes(payload.a), 'remote'); }
+      try {
+        const bytes = b64ToBytes(payload.a);
+        const _t0 = perf.isEnabled() ? performance.now() : 0;
+        applyAwarenessUpdate(awareness, bytes, 'remote');
+        if (_t0) {
+          const ms = performance.now() - _t0;
+          perf.mark('awareness.apply.ms', ms);
+          perf.bump('awareness.applies');
+          if (ms > 30) console.warn('[perf] slow awareness.apply', `${ms.toFixed(0)}ms`, `${bytes.length}B`);
+        }
+      }
       catch (e) { console.warn('y-awareness apply failed', e); }
     });
 

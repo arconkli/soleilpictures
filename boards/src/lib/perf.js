@@ -48,6 +48,15 @@ export function enable() {
   _localStorageSet('perfHud', '1');
   console.log('[perf] enabled — `perf.snapshot()` / `perf.dump()` / `perf.disable()` / `perf.verbose(true)` available on window.perf');
   _startLoops();
+  // Loud confirmation of what's actually active so the user can tell
+  // (and tell us) whether a patch silently failed at module load.
+  console.log(
+    '[perf] state:',
+    'Y.Doc.prototype.transact patched=' + (!!_origTransact),
+    '| setTimeout patched=' + (!!_origSetTimeout),
+    '| setInterval patched=' + (!!_origSetInterval),
+    '| longtask observer=' + (typeof PerformanceObserver !== 'undefined'),
+  );
 }
 
 export function disable() {
@@ -279,6 +288,8 @@ function _patchYDocTransact() {
   _origTransact = Y.Doc.prototype.transact;
   Y.Doc.prototype.transact = function patchedTransact(fn, origin, local) {
     if (!enabled) return _origTransact.call(this, fn, origin, local);
+    // First-call sentinel — proves the patch is on the live prototype.
+    if (!gauges['Y.transactPatchHit']) gauges['Y.transactPatchHit'] = 1;
     const _t0 = performance.now();
     const ret = _origTransact.call(this, fn, origin, local);
     const ms = performance.now() - _t0;
@@ -302,6 +313,46 @@ function _patchYDocTransact() {
 // Patch at module load (not gated on enabled — the patched fn itself is
 // gated so cost is one bool check while disabled).
 _patchYDocTransact();
+
+// ── Timer hooks ─────────────────────────────────────────────────────────
+// Round-3 instrumentation surfaced repeating 600ms+ long tasks AFTER
+// PartyKit connect completed. That pattern almost always means a
+// setInterval / repeating setTimeout. Wrap both at module load so every
+// callback is timed. When perf is disabled, the wrapper itself runs but
+// just delegates — one extra function call (~tens of ns) per timer.
+let _origSetTimeout = null;
+let _origSetInterval = null;
+function _patchTimers() {
+  if (typeof window === 'undefined') return;
+  if (_origSetTimeout || _origSetInterval) return;
+  _origSetTimeout = window.setTimeout;
+  _origSetInterval = window.setInterval;
+  const wrap = (fn, kind, delayMs) => {
+    if (typeof fn !== 'function') return fn;
+    const name = fn.name || '(anonymous)';
+    return function patchedTimerCb(...a) {
+      if (!enabled) return fn.apply(this, a);
+      const _t0 = performance.now();
+      try { return fn.apply(this, a); }
+      finally {
+        const dur = performance.now() - _t0;
+        mark(`${kind}.cb.ms`, dur);
+        if (dur > 50) {
+          bump(`${kind}.slow`);
+          console.warn(`[perf] ${kind} slow`, `${dur.toFixed(0)}ms`, `delay=${delayMs}`, `fn=${name}`);
+        }
+      }
+    };
+  };
+  window.setTimeout = function patchedSetTimeout(fn, ms, ...args) {
+    return _origSetTimeout.call(this, wrap(fn, 'setTimeout', ms), ms, ...args);
+  };
+  window.setInterval = function patchedSetInterval(fn, ms, ...args) {
+    return _origSetInterval.call(this, wrap(fn, 'setInterval', ms), ms, ...args);
+  };
+  console.log('[perf] setTimeout / setInterval patched');
+}
+_patchTimers();
 
 function _rafTick(now) {
   if (!enabled) { rafLoopRunning = false; return; }
