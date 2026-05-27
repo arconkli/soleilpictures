@@ -13,6 +13,8 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 // conversation).
 //
 //   workspaceId, currentUser
+//   openConversationId, setOpenConversationId — controlled by App.jsx
+//     so useInboxLive can suppress toasts for the active thread
 //   initialOpenConversationId — set by permalink resolver to deep-link
 //   jumpToMessageId           — passed through to MessageThread
 //   pendingOpenPeerId         — when set, find/create a DM with this
@@ -22,6 +24,7 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 //   onClose
 export function MessagesPanel({
   workspaceId, currentUser,
+  openConversationId, setOpenConversationId,
   initialOpenConversationId, jumpToMessageId, pendingOpenPeerId,
   suggestedUserIds,
   refreshTick, onRefreshRequested, onPermalinkConsumed, onPeerConsumed,
@@ -32,17 +35,16 @@ export function MessagesPanel({
     conversations, participantsByConv, myStateByConv, unreadByConv,
   } = useConversationList({ workspaceId, userId, refreshTick });
 
-  const [openConversationId, setOpenConversationId] = useState(initialOpenConversationId || null);
   const [pendingJumpMessageId, setPendingJumpMessageId] = useState(jumpToMessageId || null);
   const [composeAnchor, setComposeAnchor] = useState(null);
 
-  // Permalink: respond to changes from above.
+  // First-mount permalink: open whatever the parent says is open.
   useEffect(() => {
     if (initialOpenConversationId) {
       setOpenConversationId(initialOpenConversationId);
       setPendingJumpMessageId(jumpToMessageId || null);
     }
-  }, [initialOpenConversationId, jumpToMessageId]);
+  }, [initialOpenConversationId, jumpToMessageId, setOpenConversationId]);
 
   // Avatar-click DM open: find/create a DM with the requested peer
   // and open the thread.

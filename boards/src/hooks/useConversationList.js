@@ -1,5 +1,7 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { listConversations, listMyConversationParticipants, getUnreadCounts } from '../lib/messages.js';
+import { supabase } from '../lib/supabase.js';
+import { subscribeInbox } from '../lib/inboxBus.js';
 
 // Returns the unified Messages-panel list:
 //   {
@@ -8,30 +10,79 @@ import { listConversations, listMyConversationParticipants, getUnreadCounts } fr
 //     myStateByConv: Map<conversationId, { left_at, last_read_at }>,
 //     unreadByConv: Map<conversationId, number>,
 //   }
-// Re-fetches on mount + on `refreshTick` change. Bump refreshTick from
-// the caller after any markRead / new message / addParticipant /
-// rename / leave so the panel stays in sync.
+// Re-fetches on:
+//   - mount + workspace/user change
+//   - external `refreshTick` bump (legacy callers)
+//   - postgres_changes on conversations + conversation_participants
+//     (debounced 350ms to coalesce trigger bursts)
+//   - inboxBus ping for the current user (optimistic +1 unread)
 export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
   const [conversations, setConversations] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [counts, setCounts] = useState({});
 
+  const refresh = useCallback(async () => {
+    if (!workspaceId || !userId) return;
+    const [convs, parts, c] = await Promise.all([
+      listConversations({ workspaceId }),
+      listMyConversationParticipants({ workspaceId }),
+      getUnreadCounts(),
+    ]);
+    setConversations(convs);
+    setParticipants(parts);
+    setCounts(c || {});
+  }, [workspaceId, userId]);
+
   useEffect(() => {
     if (!workspaceId || !userId) return;
     let cancelled = false;
-    (async () => {
-      const [convs, parts, c] = await Promise.all([
-        listConversations({ workspaceId }),
-        listMyConversationParticipants({ workspaceId }),
-        getUnreadCounts(),
-      ]);
-      if (cancelled) return;
-      setConversations(convs);
-      setParticipants(parts);
-      setCounts(c || {});
-    })();
+    (async () => { try { await refresh(); } catch (_) {} if (cancelled) return; })();
     return () => { cancelled = true; };
-  }, [workspaceId, userId, refreshTick]);
+  }, [workspaceId, userId, refreshTick, refresh]);
+
+  // Realtime: postgres_changes on conversations + conversation_participants.
+  // RLS already filters wire traffic to my participations (0058), so we
+  // don't need server-side filters on conversations. For participant
+  // INSERTs we filter to user_id=me so we don't get spammed when peers
+  // join group chats we're not in.
+  const debounceRef = useRef(null);
+  useEffect(() => {
+    if (!supabase || !workspaceId || !userId) return;
+    const schedule = () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        refresh().catch(() => {});
+      }, 350);
+    };
+    const ch = supabase.channel(`conv-list:${userId}:${Math.random().toString(36).slice(2, 9)}`)
+      .on('postgres_changes', { event: '*',      schema: 'public', table: 'conversations' }, schedule)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${userId}` }, schedule)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${userId}` }, schedule)
+      .subscribe();
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      try { supabase.removeChannel(ch); } catch (_) {}
+    };
+  }, [workspaceId, userId, refresh]);
+
+  // Optimistic unread bump: when the inbox bus fires a ping for a
+  // conversation in this workspace, bump the count immediately. The
+  // debounced refetch (next 350ms) reconciles against ground truth.
+  useEffect(() => {
+    if (!userId || !workspaceId) return;
+    return subscribeInbox(userId, (payload) => {
+      if (!payload || !payload.conversation_id) return;
+      // Only bump for conversations in the current workspace context.
+      // DMs that go cross-workspace in PR2 will use workspace_id=null;
+      // expand this check then.
+      if (payload.workspace_id && payload.workspace_id !== workspaceId) return;
+      setCounts(prev => ({
+        ...prev,
+        [payload.conversation_id]: (Number(prev[payload.conversation_id]) || 0) + 1,
+      }));
+    });
+  }, [userId, workspaceId]);
 
   const { participantsByConv, myStateByConv, unreadByConv } = useMemo(() => {
     const byConv = new Map();

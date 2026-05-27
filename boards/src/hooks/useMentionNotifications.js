@@ -1,8 +1,9 @@
 // Unread @-mention notifications. Fired from the messages_fire_
 // mention_notifications trigger (migration 0020) at INSERT time, so
 // when someone @-mentions you in any board chat or DM, a row lands
-// in mention_notifications with your user_id. We fetch on mount,
-// surface as toasts, and dismiss after the batch.
+// in mention_notifications with your user_id. We fetch on mount AND
+// subscribe to postgres_changes (publication add in 0081) so new
+// mentions surface live without a refresh.
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
@@ -32,6 +33,26 @@ export function useMentionNotifications(userId) {
   }, [userId]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Realtime: append new mention rows as they're inserted. The INSERT
+  // payload IS the full row, so no follow-up fetch needed. Dedupe by id
+  // in case the initial fetch and the realtime event race.
+  useEffect(() => {
+    if (!supabase || !userId) return;
+    const ch = supabase.channel(`mentions:${userId}:${Math.random().toString(36).slice(2, 9)}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'mention_notifications',
+        filter: `user_id=eq.${userId}`,
+      }, (payload) => {
+        const row = payload?.new;
+        if (!row || row.dismissed_at) return;
+        setUnread(arr => arr.some(n => n.id === row.id) ? arr : [...arr, row]);
+      })
+      .subscribe();
+    return () => { try { supabase.removeChannel(ch); } catch (_) {} };
+  }, [userId]);
 
   const dismiss = useCallback(async (id) => {
     setUnread(arr => arr.filter(n => n.id !== id));

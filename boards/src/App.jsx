@@ -55,6 +55,7 @@ import { useYBoard } from './hooks/useYBoard.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
+import { useInboxLive } from './hooks/useInboxLive.js';
 import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
@@ -386,9 +387,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // membership changes bump the panel without a full refetch loop. Realtime
   // refreshes are per-conversation; this tick is for cross-thread cache busting.
   const [msgRefreshTick, setMsgRefreshTick] = useState(0);
+  // openConversationId is lifted from MessagesPanel so useInboxLive can
+  // suppress toasts for the conversation the user is actively viewing.
+  const [openConversationId, setOpenConversationId] = useState(null);
   const conversationList = useConversationList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
   const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByConv: conversationList.unreadByConv });
   useTitleBadge({ total: messagesUnread, mentions: messagesMentions });
+
+  // Live inbox: subscribes to user:{uid} broadcast, dispatches toasts +
+  // OS notifications, publishes to inboxBus for optimistic list updates.
+  const openConversationFromToast = React.useCallback((convId) => {
+    if (!convId) return;
+    setOpenConversationId(convId);
+    setTweak('showMessages', true);
+  }, [setTweak]);
+  useInboxLive({
+    userId: user.id,
+    openConversationId,
+    onOpenConversation: openConversationFromToast,
+    feedback,
+  });
 
   const yb = useYBoard(currentBoard.id, user.id, userInfo);
 
@@ -2591,6 +2609,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           workspaceId={workspace.id}
           currentUser={userInfo}
           refreshTick={msgRefreshTick}
+          openConversationId={openConversationId}
+          setOpenConversationId={setOpenConversationId}
           initialOpenConversationId={permalinkTarget?.conversationId || null}
           jumpToMessageId={permalinkTarget?.messageId || null}
           pendingOpenPeerId={pendingDmPeerId}

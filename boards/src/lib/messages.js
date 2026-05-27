@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { requestPermissionDeferred } from './browserNotifications.js';
 
 // All message + conversation CRUD lives here. Realtime broadcast is in
 // messageRealtime.js — callers do both: write to Postgres via these
@@ -94,6 +95,11 @@ export async function sendMessage({
   };
   const { data, error } = await supabase.from('messages').insert(row).select().single();
   if (error) { console.warn('sendMessage', error); throw error; }
+  // Deferred-permission gate: this is the most natural moment to ask
+  // for OS notification permission — the user has just demonstrated
+  // they intend to use messaging. Fire-and-forget; localStorage gate
+  // inside the helper ensures we only ask once per browser.
+  try { requestPermissionDeferred(); } catch (_) {}
   return data;
 }
 
