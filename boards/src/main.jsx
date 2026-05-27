@@ -1,6 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App.jsx';
+import { App as RawApp } from './App.jsx';
+import { withPerfTime } from './lib/perf.js';
+// Wrap App at the root so render.App.ms surfaces in perf.dump() without
+// touching App.jsx (which has in-progress feature edits this round).
+const App = withPerfTime(RawApp, 'App');
 import { AuthGate } from './auth/AuthGate.jsx';
 import { TierRouter } from './auth/TierRouter.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';

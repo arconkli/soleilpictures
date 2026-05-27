@@ -12,7 +12,7 @@
 // any time with `perf.snapshot()` or get a grouped table with `perf.dump()`.
 
 import * as Y from 'yjs';
-import { useLayoutEffect } from 'react';
+import React, { useLayoutEffect } from 'react';
 
 const SAMPLE_CAP = 64;  // rolling samples per mark name
 const LONGTASK_CAP = 32; // rolling buffer of recent long tasks
@@ -56,6 +56,7 @@ export function enable() {
     'Y.Doc.prototype.transact patched=' + (!!_origTransact),
     '| setTimeout patched=' + (!!_origSetTimeout),
     '| setInterval patched=' + (!!_origSetInterval),
+    '| WebSocket patched=' + (!!_origWS),
     '| longtask observer=' + (typeof PerformanceObserver !== 'undefined'),
   );
 }
@@ -92,6 +93,11 @@ export function gauge(name, value) {
   gauges[name] = value;
 }
 
+// Rolling ring of recent mark names — used by the longtask observer to
+// log what was running shortly before a >300ms main-thread block.
+const recentMarks = [];
+const RECENT_MARKS_CAP = 32;
+
 export function mark(name, ms) {
   if (!enabled) return;
   let s = samples[name];
@@ -99,6 +105,8 @@ export function mark(name, ms) {
   s.buf[s.next] = ms;
   s.next = (s.next + 1) % SAMPLE_CAP;
   if (s.count < SAMPLE_CAP) s.count++;
+  recentMarks.push({ name, t: performance.now() });
+  if (recentMarks.length > RECENT_MARKS_CAP) recentMarks.shift();
   // Mirror as a User Timing entry so a Chrome DevTools Performance recording
   // surfaces this point on the Timings track with our exact name + ms.
   // No-op cost when DevTools isn't recording.
@@ -130,6 +138,22 @@ export function usePerfRenderTime(name) {
   useLayoutEffect(() => {
     if (t0) mark(`render.${name}.ms`, performance.now() - t0);
   });
+}
+
+// HOC version of usePerfRenderTime. Wrap a component at its import site
+// (no source edit to the component itself) to capture render+commit time.
+// Use case: when the component file has unrelated WIP that blocks an
+// in-source hook call, wrap at the mount site instead:
+//   const TimedApp = withPerfTime(App, 'App');
+//   render(<TimedApp />);
+export function withPerfTime(Component, name) {
+  const display = Component.displayName || Component.name || 'Component';
+  function PerfTimed(props) {
+    usePerfRenderTime(name);
+    return React.createElement(Component, props);
+  }
+  PerfTimed.displayName = `PerfTimed(${display})`;
+  return PerfTimed;
 }
 
 function _markStats(s) {
@@ -274,6 +298,19 @@ function _startLongTaskObserver() {
           `name=${entry.name || 'self'}`,
           attribution ? `attribution=${attribution}` : null,
         );
+        // Correlate: for serious long tasks, surface the most recent
+        // perf.mark names in the 200ms window ending at the start of
+        // the long task. Useful when browser attribution is "window" —
+        // tells us what just ran before the freeze.
+        if (entry.duration > 300) {
+          const cutoff = entry.startTime - 200;
+          const preceding = recentMarks
+            .filter(m => m.t >= cutoff && m.t <= entry.startTime + entry.duration)
+            .map(m => m.name);
+          if (preceding.length) {
+            console.warn('[perf] longtask preceded by marks:', preceding.slice(-8));
+          }
+        }
       }
     });
     longTaskObserver.observe({ entryTypes: ['longtask'] });
@@ -400,6 +437,78 @@ function _patchTimers() {
   console.log('[perf] setTimeout / setInterval patched');
 }
 _patchTimers();
+
+// ── WebSocket patch ─────────────────────────────────────────────────────
+// Round-6 attempted to time PartyKit's message handler by registering a
+// sibling addEventListener inside yPartyKit.js. That listener never
+// fired in user data — likely because we registered AFTER the library
+// did, so by the time our handler ran in queueMicrotask the lib's sync
+// work was already complete. This patches the global WebSocket so EVERY
+// message-event listener anywhere in the app (PartyKit, Supabase
+// Realtime, anything) gets wrapped at registration time. When perf is
+// disabled the wrapped listener is a tight passthrough (one bool check).
+let _origWS = null;
+function _patchWebSocket() {
+  if (typeof window === 'undefined' || _origWS) return;
+  if (typeof window.WebSocket !== 'function') return;
+  _origWS = window.WebSocket;
+  function _tagFromUrl(url) {
+    if (!url) return 'other';
+    if (url.includes('partykit')) return 'partykit';
+    if (url.includes('supabase')) return 'supabase';
+    if (url.startsWith('wss://') || url.startsWith('ws://')) {
+      try {
+        const u = new URL(url);
+        return u.host.split('.')[0];
+      } catch (_) { return 'other'; }
+    }
+    return 'other';
+  }
+  function _wrap(listener, tag) {
+    return function wsMsgWrapped(e) {
+      if (!enabled) return listener.call(this, e);
+      const _t0 = performance.now();
+      try { return listener.call(this, e); }
+      finally {
+        const dur = performance.now() - _t0;
+        mark(`ws.${tag}.message.ms`, dur);
+        bump(`ws.${tag}.messages`);
+        if (dur > 50) {
+          const sz = (e && e.data && e.data.byteLength) != null
+            ? e.data.byteLength
+            : (typeof e?.data === 'string' ? e.data.length : 0);
+          console.warn(`[perf] slow ws.${tag}.message`, `${dur.toFixed(0)}ms`, `${sz}B`);
+        }
+      }
+    };
+  }
+  class PatchedWebSocket extends _origWS {
+    constructor(url, protocols) {
+      super(url, protocols);
+      bump('ws.opens');
+      this._perfTag = _tagFromUrl(url || '');
+      bump(`ws.${this._perfTag}.opens`);
+    }
+    addEventListener(type, listener, options) {
+      if (type === 'message' && typeof listener === 'function') {
+        return super.addEventListener(type, _wrap(listener, this._perfTag), options);
+      }
+      return super.addEventListener(type, listener, options);
+    }
+    set onmessage(fn) {
+      if (typeof fn !== 'function') { super.onmessage = fn; return; }
+      super.onmessage = _wrap(fn, this._perfTag);
+    }
+    get onmessage() { return super.onmessage; }
+  }
+  // Preserve any static properties libraries might read (CONNECTING etc).
+  for (const k of ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED']) {
+    if (k in _origWS) PatchedWebSocket[k] = _origWS[k];
+  }
+  window.WebSocket = PatchedWebSocket;
+  console.log('[perf] WebSocket patched (global)');
+}
+_patchWebSocket();
 
 function _rafTick(now) {
   if (!enabled) { rafLoopRunning = false; return; }

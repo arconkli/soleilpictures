@@ -95,26 +95,13 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     // peers to remount their useYBoard so a restore propagates without
     // a CRDT-merge race. y-partykit ignores text frames internally, so
     // our handler is the only consumer.
+    // Perf timing for WebSocket message handlers is now done globally by
+    // patching window.WebSocket in lib/perf.js. The previous per-provider
+    // sibling-listener approach didn't fire because the library's
+    // listener ran first synchronously; the global patch wraps the
+    // library's listener at registration time.
     const ws = provider.ws;
     if (ws && typeof ws.addEventListener === 'function') {
-      // Perf timing: capture how long the synchronous WS message handling
-      // window takes. The lib's own onmessage handler decodes binary Y
-      // frames and calls Y.applyUpdate inline. Our listener captures t0
-      // immediately (we registered AFTER the lib's, so it ran first), then
-      // a queueMicrotask reads the delta — by the time the microtask
-      // fires, the synchronous handler is done. The delta approximates
-      // the message-processing time on the main thread.
-      ws.addEventListener('message', (e) => {
-        if (!perf.isEnabled()) return;
-        const _t0 = performance.now();
-        const sz = (e?.data?.byteLength) ?? (typeof e?.data === 'string' ? e.data.length : 0);
-        queueMicrotask(() => {
-          const ms = performance.now() - _t0;
-          perf.mark('ws.message.ms', ms);
-          perf.bump('ws.messages');
-          if (ms > 50) console.warn('[perf] slow ws.message', `${ms.toFixed(0)}ms`, `${sz}B`);
-        });
-      }, { passive: true });
       ws.addEventListener('message', (e) => {
         if (typeof e.data !== 'string') return;
         let msg;
