@@ -14,6 +14,7 @@ import { AdminUniverseTab } from './admin/AdminUniverseTab.jsx';
 import { AdminOverviewTab } from './admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
+import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
 import { FeedbackButton } from '../components/FeedbackButton.jsx';
@@ -25,6 +26,7 @@ const TABS = [
   { id: 'overview',  label: 'Overview' },
   { id: 'analytics', label: 'Analytics' },
   { id: 'users',     label: 'Users' },
+  { id: 'grants',    label: 'Grants' },
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
 ];
@@ -78,6 +80,7 @@ export function AdminPage() {
         {tab === 'overview'  && <AdminOverviewTab />}
         {tab === 'analytics' && <AdminAnalyticsTab />}
         {tab === 'users'     && <AdminUsersTab />}
+        {tab === 'grants'    && <AdminGrantsTab />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
         {tab === 'feedback'  && <AdminFeedbackTab />}
       </main>

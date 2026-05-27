@@ -163,6 +163,11 @@ async function onSubscriptionDeleted(admin: ReturnType<typeof createClient>, sub
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
 
+  // Don't drop to demo if the user still has an active admin grant —
+  // their paid access comes from the grant, independent of Stripe.
+  const grantQ = await admin.rpc("user_has_active_paid_grant", { p_user_id: userId });
+  if (grantQ.data === true) return;
+
   // Drop tier to demo (existing data preserved per spec; cap re-enforced on adds).
   await admin.from("profiles").update({ tier: "demo" }).eq("user_id", userId).eq("tier", "paid");
 }
