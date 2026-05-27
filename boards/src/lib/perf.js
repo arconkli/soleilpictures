@@ -501,14 +501,20 @@ function _patchWebSocket() {
     }
     get onmessage() { return super.onmessage; }
   }
-  // Preserve any static properties libraries might read (CONNECTING etc).
-  for (const k of ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED']) {
-    if (k in _origWS) PatchedWebSocket[k] = _origWS[k];
-  }
+  // Static CONNECTING/OPEN/CLOSING/CLOSED are inherited automatically
+  // via the prototype chain (`class extends WebSocket`). Don't try to
+  // reassign them — they're read-only on WebSocket and under SES
+  // lockdown (wallet extensions, etc) the assignment throws and breaks
+  // the whole app at module load. Inheritance does the job.
   window.WebSocket = PatchedWebSocket;
   console.log('[perf] WebSocket patched (global)');
 }
-_patchWebSocket();
+// Whole patch in try/catch so a hostile environment (SES, frozen
+// intrinsics, sandboxed iframe) can't break the app boot if patching
+// fails. We lose ws.message timing in that case; everything else still
+// runs.
+try { _patchWebSocket(); }
+catch (e) { console.warn('[perf] WebSocket patch failed (continuing without ws timing):', e?.message || e); }
 
 function _rafTick(now) {
   if (!enabled) { rafLoopRunning = false; return; }
