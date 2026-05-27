@@ -11,6 +11,8 @@
 // Output goes to the browser console — no DOM, no React state. Inspect
 // any time with `perf.snapshot()` or get a grouped table with `perf.dump()`.
 
+import * as Y from 'yjs';
+
 const SAMPLE_CAP = 64;  // rolling samples per mark name
 const LONGTASK_CAP = 32; // rolling buffer of recent long tasks
 
@@ -87,6 +89,14 @@ export function mark(name, ms) {
   s.buf[s.next] = ms;
   s.next = (s.next + 1) % SAMPLE_CAP;
   if (s.count < SAMPLE_CAP) s.count++;
+  // Mirror as a User Timing entry so a Chrome DevTools Performance recording
+  // surfaces this point on the Timings track with our exact name + ms.
+  // No-op cost when DevTools isn't recording.
+  try {
+    if (typeof performance !== 'undefined' && performance.measure) {
+      performance.measure(name, { start: performance.now() - ms, duration: ms });
+    }
+  } catch (_) { /* older Safari: 2nd-arg shape unsupported, ignore */ }
 }
 
 // Optional one-shot timer convenience.
@@ -253,6 +263,45 @@ function _stopLongTaskObserver() {
   try { longTaskObserver.disconnect(); } catch (_) {}
   longTaskObserver = null;
 }
+
+// ── Y.Doc.prototype.transact patch ──────────────────────────────────────
+// Patched once at module load. Every Y.applyUpdate (local or remote, from
+// our source AND from inside y-partykit) goes through Doc.transact, so
+// this single patch catches them all. When perf is disabled it's a tight
+// passthrough — one bool check, no measurement overhead.
+let _origTransact = null;
+function _patchYDocTransact() {
+  if (_origTransact) return;
+  if (!Y || !Y.Doc || !Y.Doc.prototype || !Y.Doc.prototype.transact) {
+    console.log('[perf] could not patch Y.Doc.prototype.transact — yjs internals changed?');
+    return;
+  }
+  _origTransact = Y.Doc.prototype.transact;
+  Y.Doc.prototype.transact = function patchedTransact(fn, origin, local) {
+    if (!enabled) return _origTransact.call(this, fn, origin, local);
+    const _t0 = performance.now();
+    const ret = _origTransact.call(this, fn, origin, local);
+    const ms = performance.now() - _t0;
+    mark('Y.transact.ms', ms);
+    bump('Y.transact');
+    // Per-origin breakdown: 'snapshot' / 'remote' / 'local' / 'restore' /
+    // y-partykit's library origin (usually a numeric ClientID or the
+    // string 'sync'). Helps separate "our code" from "the lib".
+    const oTag = origin == null ? 'null'
+              : (typeof origin === 'string' ? origin
+              : (typeof origin === 'number' ? `client:${origin}`
+              : origin.constructor?.name || typeof origin));
+    bump(`Y.transact.origin.${oTag}`);
+    if (ms > 50) {
+      console.warn('[perf] Y.transact slow', `${ms.toFixed(0)}ms`, `origin=${oTag}`);
+    }
+    return ret;
+  };
+  console.log('[perf] Y.Doc.prototype.transact patched');
+}
+// Patch at module load (not gated on enabled — the patched fn itself is
+// gated so cost is one bool check while disabled).
+_patchYDocTransact();
 
 function _rafTick(now) {
   if (!enabled) { rafLoopRunning = false; return; }

@@ -15,6 +15,7 @@
 import YPartyKitProvider from 'y-partykit/provider';
 import { Awareness } from 'y-protocols/awareness';
 import { supabase } from './supabase.js';
+import * as perf from './perf.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -61,12 +62,26 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       provider = null;
     }
 
+    const _tCtor0 = perf.isEnabled() ? performance.now() : 0;
     provider = new YPartyKitProvider(PARTYKIT_HOST, boardId, ydoc, {
       params: { access_token: accessToken },
       awareness,
     });
+    if (_tCtor0) {
+      const ms = performance.now() - _tCtor0;
+      perf.mark('partykit.provider.construct.ms', ms);
+      perf.bump('partykit.provider.construct');
+      if (ms > 50) console.warn('[perf] slow partykit.provider.construct', `${ms.toFixed(0)}ms`, boardId);
+    }
+    const _tConnect0 = performance.now();
     provider.on('status', ({ status }) => {
       console.log('[partykit] board', boardId, status);
+      if (status === 'connected' && perf.isEnabled()) {
+        const ms = performance.now() - _tConnect0;
+        perf.mark('partykit.connect.ms', ms);
+        perf.bump('partykit.connect');
+        if (ms > 300) console.warn('[perf] slow partykit.connect', `${ms.toFixed(0)}ms`, boardId);
+      }
       // If the connection drops or fails to open (e.g. the WS upgrade
       // returned 401 because the token we used was already stale), clear
       // the coalescing window so a subsequent TOKEN_REFRESHED can rebuild

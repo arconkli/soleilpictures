@@ -85,6 +85,7 @@ function clearLocalDraft(boardId, version) {
 }
 
 export function loadYBoard(boardId, { userId = null, user = null } = {}) {
+  const _loadT0 = perf.isEnabled() ? performance.now() : 0;
   const ydoc = new Y.Doc();
   const cards = ydoc.getMap('cards');
   const arrows = ydoc.getArray('arrows');
@@ -188,7 +189,19 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
       // Consume a hover-warmed snapshot if one is sitting in the
       // prefetch cache; otherwise fall through to the fetcher (which
       // dedupes against any in-flight prefetch from the same hover).
-      const b64 = peekBoardSnapshot(boardId) ?? await prefetchBoard(boardId, { lane: 'high' });
+      let b64 = peekBoardSnapshot(boardId);
+      if (b64 == null) {
+        const _tFetch0 = perf.isEnabled() ? performance.now() : 0;
+        b64 = await prefetchBoard(boardId, { lane: 'high' });
+        if (_tFetch0) {
+          const ms = performance.now() - _tFetch0;
+          perf.mark('yboard.prefetch.ms', ms);
+          perf.bump('yboard.prefetch');
+          if (ms > 200) console.warn('[perf] slow yboard.prefetch', `${ms.toFixed(0)}ms`, boardId);
+        }
+      } else {
+        perf.bump('yboard.prefetch.hot');
+      }
       if (b64) {
         const bytes = b64ToBytes(b64);
         const _t0 = perf.isEnabled() ? performance.now() : 0;
@@ -205,6 +218,12 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
       console.error('loadBoardSnapshot failed', e);
     }
     initialized = true;
+    if (_loadT0) {
+      const ms = performance.now() - _loadT0;
+      perf.mark('yboard.loadYBoard.ms', ms);
+      perf.bump('yboard.loadYBoard');
+      if (ms > 300) console.warn('[perf] slow yboard.loadYBoard', `${ms.toFixed(0)}ms`, boardId);
+    }
     return ydoc;
   })();
 
