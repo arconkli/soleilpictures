@@ -221,16 +221,35 @@ export function CanvasSurface({
   // appeared to disappear from their screen while we panned.
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
-  panRef.current = pan;
-  zoomRef.current = zoom;
+  // The .canvas div whose CSS transform we mutate imperatively during pan/
+  // zoom gestures. Gesture-time updates write to panRef/zoomRef AND to
+  // this element's style.transform directly; React state is only committed
+  // (setPan/setZoom) at gesture end so we don't re-render every card 120×/s
+  // while panning. The useLayoutEffect below keeps ref + DOM in lockstep
+  // with state when state changes from non-gesture paths (reset zoom,
+  // fit-to-view, etc.).
+  const canvasRef = useRef(null);
+  const applyCanvasTransform = () => {
+    const el = canvasRef.current;
+    if (!el) return;
+    el.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
+  };
+  useLayoutEffect(() => {
+    panRef.current = pan;
+    zoomRef.current = zoom;
+    applyCanvasTransform();
+  }, [pan.x, pan.y, zoom]);
   const [smoothXform, setSmoothXform] = useState(false); // true → CSS transition on canvas transform
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [selectedStrokes, setSelectedStrokes] = useState(() => new Set());
   const [selectedArrows, setSelectedArrows] = useState(() => new Set());
   // Hidden BoardThumbnail used for PNG/PDF export. Same render path as
-  // the canvas card preview, just scaled up at export time.
+  // the canvas card preview, just scaled up at export time. Only mounted
+  // while an export handler is running — otherwise rendering one SVG node
+  // per card on every CanvasSurface render dominates idle/pan cost.
   const exportSvgRef = useRef(null);
+  const [exportSvgMounted, setExportSvgMounted] = useState(false);
   const [drag, setDrag] = useState(null);
   // While dragging, computeSnap fills this with the matched alignment lines
   // so the canvas can render thin gold guides at those coords.
@@ -1252,13 +1271,34 @@ export function CanvasSurface({
   }, []);
 
   // Wheel: cmd-wheel zoom around cursor; plain wheel = pan.
+  //
+  // Pan/zoom updates write directly to panRef/zoomRef + canvasRef.style.transform
+  // — NOT through setState — so a 120Hz wheel burst doesn't trigger 120
+  // CanvasSurface re-renders (each of which would reconcile every card).
+  // State is committed in a debounced trailing tick so downstream consumers
+  // (persistence, the smooth-transform class, viewport-derived memos) catch
+  // up after the gesture ends. Empty deps array: closure reads via refs, so
+  // we don't need to re-bind on every pan tick — re-binding caused the
+  // effect's cleanup to fire repeatedly during a pan and nulled out our
+  // peer cursor (see the panRef comment above).
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
+    let commitTimer = 0;
+    const scheduleCommit = () => {
+      if (commitTimer) clearTimeout(commitTimer);
+      commitTimer = setTimeout(() => {
+        commitTimer = 0;
+        setPan({ x: panRef.current.x, y: panRef.current.y });
+        setZoom(zoomRef.current);
+      }, 140);
+    };
     const onWheel = (e) => {
       if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob')) return;
       e.preventDefault();
       const rect = el.getBoundingClientRect();
+      const curPan = panRef.current;
+      const curZoom = zoomRef.current;
       if (e.ctrlKey || e.metaKey) {
         // Trackpads send pixel-mode deltas; mouse wheels send line-mode.
         // Use a 2.8× faster pixel sensitivity but compensate when delta
@@ -1266,26 +1306,46 @@ export function CanvasSurface({
         const isLine = e.deltaMode === 1; // WheelEvent.DOM_DELTA_LINE
         const sensitivity = isLine ? 0.05 : 0.0025;
         const factor = Math.exp(-e.deltaY * sensitivity);
-        const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * factor));
-        if (newZoom === zoom) return;
-        const cx = (e.clientX - rect.left - pan.x) / zoom;
-        const cy = (e.clientY - rect.top  - pan.y) / zoom;
-        const newPanX = e.clientX - rect.left - cx * newZoom;
-        const newPanY = e.clientY - rect.top  - cy * newZoom;
-        setZoom(newZoom);
-        setPan({ x: newPanX, y: newPanY });
+        const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, curZoom * factor));
+        if (newZoom === curZoom) return;
+        const cx = (e.clientX - rect.left - curPan.x) / curZoom;
+        const cy = (e.clientY - rect.top  - curPan.y) / curZoom;
+        panRef.current = {
+          x: e.clientX - rect.left - cx * newZoom,
+          y: e.clientY - rect.top  - cy * newZoom,
+        };
+        zoomRef.current = newZoom;
       } else {
-        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+        panRef.current = { x: curPan.x - e.deltaX, y: curPan.y - e.deltaY };
       }
+      applyCanvasTransform();
+      scheduleCommit();
     };
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [pan.x, pan.y, zoom]);
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      if (commitTimer) clearTimeout(commitTimer);
+    };
+  }, []);
 
   // ── Touch gestures (P3.2): pinch-zoom + two-finger pan ─────────────────────
   // Desktop mouse path is untouched — these handlers only fire when the
   // pointerType is 'touch'. Single-finger drag stays driven by the existing
   // onBackgroundPointerDown (so cards / lasso / pan-mode keep working).
+  // Both gestures route through panRef/zoomRef + direct DOM transform like
+  // the wheel handler above — see that comment for rationale.
+  const touchPanCommitTimer = useRef(0);
+  const scheduleTouchPanCommit = () => {
+    if (touchPanCommitTimer.current) clearTimeout(touchPanCommitTimer.current);
+    touchPanCommitTimer.current = setTimeout(() => {
+      touchPanCommitTimer.current = 0;
+      setPan({ x: panRef.current.x, y: panRef.current.y });
+      setZoom(zoomRef.current);
+    }, 140);
+  };
+  useEffect(() => () => {
+    if (touchPanCommitTimer.current) clearTimeout(touchPanCommitTimer.current);
+  }, []);
   useGesture(
     {
       onPinch: ({ event, origin: [ox, oy], movement: [ms], memo }) => {
@@ -1299,11 +1359,13 @@ export function CanvasSurface({
         // World-coord under the gesture origin should stay fixed.
         const cx = (ox - rect.left - start.panX) / start.zoom;
         const cy = (oy - rect.top  - start.panY) / start.zoom;
-        setZoom(targetZoom);
-        setPan({
+        zoomRef.current = targetZoom;
+        panRef.current = {
           x: ox - rect.left - cx * targetZoom,
           y: oy - rect.top  - cy * targetZoom,
-        });
+        };
+        applyCanvasTransform();
+        scheduleTouchPanCommit();
         return start;
       },
       onDrag: ({ event, delta: [dx, dy], touches, pinching, pointerType }) => {
@@ -1314,7 +1376,10 @@ export function CanvasSurface({
         if (pointerType !== 'touch') return;
         if (touches < 2) return;
         if (event?.cancelable) event.preventDefault();
-        setPan(p => ({ x: p.x + dx, y: p.y + dy }));
+        const p = panRef.current;
+        panRef.current = { x: p.x + dx, y: p.y + dy };
+        applyCanvasTransform();
+        scheduleTouchPanCommit();
       },
     },
     {
@@ -1775,18 +1840,27 @@ export function CanvasSurface({
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform, timeTravelUndo, timeTravelRedo]);
 
   // ── Pan helpers ───────────────────────────────────────────────────────────
+  // Same ref-driven, direct-DOM-mutation pattern as the wheel handler so a
+  // space-drag pan doesn't re-render every card per pointermove.
   const startPan = (e) => {
     e.preventDefault();
     const startClient = { x: e.clientX, y: e.clientY };
-    const startPan = { ...pan };
+    const startPan = { x: panRef.current.x, y: panRef.current.y };
     document.body.style.cursor = 'grabbing';
     const onMove = (ev) => {
-      setPan({ x: startPan.x + (ev.clientX - startClient.x), y: startPan.y + (ev.clientY - startClient.y) });
+      panRef.current = {
+        x: startPan.x + (ev.clientX - startClient.x),
+        y: startPan.y + (ev.clientY - startClient.y),
+      };
+      applyCanvasTransform();
     };
     const onUp = () => {
       document.body.style.cursor = '';
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      // Commit once at gesture end so persistence + downstream consumers
+      // catch up to the gesture-time ref values.
+      setPan({ x: panRef.current.x, y: panRef.current.y });
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -2176,7 +2250,19 @@ export function CanvasSurface({
       pendingLiveDrag = null;
     };
 
-    const onMove = (ev) => {
+    // Coalesce pointermove ticks into one update per animation frame.
+    // Without this, a 120Hz trackpad fires 120 onMove invocations per
+    // second; each runs computeSnap (O(N²) in dragged-vs-target cards)
+    // and setDrag/setSnapHints, which re-renders the canvas. RAF capping
+    // halves the work and still feels indistinguishable from per-event
+    // updates on a 60Hz display.
+    let pendingMoveEv = null;
+    let moveRafId = 0;
+    const flushMove = () => {
+      moveRafId = 0;
+      const ev = pendingMoveEv;
+      pendingMoveEv = null;
+      if (!ev) return;
       const rawDx = (ev.clientX - startClient.x) / zoom;
       const rawDy = (ev.clientY - startClient.y) / zoom;
       // Hold Alt/Option to bypass snap.
@@ -2222,9 +2308,18 @@ export function CanvasSurface({
       };
       if (!liveDragRafId) liveDragRafId = requestAnimationFrame(flushLiveDrag);
     };
+    const onMove = (ev) => {
+      pendingMoveEv = ev;
+      if (!moveRafId) moveRafId = requestAnimationFrame(flushMove);
+    };
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      // Cancel any queued mid-drag pointermove that's about to flush —
+      // we're about to commit final positions, so a trailing flush would
+      // re-render the dragged cards once at a stale delta before settling.
+      if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
+      pendingMoveEv = null;
       const rawDx = (ev.clientX - startClient.x) / zoom;
       const rawDy = (ev.clientY - startClient.y) / zoom;
       const skip = ev.altKey;
@@ -3680,16 +3775,28 @@ export function CanvasSurface({
       { id: 'fit', label: 'Reset zoom (⌘0)', run: () => { enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); } },
       { id: 'export', label: 'Export', submenu: [
         { id: 'export-png', label: 'PNG image', run: async () => {
-          const svg = exportSvgRef.current?.querySelector?.('svg');
-          if (!svg) { feedback.toast({ type: 'error', message: 'Nothing to export.' }); return; }
-          try { await exportBoardAsPng(svg, board?.name || 'board'); }
+          setExportSvgMounted(true);
+          try {
+            // Two RAFs: first commits the mount, second guarantees the
+            // <svg> is in the DOM before we read it.
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            const svg = exportSvgRef.current?.querySelector?.('svg');
+            if (!svg) { feedback.toast({ type: 'error', message: 'Nothing to export.' }); return; }
+            await exportBoardAsPng(svg, board?.name || 'board');
+          }
           catch (err) { feedback.toast({ type: 'error', message: 'Export failed: ' + (err.message || err) }); }
+          finally { setExportSvgMounted(false); }
         }},
-        { id: 'export-pdf', label: 'PDF (Save from Print)', run: () => {
-          const svg = exportSvgRef.current?.querySelector?.('svg');
-          if (!svg) { feedback.toast({ type: 'error', message: 'Nothing to export.' }); return; }
-          try { exportBoardAsPdf(svg, board?.name || 'board'); }
+        { id: 'export-pdf', label: 'PDF (Save from Print)', run: async () => {
+          setExportSvgMounted(true);
+          try {
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            const svg = exportSvgRef.current?.querySelector?.('svg');
+            if (!svg) { feedback.toast({ type: 'error', message: 'Nothing to export.' }); return; }
+            exportBoardAsPdf(svg, board?.name || 'board');
+          }
           catch (err) { feedback.toast({ type: 'error', message: 'Export failed: ' + (err.message || err) }); }
+          finally { setExportSvgMounted(false); }
         }},
       ]},
       { id: 'clearstrokes', label: 'Clear all drawings', disabled: !(strokes && strokes.length > 0),
@@ -4863,9 +4970,14 @@ export function CanvasSurface({
         zoom={zoom}
         selfId={currentUser?.id}
       />
-      <div className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
+      <div ref={canvasRef}
+           className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
            style={{
-             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+             // transform is set imperatively (see applyCanvasTransform +
+             // the useLayoutEffect above) so 120Hz wheel/pinch updates
+             // don't go through React reconciliation. Initial mount: the
+             // layout effect fires sync before paint, so first frame has
+             // the correct transform.
              transformOrigin: '0 0',
            }}>
         {/* Group outlines + name labels — drawn behind the cards.
@@ -5644,11 +5756,14 @@ export function CanvasSurface({
 
       {/* Off-screen BoardThumbnail used as the source SVG for PNG/PDF
           exports. Sized 0×0 + visibility:hidden so it stays in the DOM
-          (so the export refs can read it) without affecting layout. */}
+          (so the export refs can read it) without affecting layout.
+          Mounted on demand only — see exportSvgMounted above. */}
       <div ref={exportSvgRef}
            style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden',
                     visibility: 'hidden', pointerEvents: 'none' }}>
-        <BoardThumbnail cards={cards} strokes={strokes} boards={boards} />
+        {exportSvgMounted && (
+          <BoardThumbnail cards={cards} strokes={strokes} boards={boards} />
+        )}
       </div>
 
 

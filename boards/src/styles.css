@@ -6528,13 +6528,16 @@ body {
 .canvas { transition: none; }
 .canvas.is-smooth { transition: transform var(--dur-base) var(--ease); }
 
-/* Card drag visual: subtle scale + lifted shadow */
-.card { transition: filter .15s ease; }
-.card.is-dragging > :first-child {
-  filter: drop-shadow(0 12px 28px rgba(0,0,0,.35));
-  transition: filter .12s ease;
+/* Card drag visual: lifted shadow via cheap box-shadow (was filter:drop-shadow,
+   which forces compositor work every frame and dominated drag cost on
+   large boards). Shape cards still strip the rectangular shadow per the
+   rule above. */
+.card.is-dragging {
+  box-shadow: 0 12px 28px rgba(0,0,0,.35);
+  transition: box-shadow .12s ease;
+  transform: none;
 }
-.card.is-dragging { transform: none; }
+.card.is-dragging.card-kind-shape { box-shadow: none; }
 .card.is-dragging .card-resize { opacity: 0; }
 
 /* Selected card outline animation (subtle) */

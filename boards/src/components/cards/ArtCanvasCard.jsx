@@ -3,8 +3,12 @@
 // CardStrokesOverlay (mounted on every card by CanvasSurface), so
 // every card kind picks up the same draw-tool routing.
 
-export function ArtCanvasCard({ bg = '#ffffff' }) {
+import { memo } from 'react';
+
+function ArtCanvasCardImpl({ bg = '#ffffff' }) {
   return (
     <div className="art-canvas-card" style={{ background: bg, width: '100%', height: '100%' }} />
   );
 }
+
+export const ArtCanvasCard = memo(ArtCanvasCardImpl);

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 // Feature flag matches yboard.js — both must be on the same transport.
 import { attachWorkspacePresence as attachWorkspacePresencePartyKit } from '../lib/workspacePartyKit.js';
 import { attachWorkspacePresence as attachWorkspacePresenceSupabase } from '../lib/workspaceRealtime.js';
@@ -19,10 +19,30 @@ const attachWorkspacePresence = import.meta.env.VITE_USE_PARTYKIT === 'true'
 //            never sees themselves in the peer list)
 //   status — 'connecting' | 'connected' | 'error' | 'disconnected'
 //   ping   — call to broadcast location immediately (e.g. on board switch)
+// Fingerprint of a peer that ignores fields no consumer differentiates on.
+// Includes tabId so two tabs of the same user (multi-tab) stay distinct;
+// includes the broadcast location keys consumers actually read.
+function peerKey(p) {
+  if (!p) return '';
+  const u = p.user || {};
+  const l = p.location || {};
+  return `${u.id || ''}|${u.name || ''}|${u.color || ''}|${l.boardId || ''}|${l.surface || ''}|${l.isActive === false ? 0 : 1}|${l.docCardId || ''}|${l.pageId || ''}|${p.tabId || ''}`;
+}
+
+function peersFingerprint(peers) {
+  if (!peers || peers.length === 0) return '';
+  // Sort so order-only diffs don't churn identity.
+  return peers.map(peerKey).sort().join('||');
+}
+
 export function useWorkspacePresence({ workspaceId, user, location }) {
   const [rawPeers, setRawPeers] = useState([]);
   const [status, setStatus] = useState('connecting');
   const handleRef = useRef(null);
+  // Dedupe transport updates: 5s heartbeats re-broadcast identical state,
+  // and we don't want every heartbeat to push a fresh array reference
+  // through React (it forces every consumer of wsPeers to recompute).
+  const prevFingerprintRef = useRef('');
   // Stash the latest location in a ref so the heartbeat closure always
   // reads the current one without us re-attaching the channel on each move.
   const locRef = useRef(location);
@@ -32,6 +52,7 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
     if (!workspaceId || !user?.id) return;
     setStatus('connecting');
     setRawPeers([]);
+    prevFingerprintRef.current = '';
     // Defer the ws: join by 2s so the board: channel gets to subscribe
     // first. Supabase free-tier has a low join-rate cap and concurrent
     // channel opens at page load were starving the board: channel.
@@ -39,7 +60,12 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
       const handle = attachWorkspacePresence(workspaceId, {
         user,
         getLocation: () => locRef.current,
-        onPeers: setRawPeers,
+        onPeers: (next) => {
+          const fp = peersFingerprint(next);
+          if (fp === prevFingerprintRef.current) return;
+          prevFingerprintRef.current = fp;
+          setRawPeers(next);
+        },
         onStatus: setStatus,
       });
       handleRef.current = handle;
@@ -66,7 +92,12 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
   // close scenarios used to make the user appear as a peer in boards
   // they weren't in — confusing and visually wrong. Self-presence is
   // implicit (you ARE here); peer dots should only ever be other people.
-  const peers = rawPeers.filter(p => p?.user?.id !== user?.id);
+  // Memoized so identity is preserved across renders that don't change
+  // rawPeers or the user id — keeps downstream useMemo deps stable.
+  const peers = useMemo(
+    () => rawPeers.filter(p => p?.user?.id !== user?.id),
+    [rawPeers, user?.id]
+  );
 
   return { peers, status, ping: () => handleRef.current?.ping?.() };
 }

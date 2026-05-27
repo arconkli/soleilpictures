@@ -3,7 +3,7 @@
 // Board / boardlink cards render their target name as a label so the parent
 // thumbnail reads as "what's inside" instead of anonymous gray boxes.
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { cachedUrl, resolveSrc } from '../lib/r2.js';
 
 // Image cells in thumbnails used to render `<image href={c.src}>` directly,
@@ -84,7 +84,7 @@ function labelForCard(c, boards) {
   return '';
 }
 
-export function BoardThumbnail({ cards, strokes, boards = {} }) {
+function BoardThumbnailImpl({ cards, strokes, boards = {} }) {
   if ((!cards || cards.length === 0) && (!strokes || strokes.length === 0)) return null;
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -171,3 +171,10 @@ export function BoardThumbnail({ cards, strokes, boards = {} }) {
     </svg>
   );
 }
+
+// Memoized — `cards`/`strokes` come from the cached useBoardPreview store
+// (stable reference per board until invalidated), and `boards` is from the
+// workspace state. Default shallow compare prevents re-rendering the
+// per-card SVG when the parent CanvasSurface re-renders for unrelated
+// reasons (pan, zoom, presence ticks).
+export const BoardThumbnail = memo(BoardThumbnailImpl);

@@ -37,14 +37,56 @@ export function yMapToCard(ym) {
 // the value too, but if the two ever drift (peer corruption, an old
 // migration), code that does `m.delete(card.id)` becomes a silent no-op
 // and effects that depend on cards loop forever. The key is canonical.
+//
+// Cards are memoized by content hash so unchanged cards return the SAME
+// object reference between calls. This lets per-card React.memo (and any
+// downstream useMemo keyed on card identity) actually short-circuit — a
+// single card edit no longer reshuffles all N card object identities,
+// even though the surrounding array is rebuilt.
+const readCardsCache = new WeakMap(); // ydoc → Map<id, { hash, card }>
+
+function cardHash(card) {
+  // Sort keys so iteration-order quirks don't cause false negatives.
+  const keys = Object.keys(card).sort();
+  let s = '';
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    const v = card[k];
+    s += k + '=';
+    s += (v !== null && typeof v === 'object') ? JSON.stringify(v) : String(v);
+    s += '|';
+  }
+  return s;
+}
+
 export function readCards(ydoc) {
   const cards = ydoc.getMap('cards');
+  let cache = readCardsCache.get(ydoc);
+  if (!cache) {
+    cache = new Map();
+    readCardsCache.set(ydoc, cache);
+  }
+  const seen = new Set();
   const out = [];
   cards.forEach((ym, key) => {
-    const card = yMapToCard(ym);
-    card.id = key;
-    out.push(card);
+    seen.add(key);
+    const fresh = yMapToCard(ym);
+    fresh.id = key;
+    const hash = cardHash(fresh);
+    const prev = cache.get(key);
+    if (prev && prev.hash === hash) {
+      out.push(prev.card);
+    } else {
+      cache.set(key, { hash, card: fresh });
+      out.push(fresh);
+    }
   });
+  // Evict cache entries for cards that were removed.
+  if (cache.size > seen.size) {
+    for (const k of [...cache.keys()]) {
+      if (!seen.has(k)) cache.delete(k);
+    }
+  }
   return out;
 }
 

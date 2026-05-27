@@ -88,6 +88,12 @@ export function useYBoard(boardId, userId, user = null) {
     handleRef.current = handle;
 
     let unmounted = false;
+    // Coalesce refresh triggers into a single per-frame snapshot rebuild.
+    // A typing burst or a multi-card paste can fire dozens of Y.Doc 'update'
+    // events in a tick; without coalescing each one rebuilds the whole
+    // snapshot and re-renders every card. With RAF coalescing they collapse
+    // into one rebuild per frame (<16ms latency — imperceptible).
+    let pendingRaf = 0;
 
     const refresh = () => {
       if (unmounted) return;
@@ -107,20 +113,31 @@ export function useYBoard(boardId, userId, user = null) {
       });
     };
 
-    const onUpdate = () => refresh();
-    handle.ydoc.on('update', onUpdate);
-    handle.undoManager.on('stack-item-added', refresh);
-    handle.undoManager.on('stack-item-popped', refresh);
-    handle.undoManager.on('stack-cleared', refresh);
+    const scheduleRefresh = () => {
+      if (unmounted) return;
+      if (pendingRaf) return;
+      pendingRaf = requestAnimationFrame(() => {
+        pendingRaf = 0;
+        refresh();
+      });
+    };
 
+    const onUpdate = () => scheduleRefresh();
+    handle.ydoc.on('update', onUpdate);
+    handle.undoManager.on('stack-item-added', scheduleRefresh);
+    handle.undoManager.on('stack-item-popped', scheduleRefresh);
+    handle.undoManager.on('stack-cleared', scheduleRefresh);
+
+    // Initial render: don't wait for a frame.
     handle.ready.then(() => refresh());
 
     return () => {
       unmounted = true;
+      if (pendingRaf) { cancelAnimationFrame(pendingRaf); pendingRaf = 0; }
       handle.ydoc.off('update', onUpdate);
-      handle.undoManager.off('stack-item-added', refresh);
-      handle.undoManager.off('stack-item-popped', refresh);
-      handle.undoManager.off('stack-cleared', refresh);
+      handle.undoManager.off('stack-item-added', scheduleRefresh);
+      handle.undoManager.off('stack-item-popped', scheduleRefresh);
+      handle.undoManager.off('stack-cleared', scheduleRefresh);
     };
   }, [boardId, userId, resetEpoch]);
 

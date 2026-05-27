@@ -1,6 +1,6 @@
 // All card kinds. Most accept onUpdate(patch) so they can self-edit inline.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
 import { resolveSrc } from '../lib/r2.js';
@@ -215,7 +215,7 @@ function describeListItem(card, boards = {}) {
   return null;
 }
 
-export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
+function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
                            onOpen, onOpenChild, onRename, autoFocus = false,
                            clickToOpen = false,
                            onOpenItem,
@@ -402,7 +402,7 @@ export function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
   );
 }
 
-export function BoardLinkCard({ targetBoard, note, onOpen }) {
+function BoardLinkCard({ targetBoard, note, onOpen }) {
   if (!targetBoard) {
     // Linked board the viewer can't access (or that no longer exists).
     return (
@@ -436,7 +436,7 @@ export function BoardLinkCard({ targetBoard, note, onOpen }) {
   );
 }
 
-export function ImageCard({ src, label, title, link, tone, aspect, caption,
+function ImageCard({ src, label, title, link, tone, aspect, caption,
                             onUpdate, autoFocus = false,
                             editTitleAt = 0, editCaptionAt = 0,
                             onAfterEdit, onExpand,
@@ -556,7 +556,7 @@ export function ImageCard({ src, label, title, link, tone, aspect, caption,
 // playback uses a <video> element with a presigned read URL fetched
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
-export function VideoCard({ src, title, onUpdate, autoFocus = false }) {
+function VideoCard({ src, title, onUpdate, autoFocus = false }) {
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
   // video. Double-click to edit instead.
@@ -588,7 +588,7 @@ export function VideoCard({ src, title, onUpdate, autoFocus = false }) {
   );
 }
 
-export function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
+function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
                            onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
                            awareness = null, cardId = null, boardId = null, peerLiveHtml = null }) {
@@ -624,7 +624,7 @@ export function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   );
 }
 
-export function LinkCard({ title, source, target, image, description, favicon, embed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function LinkCard({ title, source, target, image, description, favicon, embed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // Title editing is controlled here (not by EditableText's internal state) so
   // dbl-click ANYWHERE on the card body — not just on the title text — can
   // re-enter edit mode. Bumped via editTitleAt from the canvas.
@@ -804,7 +804,7 @@ export function LinkCard({ title, source, target, image, description, favicon, e
 }
 
 
-export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false, chipsOnly = false, onUpdate, autoFocus = false }) {
+function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false, chipsOnly = false, onUpdate, autoFocus = false }) {
   const [pickerIdx, setPickerIdx] = useState(null);
   const [pickerPos, setPickerPos] = useState(null);
   const [copiedIdx, setCopiedIdx] = useState(null);
@@ -979,7 +979,7 @@ export function PaletteCard({ title, swatches = [], hideHex = false, hideLabels 
   );
 }
 
-export function DocCard({ title, lines, author, date, onUpdate, autoFocus = false }) {
+function DocCard({ title, lines, author, date, onUpdate, autoFocus = false }) {
   return (
     <div className="doc">
       <div className="doc-hd">
@@ -1009,7 +1009,7 @@ export function DocCard({ title, lines, author, date, onUpdate, autoFocus = fals
   );
 }
 
-export function ScheduleCard({ title, rows }) {
+function ScheduleCard({ title, rows }) {
   return (
     <div className="sched">
       <div className="sched-title">{title}</div>
@@ -1031,7 +1031,7 @@ export function ScheduleCard({ title, rows }) {
 // `dash`: 'solid' (default) | 'dashed' | 'dotted'.
 // No inline text — shapes are just shapes; edit colors / stroke / etc. via
 // the toolbar (revealed when a shape is selected).
-export function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid' }) {
+function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid' }) {
   // strokeWidth: 0 = "No Border" for fillable shapes (rect, ellipse, etc.).
   // Line/arrow shapes have no fill, so 0 would make them invisible — clamp
   // to 1 in that case so the user can still see what they're editing.
@@ -1132,7 +1132,7 @@ function generatePeaks(seed, count = 56) {
 // fill as playback progresses. Right-click → "Set cover image" puts
 // the card into drop-zone mode so the user can drag an image onto it
 // or click to file-pick.
-export function AudioCard({ src, title, duration, cover,
+function AudioCard({ src, title, duration, cover,
                             onUpdate, autoFocus = false,
                             coverPickAt = 0,
                             onPickCover = null }) {
@@ -1407,3 +1407,54 @@ export function AudioCard({ src, title, duration, cover,
     </div>
   );
 }
+
+// ── Memoized exports ──────────────────────────────────────────────────────
+// Every card component is wrapped in React.memo. Combined with the stable
+// card identities from readCards (yhelpers.js), a card whose data didn't
+// change does zero render work on pan/zoom/drag/presence ticks.
+//
+// Custom comparator ignores function identity: every per-card callback
+// passed in from CanvasSurface.renderCard is a fresh inline closure, but
+// each one closes only over the card object `c` (stable) and parent-side
+// handlers (themselves stable refs to current state). So identity churn
+// in the function props does NOT reflect a behavior change — ignoring it
+// lets the memo actually short-circuit. Any non-function prop change
+// still busts the memo (selection flip, drag flag, card data edit, etc.).
+function shallowEqualIgnoreFns(prev, next) {
+  if (prev === next) return true;
+  const keys = Object.keys(next);
+  if (keys.length !== Object.keys(prev).length) return false;
+  for (const k of keys) {
+    const a = prev[k], b = next[k];
+    if (a === b) continue;
+    if (typeof a === 'function' && typeof b === 'function') continue;
+    return false;
+  }
+  return true;
+}
+
+const MemoBoardCard      = memo(BoardCard,      shallowEqualIgnoreFns);
+const MemoBoardLinkCard  = memo(BoardLinkCard,  shallowEqualIgnoreFns);
+const MemoImageCard      = memo(ImageCard,      shallowEqualIgnoreFns);
+const MemoVideoCard      = memo(VideoCard,      shallowEqualIgnoreFns);
+const MemoNoteCard       = memo(NoteCard,       shallowEqualIgnoreFns);
+const MemoLinkCard       = memo(LinkCard,       shallowEqualIgnoreFns);
+const MemoPaletteCard    = memo(PaletteCard,    shallowEqualIgnoreFns);
+const MemoDocCard        = memo(DocCard,        shallowEqualIgnoreFns);
+const MemoScheduleCard   = memo(ScheduleCard,   shallowEqualIgnoreFns);
+const MemoShapeCard      = memo(ShapeCard,      shallowEqualIgnoreFns);
+const MemoAudioCard      = memo(AudioCard,      shallowEqualIgnoreFns);
+
+export {
+  MemoBoardCard     as BoardCard,
+  MemoBoardLinkCard as BoardLinkCard,
+  MemoImageCard     as ImageCard,
+  MemoVideoCard     as VideoCard,
+  MemoNoteCard      as NoteCard,
+  MemoLinkCard      as LinkCard,
+  MemoPaletteCard   as PaletteCard,
+  MemoDocCard       as DocCard,
+  MemoScheduleCard  as ScheduleCard,
+  MemoShapeCard     as ShapeCard,
+  MemoAudioCard     as AudioCard,
+};

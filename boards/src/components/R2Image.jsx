@@ -9,7 +9,7 @@
 // - If src is empty or the user can't read this key → render the
 //   shared "no access" placeholder.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cachedUrl, resolveSrc, getSignedUrl } from '../lib/r2.js';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
@@ -18,11 +18,45 @@ export function R2Image({ src, alt = '', eager = false, onError, ...rest }) {
   const initial = cachedUrl(src);
   const [url, setUrl] = useState(initial);
   const [failed, setFailed] = useState(false);
+  // Viewport gating: defer presign + image decode for cards that aren't
+  // near the viewport. Image-heavy boards previously fired N presign
+  // requests on mount even for cards scrolled offscreen — bad for initial
+  // paint and a slow-network pile-up. eager-marked images (lightbox hero,
+  // already-presigned cached cards) skip the gate entirely. Once visible,
+  // we stay visible: scrolling away doesn't tear down a decoded image.
+  const [visible, setVisible] = useState(() => eager || !!initial);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    if (visible) return;
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          setVisible(true);
+          io.disconnect();
+          return;
+        }
+      }
+    }, {
+      // Start fetching when the image is within one viewport of being
+      // shown. Cards just off-screen get prefetched as the user pans
+      // toward them so they don't pop in jarringly.
+      rootMargin: '100%',
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visible]);
 
   // Resolve the src on mount + whenever it changes. Schedule a
   // refresh just before the client cache TTL expires so visible
   // images don't go stale mid-session.
   useEffect(() => {
+    if (!visible) return;
     let cancelled = false;
     let refreshTimer = null;
 
@@ -43,7 +77,7 @@ export function R2Image({ src, alt = '', eager = false, onError, ...rest }) {
     };
     tick();
     return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); };
-  }, [src]);
+  }, [src, visible]);
 
   if (failed) {
     return (
@@ -57,12 +91,15 @@ export function R2Image({ src, alt = '', eager = false, onError, ...rest }) {
   }
 
   if (!url) {
-    // Loading state — soft shimmer placeholder while presign in flight.
-    return <div className="r2-img r2-img-loading" {...rest} />;
+    // Loading state — soft shimmer placeholder while presign in flight,
+    // or while we're waiting for the card to enter the viewport. The
+    // rootRef anchors the IntersectionObserver to this element.
+    return <div ref={rootRef} className="r2-img r2-img-loading" {...rest} />;
   }
 
   return (
-    <img src={url}
+    <img ref={rootRef}
+         src={url}
          alt={alt}
          loading={eager ? 'eager' : 'lazy'}
          decoding="async"
