@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
+import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard,
@@ -64,6 +64,9 @@ const DRAW_DEFAULT_WIDTH = 3;
 const ERASER_DEFAULT_WIDTH = 16;
 const VIRTUAL_CANVAS_PX = 100000;
 const STROKE_HIT_PADDING = 12; // invisible hit region added around each stroke
+// Module-level singleton — used as the "no peers on this card" default so
+// BoardCard's memo doesn't bust from a fresh `|| []` allocation each render.
+const EMPTY_PEERS_ARR = [];
 
 function distPointToSegment(p, a, b) {
   const vx = b.x - a.x;
@@ -234,11 +237,74 @@ export function CanvasSurface({
     if (!el) return;
     el.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
   };
+  // ── Viewport culling state (D1) ──────────────────────────────────────────
+  // visibleIds = Set of card ids currently within (viewport + 1-screen margin).
+  // null sentinel means "render all" — used before the first measurement so
+  // we don't ever show an empty board.
+  // sortedCardsRef + wrapWHRef + visibleRafRef are read by the RAF-throttled
+  // recompute below; refs keep the recompute function stable and let us
+  // invoke it from gesture handlers without re-binding.
+  const [visibleIds, setVisibleIds] = useState(null);
+  const sortedCardsRef = useRef(null);
+  const wrapWHRef = useRef({ w: 0, h: 0 });
+  const visibleRafRef = useRef(0);
+  const scheduleVisibleRecompute = useCallback(() => {
+    if (visibleRafRef.current) return;
+    visibleRafRef.current = requestAnimationFrame(() => {
+      visibleRafRef.current = 0;
+      const z = zoomRef.current;
+      const px = panRef.current.x;
+      const py = panRef.current.y;
+      const { w: wrapW, h: wrapH } = wrapWHRef.current;
+      const arr = sortedCardsRef.current;
+      if (!z || !wrapW || !wrapH || !arr) return;
+      // Canvas-space viewport bbox, expanded by one viewport in each
+      // direction so cards just off-screen stay mounted (no pop-in on pan).
+      const vx = -px / z, vy = -py / z;
+      const vw = wrapW / z, vh = wrapH / z;
+      const minX = vx - vw, maxX = vx + 2 * vw;
+      const minY = vy - vh, maxY = vy + 2 * vh;
+      const next = new Set();
+      for (let i = 0; i < arr.length; i++) {
+        const c = arr[i];
+        if (c.x + c.w < minX || c.x > maxX) continue;
+        if (c.y + c.h < minY || c.y > maxY) continue;
+        next.add(c.id);
+      }
+      // Skip the setState if the id set didn't change (common on pan
+      // micro-movements that don't bring/take any card across the band).
+      setVisibleIds(prev => {
+        if (prev && prev.size === next.size) {
+          let same = true;
+          for (const id of next) { if (!prev.has(id)) { same = false; break; } }
+          if (same) return prev;
+        }
+        return next;
+      });
+    });
+  }, []);
   useLayoutEffect(() => {
     panRef.current = pan;
     zoomRef.current = zoom;
     applyCanvasTransform();
-  }, [pan.x, pan.y, zoom]);
+    scheduleVisibleRecompute();
+  }, [pan.x, pan.y, zoom, scheduleVisibleRecompute]);
+  // ResizeObserver on the wrap element so viewport recomputes when the
+  // window or sidebar resizes (also seeds wrapWHRef with the initial size
+  // synchronously after mount via the first observation callback).
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        const r = e.contentRect;
+        wrapWHRef.current = { w: r.width, h: r.height };
+      }
+      scheduleVisibleRecompute();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [scheduleVisibleRecompute]);
   const [smoothXform, setSmoothXform] = useState(false); // true → CSS transition on canvas transform
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
@@ -779,10 +845,28 @@ export function CanvasSurface({
     arr.sort((a, b) => ((a.z || 0) - (b.z || 0)) || (a.id < b.id ? -1 : 1));
     return arr;
   }, [cards]);
+  // Keep the ref the viewport-culling RAF reads in sync with the latest
+  // sorted array, and re-fire a recompute whenever the set of cards changes
+  // (add/remove/edit may shift card positions).
+  sortedCardsRef.current = sortedCards;
+  useEffect(() => { scheduleVisibleRecompute(); }, [sortedCards, scheduleVisibleRecompute]);
 
-  const cardById = useMemo(() => {
-    const m = {}; (cards || []).forEach(c => m[c.id] = c); return m;
-  }, [cards]);
+  // cardById has STABLE object identity across snapshots — we mutate the
+  // singleton in place when cards change. Lets downstream useMemo /
+  // useCallback that capture cardById skip re-allocation when only card
+  // *content* changed (id set unchanged). arrowAttachments still has
+  // `cards` in its deps below, so arrow geometry recomputes on card moves.
+  const cardByIdRef = useRef({});
+  const cardById = cardByIdRef.current;
+  // Sync the singleton each render so consumers always read the latest.
+  // This runs in render (not an effect) because downstream useMemos read
+  // cardById synchronously and need the up-to-date map.
+  {
+    const m = cardById;
+    const seen = new Set();
+    for (const c of (cards || [])) { m[c.id] = c; seen.add(c.id); }
+    for (const k of Object.keys(m)) { if (!seen.has(k)) delete m[k]; }
+  }
 
   // Refs that always mirror the latest cards / selection — used by
   // pointer-event closures (which capture state at pointer-down) so
@@ -1055,10 +1139,13 @@ export function CanvasSurface({
 
   // Per-arrow attachment points (handles fan-out when multiple arrows
   // share an anchor side). Keyed by array index; falsy entries mean the
-  // arrow has missing endpoints and shouldn't render.
+  // arrow has missing endpoints and shouldn't render. Depends on `cards`
+  // (in addition to arrows + arrowCtx) so endpoint moves re-fire the
+  // computation — cardById has stable identity now and won't trigger by
+  // itself.
   const arrowAttachments = useMemo(
     () => computeArrowAttachments(arrows || [], arrowCtx),
-    [arrows, arrowCtx]
+    [arrows, arrowCtx, cards]
   );
 
   // Rect list used as obstacles when shaping each arrow's bezier. Includes
@@ -1319,6 +1406,7 @@ export function CanvasSurface({
         panRef.current = { x: curPan.x - e.deltaX, y: curPan.y - e.deltaY };
       }
       applyCanvasTransform();
+      scheduleVisibleRecompute();
       scheduleCommit();
     };
     el.addEventListener('wheel', onWheel, { passive: false });
@@ -1365,6 +1453,7 @@ export function CanvasSurface({
           y: oy - rect.top  - cy * targetZoom,
         };
         applyCanvasTransform();
+        scheduleVisibleRecompute();
         scheduleTouchPanCommit();
         return start;
       },
@@ -1379,6 +1468,7 @@ export function CanvasSurface({
         const p = panRef.current;
         panRef.current = { x: p.x + dx, y: p.y + dy };
         applyCanvasTransform();
+        scheduleVisibleRecompute();
         scheduleTouchPanCommit();
       },
     },
@@ -1853,6 +1943,7 @@ export function CanvasSurface({
         y: startPan.y + (ev.clientY - startClient.y),
       };
       applyCanvasTransform();
+      scheduleVisibleRecompute();
     };
     const onUp = () => {
       document.body.style.cursor = '';
@@ -4174,7 +4265,9 @@ export function CanvasSurface({
   // Live "would-be-selected" preview while marqueeing — show the soleil
   // selection ring on cards under the active marquee box so the user sees
   // exactly what they're highlighting before pointerup commits.
-  const marqueePreviewIds = (() => {
+  // Memoized so the common (no-marquee) case returns a constant null and
+  // doesn't allocate a Set per render of the canvas.
+  const marqueePreviewIds = useMemo(() => {
     if (!marquee) return null;
     const minX = Math.min(marquee.x0, marquee.x1);
     const maxX = Math.max(marquee.x0, marquee.x1);
@@ -4186,7 +4279,7 @@ export function CanvasSurface({
       if (c.x < maxX && c.x + c.w > minX && c.y < maxY && c.y + c.h > minY) out.add(c.id);
     }
     return out;
-  })();
+  }, [marquee, cards]);
 
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
@@ -4276,8 +4369,11 @@ export function CanvasSurface({
         window._missingBoardLogged.delete(c.id);
         console.log('[boards] canvas missing board RECOVERED', { cardId: c.id });
       }
-      const peersHere  = peersHereByBoard?.get?.(c.id)  || [];
-      const peersBelow = peersBelowByBoard?.get?.(c.id) || [];
+      // Reuse a singleton empty array so BoardCard's memo doesn't bust
+      // every render for boards with no peers (the common case): a fresh
+      // `|| []` would change reference identity and defeat the memo.
+      const peersHere  = peersHereByBoard?.get?.(c.id)  || EMPTY_PEERS_ARR;
+      const peersBelow = peersBelowByBoard?.get?.(c.id) || EMPTY_PEERS_ARR;
       inner = target
         ? <BoardCard board={target} boards={boards} teammates={TEAMMATES}
                      peersHere={peersHere} peersBelow={peersBelow}
@@ -5141,7 +5237,29 @@ export function CanvasSurface({
             })}
           </div>
         )}
-        <div className="cards-layer">{sortedCards.map(renderCard)}</div>
+        {/* Viewport culling: only render cards inside the visibleIds set,
+            plus always-render exceptions for active interactions whose
+            unmount would break behavior (drag in flight, note being
+            edited would lose focus, active resize/multi-resize, the
+            selection target, and the card whose context menu is open).
+            When visibleIds is null (pre-measurement) we render everything. */}
+        <div className="cards-layer">{(() => {
+          if (visibleIds == null) return sortedCards.map(renderCard);
+          const dragIds = drag?.ids;
+          const mrLive = multiResize?.live;
+          const resizeId = resize?.id;
+          const ctxCardId = ctx.open ? ctx.cardId : null;
+          return sortedCards.filter(c => {
+            if (visibleIds.has(c.id)) return true;
+            if (selected.has(c.id)) return true;
+            if (dragIds && dragIds.includes(c.id)) return true;
+            if (editingNoteId === c.id) return true;
+            if (resizeId === c.id) return true;
+            if (mrLive && mrLive.has && mrLive.has(c.id)) return true;
+            if (ctxCardId === c.id) return true;
+            return false;
+          }).map(renderCard);
+        })()}</div>
 
         {/* Multi-selection resize — a single bottom-right corner handle
             matching the per-card resize affordance, but operating on
@@ -6174,7 +6292,9 @@ export function CanvasSurface({
 // Renders a card's `strokes` array as an SVG layer bounded to the card's
 // box. Mounted on every card so any card type can carry annotations —
 // the draw tool routes strokes here when a single card is selected.
-function CardStrokesOverlay({ strokes, w, h }) {
+// Memoized: props are all primitive / stable-by-card-identity, so default
+// shallow compare lets unchanged cards skip the path-string concat.
+const CardStrokesOverlay = memo(function CardStrokesOverlay({ strokes, w, h }) {
   if (!Array.isArray(strokes) || strokes.length === 0) return null;
   const vw = Math.max(1, w || 1);
   const vh = Math.max(1, h || 1);
@@ -6195,7 +6315,7 @@ function CardStrokesOverlay({ strokes, w, h }) {
       })}
     </svg>
   );
-}
+});
 
 // ── CardInfoPopover ──────────────────────────────────────────────────────
 // Tiny "Info" panel — shown on right-click → Info. Surfaces who created

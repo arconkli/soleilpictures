@@ -265,7 +265,35 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
   const children = Object.values(boards).filter(b => b.parent_board_id === board.id);
   const childCount = children.length;
 
-  const preview = useBoardPreview(board.id);
+  // Viewport-gate the preview load for canvas-mode parents. A parent
+  // board with 10+ sub-board tiles used to fire 10 parallel Y.Doc
+  // decodes on mount even for tiles scrolled off-screen — that was the
+  // dominant cost on the Marketing board. List-mode boards stay eager
+  // because their rows can't be lazy-loaded the same way (the list
+  // layout needs preview data to figure out which items to show).
+  const rootRef = useRef(null);
+  const [thumbVisible, setThumbVisible] = useState(false);
+  useEffect(() => {
+    if (isList || thumbVisible) return;
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setThumbVisible(true);
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          setThumbVisible(true);
+          io.disconnect();
+          return;
+        }
+      }
+    }, { rootMargin: '100%' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [isList, thumbVisible]);
+
+  const preview = useBoardPreview(board.id, isList || thumbVisible);
   const hasPreview = !isList && preview && (preview.cards?.length > 0 || preview.strokes?.length > 0);
 
   const itemCount = preview?.cards?.length ?? 0;
@@ -311,7 +339,8 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
       if (onOpen) onOpen();
     };
     return (
-      <div className={`bc bc-list ${mode === 'compact' ? 'bc-compact' : ''}`}
+      <div ref={rootRef}
+           className={`bc bc-list ${mode === 'compact' ? 'bc-compact' : ''}`}
            onClick={outerClick}>
         <div className="bc-list-head">
           {onRename
@@ -355,7 +384,8 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
   const subLabel = board.meta || 'Board';
 
   return (
-    <div className={`bc ${mode === 'compact' ? 'bc-compact' : ''}`}
+    <div ref={rootRef}
+         className={`bc ${mode === 'compact' ? 'bc-compact' : ''}`}
          onClick={outerClick}>
       <div className="bc-cover">
         {hasPreview ? (

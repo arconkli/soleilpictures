@@ -17,7 +17,29 @@ function notifyListeners(boardId, data) {
   for (const fn of entry.listeners) fn(data);
 }
 
+// Module-level concurrency limiter. A parent board with many sub-board
+// tiles previously fanned out unbounded parallel snapshot fetches +
+// Y.Doc decodes on first paint; with 10 tiles × ~200 KB Y.Doc each that
+// pinned the main thread. Capping at 3 in-flight serializes the rest
+// without blocking the viewport — visible tiles still race to load.
+const PREVIEW_CONCURRENCY = 3;
+let _inflight = 0;
+const _waiters = [];
+function _acquireSlot() {
+  if (_inflight < PREVIEW_CONCURRENCY) {
+    _inflight++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => { _waiters.push(resolve); });
+}
+function _releaseSlot() {
+  const next = _waiters.shift();
+  if (next) next();
+  else _inflight--;
+}
+
 async function fetchPreview(boardId) {
+  await _acquireSlot();
   try {
     const b64 = await loadBoardSnapshot(boardId);
     if (!b64) return { cards: [], arrows: [], strokes: [], docPages: [], docText: '' };
@@ -38,13 +60,19 @@ async function fetchPreview(boardId) {
   } catch (e) {
     console.warn('useBoardPreview fetch failed', e);
     return { cards: [], arrows: [], strokes: [], docPages: [], docText: '' };
+  } finally {
+    _releaseSlot();
   }
 }
 
-export function useBoardPreview(boardId) {
-  const [data, setData] = useState(() => cache.get(boardId)?.data || null);
+// `enabled` (default true) lets a caller defer the fetch until something
+// happens — e.g. the consuming card scrolled into view. When false the
+// hook is inert and returns null, no network or Y.Doc work happens.
+export function useBoardPreview(boardId, enabled = true) {
+  const [data, setData] = useState(() => (enabled ? (cache.get(boardId)?.data || null) : null));
 
   useEffect(() => {
+    if (!enabled) { setData(null); return; }
     if (!boardId) { setData(null); return; }
     let entry = cache.get(boardId);
 
@@ -76,7 +104,7 @@ export function useBoardPreview(boardId) {
     const listener = (d) => setData(d);
     entry.listeners.add(listener);
     return () => { entry.listeners.delete(listener); };
-  }, [boardId]);
+  }, [boardId, enabled]);
 
   return data;
 }

@@ -298,6 +298,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     color: ownProfile?.color || undefined,
   }), [user.id, user.email, user.user_metadata?.full_name, ownProfile?.display_name, ownProfile?.color]);
 
+  // Stable currentUser identity for downstream <CanvasSurface currentUser={...}>.
+  // Without this useMemo the inline object literal at the mount site churned
+  // identity per App render, busting CanvasSurface's downstream memos for
+  // unrelated state changes.
+  const currentUser = useMemo(() => ({
+    id: user.id,
+    email: user.email,
+    name: userInfo.name,
+    color: userInfo.color || pickPresenceColor(user.id),
+  }), [user.id, user.email, userInfo.name, userInfo.color]);
+
   // Resolved defaults — workspace > user > hardcoded fallback. Drives every
   // addX mutator's initial values + the SettingsPanel UI. Stash in a ref
   // so mutators read the latest at call time without re-memo cascades.
@@ -2148,20 +2159,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        wsPeers={wsPeers}
                        onJumpToPeer={jumpToPeer}
                        canEdit={isMain ? canEditCurrent : true}
-                       currentUser={{
-                         id: user.id, email: user.email,
-                         // Always honor the saved profile when present —
-                         // userInfo already merged display_name + custom
-                         // color over the email-prefix and deterministic
-                         // fallbacks. This way, if the user picked a
-                         // color in Account settings, it's their color
-                         // EVERYWHERE (presence avatars, comment author
-                         // tints, peer-icon resolution, etc.) rather
-                         // than reverting to a hash of their user id
-                         // when they appear locally.
-                         name: userInfo.name,
-                         color: userInfo.color || pickPresenceColor(user.id),
-                       }}
+                       currentUser={currentUser}
                        onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                        onOpenPicker={() => setPickerOpen(true)}
                        onDropInboxItem={dropInboxItemFor(muts)}
