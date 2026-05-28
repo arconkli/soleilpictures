@@ -381,7 +381,7 @@ function decorateChecklistItem(li, wantedClass, doc) {
   if (!li.querySelector('.ck-box')) {
     const box = doc.createElement('span');
     box.className = 'ck-box';
-    box.contentEditable = 'false';
+    // No contenteditable=false: see RichNoteEditor.makeEmptyCheckbox for why.
     box.setAttribute('role', 'checkbox');
     box.setAttribute('aria-checked', 'false');
     li.insertBefore(box, li.firstChild);

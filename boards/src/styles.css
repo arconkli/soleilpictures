@@ -3769,7 +3769,6 @@ body {
   cursor: pointer;
   transition: background 120ms, border-color 120ms;
   position: relative;
-  user-select: none;
 }
 .note-checklist .ck-box.is-checked {
   background: #ffa500; border-color: #cc8400;

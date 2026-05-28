@@ -32,6 +32,12 @@ export function RichNoteEditor({
   const ref = useRef(null);
   const [editing, setEditing] = useState(autoFocus);
   const initialRef = useRef('');
+  // Coords of the most recent pointerdown in the contenteditable. Used by
+  // onBodyClick's checkbox-toggle branch to tell a tap (small movement →
+  // toggle) from a drag-end click (movement > threshold → leave alone, so
+  // a drag-to-select that ends on/near a checkbox doesn't accidentally
+  // flip it).
+  const tapStartRef = useRef(null);
   const { workspaceId } = useEntityTrie();
   // @-mention state: { tokenStart, query, anchorRect, tokenRange }
   // tokenRange is a live DOM Range covering the @<query> text so we
@@ -202,6 +208,14 @@ export function RichNoteEditor({
     // editing; checking off items shouldn't require a double-click in.
     const box = e.target.closest?.('.ck-box');
     if (box && ref.current) {
+      // Only treat as a toggle if the pointer barely moved between down and
+      // up. A drag-to-select gesture that happens to end on a checkbox
+      // would otherwise flip it.
+      const start = tapStartRef.current;
+      tapStartRef.current = null;
+      const dx = start ? e.clientX - start.x : 0;
+      const dy = start ? e.clientY - start.y : 0;
+      if (dx * dx + dy * dy > 25) return;
       e.preventDefault();
       e.stopPropagation();
       const checked = !box.classList.contains('is-checked');
@@ -227,13 +241,15 @@ export function RichNoteEditor({
     onChangeHTML(ref.current.innerHTML);
   };
 
-  // While editing, clicks on the checkbox span (contentEditable=false) would
-  // otherwise let the editor place a caret next to the box and steal focus
-  // from the checkmark gesture. Swallow the pointerdown for boxes, but
-  // still propagate other pointerdowns so text selection works normally.
+  // While editing, stop the pointerdown from bubbling to the canvas (which
+  // would otherwise start dragging the whole card). Record the pointer
+  // origin so onBodyClick can distinguish a tap on a checkbox (toggle)
+  // from the click that ends a drag-to-select (do nothing). Crucially we
+  // do NOT preventDefault here — that used to be done over .ck-box spans
+  // and broke native drag-select from starting near a checkbox.
   const onEditingPointerDown = (e) => {
     e.stopPropagation();
-    if (e.target.closest?.('.ck-box')) e.preventDefault();
+    tapStartRef.current = { x: e.clientX, y: e.clientY };
   };
 
   // Handle Backspace / Enter inside a checklist item. Returns true if the
@@ -415,6 +431,9 @@ function normalizeChecklists(root) {
       if (child.nodeType === Node.ELEMENT_NODE && child.classList?.contains('ck-box')) continue;
       text.appendChild(child);
     }
+    // Strip legacy contenteditable=false off saved checkboxes — see the
+    // comment in makeEmptyCheckbox for why we no longer use it.
+    li.querySelectorAll('.ck-box').forEach(b => b.removeAttribute('contenteditable'));
     ensureCkTextPlaceholder(text);
   });
 }
@@ -496,7 +515,12 @@ function isRangeAtStartOf(el, range) {
 function makeEmptyCheckbox(doc) {
   const box = doc.createElement('span');
   box.className = 'ck-box';
-  box.contentEditable = 'false';
+  // Intentionally NOT contenteditable=false. Chrome (and Firefox) extend
+  // selection forward through ce=false islands but get glitchy extending
+  // backward across them — so a drag-up out of one checklist item into
+  // the previous one would fail to extend. Leaving the box editable lets
+  // native drag-select span both directions. The box has no text content
+  // so a misplaced caret is benign; clicks are intercepted by onBodyClick.
   box.setAttribute('role', 'checkbox');
   box.setAttribute('aria-checked', 'false');
   return box;
