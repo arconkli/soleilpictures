@@ -26,6 +26,7 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import {
   untagCard, untagBoard, untagGroup,
   confirmAppliedTag, dismissAutotagSuggestion,
+  tagCard, tagGroup, tagBoard, tagDocPage,
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { getKind } from '../lib/entityKinds.js';
@@ -155,19 +156,26 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   // the source board. The index points into imageCardsFlat (derived
   // below) so arrow keys can flip through the tag's whole image set.
   const [lightboxIdx, setLightboxIdx] = useState(null);
-  // Filter: 'all' | 'auto' | 'user'. Stored in localStorage so the
-  // user's choice persists across reloads / tab switches.
+  // Filter: 'all' | 'auto' | 'user' | 'suggested'. Stored in localStorage
+  // so the user's choice persists across reloads / tab switches.
+  // 'suggested' shows the per-tag inbox of middle-band cosine matches
+  // pending accept/dismiss — see boards/supabase/migrations/0043.
   const [sourceFilter, setSourceFilter] = useState(() => {
     if (typeof localStorage === 'undefined') return 'all';
     try {
       const v = localStorage.getItem('soleil.tags.detail.filter');
-      return (v === 'auto' || v === 'user') ? v : 'all';
+      return (v === 'auto' || v === 'user' || v === 'suggested') ? v : 'all';
     } catch (_) { return 'all'; }
   });
   const setFilter = (v) => {
     setSourceFilter(v);
     try { localStorage.setItem('soleil.tags.detail.filter', v); } catch (_) {}
   };
+
+  // Pending suggestions for the per-tag inbox. Fetched on mount + whenever
+  // the tag changes. Realtime keeps it fresh as the AI tagger writes new
+  // rows and the user accepts/dismisses.
+  const [suggestions, setSuggestions] = useState([]); // [{ tag_id, source_kind, source_id, board_id, distance, title?, ... }]
   // Type filter: 'all' or any card kind ('image', 'palette', 'note',
   // 'card', 'doc', 'link', 'schedule', 'board', 'group'). Stored per-tag
   // would be excessive — keep it per-tag-detail session as a single
@@ -275,6 +283,43 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     };
     loadMentions();
 
+    // Pending suggestions for this tag — the per-tag inbox in the
+    // Suggested filter. dismissed_at IS NULL filters out tombstones.
+    const loadSuggestions = async () => {
+      const { data, error } = await supabase
+        .from('tag_suggestions')
+        .select('tag_id, source_kind, source_id, board_id, doc_card_id, distance, created_at')
+        .eq('tag_id', tag.id)
+        .is('dismissed_at', null)
+        .order('distance', { ascending: true })
+        .limit(200);
+      if (cancelled) return;
+      if (error) { console.warn('[tags] tag_suggestions load failed', error); setSuggestions([]); return; }
+      // Hydrate titles for card sources (the common case) so the inbox
+      // shows something readable rather than a bare uuid.
+      const rows = data || [];
+      const cardIds = rows.filter(r => r.source_kind === 'card').map(r => r.source_id);
+      let cardTitleById = new Map();
+      if (cardIds.length > 0) {
+        const { data: idx } = await supabase.from('card_index')
+          .select('card_id, board_id, kind, title, body, meta')
+          .in('card_id', cardIds);
+        for (const c of (idx || [])) cardTitleById.set(c.card_id, c);
+      }
+      if (cancelled) return;
+      setSuggestions(rows.map(r => {
+        const card = r.source_kind === 'card' ? cardTitleById.get(r.source_id) : null;
+        return {
+          ...r,
+          title: card?.title || null,
+          body: card?.body || null,
+          card_kind: card?.kind || null,
+          board_id: r.board_id || card?.board_id || null,
+        };
+      }));
+    };
+    loadSuggestions();
+
     const sfx = Math.random().toString(36).slice(2, 9);
     const chan = supabase.channel(`tag-detail:${tag.id}:${sfx}`)
       .on('postgres_changes', {
@@ -294,6 +339,13 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             .catch(() => {});
         }
         if (isMention) loadMentions();
+      })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'tag_suggestions',
+      }, (payload) => {
+        const n = payload?.new || {};
+        const o = payload?.old || {};
+        if (n.tag_id === tag.id || o.tag_id === tag.id) loadSuggestions();
       })
       .subscribe();
 
@@ -430,6 +482,61 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       });
     } catch (err) {
       feedback?.toast?.({ type: 'error', message: 'Remove failed: ' + (err.message || err) });
+    }
+  };
+
+  // ── Suggestion inbox actions ────────────────────────────────────────────
+  // Accept a suggestion → apply the tag via the right kind helper, then
+  // delete the suggestion row (the entity_links INSERT becomes the
+  // permanent record; the suggestion is consumed).
+  const acceptSuggestion = async (s) => {
+    try {
+      if (s.source_kind === 'card') {
+        await tagCard({
+          workspaceId, boardId: s.board_id, cardId: s.source_id,
+          tagId: tag.id, source: 'user',
+        });
+      } else if (s.source_kind === 'group') {
+        await tagGroup({
+          workspaceId, boardId: s.board_id, groupId: s.source_id,
+          tagId: tag.id, source: 'user',
+        });
+      } else if (s.source_kind === 'board') {
+        await tagBoard({
+          workspaceId, boardId: s.source_id,
+          tagId: tag.id, source: 'user',
+        });
+      } else if (s.source_kind === 'doc-page') {
+        await tagDocPage({
+          workspaceId, docCardId: s.doc_card_id, pageId: s.source_id,
+          boardId: s.board_id || null, tagId: tag.id, source: 'user',
+        });
+      }
+      await supabase.from('tag_suggestions')
+        .delete()
+        .eq('tag_id', tag.id)
+        .eq('source_kind', s.source_kind)
+        .eq('source_id', s.source_id);
+      // Optimistic local update — realtime will catch up too.
+      setSuggestions(prev => prev.filter(p => !(p.source_kind === s.source_kind && p.source_id === s.source_id)));
+    } catch (err) {
+      feedback?.toast?.({ type: 'error', message: 'Accept failed: ' + (err.message || err) });
+    }
+  };
+
+  // Dismiss → tombstone forever. The (tag_id, source_kind, source_id)
+  // row stays in the table with dismissed_at set so future scoring
+  // passes skip it (the ignoreDuplicates upsert won't overwrite).
+  const dismissSuggestion = async (s) => {
+    try {
+      await supabase.from('tag_suggestions')
+        .update({ dismissed_at: new Date().toISOString() })
+        .eq('tag_id', tag.id)
+        .eq('source_kind', s.source_kind)
+        .eq('source_id', s.source_id);
+      setSuggestions(prev => prev.filter(p => !(p.source_kind === s.source_kind && p.source_id === s.source_id)));
+    } catch (err) {
+      feedback?.toast?.({ type: 'error', message: 'Dismiss failed: ' + (err.message || err) });
     }
   };
 
@@ -697,7 +804,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
         <span className="tag-detail-dot" style={{ background: dot }} />
         <h1 className="tag-detail-name">{tag.name}</h1>
         <span className="tag-detail-count">
-          {filteredRows.length} {filteredRows.length === 1 ? 'item' : 'items'}
+          {sourceFilter === 'suggested'
+            ? `${suggestions.length} ${suggestions.length === 1 ? 'suggestion' : 'suggestions'}`
+            : `${filteredRows.length} ${filteredRows.length === 1 ? 'item' : 'items'}`}
         </span>
         <span className="tag-detail-spacer" />
         {onClose && (
@@ -707,7 +816,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
 
       <TagDescriptionRow tag={tag} />
 
-      {rows.length > 0 && (
+      {(rows.length > 0 || suggestions.length > 0) && (
         <div className="tag-detail-filter">
           <button className={`tag-detail-filter-pill ${sourceFilter === 'all' ? 'is-on' : ''}`}
                   onClick={() => setFilter('all')}>
@@ -721,10 +830,16 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
                   onClick={() => setFilter('auto')}>
             Auto <span className="tag-detail-filter-count">{counts.auto}</span>
           </button>
+          {suggestions.length > 0 && (
+            <button className={`tag-detail-filter-pill ${sourceFilter === 'suggested' ? 'is-on' : ''}`}
+                    onClick={() => setFilter('suggested')}>
+              Suggested <span className="tag-detail-filter-count">{suggestions.length}</span>
+            </button>
+          )}
         </div>
       )}
 
-      {allCardsFlat.length > 0 && (
+      {sourceFilter !== 'suggested' && allCardsFlat.length > 0 && (
         <div className="tag-detail-filter tag-detail-filter-type">
           <button className={`tag-detail-filter-pill ${typeFilter === 'all' ? 'is-on' : ''}`}
                   onClick={() => setTypeFilterPersist('all')}>
@@ -747,6 +862,56 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       )}
 
       <div className="tag-detail-body">
+        {sourceFilter === 'suggested' ? (
+          suggestions.length === 0 ? (
+            <div className="tag-detail-empty">
+              No pending suggestions for <strong>{tag.name}</strong>.
+              <div className="tag-detail-empty-hint">
+                The AI proposes new matches when you edit cards. Accept or
+                dismiss them here.
+              </div>
+            </div>
+          ) : (
+            <div className="tag-detail-suggestions">
+              {suggestions.map(s => {
+                const kind = s.card_kind || s.source_kind;
+                const Icn = kindIcon(kind);
+                const titleText = (s.title || '').trim()
+                  || ((s.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80))
+                  || `${s.source_kind} ${String(s.source_id).slice(0, 8)}`;
+                const distPct = Math.max(0, Math.min(100, Math.round((1 - s.distance) * 100)));
+                const navTarget = s.source_kind === 'card' && s.board_id
+                  ? { kind, id: `${s.board_id}:${s.source_id}`, board_id: s.board_id, card_id: s.source_id }
+                  : null;
+                return (
+                  <div key={`sug:${s.source_kind}:${s.source_id}`}
+                       className="tag-detail-suggestion-row">
+                    <button className="tag-detail-suggestion-preview"
+                            title={navTarget ? 'Click to open' : ''}
+                            onClick={navTarget ? () => navigate(navTarget) : undefined}>
+                      <Icon as={Icn} size={12} />
+                      <span className="tag-detail-suggestion-title">{titleText}</span>
+                      <span className="tag-detail-suggestion-score">{distPct}% match</span>
+                    </button>
+                    <div className="tag-detail-suggestion-actions">
+                      <button className="tag-detail-suggestion-accept"
+                              onClick={() => acceptSuggestion(s)}
+                              title="Apply this tag">
+                        Accept
+                      </button>
+                      <button className="tag-detail-suggestion-dismiss"
+                              onClick={() => dismissSuggestion(s)}
+                              title="Don't suggest this again">
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          <>
         {loading && <div className="tag-detail-empty">Loading…</div>}
         {!loading && rows.length === 0 && (
           <div className="tag-detail-empty">
@@ -842,6 +1007,8 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
               })}
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
 

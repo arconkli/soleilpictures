@@ -4184,12 +4184,18 @@ export function CanvasSurface({
   // Wake on any meaningful state change. The flag-and-singleton-timer
   // pattern means rapid re-renders still produce exactly one scoring
   // run per quiet window — render churn doesn't reset the clock.
+  //
+  // 3s settle (up from 1.5s) since the kill-the-bill rework: even
+  // with the LLM removed from the hot path, we don't need to score
+  // every 1.5s during a typing burst — the embed call is the
+  // remaining cost (cached after first hit, but still a network
+  // round-trip when content changes).
   useEffect(() => {
     if (!autotagReady || !workspaceId || !board?.id) return;
     if (autotagPendingRef.current) return; // already scheduled
     if (autotagInFlightRef.current) return; // currently scoring
     autotagPendingRef.current = true;
-    autotagTimerRef.current = setTimeout(runAutotagScoring, 1500);
+    autotagTimerRef.current = setTimeout(runAutotagScoring, 3000);
   });
   useEffect(() => () => clearTimeout(autotagTimerRef.current), []);
 

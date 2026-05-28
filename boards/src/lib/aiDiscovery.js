@@ -40,9 +40,10 @@ function clusterFingerprint(memberCardIds) {
   return [...memberCardIds].sort().join(',');
 }
 
-// Re-claim after 5 minutes — discovery is cheaper than backfill and we
-// want it to re-fire reasonably often as the workspace evolves.
-const DISCOVERY_LOCK_STALE_MS = 5 * 60 * 1000;
+// Re-claim after 15 minutes. Discovery itself is cheap, but it's the only
+// path that still calls OpenAI in the embeddings-only design (cluster
+// naming via gpt-4o-mini). Slowing the cadence caps that spend hard.
+const DISCOVERY_LOCK_STALE_MS = 15 * 60 * 1000;
 
 // Workspace-wide single-flight. First connected client to claim the
 // lock runs the pass; everyone else short-circuits.

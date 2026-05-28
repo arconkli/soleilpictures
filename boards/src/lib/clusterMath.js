@@ -63,6 +63,11 @@ export function embeddingChangedMeaningfully(prev, next, threshold = 0.05) {
 // `tagCentroids` shape: [{tag, centroid}] where `tag` carries id+name+description.
 export const SILENT_APPLY_DIST = 0.20;
 export const NO_MATCH_DIST     = 0.55;
+// Upper bound for tag_suggestions writes — tighter than NO_MATCH_DIST so
+// the per-tag inbox doesn't fill up with weak matches. The partitioner
+// still returns the full middle band; callers writing to tag_suggestions
+// clip at SUGGEST_DIST.
+export const SUGGEST_DIST      = 0.35;
 
 export function partitionTagsByEmbedding(cardEmbedding, tagCentroids) {
   const silentApply = [];

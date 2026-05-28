@@ -1,20 +1,22 @@
-// New-tag backfill: when a tag is created, find every card in the
-// workspace that should also carry it and apply it. Fires automatically
-// from useAiTagger's tags-realtime listener; also runnable on demand
-// via the cluster-promotion flow.
+// New-tag backfill: when a tag is created, find every entity in the
+// workspace that should also carry it. Fires automatically from
+// useAiTagger's tags-realtime listener; also runnable on demand via
+// the cluster-promotion flow.
 //
-// Cheaper than waiting for every card to be re-edited:
+// Embeddings-only pipeline (since 2026-05-27 kill-the-bill rework):
 //   1. Pull all card_embeddings for the workspace.
 //   2. Compute distance to the new tag's centroid (seeded from name if
 //      no member cards yet).
-//   3. Distance prefilter — drop anything outside the middle band.
-//      Silent-apply the close ones, dismiss the far ones, send the
-//      middle to /api/tags/apply for tier verdict.
-//   4. Apply 'high' verdicts via tagCard().
+//   3. Distance partition:
+//        d < SILENT_APPLY_DIST → auto-apply via tag*() helpers
+//        SILENT_APPLY_DIST ≤ d < SUGGEST_DIST → write to tag_suggestions
+//        d ≥ SUGGEST_DIST → ignore
+//   4. No LLM call. The per-tag inbox in TagDetailView surfaces the
+//      middle-band rows for accept/dismiss.
 
 import { supabase } from './supabase.js';
-import { applyCards, parsePgvector } from './tagsClient.js';
-import { cosineDist, SILENT_APPLY_DIST, NO_MATCH_DIST } from './clusterMath.js';
+import { parsePgvector } from './tagsClient.js';
+import { cosineDist, SILENT_APPLY_DIST, SUGGEST_DIST } from './clusterMath.js';
 import { tagCard, tagGroup, tagBoard, tagDocPage } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
 import { propagateTagToGroups } from './aiGroupPropagation.js';
@@ -44,7 +46,6 @@ function appliedCacheKey(entityKind, entityId) {
   return `${entityKind}:${entityId}`;
 }
 
-const BATCH_SIZE = 8; // cards per /api/tags/apply call
 const LOCK_STALE_MS = 10 * 60 * 1000; // re-claim after 10 minutes
 
 // Try to claim the workspace-wide backfill lock for this tag.
@@ -90,8 +91,13 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
   // 2. Distance-partition. Each row already carries its entity_kind so
   //    the dispatcher downstream knows whether to call tagCard /
   //    tagGroup / tagBoard. Skip rows where this tag is already applied.
-  const silent = [];      // within SILENT_APPLY_DIST — apply without AI
-  const middle = [];      // in 0.20–0.55 — send to AI for verdict
+  //
+  //    Bands:
+  //      d < SILENT_APPLY_DIST → silent (auto-apply via tag*() helpers)
+  //      SILENT_APPLY_DIST ≤ d < SUGGEST_DIST → suggestion (tag_suggestions)
+  //      d ≥ SUGGEST_DIST → dropped
+  const silent = [];
+  const suggested = [];
   for (const r of rows) {
     const kind = r.entity_kind || 'card';
     const key = appliedCacheKey(kind, r.card_id);
@@ -100,13 +106,13 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
       || parsePgvector(r.embedding);
     if (!vec) continue;
     const d = cosineDist(vec, centroid);
-    const annotated = { ...r, _kind: kind };
+    const annotated = { ...r, _kind: kind, _distance: d };
     if (d < SILENT_APPLY_DIST) silent.push(annotated);
-    else if (d < NO_MATCH_DIST) middle.push(annotated);
+    else if (d < SUGGEST_DIST) suggested.push(annotated);
   }
 
   if (isDebug()) {
-    console.log(`[ai-backfill] tag "${tag.name}" → ${silent.length} silent, ${middle.length} ai-candidates, ${rows.length - silent.length - middle.length} dropped`);
+    console.log(`[ai-backfill] tag "${tag.name}" → ${silent.length} silent, ${suggested.length} suggestions, ${rows.length - silent.length - suggested.length} dropped`);
   }
 
   // 3. Silent applies — parallel inserts dispatched by kind.
@@ -119,125 +125,26 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
     tagId:      tag.id,
   })));
 
-  // 4. Middle band — batch-call /apply for tier verdict, then apply 'high'.
-  if (middle.length === 0) {
-    const grp = await propagateTagToGroups({ workspaceId, tagId: tag.id });
-    if (isDebug() && grp?.applied) console.log(`[ai-backfill] propagated tag to ${grp.applied} group(s)`);
-    return { silent: silent.length, applied_high: 0, ai_calls: 0, groups_applied: grp?.applied || 0 };
+  // 4. Suggestions — single bulk upsert into tag_suggestions. Skip
+  //    duplicates so any existing row (especially dismissed tombstones)
+  //    stays intact.
+  if (suggested.length > 0) {
+    const rowsToInsert = suggested.map(r => ({
+      tag_id: tag.id,
+      source_kind: r._kind,
+      source_id: r.card_id,
+      workspace_id: workspaceId,
+      board_id: r.board_id || null,
+      doc_card_id: r.doc_card_id || null,
+      distance: r._distance,
+    }));
+    const { error: sugErr } = await supabase
+      .from('tag_suggestions')
+      .upsert(rowsToInsert, { onConflict: 'tag_id,source_kind,source_id', ignoreDuplicates: true });
+    if (sugErr) console.warn('[ai-backfill] tag_suggestions upsert failed', sugErr.message);
   }
 
-  // Pull text for each entity in the middle band. Cards get title +
-  // body from card_index; groups + boards get just their title from
-  // entity_search; doc pages get title + page text from doc_page_index.
-  const cardIds  = middle.filter(r => r._kind === 'card').map(r => r.card_id);
-  const groupSearchIds = middle.filter(r => r._kind === 'group')
-    .map(r => `${r.board_id}:g:${r.card_id}`);
-  const boardSearchIds = middle.filter(r => r._kind === 'board').map(r => r.card_id);
-  const docPageIds = middle.filter(r => r._kind === 'doc-page').map(r => r.card_id);
-  const [cardIdxResp, groupResp, boardResp, docPageResp] = await Promise.all([
-    cardIds.length > 0
-      ? supabase.from('card_index').select('card_id, board_id, title, body').eq('workspace_id', workspaceId).in('card_id', cardIds)
-      : Promise.resolve({ data: [] }),
-    groupSearchIds.length > 0
-      ? supabase.from('entity_search').select('id, kind, board_id, title').eq('workspace_id', workspaceId).eq('kind', 'group').in('id', groupSearchIds)
-      : Promise.resolve({ data: [] }),
-    boardSearchIds.length > 0
-      ? supabase.from('entity_search').select('id, kind, board_id, title').eq('workspace_id', workspaceId).eq('kind', 'board').in('id', boardSearchIds)
-      : Promise.resolve({ data: [] }),
-    docPageIds.length > 0
-      ? supabase.from('doc_page_index').select('doc_card_id, page_id, page_title, page_text').eq('workspace_id', workspaceId).in('page_id', docPageIds)
-      : Promise.resolve({ data: [] }),
-  ]);
-  const textByKey = new Map();
-  const boardByKey = new Map();
-  const docCardByKey = new Map();
-  for (const r of (cardIdxResp.data || [])) {
-    const text = [r.title || '', r.body || '']
-      .filter(Boolean)
-      .join(' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&[a-z]+;/gi, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    textByKey.set(appliedCacheKey('card', r.card_id), text);
-    boardByKey.set(appliedCacheKey('card', r.card_id), r.board_id);
-  }
-  for (const r of (groupResp.data || [])) {
-    const m = (r.id || '').split(':g:');
-    const groupId = m[1] || r.id;
-    textByKey.set(appliedCacheKey('group', groupId), (r.title || '').trim());
-    boardByKey.set(appliedCacheKey('group', groupId), r.board_id || null);
-  }
-  for (const r of (boardResp.data || [])) {
-    const boardId = r.board_id || r.id;
-    textByKey.set(appliedCacheKey('board', boardId), (r.title || '').trim());
-    boardByKey.set(appliedCacheKey('board', boardId), boardId);
-  }
-  for (const r of (docPageResp.data || [])) {
-    const k = appliedCacheKey('doc-page', r.page_id);
-    textByKey.set(k, [r.page_title || '', r.page_text || ''].filter(s => s && s.trim()).join('\n'));
-    docCardByKey.set(k, r.doc_card_id);
-    // board_id resolution defers to the embedding row's stored value
-    // (already on `middle` items) so we don't need a card_index join.
-  }
-
-  // Chunk + fire batches in parallel. Composite id encodes the kind
-  // so verdicts come back uniquely identifiable.
-  const batches = [];
-  for (let i = 0; i < middle.length; i += BATCH_SIZE) {
-    const slice = middle.slice(i, i + BATCH_SIZE);
-    const cards = slice
-      .map(r => {
-        const k = appliedCacheKey(r._kind, r.card_id);
-        return {
-          id: `${r._kind}|${r.card_id}`,
-          text: textByKey.get(k) || '',
-          candidate_tags: [{ id: tag.id, name: tag.name, ...(tag.description ? { description: tag.description } : {}) }],
-        };
-      })
-      .filter(c => c.text);
-    if (cards.length > 0) batches.push(cards);
-  }
-  const responses = await Promise.allSettled(batches.map(b => applyCards(b)));
-  const aiCalls = batches.length;
-
-  // Collect high-confidence ids and dispatch the applies in parallel.
-  // Also pull the doc_card_id from the middle band so doc-page applies
-  // can write the right entity_links row.
-  const boardByMiddleId = new Map();
-  const docCardByMiddleId = new Map();
-  for (const r of middle) {
-    boardByMiddleId.set(`${r._kind}|${r.card_id}`, r.board_id);
-    if (r.doc_card_id) docCardByMiddleId.set(`${r._kind}|${r.card_id}`, r.doc_card_id);
-  }
-  const highTargets = []; // [{ kind, id, boardId, docCardId }]
-  for (const r of responses) {
-    if (r.status !== 'fulfilled' || !r.value) continue;
-    const verdicts = r.value.verdicts || [];
-    for (const v of verdicts) {
-      const high = (v.tags || []).find(t => t.tag_id === tag.id && t.confidence === 'high');
-      if (!high) continue;
-      const [kind, ...rest] = (v.card_id || '').split('|');
-      const entityId = rest.join('|');
-      const boardId = boardByKey.get(appliedCacheKey(kind, entityId))
-        || boardByMiddleId.get(v.card_id) || null;
-      const docCardId = docCardByKey.get(appliedCacheKey(kind, entityId))
-        || docCardByMiddleId.get(v.card_id) || null;
-      highTargets.push({ kind, id: entityId, boardId, docCardId });
-    }
-  }
-  const applyResults = await Promise.allSettled(highTargets.map(t => applyTagToEntity({
-    entityKind: t.kind,
-    entityId:   t.id,
-    boardId:    t.boardId,
-    docCardId:  t.docCardId,
-    workspaceId,
-    tagId:      tag.id,
-  }).then(() => true)));
-  const appliedHigh = applyResults.filter(r => r.status === 'fulfilled' && r.value === true).length;
-
-  // 5. Propagate to groups. Now that all card-level applies have
-  //    landed for this tag, any group with ≥3 tagged members gets
+  // 5. Propagate to groups. Any group with ≥3 tagged members gets
   //    the tag itself so the detail view nests them correctly.
   const grp = await propagateTagToGroups({ workspaceId, tagId: tag.id });
   if (isDebug() && grp?.applied) {
@@ -246,8 +153,7 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
 
   return {
     silent: silent.length,
-    applied_high: appliedHigh,
-    ai_calls: aiCalls,
+    suggested: suggested.length,
     groups_applied: grp?.applied || 0,
   };
 }

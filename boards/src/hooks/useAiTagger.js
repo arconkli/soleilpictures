@@ -3,15 +3,18 @@
 // schema (`[{tagId, score, reason}]`), so the existing CanvasSurface and
 // any other caller wires up without changes.
 //
-// Internals (Phase 1):
+// Internals (embeddings-only since 2026-05-27 — kill-the-bill rework):
 //   1. Embed the query text via the /api/tags/embed worker route.
 //   2. Partition tags into silentApply / candidates / dropped by cosine
 //      distance against each tag's stored centroid.
-//   3. For middle-band candidates, call /api/tags/apply for a high/medium/
-//      low confidence verdict.
-//   4. Return suggestions in the legacy format — high → score 1.0 (silent
-//      apply), medium → score 0.4 (below CanvasSurface's HIGH=0.5 gate,
-//      so it surfaces in the sidebar without auto-applying), low → dropped.
+//   3. For middle-band candidates (distance < SUGGEST_DIST), persist a
+//      `tag_suggestions` row so the per-tag inbox in TagDetailView can
+//      surface it for accept/dismiss. No LLM in the hot path.
+//   4. Return suggestions in the legacy format — silentApply → score 1.0,
+//      middle-band → score 0.4 (below CanvasSurface's HIGH=0.5 gate, so
+//      it surfaces in the sidebar without auto-applying). The persistent
+//      home is the tag_suggestions table; the in-memory return value is
+//      a per-edit hint for the current canvas session.
 //
 // Centroids: for Phase 1 we lazily seed each tag's centroid from the
 // embedding of its NAME if no centroid is stored yet. Quality isn't as
@@ -21,7 +24,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { embedOne, embedCards, applyCards, parsePgvector, formatPgvector } from '../lib/tagsClient.js';
+import { embedOne, embedCards, parsePgvector, formatPgvector } from '../lib/tagsClient.js';
 import {
   partitionTagsByEmbedding,
   cosineDist,
@@ -29,6 +32,7 @@ import {
   contentHash,
   SILENT_APPLY_DIST,
   NO_MATCH_DIST,
+  SUGGEST_DIST,
 } from '../lib/clusterMath.js';
 import { logDecision, recordCall, isDebug } from '../lib/aiTaggerLog.js';
 import { runWorkspaceDiscovery } from '../lib/aiDiscovery.js';
@@ -181,6 +185,11 @@ export function useAiTagger(workspaceId) {
   // cardId → { hash, vector }. In-memory mirror of card_embeddings; the
   // table is the persistent layer for cold-start across sessions.
   const cardEmbeddingCacheRef = useRef(new Map());
+  // `${kind}:${id}` → { hash, vector }. In-memory only — board/group/doc
+  // name embeddings are rare and small, but the broken pre-rework
+  // auto-tag loop re-embedded the same names every render. Cache on
+  // contentHash so a rename invalidates naturally.
+  const nonCardEmbeddingCacheRef = useRef(new Map());
   // tagId → setTimeout handle. Debounced centroid recomputation per tag
   // — repeated apply/unapply in a quick burst settles into one recompute.
   const centroidDebounceRef = useRef(new Map());
@@ -482,7 +491,7 @@ export function useAiTagger(workspaceId) {
                   appliedRef,
                 });
                 if (isDebug() && result) {
-                  console.log(`[ai-backfill] "${tag.name}" → ${result.silent} silent + ${result.applied_high} ai-high (${result.ai_calls} apply call${result.ai_calls === 1 ? '' : 's'})`);
+                  console.log(`[ai-backfill] "${tag.name}" → ${result.silent} silent + ${result.suggested} suggestion${result.suggested === 1 ? '' : 's'}`);
                 }
               }, 1500);
             }
@@ -587,8 +596,9 @@ export function useAiTagger(workspaceId) {
 
     // 1. Embed the query. For cards we use the persistent embedding cache
     //    (in-memory + card_embeddings table) so unchanged content doesn't
-    //    re-embed across edits or sessions. Groups and boards re-embed
-    //    every time — they're rare and cheap.
+    //    re-embed across edits or sessions. Board / group / doc-page names
+    //    use an in-memory hash cache — pre-rework these were re-embedded
+    //    every render, which was leak #2 in the kill-the-bill audit.
     let queryVec, embedMs, embedUsage;
     if (target?.kind === 'card' && target?.id) {
       const r = await getOrFetchCardEmbedding(target.id, text);
@@ -597,11 +607,21 @@ export function useAiTagger(workspaceId) {
       embedMs = r.ms || 0;
       embedUsage = r.usage;
     } else {
-      const r = await embedOne(target?.id || 'q', text);
-      if (!r?.vector) return [];
-      queryVec = r.vector;
-      embedMs = r.ms;
-      embedUsage = r.usage;
+      const cacheKey = target?.kind && target?.id ? `${target.kind}:${target.id}` : null;
+      const hash = contentHash(text);
+      const cached = cacheKey ? nonCardEmbeddingCacheRef.current.get(cacheKey) : null;
+      if (cached && cached.hash === hash) {
+        queryVec = cached.vector;
+        embedMs = 0;
+        embedUsage = null;
+      } else {
+        const r = await embedOne(target?.id || 'q', text);
+        if (!r?.vector) return [];
+        queryVec = r.vector;
+        embedMs = r.ms;
+        embedUsage = r.usage;
+        if (cacheKey) nonCardEmbeddingCacheRef.current.set(cacheKey, { hash, vector: queryVec });
+      }
     }
 
     // 2. Make sure every tag has a centroid (lazy seed from name on miss).
@@ -628,55 +648,61 @@ export function useAiTagger(workspaceId) {
       return { tagId: tag.id, tagName: tag.name, distance, outcome };
     });
 
-    // 4. For middle-band candidates, ask the model.
-    let verdicts = [];
-    let applyMs = 0;
-    let applyUsage = null;
-    if (candidates.length > 0) {
-      const apply = await applyCards([{
-        id: target?.id || 'q',
-        text,
-        candidate_tags: candidates.map(c => ({ id: c.tag.id, name: c.tag.name })),
-      }]);
-      verdicts = apply?.verdicts?.[0]?.tags || [];
-      applyMs = apply?.ms || 0;
-      applyUsage = apply?.usage || null;
-      // Annotate perTag with AI verdict for the logger
-      for (const v of verdicts) {
-        const p = perTag.find(p => p.tagId === v.tag_id);
-        if (p) p.aiConfidence = v.confidence;
-      }
+    // 4. Persist middle-band candidates to tag_suggestions so the per-tag
+    //    inbox can surface them across sessions. Clip the middle band at
+    //    SUGGEST_DIST so the inbox doesn't fill up with weak matches —
+    //    the wider partition band (up to NO_MATCH_DIST) still exists for
+    //    callers that want it, but we don't write those to the inbox.
+    //    Insert-or-skip via ignoreDuplicates preserves any existing row,
+    //    including dismissed tombstones — the user's "don't suggest again"
+    //    choice sticks forever.
+    const suggestable = candidates.filter(c => c.distance < SUGGEST_DIST);
+    if (suggestable.length > 0 && target?.kind && target?.id) {
+      const rows = suggestable.map(c => ({
+        tag_id: c.tag.id,
+        source_kind: target.kind,
+        source_id: String(target.id),
+        workspace_id: workspaceId,
+        board_id: target.boardId || null,
+        doc_card_id: target.docCardId || null,
+        distance: c.distance,
+      }));
+      // Fire-and-forget. If RLS or a missing column rejects the write,
+      // the next call will retry; we never want to block suggestTags
+      // on the persistence path.
+      supabase.from('tag_suggestions')
+        .upsert(rows, { onConflict: 'tag_id,source_kind,source_id', ignoreDuplicates: true })
+        .then(({ error }) => {
+          if (error) console.warn('[ai-tagger] tag_suggestions upsert failed', error.message);
+        });
     }
 
-    // 5. Emit instrumentation.
+    // 5. Emit instrumentation. No LLM call in this path — applyMs / Usage
+    //    stay zero so the logger reflects that "the bill" is just embed.
     logDecision({
       input: text,
       target,
       perTag,
-      verdicts,
+      verdicts: [],
       embedMs,
-      applyMs,
+      applyMs: 0,
       embedUsage,
-      applyUsage,
+      applyUsage: null,
     });
 
-    // 6. Convert to the legacy suggestion shape, filtering already-applied
-    //    tags so we don't generate noisy 23505 inserts on the caller side.
+    // 6. Convert to the legacy suggestion shape so existing consumers
+    //    (CanvasSurface auto-apply gate, sidebar suggested-tags chips)
+    //    keep working without changes. silentApply → 1.0 (auto-apply),
+    //    middle-band suggestions → 0.4 (chip-only, persistent home is
+    //    the tag_suggestions inbox).
     const out = [];
     for (const s of silentApply) {
       if (alreadyApplied.has(s.tag_id)) continue;
       out.push({ tagId: s.tag_id, score: 1.0, reason: 'embedding-near' });
     }
-    for (const v of verdicts) {
-      if (alreadyApplied.has(v.tag_id)) continue;
-      if (v.confidence === 'high') {
-        out.push({ tagId: v.tag_id, score: 1.0, reason: 'ai-high' });
-      } else if (v.confidence === 'medium') {
-        // Below CanvasSurface's HIGH=0.5 gate, so this won't silent-apply.
-        // The sidebar suggested-tags panel can pick it up as a chip.
-        out.push({ tagId: v.tag_id, score: 0.4, reason: 'ai-medium' });
-      }
-      // 'low' → dropped silently.
+    for (const c of suggestable) {
+      if (alreadyApplied.has(c.tag.id)) continue;
+      out.push({ tagId: c.tag.id, score: 0.4, reason: 'cosine-suggest' });
     }
 
     // 7. If this card got no high-confidence applies, it's a discovery

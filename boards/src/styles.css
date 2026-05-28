@@ -1427,6 +1427,69 @@ body {
   flex-direction: column;
   gap: 6px;
 }
+/* Per-tag suggestion inbox (Suggested filter pill). */
+.tag-detail-suggestions {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.tag-detail-suggestion-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-1);
+  border-radius: 8px;
+  background: var(--bg-1);
+}
+.tag-detail-suggestion-row:hover {
+  border-color: var(--line-2);
+  background: var(--bg-0);
+}
+.tag-detail-suggestion-preview {
+  flex: 1 1 auto;
+  display: flex; align-items: center; gap: 8px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  min-width: 0;
+}
+.tag-detail-suggestion-title {
+  flex: 0 1 auto;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font: 500 12.5px/1.25 var(--font-sans);
+  color: var(--ink-0);
+  max-width: 60ch;
+}
+.tag-detail-suggestion-score {
+  font: 500 11px/1.2 var(--font-mono, var(--font-sans));
+  color: var(--ink-3);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--bg-2, var(--bg-1));
+}
+.tag-detail-suggestion-actions {
+  display: flex; gap: 6px;
+  flex: 0 0 auto;
+}
+.tag-detail-suggestion-accept,
+.tag-detail-suggestion-dismiss {
+  font: 500 11.5px/1 var(--font-sans);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-1);
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.tag-detail-suggestion-accept:hover {
+  border-color: var(--soleil, var(--ink-0));
+  color: var(--ink-0);
+}
+.tag-detail-suggestion-dismiss:hover {
+  border-color: var(--line-2);
+  color: var(--ink-0);
+}
 .tag-detail-mention-row {
   display: flex; flex-direction: column; gap: 4px;
   width: 100%;
