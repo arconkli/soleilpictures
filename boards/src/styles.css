@@ -10,6 +10,22 @@
 /* Clusters mark — show the dark-bg variant by default, swap to the
    light-bg variant under [data-theme="light"]. Keeps the theme bootstrap
    script's pre-mount data-theme swap synchronous (no React flash). */
+/* Visually-hidden text for screen readers and search crawlers. Used to
+   expose an <h1>Soleil Clusters</h1> and a short product description on
+   the otherwise content-thin sign-in entrance without changing any
+   sighted pixels. Standard a11y recipe — clip rect + 1px box. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .clusters-mark { position: relative; display: inline-block; line-height: 0; flex-shrink: 0; }
 /* Both source PNGs are 2048×2048 but their painted pixels are inset by
    (padL 114, padR 21, padT 149, padB 240) — the visible content centroid

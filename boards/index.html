@@ -4,15 +4,76 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0908" />
-  <title>Soleil — Clusters</title>
-  <meta name="description" content="Soleil Clusters — internal project management workspace for Soleil Pictures." />
-  <meta name="robots" content="noindex, nofollow" />
+  <title>Soleil Clusters — Creative Workspace & Moodboard for Production Teams</title>
+  <meta name="description" content="Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place." />
 
   <link rel="preconnect" href="https://use.typekit.net" crossorigin />
   <link rel="stylesheet" href="https://use.typekit.net/qtd2rwk.css" />
 
   <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="canonical" href="https://clusters.soleilpictures.com/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Soleil Clusters" />
+  <meta property="og:url" content="https://clusters.soleilpictures.com/" />
+  <meta property="og:title" content="Soleil Clusters — Creative Workspace & Moodboard for Production Teams" />
+  <meta property="og:description" content="Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place." />
+  <meta property="og:image" content="https://clusters.soleilpictures.com/clusters-logo-dark.png" />
+  <meta property="og:image:alt" content="Soleil Clusters mark" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Soleil Clusters — Creative Workspace & Moodboard for Production Teams" />
+  <meta name="twitter:description" content="Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place." />
+  <meta name="twitter:image" content="https://clusters.soleilpictures.com/clusters-logo-dark.png" />
+  <meta name="twitter:image:alt" content="Soleil Clusters mark" />
+
+  <!-- Structured data: WebSite + SoftwareApplication, linked to the existing
+       Soleil Pictures Organization on the root domain so Google connects the
+       two entities and Clusters inherits brand authority. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://clusters.soleilpictures.com/#website",
+        "url": "https://clusters.soleilpictures.com/",
+        "name": "Soleil Clusters",
+        "inLanguage": "en-US",
+        "publisher": { "@id": "https://soleilpictures.com/#organization" }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://clusters.soleilpictures.com/#app",
+        "name": "Soleil Clusters",
+        "alternateName": "Clusters",
+        "url": "https://clusters.soleilpictures.com/",
+        "applicationCategory": "BusinessApplication",
+        "applicationSubCategory": "Project Management",
+        "operatingSystem": "Web",
+        "image": "https://clusters.soleilpictures.com/clusters-logo-dark.png",
+        "description": "Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "publisher": { "@id": "https://soleilpictures.com/#organization" }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://soleilpictures.com/#organization",
+        "name": "Soleil Pictures",
+        "url": "https://soleilpictures.com/"
+      }
+    ]
+  }
+  </script>
 
   <!-- Bootstrap user UI prefs BEFORE React mounts so theme/clean-mode/
        accent don't flicker for ~200ms on every cold start. We read

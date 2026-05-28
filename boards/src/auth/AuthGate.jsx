@@ -349,6 +349,10 @@ function SignIn() {
     <div className="auth-screen">
       <div className="auth-glow" aria-hidden="true" />
       <div className="auth-card">
+        <header className="sr-only">
+          <h1>Soleil Clusters</h1>
+          <p>Soleil Clusters is a creative workspace and moodboard tool for production teams. Organize references, projects, and ideas across film, photo, design, and brand work, and collaborate with your team in real time.</p>
+        </header>
         <SoleilWordmark size="display" />
 
         {inviteHint && (
@@ -364,6 +368,7 @@ function SignIn() {
               type="email"
               autoFocus
               required
+              aria-label="Email address"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
