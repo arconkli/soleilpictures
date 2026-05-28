@@ -12,7 +12,13 @@ import { cachedUrl, resolveSrc } from '../lib/r2.js';
 // or a previous full-board render; on a cold miss we fire `resolveSrc`
 // to populate the cache and re-render. While unresolved we draw a warm
 // placeholder rect so missing images don't read as broken icons.
-function ThumbImage({ x, y, w, h, src, fontSize, label, labelFill }) {
+//
+// Memoized (Round 15): all eight props are primitives (x/y/w/h/src/
+// fontSize/label/labelFill) so default shallow compare is correct. Before
+// this, every BoardThumbnail re-render re-ran each ThumbImage's effect
+// chain even when nothing about that image had changed — on parents with
+// 50+ images that's a noticeable cascade.
+const ThumbImage = memo(function ThumbImage({ x, y, w, h, src, fontSize, label, labelFill }) {
   const [url, setUrl] = useState(() => cachedUrl(src));
   useEffect(() => {
     if (url) return;
@@ -43,7 +49,7 @@ function ThumbImage({ x, y, w, h, src, fontSize, label, labelFill }) {
       )}
     </g>
   );
-}
+});
 
 const KIND_FILL = {
   image:    '#3b82f6',
