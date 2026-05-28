@@ -10,6 +10,42 @@ const url = import.meta.env.VITE_SUPABASE_URL;
 const publicKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
               || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Round 22 — fix `AbortError: Lock broken by another request with the
+// 'steal' option` cascading failure. Supabase's default auth lock uses
+// navigator.locks with a hardcoded 5-second timeout — after 5s of waiting,
+// the next request "steals" the lock, which aborts the original holder
+// AND every other waiter. With our app's auth load on board open (board
+// snapshot + workspaces + shared-boards + tags + conversations +
+// members + share-notif + mention-notif + comments + restoreSignal
+// + alert-banner all needing auth roughly simultaneously), 5 seconds was
+// too tight and triggered a total cascade failure that prevented
+// `loadBoardSnapshot` from succeeding — which is the actual reason
+// thumbnails were blank in Round 21 (no card data → nothing to render).
+//
+// This is a simple in-memory FIFO lock that preserves the original
+// invariant (one op per name at a time) without an artificial timeout.
+// Multi-tab token-refresh coordination is given up; in practice that's
+// fine because Supabase's token endpoints are idempotent (two tabs
+// refreshing simultaneously each succeed; the worse outcome is one
+// wasted network call, not data corruption).
+function createSerialLock() {
+  const tails = new Map(); // name -> Promise (the "settled" tail for this name)
+  return async (name, _ignoredAcquireTimeout, fn) => {
+    const prev = tails.get(name) || Promise.resolve();
+    const current = prev.catch(() => undefined).then(fn);
+    // Store a settled-shape promise so chaining never sees a rejection.
+    const sink = current.catch(() => undefined);
+    tails.set(name, sink);
+    try {
+      return await current;
+    } finally {
+      // Only clear if we're still the tail — otherwise another op queued
+      // behind us and will manage cleanup when it finishes.
+      if (tails.get(name) === sink) tails.delete(name);
+    }
+  };
+}
+
 // Solo-collab testing: `?as=<id>` namespaces auth + session storage so a
 // second window can be signed in as a different user. Used for testing
 // realtime / sharing without a second device.
@@ -42,6 +78,8 @@ export const supabase = (url && publicKey)
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false,
+        // Round 22: see createSerialLock comment above.
+        lock: createSerialLock(),
         ...(altSessionId ? { storage: makeNamespacedStorage(altSessionId), storageKey: `sb-auth-as-${altSessionId}` } : {}),
       },
       realtime: {
