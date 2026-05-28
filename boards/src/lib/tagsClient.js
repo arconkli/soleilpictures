@@ -7,8 +7,20 @@
 
 import { supabase } from './supabase.js';
 
+// Round 19: per-endpoint cooldown. When /api/tags/embed (or /api/tags/apply)
+// returns a 5xx — typically because OpenAI is over-quota or the upstream
+// is down — stop hammering it for a while. Without this, every caller
+// (warmup batches, centroid seeding, new-tag init, every keystroke that
+// triggers a suggest) keeps generating 502 traffic. Cooldown clears on
+// the first successful response, so when the outage ends we resume
+// immediately without manual intervention.
+const COOLDOWN_MS = 60_000;
+const _cooldownUntil = new Map(); // path -> Date.now() until which to skip
+
 async function authedFetch(path, body) {
   if (!supabase) return null;
+  const until = _cooldownUntil.get(path) || 0;
+  if (until && Date.now() < until) return null;
   try {
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token;
@@ -24,11 +36,18 @@ async function authedFetch(path, body) {
     if (!r.ok) {
       const errText = await r.text().catch(() => '');
       console.warn(`[tagsClient] ${path} ${r.status}:`, errText.slice(0, 200));
+      if (r.status >= 500) {
+        _cooldownUntil.set(path, Date.now() + COOLDOWN_MS);
+      }
       return null;
     }
+    // Success — clear any cooldown so retries resume immediately.
+    if (until) _cooldownUntil.delete(path);
     return await r.json();
   } catch (e) {
     console.warn(`[tagsClient] ${path} threw:`, e?.message || e);
+    // Network error — treat like 5xx for backoff purposes.
+    _cooldownUntil.set(path, Date.now() + COOLDOWN_MS);
     return null;
   }
 }

@@ -36,6 +36,16 @@ import { backfillTagAgainstWorkspace } from '../lib/aiBackfill.js';
 import { warmupWorkspaceEmbeddings } from '../lib/aiWarmup.js';
 import { propagateTagToGroups } from '../lib/aiGroupPropagation.js';
 
+// Round 19: mount-time work (warmup, centroid seeding) gets pushed to
+// idle so it can't compete with the boot/paint window. Same pattern
+// Round 14 used for the legacy entity-trie + autotag worker.
+const _scheduleIdle = (typeof window !== 'undefined' && window.requestIdleCallback)
+  ? (fn) => window.requestIdleCallback(fn, { timeout: 2500 })
+  : (fn) => setTimeout(fn, 300);
+const _cancelIdle = (typeof window !== 'undefined' && window.cancelIdleCallback)
+  ? (id) => window.cancelIdleCallback(id)
+  : (id) => clearTimeout(id);
+
 // Strip HTML tags / entities and collapse whitespace before sending text to
 // the embedding model. Saves tokens and improves quality — `<span style=...>`
 // markup has no semantic meaning, but the embedder will still weight it.
@@ -200,24 +210,32 @@ export function useAiTagger(workspaceId) {
       // have a matching content_hash row. After warmup, if we have ≥3
       // cards and few/no tags, kick off discovery immediately so the
       // user sees suggested tags appear without having to edit anything.
-      (async () => {
-        const result = await warmupWorkspaceEmbeddings({
-          workspaceId,
-          embeddingCache: cardEmbeddingCacheRef.current,
-        });
+      //
+      // Round 19: defer the warmup launch until idle time so the
+      // /api/tags/embed calls + their failure-handling don't compete
+      // with the boot/paint window. Same pattern Round 14 applied to
+      // the legacy autotag worker.
+      _scheduleIdle(() => {
         if (cancelled) return;
-        const totalEmbeddings = (result?.embedded || 0) + (result?.alreadyHad || 0);
-        // Trigger discovery if we have enough cards. The lock at the DB
-        // level keeps multiple connected clients from doubling up.
-        if (totalEmbeddings >= 3) {
-          if (isDebug()) console.log(`[ai-tagger] kicking off discovery against ${totalEmbeddings} cards`);
-          runWorkspaceDiscovery({
+        (async () => {
+          const result = await warmupWorkspaceEmbeddings({
             workspaceId,
-            tagCentroids: centroidsRef.current,
             embeddingCache: cardEmbeddingCacheRef.current,
-          }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
-        }
-      })().catch(err => console.warn('[ai-warmup] failed', err?.message || err));
+          });
+          if (cancelled) return;
+          const totalEmbeddings = (result?.embedded || 0) + (result?.alreadyHad || 0);
+          // Trigger discovery if we have enough cards. The lock at the DB
+          // level keeps multiple connected clients from doubling up.
+          if (totalEmbeddings >= 3) {
+            if (isDebug()) console.log(`[ai-tagger] kicking off discovery against ${totalEmbeddings} cards`);
+            runWorkspaceDiscovery({
+              workspaceId,
+              tagCentroids: centroidsRef.current,
+              embeddingCache: cardEmbeddingCacheRef.current,
+            }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
+          }
+        })().catch(err => console.warn('[ai-warmup] failed', err?.message || err));
+      });
     }
     load().catch(err => console.warn('[ai-tagger] hydrate failed', err));
     return () => { cancelled = true; };
@@ -298,16 +316,37 @@ export function useAiTagger(workspaceId) {
   // cards. This pulls workspaces with pre-existing tag applications onto
   // proper card-derived centroids immediately, instead of waiting for
   // the next apply/unapply to trigger it.
+  //
+  // Round 19: defer the seed pass until idle time. Pre-Round-19 this
+  // dogpiled the main thread immediately after `ready=true`, producing
+  // 300-600ms longtasks during the boot window — each recompute parses
+  // ~31 cards × 1536 floats from pgvector strings on the main thread.
+  // The 200ms stagger between tags helped but didn't help the FIRST tag
+  // (which fired synchronously). With requestIdleCallback the whole
+  // storm waits for the user to stop interacting.
   useEffect(() => {
     if (!ready || !workspaceId) return;
     const tags = tagsRef.current;
     if (!tags?.length) return;
-    // Stagger by 200ms so we don't dogpile the first few seconds of load.
-    let i = 0;
-    for (const tag of tags) {
-      setTimeout(() => recomputeCentroidFromMembers(tag.id, workspaceId, centroidsRef, cardEmbeddingCacheRef), i * 200);
-      i++;
-    }
+    let cancelled = false;
+    const timeouts = [];
+    const idleId = _scheduleIdle(() => {
+      if (cancelled) return;
+      let i = 0;
+      for (const tag of tags) {
+        const t = setTimeout(() => {
+          if (cancelled) return;
+          recomputeCentroidFromMembers(tag.id, workspaceId, centroidsRef, cardEmbeddingCacheRef);
+        }, i * 200);
+        timeouts.push(t);
+        i++;
+      }
+    });
+    return () => {
+      cancelled = true;
+      try { _cancelIdle(idleId); } catch (_) {}
+      for (const t of timeouts) clearTimeout(t);
+    };
   }, [ready, workspaceId]);
 
   // Look up or fetch the embedding for a card. Three-tier lookup:
