@@ -8338,13 +8338,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
      without forcing the GPU layer. */
   opacity: 0.74;
   transition: opacity var(--dur-base) var(--ease);
-  /* SVG content re-rasters at every scale change (vector → raster pass)
-     when the parent canvas zooms. Promoting each thumbnail to its own
-     GPU layer keeps the rasterized SVG cached; canvas scale composites
-     the cached layer instead of re-rasterizing thousands of SVG nodes
-     per zoom tick. This is the dominant zoom-perf fix on Marketing-
-     style parents with many sub-board tiles. */
-  will-change: transform;
+  /* Round 18: REMOVED `will-change: transform`. Round 12 added it on the
+     theory that a promoted layer would cache the rasterized SVG and
+     GPU-stretch on zoom. The DevTools trace proved the opposite — Chrome
+     was re-rasterizing this layer at HIGH_RESOLUTION on every zoom step
+     (500-700 ms RasterTask events per tile, attributing to layerId 8311
+     = this element). The 500-700ms "first-zoom hitch" the user reported
+     was entirely browser-side raster, not JS. Letting bc-thumb be painted
+     into the parent `.card`'s existing layer eliminates the extra
+     re-raster pass. Slight blur at extreme zoom is acceptable; the user
+     prioritizes smoothness over pixel-sharpness. */
 }
 .bc:hover .bc-thumb { opacity: 0.92; }
 [data-theme='light'] .bc-thumb { opacity: 0.78; }
