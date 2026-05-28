@@ -42,9 +42,47 @@ import { propagateTagToGroups } from '../lib/aiGroupPropagation.js';
 const _scheduleIdle = (typeof window !== 'undefined' && window.requestIdleCallback)
   ? (fn) => window.requestIdleCallback(fn, { timeout: 2500 })
   : (fn) => setTimeout(fn, 300);
-const _cancelIdle = (typeof window !== 'undefined' && window.cancelIdleCallback)
-  ? (id) => window.cancelIdleCallback(id)
-  : (id) => clearTimeout(id);
+
+// Round 20: even after Round 19's idle deferral, ai-tagger work was
+// still firing during continuous interaction (pan/zoom/typing) because
+// once a task is queued, it runs at the next idle slot regardless of
+// what the user is doing. Track global interaction recency and have
+// `_scheduleWhenIdle` requeue itself if the user has interacted in the
+// last INTERACTION_QUIET_MS. Effect: every background task in this
+// hook (warmup, centroid recompute, discovery) sleeps while the user
+// is actively touching the canvas; resumes the moment they stop.
+const INTERACTION_QUIET_MS = 800;
+let _lastInteractionAt = 0;
+function _markInteraction() { _lastInteractionAt = Date.now(); }
+if (typeof window !== 'undefined' && !window.__soleilAiTaggerInteractionBound) {
+  // Guard against double-bind in HMR.
+  window.__soleilAiTaggerInteractionBound = true;
+  for (const ev of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart']) {
+    try { window.addEventListener(ev, _markInteraction, { passive: true, capture: true }); }
+    catch (_) {}
+  }
+}
+
+// Schedules `fn` to run during browser idle time, but ALSO ensures it
+// doesn't run while the user is mid-interaction. If the idle callback
+// fires within INTERACTION_QUIET_MS of the most recent
+// pointer/wheel/keydown event, it requeues itself. Returns a cancel()
+// function — once called, the work won't run even if the next idle
+// callback fires.
+function _scheduleWhenIdle(fn) {
+  let cancelled = false;
+  const tryRun = () => {
+    if (cancelled) return;
+    const sinceInteraction = Date.now() - _lastInteractionAt;
+    if (_lastInteractionAt && sinceInteraction < INTERACTION_QUIET_MS) {
+      _scheduleIdle(tryRun);
+      return;
+    }
+    fn();
+  };
+  _scheduleIdle(tryRun);
+  return () => { cancelled = true; };
+}
 
 // Strip HTML tags / entities and collapse whitespace before sending text to
 // the embedding model. Saves tokens and improves quality — `<span style=...>`
@@ -211,11 +249,12 @@ export function useAiTagger(workspaceId) {
       // cards and few/no tags, kick off discovery immediately so the
       // user sees suggested tags appear without having to edit anything.
       //
-      // Round 19: defer the warmup launch until idle time so the
-      // /api/tags/embed calls + their failure-handling don't compete
-      // with the boot/paint window. Same pattern Round 14 applied to
-      // the legacy autotag worker.
-      _scheduleIdle(() => {
+      // Round 19+20: defer the warmup launch until idle time AND while
+      // the user isn't actively interacting. The 502s from /api/tags/
+      // embed used to compete with the boot/paint window AND with pan/
+      // zoom. With _scheduleWhenIdle the work waits both for an idle
+      // slot AND for the user to pause.
+      _scheduleWhenIdle(() => {
         if (cancelled) return;
         (async () => {
           const result = await warmupWorkspaceEmbeddings({
@@ -228,11 +267,16 @@ export function useAiTagger(workspaceId) {
           // level keeps multiple connected clients from doubling up.
           if (totalEmbeddings >= 3) {
             if (isDebug()) console.log(`[ai-tagger] kicking off discovery against ${totalEmbeddings} cards`);
-            runWorkspaceDiscovery({
-              workspaceId,
-              tagCentroids: centroidsRef.current,
-              embeddingCache: cardEmbeddingCacheRef.current,
-            }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
+            // Wrap discovery in another idle/interaction gate so it
+            // doesn't crunch 159×159 cosine math mid-pan.
+            _scheduleWhenIdle(() => {
+              if (cancelled) return;
+              runWorkspaceDiscovery({
+                workspaceId,
+                tagCentroids: centroidsRef.current,
+                embeddingCache: cardEmbeddingCacheRef.current,
+              }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
+            });
           }
         })().catch(err => console.warn('[ai-warmup] failed', err?.message || err));
       });
@@ -330,13 +374,22 @@ export function useAiTagger(workspaceId) {
     if (!tags?.length) return;
     let cancelled = false;
     const timeouts = [];
-    const idleId = _scheduleIdle(() => {
+    // Round 20: use _scheduleWhenIdle so the storm pauses while the
+    // user is actively interacting. Each tag's recompute parses 31×
+    // 1536-float pgvector blobs on the main thread (~47k parseFloats)
+    // — exactly the kind of work that mustn't compete with pan/zoom.
+    const cancelIdle = _scheduleWhenIdle(() => {
       if (cancelled) return;
       let i = 0;
       for (const tag of tags) {
         const t = setTimeout(() => {
           if (cancelled) return;
-          recomputeCentroidFromMembers(tag.id, workspaceId, centroidsRef, cardEmbeddingCacheRef);
+          // Each tag's recompute is itself wrapped so a typing burst
+          // mid-loop doesn't trigger the heavy work for the next tag.
+          _scheduleWhenIdle(() => {
+            if (cancelled) return;
+            recomputeCentroidFromMembers(tag.id, workspaceId, centroidsRef, cardEmbeddingCacheRef);
+          });
         }, i * 200);
         timeouts.push(t);
         i++;
@@ -344,7 +397,7 @@ export function useAiTagger(workspaceId) {
     });
     return () => {
       cancelled = true;
-      try { _cancelIdle(idleId); } catch (_) {}
+      try { cancelIdle(); } catch (_) {}
       for (const t of timeouts) clearTimeout(t);
     };
   }, [ready, workspaceId]);
