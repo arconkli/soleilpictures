@@ -18,8 +18,14 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
+import { peekPendingInviteEmail, claimPendingInvite } from '../lib/boardsApi.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
+
+// Localstorage key holding an in-flight invite token between the
+// pre-signup landing (?invite=…) and the post-signup claim hook.
+// Cleared once claim_pending_invite returns (or fails terminally).
+const PENDING_INVITE_KEY = 'soleil.boards.pending.invite.token';
 
 const AuthContext = createContext({ user: null, signOut: () => {} });
 export const useAuth = () => useContext(AuthContext);
@@ -64,6 +70,53 @@ function consumeDeepLink(userId) {
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
+// Capture ?invite=<token> on first load and store it across the OTP
+// signup roundtrip. Runs whether the user is signed in or not — if the
+// recipient clicks the link while already signed in to a different
+// account, we still pick up the token and let claimPendingInvite raise
+// the "different email" error.
+function captureInviteToken() {
+  if (typeof window === 'undefined') return null;
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get('invite');
+  if (!token) {
+    try { return localStorage.getItem(PENDING_INVITE_KEY) || null; } catch (_) { return null; }
+  }
+  try { localStorage.setItem(PENDING_INVITE_KEY, token); } catch (_) {}
+  url.searchParams.delete('invite');
+  window.history.replaceState({}, document.title, url.pathname + url.search);
+  return token;
+}
+
+// Claim the pending invite associated with the stored token and wire
+// the returned workspace_id/board_id into the deep-link localStorage
+// slots so the app lands on the right board after sign-in. Idempotent —
+// the auth.users INSERT trigger already grants access; this RPC just
+// resolves the redirect target. Best-effort; never throws upward.
+async function consumePendingInvite(userId) {
+  if (typeof window === 'undefined' || !userId) return;
+  let token = null;
+  try { token = localStorage.getItem(PENDING_INVITE_KEY); } catch (_) {}
+  if (!token) return;
+  try {
+    const row = await claimPendingInvite(token);
+    if (row?.workspace_id) {
+      const wsKey = `soleil.boards.session.${userId}.workspace`;
+      localStorage.setItem(wsKey, JSON.stringify({ activeWorkspaceId: row.workspace_id }));
+      if (row.board_id) {
+        const boardKey = `soleil.boards.session.${userId}.${row.workspace_id}`;
+        let existing = {};
+        try { existing = JSON.parse(localStorage.getItem(boardKey) || '{}'); } catch (_) {}
+        localStorage.setItem(boardKey, JSON.stringify({ ...existing, stack: [row.board_id] }));
+      }
+    }
+  } catch (e) {
+    console.warn('[invite] claim failed', e?.message || e);
+  } finally {
+    try { localStorage.removeItem(PENDING_INVITE_KEY); } catch (_) {}
+  }
+}
+
 async function consumeAuthCallback() {
   if (typeof window === 'undefined') return null;
   const query = new URLSearchParams(window.location.search);
@@ -102,6 +155,9 @@ export function AuthGate({ children }) {
   useEffect(() => {
     if (localMode || devWithoutSupabase) return;
     if (!supabase) return;
+    // Capture ?invite=<token> on every mount BEFORE any auth roundtrip,
+    // so a click from the invite email survives the OTP redirect dance.
+    captureInviteToken();
     let cancelled = false;
     (async () => {
       try {
@@ -112,7 +168,10 @@ export function AuthGate({ children }) {
         // Write deep-link params into localStorage BEFORE setSession,
         // so when App mounts its useState initializer reads the right
         // workspace + board on the very first render.
-        if (data.session?.user?.id) consumeDeepLink(data.session.user.id);
+        if (data.session?.user?.id) {
+          consumeDeepLink(data.session.user.id);
+          await consumePendingInvite(data.session.user.id);
+        }
         if (!cancelled) setSession(data.session);
       } catch (error) {
         console.warn('Auth session could not be restored', error);
@@ -124,9 +183,17 @@ export function AuthGate({ children }) {
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
       // Same as above — also handle the post-OTP sign-in path where the
-      // session arrives after initial mount via this listener.
-      if (sess?.user?.id) consumeDeepLink(sess.user.id);
-      setSession(sess);
+      // session arrives after initial mount via this listener. Defer
+      // setSession until consumePendingInvite has written the redirect
+      // localStorage, so App's first render reads the right workspace +
+      // board after a magic-link signup.
+      (async () => {
+        if (sess?.user?.id) {
+          consumeDeepLink(sess.user.id);
+          await consumePendingInvite(sess.user.id);
+        }
+        if (!cancelled) setSession(sess);
+      })();
     });
     return () => {
       cancelled = true;
@@ -184,6 +251,9 @@ function SignIn() {
   const [code,  setCode]        = useState('');
   const [error, setError]       = useState(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  // Non-null when the user arrived via an /?invite=<token> link.
+  // We pre-fill the email field and show an "invited as ..." banner.
+  const [inviteHint, setInviteHint] = useState(null);
   const codeRef = useRef(null);
 
   // Tick down the resend cooldown (Supabase rate-limits OTP requests at ~60s).
@@ -195,6 +265,25 @@ function SignIn() {
 
   // Funnel: landing_view fires once when the SignIn screen mounts.
   useEffect(() => { logEvent('landing_view'); }, []);
+
+  // Pre-fill email from the stored invite token. Anon-callable RPC —
+  // safe to run before the user has a session. Token presence in
+  // localStorage is the trust boundary.
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const token = localStorage.getItem(PENDING_INVITE_KEY);
+      if (!token) return;
+      peekPendingInviteEmail(token)
+        .then(addr => {
+          if (cancelled || !addr) return;
+          setEmail(addr);
+          setInviteHint({ email: addr });
+        })
+        .catch(() => {});
+    } catch (_) {}
+    return () => { cancelled = true; };
+  }, []);
 
   // Auto-focus the code field when it appears.
   useEffect(() => {
@@ -261,6 +350,12 @@ function SignIn() {
       <div className="auth-glow" aria-hidden="true" />
       <div className="auth-card">
         <SoleilWordmark size="display" />
+
+        {inviteHint && (
+          <div className="auth-hint t-meta" style={{ marginBottom: 8 }}>
+            You've been invited. Sign in with <b>{inviteHint.email}</b> to accept.
+          </div>
+        )}
 
         {stage === 'email' ? (
           <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) sendCode(false); }}>

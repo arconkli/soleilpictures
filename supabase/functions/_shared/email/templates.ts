@@ -14,6 +14,7 @@ export type TemplateName =
   | "waitlist_accepted"
   | "workspace_invite"
   | "board_shared"
+  | "pending_invite"
   | "mention_email"
   | "comment_reply_email";
 
@@ -22,6 +23,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_accepted",
   "workspace_invite",
   "board_shared",
+  "pending_invite",
   "mention_email",
   "comment_reply_email",
 ];
@@ -165,6 +167,58 @@ function boardShared(d: BoardSharedData): RenderedEmail {
   };
 }
 
+// Pre-account invite. The recipient doesn't have a Clusters login yet —
+// the CTA links to /?invite=<token>, which AuthGate consumes to pre-fill
+// the email field and (after OTP signup) claim the invite + redirect.
+interface PendingInviteData {
+  inviterName: string;
+  workspaceName: string;
+  boardName?: string;
+  role: string;          // 'viewer' | 'editor' | 'workspace'
+  token: string;
+  expiresAt?: string;    // ISO-8601 (display-only)
+}
+
+function pendingInvite(d: PendingInviteData): RenderedEmail {
+  const isWorkspace = d.role === "workspace" || !d.boardName;
+  const target = isWorkspace
+    ? d.workspaceName
+    : `"${d.boardName}" in ${d.workspaceName}`;
+  const roleLabel = (() => {
+    if (d.role === "workspace") return "a member";
+    if (d.role === "editor")    return "an editor";
+    return "a viewer";
+  })();
+  const headline = `${d.inviterName} invited you.`;
+  const subtitle = `You've been invited to join ${target} as ${roleLabel}. Sign in to get started — we'll set up your account.`;
+  const url = `${APP_URL}?invite=${encodeURIComponent(d.token)}`;
+  return {
+    subject: isWorkspace
+      ? `${d.inviterName} invited you to ${d.workspaceName} on Clusters`
+      : `${d.inviterName} invited you to "${d.boardName}" on Clusters`,
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: "Invitation",
+      headline,
+      subtitle,
+      cta: { label: "Accept invitation", url },
+      caveat: "We'll email you a 6-digit code to sign in. The invite link works for 30 days.",
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      "Accept invitation: " + url,
+      "",
+      "We'll email you a 6-digit code to sign in. The invite link works for 30 days.",
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
 interface MentionEmailData {
   mentionerName: string;
   surface: "dm" | "board" | "workspace";
@@ -280,6 +334,15 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         role:        data.role != null ? String(data.role) : undefined,
         workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:     data.boardId != null ? String(data.boardId) : undefined,
+      });
+    case "pending_invite":
+      return pendingInvite({
+        inviterName:   String(data.inviterName   ?? "Someone"),
+        workspaceName: String(data.workspaceName ?? "a workspace"),
+        boardName:     data.boardName != null ? String(data.boardName) : undefined,
+        role:          String(data.role ?? "viewer"),
+        token:         String(data.token ?? ""),
+        expiresAt:     data.expiresAt != null ? String(data.expiresAt) : undefined,
       });
     case "mention_email": {
       const surfaceRaw = String(data.surface ?? "workspace");

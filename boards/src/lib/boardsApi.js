@@ -249,14 +249,77 @@ export async function transferWorkspaceOwnership({ workspaceId, newOwnerId }) {
 // or editor access to non-members for one board (and its descendants).
 
 // Owner-only. Looks up the recipient by email + upserts the share row.
+// If the email has no account, share_board upserts a pending_invites row
+// and returns 'pending' instead of 'granted' (no exception). Callers can
+// use the return value to surface a "pending signup" indicator.
 export async function shareBoard({ boardId, email, role }) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .rpc('share_board', {
       p_board_id: boardId,
       p_email: email,
       p_role: role,
     });
   if (error) throw error;
+  return data || 'granted';  // 'granted' | 'pending'
+}
+
+// Owner-only. Same shape as shareBoard but for workspace-level invites.
+// Returns 'granted' | 'pending' | 'already_member'. Replaces the prior
+// client-side user_id_by_email + workspace_members insert dance.
+export async function inviteWorkspaceMember({ workspaceId, email, role = 'editor' }) {
+  const { data, error } = await supabase
+    .rpc('invite_workspace_member', {
+      p_workspace_id: workspaceId,
+      p_email: email,
+      p_role: role,
+    });
+  if (error) throw error;
+  return data || 'granted';
+}
+
+// Pending invites (the rows ShareModal renders as "Pending signup").
+
+export async function listPendingInvitesForBoard(boardId) {
+  if (!boardId) return [];
+  const { data, error } = await supabase
+    .rpc('list_pending_invites_for_board', { p_board_id: boardId });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function listPendingInvitesForWorkspace(workspaceId) {
+  if (!workspaceId) return [];
+  const { data, error } = await supabase
+    .rpc('list_pending_invites_for_workspace', { p_workspace_id: workspaceId });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function revokePendingInvite(id) {
+  const { error } = await supabase
+    .rpc('revoke_pending_invite', { p_id: id });
+  if (error) throw error;
+}
+
+// Anon-callable. AuthGate uses this to pre-fill the email field before
+// the user has a session. Returns null if token is invalid/expired/claimed.
+export async function peekPendingInviteEmail(token) {
+  const { data, error } = await supabase
+    .rpc('peek_pending_invite_email', { p_token: token });
+  if (error) throw error;
+  return data || null;
+}
+
+// Authed call. Returns { workspace_id, board_id } so the caller can
+// redirect to the right place. Idempotent — the auth.users INSERT
+// trigger already claims most invites on signup; this is the "land on
+// the right board" helper.
+export async function claimPendingInvite(token) {
+  const { data, error } = await supabase
+    .rpc('claim_pending_invite', { p_token: token });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row || null;
 }
 
 export async function unshareBoard({ boardId, userId }) {

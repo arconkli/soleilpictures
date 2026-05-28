@@ -14,8 +14,10 @@ import {
   shareBoard, unshareBoard, listBoardShares,
   removeWorkspaceMember, transferWorkspaceOwnership,
   createPublicLink, revokePublicLink, listPublicLinks,
+  inviteWorkspaceMember,
+  listPendingInvitesForBoard, listPendingInvitesForWorkspace,
+  revokePendingInvite,
 } from '../lib/boardsApi.js';
-import { supabase } from '../lib/supabase.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -39,6 +41,12 @@ export function ShareModal({
   const isDemo  = tier === 'demo';
   const [shares, setShares] = useState([]);          // per-board shares
   const [loadingShares, setLoadingShares] = useState(false);
+  // Pending invites = rows in pending_invites (email-only, no account yet).
+  // Board-scoped pending list is what we render alongside `shares`; the
+  // workspace-scoped list shows up in the workspace members section as
+  // "(pending signup)" rows.
+  const [pendingBoardInvites, setPendingBoardInvites]     = useState([]);
+  const [pendingWorkspaceInvites, setPendingWorkspaceInvites] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
   // Demo callers can only invite viewers; force the initial role so the
   // first submit doesn't bounce off the server's tier check.
@@ -62,22 +70,35 @@ export function ShareModal({
   }, [onClose]);
 
   // Owner sees per-board shares; non-owners can't list them (RLS
-  // permission denied), so we just skip the fetch in that case.
+  // permission denied), so we just skip the fetch in that case. We
+  // also pull pending board-level + workspace-level invites in parallel
+  // so the modal renders both granted shares and "pending signup" rows.
   useEffect(() => {
-    if (!isOwner || !board?.id) { setShares([]); return; }
+    if (!isOwner || !board?.id) {
+      setShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]);
+      return;
+    }
     let cancelled = false;
     setLoadingShares(true);
-    listBoardShares(board.id)
-      .then(rows => {
+    Promise.all([
+      listBoardShares(board.id),
+      listPendingInvitesForBoard(board.id).catch(() => []),
+      workspace?.id ? listPendingInvitesForWorkspace(workspace.id).catch(() => []) : Promise.resolve([]),
+    ])
+      .then(([shareRows, pendingBoard, pendingWs]) => {
         if (cancelled) return;
-        setShares(rows);
-        // Hydrate full names so offline shares aren't email-only.
-        rows.forEach(r => userProfiles.resolve(r.user_id));
+        setShares(shareRows);
+        setPendingBoardInvites(pendingBoard);
+        setPendingWorkspaceInvites(pendingWs);
+        shareRows.forEach(r => userProfiles.resolve(r.user_id));
       })
-      .catch(e => { console.warn('[share] list failed', e); if (!cancelled) setShares([]); })
+      .catch(e => {
+        console.warn('[share] list failed', e);
+        if (!cancelled) { setShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]); }
+      })
       .finally(() => { if (!cancelled) setLoadingShares(false); });
     return () => { cancelled = true; };
-  }, [board?.id, isOwner]);
+  }, [board?.id, isOwner, workspace?.id]);
 
   // Resolve names for workspace members too — peers covers online ones,
   // but offline members were rendering as a generic "Member".
@@ -176,57 +197,83 @@ export function ShareModal({
     const emails = parseEmails(inviteEmail);
     if (emails.length === 0 || inviting) return;
     setInviting(true);
-    const ok = []; const fail = [];
+    // granted = invitee already had an account; the share is live now
+    // pending = no account yet, we wrote pending_invites + sent an
+    //           invite-signup email. Claimed automatically on signup.
+    const granted = []; const pending = []; const fail = [];
 
     for (const email of emails) {
       try {
+        let status;
         if (inviteRole === 'workspace') {
-          const { data: uid, error } = await supabase.rpc('user_id_by_email', { p_email: email });
-          if (error) throw error;
-          if (!uid) { fail.push({ email, reason: 'not signed up' }); continue; }
-          if (uid === selfUserId) { fail.push({ email, reason: "that's you" }); continue; }
-          const { error: insErr } = await supabase
-            .from('workspace_members')
-            .insert({ workspace_id: workspace.id, user_id: uid, role: 'editor' });
-          if (insErr) {
-            if (insErr.code === '23505') fail.push({ email, reason: 'already a member' });
-            else fail.push({ email, reason: insErr.message || String(insErr) });
+          status = await inviteWorkspaceMember({
+            workspaceId: workspace.id, email, role: 'editor',
+          });
+          if (status === 'already_member') {
+            fail.push({ email, reason: 'already a member' });
             continue;
           }
-          ok.push(email);
         } else {
-          await shareBoard({ boardId: board.id, email, role: inviteRole });
-          ok.push(email);
+          status = await shareBoard({ boardId: board.id, email, role: inviteRole });
         }
+        if (status === 'pending') pending.push(email);
+        else granted.push(email);
       } catch (e) {
         const msg = e?.message || String(e);
-        const reason = msg.includes('no user with email') ? 'not signed up' : msg;
-        fail.push({ email, reason });
+        fail.push({ email, reason: msg });
       }
     }
 
     // Refresh derived state once after the loop.
-    if (inviteRole === 'workspace' && ok.length > 0) onMembersChanged?.();
-    if (inviteRole !== 'workspace' && ok.length > 0) {
+    if (inviteRole === 'workspace' && (granted.length > 0 || pending.length > 0)) {
+      onMembersChanged?.();
+      if (workspace?.id) {
+        try { setPendingWorkspaceInvites(await listPendingInvitesForWorkspace(workspace.id)); } catch (_) {}
+      }
+    }
+    if (inviteRole !== 'workspace' && (granted.length > 0 || pending.length > 0)) {
       try {
-        const rows = await listBoardShares(board.id);
-        setShares(rows);
+        const [shareRows, pendingRows] = await Promise.all([
+          listBoardShares(board.id),
+          listPendingInvitesForBoard(board.id).catch(() => []),
+        ]);
+        setShares(shareRows);
+        setPendingBoardInvites(pendingRows);
       } catch (_) {}
       onSharesChanged?.();
     }
 
-    // Summary toast — keep simple in the success case, list failures
-    // in the mixed/failure case so the user knows which emails to fix.
-    if (fail.length === 0) {
-      feedback.toast({
-        type: 'success',
-        message: emails.length === 1
-          ? (inviteRole === 'workspace'
-              ? `Added ${ok[0]} to "${workspace.name}".`
-              : `Shared "${board.name}" with ${ok[0]}.`)
-          : `Invited ${ok.length} ${ok.length === 1 ? 'person' : 'people'}.`,
-      });
-    } else if (ok.length === 0) {
+    // Summary toast.
+    const okCount = granted.length + pending.length;
+    if (fail.length === 0 && okCount > 0) {
+      if (emails.length === 1) {
+        const only = (granted[0] || pending[0]);
+        const wasPending = pending.length === 1;
+        feedback.toast({
+          type: 'success',
+          message: wasPending
+            ? `Invite sent to ${only}. They'll get access when they sign up.`
+            : (inviteRole === 'workspace'
+                ? `Added ${only} to "${workspace.name}".`
+                : `Shared "${board.name}" with ${only}.`),
+        });
+      } else if (pending.length > 0 && granted.length > 0) {
+        feedback.toast({
+          type: 'success',
+          message: `Invited ${granted.length}, plus ${pending.length} pending signup.`,
+        });
+      } else if (pending.length > 0) {
+        feedback.toast({
+          type: 'success',
+          message: `${pending.length} invite${pending.length === 1 ? '' : 's'} sent — they'll get access when they sign up.`,
+        });
+      } else {
+        feedback.toast({
+          type: 'success',
+          message: `Invited ${granted.length} ${granted.length === 1 ? 'person' : 'people'}.`,
+        });
+      }
+    } else if (okCount === 0) {
       feedback.toast({
         type: 'error',
         message: emails.length === 1
@@ -236,12 +283,29 @@ export function ShareModal({
     } else {
       feedback.toast({
         type: 'info',
-        message: `Invited ${ok.length}, failed ${fail.length}: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`,
+        message: `Invited ${okCount}${pending.length > 0 ? ` (${pending.length} pending signup)` : ''}, failed ${fail.length}: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`,
       });
     }
 
-    if (ok.length > 0) setInviteEmail('');
+    if (okCount > 0) setInviteEmail('');
     setInviting(false);
+  };
+
+  const onRevokePending = async (row) => {
+    const ok = await feedback.confirm({
+      title: `Revoke invite to ${row.email}?`,
+      message: `They'll no longer get access if they sign up.`,
+      confirmLabel: 'Revoke',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await revokePendingInvite(row.id);
+      setPendingBoardInvites(arr => arr.filter(x => x.id !== row.id));
+      setPendingWorkspaceInvites(arr => arr.filter(x => x.id !== row.id));
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not revoke: ' + (e.message || e) });
+    }
   };
 
   const onChangeShareRole = async (share, newRole) => {
@@ -379,10 +443,10 @@ export function ShareModal({
         {/* WORKSPACE MEMBERS */}
         <div className="share-section">
           <div className="share-eyebrow">
-            WORKSPACE MEMBERS · {workspaceMembers.length}
+            WORKSPACE MEMBERS · {workspaceMembers.length}{pendingWorkspaceInvites.length > 0 ? ` (+${pendingWorkspaceInvites.length} pending)` : ''}
           </div>
           <div className="share-list">
-            {workspaceMembers.length === 0 ? (
+            {workspaceMembers.length === 0 && pendingWorkspaceInvites.length === 0 ? (
               <div className="share-empty">No members yet.</div>
             ) : workspaceMembers.map(m => {
               const meta = userMeta(m.user_id);
@@ -418,6 +482,24 @@ export function ShareModal({
                 </div>
               );
             })}
+            {pendingWorkspaceInvites.map(row => (
+              <div key={row.id} className="share-row">
+                <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>
+                  {(row.email || '?').charAt(0).toUpperCase()}
+                </span>
+                <div className="share-row-text">
+                  <div className="share-row-name">{row.email}</div>
+                  <div className="share-row-sub">
+                    Pending signup · invite sent {new Date(row.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                {isOwner && (
+                  <button className="share-remove" onClick={() => onRevokePending(row)}>
+                    Revoke
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -425,12 +507,12 @@ export function ShareModal({
         {isOwner && (
           <div className="share-section">
             <div className="share-eyebrow">
-              SHARED WITH (THIS BOARD ONLY) · {shares.length}
+              SHARED WITH (THIS BOARD ONLY) · {shares.length}{pendingBoardInvites.length > 0 ? ` (+${pendingBoardInvites.length} pending)` : ''}
             </div>
             <div className="share-list">
               {loadingShares ? (
                 <div className="share-empty">Loading…</div>
-              ) : shares.length === 0 ? (
+              ) : shares.length === 0 && pendingBoardInvites.length === 0 ? (
                 <div className="share-empty">
                   No one yet. Use the invite field above to share this
                   board (and its sub-boards) with someone outside the
@@ -463,6 +545,22 @@ export function ShareModal({
                   </div>
                 );
               })}
+              {pendingBoardInvites.map(row => (
+                <div key={row.id} className="share-row">
+                  <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>
+                    {(row.email || '?').charAt(0).toUpperCase()}
+                  </span>
+                  <div className="share-row-text">
+                    <div className="share-row-name">{row.email}</div>
+                    <div className="share-row-sub">
+                      Pending signup · {ROLE_LABEL[row.role] || row.role} · invite sent {new Date(row.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <button className="share-remove" onClick={() => onRevokePending(row)}>
+                    Revoke
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
