@@ -118,7 +118,21 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
       }
     };
 
-    reload();
+    // Round 14: defer the initial reload() until after first paint.
+    // The trie is only needed for auto-linking entity names in prose;
+    // it is NOT on the critical path for canvas pan/zoom. Hydrating it
+    // synchronously on workspace mount held the main thread during the
+    // user-perceived "freeze" window. requestIdleCallback lets the
+    // browser fit it in after the first paint commits; a 1s timeout
+    // ensures we don't wait forever on a busy device. Safari has no
+    // rIC, so we fall back to a small setTimeout.
+    const scheduleIdle = (typeof window !== 'undefined' && window.requestIdleCallback)
+      ? (fn) => window.requestIdleCallback(fn, { timeout: 1000 })
+      : (fn) => setTimeout(fn, 200);
+    const cancelIdle = (typeof window !== 'undefined' && window.cancelIdleCallback)
+      ? (id) => window.cancelIdleCallback(id)
+      : (id) => clearTimeout(id);
+    const initialIdleId = scheduleIdle(() => { if (!cancelled) reload(); });
 
     // Coalesce rapid changes into one rebuild — entity_search is
     // updated card-by-card during a board save, so we'd otherwise
@@ -155,6 +169,7 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
     return () => {
       cancelled = true;
       if (pending) clearTimeout(pending);
+      try { cancelIdle(initialIdleId); } catch (_) {}
       try { supabase.removeChannel(ch1); } catch (_) {}
       try { supabase.removeChannel(ch2); } catch (_) {}
       try { supabase.removeChannel(ch3); } catch (_) {}

@@ -151,8 +151,27 @@ export function useAutotagWorker(workspaceId) {
         ignored,
       });
     }
-    hydrate().catch(err => console.warn('[autotag] hydrate failed', err));
-    return () => { cancelled = true; };
+    // Round 14: defer corpus hydration until after first paint. The
+    // worker is needed for tag suggestions on keystroke — NOT on the
+    // cold-load critical path. Hydrating synchronously on workspace
+    // mount fired 4 Supabase queries + a sync corpus loop during the
+    // user-perceived "freeze" window. requestIdleCallback lets the
+    // browser fit this in once the canvas has painted. 1s timeout so
+    // tag suggestions still come online quickly on busy devices.
+    const scheduleIdle = (typeof window !== 'undefined' && window.requestIdleCallback)
+      ? (fn) => window.requestIdleCallback(fn, { timeout: 1500 })
+      : (fn) => setTimeout(fn, 250);
+    const cancelIdle = (typeof window !== 'undefined' && window.cancelIdleCallback)
+      ? (id) => window.cancelIdleCallback(id)
+      : (id) => clearTimeout(id);
+    const idleId = scheduleIdle(() => {
+      if (cancelled) return;
+      hydrate().catch(err => console.warn('[autotag] hydrate failed', err));
+    });
+    return () => {
+      cancelled = true;
+      try { cancelIdle(idleId); } catch (_) {}
+    };
   }, [workspaceId]);
 
   // Realtime: tag definitions (rename / recolor / new tag).

@@ -2233,6 +2233,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </div>
         )}
         {surfaceJsx}
+        {/* Loading overlay while the Y.Doc is hydrating. Keeps the page feeling
+            alive during the boot window where CanvasSurface mounts but holds
+            no data — without this, the user stares at an empty canvas with
+            zero visual feedback for ~500ms-2s on cold loads. */}
+        {!ready && (
+          <div className="board-loading-overlay" aria-hidden="true">
+            <SoleilMark size={36} color="var(--soleil)" glow />
+          </div>
+        )}
       </div>
     );
   };
