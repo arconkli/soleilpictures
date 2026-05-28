@@ -87,6 +87,57 @@ export function ensureGoogleFontLoaded(name) {
   document.head.appendChild(link);
 }
 
+// Lookup set for fast "is this a known Google catalog font?" checks.
+const GOOGLE_FONT_NAMES = new Set(GOOGLE_FONT_LIST.map(f => f.name.toLowerCase()));
+
+// Strip the primary family name out of a CSS `font-family` value:
+//   "'Playfair Display', Georgia, serif" → "Playfair Display"
+//   '"Inter", sans-serif'                → "Inter"
+//   Roboto                               → "Roboto"
+function primaryFamilyName(cssValue) {
+  if (!cssValue) return '';
+  const first = String(cssValue).split(',')[0].trim();
+  return first.replace(/^["']|["']$/g, '').trim();
+}
+
+// Walk saved HTML for inline font-family declarations and inject the Google
+// stylesheet for each one that matches a name in the catalog. Without this,
+// notes/docs saved with a Google font render in the fallback after a cold
+// reload (the <link> is only added the first time the user picks the font
+// via the toolbar). Cheap: parses into a detached <template>, runs once
+// per content payload.
+export function ensureFontsFromHtml(html) {
+  if (typeof document === 'undefined' || !html) return;
+  let tpl;
+  try {
+    tpl = document.createElement('template');
+    tpl.innerHTML = String(html);
+  } catch (_) { return; }
+  const root = tpl.content;
+  // Inline `style="font-family: ..."`
+  root.querySelectorAll('[style*="font-family"]').forEach(el => {
+    const name = primaryFamilyName(el.style?.fontFamily);
+    if (name && GOOGLE_FONT_NAMES.has(name.toLowerCase())) ensureGoogleFontLoaded(name);
+  });
+  // Legacy <font face="..."> just in case.
+  root.querySelectorAll('font[face]').forEach(el => {
+    const name = primaryFamilyName(el.getAttribute('face'));
+    if (name && GOOGLE_FONT_NAMES.has(name.toLowerCase())) ensureGoogleFontLoaded(name);
+  });
+}
+
+// Pre-load every Google catalog font the user has used recently. Called once
+// at app start so the corresponding stylesheets are in <head> before any
+// note/doc renders. Complements ensureFontsFromHtml — recent-fonts covers
+// the case where the user previously used a font but no note on the current
+// board references it yet; ensureFontsFromHtml covers the per-content path.
+export function preloadRecentGoogleFonts(recents) {
+  if (!Array.isArray(recents)) return;
+  for (const f of recents) {
+    if (f?.gfName) ensureGoogleFontLoaded(f.gfName);
+  }
+}
+
 // Build the "all fonts" list — merges built-in, Google catalog, and the
 // user's custom fonts into a single alphabetized array. Each entry is
 // `{ key, label, css, gfName? }` ready for a picker dropdown.

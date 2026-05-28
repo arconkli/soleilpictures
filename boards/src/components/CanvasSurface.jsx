@@ -174,6 +174,33 @@ function pickPresenceColor(id) {
 }
 const cmdKey = isMac ? '⌘' : 'Ctrl';
 
+// "Is the user actively typing in an editor?" predicate, used by the
+// window-level paste / keyboard / pointer guards. The naive
+// `e.target.isContentEditable` check used to be brittle: in Tiptap /
+// ProseMirror the paste event target ends up being an element whose
+// nearest ancestor is contenteditable but the target itself isn't, so
+// the guard fell through and the canvas spawned a duplicate note from
+// the clipboard text. Belt-and-suspenders covers four signals.
+function isEditorTarget(e) {
+  const t = e?.target;
+  const tag = t?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+  if (t?.isContentEditable) return true;
+  if (t?.closest?.('[contenteditable="true"], [contenteditable=""]')) return true;
+  const ae = (typeof document !== 'undefined') ? document.activeElement : null;
+  if (ae && (ae.isContentEditable || ae.closest?.('[contenteditable="true"]'))) return true;
+  // Live selection anchored inside a contenteditable (covers cases where
+  // both `e.target` and `activeElement` are document.body but the caret
+  // is parked inside an editor).
+  if (typeof window !== 'undefined') {
+    const sel = window.getSelection?.();
+    const anchor = sel?.anchorNode;
+    const anchorEl = anchor?.nodeType === 3 ? anchor.parentElement : anchor;
+    if (anchorEl?.closest?.('[contenteditable="true"]')) return true;
+  }
+  return false;
+}
+
 export function CanvasSurface({
   board, boards, cards, arrows, strokes, groups = [],
   ydoc, // raw Y.Doc — needed by doc cards to access their per-card YMap
@@ -1393,8 +1420,7 @@ export function CanvasSurface({
   useEffect(() => {
     const onDown = (e) => {
       if (e.code !== 'Space') return;
-      const tag = e.target.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+      if (isEditorTarget(e)) return;
       e.preventDefault();
       setSpaceDown(true);
     };
@@ -1876,8 +1902,7 @@ export function CanvasSurface({
     };
 
     const onPaste = async (e) => {
-      const tag = e.target.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+      if (isEditorTarget(e)) return;
 
       // 1) Image in OS clipboard wins outright.
       const items = e.clipboardData?.items;
@@ -1941,8 +1966,7 @@ export function CanvasSurface({
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => {
-      const tag = e.target.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+      if (isEditorTarget(e)) return;
       const cmd = e.metaKey || e.ctrlKey;
 
       if (cmd && e.key === 'z' && !e.shiftKey) {
@@ -2163,7 +2187,7 @@ export function CanvasSurface({
       return;
     }
     if (spaceDown || selectedTool === 'pan') { startPan(e); return; }
-    if (e.target.isContentEditable) return;
+    if (isEditorTarget(e)) return;
     if (e.target.closest?.('.editable.is-editing, .note-toolbar, .rb-swatch-pop, .ic-link, .ic-add-caption, .editable')) return;
 
     if (selectedTool === 'arrow') {
@@ -4356,7 +4380,7 @@ export function CanvasSurface({
   // For boards: only the cover area triggers open — title/meta dbl-click
   // does nothing (so accidental clicks near the title don't navigate).
   const onCardDoubleClick = (e, c) => {
-    if (e.target.isContentEditable) return;
+    if (isEditorTarget(e)) return;
     if (e.target.closest && e.target.closest('.editable')) return;
     if (c.kind === 'board') {
       const t = e.target;

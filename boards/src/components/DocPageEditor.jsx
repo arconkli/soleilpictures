@@ -24,6 +24,7 @@ import { extractParagraphTags } from '../lib/extractParagraphTags.js';
 import { splitSentences, wordContextSpan } from '../lib/sentenceSpan.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { applyCards } from '../lib/tagsClient.js';
+import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { makeTagRangePlugin, TAG_RANGE_KEY } from './docExtensions/TagRangePlugin.js';
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
@@ -745,6 +746,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
     if (editor && lastNotified.current !== editor) {
       lastNotified.current = editor;
       onEditorReady?.(editor);
+      // Inject Google-catalog font stylesheets referenced by the loaded
+      // content. Without this, doc text saved with `font-family:'Inter',…`
+      // renders in the fallback after a cold reload.
+      try { ensureFontsFromHtml(editor.getHTML()); } catch (_) {}
     }
   }, [editor, onEditorReady]);
 

@@ -45,6 +45,12 @@ export function SidebarBoardTree({
   // Single shared hover timer — only one row can be hovered at a
   // time, so we don't need per-row state.
   const hoverTimer = useRef(null);
+  // Suppress the stray click that some browsers fire after an HTML5 drag
+  // (and after a touch-drag gesture). Mouse path: set in onDragStart,
+  // cleared in onDragEnd on the next tick so the trailing click sees it.
+  // Touch path: set when drag goes active in the document-level pointer
+  // listener (further below), cleared on pointerup the same way.
+  const dragGestureRef = useRef({ dragged: false });
   const hoverEnter = (boardId) => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => {
@@ -138,14 +144,26 @@ export function SidebarBoardTree({
              data-board-id={board.id}
              draggable={!isRenaming}
              onDragStart={(e) => {
+               dragGestureRef.current.dragged = true;
                try {
                  e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: board.id, name: board.name }));
                  e.dataTransfer.effectAllowed = 'copy';
                } catch (_) {}
              }}
+             onDragEnd={() => {
+               // The stray click fires AFTER dragend in some browsers — clear
+               // on the next macrotask so the click handler still sees the flag.
+               setTimeout(() => { dragGestureRef.current.dragged = false; }, 0);
+             }}
              onMouseEnter={() => hoverEnter(board.id)}
              onMouseLeave={hoverLeave}
-             onClick={() => { if (!isRenaming) onOpenBoard?.(board.id); }}
+             onClick={() => {
+               if (dragGestureRef.current.dragged) {
+                 dragGestureRef.current.dragged = false;
+                 return;
+               }
+               if (!isRenaming) onOpenBoard?.(board.id);
+             }}
              onDoubleClick={(e) => {
                // Double-click anywhere on the row enters rename mode.
                // Skip if the chevron caught it (let toggle do its thing).
@@ -250,6 +268,7 @@ export function SidebarBoardTree({
       const dy = e.clientY - drag.startY;
       if (!drag.active && (dx * dx + dy * dy) > THRESHOLD * THRESHOLD) {
         drag.active = true;
+        dragGestureRef.current.dragged = true;
         drag.ghost = startGhost(drag.name);
       }
       if (drag.active) {
@@ -264,6 +283,7 @@ export function SidebarBoardTree({
           detail: { boardId: drag.boardId, name: drag.name, clientX: e.clientX, clientY: e.clientY },
         }));
         drag.ghost?.remove();
+        setTimeout(() => { dragGestureRef.current.dragged = false; }, 0);
       }
       drag = null;
     };

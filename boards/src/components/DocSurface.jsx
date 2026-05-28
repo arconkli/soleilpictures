@@ -272,16 +272,33 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     const lastWrap = wraps[wraps.length - 1];
     const lastSheetId = sheetIds[sheetIds.length - 1];
     if (!lastSheetId) return;
-    const ro = new ResizeObserver((entries) => {
-      for (const e of entries) {
-        if (e.contentRect.height < AUTO_NEW_PAGE_THRESHOLD) continue;
-        if (autoFiredRef.current.has(lastSheetId)) continue;
-        autoFiredRef.current.add(lastSheetId);
-        addPageSheet(ydoc, activePageId, scope);
-      }
-    });
+    const checkAndFire = () => {
+      if (autoFiredRef.current.has(lastSheetId)) return;
+      // scrollHeight catches "content is bigger than the box would naturally
+      // grow to" — important for a long paste that lands inside a fixed-ish
+      // wrap whose contentRect hasn't crossed the threshold yet.
+      const h = Math.max(lastWrap.scrollHeight, lastWrap.getBoundingClientRect().height);
+      if (h < AUTO_NEW_PAGE_THRESHOLD) return;
+      autoFiredRef.current.add(lastSheetId);
+      addPageSheet(ydoc, activePageId, scope);
+    };
+    const ro = new ResizeObserver(() => checkAndFire());
     ro.observe(lastWrap);
-    return () => ro.disconnect();
+    // Mutation observer catches text inserts (paste, typing) that change
+    // content height without necessarily firing a ResizeObserver tick — the
+    // user-reported "paste a long paragraph and no new page is added" case.
+    // Debounced because typing triggers many characterData mutations.
+    let moTimer = null;
+    const mo = new MutationObserver(() => {
+      if (moTimer) return;
+      moTimer = setTimeout(() => { moTimer = null; checkAndFire(); }, 80);
+    });
+    mo.observe(lastWrap, { childList: true, characterData: true, subtree: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      if (moTimer) clearTimeout(moTimer);
+    };
   }, [activePageId, ready, ydoc, scope, sheetIds]);
 
   // Honor a "jump to this bookmark on open" request that came in via a

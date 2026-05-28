@@ -11,6 +11,7 @@ import { EntityPicker } from './EntityPicker.jsx';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
+import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 
 export function RichNoteEditor({
   html, body, bgColor, textColor, fontFamily, fontSize,
@@ -47,6 +48,10 @@ export function RichNoteEditor({
     const next = peerLiveHtml ?? (html || (body ? `<div>${escapeHtml(body)}</div>` : ''));
     if (ref.current.innerHTML !== next) ref.current.innerHTML = next;
     initialRef.current = ref.current.innerHTML;
+    // Any inline `font-family: 'X', ...` referring to a Google catalog font
+    // needs its stylesheet injected on cold load — otherwise the browser
+    // falls back to system-ui and the note looks like the font reverted.
+    ensureFontsFromHtml(next);
   }, [html, body, editing, peerLiveHtml]);
 
   useEffect(() => { onEditingChange?.(editing); }, [editing]);
@@ -62,6 +67,12 @@ export function RichNoteEditor({
   const NOTE_AUTOSIZE_MAX = 480;
   const measureAndReport = () => {
     if (manuallyResized) return;
+    // Only report height while the user is editing. Outside edit mode the
+    // measurement runs against scrollHeight while custom fonts may still be
+    // swapping in (font-display: swap), shrinking the cached `h` to the
+    // fallback metrics — which persists permanently even after the font
+    // loads. Keep the saved height stable on snapshot load.
+    if (!editing) return;
     if (!ref.current || !onAutoSize) return;
     const NOTE_PAD = 14 * 2;
     const contentH = ref.current.scrollHeight;
@@ -70,7 +81,7 @@ export function RichNoteEditor({
   // Measure on every input + once on edit-start. ResizeObserver catches
   // wraps from font-size or width changes that don't fire `input`.
   useEffect(() => {
-    if (!ref.current || manuallyResized) return;
+    if (!ref.current || manuallyResized || !editing) return;
     measureAndReport();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => measureAndReport());

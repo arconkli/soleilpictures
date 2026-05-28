@@ -12,6 +12,8 @@ import { PublicBoardView } from './components/PublicBoardView.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
+import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
+import { getRecentFonts } from './lib/customFonts.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
@@ -91,6 +93,11 @@ startHeartbeat();
 // links, Android back button). No-ops in the web build — every
 // plugin checks Capacitor.isNativePlatform() before doing work.
 initCapacitor();
+
+// Pre-load Google fonts the user has used recently so the corresponding
+// <link> tags are in <head> before any note/doc renders — otherwise saved
+// inline `font-family:'Inter',…` falls back to system-ui on cold load.
+preloadRecentGoogleFonts(getRecentFonts());
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
