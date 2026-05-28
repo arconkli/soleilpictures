@@ -11,7 +11,14 @@
    light-bg variant under [data-theme="light"]. Keeps the theme bootstrap
    script's pre-mount data-theme swap synchronous (no React flash). */
 .clusters-mark { position: relative; display: inline-block; line-height: 0; flex-shrink: 0; }
-.clusters-mark-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+/* Both source PNGs are 2048×2048 but their painted pixels are inset by
+   (padL 114, padR 21, padT 149, padB 240) — the visible content centroid
+   is offset (+46px right, −46px up) from the canvas center, which is
+   ~+2.25% / −2.25%. Translate the rendered image by the inverse so its
+   visible centroid sits on the bounding-box center; otherwise object-fit
+   contain hands the wordmark a visually right-and-up-biased mark and the
+   composite reads off-center even when flex centering is exact. */
+.clusters-mark-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transform: translate(-2.25%, 2.25%); }
 .clusters-mark-light { display: none; }
 [data-theme="light"] .clusters-mark-dark { display: none; }
 [data-theme="light"] .clusters-mark-light { display: block; }
