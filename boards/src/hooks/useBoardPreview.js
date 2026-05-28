@@ -9,10 +9,10 @@ import { b64ToBytes, readCards } from '../lib/yhelpers.js';
 import { readDocSummary } from '../lib/docState.js';
 import { resolveSrc } from '../lib/r2.js';
 import * as perf from '../lib/perf.js';
-// Round 15: Y.Doc decode runs in a Web Worker so the main thread isn't
-// blocked while sub-board previews hydrate on cold loads. Same module,
-// imported with Vite's ?worker suffix gives us a Worker Constructor.
-import PreviewDecodeWorker from '../lib/previewDecodeWorker.js?worker';
+// Round 15: Y.Doc decode runs in a Web Worker. Round 16 extracted the
+// singleton worker client so yboard.js can share the same instance for
+// localStorage envelope serialization.
+import { decodeViaWorker } from '../lib/previewWorkerClient.js';
 
 const TTL = 60_000;
 const cache = new Map(); // boardId -> { data, expiresAt, promise, listeners }
@@ -83,81 +83,10 @@ function _releaseSlot() {
   perf.gauge('preview.queued', _waiters.length);
 }
 
-// ── Web-worker decode (Round 15) ────────────────────────────────────────
-// Lazy singleton. The worker is spawned on first preview decode and lives
-// for the rest of the page. Y.applyUpdate is CPU-bound and was previously
-// running on the main thread inside fetchPreview; with 10 sub-board tiles
-// on Marketing the cumulative ~330-1000 ms blocked pan/zoom during cold
-// loads. The worker handles decode + readCards + arrows + strokes +
-// doc-summary in isolation; the main thread continues to do R2 presign
-// pre-warming and React rendering as before.
-let _decodeWorker = null;
-let _decodeWorkerBroken = false; // sticky after spawn / runtime failure
-let _decodeReqId = 1;
-const _decodePending = new Map(); // requestId -> { resolve, reject, timeoutId }
-
-function _getDecodeWorker() {
-  if (_decodeWorker || _decodeWorkerBroken) return _decodeWorker;
-  try {
-    const w = new PreviewDecodeWorker();
-    w.onmessage = (event) => {
-      const msg = event.data || {};
-      if (msg.type !== 'decoded') return;
-      const entry = _decodePending.get(msg.requestId);
-      if (!entry) return;
-      _decodePending.delete(msg.requestId);
-      clearTimeout(entry.timeoutId);
-      if (msg.ok) entry.resolve({ data: msg.data, workerMs: msg.workerMs });
-      else entry.reject(new Error(msg.error || 'preview decode worker reported failure'));
-    };
-    w.onerror = (e) => {
-      console.warn('[perf] preview decode worker error', e?.message || e);
-      _decodeWorkerBroken = true;
-      try { w.terminate(); } catch (_) {}
-      _decodeWorker = null;
-      // Reject any in-flight requests so callers fall back to inline decode.
-      for (const [, entry] of _decodePending) {
-        clearTimeout(entry.timeoutId);
-        entry.reject(new Error('preview decode worker crashed'));
-      }
-      _decodePending.clear();
-    };
-    _decodeWorker = w;
-  } catch (e) {
-    // Browsers with no Worker support, hostile CSP, or Vite dev-server
-    // edge cases. We just go inline forever.
-    console.warn('[perf] preview decode worker spawn failed; using inline decode', e?.message || e);
-    _decodeWorkerBroken = true;
-    _decodeWorker = null;
-  }
-  return _decodeWorker;
-}
-
-function _decodeViaWorker(b64, timeoutMs = 10_000) {
-  const w = _getDecodeWorker();
-  if (!w) return null; // signal "no worker available — caller should inline-decode"
-  const requestId = _decodeReqId++;
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      if (_decodePending.has(requestId)) {
-        _decodePending.delete(requestId);
-        reject(new Error('preview decode worker timeout'));
-      }
-    }, timeoutMs);
-    _decodePending.set(requestId, { resolve, reject, timeoutId });
-    try {
-      w.postMessage({ type: 'decode', requestId, b64 });
-    } catch (e) {
-      _decodePending.delete(requestId);
-      clearTimeout(timeoutId);
-      reject(e);
-    }
-  });
-}
-
 // Inline (main-thread) decode kept as a fallback. Used when the worker
 // can't be spawned, errors out, or times out. Same shape the worker
-// produces so the downstream code path is identical.
+// produces so the downstream code path is identical. (Worker singleton
+// + RPC plumbing now lives in lib/previewWorkerClient.js as of Round 16.)
 function _decodeInline(b64) {
   const t0 = performance.now();
   const ydoc = new Y.Doc();
@@ -184,13 +113,13 @@ async function fetchPreview(boardId) {
     const b64 = await loadBoardSnapshot(boardId);
     if (_tNet0) perf.mark('preview.net.ms', performance.now() - _tNet0);
     if (!b64) return { cards: [], arrows: [], strokes: [], docPages: [], docText: '' };
-    // Round 15: prefer the Web Worker. _decodeViaWorker returns null when
+    // Round 15: prefer the Web Worker. decodeViaWorker returns null when
     // the worker can't be spawned at all (browser support / CSP), in
     // which case we go inline immediately. If it returns a Promise we
     // wait — and inline-fallback if the worker fails or times out.
     const _tDec0 = performance.now();
     let data;
-    const workerPromise = _decodeViaWorker(b64);
+    const workerPromise = decodeViaWorker(b64);
     if (workerPromise) {
       try {
         const { data: workerData, workerMs } = await workerPromise;

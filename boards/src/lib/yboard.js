@@ -19,6 +19,10 @@ import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 import { peekBoardSnapshot, prefetchBoard } from './prefetchKinds.js';
 import { invalidate as invalidatePrefetch } from './prefetch.js';
 import * as perf from './perf.js';
+// Round 16: serialize the localStorage preview envelope off the main
+// thread so persistSoon's hot path no longer pays a ~50-200ms
+// JSON.stringify cost mid-interaction.
+import { serializeViaWorker } from './previewWorkerClient.js';
 // Feature flag: PartyKit transport vs legacy Supabase Realtime. Set
 // VITE_USE_PARTYKIT=true (and VITE_PARTYKIT_HOST=<deployed-url>) once
 // the party is deployed.
@@ -35,6 +39,67 @@ const SESSION_IDLE_MS = 5 * 60 * 1000; // 5 min of inactivity = session boundary
 const PERIODIC_VERSION_MS = 2 * 60 * 1000;
 const PERIODIC_VERSIONS_PER_SESSION = 30;
 const LOCAL_DRAFT_PREFIX = 'soleil.boards.ydoc.';
+
+// Round 16: throttle the persistSoon → localStorage preview-cache write.
+// During continuous editing persistSoon fires every ~250ms; without
+// throttling the JSON.stringify+setItem chain ran that often, blocking
+// the main thread mid-pan. Once every 2s is plenty for the cache to be
+// fresh enough for sub-board thumbnails.
+const PREVIEW_LS_THROTTLE_MS = 2000;
+const _lastPreviewLsWrite = new Map(); // boardId -> Date.now() of last write
+
+// requestIdleCallback wrapper — Round 14 introduced the same pattern in
+// the entity-trie / autotag hooks. We re-use the idea here: schedule
+// the localStorage preview write in idle time so it never competes with
+// active interaction (pan/zoom/typing). Safari falls back to setTimeout.
+const _scheduleIdle = (typeof window !== 'undefined' && window.requestIdleCallback)
+  ? (fn) => window.requestIdleCallback(fn, { timeout: 1500 })
+  : (fn) => setTimeout(fn, 200);
+
+// Build the preview-shaped object + serialize it (via the worker if
+// available, falling back to inline JSON.stringify) + write to localStorage.
+// Pre-Round-16 this was inline in persistSoon's setTimeout callback and
+// caused the half-second "hitches" the user reported. See
+// plans/i-m-having-issues-where-wise-dove.md (Round 16).
+async function _writePreviewToLS(boardId, ydoc) {
+  try {
+    if (ydoc.isDestroyed) return;
+    const previewData = {
+      cards: readCards(ydoc),
+      arrows: ydoc.getArray('arrows').toArray().map(a => (a && a.toJSON) ? a.toJSON() : a),
+      strokes: ydoc.getArray('strokes').toArray().map(s => (s && s.toJSON) ? s.toJSON() : s),
+      docPages: [],
+      docText: '',
+    };
+    let envelope;
+    const workerPromise = serializeViaWorker(previewData);
+    if (workerPromise) {
+      try {
+        const { envelope: env, workerMs } = await workerPromise;
+        envelope = env;
+        perf.bump('persistSoon.serializeWorker');
+        perf.mark('persistSoon.serialize.ms', workerMs);
+      } catch (e) {
+        if (perf.isEnabled()) console.warn('[perf] persistSoon serialize worker failed; inline', e?.message || e);
+        const t0 = performance.now();
+        envelope = JSON.stringify({ data: previewData, savedAt: Date.now() });
+        perf.bump('persistSoon.serializeInline');
+        perf.mark('persistSoon.serializeInline.ms', performance.now() - t0);
+      }
+    } else {
+      const t0 = performance.now();
+      envelope = JSON.stringify({ data: previewData, savedAt: Date.now() });
+      perf.bump('persistSoon.serializeInline');
+      perf.mark('persistSoon.serializeInline.ms', performance.now() - t0);
+    }
+    // 200KB cap matches useBoardPreview's LS_MAX_PER_BOARD_BYTES.
+    if (envelope.length <= 200 * 1024 && typeof localStorage !== 'undefined') {
+      const tSet0 = performance.now();
+      localStorage.setItem('soleil:preview:' + boardId, envelope);
+      perf.mark('persistSoon.lsSetItem.ms', performance.now() - tSet0);
+    }
+  } catch (_) { /* quota or disabled storage — silent */ }
+}
 
 function genSessionId() {
   try {
@@ -124,26 +189,25 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
       try {
         await saveBoardSnapshot(boardId, ydoc);
         clearLocalDraft(boardId, version);
-        // Also refresh the localStorage preview cache for this board.
-        // useBoardPreview reads this key, so parent boards (e.g. Marketing
-        // with sub-board tiles) can render the latest preview of this
-        // board instantly on next page load — no Supabase round-trip
-        // required. Same key + envelope shape that useBoardPreview's
-        // _lsRead / _lsWrite use.
-        try {
-          const previewData = {
-            cards: readCards(ydoc),
-            arrows: ydoc.getArray('arrows').toArray().map(a => (a && a.toJSON) ? a.toJSON() : a),
-            strokes: ydoc.getArray('strokes').toArray().map(s => (s && s.toJSON) ? s.toJSON() : s),
-            docPages: [],
-            docText: '',
-          };
-          const envelope = JSON.stringify({ data: previewData, savedAt: Date.now() });
-          // 200KB cap matches useBoardPreview's LS_MAX_PER_BOARD_BYTES.
-          if (envelope.length <= 200 * 1024 && typeof localStorage !== 'undefined') {
-            localStorage.setItem('soleil:preview:' + boardId, envelope);
-          }
-        } catch (_) { /* quota or disabled storage — silent */ }
+        // Round 16: refresh the localStorage preview cache for this
+        // board. Pre-Round-16 this ran inline here, blocking the main
+        // thread for 100-300ms (readCards + JSON.stringify + setItem),
+        // which the user perceived as ~500ms hitches when a Supabase
+        // save resolved mid-pan. Now: throttled to once per 2s per
+        // board, scheduled via requestIdleCallback so it never steals
+        // time from active interaction, and JSON.stringify runs in
+        // the preview worker. See _writePreviewToLS at module scope.
+        const now = Date.now();
+        const lastWrite = _lastPreviewLsWrite.get(boardId) || 0;
+        if (now - lastWrite >= PREVIEW_LS_THROTTLE_MS) {
+          _lastPreviewLsWrite.set(boardId, now);
+          _scheduleIdle(() => {
+            if (destroyed) return;
+            void _writePreviewToLS(boardId, ydoc);
+          });
+        } else {
+          perf.bump('persistSoon.lsThrottled');
+        }
       }
       catch (e) { console.error('saveBoardSnapshot failed', e); }
     }, SNAP_DEBOUNCE_MS);

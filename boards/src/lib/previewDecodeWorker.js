@@ -37,19 +37,44 @@ function decode(b64) {
   return { data, workerMs: performance.now() - t0 };
 }
 
+// Round 16: also serialize the localStorage preview envelope here so
+// yboard.js's persistSoon doesn't pay the ~50-200 ms JSON.stringify
+// cost on the main thread after every snapshot save.
+function serialize(data) {
+  const t0 = performance.now();
+  const envelope = JSON.stringify({ data, savedAt: Date.now() });
+  return { envelope, workerMs: performance.now() - t0 };
+}
+
 self.onmessage = (event) => {
   const msg = event.data || {};
-  if (msg.type !== 'decode') return;
-  const { requestId, b64 } = msg;
-  try {
-    const { data, workerMs } = decode(b64);
-    self.postMessage({ type: 'decoded', requestId, ok: true, data, workerMs });
-  } catch (e) {
-    self.postMessage({
-      type: 'decoded',
-      requestId,
-      ok: false,
-      error: (e && e.message) ? e.message : String(e),
-    });
+  const { requestId } = msg;
+  if (msg.type === 'decode') {
+    try {
+      const { data, workerMs } = decode(msg.b64);
+      self.postMessage({ type: 'decoded', requestId, ok: true, data, workerMs });
+    } catch (e) {
+      self.postMessage({
+        type: 'decoded',
+        requestId,
+        ok: false,
+        error: (e && e.message) ? e.message : String(e),
+      });
+    }
+    return;
+  }
+  if (msg.type === 'serialize') {
+    try {
+      const { envelope, workerMs } = serialize(msg.data);
+      self.postMessage({ type: 'serialized', requestId, ok: true, envelope, workerMs });
+    } catch (e) {
+      self.postMessage({
+        type: 'serialized',
+        requestId,
+        ok: false,
+        error: (e && e.message) ? e.message : String(e),
+      });
+    }
+    return;
   }
 };
