@@ -233,6 +233,17 @@ export function CanvasSurface({
   // while panning. The useLayoutEffect below keeps ref + DOM in lockstep
   // with state when state changes from non-gesture paths (reset zoom,
   // fit-to-view, etc.).
+  // Round 17 instrumentation: capture component mount time so the first
+  // viewport-cull pass can emit `canvasSurface.mountToFirstCull.ms` (see
+  // scheduleVisibleRecompute below). Surfaces as a named bar in DevTools
+  // Performance "Timings" lane.
+  const _mountRef = useRef(perf.isEnabled() ? performance.now() : 0);
+  const _firstCullDoneRef = useRef(false);
+  // Round 17: track zoom-handler count so we can emit `firstZoom.ms` vs
+  // `zoom.ms` separately. Reset when board.id changes (see effect at
+  // ~line 853 which already resets per-board state).
+  const _zoomCountRef = useRef(0);
+
   const canvasRef = useRef(null);
   const applyCanvasTransform = () => {
     const el = canvasRef.current;
@@ -293,6 +304,17 @@ export function CanvasSurface({
       });
       perf.bump('cull.runs');
       if (_t0) perf.mark('cull.ms', performance.now() - _t0);
+      // Round 17: first viewport cull after CanvasSurface mount —
+      // captures "mount to first-paint-with-culling" cost, the
+      // bookend of the first-open hitch on the React side. (The
+      // Y.Doc-side cost is captured separately as
+      // `firstOpen.boardIdToReady.ms` in useYBoard.)
+      if (!_firstCullDoneRef.current) {
+        _firstCullDoneRef.current = true;
+        if (_mountRef.current) {
+          perf.mark('canvasSurface.mountToFirstCull.ms', performance.now() - _mountRef.current);
+        }
+      }
     });
   }, []);
   useLayoutEffect(() => {
@@ -850,11 +872,19 @@ export function CanvasSurface({
     setSelectedArrows(new Set());
     setCtx(c => ({ ...c, open: false }));
     setBgCtx(c => ({ ...c, open: false }));
+    // Round 17: reset per-board zoom-counter so the next zoom on a
+    // freshly-opened board is correctly classified as `firstZoom`.
+    _zoomCountRef.current = 0;
   }, [board.id]);
 
   const sortedCards = useMemo(() => {
+    // Round 17: time the sort. Useful for first-open diagnosis when
+    // there are many cards; subsequent re-sorts after edits are also
+    // captured (so we can see if a single sort exceeds 20ms).
+    const _t0 = perf.isEnabled() ? performance.now() : 0;
     const arr = (cards || []).slice();
     arr.sort((a, b) => ((a.z || 0) - (b.z || 0)) || (a.id < b.id ? -1 : 1));
+    if (_t0) perf.mark('canvasSurface.sortedCards.ms', performance.now() - _t0);
     return arr;
   }, [cards]);
   // Keep the ref the viewport-culling RAF reads in sync with the latest
@@ -1404,6 +1434,11 @@ export function CanvasSurface({
       if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob')) return;
       e.preventDefault();
       perf.bump('wheel.events');
+      // Round 17: time the JS-side cost of zoom handling. A 'first-zoom
+      // hitch' may be JS (this number high) or browser compositor (this
+      // number low, but DevTools trace still shows a long task).
+      const _isZoom = e.ctrlKey || e.metaKey;
+      const _tZ = (_isZoom && perf.isEnabled()) ? performance.now() : 0;
       const rect = el.getBoundingClientRect();
       const curPan = panRef.current;
       const curZoom = zoomRef.current;
@@ -1429,6 +1464,12 @@ export function CanvasSurface({
       applyCanvasTransform();
       scheduleVisibleRecompute();
       scheduleCommit();
+      if (_tZ) {
+        const ms = performance.now() - _tZ;
+        const isFirst = _zoomCountRef.current === 0;
+        perf.mark(isFirst ? 'firstZoom.ms' : 'zoom.ms', ms);
+        _zoomCountRef.current++;
+      }
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => {
@@ -1461,6 +1502,8 @@ export function CanvasSurface({
         if (event?.cancelable) event.preventDefault();
         const el = wrapRef.current;
         if (!el) return memo;
+        // Round 17: time the JS-side cost of pinch-zoom handling.
+        const _tZ = perf.isEnabled() ? performance.now() : 0;
         const rect = el.getBoundingClientRect();
         const start = memo || { zoom: zoomRef.current, panX: panRef.current.x, panY: panRef.current.y };
         const targetZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, start.zoom * ms));
@@ -1476,6 +1519,12 @@ export function CanvasSurface({
         applyCanvasTransform();
         scheduleVisibleRecompute();
         scheduleTouchPanCommit();
+        if (_tZ) {
+          const dur = performance.now() - _tZ;
+          const isFirst = _zoomCountRef.current === 0;
+          perf.mark(isFirst ? 'firstZoom.ms' : 'zoom.ms', dur);
+          _zoomCountRef.current++;
+        }
         return start;
       },
       onDrag: ({ event, delta: [dx, dy], touches, pinching, pointerType }) => {

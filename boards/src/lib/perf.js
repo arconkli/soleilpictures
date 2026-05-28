@@ -290,6 +290,18 @@ function _startLongTaskObserver() {
           attribution,
         });
         if (longTasks.length > LONGTASK_CAP) longTasks.shift();
+        // Round 17: mirror the long task as a User Timing measure so it
+        // shows up as a named bar in DevTools Performance "Timings"
+        // lane. The bar name encodes the duration so the user can spot
+        // 200+ms hitches at a glance when scanning a trace.
+        try {
+          if (typeof performance !== 'undefined' && performance.measure) {
+            performance.measure(
+              `longtask-${entry.duration.toFixed(0)}ms`,
+              { start: entry.startTime, duration: entry.duration },
+            );
+          }
+        } catch (_) { /* older Safari: 2nd-arg shape unsupported */ }
         // Always log — the user explicitly enabled perf to find these.
         console.warn(
           '[perf] longtask',

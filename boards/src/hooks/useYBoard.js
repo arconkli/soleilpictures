@@ -85,6 +85,13 @@ export function useYBoard(boardId, userId, user = null) {
     }
     if (handleRef.current) handleRef.current.destroy();
     setSnapshot(emptySnapshot(boardId));
+    // Round 17: end-to-end "user clicked board → cards in React state" timer.
+    // Captures loadYBoard resolution + handle.ready await + snapshot
+    // Y.applyUpdate + the first refresh() (readCards + setState). Surfaces
+    // as the named `firstOpen.boardIdToReady.ms` bar in Chrome DevTools
+    // Performance "Timings" lane via perf.mark's performance.measure shim.
+    const _tOpen = performance.now();
+    let _firstRefreshDone = false;
     const handle = loadYBoard(boardId, { userId, user });
     handleRef.current = handle;
 
@@ -103,6 +110,10 @@ export function useYBoard(boardId, userId, user = null) {
       const _trc = perf.isEnabled() ? performance.now() : 0;
       const nextCards = readCards(handle.ydoc);
       if (_trc) perf.mark('yboard.readCards.ms', performance.now() - _trc);
+      if (!_firstRefreshDone) {
+        _firstRefreshDone = true;
+        perf.mark('firstOpen.boardIdToReady.ms', performance.now() - _tOpen);
+      }
       setSnapshot({
         ready: true,
         cards: nextCards,
