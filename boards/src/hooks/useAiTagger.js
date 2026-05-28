@@ -222,7 +222,7 @@ export function useAiTagger(workspaceId) {
       }
       const [tagsResp, centroidsResp, appliedResp] = await Promise.all([
         supabase.from('tags')
-          .select('id, name, slug, color')
+          .select('id, name, slug, color, description')
           .eq('workspace_id', workspaceId),
         supabase.from('tag_centroids')
           .select('tag_id, centroid')
@@ -473,7 +473,7 @@ export function useAiTagger(workspaceId) {
             if (!tag?.id) return;
             // Update tagsRef.
             const { data } = await supabase.from('tags')
-              .select('id, name, slug, color')
+              .select('id, name, slug, color, description')
               .eq('workspace_id', workspaceId);
             tagsRef.current = data || [];
             // Seed centroid from name (lazy fallback) then kick off backfill.
@@ -500,7 +500,7 @@ export function useAiTagger(workspaceId) {
           { event: 'UPDATE', schema: 'public', table: 'tags', filter: `workspace_id=eq.${workspaceId}` },
           async () => {
             const { data } = await supabase.from('tags')
-              .select('id, name, slug, color')
+              .select('id, name, slug, color, description')
               .eq('workspace_id', workspaceId);
             tagsRef.current = data || [];
           })
@@ -513,7 +513,7 @@ export function useAiTagger(workspaceId) {
               backfilledTagsRef.current.delete(removed);
             }
             const { data } = await supabase.from('tags')
-              .select('id, name, slug, color')
+              .select('id, name, slug, color, description')
               .eq('workspace_id', workspaceId);
             tagsRef.current = data || [];
           });
@@ -534,7 +534,15 @@ export function useAiTagger(workspaceId) {
     let promise = centroidPromisesRef.current.get(tag.id);
     if (promise) return promise;
     promise = (async () => {
-      const text = (tag.name || tag.slug || '').trim();
+      // Seed text uses name + description so the user's curated
+      // definition (editable via TagDescriptionRow) actually shapes
+      // the initial centroid. The member-derived centroid takes over
+      // once ≥1 card is applied, so this only matters before the tag
+      // has been used — but for new tags with thoughtful descriptions
+      // it's the difference between a sharp centroid and a fuzzy one.
+      const name = (tag.name || tag.slug || '').trim();
+      const desc = (tag.description || '').trim();
+      const text = desc ? `${name}\n${desc}` : name;
       if (!text) return null;
       const result = await embedOne(tag.id, text);
       if (!result?.vector) return null;

@@ -14989,4 +14989,107 @@ button, [role="button"], a {
 @keyframes md-slide { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes md-fade  { from { opacity: 0; } to { opacity: 1; } }
 
+/* ── Admin → Tagging tab ──────────────────────────────────────────── */
+.admin-tagging { padding: 16px 24px 40px; max-width: 1280px; }
+.admin-tagging-head {
+  display: flex; align-items: baseline; gap: 16px; margin-bottom: 14px;
+}
+.admin-tagging-head h2 { margin: 0; font: 700 18px/1.2 var(--font-sans); }
+.admin-tagging-thresholds { color: var(--ink-3); font: 500 12px/1.3 var(--font-mono, var(--font-sans)); }
+
+.admin-tagging-overview { margin-bottom: 24px; }
+.admin-tagging-table {
+  width: 100%; border-collapse: collapse;
+  font: 500 13px/1.3 var(--font-sans);
+}
+.admin-tagging-table th, .admin-tagging-table td {
+  text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line-1);
+}
+.admin-tagging-table th { color: var(--ink-3); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.admin-tagging-table td.num, .admin-tagging-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.admin-tagging-table .dim { color: var(--ink-3); }
+.admin-tagging-row { cursor: pointer; }
+.admin-tagging-row:hover { background: var(--bg-1); }
+.admin-tagging-row.is-selected { background: var(--bg-2, var(--bg-1)); }
+.admin-tagging-row.is-missing { opacity: 0.55; }
+.admin-tagging-tag-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 8px; vertical-align: middle;
+}
+
+.admin-tagging-drill {
+  margin-top: 8px; padding: 18px; border: 1px solid var(--line-1); border-radius: 10px; background: var(--bg-1);
+}
+.admin-tagging-drill-head h3 { margin: 0 0 6px; font: 700 16px/1.2 var(--font-sans); }
+.admin-tagging-desc { color: var(--ink-2); margin: 0 0 12px; font: 400 12.5px/1.4 var(--font-sans); }
+
+/* Histogram */
+.admin-tagging-histogram { margin: 18px 0 24px; position: relative; }
+.admin-tagging-histogram-bars { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; height: 120px; align-items: end; }
+.admin-tagging-histogram-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.admin-tagging-histogram-bar { width: 80%; background: var(--ink-3); position: relative; min-height: 2px; border-radius: 2px 2px 0 0; }
+.admin-tagging-histogram-applied { position: absolute; bottom: 0; left: 0; right: 0; background: var(--soleil, #ffa500); border-radius: 2px 2px 0 0; }
+.admin-tagging-histogram-label { font: 500 10px/1 var(--font-mono, var(--font-sans)); color: var(--ink-3); margin-top: 4px; }
+.admin-tagging-histogram-marks { position: relative; height: 18px; margin-top: 4px; }
+.admin-tagging-histogram-marks .mark { position: absolute; transform: translateX(-50%); font: 600 10px/1 var(--font-mono, var(--font-sans)); padding: 2px 6px; border-radius: 4px; }
+.admin-tagging-histogram-marks .mark-auto    { background: rgba(80, 200, 120, 0.18); color: #50c878; }
+.admin-tagging-histogram-marks .mark-suggest { background: rgba(255, 165, 0, 0.18); color: var(--soleil, #ffa500); }
+.admin-tagging-histogram-legend { display: flex; gap: 14px; font: 500 11px/1 var(--font-sans); color: var(--ink-2); margin-top: 8px; }
+.admin-tagging-histogram-legend .lg { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.admin-tagging-histogram-legend .lg-applied { background: var(--soleil, #ffa500); }
+.admin-tagging-histogram-legend .lg-not     { background: var(--ink-3); }
+
+/* Suspect lists */
+.admin-tagging-suspects { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 24px; }
+.admin-tagging-suspect-block h5 { margin: 0 0 4px; font: 600 13px/1.2 var(--font-sans); }
+.admin-tagging-suspect-hint { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); margin: 0 0 8px; }
+.admin-tagging-suspect-list { list-style: none; padding: 0; margin: 0; }
+.admin-tagging-suspect-row {
+  display: grid; grid-template-columns: 56px 1fr auto auto; gap: 10px; align-items: center;
+  padding: 6px 8px; border: 1px solid var(--line-1); border-radius: 6px; margin-bottom: 4px; background: var(--bg-0, transparent);
+  font: 500 12px/1.3 var(--font-sans);
+}
+.admin-tagging-suspect-dist { font-variant-numeric: tabular-nums; color: var(--ink-3); font: 500 11.5px/1 var(--font-mono, var(--font-sans)); }
+.admin-tagging-suspect-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-tagging-suspect-actions { display: flex; gap: 4px; }
+.admin-tagging-suspect-actions button {
+  font: 500 11px/1 var(--font-sans);
+  padding: 4px 8px; border-radius: 4px; border: 1px solid var(--line-1); background: var(--bg-1); color: var(--ink-1); cursor: pointer;
+}
+.admin-tagging-suspect-actions button:hover { border-color: var(--line-2); color: var(--ink-0); }
+.admin-tagging-suspect-actions button.is-on { background: var(--soleil, #ffa500); border-color: var(--soleil, #ffa500); color: #0a0a0c; }
+.admin-tagging-suspect-actions button.dim   { opacity: 0.55; }
+
+.admin-tagging-label-chip {
+  font: 600 10px/1 var(--font-mono, var(--font-sans));
+  padding: 3px 6px; border-radius: 4px;
+}
+.admin-tagging-label-chip.is-should_apply     { background: rgba(80, 200, 120, 0.18); color: #50c878; }
+.admin-tagging-label-chip.is-should_not_apply { background: rgba(239, 68, 68, 0.18);  color: #ef4444; }
+
+/* Eval panel */
+.admin-tagging-eval h4 { margin: 0 0 10px; font: 600 13px/1.2 var(--font-sans); }
+.admin-tagging-eval-controls { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.admin-tagging-eval-controls label { display: flex; align-items: center; gap: 8px; font: 500 12px/1.2 var(--font-sans); color: var(--ink-2); }
+.admin-tagging-eval-controls input[type="range"] { width: 180px; }
+.admin-tagging-eval-reset { font: 500 11px/1 var(--font-sans); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--line-1); background: var(--bg-1); color: var(--ink-1); cursor: pointer; }
+.admin-tagging-eval-readout { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.admin-tagging-eval-metrics { display: flex; flex-direction: column; gap: 6px; font: 500 13px/1.4 var(--font-sans); }
+.admin-tagging-eval-metrics strong { font-variant-numeric: tabular-nums; }
+.admin-tagging-confusion { border-collapse: collapse; font: 500 12px/1.3 var(--font-sans); }
+.admin-tagging-confusion th, .admin-tagging-confusion td { padding: 6px 10px; border: 1px solid var(--line-1); text-align: center; min-width: 60px; }
+.admin-tagging-confusion th { color: var(--ink-3); font-weight: 600; background: var(--bg-1); }
+.admin-tagging-confusion td.tp { background: rgba(80, 200, 120, 0.18); color: #50c878; }
+.admin-tagging-confusion td.tn { background: rgba(80, 200, 120, 0.08); color: var(--ink-2); }
+.admin-tagging-confusion td.fp { background: rgba(239, 68, 68, 0.18); color: #ef4444; }
+.admin-tagging-confusion td.fn { background: rgba(239, 68, 68, 0.18); color: #ef4444; }
+.admin-tagging-disagreements { grid-column: 1 / -1; }
+.admin-tagging-disagreements summary { cursor: pointer; font: 500 12px/1.3 var(--font-sans); color: var(--ink-2); }
+.admin-tagging-disagreements ul { list-style: none; padding: 8px 0 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.admin-tagging-disagreements li { display: flex; gap: 10px; font: 500 11.5px/1.3 var(--font-mono, var(--font-sans)); color: var(--ink-2); }
+
+@media (max-width: 980px) {
+  .admin-tagging-suspects { grid-template-columns: 1fr; }
+  .admin-tagging-eval-readout { grid-template-columns: 1fr; }
+}
+
 

@@ -17,6 +17,7 @@ import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
+import { AdminTaggingTab } from './admin/AdminTaggingTab.jsx';
 import { FeedbackButton } from '../components/FeedbackButton.jsx';
 import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -29,6 +30,7 @@ const TABS = [
   { id: 'grants',    label: 'Grants' },
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
+  { id: 'tagging',   label: 'Tagging' },
 ];
 
 export function AdminPage() {
@@ -83,6 +85,7 @@ export function AdminPage() {
         {tab === 'grants'    && <AdminGrantsTab />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
         {tab === 'feedback'  && <AdminFeedbackTab />}
+        {tab === 'tagging'   && <AdminTaggingTab />}
       </main>
     </div>
   );
