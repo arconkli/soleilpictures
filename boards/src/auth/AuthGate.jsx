@@ -10,8 +10,10 @@
 //   • A 6-digit code input slides in on the same page. The user can type the
 //     code from any device (e.g. read on phone, type on desktop) OR click the
 //     magic link to land back here with ?code=… and consume that.
-//   • Tier='waitlist' is the default for new accounts (set in migration 0067).
-//     The TierRouter handles where to send them after sign-in.
+//   • Tier='waitlist' is the default for new accounts (set in migration
+//     0088's ensure_profile_for_new_user trigger; 0085/0087 had briefly
+//     regressed it to 'demo'). TierRouter sends waitlist users to
+//     /welcome where they pick between requesting demo access or paying.
 
 import { useEffect, useRef, useState, createContext, useContext } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';

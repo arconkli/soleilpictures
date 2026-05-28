@@ -29,6 +29,7 @@ export function MessagesPanel({
   suggestedUserIds,
   refreshTick, onRefreshRequested, onPermalinkConsumed, onPeerConsumed,
   onClose,
+  canSendMessages = true, // false → demo user on someone else's workspace
 }) {
   const userId = currentUser?.id;
   const {
@@ -104,6 +105,7 @@ export function MessagesPanel({
       <MessageThread
         workspaceId={workspaceId}
         currentUser={currentUser}
+        canSend={canSendMessages}
         conversation={{
           id: openConversationId,
           title: conv?.title || null,
@@ -131,8 +133,9 @@ export function MessagesPanel({
         <button
           className="msg-panel-icon"
           onClick={(e) => setComposeAnchor(e.currentTarget.getBoundingClientRect())}
-          title="New chat"
+          title={canSendMessages ? 'New chat' : 'Upgrade to start chats in shared workspaces'}
           aria-label="New chat"
+          disabled={!canSendMessages}
         >
           <Icon as={Plus} size={14} />
         </button>

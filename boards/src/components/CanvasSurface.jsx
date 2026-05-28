@@ -13,6 +13,7 @@ import { CanvasPresence } from './CanvasPresence.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { SketchPadOverlay } from './SketchPadOverlay.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
+import { ReadOnlyBanner } from './ReadOnlyBanner.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
@@ -221,6 +222,9 @@ export function CanvasSurface({
   onJumpToPeer,            // (location) => void  — click peer avatar/dot
   canEdit = true,          // false → view-only board: hide drawing tools
                            // and gray the toolbar (RLS is the real defense)
+  boardPermission = null,  // { role, canEdit, source } from useBoardPermission;
+                           // drives the ReadOnlyBanner + upgrade-CTA copy
+  onRequestUpgrade = null, // () => void — opens App's UpgradeModal
   autotagSuggest,          // (content, target) => Promise<[{tagId,score,reason}]>
   autotagReady = false,    // worker hydration finished
   sessionId = null,        // per-tab session id for board_versions grouping
@@ -773,6 +777,13 @@ export function CanvasSurface({
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   const feedback = useFeedback();
+
+  // Tracks whether we've shown the "subscribe to edit" toast for the
+  // currently-open read-only board. Reset on board change so navigating
+  // between two read-only boards yields one toast per board (not one
+  // forever after the first attempt).
+  const dragBlockedToastShownRef = useRef(false);
+  useEffect(() => { dragBlockedToastShownRef.current = false; }, [board?.id]);
 
   // Briefly enable smooth transform after programmatic zoom changes.
   const enableSmoothTransform = useCallback(() => {
@@ -2177,6 +2188,25 @@ export function CanvasSurface({
   const onCardPointerDown = (e, c) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
+    // View-only board: kill the drag before it starts so the card doesn't
+    // visually follow the cursor only to snap back when the mutator no-ops.
+    // For tier-demoted users we surface a one-shot toast with an upgrade
+    // CTA; subsequent attempts on this same board are silent (the banner
+    // is the standing explanation).
+    if (!canEdit) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (boardPermission?.source === 'tier-demoted' && !dragBlockedToastShownRef.current) {
+        dragBlockedToastShownRef.current = true;
+        feedback.toast({
+          type: 'info',
+          message: 'Subscribe to edit shared boards.',
+          action: onRequestUpgrade ? { label: 'Upgrade', onClick: onRequestUpgrade } : null,
+          ttl: 5000,
+        });
+      }
+      return;
+    }
     // Eyedropper mode — clicking an image card samples a pixel and
     // appends a swatch to the palette that started this mode. Other
     // clicks (non-image cards) do nothing; Escape exits.
@@ -3930,6 +3960,26 @@ export function CanvasSurface({
           run: () => mutators.deleteArrows?.([idx]) },
       ];
     }
+    // Demo-tier viewer on someone else's board: every Add/Paste/Background
+    // mutator is RLS-blocked. Replace the menu with one honest CTA rather
+    // than stranding the user on actions that silently no-op. Select all
+    // is read-only-safe so we keep it for power users.
+    if (boardPermission?.source === 'tier-demoted') {
+      return [
+        { id: 'upgrade-edit',
+          label: 'Upgrade to edit shared boards →',
+          run: () => onRequestUpgrade?.() },
+        { divider: true },
+        { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
+      ];
+    }
+    // Other view-only states (legitimate viewer share, no access) — no
+    // paid upgrade path; just expose the safe read-only actions.
+    if (!canEdit) {
+      return [
+        { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
+      ];
+    }
     const pos = bgCtx.canvasPos || lastMouseCanvasRef.current;
     return [
       { id: 'add', label: 'Add', submenu: [
@@ -5190,6 +5240,7 @@ export function CanvasSurface({
          onDragStart={(e) => e.preventDefault()}
          onPointerDown={onBackgroundPointerDown}
          onContextMenu={onBackgroundContextMenu}>
+      <ReadOnlyBanner boardPermission={boardPermission} onRequestUpgrade={onRequestUpgrade} />
       {/* Grain texture — sits behind cards on the canvas surface
           only. Cards / popovers / modals all stack above it. */}
       <div className="grain-canvas" aria-hidden="true" />

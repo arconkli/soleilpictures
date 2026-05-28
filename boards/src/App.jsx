@@ -117,6 +117,7 @@ function onCanvasRender(id, phase, actualDuration) {
 }
 
 export function App() {
+  perf.usePerfRenderTime('App');
   // Perf toggle: ?perf=1 enables (one-shot at mount); Ctrl+Shift+P toggles
   // at runtime. Sticky via localStorage.perfHud (read inside perf.js). All
   // diagnostic output goes to the browser console; no UI is rendered.
@@ -222,6 +223,7 @@ export function App() {
 }
 
 function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWorkspace, onWorkspacesChanged, personalWorkspaceId, tweak, setTweak }) {
+  perf.usePerfRenderTime('Workspace');
   const { boards: ownedBoards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id);
   // Boards shared with the user via per-board shares. Fetched here
   // (early) so we can merge them into the boards map below; the shared
@@ -537,8 +539,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ym.set('updatedAt', nowIso());
     };
 
+    // Demo users can only write to boards in workspaces they CREATED.
+    // RLS enforces this server-side; we mirror the check here so that
+    // the local Y.Doc transact doesn't leave a phantom card the server
+    // will then reject. The ReadOnlyBanner explains the situation in
+    // the canvas; we silently no-op the mutator.
+    const isDemoBlockedOnThisBoard = () => {
+      if (myTier.tier !== 'demo') return false;
+      const b = boards?.[boardId];
+      if (!b) return false; // unknown — fall through, let RLS decide.
+      const inActiveWs = b.workspace_id === workspace?.id;
+      const ownsActiveWs = workspace?.created_by === user?.id;
+      return !(inActiveWs && ownsActiveWs);
+    };
+
     const addCard = (card) => {
       const m = cardsMap(); if (!m) return;
+      if (isDemoBlockedOnThisBoard()) return;
       // Demo-tier cap: hard-block at 100 cards total across the user's
       // own boards. The trigger on card_index keeps demo_card_count in
       // sync server-side; the chip and this check read the cached value.
@@ -563,6 +580,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const addCards = (cardsToAdd) => {
       const m = cardsMap(); if (!m || !cardsToAdd?.length) return;
+      if (isDemoBlockedOnThisBoard()) return;
       if (myTier.tier === 'demo') {
         const remaining = Math.max(0, 100 - myTier.demoCardCount);
         if (remaining === 0) { setUpgradeReason('cap-hit'); return; }
@@ -588,6 +606,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const updateCard = (cardId, patch) => {
       const m = cardsMap(); if (!m) return;
+      if (isDemoBlockedOnThisBoard()) return;
       const ym = m.get(cardId); if (!ym) return;
       ydoc.transact(() => {
         for (const [k, v] of Object.entries(patch)) ym.set(k, v);
@@ -597,6 +616,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const updateCards = (updates) => {
       const m = cardsMap(); if (!m || !updates?.length) return;
+      if (isDemoBlockedOnThisBoard()) return;
       ydoc.transact(() => {
         for (const { id, patch } of updates) {
           const ym = m.get(id); if (!ym) continue;
@@ -609,6 +629,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const deleteCards = async (ids) => {
       if (!ids?.length) return;
       const m = cardsMap(); if (!m) return;
+      if (isDemoBlockedOnThisBoard()) return;
       const idSet = new Set(ids);
       const boardIdsToCascade = [];
       ids.forEach(id => {
@@ -2208,6 +2229,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          wsPeers={wsPeers}
                          onJumpToPeer={jumpToPeer}
                          canEdit={isMain ? canEditCurrent : true}
+                         boardPermission={isMain ? currentBoardPerm : null}
+                         onRequestUpgrade={() => setUpgradeReason('manual')}
                          currentUser={currentUser}
                          onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                          onOpenPicker={() => setPickerOpen(true)}
@@ -2649,6 +2672,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
+          canSendMessages={
+            // Mirrors SQL can_write_workspace: demo users can only send
+            // messages in their OWN workspace; admin/paid get the
+            // workspace-membership check; waitlist is blocked.
+            myTier.tier === 'waitlist'
+              ? false
+              : (myTier.tier === 'admin' || myTier.tier === 'paid')
+                ? workspaceMembers.some(m => m.user_id === user.id)
+                : workspace?.created_by === user.id
+          }
           refreshTick={msgRefreshTick}
           openConversationId={openConversationId}
           setOpenConversationId={setOpenConversationId}

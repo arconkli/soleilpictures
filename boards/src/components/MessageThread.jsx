@@ -28,6 +28,7 @@ const STICK_THRESHOLD_PX = 80;
 export function MessageThread({
   workspaceId, currentUser, conversation,
   onBack, onClose, onChanged, jumpToMessageId,
+  canSend = true,
 }) {
   const userId = currentUser?.id;
   const conversationId = conversation?.id;
@@ -582,14 +583,32 @@ export function MessageThread({
         </button>
       )}
 
-      <MessageComposer
-        onSend={handleSend}
-        onTyping={handleTyping}
-        workspaceId={workspaceId}
-        userId={userId}
-        draftKey={draftKey}
-        placeholder={replyParent ? 'Reply…' : 'Message…'}
-      />
+      {canSend ? (
+        <MessageComposer
+          onSend={handleSend}
+          onTyping={handleTyping}
+          workspaceId={workspaceId}
+          userId={userId}
+          draftKey={draftKey}
+          placeholder={replyParent ? 'Reply…' : 'Message…'}
+        />
+      ) : (
+        <ReadOnlyComposerNotice />
+      )}
+    </div>
+  );
+}
+
+// Inline upgrade note shown in place of the composer when the current
+// user can't send messages in this workspace (demo tier viewing someone
+// else's workspace). Server-side: messages.insert RLS requires
+// can_write_workspace; this is the matching UI affordance.
+function ReadOnlyComposerNotice() {
+  return (
+    <div className="msg-composer-readonly" role="status">
+      <span className="msg-composer-readonly-text">
+        You can read this conversation. Sending messages in shared workspaces requires a paid plan.
+      </span>
     </div>
   );
 }
