@@ -8,8 +8,8 @@
 // Non-owners see the modal in read-only mode (no add/remove/role-edit
 // affordances), but can still see who has access for transparency.
 
-import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
+import { Modal } from './Modal.jsx';
 import {
   shareBoard, unshareBoard, listBoardShares,
   removeWorkspaceMember, transferWorkspaceOwnership,
@@ -57,17 +57,8 @@ export function ShareModal({
   // Bumped on every userProfiles cache mutation so offline rows re-render
   // with their resolved display names as soon as the lookup lands.
   const [, setProfilesTick] = useState(0);
-  const ref = useRef(null);
 
   useEffect(() => userProfiles.subscribe(() => setProfilesTick(t => t + 1)), []);
-
-  // Close on Escape + outside-click. Outside-click is bound on the
-  // backdrop element so clicks inside the panel pass through normally.
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   // Owner sees per-board shares; non-owners can't list them (RLS
   // permission denied), so we just skip the fetch in that case. We
@@ -378,13 +369,12 @@ export function ShareModal({
 
   const ROLE_LABEL = { viewer: 'Viewer', editor: 'Editor', workspace: 'Workspace member' };
 
-  return createPortal(
-    <div className="share-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div ref={ref} className="share-modal" onPointerDown={(e) => e.stopPropagation()}>
+  return (
+    <Modal open onClose={onClose} className="share-modal" backdropClassName="share-backdrop" labelledBy="share-title">
         <div className="share-head">
           <div>
             <div className="share-eyebrow">SHARE</div>
-            <div className="share-title">{board?.name || 'Untitled board'}</div>
+            <div className="share-title" id="share-title">{board?.name || 'Untitled board'}</div>
           </div>
           <button className="share-close" onClick={onClose} aria-label="Close">
             <Glyph as={XIcon} size={14} />
@@ -618,8 +608,6 @@ export function ShareModal({
             </div>
           </div>
         )}
-      </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }

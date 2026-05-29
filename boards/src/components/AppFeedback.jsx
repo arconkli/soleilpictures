@@ -3,19 +3,30 @@ import { createPortal } from 'react-dom';
 
 const FeedbackContext = createContext(null);
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function FeedbackProvider({ children }) {
   const [dialog, setDialog] = useState(null);
   const [toasts, setToasts] = useState([]);
   const nextId = useRef(1);
+  const lastTrigger = useRef(null);
 
   const closeDialog = useCallback((value) => {
     setDialog(current => {
       if (current?.resolve) current.resolve(value);
       return null;
     });
+    // Restore focus to whatever opened the dialog — captured before the
+    // dialog autofocused its own control — once it has unmounted.
+    const t = lastTrigger.current;
+    lastTrigger.current = null;
+    if (t && typeof t.focus === 'function') {
+      requestAnimationFrame(() => { try { t.focus({ preventScroll: true }); } catch (_) { /* noop */ } });
+    }
   }, []);
 
   const confirm = useCallback((options) => new Promise(resolve => {
+    lastTrigger.current = typeof document !== 'undefined' ? document.activeElement : null;
     setDialog({
       kind: 'confirm',
       title: options.title || 'Confirm action',
@@ -33,6 +44,7 @@ export function FeedbackProvider({ children }) {
   }), []);
 
   const prompt = useCallback((options) => new Promise(resolve => {
+    lastTrigger.current = typeof document !== 'undefined' ? document.activeElement : null;
     setDialog({
       kind: 'prompt',
       title: options.title || 'Enter value',
@@ -106,15 +118,33 @@ function FeedbackDialog({ dialog, onClose }) {
   // Separate state for the type-to-confirm input on destructive confirms,
   // so it doesn't fight with the prompt-kind `value` above.
   const [typeToConfirm, setTypeToConfirm] = useState('');
+  const formRef = useRef(null);
 
   useEffect(() => {
-    if (!dialog) return;
+    if (!dialog) return undefined;
     setTypeToConfirm('');
+    // Lock background scroll while the dialog is up.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const onKey = (event) => {
-      if (event.key === 'Escape') onClose(dialog.kind === 'confirm' ? false : null);
+      if (event.key === 'Escape') { onClose(dialog.kind === 'confirm' ? false : null); return; }
+      // Trap Tab within the dialog so keyboard focus can't wander behind it.
+      if (event.key === 'Tab') {
+        const panel = formRef.current;
+        if (!panel) return;
+        const nodes = Array.from(panel.querySelectorAll(FOCUSABLE)).filter(n => n.getClientRects().length > 0);
+        if (!nodes.length) return;
+        const first = nodes[0];
+        const last = nodes[nodes.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [dialog, onClose]);
 
   if (!dialog) return null;
@@ -133,6 +163,7 @@ function FeedbackDialog({ dialog, onClose }) {
   return (
     <div className="feedback-bg" onMouseDown={() => onClose(dialog.kind === 'confirm' ? false : null)}>
       <form
+        ref={formRef}
         className="feedback-dialog"
         role="dialog"
         aria-modal="true"
