@@ -27,6 +27,7 @@ export function PricingPage() {
   useEffect(() => { logEvent('pricing_view', { surface: 'page' }); }, []);
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
+  const isDemo = tier === 'demo';
 
   const onCreatorCta = async () => {
     setError(null);
@@ -56,13 +57,22 @@ export function PricingPage() {
             <div className="pricing-card-price">$0</div>
           </div>
           <FeatureList features={DEMO_FEATURES} />
-          <button
-            className="pricing-cta pricing-cta-secondary"
-            onClick={() => { window.location.assign('/waitlist'); }}
-            disabled={busy}
-          >
-            Go to Waitlist
-          </button>
+          {isDemo ? (
+            // Already a demo user — this is their current plan, not a waitlist
+            // step. Show a non-actionable indicator so they don't think they
+            // have to re-join the waitlist; the Creator card is the upgrade.
+            <button className="pricing-cta pricing-cta-secondary" disabled>
+              Your current plan
+            </button>
+          ) : (
+            <button
+              className="pricing-cta pricing-cta-secondary"
+              onClick={() => { window.location.assign('/waitlist'); }}
+              disabled={busy}
+            >
+              Go to Waitlist
+            </button>
+          )}
         </article>
 
         {/* CREATOR (combined monthly/annual) */}
