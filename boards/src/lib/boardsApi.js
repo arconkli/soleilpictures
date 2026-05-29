@@ -628,6 +628,13 @@ export async function saveBoardSnapshot(boardId, ydoc) {
 
 const SYNC_THROTTLE_MS = 10000;
 const _syncState = new Map();   // boardId → { last: timestamp, pending: timer, latestYdoc }
+// Per-board content fingerprints from the last successful sync. card_index
+// is in the realtime publication, so every upserted row fans out as a
+// postgres_changes message to every client subscribed to this workspace's
+// entity-name trie. Diffing against these signatures lets us upsert ONLY the
+// cards that actually changed (instead of re-writing — and re-broadcasting —
+// every card on the board every ~10s while editing).
+const _cardIndexCache = new Map();   // boardId → { sigs: Map<card_id, sig>, ids: Set<card_id> }
 
 export async function syncCardIndex({ boardId, ydoc }) {
   if (!supabase || !boardId || !ydoc) return;
@@ -748,21 +755,41 @@ async function _doSyncCardIndex(boardId, ydoc) {
     } catch (e) { console.warn('syncCardIndex image-src recovery failed', e?.message || e); }
   }
 
-  if (rows.length > 0) {
+  // Change-detection: only upsert cards whose indexed content actually
+  // changed since our last sync. Without this, the throttled ~10s sync
+  // re-writes EVERY card on the board (no-op UPDATEs still produce WAL
+  // records → realtime fan-out), which was the dominant avoidable source
+  // of Realtime messages during editing. The Y.Doc + board_state remain
+  // the source of truth, so a stale signature only ever costs one extra
+  // (correct) upsert, never data loss.
+  const cache = _cardIndexCache.get(boardId) || { sigs: new Map(), ids: new Set() };
+  const sigFor = (r) => `${r.kind} ${r.title} ${r.body} ${JSON.stringify(r.meta ?? null)}`;
+  const changed = rows.filter(r => cache.sigs.get(r.card_id) !== sigFor(r));
+
+  if (changed.length > 0) {
     // UPSERT on (board_id, card_id). Idempotent — no race if two windows
     // run this concurrently.
-    const ups = await supabase.from('card_index').upsert(rows, { onConflict: 'board_id,card_id' });
+    const ups = await supabase.from('card_index').upsert(changed, { onConflict: 'board_id,card_id' });
     if (ups.error) { console.warn('syncCardIndex upsert', ups.error); return; }
+    for (const r of changed) cache.sigs.set(r.card_id, sigFor(r));
   }
 
-  // Clean up any rows for cards that no longer exist on the board.
-  // Cheap query because card counts per board are typically small.
-  const existing = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
-  if (existing.error) return;
-  const orphanIds = (existing.data || []).map(r => r.card_id).filter(id => !liveIds.has(id));
-  if (orphanIds.length > 0) {
-    await supabase.from('card_index').delete().eq('board_id', boardId).in('card_id', orphanIds);
+  // Clean up rows for cards that no longer exist on the board — but only
+  // when the set of live cards actually changed (add/remove). When nothing
+  // was added or removed there can be no orphans, so we skip the extra
+  // round-trip entirely.
+  const idsChanged = liveIds.size !== cache.ids.size || [...liveIds].some(id => !cache.ids.has(id));
+  if (idsChanged) {
+    const existing = await supabase.from('card_index').select('card_id').eq('board_id', boardId);
+    if (existing.error) return;
+    const orphanIds = (existing.data || []).map(r => r.card_id).filter(id => !liveIds.has(id));
+    if (orphanIds.length > 0) {
+      await supabase.from('card_index').delete().eq('board_id', boardId).in('card_id', orphanIds);
+    }
+    for (const id of [...cache.sigs.keys()]) if (!liveIds.has(id)) cache.sigs.delete(id);
   }
+  cache.ids = liveIds;
+  _cardIndexCache.set(boardId, cache);
 }
 
 // Per-kind preview data baked into card_index.meta. Kept compact —

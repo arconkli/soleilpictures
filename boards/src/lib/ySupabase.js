@@ -60,6 +60,41 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   let lastInbound = Date.now();
   const handshakeWith = new Set();
 
+  // ── Broadcast only when a remote peer is actually present ──────────────
+  // The overwhelmingly common case at scale is a SOLO editor: one tab, no
+  // collaborators on the board. Broadcasting every edit (≤5/s) and every
+  // cursor move (≤4/s) plus a 15s heartbeat into a channel nobody else is
+  // on is pure waste — Supabase meters each send regardless. We learn of
+  // remote peers from the `from` id on inbound messages and suppress
+  // outbound broadcasts while alone. A generous grace window means brief
+  // tracking gaps during active collaboration never silence edits, and on
+  // rediscovery we push full state so nothing is ever lost. The Y.Doc
+  // (persisted to board_state) stays the source of truth regardless.
+  const PEER_GRACE_MS = 90_000;
+  let lastPeerSeen = 0;
+  const hasRemotePeers = () => (Date.now() - lastPeerSeen) < PEER_GRACE_MS;
+  const notePeer = (from, { resync = true } = {}) => {
+    if (!from || from === CLIENT_ID) return;
+    const wasAlone = !hasRemotePeers();
+    lastPeerSeen = Date.now();
+    if (!wasAlone || !resync || !subscribed || !currentChannel) return;
+    // Re-emerging from a quiet (solo) stretch — force a full reconcile so
+    // any edits/cursor we produced while alone reach this peer, and pull
+    // anything we are missing. Idempotent; rare (only fires on the first
+    // active signal after ≥90s of no peer traffic).
+    try {
+      currentChannel.send({ type: 'broadcast', event: 'y-update',
+        payload: { from: CLIENT_ID, u: bytesToB64(Y.encodeStateAsUpdate(ydoc)) } });
+      handshakeWith.clear();
+      currentChannel.send({ type: 'broadcast', event: 'y-sync-step1',
+        payload: { from: CLIENT_ID, sv: bytesToB64(Y.encodeStateVector(ydoc)) } });
+      if (awareness.getLocalState()) {
+        currentChannel.send({ type: 'broadcast', event: 'y-awareness',
+          payload: { from: CLIENT_ID, a: bytesToB64(encodeAwarenessUpdate(awareness, [awareness.clientID])) } });
+      }
+    } catch (_) {}
+  };
+
   // Y-updates are batched + merged. A burst of edits (typing, dragging
   // a card across the canvas) emits dozens of small Y.Doc updates per
   // second. Sending each one would blow past Supabase's free-tier
@@ -77,12 +112,17 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     yQueue = [];
     currentChannel.send({ type: 'broadcast', event: 'y-update',
                           payload: { from: CLIENT_ID, u: bytesToB64(merged) } });
+    perf.bump('rt.send.y-update');  // ?perf=1 — should stay ~0 when solo (no peers)
   };
   const onYUpdate = (update, origin) => {
     if (destroyed) return;
     if (origin === 'remote') return;
     if (origin === 'snapshot') return;
     if (origin === 'restore') return;
+    // Solo session — nobody to broadcast to. The edit is already applied
+    // to our local Y.Doc; a peer that joins later gets full state via the
+    // sync handshake (and notePeer's reconcile), so skipping is lossless.
+    if (!hasRemotePeers()) return;
     yQueue.push(update);
     if (!yFlushTimer) yFlushTimer = setTimeout(flushYQueue, Y_FLUSH_MS);
   };
@@ -90,6 +130,8 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
 
   const onAwarenessUpdate = ({ added, updated, removed }) => {
     if (destroyed || !subscribed || !currentChannel) return;
+    // Solo session — don't broadcast cursor/selection to an empty channel.
+    if (!hasRemotePeers()) return;
     const changedClients = added.concat(updated, removed);
     if (changedClients.length === 0) return;
     if (awarenessTimer) return;
@@ -99,6 +141,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       const buf = encodeAwarenessUpdate(awareness, changedClients);
       currentChannel.send({ type: 'broadcast', event: 'y-awareness',
                             payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
+      perf.bump('rt.send.y-awareness');  // ?perf=1 — should stay ~0 when solo
     }, AWARENESS_THROTTLE_MS);
   };
   awareness.on('update', onAwarenessUpdate);
@@ -110,6 +153,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
 
     channel.on('broadcast', { event: 'y-sync-step1' }, ({ payload }) => {
       if (!payload || payload.from === CLIENT_ID) return;
+      notePeer(payload.from, { resync: false });  // handshake below handles full sync
       try {
         const sv = b64ToBytes(payload.sv);
         const update = Y.encodeStateAsUpdate(ydoc, sv);
@@ -127,6 +171,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     channel.on('broadcast', { event: 'y-sync-step2' }, ({ payload }) => {
       if (!payload || payload.from === CLIENT_ID) return;
       if (payload.to && payload.to !== CLIENT_ID) return;
+      notePeer(payload.from, { resync: false });  // mid-handshake; sync already in flight
       try {
         const bytes = b64ToBytes(payload.u);
         const _t0 = perf.isEnabled() ? performance.now() : 0;
@@ -144,6 +189,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     channel.on('broadcast', { event: 'y-update' }, ({ payload }) => {
       if (!payload || payload.from === CLIENT_ID) return;
       lastInbound = Date.now();
+      notePeer(payload.from);  // active peer — resume broadcasting (+reconcile if we were alone)
       try {
         const bytes = b64ToBytes(payload.u);
         const _t0 = perf.isEnabled() ? performance.now() : 0;
@@ -161,6 +207,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     channel.on('broadcast', { event: 'y-awareness' }, ({ payload }) => {
       if (!payload || payload.from === CLIENT_ID) return;
       lastInbound = Date.now();
+      notePeer(payload.from);  // active peer — resume broadcasting (+reconcile if we were alone)
       try {
         const bytes = b64ToBytes(payload.a);
         const _t0 = perf.isEnabled() ? performance.now() : 0;
@@ -223,9 +270,11 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   // y-protocols Awareness internal prune is 30s, so 15s is safe.
   const heartbeat = setInterval(() => {
     if (destroyed || !subscribed || !currentChannel) return;
+    if (!hasRemotePeers()) return;  // no peer to keep alive — stay quiet
     const buf = encodeAwarenessUpdate(awareness, [awareness.clientID]);
     currentChannel.send({ type: 'broadcast', event: 'y-awareness',
                           payload: { from: CLIENT_ID, a: bytesToB64(buf) } });
+    perf.bump('rt.send.y-awareness.hb');  // ?perf=1 — heartbeat; ~0 when solo
   }, 15000);
 
   return {

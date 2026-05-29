@@ -107,7 +107,9 @@ async function syncBoard(boardId: string): Promise<{ ok: boolean; n: number; err
     const baseMeta = buildCardMeta(kind, get) || {};
     const meta = (groupId || groupName)
       ? { ...baseMeta, groupId, groupName }
-      : (Object.keys(baseMeta).length > 0 ? baseMeta : null);
+      : baseMeta;   // {} when no preview meta — matches the client syncCardIndex
+                    // so the two writers don't overwrite each other (null vs {})
+                    // and re-broadcast the row every cycle.
     rows.push({
       workspace_id: wsId,
       board_id: boardId,
@@ -120,21 +122,45 @@ async function syncBoard(boardId: string): Promise<{ ok: boolean; n: number; err
     liveIds.add(id);
   });
 
-  if (rows.length > 0) {
-    const ups = await sb.from("card_index").upsert(rows, { onConflict: "board_id,card_id" });
+  // Order-stable stringify: jsonb does NOT preserve object key order, so a
+  // naive JSON.stringify of a row read back from the DB would differ from
+  // the freshly-built row and report spurious "changes".
+  const stable = (x: any): string => {
+    if (x === null || typeof x !== "object") return JSON.stringify(x ?? null);
+    if (Array.isArray(x)) return "[" + x.map(stable).join(",") + "]";
+    return "{" + Object.keys(x).sort().map((k) => JSON.stringify(k) + ":" + stable(x[k])).join(",") + "}";
+  };
+  const sigFor = (r: any) => `${r.kind} ${r.title} ${r.body} ${stable(r.meta ?? null)}`;
+
+  // Change-detection. card_index is in the realtime publication, so every
+  // upserted row fans out as a postgres_changes message to every client
+  // subscribed to this workspace's entity-name trie. This function runs on
+  // EVERY board_state write (via the sync_board_cards_on_state_change
+  // trigger → net.http_post, ~4×/s during active editing), so re-writing
+  // every card each time was the dominant source of card_index churn and
+  // Realtime fan-out. Diff against what is already stored and upsert only
+  // the rows that actually changed. (The single SELECT also serves the
+  // orphan cleanup below — no extra round-trip vs. before.)
+  const existing = await sb.from("card_index")
+    .select("card_id, kind, title, body, meta")
+    .eq("board_id", boardId);
+  if (existing.error) return { ok: false, n: 0, error: "select: " + existing.error.message };
+  const existingSig = new Map<string, string>();
+  for (const r of (existing.data || [])) existingSig.set(r.card_id, sigFor(r));
+
+  const changed = rows.filter((r) => existingSig.get(r.card_id) !== sigFor(r));
+  if (changed.length > 0) {
+    const ups = await sb.from("card_index").upsert(changed, { onConflict: "board_id,card_id" });
     if (ups.error) return { ok: false, n: 0, error: "upsert: " + ups.error.message };
   }
 
   // Drop card_index rows for cards that no longer exist on the board.
-  const existing = await sb.from("card_index").select("card_id").eq("board_id", boardId);
-  if (!existing.error) {
-    const orphans = (existing.data || []).map((r: any) => r.card_id).filter((id: string) => !liveIds.has(id));
-    if (orphans.length > 0) {
-      await sb.from("card_index").delete().eq("board_id", boardId).in("card_id", orphans);
-    }
+  const orphans = (existing.data || []).map((r: any) => r.card_id).filter((id: string) => !liveIds.has(id));
+  if (orphans.length > 0) {
+    await sb.from("card_index").delete().eq("board_id", boardId).in("card_id", orphans);
   }
 
-  return { ok: true, n: rows.length };
+  return { ok: true, n: changed.length };
 }
 
 Deno.serve(async (req: Request) => {

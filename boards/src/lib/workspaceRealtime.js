@@ -1,9 +1,10 @@
 // Workspace-level presence over Supabase Realtime.
 //
 // Per-workspace channel `ws:{wsId}` that every member subscribes to. Each
-// peer broadcasts its current location (board id + name + surface) on a
-// heartbeat (5s) and on demand when navigation changes. Peers are tracked
-// in a Map keyed by user.id; entries expire 15s after the last heartbeat.
+// peer announces its current location (board id + name + surface) on join,
+// on navigation, and — only while other peers are present — on a 15s
+// heartbeat. Peers are tracked in a Map keyed by `${userId}:${tabId}`;
+// entries expire after STALE_MS (60s) without a heartbeat.
 //
 // Self-healing: if Phoenix puts the channel into CLOSED state (which
 // REMOVES it from the socket — channel.js:70 → socket.remove(this), so
@@ -12,6 +13,7 @@
 // for the rest of the session.
 
 import { supabase } from './supabase.js';
+import * as perf from './perf.js';
 
 // 15s heartbeat — was 5s, but combined with the y: channel + cursor
 // broadcasts that's too much for the free-tier per-tenant message
@@ -63,6 +65,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
         ts: Date.now(),
       },
     });
+    perf.bump('rt.send.ws-here');  // ?perf=1 — ~0 when solo; bounded per-join when peers present
   };
 
   const buildChannel = () => {
@@ -73,6 +76,14 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     channel.on('broadcast', { event: 'ws-here' }, ({ payload }) => {
       if (!payload || payload.from === TAB_ID || !payload.user) return;
       const key = `${payload.user.id}:${payload.from}`;
+      // Only a genuinely NEW peer triggers a reply — that is the join
+      // handshake (they don't know about us yet). Replying to EVERY
+      // ws-here (including a known peer's routine 15s heartbeat) created a
+      // self-sustaining ping-pong: A's heartbeat → B replies → A replies →
+      // … bounded only by network latency, saturating the per-tenant
+      // message cap until the channel went CLOSED and presence silently
+      // died. The reply below is now sent once per peer, on first sight.
+      const isNew = !peers.has(key);
       peers.set(key, {
         key,
         tabId: payload.from,
@@ -81,12 +92,8 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
         lastSeen: Date.now(),
       });
       onPeers?.([...peers.values()]);
+      if (isNew) sendLocation();
     });
-
-    // When a peer joins (sends a fresh heartbeat after we're already
-    // connected), it doesn't know about us yet — so respond with our
-    // own ping immediately.
-    channel.on('broadcast', { event: 'ws-here' }, () => sendLocation());
 
     channel.on('broadcast', { event: 'ws-leave' }, ({ payload }) => {
       if (!payload || payload.from === TAB_ID) return;
@@ -104,8 +111,18 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
       if (status === 'SUBSCRIBED') {
         subscribed = true;
         onStatus?.('connected');
-        sendLocation();
-        if (!heartbeatInterval) heartbeatInterval = setInterval(sendLocation, HEARTBEAT_MS);
+        sendLocation();  // initial announce — unconditional, so existing peers learn about us
+        // Heartbeat only while we actually have peers to stay fresh for.
+        // A solo session (the common case, and the dominant lever for
+        // cutting per-user Realtime volume at scale) broadcasts nothing
+        // after the initial announce. Discovery still converges: a new
+        // peer's own join-announce arrives on our always-subscribed
+        // channel and we reply; and any peer we already know receives our
+        // 15s heartbeat, which also informs a peer that has not yet
+        // learned about us (self-healing within one heartbeat).
+        if (!heartbeatInterval) heartbeatInterval = setInterval(() => {
+          if (peers.size > 0) sendLocation();
+        }, HEARTBEAT_MS);
         if (!prunerInterval) prunerInterval = setInterval(flushPeers, 4000);
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         subscribed = false;

@@ -195,6 +195,16 @@ async function flushPending() {
 // changing their display_name / color shows up here within ~1s. The
 // table is already in supabase_realtime (migration 0030). Returns an
 // unsubscribe.
+//
+// SCALING CAVEAT: this subscription is unfiltered, so every profile change
+// anywhere fans out to every connected client. `profiles` has no
+// workspace_id to filter on, and absolute volume is low today (~80
+// changes/day across the whole project), so this is a deliberate, bounded
+// tradeoff. If profile-change volume or user count grows materially, narrow
+// it with a server-side `user_id=in.(<workspace member ids>)` filter and
+// re-subscribe when membership changes — safe to do because presence
+// (populateFromPeers) already hydrates names for online peers, so the
+// profiles channel is only the secondary "renamed mid-session" path.
 export function subscribeToProfileChanges() {
   const chan = supabase.channel(`profiles-cache:${Math.random().toString(36).slice(2, 9)}`)
     .on('postgres_changes', {
