@@ -568,7 +568,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           feedback.toast({
             type: 'warning',
             message: "You're at 90/100 cards in your demo workspace. Upgrade for unlimited.",
-            action: { label: 'Upgrade', onClick: () => setUpgradeReason('manual') },
+            action: { label: 'Upgrade', onClick: () => setUpgradeReason('cap-hit') },
           });
         }
       }
@@ -591,7 +591,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           feedback.toast({
             type: 'warning',
             message: "You're approaching the 100-card demo limit. Upgrade for unlimited.",
-            action: { label: 'Upgrade', onClick: () => setUpgradeReason('manual') },
+            action: { label: 'Upgrade', onClick: () => setUpgradeReason('cap-hit') },
           });
         }
       }
@@ -1675,7 +1675,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the demo-cap on addCard, and the tier-aware viewer fallback in
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
-  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | null
+  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'shared-edit' | 'manual' | null
 
   // Funnel: app_open fires once per mount with the caller's tier so we
   // can correlate retention (app opens / unique user / week).
@@ -2230,7 +2230,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          onJumpToPeer={jumpToPeer}
                          canEdit={isMain ? canEditCurrent : true}
                          boardPermission={isMain ? currentBoardPerm : null}
-                         onRequestUpgrade={() => setUpgradeReason('manual')}
+                         onRequestUpgrade={() => setUpgradeReason('shared-edit')}
                          currentUser={currentUser}
                          onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                          onOpenPicker={() => setPickerOpen(true)}
@@ -2723,7 +2723,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {upgradeReason && (
-        <UpgradeModal onClose={() => setUpgradeReason(null)} />
+        <UpgradeModal reason={upgradeReason} onClose={() => setUpgradeReason(null)} />
       )}
 
       {isPhone && (

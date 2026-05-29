@@ -2,9 +2,10 @@
 // as the public PricingPage, but in a modal shell so demo users can
 // upgrade without leaving their workspace.
 //
-// Two presentations:
-//   • header={null}     → generic upgrade prompt
-//   • header="cap-hit"  → "You've reached your 100-card demo limit"
+// Three presentations:
+//   • header={null}         → generic upgrade prompt
+//   • header="cap-hit"      → "You've reached your 100-card demo limit"
+//   • header="shared-edit"  → "Editing shared boards is a Creator feature"
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -53,6 +54,12 @@ export function PricingModal({ onClose, header = null }) {
               <div className="upgrade-eyebrow t-eyebrow">100-CARD DEMO LIMIT</div>
               <h2 className="upgrade-title">You've filled up your demo workspace.</h2>
               <p className="upgrade-sub t-body">Upgrade to Creator for unlimited cards, boards, and edits on other people's boards.</p>
+            </>
+          ) : header === 'shared-edit' ? (
+            <>
+              <div className="upgrade-eyebrow t-eyebrow">EDIT ACCESS REQUIRED</div>
+              <h2 className="upgrade-title">Editing shared boards is a Creator feature.</h2>
+              <p className="upgrade-sub t-body">You can view this board. Upgrade to Creator to edit any board you've been invited to — plus unlimited cards, boards, and high-res exports.</p>
             </>
           ) : (
             <>
