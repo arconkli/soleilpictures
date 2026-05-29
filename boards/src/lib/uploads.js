@@ -163,7 +163,9 @@ export async function uploadImage({ file, workspaceId, boardId, cardId = null, u
 // Upload a board preview WebP to R2 (deterministic per-board key, overwrite
 // in place) and ensure an `images` row exists so /sign-reads authorizes the
 // key. The images row is inserted once (ON CONFLICT DO NOTHING via the
-// partial unique index on thumbs keys, migration 0090) — every regen just
+// full unique index on storage_path, migration 0092 — a PARTIAL unique
+// index, as 0090 originally created, can't be inferred by a bare
+// ON CONFLICT (storage_path) and made this upsert 400) — every regen just
 // overwrites the R2 bytes; the row never changes, so no UPDATE RLS is needed.
 // Returns { src, key } where src is the "r2:<key>" sentinel to stamp on the
 // board row. Runs on the editing client (a workspace writer).
