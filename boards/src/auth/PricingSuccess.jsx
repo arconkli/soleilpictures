@@ -107,7 +107,13 @@ export function PricingSuccess() {
     logEvent('checkout_activated_seen', { tier, plan });
     const t = setTimeout(() => { window.location.assign('/'); }, CELEBRATE_MS);
     return () => clearTimeout(t);
-  }, [tier, plan]);
+    // Depend on `tier` ONLY. If `plan` were a dep, a late plan resolution (when
+    // the tier poll/webhook flips to paid BEFORE verify returns the plan) would
+    // re-run this effect — its cleanup clearTimeout()s the pending redirect and
+    // the celebrated-guard then skips re-arming it, stranding the user on the
+    // success screen forever.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tier]);
 
   // Polling: tier RPC (fast, always-on so a late webhook still lands the user)
   // + verify retry + stall timer (only meaningful when we actually have a
