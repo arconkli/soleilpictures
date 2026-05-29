@@ -3196,6 +3196,36 @@ export function CanvasSurface({
     const items = [];
     const multi = selected.size > 1 && selected.has(c.id);
 
+    // View-only board: strip every mutating action (Edit/Replace/Cover/
+    // Shape/Stroke/Fit/Tag — all RLS-blocked). Keep navigation, Info,
+    // and the auto-appended "Linked from N places" / tag chips from
+    // CardContextMenu itself. Tier-demoted users get the same upgrade
+    // CTA the bg menu uses (see commit ca3ca78).
+    if (!canEdit) {
+      if (boardPermission?.source === 'tier-demoted') {
+        items.push({ id: 'upgrade-edit',
+          label: 'Upgrade to edit shared boards →',
+          run: () => onRequestUpgrade?.() });
+        items.push({ divider: true });
+      }
+      if (!multi) {
+        if (c.kind === 'board') {
+          items.push({ id: 'open', label: 'Open board', run: () => onOpenBoard(c.id) });
+        } else if (c.kind === 'boardlink') {
+          items.push({ id: 'open', label: 'Open linked board',
+            run: () => boards[c.target] && onOpenBoard(c.target) });
+        } else if (c.kind === 'link' && (c.source || c.link)) {
+          items.push({ id: 'open', label: 'Open link', run: () => {
+            const url = c.link || c.source;
+            window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener');
+          }});
+        }
+        items.push({ id: 'info', label: 'Info',
+          run: () => setInfoFor({ cardId: c.id, x: ctx.x, y: ctx.y }) });
+      }
+      return items;
+    }
+
     if (!multi) {
       if (c.kind === 'image') {
         items.push({ id: 'image-edit', label: 'Edit', submenu: [
@@ -4548,7 +4578,14 @@ export function CanvasSurface({
       onMouseLeave: hoverPrefetchTarget ? cancelHoverPrefetch : undefined,
     };
 
-    const onUpdate = (patch) => mutators.updateCard?.(c.id, patch);
+    // View-only boards: nulling onUpdate flips every card kind into the
+    // read-only branch its component already implements (PaletteCard's
+    // `isEditable = !!onUpdate` is the canonical pattern; ImageCard /
+    // NoteCard / LinkCard / VideoCard / AudioCard / DocCard all gate
+    // their editor mount on onUpdate presence too). Without this, demo
+    // users could type into notes / rename titles / etc. and watch each
+    // keystroke flash locally and snap back when RLS rejects the save.
+    const onUpdate = canEdit ? (patch) => mutators.updateCard?.(c.id, patch) : null;
     const af = (autoFocusId === c.id);
 
     let inner = null;
@@ -4593,7 +4630,7 @@ export function CanvasSurface({
                        }
                        return false;
                      }}
-                     onRename={(name) => mutators.renameBoardById?.(c.id, name)}
+                     onRename={canEdit ? (name) => mutators.renameBoardById?.(c.id, name) : null}
                      autoFocus={af} />
         : <div className="bc bc-missing" title={`Missing board ${c.id}`}>Missing board</div>;
     } else if (c.kind === 'boardlink') {
