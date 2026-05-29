@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       if (!customerId) return json({ error: "already_subscribed" }, 409);
       const portal = await stripe.billingPortal.sessions.create({
         customer: customerId,
-        return_url: `${APP_URL}/settings/billing`,
+        return_url: `${APP_URL}/?settings=billing`,
       });
       return json({ ok: true, mode: "portal", url: portal.url }, 200);
     }

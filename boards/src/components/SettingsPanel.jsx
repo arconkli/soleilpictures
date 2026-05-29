@@ -184,6 +184,7 @@ export function SettingsPanel({
   // for recovery is the top-of-app alert banner that fires automatically
   // when a mass-delete is detected; this is the manual fallback.
   onOpenRecovery,
+  initialTab = null,
 }) {
   // Filter tabs by mode + pick the first as default.
   //   account   = personal identity stuff (Profile + Billing + Notifications)
@@ -201,6 +202,13 @@ export function SettingsPanel({
     if (!visibleTabs.find(t => t.id === tab)) setTab(visibleTabs[0]?.id || 'profile');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
+  // Deep-link: when opened with an initialTab (e.g. returning from the Stripe
+  // portal straight to Billing), select it. The panel persists `tab` across
+  // open/close, so only force the tab while `open` is true.
+  useEffect(() => {
+    if (open && initialTab && visibleTabs.find(t => t.id === initialTab)) setTab(initialTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialTab]);
   const feedback = useFeedback();
 
   if (!open) return null;

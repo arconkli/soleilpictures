@@ -118,6 +118,19 @@ function onCanvasRender(id, phase, actualDuration) {
 
 export function App() {
   perf.usePerfRenderTime('App');
+  // Deep-link into Account → Billing when returning from the Stripe Customer
+  // Portal (return_url = /?settings=billing) or hitting the legacy
+  // /settings/billing path, then clean the URL back to /.
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('settings') === 'billing' || window.location.pathname === '/settings/billing') {
+        setAccountInitialTab('billing');
+        setAccountOpen(true);
+        window.history.replaceState({}, '', '/');
+      }
+    } catch (_) {}
+  }, []);
   // Perf toggle: ?perf=1 enables (one-shot at mount); Ctrl+Shift+P toggles
   // at runtime. Sticky via localStorage.perfHud (read inside perf.js). All
   // diagnostic output goes to the browser console; no UI is rendered.
@@ -291,6 +304,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //                  display
   const [accountOpen, setAccountOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // When the account panel is deep-linked to a specific tab (e.g. Billing after
+  // returning from the Stripe portal), this holds it; cleared on close (one-shot).
+  const [accountInitialTab, setAccountInitialTab] = useState(null);
 
   const currentId = stack[stack.length - 1];
   const currentBoard = boards[currentId] || rootBoard;
@@ -2461,8 +2477,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {/* Avatar → identity-only modal (Profile tab). */}
       <SettingsPanel
         open={accountOpen}
-        onClose={() => setAccountOpen(false)}
+        onClose={() => { setAccountOpen(false); setAccountInitialTab(null); }}
         mode="account"
+        initialTab={accountInitialTab}
         user={user}
         onSignOut={signOut}
         workspaceId={workspace?.id}

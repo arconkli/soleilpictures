@@ -6,8 +6,9 @@
 //   tier='waitlist' → MUST land on /welcome (no entry) or /waitlist/status
 //                     (has entry). /waitlist + /pricing + /pricing/success
 //                     are also reachable so they can choose / pay.
-//   tier='demo'/'paid'/'admin' → land in the App; /pricing + /settings/billing
-//                     + /admin (admin only) are also reachable.
+//   tier='demo'/'paid'/'admin' → land in the App; /pricing + /admin (admin
+//                     only) are also reachable. Billing is the in-app Settings
+//                     panel (Account → Billing), not a separate route.
 //
 // Anyone signed in can hit /pricing (e.g. demo upgrading).
 
@@ -19,7 +20,6 @@ import { WelcomePage } from './WelcomePage.jsx';
 import { WaitlistConfirm } from './WaitlistConfirm.jsx';
 import { PricingPage } from './PricingPage.jsx';
 import { PricingSuccess } from './PricingSuccess.jsx';
-import { BillingPage } from '../pages/BillingPage.jsx';
 import { AdminPage } from '../pages/AdminPage.jsx';
 import { UpgradeChip } from '../components/UpgradeChip.jsx';
 import { SoleilMark } from '../components/primitives.jsx';
@@ -68,7 +68,6 @@ export function TierRouter({ children }) {
   }
 
   // tier in (admin, paid, demo) — signed-in-only side pages
-  if (path === '/settings/billing')  return <BillingPage />;
   if (path === '/admin')             return <AdminPage />;
 
   // Default → app, with the UpgradeChip overlay for demo users.
