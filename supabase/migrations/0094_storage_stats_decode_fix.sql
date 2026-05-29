@@ -3,15 +3,18 @@
 --
 -- Root cause (0072_storage_tracking.sql): the storage RPCs size Postgres docs
 -- with octet_length(decode(col, 'base64')). But:
---   • board_state.doc is BYTEA (0001_init.sql), not base64 text — decoding it
---     throws on the first row whose bytes aren't a valid base64 string, which
---     aborts the whole function and blanks the panel.
+--   • board_state.doc is TEXT in production and its content is NOT reliably
+--     base64 (0001_init.sql declared it bytea; the live schema has since drifted
+--     to text). decode(doc,'base64') throws `invalid symbol "." …` on the first
+--     non-base64 row, aborting the whole function and blanking the panel.
 --   • board_snapshots.doc_b64 / board_ops.update_b64 ARE base64 text, so decode
 --     is correct there, but a single legacy/malformed row still crashes the
 --     entire stats query.
 --
--- Fix, sized by each column's real type:
---   • board_state.doc (bytea)            → octet_length(doc)        (true bytes)
+-- Fix, sized by each column's real nature:
+--   • board_state.doc (text, non-base64) → octet_length(doc): its true stored
+--     byte size — the honest disk footprint, and the only sound measure when the
+--     encoding isn't base64 (no decode to throw).
 --   • board_snapshots.doc_b64 (text b64) → public.b64_bytes(doc_b64)
 --   • board_ops.update_b64   (text b64)  → public.b64_bytes(update_b64)
 -- where b64_bytes() decodes when it can and falls back to an estimate on any
@@ -58,7 +61,8 @@ begin
   from public.images
   where deleted_at is null;
 
-  -- board_state.doc is BYTEA — octet_length() is its exact stored byte size.
+  -- board_state.doc is TEXT (non-base64) — octet_length() is its exact stored
+  -- byte size; never decode it (that's what crashed the panel).
   select coalesce(sum(octet_length(doc)), 0)::bigint
     into v_state_total
   from public.board_state where doc is not null;
