@@ -26,31 +26,38 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
-  const auth = req.headers.get("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
-  if (!token) return json({ error: "auth required" }, 401);
+  // Wrap the body so any Stripe/DB throw returns a real JSON error WITH CORS
+  // headers (a bare runtime 500 lacks ACAO and the browser mislabels it CORS).
+  try {
+    const auth = req.headers.get("authorization") || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
+    if (!token) return json({ error: "auth required" }, 401);
 
-  const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") || SERVICE_KEY, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false },
-  });
-  const u = await userClient.auth.getUser();
-  if (u.error || !u.data.user) return json({ error: "invalid token" }, 401);
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") || SERVICE_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false },
+    });
+    const u = await userClient.auth.getUser();
+    if (u.error || !u.data.user) return json({ error: "invalid token" }, 401);
 
-  const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-  const sub = await admin.from("subscriptions")
-    .select("stripe_customer_id")
-    .eq("user_id", u.data.user.id)
-    .maybeSingle();
-  if (sub.error) return json({ error: sub.error.message }, 500);
-  if (!sub.data?.stripe_customer_id) return json({ error: "no subscription found" }, 404);
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+    const sub = await admin.from("subscriptions")
+      .select("stripe_customer_id")
+      .eq("user_id", u.data.user.id)
+      .maybeSingle();
+    if (sub.error) return json({ error: sub.error.message }, 500);
+    if (!sub.data?.stripe_customer_id) return json({ error: "no subscription found" }, 404);
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: sub.data.stripe_customer_id,
-    return_url: `${APP_URL}/settings/billing`,
-  });
+    const session = await stripe.billingPortal.sessions.create({
+      customer: sub.data.stripe_customer_id,
+      return_url: `${APP_URL}/settings/billing`,
+    });
 
-  return json({ ok: true, url: session.url }, 200);
+    return json({ ok: true, url: session.url }, 200);
+  } catch (e) {
+    console.error("[create-portal-session] error", e);
+    return json({ error: String((e as Error)?.message ?? e) }, 500);
+  }
 });
 
 function json(payload: unknown, status: number): Response {
