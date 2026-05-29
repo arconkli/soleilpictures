@@ -88,9 +88,15 @@
   --shadow-glow: 0 0 0 1px rgba(255,165,0,.32), 0 0 18px rgba(255,165,0,.14);
 
   --ease:     cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-quick: 80ms;          /* snappy press/color-shift micro-interactions */
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 320ms;
+
+  /* Canonical disabled treatment — referenced by the shared :disabled rule
+     in the Motion defaults section. Single source of truth so every inert
+     control reads the same. */
+  --disabled-opacity: 0.4;
 }
 
 [data-theme='light'] {
@@ -312,6 +318,26 @@ body {
   }
 }
 
+/* Shared entrance for centered dialogs/modals. Referenced in ~7 places
+   (.account-modal, .feedback-dialog, .settings-modal, time-travel, etc.) that
+   previously pointed at an *undefined* keyframe — so they had no entrance at
+   all. The transform is neutralized automatically under prefers-reduced-motion
+   by the rule above, leaving a clean opacity fade. */
+@keyframes modalRise {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* Canonical disabled treatment for every inert control. Zero specificity via
+   :where(), so any component that sets its own :disabled opacity still wins —
+   this only fills in controls that previously had no disabled styling, giving
+   the app one consistent "inactive" read. */
+:where(button, input, select, textarea, [role='button']):disabled,
+.is-disabled {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
 /* ─────────────────────────── Font picker dropdown ───────────────────────── */
 
 .doc-tb-pill {
@@ -422,7 +448,7 @@ body {
   /* Transparent so the body's grain texture shows through. The
      body already paints bg-0; repeating it here hid the grain. */
   background: transparent;
-  transition: grid-template-columns 180ms var(--ease);
+  transition: grid-template-columns var(--dur-base) var(--ease);
 }
 /* Compact mode collapses the entire sidebar to zero — the open-button
    moves into the topbar (.tb-left). */
@@ -841,7 +867,7 @@ body {
   display: inline-block;
   font-size: 9px;
   color: var(--ink-3);
-  transition: transform 120ms var(--ease);
+  transition: transform var(--dur-fast) var(--ease);
 }
 .sb-shared-chev.is-open { transform: rotate(90deg); }
 .sb-shared-body { display: flex; flex-direction: column; padding-bottom: 4px; }
@@ -1126,7 +1152,7 @@ body {
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 11px; color: var(--ink-2);
-  transition: transform 100ms ease;
+  transition: transform var(--dur-fast) ease;
   padding: 0;
 }
 .doc-ctx-color-dot:hover { transform: scale(1.18); }
@@ -1503,7 +1529,7 @@ body {
   background: var(--bg-1);
   color: var(--ink-1);
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 .tag-detail-suggestion-accept:hover {
   border-color: var(--soleil, var(--ink-0));
@@ -1523,7 +1549,7 @@ body {
   background: var(--bg-1);
   color: inherit;
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 .tag-detail-mention-row:hover {
   background: var(--bg-0);
@@ -1625,7 +1651,7 @@ body {
   cursor: pointer;
   letter-spacing: -0.005em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transition: color 80ms ease;
+  transition: color var(--dur-quick) ease;
 }
 .tag-detail-block-head.is-board .tag-detail-block-title-link {
   font-size: 19px;
@@ -1755,7 +1781,7 @@ body {
   min-height: 64px;
   overflow: hidden;
   box-shadow: 0 1px 0 rgba(0,0,0,.02);
-  transition: transform 100ms ease, box-shadow 100ms ease, border-color 100ms ease;
+  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 .tag-detail-group-block .tag-detail-card-preview { background: var(--bg-1); }
 .tag-detail-card-preview:hover {
@@ -2227,7 +2253,7 @@ body {
   border: 1.5px solid var(--bg-1);
   margin-left: -3px;
   flex-shrink: 0;
-  transition: transform 120ms var(--ease);
+  transition: transform var(--dur-fast) var(--ease);
   opacity: 0.65;
 }
 .sb-member:first-child { margin-left: 0; }
@@ -3688,9 +3714,9 @@ body {
   display: flex;
   flex-direction: column;
   transition:
-    border-color 140ms var(--ease),
-    background-color 140ms var(--ease),
-    box-shadow 140ms var(--ease);
+    border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 .note:hover { border-color: rgba(255,255,255,.06); }
 [data-theme='light'] .note:hover { border-color: rgba(0,0,0,.06); }
@@ -5792,7 +5818,7 @@ body {
     0 18px 40px rgba(0,0,0,.34);
   border-radius: var(--radius-md);
   transform: translateY(-2px) scale(1.012);
-  transition: outline-color 100ms ease, box-shadow 120ms ease, transform 140ms var(--ease);
+  transition: outline-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease, transform var(--dur-fast) var(--ease);
 }
 /* Animate a soft pulse so even at a glance you know which board will
    absorb the drop. */
@@ -5816,7 +5842,7 @@ body {
    instantly if they wander off the target. */
 .card.is-dragging.is-fading-for-drop {
   opacity: 0.35;
-  transition: opacity 120ms var(--ease);
+  transition: opacity var(--dur-fast) var(--ease);
 }
 .card.is-dragging.is-fading-for-drop > :first-child {
   filter: none;
@@ -5837,7 +5863,7 @@ body {
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   white-space: nowrap;
-  animation: pickerFade 160ms var(--ease);
+  animation: pickerFade var(--dur-fast) var(--ease);
 }
 [data-theme='light'] .board-drop-label {
   background: rgba(252,252,254,.96);
@@ -5867,7 +5893,7 @@ body {
     0 0 0 6px color-mix(in srgb, var(--soleil) 18%, transparent),
     var(--shadow-2);
   border-radius: var(--radius-md);
-  transition: outline-color 100ms ease, box-shadow 120ms ease;
+  transition: outline-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 
 /* Tag drop target — when a tag is being dragged over this card,
@@ -5881,7 +5907,7 @@ body {
     0 0 0 6px color-mix(in srgb, var(--tag-drop-color, var(--soleil)) 18%, transparent),
     var(--shadow-2);
   border-radius: var(--radius-md);
-  transition: outline-color 80ms ease, box-shadow 80ms ease;
+  transition: outline-color var(--dur-quick) ease, box-shadow var(--dur-quick) ease;
 }
 
 /* Resize handle (bottom-right) */
@@ -6049,7 +6075,7 @@ body {
   cursor: pointer;
   font: 500 11px/1.2 var(--font-sans);
   color: var(--ink-1);
-  transition: background-color 100ms ease, border-color 100ms ease;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 .ctx-tag-chip:hover {
   background: var(--bg-0);
@@ -7420,7 +7446,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   backdrop-filter: blur(6px);
   display: grid; place-items: center;
   padding: 32px;
-  animation: ctx-menu-in 100ms ease-out;
+  animation: ctx-menu-in var(--dur-fast) ease-out;
 }
 .cp-palsearch {
   width: 460px; max-width: 100%;
@@ -7489,7 +7515,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .snap-guides {
   pointer-events: none;
   opacity: 0;
-  transition: opacity 140ms ease-out;
+  transition: opacity var(--dur-fast) ease-out;
 }
 .snap-guides.is-visible {
   opacity: 1;
@@ -7789,7 +7815,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   height: 36px;
   display: block;
 }
-.ac-bar { transition: fill 80ms ease; }
+.ac-bar { transition: fill var(--dur-quick) ease; }
 .ac-bar-on  { fill: var(--soleil); }
 .ac-bar-off { fill: var(--ink-4); }
 .ac-controls {
@@ -7810,7 +7836,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: #1a1a1a;
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 100ms ease, filter 100ms ease;
+  transition: transform var(--dur-fast) ease, filter var(--dur-fast) ease;
   box-shadow: var(--soleil-glow, 0 0 12px rgba(255,165,0,0.18));
 }
 .ac-play:hover {
@@ -8761,7 +8787,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border: 1.5px solid var(--bg-1);
   margin-left: -3px;
   cursor: pointer;
-  transition: transform 120ms var(--ease);
+  transition: transform var(--dur-fast) var(--ease);
 }
 .bc-toc-peer:first-child { margin-left: 0; }
 .bc-toc-peer.is-nested { opacity: 0.55; }
@@ -8803,7 +8829,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   align-items: center; justify-content: center;
   padding: 48px;
   cursor: zoom-out;
-  animation: lightbox-in 120ms ease-out;
+  animation: lightbox-in var(--dur-fast) ease-out;
 }
 @keyframes lightbox-in {
   from { opacity: 0; }
@@ -8879,7 +8905,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: grid; place-items: center;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 120ms var(--ease), background var(--dur-fast) var(--ease);
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .ic:hover .ic-expand { opacity: 1; }
 .ic-expand:hover { background: rgba(8,8,10,.78); }
@@ -9053,7 +9079,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   margin-left: -3px;
   box-shadow: 0 0 0 1px rgba(0,0,0,.35);
   cursor: pointer;
-  transition: transform 120ms var(--ease);
+  transition: transform var(--dur-fast) var(--ease);
 }
 .doc-tree-peer:first-child { margin-left: 0; }
 .doc-tree-peer:hover { transform: scale(1.35); }
@@ -9262,7 +9288,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: color-mix(in oklab, var(--ink-3) 70%, transparent);
   font: 600 16px/1 var(--font-sans);
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease;
   z-index: 2;
 }
 .doc-editor-wrap > .doc-sheet-delete:hover {
@@ -9283,7 +9309,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: color-mix(in oklab, var(--ink-2) 80%, transparent);
   font: 500 12.5px/1.2 var(--font-sans);
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease;
   /* Sit above the sticky grain layer. */
   position: relative;
   z-index: 1;
@@ -10073,7 +10099,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   backdrop-filter: blur(8px);
   display: grid; place-items: center;
   padding: 32px;
-  animation: ctx-menu-in 120ms ease-out;
+  animation: ctx-menu-in var(--dur-fast) ease-out;
 }
 .doc-embed-picker {
   width: 600px; max-width: 100%;
@@ -10392,7 +10418,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   pointer-events: none;
   z-index: 5;
   background: var(--bg-0);
-  animation: board-loading-fade-in 180ms var(--ease, ease-out) both;
+  animation: board-loading-fade-in var(--dur-base) var(--ease, ease-out) both;
 }
 .board-loading-overlay > svg {
   animation: board-loading-breathe 1.6s ease-in-out infinite;
@@ -10583,7 +10609,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: grid; place-items: center;
   cursor: pointer;
   padding: 0;
-  transition: transform 140ms var(--ease);
+  transition: transform var(--dur-fast) var(--ease);
 }
 .doc-card-presence-dot:first-child { margin-left: 0; }
 .doc-card-presence-dot:hover { transform: scale(1.25); z-index: 2; }
@@ -10764,7 +10790,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   border-radius: 50%;
   cursor: pointer;
   display: grid; place-items: center;
-  transition: transform 140ms var(--ease), z-index 0s 140ms;
+  transition: transform var(--dur-fast) var(--ease), z-index 0s 140ms;
   position: relative;
   z-index: 1;
 }
@@ -12304,7 +12330,7 @@ button.msg-panel-name:hover { color: var(--soleil); }
   margin: 0 -2px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  transition: border-color 120ms ease, border-style 0s;
+  transition: border-color var(--dur-fast) ease, border-style 0s;
 }
 .tt-tag-word:hover {
   /* Solidify the dashes on hover so the user gets a clear affordance
@@ -12382,7 +12408,7 @@ button.msg-panel-name:hover { color: var(--soleil); }
   cursor: pointer;
   font: 500 11.5px/1.2 var(--font-sans);
   color: var(--ink-1);
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 .doc-page-tag-chip:hover {
   background: var(--bg-0);
@@ -12439,7 +12465,7 @@ button.msg-panel-name:hover { color: var(--soleil); }
   padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--dur-quick) ease;
 }
 .ent-pop-tag-row:hover {
   background: var(--bg-0);
@@ -12517,7 +12543,7 @@ button.msg-panel-name:hover { color: var(--soleil); }
   text-transform: uppercase;
   padding: 0 12px;
   cursor: pointer;
-  transition: color 120ms ease, background-color 120ms ease;
+  transition: color var(--dur-fast) ease, background-color var(--dur-fast) ease;
   flex-shrink: 0;
 }
 .ent-pop-row-expand:hover { color: var(--soleil); background: var(--bg-1); }
@@ -12547,7 +12573,7 @@ button.msg-panel-name:hover { color: var(--soleil); }
   overflow: hidden;
   cursor: pointer;
   text-align: left;
-  transition: border-color 120ms ease, transform 80ms ease;
+  transition: border-color var(--dur-fast) ease, transform var(--dur-quick) ease;
 }
 .ent-pop-expand-card:hover {
   border-color: var(--soleil);
@@ -13794,7 +13820,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   /* Entrance: opacity + a 4px slide-in from the anchor side. The
      .tag-pop-from-{right,left} classes pick the starting offset. */
   opacity: 0;
-  transition: opacity 100ms ease, transform 140ms cubic-bezier(.22,.61,.36,1);
+  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) cubic-bezier(.22,.61,.36,1);
 }
 .tag-pop-from-right { transform: translateX(-4px); }
 .tag-pop-from-left  { transform: translateX( 4px); }
@@ -13809,7 +13835,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   padding: 11px 14px 10px;
   cursor: pointer;
   color: inherit;
-  transition: background-color 100ms ease;
+  transition: background-color var(--dur-fast) ease;
 }
 .tag-pop-header:hover {
   background: color-mix(in oklab, var(--tag-color, var(--soleil)) 10%, transparent);
@@ -13879,7 +13905,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   font: 500 11.5px/1 var(--font-sans);
   color: var(--ink-3);
   opacity: 0;
-  transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
+  transition: opacity var(--dur-fast) ease, color var(--dur-fast) ease, background-color var(--dur-fast) ease;
   letter-spacing: -0.005em;
 }
 .tag-pop:hover .tag-pop-footer { opacity: 1; }
@@ -13956,7 +13982,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   cursor: pointer;
   background: var(--bg-2);
   box-shadow: 0 0 0 1px var(--line-1);
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 .tag-pop-thumb:hover {
   transform: scale(1.04);
@@ -14755,7 +14781,7 @@ button, [role="button"], a {
     position: fixed; inset: 0; z-index: 1099;
     background: rgba(0, 0, 0, 0.42);
     backdrop-filter: blur(2px);
-    animation: md-fade 180ms var(--ease);
+    animation: md-fade var(--dur-base) var(--ease);
   }
 
   /* The legacy rail (40px icon column) is hidden — its toggles move to
@@ -15082,7 +15108,7 @@ button, [role="button"], a {
   position: absolute; inset: 0;
   background: rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(2px);
-  animation: sheet-fade 180ms var(--ease);
+  animation: sheet-fade var(--dur-base) var(--ease);
 }
 .sheet-panel {
   position: relative;
@@ -15175,7 +15201,7 @@ button, [role="button"], a {
   position: absolute; inset: 0;
   background: rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(2px);
-  animation: md-fade 180ms var(--ease);
+  animation: md-fade var(--dur-base) var(--ease);
 }
 .md-drawer-panel {
   position: relative;
