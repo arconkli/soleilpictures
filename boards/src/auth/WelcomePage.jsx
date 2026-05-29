@@ -35,18 +35,19 @@ export function WelcomePage() {
         <a href="mailto:clusters@soleilpictures.com" className="auth-link">clusters@soleilpictures.com</a>
       </div>
 
-      <div className="waitlist-status-card welcome-card">
-        <p className="waitlist-status-sub t-body welcome-card-lede">
-          If you are a singular user requesting access to our demo, please
-          submit artist socials for evaluation. Want instant access? Skip the
-          wait with a subscription.
+      <div className="waitlist-status-card">
+        <div className="waitlist-status-eyebrow t-eyebrow">Request access</div>
+        <h2 className="waitlist-status-title">Pick a path to get in.</h2>
+        <p className="waitlist-status-sub t-body">
+          Submit your socials and we'll review you for a free demo — or
+          subscribe for instant access, no waiting.
         </p>
         <div className="waitlist-status-cta-row">
           <button
             className="pricing-cta pricing-cta-secondary waitlist-status-cta"
             onClick={() => setSocialsOpen(true)}
           >
-            Submit Socials
+            Submit Socials →
           </button>
           <button
             className="pricing-cta pricing-cta-primary waitlist-status-cta"
@@ -56,9 +57,9 @@ export function WelcomePage() {
           </button>
         </div>
         <div className="welcome-card-foot t-meta">
-          Most invites go out within about a week
+          Most invites go out within a week
           <span className="welcome-foot-sep">·</span>
-          You'll receive an email once approved
+          We'll email you once you're approved
         </div>
       </div>
 

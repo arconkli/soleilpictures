@@ -4660,7 +4660,6 @@ body {
 }
 
 .welcome-card { padding: 22px 24px; gap: 16px; }
-.welcome-card-lede { margin: 0; }
 .welcome-card-foot {
   margin-top: 4px;
   color: var(--ink-3);
