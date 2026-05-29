@@ -11,6 +11,7 @@
 // timestamp for the rewind.
 
 import { useEffect, useMemo, useState } from 'react';
+import { Modal } from './Modal.jsx';
 import {
   previewWorkspaceRewind,
   performWorkspaceRewind,
@@ -163,17 +164,15 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
     setTimeout(runPreview, 50);
   };
 
-  if (!open) return null;
-
   const openCriticals = alerts.filter((a) => !a.acknowledged_at && a.severity === 'critical');
   const recentRecovery = alerts.filter((a) => a.kind === 'workspace.rewind').slice(0, 3);
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal modal-workspace-recovery" onClick={(e) => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} className="modal modal-workspace-recovery"
+           labelledBy="wsr-title" closeOnBackdrop={!busy} closeOnEscape={!busy}>
         <div className="modal-hd">
-          <div className="modal-title">Workspace recovery</div>
-          <button className="modal-x" onClick={onClose} aria-label="Close">✕</button>
+          <div className="modal-title" id="wsr-title">Workspace recovery</div>
+          <button className="modal-x" onClick={onClose} aria-label="Close" disabled={busy}>✕</button>
         </div>
 
         <div className="wsr-body">
@@ -323,7 +322,6 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
               : `Rewind ${selectedIds.size} selected board${selectedIds.size === 1 ? '' : 's'}`}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

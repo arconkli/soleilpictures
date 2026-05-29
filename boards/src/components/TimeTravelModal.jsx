@@ -13,6 +13,7 @@
 // commentsApi + listDeletedBoards calls.
 
 import { useEffect, useMemo, useState } from 'react';
+import { Modal } from './Modal.jsx';
 import {
   listBoardSnapshots, restoreBoardToTarget, restoreBoard,
   fetchBoardOpDensity,
@@ -385,10 +386,9 @@ export function TimeTravelModal({
   const selected = selectedId ? snapshots.find((s) => s.id === selectedId) : null;
 
   return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal modal-timetravel" onClick={(e) => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} className="modal modal-timetravel" labelledBy="tt-title">
         <div className="modal-hd">
-          <div className="modal-title">History</div>
+          <div className="modal-title" id="tt-title">History</div>
           <button className="modal-x" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
@@ -696,7 +696,6 @@ export function TimeTravelModal({
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
