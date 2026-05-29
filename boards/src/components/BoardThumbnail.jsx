@@ -21,7 +21,7 @@
 import { memo, useEffect, useState } from 'react';
 import { renderThumbnailToBlob } from '../lib/renderThumbnail.js';
 
-function BoardThumbnailImpl({ cards, strokes, boards = {} }) {
+function BoardThumbnailImpl({ cards, strokes, arrows, boards = {} }) {
   const [blobUrl, setBlobUrl] = useState(null);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ function BoardThumbnailImpl({ cards, strokes, boards = {} }) {
     }
     let cancelled = false;
     let createdUrl = null;
-    renderThumbnailToBlob({ cards, strokes, boards }).then(url => {
+    renderThumbnailToBlob({ cards, strokes, arrows, boards }).then(url => {
       if (cancelled) {
         // Component unmounted while we were rendering. Don't leak the
         // blob URL even though the renderer's cache holds a reference;
@@ -50,7 +50,7 @@ function BoardThumbnailImpl({ cards, strokes, boards = {} }) {
       if (!cancelled) setBlobUrl(null);
     });
     return () => { cancelled = true; };
-  }, [cards, strokes, boards]);
+  }, [cards, strokes, arrows, boards]);
 
   if (!blobUrl) return null;
 

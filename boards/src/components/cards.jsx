@@ -293,10 +293,20 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
     return () => io.disconnect();
   }, [isList, thumbVisible]);
 
-  const preview = useBoardPreview(board.id, isList || thumbVisible);
-  const hasPreview = !isList && preview && (preview.cards?.length > 0 || preview.strokes?.length > 0);
+  // Stored preview (Round 23): a board with a thumb_key shows a static R2
+  // image — no Y.Doc decode, no Canvas2D re-render. The LIVE preview decode
+  // only runs when there's NO stored thumb yet (backfill window / brand-new
+  // boards) and the tile is visible, or for list mode (which needs the card
+  // list to enumerate items). When a stored thumb exists, useBoardPreview is
+  // disabled and returns null instantly — zero network/decode for the grid.
+  const hasStoredThumb = !isList && !!board.thumb_key;
+  const preview = useBoardPreview(board.id, isList || (!hasStoredThumb && thumbVisible));
+  const liveHasPreview = !isList && !hasStoredThumb && preview &&
+    (preview.cards?.length > 0 || preview.strokes?.length > 0);
 
-  const itemCount = preview?.cards?.length ?? 0;
+  // Item count survives without a decode thanks to boards.card_count; fall
+  // back to the live preview's count (list mode / pre-backfill tiles).
+  const itemCount = board.card_count ?? preview?.cards?.length ?? 0;
   const updatedLabel = relativeTimeShort(board.updated_at || board.created_at);
 
   const outerClick = clickToOpen && onOpen ? () => onOpen() : undefined;
@@ -388,10 +398,18 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
          className={`bc ${mode === 'compact' ? 'bc-compact' : ''}`}
          onClick={outerClick}>
       <div className="bc-cover">
-        {hasPreview ? (
+        {hasStoredThumb ? (
           <div className="bc-thumb-wrap"
                style={{ background: board.bg_color || 'var(--bg-2)' }}>
-            <BoardThumbnail cards={preview.cards} strokes={preview.strokes} boards={boards} />
+            {/* key on thumb_updated_at so a regen remounts → fresh resolveSrc */}
+            <R2Image src={board.thumb_key} key={board.thumb_updated_at || board.thumb_key}
+                     className="bc-thumb" alt="" draggable={false} />
+          </div>
+        ) : liveHasPreview ? (
+          <div className="bc-thumb-wrap"
+               style={{ background: board.bg_color || 'var(--bg-2)' }}>
+            <BoardThumbnail cards={preview.cards} strokes={preview.strokes}
+                            arrows={preview.arrows} boards={boards} />
           </div>
         ) : (
           <ImagePlaceholder tone={board.cover || 'neutral'} aspect="16/9" />

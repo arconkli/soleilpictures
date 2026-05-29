@@ -498,6 +498,20 @@ export async function updateBoardMeta(boardId, patch, opts = {}) {
   if (error) throw error;
 }
 
+// Stamp a board's stored-preview pointer (thumb_key / card_count) after the
+// editing client regenerates its thumbnail. Deliberately does NOT touch
+// `updated_at` or log to board_meta_history (unlike updateBoardMeta) so the
+// tile's "Updated X ago" stays meaningful and undo/meta-history isn't
+// polluted by background preview refreshes. RLS: boards update =
+// can_write_workspace, so the editing user is permitted. Fire-and-forget.
+export async function updateBoardThumb(boardId, { thumbKey = null, cardCount = null } = {}) {
+  const patch = { thumb_updated_at: new Date().toISOString() };
+  if (thumbKey != null) patch.thumb_key = thumbKey;
+  if (cardCount != null) patch.card_count = cardCount;
+  const { error } = await supabase.from('boards').update(patch).eq('id', boardId);
+  if (error) console.warn('[updateBoardThumb]', error);
+}
+
 // History of metadata changes for a board, newest first.
 export async function listBoardMetaHistory(boardId, limit = 200) {
   const { data, error } = await supabase

@@ -22,7 +22,7 @@ if (typeof window !== 'undefined') {
   window.__soleilEmitBoardReset = emitBoardReset;
 }
 
-export function useYBoard(boardId, userId, user = null) {
+export function useYBoard(boardId, userId, user = null, workspaceId = null, hasThumb = false) {
   const handleRef = useRef(null);
   const [resetEpoch, setResetEpoch] = useState(0);
   const emptySnapshot = (nextBoardId = null) => ({
@@ -92,7 +92,7 @@ export function useYBoard(boardId, userId, user = null) {
     // Performance "Timings" lane via perf.mark's performance.measure shim.
     const _tOpen = performance.now();
     let _firstRefreshDone = false;
-    const handle = loadYBoard(boardId, { userId, user });
+    const handle = loadYBoard(boardId, { userId, user, workspaceId, hasThumb });
     handleRef.current = handle;
 
     let unmounted = false;
@@ -157,7 +157,7 @@ export function useYBoard(boardId, userId, user = null) {
       handle.undoManager.off('stack-item-popped', scheduleRefresh);
       handle.undoManager.off('stack-cleared', scheduleRefresh);
     };
-  }, [boardId, userId, resetEpoch]);
+  }, [boardId, userId, workspaceId, resetEpoch]);
 
   // Final cleanup when the consuming component truly unmounts.
   useEffect(() => () => {

@@ -440,7 +440,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     feedback,
   });
 
-  const yb = useYBoard(currentBoard.id, user.id, userInfo);
+  const yb = useYBoard(currentBoard.id, user.id, userInfo, workspace.id, !!currentBoard.thumb_key);
 
   // Avatar-click → open DM with a workspace member. Exposed via context.
   const [pendingDmPeerId, setPendingDmPeerId] = useState(null);
@@ -457,7 +457,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const setSplitId = (id) => setSplitIdState(id);
   const splitBoard = splitId ? (boards[splitId] || null) : null;
   const splitView = splitBoard ? (viewOverride[splitId] || splitBoard.view || 'canvas') : null;
-  const splitYb = useYBoard(splitId, user.id, userInfo);
+  const splitYb = useYBoard(splitId, user.id, userInfo, workspace.id, !!(splitBoard && splitBoard.thumb_key));
   const splitYDoc = splitYb.ready && splitYb.boardId === splitId ? splitYb.ydoc : null;
   const [splitPickerOpen, setSplitPickerOpen] = useState(false);
   const [splitRatio, setSplitRatio] = useState(() => initialSession?.splitRatio || 0.5);

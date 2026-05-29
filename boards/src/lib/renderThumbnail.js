@@ -14,6 +14,10 @@
 // Returns a blob: URL (caller is responsible for revokeObjectURL).
 
 import { resolveSrc, cachedUrl } from './r2.js';
+import {
+  computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
+  arrowStrokeWidth, arrowHeadSize, arrowHeadStyle,
+} from './arrowGeometry.js';
 
 // Reused from BoardThumbnail.jsx (Round 20). Kept in sync deliberately —
 // any visual change should touch both files until Round 22 deprecates
@@ -68,6 +72,184 @@ function quickHashCards(cards, strokes) {
     h += `s${i}:${s.points?.length || 0},${s.color || ''}|`;
   }
   return h;
+}
+
+// Public content hash including arrows — used by the snapshot generator
+// (yboard.js) to skip re-uploading a thumbnail when nothing visual changed.
+// Cheap and stable; not collision-proof but fine for change detection.
+export function quickVisualHash(cards, strokes, arrows) {
+  let h = quickHashCards(cards, strokes);
+  for (let i = 0; i < (arrows || []).length; i++) {
+    const a = arrows[i] || {};
+    h += `a${i}:${JSON.stringify(a.from)},${JSON.stringify(a.to)},${a.color || ''},`
+       + `${a.customStroke || ''},${a.thickness || ''},${a.straight ? 1 : 0},${a.head || ''},${a.label || ''}|`;
+  }
+  // Note bodies/colors aren't in quickHashCards (it only samples title/src);
+  // fold them in so an edited note re-renders.
+  for (const c of (cards || [])) {
+    if (c?.kind === 'note') h += `n${c.id}:${(c.html || c.body || '').length},${c.bgColor || ''},${c.textColor || ''}|`;
+  }
+  return h;
+}
+
+// ── "more faithful" rendering helpers (Round 23: stored previews) ─────────
+
+// Concrete-hex mirror of arrowGeometry's COLOR_TOKENS. Canvas2D can't parse
+// the `var(--…)` strings arrowColor() returns, so we resolve tokens to hex
+// here. `ink` ≈ --ink-2. Custom hex (shape-tool lines) is honored directly.
+const ARROW_HEX = {
+  ink: '#888890', red: '#ef4444', orange: '#f59e0b',
+  green: '#10b981', blue: '#3b82f6', purple: '#a855f7',
+};
+function resolveArrowColorHex(a) {
+  if (typeof a.customStroke === 'string' && a.customStroke.startsWith('#')) return a.customStroke;
+  const c = a.color;
+  if (typeof c === 'string' && c.startsWith('#')) return c;
+  return ARROW_HEX[c] || ARROW_HEX.ink;
+}
+
+// Card ids to exclude from obstacle avoidance for an arrow endpoint — the
+// anchor card itself, or all members of an anchored group. Mirrors
+// CanvasSurface.excludedCardIdsForRef.
+function excludedIds(ref, cards) {
+  if (!ref) return [];
+  if (typeof ref === 'string') return [ref];
+  if (ref.type === 'card' && ref.id) return [ref.id];
+  if (ref.type === 'group' && ref.id) return cards.filter(c => c.groupId === ref.id).map(c => c.id);
+  return [];
+}
+
+// Build the {cardById, resolveGroupBBox} context arrowGeometry needs, from a
+// plain cards array (no DOM / Y.Doc). Group bbox derived from card.groupId,
+// matching CanvasSurface.groupBoundsById.
+function buildArrowCtx(cards) {
+  const cardById = {};
+  for (const c of cards || []) cardById[c.id] = c;
+  const gb = {};
+  for (const c of cards || []) {
+    if (!c.groupId) continue;
+    const g = gb[c.groupId] || (gb[c.groupId] = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+    g.minX = Math.min(g.minX, c.x);
+    g.minY = Math.min(g.minY, c.y);
+    g.maxX = Math.max(g.maxX, c.x + (c.w || 100));
+    g.maxY = Math.max(g.maxY, c.y + (c.h || 100));
+  }
+  return {
+    cardById,
+    resolveGroupBBox: (gid) => {
+      const g = gb[gid];
+      return g && isFinite(g.minX) ? { x: g.minX, y: g.minY, w: g.maxX - g.minX, h: g.maxY - g.minY } : null;
+    },
+  };
+}
+
+function fillTriangle(ctx, ptsStr) {
+  const pts = ptsStr.split(' ').map(p => p.split(',').map(Number));
+  if (pts.length < 3) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  ctx.lineTo(pts[1][0], pts[1][1]);
+  ctx.lineTo(pts[2][0], pts[2][1]);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Draw all arrows in board-space (ctx is already board→canvas scaled).
+// `pxPerUnit` = backing canvas px per board unit; used to floor thin arrows
+// so they stay visible at fit-to-content scale.
+function drawArrows(ctx, arrows, cards, pxPerUnit) {
+  if (!arrows || !arrows.length) return;
+  const actx = buildArrowCtx(cards);
+  const placements = computeArrowAttachments(arrows, actx);
+  const obstacleRects = (cards || []).map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w || 100, h: c.h || 100 }));
+  const MIN_PX = 1.6;
+  for (let i = 0; i < arrows.length; i++) {
+    const a = arrows[i] || {};
+    const att = placements[i];
+    if (!att || !att.from || !att.to) continue;
+    const anchorIds = new Set([...excludedIds(a.from, cards), ...excludedIds(a.to, cards)]);
+    const obstacles = a.straight ? null
+      : obstacleRects.map(r => (anchorIds.has(r.id) ? { ...r, pad: 1 } : r));
+    let built = null;
+    try { built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles }); }
+    catch (_) { built = null; }
+    if (!built) continue;
+    const { path, fromTangentIn, toTangentIn } = built;
+    const stroke = resolveArrowColorHex(a);
+    const baseSw = (typeof a.customStrokeWidth === 'number' && a.customStrokeWidth >= 0)
+      ? Math.max(0.5, a.customStrokeWidth) : arrowStrokeWidth(a.thickness);
+    const sw = Math.max(baseSw, MIN_PX / (pxPerUnit || 1));
+    const k = sw / baseSw;
+    const hd0 = arrowHeadSize(a.thickness);
+    const hd = { size: hd0.size * k, width: hd0.width * k };
+    const headStyle = arrowHeadStyle(a);
+    ctx.save();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = sw;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (a.customDash === 'dashed' || a.dashed) ctx.setLineDash([sw * 4, sw * 3]);
+    else if (a.customDash === 'dotted') ctx.setLineDash([sw, sw * 2]);
+    let p2d = null;
+    try { p2d = new Path2D(path); } catch (_) { p2d = null; }
+    if (p2d) ctx.stroke(p2d);
+    ctx.setLineDash([]);
+    ctx.fillStyle = stroke;
+    if (headStyle !== 'none') fillTriangle(ctx, arrowHeadPolygon(att.to.point, toTangentIn, hd));
+    if (headStyle === 'double') fillTriangle(ctx, arrowHeadPolygon(att.from.point, fromTangentIn, hd));
+    ctx.restore();
+  }
+}
+
+// Plain text from a note card. Block elements become newlines so wrapped
+// paragraphs survive. Falls back to legacy `body`.
+function extractNoteText(c) {
+  if (c.html && typeof document !== 'undefined') {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = c.html;
+    tmp.querySelectorAll('p,div,li,br,h1,h2,h3').forEach(el => {
+      try { el.insertAdjacentText('afterend', '\n'); } catch (_) {}
+    });
+    return (tmp.textContent || '').replace(/\n{2,}/g, '\n').replace(/[ \t]+/g, ' ').trim();
+  }
+  return (c.body ? String(c.body) : '').trim();
+}
+
+// Word-wrap `text` to lines no wider than `maxWidth` using the ctx's current
+// font. Preserves explicit newlines.
+function wrapText(ctx, text, maxWidth) {
+  const lines = [];
+  for (const para of text.split('\n')) {
+    if (!para) { lines.push(''); continue; }
+    let line = '';
+    for (const word of para.split(' ')) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = word; }
+      else line = test;
+    }
+    if (line) lines.push(line);
+  }
+  return lines;
+}
+
+function _hexToRgb(hex) {
+  if (typeof hex !== 'string') return null;
+  let h = hex.trim().replace('#', '');
+  if (h.length === 3) h = h.split('').map(ch => ch + ch).join('');
+  if (h.length !== 6) return null;
+  const n = parseInt(h, 16);
+  if (Number.isNaN(n)) return null;
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+// Pick a readable note text color: explicit textColor wins; else contrast
+// against the note's fill (light fill → dark ink, dark fill → light ink).
+function readableNoteTextColor(bgHex, explicit) {
+  if (explicit) return explicit;
+  const rgb = _hexToRgb(bgHex);
+  if (!rgb) return '#e8e8ea';
+  const lum = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+  return lum > 0.6 ? '#1f1d1a' : '#e8e8ea';
 }
 
 // In-memory cache of rendered thumbnails. Keyed by quickHash(cards,strokes).
@@ -138,7 +320,7 @@ function fitLabel(label, fontSize, w) {
 
 // Build the actual draw plan synchronously (bounds + per-card ops) so we
 // can do the async image loading in parallel up front, then draw in z-order.
-function buildDrawPlan(cards, strokes, boards) {
+function buildDrawPlan(cards, strokes, arrows, boards) {
   if ((!cards || cards.length === 0) && (!strokes || strokes.length === 0)) return null;
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -157,14 +339,14 @@ function buildDrawPlan(cards, strokes, boards) {
   // Sort cards by z (matches BoardCard render order).
   const sorted = (cards || []).slice().sort((a, b) => (a.z || 0) - (b.z || 0));
 
-  return { sorted, strokes: strokes || [], minX, minY, contentW, contentH, fontSize, boards };
+  return { sorted, strokes: strokes || [], arrows: arrows || [], minX, minY, contentW, contentH, fontSize, boards };
 }
 
 // Async: render the plan to a real canvas, encode as a blob. Two-phase:
 // first kick off all image loads in parallel, then draw everything in
 // order. Returns a Blob URL or null.
-async function planToBlobUrl(plan, { width, height, allowImages }) {
-  const { sorted, strokes, minX, minY, contentW, contentH, fontSize, boards } = plan;
+async function planToBlob(plan, { width, height, allowImages }) {
+  const { sorted, strokes, arrows, minX, minY, contentW, contentH, fontSize, boards } = plan;
 
   // Choose canvas size to preserve aspect ratio inside the target box.
   const contentAspect = contentW / contentH;
@@ -188,6 +370,9 @@ async function planToBlobUrl(plan, { width, height, allowImages }) {
   // Scale so all subsequent draw calls use canvas-space coords directly.
   ctx.scale((canvas.width) / contentW, (canvas.height) / contentH);
   ctx.translate(-minX, -minY);
+  // Backing px per board unit — used to floor thin arrow strokes so they
+  // stay visible at fit-to-content scale.
+  const pxPerUnit = canvas.width / contentW;
 
   // Pre-load all image cards in parallel before drawing, so they appear
   // in the rendered output. Failed loads fall back to placeholder.
@@ -282,6 +467,43 @@ async function planToBlobUrl(plan, { width, height, allowImages }) {
       continue;
     }
 
+    if (c.kind === 'note') {
+      // Faithful note: painted rounded rect + wrapped real text, clipped to
+      // the card. Text color honors c.textColor, else auto-contrasts.
+      const bg = (c.bgColor && c.bgColor !== 'transparent') ? c.bgColor : '#262626';
+      ctx.save();
+      ctx.globalAlpha = 0.96;
+      ctx.fillStyle = bg;
+      if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill(); }
+      else ctx.fillRect(x, y, w, h);
+      ctx.restore();
+
+      const text = extractNoteText(c);
+      if (text) {
+        const padX = Math.min(12, w * 0.08);
+        const padY = Math.min(12, h * 0.08);
+        const innerW = Math.max(1, w - padX * 2);
+        const noteFont = Math.max(10, fontSize * 0.95);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + padX, y + padY, innerW, Math.max(1, h - padY * 2));
+        ctx.clip();
+        ctx.font = `400 ${noteFont}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.fillStyle = readableNoteTextColor(bg, c.textColor);
+        ctx.textBaseline = 'top';
+        const lineH = noteFont * 1.32;
+        let ty = y + padY;
+        const bottom = y + h - padY;
+        for (const line of wrapText(ctx, text, innerW)) {
+          if (ty > bottom) break;
+          if (line) ctx.fillText(line, x + padX, ty);
+          ty += lineH;
+        }
+        ctx.restore();
+      }
+      continue;
+    }
+
     // Default: rect + optional badge + label.
     const fill = c.kind === 'note' ? (c.bgColor || '#262626') : (KIND_FILL[c.kind] || '#3a3a3f');
     const isBoardKind = c.kind === 'board' || c.kind === 'boardlink';
@@ -320,6 +542,9 @@ async function planToBlobUrl(plan, { width, height, allowImages }) {
     }
   }
 
+  // Arrows / connectors — drawn above cards, below freehand strokes.
+  drawArrows(ctx, arrows, sorted, pxPerUnit);
+
   // Strokes overlay.
   for (const s of strokes) {
     if (!s.points || s.points.length < 2) continue;
@@ -351,39 +576,29 @@ async function planToBlobUrl(plan, { width, height, allowImages }) {
       reject(e);
     }
   });
-  return URL.createObjectURL(blob);
+  return blob;
 }
 
-// Public entry. Renders to a blob URL with cache + CORS-tainted fallback.
-//   { cards, strokes, boards, width, height } → Promise<blobUrl | null>
-export async function renderThumbnailToBlob({ cards, strokes, boards = {}, width = 800, height = 600 } = {}) {
-  const plan = buildDrawPlan(cards, strokes, boards);
+// Core renderer: returns a raw Blob (WebP) with a CORS-tainted fallback to
+// placeholder rects. No caching — callers that upload the bytes use this
+// directly (the URL cache below is only for the live <img> thumbnails).
+//   { cards, strokes, arrows, boards, width, height } → Promise<Blob | null>
+export async function renderThumbnailBlob({ cards, strokes, arrows, boards = {}, width = 800, height = 600 } = {}) {
+  const plan = buildDrawPlan(cards, strokes, arrows, boards);
   if (!plan) return null;
-
-  // Cache key includes target dims so different consumers can ask for
-  // different sizes without colliding.
-  const key = `${width}x${height}:${quickHashCards(cards, strokes)}`;
-  const hit = _cacheGet(key);
-  if (hit) return hit;
-
   try {
-    const url = await planToBlobUrl(plan, { width, height, allowImages: true });
-    if (url) _cacheSet(key, url);
-    return url;
+    return await planToBlob(plan, { width, height, allowImages: true });
   } catch (e) {
     if (e && e.message === 'TAINT') {
       if (!_cacheTaintWarned) {
         _cacheTaintWarned = true;
         console.warn(
           '[renderThumbnail] CORS taint detected on a board image — falling back to placeholder rects. '
-          + 'To fix, configure CORS on the R2 bucket so images can be drawn to canvas. '
-          + 'Round 22 will queue server-rendered thumbnails as the long-term fix.',
+          + 'To fix, configure CORS on the R2 bucket so images can be drawn to canvas.',
         );
       }
       try {
-        const url = await planToBlobUrl(plan, { width, height, allowImages: false });
-        if (url) _cacheSet(key, url);
-        return url;
+        return await planToBlob(plan, { width, height, allowImages: false });
       } catch (e2) {
         console.warn('[renderThumbnail] fallback render also failed', e2?.message || e2);
         return null;
@@ -392,4 +607,23 @@ export async function renderThumbnailToBlob({ cards, strokes, boards = {}, width
     console.warn('[renderThumbnail] render failed', e?.message || e);
     return null;
   }
+}
+
+// Public entry for live <img> thumbnails. Renders to a blob URL with an
+// in-memory cache keyed by content hash + dims. Wraps renderThumbnailBlob.
+//   { cards, strokes, arrows, boards, width, height } → Promise<blobUrl | null>
+export async function renderThumbnailToBlob({ cards, strokes, arrows, boards = {}, width = 800, height = 600 } = {}) {
+  if ((!cards || cards.length === 0) && (!strokes || strokes.length === 0)) return null;
+
+  // Cache key includes target dims so different consumers can ask for
+  // different sizes without colliding. Arrows fold into the hash too.
+  const key = `${width}x${height}:${quickVisualHash(cards, strokes, arrows)}`;
+  const hit = _cacheGet(key);
+  if (hit) return hit;
+
+  const blob = await renderThumbnailBlob({ cards, strokes, arrows, boards, width, height });
+  if (!blob) return null;
+  const url = URL.createObjectURL(blob);
+  _cacheSet(key, url);
+  return url;
 }

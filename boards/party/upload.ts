@@ -46,6 +46,11 @@ interface PresignBody {
   fileExt?: string;
   contentType?: string;
   boardId?: string;
+  // Deterministic per-board thumbnail key. Only honored if it exactly
+  // equals `<workspaceId>/thumbs/<boardId>.webp` (prefix-locked, so a client
+  // can't overwrite arbitrary objects). Used by uploadBoardThumbnail so a
+  // board's preview overwrites in place instead of orphaning UUID objects.
+  thumbKey?: string;
 }
 
 interface SignReadsBody { keys?: string[] }
@@ -238,7 +243,13 @@ export default class UploadParty implements Party.Server {
 
     const ext = (body.fileExt || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
     const contentType = body.contentType || "application/octet-stream";
-    const key = `${workspaceId}/${crypto.randomUUID()}.${ext}`;
+    // Deterministic thumbnail key (overwrite-in-place) only when it matches
+    // the canonical board-scoped shape — otherwise mint a random UUID key.
+    // The can_write_board(boardId) check above already gated this request.
+    const canonicalThumbKey = body.boardId ? `${workspaceId}/thumbs/${body.boardId}.webp` : null;
+    const key = (body.thumbKey && canonicalThumbKey && body.thumbKey === canonicalThumbKey)
+      ? canonicalThumbKey
+      : `${workspaceId}/${crypto.randomUUID()}.${ext}`;
 
     const r2 = new AwsClient({
       accessKeyId: env.accessKeyId,

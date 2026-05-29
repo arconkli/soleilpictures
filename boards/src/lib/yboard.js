@@ -13,9 +13,14 @@
 // onto the undo stack. Restores use 'restore'.
 
 import * as Y from 'yjs';
-import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion } from './boardsApi.js';
+import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb } from './boardsApi.js';
 import { b64ToBytes, bytesToB64, readCards } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
+// Round 23: render each board's preview ONCE on the editing client and
+// upload it to private R2, so board tiles display a static image instead
+// of re-decoding the Y.Doc + re-rasterizing Canvas2D on every view.
+import { renderThumbnailBlob, quickVisualHash } from './renderThumbnail.js';
+import { uploadBoardThumbnail } from './uploads.js';
 import { peekBoardSnapshot, prefetchBoard } from './prefetchKinds.js';
 import { invalidate as invalidatePrefetch } from './prefetch.js';
 import * as perf from './perf.js';
@@ -101,6 +106,56 @@ async function _writePreviewToLS(boardId, ydoc) {
   } catch (_) { /* quota or disabled storage — silent */ }
 }
 
+// ── Stored board preview (thumbnail) generation ───────────────────────────
+// Min gap between regen attempts per board (the on-edit path is also gated
+// by PREVIEW_LS_THROTTLE_MS upstream; this caps actual render+upload work).
+const THUMB_THROTTLE_MS = 8000;
+const _lastThumbHash = new Map();    // boardId -> last uploaded visual hash (this session)
+const _lastThumbAttempt = new Map(); // boardId -> Date.now() of last attempt
+const _thumbInFlight = new Set();    // boardId currently generating
+
+// Render already-extracted board data to a WebP, upload it to R2, and stamp
+// the board row. Data is captured synchronously by the caller so this is
+// safe even after ydoc.destroy(). Never throws.
+async function _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, workspaceId, userId }) {
+  if (_thumbInFlight.has(boardId)) return;
+  _thumbInFlight.add(boardId);
+  try {
+    const blob = await renderThumbnailBlob({ cards, strokes, arrows, width: 800, height: 600 });
+    if (!blob) return;
+    const { src } = await uploadBoardThumbnail({ workspaceId, boardId, blob, userId });
+    await updateBoardThumb(boardId, { thumbKey: src, cardCount: cards.length });
+    _lastThumbHash.set(boardId, hash);
+  } catch (e) {
+    if (perf.isEnabled()) console.warn('[thumb] generate failed', boardId, e?.message || e);
+  } finally {
+    _thumbInFlight.delete(boardId);
+  }
+}
+
+// Synchronously read the live board's visual data; skip if throttled,
+// unchanged, or empty; otherwise render+upload+stamp. Safe to call from an
+// idle callback.
+function maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId }) {
+  if (!workspaceId || !boardId || ydoc.isDestroyed) return;
+  const now = Date.now();
+  if (now - (_lastThumbAttempt.get(boardId) || 0) < THUMB_THROTTLE_MS) return;
+  let cards, arrows, strokes;
+  try {
+    cards = readCards(ydoc);
+    arrows = ydoc.getArray('arrows').toArray().map(a => (a && a.toJSON) ? a.toJSON() : a);
+    strokes = ydoc.getArray('strokes').toArray().map(s => (s && s.toJSON) ? s.toJSON() : s);
+  } catch (_) { return; }
+  const hash = quickVisualHash(cards, strokes, arrows);
+  if (_lastThumbHash.get(boardId) === hash) return;          // nothing visual changed this session
+  if (cards.length === 0 && strokes.length === 0) {          // empty board — nothing to render
+    _lastThumbHash.set(boardId, hash);
+    return;
+  }
+  _lastThumbAttempt.set(boardId, now);
+  void _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, workspaceId, userId });
+}
+
 function genSessionId() {
   try {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -149,7 +204,7 @@ function clearLocalDraft(boardId, version) {
   } catch (_) {}
 }
 
-export function loadYBoard(boardId, { userId = null, user = null } = {}) {
+export function loadYBoard(boardId, { userId = null, user = null, workspaceId = null, hasThumb = false } = {}) {
   const _loadT0 = perf.isEnabled() ? performance.now() : 0;
   const ydoc = new Y.Doc();
   const cards = ydoc.getMap('cards');
@@ -204,6 +259,13 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
           _scheduleIdle(() => {
             if (destroyed) return;
             void _writePreviewToLS(boardId, ydoc);
+          });
+          // Regenerate the stored R2 preview as edits settle. Internally
+          // throttled (THUMB_THROTTLE_MS) + content-hash-guarded, so most
+          // ticks are no-ops; idle-scheduled so it never steals interaction.
+          _scheduleIdle(() => {
+            if (destroyed) return;
+            maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId });
           });
         } else {
           perf.bump('persistSoon.lsThrottled');
@@ -317,6 +379,17 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
   ready.then(() => {
     if (destroyed) return;
     realtime = attachRealtime(ydoc, boardId, { user });
+    // Backfill the stored preview for boards that don't have one yet (e.g.
+    // existing boards opened for the first time since this shipped, even
+    // view-only with zero edits). Boards that already have a thumb refresh
+    // via the on-edit / on-close paths instead. Idle-scheduled so it never
+    // competes with first paint.
+    if (!hasThumb && workspaceId) {
+      _scheduleIdle(() => {
+        if (destroyed) return;
+        maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId });
+      });
+    }
   });
 
   // Flush on hard page close. The localStorage draft already protects the
@@ -358,6 +431,22 @@ export function loadYBoard(boardId, { userId = null, user = null } = {}) {
           sessionId,
           triggerKind: 'destroy',
         });
+        // Final stored-preview refresh on close, but only if the board was
+        // actually edited this session (otherwise the existing thumb / the
+        // open-backfill already covers it). Capture data synchronously NOW
+        // — ydoc.destroy() runs just below — then fire-and-forget the async
+        // render+upload+stamp from the detached plain-JS arrays.
+        if (workspaceId) {
+          try {
+            const cards = readCards(ydoc);
+            const arrows = ydoc.getArray('arrows').toArray().map(a => (a && a.toJSON) ? a.toJSON() : a);
+            const strokes = ydoc.getArray('strokes').toArray().map(s => (s && s.toJSON) ? s.toJSON() : s);
+            const hash = quickVisualHash(cards, strokes, arrows);
+            if (_lastThumbHash.get(boardId) !== hash && (cards.length || strokes.length)) {
+              void _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, workspaceId, userId });
+            }
+          } catch (_) { /* never block teardown */ }
+        }
       }
     }
     undoManager.destroy();
