@@ -17,11 +17,17 @@ const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === '/api/og') return handleOg(url, request);
-    if (url.pathname.startsWith('/api/tags/')) return handleTagsRoute(url, request, env);
-    const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
-    if (resetMatch) return handleBoardReset(resetMatch[1], request);
-    if (url.pathname === '/api/admin/backfill-image-sizes') return handleBackfillImageSizes(request, env);
+    // Guard every /api/* route: an uncaught throw here would otherwise surface
+    // as a contentless Cloudflare 500. await so rejected promises are caught.
+    try {
+      if (url.pathname === '/api/og') return await handleOg(url, request);
+      if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
+      const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
+      if (resetMatch) return await handleBoardReset(resetMatch[1], request);
+      if (url.pathname === '/api/admin/backfill-image-sizes') return await handleBackfillImageSizes(request, env);
+    } catch (e) {
+      return json({ error: e?.message || String(e) }, 500);
+    }
     return env.ASSETS.fetch(request);
   },
   async scheduled(event, env, ctx) {
@@ -358,6 +364,13 @@ async function handleBackfillImageSizes(request, env) {
   const tierData = await tierRes.json();
   const tier = Array.isArray(tierData) ? tierData[0]?.tier : tierData?.tier;
   if (tier !== 'admin') return json({ error: 'admin only' }, 403);
+
+  // Service-role key authenticates the list/patch/count REST calls below. It's
+  // a Worker secret (not in wrangler.toml); without it those fetches fail. Guard
+  // explicitly so the UI shows the cause instead of a generic error.
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    return json({ error: 'Worker is missing the SUPABASE_SERVICE_ROLE_KEY secret — set it on the soleil-boards Worker.' }, 500);
+  }
 
   if (!env.IMAGES) return json({ error: 'R2 binding missing' }, 500);
 
