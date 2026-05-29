@@ -69,7 +69,7 @@ export function WaitlistModal({ onClose }) {
           <h2 className="waitlist-card-title">Show us your work.</h2>
           <p className="waitlist-card-sub t-body">
             Drop links to your creative work — Instagram, TikTok, YouTube,
-            portfolio, anything. Or skip and we'll accept based on email alone.
+            portfolio, anything.
           </p>
         </div>
 

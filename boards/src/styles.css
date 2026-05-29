@@ -5668,11 +5668,25 @@ body {
 .waitlist-skip-cta:hover:not(:disabled) { box-shadow: var(--shadow-1); transform: translateY(-1px); }
 .waitlist-skip-cta:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── WaitlistModal (pricing-card aesthetic) ─────────────────────────── */
+/* ── WaitlistModal (frosted-glass aesthetic) ─────────────────────────── */
 .waitlist-modal-card {
   max-width: 480px;
   padding: 32px 28px 24px;
-  gap: 20px;
+  gap: 18px;
+  /* Frosted glass — same surface language as .surface-frosted (topbar / menus)
+     and the /welcome box, so the socials popup reads as glass, not a flat card.
+     Overrides .upgrade-modal's solid --bg-2 fill (this rule is declared later).
+     The inset top hairline gives the panel a lit glass edge. */
+  background: rgba(20, 18, 15, 0.72);
+  backdrop-filter: blur(16px) saturate(1.05);
+  -webkit-backdrop-filter: blur(16px) saturate(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: var(--shadow-3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-theme='light'] .waitlist-modal-card {
+  background: rgba(255, 252, 246, 0.82);
+  border-color: rgba(10, 9, 8, 0.08);
+  box-shadow: var(--shadow-3), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .waitlist-card-head { display: flex; flex-direction: column; gap: 6px; }
@@ -5685,13 +5699,15 @@ body {
   flex-wrap: wrap;
 }
 .waitlist-optional-tag {
-  background: var(--bg-3);
+  /* Quieter than a bordered chip — a soft tint pill so it sits behind the
+     eyebrow instead of competing with it. */
+  background: color-mix(in srgb, var(--ink-3) 14%, transparent);
   color: var(--ink-3);
-  border: 1px solid var(--line-2);
+  border: 0;
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 3px 8px;
   font: 600 9px/1 var(--font-sans);
-  letter-spacing: .14em;
+  letter-spacing: .12em;
   text-transform: uppercase;
 }
 .waitlist-card-title {
@@ -5705,7 +5721,15 @@ body {
   margin: 0;
 }
 
-.waitlist-card-form { display: flex; flex-direction: column; gap: 10px; }
+.waitlist-card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Hairline divider sets the pitch (head) apart from the actual form. */
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+[data-theme='light'] .waitlist-card-form { border-top-color: rgba(10, 9, 8, 0.08); }
 
 .waitlist-card-label {
   font: 600 11px/1 var(--font-sans);
