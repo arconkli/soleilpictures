@@ -6,14 +6,18 @@
 // gaps (offline clients, dropped WS frames, missing window callback).
 //
 // Mechanism:
-//  • Primary: Supabase Realtime subscription on `board_state_version` row.
-//    The row's `version` int is bumped on every restore, atomically with the
-//    snapshot insert in the same Postgres transaction (see Section 3 of spec).
-//    Realtime delivers the update durably; even an offline tab gets it on
-//    reconnect via the initial-state replay.
-//  • Fallback: 10-second polling of the same row. Catches the case where
+//  • Primary: Supabase Realtime subscription on INSERTs into
+//    `board_restore_events`. A row is appended there ONLY when a board is
+//    actually restored (an AFTER-UPDATE trigger on board_state_version fires
+//    only when `version` advances — migration 0097). This is the low-churn
+//    replacement for subscribing to board_state_version UPDATEs directly,
+//    which fanned out a message on every op (latest_seq bumps) even though we
+//    only care about restores. board_state_version was removed from the
+//    realtime publication in the same migration.
+//  • Fallback: 10-second polling of `board_state_version.version` (a plain
+//    REST read, unaffected by the publication change). Catches the case where
 //    Realtime is degraded, the tab was throttled, or the browser was offline
-//    longer than Realtime's replay window.
+//    longer than Realtime's window. This is the durability backstop.
 //
 // Until migration 0060 is applied, the `board_state_version` table doesn't
 // exist. In that case the channel quietly emits errors and the polling 404s.
@@ -127,19 +131,25 @@ export function watchBoardRestores(boardId, onRestore) {
     pollTimer = setTimeout(tick, POLL_INTERVAL_MS);
   };
 
-  // Realtime subscription. Skipped if table is known to be missing.
+  // Realtime subscription. Skipped if the version table is known to be missing.
+  // Listens for INSERTs into board_restore_events (one row per real restore),
+  // NOT board_state_version UPDATEs — the latter fired on every op. handleRow
+  // dedupes against the polled baseline via lastVersion, so the two paths
+  // can't double-fire. The event row carries `version`; latest_seq /
+  // latest_snapshot_id are absent (the only consumer, useYBoard, reads only
+  // `version`), so handleRow's `?? 0 / ?? null` defaults apply.
   let channel = null;
   const startRealtime = () => {
     if (tableMissing) return;
     try {
       channel = supabase
-        .channel(`board-state-version:${boardId}`)
+        .channel(`board-restore:${boardId}`)
         .on(
           'postgres_changes',
           {
-            event: 'UPDATE',
+            event: 'INSERT',
             schema: 'public',
-            table: 'board_state_version',
+            table: 'board_restore_events',
             filter: `board_id=eq.${boardId}`,
           },
           (payload) => handleRow(payload?.new)

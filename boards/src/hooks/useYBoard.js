@@ -37,12 +37,12 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
   // Reset signals come from THREE sources, all converging on a single
   // resetEpoch bump that tears down + rebuilds the Y.Doc:
   //
-  //   1) Durable: Supabase Realtime UPDATE on board_state_version row.
-  //      Bumped by the new restore endpoint atomically with the snapshot
-  //      insert. Survives offline reconnect. Active once migration 0060
-  //      is applied.
-  //   2) Durable fallback: 10s polling of the same row. Works without
-  //      Realtime; catches throttled tabs and degraded network.
+  //   1) Realtime: Supabase INSERT on board_restore_events (one row per real
+  //      restore; migration 0097). Low-churn replacement for subscribing to
+  //      board_state_version UPDATEs, which fired on every op.
+  //   2) Durable fallback: 10s polling of board_state_version.version. Works
+  //      without Realtime; catches throttled tabs and degraded network. This
+  //      is the offline-reconnect backstop.
   //   3) Legacy: 'soleil-board-reset' window CustomEvent. Fired by the
   //      old bulletproofRestore + PartyKit broadcast. Kept during the
   //      Phase 4-7 migration window for back-compat.
