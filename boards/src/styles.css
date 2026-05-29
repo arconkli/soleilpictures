@@ -8700,6 +8700,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   position: absolute; inset: 14px;
   display: block;
   overflow: hidden;
+  /* Round 24: size the <img> to the inset box and fit-contain it. Without an
+     explicit width/height an absolutely-positioned <img> renders at its
+     intrinsic bitmap size (up to 800x600) and gets clipped by the wrap's
+     overflow:hidden to a zoomed top-left corner — the "thumbnails don't show
+     the whole board" bug. contain shows the WHOLE render (never crops); the
+     dot-grid wrap bg fills the letterbox margins. */
+  width: calc(100% - 28px);
+  height: calc(100% - 28px);
+  object-fit: contain;
+  object-position: center;
   /* Quiet the preview via opacity only — the brightness/saturate filter
      forced every tile's SVG into its own GPU layer + filter pass, which
      re-evaluated on parent re-renders. With N visible sub-board tiles
