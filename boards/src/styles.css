@@ -1052,7 +1052,7 @@ body {
   color: var(--ink-0);
   font: 500 12px/1.3 var(--font-sans);
 }
-.sb-tag-create-input:focus { outline: 0; border-color: var(--soleil); }
+.sb-tag-create-input:focus-visible { outline: 0; border-color: var(--soleil); }
 
 /* "Did you mean?" suggestion list — appears under the new-tag input
    while the user types, surfacing existing tags whose names are close
@@ -1950,7 +1950,7 @@ body {
   outline: none;
   min-width: 0;
 }
-.share-input:focus { border-color: var(--soleil); }
+.share-input:focus-visible { border-color: var(--soleil); }
 .share-role-select {
   appearance: none;
   background: var(--bg-3);
@@ -6710,6 +6710,20 @@ body {
   border-top-color: var(--soleil, #ffa500);
   animation: ic-upload-spin .9s linear infinite;
 }
+
+/* Shared spinner primitive (components/Spinner.jsx). Single canonical
+   keyframe; on-dark tone for media overlays. */
+.spinner {
+  display: inline-block;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 2px solid var(--line-2);
+  border-top-color: var(--soleil);
+  animation: spin .8s linear infinite;
+}
+.spinner-on-dark { border-color: rgba(255,255,255,.22); border-top-color: var(--soleil); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 .ic-upload-progress {
   font-family: var(--font-mono, monospace);
   font-size: 10px; letter-spacing: .12em;
@@ -8491,6 +8505,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   backdrop-filter: blur(2px);
   animation: pickerFade var(--dur-slow) var(--ease);
 }
+[data-theme='light'] .feedback-bg { background: rgba(28,28,31,.32); }
 
 .feedback-dialog {
   width: min(420px, calc(100vw - 32px));
@@ -8618,9 +8633,28 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-1);
   box-shadow: var(--shadow-2);
   font-size: 12.5px;
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 10px;
   pointer-events: auto;
+  animation: toastIn var(--dur-base) var(--ease);
 }
+.toast.toast-exiting { animation: toastOut var(--dur-base) var(--ease) forwards; }
+@keyframes toastIn  { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(12px); } }
+
+.toast-icon { display: inline-flex; flex: 0 0 auto; }
+.toast-success .toast-icon { color: #10b981; }
+.toast-error   .toast-icon { color: #ef4444; }
+.toast-info    .toast-icon { color: var(--ink-2); }
+
+.toast-dismiss {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin: -3px -3px -3px 0;
+  border: none; border-radius: var(--radius);
+  background: transparent; color: var(--ink-3); cursor: pointer;
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.toast-dismiss:hover { background: var(--bg-hov); color: var(--ink-0); }
 .toast-msg { flex: 1 1 auto; }
 .toast-action {
   background: transparent;
@@ -8634,8 +8668,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .toast-action:hover { background: var(--soleil-soft); }
 
-.toast-success { border-color: rgba(16,185,129,.45); }
-.toast-error { border-color: rgba(239,68,68,.5); }
+.toast-success { border-color: rgba(16,185,129,.45); box-shadow: var(--shadow-2), inset 3px 0 0 #10b981; }
+.toast-error   { border-color: rgba(239,68,68,.5);  box-shadow: var(--shadow-2), inset 3px 0 0 #ef4444; }
 
 
 /* ──────────────────────────── Phase 4.14: thumbnails + list-mode ───────── */
@@ -14871,8 +14905,12 @@ button, [role="button"], a {
     flex: 1 1 auto;
     overflow-y: auto;
   }
-  /* Headers / close buttons get larger tap targets on phone. */
-  .modal-x { width: 40px; height: 40px; }
+  /* Headers / close buttons get larger (≥44px) tap targets on phone. */
+  .modal-x,
+  .modal-shell-x,
+  .share-close,
+  .cfont-x,
+  .account-modal-x { width: 44px; height: 44px; }
   /* Body padding is a bit roomier to feel like a sheet. */
   .modal-body { padding: 16px; }
 

@@ -3,6 +3,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
+import { Spinner } from './Spinner.jsx';
 import { resolveSrc } from '../lib/r2.js';
 import * as audioBus from '../lib/audioBus.js';
 import { EditableText } from './EditableText.jsx';
@@ -538,7 +539,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
           : <ImagePlaceholder label={label} tone={tone} aspect={aspect} />}
         {pending && (
           <div className="ic-upload-overlay" aria-label="Uploading image">
-            <div className="ic-upload-spinner" />
+            <Spinner size={22} tone="on-dark" label="Uploading image" />
             {uploadProgress != null && (
               <div className="ic-upload-progress">{Math.round(uploadProgress * 100)}%</div>
             )}

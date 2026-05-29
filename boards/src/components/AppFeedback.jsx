@@ -1,5 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { CheckCircle, WarningCircle, Info, X } from '@phosphor-icons/react';
+import { Icon } from './Icon.jsx';
+
+const TOAST_ICON = { success: CheckCircle, error: WarningCircle, info: Info };
+const TOAST_EXIT_MS = 200;
 
 const FeedbackContext = createContext(null);
 
@@ -58,17 +63,19 @@ export function FeedbackProvider({ children }) {
     });
   }), []);
 
+  const dismissToast = useCallback((id) => {
+    // Flag for the exit animation, then remove after it plays.
+    setToasts(current => current.map(item => item.id === id ? { ...item, exiting: true } : item));
+    window.setTimeout(() => {
+      setToasts(current => current.filter(item => item.id !== id));
+    }, TOAST_EXIT_MS);
+  }, []);
   const toast = useCallback(({ type = 'info', message, action = null, ttl = 4200 }) => {
     if (!message) return;
     const id = nextId.current++;
-    setToasts(current => [...current, { id, type, message, action }]);
-    window.setTimeout(() => {
-      setToasts(current => current.filter(item => item.id !== id));
-    }, Math.max(1000, ttl));
-  }, []);
-  const dismissToast = useCallback((id) => {
-    setToasts(current => current.filter(item => item.id !== id));
-  }, []);
+    setToasts(current => [...current, { id, type, message, action, exiting: false }]);
+    window.setTimeout(() => dismissToast(id), Math.max(1000, ttl));
+  }, [dismissToast]);
 
   const value = useMemo(() => ({ confirm, prompt, toast }), [confirm, prompt, toast]);
 
@@ -81,7 +88,12 @@ export function FeedbackProvider({ children }) {
       <FeedbackDialog dialog={dialog} onClose={closeDialog} />
       <div className="toast-stack" aria-live="polite" aria-atomic="false">
         {toasts.map(item => (
-          <div key={item.id} className={`toast toast-${item.type}`}>
+          <div key={item.id}
+               className={`toast toast-${item.type}${item.exiting ? ' toast-exiting' : ''}`}
+               role={item.type === 'error' ? 'alert' : undefined}>
+            <span className="toast-icon" aria-hidden="true">
+              <Icon as={TOAST_ICON[item.type] || Info} size={16} weight="bold" />
+            </span>
             <span className="toast-msg">{item.message}</span>
             {item.action && (
               <button type="button"
@@ -93,6 +105,9 @@ export function FeedbackProvider({ children }) {
                 {item.action.label || 'Undo'}
               </button>
             )}
+            <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={() => dismissToast(item.id)}>
+              <Icon as={X} size={14} />
+            </button>
           </div>
         ))}
       </div>
