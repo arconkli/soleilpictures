@@ -195,7 +195,21 @@ export async function uploadBoardThumbnail({ workspaceId, boardId, blob, userId 
       uploaded_by: userId,
       retention_locked_until: THUMB_RETENTION_LOCK,
     }, { onConflict: 'storage_path', ignoreDuplicates: true });
-  if (error) console.warn('[uploads] thumb images row upsert failed', error);
+  // The R2 bytes and this row are independent writes. /sign-reads only
+  // hands out a URL for keys that HAVE a row here, so a failed/missing
+  // row means a board whose thumb_key is stamped but can never resolve —
+  // a permanent "locked" thumbnail. Never let the caller stamp thumb_key
+  // unless a servable row is guaranteed to exist. A real failure (RLS
+  // denial, bad on-conflict inference, network) surfaces as `error`; a
+  // genuine duplicate is success and returns none, so confirm explicitly.
+  if (error) throw new Error(`thumb images row upsert failed: ${error.message || error}`);
+  const { data: confirm, error: confirmErr } = await supabase
+    .from('images')
+    .select('storage_path')
+    .eq('storage_path', key)
+    .limit(1);
+  if (confirmErr) throw new Error(`thumb images row confirm failed: ${confirmErr.message || confirmErr}`);
+  if (!confirm || confirm.length === 0) throw new Error('thumb images row missing after upsert');
   return { src: `r2:${key}`, key };
 }
 

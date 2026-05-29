@@ -157,10 +157,11 @@ function fillTriangle(ctx, ptsStr) {
 // Draw all arrows in board-space (ctx is already board→canvas scaled).
 // `pxPerUnit` = backing canvas px per board unit; used to floor thin arrows
 // so they stay visible at fit-to-content scale.
-function drawArrows(ctx, arrows, cards, pxPerUnit) {
+function drawArrows(ctx, arrows, cards, pxPerUnit, precomputedPlacements) {
   if (!arrows || !arrows.length) return;
-  const actx = buildArrowCtx(cards);
-  const placements = computeArrowAttachments(arrows, actx);
+  // buildDrawPlan already resolves attachments to fold endpoints into the
+  // bounds; reuse them here instead of recomputing the same fan-out.
+  const placements = precomputedPlacements || computeArrowAttachments(arrows, buildArrowCtx(cards));
   const obstacleRects = (cards || []).map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w || 100, h: c.h || 100 }));
   const MIN_PX = 1.6;
   for (let i = 0; i < arrows.length; i++) {
@@ -324,29 +325,60 @@ function buildDrawPlan(cards, strokes, arrows, boards) {
   if ((!cards || cards.length === 0) && (!strokes || strokes.length === 0)) return null;
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const ext = (x, y) => {
+    if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) return;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  };
   for (const c of cards || []) {
     if (typeof c.x !== 'number' || typeof c.y !== 'number') continue;
-    minX = Math.min(minX, c.x);
-    minY = Math.min(minY, c.y);
-    maxX = Math.max(maxX, c.x + (c.w || 100));
-    maxY = Math.max(maxY, c.y + (c.h || 100));
+    ext(c.x, c.y);
+    ext(c.x + (c.w || 100), c.y + (c.h || 100));
+  }
+  // Freehand strokes — fold every point so a stroke extending past the
+  // cards stays in frame (cards alone used to define the bounds, which
+  // clipped any drawing/arrow outside the card cluster).
+  for (const s of strokes || []) {
+    if (!s || !Array.isArray(s.points)) continue;
+    for (const p of s.points) if (Array.isArray(p)) ext(p[0], p[1]);
+  }
+  // Arrows — resolve attachments ONCE here (threaded into drawArrows below
+  // so we don't compute them twice) and fold both resolved endpoints so
+  // connectors and arrowheads stay in frame too.
+  let arrowPlacements = null;
+  if (arrows && arrows.length) {
+    arrowPlacements = computeArrowAttachments(arrows, buildArrowCtx(cards));
+    for (const pl of arrowPlacements) {
+      if (pl?.from?.point) ext(pl.from.point.x, pl.from.point.y);
+      if (pl?.to?.point)   ext(pl.to.point.x,   pl.to.point.y);
+    }
   }
   if (!isFinite(minX)) return null;
+
+  // fontSize keys off the TRUE content span (pre-margin) so labels keep a
+  // sane size on small boards.
+  const fontSize = Math.max(12, Math.min(Math.max(1, maxX - minX), Math.max(1, maxY - minY)) * 0.04);
+  // Uniform breathing-room margin so nothing renders flush to the tile edge.
+  // planToBlob preserves aspect ratio, so a uniform board-space margin stays
+  // visually uniform in the output.
+  const margin = Math.max(Math.min(maxX - minX, maxY - minY) * 0.04, 24);
+  minX -= margin; minY -= margin; maxX += margin; maxY += margin;
   const contentW = Math.max(1, maxX - minX);
   const contentH = Math.max(1, maxY - minY);
-  const fontSize = Math.max(12, Math.min(contentW, contentH) * 0.04);
 
   // Sort cards by z (matches BoardCard render order).
   const sorted = (cards || []).slice().sort((a, b) => (a.z || 0) - (b.z || 0));
 
-  return { sorted, strokes: strokes || [], arrows: arrows || [], minX, minY, contentW, contentH, fontSize, boards };
+  return { sorted, strokes: strokes || [], arrows: arrows || [], arrowPlacements, minX, minY, contentW, contentH, fontSize, boards };
 }
 
 // Async: render the plan to a real canvas, encode as a blob. Two-phase:
 // first kick off all image loads in parallel, then draw everything in
 // order. Returns a Blob URL or null.
 async function planToBlob(plan, { width, height, allowImages }) {
-  const { sorted, strokes, arrows, minX, minY, contentW, contentH, fontSize, boards } = plan;
+  const { sorted, strokes, arrows, arrowPlacements, minX, minY, contentW, contentH, fontSize, boards } = plan;
 
   // Choose canvas size to preserve aspect ratio inside the target box.
   const contentAspect = contentW / contentH;
@@ -543,7 +575,7 @@ async function planToBlob(plan, { width, height, allowImages }) {
   }
 
   // Arrows / connectors — drawn above cards, below freehand strokes.
-  drawArrows(ctx, arrows, sorted, pxPerUnit);
+  drawArrows(ctx, arrows, sorted, pxPerUnit, arrowPlacements);
 
   // Strokes overlay.
   for (const s of strokes) {

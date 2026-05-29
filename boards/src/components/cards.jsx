@@ -11,6 +11,7 @@ import { RichNoteEditor } from './RichNoteEditor.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
+import { useThumbnailBackfill } from '../hooks/useThumbnailBackfill.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { renderHtmlWithAutoLinks } from '../lib/renderHtmlWithAutoLinks.jsx';
@@ -304,6 +305,12 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
   const preview = useBoardPreview(board.id, isList || (!hasStoredThumb && thumbVisible));
   const liveHasPreview = !isList && !hasStoredThumb && preview &&
     (preview.cards?.length > 0 || preview.strokes?.length > 0);
+
+  // Self-heal: a visible tile-mode board with no stored thumbnail has its
+  // already-decoded preview persisted to R2 (writers only) so the next load
+  // is a cheap static image. No-ops for list mode, stored thumbs, empty
+  // boards, and viewers (presign 403). See useThumbnailBackfill.
+  useThumbnailBackfill({ board, preview, boards, enabled: !isList && !hasStoredThumb && thumbVisible });
 
   // Item count survives without a decode thanks to boards.card_count; fall
   // back to the live preview's count (list mode / pre-backfill tiles).
