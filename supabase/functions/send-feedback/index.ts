@@ -30,6 +30,7 @@ interface Body {
   url?: string;
   viewport?: string;
   user_agent?: string;
+  image_data_url?: string;
 }
 
 Deno.serve(async (req) => {
@@ -43,6 +44,15 @@ Deno.serve(async (req) => {
   const message = String(body.message || "").trim();
   if (!KINDS.has(kind)) return json({ error: "invalid kind" }, 400);
   if (message.length < 2 || message.length > 4000) return json({ error: "message must be 2..4000 chars" }, 400);
+
+  // Optional screenshot — a base64 data URL the client already downscaled.
+  let imageDataUrl: string | null = null;
+  if (body.image_data_url) {
+    const v = String(body.image_data_url);
+    if (!v.startsWith("data:image/")) return json({ error: "invalid image" }, 400);
+    if (v.length > 3_000_000) return json({ error: "image too large" }, 413);
+    imageDataUrl = v;
+  }
 
   // Resolve user_id from bearer if present; no auth required.
   let userId: string | null = null;
@@ -67,6 +77,7 @@ Deno.serve(async (req) => {
     url:        body.url        ? String(body.url).slice(0, 1024)      : null,
     viewport:   body.viewport   ? String(body.viewport).slice(0, 64)   : null,
     user_agent: body.user_agent ? String(body.user_agent).slice(0, 512): null,
+    image_data_url: imageDataUrl,
   });
   if (ins.error) return json({ error: ins.error.message }, 500);
   return json({ ok: true }, 200);
