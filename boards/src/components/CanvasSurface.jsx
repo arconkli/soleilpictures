@@ -779,11 +779,23 @@ export function CanvasSurface({
   const feedback = useFeedback();
 
   // Tracks whether we've shown the "subscribe to edit" toast for the
-  // currently-open read-only board. Reset on board change so navigating
-  // between two read-only boards yields one toast per board (not one
-  // forever after the first attempt).
-  const dragBlockedToastShownRef = useRef(false);
-  useEffect(() => { dragBlockedToastShownRef.current = false; }, [board?.id]);
+  // currently-open read-only board. Covers ALL edit attempts (drag,
+  // Delete key, etc.) so the user sees one toast on first interaction
+  // instead of one per channel. Reset on board change.
+  const editBlockedToastShownRef = useRef(false);
+  useEffect(() => { editBlockedToastShownRef.current = false; }, [board?.id]);
+  const showEditBlockedToast = () => {
+    if (canEdit) return;
+    if (boardPermission?.source !== 'tier-demoted') return;
+    if (editBlockedToastShownRef.current) return;
+    editBlockedToastShownRef.current = true;
+    feedback.toast({
+      type: 'info',
+      message: 'Subscribe to edit shared boards.',
+      action: onRequestUpgrade ? { label: 'Upgrade', onClick: onRequestUpgrade } : null,
+      ttl: 5000,
+    });
+  };
 
   // Briefly enable smooth transform after programmatic zoom changes.
   const enableSmoothTransform = useCallback(() => {
@@ -2013,7 +2025,9 @@ export function CanvasSurface({
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selected.size > 0 || selectedStrokes.size > 0 || selectedArrows.size > 0) {
-          e.preventDefault(); doDeleteSelected();
+          e.preventDefault();
+          if (!canEdit) { showEditBlockedToast(); return; }
+          doDeleteSelected();
         }
         return;
       }
@@ -2190,21 +2204,12 @@ export function CanvasSurface({
     if (e.button !== 0) return;
     // View-only board: kill the drag before it starts so the card doesn't
     // visually follow the cursor only to snap back when the mutator no-ops.
-    // For tier-demoted users we surface a one-shot toast with an upgrade
-    // CTA; subsequent attempts on this same board are silent (the banner
-    // is the standing explanation).
+    // The one-shot toast covers any first edit attempt (drag, Delete key,
+    // etc.); subsequent attempts on this board are silent.
     if (!canEdit) {
       e.stopPropagation();
       e.preventDefault();
-      if (boardPermission?.source === 'tier-demoted' && !dragBlockedToastShownRef.current) {
-        dragBlockedToastShownRef.current = true;
-        feedback.toast({
-          type: 'info',
-          message: 'Subscribe to edit shared boards.',
-          action: onRequestUpgrade ? { label: 'Upgrade', onClick: onRequestUpgrade } : null,
-          ttl: 5000,
-        });
-      }
+      showEditBlockedToast();
       return;
     }
     // Eyedropper mode — clicking an image card samples a pixel and
@@ -4718,11 +4723,11 @@ export function CanvasSurface({
             )}
           </div>
         )}
-        {selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
+        {canEdit && selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
                style={{ width: RESIZE_HANDLE_PX, height: RESIZE_HANDLE_PX }} />
         )}
-        {selectedTool === 'select' && isSelected && canRotate && (
+        {canEdit && selectedTool === 'select' && isSelected && canRotate && (
           <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title="Drag to rotate (shift = 15° steps)" />
         )}
       </div>
@@ -5505,7 +5510,7 @@ export function CanvasSurface({
             matching the per-card resize affordance, but operating on
             the bounding box of every selected card. Drag to uniformly
             scale the whole selection (Shift to free-stretch). */}
-        {selectedTool === 'select' && multiSelectionBounds && (() => {
+        {canEdit && selectedTool === 'select' && multiSelectionBounds && (() => {
           // While dragging, derive bounds from multiResize.live so the
           // handle tracks the live (in-progress) rect.
           let bounds = multiSelectionBounds;
