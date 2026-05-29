@@ -4660,6 +4660,21 @@ body {
 }
 
 .welcome-card { padding: 22px 24px; gap: 16px; }
+
+/* The /welcome "request access" box. Surface comes from .surface-frosted
+   (the shared topbar/menu/modal glass); this only owns the layout so the
+   frosted background + blur aren't overridden by a solid card fill. */
+.welcome-request-card {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
 .welcome-card-foot {
   margin-top: 4px;
   color: var(--ink-3);
