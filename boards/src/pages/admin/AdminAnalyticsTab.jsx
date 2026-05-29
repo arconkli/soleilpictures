@@ -1,11 +1,13 @@
-// AdminAnalyticsTab — orchestrator. Fires the 5 admin analytics RPCs in
-// parallel on mount and renders Funnel + Cards + TierCompare + TopUsers
-// in a single scroll. All data is read-only and live (no caching past
-// the initial fetch — refresh the page to refetch).
+// AdminAnalyticsTab — orchestrator. Fires the analytics RPCs with
+// allSettled so a single failed or not-yet-deployed RPC renders a partial
+// page rather than blanking the tab; only a total failure shows retry.
+// Funnel + Cards + TierCompare + TopUsers + Storage render in one scroll.
 
-import { useEffect, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 import { supabase } from '../../lib/supabase.js';
+import { formatPct, formatCount } from '../../lib/adminFormat.js';
+import { useAdminData } from './useAdminData.js';
+import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminFunnel } from './AdminFunnel.jsx';
 import { AdminCardsSection } from './AdminCardsSection.jsx';
 import { AdminTierCompareTable } from './AdminTierCompareTable.jsx';
@@ -15,75 +17,65 @@ import { AdminStorageSection } from './AdminStorageSection.jsx';
 const SOLEIL = '#ffa500';
 
 export function AdminAnalyticsTab() {
-  const [funnel, setFunnel]         = useState([]);
-  const [cardStats, setCardStats]   = useState(null);
-  const [perDay, setPerDay]         = useState([]);
-  const [tierCompare, setTierCompare] = useState([]);
-  const [topDemo, setTopDemo]       = useState([]);
-  const [topPaid, setTopPaid]       = useState([]);
-  const [acquisition, setAcquisition] = useState([]);
-  const [activation, setActivation]   = useState(null);
-  const [cohorts, setCohorts]         = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    Promise.all([
-      supabase.rpc('admin_event_funnel',         { p_days: 30 }),
-      supabase.rpc('admin_card_stats',           { p_days: 30 }),
-      supabase.rpc('admin_cards_per_day',        { p_days: 30 }),
+  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
+    const results = await Promise.allSettled([
+      supabase.rpc('admin_event_funnel',      { p_days: 30 }),
+      supabase.rpc('admin_card_stats',        { p_days: 30 }),
+      supabase.rpc('admin_cards_per_day',     { p_days: 30 }),
       supabase.rpc('admin_tier_usage_compare'),
-      supabase.rpc('admin_top_users',            { p_tier: 'demo', p_limit: 20 }),
-      supabase.rpc('admin_top_users',            { p_tier: 'paid', p_limit: 20 }),
+      supabase.rpc('admin_top_users',         { p_tier: 'demo', p_limit: 20 }),
+      supabase.rpc('admin_top_users',         { p_tier: 'paid', p_limit: 20 }),
       supabase.rpc('admin_acquisition_breakdown'),
       supabase.rpc('admin_activation_funnel'),
-      supabase.rpc('admin_retention_cohorts',    { p_window_days: 60 }),
-    ])
-      .then(([fn, cs, pd, tc, td, tp, ac, af, ch]) => {
-        if (cancelled) return;
-        if (fn.error) throw fn.error;
-        if (cs.error) throw cs.error;
-        if (pd.error) throw pd.error;
-        if (tc.error) throw tc.error;
-        if (td.error) throw td.error;
-        if (tp.error) throw tp.error;
-        // Newly-added — tolerate missing if migration hasn't rolled yet.
-        setFunnel(fn.data       || []);
-        setCardStats(cs.data    || null);
-        setPerDay(pd.data       || []);
-        setTierCompare(tc.data  || []);
-        setTopDemo(td.data      || []);
-        setTopPaid(tp.data      || []);
-        if (!ac.error) setAcquisition(ac.data || []);
-        if (!af.error) setActivation(af.data || null);
-        if (!ch.error) setCohorts(ch.data || []);
-      })
-      .catch((e) => { if (!cancelled) setError(e?.message || String(e)); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      supabase.rpc('admin_retention_cohorts', { p_window_days: 60 }),
+    ]);
+    const [fn, cs, pd, tc, td, tp, ac, af, ch] = results;
+    const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
+    const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
+    const core = [fn, cs, pd, tc, td, tp];
+    if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
+      throw errOf(core.find(errOf)) || new Error('Failed to load analytics');
+    }
+    return {
+      funnel:      val(fn) || [],
+      cardStats:   val(cs),
+      perDay:      val(pd) || [],
+      tierCompare: val(tc) || [],
+      topDemo:     val(td) || [],
+      topPaid:     val(tp) || [],
+      acquisition: val(ac) || [],
+      activation:  val(af),
+      cohorts:     val(ch) || [],
+    };
   }, []);
-
-  if (loading) return <div className="admin-empty">Loading analytics…</div>;
-  if (error)   return <div className="auth-error t-meta" style={{ padding: 40 }}>{error}</div>;
 
   return (
     <div className="admin-analytics">
-      <CloudflareAnalyticsLink />
-      {activation && <ActivationFunnel data={activation} />}
-      {cohorts.length > 0 && <RetentionCohorts rows={cohorts} />}
-      {acquisition.length > 0 && <AcquisitionBreakdown rows={acquisition} />}
-      <AdminFunnel rows={funnel} />
-      <AdminCardsSection perDay={perDay} cardStats={cardStats} />
-      <AdminTierCompareTable rows={tierCompare} />
-      <AdminTopUsersList topDemo={topDemo} topPaid={topPaid} />
-      <AdminStorageSection />
+      <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated} />
+
+      <AdminAsync
+        loading={loading}
+        error={error}
+        onRetry={refresh}
+        skeleton={<><AdminSkeleton variant="chart" /><div style={{ height: 16 }} /><AdminSkeleton variant="table" rows={6} cols={5} /></>}
+      >
+        <div className={refreshing ? 'is-refreshing' : ''}>
+          <CloudflareAnalyticsLink />
+          {data?.activation && <ActivationFunnel data={data.activation} />}
+          {data?.cohorts.length > 0 && <RetentionCohorts rows={data.cohorts} />}
+          {data?.acquisition.length > 0 && <AcquisitionBreakdown rows={data.acquisition} />}
+          <AdminFunnel rows={data?.funnel || []} />
+          <AdminCardsSection perDay={data?.perDay || []} cardStats={data?.cardStats} />
+          <AdminTierCompareTable rows={data?.tierCompare || []} />
+          <AdminTopUsersList topDemo={data?.topDemo || []} topPaid={data?.topPaid || []} />
+          <AdminStorageSection />
+        </div>
+      </AdminAsync>
     </div>
   );
 }
 
-// ── New: activation funnel — signed_up → first_X_at counts ──────────
+// ── Activation funnel — signed_up → first_X_at counts ──────────────
 function ActivationFunnel({ data }) {
   const steps = [
     { key: 'signed_up',      label: 'Signed up' },
@@ -112,7 +104,7 @@ function ActivationFunnel({ data }) {
             <YAxis dataKey="name" type="category" stroke="var(--ink-3)" fontSize={11} tickLine={false} axisLine={false} width={130} />
             <Tooltip
               contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
-              formatter={(v, _n, p) => [`${v.toLocaleString()} (${(p.payload.pct * 100).toFixed(1)}%)`, 'users']}
+              formatter={(v, _n, p) => [`${formatCount(v)} (${formatPct(p.payload.pct)})`, 'users']}
             />
             <Bar dataKey="count" radius={[0, 3, 3, 0]}>
               {chartData.map((_, i) => <Cell key={i} fill={SOLEIL} fillOpacity={0.35 + 0.6 * (1 - i / chartData.length)} />)}
@@ -124,10 +116,8 @@ function ActivationFunnel({ data }) {
   );
 }
 
-// ── New: retention cohorts heatmap ──────────────────────────────────
+// ── Retention cohorts heatmap ──────────────────────────────────────
 function RetentionCohorts({ rows }) {
-  // Pivot rows {cohort_week, day_offset, active_pct, cohort_size} into
-  // a {week: [pct per offset]} matrix.
   const byWeek = new Map();
   let maxOffset = 0;
   for (const r of rows) {
@@ -161,7 +151,7 @@ function RetentionCohorts({ rows }) {
                   <td className="admin-muted" style={{ whiteSpace: 'nowrap' }}>{w}</td>
                   <td className="admin-muted">{row.size}</td>
                   {offsets.map((o) => {
-                    const pct = row.cells[o] || 0;
+                    const pct = Math.max(0, Math.min(1, row.cells[o] || 0));
                     const bg = `rgba(255,165,0,${pct})`;
                     const ink = pct > 0.5 ? '#0a0908' : 'var(--ink-1)';
                     return (
@@ -180,7 +170,7 @@ function RetentionCohorts({ rows }) {
   );
 }
 
-// ── New: acquisition breakdown ──────────────────────────────────────
+// ── Acquisition breakdown ──────────────────────────────────────────
 function AcquisitionBreakdown({ rows }) {
   return (
     <section className="admin-chart-panel admin-chart-panel-wide">
@@ -193,18 +183,18 @@ function AcquisitionBreakdown({ rows }) {
           <thead>
             <tr>
               <th>Source</th>
-              <th>Signups</th>
-              <th>Paid</th>
-              <th>Conversion</th>
+              <th className="num">Signups</th>
+              <th className="num">Paid</th>
+              <th className="num">Conversion</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.source}>
                 <td className="admin-email">{r.source}</td>
-                <td className="admin-muted">{r.signups}</td>
-                <td className="admin-muted">{r.converted}</td>
-                <td className="admin-muted">{r.conversion ? `${(Number(r.conversion) * 100).toFixed(1)}%` : '—'}</td>
+                <td className="admin-muted num">{formatCount(r.signups)}</td>
+                <td className="admin-muted num">{formatCount(r.converted)}</td>
+                <td className="admin-muted num">{r.conversion ? formatPct(Number(r.conversion)) : '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -214,11 +204,7 @@ function AcquisitionBreakdown({ rows }) {
   );
 }
 
-// Small banner pointing to the Cloudflare Web Analytics dashboard.
-// CWA covers anonymous marketing-side metrics (visits, referrers,
-// countries, Web Vitals) that we don't replicate here — the custom
-// funnel above owns the authed product-side metrics (tier conversion,
-// per-user activity). Two complementary surfaces, one click apart.
+// Banner pointing to the Cloudflare Web Analytics dashboard.
 function CloudflareAnalyticsLink() {
   const cwaUrl = 'https://dash.cloudflare.com/?to=/:account/web-analytics';
   const tokenSet = !!import.meta.env.VITE_CF_ANALYTICS_TOKEN;
@@ -234,12 +220,7 @@ function CloudflareAnalyticsLink() {
             {!tokenSet && ' Beacon not wired — set VITE_CF_ANALYTICS_TOKEN.'}
           </div>
         </div>
-        <a
-          className="admin-action admin-action-primary"
-          href={cwaUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
+        <a className="admin-action admin-action-primary" href={cwaUrl} target="_blank" rel="noreferrer">
           Open Cloudflare ↗
         </a>
       </div>

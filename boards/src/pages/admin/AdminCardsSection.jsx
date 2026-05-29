@@ -10,19 +10,9 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   Cell,
 } from 'recharts';
+import { shortDate, TIER_COLORS } from '../../lib/adminFormat.js';
 
-const TIER_COLORS = {
-  admin:    '#ffa500',
-  paid:     '#50c878',
-  demo:     '#9aa0aa',
-  waitlist: '#7a8090',
-};
 const SOLEIL = '#ffa500';
-
-function shortDate(d) {
-  const dt = new Date(d);
-  return `${dt.getMonth() + 1}/${dt.getDate()}`;
-}
 
 export function AdminCardsSection({ perDay, cardStats }) {
   const byKind = cardStats?.by_kind || {};

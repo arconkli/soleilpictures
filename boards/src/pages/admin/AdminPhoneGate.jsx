@@ -1,24 +1,21 @@
-import { SoleilWordmark } from '../../components/SoleilWordmark.jsx';
+import { EmptyState } from '../../components/EmptyState.jsx';
+import { Browsers } from '../../lib/icons.js';
 
-// Phone-width gate for /admin. Admin tabs (Universe, Users, Waitlist,
-// Analytics, Overview, Feedback) are desktop-only — they're table /
-// grid / GPU-instanced-graph dense. Per the mobile overhaul scoping
-// decision, we don't build phone layouts for them.
+// Phone-width gate for /admin. The admin tabs (Overview, Analytics, Users,
+// Grants, Waitlist, Feedback, Tagging, Universe) are table / grid /
+// GPU-instanced-graph dense and desktop-only — per the mobile overhaul
+// scoping decision we don't build phone layouts for them.
 //
 // Rendered from AdminPage.jsx when useBreakpoint().isPhone is true.
 export function AdminPhoneGate() {
   return (
     <div className="welcome-screen">
-      <div className="welcome-card welcome-card-tight">
-        <SoleilWordmark size="display" />
-        <p className="welcome-copy t-body">
-          The admin dashboard requires a larger screen.<br />
-          Open this page on a tablet or desktop.
-        </p>
-        <button className="auth-link" onClick={() => { window.location.assign('/'); }}>
-          ← Back to Clusters
-        </button>
-      </div>
+      <EmptyState
+        icon={Browsers}
+        title="Open on a larger screen"
+        body="The admin dashboard is desktop-only. Open this page on a tablet or desktop."
+        action={{ label: '← Back to Clusters', onClick: () => window.location.assign('/') }}
+      />
     </div>
   );
 }

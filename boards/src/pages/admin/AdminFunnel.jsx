@@ -1,11 +1,11 @@
 // AdminFunnel — visual + tabular conversion funnel.
-// Reads admin_event_funnel(p_days) which returns rows
-//   { event, sessions, users, ord }
-// in stage order. Computes drop-off relative to (a) the first stage and
-// (b) the previous stage so the table shows both top-of-funnel and
-// step-by-step conversion.
+// Reads admin_event_funnel(p_days) → { event, sessions, users, ord } in
+// stage order. Shows drop-off relative to the first stage and the
+// previous stage. Percentages use the shared formatPct (1 decimal, with a
+// "<1%" floor) so a real-but-small conversion never rounds to "0%".
 
 import { ResponsiveContainer, Funnel, FunnelChart, LabelList, Tooltip } from 'recharts';
+import { formatPct, formatCount } from '../../lib/adminFormat.js';
 
 const LABELS = {
   landing_view:        'Landing view',
@@ -32,17 +32,17 @@ export function AdminFunnel({ rows }) {
     );
   }
 
-  const first = rows[0]?.sessions || 0;
-  const data = rows.map((r, i) => {
+  // Defensive: render in declared stage order regardless of row order.
+  const ordered = [...rows].sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0));
+  const first = ordered[0]?.sessions || 0;
+  const data = ordered.map((r, i) => {
     const sessions = Number(r.sessions) || 0;
-    const prev = i > 0 ? (Number(rows[i - 1].sessions) || 0) : null;
-    const fromTopPct = first > 0 ? (sessions / first) * 100 : 0;
-    const stepPct    = prev && prev > 0 ? (sessions / prev) * 100 : null;
+    const prev = i > 0 ? (Number(ordered[i - 1].sessions) || 0) : null;
     return {
       name: LABELS[r.event] || r.event,
       value: sessions,
-      fromTopPct,
-      stepPct,
+      fromTop: first > 0 ? sessions / first : 0,
+      step: prev && prev > 0 ? sessions / prev : null,
       dropFromPrev: prev != null ? prev - sessions : 0,
     };
   });
@@ -51,14 +51,10 @@ export function AdminFunnel({ rows }) {
     <section className="admin-chart-panel admin-chart-panel-wide">
       <header className="admin-chart-head">
         <h3 className="admin-chart-title">Conversion funnel · last 30 days</h3>
-        <span className="admin-chart-sub t-meta">
-          {first.toLocaleString()} sessions at top
-        </span>
+        <span className="admin-chart-sub t-meta">{formatCount(first)} sessions at top</span>
       </header>
 
       <div className="admin-funnel-grid">
-
-        {/* Visual funnel */}
         <div className="admin-funnel-chart">
           <ResponsiveContainer width="100%" height={Math.max(220, data.length * 38)}>
             <FunnelChart>
@@ -67,13 +63,7 @@ export function AdminFunnel({ rows }) {
                 labelStyle={{ color: 'var(--ink-1)' }}
                 itemStyle={{ color: 'var(--soleil)' }}
               />
-              <Funnel
-                dataKey="value"
-                data={data}
-                fill="#ffa500"
-                stroke="var(--bg-1)"
-                isAnimationActive={false}
-              >
+              <Funnel dataKey="value" data={data} fill="#ffa500" stroke="var(--bg-1)" isAnimationActive={false}>
                 <LabelList position="right" dataKey="name" stroke="none" fill="var(--ink-1)" fontSize={11} />
                 <LabelList position="left"  dataKey="value" stroke="none" fill="var(--ink-2)" fontSize={11} />
               </Funnel>
@@ -81,40 +71,32 @@ export function AdminFunnel({ rows }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Stage-by-stage table */}
         <div className="admin-funnel-table">
           <table className="admin-table">
             <thead>
               <tr>
                 <th>Stage</th>
-                <th style={{ textAlign: 'right' }}>Sessions</th>
-                <th style={{ textAlign: 'right' }}>From top</th>
-                <th style={{ textAlign: 'right' }}>Step</th>
-                <th style={{ textAlign: 'right' }}>Drop</th>
+                <th className="num">Sessions</th>
+                <th className="num">From top</th>
+                <th className="num">Step</th>
+                <th className="num">Drop</th>
               </tr>
             </thead>
             <tbody>
               {data.map((d, i) => (
-                <tr key={d.name}>
+                <tr key={`${d.name}-${i}`}>
                   <td>{d.name}</td>
-                  <td style={{ textAlign: 'right' }} className="admin-funnel-num">
-                    {d.value.toLocaleString()}
-                  </td>
-                  <td style={{ textAlign: 'right' }} className="admin-funnel-pct">
-                    {(d.fromTopPct ?? 0).toFixed(0)}%
-                  </td>
-                  <td style={{ textAlign: 'right' }} className="admin-funnel-pct">
-                    {i === 0 || d.stepPct == null ? '—' : `${d.stepPct.toFixed(0)}%`}
-                  </td>
-                  <td style={{ textAlign: 'right' }} className={`admin-funnel-drop ${i > 0 && d.dropFromPrev > 0 ? 'is-loss' : ''}`}>
-                    {i === 0 ? '—' : (d.dropFromPrev > 0 ? `-${d.dropFromPrev.toLocaleString()}` : '0')}
+                  <td className="num admin-funnel-num">{formatCount(d.value)}</td>
+                  <td className="num admin-funnel-pct">{formatPct(d.fromTop)}</td>
+                  <td className="num admin-funnel-pct">{i === 0 || d.step == null ? '—' : formatPct(d.step)}</td>
+                  <td className={`num admin-funnel-drop ${i > 0 && d.dropFromPrev > 0 ? 'is-loss' : ''}`}>
+                    {i === 0 ? '—' : (d.dropFromPrev > 0 ? `-${formatCount(d.dropFromPrev)}` : '0')}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-
       </div>
     </section>
   );

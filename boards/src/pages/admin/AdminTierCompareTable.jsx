@@ -1,6 +1,9 @@
 // AdminTierCompareTable — per-tier averages + totals for cards/boards.
 // Read from admin_tier_usage_compare().
 
+import { formatCount } from '../../lib/adminFormat.js';
+import { TierPill } from './AdminPills.jsx';
+
 export function AdminTierCompareTable({ rows }) {
   if (!rows || rows.length === 0) {
     return (
@@ -23,24 +26,22 @@ export function AdminTierCompareTable({ rows }) {
         <thead>
           <tr>
             <th>Tier</th>
-            <th style={{ textAlign: 'right' }}>Users</th>
-            <th style={{ textAlign: 'right' }}>Avg cards / user</th>
-            <th style={{ textAlign: 'right' }}>Avg boards / user</th>
-            <th style={{ textAlign: 'right' }}>Total cards</th>
-            <th style={{ textAlign: 'right' }}>Total boards</th>
+            <th className="num">Users</th>
+            <th className="num">Avg cards / user</th>
+            <th className="num">Avg boards / user</th>
+            <th className="num">Total cards</th>
+            <th className="num">Total boards</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.tier}>
-              <td>
-                <span className={`admin-status admin-status-${r.tier}`}>{r.tier}</span>
-              </td>
-              <td style={{ textAlign: 'right' }}>{Number(r.users || 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{Number(r.avg_cards || 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{Number(r.avg_boards || 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }} className="admin-muted">{Number(r.total_cards || 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }} className="admin-muted">{Number(r.total_boards || 0).toLocaleString()}</td>
+              <td><TierPill tier={r.tier} /></td>
+              <td className="num">{formatCount(r.users)}</td>
+              <td className="num">{formatCount(r.avg_cards)}</td>
+              <td className="num">{formatCount(r.avg_boards)}</td>
+              <td className="num admin-muted">{formatCount(r.total_cards)}</td>
+              <td className="num admin-muted">{formatCount(r.total_boards)}</td>
             </tr>
           ))}
         </tbody>

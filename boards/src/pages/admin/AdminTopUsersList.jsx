@@ -2,19 +2,15 @@
 // for demo and for paid. Demo column hints "Upgrade-prone"; paid hints
 // "Most engaged". Reads admin_top_users for each tier.
 
+import { CopyableText } from '../../components/CopyableText.jsx';
+import { formatCount } from '../../lib/adminFormat.js';
+import { TierPill } from './AdminPills.jsx';
+
 export function AdminTopUsersList({ topDemo, topPaid }) {
   return (
     <div className="admin-charts-row">
-      <TopColumn
-        title="Top 20 Demo by cards"
-        sub="Upgrade-prone — your highest-activity demo users."
-        rows={topDemo}
-      />
-      <TopColumn
-        title="Top 20 Paid by cards"
-        sub="Most engaged — your highest-activity paying customers."
-        rows={topPaid}
-      />
+      <TopColumn title="Top 20 Demo by cards" sub="Upgrade-prone — your highest-activity demo users." rows={topDemo} />
+      <TopColumn title="Top 20 Paid by cards" sub="Most engaged — your highest-activity paying customers." rows={topPaid} />
     </div>
   );
 }
@@ -33,9 +29,9 @@ function TopColumn({ title, sub, rows }) {
           {rows.map((r, i) => (
             <li key={r.user_id} className="admin-top-row">
               <span className="admin-top-rank">{i + 1}</span>
-              <span className="admin-top-email">{r.email}</span>
-              <span className={`admin-status admin-status-${r.tier}`}>{r.tier}</span>
-              <span className="admin-top-count">{Number(r.card_count || 0).toLocaleString()}</span>
+              <span className="admin-top-email"><CopyableText value={r.email} /></span>
+              <TierPill tier={r.tier} />
+              <span className="admin-top-count">{formatCount(r.card_count)}</span>
             </li>
           ))}
         </ol>

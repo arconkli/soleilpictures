@@ -1,9 +1,8 @@
-// AdminOverviewTab — KPI cards + signups bar chart + waitlist funnel bars
-// + tier-distribution pie + recent-signups list. One mount triggers four
-// RPCs (admin_stats, admin_signups_by_day, admin_waitlist_funnel,
-// admin_list_users(10, 0)) in parallel.
+// AdminOverviewTab — KPI cards + signups bar + waitlist funnel + tier
+// pie + recent signups. Fires its RPCs with allSettled so one failed
+// query renders a partial page instead of blanking the whole tab; only a
+// total failure shows the retry surface.
 
-import { useEffect, useState } from 'react';
 import {
   ResponsiveContainer,
   BarChart, Bar,
@@ -13,75 +12,46 @@ import {
 } from 'recharts';
 import { supabase } from '../../lib/supabase.js';
 import { formatDuration } from '../../lib/formatDuration.js';
+import { CopyableText } from '../../components/CopyableText.jsx';
+import { relativeTime, fmtDateTime, shortDate, formatMoney, formatCount, TIER_COLORS } from '../../lib/adminFormat.js';
+import { useAdminData } from './useAdminData.js';
+import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminStatCard } from './AdminStatCard.jsx';
+import { TierPill } from './AdminPills.jsx';
 
-const TIER_COLORS = {
-  admin:    '#ffa500',  // soleil
-  paid:     '#50c878',  // emerald
-  demo:     '#9aa0aa',  // mid-grey
-  waitlist: '#7a8090',  // dim
-};
 const SOLEIL = '#ffa500';
 
-function relativeTime(iso) {
-  if (!iso) return '—';
-  const d  = new Date(iso);
-  const ms = Date.now() - d.getTime();
-  const m  = Math.floor(ms / 60000);
-  if (m < 1)        return 'just now';
-  if (m < 60)       return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24)       return `${h}h ago`;
-  const days = Math.floor(h / 24);
-  if (days < 30)    return `${days}d ago`;
-  return d.toLocaleDateString();
-}
-
-function dollarsFromCents(cents) {
-  if (!cents) return '$0';
-  return '$' + (cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 });
-}
-
 export function AdminOverviewTab() {
-  const [stats, setStats]       = useState(null);
-  const [signups, setSignups]   = useState([]);
-  const [funnel, setFunnel]     = useState([]);
-  const [recent, setRecent]     = useState([]);
-  const [conv, setConv]         = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    Promise.all([
+  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
+    const results = await Promise.allSettled([
       supabase.rpc('admin_stats'),
       supabase.rpc('admin_signups_by_day', { p_days: 30 }),
       supabase.rpc('admin_waitlist_funnel', { p_days: 30 }),
       supabase.rpc('admin_list_users', { p_limit: 10, p_offset: 0 }),
       supabase.rpc('admin_avg_time_to_paid'),
-    ])
-      .then(([s, sb, f, rl, c]) => {
-        if (cancelled) return;
-        if (s.error)   throw s.error;
-        if (sb.error)  throw sb.error;
-        if (f.error)   throw f.error;
-        if (rl.error)  throw rl.error;
-        // admin_avg_time_to_paid is non-critical for the page; tolerate
-        // its absence in case the migration hasn't rolled out yet.
-        if (!c.error) setConv(c.data || null);
-        setStats(s.data || null);
-        setSignups(sb.data || []);
-        setFunnel(f.data || []);
-        setRecent(rl.data || []);
-      })
-      .catch((e) => { if (!cancelled) setError(e?.message || String(e)); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    ]);
+    const [s, sb, f, rl, c] = results;
+    const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
+    const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
+    // If every core query failed, surface an error so the retry UI shows.
+    const core = [s, sb, f, rl];
+    if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
+      throw errOf(core.find(errOf)) || new Error('Failed to load overview');
+    }
+    return {
+      stats:   val(s),
+      signups: val(sb) || [],
+      funnel:  val(f) || [],
+      recent:  val(rl) || [],
+      conv:    val(c),
+    };
   }, []);
 
-  if (loading) return <div className="admin-empty">Loading…</div>;
-  if (error)   return <div className="auth-error t-meta" style={{ padding: 40 }}>{error}</div>;
+  const stats   = data?.stats || null;
+  const signups = data?.signups || [];
+  const funnel  = data?.funnel || [];
+  const recent  = data?.recent || [];
+  const conv    = data?.conv || null;
 
   const tierCounts = stats?.tier_counts || {};
   const pieData = ['admin', 'paid', 'demo', 'waitlist']
@@ -90,173 +60,114 @@ export function AdminOverviewTab() {
 
   return (
     <div className="admin-overview">
+      <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated} />
 
-      {/* KPI cards */}
-      <div className="admin-stat-grid">
-        <AdminStatCard
-          label="Total users"
-          value={(stats?.total_users ?? 0).toLocaleString()}
-          sub={`+${stats?.new_users_7d ?? 0} in the last 7 days`}
-        />
-        <AdminStatCard
-          label="MRR (active subs)"
-          value={dollarsFromCents(stats?.mrr_cents ?? 0)}
-          sub={`${tierCounts.paid || 0} paying customer${(tierCounts.paid || 0) === 1 ? '' : 's'}`}
-          accent
-        />
-        <AdminStatCard
-          label="Demo accounts"
-          value={(tierCounts.demo || 0).toLocaleString()}
-        />
-        <AdminStatCard
-          label="Waitlist pending"
-          value={(stats?.waitlist_pending ?? 0).toLocaleString()}
-          sub={`${stats?.waitlist_total ?? 0} total ever joined`}
-        />
-        {conv && (
-          <AdminStatCard
-            label="Avg time to paid"
-            value={conv.paid_users > 0 ? formatDuration(conv.median_seconds) : '—'}
-            sub={conv.paid_users > 0
-              ? `${conv.paid_users} converted · avg ${formatDuration(conv.avg_seconds)}`
-              : 'no conversions yet'}
-          />
-        )}
-      </div>
-
-      {/* Charts row */}
-      <div className="admin-charts-row">
-
-        {/* Signups bar */}
-        <section className="admin-chart-panel">
-          <header className="admin-chart-head">
-            <h3 className="admin-chart-title">Signups · last 30 days</h3>
-            <span className="admin-chart-sub t-meta">
-              {signups.reduce((a, b) => a + (b.signups || 0), 0)} total
-            </span>
-          </header>
-          <div className="admin-chart-body">
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={signups.map((r) => ({ ...r, label: shortDate(r.day) }))}
-                        margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-                <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
-                <XAxis dataKey="label" stroke="var(--ink-3)" fontSize={10} interval="preserveStartEnd" tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--ink-3)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ fill: 'rgba(255,165,0,.08)' }}
-                  contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: 'var(--ink-1)' }}
-                  itemStyle={{ color: 'var(--soleil)' }}
-                />
-                <Bar dataKey="signups" fill={SOLEIL} radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+      <AdminAsync
+        loading={loading}
+        error={error}
+        onRetry={refresh}
+        skeleton={<><AdminSkeleton variant="cards" rows={4} /><div style={{ height: 16 }} /><AdminSkeleton variant="chart" /></>}
+      >
+        <div className={refreshing ? 'is-refreshing' : ''}>
+          {/* KPI cards */}
+          <div className="admin-stat-grid">
+            <AdminStatCard label="Total users" value={formatCount(stats?.total_users)} sub={`+${stats?.new_users_7d ?? 0} in the last 7 days`} />
+            <AdminStatCard label="MRR (active subs)" value={formatMoney(stats?.mrr_cents ?? 0)}
+              sub={`${tierCounts.paid || 0} paying customer${(tierCounts.paid || 0) === 1 ? '' : 's'}`} accent />
+            <AdminStatCard label="Demo accounts" value={formatCount(tierCounts.demo)} />
+            <AdminStatCard label="Waitlist pending" value={formatCount(stats?.waitlist_pending)} sub={`${stats?.waitlist_total ?? 0} total ever joined`} />
+            {conv && (
+              <AdminStatCard label="Median time to paid"
+                value={conv.paid_users > 0 ? formatDuration(conv.median_seconds) : '—'}
+                sub={conv.paid_users > 0 ? `${conv.paid_users} converted · avg ${formatDuration(conv.avg_seconds)}` : 'no conversions yet'} />
+            )}
           </div>
-        </section>
 
-        {/* Tier distribution pie */}
-        <section className="admin-chart-panel">
-          <header className="admin-chart-head">
-            <h3 className="admin-chart-title">Tier distribution</h3>
-            <span className="admin-chart-sub t-meta">
-              {pieData.reduce((a, b) => a + b.value, 0)} accounts
-            </span>
-          </header>
-          <div className="admin-chart-body">
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={56}
-                  outerRadius={86}
-                  paddingAngle={2}
-                  stroke="var(--bg-1)"
-                >
-                  {pieData.map((d) => (
-                    <Cell key={d.name} fill={TIER_COLORS[d.name] || '#888'} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: 'var(--ink-1)' }}
-                  itemStyle={{ color: 'var(--ink-0)' }}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  align="center"
-                  iconSize={10}
-                  iconType="circle"
-                  wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          {/* Charts row */}
+          <div className="admin-charts-row">
+            <section className="admin-chart-panel">
+              <header className="admin-chart-head">
+                <h3 className="admin-chart-title">Signups · last 30 days</h3>
+                <span className="admin-chart-sub t-meta">{signups.reduce((a, b) => a + (b.signups || 0), 0)} total</span>
+              </header>
+              <div className="admin-chart-body">
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={signups.map((r) => ({ ...r, label: shortDate(r.day) }))} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
+                    <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
+                    <XAxis dataKey="label" stroke="var(--ink-3)" fontSize={10} interval="preserveStartEnd" tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--ink-3)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip cursor={{ fill: 'rgba(255,165,0,.08)' }}
+                      contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
+                      labelStyle={{ color: 'var(--ink-1)' }} itemStyle={{ color: 'var(--soleil)' }} />
+                    <Bar dataKey="signups" fill={SOLEIL} radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="admin-chart-panel">
+              <header className="admin-chart-head">
+                <h3 className="admin-chart-title">Tier distribution</h3>
+                <span className="admin-chart-sub t-meta">{pieData.reduce((a, b) => a + b.value, 0)} accounts</span>
+              </header>
+              <div className="admin-chart-body">
+                <ResponsiveContainer width="100%" height={240}>
+                  <PieChart>
+                    <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={56} outerRadius={86} paddingAngle={2} stroke="var(--bg-1)">
+                      {pieData.map((d) => <Cell key={d.name} fill={TIER_COLORS[d.name] || '#888'} />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
+                      labelStyle={{ color: 'var(--ink-1)' }} itemStyle={{ color: 'var(--ink-0)' }} />
+                    <Legend verticalAlign="bottom" align="center" iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
           </div>
-        </section>
 
-      </div>
-
-      {/* Waitlist funnel */}
-      <section className="admin-chart-panel admin-chart-panel-wide">
-        <header className="admin-chart-head">
-          <h3 className="admin-chart-title">Waitlist funnel · last 30 days</h3>
-          <span className="admin-chart-sub t-meta">
-            {funnel.reduce((a, b) => a + (b.submitted || 0), 0)} submitted
-            {' · '}
-            {funnel.reduce((a, b) => a + (b.accepted  || 0), 0)} accepted
-          </span>
-        </header>
-        <div className="admin-chart-body">
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={funnel.map((r) => ({ ...r, label: shortDate(r.day) }))}
-                       margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-              <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
-              <XAxis dataKey="label" stroke="var(--ink-3)" fontSize={10} interval="preserveStartEnd" tickLine={false} axisLine={false} />
-              <YAxis stroke="var(--ink-3)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: 'var(--ink-1)' }}
-              />
-              <Legend
-                verticalAlign="top"
-                align="right"
-                iconSize={10}
-                iconType="circle"
-                wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }}
-              />
-              <Line type="monotone" dataKey="submitted" stroke="#9aa0aa" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="accepted"  stroke={SOLEIL}  strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      {/* Recent signups */}
-      <section className="admin-chart-panel admin-chart-panel-wide">
-        <header className="admin-chart-head">
-          <h3 className="admin-chart-title">Recent signups</h3>
-          <span className="admin-chart-sub t-meta">last {recent.length}</span>
-        </header>
-        <div className="admin-recent-list">
-          {recent.length === 0 ? (
-            <div className="admin-empty">No users yet.</div>
-          ) : recent.map((u) => (
-            <div key={u.user_id} className="admin-recent-row">
-              <span className={`admin-status admin-status-${u.tier}`}>{u.tier}</span>
-              <span className="admin-email">{u.email}</span>
-              <span className="admin-muted">{relativeTime(u.created_at)}</span>
+          {/* Waitlist funnel */}
+          <section className="admin-chart-panel admin-chart-panel-wide">
+            <header className="admin-chart-head">
+              <h3 className="admin-chart-title">Waitlist funnel · last 30 days</h3>
+              <span className="admin-chart-sub t-meta">
+                {funnel.reduce((a, b) => a + (b.submitted || 0), 0)} submitted · {funnel.reduce((a, b) => a + (b.accepted || 0), 0)} accepted
+              </span>
+            </header>
+            <div className="admin-chart-body">
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={funnel.map((r) => ({ ...r, label: shortDate(r.day) }))} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
+                  <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
+                  <XAxis dataKey="label" stroke="var(--ink-3)" fontSize={10} interval="preserveStartEnd" tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--ink-3)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: 'var(--ink-1)' }} />
+                  <Legend verticalAlign="top" align="right" iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }} />
+                  <Line type="monotone" dataKey="submitted" stroke="#9aa0aa" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="accepted"  stroke={SOLEIL}  strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
 
+          {/* Recent signups */}
+          <section className="admin-chart-panel admin-chart-panel-wide">
+            <header className="admin-chart-head">
+              <h3 className="admin-chart-title">Recent signups</h3>
+              <span className="admin-chart-sub t-meta">last {recent.length}</span>
+            </header>
+            <div className="admin-recent-list">
+              {recent.length === 0 ? (
+                <div className="admin-empty">No users yet.</div>
+              ) : recent.map((u) => (
+                <div key={u.user_id} className="admin-recent-row">
+                  <TierPill tier={u.tier} />
+                  <CopyableText value={u.email} className="admin-email" />
+                  <span className="admin-muted" title={fmtDateTime(u.created_at)}>{relativeTime(u.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </AdminAsync>
     </div>
   );
-}
-
-function shortDate(d) {
-  // e.g. 5/18
-  const dt = new Date(d);
-  return `${dt.getMonth() + 1}/${dt.getDate()}`;
 }

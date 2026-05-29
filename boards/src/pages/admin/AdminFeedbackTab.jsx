@@ -1,46 +1,34 @@
-// AdminFeedbackTab — shows submissions from the in-app feedback
-// widget. Kind filter at top; full message expands on click.
+// AdminFeedbackTab — submissions from the in-app feedback widget.
+// Kind filter at top; long messages expand on click / Enter / Space.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
+import { CopyableText } from '../../components/CopyableText.jsx';
+import { relativeTime, fmtDateTime } from '../../lib/adminFormat.js';
+import { useAdminData } from './useAdminData.js';
+import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
+import { FeedbackKindPill } from './AdminPills.jsx';
+import { MessageSquare } from '../../lib/icons.js';
 
 const KINDS = ['bug', 'idea', 'praise', 'other'];
-
-function relativeTime(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  const ms = Date.now() - d.getTime();
-  const m = Math.floor(ms / 60000);
-  if (m < 1)   return 'just now';
-  if (m < 60)  return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24)  return `${h}h ago`;
-  const days = Math.floor(h / 24);
-  if (days < 30) return `${days}d ago`;
-  return d.toLocaleDateString();
-}
+const PAGE_LIMIT = 200;
 
 export function AdminFeedbackTab() {
-  const [rows, setRows]       = useState([]);
-  const [kind, setKind]       = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [kind, setKind] = useState('');
   const [expanded, setExpanded] = useState(new Set());
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const fetchFeedback = useCallback(async () => {
     const { data, error } = await supabase.rpc('admin_list_feedback', {
-      p_limit:  200,
+      p_limit: PAGE_LIMIT,
       p_offset: 0,
-      p_kind:   kind || null,
+      p_kind: kind || null,
     });
-    if (error) setError(error.message);
-    setRows(data || []);
-    setLoading(false);
+    if (error) throw error;
+    return data || [];
   }, [kind]);
 
-  useEffect(() => { load(); }, [load]);
+  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(fetchFeedback, [kind]);
+  const rows = data || [];
 
   const toggle = (id) => {
     setExpanded((prev) => {
@@ -52,50 +40,71 @@ export function AdminFeedbackTab() {
 
   return (
     <div className="admin-section">
-      <div className="admin-filter-row">
+      <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
         <select
           className="auth-input admin-filter-select"
           value={kind}
           onChange={(e) => setKind(e.target.value)}
+          aria-label="Filter by kind"
         >
           <option value="">All kinds</option>
           {KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
         </select>
-        <div className="admin-filter-meta t-meta">
-          {loading ? 'Loading…' : `${rows.length} entries`}
+        <span className="admin-filter-meta t-meta">
+          {loading ? 'Loading…' : `${rows.length}${rows.length >= PAGE_LIMIT ? '+ (first 200)' : ''} entries`}
+        </span>
+      </AdminToolbar>
+
+      <AdminAsync
+        loading={loading}
+        error={error}
+        onRetry={refresh}
+        skeleton={<AdminSkeleton variant="list" rows={6} />}
+        isEmpty={rows.length === 0}
+        empty={{
+          icon: MessageSquare,
+          title: kind ? `No ${kind} feedback` : 'No feedback yet',
+          body: kind ? 'Try a different kind filter.' : 'Submissions from the in-app feedback widget will appear here.',
+        }}
+      >
+        <div className={`admin-feedback-list ${refreshing ? 'is-refreshing' : ''}`}>
+          {rows.map((r) => {
+            const isExpanded = expanded.has(r.id);
+            const message = r.message || '';
+            const isLong = message.length > 160;
+            const preview = message.slice(0, 160);
+            return (
+              <div
+                key={r.id}
+                className="admin-feedback-row"
+                role={isLong ? 'button' : undefined}
+                tabIndex={isLong ? 0 : undefined}
+                aria-expanded={isLong ? isExpanded : undefined}
+                onClick={() => isLong && toggle(r.id)}
+                onKeyDown={(e) => {
+                  if (isLong && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(r.id); }
+                }}
+              >
+                <div className="admin-feedback-meta">
+                  <FeedbackKindPill kind={r.kind} />
+                  {r.email
+                    ? <CopyableText value={r.email} className="admin-email" />
+                    : <span className="admin-email admin-muted">anonymous</span>}
+                  <span className="admin-muted" title={fmtDateTime(r.created_at)}>{relativeTime(r.created_at)}</span>
+                  {r.url && (
+                    <a className="admin-link admin-muted" href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                      {(() => { try { return new URL(r.url).pathname; } catch { return r.url; } })()}
+                    </a>
+                  )}
+                </div>
+                <div className="admin-feedback-message">
+                  {isExpanded ? message : preview}{!isExpanded && isLong ? '…' : ''}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
-
-      {error && <div className="auth-error t-meta">{error}</div>}
-
-      {!loading && rows.length === 0 && (
-        <div className="admin-empty">No feedback yet.</div>
-      )}
-
-      <div className="admin-feedback-list">
-        {rows.map((r) => {
-          const isExpanded = expanded.has(r.id);
-          const preview = (r.message || '').slice(0, 160);
-          const isLong = (r.message || '').length > 160;
-          return (
-            <div key={r.id} className="admin-feedback-row" onClick={() => isLong && toggle(r.id)}>
-              <div className="admin-feedback-meta">
-                <span className={`admin-status admin-status-${r.kind === 'bug' ? 'rejected' : r.kind === 'praise' ? 'accepted' : 'pending'}`}>{r.kind}</span>
-                <span className="admin-email">{r.email || 'anonymous'}</span>
-                <span className="admin-muted">{relativeTime(r.created_at)}</span>
-                {r.url && (
-                  <a className="admin-link admin-muted" href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                    {(() => { try { return new URL(r.url).pathname; } catch { return r.url; } })()}
-                  </a>
-                )}
-              </div>
-              <div className="admin-feedback-message">
-                {isExpanded ? r.message : preview}{!isExpanded && isLong ? '…' : ''}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      </AdminAsync>
     </div>
   );
 }
