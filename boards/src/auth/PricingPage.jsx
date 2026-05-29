@@ -2,43 +2,38 @@
 // with a toggle). Mirrors screenshot 2 of the launch spec.
 //
 // Demo CTA  → /waitlist (back to the socials form)
-// Creator CTA → calls create-checkout-session Edge Function → Stripe Checkout
+// Creator CTA → startCheckout() → Stripe Checkout
 //
 // Available signed-in to anyone; tier='waitlist' uses it to skip the
-// wait, tier='demo' uses it to upgrade.
+// wait, tier='demo' uses it to upgrade. Already-paid users (paid/admin)
+// see "Manage billing" → Stripe Customer Portal instead of a second checkout.
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase.js';
 import { logEvent } from '../lib/analytics.js';
+import { startCheckout, startPortal } from '../lib/checkout.js';
 import { useAuth } from './AuthGate.jsx';
+import { useMyTier } from '../hooks/useMyTier.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
-
-const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
+import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
+import { CTA, CREATOR_FEATURES, DEMO_FEATURES } from '../lib/billingCopy.js';
 
 export function PricingPage() {
   const { user, signOut } = useAuth();
+  const { tier } = useMyTier({ userId: user?.id });
   const [plan, setPlan]   = useState('annual');   // default to annual (better deal)
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => { logEvent('pricing_view', { surface: 'page' }); }, []);
 
-  const startCheckout = async () => {
+  const alreadyPaid = tier === 'paid' || tier === 'admin';
+
+  const onCreatorCta = async () => {
     setError(null);
     setBusy(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error('Not signed in.');
-      logEvent('checkout_open', { plan, surface: 'page' });
-      const res = await fetch(EDGE_URL, {
-        method: 'POST',
-        headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ plan }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
-      window.location.assign(body.url);
+      if (alreadyPaid) await startPortal({ surface: 'page' });
+      else             await startCheckout({ plan, surface: 'page' });
     } catch (err) {
       setError(err?.message || String(err));
       setBusy(false);
@@ -60,13 +55,7 @@ export function PricingPage() {
             <div className="pricing-card-name">Demo</div>
             <div className="pricing-card-price">$0</div>
           </div>
-          <ul className="pricing-features">
-            <li>Unlimited visitors with <b>View Mode only</b></li>
-            <li>1 workspace with 5 editable boards</li>
-            <li>100 video, image, doc, etc.</li>
-            <li>100 cards</li>
-            <li>10 audio files</li>
-          </ul>
+          <FeatureList features={DEMO_FEATURES} />
           <button
             className="pricing-cta pricing-cta-secondary"
             onClick={() => { window.location.assign('/waitlist'); }}
@@ -80,53 +69,30 @@ export function PricingPage() {
         <article className="pricing-card pricing-card-creator">
           <div className="pricing-card-head">
             <div className="pricing-card-name">Creator</div>
-            <div className="pricing-card-toggle" role="tablist" aria-label="Billing interval">
-              <button
-                role="tab"
-                aria-selected={plan === 'monthly'}
-                className={`pricing-toggle-pill ${plan === 'monthly' ? 'is-active' : ''}`}
-                onClick={() => setPlan('monthly')}
-                disabled={busy}
-              >
-                Monthly
-              </button>
-              <button
-                role="tab"
-                aria-selected={plan === 'annual'}
-                className={`pricing-toggle-pill ${plan === 'annual' ? 'is-active' : ''}`}
-                onClick={() => setPlan('annual')}
-                disabled={busy}
-              >
-                Annual
-              </button>
-            </div>
+            {!alreadyPaid && <PlanToggle plan={plan} setPlan={setPlan} disabled={busy} />}
           </div>
 
-          <div className="pricing-card-price-row">
-            <div className="pricing-card-price">${plan === 'annual' ? 20 : 25}<span className="pricing-card-price-unit">/mo</span></div>
-            <div className="pricing-card-price-sub t-meta">
-              {plan === 'annual'
-                ? <>billed annually · <b>Save $60/yr</b></>
-                : <>billed monthly</>}
-            </div>
-          </div>
+          {!alreadyPaid && <CreatorPriceRow plan={plan} />}
 
-          <ul className="pricing-features">
-            <li>Unlimited visitors with <b>Edit Mode</b></li>
-            <li>Unlimited workspaces, boards, video, and audio files</li>
-            <li>All Creative Tools available</li>
-            <li>High Resolution Exports</li>
-            <li>Access to all Virtual + Social events</li>
-          </ul>
+          {alreadyPaid && (
+            <p className="pricing-card-price-sub t-meta" style={{ marginTop: 4 }}>
+              You're already on Creator. Manage your plan, payment method, or
+              cancellation below.
+            </p>
+          )}
+
+          <FeatureList features={CREATOR_FEATURES} />
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
           <button
             className="pricing-cta pricing-cta-primary"
-            onClick={startCheckout}
+            onClick={onCreatorCta}
             disabled={busy}
           >
-            {busy ? 'Opening checkout…' : 'Get Creator'}
+            {busy
+              ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
+              : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
           </button>
         </article>
       </div>

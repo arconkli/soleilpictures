@@ -5,61 +5,103 @@
 // hairline divider, an inline plan picker (Monthly | Annual) with a
 // quiet "Subscribe →" text link for the rare user who wants to skip the
 // wait without leaving the page.
+//
+// Auto-advance: while waiting, we poll the tier every 10s (the acceptance
+// cron flips tier waitlist→demo server-side). The moment it flips, we show a
+// brief "You're in" beat and hard-navigate to '/' so TierRouter re-reads the
+// fresh tier and drops the user into the app — no manual refresh needed.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthGate.jsx';
+import { useMyTier } from '../hooks/useMyTier.js';
+import { startCheckout } from '../lib/checkout.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
+import { CTA } from '../lib/billingCopy.js';
 import { logEvent } from '../lib/analytics.js';
+import { Check } from '../lib/icons.js';
+import { Icon } from '../components/Icon.jsx';
 
-const CHECKOUT_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
+const POLL_MS = 10000;
 
 export function WaitlistConfirm() {
   const { user, signOut } = useAuth();
+  const { tier, refetch } = useMyTier({ userId: user?.id });
   const [entry, setEntry] = useState(null);
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState('annual');
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const [accepted, setAccepted] = useState(false);
+  const redirected = useRef(false);
+
+  const loadEntry = useRef(null);
+  loadEntry.current = async () => {
+    if (!user?.email) return;
+    const { data } = await supabase
+      .from('waitlist_entries')
+      .select('status')
+      .eq('email', user.email.toLowerCase())
+      .maybeSingle();
+    setEntry(data || null);
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (!user?.email) return;
     let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('waitlist_entries')
-        .select('status')
-        .eq('email', user.email.toLowerCase())
-        .maybeSingle();
-      if (!cancelled) {
-        setEntry(data || null);
-        setLoading(false);
-      }
-    })();
+    (async () => { if (!cancelled) await loadEntry.current(); })();
     return () => { cancelled = true; };
   }, [user?.email]);
 
-  const startCheckout = async () => {
+  // Poll for acceptance: the cron flips tier away from 'waitlist' when a spot
+  // opens. Re-fetch tier + the entry row so status copy stays fresh too.
+  useEffect(() => {
+    if (tier !== 'waitlist') return;
+    const t = setInterval(() => { refetch(); loadEntry.current?.(); }, POLL_MS);
+    return () => clearInterval(t);
+  }, [tier, refetch]);
+
+  // Tier flipped off 'waitlist' → accepted. Celebrate briefly, then hard-nav
+  // so TierRouter re-reads the new tier on a clean load.
+  useEffect(() => {
+    if (!tier || tier === 'waitlist' || redirected.current) return;
+    redirected.current = true;
+    setAccepted(true);
+    logEvent('waitlist_accepted_seen', { tier });
+    const t = setTimeout(() => { window.location.assign('/'); }, 2200);
+    return () => clearTimeout(t);
+  }, [tier]);
+
+  const startSkipCheckout = async () => {
     setCheckoutError(null);
     setCheckoutBusy(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error('Not signed in.');
-      logEvent('checkout_open', { plan, surface: 'waitlist_status' });
-      const res = await fetch(CHECKOUT_URL, {
-        method: 'POST',
-        headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ plan }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
-      window.location.assign(body.url);
+      await startCheckout({ plan, surface: 'waitlist_status' });
     } catch (err) {
       setCheckoutError(err?.message || String(err));
       setCheckoutBusy(false);
     }
   };
+
+  if (accepted) {
+    return (
+      <div className="pricing-screen">
+        <div className="auth-glow" aria-hidden="true" />
+        <div className="welcome-card welcome-card-tight">
+          <div className="payment-check payment-check-celebrate" aria-hidden="true">
+            <Icon as={Check} size={32} weight="bold" />
+          </div>
+          <SoleilWordmark size="display" />
+          <div className="welcome-eyebrow t-eyebrow">YOU'RE IN</div>
+          <p className="welcome-copy t-body">
+            A spot just opened up — taking you into Clusters…
+          </p>
+          <div className="payment-spinner" aria-label="Loading your workspace" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pricing-screen">
@@ -152,12 +194,10 @@ export function WaitlistConfirm() {
               </div>
               <button
                 className="waitlist-skip-cta"
-                onClick={startCheckout}
+                onClick={startSkipCheckout}
                 disabled={checkoutBusy}
               >
-                {checkoutBusy
-                  ? 'Opening…'
-                  : <>Subscribe — ${plan === 'annual' ? 20 : 25}/mo</>}
+                {checkoutBusy ? 'Opening…' : CTA.subscribeShort(plan)}
               </button>
             </div>
             {checkoutError && <div className="auth-error t-meta">{checkoutError}</div>}

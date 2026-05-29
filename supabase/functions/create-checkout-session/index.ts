@@ -59,17 +59,35 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-  // Reuse an existing Stripe customer if we have one mapped to this user.
+  // Reuse an existing Stripe customer if we have one mapped to this user, and
+  // read its status so we can short-circuit already-subscribed users.
   const existingSub = await admin.from("subscriptions")
-    .select("stripe_customer_id")
+    .select("stripe_customer_id, status")
     .eq("user_id", userId)
     .maybeSingle();
+  const prof = await admin.from("profiles").select("tier").eq("user_id", userId).maybeSingle();
+
   let customerId = existingSub.data?.stripe_customer_id ?? null;
   if (!customerId) {
     // Also check Stripe directly by email so we don't end up with dupe customers.
     const found = await stripe.customers.list({ email, limit: 1 });
     if (found.data.length > 0) customerId = found.data[0].id;
   }
+
+  // Already-subscribed backstop: never create a second subscription for a user
+  // who already has an active/trialing one (or is already on a paid/admin tier).
+  // Send them to the Customer Portal instead so they manage the plan they have.
+  const hasActiveSub = ["active", "trialing"].includes(existingSub.data?.status ?? "");
+  const alreadyPaid  = hasActiveSub || ["paid", "admin"].includes(prof.data?.tier ?? "");
+  if (alreadyPaid) {
+    if (!customerId) return json({ error: "already_subscribed" }, 409);
+    const portal = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${APP_URL}/settings/billing`,
+    });
+    return json({ ok: true, mode: "portal", url: portal.url }, 200);
+  }
+
   if (!customerId) {
     const created = await stripe.customers.create({
       email,

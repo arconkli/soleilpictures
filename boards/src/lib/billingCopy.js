@@ -1,16 +1,75 @@
-// Single source of truth for billing-related strings. Lives outside the
-// two billing surfaces (SettingsPanel BillingTab + BillingPage) so the
-// plan label, pricing, and date format only have to be edited once.
+// Single source of truth for billing-related strings: prices, plan names,
+// feature lists, and CTA labels. Every pricing/upgrade/billing surface
+// (PricingPage, PricingModal, WaitlistConfirm, BillingPage, SettingsPanel)
+// reads from here so the numbers and copy can only be edited once and can
+// never drift between the public page and the in-app modal.
+//
+// Display prices are mirrors of the Stripe prices configured via the
+// STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL env vars in
+// create-checkout-session. If those change, update PRICING below.
 
-const MONTHLY_PRICE = '$25/mo';
-const ANNUAL_PRICE  = '$240/yr';
+export const PLAN_NAME = 'Creator';
+
+// Root pricing object — both "per month" (shown on the cards) and "billed"
+// (shown on the Billing tab) figures derive from these so they can't drift.
+//   monthly: $25/mo billed monthly        → $25/mo
+//   annual:  $20/mo billed annually ($240) → saves $60/yr vs monthly
+export const PRICING = {
+  monthly: { perMonth: 25, billed: 25,  perMonthLabel: '$25', billedLabel: '$25/mo' },
+  annual:  { perMonth: 20, billed: 240, perMonthLabel: '$20', billedLabel: '$240/yr', savings: '$60/yr' },
+};
+
+const MONTHLY_PRICE = PRICING.monthly.billedLabel;  // '$25/mo'
+const ANNUAL_PRICE  = PRICING.annual.billedLabel;   // '$240/yr'
+
+// The dollar amount shown as "$N/mo" on the pricing cards for a given plan.
+export function planPerMonth(plan) {
+  return (PRICING[plan] || PRICING.annual).perMonth;
+}
+
+// The sub-line under the price on a card. Returned as structured data so the
+// "Save $X/yr" emphasis renders identically everywhere without duplicating
+// the markup decision.
+//   annual  → { lead: 'billed annually', save: 'Save $60/yr' }
+//   monthly → { lead: 'billed monthly',  save: null }
+export function planBilling(plan) {
+  if (plan === 'annual') return { lead: 'billed annually', save: `Save ${PRICING.annual.savings}` };
+  return { lead: 'billed monthly', save: null };
+}
+
+// Canonical Creator feature list — the public PricingPage wording, used on
+// EVERY Creator surface. `**text**` marks bold spans (rendered by FeatureList).
+export const CREATOR_FEATURES = [
+  'Unlimited visitors with **Edit Mode**',
+  'Unlimited workspaces, boards, video, and audio files',
+  'All Creative Tools available',
+  'Access to all Virtual + Social events',
+];
+
+// Demo is intentionally minimal: it's a 100-card sandbox, and visitors only
+// get View Mode (no editing of boards shared by others). Nothing else to list.
+export const DEMO_FEATURES = [
+  'Unlimited visitors with **View Mode only**',
+  '**100 cards** to explore the workspace',
+];
+
+// CTA labels — one place so "Get Creator" / "Manage billing" stay consistent.
+// `subscribeShort` is the compact contextual label used in tight spots (the
+// WaitlistConfirm skip row), composed with the live per-month price.
+export const CTA = {
+  getCreator: `Get ${PLAN_NAME}`,
+  getCreatorBusy: 'Opening checkout…',
+  manageBilling: 'Manage billing →',
+  manageBillingBusy: 'Opening…',
+  subscribeShort: (plan) => `Subscribe — $${planPerMonth(plan)}/mo`,
+};
 
 export function planLabel({ tier, plan, demoCardCount } = {}) {
   if (tier === 'admin') return 'Admin · Unlimited';
   if (tier === 'paid') {
     return plan === 'annual'
-      ? `Creator · Annual (${ANNUAL_PRICE})`
-      : `Creator · Monthly (${MONTHLY_PRICE})`;
+      ? `${PLAN_NAME} · Annual (${ANNUAL_PRICE})`
+      : `${PLAN_NAME} · Monthly (${MONTHLY_PRICE})`;
   }
   if (tier === 'demo') {
     const n = Number.isFinite(demoCardCount) ? demoCardCount : 0;

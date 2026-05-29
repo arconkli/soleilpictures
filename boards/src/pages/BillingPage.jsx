@@ -10,10 +10,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
+import { startPortal } from '../lib/checkout.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { BillingSummary } from '../components/SettingsPanel.jsx';
-
-const PORTAL_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
 
 export function BillingPage() {
   const { user, signOut } = useAuth();
@@ -41,16 +40,7 @@ export function BillingPage() {
     setError(null);
     setBusy(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error('Not signed in.');
-      const res = await fetch(PORTAL_URL, {
-        method: 'POST',
-        headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
-      window.location.assign(body.url);
+      await startPortal({ surface: 'billing_page' });
     } catch (e) {
       setError(e?.message || String(e));
       setBusy(false);

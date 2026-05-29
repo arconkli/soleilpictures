@@ -13,19 +13,23 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { qaTierOverride } from '../lib/localMode.js';
 
 export function useMyTier({ userId } = {}) {
-  const [data, setData] = useState({
+  // Dev/Playwright-only forced tier (no-op in production builds). Computed once.
+  const [override] = useState(qaTierOverride);
+  const [data, setData] = useState(() => override || {
     tier: null,
     demoCardCount: 0,
     subscriptionStatus: null,
     currentPeriodEnd: null,
     cancelAtPeriodEnd: false,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!override);
   const [error, setError] = useState(null);
 
   const fetchTier = useCallback(async () => {
+    if (override) { setLoading(false); return; }
     if (!supabase) { setLoading(false); return; }
     try {
       const { data: rows, error } = await supabase.rpc('get_my_tier');
@@ -44,13 +48,14 @@ export function useMyTier({ userId } = {}) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [override]);
 
   useEffect(() => {
+    if (override) { setLoading(false); return; }
     if (!userId) { setLoading(false); return; }
     setLoading(true);
     fetchTier();
-  }, [userId, fetchTier]);
+  }, [override, userId, fetchTier]);
 
   // Re-fetch on focus so a tier flip from the Stripe webhook or
   // waitlist cron is picked up without a manual reload.

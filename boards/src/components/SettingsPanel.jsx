@@ -23,6 +23,7 @@ import { R2Image } from './R2Image.jsx';
 import { HARDCODED_FALLBACKS } from '../hooks/useResolvedDefaults.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { planLabel, formatPeriodEnd } from '../lib/billingCopy.js';
+import { startPortal } from '../lib/checkout.js';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
@@ -693,17 +694,7 @@ function BillingTab({ user }) {
     if (busy) return;
     setBusy(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error('Not signed in.');
-      const url = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
-      window.location.assign(body.url);
+      await startPortal({ surface: 'settings' });
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not open billing portal: ' + (e?.message || e) });
       setBusy(false);

@@ -4394,6 +4394,21 @@ body {
 @keyframes payment-spinner-rot {
   to { transform: rotate(360deg); }
 }
+/* Celebratory glow on the success medallion (PricingSuccess / waitlist "you're
+   in" beats). Pops in, then breathes a soft soleil glow while we hand off. */
+.payment-check-celebrate {
+  animation: payment-check-pop 360ms cubic-bezier(0.18, 1.2, 0.4, 1),
+             payment-check-glow 2.2s ease-in-out 360ms infinite;
+}
+@keyframes payment-check-glow {
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--soleil) 36%, transparent),
+                         0 0 28px color-mix(in srgb, var(--soleil) 20%, transparent); }
+  50%      { box-shadow: 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent),
+                         0 0 52px color-mix(in srgb, var(--soleil) 42%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .payment-check, .payment-check-celebrate { animation: none; }
+}
 
 /* Waitlist form (links list). */
 .waitlist-form {
@@ -4558,6 +4573,36 @@ body {
 .pricing-cta:disabled { opacity: 0.5; cursor: not-allowed; }
 .pricing-cta-primary   { background: var(--soleil); color: var(--bg-0); }
 .pricing-cta-secondary { background: var(--ink-0); color: var(--bg-0); }
+
+/* Savings badge tucked into the Annual toggle pill, so the better deal reads
+   at a glance. Dimmed while Monthly is selected so it doesn't shout. */
+.pricing-card-save {
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--soleil);
+  color: var(--bg-0);
+  font: 700 9px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.pricing-toggle-pill:not(.is-active) .pricing-card-save { opacity: .55; }
+
+/* Inline button spinner for CTAs while a checkout/portal session opens.
+   Reuses the payment-spinner rotation keyframe; tuned for an on-soleil button. */
+.cta-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--bg-0) 45%, transparent);
+  border-top-color: var(--bg-0);
+  animation: payment-spinner-rot 720ms linear infinite;
+}
 .pricing-foot {
   margin-top: 28px;
   color: var(--ink-3);
@@ -4758,6 +4803,22 @@ body {
   padding: 6px 10px;
 }
 .upgrade-later:hover { color: var(--ink-0); }
+
+/* Narrow phones: the Creator card's name + plan toggle compete for one row and
+   the modal padding eats the content width. Let the head wrap and the toggle
+   go full-width, and trim the modal chrome so nothing clips < 400px. Scoped so
+   desktop pixels are untouched. */
+@media (max-width: 400px) {
+  .upgrade-backdrop { padding: 12px; }
+  .upgrade-modal    { padding: 22px 18px 18px; gap: 14px; }
+  .upgrade-title    { font-size: 19px; }
+  .pricing-card     { padding: 22px 18px; }
+  .pricing-card-head   { flex-wrap: wrap; gap: 8px; }
+  .pricing-card-toggle { width: 100%; justify-content: center; }
+  .pricing-card-price  { font-size: 30px; }
+  .waitlist-skip-row   { flex-direction: column; align-items: stretch; }
+  .waitlist-skip-cta   { width: 100%; }
+}
 
 /* ── Billing summary (shared by Settings modal + /settings/billing) ────── */
 .settings-billing-grid {
@@ -13365,6 +13426,8 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .public-shell,
 .public-topbar,
 .auth-screen,
+.pricing-screen,
+.welcome-screen,
 .app-error-panel,
 .app-error-stack,
 .surface-wrap,
@@ -13384,7 +13447,8 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 }
 .topbar::after, .sidebar::after, .rail::after,
 .public-shell::after, .public-topbar::after,
-.auth-screen::after, .app-error-panel::after, .app-error-stack::after,
+.auth-screen::after, .pricing-screen::after, .welcome-screen::after,
+.app-error-panel::after, .app-error-stack::after,
 .surface-wrap::after, .doc-card-modal::after, .doc-card-modal-head::after,
 .doc-card-foot::after, .doc-surface::after, .doc-rail::after,
 .doc-tb::after, .doc-foot::after, .doc-center::after,
@@ -13407,6 +13471,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
    intentionally NOT in either tier — they are the actual page /
    preview surfaces that should stay clean. */
 .modal,
+.upgrade-modal,
 .share-modal,
 .twk-panel,
 .tweaks-panel,
@@ -13508,13 +13573,14 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .rb-swatch-pop, .folder-tab,
 .doc-export-menu, .msg-panel { position: absolute; }
 
-.auth-screen, .doc-card-modal, .ctx-menu, .ctx-submenu, .cp-pop,
+.auth-screen, .pricing-screen, .welcome-screen,
+.doc-card-modal, .ctx-menu, .ctx-submenu, .cp-pop,
 .entity-picker, .link-popover, .emoji-palette,
 .doc-ctx, .ent-backlinks-panel, .lightbox { position: fixed; }
 
 .doc-tb, .ws-menu-section { position: sticky; }
 
-.modal::after, .share-modal::after, .twk-panel::after, .tweaks-panel::after,
+.modal::after, .upgrade-modal::after, .share-modal::after, .twk-panel::after, .tweaks-panel::after,
 .bc::after, .bc-child::after, .bc-list-cover::after, .bc-list-slot::after, .blc::after,
 .cnv-tools::after, .cnv-hint::after, .cnv-zoom::after,
 .tob::after, .tob-pop::after,

@@ -56,7 +56,7 @@ export function WelcomePage() {
           </button>
         </div>
         <div className="welcome-card-foot t-meta">
-          Average wait time ~10 days
+          Most invites go out within about a week
           <span className="welcome-foot-sep">·</span>
           You'll receive an email once approved
         </div>

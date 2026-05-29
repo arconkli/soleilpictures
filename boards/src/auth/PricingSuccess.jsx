@@ -10,13 +10,19 @@
 //      in the same request, no waiting on Stripe→Supabase delivery.
 //   2. Poll get_my_tier every 2s as a fallback in case the webhook is
 //      what actually wins the race (or if Stripe still says "open" on the
-//      first verify call).
+//      first verify call). We keep polling even on the missing-session and
+//      stalled screens so a late webhook activation still lands the user in.
 //   3. After ~30s with no flip, show a stalled card with a "Verify now"
 //      retry button and a support mailto with the session_id prefilled.
 //
-// The route used to send users to "/" on stall, which silently dropped
-// the polling state. Now stalls keep the user on this screen with a clear
-// action.
+// When the tier flips, we don't hard-bounce to "/" instantly — we show a
+// brief, celebratory "Welcome to Creator" beat, then navigate. A fresh load
+// re-reads the new tier in TierRouter and drops the user into the app.
+//
+// Missing session_id: if the URL has no ?session_id (stripped link, manual
+// nav), we can't call verify — show a clear recovery card instead of an
+// indefinite spinner. The tier poll still runs underneath in case a webhook
+// activates them.
 //
 // Idempotency: verify-checkout-session uses upsert(onConflict: user_id),
 // so calling it 10x in a row is safe.
@@ -29,11 +35,13 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { supabase } from '../lib/supabase.js';
 import { Check } from '../lib/icons.js';
 import { Icon } from '../components/Icon.jsx';
+import { PLAN_NAME } from '../lib/billingCopy.js';
 
 const VERIFY_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/verify-checkout-session';
 const POLL_MS    = 2000;     // get_my_tier
 const VERIFY_MS  = 6000;     // server-side verify retry cadence
 const STALL_MS   = 30000;    // show manual-retry UI after this much waiting
+const CELEBRATE_MS = 2400;   // dwell on the success beat before entering
 
 function planLabel(plan) {
   if (plan === 'annual')  return 'Annual';
@@ -52,7 +60,8 @@ export function PricingSuccess() {
   const [stalled, setStalled]     = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyErr, setVerifyErr] = useState(null);
-  const mountedAt = useRef(Date.now());
+  const [celebrating, setCelebrating] = useState(false);
+  const celebrated = useRef(false);
 
   useEffect(() => { logEvent('checkout_success', { has_session_id: !!sessionId }); }, [sessionId]);
 
@@ -88,22 +97,35 @@ export function PricingSuccess() {
     return () => { cancelled = true; };
   }, [callVerify, refetch]);
 
-  // Polling: tier RPC (fast, always-on) + occasional verify retry (in case the
-  // first call hit Stripe before payment finalized).
+  // Celebration: the moment tier flips to paid/admin, dwell on a success beat
+  // then navigate so TierRouter re-reads the fresh tier on a clean load.
   useEffect(() => {
-    if (tier === 'paid' || tier === 'admin') {
-      window.location.assign('/');
-      return;
+    if (tier !== 'paid' && tier !== 'admin') return;
+    if (celebrated.current) return;
+    celebrated.current = true;
+    setCelebrating(true);
+    logEvent('checkout_activated_seen', { tier, plan });
+    const t = setTimeout(() => { window.location.assign('/'); }, CELEBRATE_MS);
+    return () => clearTimeout(t);
+  }, [tier, plan]);
+
+  // Polling: tier RPC (fast, always-on so a late webhook still lands the user)
+  // + verify retry + stall timer (only meaningful when we actually have a
+  // session to verify).
+  useEffect(() => {
+    if (tier === 'paid' || tier === 'admin') return;   // celebration owns this
+    const tierTimer = setInterval(() => { refetch(); }, POLL_MS);
+    let verifyTimer, stallTimer;
+    if (sessionId) {
+      verifyTimer = setInterval(() => { callVerify(); }, VERIFY_MS);
+      stallTimer  = setTimeout(() => { setStalled(true); }, STALL_MS);
     }
-    const tierTimer   = setInterval(() => { refetch(); }, POLL_MS);
-    const verifyTimer = setInterval(() => { callVerify(); }, VERIFY_MS);
-    const stallTimer  = setTimeout(() => { setStalled(true); }, STALL_MS);
     return () => {
       clearInterval(tierTimer);
-      clearInterval(verifyTimer);
-      clearTimeout(stallTimer);
+      if (verifyTimer) clearInterval(verifyTimer);
+      if (stallTimer)  clearTimeout(stallTimer);
     };
-  }, [tier, refetch, callVerify]);
+  }, [tier, refetch, callVerify, sessionId]);
 
   const onRetryClick = async () => {
     setVerifying(true);
@@ -119,19 +141,74 @@ export function PricingSuccess() {
 
   const supportHref = `mailto:hello@soleilpictures.com?subject=${encodeURIComponent('Clusters: payment received but not activated')}&body=${encodeURIComponent(`Session: ${sessionId || 'n/a'}\nUser: ${user?.email || user?.id || 'n/a'}`)}`;
 
+  // ── Success beat ──────────────────────────────────────────────────────────
+  if (celebrating || tier === 'paid' || tier === 'admin') {
+    return (
+      <div className="welcome-screen">
+        <div className="auth-glow" aria-hidden="true" />
+        <div className="welcome-card welcome-card-tight">
+          <div className="payment-check payment-check-celebrate" aria-hidden="true">
+            <Icon as={Check} size={32} weight="bold" />
+          </div>
+          <SoleilWordmark size="display" />
+          <div className="welcome-eyebrow t-eyebrow">
+            Welcome to {PLAN_NAME}{plan ? ` · ${planLabel(plan)}` : ''}
+          </div>
+          <p className="welcome-copy t-body">
+            You're all set. Taking you into Clusters…
+          </p>
+          <div className="payment-spinner" aria-label="Entering" />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Missing session — nothing to verify ───────────────────────────────────
+  if (!sessionId) {
+    return (
+      <div className="welcome-screen">
+        <div className="auth-glow" aria-hidden="true" />
+        <div className="welcome-card welcome-card-tight">
+          <SoleilWordmark size="display" />
+          <div className="welcome-eyebrow t-eyebrow">HMM — NO CHECKOUT FOUND</div>
+          <p className="welcome-copy t-body">
+            We couldn't find a checkout session in this link. If you just paid,
+            your account will update automatically in a few seconds. Otherwise,
+            head back to pricing to start over.
+          </p>
+          <div className="welcome-cta-row">
+            <button
+              className="welcome-cta welcome-cta-primary"
+              onClick={() => { window.location.assign('/pricing'); }}
+            >
+              Back to pricing
+            </button>
+          </div>
+          <p className="welcome-copy t-meta" style={{ color: 'var(--ink-3)' }}>
+            Already paid? <a className="auth-link" href={supportHref}>Email support</a> and we'll sort it out.
+          </p>
+          <button className="auth-link auth-foot-link t-meta" onClick={signOut}>
+            Use a different email
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Activating / stalled ──────────────────────────────────────────────────
   return (
     <div className="welcome-screen">
       <div className="auth-glow" aria-hidden="true" />
       <div className="welcome-card welcome-card-tight">
         <div className="payment-check" aria-hidden="true">
-          <Icon icon={Check} size={32} weight="bold" />
+          <Icon as={Check} size={32} weight="bold" />
         </div>
         <SoleilWordmark size="display" />
 
         {!stalled && (
           <>
             <div className="welcome-eyebrow t-eyebrow">
-              Welcome to Creator{plan ? ` · ${planLabel(plan)}` : ''}
+              Welcome to {PLAN_NAME}{plan ? ` · ${planLabel(plan)}` : ''}
             </div>
             <p className="welcome-copy t-body">
               Payment received. Activating your account…

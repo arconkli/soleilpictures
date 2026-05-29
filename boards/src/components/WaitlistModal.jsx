@@ -130,7 +130,7 @@ export function WaitlistModal({ onClose }) {
                 : 'Skip & join the waitlist'}
           </button>
           <div className="waitlist-card-hint t-meta">
-            We'll email you within ~10 days once approved.
+            We'll email you within about a week once approved.
           </div>
         </form>
 
