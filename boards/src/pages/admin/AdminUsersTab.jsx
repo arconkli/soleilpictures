@@ -269,7 +269,7 @@ export function AdminUsersTab() {
                       ))}
                     </div>
                   </td>
-                  <td className="admin-muted num">{formatCount(r.demo_card_count)}</td>
+                  <td className="admin-muted num">{formatCount(r.card_count)}</td>
                   <td className="admin-muted num" title={`${(r.seconds_in_app ?? 0).toLocaleString()} seconds`}>
                     {formatDuration(Number(r.seconds_in_app || 0))}
                   </td>
