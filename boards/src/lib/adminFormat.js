@@ -48,6 +48,13 @@ export function formatMoney(cents) {
   });
 }
 
+// Compact count for oversized hero KPIs — "999" / "12.4K" / "1.3M".
+export function formatCompact(n) {
+  const v = Number(n) || 0;
+  if (Math.abs(v) < 1000) return String(v);
+  return v.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 1 });
+}
+
 // Percent from a ratio in [0,1] → "12.3%". Floors tiny-but-nonzero
 // values to "<1%" so a real conversion never rounds away to "0%".
 export function formatPct(ratio) {

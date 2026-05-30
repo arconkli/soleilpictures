@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useAdminData(fetchFn, deps = [], opts = {}) {
-  const { refetchOnFocus = false } = opts;
+  const { refetchOnFocus = false, pollIntervalMs = null } = opts;
 
   const [data, setData]             = useState(undefined);
   const [loading, setLoading]       = useState(true);
@@ -65,6 +65,18 @@ export function useAdminData(fetchFn, deps = [], opts = {}) {
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [refetchOnFocus, run]);
+
+  // Optional periodic auto-refresh (live dashboards). Pauses while the tab is
+  // hidden so a backgrounded wall display doesn't hammer the API; fires once on
+  // return to foreground via the same interval cadence.
+  useEffect(() => {
+    if (!pollIntervalMs) return undefined;
+    const id = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      run();
+    }, pollIntervalMs);
+    return () => clearInterval(id);
+  }, [pollIntervalMs, run]);
 
   return { data, loading, error, refreshing, lastUpdated, refresh: run };
 }

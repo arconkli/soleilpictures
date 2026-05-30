@@ -14894,6 +14894,151 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   width: 100%;
   height: 100%;
 }
+
+/* ───────── Universe subtabs (Universe ↔ Command Center) ───────── */
+.universe-subtabs {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 6;
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(10,10,12,0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+}
+.universe-subtab {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font: 600 12px/1 var(--font-sans);
+  color: var(--ink-2);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.universe-subtab:hover { color: var(--ink-0); }
+.universe-subtab.is-active { background: var(--soleil); color: #0a0a0c; }
+
+/* ───────── Command Center (big-screen metrics wall) ───────── */
+.cc-stage { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cc-stage:-webkit-full-screen { width: 100vw; height: 100vh; background: #0a0a0c; }
+.cc-stage:fullscreen { width: 100vw; height: 100vh; background: #0a0a0c; }
+
+/* Edge-framing overlay: open center passes pointer events to the universe. */
+.cc-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: minmax(280px, 22%) 1fr minmax(280px, 22%);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "top    top    top"
+    "left   .      right"
+    "bottom bottom bottom";
+  gap: 14px;
+  padding: 62px 16px 16px;   /* clears the subtab pill + corner controls */
+}
+
+/* Shared frosted-glass surface for every panel. */
+.cc-kpi, .cc-panel, .cc-uni, .cc-leaders, .cc-updated, .cc-ctrl-btn {
+  background: rgba(10,10,12,0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: var(--shadow-2);
+}
+
+/* Top — hero KPI row */
+.cc-top { grid-area: top; pointer-events: auto; display: flex; gap: 12px; flex-wrap: wrap; }
+.cc-kpi {
+  flex: 1 1 0;
+  min-width: 150px;
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cc-kpi-label {
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  display: flex; align-items: center; gap: 6px;
+}
+.cc-kpi-value {
+  font: 700 34px/1.05 var(--font-display, var(--font-sans));
+  color: var(--ink-0);
+  font-variant-numeric: tabular-nums;
+}
+.cc-kpi-sub { font: 500 12px/1.2 var(--font-sans); color: var(--ink-3); }
+.cc-kpi.is-accent { border-color: rgba(255,165,0,0.40); box-shadow: var(--shadow-glow); }
+.cc-kpi.is-accent .cc-kpi-value { color: var(--soleil); }
+.cc-live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #50c878;
+  animation: cc-pulse 1.8s ease-out infinite;
+}
+@keyframes cc-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(80,200,120,.5); }
+  70%  { box-shadow: 0 0 0 8px rgba(80,200,120,0); }
+  100% { box-shadow: 0 0 0 0 rgba(80,200,120,0); }
+}
+
+/* Side rails */
+.cc-rail { display: flex; flex-direction: column; gap: 14px; pointer-events: auto; min-height: 0; overflow-y: auto; }
+.cc-rail-left  { grid-area: left; }
+.cc-rail-right { grid-area: right; }
+.cc-panel { border-radius: 14px; padding: 12px 14px; }
+.cc-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.cc-panel-title { margin: 0; font: 600 12px/1 var(--font-sans); color: var(--ink-0); letter-spacing: .02em; }
+.cc-panel-sub { font: 500 10px/1 var(--font-sans); color: var(--ink-3); }
+.cc-panel-body { width: 100%; }
+
+/* Bottom strip — live universe totals + leaderboard */
+.cc-bottom { grid-area: bottom; pointer-events: auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
+.cc-uni { border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-around; gap: 8px; }
+.cc-uni-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cc-uni-num { font: 700 22px/1 var(--font-display, var(--font-sans)); color: var(--ink-0); font-variant-numeric: tabular-nums; }
+.cc-uni-label { font: 600 10px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.cc-uni-delta { font: 600 10px/1 var(--font-sans); color: var(--soleil); }
+.cc-leaders { border-radius: 14px; padding: 12px 16px; min-width: 0; }
+.cc-leaders-title { font: 600 11px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 8px; }
+.cc-leaders-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.cc-leader { display: flex; align-items: center; gap: 8px; font: 500 12px/1.3 var(--font-sans); color: var(--ink-1); }
+.cc-leader-rank { width: 16px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.cc-leader-email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-leader-count { color: var(--ink-0); font-weight: 600; font-variant-numeric: tabular-nums; }
+.cc-leader-empty { color: var(--ink-3); }
+
+/* Corner controls (float above the frame) */
+.cc-controls { position: absolute; top: 14px; right: 14px; z-index: 6; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
+.cc-updated { font: 500 11px/1 var(--font-sans); color: var(--ink-2); padding: 6px 12px; border-radius: 999px; }
+.cc-ctrl-btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; color: var(--ink-1); cursor: pointer; }
+.cc-ctrl-btn:hover { color: var(--ink-0); border-color: var(--soleil); }
+
+/* Laptop / small screens: collapse the frame to a scrollable stack over a
+   dimmed universe (the wall display is the real target; this keeps it usable). */
+@media (max-width: 1024px) {
+  .cc-frame {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas: "top" "left" "right" "bottom";
+    overflow-y: auto;
+    pointer-events: auto;
+    background: rgba(10,10,12,0.45);
+    padding-top: 64px;
+  }
+  .cc-rail { overflow: visible; }
+  .cc-bottom { grid-template-columns: 1fr; }
+}
 .universe-error {
   display: flex;
   align-items: center;
