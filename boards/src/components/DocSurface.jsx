@@ -13,7 +13,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage } from '../lib/docState.js';
+import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
+import { isDocQaMode } from '../lib/localMode.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
@@ -122,19 +124,20 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // caret coords are paper-relative).
   const paperRef = useRef(null);
 
-  // Page zoom — global preference (every doc opens at the user's last
-  // zoom level). Cmd +/−/0 + toolbar buttons + Ctrl+wheel (trackpad pinch)
-  // all adjust this value.
+  // Page zoom. Card-scoped docs remember their OWN zoom (keyed by card id) so
+  // each doc opens where you left it; the legacy root path keeps the single
+  // global preference. Cmd +/−/0 + toolbar buttons + Ctrl+wheel all adjust it.
+  const zoomStorageKey = scope?.cardId ? `${ZOOM_KEY}.${scope.cardId}` : ZOOM_KEY;
   const [zoom, setZoomState] = useState(() => {
     try {
-      const v = parseFloat(localStorage.getItem(ZOOM_KEY) || '');
+      const v = parseFloat(localStorage.getItem(zoomStorageKey) || '');
       return Number.isFinite(v) ? clampZoom(v) : 1;
     } catch (_) { return 1; }
   });
   const setZoom = (z) => {
     const next = clampZoom(typeof z === 'function' ? z(zoom) : z);
     setZoomState(next);
-    try { localStorage.setItem(ZOOM_KEY, String(next)); } catch (_) {}
+    try { localStorage.setItem(zoomStorageKey, String(next)); } catch (_) {}
   };
 
   const [findOpen, setFindOpen] = useState(false);
@@ -229,6 +232,28 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pages.length]);
+
+  // Keep the first page's name in sync with the card title (titleOverride),
+  // but ONLY while that page is still "tracking" the title — i.e. its name
+  // equals the previous title or a seeded default. The moment the user gives
+  // the page its own name, we stop touching it so a card rename never clobbers
+  // intentional page names. (No-op for the root path, where titleOverride is null.)
+  const prevTitleRef = useRef(titleOverride);
+  useEffect(() => {
+    const prev = prevTitleRef.current;
+    prevTitleRef.current = titleOverride;
+    if (!titleOverride || titleOverride === prev || !pages.length) return;
+    const primary = [...pages]
+      .filter(p => p.parent_id == null)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
+    if (!primary) return;
+    // "Tracking" = the page still has an auto-generated name (so syncing the
+    // first real card title is welcome) or its name equals the previous title.
+    const DEFAULT_NAMES = new Set(['', 'Untitled', 'Untitled doc']);
+    const tracking = primary.name === prev || DEFAULT_NAMES.has(primary.name || '');
+    if (tracking) renamePage(ydoc, primary.id, titleOverride, scope);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [titleOverride]);
 
   // Reactive list of sheet ids for the active page. Always starts with the
   // implicit primary (id === activePageId) and grows with addPageSheet calls.
@@ -335,7 +360,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       const ed = editorRef.current;
       if (!ed) { if (tries++ < 30) setTimeout(tick, 40); return; }
       const docSize = ed.state.doc.content.size;
-      const pos = Math.max(1, Math.min(target.anchor || 1, Math.max(1, docSize - 1)));
+      // Prefer the durable relative anchor (rides along with edits); fall back
+      // to the legacy raw int for bookmarks saved before relAnchor existed.
+      const resolved = resolveAnchor(ed, target.relAnchor);
+      const raw = (resolved != null) ? resolved : (target.anchor || 1);
+      const pos = Math.max(1, Math.min(raw, Math.max(1, docSize - 1)));
       ed.commands.focus();
       ed.commands.setTextSelection(pos);
       try {
@@ -369,17 +398,29 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // particular sheet and re-points editorRef at that editor.
   const editorRef = useRef(null);
   const [, force] = useState(0);
+  // Dev-only: surface the active editor to the doc QA harness bridge so
+  // Playwright can exercise editor-bound logic (e.g. bookmark relative-position
+  // durability). No-op in production (isDocQaMode is false outside DEV+?docqa=1).
+  const exposeEditor = (ed) => {
+    // The literal import.meta.env.DEV lets the bundler strip this whole block
+    // (and the bridge string) from production builds.
+    if (import.meta.env.DEV && isDocQaMode() && typeof window !== 'undefined') {
+      (window.__soleilDocTest || (window.__soleilDocTest = {})).editor = ed;
+    }
+  };
   const onEditorReady = (ed) => {
     if (!editorRef.current) {
       editorRef.current = ed;
       force(n => n + 1);
     }
+    exposeEditor(ed);
   };
   const onEditorFocus = (ed) => {
     if (editorRef.current !== ed) {
       editorRef.current = ed;
       force(n => n + 1);
     }
+    exposeEditor(ed);
   };
 
   // Broadcast scrollTop on the doc-paper so workspace presence can carry
@@ -433,7 +474,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const openAddCommentRef = useRef(null);
   const registerOpenAddComment = useCallback((fn) => { openAddCommentRef.current = fn; }, []);
 
-  const insertBookmarkAtCaret = (editor) => {
+  const insertBookmarkAtCaret = async (editor) => {
     if (!editor || !activePageId) return;
     const anchor = editor.state.selection.from;
     // Use the surrounding text as a default name suggestion.
@@ -443,10 +484,16 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       const para = $pos.parent;
       suggested = para?.textContent?.slice(0, 40) || '';
     } catch (_) {}
-    // eslint-disable-next-line no-alert
-    const name = window.prompt('Bookmark name', suggested || 'Bookmark');
-    if (!name) return;
-    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, scope });
+    const name = await feedback.prompt({
+      title: 'Add bookmark',
+      label: 'Bookmark name',
+      defaultValue: suggested || 'Bookmark',
+      confirmLabel: 'Add',
+    });
+    if (name == null) return; // cancelled
+    // Store a durable relative anchor (survives edits) alongside the raw int.
+    const relAnchor = encodeAnchor(editor, anchor);
+    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, relAnchor, scope });
   };
 
   if (!ready) {

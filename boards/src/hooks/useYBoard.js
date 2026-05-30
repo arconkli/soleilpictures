@@ -127,6 +127,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
         canRedo: handle.undoManager.redoStack.length > 0,
         sessionId: handle.sessionId || null,
         getAwareness: handle.getAwareness,
+        flushNow: handle.flushNow,
       });
       if (_t0) perf.mark('yboard.refresh.ms', performance.now() - _t0);
     };

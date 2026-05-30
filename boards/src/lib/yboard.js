@@ -407,6 +407,18 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   };
   if (typeof window !== 'undefined') window.addEventListener('pagehide', onPageHide);
 
+  // Flush any pending debounced snapshot to the backend immediately. Called
+  // e.g. when a doc card closes, so an edit made in the last ~250ms can't be
+  // lost if the tab is closed right after. No-op when nothing is pending.
+  const flushNow = () => {
+    if (destroyed || !initialized) return;
+    if (snapTimer) {
+      clearTimeout(snapTimer);
+      snapTimer = null;
+      saveBoardSnapshot(boardId, ydoc).catch(() => {});
+    }
+  };
+
   const destroy = () => {
     destroyed = true;
     if (snapTimer) clearTimeout(snapTimer);
@@ -458,6 +470,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     undoManager,
     ready,
     destroy,
+    flushNow,
     sessionId,
     getAwareness: () => realtime?.awareness || null,
   };

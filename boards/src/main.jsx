@@ -8,6 +8,7 @@ const App = withPerfTime(RawApp, 'App');
 import { AuthGate } from './auth/AuthGate.jsx';
 import { TierRouter } from './auth/TierRouter.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
+import { isDocQaMode } from './lib/localMode.js';
 import { PublicBoardView } from './components/PublicBoardView.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
@@ -99,20 +100,39 @@ initCapacitor();
 // inline `font-family:'Inter',…` falls back to system-ui on cold load.
 preloadRecentGoogleFonts(getRecentFonts());
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <AppErrorBoundary>
-      <FeedbackProvider>
-        {shareMatch ? (
-          <PublicBoardView token={shareMatch[1]} />
-        ) : (
-          <AuthGate>
-            <TierRouter>
-              <App />
-            </TierRouter>
-          </AuthGate>
-        )}
-      </FeedbackProvider>
-    </AppErrorBoundary>
-  </StrictMode>
-);
+// Dev-only doc QA harness (?docqa=1). The literal `import.meta.env.DEV` guard
+// lets the bundler statically drop this whole branch — and the dynamic
+// import('./local/DocQaHarness.jsx') chunk — from production builds. It
+// short-circuits the normal app tree so tests get a clean, backend-free
+// surface for the real doc components.
+if (import.meta.env.DEV && isDocQaMode()) {
+  import('./local/DocQaHarness.jsx').then(({ DocQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <AppErrorBoundary>
+          <FeedbackProvider>
+            <DocQaHarness />
+          </FeedbackProvider>
+        </AppErrorBoundary>
+      </StrictMode>
+    );
+  });
+} else {
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <AppErrorBoundary>
+        <FeedbackProvider>
+          {shareMatch ? (
+            <PublicBoardView token={shareMatch[1]} />
+          ) : (
+            <AuthGate>
+              <TierRouter>
+                <App />
+              </TierRouter>
+            </AuthGate>
+          )}
+        </FeedbackProvider>
+      </AppErrorBoundary>
+    </StrictMode>
+  );
+}

@@ -14,6 +14,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, getOrCreateSheetContent, addBookmark, readPagesWithText } from '../lib/docState.js';
+import { encodeAnchor } from '../lib/bookmarkRelPos.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
 import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
@@ -107,8 +108,10 @@ const ExtraShortcuts = Extension.create({
       'Mod-Shift-.': () => this.editor.chain().focus().toggleBlockquote().run(),
       // Code: ⌘E (inline) — matches Notion
       'Mod-e': () => this.editor.chain().focus().toggleCode().run(),
-      // Highlight: ⌘⇧H
-      'Mod-Shift-h': () => this.editor.chain().focus().toggleHighlight({ color: '#fff7a8' }).run(),
+      // Highlight: ⌘⇧H. No inline color — let the themed `.tt-editor mark`
+      // CSS own it (dark #fff7a8 / light #fff09a) so highlights stay visible
+      // in both themes instead of being pinned to one hardcoded colour.
+      'Mod-Shift-h': () => this.editor.chain().focus().toggleHighlight().run(),
       // Alignment: ⌘⇧L / E / R / J (Google Docs)
       'Mod-Shift-l': () => this.editor.chain().focus().setTextAlign('left').run(),
       'Mod-Shift-e': () => this.editor.chain().focus().setTextAlign('center').run(),
@@ -550,7 +553,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
     });
   };
 
-  const insertBookmarkInline = (editor) => {
+  const insertBookmarkInline = async (editor) => {
     if (!activePageId) return;
     const anchor = editor.state.selection.from;
     let suggested = '';
@@ -558,10 +561,15 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
       const para = editor.state.doc.resolve(anchor).parent;
       suggested = para?.textContent?.slice(0, 40) || '';
     } catch (_) {}
-    // eslint-disable-next-line no-alert
-    const name = window.prompt('Bookmark name', suggested || 'Bookmark');
-    if (!name) return;
-    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, scope });
+    const name = await feedback.prompt({
+      title: 'Add bookmark',
+      label: 'Bookmark name',
+      defaultValue: suggested || 'Bookmark',
+      confirmLabel: 'Add',
+    });
+    if (name == null) return; // cancelled
+    const relAnchor = encodeAnchor(editor, anchor);
+    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, relAnchor, scope });
   };
 
   const editor = useEditor({
@@ -1346,21 +1354,6 @@ const TaskIcon  = () => svg({}, <><rect x="2" y="2.5" width="4" height="4" rx="1
 const QuoteIcon = () => svg({}, <><path d="M2 5 Q2 3 4 3 V6 H2 V5 Q2 7 4 8" /><path d="M8 5 Q8 3 10 3 V6 H8 V5 Q8 7 10 8" /></>);
 const CommentIcon = () => svg({}, <><path d="M2 4 A1 1 0 0 1 3 3 H11 A1 1 0 0 1 12 4 V9 A1 1 0 0 1 11 10 H6 L4 12 V10 H3 A1 1 0 0 1 2 9 Z" /></>);
 const RemoveTagIcon = () => svg({}, <><path d="M2 7 L7 2 H11 V6 L6 11 Z" /><circle cx="9" cy="4" r=".7" fill="currentColor" stroke="none" /><path d="M4 9 L8 13 M8 9 L4 13" strokeWidth="1.6" /></>);
-
-function promptLink(editor) {
-  const previous = editor.getAttributes('link').href || '';
-  // Use a tiny inline prompt for now. The app's feedback.prompt would be
-  // nicer but it's async-modal and would interfere with the editor's
-  // selection — keep this synchronous for the v1.
-  // eslint-disable-next-line no-alert
-  const url = window.prompt('URL', previous);
-  if (url === null) return;
-  if (url === '') {
-    editor.chain().focus().extendMarkRange('link').unsetLink().run();
-    return;
-  }
-  editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-}
 
 // Maps a Trie record (from the auto-detect index) to an EntityPicker target shape.
 function recordToTarget(r) {

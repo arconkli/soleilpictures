@@ -1441,6 +1441,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the exact location for click-to-jump.
   //   null OR { cardId, pageId, scrollTop }
   const [openDocCard, setOpenDocCard] = useState(null);
+  // Keep a live reference to the board flush fns so the (empty-dep) doc-card
+  // listener below can persist pending edits the moment a card closes. A doc
+  // card's content lives in its host board's Y.Doc, so flushing the open
+  // board(s) commits the last ~250ms of typing before the snapshot debounce
+  // would have. flushNow is a no-op when nothing is pending.
+  const flushBoardsRef = useRef(() => {});
+  useEffect(() => {
+    flushBoardsRef.current = () => {
+      try { yb.flushNow?.(); } catch (_) {}
+      try { splitYb.flushNow?.(); } catch (_) {}
+    };
+  }, [yb.flushNow, splitYb.flushNow]);
   useEffect(() => {
     const onMount = (e) => {
       const { cardId } = e.detail || {};
@@ -1449,6 +1461,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const onUnmount = (e) => {
       const { cardId } = e.detail || {};
+      try { flushBoardsRef.current?.(); } catch (_) {}
       setOpenDocCard(c => (c?.cardId === cardId ? null : c));
     };
     const onPage = (e) => {

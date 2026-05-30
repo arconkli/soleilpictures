@@ -261,15 +261,3 @@ function ColorBtn({ disabled, onPick, onClear, title }) {
     </span>
   );
 }
-
-function promptLink(editor) {
-  const previous = editor.getAttributes('link').href || '';
-  // eslint-disable-next-line no-alert
-  const url = window.prompt('URL', previous);
-  if (url === null) return;
-  if (url === '') {
-    editor.chain().focus().extendMarkRange('link').unsetLink().run();
-    return;
-  }
-  editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-}

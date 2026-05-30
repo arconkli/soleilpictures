@@ -171,6 +171,7 @@ export function RichDocCard({
             {pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'}` : 'no pages'}
           </span>
           <button className="doc-card-open" title="Open beside (dock to right)"
+                  aria-label="Open beside"
                   onClick={(e) => { e.stopPropagation(); open('side'); }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
@@ -179,6 +180,7 @@ export function RichDocCard({
             </svg>
           </button>
           <button className="doc-card-open" title="Open fullscreen"
+                  aria-label="Open fullscreen"
                   onClick={(e) => { e.stopPropagation(); open('full'); }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
@@ -317,6 +319,7 @@ function DocCardOverlay({
           {/* Mode toggles */}
           {mode === 'full' ? (
             <button className="doc-card-icon" title="Dock to side (split with canvas)"
+                    aria-label="Dock to side"
                     onClick={() => onSetMode('side')}>
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <rect x="2.5" y="3" width="15" height="14" rx="1.6" stroke="currentColor" strokeWidth="1.4"/>
@@ -326,13 +329,14 @@ function DocCardOverlay({
             </button>
           ) : (
             <button className="doc-card-icon" title="Open fullscreen"
+                    aria-label="Open fullscreen"
                     onClick={() => onSetMode('full')}>
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 7 V3 H7 M17 7 V3 H13 M3 13 V17 H7 M17 13 V17 H13" />
               </svg>
             </button>
           )}
-          <button className="doc-card-close" title="Close (Esc)" onClick={onClose}>
+          <button className="doc-card-close" title="Close (Esc)" aria-label="Close document" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               <path d="M5 5 L13 13 M13 5 L5 13" />
             </svg>

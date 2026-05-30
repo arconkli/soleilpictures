@@ -273,6 +273,7 @@ export function deletePage(ydoc, id, scope) {
   const bookmarks = bookmarksMap(ydoc, scope);
   const sheets = pageSheetsMap(ydoc, scope);
   const sContent = sheetContentMap(ydoc, scope);
+  const comments = commentsMap(ydoc, scope);
   if (!arr || !content || !bookmarks) return;
   ydoc.transact(() => {
     const all = arr.toArray();
@@ -296,6 +297,8 @@ export function deletePage(ydoc, id, scope) {
       sheets?.delete(pid);
     });
     bookmarks.forEach((v, k) => { if (toRemove.has(v.pageId)) bookmarks.delete(k); });
+    // Drop comment threads anchored to removed pages so they don't orphan.
+    comments?.forEach((v, k) => { if (toRemove.has(v.pageId)) comments.delete(k); });
   }, 'local');
 }
 
@@ -370,10 +373,13 @@ export function deleteCommentThread(ydoc, id, scope) {
 
 // Bookmarks ─────────────────────────────────────────────────────────────────
 export function addBookmark(ydoc, opts) {
-  const { name, pageId, anchor, scope } = opts;
+  const { name, pageId, anchor, relAnchor = null, scope } = opts;
   const id = 'bm_' + Math.random().toString(36).slice(2, 10);
   const map = bookmarksMap(ydoc, scope); if (!map) return id;
-  ydoc.transact(() => { map.set(id, { name, pageId, anchor }); }, 'local');
+  // `anchor` is the legacy raw int position (kept as a fallback). `relAnchor`
+  // is a durable Yjs relative position (base64) that survives edits — see
+  // bookmarkRelPos.js. Resolution prefers relAnchor and falls back to anchor.
+  ydoc.transact(() => { map.set(id, { name, pageId, anchor, relAnchor }); }, 'local');
   return id;
 }
 

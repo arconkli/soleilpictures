@@ -12,6 +12,15 @@ import { expect, test } from '@playwright/test';
 // assert specific declarations without needing the element in the DOM.
 async function collectCss(page) {
   await page.goto('/?local=1');
+  // In dev, Vite injects the bundled CSS via JS after load — wait for it to be
+  // present so the stylesheet scan is deterministic (not racing CSS injection).
+  await page.waitForFunction(() => {
+    for (const s of document.styleSheets) {
+      try { for (const r of s.cssRules) if (r.cssText && r.cssText.includes('doc-sheet-fade-in')) return true; }
+      catch { /* cross-origin */ }
+    }
+    return false;
+  }, null, { timeout: 15000 });
   return page.evaluate(() => {
     const selectors = new Set();
     const keyframes = new Set();
