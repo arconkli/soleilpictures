@@ -14,6 +14,7 @@ import { logEvent } from './analytics.js';
 
 const CHECKOUT_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
 const PORTAL_URL   = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
+const ACCOUNT_ACTION_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/admin-account-action';
 
 async function authedToken() {
   const { data } = await supabase.auth.getSession();
@@ -38,6 +39,22 @@ export async function startCheckout({ plan, surface }) {
   if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
   if (body.mode === 'portal') logEvent('billing_portal_open', { surface, via: 'checkout_guard' });
   window.location.assign(body.url);
+}
+
+// Admin-only account lifecycle actions handled server-side (need the service
+// role / Stripe SDK): cancel_subscription, ban, unban, delete, resync_subscription.
+// The edge fn re-verifies the caller is admin; this just forwards the call.
+// Returns the parsed JSON body; throws with the server's error message on failure.
+export async function adminAccountAction({ userId, action, reason } = {}) {
+  const token = await authedToken();
+  const res = await fetch(ACCOUNT_ACTION_URL, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ user_id: userId, action, reason }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  return body;
 }
 
 // Open the Stripe Customer Portal for the signed-in user. Redirects on success.

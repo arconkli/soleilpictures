@@ -45,6 +45,78 @@ export async function resolveUserId(
   return null;
 }
 
+export interface BillingFromSub {
+  monthlyAmountCents: number | null;
+  discount: Record<string, unknown> | null;
+}
+
+// True net monthly-equivalent recurring revenue for a subscription, with
+// CURRENTLY-RECURRING discounts applied. A 'once' coupon is ignored because it
+// only affects the first invoice — it doesn't recur, so it shouldn't reduce MRR.
+// Used so a 100%-off comp counts as $0 and a 50%-off counts as half, instead of
+// the flat list price. Returns {null,null} on any anomaly so activation never
+// breaks; callers fall back to the list-price estimate in admin_stats.
+//
+// NOTE: pass a subscription retrieved with `expand: ['discounts']` so each
+// applied discount carries its Coupon object (percent_off / amount_off /
+// duration). Unexpanded discount ids are skipped.
+export function netMonthlyFromSubscription(sub: Stripe.Subscription | null): BillingFromSub {
+  if (!sub) return { monthlyAmountCents: null, discount: null };
+  try {
+    const perMonth = (amount: number, qty: number, price: Stripe.Price | null | undefined) => {
+      const interval = price?.recurring?.interval ?? "month";
+      const ic = price?.recurring?.interval_count ?? 1;
+      const base = amount * qty;
+      if (interval === "year") return base / (12 * ic);
+      if (interval === "week") return (base * 52) / 12 / ic;
+      if (interval === "day")  return (base * 365) / 12 / ic;
+      return base / ic; // month
+    };
+
+    let grossMonthly = 0;
+    for (const item of sub.items?.data ?? []) {
+      grossMonthly += perMonth(item.price?.unit_amount ?? 0, item.quantity ?? 1, item.price);
+    }
+
+    // New API exposes `discounts` (array); older one exposes a single `discount`.
+    const list: unknown[] = Array.isArray((sub as unknown as { discounts?: unknown[] }).discounts)
+      ? (sub as unknown as { discounts: unknown[] }).discounts
+      : [];
+    const legacy = (sub as unknown as { discount?: unknown }).discount;
+    if (legacy && list.length === 0) list.push(legacy);
+
+    const firstPrice = sub.items?.data?.[0]?.price;
+    let net = grossMonthly;
+    let primary: Record<string, unknown> | null = null;
+    for (const d of list) {
+      if (!d || typeof d === "string") continue; // unexpanded id — can't read coupon
+      const disc = d as { coupon?: Record<string, unknown>; promotion_code?: unknown };
+      const coupon = disc.coupon;
+      if (!coupon) continue;
+      if (coupon.duration === "once") continue; // first invoice only — doesn't recur
+      if (typeof coupon.percent_off === "number" && coupon.percent_off > 0) {
+        net = net * (1 - coupon.percent_off / 100);
+      } else if (typeof coupon.amount_off === "number" && coupon.amount_off > 0) {
+        net = net - perMonth(coupon.amount_off as number, 1, firstPrice);
+      }
+      if (!primary) {
+        primary = {
+          coupon: coupon.id ?? coupon.name ?? null,
+          name: coupon.name ?? null,
+          percent_off: coupon.percent_off ?? null,
+          amount_off: coupon.amount_off ?? null,
+          duration: coupon.duration ?? null,
+          promotion_code: disc.promotion_code ?? null,
+        };
+      }
+    }
+
+    return { monthlyAmountCents: Math.max(0, Math.round(net)), discount: primary };
+  } catch (_e) {
+    return { monthlyAmountCents: null, discount: null };
+  }
+}
+
 export interface ActivateResult {
   activated: boolean;
   reason?: string;
@@ -73,6 +145,7 @@ export async function activateUserFromSubscription(
   const status = subscription ? subscription.status : null;
   const currentPeriodEnd = subscription ? periodEndFromSubscription(subscription) : null;
   const cancelAtPeriodEnd = subscription ? Boolean(subscription.cancel_at_period_end) : false;
+  const billing = netMonthlyFromSubscription(subscription);
 
   const up = await admin.from("subscriptions").upsert({
     user_id: userId,
@@ -82,6 +155,8 @@ export async function activateUserFromSubscription(
     status,
     current_period_end: currentPeriodEnd,
     cancel_at_period_end: cancelAtPeriodEnd,
+    monthly_amount_cents: billing.monthlyAmountCents,
+    discount: billing.discount,
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id" });
   if (up.error) return { activated: false, reason: `subscriptions upsert failed: ${up.error.message}` };

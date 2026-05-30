@@ -15,6 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
 import {
   activateUserFromSubscription,
+  netMonthlyFromSubscription,
   periodEndFromSubscription,
   planFromPriceId,
   resolveUserId,
@@ -100,7 +101,8 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
     return;
   }
 
-  const subscription = subId ? await stripe.subscriptions.retrieve(subId) : null;
+  // Expand discounts so we can record the real net amount (100%-off → $0).
+  const subscription = subId ? await stripe.subscriptions.retrieve(subId, { expand: ["discounts"] }) : null;
   const result = await activateUserFromSubscription(admin, {
     userId,
     customerId,
@@ -115,20 +117,28 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
   const userId = await resolveUserId(admin, customerId, sub.metadata?.supabase_user_id, null);
   if (!userId) return;
 
-  const plan = planFromPriceId(sub.items.data[0]?.price?.id);
+  // Re-retrieve with discounts expanded so the captured net amount reflects any
+  // promo (the event payload may carry discounts as bare ids). Best-effort.
+  let full = sub;
+  try { full = await stripe.subscriptions.retrieve(sub.id, { expand: ["discounts"] }); } catch (_) { /* use event copy */ }
+
+  const plan = planFromPriceId(full.items.data[0]?.price?.id);
+  const billing = netMonthlyFromSubscription(full);
   await admin.from("subscriptions").upsert({
     user_id: userId,
     stripe_customer_id: customerId,
-    stripe_subscription_id: sub.id,
+    stripe_subscription_id: full.id,
     plan,
-    status: sub.status,
-    current_period_end: periodEndFromSubscription(sub),
-    cancel_at_period_end: sub.cancel_at_period_end,
+    status: full.status,
+    current_period_end: periodEndFromSubscription(full),
+    cancel_at_period_end: full.cancel_at_period_end,
+    monthly_amount_cents: billing.monthlyAmountCents,
+    discount: billing.discount,
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id" });
 
   // Active subs → ensure tier='paid' (unless admin).
-  if (sub.status === "active" || sub.status === "trialing") {
+  if (full.status === "active" || full.status === "trialing") {
     await admin.from("profiles").update({ tier: "paid" }).eq("user_id", userId).neq("tier", "admin");
   }
   // Past-due / unpaid → leave tier as-is, the cancel event will drop them.

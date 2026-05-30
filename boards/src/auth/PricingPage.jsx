@@ -15,11 +15,11 @@ import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, DEMO_FEATURES } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, DEMO_FEATURES, grantCopy } from '../lib/billingCopy.js';
 
 export function PricingPage() {
   const { user, signOut } = useAuth();
-  const { tier } = useMyTier({ userId: user?.id });
+  const { tier, subscriptionStatus, grantActive, grantExpiresAt } = useMyTier({ userId: user?.id });
   const [plan, setPlan]   = useState('annual');   // default to annual (better deal)
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
@@ -28,6 +28,11 @@ export function PricingPage() {
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
   const isDemo = tier === 'demo';
+  // Comped via an admin grant (no paying sub) or an admin — nothing to manage in
+  // the Stripe portal, so the Manage-billing CTA would error. Show a note instead.
+  const grantBacked = tier === 'paid' && grantActive && !['active', 'trialing'].includes(subscriptionStatus || '');
+  const noPortal = grantBacked || tier === 'admin';
+  const grantLine = grantBacked ? grantCopy({ grantActive, grantExpiresAt }) : null;
 
   const onCreatorCta = async () => {
     setError(null);
@@ -86,8 +91,11 @@ export function PricingPage() {
 
           {alreadyPaid && (
             <p className="pricing-card-price-sub t-meta" style={{ marginTop: 4 }}>
-              You're already on Creator. Manage your plan, payment method, or
-              cancellation below.
+              {grantLine
+                ? grantLine
+                : tier === 'admin'
+                  ? 'You have unlimited admin access — no subscription needed.'
+                  : "You're already on Creator. Manage your plan, payment method, or cancellation below."}
             </p>
           )}
 
@@ -95,15 +103,22 @@ export function PricingPage() {
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
-          <button
-            className="pricing-cta pricing-cta-primary"
-            onClick={onCreatorCta}
-            disabled={busy}
-          >
-            {busy
-              ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
-              : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
-          </button>
+          {noPortal ? (
+            // Comped grant / admin — no Stripe customer to manage.
+            <button className="pricing-cta pricing-cta-secondary" disabled>
+              {grantBacked ? 'Complimentary access' : 'Your current plan'}
+            </button>
+          ) : (
+            <button
+              className="pricing-cta pricing-cta-primary"
+              onClick={onCreatorCta}
+              disabled={busy}
+            >
+              {busy
+                ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
+                : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
+            </button>
+          )}
         </article>
       </div>
 

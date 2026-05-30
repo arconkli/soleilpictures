@@ -25,8 +25,8 @@ import { UpgradeChip } from '../components/UpgradeChip.jsx';
 import { SoleilMark } from '../components/primitives.jsx';
 
 export function TierRouter({ children }) {
-  const { user } = useAuth();
-  const { tier, loading } = useMyTier({ userId: user?.id });
+  const { user, signOut } = useAuth();
+  const { tier, loading, banned } = useMyTier({ userId: user?.id });
   const [hasEntry, setHasEntry] = useState(null);
   const path = window.location.pathname;
 
@@ -47,6 +47,10 @@ export function TierRouter({ children }) {
   }, [tier, user?.email]);
 
   if (loading || (tier === 'waitlist' && hasEntry === null)) return <Splash />;
+
+  // Suspended accounts are hard-blocked from every route. (The auth user is
+  // also natively banned server-side, which stops sign-in + token refresh.)
+  if (banned) return <Suspended onSignOut={signOut} />;
 
   // Anyone signed in can reach these:
   if (path === '/pricing')           return <PricingPage />;
@@ -85,6 +89,23 @@ function Splash() {
       <div className="auth-glow" aria-hidden="true" />
       <div className="auth-loading">
         <SoleilMark size={32} color="var(--soleil)" glow />
+      </div>
+    </div>
+  );
+}
+
+function Suspended({ onSignOut }) {
+  return (
+    <div className="auth-screen">
+      <div className="auth-glow" aria-hidden="true" />
+      <div className="auth-card auth-card-message">
+        <SoleilMark size={32} color="var(--soleil)" />
+        <h1 className="auth-message-title">Account suspended</h1>
+        <p className="auth-message-body t-meta">
+          Your account has been suspended. If you think this is a mistake,
+          contact <a className="auth-link" href="mailto:hello@soleilpictures.com">hello@soleilpictures.com</a>.
+        </p>
+        <button className="auth-btn" onClick={onSignOut}>Sign out</button>
       </div>
     </div>
   );

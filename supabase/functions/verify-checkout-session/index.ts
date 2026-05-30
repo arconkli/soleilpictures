@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     if (!customerId) return json({ activated: false, reason: "no customer on session" }, 200);
 
     const subscription = typeof session.subscription === "string"
-      ? await stripe.subscriptions.retrieve(session.subscription)
+      ? await stripe.subscriptions.retrieve(session.subscription, { expand: ["discounts"] })
       : (session.subscription as Stripe.Subscription | null);
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });

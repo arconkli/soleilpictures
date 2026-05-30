@@ -64,9 +64,11 @@ export const CTA = {
   subscribeShort: (plan) => `Subscribe — $${planPerMonth(plan)}/mo`,
 };
 
-export function planLabel({ tier, plan, demoCardCount } = {}) {
+export function planLabel({ tier, plan, demoCardCount, grantBacked } = {}) {
   if (tier === 'admin') return 'Admin · Unlimited';
   if (tier === 'paid') {
+    // Comped via an admin grant (no paying Stripe sub) — say so honestly.
+    if (grantBacked) return `${PLAN_NAME} · Complimentary`;
     return plan === 'annual'
       ? `${PLAN_NAME} · Annual (${ANNUAL_PRICE})`
       : `${PLAN_NAME} · Monthly (${MONTHLY_PRICE})`;
@@ -76,6 +78,18 @@ export function planLabel({ tier, plan, demoCardCount } = {}) {
     return `Free Demo · ${n}/100 cards`;
   }
   return 'Waitlist · not yet active';
+}
+
+// Copy for a complimentary (admin-granted) Creator pass. `grantExpiresAt` null
+// means no end date. Returns a single descriptive line, or null when there's no
+// active grant to describe.
+export function grantCopy({ grantActive, grantExpiresAt } = {}) {
+  if (!grantActive) return null;
+  if (!grantExpiresAt) return 'Complimentary Creator access — granted by Soleil, no end date.';
+  const d = new Date(grantExpiresAt);
+  if (Number.isNaN(d.getTime())) return 'Complimentary Creator access — granted by Soleil.';
+  const when = d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  return `Complimentary Creator access — granted by Soleil, through ${when}.`;
 }
 
 export function formatPeriodEnd(dateLike, { cancel } = {}) {

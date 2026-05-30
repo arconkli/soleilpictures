@@ -1,7 +1,11 @@
 // useMyTier — fetches the caller's tier + card count from the get_my_tier RPC.
 //
 // Returned shape:
-//   { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, loading, error, refetch }
+//   { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
+//     grantActive, grantExpiresAt, banned, loading, error, refetch }
+//
+// grantActive/grantExpiresAt describe an admin-issued complimentary paid grant
+// (expiry null = no end date); banned is true for a suspended account.
 //
 // tier is one of 'admin' | 'paid' | 'demo' | 'waitlist' | null. While the
 // initial fetch is in flight, `loading` is true and tier is null. After the
@@ -24,6 +28,9 @@ export function useMyTier({ userId } = {}) {
     subscriptionStatus: null,
     currentPeriodEnd: null,
     cancelAtPeriodEnd: false,
+    grantActive: false,
+    grantExpiresAt: null,
+    banned: false,
   });
   const [loading, setLoading] = useState(!override);
   const [error, setError] = useState(null);
@@ -41,6 +48,9 @@ export function useMyTier({ userId } = {}) {
         subscriptionStatus: row?.subscription_status || null,
         currentPeriodEnd:   row?.current_period_end || null,
         cancelAtPeriodEnd:  Boolean(row?.cancel_at_period_end),
+        grantActive:        Boolean(row?.grant_active),
+        grantExpiresAt:     row?.grant_expires_at || null,
+        banned:             Boolean(row?.banned),
       });
       setError(null);
     } catch (e) {

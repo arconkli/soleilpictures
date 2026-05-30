@@ -11,10 +11,12 @@ import { supabase } from '../../lib/supabase.js';
 import { useAuth } from '../../auth/AuthGate.jsx';
 import { useFeedback } from '../../components/AppFeedback.jsx';
 import { CopyableText } from '../../components/CopyableText.jsx';
+import { adminAccountAction } from '../../lib/checkout.js';
 import { formatDuration } from '../../lib/formatDuration.js';
-import { relativeTime, fmtDate, fmtDateTime, formatCount } from '../../lib/adminFormat.js';
+import { relativeTime, fmtDate, fmtDateTime, formatCount, formatMoney } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
+import { AdminUserRowMenu } from './AdminUserRowMenu.jsx';
 import { User as UsersIcon } from '../../lib/icons.js';
 
 const PAGE_SIZE = 50;
@@ -60,22 +62,44 @@ export function AdminUsersTab() {
   // Clamp page into range after a mutation shrinks total (no empty-page strand).
   useEffect(() => { if (page > pageCount - 1) setPage(pageCount - 1); }, [pageCount, page]);
 
+  const hasActiveSub = (row) => ['active', 'trialing'].includes(row.subscription_status || '');
+
   const onChangeTier = async (row, nextTier) => {
     if (row.tier === nextTier) return;
     if (row.user_id === user?.id) return;            // self pills are disabled; guard anyway
+
+    const isDowngrade = nextTier === 'demo' || nextTier === 'waitlist';
+    const willCancel  = isDowngrade && hasActiveSub(row);   // paying customer → cancel billing first
+    const amount = row.subscription_amount_cents != null ? `${formatMoney(row.subscription_amount_cents)}/mo` : 'their plan';
+
+    let message;
+    if (willCancel) {
+      message = `${row.email} is a paying customer (${amount}). Moving them to ${nextTier} will cancel their Stripe subscription immediately so they stop being billed — issue any refund in Stripe. `
+        + (nextTier === 'waitlist'
+            ? "They'll lose all access until accepted off the waitlist again."
+            : 'They keep their data but are capped at 100 cards and view-only on shared boards.');
+    } else if (nextTier === 'admin') {
+      message = `${row.email} will gain full admin access — including the ability to change other tiers and access this page.`;
+    } else if (nextTier === 'paid') {
+      message = `${row.email} will be granted unlimited paid access without a Stripe subscription. They'll appear as paid users.`;
+    } else if (nextTier === 'waitlist') {
+      message = `${row.email} will lose all access until they're accepted off the waitlist again. Any complimentary grant is revoked.`;
+    } else {
+      message = `${row.email} will be capped at 100 cards and viewer-only on other people's boards. Any complimentary grant is revoked.`;
+    }
+
     const ok = await feedback.confirm({
       title:        `Change ${row.email} → ${nextTier}?`,
-      message:
-        nextTier === 'admin'    ? `${row.email} will gain full admin access — including the ability to change other tiers and access this page.`
-      : nextTier === 'paid'     ? `${row.email} will be granted unlimited paid access without a Stripe subscription. They'll appear as paid users.`
-      : nextTier === 'waitlist' ? `${row.email} will lose all access until they're accepted off the waitlist again.`
-      : `${row.email} will be capped at 100 cards and viewer-only on other people's boards.`,
-      confirmLabel: 'Change tier',
-      danger:       nextTier === 'admin' || nextTier === 'waitlist',
+      message,
+      confirmLabel: willCancel ? 'Cancel sub & change tier' : 'Change tier',
+      danger:       nextTier === 'admin' || nextTier === 'waitlist' || willCancel,
     });
     if (!ok) return;
     setBusyId(row.user_id);
     try {
+      // Stop the billing before flipping the tier — admin_set_tier refuses the
+      // downgrade while an active sub exists, so this must come first.
+      if (willCancel) await adminAccountAction({ userId: row.user_id, action: 'cancel_subscription' });
       const { error: err } = await supabase.rpc('admin_set_tier', { p_user_id: row.user_id, p_tier: nextTier });
       if (err) throw err;
       feedback.toast({ type: 'success', message: `${row.email} → ${nextTier}` });
@@ -85,6 +109,82 @@ export function AdminUsersTab() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const onBan = async (row) => {
+    const ok = await feedback.confirm({
+      title:   `Ban ${row.email}?`,
+      message: `They'll be signed out and blocked from signing back in. `
+        + (hasActiveSub(row) ? 'Their active Stripe subscription will be canceled so billing stops. ' : '')
+        + `You can unban them later; their data is kept.`,
+      confirmLabel: 'Ban account',
+      danger: true,
+    });
+    if (!ok) return;
+    setBusyId(row.user_id);
+    try {
+      await adminAccountAction({ userId: row.user_id, action: 'ban' });
+      feedback.toast({ type: 'success', message: `Banned ${row.email}` });
+      await refresh();
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Ban failed: ' + (e?.message || e) });
+    } finally { setBusyId(null); }
+  };
+
+  const onUnban = async (row) => {
+    const ok = await feedback.confirm({
+      title:   `Unban ${row.email}?`,
+      message: `They'll be able to sign in again at their previous tier. This does not restore any canceled subscription.`,
+      confirmLabel: 'Unban',
+    });
+    if (!ok) return;
+    setBusyId(row.user_id);
+    try {
+      await adminAccountAction({ userId: row.user_id, action: 'unban' });
+      feedback.toast({ type: 'success', message: `Unbanned ${row.email}` });
+      await refresh();
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Unban failed: ' + (e?.message || e) });
+    } finally { setBusyId(null); }
+  };
+
+  const onResync = async (row) => {
+    setBusyId(row.user_id);
+    try {
+      const res = await adminAccountAction({ userId: row.user_id, action: 'resync_subscription' });
+      if (res?.ok === false) {
+        feedback.toast({ type: 'info', message: res.reason || 'Nothing to re-sync.' });
+      } else {
+        const amt = res?.monthly_amount_cents != null ? ` (${formatMoney(res.monthly_amount_cents)}/mo)` : '';
+        feedback.toast({ type: 'success', message: `Re-synced billing for ${row.email}${amt}` });
+      }
+      await refresh();
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Re-sync failed: ' + (e?.message || e) });
+    } finally { setBusyId(null); }
+  };
+
+  const onDelete = async (row) => {
+    const ok = await feedback.confirm({
+      title:   `Delete ${row.email}?`,
+      message: `This permanently deletes the account and can't be undone. `
+        + (hasActiveSub(row) ? 'Their active Stripe subscription will be canceled. ' : '')
+        + `Boards they created stay in shared workspaces (just un-owned).`,
+      confirmLabel: 'Delete account',
+      danger: true,
+      confirmText: row.email,
+      confirmTextLabel: 'Type the email to confirm',
+      confirmTextPlaceholder: row.email,
+    });
+    if (!ok) return;
+    setBusyId(row.user_id);
+    try {
+      await adminAccountAction({ userId: row.user_id, action: 'delete' });
+      feedback.toast({ type: 'success', message: `Deleted ${row.email}` });
+      await refresh();
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Delete failed: ' + (e?.message || e) });
+    } finally { setBusyId(null); }
   };
 
   return (
@@ -120,7 +220,7 @@ export function AdminUsersTab() {
         loading={loading}
         error={error}
         onRetry={refresh}
-        skeleton={<AdminSkeleton variant="table" rows={8} cols={7} />}
+        skeleton={<AdminSkeleton variant="table" rows={8} cols={8} />}
         isEmpty={rows.length === 0}
         empty={{
           icon: UsersIcon,
@@ -138,6 +238,7 @@ export function AdminUsersTab() {
               <th>Joined</th>
               <th>Last sign-in</th>
               <th>Subscription</th>
+              <th aria-label="Actions"></th>
             </tr>
           </thead>
           <tbody>
@@ -151,6 +252,7 @@ export function AdminUsersTab() {
                   <td className="admin-email">
                     <CopyableText value={r.email} className="admin-email" />
                     {isSelf && <span className="admin-muted"> · you</span>}
+                    {r.banned && <span className="admin-badge-banned" title="Account suspended">banned</span>}
                   </td>
                   <td>
                     <div className="admin-tier-pill-group">
@@ -175,7 +277,26 @@ export function AdminUsersTab() {
                   <td className="admin-muted" title={fmtDateTime(r.last_sign_in_at)}>
                     {r.last_sign_in_at ? relativeTime(r.last_sign_in_at) : '—'}
                   </td>
-                  <td className="admin-muted">{subLabel}</td>
+                  <td className="admin-muted">
+                    {subLabel}
+                    {r.subscription_status && r.subscription_amount_cents != null && (
+                      <> · {formatMoney(r.subscription_amount_cents)}/mo</>
+                    )}
+                    {r.subscription_discounted && (
+                      <span className="admin-badge-promo" title="Discounted via a promo code"> promo</span>
+                    )}
+                  </td>
+                  <td className="admin-actions">
+                    <AdminUserRowMenu
+                      row={r}
+                      disabled={isSelf || busyId === r.user_id}
+                      busy={busyId === r.user_id}
+                      onBan={onBan}
+                      onUnban={onUnban}
+                      onResync={onResync}
+                      onDelete={onDelete}
+                    />
+                  </td>
                 </tr>
               );
             })}

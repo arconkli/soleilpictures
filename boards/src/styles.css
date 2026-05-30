@@ -1983,6 +1983,36 @@ body {
   margin-top: 6px;
 }
 
+/* Sub-group header inside a share section (e.g. "Everyone in this
+   workspace" / "Added to this board" under PEOPLE WITH ACCESS). Lighter
+   than .share-eyebrow so the section eyebrow still reads as the parent. */
+.share-subhead {
+  font: 600 10px/1.3 var(--font-sans);
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  margin: 12px 0 4px;
+}
+.share-subhead:first-of-type { margin-top: 2px; }
+
+/* Public-link create options row: include-sub-boards toggle + expiry
+   select + the create button, wrapping on narrow widths. */
+.share-link-create {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.share-link-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 11px/1.4 var(--font-sans);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.share-link-opt input[type="checkbox"] { cursor: pointer; }
+
 .share-list { display: flex; flex-direction: column; gap: 2px; }
 .share-empty {
   font: 500 12px/1.45 var(--font-sans);
@@ -2174,6 +2204,55 @@ body {
 .public-card-blocked-msg {
   font: 500 11px/1 var(--font-sans);
 }
+
+/* Navigable sub-board tile — replaces the "Sign in to open" placeholder
+   for board / board-link cards when a public link shares its sub-boards. */
+.public-card-board {
+  display: flex; flex-direction: column; justify-content: center;
+  width: 100%; height: 100%;
+  gap: 6px; padding: 12px;
+  text-align: left;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.public-card-board:hover { border-color: var(--soleil); background: var(--bg-hov); }
+.public-card-board-tag {
+  font: 700 9.5px/1 var(--font-sans);
+  letter-spacing: 0.18em;
+  color: var(--ink-3);
+}
+.public-card-board-name {
+  font: 600 14px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.public-card-board-go { font: 500 11px/1 var(--font-sans); color: var(--soleil); }
+
+/* Breadcrumb trail in the public topbar (shown once you've navigated into
+   a sub-board). Replaces the centered single board name. */
+.public-crumbs {
+  flex: 1 1 auto;
+  display: flex; align-items: center; gap: 6px;
+  justify-content: center;
+  min-width: 0;
+  font: 600 14px/1.2 var(--font-sans);
+  overflow: hidden;
+}
+.public-crumb-wrap { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.public-crumb {
+  color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 220px;
+}
+.public-crumb.clk { cursor: pointer; }
+.public-crumb.clk:hover { color: var(--ink-0); }
+.public-crumb.here { color: var(--ink-0); }
+.public-crumb-sep { color: var(--ink-3); flex-shrink: 0; }
 
 /* Sidebar footer — settings + avatar/sign-out, anchored at the bottom. */
 .sb-foot {
@@ -2501,7 +2580,10 @@ body {
   gap: 12px;
 }
 .tb-left, .tb-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.tb-center { flex: 1; display: flex; justify-content: center; }
+/* position:relative anchors the read-only banner directly under the
+   view-pill; z-index lifts that banner (an abs-positioned child that
+   overflows below the topbar) above the surface content below. */
+.tb-center { flex: 1; display: flex; justify-content: center; position: relative; z-index: 20; }
 .tb-divider { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; flex-shrink: 0; }
 
 .tb-icon, .tb-btn {
@@ -4748,12 +4830,18 @@ body {
 .upgrade-chip-sep    { color: var(--ink-3); }
 .upgrade-chip-count  { font-variant-numeric: tabular-nums; }
 
-/* ── Read-only banner (demo tier viewing someone else's board) ───────── */
+/* ── Read-only banner (demo tier viewing someone else's board) ─────────
+   Lives inside .tb-center (the topbar's centered column) so it sits
+   directly under the Canvas/List toggle on both views. top:100% drops it
+   just below the topbar; left:50% of .tb-center keeps it under the
+   toggle regardless of breadcrumb width. pointer-events:none lets canvas
+   pans / list clicks pass through the pill; the CTA re-enables itself. */
 .readonly-banner {
   position: absolute;
-  top: 12px;
+  top: 100%;
   left: 50%;
   transform: translateX(-50%);
+  margin-top: 8px;
   z-index: 50;
   display: inline-flex;
   align-items: center;
@@ -4765,12 +4853,14 @@ body {
   color: var(--ink-1);
   font: 500 12px/1.2 var(--font-sans);
   box-shadow: 0 6px 16px rgba(0,0,0,.18);
-  pointer-events: auto;
+  max-width: calc(100vw - 280px);
+  pointer-events: none;
 }
 .readonly-banner-text {
   letter-spacing: .01em;
 }
 .readonly-banner-cta {
+  pointer-events: auto;
   padding: 4px 10px;
   background: var(--soleil);
   color: var(--bg-0);
@@ -5051,6 +5141,58 @@ body {
 .admin-action-primary:hover:not(:disabled) { box-shadow: var(--shadow-1); }
 .admin-action-danger  { color: rgb(220,120,120); border-color: rgba(220,80,80,.4); }
 .admin-action-danger:hover:not(:disabled) { background: rgba(220,80,80,.12); }
+
+/* Per-user overflow (kebab) menu in the Users tab. */
+.admin-rowmenu { position: relative; display: inline-flex; }
+.admin-rowmenu-trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  background: transparent;
+  color: var(--ink-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+.admin-rowmenu-trigger:hover:not(:disabled) { background: var(--bg-3); color: var(--ink-1); }
+.admin-rowmenu-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
+.admin-rowmenu-pop {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 30;
+  min-width: 176px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius, 8px);
+  box-shadow: var(--shadow-2, 0 8px 28px rgba(0,0,0,.35));
+  padding: 4px;
+}
+.admin-rowmenu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 9px;
+  background: transparent; border: 0;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--ink-1);
+  font: 500 12px/1 var(--font-sans);
+  text-align: left; cursor: pointer;
+}
+.admin-rowmenu-item:hover { background: var(--bg-3); }
+.admin-rowmenu-item-danger { color: rgb(220,120,120); }
+.admin-rowmenu-item-danger:hover { background: rgba(220,80,80,.12); }
+.admin-rowmenu-sep { height: 1px; background: var(--line-1); margin: 4px 6px; }
+
+/* Inline row badges. */
+.admin-badge-banned,
+.admin-badge-promo {
+  display: inline-block; margin-left: 6px;
+  padding: 1px 6px; border-radius: 999px;
+  font: 600 10px/1.5 var(--font-sans);
+  vertical-align: middle;
+}
+.admin-badge-banned { color: rgb(220,120,120); background: rgba(220,80,80,.14); }
+.admin-badge-promo  { color: var(--soleil);    background: var(--soleil-soft); }
+
+/* Suspended-account takeover (TierRouter). */
+.auth-card-message { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.auth-message-title { font: 600 18px/1.2 var(--font-sans); color: var(--ink-0, var(--ink-1)); margin: 4px 0 0; }
+.auth-message-body { max-width: 320px; color: var(--ink-2); }
 
 /* Waitlist rows — compact single-line layout so the queue is easy
    to scan. Without nowrap the actions cell would balloon to two

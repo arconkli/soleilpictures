@@ -22,7 +22,7 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { R2Image } from './R2Image.jsx';
 import { HARDCODED_FALLBACKS } from '../hooks/useResolvedDefaults.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
-import { planLabel, formatPeriodEnd } from '../lib/billingCopy.js';
+import { planLabel, formatPeriodEnd, grantCopy } from '../lib/billingCopy.js';
 import { startPortal } from '../lib/checkout.js';
 
 const TABS = [
@@ -681,7 +681,8 @@ function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings
 //   waitlist  → defensive note (this surface shouldn't be reachable)
 function BillingTab({ user }) {
   const feedback = useFeedback();
-  const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd, loading } =
+  const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
+          grantActive, grantExpiresAt, loading } =
     useMyTier({ userId: user?.id });
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -726,6 +727,8 @@ function BillingTab({ user }) {
         subscriptionStatus={subscriptionStatus}
         currentPeriodEnd={currentPeriodEnd}
         cancelAtPeriodEnd={cancelAtPeriodEnd}
+        grantActive={grantActive}
+        grantExpiresAt={grantExpiresAt}
         demoCardCount={demoCardCount}
         busy={busy}
         onManage={openPortal}
@@ -741,19 +744,25 @@ function BillingTab({ user }) {
 // Customer Portal return target). Callers own data fetching, error UI,
 // and the upgrade modal so each surface can keep its own framing.
 export function BillingSummary({
-  tier, sub, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd, demoCardCount,
+  tier, sub, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
+  grantActive, grantExpiresAt, demoCardCount,
   busy, onManage, onUpgrade,
 }) {
-  const plan = planLabel({ tier, plan: sub?.plan, demoCardCount });
+  const status = subscriptionStatus || sub?.status || null;
+  // Paid access via an admin grant (no paying Stripe sub) — there's no portal to
+  // manage, so we show the complimentary note instead of Stripe status/renewal.
+  const grantBacked = tier === 'paid' && grantActive && !['active', 'trialing'].includes(status || '');
+  const plan = planLabel({ tier, plan: sub?.plan, demoCardCount, grantBacked });
   // Prefer the fresh RPC value; fall back to the subscriptions-row query.
   const cancelPending = cancelAtPeriodEnd ?? !!sub?.cancel_at_period_end;
   const period = formatPeriodEnd(currentPeriodEnd || sub?.current_period_end, {
     cancel: cancelPending,
   });
+  const grantLine = grantBacked ? grantCopy({ grantActive, grantExpiresAt }) : null;
 
   return (
     <>
-      {tier === 'paid' && cancelPending && period && (
+      {tier === 'paid' && !grantBacked && cancelPending && period && (
         <div className="settings-billing-cancel-note">
           Subscription canceled — Creator access stays on until <b>{period.value}</b>.
           You can resubscribe anytime before then.
@@ -763,12 +772,10 @@ export function BillingSummary({
         <span className="settings-billing-label">Plan</span>
         <span className="settings-billing-value">{plan}</span>
 
-        {tier === 'paid' && (
+        {tier === 'paid' && !grantBacked && (
           <>
             <span className="settings-billing-label">Status</span>
-            <span className="settings-billing-value">
-              {subscriptionStatus || sub?.status || '—'}
-            </span>
+            <span className="settings-billing-value">{status || '—'}</span>
             {period && (
               <>
                 <span className="settings-billing-label">{period.label}</span>
@@ -777,7 +784,22 @@ export function BillingSummary({
             )}
           </>
         )}
+
+        {grantBacked && (
+          <>
+            <span className="settings-billing-label">Access</span>
+            <span className="settings-billing-value">
+              {grantExpiresAt ? `Through ${formatPeriodEnd(grantExpiresAt)?.value || '—'}` : 'No end date'}
+            </span>
+          </>
+        )}
       </div>
+
+      {grantLine && (
+        <p className="settings-section-hint" style={{ marginTop: 8 }}>
+          {grantLine}
+        </p>
+      )}
 
       {tier === 'admin' && (
         <p className="settings-section-hint" style={{ marginTop: 8 }}>
@@ -787,7 +809,8 @@ export function BillingSummary({
 
       <div className="settings-row-actions">
         <span style={{ flex: 1 }} />
-        {tier === 'paid' && onManage && (
+        {/* Grant-backed users have no Stripe customer — no portal to open. */}
+        {tier === 'paid' && !grantBacked && onManage && (
           <button type="button"
                   className="settings-btn settings-btn-primary"
                   disabled={busy}
