@@ -229,6 +229,25 @@ function DocCardOverlay({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Focus management: when a brand-new (untitled) doc card opens, drop the
+  // caret in the title input so the user can name it immediately. Restore
+  // focus to whatever was focused before (e.g. the canvas card) on close so
+  // keyboard users aren't dumped at the top of the page. We only auto-focus
+  // when the doc has no title yet — reopening a named doc shouldn't hijack
+  // focus away from the editor's own autofocus.
+  const titleInputRef = useRef(null);
+  const hadTitleOnOpenRef = useRef(!!card.title);
+  useEffect(() => {
+    const prev = (typeof document !== 'undefined') ? document.activeElement : null;
+    if (!hadTitleOnOpenRef.current) {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select?.();
+    }
+    return () => { try { prev?.focus?.(); } catch (_) {} };
+    // Mount/unmount once per card open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Workspace-presence lifecycle. Tell App.jsx that this doc-card is
   // currently open so workspace presence can include docCardId/pageId/
   // scrollTop, and other peers can click our avatar → land in this card
@@ -272,6 +291,8 @@ function DocCardOverlay({
            onPointerDown={(e) => e.stopPropagation()}>
         <div className="doc-card-modal-head">
           <input className="doc-card-title-input"
+                 ref={titleInputRef}
+                 aria-label="Document title"
                  value={card.title || ''}
                  placeholder="Untitled doc"
                  onChange={(e) => onUpdate?.({ title: e.target.value })} />

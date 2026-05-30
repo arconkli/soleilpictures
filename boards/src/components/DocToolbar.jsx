@@ -120,7 +120,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
     <div className="doc-tb">
       <select className="doc-tb-select" value={headingValue} disabled={disabled}
               onChange={(e) => setHeading(e.target.value)}
-              title="Block style">
+              title="Block style" aria-label="Block style">
         {HEADING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
 
@@ -143,7 +143,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
                 return SIZES.includes(px) ? String(px) : '';
               })()}
               onChange={(e) => setSize(e.target.value)}
-              title="Font size">
+              title="Font size" aria-label="Font size">
         <option value="" disabled>Size</option>
         {SIZES.map(s => <option key={s} value={s}>{s}px</option>)}
       </select>
@@ -202,11 +202,11 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
 
       {onZoomIn && (
         <span className="doc-tb-zoom" title="Zoom (⌘+ / ⌘− / ⌘0)">
-          <button className="doc-tb-btn" onClick={onZoomOut} title="Zoom out (⌘−)">−</button>
+          <button className="doc-tb-btn" onClick={onZoomOut} title="Zoom out (⌘−)" aria-label="Zoom out">−</button>
           <button className="doc-tb-btn doc-tb-zoom-label"
                   onClick={onZoomReset}
-                  title="Reset zoom (⌘0)">{Math.round((zoom || 1) * 100)}%</button>
-          <button className="doc-tb-btn" onClick={onZoomIn} title="Zoom in (⌘+)">+</button>
+                  title="Reset zoom (⌘0)" aria-label="Reset zoom">{Math.round((zoom || 1) * 100)}%</button>
+          <button className="doc-tb-btn" onClick={onZoomIn} title="Zoom in (⌘+)" aria-label="Zoom in">+</button>
         </span>
       )}
 
@@ -225,6 +225,8 @@ function Btn({ children, active, disabled, onClick, title }) {
     <button className={`doc-tb-btn ${active ? 'is-active' : ''}`}
             disabled={disabled}
             title={title}
+            aria-label={title}
+            aria-pressed={active ? true : undefined}
             onMouseDown={(e) => e.preventDefault()}
             onClick={onClick}>
       {children}
@@ -237,6 +239,7 @@ function ColorBtn({ disabled, onPick, onClear, title }) {
   return (
     <span className="doc-tb-colorwrap">
       <button className="doc-tb-btn" disabled={disabled} title={title}
+              aria-label={title} aria-haspopup="true" aria-expanded={open}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setOpen(o => !o)}>
         <svg width="14" height="14" viewBox="0 0 14 14">
@@ -248,9 +251,10 @@ function ColorBtn({ disabled, onPick, onClear, title }) {
         <div className="doc-tb-colorpop" onMouseDown={(e) => e.preventDefault()}>
           {COLORS.map(c => (
             <button key={c} className="doc-tb-sw" style={{ background: c }}
+                    title={c} aria-label={`Color ${c}`}
                     onClick={() => { onPick(c); setOpen(false); }} />
           ))}
-          <button className="doc-tb-sw doc-tb-sw-x" title="Default"
+          <button className="doc-tb-sw doc-tb-sw-x" title="Default" aria-label="Default color"
                   onClick={() => { onClear(); setOpen(false); }}>×</button>
         </div>
       )}

@@ -28,10 +28,13 @@ const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 const RAILS_KEY = 'soleil.boards.docRails';
 const ZOOM_KEY = 'soleil.boards.docZoom';
 const ZOOM_MIN = 0.5;
-// Auto-create a new sheet under the active page when the last sheet's wrap
-// grows past ~90% of a printed page (1056px = 11" at 96dpi). Fires at most
-// once per sheet so it doesn't keep stacking pages forever.
-const AUTO_NEW_PAGE_THRESHOLD = 950;
+// Auto-create a new sheet under the active page when the last sheet's actual
+// CONTENT nearly fills its printed page. We measure the inner ProseMirror
+// content height against the sheet's printable area (the wrap's min-height
+// minus its vertical padding) — NOT the wrap's box, whose 1056px min-height
+// means an empty sheet would always look "full." Fires at most once per
+// sheet so it adds exactly one page when you reach the end, never a cascade.
+const AUTO_NEW_PAGE_FILL_RATIO = 0.92;
 const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1;
 const clampZoom = (z) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(z * 100) / 100));
@@ -267,37 +270,55 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     if (!paper) return;
     const wraps = paper.querySelectorAll('.doc-editor-wrap');
     if (!wraps.length) return;
-    // Only observe the LAST sheet's wrap — that's the one a user is
-    // adding content to when they "reach the end."
+    // Only observe the LAST sheet — that's where the user is adding content
+    // when they "reach the end."
     const lastWrap = wraps[wraps.length - 1];
     const lastSheetId = sheetIds[sheetIds.length - 1];
     if (!lastSheetId) return;
     const checkAndFire = () => {
       if (autoFiredRef.current.has(lastSheetId)) return;
-      // scrollHeight catches "content is bigger than the box would naturally
-      // grow to" — important for a long paste that lands inside a fixed-ish
-      // wrap whose contentRect hasn't crossed the threshold yet.
-      const h = Math.max(lastWrap.scrollHeight, lastWrap.getBoundingClientRect().height);
-      if (h < AUTO_NEW_PAGE_THRESHOLD) return;
+      // Tiptap's editable root carries both classes ("tt-editor ProseMirror").
+      // Query it fresh each tick — it may mount a frame after this effect runs.
+      // Its scrollHeight is the INTRINSIC content height — NOT inflated by the
+      // wrap's 1056px min-height box, which is what made empty sheets misfire.
+      const inner = lastWrap.querySelector('.ProseMirror');
+      if (!inner) return;
+      // Printable area = the wrap's min-height minus its vertical padding.
+      // Read live so it's correct for the normal (1056/96) and small-screen
+      // (800/48) cases. Zoom uses CSS `zoom` on the wrap, which scales both
+      // min-height and the descendant scrollHeight equally, so the ratio is
+      // zoom-independent without extra math.
+      const cs = getComputedStyle(lastWrap);
+      const minH = parseFloat(cs.minHeight) || 0;
+      const padTop = parseFloat(cs.paddingTop) || 0;
+      const padBot = parseFloat(cs.paddingBottom) || 0;
+      const printable = minH - padTop - padBot;
+      if (printable <= 0) return;
+      if (inner.scrollHeight < printable * AUTO_NEW_PAGE_FILL_RATIO) return;
       autoFiredRef.current.add(lastSheetId);
       addPageSheet(ydoc, activePageId, scope);
     };
-    const ro = new ResizeObserver(() => checkAndFire());
+    // Debounce so a burst of ResizeObserver / mutation ticks (typing, paste,
+    // reflow) collapses into a single measurement. We never call checkAndFire
+    // synchronously here — the RO's initial callback drives the first check
+    // after layout, and on a fresh empty sheet the measured content height is
+    // well below the threshold, so the runaway cascade is structurally
+    // impossible. We observe the WRAP (always present): its subtree
+    // MutationObserver catches typing/paste AND the editor node mounting,
+    // while the ResizeObserver catches the wrap growing past one page.
+    let timer = null;
+    const schedule = () => {
+      if (timer) return;
+      timer = setTimeout(() => { timer = null; checkAndFire(); }, 120);
+    };
+    const ro = new ResizeObserver(schedule);
     ro.observe(lastWrap);
-    // Mutation observer catches text inserts (paste, typing) that change
-    // content height without necessarily firing a ResizeObserver tick — the
-    // user-reported "paste a long paragraph and no new page is added" case.
-    // Debounced because typing triggers many characterData mutations.
-    let moTimer = null;
-    const mo = new MutationObserver(() => {
-      if (moTimer) return;
-      moTimer = setTimeout(() => { moTimer = null; checkAndFire(); }, 80);
-    });
+    const mo = new MutationObserver(schedule);
     mo.observe(lastWrap, { childList: true, characterData: true, subtree: true });
     return () => {
       ro.disconnect();
       mo.disconnect();
-      if (moTimer) clearTimeout(moTimer);
+      if (timer) clearTimeout(timer);
     };
   }, [activePageId, ready, ydoc, scope, sheetIds]);
 
@@ -429,7 +450,15 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   };
 
   if (!ready) {
-    return <div className="doc-surface"><div className="doc-loading">Loading…</div></div>;
+    return (
+      <div className="doc-surface">
+        <div className="doc-loading">
+          <span className="t-eyebrow">Document</span>
+          <div className="doc-state-title">Opening…</div>
+          <div className="doc-state-sub">Syncing the latest changes.</div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -438,6 +467,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       <aside className="doc-rail doc-rail-left">
         <button className="doc-rail-toggle"
                 title={rails.left ? 'Hide pages' : 'Show pages'}
+                aria-label={rails.left ? 'Hide pages' : 'Show pages'}
+                aria-expanded={rails.left}
                 onClick={() => setRails(r => ({ ...r, left: !r.left }))}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d={rails.left ? 'M8 3 L4 7 L8 11' : 'M6 3 L10 7 L6 11'} />
@@ -510,7 +541,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               />
             ))
           ) : (
-            <div className="doc-empty">No page selected.</div>
+            <div className="doc-empty">
+              <span className="t-eyebrow">Pages</span>
+              <div className="doc-state-title">Nothing open yet</div>
+              <div className="doc-state-sub">Pick a page on the left, or create your first one.</div>
+            </div>
           )}
           {activePageId && canEdit && (
             <button className="doc-add-page-below"

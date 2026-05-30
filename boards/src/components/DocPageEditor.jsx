@@ -663,7 +663,20 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
       ExtraShortcuts,
       mentionExt,
     ],
-    autofocus: 'end',
+    // Don't steal focus from an active text field (e.g. the page-rename
+    // input in the sidebar) or another editor. A newly-mounted sheet —
+    // whether the one auto-appended when a page fills, or a sibling sheet
+    // re-rendering — must not yank the caret away from what the user is
+    // typing in. Only autofocus on a genuine first open (nothing editable
+    // is currently focused); 'end' places the caret at the document end.
+    autofocus: (() => {
+      if (typeof document === 'undefined') return false;
+      const a = document.activeElement;
+      if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)) {
+        return false;
+      }
+      return 'end';
+    })(),
     // false → read-only (viewer-shared board). RLS will reject any
     // doc-state writes anyway, but disabling Tiptap stops attempts.
     editable,

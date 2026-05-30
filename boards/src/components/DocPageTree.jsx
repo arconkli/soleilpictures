@@ -152,6 +152,8 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                setCtx({ open: true, x: e.clientX, y: e.clientY, pageId: p.id });
              }}>
           <button className="doc-tree-chev"
+                  aria-label={isOpen ? 'Collapse' : 'Expand'}
+                  aria-expanded={isOpen}
                   onClick={(e) => { e.stopPropagation(); if (hasKids) setPageExpanded(ydoc, p.id, !isOpen, scope); }}
                   style={{ visibility: hasKids ? 'visible' : 'hidden' }}>
             {isOpen ? '▾' : '▸'}
@@ -159,8 +161,10 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           {renaming === p.id ? (
             <input className="doc-tree-rename"
                    autoFocus
+                   aria-label="Page name"
                    value={draftName}
                    onChange={(e) => setDraftName(e.target.value)}
+                   onFocus={(e) => e.target.select()}
                    onBlur={commitRename}
                    onKeyDown={(e) => {
                      if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
@@ -186,6 +190,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           )}
           <button className="doc-tree-add"
                   title="Add sub-page"
+                  aria-label="Add sub-page"
                   onClick={(e) => { e.stopPropagation(); onAddChild(p.id); }}>+</button>
         </div>
         {isOpen && p.children?.length > 0 && (
@@ -201,11 +206,15 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     <div className="doc-tree">
       <div className="doc-tree-head">
         <span className="doc-tree-kicker">Pages</span>
-        <button className="doc-tree-add-root" title="New page" onClick={onAddRoot}>+</button>
+        <button className="doc-tree-add-root" title="New page" aria-label="New page" onClick={onAddRoot}>+</button>
       </div>
       <div className="doc-tree-body">
         {tree.length === 0 ? (
-          <button className="doc-tree-empty" onClick={onAddRoot}>+ Add the first page</button>
+          <button className="doc-tree-empty" onClick={onAddRoot}>
+            <span className="doc-tree-empty-plus" aria-hidden="true">+</span>
+            <span className="doc-tree-empty-title">Add your first page</span>
+            <span className="doc-tree-empty-sub">Start writing — pages live here.</span>
+          </button>
         ) : tree.map(p => renderRow(p, 0))}
       </div>
 
