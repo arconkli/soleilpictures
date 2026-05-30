@@ -1,17 +1,22 @@
 // Public read-only board viewer — for /share/<token> URLs (no
 // account required).
 //
-// Calls the upload party's /share-bundle route with the token; gets
-// back the board metadata + Y.Doc snapshot bytes + a map of
-// {storage_path → presigned R2 URL} covering every image referenced
-// on the board. Decodes the snapshot client-side into cards/arrows/
-// strokes and renders them as static HTML on a fixed-position canvas.
+// Calls the upload party's /share-bundle route with the token (and an
+// optional board id); gets back the board metadata + Y.Doc snapshot bytes
+// + a map of {storage_path → presigned R2 URL} covering every image on
+// that board, plus the set of boards reachable via this link. Decodes the
+// snapshot client-side into cards/arrows/strokes and renders them as static
+// HTML on a fixed-position canvas.
+//
+// When the link was created with "include sub-boards", board / board-link
+// cards become navigable: clicking one fetches that descendant board (the
+// server re-checks it's inside the shared subtree) and pushes it onto a
+// breadcrumb stack. Otherwise they stay a "Sign in to open" placeholder.
 //
 // No realtime, no editing, no sidebar — just a clean preview with a
-// "Sign in" CTA in the corner. Snapshot is loaded once on mount and
-// stays static; the visitor reloads to refresh.
+// "Sign in" CTA in the corner.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as Y from 'yjs';
 import { b64ToBytes, readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.js';
 import { ImagePlaceholder, SoleilMark } from './primitives.jsx';
@@ -23,6 +28,17 @@ import {
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
 
+const EMPTY = [];
+const EMPTY_OBJ = {};
+
+// Build the /share URL for a given board within a link. The root board
+// omits the ?b= param so the canonical share URL stays clean.
+function shareUrl(token, boardId, rootId) {
+  return (!boardId || boardId === rootId)
+    ? `/share/${token}`
+    : `/share/${token}?b=${boardId}`;
+}
+
 // Resolve a card's image src against the bundle's image_urls map.
 // New uploads have `r2:<key>` sentinels; legacy https URLs render
 // directly as before.
@@ -33,75 +49,138 @@ function resolveImg(src, imageUrls) {
 }
 
 export function PublicBoardView({ token }) {
-  const [state, setState] = useState({ status: 'loading' });
+  const [status, setStatus] = useState('loading');   // 'loading' | 'ok' | 'invalid'
+  const [cache, setCache] = useState({});             // boardId → decoded bundle
+  const [navBoards, setNavBoards] = useState({});     // boardId → name (reachable)
+  const [includeSubboards, setIncludeSubboards] = useState(false);
+  const [rootId, setRootId] = useState(null);
+  const [stack, setStack] = useState([]);             // board ids, last = current
+  const [navBusy, setNavBusy] = useState(false);
 
+  const currentId = stack.length ? stack[stack.length - 1] : null;
+  const cur = currentId ? cache[currentId] : null;
+
+  // Fetch + decode one board bundle. boardId null/undefined → the link's
+  // root board.
+  const fetchBundle = useCallback(async (boardId) => {
+    const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/share-bundle`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, boardId: boardId || undefined }),
+    });
+    if (!res.ok) throw new Error('bundle-failed');
+    const bundle = await res.json();
+    const ydoc = new Y.Doc();
+    if (bundle.snapshot) {
+      try { Y.applyUpdate(ydoc, b64ToBytes(bundle.snapshot)); }
+      catch (e) { console.warn('[share] snapshot decode failed', e); }
+    }
+    const decoded = {
+      board: bundle.board || {},
+      imageUrls: bundle.image_urls || {},
+      cards: readCards(ydoc),
+      arrows: readArrows(ydoc),
+      strokes: readStrokes(ydoc),
+      groups: readGroups(ydoc),
+    };
+    ydoc.destroy();
+    return { bundle, decoded };
+  }, [token]);
+
+  // Fold a fetched bundle into state; returns the resolved board id.
+  const applyBundle = useCallback(({ bundle, decoded }) => {
+    const id = bundle.board?.id;
+    if (id) setCache(c => ({ ...c, [id]: decoded }));
+    if (Array.isArray(bundle.nav_boards) && bundle.nav_boards.length) {
+      setNavBoards(prev => {
+        const next = { ...prev };
+        bundle.nav_boards.forEach(b => { if (b?.id) next[b.id] = b.name; });
+        return next;
+      });
+    }
+    setIncludeSubboards(!!bundle.include_subboards);
+    if (bundle.root_id) setRootId(bundle.root_id);
+    return id;
+  }, []);
+
+  // Initial load — honor a ?b=<id> deep link, falling back to the root
+  // board if that specific board isn't reachable via this link.
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const initialB = new URLSearchParams(window.location.search).get('b');
       try {
-        const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/share-bundle`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
-        });
-        if (!res.ok) {
-          if (cancelled) return;
-          setState({ status: 'invalid' });
-          return;
-        }
-        const bundle = await res.json();
+        let r;
+        try { r = await fetchBundle(initialB); }
+        catch (e) { if (initialB) r = await fetchBundle(null); else throw e; }
         if (cancelled) return;
-
-        // Decode the snapshot into a Y.Doc once, then read back
-        // plain card / arrow / stroke arrays.
-        const ydoc = new Y.Doc();
-        if (bundle.snapshot) {
-          try { Y.applyUpdate(ydoc, b64ToBytes(bundle.snapshot)); }
-          catch (e) { console.warn('[share] snapshot decode failed', e); }
-        }
-        const cards   = readCards(ydoc);
-        const arrows  = readArrows(ydoc);
-        const strokes = readStrokes(ydoc);
-        const groups  = readGroups(ydoc);
-        ydoc.destroy();
-
-        setState({
-          status: 'ok',
-          board: bundle.board || {},
-          imageUrls: bundle.image_urls || {},
-          cards, arrows, strokes, groups,
-        });
+        const id = applyBundle(r);
+        const root = r.bundle.root_id || id;
+        const initStack = (id && id !== root) ? [root, id] : [root];
+        setStack(initStack);
+        try { window.history.replaceState({ shareStack: initStack }, '', shareUrl(token, id, root)); } catch (_) {}
+        setStatus('ok');
       } catch (e) {
         console.error('[share] bundle fetch failed', e);
-        if (!cancelled) setState({ status: 'invalid' });
+        if (!cancelled) setStatus('invalid');
       }
     })();
     return () => { cancelled = true; };
-  }, [token]);
+  }, [token, fetchBundle, applyBundle]);
 
-  if (state.status === 'loading') {
-    return (
-      <div className="public-shell">
-        <div className="public-loading">Loading…</div>
-      </div>
-    );
-  }
-  if (state.status === 'invalid') {
-    return (
-      <div className="public-shell">
-        <div className="public-empty">
-          <SoleilMark size={42} color="var(--soleil)" glow />
-          <div className="public-empty-title">Link unavailable</div>
-          <div className="public-empty-sub">This share link has been revoked or has expired. Ask the workspace owner for a fresh one.</div>
-        </div>
-      </div>
-    );
-  }
+  // Browser back/forward — restore the stack we stamped into history.state.
+  useEffect(() => {
+    const onPop = (e) => {
+      const s = e.state?.shareStack;
+      if (Array.isArray(s) && s.length) {
+        setStack(s);
+        const id = s[s.length - 1];
+        if (id && !cache[id]) {
+          fetchBundle(id === rootId ? null : id).then(applyBundle).catch(() => {});
+        }
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [cache, rootId, fetchBundle, applyBundle]);
 
-  const { board, imageUrls, cards, arrows, strokes, groups = [] } = state;
+  // Navigate into a sub-board.
+  const openBoard = useCallback(async (boardId) => {
+    if (!boardId || navBusy || boardId === currentId) return;
+    setNavBusy(true);
+    try {
+      if (!cache[boardId]) applyBundle(await fetchBundle(boardId));
+      setStack(prev => {
+        const next = [...prev, boardId];
+        try { window.history.pushState({ shareStack: next }, '', shareUrl(token, boardId, rootId)); } catch (_) {}
+        return next;
+      });
+    } catch (e) {
+      console.warn('[share] open sub-board failed', e);
+    } finally {
+      setNavBusy(false);
+    }
+  }, [cache, currentId, fetchBundle, applyBundle, navBusy, token, rootId]);
 
-  // Shared arrow-geometry context (cards-by-id, group bounding boxes).
+  // Jump to a breadcrumb level.
+  const goToCrumb = useCallback((i) => {
+    setStack(prev => {
+      if (i >= prev.length - 1) return prev;
+      const next = prev.slice(0, i + 1);
+      const id = next[next.length - 1];
+      try { window.history.pushState({ shareStack: next }, '', shareUrl(token, id, rootId)); } catch (_) {}
+      return next;
+    });
+  }, [token, rootId]);
+
+  // ── Derived geometry (all hooks unconditional; default to empty) ──────
+  const cards   = cur?.cards   || EMPTY;
+  const arrows  = cur?.arrows  || EMPTY;
+  const strokes = cur?.strokes || EMPTY;
+  const board     = cur?.board     || EMPTY_OBJ;
+  const imageUrls = cur?.imageUrls || EMPTY_OBJ;
+
   const cardById = useMemo(() => {
     const m = {}; cards.forEach(c => { m[c.id] = c; }); return m;
   }, [cards]);
@@ -135,7 +214,6 @@ export function PublicBoardView({ token }) {
     () => cards.map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w, h: c.h })),
     [cards]
   );
-  // Card IDs we should NOT treat as obstacles for a given arrow ref.
   const cardsByGroup = useMemo(() => {
     const m = new Map();
     cards.forEach(c => {
@@ -155,9 +233,27 @@ export function PublicBoardView({ token }) {
     return null;
   };
 
-  // Compute canvas extents so we can center the content. Includes
-  // every card AND every arrow's resolved endpoints so a free-point
-  // arrow that floats far from any card doesn't get clipped.
+  if (status === 'loading') {
+    return (
+      <div className="public-shell">
+        <div className="public-loading">Loading…</div>
+      </div>
+    );
+  }
+  if (status === 'invalid') {
+    return (
+      <div className="public-shell">
+        <div className="public-empty">
+          <SoleilMark size={42} color="var(--soleil)" glow />
+          <div className="public-empty-title">Link unavailable</div>
+          <div className="public-empty-sub">This share link has been revoked or has expired. Ask the workspace owner for a fresh one.</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Compute canvas extents so we can center the content. Includes every
+  // card AND every arrow's resolved endpoints.
   const allRects = [
     ...cards.map(c => ({ x: c.x || 0, y: c.y || 0, w: c.w || 100, h: c.h || 80 })),
     ...arrowAttachments.flatMap(att => [att?.from?.point, att?.to?.point].filter(Boolean)
@@ -170,6 +266,8 @@ export function PublicBoardView({ token }) {
   const width  = Math.max(800, maxX - minX + 80);
   const height = Math.max(600, maxY - minY + 80);
 
+  const showCrumbs = stack.length > 1;
+
   return (
     <div className="public-shell" style={{ background: board.bg_color || 'var(--bg-0)' }}>
       <div className="public-topbar">
@@ -177,7 +275,25 @@ export function PublicBoardView({ token }) {
           <SoleilMark size={20} color="var(--soleil)" glow />
           <span className="public-brand-name">Soleil</span>
         </a>
-        <div className="public-board-name">{board.name || 'Untitled'}</div>
+        {showCrumbs ? (
+          <div className="public-crumbs">
+            {stack.map((id, i) => {
+              const name = (i === stack.length - 1 ? board.name : navBoards[id]) || 'Board';
+              const last = i === stack.length - 1;
+              return (
+                <span key={id} className="public-crumb-wrap">
+                  {i > 0 && <span className="public-crumb-sep" aria-hidden="true">›</span>}
+                  <span className={`public-crumb ${last ? 'here' : 'clk'}`}
+                        onClick={last ? undefined : () => goToCrumb(i)}>
+                    {name}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="public-board-name">{board.name || 'Untitled'}</div>
+        )}
         <a className="public-signin" href="/">Sign in</a>
       </div>
 
@@ -264,7 +380,9 @@ export function PublicBoardView({ token }) {
                    width:  c.w || 200,
                    height: c.h || 160,
                  }}>
-              <PublicCardBody card={c} imageUrls={imageUrls} />
+              <PublicCardBody card={c} imageUrls={imageUrls}
+                              navBoards={navBoards} canNavigate={includeSubboards}
+                              onOpenBoard={openBoard} />
             </div>
           ))}
         </div>
@@ -273,10 +391,11 @@ export function PublicBoardView({ token }) {
   );
 }
 
-// Stripped-down card renderer — covers the common kinds, skips
-// anything interactive (board cards collapse to placeholder, doc
-// cards show a label, etc.).
-function PublicCardBody({ card, imageUrls }) {
+// Stripped-down card renderer — covers the common kinds, skips anything
+// interactive. Board / board-link cards become navigable tiles when the
+// link shares sub-boards and the target is reachable; otherwise they (and
+// doc cards) collapse to a "Sign in to open" placeholder.
+function PublicCardBody({ card, imageUrls, navBoards, canNavigate, onOpenBoard }) {
   switch (card.kind) {
     case 'image': {
       const url = resolveImg(card.src, imageUrls);
@@ -318,7 +437,24 @@ function PublicCardBody({ card, imageUrls }) {
              }} />
       );
     case 'board':
-    case 'boardlink':
+    case 'boardlink': {
+      const targetId = card.kind === 'board' ? card.id : card.target;
+      if (canNavigate && targetId && navBoards[targetId]) {
+        return (
+          <button type="button" className="public-card-board" onClick={() => onOpenBoard(targetId)}>
+            <span className="public-card-board-tag">BOARD</span>
+            <span className="public-card-board-name">{navBoards[targetId]}</span>
+            <span className="public-card-board-go">Open →</span>
+          </button>
+        );
+      }
+      return (
+        <div className="public-card-blocked">
+          <span className="public-card-blocked-tag">{(card.kind || 'item').toUpperCase()}</span>
+          <span className="public-card-blocked-msg">Sign in to open</span>
+        </div>
+      );
+    }
     case 'doc':
       return (
         <div className="public-card-blocked">

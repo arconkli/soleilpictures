@@ -13,7 +13,7 @@ import { Modal } from './Modal.jsx';
 import {
   shareBoard, unshareBoard, listBoardShares,
   removeWorkspaceMember, transferWorkspaceOwnership,
-  createPublicLink, revokePublicLink, listPublicLinks,
+  createPublicLink, revokePublicLink, listPublicLinks, setPublicLinkSubboards,
   inviteWorkspaceMember,
   listPendingInvitesForBoard, listPendingInvitesForWorkspace,
   revokePendingInvite,
@@ -54,6 +54,13 @@ export function ShareModal({
   const [inviting, setInviting] = useState(false);
   const [publicLinks, setPublicLinks] = useState([]);  // active links
   const [creatingLink, setCreatingLink] = useState(false);
+  // Public-link create options. 'never' | '7d' | '30d' — mapped to an
+  // expires_at timestamp on create (the column + read-path filter already
+  // exist; only this create UI was missing).
+  const [linkExpiry, setLinkExpiry] = useState('never');
+  // When true, a created public link lets anonymous viewers also navigate
+  // into the board's sub-boards (server enforces the subtree boundary).
+  const [linkIncludeSubboards, setLinkIncludeSubboards] = useState(false);
   // Bumped on every userProfiles cache mutation so offline rows re-render
   // with their resolved display names as soon as the lookup lands.
   const [, setProfilesTick] = useState(0);
@@ -118,7 +125,10 @@ export function ShareModal({
     if (creatingLink) return;
     setCreatingLink(true);
     try {
-      const token = await createPublicLink({ boardId: board.id, expiresAt: null });
+      const expiresAt = linkExpiry === 'never'
+        ? null
+        : new Date(Date.now() + (linkExpiry === '7d' ? 7 : 30) * 86400000).toISOString();
+      const token = await createPublicLink({ boardId: board.id, expiresAt, includeSubboards: linkIncludeSubboards });
       const url = `${window.location.origin}/share/${token}`;
       try { await navigator.clipboard.writeText(url); } catch (_) {}
       feedback.toast({ type: 'success', message: 'Public link created and copied to clipboard.' });
@@ -155,6 +165,22 @@ export function ShareModal({
       feedback.toast({ type: 'success', message: 'Link revoked.' });
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not revoke: ' + (e.message || e) });
+    }
+  };
+
+  // Flip an existing link's sub-board access. Optimistic — the server
+  // re-checks ownership; on failure we revert by re-listing.
+  const onToggleLinkSubboards = async (link) => {
+    const next = !link.include_subboards;
+    setPublicLinks(arr => arr.map(l => l.token === link.token ? { ...l, include_subboards: next } : l));
+    try {
+      await setPublicLinkSubboards({ token: link.token, include: next });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not update link: ' + (e.message || e) });
+      try {
+        const rows = await listPublicLinks(board.id);
+        setPublicLinks(rows.filter(l => !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())));
+      } catch (_) {}
     }
   };
 
@@ -384,11 +410,11 @@ export function ShareModal({
         {/* INVITE */}
         {isOwner && (
           <div className="share-section">
-            <div className="share-eyebrow">INVITE BY EMAIL</div>
+            <div className="share-eyebrow">INVITE PEOPLE</div>
             <div className="share-invite-row">
               <input className="share-input"
                      type="text"
-                     placeholder="teammate@… or paste several, comma-separated"
+                     placeholder="Email address — add several, separated by commas"
                      value={inviteEmail}
                      onChange={(e) => setInviteEmail(e.target.value)}
                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
@@ -396,12 +422,12 @@ export function ShareModal({
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}>
                 {isDemo ? (
-                  <option value="viewer">Viewer (this board)</option>
+                  <option value="viewer">Can view — this board &amp; its sub-boards</option>
                 ) : (
                   <>
-                    <option value="editor">Editor (this board)</option>
-                    <option value="viewer">Viewer (this board)</option>
-                    <option value="workspace">Workspace member (all boards)</option>
+                    <option value="editor">Can edit — this board &amp; its sub-boards</option>
+                    <option value="viewer">Can view — this board &amp; its sub-boards</option>
+                    <option value="workspace">Workspace member — every board in this workspace</option>
                   </>
                 )}
               </select>
@@ -414,26 +440,33 @@ export function ShareModal({
             <div className="share-hint">
               {isDemo ? (
                 <>
-                  On Demo you can invite <b>viewers</b> only.{' '}
+                  On the Demo plan you can invite <b>viewers</b> only.{' '}
                   <button className="share-upgrade-inline" onClick={onUpgrade}>
                     Upgrade to invite editors
                   </button>
                 </>
               ) : (
                 <>
-                  Editors can edit this board and any sub-boards. Viewers can
-                  see them but not edit. Workspace members get full access to
-                  every board in this workspace.
+                  Anyone you add gets the same access to this board&apos;s
+                  sub-boards too. Workspace members can edit every board in this
+                  workspace, not just this one.
                 </>
               )}
             </div>
           </div>
         )}
 
-        {/* WORKSPACE MEMBERS */}
+        {/* PEOPLE WITH ACCESS — one truthful access list. Two sub-groups:
+            the whole workspace (edits every board) vs. people added to just
+            this board. The sub-headers are load-bearing: each group has
+            different scope AND different controls. */}
         <div className="share-section">
           <div className="share-eyebrow">
-            WORKSPACE MEMBERS · {workspaceMembers.length}{pendingWorkspaceInvites.length > 0 ? ` (+${pendingWorkspaceInvites.length} pending)` : ''}
+            PEOPLE WITH ACCESS · {workspaceMembers.length + (isOwner ? shares.length : 0)}
+          </div>
+
+          <div className="share-subhead">
+            Everyone in this workspace · {workspaceMembers.length}{pendingWorkspaceInvites.length > 0 ? ` (+${pendingWorkspaceInvites.length} pending)` : ''}
           </div>
           <div className="share-list">
             {workspaceMembers.length === 0 && pendingWorkspaceInvites.length === 0 ? (
@@ -454,7 +487,7 @@ export function ShareModal({
                       {meta.online && <span className="share-online" title="Online" />}
                     </div>
                     <div className="share-row-sub">
-                      {isWsOwner ? 'Owner' : 'Editor · workspace member'}
+                      {isWsOwner ? 'Owner' : 'Member — can edit every board'}
                       {meta.email && ` · ${meta.email}`}
                     </div>
                   </div>
@@ -480,7 +513,7 @@ export function ShareModal({
                 <div className="share-row-text">
                   <div className="share-row-name">{row.email}</div>
                   <div className="share-row-sub">
-                    Pending signup · invite sent {new Date(row.created_at).toLocaleDateString()}
+                    Invite sent — gets access when they sign up · {new Date(row.created_at).toLocaleDateString()}
                   </div>
                 </div>
                 {isOwner && (
@@ -491,85 +524,106 @@ export function ShareModal({
               </div>
             ))}
           </div>
-        </div>
 
-        {/* PER-BOARD SHARES */}
-        {isOwner && (
-          <div className="share-section">
-            <div className="share-eyebrow">
-              SHARED WITH (THIS BOARD ONLY) · {shares.length}{pendingBoardInvites.length > 0 ? ` (+${pendingBoardInvites.length} pending)` : ''}
-            </div>
-            <div className="share-list">
-              {loadingShares ? (
-                <div className="share-empty">Loading…</div>
-              ) : shares.length === 0 && pendingBoardInvites.length === 0 ? (
-                <div className="share-empty">
-                  No one yet. Use the invite field above to share this
-                  board (and its sub-boards) with someone outside the
-                  workspace.
-                </div>
-              ) : shares.map(s => {
-                const profile = userProfiles.get(s.user_id);
-                const displayName = profile?.name || s.email;
-                return (
-                  <div key={s.user_id} className="share-row">
-                    <span className="share-avatar"
-                          style={{ background: pickPresenceColor(s.user_id) }}>
-                      {(displayName || '?').charAt(0).toUpperCase()}
+          {isOwner && (
+            <>
+              <div className="share-subhead">
+                Added to this board · {shares.length}{pendingBoardInvites.length > 0 ? ` (+${pendingBoardInvites.length} pending)` : ''}
+              </div>
+              <div className="share-list">
+                {loadingShares ? (
+                  <div className="share-empty">Loading…</div>
+                ) : shares.length === 0 && pendingBoardInvites.length === 0 ? (
+                  <div className="share-empty">
+                    No one yet. Invite people above to give them access to this
+                    board and everything inside it.
+                  </div>
+                ) : shares.map(s => {
+                  const profile = userProfiles.get(s.user_id);
+                  const displayName = profile?.name || s.email;
+                  return (
+                    <div key={s.user_id} className="share-row">
+                      <span className="share-avatar"
+                            style={{ background: pickPresenceColor(s.user_id) }}>
+                        {(displayName || '?').charAt(0).toUpperCase()}
+                      </span>
+                      <div className="share-row-text">
+                        <div className="share-row-name">{displayName}</div>
+                        <div className="share-row-sub">
+                          {profile?.name && s.email ? `${s.email} · ` : ''}{ROLE_LABEL[s.role]}
+                        </div>
+                      </div>
+                      <select className="share-role-select share-row-role"
+                              value={s.role}
+                              onChange={(e) => onChangeShareRole(s, e.target.value)}>
+                        <option value="editor">Can edit</option>
+                        <option value="viewer">Can view</option>
+                      </select>
+                      <button className="share-remove" onClick={() => onRemoveShare(s)}>
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+                {pendingBoardInvites.map(row => (
+                  <div key={row.id} className="share-row">
+                    <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>
+                      {(row.email || '?').charAt(0).toUpperCase()}
                     </span>
                     <div className="share-row-text">
-                      <div className="share-row-name">{displayName}</div>
+                      <div className="share-row-name">{row.email}</div>
                       <div className="share-row-sub">
-                        {profile?.name && s.email ? `${s.email} · ` : ''}{ROLE_LABEL[s.role]}
+                        {ROLE_LABEL[row.role] || row.role} · gets access when they sign up · {new Date(row.created_at).toLocaleDateString()}
                       </div>
                     </div>
-                    <select className="share-role-select share-row-role"
-                            value={s.role}
-                            onChange={(e) => onChangeShareRole(s, e.target.value)}>
-                      <option value="editor">Editor</option>
-                      <option value="viewer">Viewer</option>
-                    </select>
-                    <button className="share-remove" onClick={() => onRemoveShare(s)}>
-                      Remove
+                    <button className="share-remove" onClick={() => onRevokePending(row)}>
+                      Revoke
                     </button>
                   </div>
-                );
-              })}
-              {pendingBoardInvites.map(row => (
-                <div key={row.id} className="share-row">
-                  <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}>
-                    {(row.email || '?').charAt(0).toUpperCase()}
-                  </span>
-                  <div className="share-row-text">
-                    <div className="share-row-name">{row.email}</div>
-                    <div className="share-row-sub">
-                      Pending signup · {ROLE_LABEL[row.role] || row.role} · invite sent {new Date(row.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <button className="share-remove" onClick={() => onRevokePending(row)}>
-                    Revoke
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                ))}
+              </div>
+            </>
+          )}
+        </div>
 
-        {/* PUBLIC LINKS — anonymous read-only access. v1: viewer role,
-            no expiry, manual revocation. */}
+        {/* ANYONE WITH THE LINK — anonymous, account-free, view-only access.
+            Scope is THIS board only unless the sub-boards toggle is on, in
+            which case viewers can also navigate into its sub-boards. */}
         {isOwner && (
           <div className="share-section">
-            <div className="share-eyebrow">PUBLIC LINK · {publicLinks.length} active</div>
+            <div className="share-eyebrow">ANYONE WITH THE LINK · {publicLinks.length} active</div>
             {publicLinks.length === 0 ? (
               <>
                 <div className="share-hint" style={{ marginBottom: 8 }}>
-                  Anyone with the link can view this board (and any sub-boards) without an account.
+                  Create a link that lets anyone view this board without signing
+                  in — view-only, no account needed.{' '}
+                  {linkIncludeSubboards
+                    ? 'Viewers can also open its sub-boards.'
+                    : 'Sub-boards are not included.'}
                 </div>
-                <button className="share-invite-btn"
-                        onClick={onCreatePublicLink}
-                        disabled={creatingLink}>
-                  {creatingLink ? 'Creating…' : 'Create public link'}
-                </button>
+                <div className="share-link-create">
+                  <label className="share-link-opt">
+                    <input type="checkbox"
+                           checked={linkIncludeSubboards}
+                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
+                    Include sub-boards
+                  </label>
+                  <label className="share-link-opt">
+                    Expires:
+                    <select className="share-role-select"
+                            value={linkExpiry}
+                            onChange={(e) => setLinkExpiry(e.target.value)}>
+                      <option value="never">Never</option>
+                      <option value="7d">In 7 days</option>
+                      <option value="30d">In 30 days</option>
+                    </select>
+                  </label>
+                  <button className="share-invite-btn"
+                          onClick={onCreatePublicLink}
+                          disabled={creatingLink}>
+                    {creatingLink ? 'Creating…' : 'Create view-only link'}
+                  </button>
+                </div>
               </>
             ) : (
               <div className="share-list">
@@ -579,9 +633,15 @@ export function ShareModal({
                     <div className="share-row-text">
                       <div className="share-row-name">/share/{l.token.slice(0, 8)}…</div>
                       <div className="share-row-sub">
-                        Viewer · created {new Date(l.created_at).toLocaleDateString()}
+                        View-only · {l.include_subboards ? 'with sub-boards' : 'this board only'} · created {new Date(l.created_at).toLocaleDateString()}
+                        {l.expires_at ? ` · expires ${new Date(l.expires_at).toLocaleDateString()}` : ''}
                       </div>
                     </div>
+                    <button className="share-remove"
+                            onClick={() => onToggleLinkSubboards(l)}
+                            title={l.include_subboards ? 'Stop sharing sub-boards' : 'Also share sub-boards'}>
+                      {l.include_subboards ? 'Hide sub-boards' : 'Add sub-boards'}
+                    </button>
                     <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title="Copy URL">
                       Copy
                     </button>
@@ -590,12 +650,29 @@ export function ShareModal({
                     </button>
                   </div>
                 ))}
-                <button className="share-invite-btn"
-                        onClick={onCreatePublicLink}
-                        disabled={creatingLink}
-                        style={{ marginTop: 8, alignSelf: 'flex-start' }}>
-                  {creatingLink ? 'Creating…' : 'New link'}
-                </button>
+                <div className="share-link-create" style={{ marginTop: 8 }}>
+                  <label className="share-link-opt">
+                    <input type="checkbox"
+                           checked={linkIncludeSubboards}
+                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
+                    Include sub-boards
+                  </label>
+                  <label className="share-link-opt">
+                    Expires:
+                    <select className="share-role-select"
+                            value={linkExpiry}
+                            onChange={(e) => setLinkExpiry(e.target.value)}>
+                      <option value="never">Never</option>
+                      <option value="7d">In 7 days</option>
+                      <option value="30d">In 30 days</option>
+                    </select>
+                  </label>
+                  <button className="share-invite-btn"
+                          onClick={onCreatePublicLink}
+                          disabled={creatingLink}>
+                    {creatingLink ? 'Creating…' : 'New link'}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -604,7 +681,8 @@ export function ShareModal({
         {!isOwner && (
           <div className="share-section">
             <div className="share-hint">
-              Only the workspace owner can change sharing settings.
+              Only the workspace owner can change who has access. You can still
+              see who does, above.
             </div>
           </div>
         )}

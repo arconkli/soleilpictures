@@ -354,9 +354,13 @@ export async function listSharedBoards() {
 // Public viewers go through the upload party's /share-bundle route
 // which calls get_share_bundle() anonymously and presigns image URLs.
 
-export async function createPublicLink({ boardId, expiresAt = null }) {
+export async function createPublicLink({ boardId, expiresAt = null, includeSubboards = false }) {
   const { data, error } = await supabase
-    .rpc('create_public_link', { p_board_id: boardId, p_expires_at: expiresAt });
+    .rpc('create_public_link', {
+      p_board_id: boardId,
+      p_expires_at: expiresAt,
+      p_include_subboards: includeSubboards,
+    });
   if (error) throw error;
   return data;  // uuid token
 }
@@ -364,6 +368,14 @@ export async function createPublicLink({ boardId, expiresAt = null }) {
 export async function revokePublicLink(token) {
   const { error } = await supabase
     .rpc('revoke_public_link', { p_token: token });
+  if (error) throw error;
+}
+
+// Owner-only. Flip whether a public link also exposes the board's
+// sub-boards to anonymous viewers (server enforces the subtree boundary).
+export async function setPublicLinkSubboards({ token, include }) {
+  const { error } = await supabase
+    .rpc('set_public_link_subboards', { p_token: token, p_include: include });
   if (error) throw error;
 }
 

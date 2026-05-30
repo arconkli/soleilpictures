@@ -39,6 +39,7 @@ import { SettingsPanel } from './components/SettingsPanel.jsx';
 import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
+import { ReadOnlyBanner } from './components/ReadOnlyBanner.jsx';
 import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
@@ -2547,6 +2548,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <button className={`view-pill-btn ${view !== 'list' ? 'on' : ''}`} onClick={() => setView('canvas')}>Canvas</button>
               <button className={`view-pill-btn ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')}>List</button>
             </div>
+            {/* Read-only notice for demo-tier viewers — self-gates on
+                source==='tier-demoted'. Anchored under the view toggle so it
+                reads as centered in the content area on both canvas + list. */}
+            <ReadOnlyBanner boardPermission={currentBoardPerm}
+                            onRequestUpgrade={() => setUpgradeReason('shared-edit')} />
           </div>
 
           <div className="tb-right">

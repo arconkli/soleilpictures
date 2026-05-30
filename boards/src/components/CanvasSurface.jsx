@@ -13,7 +13,6 @@ import { CanvasPresence } from './CanvasPresence.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { SketchPadOverlay } from './SketchPadOverlay.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
-import { ReadOnlyBanner } from './ReadOnlyBanner.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
@@ -5282,7 +5281,6 @@ export function CanvasSurface({
          onDragStart={(e) => e.preventDefault()}
          onPointerDown={onBackgroundPointerDown}
          onContextMenu={onBackgroundContextMenu}>
-      <ReadOnlyBanner boardPermission={boardPermission} onRequestUpgrade={onRequestUpgrade} />
       {/* Grain texture — sits behind cards on the canvas surface
           only. Cards / popovers / modals all stack above it. */}
       <div className="grain-canvas" aria-hidden="true" />

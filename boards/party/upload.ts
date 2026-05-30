@@ -54,7 +54,7 @@ interface PresignBody {
 }
 
 interface SignReadsBody { keys?: string[] }
-interface ShareBundleBody { token?: string }
+interface ShareBundleBody { token?: string; boardId?: string }
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -161,12 +161,18 @@ export default class UploadParty implements Party.Server {
     let body: ShareBundleBody = {};
     try { body = (await req.json()) as ShareBundleBody; } catch (_) {}
     const token = (body.token || "").trim();
+    const boardId = (body.boardId || "").trim();
     if (!token) {
       return new Response("Missing token", { status: 400, headers: corsHeaders(origin) });
     }
 
-    // Anon-key-only call. The RPC is granted to `anon` and validates
-    // the token internally (raises if expired/revoked/invalid).
+    // Anon-key-only call. The RPC is granted to `anon` and validates the
+    // token internally (raises if expired/revoked/invalid). An optional
+    // boardId asks for a specific board within the link's shared subtree;
+    // the RPC re-checks that it's the root or a descendant (and that the
+    // link shares sub-boards), so this can't escape the subtree.
+    const rpcBody: Record<string, string> = { p_token: token };
+    if (boardId) rpcBody.p_board_id = boardId;
     const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_share_bundle`, {
       method: "POST",
       headers: {
@@ -175,7 +181,7 @@ export default class UploadParty implements Party.Server {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({ p_token: token }),
+      body: JSON.stringify(rpcBody),
     });
     if (!rpcRes.ok) {
       const msg = await rpcRes.text().catch(() => "");
@@ -212,7 +218,15 @@ export default class UploadParty implements Party.Server {
     }));
 
     return Response.json(
-      { board: bundle.board, snapshot: bundle.snapshot || null, image_urls: imageUrls, role: 'viewer' },
+      {
+        board: bundle.board,
+        snapshot: bundle.snapshot || null,
+        image_urls: imageUrls,
+        role: 'viewer',
+        root_id: bundle.root_id || null,
+        include_subboards: !!bundle.include_subboards,
+        nav_boards: Array.isArray(bundle.nav_boards) ? bundle.nav_boards : [],
+      },
       { headers: corsHeaders(origin) },
     );
   }
