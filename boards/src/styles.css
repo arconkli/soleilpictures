@@ -14929,21 +14929,33 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .cc-stage:-webkit-full-screen { width: 100vw; height: 100vh; background: #0a0a0c; }
 .cc-stage:fullscreen { width: 100vw; height: 100vh; background: #0a0a0c; }
 
-/* Edge-framing overlay: open center passes pointer events to the universe. */
+/* Edge-framing grid: the universe lives in the center cell, panels frame it. */
 .cc-frame {
   position: absolute;
   inset: 0;
-  z-index: 4;
-  pointer-events: none;
+  z-index: 1;
   display: grid;
   grid-template-columns: minmax(280px, 22%) 1fr minmax(280px, 22%);
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    "top    top    top"
-    "left   .      right"
-    "bottom bottom bottom";
+    "top     top     top"
+    "left    center  right"
+    "bottom  bottom  bottom";
   gap: 14px;
   padding: 62px 16px 16px;   /* clears the subtab pill + corner controls */
+}
+
+/* Centerpiece box — the universe is clipped + centered inside this cell. */
+.cc-universe {
+  grid-area: center;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35), var(--shadow-2);
+  background: #0a0a0c;
 }
 
 /* Shared frosted-glass surface for every panel. */
@@ -15029,13 +15041,13 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 @media (max-width: 1024px) {
   .cc-frame {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto;
-    grid-template-areas: "top" "left" "right" "bottom";
+    grid-template-rows: auto auto auto auto auto;
+    grid-template-areas: "top" "center" "left" "right" "bottom";
     overflow-y: auto;
-    pointer-events: auto;
     background: rgba(10,10,12,0.45);
     padding-top: 64px;
   }
+  .cc-universe { min-height: 360px; }
   .cc-rail { overflow: visible; }
   .cc-bottom { grid-template-columns: 1fr; }
 }

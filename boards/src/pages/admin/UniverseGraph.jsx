@@ -279,7 +279,7 @@ function makeFxPoints(capacity) {
   return points;
 }
 
-export function UniverseGraph({ onNodeClick, resetSignal }) {
+export function UniverseGraph({ onNodeClick, resetSignal, fitAll = false }) {
   const containerRef = useRef(null);
 
   // ── React state for shell UI only ────────────────────────────────
@@ -320,6 +320,7 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
     // fitAnimating drives a smooth pull-back when the universe grows.
     interacting: false,
     didInitialFit: false,
+    fitAll: false,                  // when true, auto-fit frames EVERY visible node (100th pct)
     lastFitAt: 0,
     fitFromPos: null, fitFromTarget: null, fitToPos: null, fitToTarget: null,
     fitStart: 0, fitDuration: 700, fitAnimating: false,
@@ -327,6 +328,10 @@ export function UniverseGraph({ onNodeClick, resetSignal }) {
 
   // Keep onNodeClick fresh without re-mounting the whole scene.
   useEffect(() => { refs.onNodeClickFn = onNodeClick; }, [onNodeClick, refs]);
+
+  // Opt-in: frame every visible node on auto-fit/reset (Command Center wants the
+  // whole universe inside its box, not the 95th-percentile bulk).
+  useEffect(() => { refs.fitAll = !!fitAll; }, [fitAll, refs]);
 
   // When the parent bumps resetSignal (the "Reset view" button),
   // pull the camera back to fit the whole universe — same animated
@@ -1104,9 +1109,11 @@ function computeBoundingSphere(refs, count) {
     const dz = pos[i * 3 + 2] - cz;
     d2s[j++] = dx * dx + dy * dy + dz * dz;
   }
-  // 95th-percentile radius. Cheap O(N log N) sort up to ~250k.
+  // 95th-percentile radius (default, to ignore single outliers) — or the full
+  // extent (max) when refs.fitAll is set, so every visible node is framed.
+  // Cheap O(N log N) sort up to ~250k.
   d2s.sort();
-  const pct = Math.min(used - 1, Math.floor(used * 0.95));
+  const pct = refs.fitAll ? (used - 1) : Math.min(used - 1, Math.floor(used * 0.95));
   return { cx, cy, cz, radius: Math.sqrt(d2s[pct]) };
 }
 

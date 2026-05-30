@@ -53,6 +53,14 @@ export function AdminCommandCenter() {
   // Seed/refresh today's snapshot once so the trend has a current datapoint.
   useEffect(() => { supabase.rpc('admin_capture_metrics_now').then(() => {}, () => {}); }, []);
 
+  // Once the universe has loaded + settled inside its (small) box, frame every
+  // node. The initial auto-fit already runs, but the box is smaller than the
+  // stage, so re-fit once positions/box are final.
+  useEffect(() => {
+    const t = setTimeout(() => setResetSignal((n) => n + 1), 1600);
+    return () => clearTimeout(t);
+  }, []);
+
   const { data, lastUpdated } = useAdminData(async () => {
     const r = await Promise.allSettled([
       supabase.rpc('admin_stats'),
@@ -121,9 +129,6 @@ export function AdminCommandCenter() {
 
   return (
     <div className={`cc-stage ${isFullscreen ? 'is-fullscreen' : ''}`} ref={stageRef}>
-      {/* Centerpiece — the live universe fills the stage behind the frame. */}
-      <UniverseGraph onNodeClick={() => {}} resetSignal={resetSignal} />
-
       <div className="cc-frame">
         {/* Top — hero KPI row */}
         <div className="cc-top">
@@ -192,6 +197,12 @@ export function AdminCommandCenter() {
               </PieChart>
             </ResponsiveContainer>
           </CcPanel>
+        </div>
+
+        {/* Centerpiece — the live universe, bounded + centered in the middle box,
+            framed to show every node (fitAll). */}
+        <div className="cc-universe">
+          <UniverseGraph onNodeClick={() => {}} resetSignal={resetSignal} fitAll />
         </div>
 
         {/* Right rail — funnels */}
