@@ -20,7 +20,7 @@ export async function assembleGraph({ workspaceId, options = {} }) {
     .is('deleted_at', null);
 
   const { data: cards = [] } = await supabase.from('card_index')
-    .select('board_id,card_id,kind,title,meta')
+    .select('board_id,card_id,kind,title,body,meta')
     .eq('workspace_id', workspaceId);
 
   const { data: bls = [] } = await supabase.from('doc_backlinks')
@@ -92,7 +92,7 @@ export async function assembleGraph({ workspaceId, options = {} }) {
     }
   };
 
-  for (const b of boards) add(`board:${b.id}`, 'board', b.name, 14);
+  for (const b of boards) add(`board:${b.id}`, 'board', b.name || 'Untitled board', 14);
 
   // Embedded-board (`kind: 'board'`) and boardlink (`kind: 'boardlink'`)
   // cards are NOT added as separate nodes. The drawer used to render
@@ -111,7 +111,7 @@ export async function assembleGraph({ workspaceId, options = {} }) {
       continue;
     }
     const isDoc = c.kind === 'doc';
-    add(`card:${c.board_id}:${c.card_id}`, isDoc ? 'doc' : 'card', c.title, isDoc ? 12 : 8, c.kind || 'note');
+    add(`card:${c.board_id}:${c.card_id}`, isDoc ? 'doc' : 'card', deriveCardName(c), isDoc ? 12 : 8, c.kind || 'note');
   }
   if (skippedEmbeds.length && typeof window !== 'undefined' && window.__SOLEIL_GRAPH_DEBUG__ !== false) {
     console.log(`%c[graph]`, 'color:#a3854b;font-weight:600',
@@ -202,3 +202,36 @@ const COLOR = {
   card:      '#7c8a98',  // cool slate
   url:       '#8c7a55',  // ink-3 (warmed)
 };
+
+// Clean type label per card kind — the floor when there's nothing more
+// specific to show. Mirrors the vocabulary in readableKind()
+// (HomeGraphDetailDrawer.jsx) and describeListItem() (cards.jsx).
+const KIND_LABEL = {
+  image: 'Image', note: 'Note', link: 'Link', palette: 'Palette',
+  doc: 'Doc', video: 'Video', audio: 'Audio', schedule: 'Schedule',
+  shape: 'Shape',
+};
+
+function hostFromUrl(url) {
+  if (!url) return null;
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }
+}
+
+function clip(s, n = 60) {
+  const t = (s || '').trim();
+  return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t;
+}
+
+// Display name for a card_index row. Cards usually have no explicit title
+// (images, notes, links are commonly untitled), which used to render as a
+// sea of "Untitled" planets. Derive something meaningful: links → domain,
+// notes → first line of body, everything else → a clean type label.
+function deriveCardName(c) {
+  const title = clip(c.title);
+  if (title) return title;
+  const meta = c.meta || {};
+  if (c.kind === 'link')  return hostFromUrl(meta.url) || 'Link';
+  if (c.kind === 'note')  return clip((c.body || '').split('\n')[0]) || 'Note';
+  if (c.kind === 'image') return clip(meta.alt) || 'Image';
+  return KIND_LABEL[c.kind] || (c.kind ? c.kind[0].toUpperCase() + c.kind.slice(1) : 'Card');
+}
