@@ -36,6 +36,7 @@ import { supabase } from '../lib/supabase.js';
 import { Check } from '../lib/icons.js';
 import { Icon } from '../components/Icon.jsx';
 import { PLAN_NAME } from '../lib/billingCopy.js';
+import { trackPurchase } from '../lib/metaPixel.js';
 
 const VERIFY_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/verify-checkout-session';
 const POLL_MS    = 2000;     // get_my_tier
@@ -62,6 +63,7 @@ export function PricingSuccess() {
   const [verifyErr, setVerifyErr] = useState(null);
   const [celebrating, setCelebrating] = useState(false);
   const celebrated = useRef(false);
+  const purchaseTracked = useRef(false);   // deduped browser Purchase fires once
 
   useEffect(() => { logEvent('checkout_success', { has_session_id: !!sessionId }); }, [sessionId]);
 
@@ -78,6 +80,16 @@ export function PricingSuccess() {
       });
       const body = await res.json().catch(() => ({}));
       if (body?.plan) setPlan(body.plan);
+      // Deduped browser Purchase — same eventID (Stripe session id) as the
+      // server-side CAPI Purchase, so Meta collapses them into one conversion.
+      if (body?.activated && !purchaseTracked.current) {
+        purchaseTracked.current = true;
+        trackPurchase({
+          eventId: sessionId,
+          value: typeof body.amount_total === 'number' ? body.amount_total / 100 : undefined,
+          currency: body.currency || undefined,
+        });
+      }
       return body;
     } catch (e) {
       setVerifyErr(e?.message || String(e));

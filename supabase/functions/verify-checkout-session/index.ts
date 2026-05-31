@@ -14,10 +14,12 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
 import { activateUserFromSubscription } from "../_shared/activate.ts";
+import { emitCapi } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const STRIPE_KEY      = Deno.env.get("STRIPE_SECRET_KEY")!;
+const APP_URL         = Deno.env.get("APP_URL") || "";
 
 const cors = {
   "access-control-allow-origin":  "*",
@@ -95,11 +97,42 @@ Deno.serve(async (req) => {
       subscriptionId: subscription?.id ?? null,
     });
 
+    // Meta CAPI Purchase — same event_id (session.id) as the stripe-webhook
+    // Purchase and the browser pixel Purchase below, so Meta collapses all three
+    // into one conversion. Match params were stashed in session.metadata at
+    // checkout-start. We reach here only for genuinely-paid sessions; $0-promo
+    // checkouts (no_payment_required) are emitted by the webhook instead.
+    if (result.activated) {
+      const m = session.metadata ?? {};
+      emitCapi({
+        eventName: "Purchase",
+        eventId: session.id,
+        eventSourceUrl: APP_URL ? `${APP_URL}/pricing/success` : undefined,
+        userData: {
+          email: u.data.user.email ?? null,
+          externalId: callerId,
+          fbp: m.fbp ?? null,
+          fbc: m.fbc ?? null,
+          clientIpAddress: m.client_ip ?? null,
+          clientUserAgent: m.client_ua ?? null,
+        },
+        customData: {
+          currency: (session.currency || "usd").toUpperCase(),
+          value: (session.amount_total ?? 0) / 100,
+          plan: m.plan ?? result.plan ?? null,
+          subscription_id: subscription?.id ?? null,
+        },
+      });
+    }
+
     return json({
       activated: result.activated,
       reason: result.reason ?? null,
       plan: result.plan ?? null,
       current_period_end: result.currentPeriodEnd ?? null,
+      // For the deduped browser Purchase on the success page (same event_id).
+      amount_total: session.amount_total ?? null,
+      currency: session.currency ?? null,
     }, result.activated ? 200 : 500);
   } catch (e) {
     console.error("[verify-checkout-session] error", e);

@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
 import { logEvent } from '../lib/analytics.js';
+import { getFbCookies } from '../lib/metaPixel.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 
 const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/submit-waitlist';
@@ -41,10 +42,11 @@ export function WaitlistModal({ onClose }) {
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not signed in.');
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const { fbp, fbc } = getFbCookies();   // Meta match params for the server-side Lead (CAPI)
       const res = await fetch(EDGE_URL, {
         method: 'POST',
         headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ links: validLinks, timezone: tz }),
+        body: JSON.stringify({ links: validLinks, timezone: tz, fbp, fbc }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);

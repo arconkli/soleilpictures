@@ -162,7 +162,12 @@ against double-firing the initial load (the inline snippet already fired it).
 - `supabase/functions/verify-checkout-session/index.ts` — Purchase emit + return `amount_total`
 - `supabase/functions/create-checkout-session/index.ts` — capture IP/UA + `fbp`/`fbc` → session metadata
 - `supabase/functions/submit-waitlist/index.ts` — Lead emit
-- `supabase/config.toml` — register `track-conversion` (verify_jwt as appropriate; it does its own JWT check)
+
+**No config.toml change:** `track-conversion` is omitted from `config.toml` on purpose,
+exactly like `create-checkout-session` / `verify-checkout-session` / `submit-waitlist`.
+It relies on the gateway default (`verify_jwt=true`) *and* does its own Bearer check;
+the browser always calls it with a valid session token. Only `stripe-webhook` needs
+the `verify_jwt=false` override (Stripe sends no JWT).
 
 **Edit (client)**
 - `boards/src/lib/checkout.js` — send `fbp`/`fbc` to create-checkout-session
@@ -175,11 +180,24 @@ against double-firing the initial load (the inline snippet already fired it).
   `create-checkout-session`, `submit-waitlist`, `track-conversion`) via Supabase MCP.
 - `META_CAPI_TOKEN` set by the user in the Supabase dashboard.
 
-## Open implementation details (resolved in the plan)
+## Resolved implementation details
 
-- Exact client call site / one-shot guard for CompleteRegistration (localStorage
-  flag keyed on user id, fired on first authenticated session for a new account).
-- `fbclid` → `_fbc` construction fallback when the cookie is absent (nice-to-have).
-- Whether `track-conversion` runs with `verify_jwt=true` (Supabase gateway checks
-  JWT) vs. `false` + manual check — default to manual check for consistency with the
-  other user-called functions, which read the Bearer token themselves.
+- **CompleteRegistration trigger:** `AuthGate` runs a `useEffect` on `session`;
+  `trackRegistration(session)` fires once per device (localStorage flag
+  `soleil.meta.reg.<uid>`) and only when `session.user.created_at` is within 15
+  minutes (genuinely-new accounts). Server dedups by `reg:<uid>` so a misfire for an
+  existing user collapses into their original registration.
+- **SPA PageView scope:** `installSpaPageViews()` (called once in `main.jsx`)
+  patches `history.pushState`/`replaceState` + `popstate` and fires `PageView` on
+  **pathname change** (deduped). This covers route-level funnel pages
+  (`/welcome`, `/pricing`, `/pricing/success`) — the same surface the existing CWA
+  `spa:true` beacon tracks. It intentionally does NOT fire on in-app board opens /
+  view switches (those don't change the URL and would be PageView spam, not useful
+  for ad optimization).
+- **`<noscript>` placement:** the pixel's `<noscript><img></noscript>` lives in
+  `<body>`, not `<head>` — an `<img>` inside `<noscript>` is disallowed in `<head>`
+  by the HTML spec and vite/parse5 reject the build otherwise.
+- **`verify_jwt`:** `track-conversion` uses the gateway default (true) + its own
+  Bearer check; no `config.toml` entry (see Files above).
+- `fbclid` → `_fbc` construction fallback when the cookie is absent remains a
+  future nice-to-have (not implemented; we send whatever `_fbc` the pixel set).

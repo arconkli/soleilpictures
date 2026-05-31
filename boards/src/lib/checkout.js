@@ -11,6 +11,7 @@
 
 import { supabase } from './supabase.js';
 import { logEvent } from './analytics.js';
+import { getFbCookies } from './metaPixel.js';
 
 const CHECKOUT_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
 const PORTAL_URL   = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
@@ -30,10 +31,13 @@ async function authedToken() {
 export async function startCheckout({ plan, surface }) {
   const token = await authedToken();
   logEvent('checkout_open', { plan, surface });
+  // Thread Meta match cookies through to create-checkout-session, which stashes
+  // them in the Stripe session metadata for the server-side Purchase (CAPI).
+  const { fbp, fbc } = getFbCookies();
   const res = await fetch(CHECKOUT_URL, {
     method: 'POST',
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ plan }),
+    body: JSON.stringify({ plan, fbp, fbc }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);

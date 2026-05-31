@@ -11,6 +11,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
+import { clientIpFromHeaders } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -51,10 +52,20 @@ Deno.serve(async (req) => {
     const userId = u.data.user.id;
 
     let plan: string;
+    let fbp = "", fbc = "";
     try {
       const body = await req.json();
       plan = body.plan;
+      // Meta match params captured client-side so the webhook/verify Purchase
+      // (fired later from Stripe's request, where we DON'T have the user's IP/UA)
+      // can attribute the conversion to the right Meta user.
+      if (typeof body.fbp === "string") fbp = body.fbp.slice(0, 500);
+      if (typeof body.fbc === "string") fbc = body.fbc.slice(0, 500);
     } catch { return json({ error: "invalid json" }, 400); }
+
+    // IP + UA come from THIS request (the user's browser), not the later webhook.
+    const clientIp = clientIpFromHeaders(req);
+    const clientUa = (req.headers.get("user-agent") || "").slice(0, 500);
 
     const price = plan === "monthly" ? PRICE_MONTHLY
                 : plan === "annual"  ? PRICE_ANNUAL
@@ -115,7 +126,17 @@ Deno.serve(async (req) => {
       // Paid checkouts still collect a card because an amount is due.
       payment_method_collection: "if_required",
       client_reference_id: userId,
-      metadata: { supabase_user_id: userId, plan },
+      // Match params ride along in session metadata; stripe-webhook +
+      // verify-checkout-session read them back into the CAPI Purchase. Omit
+      // empties so we never write "" keys.
+      metadata: {
+        supabase_user_id: userId,
+        plan,
+        ...(fbp      ? { fbp }                  : {}),
+        ...(fbc      ? { fbc }                  : {}),
+        ...(clientIp ? { client_ip: clientIp }  : {}),
+        ...(clientUa ? { client_ua: clientUa }  : {}),
+      },
       subscription_data: {
         metadata: { supabase_user_id: userId, plan },
       },

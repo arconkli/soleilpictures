@@ -20,11 +20,13 @@ import {
   planFromPriceId,
   resolveUserId,
 } from "../_shared/activate.ts";
+import { emitCapi } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const STRIPE_KEY      = Deno.env.get("STRIPE_SECRET_KEY")!;
 const WEBHOOK_SECRET  = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
+const APP_URL         = Deno.env.get("APP_URL") || "";
 
 const stripe = new Stripe(STRIPE_KEY, { httpClient: Stripe.createFetchHttpClient() });
 
@@ -110,6 +112,33 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
     subscriptionId: subId ?? null,
   });
   if (!result.activated) console.warn("[stripe] activation failed", { userId, reason: result.reason });
+
+  // Meta CAPI Purchase. The payment is real regardless of whether our DB tier
+  // flip succeeded, so emit even if activation reported a soft failure. Keyed on
+  // session.id so it dedups against verify-checkout-session's Purchase, the
+  // browser pixel Purchase on the success page, and Stripe webhook retries.
+  // fbp/fbc/IP/UA were captured at checkout-start and stashed in session.metadata
+  // by create-checkout-session.
+  const m = session.metadata ?? {};
+  emitCapi({
+    eventName: "Purchase",
+    eventId: session.id,
+    eventSourceUrl: APP_URL ? `${APP_URL}/pricing/success` : undefined,
+    userData: {
+      email,
+      externalId: userId,
+      fbp: m.fbp ?? null,
+      fbc: m.fbc ?? null,
+      clientIpAddress: m.client_ip ?? null,
+      clientUserAgent: m.client_ua ?? null,
+    },
+    customData: {
+      currency: (session.currency || "usd").toUpperCase(),
+      value: (session.amount_total ?? 0) / 100,
+      plan: m.plan ?? null,
+      subscription_id: subId ?? null,
+    },
+  });
 }
 
 async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub: Stripe.Subscription) {

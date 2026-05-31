@@ -12,10 +12,12 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { emitCapi, clientIpFromHeaders } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
+const APP_URL           = Deno.env.get("APP_URL") || "";
 
 // Fire-and-forget call to send-transactional-email. Email failures must
 // never fail the waitlist write itself, so we swallow everything.
@@ -41,6 +43,8 @@ const cors = {
 interface Body {
   links?: string[];
   timezone?: string;
+  fbp?: string;   // Meta _fbp cookie (raw) for CAPI match quality
+  fbc?: string;   // Meta _fbc cookie (raw)
 }
 
 function randInt(min: number, max: number): number {
@@ -163,6 +167,23 @@ Deno.serve(async (req) => {
       rejected_at: null,
     }, { onConflict: "email" });
   if (upsert.error) return json({ error: upsert.error.message }, 500);
+
+  // Meta CAPI Lead — only on a genuine new queue (the already-pending branch
+  // above returns before this, so a resubmit never re-fires). Keyed lead:<uid>
+  // so it dedups even if the request is retried.
+  emitCapi({
+    eventName: "Lead",
+    eventId: `lead:${userId}`,
+    eventSourceUrl: APP_URL || undefined,
+    userData: {
+      email,
+      externalId: userId,
+      fbp: typeof body.fbp === "string" ? body.fbp : null,
+      fbc: typeof body.fbc === "string" ? body.fbc : null,
+      clientIpAddress: clientIpFromHeaders(req),
+      clientUserAgent: req.headers.get("user-agent"),
+    },
+  });
 
   // Fire-and-forget confirmation email. Awaiting only so Deno doesn't kill
   // the response before the fetch completes; the helper itself never throws.
