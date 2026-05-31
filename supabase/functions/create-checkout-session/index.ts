@@ -11,7 +11,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
-import { clientIpFromHeaders } from "../_shared/meta-capi.ts";
+import { clientIpFromHeaders, emitCapi } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     const userId = u.data.user.id;
 
     let plan: string;
-    let fbp = "", fbc = "";
+    let fbp = "", fbc = "", icEventId = "";
     try {
       const body = await req.json();
       plan = body.plan;
@@ -61,6 +61,9 @@ Deno.serve(async (req) => {
       // can attribute the conversion to the right Meta user.
       if (typeof body.fbp === "string") fbp = body.fbp.slice(0, 500);
       if (typeof body.fbc === "string") fbc = body.fbc.slice(0, 500);
+      // Shared event_id for the InitiateCheckout CAPI mirror — the browser pixel
+      // fired the same id, so Meta collapses the two into one event.
+      if (typeof body.ic_event_id === "string") icEventId = body.ic_event_id.slice(0, 200);
     } catch { return json({ error: "invalid json" }, 400); }
 
     // IP + UA come from THIS request (the user's browser), not the later webhook.
@@ -141,6 +144,33 @@ Deno.serve(async (req) => {
         metadata: { supabase_user_id: userId, plan },
       },
     });
+
+    // Meta CAPI InitiateCheckout — higher-trust server mirror of the browser
+    // pixel's InitiateCheckout (shared event_id → Meta dedups). Reached only past
+    // the already-subscribed → portal short-circuit above, so a portal redirect
+    // never counts as a checkout. value mirrors PRICING in billingCopy.js (the
+    // documented mirror of STRIPE_PRICE_*): monthly $25, annual $240.
+    if (icEventId) {
+      emitCapi({
+        eventName: "InitiateCheckout",
+        eventId: icEventId,
+        eventSourceUrl: APP_URL ? `${APP_URL}/pricing` : undefined,
+        userData: {
+          email,
+          externalId: userId,
+          fbp: fbp || null,
+          fbc: fbc || null,
+          clientIpAddress: clientIp,
+          clientUserAgent: clientUa,
+        },
+        customData: {
+          currency: "USD",
+          value: plan === "monthly" ? 25 : 240,
+          content_name: "Creator",
+          content_category: plan,
+        },
+      });
+    }
 
     return json({ ok: true, url: session.url }, 200);
   } catch (e) {

@@ -11,7 +11,8 @@
 
 import { supabase } from './supabase.js';
 import { logEvent } from './analytics.js';
-import { getFbCookies } from './metaPixel.js';
+import { getFbCookies, trackInitiateCheckout } from './metaPixel.js';
+import { PRICING } from './billingCopy.js';
 
 const CHECKOUT_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
 const PORTAL_URL   = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
@@ -34,10 +35,19 @@ export async function startCheckout({ plan, surface }) {
   // Thread Meta match cookies through to create-checkout-session, which stashes
   // them in the Stripe session metadata for the server-side Purchase (CAPI).
   const { fbp, fbc } = getFbCookies();
+
+  // Meta InitiateCheckout — purchase-intent signal for ad optimization. One
+  // event_id is shared by the browser pixel (here) and the server-side CAPI
+  // mirror in create-checkout-session, so Meta collapses them into one event.
+  // Fire before the fetch so the intent is recorded even if the call fails.
+  const icEventId = `ic:${(globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`)}`;
+  const priced = PRICING[plan] || PRICING.annual;
+  trackInitiateCheckout({ value: priced.billed, currency: 'USD', plan, eventId: icEventId });
+
   const res = await fetch(CHECKOUT_URL, {
     method: 'POST',
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ plan, fbp, fbc }),
+    body: JSON.stringify({ plan, fbp, fbc, ic_event_id: icEventId }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);

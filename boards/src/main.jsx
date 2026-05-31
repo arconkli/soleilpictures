@@ -15,13 +15,16 @@ import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
 import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
 import { getRecentFonts } from './lib/customFonts.js';
-import { installSpaPageViews } from './lib/metaPixel.js';
+import { captureFbclid, installSpaPageViews } from './lib/metaPixel.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
-// Meta Pixel: fire PageView on SPA route changes too — the base snippet in
-// index.html only fires the cold load. Same rationale as the CWA spa:true
-// beacon below: our hand-rolled router navigates via the History API.
+// Meta Pixel: persist any ?fbclid= ad-click id (durable _fbc) BEFORE anything
+// reads getFbCookies(), so a conversion attributes to the ad even days later.
+// Then fire PageView on SPA route changes too — the base snippet in index.html
+// only fires the cold load. Same rationale as the CWA spa:true beacon below: our
+// hand-rolled router navigates via the History API.
+captureFbclid();
 installSpaPageViews();
 
 // Cloudflare Web Analytics beacon. Lazy-injected when VITE_CF_ANALYTICS_TOKEN

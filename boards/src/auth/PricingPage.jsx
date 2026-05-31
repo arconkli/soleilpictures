@@ -15,7 +15,8 @@ import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
-import { CTA, CREATOR_FEATURES, DEMO_FEATURES, grantCopy } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, DEMO_FEATURES, grantCopy, PRICING } from '../lib/billingCopy.js';
+import { trackViewContent } from '../lib/metaPixel.js';
 
 export function PricingPage() {
   const { user, signOut } = useAuth();
@@ -24,7 +25,12 @@ export function PricingPage() {
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => { logEvent('pricing_view', { surface: 'page' }); }, []);
+  useEffect(() => {
+    logEvent('pricing_view', { surface: 'page' });
+    // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default to
+    // the annual plan, so report that value.
+    trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
+  }, []);
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
   const isDemo = tier === 'demo';

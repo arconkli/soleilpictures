@@ -17,7 +17,8 @@ import { startCheckout, startPortal } from '../lib/checkout.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
-import { CTA, CREATOR_FEATURES } from '../lib/billingCopy.js';
+import { CTA, CREATOR_FEATURES, PRICING } from '../lib/billingCopy.js';
+import { trackViewContent } from '../lib/metaPixel.js';
 
 export function PricingModal({ onClose, header = null }) {
   const { user } = useAuth();
@@ -26,7 +27,11 @@ export function PricingModal({ onClose, header = null }) {
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => { logEvent('pricing_view', { surface: 'modal', header }); }, [header]);
+  useEffect(() => {
+    logEvent('pricing_view', { surface: 'modal', header });
+    // Meta ViewContent — mid-funnel ad-optimization signal. Defaults to annual.
+    trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
+  }, [header]);
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
 

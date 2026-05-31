@@ -23,6 +23,32 @@ function fbqReady() {
   return typeof window !== 'undefined' && typeof window.fbq === 'function';
 }
 
+// Durable _fbc fallback. The pixel sets the _fbc cookie from an fbclid on the
+// landing page, but that cookie can be lost to Safari ITP / ad blockers, and our
+// funnel spans DAYS (ad click → waitlist → approval → purchase) — longer than a
+// session. So we also persist the click id to localStorage and backfill it
+// whenever the cookie is missing, so every conversion (Lead, Registration,
+// InitiateCheckout, Purchase) still carries the ad click for attribution.
+const FBC_KEY = 'soleil.meta.fbc';
+
+// Capture ?fbclid= from the current URL into a Meta-format _fbc and persist it.
+// Format Meta expects: fb.1.<creationMs>.<fbclid> (the subdomain index is 1).
+// Call once at startup (main.jsx). Latest click wins. No-op without an fbclid or
+// localStorage (private mode) — never throws.
+export function captureFbclid() {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  try {
+    const fbclid = new URLSearchParams(window.location.search).get('fbclid');
+    if (!fbclid) return;
+    localStorage.setItem(FBC_KEY, `fb.1.${Date.now()}.${fbclid}`);
+  } catch (_) { /* private-mode / quota → skip */ }
+}
+
+function persistedFbc() {
+  if (typeof localStorage === 'undefined') return null;
+  try { return localStorage.getItem(FBC_KEY) || null; } catch (_) { return null; }
+}
+
 // Read the Meta cookies the pixel sets. Not httpOnly → JS-readable. _fbp exists
 // once the pixel has run; _fbc only when the user arrived via an fbclid link.
 // Returns {} so callers can spread safely.
@@ -33,6 +59,12 @@ export function getFbCookies() {
   const fbc = document.cookie.match(/(?:^|;\s*)_fbc=([^;]+)/);
   if (fbp) out.fbp = decodeURIComponent(fbp[1]);
   if (fbc) out.fbc = decodeURIComponent(fbc[1]);
+  // Cookie wins when present (freshest); otherwise fall back to the persisted
+  // click id so days-later / cookie-blocked conversions still match.
+  if (!out.fbc) {
+    const stored = persistedFbc();
+    if (stored) out.fbc = stored;
+  }
   return out;
 }
 
@@ -51,6 +83,35 @@ export function trackPurchase({ eventId, value, currency } = {}) {
     if (typeof value === 'number' && !Number.isNaN(value)) params.value = value;
     if (currency) params.currency = String(currency).toUpperCase();
     window.fbq('track', 'Purchase', params, { eventID: eventId });
+  } catch (_) {}
+}
+
+// Fire ViewContent when a pricing surface renders — a mid-funnel signal Meta uses
+// to find purchase-intent users and to build retargeting audiences. Browser-only
+// (high-volume, low-value, no server-trusted dedup key). Not deduped: the public
+// page and the in-app modal are legitimately distinct views.
+export function trackViewContent({ content_name, value, currency } = {}) {
+  if (!fbqReady()) return;
+  try {
+    const params = { content_type: 'product' };
+    if (content_name) params.content_name = String(content_name);
+    if (typeof value === 'number' && !Number.isNaN(value)) params.value = value;
+    if (currency) params.currency = String(currency).toUpperCase();
+    window.fbq('track', 'ViewContent', params);
+  } catch (_) {}
+}
+
+// Fire InitiateCheckout when the user starts Stripe Checkout. eventId is shared
+// with the server-side CAPI mirror (create-checkout-session) so Meta collapses
+// the browser + server signal into one event — same dedup pattern as Purchase.
+export function trackInitiateCheckout({ value, currency, plan, eventId } = {}) {
+  if (!fbqReady()) return;
+  try {
+    const params = { content_type: 'product', content_name: 'Creator' };
+    if (plan) params.content_category = String(plan);
+    if (typeof value === 'number' && !Number.isNaN(value)) params.value = value;
+    if (currency) params.currency = String(currency).toUpperCase();
+    window.fbq('track', 'InitiateCheckout', params, eventId ? { eventID: eventId } : undefined);
   } catch (_) {}
 }
 
