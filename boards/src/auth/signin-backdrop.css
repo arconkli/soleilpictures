@@ -47,8 +47,6 @@
 .sb-grid { position: absolute; inset: -10%; z-index: 0; opacity: 0;
   background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.13) 1.3px, transparent 1.6px);
   background-size: 24px 24px; }
-.sb-sun { position: absolute; right: 6%; bottom: -180px; width: 540px; height: 540px; border-radius: 50%; z-index: 0;
-  background: radial-gradient(circle, hsl(35 95% 55% / .5), hsl(30 95% 50% / .16) 46%, transparent 72%); filter: blur(46px); }
 .sb-grain { position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background-image: url('/grain.gif'); background-size: 320px 240px; opacity: .03; }
 

@@ -159,7 +159,6 @@ export function SignInBackdrop({ children, exploreHref }) {
   const cursorsRef = useRef(null);
   const linksRef   = useRef(null);
   const gridRef    = useRef(null);
-  const sunRef     = useRef(null);
   const chromeRef  = useRef(null);
   const hintRef    = useRef(null);
   const boxRef     = useRef(null);
@@ -175,7 +174,6 @@ export function SignInBackdrop({ children, exploreHref }) {
     const cursorsEl = cursorsRef.current;
     const linksSvg = linksRef.current;
     const grid = gridRef.current;
-    const sun = sunRef.current;
     const hint = hintRef.current;
     const chrome = chromeRef.current;
     if (!scrollEl || !cardsEl) return;
@@ -331,10 +329,8 @@ export function SignInBackdrop({ children, exploreHref }) {
       const br = boxRef.current ? boxRef.current.getBoundingClientRect() : null;
 
       // atmosphere: the Clusters canvas grid is faintly there from the FIRST frame
-      // (reads as the app immediately) and snaps to full on the first bit of scroll;
-      // the warm sun recedes a touch faster so the app look takes over sooner.
+      // (reads as the app immediately) and eases up to full as you scroll in.
       grid.style.opacity = clamp(0.30 + p / 0.28, 0, 1);
-      sun.style.opacity = 1 - clamp(p / 0.45, 0, 1);
       chrome.style.opacity = clamp((p - 0.74) / 0.16, 0, 1);
       // keep the scroll cue visible through the first nudge so it can't be missed
       hint.style.opacity = 1 - clamp(p / 0.10, 0, 1);
@@ -465,7 +461,6 @@ export function SignInBackdrop({ children, exploreHref }) {
       <div className="sb-scroll" ref={scrollRef}>
         <div className="sb-runway" ref={runwayRef}>
           <div className="sb-stage" ref={stageRef}>
-            <div className="sb-sun" ref={sunRef} aria-hidden="true" />
             <div className="sb-grid" ref={gridRef} aria-hidden="true" />
             <div className="sb-grain" aria-hidden="true" />
             <svg className="sb-links" ref={linksRef} aria-hidden="true" />
