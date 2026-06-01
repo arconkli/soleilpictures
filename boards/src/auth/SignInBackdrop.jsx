@@ -93,6 +93,8 @@ export function SignInBackdrop({ children, exploreHref }) {
 
   useEffect(() => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    const runwayMult = coarse ? 3.4 : RUNWAY_MULT;   // fewer swipes to the payoff on phones
     const sceneEl = sceneRef.current;
     const scrollEl = scrollRef.current;
     const cardsEl = cardsRef.current;
@@ -145,9 +147,18 @@ export function SignInBackdrop({ children, exploreHref }) {
       // Pin runway/stage to the VISIBLE viewport width — the scroller itself is
       // wider so its scrollbar is cropped off-screen. Exact px heights keep the
       // sticky stage pinned cleanly on mobile.
-      if (runwayRef.current) { runwayRef.current.style.width = vw + 'px'; runwayRef.current.style.height = Math.round(vh * RUNWAY_MULT) + 'px'; }
+      if (runwayRef.current) { runwayRef.current.style.width = vw + 'px'; runwayRef.current.style.height = Math.round(vh * runwayMult) + 'px'; }
       if (stageRef.current) { stageRef.current.style.width = vw + 'px'; stageRef.current.style.height = vh + 'px'; }
       maxScroll = Math.max(1, scrollEl.scrollHeight - scrollEl.clientHeight);
+    }
+
+    // Keep the pinned box above the on-screen keyboard: publish the VISIBLE
+    // viewport height so .sb-box-wrap can center the box in the area not covered
+    // by the keyboard (the scene is position:fixed, so it otherwise centers in
+    // the full layout viewport and the keyboard can hide the Continue button).
+    const vv = window.visualViewport;
+    function syncVisibleHeight() {
+      if (sceneEl && vv) sceneEl.style.setProperty('--sb-vvh', Math.round(vv.height) + 'px');
     }
 
     const cw = () => (sceneEl && sceneEl.clientWidth) || innerWidth;
@@ -290,8 +301,10 @@ export function SignInBackdrop({ children, exploreHref }) {
     const onResize = () => { measure(); render(performance.now()); };
 
     measure();
+    syncVisibleHeight();
     scrollEl.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
+    if (vv) { vv.addEventListener('resize', syncVisibleHeight); vv.addEventListener('scroll', syncVisibleHeight); }
     rafId = requestAnimationFrame(loop);
     render(0);
 
@@ -299,6 +312,7 @@ export function SignInBackdrop({ children, exploreHref }) {
       cancelAnimationFrame(rafId);
       scrollEl.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
+      if (vv) { vv.removeEventListener('resize', syncVisibleHeight); vv.removeEventListener('scroll', syncVisibleHeight); }
       cardEls.forEach(el => el.remove());
       cursorEls.forEach(el => el.remove());
       connEls.forEach(el => el.remove());

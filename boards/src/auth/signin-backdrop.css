@@ -60,7 +60,7 @@
 .sb-media { display: block; width: 100%; height: 100%; object-fit: cover; }
 .sb-cfoot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px;
   padding: 7px 9px; background: linear-gradient(to top, rgba(10,10,12,.9), transparent); }
-.sb-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sb-scene .sb-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .sb-label { font: 500 10px/1 var(--font-mono); color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* notes = platform-info callouts. They POP: gold edge + soft glow + brighter
    text + an ⓘ badge, so visitors read them while the other cards stay flat. */
@@ -106,8 +106,8 @@
   font: 600 10px/1.4 var(--font-sans); color: #0a0a0c; white-space: nowrap; }
 
 /* board chrome — a faux app topbar that fades in for the "live board" finale */
-.sb-chrome { position: absolute; left: 0; right: 0; top: 0; height: 48px; z-index: 3;
-  display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
+.sb-chrome { position: absolute; left: 0; right: 0; top: 0; height: calc(48px + var(--safe-top, 0px)); z-index: 3;
+  display: flex; align-items: center; justify-content: space-between; padding: var(--safe-top, 0px) 16px 0;
   background: var(--bg-1); border-bottom: 1px solid var(--line-1); opacity: 0; }
 .sb-chrome-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .sb-chrome-left img { width: 20px; height: 20px; object-fit: contain; }
@@ -123,10 +123,12 @@
   font: 600 10px/1 var(--font-sans); color: #fff; box-shadow: 0 0 0 2px var(--bg-1); margin-left: -6px; }
 .sb-av:first-child { margin-left: 0; }
 
-/* layer 5 — the sign-in/up box. PINNED. Never moves. Basic. */
-.sb-box-wrap { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; pointer-events: none; }
+/* layer 5 — the sign-in/up box. PINNED. Never moves. Basic.
+   Height tracks the VISIBLE viewport (var set in JS from visualViewport) so the
+   box stays centered above the on-screen keyboard, not behind it. */
+.sb-box-wrap { position: absolute; top: 0; left: 0; right: 0; height: var(--sb-vvh, 100%); z-index: 5; display: grid; place-items: center; pointer-events: none; }
 .sb-box { position: relative; pointer-events: auto; width: 392px; max-width: 92vw; display: flex; flex-direction: column; align-items: center; gap: 20px;
-  padding: 36px 34px; isolation: isolate; text-align: center; }
+  padding: max(28px, var(--safe-top, 0px)) 34px max(28px, var(--safe-bottom, 0px)); isolation: isolate; text-align: center; }
 .sb-frost { position: relative; z-index: 1; width: 100%; background: rgba(18,16,13,.8);
   backdrop-filter: blur(16px) saturate(1.05); -webkit-backdrop-filter: blur(16px) saturate(1.05);
   border: 1px solid rgba(255,255,255,.08); border-radius: var(--radius-lg); box-shadow: var(--shadow-3), var(--soleil-glow);
@@ -143,12 +145,12 @@
    of the scroll (the resolved live board), starting hidden + non-interactive. */
 .sb-explore { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap;
   display: inline-flex; align-items: center; gap: 5px;
-  font: 500 12px/1 var(--font-sans); color: var(--ink-3); text-decoration: none; padding: 8px 4px 4px;
+  font: 500 12px/1 var(--font-sans); color: var(--ink-3); text-decoration: none; padding: 16px 12px; /* ≥44px tap target */
   opacity: 0; pointer-events: none; transition: opacity .4s ease, color var(--dur-base) var(--ease); }
 .sb-explore:hover { color: var(--soleil); }
 
 /* layer 6 — scroll hint */
-.sb-hint { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 6;
+.sb-hint { position: absolute; left: 50%; bottom: calc(30px + var(--safe-bottom, 0px)); transform: translateX(-50%); z-index: 6;
   display: flex; flex-direction: column; align-items: center; gap: 9px; transition: opacity .4s ease; pointer-events: none; }
 .sb-hint-label { font: 600 10px/1 var(--font-display); letter-spacing: .22em; text-transform: uppercase; color: var(--ink-3); }
 .sb-chev { width: 13px; height: 13px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3);
@@ -156,8 +158,23 @@
 @keyframes sb-bob { 0%,100% { transform: rotate(45deg) translate(0,0); opacity: .5; } 50% { transform: rotate(45deg) translate(3px,3px); opacity: 1; } }
 
 /* footer — kept from the original auth screen, pinned to the stage */
-.sb-foot { position: absolute; left: 0; right: 0; bottom: 12px; z-index: 6; text-align: center;
+.sb-scene .sb-foot { position: absolute; left: 0; right: 0; bottom: calc(12px + var(--safe-bottom, 0px)); z-index: 6; text-align: center;
   color: var(--ink-3); font: 400 11px/1.4 var(--font-sans); letter-spacing: .04em; pointer-events: none; }
+
+/* long emails truncate in the code step so they never overflow the box */
+.sb-frost .auth-email-row { max-width: 100%; }
+.sb-frost .auth-email-readonly { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* mobile: lighten the frosted-glass blur (the one effect that can jank weak
+   GPUs — it re-blurs the moving cards every frame) and bump opacity a touch so
+   the box stays legible with less blur. */
+@media (max-width: 640px) {
+  .sb-frost {
+    backdrop-filter: blur(9px) saturate(1.05);
+    -webkit-backdrop-filter: blur(9px) saturate(1.05);
+    background: rgba(18, 16, 13, .9);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .sb-chev { animation: none; }

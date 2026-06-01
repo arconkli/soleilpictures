@@ -31,6 +31,13 @@ import { SignInBackdrop } from './SignInBackdrop.jsx';
 // Cleared once claim_pending_invite returns (or fails terminally).
 const PENDING_INVITE_KEY = 'soleil.boards.pending.invite.token';
 
+// Auto-focus the email field on desktop (precise pointer) for speed, but NOT on
+// touch devices — there it pops the keyboard on load, hiding the animated hero
+// and crowding the box. Phones open hero-first; the keyboard opens on tap.
+const AUTOFOCUS_EMAIL = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+  ? !window.matchMedia('(pointer: coarse)').matches
+  : true;
+
 const AuthContext = createContext({ user: null, signOut: () => {} });
 export const useAuth = () => useContext(AuthContext);
 
@@ -378,7 +385,7 @@ function SignIn() {
             <input
               className="auth-input"
               type="email"
-              autoFocus
+              autoFocus={AUTOFOCUS_EMAIL}
               required
               aria-label="Email address"
               placeholder="you@studio.com"
