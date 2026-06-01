@@ -24,6 +24,7 @@ import { peekPendingInviteEmail, claimPendingInvite } from '../lib/boardsApi.js'
 import { trackRegistration } from '../lib/metaPixel.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
+import { SignInBackdrop } from './SignInBackdrop.jsx';
 
 // Localstorage key holding an in-flight invite token between the
 // pre-signup landing (?invite=…) and the post-signup claim hook.
@@ -358,21 +359,20 @@ function SignIn() {
   };
 
   return (
-    <div className="auth-screen">
-      <div className="auth-glow" aria-hidden="true" />
-      <div className="auth-card">
-        <header className="sr-only">
-          <h1>Soleil Clusters</h1>
-          <p>Soleil Clusters is a creative workspace and moodboard tool for production teams. Organize references, projects, and ideas across film, photo, design, and brand work, and collaborate with your team in real time.</p>
-        </header>
-        <SoleilWordmark size="display" />
+    <SignInBackdrop exploreHref="https://clusters.soleilpictures.com/share/bba68b4d-7562-4ca2-96fb-817455b85fdd">
+      <header className="sr-only">
+        <h1>Soleil Clusters</h1>
+        <p>Soleil Clusters is a creative workspace and moodboard tool for production teams. Organize references, projects, and ideas across film, photo, design, and brand work, and collaborate with your team in real time.</p>
+      </header>
+      <SoleilWordmark size="display" />
 
-        {inviteHint && (
-          <div className="auth-hint t-meta" style={{ marginBottom: 8 }}>
-            You've been invited. Sign in with <b>{inviteHint.email}</b> to accept.
-          </div>
-        )}
+      {inviteHint && (
+        <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
+          You've been invited. Sign in with <b>{inviteHint.email}</b> to accept.
+        </div>
+      )}
 
+      <div className="sb-frost">
         {stage === 'email' ? (
           <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) sendCode(false); }}>
             <input
@@ -381,16 +381,16 @@ function SignIn() {
               autoFocus
               required
               aria-label="Email address"
-              placeholder="you@example.com"
+              placeholder="you@studio.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={busy}
             />
             <button className="auth-btn" type="submit" disabled={busy || !email.trim()}>
-              {busy ? 'Sending…' : 'Send code'}
+              {busy ? 'Sending…' : 'Continue with email →'}
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
-            <div className="auth-hint t-meta">We'll email you a 6-digit code.</div>
+            <div className="sb-cap">Sign in or sign up — we'll email a 6-digit code.</div>
           </form>
         ) : (
           <form className="auth-form" onSubmit={verifyCode}>
@@ -427,8 +427,7 @@ function SignIn() {
           </form>
         )}
       </div>
-      <div className="auth-foot t-meta">© Soleil Pictures</div>
-    </div>
+    </SignInBackdrop>
   );
 }
 
