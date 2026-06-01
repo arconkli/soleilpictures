@@ -203,9 +203,18 @@
   transform: rotate(45deg); animation: sb-bob 1.7s ease-in-out infinite; }
 @keyframes sb-bob { 0%,100% { transform: rotate(45deg) translate(-1px,-1px); opacity: .5; } 50% { transform: rotate(45deg) translate(2px,2px); opacity: 1; } }
 
-/* footer — kept from the original auth screen, pinned to the stage */
-.sb-scene .sb-foot { position: absolute; left: 0; right: 0; bottom: calc(12px + var(--safe-bottom, 0px)); z-index: 6; text-align: center;
+/* footer — pinned to the stage. Two zones: © + legal links on the left,
+   contact email on the right. The container stays pointer-events:none so the
+   thin strip still passes scroll/drag through; only the anchors are clickable. */
+.sb-scene .sb-foot { position: absolute; left: 0; right: 0; bottom: calc(12px + var(--safe-bottom, 0px)); z-index: 6;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 0 clamp(14px, 4vw, 28px);
   color: var(--ink-3); font: 400 11px/1.4 var(--font-sans); letter-spacing: .04em; pointer-events: none; }
+.sb-foot-left { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; min-width: 0; }
+.sb-foot-copy { color: var(--ink-3); white-space: nowrap; }
+.sb-foot-link, .sb-foot-email { pointer-events: auto; color: var(--ink-3); text-decoration: none; white-space: nowrap;
+  transition: color var(--dur-base) var(--ease); }
+.sb-foot-link:hover, .sb-foot-email:hover { color: var(--soleil); }
 
 /* long emails truncate in the code step so they never overflow the box */
 .sb-frost .auth-email-row { max-width: 100%; }
@@ -225,6 +234,13 @@
   .sb-chrome-pill { display: none; }
   .sb-chrome-sep { display: none; }
   .sb-chrome-crumb:not(.sb-here) { display: none; }
+  /* footer: the © + email won't both fit a phone row, so stack the legal
+     links above the email and drop the © text. Keeps it clear of the safe area
+     and below the scroll cue (which sits at bottom:52px). */
+  .sb-scene .sb-foot { flex-direction: column; align-items: center; gap: 3px; text-align: center;
+    bottom: calc(10px + var(--safe-bottom, 0px)); padding: 0 14px; font-size: 10px; }
+  .sb-foot-left { justify-content: center; gap: 3px 9px; }
+  .sb-foot-copy { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

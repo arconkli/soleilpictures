@@ -1,0 +1,157 @@
+/* legal.css — styles for the public Privacy / Terms / Cookie pages
+   (LegalPage.jsx). Kept in its own file (not styles.css) to stay out of the
+   high-contention shared stylesheet. Uses the app's design tokens so it
+   tracks light/dark theme automatically.
+
+   Like .pricing-screen, the screen is position:fixed with its own scroll, so
+   the global html/body/#root overflow lock doesn't trap the long document. */
+
+.legal-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-0);
+  color: var(--ink-1);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+/* ── sticky top bar: brand (→ home) + back-to-app ─────────────────────── */
+.legal-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: max(16px, calc(env(safe-area-inset-top) + 8px)) clamp(16px, 5vw, 40px) 14px;
+  background: var(--bg-0); /* fallback for no color-mix */
+  background: color-mix(in srgb, var(--bg-0) 86%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line-1);
+}
+.legal-brand { display: inline-flex; align-items: center; text-decoration: none; }
+.legal-back {
+  flex: none;
+  color: var(--ink-2);
+  text-decoration: none;
+  font: 500 13px/1 var(--font-sans);
+  padding: 8px 13px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius, 4px);
+  transition: color var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
+}
+.legal-back:hover { color: var(--ink-0); border-color: var(--line-3); }
+
+/* ── document column ──────────────────────────────────────────────────── */
+.legal-doc {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px clamp(20px, 5vw, 32px) max(64px, calc(env(safe-area-inset-bottom) + 48px));
+}
+
+.legal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 30px;
+}
+.legal-tab {
+  font: 600 11px/1 var(--font-display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  text-decoration: none;
+  padding: 8px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  transition: color var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease), background var(--dur-base) var(--ease);
+}
+.legal-tab:hover { color: var(--ink-0); border-color: var(--line-3); }
+.legal-tab.is-active {
+  color: var(--bg-0);
+  background: var(--soleil);
+  border-color: var(--soleil);
+}
+
+.legal-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: clamp(26px, 6vw, 34px);
+  line-height: 1.1;
+  color: var(--ink-0);
+  margin: 0 0 6px;
+}
+.legal-updated {
+  font: 400 12px/1.4 var(--font-sans);
+  color: var(--ink-3);
+  margin: 0 0 24px;
+}
+.legal-intro {
+  font: 400 15px/1.65 var(--font-sans);
+  color: var(--ink-1);
+  margin: 0 0 4px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.legal-section { margin-top: 30px; }
+.legal-h {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--ink-0);
+  margin: 0 0 10px;
+}
+.legal-p {
+  font: 400 14.5px/1.7 var(--font-sans);
+  color: var(--ink-1);
+  margin: 0 0 12px;
+}
+.legal-p:last-child { margin-bottom: 0; }
+.legal-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.legal-list li {
+  font: 400 14.5px/1.6 var(--font-sans);
+  color: var(--ink-1);
+  padding-left: 4px;
+}
+.legal-list li::marker { color: var(--ink-3); }
+
+.legal-link { color: var(--soleil); text-decoration: none; }
+.legal-link:hover { text-decoration: underline; }
+
+.legal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 44px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line-1);
+  font: 400 12px/1.4 var(--font-sans);
+  color: var(--ink-3);
+}
+.legal-foot-copy { color: var(--ink-3); }
+
+@media (max-width: 640px) {
+  .legal-doc { padding-top: 26px; }
+  .legal-title { letter-spacing: .04em; }
+  .legal-back { padding: 7px 11px; }
+}

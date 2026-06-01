@@ -10,6 +10,7 @@ import { TierRouter } from './auth/TierRouter.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { isDocQaMode } from './lib/localMode.js';
 import { PublicBoardView } from './components/PublicBoardView.jsx';
+import { LegalPage } from './auth/LegalPage.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -95,6 +96,11 @@ if (typeof window !== 'undefined' &&
 // other path falls through to the normal app + auth gate.
 const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$/i);
 
+// /legal/<privacy|terms|cookies> = public legal documents. Like /share, these
+// render before the AuthGate so they're reachable signed-out (footer links,
+// ad-policy review, etc). SPA fallback in the Worker serves these deep links.
+const legalMatch = window.location.pathname.match(/^\/legal\/(privacy|terms|cookies)\/?$/i);
+
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
 startHeartbeat();
@@ -131,7 +137,9 @@ if (import.meta.env.DEV && isDocQaMode()) {
     <StrictMode>
       <AppErrorBoundary>
         <FeedbackProvider>
-          {shareMatch ? (
+          {legalMatch ? (
+            <LegalPage doc={legalMatch[1].toLowerCase()} />
+          ) : shareMatch ? (
             <PublicBoardView token={shareMatch[1]} />
           ) : (
             <AuthGate>

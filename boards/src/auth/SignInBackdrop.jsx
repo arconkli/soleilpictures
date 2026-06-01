@@ -499,7 +499,15 @@ export function SignInBackdrop({ children, exploreHref }) {
               <span className="sb-chev" />
             </div>
 
-            <div className="sb-foot">© Soleil Pictures</div>
+            <div className="sb-foot">
+              <div className="sb-foot-left">
+                <span className="sb-foot-copy">© Soleil Pictures</span>
+                <a className="sb-foot-link" href="/legal/privacy">Privacy</a>
+                <a className="sb-foot-link" href="/legal/terms">Terms</a>
+                <a className="sb-foot-link" href="/legal/cookies">Cookies</a>
+              </div>
+              <a className="sb-foot-email" href="mailto:clusters@soleilpictures.com">clusters@soleilpictures.com</a>
+            </div>
           </div>
         </div>
       </div>
