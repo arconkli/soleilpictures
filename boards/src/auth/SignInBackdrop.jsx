@@ -29,49 +29,89 @@ const CARDS = [
   // wave 1 — Yahweh
   { wave:1, kind:'image', img:'/signin-yahweh.webp', label:'yahweh_keyart.png', dot:'#3b82f6', x:-455,y:-110,r:-6,w:168,h:228, in:0.05,out:0.34 },
   { wave:1, kind:'palette', cols:['#fefefe','#51a0e7','#042e72','#000000'], label:'Yahweh 2030s', dot:'#34d399', x:-470,y:150,r:-3,w:196,h:104, in:0.11,out:0.36 },
-  { wave:1, kind:'note', head:'AUTO-TAG', text:'Drop any image, link, or file — Clusters reads it, auto-tags it, and files it to the right board.', dot:'#f59e0b', x:-330,y:255,r:5,w:212,h:138, in:0.17,out:0.40 },
-  { wave:1, kind:'board', name:'Yahweh · refs', count:15, x:475,y:95,r:3,w:188,h:120, in:0.13,out:0.36 },
-  { wave:1, kind:'link', title:'Yahweh — teaser cut', url:'vimeo.com/soleil/482…', x:240,y:-285,r:-3,w:228,h:84, in:0.20,out:0.40 },
+  { wave:1, kind:'note', mSlot:'top', head:'LIVE CANVAS', text:'Your whole team on one infinite canvas — live cursors, comments, and presence, no refresh.', dot:'#f59e0b', x:-330,y:255,r:5,w:212,h:138, in:0.17,out:0.40 },
+  { wave:1, kind:'board', name:'Yahweh · refs', count:15, mini:[ {t:'img',src:'/signin-yahweh.webp',l:6,tp:8,w:42,h:64,r:-5}, {t:'pal',cols:['#fefefe','#51a0e7','#042e72','#000000'],l:52,tp:12,w:42,h:22,r:4}, {t:'note',l:44,tp:48,w:50,h:40,r:-3} ], x:475,y:95,r:3,w:198,h:144, in:0.13,out:0.36 },
+  { wave:1, kind:'audio', cover:'/signin-yahweh.webp', title:'Yahweh — main theme', artist:'Soleil Pictures · score', dur:'3:48', x:240,y:-285,r:-3,w:250,h:110, in:0.20,out:0.40 },
   { wave:1, kind:'image', img:'/signin-logo-mark.webp', label:'clusters_mark.png', dot:'#a78bfa', x:447,y:-128,r:6,w:182,h:166, in:0.09,out:0.34 },
   // wave 2 — Lost Time stills + MoodBoard
   { wave:2, kind:'image', img:'/signin-losttime-still1.webp', label:'losttime_int_07.jpg', dot:'#3b82f6', x:-440,y:-120,r:-5,w:240,h:152, in:0.42,out:0.68 },
   { wave:2, kind:'palette', cols:['#222a4e','#f8ebce','#ff7720'], label:'Lost Time', dot:'#34d399', x:470,y:-130,r:4,w:196,h:100, in:0.46,out:0.70 },
-  { wave:2, kind:'note', head:'LIVE CANVAS', text:'Your whole team on one infinite canvas — live cursors, comments, and presence, no refresh.', dot:'#f59e0b', x:430,y:205,r:-4,w:224,h:142, in:0.50,out:0.72 },
-  { wave:2, kind:'board', name:'MoodBoard', count:36, x:-470,y:160,r:-3,w:186,h:118, in:0.48,out:0.70 },
-  { wave:2, kind:'link', title:'Lost Time — lookbook', url:'are.na/soleil/lost-time', x:-300,y:280,r:4,w:226,h:84, in:0.53,out:0.72 },
+  { wave:2, kind:'note', mSlot:'top', head:'AUTO-TAG', text:'Drop any image, link, or file — Clusters reads it, auto-tags it, and files it to the right board.', dot:'#f59e0b', x:430,y:205,r:-4,w:224,h:142, in:0.50,out:0.72 },
+  { wave:2, kind:'board', name:'MoodBoard', count:36, mini:[ {t:'img',src:'/signin-losttime-still1.webp',l:5,tp:8,w:46,h:50,r:-4}, {t:'img',src:'/signin-losttime-still2.webp',l:50,tp:30,w:46,h:52,r:4}, {t:'pal',cols:['#222a4e','#f8ebce','#ff7720'],l:8,tp:60,w:38,h:20,r:2} ], x:-470,y:160,r:-3,w:196,h:142, in:0.48,out:0.70 },
+  { wave:2, kind:'video', thumb:'/signin-losttime-still1.webp', title:'Lost Time — dailies', dur:'2:14', x:-300,y:280,r:4,w:228,h:146, in:0.53,out:0.72 },
   // wave 3 — the live board (stays)
   { wave:3, kind:'image', img:'/signin-losttime.webp', label:'losttime_key.png', dot:'#3b82f6', x:455,y:-105,r:5,w:172,h:232, in:0.72 },
   { wave:3, kind:'image', img:'/signin-losttime-still2.webp', label:'losttime_diner_11.jpg', dot:'#3b82f6', x:-455,y:-115,r:-5,w:236,h:150, in:0.74 },
-  { wave:3, kind:'note', head:'RELATIONSHIP GRAPH', text:'Every card connects. Jump between boards through a living graph of how your ideas link up.', dot:'#f59e0b', x:-340,y:248,r:4,w:218,h:142, in:0.80 },
+  { wave:3, kind:'note', mSlot:'bottom', head:'RELATIONSHIP GRAPH', text:'Every card connects. Jump between boards through a living graph of how your ideas link up.', dot:'#f59e0b', x:-340,y:248,r:4,w:218,h:142, in:0.80 },
   { wave:3, kind:'palette', cols:['#FFA500','#FFFAF0','#272727','#EF7300'], label:'Clusters', dot:'#34d399', x:475,y:160,r:3,w:188,h:104, in:0.84 },
-  { wave:3, kind:'board', name:'Clusters Logo', count:32, x:230,y:295,r:-3,w:186,h:116, in:0.82 },
-  { wave:3, kind:'link', title:'Lost Time — dailies', url:'youtube.com/soleil…', x:-180,y:-290,r:-3,w:222,h:82, in:0.78 },
+  { wave:3, kind:'board', name:'Clusters Logo', count:32, mini:[ {t:'img',src:'/signin-logo-mark.webp',l:8,tp:12,w:42,h:54,r:-3,fit:'contain',bg:'#0a0a0c'}, {t:'pal',cols:['#FFA500','#FFFAF0','#272727','#EF7300'],l:54,tp:16,w:40,h:24,r:3}, {t:'note',l:48,tp:50,w:46,h:38,r:-2} ], x:230,y:295,r:-3,w:196,h:142, in:0.82 },
+  { wave:3, kind:'audio', cover:'/signin-losttime.webp', title:'Lost Time — end credits', artist:'Soleil Pictures', dur:'4:05', x:-180,y:-290,r:-3,w:250,h:110, in:0.78 },
   { wave:3, kind:'tag', text:'needs-review', dot:'#f59e0b', x:40,y:-315,r:0, in:0.88 },
   { wave:3, kind:'tag', text:'approved', dot:'#34d399', x:160,y:-300,r:0, in:0.90 },
   // extra info notes (appended so connector indices above stay valid)
-  { wave:2, kind:'note', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with slash commands and @mentions.', dot:'#f59e0b', x:175,y:-280,r:3,w:226,h:132, in:0.54,out:0.72 },
-  { wave:1, kind:'note', head:'SHARE OR LOCK', text:'Share a board with one link, or keep it private. You own your references.', dot:'#f59e0b', x:310,y:225,r:4,w:214,h:128, in:0.22,out:0.40 },
+  { wave:2, kind:'note', mSlot:'bottom', head:'SHARE OR LOCK', text:'Share a board with one link, or keep it private. You own your references.', dot:'#f59e0b', x:175,y:-280,r:3,w:226,h:132, in:0.54,out:0.72 },
+  { wave:1, kind:'note', mSlot:'bottom', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with slash commands and @mentions.', dot:'#f59e0b', x:310,y:225,r:4,w:214,h:134, in:0.22,out:0.40 },
 ];
 
 // connectors only between final-board cards (indices into CARDS)
 const CONN = [[12,13],[11,15],[13,16]];
 
-// Each cursor wanders its OWN zone (left / right / bottom) with eased, pausing
-// motion toward fresh targets, and sometimes grabs a nearby card and nudges it,
-// like a teammate tidying the board. zone = [xMin,xMax,yMin,yMax] center-rel px.
+// hand-annotation arrows that draw IN over the finale, like a teammate marking
+// up the board. indices into CARDS; bow = perpendicular curve; in/win = the
+// scroll window over which the stroke draws.
+const ARROWS = [
+  { from:13, to:15, color:'#f59e0b', bow:46, in:0.86, win:0.06 },   // graph note → Clusters board
+  { from:18, to:12, color:'#10b981', bow:-38, in:0.90, win:0.06 },  // "approved" tag → diner still
+];
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+// Each cursor wanders its OWN zone (left / right) with eased, pausing motion
+// toward fresh targets, and sometimes grabs a nearby card and nudges it, like a
+// teammate tidying the board. zone = [xMin,xMax,yMin,yMax] center-rel px.
 const CURSORS = [
-  { name:'Andrew',      color:'#ffa500', zone:[-525,-270,-300,250] },
-  { name:'Christopher', color:'#6b9088', zone:[ 270, 525,-300,250] },
-  { name:'Mara',        color:'#9a6b88', zone:[-285, 285, 225,330] },
+  { name:'Andrew', color:'#ffa500', zone:[-525,-270,-300,260] },
+  { name:'Tobe',   color:'#6b9088', zone:[ 270, 525,-300,260] },
 ];
 const ARROW = '<svg width="17" height="21" viewBox="0 0 16 20" fill="none"><path d="M2 2 L2 15 L5.5 12 L8 17.5 L10 16.5 L7.5 11 L13 11 Z" fill="COLOR" stroke="#0a0a0c" stroke-width="1" stroke-linejoin="round"/></svg>';
+
+// deterministic "waveform" peaks from a string seed (ported from the app's
+// AudioCard.generatePeaks — R2 audio isn't CORS-decodable, so this is faked but
+// reads as music). Returns count values in ~[0.3,1].
+function peaks(seed, count){
+  const s = String(seed || 'a'); let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    h = (h * 1664525 + 1013904223) | 0;
+    const r = (h >>> 0) / 4294967296;
+    const sine = Math.sin(i * 0.5 + (h >>> 24) * 0.01) * 0.5 + 0.5;
+    const env = Math.sin((i / (count - 1)) * Math.PI) * 0.35 + 0.65;
+    out.push((0.3 + 0.7 * (0.55 * r + 0.45 * sine)) * env);
+  }
+  return out;
+}
+function waveBars(seed, n = 34, fill = 0.4){
+  const ps = peaks(seed, n), on = Math.round(n * fill);
+  return `<svg class="sb-ac-wave" viewBox="0 0 ${n * 3} 24" preserveAspectRatio="none">` +
+    ps.map((p, i) => { const ht = Math.max(2, p * 22); return `<rect x="${(i * 3 + 0.5).toFixed(1)}" y="${((24 - ht) / 2).toFixed(1)}" width="2" height="${ht.toFixed(1)}" rx="1" class="${i < on ? 'sb-bar-on' : 'sb-bar-off'}"/>`; }).join('') +
+    `</svg>`;
+}
+const PLAY_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2 L12.5 8 L5 12.8 Z" fill="currentColor"/></svg>';
+// a tiny scaled-down card inside a board preview (mimics the real .bc thumbnail)
+function miniCard(m){
+  const pos = `left:${m.l}%;top:${m.tp}%;width:${m.w}%;height:${m.h}%;transform:rotate(${m.r}deg)`;
+  if (m.t === 'img') return `<div class="sb-mini sb-mini-img" style="${pos}${m.bg ? `;background:${m.bg}` : ''}"><img src="${m.src}" alt="" loading="lazy" style="object-fit:${m.fit || 'cover'}"></div>`;
+  if (m.t === 'pal') return `<div class="sb-mini sb-mini-pal" style="${pos}">${m.cols.map(c => `<i style="background:${c}"></i>`).join('')}</div>`;
+  return `<div class="sb-mini sb-mini-note" style="${pos}"><b></b><b></b><b style="width:62%"></b></div>`;
+}
 
 function cardInner(c) {
   if (c.kind === 'image') return `<img class="sb-media" src="${c.img}" alt="" draggable="false" loading="lazy"><div class="sb-cfoot"><span class="sb-dot" style="background:${c.dot}"></span><span class="sb-label">${c.label}</span></div>`;
   if (c.kind === 'note') return `<div class="sb-nb">${c.head ? `<div class="sb-nhead"><span class="sb-ninfo">i</span><span class="sb-nh">${c.head}</span></div>` : ''}${c.text}</div>`;
   if (c.kind === 'palette') return `<div class="sb-pal">${c.cols.map(x=>`<div style="background:${x}"></div>`).join('')}</div><div class="sb-cfoot"><span class="sb-dot" style="background:${c.dot}"></span><span class="sb-label">${c.label}</span></div>`;
-  if (c.kind === 'link') return `<div class="sb-lb"><span class="sb-fav"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 1 0-5-5L16 8"/><path d="M14 10a3.5 3.5 0 0 0-5 0l-2.5 2.5a3.5 3.5 0 1 0 5 5L13 16"/></svg></span><div><div class="sb-ttl">${c.title}</div><div class="sb-url">${c.url}</div></div></div>`;
-  if (c.kind === 'board') return `<div class="sb-bb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" stroke-width="1.4" stroke-linejoin="round"><path d="M4 7.5a1.5 1.5 0 0 1 1.5-1.5h3.2l2 2H18.5A1.5 1.5 0 0 1 20 9.5v8A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5z"/></svg><span class="sb-bn">${c.name}</span><span class="sb-bcount">${c.count} cards</span></div>`;
+  if (c.kind === 'audio') return `<div class="sb-ac-cover"><img class="sb-media" src="${c.cover}" alt="" loading="lazy"></div><div class="sb-ac-body"><div class="sb-ac-meta"><div class="sb-ac-title">${c.title}</div><div class="sb-ac-artist">${c.artist || ''}</div></div>${waveBars(c.title)}<div class="sb-ac-ctrl"><span class="sb-ac-play">${PLAY_SVG}</span><span class="sb-ac-time">0:00 <i>/</i> ${c.dur || '3:12'}</span></div></div>`;
+  if (c.kind === 'video') return `<div class="sb-vc-thumb"><img class="sb-media" src="${c.thumb}" alt="" loading="lazy"><span class="sb-vc-play">${PLAY_SVG}</span><span class="sb-vc-dur">${c.dur || ''}</span></div><div class="sb-vc-title">${c.title}</div>`;
+  if (c.kind === 'board') return `<div class="sb-bp-canvas">${(c.mini || []).map(miniCard).join('')}</div><span class="sb-bp-badge">Board</span><div class="sb-bp-meta"><span class="sb-bp-name">${c.name}</span><span class="sb-bp-count">${c.count} cards</span></div>`;
   if (c.kind === 'tag') return `<span class="sb-chip"><span class="sb-dot" style="background:${c.dot}"></span>${c.text}</span>`;
   return '';
 }
@@ -122,9 +162,19 @@ export function SignInBackdrop({ children, exploreHref }) {
     });
 
     const connEls = CONN.map(() => {
-      const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+      const l = document.createElementNS(SVGNS,'line');
       l.setAttribute('stroke','var(--line-3)'); l.setAttribute('stroke-width','1'); l.setAttribute('stroke-dasharray','4 5');
       linksSvg.appendChild(l); return l;
+    });
+
+    // annotation arrows: a curved path that draws in + a triangular head
+    const arrowEls = ARROWS.map(() => {
+      const g = document.createElementNS(SVGNS,'g');
+      const path = document.createElementNS(SVGNS,'path');
+      path.setAttribute('fill','none'); path.setAttribute('stroke-width','1.6'); path.setAttribute('stroke-linecap','round');
+      const head = document.createElementNS(SVGNS,'polygon');
+      g.appendChild(path); g.appendChild(head); linksSvg.appendChild(g);
+      return { g, path, head };
     });
 
     // cursor live state (kept off the module constant)
@@ -264,16 +314,28 @@ export function SignInBackdrop({ children, exploreHref }) {
         const e = ramp(p, c.in, 0.16);                          // entering 0→1
         const o = (c.out != null) ? ramp(p, c.out, 0.14) : 0;   // exiting 0→1
         const v = e * (1 - o);
-        const sgnX = Math.sign(c.x || 1);
-        const inDX = sgnX * 36, inDY = 56;
-        const outDX = sgnX * 150, outDY = -40;
         const wob = reduce ? 0 : Math.sin(t * 0.6 + c.phase) * 5 * v;
-        const ox = c.x * sx + inDX * (1 - e) * sx + outDX * o * sx + (s.dragX || 0);
-        const oy = c.y * sy + inDY * (1 - e) + outDY * o + wob + (s.dragY || 0);
+        let ox, oy, rot = c.r;
+        if (coarse && c.kind === 'note' && br) {
+          // mobile: notes are the pitch — center them and stack above/below the
+          // box so they're FULLY on-screen and readable (images may bleed off,
+          // notes never do). At most two notes overlap in time → top + bottom.
+          const half = c.h / 2 + 6, gap = 14;
+          const ty = c.mSlot === 'top' ? (br.top - cyv - gap - half) : (br.bottom - cyv + gap + half);
+          ox = (s.dragX || 0);
+          oy = ty + 16 * (1 - e) - 16 * o + (s.dragY || 0);
+          rot = 0;
+        } else {
+          const sgnX = Math.sign(c.x || 1);
+          const inDX = sgnX * 36, inDY = 56;
+          const outDX = sgnX * 150, outDY = -40;
+          ox = c.x * sx + inDX * (1 - e) * sx + outDX * o * sx + (s.dragX || 0);
+          oy = c.y * sy + inDY * (1 - e) + outDY * o + wob + (s.dragY || 0);
+        }
         const sc = 0.7 + 0.3 * e - 0.16 * o + (s._grab ? 0.05 : 0);
         const el = cardEls[i];
         el.style.opacity = v;
-        el.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px)) rotate(${c.r}deg) scale(${sc})`;
+        el.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px)) rotate(${rot}deg) scale(${sc})`;
         el.classList.toggle('sb-grab', !!s._grab);
         s._x = cxv + ox; s._y = cyv + oy; s._v = v;
       });
@@ -283,6 +345,31 @@ export function SignInBackdrop({ children, exploreHref }) {
         l.setAttribute('x1', a._x); l.setAttribute('y1', a._y);
         l.setAttribute('x2', b._x); l.setAttribute('y2', b._y);
         l.setAttribute('stroke-opacity', Math.min(a._v, b._v) * 0.7);
+      });
+
+      arrowEls.forEach((el, k) => {
+        const ar = ARROWS[k];
+        const a = S[ar.from], b = S[ar.to];
+        const vis = Math.min(a._v, b._v);
+        if (vis < 0.4) { el.g.style.opacity = 0; return; }
+        const ax = a._x, ay = a._y;
+        const dx = b._x - ax, dy = b._y - ay, len = Math.hypot(dx, dy) || 1;
+        const ux = dx / len, uy = dy / len;
+        const pull = 38, bx = b._x - ux * pull, by = b._y - uy * pull;          // stop short of the card
+        const mx = (ax + bx) / 2, my = (ay + by) / 2, nx = -uy, ny = ux;
+        const cpx = mx + nx * ar.bow, cpy = my + ny * ar.bow;                    // curve control point
+        el.path.setAttribute('d', `M ${ax.toFixed(1)} ${ay.toFixed(1)} Q ${cpx.toFixed(1)} ${cpy.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`);
+        el.path.setAttribute('stroke', ar.color);
+        const total = el.path.getTotalLength() || 1;
+        const drawn = reduce ? 1 : ramp(p, ar.in, ar.win);
+        el.path.setAttribute('stroke-dasharray', total.toFixed(1));
+        el.path.setAttribute('stroke-dashoffset', (total * (1 - drawn)).toFixed(1));
+        el.g.style.opacity = vis;
+        let tanx = bx - cpx, tany = by - cpy; const tl = Math.hypot(tanx, tany) || 1; tanx /= tl; tany /= tl;
+        const hx = -tany, hy = tanx, hl = 8, hw = 4.5;                            // arrowhead
+        el.head.setAttribute('points', `${bx.toFixed(1)},${by.toFixed(1)} ${(bx - tanx*hl + hx*hw).toFixed(1)},${(by - tany*hl + hy*hw).toFixed(1)} ${(bx - tanx*hl - hx*hw).toFixed(1)},${(by - tany*hl - hy*hw).toFixed(1)}`);
+        el.head.setAttribute('fill', ar.color);
+        el.head.style.opacity = clamp((drawn - 0.72) / 0.28, 0, 1);
       });
 
       updateCursors(now, p, sx, sy, cxv, cyv, br);
@@ -316,6 +403,7 @@ export function SignInBackdrop({ children, exploreHref }) {
       cardEls.forEach(el => el.remove());
       cursorEls.forEach(el => el.remove());
       connEls.forEach(el => el.remove());
+      arrowEls.forEach(el => el.g.remove());
     };
   }, []);
 
@@ -343,8 +431,7 @@ export function SignInBackdrop({ children, exploreHref }) {
               <div className="sb-chrome-pill"><span className="sb-on">Canvas</span><span>List</span></div>
               <div className="sb-chrome-presence">
                 <span className="sb-av" style={{ background:'#ffa500' }}>A</span>
-                <span className="sb-av" style={{ background:'#6b9088' }}>CP</span>
-                <span className="sb-av" style={{ background:'#9a6b88' }}>ML</span>
+                <span className="sb-av" style={{ background:'#6b9088' }}>T</span>
               </div>
             </div>
 

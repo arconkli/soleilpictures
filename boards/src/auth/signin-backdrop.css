@@ -78,13 +78,56 @@
 .sb-card.sb-logo-light { background: #f1f1f4; }
 .sb-card.sb-palette .sb-pal { display: flex; height: 100%; }
 .sb-card.sb-palette .sb-pal > div { flex: 1; }
-.sb-card.sb-link .sb-lb { display: flex; gap: 9px; align-items: center; padding: 11px; height: 100%; }
-.sb-card.sb-link .sb-fav { width: 28px; height: 28px; border-radius: 7px; background: var(--kind-link, #a78bfa); display: grid; place-items: center; color: #fff; flex-shrink: 0; }
-.sb-card.sb-link .sb-ttl { font: 600 11.5px/1.3 var(--font-sans); color: var(--ink-0); }
-.sb-card.sb-link .sb-url { font: 400 9.5px/1 var(--font-mono); color: var(--ink-3); margin-top: 4px; }
-.sb-card.sb-board .sb-bb { padding: 12px; height: 100%; display: flex; flex-direction: column; gap: 6px; }
-.sb-card.sb-board .sb-bn { font: 600 13px/1.2 var(--font-sans); color: var(--ink-0); }
-.sb-card.sb-board .sb-bcount { font: 400 10px/1 var(--font-mono); color: var(--ink-3); margin-top: auto; }
+/* board cards are mini PREVIEWS of the real board (mimics the app's .bc): a
+   dot-grid mini-canvas + a few scattered scaled-down cards + BOARD badge +
+   name/count footer. */
+.sb-card.sb-board { background: var(--bg-2); }
+.sb-bp-canvas { position: absolute; left: 0; right: 0; top: 0; bottom: 28px; overflow: hidden;
+  background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,.05) 1px, transparent 1.4px); background-size: 13px 13px; }
+.sb-mini { position: absolute; border-radius: 3px; overflow: hidden; background: var(--bg-3);
+  border: 1px solid rgba(255,255,255,.06); box-shadow: 0 1px 3px rgba(0,0,0,.45); }
+.sb-mini-img img { width: 100%; height: 100%; display: block; }
+.sb-mini-pal { display: flex; }
+.sb-mini-pal i { flex: 1; }
+.sb-mini-note { background: #1f1d18; padding: 5px; display: flex; flex-direction: column; gap: 3px; justify-content: center; }
+.sb-mini-note b { display: block; height: 2px; border-radius: 1px; background: rgba(243,236,221,.45); }
+.sb-bp-badge { position: absolute; left: 8px; top: 8px; z-index: 2; font: 700 8px/1 var(--font-display);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-1); background: rgba(10,10,12,.7); padding: 3px 6px; border-radius: 4px; }
+.sb-bp-meta { position: absolute; left: 0; right: 0; bottom: 0; height: 28px; display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 0 10px; background: var(--bg-3); border-top: 1px solid var(--line-1); }
+.sb-bp-name { font: 600 11.5px/1 var(--font-sans); color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-bp-count { font: 400 9px/1 var(--font-mono); color: var(--ink-3); flex: 0 0 auto; }
+
+/* music-player card — mirrors the app's AudioCard (.ac): cover + waveform + play */
+.sb-card.sb-audio { display: flex; flex-direction: row; background: var(--bg-3); }
+.sb-ac-cover { flex: 0 0 40%; background: var(--bg-2); overflow: hidden; }
+.sb-ac-cover .sb-media { width: 100%; height: 100%; object-fit: cover; }
+.sb-ac-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 9px 11px; }
+.sb-ac-meta { min-width: 0; }
+.sb-ac-title { font: 600 12px/1.25 var(--font-sans); color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-ac-artist { font: 400 10px/1.3 var(--font-sans); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.sb-ac-wave { width: 100%; height: 22px; display: block; }
+.sb-ac-wave .sb-bar-on { fill: var(--soleil); }
+.sb-ac-wave .sb-bar-off { fill: var(--ink-4); }
+.sb-ac-ctrl { display: flex; align-items: center; gap: 8px; }
+.sb-ac-play { width: 24px; height: 24px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%;
+  background: var(--soleil); color: #1a1a1a; box-shadow: var(--soleil-glow); }
+.sb-ac-play svg { width: 11px; height: 11px; margin-left: 1px; }
+.sb-ac-time { font: 500 9.5px/1 var(--font-mono); color: var(--ink-2); }
+.sb-ac-time i { color: var(--ink-3); font-style: normal; margin: 0 1px; }
+
+/* video-embed card — still + play overlay + duration, title below (mirrors .vc) */
+.sb-card.sb-video { display: flex; flex-direction: column; background: #000; }
+.sb-vc-thumb { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #000; }
+.sb-vc-thumb .sb-media { width: 100%; height: 100%; object-fit: cover; opacity: .92; }
+.sb-vc-thumb::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.55), transparent 55%); }
+.sb-vc-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 1; width: 38px; height: 38px;
+  display: grid; place-items: center; border-radius: 50%; background: rgba(10,10,12,.5); color: #fff; border: 1.5px solid rgba(255,255,255,.85); }
+.sb-vc-play svg { width: 14px; height: 14px; margin-left: 2px; }
+.sb-vc-dur { position: absolute; right: 7px; bottom: 7px; z-index: 1; font: 600 9.5px/1 var(--font-mono); color: #fff;
+  background: rgba(10,10,12,.72); padding: 2px 5px; border-radius: 4px; }
+.sb-vc-title { flex: 0 0 auto; padding: 7px 11px; font: 600 12px/1.3 var(--font-sans); color: var(--ink-0); background: var(--bg-3);
+  border-top: 1px solid var(--line-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-card.sb-tag { background: transparent; border: 0; box-shadow: none; overflow: visible; }
 .sb-card.sb-tag .sb-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px;
   background: var(--bg-3); border: 1px solid var(--line-2); font: 500 11px/1 var(--font-sans); color: var(--ink-1); white-space: nowrap; box-shadow: var(--shadow-1); }
@@ -96,7 +139,10 @@
 .sb-card.sb-grab { border-color: var(--soleil); box-shadow: var(--shadow-3), var(--soleil-glow); z-index: 6 !important; }
 
 /* dashed connectors (board-graph feel) — only on the final live board */
-.sb-links { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+/* width/height:100% — an SVG with no width/height attrs keeps its intrinsic
+   300×150 even with inset:0 (replaced element), which clipped the connectors +
+   arrows. z-index 4 floats them above the cards as annotations, below the box. */
+.sb-links { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; overflow: visible; }
 
 /* layer (top) — fake live cursors, ABOVE the box so they never slip under it */
 .sb-cursors { position: absolute; inset: 0; z-index: 7; pointer-events: none; }
@@ -174,6 +220,11 @@
     -webkit-backdrop-filter: blur(9px) saturate(1.05);
     background: rgba(18, 16, 13, .9);
   }
+  /* the faux topbar overflows on phones — drop the centered pill + the leading
+     crumbs, keep logo · Clusters · <project, truncated> | avatars so nothing overlaps */
+  .sb-chrome-pill { display: none; }
+  .sb-chrome-sep { display: none; }
+  .sb-chrome-crumb:not(.sb-here) { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
