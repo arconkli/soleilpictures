@@ -45,8 +45,8 @@
 
 /* layer 0 — atmosphere (fades out as the live board takes over) */
 .sb-grid { position: absolute; inset: -10%; z-index: 0; opacity: 0;
-  background-image: radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1px);
-  background-size: 26px 26px; }
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.13) 1.3px, transparent 1.6px);
+  background-size: 24px 24px; }
 .sb-sun { position: absolute; right: 6%; bottom: -180px; width: 540px; height: 540px; border-radius: 50%; z-index: 0;
   background: radial-gradient(circle, hsl(35 95% 55% / .5), hsl(30 95% 50% / .16) 46%, transparent 72%); filter: blur(46px); }
 .sb-grain { position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -196,12 +196,14 @@
 .sb-explore:hover { color: var(--soleil); }
 
 /* layer 6 — scroll hint */
-.sb-hint { position: absolute; left: 50%; bottom: calc(30px + var(--safe-bottom, 0px)); transform: translateX(-50%); z-index: 6;
+/* Sits clearly ABOVE the footer line; understated but legible — a tracked label
+   + a single soleil chevron gently bobbing. */
+.sb-hint { position: absolute; left: 50%; bottom: calc(52px + var(--safe-bottom, 0px)); transform: translateX(-50%); z-index: 6;
   display: flex; flex-direction: column; align-items: center; gap: 9px; transition: opacity .4s ease; pointer-events: none; }
-.sb-hint-label { font: 600 10px/1 var(--font-display); letter-spacing: .22em; text-transform: uppercase; color: var(--ink-3); }
-.sb-chev { width: 13px; height: 13px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3);
-  transform: rotate(45deg); animation: sb-bob 1.8s ease-in-out infinite; }
-@keyframes sb-bob { 0%,100% { transform: rotate(45deg) translate(0,0); opacity: .5; } 50% { transform: rotate(45deg) translate(3px,3px); opacity: 1; } }
+.sb-hint-label { font: 600 10px/1 var(--font-display); letter-spacing: .22em; text-transform: uppercase; color: var(--ink-2); }
+.sb-chev { width: 12px; height: 12px; border-right: 1.5px solid var(--soleil); border-bottom: 1.5px solid var(--soleil);
+  transform: rotate(45deg); animation: sb-bob 1.7s ease-in-out infinite; }
+@keyframes sb-bob { 0%,100% { transform: rotate(45deg) translate(-1px,-1px); opacity: .5; } 50% { transform: rotate(45deg) translate(2px,2px); opacity: 1; } }
 
 /* footer — kept from the original auth screen, pinned to the stage */
 .sb-scene .sb-foot { position: absolute; left: 0; right: 0; bottom: calc(12px + var(--safe-bottom, 0px)); z-index: 6; text-align: center;

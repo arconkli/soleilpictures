@@ -17,51 +17,76 @@
 import { useEffect, useRef } from 'react';
 import './signin-backdrop.css';
 
-const RUNWAY_MULT = 4.2; // runway height = this × viewport height
+const RUNWAY_MULT = 6.0;   // runway height = this × viewport height (more scroll = gentler motion)
+const ENTER_RAMP  = 0.18;  // scroll-progress span a card takes to ease IN
+const EXIT_RAMP   = 0.16;  // scroll-progress span a card takes to ease OUT
 
-// Cards have an entry window {in} and optional exit window {out}, so they
-// animate IN, then later move OUT — three waves that swap the board around the
-// pinned box, resolving into a final "live board" that stays.
-//   wave 1 — reference dump        (in ~.05, out ~.35)
-//   wave 2 — clinical moodboard    (in ~.42, out ~.70)
-//   wave 3 — Lost Time live board  (in ~.72, stays → the live board)
+// Each card has an entry window {in} and EITHER an exit window {out} (it streams
+// in, holds, then streams out) OR {stay:true} (it arrives near the end and
+// remains). Cards flow one at a time in small SCENES: each info note rides in
+// with the one or two media cards it describes, and a line/arrow points AT the
+// note to pull the eye to it. Scenes alternate left/right so only a couple of
+// cards share the screen at once. The last 8 (stay) settle into the resolved
+// "live board". mSlot drives the mobile-only top/bottom note layout (alternated
+// in time so each note lands alone in its slot and is fully readable).
 const CARDS = [
-  // wave 1 — Yahweh
-  { wave:1, kind:'image', img:'/signin-yahweh.webp', label:'yahweh_keyart.png', dot:'#3b82f6', x:-455,y:-110,r:-6,w:168,h:228, in:0.05,out:0.34 },
-  { wave:1, kind:'palette', cols:['#fefefe','#51a0e7','#042e72','#000000'], label:'Yahweh 2030s', dot:'#34d399', x:-470,y:150,r:-3,w:196,h:104, in:0.11,out:0.36 },
-  { wave:1, kind:'note', mSlot:'top', head:'LIVE CANVAS', text:'Your whole team on one infinite canvas — live cursors, comments, and presence, no refresh.', dot:'#f59e0b', x:-330,y:255,r:5,w:212,h:138, in:0.17,out:0.40 },
-  { wave:1, kind:'board', name:'Yahweh · refs', count:15, mini:[ {t:'img',src:'/signin-yahweh.webp',l:6,tp:8,w:42,h:64,r:-5}, {t:'pal',cols:['#fefefe','#51a0e7','#042e72','#000000'],l:52,tp:12,w:42,h:22,r:4}, {t:'note',l:44,tp:48,w:50,h:40,r:-3} ], x:475,y:95,r:3,w:198,h:144, in:0.13,out:0.36 },
-  { wave:1, kind:'audio', cover:'/signin-yahweh.webp', title:'Yahweh — main theme', artist:'Soleil Pictures · score', dur:'3:48', x:240,y:-285,r:-3,w:250,h:110, in:0.20,out:0.40 },
-  { wave:1, kind:'image', img:'/signin-logo-mark.webp', label:'clusters_mark.png', dot:'#a78bfa', x:447,y:-128,r:6,w:182,h:166, in:0.09,out:0.34 },
-  // wave 2 — Lost Time stills + MoodBoard
-  { wave:2, kind:'image', img:'/signin-losttime-still1.webp', label:'losttime_int_07.jpg', dot:'#3b82f6', x:-440,y:-120,r:-5,w:240,h:152, in:0.42,out:0.68 },
-  { wave:2, kind:'palette', cols:['#222a4e','#f8ebce','#ff7720'], label:'Lost Time', dot:'#34d399', x:470,y:-130,r:4,w:196,h:100, in:0.46,out:0.70 },
-  { wave:2, kind:'note', mSlot:'top', head:'AUTO-TAG', text:'Drop any image, link, or file — Clusters reads it, auto-tags it, and files it to the right board.', dot:'#f59e0b', x:430,y:205,r:-4,w:224,h:142, in:0.50,out:0.72 },
-  { wave:2, kind:'board', name:'MoodBoard', count:36, mini:[ {t:'img',src:'/signin-losttime-still1.webp',l:5,tp:8,w:46,h:50,r:-4}, {t:'img',src:'/signin-losttime-still2.webp',l:50,tp:30,w:46,h:52,r:4}, {t:'pal',cols:['#222a4e','#f8ebce','#ff7720'],l:8,tp:60,w:38,h:20,r:2} ], x:-470,y:160,r:-3,w:196,h:142, in:0.48,out:0.70 },
-  { wave:2, kind:'video', thumb:'/signin-losttime-still1.webp', title:'Lost Time — dailies', dur:'2:14', x:-300,y:280,r:4,w:228,h:146, in:0.53,out:0.72 },
-  // wave 3 — the live board (stays)
-  { wave:3, kind:'image', img:'/signin-losttime.webp', label:'losttime_key.png', dot:'#3b82f6', x:455,y:-105,r:5,w:172,h:232, in:0.72 },
-  { wave:3, kind:'image', img:'/signin-losttime-still2.webp', label:'losttime_diner_11.jpg', dot:'#3b82f6', x:-455,y:-115,r:-5,w:236,h:150, in:0.74 },
-  { wave:3, kind:'note', mSlot:'bottom', head:'RELATIONSHIP GRAPH', text:'Every card connects. Jump between boards through a living graph of how your ideas link up.', dot:'#f59e0b', x:-340,y:248,r:4,w:218,h:142, in:0.80 },
-  { wave:3, kind:'palette', cols:['#FFA500','#FFFAF0','#272727','#EF7300'], label:'Clusters', dot:'#34d399', x:475,y:160,r:3,w:188,h:104, in:0.84 },
-  { wave:3, kind:'board', name:'Clusters Logo', count:32, mini:[ {t:'img',src:'/signin-logo-mark.webp',l:8,tp:12,w:42,h:54,r:-3,fit:'contain',bg:'#0a0a0c'}, {t:'pal',cols:['#FFA500','#FFFAF0','#272727','#EF7300'],l:54,tp:16,w:40,h:24,r:3}, {t:'note',l:48,tp:50,w:46,h:38,r:-2} ], x:230,y:295,r:-3,w:196,h:142, in:0.82 },
-  { wave:3, kind:'audio', cover:'/signin-losttime.webp', title:'Lost Time — end credits', artist:'Soleil Pictures', dur:'4:05', x:-180,y:-290,r:-3,w:250,h:110, in:0.78 },
-  { wave:3, kind:'tag', text:'needs-review', dot:'#f59e0b', x:40,y:-315,r:0, in:0.88 },
-  { wave:3, kind:'tag', text:'approved', dot:'#34d399', x:160,y:-300,r:0, in:0.90 },
-  // extra info notes (appended so connector indices above stay valid)
-  { wave:2, kind:'note', mSlot:'bottom', head:'SHARE OR LOCK', text:'Share a board with one link, or keep it private. You own your references.', dot:'#f59e0b', x:175,y:-280,r:3,w:226,h:132, in:0.54,out:0.72 },
-  { wave:1, kind:'note', mSlot:'bottom', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with slash commands and @mentions.', dot:'#f59e0b', x:310,y:225,r:4,w:214,h:134, in:0.22,out:0.40 },
+  // Streaming scenes each sit in a DIFFERENT quadrant, rotating TL→BR→BL→TR so
+  // the active cluster drifts AROUND the box (no side fills-empties-refills). Each
+  // is a note + one source-media pair (arrow points at the note); three "filler"
+  // media drop into the opposite corner at the seams to keep it continuous + varied.
+  // idx0 — filler: Yahweh keyart (balances scene A, bottom-centre)
+  { kind:'image', img:'/signin-yahweh.webp', label:'yahweh_keyart.png', dot:'#3b82f6', x:120,y:235,r:-6,w:168,h:228, in:0.08,out:0.30 },
+  // scene A → TOP-LEFT: Yahweh board → LIVE CANVAS note
+  { kind:'board', name:'Yahweh · refs', count:15, mini:[ {t:'img',src:'/signin-yahweh.webp',l:6,tp:8,w:42,h:64,r:-5}, {t:'pal',cols:['#fefefe','#51a0e7','#042e72','#000000'],l:52,tp:12,w:42,h:22,r:4}, {t:'note',l:44,tp:48,w:50,h:40,r:-3} ], x:-445,y:-25,r:3,w:198,h:144, in:0.05,out:0.30 },
+  { kind:'note', mSlot:'top', head:'LIVE CANVAS', text:'Your whole team on one infinite canvas — live cursors, comments, and presence, no refresh.', dot:'#f59e0b', x:-340,y:-195,r:-3,w:212,h:138, in:0.12,out:0.36 },
+  // idx3 — filler: Lost Time palette (balances scene B, top-centre)
+  { kind:'palette', cols:['#222a4e','#f8ebce','#ff7720'], label:'Lost Time', dot:'#34d399', x:-30,y:-250,r:4,w:196,h:100, in:0.31,out:0.51 },
+  // scene B → BOTTOM-RIGHT: Lost Time still → AUTO-TAG note
+  { kind:'image', img:'/signin-losttime-still1.webp', label:'losttime_int_07.jpg', dot:'#3b82f6', x:450,y:55,r:-5,w:240,h:152, in:0.22,out:0.47 },
+  { kind:'note', mSlot:'bottom', head:'AUTO-TAG', text:'Drop any image, link, or file — Clusters reads it, auto-tags it, and files it to the right board.', dot:'#f59e0b', x:375,y:235,r:4,w:224,h:142, in:0.28,out:0.52 },
+  // scene C → BOTTOM-LEFT: MoodBoard → DOCS note
+  { kind:'board', name:'MoodBoard', count:36, mini:[ {t:'img',src:'/signin-losttime-still1.webp',l:5,tp:8,w:46,h:50,r:-4}, {t:'img',src:'/signin-losttime-still2.webp',l:50,tp:30,w:46,h:52,r:4}, {t:'pal',cols:['#222a4e','#f8ebce','#ff7720'],l:8,tp:60,w:38,h:20,r:2} ], x:-455,y:25,r:-3,w:196,h:142, in:0.42,out:0.66 },
+  { kind:'note', mSlot:'top', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with slash commands and @mentions.', dot:'#f59e0b', x:-360,y:215,r:3,w:214,h:134, in:0.48,out:0.70 },
+  // idx8 — filler: Yahweh score (balances scene C, bottom-centre)
+  { kind:'audio', cover:'/signin-yahweh.webp', title:'Yahweh — main theme', artist:'Soleil Pictures · score', dur:'3:48', x:120,y:265,r:-3,w:250,h:110, in:0.52,out:0.72 },
+  // scene D → TOP-RIGHT: dailies reel → SHARE OR LOCK note
+  { kind:'video', thumb:'/signin-losttime-still1.webp', title:'Lost Time — dailies', dur:'2:14', x:455,y:25,r:4,w:228,h:146, in:0.54,out:0.74 },
+  { kind:'note', mSlot:'bottom', head:'SHARE OR LOCK', text:'Share a board with one link, or keep it private. You own your references.', dot:'#f59e0b', x:385,y:-160,r:-3,w:226,h:132, in:0.60,out:0.78 },
+  // ── finale cards — arrive near the end and STAY (the resolved live board) ──
+  { kind:'image', img:'/signin-losttime-still2.webp', label:'losttime_diner_11.jpg', dot:'#3b82f6', x:-455,y:-115,r:-5,w:236,h:150, in:0.72, stay:true },
+  { kind:'image', img:'/signin-losttime.webp', label:'losttime_key.png', dot:'#3b82f6', x:455,y:-105,r:5,w:172,h:232, in:0.80, stay:true },
+  { kind:'audio', cover:'/signin-losttime.webp', title:'Lost Time — end credits', artist:'Soleil Pictures', dur:'4:05', x:-180,y:-290,r:-3,w:250,h:110, in:0.80, stay:true },
+  { kind:'palette', cols:['#FFA500','#FFFAF0','#272727','#EF7300'], label:'Clusters', dot:'#34d399', x:475,y:160,r:3,w:188,h:104, in:0.83, stay:true },
+  { kind:'board', name:'Clusters Logo', count:32, mini:[ {t:'img',src:'/signin-logo-mark.webp',l:8,tp:12,w:42,h:54,r:-3,fit:'contain',bg:'#0a0a0c'}, {t:'pal',cols:['#FFA500','#FFFAF0','#272727','#EF7300'],l:54,tp:16,w:40,h:24,r:3}, {t:'note',l:48,tp:50,w:46,h:38,r:-2} ], x:230,y:295,r:-3,w:196,h:142, in:0.86, stay:true },
+  { kind:'note', mSlot:'top', head:'RELATIONSHIP GRAPH', text:'Every card connects. Jump between boards through a living graph of how your ideas link up.', dot:'#f59e0b', x:-345,y:235,r:4,w:218,h:142, in:0.90, stay:true },
+  { kind:'tag', text:'needs-review', dot:'#f59e0b', x:40,y:-315,r:0, in:0.92, stay:true },
+  { kind:'tag', text:'approved', dot:'#34d399', x:160,y:-300,r:0, in:0.94, stay:true },
 ];
 
-// connectors only between final-board cards (indices into CARDS)
-const CONN = [[12,13],[11,15],[13,16]];
+// LINKS — faint dashed connectors (indices into CARDS). Within each scene a media
+// card links to the one beside it (a quiet relationship thread) and a line runs
+// into the note; the finale keeps a small relationship graph between its resting
+// cards. Opacity follows min(endpoint visibility), so a line is only present
+// while both its cards are.
+const LINKS = [
+  [0,1],   // keyart filler → Yahweh board
+  [3,4],   // Lost Time palette filler → still
+  [8,6],   // Yahweh score filler → MoodBoard
+  // settled-board relationship graph (the note→board arrow is separate)
+  [16,15], [12,13],
+];
 
-// hand-annotation arrows that draw IN over the finale, like a teammate marking
-// up the board. indices into CARDS; bow = perpendicular curve; in/win = the
-// scroll window over which the stroke draws.
+// hand-annotation arrows that draw IN slowly, like a teammate circling a note to
+// say "read this". Each points FROM a media card TO the note it explains, so the
+// line makes sense and pulls the eye to the note. Hidden until BOTH endpoints are
+// visible (render guards vis < 0.4). indices into CARDS; bow = curve; in/win =
+// draw window (win is wide so the stroke draws gently).
 const ARROWS = [
-  { from:13, to:15, color:'#f59e0b', bow:46, in:0.86, win:0.06 },   // graph note → Clusters board
-  { from:18, to:12, color:'#10b981', bow:-38, in:0.90, win:0.06 },  // "approved" tag → diner still
+  { from:1,  to:2,  color:'#f59e0b', bow:26,  in:0.16, win:0.11 },  // Yahweh board → LIVE CANVAS note (TL)
+  { from:4,  to:5,  color:'#10b981', bow:-26, in:0.32, win:0.11 },  // Lost Time still → AUTO-TAG note (BR)
+  { from:6,  to:7,  color:'#f59e0b', bow:26,  in:0.52, win:0.11 },  // MoodBoard → DOCS note (BL)
+  { from:9,  to:10, color:'#3b82f6', bow:-26, in:0.64, win:0.10 },  // dailies reel → SHARE OR LOCK note (TR)
+  { from:11, to:16, color:'#10b981', bow:-34, in:0.92, win:0.10 },  // diner still → RELATIONSHIP GRAPH note
 ];
 const SVGNS = 'http://www.w3.org/2000/svg';
 
@@ -105,6 +130,15 @@ function miniCard(m){
   return `<div class="sb-mini sb-mini-note" style="${pos}"><b></b><b></b><b style="width:62%"></b></div>`;
 }
 
+// Point where the ray from a card's centre toward (dx,dy) crosses its edge.
+// Connectors + arrows attach HERE, never at the centre — matching how the app's
+// annotation arrows always touch the perimeter of a card. hw/hh are half-extents.
+function boxEdge(cx, cy, hw, hh, dx, dy) {
+  const adx = Math.abs(dx) || 1e-3, ady = Math.abs(dy) || 1e-3;
+  const t = Math.min(hw / adx, hh / ady);
+  return [cx + dx * t, cy + dy * t];
+}
+
 function cardInner(c) {
   if (c.kind === 'image') return `<img class="sb-media" src="${c.img}" alt="" draggable="false" loading="lazy"><div class="sb-cfoot"><span class="sb-dot" style="background:${c.dot}"></span><span class="sb-label">${c.label}</span></div>`;
   if (c.kind === 'note') return `<div class="sb-nb">${c.head ? `<div class="sb-nhead"><span class="sb-ninfo">i</span><span class="sb-nh">${c.head}</span></div>` : ''}${c.text}</div>`;
@@ -134,7 +168,7 @@ export function SignInBackdrop({ children, exploreHref }) {
   useEffect(() => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const coarse = matchMedia('(pointer: coarse)').matches;
-    const runwayMult = coarse ? 3.4 : RUNWAY_MULT;   // fewer swipes to the payoff on phones
+    const runwayMult = coarse ? 4.8 : RUNWAY_MULT;   // fewer swipes to the payoff on phones
     const sceneEl = sceneRef.current;
     const scrollEl = scrollRef.current;
     const cardsEl = cardsRef.current;
@@ -161,7 +195,7 @@ export function SignInBackdrop({ children, exploreHref }) {
       return el;
     });
 
-    const connEls = CONN.map(() => {
+    const connEls = LINKS.map(() => {
       const l = document.createElementNS(SVGNS,'line');
       l.setAttribute('stroke','var(--line-3)'); l.setAttribute('stroke-width','1'); l.setAttribute('stroke-dasharray','4 5');
       linksSvg.appendChild(l); return l;
@@ -227,7 +261,7 @@ export function SignInBackdrop({ children, exploreHref }) {
       const z = CURSORS[i].zone;
       // visible, settled, ungrabbed final-board cards whose home is in my zone
       const cands = CARDS.map((c, idx) => ({ c, s: S[idx] }))
-        .filter(({ c, s }) => c.out == null && s._v > 0.6 && !s._grab
+        .filter(({ c, s }) => c.stay && s._v > 0.6 && !s._grab
           && c.x >= z[0] && c.x <= z[1] && c.y >= z[2] && c.y <= z[3]);
       if (cands.length && Math.random() < 0.55){
         cu.held = cands[(Math.random() * cands.length) | 0];
@@ -296,11 +330,14 @@ export function SignInBackdrop({ children, exploreHref }) {
       const cxv = cx(), cyv = cy();
       const br = boxRef.current ? boxRef.current.getBoundingClientRect() : null;
 
-      // atmosphere: sun fades out by mid-scroll, grid + board chrome fade in
-      grid.style.opacity = clamp((p - 0.1) / 0.42, 0, 1);
-      sun.style.opacity = 1 - clamp(p / 0.55, 0, 1);
+      // atmosphere: the Clusters canvas grid is faintly there from the FIRST frame
+      // (reads as the app immediately) and snaps to full on the first bit of scroll;
+      // the warm sun recedes a touch faster so the app look takes over sooner.
+      grid.style.opacity = clamp(0.30 + p / 0.28, 0, 1);
+      sun.style.opacity = 1 - clamp(p / 0.45, 0, 1);
       chrome.style.opacity = clamp((p - 0.74) / 0.16, 0, 1);
-      hint.style.opacity = 1 - clamp(p / 0.04, 0, 1);
+      // keep the scroll cue visible through the first nudge so it can't be missed
+      hint.style.opacity = 1 - clamp(p / 0.10, 0, 1);
       // the "explore a live board" link is the payoff — it only surfaces once
       // the visitor reaches the very end of the scroll (the resolved live board)
       if (exploreRef.current) {
@@ -311,8 +348,8 @@ export function SignInBackdrop({ children, exploreHref }) {
 
       CARDS.forEach((c, i) => {
         const s = S[i];
-        const e = ramp(p, c.in, 0.16);                          // entering 0→1
-        const o = (c.out != null) ? ramp(p, c.out, 0.14) : 0;   // exiting 0→1
+        const e = ramp(p, c.in, ENTER_RAMP);                        // entering 0→1
+        const o = (c.out != null) ? ramp(p, c.out, EXIT_RAMP) : 0;  // exiting 0→1
         const v = e * (1 - o);
         const wob = reduce ? 0 : Math.sin(t * 0.6 + c.phase) * 5 * v;
         let ox, oy, rot = c.r;
@@ -326,9 +363,11 @@ export function SignInBackdrop({ children, exploreHref }) {
           oy = ty + 16 * (1 - e) - 16 * o + (s.dragY || 0);
           rot = 0;
         } else {
+          // Cards mostly scale + fade in place — only a small drift, so the eye
+          // doesn't read a whole "side" sweeping off (which made it feel phased).
           const sgnX = Math.sign(c.x || 1);
-          const inDX = sgnX * 36, inDY = 56;
-          const outDX = sgnX * 150, outDY = -40;
+          const inDX = sgnX * 22, inDY = 38;
+          const outDX = sgnX * 46, outDY = 26;
           ox = c.x * sx + inDX * (1 - e) * sx + outDX * o * sx + (s.dragX || 0);
           oy = c.y * sy + inDY * (1 - e) + outDY * o + wob + (s.dragY || 0);
         }
@@ -338,26 +377,40 @@ export function SignInBackdrop({ children, exploreHref }) {
         el.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px)) rotate(${rot}deg) scale(${sc})`;
         el.classList.toggle('sb-grab', !!s._grab);
         s._x = cxv + ox; s._y = cyv + oy; s._v = v;
+        s._hw = ((c.w || 116) * sc) / 2; s._hh = ((c.h || 34) * sc) / 2;  // for edge-attached links/arrows
       });
 
       connEls.forEach((l, k) => {
-        const a = S[CONN[k][0]], b = S[CONN[k][1]];
-        l.setAttribute('x1', a._x); l.setAttribute('y1', a._y);
-        l.setAttribute('x2', b._x); l.setAttribute('y2', b._y);
-        l.setAttribute('stroke-opacity', Math.min(a._v, b._v) * 0.7);
+        const a = S[LINKS[k][0]], b = S[LINKS[k][1]];
+        // on mobile the notes jump to the center slots, so any line into a note
+        // would streak across the box — keep only the media↔media threads there.
+        if (coarse && (CARDS[LINKS[k][0]].kind === 'note' || CARDS[LINKS[k][1]].kind === 'note')) {
+          l.setAttribute('stroke-opacity', 0); return;
+        }
+        // attach to each card's edge, not its centre
+        const [x1, y1] = boxEdge(a._x, a._y, a._hw, a._hh, b._x - a._x, b._y - a._y);
+        const [x2, y2] = boxEdge(b._x, b._y, b._hw, b._hh, a._x - b._x, a._y - b._y);
+        l.setAttribute('x1', x1.toFixed(1)); l.setAttribute('y1', y1.toFixed(1));
+        l.setAttribute('x2', x2.toFixed(1)); l.setAttribute('y2', y2.toFixed(1));
+        l.setAttribute('stroke-opacity', Math.min(a._v, b._v) * 0.5);
       });
 
       arrowEls.forEach((el, k) => {
         const ar = ARROWS[k];
         const a = S[ar.from], b = S[ar.to];
         const vis = Math.min(a._v, b._v);
-        if (vis < 0.4) { el.g.style.opacity = 0; return; }
-        const ax = a._x, ay = a._y;
-        const dx = b._x - ax, dy = b._y - ay, len = Math.hypot(dx, dy) || 1;
-        const ux = dx / len, uy = dy / len;
-        const pull = 38, bx = b._x - ux * pull, by = b._y - uy * pull;          // stop short of the card
-        const mx = (ax + bx) / 2, my = (ay + by) / 2, nx = -uy, ny = ux;
-        const cpx = mx + nx * ar.bow, cpy = my + ny * ar.bow;                    // curve control point
+        // arrows point at notes; on mobile the notes are centered (front-and-
+        // centre already), so the arrow would just cross the box — hide them.
+        if (coarse || vis < 0.4) { el.g.style.opacity = 0; return; }
+        // control point: bow the centre-to-centre midpoint sideways for a curve
+        const dx = b._x - a._x, dy = b._y - a._y, len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len, ny = dx / len;
+        const cpx = (a._x + b._x) / 2 + nx * ar.bow, cpy = (a._y + b._y) / 2 + ny * ar.bow;
+        // start on the SOURCE card's edge, land the head on the TARGET card's
+        // edge — both along the tangent toward the control point, never centres.
+        const gap = 5;
+        const [ax, ay] = boxEdge(a._x, a._y, a._hw + gap, a._hh + gap, cpx - a._x, cpy - a._y);
+        const [bx, by] = boxEdge(b._x, b._y, b._hw + gap, b._hh + gap, cpx - b._x, cpy - b._y);
         el.path.setAttribute('d', `M ${ax.toFixed(1)} ${ay.toFixed(1)} Q ${cpx.toFixed(1)} ${cpy.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`);
         el.path.setAttribute('stroke', ar.color);
         const total = el.path.getTotalLength() || 1;
@@ -366,8 +419,8 @@ export function SignInBackdrop({ children, exploreHref }) {
         el.path.setAttribute('stroke-dashoffset', (total * (1 - drawn)).toFixed(1));
         el.g.style.opacity = vis;
         let tanx = bx - cpx, tany = by - cpy; const tl = Math.hypot(tanx, tany) || 1; tanx /= tl; tany /= tl;
-        const hx = -tany, hy = tanx, hl = 8, hw = 4.5;                            // arrowhead
-        el.head.setAttribute('points', `${bx.toFixed(1)},${by.toFixed(1)} ${(bx - tanx*hl + hx*hw).toFixed(1)},${(by - tany*hl + hy*hw).toFixed(1)} ${(bx - tanx*hl - hx*hw).toFixed(1)},${(by - tany*hl - hy*hw).toFixed(1)}`);
+        const hx = -tany, hy = tanx, hl = 9, hwd = 5;                            // arrowhead
+        el.head.setAttribute('points', `${bx.toFixed(1)},${by.toFixed(1)} ${(bx - tanx*hl + hx*hwd).toFixed(1)},${(by - tany*hl + hy*hwd).toFixed(1)} ${(bx - tanx*hl - hx*hwd).toFixed(1)},${(by - tany*hl - hy*hwd).toFixed(1)}`);
         el.head.setAttribute('fill', ar.color);
         el.head.style.opacity = clamp((drawn - 0.72) / 0.28, 0, 1);
       });
