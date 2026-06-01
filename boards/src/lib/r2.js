@@ -18,15 +18,6 @@ const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'http
 const CACHE_TTL_MS = 4 * 60 * 1000;   // 4 min — leaves 1 min headroom under worker's 5 min
 const cache = new Map();              // key → { url, expiresAt }
 
-// Optional resolver override. When set, EVERY read-URL request (r2:<key>)
-// resolves through this function instead of the authenticated sign-reads
-// path. Used by the public /share viewer, which has no Supabase session
-// but receives a presigned {key → URL} map in its share bundle. Returns a
-// URL string or null/undefined for unknown keys.
-let _override = null;
-export function setReadUrlResolver(fn) { _override = typeof fn === 'function' ? fn : null; }
-export function clearReadUrlResolver() { _override = null; }
-
 let pendingResolvers = new Map();     // key → array of resolve fns
 let pendingTimer = null;
 
@@ -93,9 +84,6 @@ async function flush() {
 // network failed.
 export function getSignedUrl(key) {
   if (!key || typeof key !== 'string') return Promise.resolve(null);
-  // Public viewer: resolve against the bundle's presigned map, never
-  // touch the auth-gated sign-reads endpoint.
-  if (_override) return Promise.resolve(_override(key) || null);
   const cached = cache.get(key);
   if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.url);
 
@@ -120,9 +108,6 @@ export async function resolveSrc(src) {
 export function cachedUrl(src) {
   if (typeof src !== 'string' || !src.startsWith('r2:')) return src || null;
   const key = src.slice(3);
-  // Public viewer: the presigned URL is known synchronously, so the
-  // first paint can show the image with no shimmer.
-  if (_override) return _override(key) || null;
   const cached = cache.get(key);
   return cached && cached.expiresAt > Date.now() ? cached.url : null;
 }
