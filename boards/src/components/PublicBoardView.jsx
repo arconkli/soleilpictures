@@ -4,32 +4,42 @@
 // Calls the upload party's /share-bundle route with the token (and an
 // optional board id); gets back the board metadata + Y.Doc snapshot bytes
 // + a map of {storage_path → presigned R2 URL} covering every image on
-// that board, plus the set of boards reachable via this link. Decodes the
-// snapshot client-side into cards/arrows/strokes and renders them as static
-// HTML on a fixed-position canvas.
+// that board, plus the set of boards reachable via this link. The snapshot
+// is applied to a live Y.Doc and rendered through the REAL board canvas
+// (CanvasSurface) in read-only, chromeless mode — so a shared board looks
+// and feels exactly like the editor (true pan/zoom, pixel-identical cards/
+// arrows/notes), just with every toolbar hidden.
 //
 // When the link was created with "include sub-boards", board / board-link
 // cards become navigable: clicking one fetches that descendant board (the
 // server re-checks it's inside the shared subtree) and pushes it onto a
-// breadcrumb stack. Otherwise they stay a "Sign in to open" placeholder.
+// breadcrumb stack. Otherwise they render the standard "No access" tile.
 //
-// No realtime, no editing, no sidebar — just a clean preview with a
-// "Sign in" CTA in the corner.
+// Images resolve through a module-level override installed on r2.js
+// (setReadUrlResolver): real cards ask for `r2:<key>` read URLs, which we
+// answer from the bundle's presigned map instead of the auth-gated
+// sign-reads endpoint. No realtime, no editing, no sidebar — just a clean
+// preview with a Clusters wordmark + "Sign in" CTA in the top bar.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { b64ToBytes, readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.js';
-import { ImagePlaceholder, SoleilMark } from './primitives.jsx';
-import {
-  computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
-  arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle,
-} from '../lib/arrowGeometry.js';
+import { SoleilMark } from './primitives.jsx';
+import { ClustersMark } from './SoleilWordmark.jsx';
+import { CanvasSurface } from './CanvasSurface.jsx';
+import { setReadUrlResolver, clearReadUrlResolver } from '../lib/r2.js';
+import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
+import { OpenDmContext } from '../hooks/useOpenDm.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
 
 const EMPTY = [];
 const EMPTY_OBJ = {};
+const NOOP = () => {};
+// CanvasSurface reads exactly one tweak field (tweak.showArrows); arrows
+// should render in the preview just like the editor.
+const PUBLIC_TWEAK = { showArrows: true };
 
 // Build the /share URL for a given board within a link. The root board
 // omits the ?b= param so the canonical share URL stays clean.
@@ -37,15 +47,6 @@ function shareUrl(token, boardId, rootId) {
   return (!boardId || boardId === rootId)
     ? `/share/${token}`
     : `/share/${token}?b=${boardId}`;
-}
-
-// Resolve a card's image src against the bundle's image_urls map.
-// New uploads have `r2:<key>` sentinels; legacy https URLs render
-// directly as before.
-function resolveImg(src, imageUrls) {
-  if (typeof src !== 'string' || !src) return null;
-  if (src.startsWith('r2:')) return imageUrls[src.slice(3)] || null;
-  return src;
 }
 
 export function PublicBoardView({ token }) {
@@ -57,11 +58,30 @@ export function PublicBoardView({ token }) {
   const [stack, setStack] = useState([]);             // board ids, last = current
   const [navBusy, setNavBusy] = useState(false);
 
+  // Session-wide presigned image map (merged across every board fetched)
+  // + the live Y.Docs we keep alive for CanvasSurface (doc cards read their
+  // per-card YMaps from them). Both torn down on unmount.
+  const imageMapRef = useRef({});
+  const ydocsRef = useRef(new Set());
+
   const currentId = stack.length ? stack[stack.length - 1] : null;
   const cur = currentId ? cache[currentId] : null;
 
+  // Install the public image resolver so every `r2:<key>` image surface
+  // (cards, board-tile thumbnails, doc images…) resolves from the bundle's
+  // presigned map. Cleared + all Y.Docs destroyed on unmount.
+  useEffect(() => {
+    setReadUrlResolver((key) => imageMapRef.current[key] || null);
+    return () => {
+      clearReadUrlResolver();
+      ydocsRef.current.forEach((d) => { try { d.destroy(); } catch (_) {} });
+      ydocsRef.current.clear();
+    };
+  }, []);
+
   // Fetch + decode one board bundle. boardId null/undefined → the link's
-  // root board.
+  // root board. Keeps the Y.Doc ALIVE (CanvasSurface + doc cards read it);
+  // it's destroyed on component unmount.
   const fetchBundle = useCallback(async (boardId) => {
     const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/share-bundle`;
     const res = await fetch(url, {
@@ -76,15 +96,16 @@ export function PublicBoardView({ token }) {
       try { Y.applyUpdate(ydoc, b64ToBytes(bundle.snapshot)); }
       catch (e) { console.warn('[share] snapshot decode failed', e); }
     }
+    ydocsRef.current.add(ydoc);
     const decoded = {
       board: bundle.board || {},
       imageUrls: bundle.image_urls || {},
+      ydoc,
       cards: readCards(ydoc),
       arrows: readArrows(ydoc),
       strokes: readStrokes(ydoc),
       groups: readGroups(ydoc),
     };
-    ydoc.destroy();
     return { bundle, decoded };
   }, [token]);
 
@@ -92,6 +113,10 @@ export function PublicBoardView({ token }) {
   const applyBundle = useCallback(({ bundle, decoded }) => {
     const id = bundle.board?.id;
     if (id) setCache(c => ({ ...c, [id]: decoded }));
+    // Merge this board's presigned URLs into the session-wide map so images
+    // keep resolving as the viewer navigates (and back-navigates) between
+    // boards within the link.
+    if (decoded.imageUrls) Object.assign(imageMapRef.current, decoded.imageUrls);
     if (Array.isArray(bundle.nav_boards) && bundle.nav_boards.length) {
       setNavBoards(prev => {
         const next = { ...prev };
@@ -145,7 +170,9 @@ export function PublicBoardView({ token }) {
     return () => window.removeEventListener('popstate', onPop);
   }, [cache, rootId, fetchBundle, applyBundle]);
 
-  // Navigate into a sub-board.
+  // Navigate into a sub-board. Fired by CanvasSurface when a board /
+  // board-link card is opened. The server re-checks the target is inside
+  // the shared subtree; an out-of-subtree target throws and is ignored.
   const openBoard = useCallback(async (boardId) => {
     if (!boardId || navBusy || boardId === currentId) return;
     setNavBusy(true);
@@ -174,64 +201,16 @@ export function PublicBoardView({ token }) {
     });
   }, [token, rootId]);
 
-  // ── Derived geometry (all hooks unconditional; default to empty) ──────
-  const cards   = cur?.cards   || EMPTY;
-  const arrows  = cur?.arrows  || EMPTY;
-  const strokes = cur?.strokes || EMPTY;
-  const board     = cur?.board     || EMPTY_OBJ;
-  const imageUrls = cur?.imageUrls || EMPTY_OBJ;
-
-  const cardById = useMemo(() => {
-    const m = {}; cards.forEach(c => { m[c.id] = c; }); return m;
-  }, [cards]);
-  const groupBoundsById = useMemo(() => {
-    const byGroup = new Map();
-    cards.forEach(c => {
-      if (!c.groupId) return;
-      if (!byGroup.has(c.groupId)) byGroup.set(c.groupId, []);
-      byGroup.get(c.groupId).push(c);
-    });
-    const out = {};
-    byGroup.forEach((members, gid) => {
-      let mnX = Infinity, mnY = Infinity, mxX = -Infinity, mxY = -Infinity;
-      members.forEach(c => {
-        mnX = Math.min(mnX, c.x); mnY = Math.min(mnY, c.y);
-        mxX = Math.max(mxX, c.x + c.w); mxY = Math.max(mxY, c.y + c.h);
-      });
-      out[gid] = { x: mnX, y: mnY, w: mxX - mnX, h: mxY - mnY };
-    });
-    return out;
-  }, [cards]);
-  const arrowCtx = useMemo(() => ({
-    cardById,
-    resolveGroupBBox: (gid) => groupBoundsById[gid] || null,
-  }), [cardById, groupBoundsById]);
-  const arrowAttachments = useMemo(
-    () => computeArrowAttachments(arrows, arrowCtx),
-    [arrows, arrowCtx]
-  );
-  const publicObstacleRects = useMemo(
-    () => cards.map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w, h: c.h })),
-    [cards]
-  );
-  const cardsByGroup = useMemo(() => {
-    const m = new Map();
-    cards.forEach(c => {
-      if (!c.groupId) return;
-      if (!m.has(c.groupId)) m.set(c.groupId, []);
-      m.get(c.groupId).push(c);
-    });
+  // Boards map for CanvasSurface: reachable sub-boards (+ the current board)
+  // so board / board-link cards render as real tiles and navigate via
+  // onOpenBoard. Unreachable targets are absent → BoardCard's "No access"
+  // tile, matching per-board sharing semantics.
+  const boardsMap = useMemo(() => {
+    const m = {};
+    Object.entries(navBoards).forEach(([id, name]) => { m[id] = { id, name }; });
+    if (cur?.board?.id) m[cur.board.id] = cur.board;
     return m;
-  }, [cards]);
-  const excludedCardIdsForRef = (ref) => {
-    if (!ref) return null;
-    if (typeof ref === 'string') return [ref];
-    if (ref.type === 'card' && ref.id) return [ref.id];
-    if (ref.type === 'group' && ref.id) {
-      return (cardsByGroup.get(ref.id) || []).map(c => c.id);
-    }
-    return null;
-  };
+  }, [navBoards, cur]);
 
   if (status === 'loading') {
     return (
@@ -252,28 +231,15 @@ export function PublicBoardView({ token }) {
     );
   }
 
-  // Compute canvas extents so we can center the content. Includes every
-  // card AND every arrow's resolved endpoints.
-  const allRects = [
-    ...cards.map(c => ({ x: c.x || 0, y: c.y || 0, w: c.w || 100, h: c.h || 80 })),
-    ...arrowAttachments.flatMap(att => [att?.from?.point, att?.to?.point].filter(Boolean)
-        .map(p => ({ x: p.x, y: p.y, w: 0, h: 0 }))),
-  ];
-  const minX = allRects.length ? Math.min(...allRects.map(r => r.x)) : 0;
-  const minY = allRects.length ? Math.min(...allRects.map(r => r.y)) : 0;
-  const maxX = allRects.length ? Math.max(...allRects.map(r => r.x + r.w)) : 1200;
-  const maxY = allRects.length ? Math.max(...allRects.map(r => r.y + r.h)) : 800;
-  const width  = Math.max(800, maxX - minX + 80);
-  const height = Math.max(600, maxY - minY + 80);
-
+  const board = cur?.board || EMPTY_OBJ;
   const showCrumbs = stack.length > 1;
 
   return (
     <div className="public-shell" style={{ background: board.bg_color || 'var(--bg-0)' }}>
       <div className="public-topbar">
-        <a className="public-brand" href="/" title="Soleil Clusters home">
-          <SoleilMark size={20} color="var(--soleil)" glow />
-          <span className="public-brand-name">Soleil</span>
+        <a className="public-brand" href="/" title="Clusters home">
+          <ClustersMark size={20} />
+          <span className="public-brand-name">Clusters</span>
         </a>
         {showCrumbs ? (
           <div className="public-crumbs">
@@ -297,172 +263,39 @@ export function PublicBoardView({ token }) {
         <a className="public-signin" href="/">Sign in</a>
       </div>
 
-      <div className="public-canvas-scroll">
-        <div className="public-canvas"
-             style={{
-               width: `${width}px`,
-               height: `${height}px`,
-               background: board.bg_color || 'transparent',
-             }}>
-          {/* Strokes — render as SVG behind cards. */}
-          {strokes.length > 0 && (
-            <svg className="public-strokes" width={width} height={height}
-                 viewBox={`${minX - 40} ${minY - 40} ${width} ${height}`}
-                 style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-              {strokes.map((s, i) => s?.points?.length > 0 && (
-                <polyline key={i}
-                          points={s.points.map(p => `${p.x},${p.y}`).join(' ')}
-                          stroke={s.color || '#aaa'}
-                          strokeWidth={s.width || 2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          fill="none" />
-              ))}
-            </svg>
-          )}
-
-          {/* Arrows — shares geometry with the editor so curves, colors
-              and fan-out match what the author saw. */}
-          {arrows.length > 0 && (
-            <svg className="public-arrows" width={width} height={height}
-                 viewBox={`${minX - 40} ${minY - 40} ${width} ${height}`}
-                 style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-              {arrows.map((a, i) => {
-                const att = arrowAttachments[i];
-                if (!att?.from || !att?.to) return null;
-                const excludeFrom = excludedCardIdsForRef(a.from);
-                const excludeTo   = excludedCardIdsForRef(a.to);
-                const excludeSet = new Set();
-                if (excludeFrom) for (const id of excludeFrom) excludeSet.add(id);
-                if (excludeTo)   for (const id of excludeTo)   excludeSet.add(id);
-                const obstacles = a.straight ? null
-                  : publicObstacleRects.filter(r => !excludeSet.has(r.id));
-                const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
-                if (!built) return null;
-                const stroke = arrowColor(a.color);
-                const sw = arrowStrokeWidth(a.thickness);
-                const hd = arrowHeadSize(a.thickness);
-                const headStyle = arrowHeadStyle(a);
-                const showForwardHead = headStyle !== 'none';
-                const showReverseHead = headStyle === 'double';
-                const pathId = `pub-arr-${i}`;
-                return (
-                  <g key={i}>
-                    <path id={pathId} d={built.path} fill="none" stroke={stroke} strokeWidth={sw}
-                          strokeDasharray={a.dashed ? `${sw * 4} ${sw * 3}` : '0'}
-                          strokeLinecap="round" strokeLinejoin="round" />
-                    {showForwardHead && (
-                      <polygon points={arrowHeadPolygon(att.to.point, built.toTangentIn, hd)} fill={stroke} />
-                    )}
-                    {showReverseHead && (
-                      <polygon points={arrowHeadPolygon(att.from.point, built.fromTangentIn, hd)} fill={stroke} />
-                    )}
-                    {a.label && (
-                      <text className="arrow-label-text" fill={stroke} dy="-4">
-                        <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle" side="left">
-                          {a.label}
-                        </textPath>
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
-          )}
-
-          {/* Cards. */}
-          {cards.map(c => (
-            <div key={c.id}
-                 className="public-card"
-                 style={{
-                   left: (c.x || 0) - minX + 40,
-                   top:  (c.y || 0) - minY + 40,
-                   width:  c.w || 200,
-                   height: c.h || 160,
-                 }}>
-              <PublicCardBody card={c} imageUrls={imageUrls}
-                              navBoards={navBoards} canNavigate={includeSubboards}
-                              onOpenBoard={openBoard} />
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Real board canvas, read-only + chromeless (see styles.css
+          .public-canvas-host). The empty/no-op context providers keep any
+          live <EntityLink> mention chips or avatars inside notes/cards from
+          crashing — they simply become non-interactive. */}
+      <EntityNavigateContext.Provider value={EMPTY_OBJ}>
+        <OpenDmContext.Provider value={NOOP}>
+          <div className="public-canvas-host">
+            <CanvasSurface
+              board={board}
+              boards={boardsMap}
+              cards={cur?.cards || EMPTY}
+              arrows={cur?.arrows || EMPTY}
+              strokes={cur?.strokes || EMPTY}
+              groups={cur?.groups || EMPTY}
+              ydoc={cur?.ydoc || null}
+              getAwareness={undefined}
+              currentUser={undefined}
+              mutators={EMPTY_OBJ}
+              canEdit={false}
+              isPublic
+              onOpenBoard={openBoard}
+              onOpenPicker={NOOP}
+              tweak={PUBLIC_TWEAK}
+              depth={Math.max(0, stack.length - 1)}
+              selectedTool="select"
+              setSelectedTool={NOOP}
+              defaults={null}
+              workspaceId={null}
+              userId={null}
+            />
+          </div>
+        </OpenDmContext.Provider>
+      </EntityNavigateContext.Provider>
     </div>
   );
-}
-
-// Stripped-down card renderer — covers the common kinds, skips anything
-// interactive. Board / board-link cards become navigable tiles when the
-// link shares sub-boards and the target is reachable; otherwise they (and
-// doc cards) collapse to a "Sign in to open" placeholder.
-function PublicCardBody({ card, imageUrls, navBoards, canNavigate, onOpenBoard }) {
-  switch (card.kind) {
-    case 'image': {
-      const url = resolveImg(card.src, imageUrls);
-      return url
-        ? <img className="public-card-img" src={url} alt={card.title || ''} draggable="false" />
-        : <ImagePlaceholder tone={card.tone || 'neutral'} aspect={`${card.w}/${card.h}`} />;
-    }
-    case 'note':
-      return (
-        <div className="public-card-note"
-             style={{ background: card.bgColor || '#fde68a', color: card.textColor || '#1a1300' }}
-             dangerouslySetInnerHTML={{ __html: card.html || '' }} />
-      );
-    case 'link':
-      return (
-        <div className="public-card-link">
-          <div className="public-card-link-title">{card.title || card.url || 'Link'}</div>
-          <div className="public-card-link-url">{card.url || ''}</div>
-        </div>
-      );
-    case 'palette':
-      return (
-        <div className="public-card-palette">
-          {!card.chipsOnly && card.title && <div className="public-card-palette-title">{card.title}</div>}
-          <div className="public-card-palette-row">
-            {(card.swatches || []).map((s, i) => (
-              <span key={i} className="public-card-palette-swatch" style={{ background: s.color || s }} />
-            ))}
-          </div>
-        </div>
-      );
-    case 'shape':
-      return (
-        <div className="public-card-shape"
-             style={{
-               background: card.fill || 'transparent',
-               border: card.stroke ? `${card.strokeWidth || 2}px solid ${card.stroke}` : '1px solid var(--line-2)',
-               borderRadius: card.shape === 'circle' ? '50%' : 0,
-             }} />
-      );
-    case 'board':
-    case 'boardlink': {
-      const targetId = card.kind === 'board' ? card.id : card.target;
-      if (canNavigate && targetId && navBoards[targetId]) {
-        return (
-          <button type="button" className="public-card-board" onClick={() => onOpenBoard(targetId)}>
-            <span className="public-card-board-tag">BOARD</span>
-            <span className="public-card-board-name">{navBoards[targetId]}</span>
-            <span className="public-card-board-go">Open →</span>
-          </button>
-        );
-      }
-      return (
-        <div className="public-card-blocked">
-          <span className="public-card-blocked-tag">{(card.kind || 'item').toUpperCase()}</span>
-          <span className="public-card-blocked-msg">Sign in to open</span>
-        </div>
-      );
-    }
-    case 'doc':
-      return (
-        <div className="public-card-blocked">
-          <span className="public-card-blocked-tag">{(card.kind || 'item').toUpperCase()}</span>
-          <span className="public-card-blocked-msg">Sign in to open</span>
-        </div>
-      );
-    default:
-      return <div className="public-card-blocked">{card.kind}</div>;
-  }
 }

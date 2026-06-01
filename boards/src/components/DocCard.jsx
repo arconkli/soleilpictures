@@ -31,6 +31,10 @@ export function RichDocCard({
   // false → view-only board: pass through to DocSurface so Tiptap
   // becomes non-editable.
   canEdit = true,
+  // true → public /share viewer: the closed preview renders normally, but
+  // opening the heavy DocSurface editor is suppressed (it needs auth +
+  // realtime, and pulls App-only contexts the share tree doesn't provide).
+  isPublic = false,
   autoFocus = false, onUpdate,
 }) {
   // Backfill any newly-introduced Y types on cards created before this
@@ -69,7 +73,7 @@ export function RichDocCard({
   const summary = (ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : { pages: [], firstText: '', firstPageName: '' };
   const pageCount = summary.pages.length;
 
-  const open = (m) => setMode(m);
+  const open = (m) => { if (isPublic) return; setMode(m); };
   const close = () => {
     setMode('closed');
     setPreviewKey((n) => n + 1);

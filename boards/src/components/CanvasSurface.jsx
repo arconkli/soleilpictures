@@ -230,6 +230,10 @@ export function CanvasSurface({
   defaults,                // useResolvedDefaults() output — drives initial
                            // tool options so a workspace's shape stroke/fill
                            // settings actually shape what gets drawn.
+  isPublic = false,        // true → read-only public /share view: always
+                           // fit-to-content on open, never persist view
+                           // state, skip card-index sync, and suppress the
+                           // heavy doc editor (the closed doc preview is fine).
 }) {
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
@@ -242,9 +246,10 @@ export function CanvasSurface({
   // (c.html) gets html-stripped into card_index.body so the tag
   // detail view + suggestion engine see real content.
   useEffect(() => {
+    if (isPublic) return; // public viewer is signed out — no Supabase writes
     if (!board?.id || !ydoc) return;
     syncCardIndex({ boardId: board.id, ydoc }).catch(() => {});
-  }, [board?.id, ydoc]);
+  }, [board?.id, ydoc, isPublic]);
 
   const [pan, setPan] = useState({ x: 40, y: 60 });
   const [zoom, setZoom] = useState(1);
@@ -785,6 +790,7 @@ export function CanvasSurface({
   useEffect(() => { editBlockedToastShownRef.current = false; }, [board?.id]);
   const showEditBlockedToast = () => {
     if (canEdit) return;
+    if (isPublic) return; // public viewers silently no-op, no upgrade nudge
     if (boardPermission?.source !== 'tier-demoted') return;
     if (editBlockedToastShownRef.current) return;
     editBlockedToastShownRef.current = true;
@@ -835,8 +841,10 @@ export function CanvasSurface({
     const r = wrapRef.current.getBoundingClientRect();
     if (r.width < 50 || r.height < 50) return;
     if (!ydoc && cards.length === 0) return; // not ready yet
-    // 1) Saved view wins — instant restore, then we're done.
-    const saved = loadBoardView(board.id);
+    // 1) Saved view wins — instant restore, then we're done. Skipped in
+    //    public mode so a /share visitor always opens framed-to-content,
+    //    regardless of any view this device saved while signed in.
+    const saved = isPublic ? null : loadBoardView(board.id);
     if (saved) {
       fitOnceForRef.current = board.id;
       setZoom(saved.zoom);
@@ -872,19 +880,20 @@ export function CanvasSurface({
       x: (r.width  - contentW * z) / 2 - minX * z,
       y: (r.height - contentH * z) / 2 - minY * z,
     });
-  }, [cards, board.id, ydoc]);
+  }, [cards, board.id, ydoc, isPublic]);
 
   // Persist zoom+pan changes per board so reopening the board resumes
   // where the user left off. Debounced so rapid wheel/pan gestures
   // produce one write at rest, not one per frame.
   useEffect(() => {
+    if (isPublic) return; // public viewer: don't persist anon view state
     if (!board?.id) return;
     // Don't save until the load effect has run for THIS board (avoids
     // overwriting saved state with the mount-time defaults).
     if (fitOnceForRef.current !== board.id) return;
     const tid = setTimeout(() => saveBoardView(board.id, { zoom, pan }), 400);
     return () => clearTimeout(tid);
-  }, [zoom, pan.x, pan.y, board.id]);
+  }, [zoom, pan.x, pan.y, board.id, isPublic]);
 
   // Fit the entire board content into the viewport. Wired to a
   // double-tap on the zoom % control (replaces what used to happen
@@ -3188,6 +3197,10 @@ export function CanvasSurface({
 
   // ── Card context menu ─────────────────────────────────────────────────────
   const onCardContextMenu = (e, c) => {
+    // Public viewer: no card context menu (it would still expose Info /
+    // "Linked from" / navigation). Suppress the native menu too for a
+    // clean, app-like preview.
+    if (isPublic) { e.preventDefault(); return; }
     e.preventDefault();
     e.stopPropagation();
     setBgCtx(b => ({ ...b, open: false }));
@@ -3914,6 +3927,7 @@ export function CanvasSurface({
   };
 
   const onBackgroundContextMenu = (e) => {
+    if (isPublic) { e.preventDefault(); return; } // no canvas menu in public preview
     if (e.target.closest('.card, .cnv-tool, .cnv-zoom, .inbox')) return;
     e.preventDefault();
     closeCardMenu();
@@ -4681,6 +4695,7 @@ export function CanvasSurface({
                      wsPeers={wsPeers}
                      onJumpToPeer={onJumpToPeer}
                      canEdit={canEdit}
+                     isPublic={isPublic}
                      autoFocus={af}
                      onUpdate={onUpdate} />
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;

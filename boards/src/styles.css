@@ -2133,6 +2133,32 @@ body {
   border-radius: var(--radius);
 }
 
+/* Chromeless host for the real board canvas in the read-only /share view.
+   CanvasSurface's .canvas-wrap (flex:1) fills this box; every toolbar /
+   overlay it renders is hidden so the shared board reads as a clean,
+   interactive preview. (Edit-only popovers — ToolOptionsBar, ArrowPopover,
+   context menus — are already suppressed in code via canEdit/isPublic.) */
+.public-canvas-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+.public-canvas-host .cnv-tools,
+.public-canvas-host .cnv-zoom,
+.public-canvas-host .cnv-hint,
+.public-canvas-host .cnv-selcount,
+.public-canvas-host .cnv-comments-eye,
+.public-canvas-host .board-tags-strip,
+.public-canvas-host .canvas-comment-layer,
+.public-canvas-host .ws-presence,
+.public-canvas-host .ws-presence-audit,
+.public-canvas-host .tob,
+.public-canvas-host .split-bar {
+  display: none !important;
+}
+
 .public-canvas-scroll {
   flex: 1 1 auto;
   overflow: auto;
