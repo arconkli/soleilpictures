@@ -9,7 +9,9 @@
 // see "Manage billing" → Stripe Customer Portal instead of a second checkout.
 
 import { useEffect, useState } from 'react';
-import { logEvent } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { useDwellTime } from '../hooks/useDwellTime.js';
 import { startCheckout, startPortal } from '../lib/checkout.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
@@ -26,11 +28,12 @@ export function PricingPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    logEvent('pricing_view', { surface: 'page' });
+    logEventOnce('pricing_view:page', 'pricing_view', { surface: 'page' });
     // Meta ViewContent — mid-funnel ad-optimization signal. Both cards default to
     // the annual plan, so report that value.
     trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
   }, []);
+  useDwellTime(EV.PRICING_DWELL, () => ({ surface: 'page' }));
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
   const isDemo = tier === 'demo';
@@ -40,9 +43,12 @@ export function PricingPage() {
   const noPortal = grantBacked || tier === 'admin';
   const grantLine = grantBacked ? grantCopy({ grantActive, grantExpiresAt }) : null;
 
+  const onPlanToggle = (p) => { logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: 'page' }); setPlan(p); };
+
   const onCreatorCta = async () => {
     setError(null);
     setBusy(true);
+    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface: 'page', already_paid: alreadyPaid });
     try {
       if (alreadyPaid) await startPortal({ surface: 'page' });
       else             await startCheckout({ plan, surface: 'page' });
@@ -78,7 +84,7 @@ export function PricingPage() {
           ) : (
             <button
               className="pricing-cta pricing-cta-secondary"
-              onClick={() => { window.location.assign('/waitlist'); }}
+              onClick={() => { logEventNow(EV.PRICING_DEMO_CTA, { surface: 'page', tier }); window.location.assign('/waitlist'); }}
               disabled={busy}
             >
               Go to Waitlist
@@ -90,7 +96,7 @@ export function PricingPage() {
         <article className="pricing-card pricing-card-creator">
           <div className="pricing-card-head">
             <div className="pricing-card-name">Creator</div>
-            {!alreadyPaid && <PlanToggle plan={plan} setPlan={setPlan} disabled={busy} />}
+            {!alreadyPaid && <PlanToggle plan={plan} setPlan={onPlanToggle} disabled={busy} />}
           </div>
 
           {!alreadyPaid && <CreatorPriceRow plan={plan} />}
@@ -131,7 +137,7 @@ export function PricingPage() {
       <footer className="pricing-foot t-meta">
         Signed in as <b>{user?.email}</b>
         <span className="welcome-foot-sep">·</span>
-        <button className="auth-link" onClick={signOut}>Use a different email</button>
+        <button className="auth-link" onClick={() => { logEvent(EV.PRICING_SIGNOUT); signOut(); }}>Use a different email</button>
       </footer>
     </div>
   );

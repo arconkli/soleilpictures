@@ -6,10 +6,12 @@
 // join the waitlist. The button label flips between "Join the waitlist"
 // and "Skip & join the waitlist" based on whether anything's been typed.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
-import { logEvent } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { useDwellTime } from '../hooks/useDwellTime.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 
@@ -21,9 +23,16 @@ export function WaitlistModal({ onClose }) {
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => { logEvent('submit_socials_open'); }, []);
+  const engagedRef   = useRef(false);   // waitlist_field_engage once per mount
+  const submittedRef = useRef(false);   // distinguish abandon from a real submit
 
-  const updateRow = (i, v) => setRows((arr) => arr.map((x, idx) => idx === i ? v : x));
+  useEffect(() => { logEventOnce('submit_socials_open', EV.SUBMIT_SOCIALS_OPEN); }, []);
+  useDwellTime(EV.WAITLIST_MODAL_DWELL);
+
+  const updateRow = (i, v) => {
+    if (!engagedRef.current && v.trim()) { engagedRef.current = true; logEvent(EV.WAITLIST_FIELD_ENGAGE); }
+    setRows((arr) => arr.map((x, idx) => idx === i ? v : x));
+  };
   const addRow    = ()      => setRows((arr) => arr.length < 20 ? [...arr, ''] : arr);
   const removeRow = (i)     => setRows((arr) => arr.length === 1 ? [''] : arr.filter((_, idx) => idx !== i));
 
@@ -50,7 +59,8 @@ export function WaitlistModal({ onClose }) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-      logEvent('submit_socials_done', { link_count: validLinks.length });
+      submittedRef.current = true;
+      logEventNow('submit_socials_done', { link_count: validLinks.length });
       window.location.assign('/waitlist/status');
     } catch (err) {
       logEvent('submit_socials_error', { message: (err?.message || String(err)).slice(0, 200) });
@@ -59,10 +69,18 @@ export function WaitlistModal({ onClose }) {
     }
   };
 
+  // Any close that isn't a successful submit (success navigates away) = abandon.
+  const handleClose = () => {
+    if (!submittedRef.current) {
+      logEvent(EV.WAITLIST_ABANDON, { rows: validLinks.length, had_input: engagedRef.current });
+    }
+    onClose?.();
+  };
+
   return createPortal(
-    <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+    <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
       <div className="upgrade-modal waitlist-modal-card">
-        <button className="upgrade-close" onClick={onClose} aria-label="Close" disabled={busy}>×</button>
+        <button className="upgrade-close" onClick={handleClose} aria-label="Close" disabled={busy}>×</button>
 
         {/* Header (mirrors PricingModal's intro shape) */}
         <div className="waitlist-card-head">

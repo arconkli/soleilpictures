@@ -9,6 +9,7 @@ import { formatPct, formatCount } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminFunnel } from './AdminFunnel.jsx';
+import { AdminEventBreakdown } from './AdminEventBreakdown.jsx';
 import { AdminCardsSection } from './AdminCardsSection.jsx';
 import { AdminTierCompareTable } from './AdminTierCompareTable.jsx';
 import { AdminTopUsersList } from './AdminTopUsersList.jsx';
@@ -28,8 +29,10 @@ export function AdminAnalyticsTab() {
       supabase.rpc('admin_acquisition_breakdown'),
       supabase.rpc('admin_activation_funnel'),
       supabase.rpc('admin_retention_cohorts', { p_window_days: 60 }),
+      supabase.rpc('admin_event_breakdown',     { p_days: 30 }),
+      supabase.rpc('admin_checkout_reliability', { p_days: 30 }),
     ]);
-    const [fn, cs, pd, tc, td, tp, ac, af, ch] = results;
+    const [fn, cs, pd, tc, td, tp, ac, af, ch, eb, cr] = results;
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     const core = [fn, cs, pd, tc, td, tp];
@@ -46,6 +49,8 @@ export function AdminAnalyticsTab() {
       acquisition: val(ac) || [],
       activation:  val(af),
       cohorts:     val(ch) || [],
+      eventBreakdown:      val(eb) || [],
+      checkoutReliability: val(cr),
     };
   }, []);
 
@@ -65,6 +70,7 @@ export function AdminAnalyticsTab() {
           {data?.cohorts.length > 0 && <RetentionCohorts rows={data.cohorts} />}
           {data?.acquisition.length > 0 && <AcquisitionBreakdown rows={data.acquisition} />}
           <AdminFunnel rows={data?.funnel || []} />
+          <AdminEventBreakdown rows={data?.eventBreakdown || []} reliability={data?.checkoutReliability} />
           <AdminCardsSection perDay={data?.perDay || []} cardStats={data?.cardStats} />
           <AdminTierCompareTable rows={data?.tierCompare || []} />
           <AdminTopUsersList topDemo={data?.topDemo || []} topPaid={data?.topPaid || []} />

@@ -16,6 +16,7 @@
 // prefers-reduced-motion drops the time-based wobble + cursor wander.
 import { useEffect, useRef } from 'react';
 import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import './signin-backdrop.css';
 
 const RUNWAY_MULT = 6.0;   // runway height = this × viewport height (more scroll = gentler motion)
@@ -323,15 +324,24 @@ export function SignInBackdrop({ children, exploreHref }) {
       });
     }
 
-    // Landing engagement signal: fire once each as the visitor scrolls the
-    // animated reveal past these depths. Today only landing_view exists, so we
-    // can't tell scrollers from bouncers — this fills that gap.
+    // Landing engagement: fire once each as the visitor scrolls the reveal past
+    // these depths, and track the deepest point + time-on-page for the dwell
+    // event — lets us tell scrollers from bouncers.
     const firedDepths = new Set();
+    let maxP = 0;
+    const startedAt = Date.now();
     function trackScrollDepth(p) {
-      for (const m of [0.25, 0.5, 0.9]) {
-        if (p >= m && !firedDepths.has(m)) { firedDepths.add(m); logEvent('landing_scroll', { depth: m }); }
+      if (p > maxP) maxP = p;
+      for (const m of [0.1, 0.25, 0.5, 0.75, 0.9, 1.0]) {
+        if (p >= m && !firedDepths.has(m)) { firedDepths.add(m); logEvent(EV.LANDING_SCROLL, { depth: m }); }
       }
     }
+    let dwellFired = false;
+    const fireDwell = () => {
+      if (dwellFired) return;
+      dwellFired = true;
+      logEvent(EV.LANDING_DWELL, { ms: Date.now() - startedAt, max_depth: Math.round(maxP * 100) / 100 });
+    };
 
     function render(now) {
       const t = (now || 0) * 0.001;
@@ -456,7 +466,7 @@ export function SignInBackdrop({ children, exploreHref }) {
     // Don't burn CPU/battery animating a backgrounded tab; resume cleanly on
     // return (reset lastNow so the cursor dt doesn't jump after a long hide).
     const onVisibility = () => {
-      if (document.hidden) { cancelAnimationFrame(rafId); rafId = 0; }
+      if (document.hidden) { cancelAnimationFrame(rafId); rafId = 0; fireDwell(); }
       else if (!rafId) { lastNow = null; rafId = requestAnimationFrame(loop); }
     };
 
@@ -465,6 +475,7 @@ export function SignInBackdrop({ children, exploreHref }) {
     scrollEl.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', fireDwell);
     if (vv) { vv.addEventListener('resize', syncVisibleHeight); vv.addEventListener('scroll', syncVisibleHeight); }
     rafId = requestAnimationFrame(loop);
     render(0);
@@ -474,6 +485,8 @@ export function SignInBackdrop({ children, exploreHref }) {
       scrollEl.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', fireDwell);
+      fireDwell();   // SPA route change away from the landing
       if (vv) { vv.removeEventListener('resize', syncVisibleHeight); vv.removeEventListener('scroll', syncVisibleHeight); }
       cardEls.forEach(el => el.remove());
       cursorEls.forEach(el => el.remove());
@@ -513,7 +526,8 @@ export function SignInBackdrop({ children, exploreHref }) {
               <div className="sb-box" ref={boxRef}>
                 {children}
                 {exploreHref && (
-                  <a className="sb-explore" ref={exploreRef} href={exploreHref} target="_blank" rel="noopener noreferrer">
+                  <a className="sb-explore" ref={exploreRef} href={exploreHref} target="_blank" rel="noopener noreferrer"
+                     onClick={() => logEvent(EV.LANDING_EXPLORE_CLICK)}>
                     Explore a live board ↗
                   </a>
                 )}
@@ -528,11 +542,11 @@ export function SignInBackdrop({ children, exploreHref }) {
             <div className="sb-foot">
               <div className="sb-foot-left">
                 <span className="sb-foot-copy">© Soleil Pictures</span>
-                <a className="sb-foot-link" href="/legal/privacy">Privacy</a>
-                <a className="sb-foot-link" href="/legal/terms">Terms</a>
-                <a className="sb-foot-link" href="/legal/cookies">Cookies</a>
+                <a className="sb-foot-link" href="/legal/privacy" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'privacy' })}>Privacy</a>
+                <a className="sb-foot-link" href="/legal/terms" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'terms' })}>Terms</a>
+                <a className="sb-foot-link" href="/legal/cookies" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'cookies' })}>Cookies</a>
               </div>
-              <a className="sb-foot-email" href="mailto:clusters@soleilpictures.com">clusters@soleilpictures.com</a>
+              <a className="sb-foot-email" href="mailto:clusters@soleilpictures.com" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'email' })}>clusters@soleilpictures.com</a>
             </div>
           </div>
         </div>

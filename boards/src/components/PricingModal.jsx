@@ -10,9 +10,11 @@
 // Already-paid users (paid/admin) get the "Manage billing" path to the
 // Stripe Customer Portal instead of a second checkout.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { logEvent } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { useDwellTime } from '../hooks/useDwellTime.js';
 import { startCheckout, startPortal } from '../lib/checkout.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
@@ -26,31 +28,43 @@ export function PricingModal({ onClose, header = null }) {
   const [plan, setPlan]   = useState('annual');
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
+  const redirectingRef = useRef(false);   // suppress abandon while a checkout redirect is in flight
 
   useEffect(() => {
-    logEvent('pricing_view', { surface: 'modal', header });
+    logEventOnce(`pricing_view:modal:${header || 'generic'}`, 'pricing_view', { surface: 'modal', header });
     // Meta ViewContent — mid-funnel ad-optimization signal. Defaults to annual.
     trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
   }, [header]);
+  useDwellTime(EV.PRICING_DWELL, () => ({ surface: 'modal', header }));
 
   const alreadyPaid = tier === 'paid' || tier === 'admin';
+  const onPlanToggle = (p) => { logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: 'modal' }); setPlan(p); };
 
   const onCta = async () => {
     setError(null);
     setBusy(true);
+    redirectingRef.current = true;
+    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface: 'modal', already_paid: alreadyPaid });
     try {
       if (alreadyPaid) await startPortal({ surface: 'modal' });
       else             await startCheckout({ plan, surface: 'modal' });
     } catch (err) {
+      redirectingRef.current = false;
       setError(err?.message || String(err));
       setBusy(false);
     }
   };
 
+  // Closing without a redirect in flight = abandon.
+  const handleClose = () => {
+    if (!redirectingRef.current) logEvent(EV.PRICING_ABANDON, { header, plan, surface: 'modal' });
+    onClose?.();
+  };
+
   return createPortal(
-    <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+    <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
       <div className="upgrade-modal">
-        <button className="upgrade-close" onClick={onClose} aria-label="Close">×</button>
+        <button className="upgrade-close" onClick={handleClose} aria-label="Close">×</button>
 
         <div className="upgrade-intro">
           {header === 'cap-hit' ? (
@@ -77,7 +91,7 @@ export function PricingModal({ onClose, header = null }) {
         <article className="pricing-card pricing-card-creator upgrade-card">
           <div className="pricing-card-head">
             <div className="pricing-card-name">Creator</div>
-            {!alreadyPaid && <PlanToggle plan={plan} setPlan={setPlan} disabled={busy} />}
+            {!alreadyPaid && <PlanToggle plan={plan} setPlan={onPlanToggle} disabled={busy} />}
           </div>
 
           {!alreadyPaid && <CreatorPriceRow plan={plan} />}
@@ -94,7 +108,7 @@ export function PricingModal({ onClose, header = null }) {
           </button>
         </article>
 
-        <button className="upgrade-later" onClick={onClose}>Maybe later</button>
+        <button className="upgrade-later" onClick={handleClose}>Maybe later</button>
       </div>
     </div>,
     document.body,

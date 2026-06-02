@@ -30,7 +30,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
-import { logEvent } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { useDwellTime } from '../hooks/useDwellTime.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { supabase } from '../lib/supabase.js';
 import { Check } from '../lib/icons.js';
@@ -64,8 +66,14 @@ export function PricingSuccess() {
   const [celebrating, setCelebrating] = useState(false);
   const celebrated = useRef(false);
   const purchaseTracked = useRef(false);   // deduped browser Purchase fires once
+  const verifyFired = useRef(new Set());   // checkout_verify_result once per distinct result
 
-  useEffect(() => { logEvent('checkout_success', { has_session_id: !!sessionId }); }, [sessionId]);
+  useEffect(() => { logEventOnce('checkout_success', 'checkout_success', { has_session_id: !!sessionId }); }, [sessionId]);
+  useEffect(() => { if (!sessionId) logEventOnce('checkout_missing_session', EV.CHECKOUT_MISSING_SESSION); }, [sessionId]);
+  useDwellTime(EV.CHECKOUT_SUCCESS_DWELL, () => ({
+    outcome: (tier === 'paid' || tier === 'admin' || celebrating) ? 'activated'
+           : !sessionId ? 'missing' : stalled ? 'stalled' : 'left',
+  }));
 
   const callVerify = useCallback(async () => {
     if (!sessionId) return null;
@@ -80,6 +88,13 @@ export function PricingSuccess() {
       });
       const body = await res.json().catch(() => ({}));
       if (body?.plan) setPlan(body.plan);
+      const vr = body?.activated ? 'activated'
+               : (body?.reason && body.reason !== 'not_paid_yet') ? 'failed'
+               : 'pending';
+      if (!verifyFired.current.has(vr)) {
+        verifyFired.current.add(vr);
+        logEvent(EV.CHECKOUT_VERIFY_RESULT, { result: vr, ...(body?.reason ? { reason: body.reason } : {}) });
+      }
       // Deduped browser Purchase — same eventID (Stripe session id) as the
       // server-side CAPI Purchase, so Meta collapses them into one conversion.
       if (body?.activated && !purchaseTracked.current) {
@@ -92,6 +107,10 @@ export function PricingSuccess() {
       }
       return body;
     } catch (e) {
+      if (!verifyFired.current.has('failed')) {
+        verifyFired.current.add('failed');
+        logEvent(EV.CHECKOUT_VERIFY_RESULT, { result: 'failed', reason: 'network' });
+      }
       setVerifyErr(e?.message || String(e));
       return null;
     }
@@ -116,7 +135,7 @@ export function PricingSuccess() {
     if (celebrated.current) return;
     celebrated.current = true;
     setCelebrating(true);
-    logEvent('checkout_activated_seen', { tier, plan });
+    logEventNow('checkout_activated_seen', { tier, plan });
     const t = setTimeout(() => { window.location.assign('/'); }, CELEBRATE_MS);
     return () => clearTimeout(t);
     // Depend on `tier` ONLY. If `plan` were a dep, a late plan resolution (when
@@ -136,7 +155,7 @@ export function PricingSuccess() {
     let verifyTimer, stallTimer;
     if (sessionId) {
       verifyTimer = setInterval(() => { callVerify(); }, VERIFY_MS);
-      stallTimer  = setTimeout(() => { setStalled(true); }, STALL_MS);
+      stallTimer  = setTimeout(() => { setStalled(true); logEvent(EV.CHECKOUT_STALLED, { has_session_id: !!sessionId }); }, STALL_MS);
     }
     return () => {
       clearInterval(tierTimer);
@@ -146,6 +165,7 @@ export function PricingSuccess() {
   }, [tier, refetch, callVerify, sessionId]);
 
   const onRetryClick = async () => {
+    logEvent(EV.CHECKOUT_VERIFY_RETRY);
     setVerifying(true);
     setVerifyErr(null);
     const body = await callVerify();
@@ -197,15 +217,15 @@ export function PricingSuccess() {
           <div className="welcome-cta-row">
             <button
               className="welcome-cta welcome-cta-primary"
-              onClick={() => { window.location.assign('/pricing'); }}
+              onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'pricing', from: 'checkout_missing' }); window.location.assign('/pricing'); }}
             >
               Back to pricing
             </button>
           </div>
           <p className="welcome-copy t-meta" style={{ color: 'var(--ink-3)' }}>
-            Already paid? <a className="auth-link" href={supportHref}>Email support</a> and we'll sort it out.
+            Already paid? <a className="auth-link" href={supportHref} onClick={() => logEvent(EV.CHECKOUT_SUPPORT_CLICK, { surface: 'missing_session' })}>Email support</a> and we'll sort it out.
           </p>
-          <button className="auth-link auth-foot-link t-meta" onClick={signOut}>
+          <button className="auth-link auth-foot-link t-meta" onClick={() => { logEvent(EV.PRICING_SIGNOUT); signOut(); }}>
             Use a different email
           </button>
         </div>
@@ -257,12 +277,12 @@ export function PricingSuccess() {
               </p>
             )}
             <p className="welcome-copy t-meta" style={{ color: 'var(--ink-3)' }}>
-              Still nothing? <a className="auth-link" href={supportHref}>Email support</a> — we'll sort it out.
+              Still nothing? <a className="auth-link" href={supportHref} onClick={() => logEvent(EV.CHECKOUT_SUPPORT_CLICK, { surface: 'stalled' })}>Email support</a> — we'll sort it out.
             </p>
           </>
         )}
 
-        <button className="auth-link auth-foot-link t-meta" onClick={signOut}>
+        <button className="auth-link auth-foot-link t-meta" onClick={() => { logEvent(EV.PRICING_SIGNOUT); signOut(); }}>
           Use a different email
         </button>
       </div>

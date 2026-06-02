@@ -10,7 +10,8 @@
 // double-charge is impossible even if the client-side tier gate is bypassed.
 
 import { supabase } from './supabase.js';
-import { logEvent } from './analytics.js';
+import { logEvent, logEventNow } from './analytics.js';
+import { EV } from './analyticsEvents.js';
 import { getFbCookies, trackInitiateCheckout } from './metaPixel.js';
 import { PRICING } from './billingCopy.js';
 
@@ -32,7 +33,7 @@ async function authedToken() {
 export async function startCheckout({ plan, surface }) {
   try {
     const token = await authedToken();
-    logEvent('checkout_open', { plan, surface });
+    logEventNow('checkout_open', { plan, surface });   // must-land: redirect follows
     // Thread Meta match cookies through to create-checkout-session, which stashes
     // them in the Stripe session metadata for the server-side Purchase (CAPI).
     const { fbp, fbc } = getFbCookies();
@@ -52,7 +53,7 @@ export async function startCheckout({ plan, surface }) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
-    if (body.mode === 'portal') logEvent('billing_portal_open', { surface, via: 'checkout_guard' });
+    if (body.mode === 'portal') logEventNow('billing_portal_open', { surface, via: 'checkout_guard' });
     window.location.assign(body.url);
   } catch (e) {
     // Surfaces paid drop-off between checkout_open and checkout_success — the
@@ -80,13 +81,18 @@ export async function adminAccountAction({ userId, action, reason } = {}) {
 
 // Open the Stripe Customer Portal for the signed-in user. Redirects on success.
 export async function startPortal({ surface } = {}) {
-  const token = await authedToken();
-  logEvent('billing_portal_open', { surface });
-  const res = await fetch(PORTAL_URL, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
-  window.location.assign(body.url);
+  try {
+    const token = await authedToken();
+    logEventNow('billing_portal_open', { surface });   // must-land: redirect follows
+    const res = await fetch(PORTAL_URL, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
+    window.location.assign(body.url);
+  } catch (e) {
+    logEvent(EV.BILLING_PORTAL_ERROR, { surface, message: (e?.message || String(e)).slice(0, 200) });
+    throw e;
+  }
 }

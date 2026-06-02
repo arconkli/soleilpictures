@@ -18,7 +18,8 @@
 import { useEffect, useRef, useState, createContext, useContext } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
-import { logEvent } from '../lib/analytics.js';
+import { logEvent, logEventOnce } from '../lib/analytics.js';
+import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { peekPendingInviteEmail, claimPendingInvite } from '../lib/inviteApi.js';
 import { trackRegistration } from '../lib/metaPixel.js';
@@ -186,6 +187,13 @@ export function AuthGate({ children }) {
         if (!cancelled) setSession(data.session);
       } catch (error) {
         console.warn('Auth session could not be restored', error);
+        // Only attribute to the magic-link funnel when a code/token was actually
+        // present — a plain getSession() failure on a normal load isn't a CTA.
+        try {
+          if (/[?&#](code|access_token)=/.test(window.location.href)) {
+            logEvent(EV.LANDING_CALLBACK_ERROR, { reason: classifyAuthError(error) });
+          }
+        } catch (_) {}
         clearAuthUrl();
         if (!cancelled) setSession(null);
       } finally {
@@ -275,6 +283,8 @@ function SignIn() {
   // We pre-fill the email field and show an "invited as ..." banner.
   const [inviteHint, setInviteHint] = useState(null);
   const codeRef = useRef(null);
+  const emailEngagedRef = useRef(false);   // fire landing_field_engage once per field
+  const codeEngagedRef  = useRef(false);
 
   // Tick down the resend cooldown (Supabase rate-limits OTP requests at ~60s).
   useEffect(() => {
@@ -283,8 +293,9 @@ function SignIn() {
     return () => clearInterval(t);
   }, [resendCooldown]);
 
-  // Funnel: landing_view fires once when the SignIn screen mounts.
-  useEffect(() => { logEvent('landing_view'); }, []);
+  // Funnel: landing_view fires once when the SignIn screen mounts
+  // (logEventOnce dedups StrictMode's dev double-invoke).
+  useEffect(() => { logEventOnce('landing_view', EV.LANDING_VIEW); }, []);
 
   // Pre-fill email from the stored invite token. Anon-callable RPC —
   // safe to run before the user has a session. Token presence in
@@ -299,6 +310,7 @@ function SignIn() {
           if (cancelled || !addr) return;
           setEmail(addr);
           setInviteHint({ email: addr });
+          logEvent(EV.LANDING_INVITE_PREFILL);
         })
         .catch(() => {});
     } catch (_) {}
@@ -331,6 +343,7 @@ function SignIn() {
       if (!resending) setStage('code');
       setResendCooldown(60);
     } catch (e) {
+      logEvent(EV.EMAIL_SUBMIT_ERROR, { reason: classifyAuthError(e), resend: !!resending });
       setError(humanError(e));
     } finally {
       setBusy(false);
@@ -354,12 +367,14 @@ function SignIn() {
       logEvent('otp_verify');
       // onAuthStateChange will fire SIGNED_IN; AuthGate re-renders to children.
     } catch (e) {
+      logEvent(EV.OTP_VERIFY_ERROR, { reason: classifyAuthError(e) });
       setError(humanError(e));
       setBusy(false);
     }
   };
 
   const editEmail = () => {
+    logEvent(EV.LANDING_EDIT_EMAIL);
     setStage('email');
     setCode('');
     setError(null);
@@ -390,7 +405,10 @@ function SignIn() {
               aria-label="Email address"
               placeholder="you@studio.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                if (!emailEngagedRef.current) { emailEngagedRef.current = true; logEvent(EV.LANDING_FIELD_ENGAGE, { field: 'email' }); }
+                setEmail(e.target.value);
+              }}
               disabled={busy}
             />
             <button className="auth-btn" type="submit" disabled={busy || !email.trim()}>
@@ -418,7 +436,10 @@ function SignIn() {
               required
               placeholder="• • • • • •"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) => {
+                if (!codeEngagedRef.current) { codeEngagedRef.current = true; logEvent(EV.LANDING_FIELD_ENGAGE, { field: 'code' }); }
+                setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+              }}
               disabled={busy}
             />
             <button className="auth-btn" type="submit" disabled={busy || code.length < 6}>

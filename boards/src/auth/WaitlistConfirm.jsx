@@ -18,7 +18,9 @@ import { useMyTier } from '../hooks/useMyTier.js';
 import { startCheckout } from '../lib/checkout.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { CTA } from '../lib/billingCopy.js';
-import { logEvent } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { useDwellTime } from '../hooks/useDwellTime.js';
 import { Check } from '../lib/icons.js';
 import { Icon } from '../components/Icon.jsx';
 
@@ -68,15 +70,23 @@ export function WaitlistConfirm() {
     if (!tier || tier === 'waitlist' || redirected.current) return;
     redirected.current = true;
     setAccepted(true);
-    logEvent('waitlist_accepted_seen', { tier });
+    logEventNow('waitlist_accepted_seen', { tier });
     const t = setTimeout(() => { window.location.assign('/'); }, 2200);
     return () => clearTimeout(t);
   }, [tier]);
+
+  // Status-page analytics: one view event once the entry resolves, plus dwell.
+  const statusLabel = loading ? null : (entry ? (entry.status || 'pending') : 'none');
+  useEffect(() => {
+    if (statusLabel) logEventOnce('waitlist_status_view', EV.WAITLIST_STATUS_VIEW, { status: statusLabel });
+  }, [statusLabel]);
+  useDwellTime(EV.WAITLIST_STATUS_DWELL, () => ({ status: statusLabel || 'loading' }));
 
   const startSkipCheckout = async () => {
     setCheckoutError(null);
     setCheckoutBusy(true);
     try {
+      logEventNow(EV.WAITLIST_SUBSCRIBE_CTA, { plan });
       await startCheckout({ plan, surface: 'waitlist_status' });
     } catch (err) {
       setCheckoutError(err?.message || String(err));
@@ -126,13 +136,13 @@ export function WaitlistConfirm() {
           <div className="waitlist-status-cta-row">
             <button
               className="pricing-cta pricing-cta-secondary waitlist-status-cta"
-              onClick={() => { window.location.assign('/waitlist'); }}
+              onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'waitlist', from: 'waitlist_status' }); window.location.assign('/waitlist'); }}
             >
               Submit Socials →
             </button>
             <button
               className="pricing-cta pricing-cta-primary waitlist-status-cta"
-              onClick={() => { window.location.assign('/pricing'); }}
+              onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'pricing', from: 'waitlist_status' }); window.location.assign('/pricing'); }}
             >
               See Pricing →
             </button>
@@ -150,7 +160,7 @@ export function WaitlistConfirm() {
           </p>
           <button
             className="pricing-cta pricing-cta-primary waitlist-status-cta"
-            onClick={() => { window.location.assign('/pricing'); }}
+            onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'pricing', from: 'waitlist_rejected' }); window.location.assign('/pricing'); }}
           >
             See Pricing →
           </button>
@@ -177,7 +187,7 @@ export function WaitlistConfirm() {
                   role="tab"
                   aria-selected={plan === 'monthly'}
                   className={`pricing-toggle-pill ${plan === 'monthly' ? 'is-active' : ''}`}
-                  onClick={() => setPlan('monthly')}
+                  onClick={() => { logEvent(EV.WAITLIST_PLAN_TOGGLE, { plan: 'monthly' }); setPlan('monthly'); }}
                   disabled={checkoutBusy}
                 >
                   Monthly
@@ -186,7 +196,7 @@ export function WaitlistConfirm() {
                   role="tab"
                   aria-selected={plan === 'annual'}
                   className={`pricing-toggle-pill ${plan === 'annual' ? 'is-active' : ''}`}
-                  onClick={() => setPlan('annual')}
+                  onClick={() => { logEvent(EV.WAITLIST_PLAN_TOGGLE, { plan: 'annual' }); setPlan('annual'); }}
                   disabled={checkoutBusy}
                 >
                   Annual
@@ -208,7 +218,7 @@ export function WaitlistConfirm() {
       <footer className="pricing-foot t-meta">
         Signed in as <b>{user?.email}</b>
         <span className="welcome-foot-sep">·</span>
-        <button className="auth-link" onClick={signOut}>Use a different email</button>
+        <button className="auth-link" onClick={() => { logEvent(EV.WAITLIST_SIGNOUT); signOut(); }}>Use a different email</button>
       </footer>
     </div>
   );

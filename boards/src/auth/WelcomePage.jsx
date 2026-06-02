@@ -8,7 +8,9 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from './AuthGate.jsx';
-import { logEvent } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { useDwellTime } from '../hooks/useDwellTime.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { WaitlistModal } from '../components/WaitlistModal.jsx';
 
@@ -20,7 +22,8 @@ export function WelcomePage() {
   useEffect(() => {
     if (window.location.pathname === '/waitlist') setSocialsOpen(true);
   }, []);
-  useEffect(() => { logEvent('welcome_view'); }, []);
+  useEffect(() => { logEventOnce('welcome_view', EV.WELCOME_VIEW); }, []);
+  useDwellTime(EV.WELCOME_DWELL);
 
   return (
     <div className="pricing-screen">
@@ -44,13 +47,13 @@ export function WelcomePage() {
         <div className="waitlist-status-cta-row">
           <button
             className="pricing-cta pricing-cta-secondary waitlist-status-cta"
-            onClick={() => setSocialsOpen(true)}
+            onClick={() => { logEvent(EV.WELCOME_CTA, { target: 'waitlist' }); setSocialsOpen(true); }}
           >
             Submit Socials
           </button>
           <button
             className="pricing-cta pricing-cta-primary waitlist-status-cta"
-            onClick={() => { window.location.assign('/pricing'); }}
+            onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'pricing' }); window.location.assign('/pricing'); }}
           >
             See Pricing →
           </button>
@@ -65,7 +68,7 @@ export function WelcomePage() {
       <footer className="pricing-foot t-meta">
         Signed in as <b>{user?.email}</b>
         <span className="welcome-foot-sep">·</span>
-        <button className="auth-link" onClick={signOut}>Use a different email</button>
+        <button className="auth-link" onClick={() => { logEvent(EV.WELCOME_SIGNOUT); signOut(); }}>Use a different email</button>
       </footer>
 
       {socialsOpen && (
