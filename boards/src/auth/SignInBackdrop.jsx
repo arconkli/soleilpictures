@@ -15,6 +15,7 @@
 // a final live board. All animation is driven from one rAF loop; honoring
 // prefers-reduced-motion drops the time-based wobble + cursor wander.
 import { useEffect, useRef } from 'react';
+import { logEvent } from '../lib/analytics.js';
 import './signin-backdrop.css';
 
 const RUNWAY_MULT = 6.0;   // runway height = this × viewport height (more scroll = gentler motion)
@@ -206,7 +207,9 @@ export function SignInBackdrop({ children, exploreHref }) {
       path.setAttribute('fill','none'); path.setAttribute('stroke-width','1.6'); path.setAttribute('stroke-linecap','round');
       const head = document.createElementNS(SVGNS,'polygon');
       g.appendChild(path); g.appendChild(head); linksSvg.appendChild(g);
-      return { g, path, head };
+      // _d/_len cache the path string + its measured length so we only pay the
+      // synchronous getTotalLength() reflow when the geometry actually changes.
+      return { g, path, head, _d: null, _len: 1 };
     });
 
     // cursor live state (kept off the module constant)
@@ -320,10 +323,21 @@ export function SignInBackdrop({ children, exploreHref }) {
       });
     }
 
+    // Landing engagement signal: fire once each as the visitor scrolls the
+    // animated reveal past these depths. Today only landing_view exists, so we
+    // can't tell scrollers from bouncers — this fills that gap.
+    const firedDepths = new Set();
+    function trackScrollDepth(p) {
+      for (const m of [0.25, 0.5, 0.9]) {
+        if (p >= m && !firedDepths.has(m)) { firedDepths.add(m); logEvent('landing_scroll', { depth: m }); }
+      }
+    }
+
     function render(now) {
       const t = (now || 0) * 0.001;
       const forced = window.__sbForceP;
       const p = (forced != null) ? forced : clamp((scrollEl.scrollTop) / maxScroll, 0, 1);
+      if (forced == null) trackScrollDepth(p);
       const { sx, sy } = spread();
       const cxv = cx(), cyv = cy();
       const br = boxRef.current ? boxRef.current.getBoundingClientRect() : null;
@@ -407,9 +421,13 @@ export function SignInBackdrop({ children, exploreHref }) {
         const gap = 5;
         const [ax, ay] = boxEdge(a._x, a._y, a._hw + gap, a._hh + gap, cpx - a._x, cpy - a._y);
         const [bx, by] = boxEdge(b._x, b._y, b._hw + gap, b._hh + gap, cpx - b._x, cpy - b._y);
-        el.path.setAttribute('d', `M ${ax.toFixed(1)} ${ay.toFixed(1)} Q ${cpx.toFixed(1)} ${cpy.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`);
+        const d = `M ${ax.toFixed(1)} ${ay.toFixed(1)} Q ${cpx.toFixed(1)} ${cpy.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`;
+        // getTotalLength() forces a synchronous reflow; only re-measure when the
+        // (.toFixed(1)-quantized) path string actually changed — ~0 reflows in
+        // steady state instead of one per arrow per frame.
+        if (d !== el._d) { el.path.setAttribute('d', d); el._d = d; el._len = el.path.getTotalLength() || 1; }
         el.path.setAttribute('stroke', ar.color);
-        const total = el.path.getTotalLength() || 1;
+        const total = el._len;
         const drawn = reduce ? 1 : ramp(p, ar.in, ar.win);
         el.path.setAttribute('stroke-dasharray', total.toFixed(1));
         el.path.setAttribute('stroke-dashoffset', (total * (1 - drawn)).toFixed(1));
@@ -435,11 +453,18 @@ export function SignInBackdrop({ children, exploreHref }) {
     function loop(now){ render(now); rafId = requestAnimationFrame(loop); }
     const onScroll = () => render(performance.now());
     const onResize = () => { measure(); render(performance.now()); };
+    // Don't burn CPU/battery animating a backgrounded tab; resume cleanly on
+    // return (reset lastNow so the cursor dt doesn't jump after a long hide).
+    const onVisibility = () => {
+      if (document.hidden) { cancelAnimationFrame(rafId); rafId = 0; }
+      else if (!rafId) { lastNow = null; rafId = requestAnimationFrame(loop); }
+    };
 
     measure();
     syncVisibleHeight();
     scrollEl.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
+    document.addEventListener('visibilitychange', onVisibility);
     if (vv) { vv.addEventListener('resize', syncVisibleHeight); vv.addEventListener('scroll', syncVisibleHeight); }
     rafId = requestAnimationFrame(loop);
     render(0);
@@ -448,6 +473,7 @@ export function SignInBackdrop({ children, exploreHref }) {
       cancelAnimationFrame(rafId);
       scrollEl.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
+      document.removeEventListener('visibilitychange', onVisibility);
       if (vv) { vv.removeEventListener('resize', syncVisibleHeight); vv.removeEventListener('scroll', syncVisibleHeight); }
       cardEls.forEach(el => el.remove());
       cursorEls.forEach(el => el.remove());

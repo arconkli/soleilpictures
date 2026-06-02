@@ -30,29 +30,36 @@ async function authedToken() {
 // detected an existing subscription). Throws on failure so callers can show
 // an inline error and re-enable their button.
 export async function startCheckout({ plan, surface }) {
-  const token = await authedToken();
-  logEvent('checkout_open', { plan, surface });
-  // Thread Meta match cookies through to create-checkout-session, which stashes
-  // them in the Stripe session metadata for the server-side Purchase (CAPI).
-  const { fbp, fbc } = getFbCookies();
+  try {
+    const token = await authedToken();
+    logEvent('checkout_open', { plan, surface });
+    // Thread Meta match cookies through to create-checkout-session, which stashes
+    // them in the Stripe session metadata for the server-side Purchase (CAPI).
+    const { fbp, fbc } = getFbCookies();
 
-  // Meta InitiateCheckout — purchase-intent signal for ad optimization. One
-  // event_id is shared by the browser pixel (here) and the server-side CAPI
-  // mirror in create-checkout-session, so Meta collapses them into one event.
-  // Fire before the fetch so the intent is recorded even if the call fails.
-  const icEventId = `ic:${(globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`)}`;
-  const priced = PRICING[plan] || PRICING.annual;
-  trackInitiateCheckout({ value: priced.billed, currency: 'USD', plan, eventId: icEventId });
+    // Meta InitiateCheckout — purchase-intent signal for ad optimization. One
+    // event_id is shared by the browser pixel (here) and the server-side CAPI
+    // mirror in create-checkout-session, so Meta collapses them into one event.
+    // Fire before the fetch so the intent is recorded even if the call fails.
+    const icEventId = `ic:${(globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`)}`;
+    const priced = PRICING[plan] || PRICING.annual;
+    trackInitiateCheckout({ value: priced.billed, currency: 'USD', plan, eventId: icEventId });
 
-  const res = await fetch(CHECKOUT_URL, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ plan, fbp, fbc, ic_event_id: icEventId }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
-  if (body.mode === 'portal') logEvent('billing_portal_open', { surface, via: 'checkout_guard' });
-  window.location.assign(body.url);
+    const res = await fetch(CHECKOUT_URL, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ plan, fbp, fbc, ic_event_id: icEventId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.url) throw new Error(body.error || `HTTP ${res.status}`);
+    if (body.mode === 'portal') logEvent('billing_portal_open', { surface, via: 'checkout_guard' });
+    window.location.assign(body.url);
+  } catch (e) {
+    // Surfaces paid drop-off between checkout_open and checkout_success — the
+    // failed/abandoned attempts that were previously invisible in the funnel.
+    logEvent('checkout_error', { plan, surface, message: (e?.message || String(e)).slice(0, 200) });
+    throw e;
+  }
 }
 
 // Admin-only account lifecycle actions handled server-side (need the service

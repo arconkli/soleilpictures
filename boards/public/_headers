@@ -1,0 +1,6 @@
+# Cloudflare Workers Assets honors this file. Hashed build assets
+# (/assets/index-<hash>.js etc.) never change content for a given URL, so
+# cache them hard for a year. index.html is intentionally NOT matched here so
+# new deploys are always picked up immediately.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

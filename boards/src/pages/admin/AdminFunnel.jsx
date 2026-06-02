@@ -8,17 +8,24 @@ import { ResponsiveContainer, Funnel, FunnelChart, LabelList, Tooltip } from 're
 import { formatPct, formatCount } from '../../lib/adminFormat.js';
 
 const LABELS = {
-  landing_view:        'Landing view',
-  email_submit:        'Email submitted',
-  otp_verify:          'OTP verified',
-  welcome_view:        'Welcome page',
-  submit_socials_open: 'Opened waitlist form',
-  submit_socials_done: 'Submitted waitlist',
-  pricing_view:        'Viewed pricing',
-  checkout_open:       'Opened checkout',
-  checkout_success:    'Completed payment',
-  app_open:            'Opened the app',
+  landing_view:         'Landing view',
+  landing_scroll:       'Scrolled the reveal',
+  email_submit:         'Email submitted',
+  otp_verify:           'OTP verified',
+  welcome_view:         'Welcome page',
+  submit_socials_open:  'Opened waitlist form',
+  submit_socials_done:  'Submitted waitlist',
+  submit_socials_error: 'Waitlist submit failed',
+  pricing_view:         'Viewed pricing',
+  checkout_open:        'Opened checkout',
+  checkout_error:       'Checkout failed',
+  checkout_success:     'Completed payment',
+  app_open:             'Opened the app',
 };
+// Note: these labels only render for events the admin_event_funnel RPC returns
+// as stages. landing_scroll / checkout_error / submit_socials_error are side
+// signals — query analytics_events directly, or add them to the RPC's stage
+// list later to slot them into the chart.
 
 export function AdminFunnel({ rows }) {
   if (!rows || rows.length === 0) {

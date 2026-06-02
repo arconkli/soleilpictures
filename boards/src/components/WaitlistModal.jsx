@@ -53,6 +53,7 @@ export function WaitlistModal({ onClose }) {
       logEvent('submit_socials_done', { link_count: validLinks.length });
       window.location.assign('/waitlist/status');
     } catch (err) {
+      logEvent('submit_socials_error', { message: (err?.message || String(err)).slice(0, 200) });
       setError(err?.message || String(err));
       setBusy(false);
     }

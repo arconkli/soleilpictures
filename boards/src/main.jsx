@@ -1,16 +1,8 @@
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App as RawApp } from './App.jsx';
-import { withPerfTime } from './lib/perf.js';
-// Wrap App at the root so render.App.ms surfaces in perf.dump() without
-// touching App.jsx (which has in-progress feature edits this round).
-const App = withPerfTime(RawApp, 'App');
-import { AuthGate } from './auth/AuthGate.jsx';
-import { TierRouter } from './auth/TierRouter.jsx';
+import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { isDocQaMode } from './lib/localMode.js';
-import { PublicBoardView } from './components/PublicBoardView.jsx';
-import { LegalPage } from './auth/LegalPage.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -19,6 +11,15 @@ import { getRecentFonts } from './lib/customFonts.js';
 import { captureFbclid, installSpaPageViews } from './lib/metaPixel.js';
 import './styles/breakpoints.css';
 import './styles.css';
+
+// Heavy/post-auth subtrees are code-split out of the entry chunk so the
+// signed-out landing (AuthGate → SignIn → SignInBackdrop) ships minimal JS.
+// AppShell (TierRouter + App + the whole editor) only loads once signed in;
+// the share + legal viewers load only on their routes. A single <Suspense>
+// below covers all three, using AuthGate's own SplashLoading as the fallback.
+const AppShell        = lazy(() => import('./AppShell.jsx'));
+const PublicBoardView = lazy(() => import('./components/PublicBoardView.jsx').then(m => ({ default: m.PublicBoardView })));
+const LegalPage       = lazy(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
 
 // Meta Pixel: persist any ?fbclid= ad-click id (durable _fbc) BEFORE anything
 // reads getFbCookies(), so a conversion attributes to the ad even days later.
@@ -137,17 +138,17 @@ if (import.meta.env.DEV && isDocQaMode()) {
     <StrictMode>
       <AppErrorBoundary>
         <FeedbackProvider>
-          {legalMatch ? (
-            <LegalPage doc={legalMatch[1].toLowerCase()} />
-          ) : shareMatch ? (
-            <PublicBoardView token={shareMatch[1]} />
-          ) : (
-            <AuthGate>
-              <TierRouter>
-                <App />
-              </TierRouter>
-            </AuthGate>
-          )}
+          <Suspense fallback={<SplashLoading />}>
+            {legalMatch ? (
+              <LegalPage doc={legalMatch[1].toLowerCase()} />
+            ) : shareMatch ? (
+              <PublicBoardView token={shareMatch[1]} />
+            ) : (
+              <AuthGate>
+                <AppShell />
+              </AuthGate>
+            )}
+          </Suspense>
         </FeedbackProvider>
       </AppErrorBoundary>
     </StrictMode>

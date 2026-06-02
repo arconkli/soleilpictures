@@ -20,7 +20,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
-import { peekPendingInviteEmail, claimPendingInvite } from '../lib/boardsApi.js';
+import { peekPendingInviteEmail, claimPendingInvite } from '../lib/inviteApi.js';
 import { trackRegistration } from '../lib/metaPixel.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
@@ -447,7 +447,10 @@ function humanError(e) {
   return e?.message || String(e || 'Something went wrong.');
 }
 
-function SplashLoading() {
+// Exported so main.jsx can reuse it as the <Suspense> fallback for the lazy
+// AppShell / share / legal chunks — identical to AuthGate's own loading state,
+// so there's no visual discontinuity when those chunks fetch.
+export function SplashLoading() {
   return (
     <div className="auth-screen">
       <div className="auth-glow" aria-hidden="true" />
