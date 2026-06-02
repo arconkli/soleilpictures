@@ -27,6 +27,7 @@
 //   { type: 'error',   reason }
 
 import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force-3d';
+import { orbitJitter, targetId } from '../../lib/hashJitter.js';
 
 const WARMUP_TICKS = 200;
 const HOT_TICK_MS  = 16;
@@ -137,12 +138,17 @@ function forceSpiral() {
 // people lean their clusters in each other's direction. Wsroot
 // (ws→its own top-level boards) is in between: it should keep the
 // workspace anchor near its content without forcing tight packing.
+// Orbital link kinds (cards=36, ws→board=80) get a deterministic ±35%
+// jitter keyed on the child id, so children settle on varied orbits
+// instead of one even shell — planets, not a ring. The 500-distance
+// membership/share scaffold edges are left flat: near-zero strength,
+// not read as orbits.
 function linkDistance(l) {
   switch (l.kind) {
     case 'membership':
     case 'share':     return 500;
-    case 'wsroot':    return 80;
-    default:          return 36;
+    case 'wsroot':    return 80 * orbitJitter(targetId(l));
+    default:          return 36 * orbitJitter(targetId(l));
   }
 }
 function linkStrength(l) {

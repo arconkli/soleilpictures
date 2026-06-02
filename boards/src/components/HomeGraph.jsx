@@ -6,6 +6,7 @@ import { HomeGraphDetailDrawer } from './HomeGraphDetailDrawer.jsx';
 import { HomeEmptyState } from './HomeEmptyState.jsx';
 import { HomeGraph2DFallback } from './HomeGraph2DFallback.jsx';
 import { prefetchEntity } from '../lib/prefetchKinds.js';
+import { orbitJitter, targetId } from '../lib/hashJitter.js';
 
 // All entity kinds visible by default; users navigate the graph by hovering
 // + right-clicking to open. The HUD/filter chips were removed — they were
@@ -303,6 +304,22 @@ export function HomeGraph({ workspaceId, onNavigate }) {
       return seen.has(sId) && seen.has(tId);
     }),
   }), [data, kinds]);
+
+  // Scatter dots onto varied orbits instead of one even shell: give each
+  // structural parent↔child link an orbital distance jittered deterministically
+  // (±35%) by the child id. Semantic backlinks keep the default so
+  // cross-references aren't stretched. Keyed on `filtered` so it re-applies
+  // whenever the engine rebuilds the link force on a data change.
+  useEffect(() => {
+    const fg = fgRef.current;
+    const link = fg?.d3Force?.('link');
+    if (!link) return;
+    link.distance(l => l.kind === 'structural' ? 30 * orbitJitter(targetId(l)) : 30);
+    // Runs while graphReady is still false (reveal is gated 650ms after load),
+    // so any re-settle happens behind the curtain — the user still sees an
+    // already-stable layout when the reveal lands.
+    fg.d3ReheatSimulation?.();
+  }, [filtered]);
 
   // Build each node as a tinted "planet": solid core sphere + an additive
   // halo sprite in the same hue. The halo gives the node a soft glow that
