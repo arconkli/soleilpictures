@@ -252,7 +252,12 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   }, [activeSrc, visible]);
 
   // Tier-2 upgrade: once a preview has painted, swap to the original on idle so
-  // the card "slowly loads up to full quality" (no flash — same <img>).
+  // the card "slowly loads up to full quality" (no flash — same <img>). Gated
+  // on the card's ACTUAL displayed size (getBoundingClientRect includes the
+  // canvas zoom transform): a zoomed-out board shows the card far smaller than
+  // the 1280px preview, so the preview is already crisp and we must NOT
+  // re-download the multi-MB original. We only upgrade when the card is shown
+  // large enough that the preview would be visibly upscaled.
   useEffect(() => {
     if (!upgradeToFull || upgradedRef.current || !loaded) return;
     if (!meta || !meta.previewKey) return;
@@ -264,6 +269,16 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
       ? window.cancelIdleCallback : clearTimeout;
     const id = ric(() => {
       if (cancelled) return;
+      const el = imgRef.current;
+      let displayedPx = 0;
+      try {
+        const r = el?.getBoundingClientRect();
+        displayedPx = (r?.width || 0) * (window.devicePixelRatio || 1);
+      } catch (_) {}
+      // Threshold: ~85% of the preview's width means it's being stretched
+      // toward/past 1:1 — worth the original. Below that the preview suffices.
+      const threshold = meta.previewW ? meta.previewW * 0.85 : 1000;
+      if (displayedPx < threshold) return;  // preview is sharp at this size; skip
       upgradedRef.current = true;
       setActiveSrc(src);                 // original (Tier 2)
       perf.bump('image.tier2Upgrade');
