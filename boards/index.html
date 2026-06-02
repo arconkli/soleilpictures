@@ -85,7 +85,18 @@
         "@type": "Organization",
         "@id": "https://soleilpictures.com/#organization",
         "name": "Soleil Pictures",
-        "url": "https://soleilpictures.com/"
+        "url": "https://soleilpictures.com/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://clusters.soleilpictures.com/clusters-logo-dark.png",
+          "width": 2048,
+          "height": 2048
+        },
+        "description": "Soleil Pictures is a creative studio and the maker of Soleil Clusters — a creative workspace and moodboard tool for film, photo, design, and brand teams.",
+        "sameAs": [
+          "https://www.instagram.com/soleilclusters",
+          "https://x.com/soleilclusters"
+        ]
       }
     ]
   }
@@ -163,7 +174,32 @@
   <noscript><img height="1" width="1" style="display:none"
     src="https://www.facebook.com/tr?id=1671656413978924&ev=PageView&noscript=1"
   /></noscript>
-  <div id="root"></div>
+  <div id="root">
+    <!-- SEO + no-JS fallback. Real, indexable content for search crawlers and
+         visitors without JavaScript. React (createRoot) clears #root on mount,
+         so anyone with JS NEVER sees this — the cinematic landing is untouched.
+         The same HTML is served to everyone (not cloaking); it just gives Google
+         genuine text + internal links to index. position:fixed + dark bg means
+         any sub-100ms flash on a slow connection reads as intentional. -->
+    <main style="position:fixed;inset:0;overflow:auto;background:#0a0908;color:#e8e4dc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55;">
+      <div style="max-width:680px;margin:0 auto;padding:14vh 24px 24px;">
+        <h1 style="font-size:1.9rem;font-weight:600;letter-spacing:-0.01em;margin:0 0 .6em;">Soleil Clusters</h1>
+        <p style="color:#b7b1a6;margin:0 0 1.5em;">Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place, and collaborate with your team in real time.</p>
+        <ul style="list-style:none;padding:0;margin:0 0 1.6em;color:#cfcabf;">
+          <li style="margin:0 0 .7em;"><b>Live canvas</b> — your whole team on one infinite canvas, with live cursors, comments, and presence.</li>
+          <li style="margin:0 0 .7em;"><b>Auto-tag</b> — drop any image, link, or file and Clusters reads it, tags it, and files it to the right board.</li>
+          <li style="margin:0 0 .7em;"><b>Docs, built in</b> — write briefs right beside the canvas with slash commands and @mentions.</li>
+          <li style="margin:0 0 .7em;"><b>Share or lock</b> — share a board with one link, or keep it private. You own your references.</li>
+          <li style="margin:0 0 .7em;"><b>Relationship graph</b> — every card connects; jump between boards through a living graph of how your ideas link up.</li>
+        </ul>
+        <nav style="font-size:.95rem;">
+          <a href="/pricing" style="color:#FFA500;text-decoration:none;margin-right:1.4em;">Pricing</a>
+          <a href="/legal/privacy" style="color:#FFA500;text-decoration:none;margin-right:1.4em;">Privacy</a>
+          <a href="/legal/terms" style="color:#FFA500;text-decoration:none;">Terms</a>
+        </nav>
+      </div>
+    </main>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

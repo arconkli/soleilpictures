@@ -14,6 +14,69 @@ import { runCompactionJob1 } from './worker-compaction.js';
 
 const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
 
+// ── Per-route SEO metadata ──────────────────────────────────────────────
+// The SPA serves ONE index.html for every path (single-page-application
+// asset fallback), so the static <title>/description/canonical are the
+// homepage's for every URL. That makes /pricing and /legal/* look like
+// duplicates of "/" to Google — which is a big reason there are no sitelinks.
+// We inject each public route's own metadata here at the edge via
+// HTMLRewriter, giving Google distinct, properly-labeled, indexable pages
+// without adding SSR or a build step. Unknown paths keep the homepage
+// defaults (harmless); non-HTML responses pass through untouched.
+const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
+const DEFAULT_DESCRIPTION =
+  'Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place.';
+const ROUTE_META = {
+  '/': {
+    title: 'Soleil Clusters — Creative Workspace & Moodboard for Production Teams',
+    description: DEFAULT_DESCRIPTION,
+  },
+  '/pricing': {
+    title: 'Pricing — Soleil Clusters',
+    description:
+      'Soleil Clusters pricing — start free with the Demo, or unlock unlimited boards, files, and Edit Mode with Creator. Simple monthly or annual plans.',
+  },
+  '/legal/privacy': {
+    title: 'Privacy Policy — Soleil Clusters',
+    description: 'How Soleil Clusters collects, uses, and protects your data.',
+  },
+  '/legal/terms': {
+    title: 'Terms of Service — Soleil Clusters',
+    description: 'The terms that govern your use of Soleil Clusters.',
+  },
+  '/legal/cookies': {
+    title: 'Cookie Policy — Soleil Clusters',
+    description: 'How Soleil Clusters uses cookies and similar technologies.',
+  },
+};
+
+// Lowercase + strip a trailing slash (except root) so '/Pricing/' === '/pricing'.
+function normalizePath(pathname) {
+  let p = (pathname || '/').toLowerCase();
+  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+  return p;
+}
+
+// Tiny HTMLRewriter element handlers — each owns one mutation.
+class SetText      { constructor(t) { this.t = t; } element(el) { el.setInnerContent(this.t); } }
+class SetContent   { constructor(v) { this.v = v; } element(el) { el.setAttribute('content', this.v); } }
+class SetHref      { constructor(h) { this.h = h; } element(el) { el.setAttribute('href', this.h); } }
+
+// Rewrite the document's title/description/canonical + the OG/Twitter mirrors
+// to `meta`, and point canonical/og:url at `canonical`.
+function injectRouteMeta(res, meta, canonical) {
+  return new HTMLRewriter()
+    .on('title',                            new SetText(meta.title))
+    .on('meta[name="description"]',         new SetContent(meta.description))
+    .on('meta[property="og:title"]',        new SetContent(meta.title))
+    .on('meta[property="og:description"]',  new SetContent(meta.description))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[name="twitter:title"]',       new SetContent(meta.title))
+    .on('meta[name="twitter:description"]', new SetContent(meta.description))
+    .on('link[rel="canonical"]',            new SetHref(canonical))
+    .transform(res);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -28,7 +91,20 @@ export default {
     } catch (e) {
       return json({ error: e?.message || String(e) }, 500);
     }
-    return env.ASSETS.fetch(request);
+
+    const res = await env.ASSETS.fetch(request);
+    // Inject per-route SEO metadata for HTML document navigations to a known
+    // public route. The asset served is index.html (SPA fallback), but the
+    // Worker still sees the real pathname, so we can give each URL its own meta.
+    if (request.method === 'GET') {
+      const meta = ROUTE_META[normalizePath(url.pathname)];
+      if (meta && (res.headers.get('content-type') || '').includes('text/html')) {
+        const p = normalizePath(url.pathname);
+        const canonical = p === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${p}`;
+        return injectRouteMeta(res, meta, canonical);
+      }
+    }
+    return res;
   },
   async scheduled(event, env, ctx) {
     // The worker has TWO cron schedules (see wrangler.toml):

@@ -20,6 +20,7 @@ import './styles.css';
 const AppShell        = lazy(() => import('./AppShell.jsx'));
 const PublicBoardView = lazy(() => import('./components/PublicBoardView.jsx').then(m => ({ default: m.PublicBoardView })));
 const LegalPage       = lazy(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
+const PublicPricingPage = lazy(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
 
 // Meta Pixel: persist any ?fbclid= ad-click id (durable _fbc) BEFORE anything
 // reads getFbCookies(), so a conversion attributes to the ad even days later.
@@ -102,6 +103,24 @@ const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$
 // ad-policy review, etc). SPA fallback in the Worker serves these deep links.
 const legalMatch = window.location.pathname.match(/^\/legal\/(privacy|terms|cookies)\/?$/i);
 
+// /pricing = public, crawlable pricing for SIGNED-OUT visitors (and search
+// crawlers). Signed-in users skip this and fall through to AuthGate → the
+// account-aware PricingPage in TierRouter (Manage Billing / current plan), so
+// we only intercept here when there's no cached Supabase session.
+const pricingMatch = window.location.pathname.match(/^\/pricing\/?$/i);
+function hasCachedSession() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      // Default supabase storageKey is `sb-<ref>-auth-token`. Presence is a
+      // heuristic — AuthGate still does the real validation downstream.
+      if (k && k.startsWith('sb-') && k.includes('auth-token')) return true;
+    }
+  } catch (_) {}
+  return false;
+}
+const showPublicPricing = !!pricingMatch && !hasCachedSession();
+
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
 startHeartbeat();
@@ -141,6 +160,8 @@ if (import.meta.env.DEV && isDocQaMode()) {
           <Suspense fallback={<SplashLoading />}>
             {legalMatch ? (
               <LegalPage doc={legalMatch[1].toLowerCase()} />
+            ) : showPublicPricing ? (
+              <PublicPricingPage />
             ) : shareMatch ? (
               <PublicBoardView token={shareMatch[1]} />
             ) : (
