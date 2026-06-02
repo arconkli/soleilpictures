@@ -1,13 +1,21 @@
-// AdminAnalyticsTab — orchestrator. Fires the analytics RPCs with
-// allSettled so a single failed or not-yet-deployed RPC renders a partial
-// page rather than blanking the tab; only a total failure shows retry.
-// Funnel + Cards + TierCompare + TopUsers + Storage render in one scroll.
+// AdminAnalyticsTab — orchestrator. Reorganized into a funnel narrative:
+//   Business health (hero KPI strip) → Acquisition → Activation funnel →
+//   Engagement & retention → Monetization & checkout → Cards & product →
+//   Infrastructure. A global time-range selector (7/30/90d) threads `days`
+//   into every windowed RPC and into useAdminData's deps, so the whole tab
+//   re-fetches on change. RPCs fire with allSettled so one failed/not-yet-
+//   deployed RPC renders a partial page rather than blanking the tab; the
+//   newer KPI/history/stats RPCs are NON-CORE, so the tab survives without
+//   them (cards degrade to "—").
 
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
+import { useEffect, useState } from 'react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, LabelList } from 'recharts';
 import { supabase } from '../../lib/supabase.js';
 import { formatPct, formatCount } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
+import { AdminTimeRange } from './AdminTimeRange.jsx';
+import { AdminKpiStrip } from './AdminKpiStrip.jsx';
 import { AdminFunnel } from './AdminFunnel.jsx';
 import { AdminEventBreakdown } from './AdminEventBreakdown.jsx';
 import { AdminCardsSection } from './AdminCardsSection.jsx';
@@ -17,22 +25,41 @@ import { AdminStorageSection } from './AdminStorageSection.jsx';
 
 const SOLEIL = '#ffa500';
 
+function Section({ title, sub, children }) {
+  return (
+    <>
+      <h2 className="admin-section-title">{title}</h2>
+      {sub && <div className="admin-section-sub">{sub}</div>}
+      {children}
+    </>
+  );
+}
+
 export function AdminAnalyticsTab() {
+  const [days, setDays] = useState(30);
+
+  // Seed/refresh today's snapshot once so the KPI deltas have a current
+  // datapoint (same opportunistic top-up the Command Center does).
+  useEffect(() => { supabase.rpc('admin_capture_metrics_now').then(() => {}, () => {}); }, []);
+
   const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
     const results = await Promise.allSettled([
-      supabase.rpc('admin_event_funnel',      { p_days: 30 }),
-      supabase.rpc('admin_card_stats',        { p_days: 30 }),
-      supabase.rpc('admin_cards_per_day',     { p_days: 30 }),
-      supabase.rpc('admin_tier_usage_compare'),
-      supabase.rpc('admin_top_users',         { p_tier: 'demo', p_limit: 20 }),
-      supabase.rpc('admin_top_users',         { p_tier: 'paid', p_limit: 20 }),
-      supabase.rpc('admin_acquisition_breakdown'),
-      supabase.rpc('admin_activation_funnel'),
-      supabase.rpc('admin_retention_cohorts', { p_window_days: 60 }),
-      supabase.rpc('admin_event_breakdown',     { p_days: 30 }),
-      supabase.rpc('admin_checkout_reliability', { p_days: 30 }),
+      supabase.rpc('admin_event_funnel',         { p_days: days }),
+      supabase.rpc('admin_card_stats',           { p_days: days }),
+      supabase.rpc('admin_cards_per_day',        { p_days: days }),
+      supabase.rpc('admin_tier_usage_compare',   { p_days: days }),
+      supabase.rpc('admin_top_users',            { p_tier: 'demo', p_limit: 20 }),
+      supabase.rpc('admin_top_users',            { p_tier: 'paid', p_limit: 20 }),
+      supabase.rpc('admin_acquisition_breakdown',{ p_days: days }),
+      supabase.rpc('admin_activation_funnel',    { p_days: days }),
+      supabase.rpc('admin_retention_cohorts',    { p_window_days: Math.max(days, 60) }),
+      supabase.rpc('admin_event_breakdown',      { p_days: days }),
+      supabase.rpc('admin_checkout_reliability',  { p_days: days }),
+      supabase.rpc('admin_kpi_summary',          { p_days: days }),   // non-core
+      supabase.rpc('admin_metrics_history',      { p_days: 90 }),     // non-core (trend reference)
+      supabase.rpc('admin_stats'),                                    // non-core (live MRR/ARPU)
     ]);
-    const [fn, cs, pd, tc, td, tp, ac, af, ch, eb, cr] = results;
+    const [fn, cs, pd, tc, td, tp, ac, af, ch, eb, cr, ks, mh, st] = results;
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     const core = [fn, cs, pd, tc, td, tp];
@@ -51,38 +78,68 @@ export function AdminAnalyticsTab() {
       cohorts:     val(ch) || [],
       eventBreakdown:      val(eb) || [],
       checkoutReliability: val(cr),
+      kpi:         val(ks),
+      history:     val(mh) || [],
+      stats:       val(st),
     };
-  }, []);
+  }, [days]);
 
   return (
     <div className="admin-analytics">
-      <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated} />
+      <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
+        <AdminTimeRange value={days} onChange={setDays} />
+      </AdminToolbar>
 
       <AdminAsync
         loading={loading}
         error={error}
         onRetry={refresh}
-        skeleton={<><AdminSkeleton variant="chart" /><div style={{ height: 16 }} /><AdminSkeleton variant="table" rows={6} cols={5} /></>}
+        skeleton={<><AdminSkeleton variant="cards" rows={8} /><div style={{ height: 16 }} /><AdminSkeleton variant="chart" /></>}
       >
         <div className={refreshing ? 'is-refreshing' : ''}>
-          <CloudflareAnalyticsLink />
-          {data?.activation && <ActivationFunnel data={data.activation} />}
-          {data?.cohorts.length > 0 && <RetentionCohorts rows={data.cohorts} />}
-          {data?.acquisition.length > 0 && <AcquisitionBreakdown rows={data.acquisition} />}
-          <AdminFunnel rows={data?.funnel || []} />
-          <AdminEventBreakdown rows={data?.eventBreakdown || []} reliability={data?.checkoutReliability} />
-          <AdminCardsSection perDay={data?.perDay || []} cardStats={data?.cardStats} />
-          <AdminTierCompareTable rows={data?.tierCompare || []} />
-          <AdminTopUsersList topDemo={data?.topDemo || []} topPaid={data?.topPaid || []} />
-          <AdminStorageSection />
+          <AdminKpiStrip
+            kpi={data?.kpi}
+            history={data?.history || []}
+            stats={data?.stats}
+            perDay={data?.perDay || []}
+            days={days}
+          />
+
+          <Section title="Acquisition" sub="Where signed-up users come from (first-touch).">
+            <CloudflareAnalyticsLink />
+            {data?.acquisition.length > 0 && <AcquisitionBreakdown rows={data.acquisition} days={days} />}
+          </Section>
+
+          <Section title="Activation funnel" sub="Top-of-funnel sessions, then post-signup product milestones.">
+            <AdminFunnel rows={data?.funnel || []} days={days} />
+            {data?.activation && <ActivationFunnel data={data.activation} days={days} />}
+          </Section>
+
+          <Section title="Engagement & retention" sub="How cohorts keep coming back after signup.">
+            {data?.cohorts.length > 0 && <RetentionCohorts rows={data.cohorts} />}
+          </Section>
+
+          <Section title="Monetization & checkout" sub="Checkout reliability, failure signals, and paid-vs-demo usage.">
+            <AdminEventBreakdown rows={data?.eventBreakdown || []} reliability={data?.checkoutReliability} days={days} />
+            <AdminTierCompareTable rows={data?.tierCompare || []} />
+          </Section>
+
+          <Section title="Cards & product" sub="What's being created and who creates the most.">
+            <AdminCardsSection perDay={data?.perDay || []} cardStats={data?.cardStats} days={days} />
+            <AdminTopUsersList topDemo={data?.topDemo || []} topPaid={data?.topPaid || []} />
+          </Section>
+
+          <Section title="Infrastructure" sub="Storage footprint by tier and heaviest accounts.">
+            <AdminStorageSection />
+          </Section>
         </div>
       </AdminAsync>
     </div>
   );
 }
 
-// ── Activation funnel — signed_up → first_X_at counts ──────────────
-function ActivationFunnel({ data }) {
+// ── Activation milestones — signed_up → first_X_at counts ──────────
+function ActivationFunnel({ data, days = 30 }) {
   const steps = [
     { key: 'signed_up',      label: 'Signed up' },
     { key: 'first_board',    label: 'Created board' },
@@ -100,20 +157,21 @@ function ActivationFunnel({ data }) {
   return (
     <section className="admin-chart-panel admin-chart-panel-wide">
       <header className="admin-chart-head">
-        <h3 className="admin-chart-title">Activation funnel</h3>
-        <span className="admin-chart-sub t-meta">all-time, % of signups</span>
+        <h3 className="admin-chart-title">Activation milestones</h3>
+        <span className="admin-chart-sub t-meta">% of signed-up users · last {days}d</span>
       </header>
       <div className="admin-chart-body">
         <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={chartData} layout="vertical" margin={{ top: 6, right: 24, bottom: 6, left: 8 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 6, right: 56, bottom: 6, left: 8 }}>
             <XAxis type="number" stroke="var(--ink-3)" fontSize={10} tickLine={false} axisLine={false} />
             <YAxis dataKey="name" type="category" stroke="var(--ink-3)" fontSize={11} tickLine={false} axisLine={false} width={130} />
             <Tooltip
               contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
               formatter={(v, _n, p) => [`${formatCount(v)} (${formatPct(p.payload.pct)})`, 'users']}
             />
-            <Bar dataKey="count" radius={[0, 3, 3, 0]}>
+            <Bar dataKey="count" radius={[0, 3, 3, 0]} isAnimationActive={false}>
               {chartData.map((_, i) => <Cell key={i} fill={SOLEIL} fillOpacity={0.35 + 0.6 * (1 - i / chartData.length)} />)}
+              <LabelList dataKey="pct" position="right" formatter={(v) => formatPct(v)} fill="var(--ink-2)" fontSize={11} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -177,12 +235,12 @@ function RetentionCohorts({ rows }) {
 }
 
 // ── Acquisition breakdown ──────────────────────────────────────────
-function AcquisitionBreakdown({ rows }) {
+function AcquisitionBreakdown({ rows, days = 30 }) {
   return (
     <section className="admin-chart-panel admin-chart-panel-wide">
       <header className="admin-chart-head">
         <h3 className="admin-chart-title">Acquisition source</h3>
-        <span className="admin-chart-sub t-meta">first-touch · conversion = signups → paid</span>
+        <span className="admin-chart-sub t-meta">first-touch · conversion = signups → paid · last {days}d</span>
       </header>
       <div className="admin-chart-body">
         <table className="admin-table">

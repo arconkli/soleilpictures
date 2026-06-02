@@ -27,7 +27,7 @@ const LABELS = {
 // signals — query analytics_events directly, or add them to the RPC's stage
 // list later to slot them into the chart.
 
-export function AdminFunnel({ rows }) {
+export function AdminFunnel({ rows, days = 30 }) {
   if (!rows || rows.length === 0) {
     return (
       <section className="admin-chart-panel">
@@ -57,7 +57,7 @@ export function AdminFunnel({ rows }) {
   return (
     <section className="admin-chart-panel admin-chart-panel-wide">
       <header className="admin-chart-head">
-        <h3 className="admin-chart-title">Conversion funnel · last 30 days</h3>
+        <h3 className="admin-chart-title">Conversion funnel · last {days} days</h3>
         <span className="admin-chart-sub t-meta">{formatCount(first)} sessions at top</span>
       </header>
 

@@ -30,7 +30,7 @@ const LABELS = {
   checkout_support_click:  'Support click',
 };
 
-export function AdminEventBreakdown({ rows = [], reliability }) {
+export function AdminEventBreakdown({ rows = [], reliability, days = 30 }) {
   const data = (rows || []).map((r) => ({
     name:     LABELS[r.event] || r.event,
     sessions: Number(r.sessions) || 0,
@@ -50,7 +50,7 @@ export function AdminEventBreakdown({ rows = [], reliability }) {
       {rel && (
         <section className="admin-chart-panel admin-chart-panel-wide">
           <header className="admin-chart-head">
-            <h3 className="admin-chart-title">Checkout reliability · last 30 days</h3>
+            <h3 className="admin-chart-title">Checkout reliability · last {days} days</h3>
             <span className="admin-chart-sub t-meta">how completed checkouts resolve (distinct sessions)</span>
           </header>
           <div className="admin-chart-body">
@@ -75,7 +75,7 @@ export function AdminEventBreakdown({ rows = [], reliability }) {
       {hasRows && (
         <section className="admin-chart-panel admin-chart-panel-wide">
           <header className="admin-chart-head">
-            <h3 className="admin-chart-title">Branch &amp; failure signals · last 30 days</h3>
+            <h3 className="admin-chart-title">Branch &amp; failure signals · last {days} days</h3>
             <span className="admin-chart-sub t-meta">errors, abandons &amp; path choices — distinct sessions</span>
           </header>
           <div className="admin-funnel-grid">

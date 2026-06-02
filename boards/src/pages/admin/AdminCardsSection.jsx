@@ -10,11 +10,11 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   Cell,
 } from 'recharts';
-import { shortDate, TIER_COLORS } from '../../lib/adminFormat.js';
+import { shortDate, formatCount, formatPct, TIER_COLORS } from '../../lib/adminFormat.js';
 
 const SOLEIL = '#ffa500';
 
-export function AdminCardsSection({ perDay, cardStats }) {
+export function AdminCardsSection({ perDay, cardStats, days = 30 }) {
   const byKind = cardStats?.by_kind || {};
   const kindByTier = cardStats?.kind_by_tier || {};
   const total = cardStats?.total || 0;
@@ -41,7 +41,7 @@ export function AdminCardsSection({ perDay, cardStats }) {
     <>
       <section className="admin-chart-panel admin-chart-panel-wide">
         <header className="admin-chart-head">
-          <h3 className="admin-chart-title">Cards created · last 30 days</h3>
+          <h3 className="admin-chart-title">Cards created · last {days} days</h3>
           <span className="admin-chart-sub t-meta">
             {(perDay || []).reduce((a, b) => a + (b.cards || 0), 0).toLocaleString()} cards added
           </span>
@@ -84,6 +84,7 @@ export function AdminCardsSection({ perDay, cardStats }) {
                 <Tooltip
                   cursor={{ fill: 'rgba(255,165,0,.08)' }}
                   contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
+                  formatter={(v) => [`${formatCount(v)}${total ? ` (${formatPct(v / total)})` : ''}`, 'cards']}
                 />
                 <Bar dataKey="count" fill={SOLEIL} radius={[0, 3, 3, 0]} />
               </BarChart>
