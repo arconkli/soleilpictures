@@ -68,6 +68,7 @@
     "react-force-graph-3d": "^1.29.1",
     "recharts": "^3.8.1",
     "three": "^0.184.0",
+    "thumbhash": "^0.1.1",
     "tippy.js": "^6.3.7",
     "uuid": "^14.0.0",
     "y-partykit": "^0.0.33",

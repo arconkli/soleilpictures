@@ -12,9 +12,20 @@
 // on demand. Cards never persist a leakable URL.
 
 import { supabase } from './supabase.js';
+import { setMetaLocal } from './imageMeta.js';
+import { rgbaToThumbHash } from 'thumbhash';
+import * as perf from './perf.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
+
+// Tier-1 preview spec (progressive image loading). The canvas shows this
+// downscaled WebP instead of the multi-MB original; the original is reserved
+// for the lightbox / zoom-in. 1280px longest edge survives a moderate zoom
+// before the Tier-2 upgrade kicks in; q0.72 is the WebP knee where artifacts
+// are imperceptible at card scale.
+const PREVIEW_LONGEST_EDGE = 1280;
+const PREVIEW_QUALITY = 0.72;
 
 function readImageDims(file) {
   return new Promise((res) => {
@@ -79,6 +90,29 @@ async function presignThumb({ workspaceId, boardId, thumbKey, contentType = 'ima
   return res.json();   // { uploadUrl, key }
 }
 
+// Presign a deterministic per-image preview PUT URL. Like presignThumb but the
+// key is <ws>/previews/<uuid>.webp (per-image, not per-board). The upload party
+// only honors previewKey when it matches that prefix-locked shape and the
+// caller passes the original image's boardId (so can_write_board gates it).
+async function presignPreview({ workspaceId, boardId, previewKey }) {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not signed in');
+  const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(workspaceId)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ boardId: boardId || null, previewKey, contentType: 'image/webp', fileExt: 'webp' }),
+  });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(`Preview presign failed: ${res.status} ${msg}`);
+  }
+  return res.json();   // { uploadUrl, key }
+}
+
 // XHR PUT with a real upload-progress callback. Browser fetch() doesn't
 // expose progress for a request body, so we drop down to XHR for the
 // PUT step. The presign + DB-insert steps still use fetch.
@@ -99,6 +133,148 @@ function putWithProgress(url, file, { onProgress } = {}) {
     xhr.onabort = () => reject(new Error('Upload aborted'));
     xhr.send(file);
   });
+}
+
+// ── Progressive-loading variant generation ──────────────────────────────
+//
+// generateAndUploadVariants() produces the two derived assets a card needs for
+// progressive loading and records them via the set_image_variant RPC:
+//   - Tier 0: a base64 ThumbHash of the image (instant blur placeholder).
+//   - Tier 1: a downscaled WebP preview stored at <ws>/previews/<uuid>.webp.
+// It is the shared engine for BOTH the upload path (source = the File) and the
+// lazy backfill of existing images (source = the already-decoded <img>). It is
+// fire-and-forget and never throws upward.
+
+// Resolve a File/Blob or HTMLImageElement to something canvas.drawImage can
+// take, plus its natural dimensions. Returns null on failure.
+async function getDrawable(source) {
+  // Already a decoded image element (backfill path).
+  if (typeof HTMLImageElement !== 'undefined' && source instanceof HTMLImageElement) {
+    const w = source.naturalWidth || source.width;
+    const h = source.naturalHeight || source.height;
+    if (!w || !h) return null;
+    return { drawable: source, w, h, release: () => {} };
+  }
+  // File/Blob — decode to an ImageBitmap (off-thread, respects EXIF).
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bmp = await createImageBitmap(source, { imageOrientation: 'from-image' });
+      return { drawable: bmp, w: bmp.width, h: bmp.height, release: () => bmp.close?.() };
+    } catch (_) { /* fall through to <img> decode */ }
+  }
+  // Fallback: load via an <img> + object URL.
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(source);
+      const img = new Image();
+      img.onload = () => resolve({
+        drawable: img, w: img.naturalWidth, h: img.naturalHeight,
+        release: () => URL.revokeObjectURL(url),
+      });
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    } catch (_) { resolve(null); }
+  });
+}
+
+function u8ToBase64(u8) {
+  let s = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < u8.length; i += CHUNK) {
+    s += String.fromCharCode.apply(null, u8.subarray(i, i + CHUNK));
+  }
+  return btoa(s);
+}
+
+// Downscale a drawable to a WebP blob with longest edge <= maxEdge. Returns
+// null (no upscale) when the source is already small enough — the original
+// then serves as Tier-1 directly.
+function downscaleDrawableToWebp({ drawable, w, h }, maxEdge, quality) {
+  const maxSide = Math.max(w, h);
+  if (maxSide <= maxEdge) return null;
+  const scale = maxEdge / maxSide;
+  const tw = Math.max(1, Math.round(w * scale));
+  const th = Math.max(1, Math.round(h * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = tw; canvas.height = th;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(drawable, 0, 0, tw, th);
+  return new Promise((resolve) => {
+    try {
+      canvas.toBlob((blob) => resolve(blob ? { blob, w: tw, h: th } : null), 'image/webp', quality);
+    } catch (_) { resolve(null); }
+  });
+}
+
+// Compute a base64 ThumbHash from a drawable (downscaled to <=100px/side).
+function computeThumbHashBase64({ drawable, w, h }) {
+  const maxSide = Math.max(w, h);
+  const scale = Math.min(1, 100 / maxSide);
+  const tw = Math.max(1, Math.round(w * scale));
+  const th = Math.max(1, Math.round(h * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = tw; canvas.height = th;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(drawable, 0, 0, tw, th);
+  // getImageData throws on a CORS-tainted canvas — caller swallows.
+  const { data } = ctx.getImageData(0, 0, tw, th);
+  const hash = rgbaToThumbHash(tw, th, data);
+  return u8ToBase64(hash);
+}
+
+// Generate + persist Tier-0/Tier-1 variants for one image. workspaceId/boardId
+// scope the preview key + the can_write_board presign gate. storagePath is the
+// ORIGINAL image key. imageSource is a File (upload) or HTMLImageElement
+// (backfill — must be CORS-clean so the canvas isn't tainted). Best-effort:
+// any failure (CORS taint, viewer 403, small image) just leaves the row as-is.
+export async function generateAndUploadVariants({ workspaceId, boardId, storagePath, imageSource }) {
+  if (!workspaceId || !storagePath || !imageSource) return;
+  const _t0 = perf.isEnabled() ? performance.now() : 0;
+  perf.bump('image.backfill.run');
+  const d = await getDrawable(imageSource);
+  if (!d) return;
+  try {
+    let blur = null;
+    try { blur = computeThumbHashBase64(d); }
+    catch (_) { perf.bump('image.backfill.taint'); /* tainted/odd image — skip blur */ }
+
+    let previewKey = null, previewW = null, previewH = null;
+    let dn = null;
+    try { dn = await downscaleDrawableToWebp(d, PREVIEW_LONGEST_EDGE, PREVIEW_QUALITY); }
+    catch (_) { dn = null; }
+    if (dn && dn.blob) {
+      const requestedKey = `${workspaceId}/previews/${crypto.randomUUID()}.webp`;
+      // Use the key the server actually assigns. A party that honors the
+      // deterministic preview shape returns requestedKey; an older one mints a
+      // random UUID key instead — either way the PUT and the recorded
+      // preview_path must agree, so trust the returned key. This decouples the
+      // client from the party-deploy ordering.
+      const presigned = await presignPreview({ workspaceId, boardId, previewKey: requestedKey });
+      previewKey = presigned.key || requestedKey;
+      previewW = dn.w; previewH = dn.h;
+      await putWithProgress(presigned.uploadUrl, dn.blob, {});
+      perf.mark('image.preview.bytes', dn.blob.size);
+    }
+
+    // Nothing to record? (small image with no blur computed.) Skip the RPC.
+    if (!blur && !previewKey) return;
+
+    const { error } = await supabase.rpc('set_image_variant', {
+      p_storage_path: storagePath,
+      p_blur: blur,
+      p_preview_path: previewKey,
+      p_preview_w: previewW,
+      p_preview_h: previewH,
+    });
+    if (error) return;  // viewer 403 / RLS — stay quiet
+
+    setMetaLocal(storagePath, { blur, previewKey, previewW, previewH });
+    if (_t0) perf.mark('image.backfill.ms', performance.now() - _t0);
+  } finally {
+    d.release?.();
+  }
 }
 
 // Upload a File to R2 (via the upload party) and insert an `images`
@@ -145,6 +321,14 @@ export async function uploadImage({ file, workspaceId, boardId, cardId = null, u
   if (rowErr) {
     // Bytes are uploaded; the row insert is bookkeeping only.
     console.warn('[uploads] images row insert failed', rowErr);
+  }
+
+  // Generate Tier-0 blur + Tier-1 preview in the background so the card appears
+  // immediately. Needs the images row to exist (set_image_variant looks it up),
+  // so only kick off when the insert succeeded.
+  if (!rowErr) {
+    generateAndUploadVariants({ workspaceId, boardId: boardId || null, storagePath: key, imageSource: file })
+      .catch(() => {});
   }
 
   return {

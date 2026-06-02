@@ -3763,6 +3763,23 @@ body {
 /* R2Image renders in three states: loading (signed URL in flight),
    blocked (no read access), or normal img once URL resolves.       */
 .r2-img { display: block; width: 100%; height: 100%; }
+
+/* Progressive image card (blur-up → preview → full). The wrapper takes the
+   sizing class (e.g. .ic-img); the blur + real layers absolutely fill it and
+   cross-fade as the real image decodes. */
+.r2p { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; }
+.r2p-blur, .r2p-img, .r2p-layer {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+.r2p-blur { transform: scale(1.04); }   /* hide the upscaled blur's edge seam */
+.r2p-img {
+  opacity: 0; transition: opacity .35s ease;
+  /* Same decode hint as .ic .ic-img: reuse the cached raster during zoom. */
+  image-rendering: -webkit-optimize-contrast;
+}
+.r2p-img.is-loaded { opacity: 1; }
+
 .r2-img-loading {
   background: linear-gradient(120deg,
     var(--bg-3) 0%, var(--bg-4) 50%, var(--bg-3) 100%);

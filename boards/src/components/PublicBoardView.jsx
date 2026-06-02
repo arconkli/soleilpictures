@@ -28,6 +28,7 @@ import { SoleilMark } from './primitives.jsx';
 import { ClustersMark } from './SoleilWordmark.jsx';
 import { CanvasSurface } from './CanvasSurface.jsx';
 import { setReadUrlResolver, clearReadUrlResolver } from '../lib/r2.js';
+import { setMetaResolver, clearMetaResolver } from '../lib/imageMeta.js';
 import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 
@@ -62,6 +63,9 @@ export function PublicBoardView({ token }) {
   // + the live Y.Docs we keep alive for CanvasSurface (doc cards read their
   // per-card YMaps from them). Both torn down on unmount.
   const imageMapRef = useRef({});
+  // Session-wide progressive-loading metadata (original key → { blur, preview }),
+  // merged across every board fetched. Feeds imageMeta.getMeta via the resolver.
+  const imageMetaRef = useRef({});
   const ydocsRef = useRef(new Set());
 
   const currentId = stack.length ? stack[stack.length - 1] : null;
@@ -72,8 +76,15 @@ export function PublicBoardView({ token }) {
   // presigned map. Cleared + all Y.Docs destroyed on unmount.
   useEffect(() => {
     setReadUrlResolver((key) => imageMapRef.current[key] || null);
+    // Resolve blur + preview metadata from the bundle (no Supabase session).
+    // R2ImageProgressive reads meta.blur / meta.previewKey off this shape.
+    setMetaResolver((key) => {
+      const m = imageMetaRef.current[key];
+      return m ? { blur: m.blur || null, previewKey: m.preview || null } : null;
+    });
     return () => {
       clearReadUrlResolver();
+      clearMetaResolver();
       ydocsRef.current.forEach((d) => { try { d.destroy(); } catch (_) {} });
       ydocsRef.current.clear();
     };
@@ -100,6 +111,7 @@ export function PublicBoardView({ token }) {
     const decoded = {
       board: bundle.board || {},
       imageUrls: bundle.image_urls || {},
+      imageMeta: bundle.image_meta || {},
       ydoc,
       cards: readCards(ydoc),
       arrows: readArrows(ydoc),
@@ -117,6 +129,7 @@ export function PublicBoardView({ token }) {
     // keep resolving as the viewer navigates (and back-navigates) between
     // boards within the link.
     if (decoded.imageUrls) Object.assign(imageMapRef.current, decoded.imageUrls);
+    if (decoded.imageMeta) Object.assign(imageMetaRef.current, decoded.imageMeta);
     if (Array.isArray(bundle.nav_boards) && bundle.nav_boards.length) {
       setNavBoards(prev => {
         const next = { ...prev };

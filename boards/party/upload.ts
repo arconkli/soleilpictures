@@ -51,6 +51,11 @@ interface PresignBody {
   // can't overwrite arbitrary objects). Used by uploadBoardThumbnail so a
   // board's preview overwrites in place instead of orphaning UUID objects.
   thumbKey?: string;
+  // Deterministic per-image preview key (progressive loading). Only honored
+  // if it matches `<workspaceId>/previews/<uuid>.webp` — prefix-locked to the
+  // caller's workspace and shape-validated so it can't traverse/overwrite
+  // arbitrary objects. Gated by the same can_write_board check below.
+  previewKey?: string;
 }
 
 interface SignReadsBody { keys?: string[] }
@@ -222,6 +227,10 @@ export default class UploadParty implements Party.Server {
         board: bundle.board,
         snapshot: bundle.snapshot || null,
         image_urls: imageUrls,
+        // Per-original progressive-loading metadata (blur + preview key). The
+        // preview keys are already in image_keys (same board_id) so their
+        // presigned URLs are in image_urls above.
+        image_meta: bundle.image_meta || {},
         role: 'viewer',
         root_id: bundle.root_id || null,
         include_subboards: !!bundle.include_subboards,
@@ -257,12 +266,20 @@ export default class UploadParty implements Party.Server {
 
     const ext = (body.fileExt || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
     const contentType = body.contentType || "application/octet-stream";
-    // Deterministic thumbnail key (overwrite-in-place) only when it matches
-    // the canonical board-scoped shape — otherwise mint a random UUID key.
-    // The can_write_board(boardId) check above already gated this request.
+    // Deterministic keys (thumbnail overwrite-in-place, or a per-image preview)
+    // only when they match a prefix-locked, shape-validated shape — otherwise
+    // mint a random UUID key. The can_write_board(boardId) / membership check
+    // above already gated this request.
     const canonicalThumbKey = body.boardId ? `${workspaceId}/thumbs/${body.boardId}.webp` : null;
-    const key = (body.thumbKey && canonicalThumbKey && body.thumbKey === canonicalThumbKey)
-      ? canonicalThumbKey
+    const previewPrefix = `${workspaceId}/previews/`;
+    const isValidPreviewKey = (k?: string) =>
+      typeof k === "string"
+      && k.startsWith(previewPrefix)
+      && /^[a-z0-9-]+\.webp$/i.test(k.slice(previewPrefix.length))  // uuid.webp — no slashes/traversal
+      && k.length < 256;
+    const key =
+      (body.thumbKey && canonicalThumbKey && body.thumbKey === canonicalThumbKey) ? canonicalThumbKey
+      : (body.previewKey && isValidPreviewKey(body.previewKey)) ? body.previewKey
       : `${workspaceId}/${crypto.randomUUID()}.${ext}`;
 
     const r2 = new AwsClient({

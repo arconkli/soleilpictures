@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { loadYBoard } from '../lib/yboard.js';
 import { readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.js';
 import { watchBoardRestores } from '../lib/restoreSignal.js';
+import { primeImageMeta } from '../lib/imageMeta.js';
 import * as perf from '../lib/perf.js';
 
 // Fires whenever bulletproofRestore completes for a board. Listeners
@@ -113,6 +114,15 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
       if (!_firstRefreshDone) {
         _firstRefreshDone = true;
         perf.mark('firstOpen.boardIdToReady.ms', performance.now() - _tOpen);
+        // Prime blur + preview metadata for this board's images in one query
+        // (off the critical path) so the Tier-0 blur and Tier-1 preview can
+        // resolve the moment cards render. Fire-and-forget.
+        try {
+          const imgKeys = nextCards
+            .filter(c => c.kind === 'image' && typeof c.src === 'string' && c.src.startsWith('r2:'))
+            .map(c => c.src.slice(3));
+          if (imgKeys.length) primeImageMeta(imgKeys);
+        } catch (_) {}
       }
       setSnapshot({
         ready: true,

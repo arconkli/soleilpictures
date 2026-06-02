@@ -23,34 +23,17 @@ import { supabase } from '../lib/supabase.js';
 import { renderThumbnailBlob } from '../lib/renderThumbnail.js';
 import { uploadBoardThumbnail } from '../lib/uploads.js';
 import { updateBoardThumb } from '../lib/boardsApi.js';
+import { runGated } from '../lib/backfillGate.js';
 import * as perf from '../lib/perf.js';
 
 // One attempt per board per session (success OR definitive failure). Cleared
 // only by a page reload — a transient failure simply retries next session.
 const _attempted = new Set();
 
-// Small concurrency gate. The grid can mount many tiles at once; without
-// this we'd fire N presign requests + N R2 PUTs + N Supabase upserts on the
-// first paint. Cap keeps the burst civil without blocking the visible tiles.
-const CONCURRENCY = 2;
-let _active = 0;
-const _queue = [];
-
-function _runGated(task) {
-  const start = () => {
-    _active++;
-    Promise.resolve()
-      .then(task)
-      .catch(() => {})
-      .finally(() => {
-        _active--;
-        const next = _queue.shift();
-        if (next) next();
-      });
-  };
-  if (_active < CONCURRENCY) start();
-  else _queue.push(start);
-}
+// Concurrency is capped by the shared backfillGate (runGated) so thumbnail
+// backfill and image-preview backfill don't burst presigns + PUTs together on
+// a freshly-painted board/grid.
+const _runGated = runGated;
 
 export function useThumbnailBackfill({ board, preview, boards = {}, enabled = true }) {
   const boardId = board?.id;
