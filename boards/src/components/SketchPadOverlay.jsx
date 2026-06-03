@@ -136,14 +136,16 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
       return;
     }
     if (tool === 'eraser') {
-      // Drop any stroke under the click. Cheap point-in-bbox test
-      // followed by stroke-distance for accuracy.
+      // Capture so dragging the eraser keeps receiving move events even when
+      // the pointer leaves the pad bounds (without this, erasing stopped at
+      // the edge).
+      try { e.target.setPointerCapture?.(e.pointerId); } catch (_) {}
       const HIT = Math.max(width + 6, 12);
       setStrokes(prev => prev.filter(s => !pointNearStroke(s, x, y, HIT)));
       return;
     }
     setActive({ color, width, points: [[x, y]] });
-    e.target.setPointerCapture?.(e.pointerId);
+    try { e.target.setPointerCapture?.(e.pointerId); } catch (_) {}
   };
 
   const onPointerMove = (e) => {
@@ -163,6 +165,9 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
 
   const onPointerUp = (e) => {
     e?.stopPropagation?.();
+    // Always release the capture taken in onPointerDown (this also serves
+    // onPointerCancel) so an interrupted gesture can't lock the pointer.
+    try { e?.target?.releasePointerCapture?.(e.pointerId); } catch (_) {}
     if (activeStroke && activeStroke.points?.length > 1) {
       setStrokes(prev => [...prev, activeStroke]);
       addRecentColor(activeStroke.color);
@@ -265,7 +270,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
              style={{ background: padBg, aspectRatio: `${logicalW} / ${logicalH}` }}
              onPointerDown={onPointerDown}
              onPointerMove={onPointerMove}
-             onPointerUp={onPointerUp}>
+             onPointerUp={onPointerUp}
+             onPointerCancel={onPointerUp}>
           <svg className="sketchpad-svg" width="100%" height="100%"
                viewBox={`0 0 ${logicalW} ${logicalH}`}
                preserveAspectRatio="none">

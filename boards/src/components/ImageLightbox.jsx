@@ -66,7 +66,7 @@ export function ImageLightbox({ src, title, alt, onClose }) {
     if (mode !== 'actual') return;
     e.preventDefault();
     e.stopPropagation();
-    dragRef.current = { x: e.clientX, y: e.clientY, ox: pan.x, oy: pan.y };
+    dragRef.current = { x: e.clientX, y: e.clientY, ox: pan.x, oy: pan.y, pointerId: e.pointerId };
     try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch (_) {}
   };
   const onPanMove = (e) => {
@@ -75,7 +75,14 @@ export function ImageLightbox({ src, title, alt, onClose }) {
     const dy = e.clientY - dragRef.current.y;
     setPan({ x: dragRef.current.ox + dx, y: dragRef.current.oy + dy });
   };
-  const onPanEnd = () => { dragRef.current = null; };
+  const onPanEnd = (e) => {
+    // Always release the capture taken in onPanStart (this also serves
+    // onPointerCancel) so an interrupted pan can't leave the pointer captured.
+    if (dragRef.current) {
+      try { e?.currentTarget?.releasePointerCapture?.(dragRef.current.pointerId); } catch (_) {}
+    }
+    dragRef.current = null;
+  };
 
   const filenameFor = (s, t) => {
     let base = (t || '').toString().trim();
@@ -137,6 +144,7 @@ export function ImageLightbox({ src, title, alt, onClose }) {
       </button>
       <div className="lightbox-stage"
            ref={stageRef}
+           style={{ touchAction: 'manipulation' }}
            onPointerDown={onPanStart}
            onPointerMove={onPanMove}
            onPointerUp={onPanEnd}
