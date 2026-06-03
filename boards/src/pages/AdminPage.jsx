@@ -25,6 +25,7 @@ import { AdminError } from './admin/AdminStates.jsx';
 import { AdminUniverseTab } from './admin/AdminUniverseTab.jsx';
 import { AdminOverviewTab } from './admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
+import { AdminFunnelTab } from './admin/AdminFunnelTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
@@ -38,6 +39,7 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 const TABS = [
   { id: 'overview',  label: 'Overview' },
   { id: 'analytics', label: 'Analytics' },
+  { id: 'funnel',    label: 'Funnel' },
   { id: 'users',     label: 'Users' },
   { id: 'grants',    label: 'Grants' },
   { id: 'waitlist',  label: 'Waitlist' },
@@ -167,6 +169,7 @@ export function AdminPage() {
         {tab === 'universe'  && <AdminUniverseTab />}
         {tab === 'overview'  && <AdminOverviewTab />}
         {tab === 'analytics' && <AdminAnalyticsTab />}
+        {tab === 'funnel'    && <AdminFunnelTab />}
         {tab === 'users'     && <AdminUsersTab />}
         {tab === 'grants'    && <AdminGrantsTab />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
