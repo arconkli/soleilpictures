@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useMemo, useRef, Profiler } from 'react';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import * as perf from './lib/perf.js';
+import { isEditableTarget } from './lib/isEditableTarget.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import * as userProfiles from './lib/userProfiles.js';
@@ -141,6 +142,7 @@ export function App() {
       if (p.get('perf') === '1') perf.enable();
     } catch (_) {}
     const onKey = (e) => {
+      if (isEditableTarget(e)) return;
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
         e.preventDefault();
         perf.toggle();
@@ -415,6 +417,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ⌘. toggles clean mode quickly. Persists via merge_profile_settings.
   useEffect(() => {
     const onKey = (e) => {
+      if (isEditableTarget(e)) return;
       const isMac = navigator.platform?.toLowerCase().includes('mac');
       const cmd = isMac ? e.metaKey : e.ctrlKey;
       if (cmd && e.key === '.') {
@@ -2178,8 +2181,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
-        const tag = (e.target?.tagName || '').toLowerCase();
-        if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
+        // Robust editor guard: while typing in a note/doc, Cmd+B is "bold",
+        // not "toggle sidebar". The old tag/isContentEditable check missed
+        // ProseMirror/contenteditable-descendant targets.
+        if (isEditableTarget(e)) return;
         e.preventDefault();
         setTweak('compactSidebar', !tweak.compactSidebar);
       }

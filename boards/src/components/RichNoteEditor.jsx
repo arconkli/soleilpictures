@@ -184,6 +184,22 @@ export function RichNoteEditor({
   };
 
   const onKey = (e) => {
+    // Format parity with docs: Cmd/Ctrl+B/I/U apply inline formatting to the
+    // live selection. Notes previously had NO keyboard formatting at all even
+    // though the toolbar advertises "Bold (⌘B)" — the classic "⌘B works in
+    // docs but not notes" inconsistency.
+    if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+      const k = (e.key || '').toLowerCase();
+      if (k === 'b' || k === 'i' || k === 'u') {
+        e.preventDefault();
+        const fmt = k === 'b' ? 'bold' : k === 'i' ? 'italic' : 'underline';
+        try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
+        try { document.execCommand(fmt); } catch (_) {}
+        broadcastLive();
+        if (!manuallyResized) measureAndReport();
+        return;
+      }
+    }
     if (e.key === 'Escape') { e.preventDefault(); cancel(); }
     if (e.key === 'Tab') {
       // Default Tab behavior is to move focus out of the editor, which

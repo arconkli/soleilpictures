@@ -1,5 +1,6 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import * as perf from '../lib/perf.js';
+import { isEditableTarget } from '../lib/isEditableTarget.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard,
@@ -174,32 +175,10 @@ function pickPresenceColor(id) {
 }
 const cmdKey = isMac ? '⌘' : 'Ctrl';
 
-// "Is the user actively typing in an editor?" predicate, used by the
-// window-level paste / keyboard / pointer guards. The naive
-// `e.target.isContentEditable` check used to be brittle: in Tiptap /
-// ProseMirror the paste event target ends up being an element whose
-// nearest ancestor is contenteditable but the target itself isn't, so
-// the guard fell through and the canvas spawned a duplicate note from
-// the clipboard text. Belt-and-suspenders covers four signals.
-function isEditorTarget(e) {
-  const t = e?.target;
-  const tag = t?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
-  if (t?.isContentEditable) return true;
-  if (t?.closest?.('[contenteditable="true"], [contenteditable=""]')) return true;
-  const ae = (typeof document !== 'undefined') ? document.activeElement : null;
-  if (ae && (ae.isContentEditable || ae.closest?.('[contenteditable="true"]'))) return true;
-  // Live selection anchored inside a contenteditable (covers cases where
-  // both `e.target` and `activeElement` are document.body but the caret
-  // is parked inside an editor).
-  if (typeof window !== 'undefined') {
-    const sel = window.getSelection?.();
-    const anchor = sel?.anchorNode;
-    const anchorEl = anchor?.nodeType === 3 ? anchor.parentElement : anchor;
-    if (anchorEl?.closest?.('[contenteditable="true"]')) return true;
-  }
-  return false;
-}
+// Shared canonical "is the user typing in an editor?" guard (see
+// lib/isEditableTarget.js). Aliased to the historical name used throughout
+// this file's keyboard / paste / pointer guards.
+const isEditorTarget = isEditableTarget;
 
 export function CanvasSurface({
   board, boards, cards, arrows, strokes, groups = [],
@@ -930,6 +909,73 @@ export function CanvasSurface({
       y: (r.height - contentH * z) / 2 - minY * z,
     });
   }, [cards]);
+
+  // Keyboard zoom that keeps the viewport CENTER fixed (mirrors the wheel
+  // handler's cursor-anchored math), so Cmd +/- feels like wheel zoom instead
+  // of zooming toward the canvas origin.
+  const zoomAroundCenter = useCallback((factor) => {
+    const curZoom = zoomRef.current;
+    const curPan = panRef.current;
+    const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, curZoom * factor));
+    enableSmoothTransform();
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (!r) { setZoom(newZoom); return; }
+    const sx = r.width / 2, sy = r.height / 2;
+    const cx = (sx - curPan.x) / curZoom;
+    const cy = (sy - curPan.y) / curZoom;
+    setZoom(newZoom);
+    setPan({ x: sx - cx * newZoom, y: sy - cy * newZoom });
+  }, [enableSmoothTransform]);
+
+  // Zoom + center on the current selection (mirrors fitToContent but bounded
+  // to selected cards). No-op with an empty selection.
+  const zoomToSelection = useCallback(() => {
+    if (!wrapRef.current || selected.size === 0) return;
+    const sel = (cards || []).filter(c => selected.has(c.id));
+    if (sel.length === 0) return;
+    const r = wrapRef.current.getBoundingClientRect();
+    if (r.width < 50 || r.height < 50) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of sel) {
+      minX = Math.min(minX, c.x); minY = Math.min(minY, c.y);
+      maxX = Math.max(maxX, c.x + c.w); maxY = Math.max(maxY, c.y + c.h);
+    }
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+    const margin = 120;
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
+      (r.width - margin * 2) / contentW,
+      (r.height - margin * 2) / contentH,
+    )));
+    enableSmoothTransform();
+    setZoom(z);
+    setPan({
+      x: (r.width  - contentW * z) / 2 - minX * z,
+      y: (r.height - contentH * z) / 2 - minY * z,
+    });
+  }, [cards, selected, enableSmoothTransform]);
+
+  // Arrange the current selection in z-order (keyboard [ / ] shortcuts). Mirrors
+  // the context-menu arrangeRun for the 'forward'/'backward' ops.
+  const arrangeSelected = useCallback((op) => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    // Read the live card map via the ref (cardByIdRef is declared further
+    // down; the closure only accesses it at call time, so no TDZ).
+    const zOf = (id) => (cardByIdRef.current[id]?.z || 0);
+    const order = op === 'forward'
+      ? ids.slice().sort((a, b) => zOf(b) - zOf(a))
+      : ids.slice().sort((a, b) => zOf(a) - zOf(b));
+    const fn = op === 'forward' ? mutators.bringForward : mutators.sendBackward;
+    order.forEach(id => fn?.(id));
+  }, [selected, mutators]);
+
+  // Group the current selection (Cmd+G). Uses a default name — the context
+  // menu still offers the named-group prompt.
+  const groupSelected = useCallback(() => {
+    if (selected.size < 2) return;
+    mutators.createGroup?.({ name: 'Group', cardIds: [...selected] });
+  }, [selected, mutators]);
 
   useEffect(() => { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
   useEffect(() => {
@@ -2034,10 +2080,29 @@ export function CanvasSurface({
       if (cmd && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); doDuplicate(); return; }
       if (cmd && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); doCopy(); return; }
       if (cmd && (e.key === 'x' || e.key === 'X')) { e.preventDefault(); doCut(); return; }
+      if (cmd && (e.key === 'g' || e.key === 'G')) {
+        e.preventDefault();
+        if (selected.size >= 2) { if (!canEdit) { showEditBlockedToast(); return; } groupSelected(); }
+        return;
+      }
 
       if (cmd && e.key === '0') { e.preventDefault(); enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); return; }
-      if (cmd && (e.key === '=' || e.key === '+')) { e.preventDefault(); enableSmoothTransform(); setZoom(z => Math.min(ZOOM_MAX, z * 1.25)); return; }
-      if (cmd && (e.key === '-')) { e.preventDefault(); enableSmoothTransform(); setZoom(z => Math.max(ZOOM_MIN, z / 1.25)); return; }
+      if (cmd && (e.key === '=' || e.key === '+')) { e.preventDefault(); zoomAroundCenter(1.25); return; }
+      if (cmd && (e.key === '-')) { e.preventDefault(); zoomAroundCenter(1 / 1.25); return; }
+
+      // Shift+1 = zoom to fit all, Shift+2 = zoom to selection (Figma parity).
+      // e.code is layout-independent (Shift+1 reports e.key '!').
+      if (e.shiftKey && !cmd && !e.altKey && e.code === 'Digit1') { e.preventDefault(); fitToContent(); return; }
+      if (e.shiftKey && !cmd && !e.altKey && e.code === 'Digit2') { e.preventDefault(); zoomToSelection(); return; }
+
+      // Bare-key tool + arrange shortcuts (no Cmd/Ctrl/Alt). The isEditorTarget
+      // guard above already suppresses these while typing.
+      if (!cmd && !e.altKey) {
+        if (e.key === 'v' || e.key === 'V') { e.preventDefault(); setSelectedTool('select'); return; }
+        if (e.key === 'h' || e.key === 'H') { e.preventDefault(); setSelectedTool('pan'); return; }
+        if (e.key === '[') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('backward'); return; }
+        if (e.key === ']') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('forward'); return; }
+      }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selected.size > 0 || selectedStrokes.size > 0 || selectedArrows.size > 0) {
@@ -2057,22 +2122,24 @@ export function CanvasSurface({
           try { abort(); } catch (_) {}
           return;
         }
+        // Stacked dismissal: close the topmost transient layer per press,
+        // instead of nuking menus + selection + tool all at once.
         e.preventDefault();
-        setAddMenuOpen(false);
-        setSelected(new Set());
-        setSelectedStrokes(new Set());
-        setSelectedArrows(new Set());
-        setSelectedTool('select');
-        setArrowFrom(null);
-        setActiveStroke(null);
-        setActiveFreeArrow(null);
-        setCtx(c => ({ ...c, open: false }));
-        setBgCtx(c => ({ ...c, open: false }));
+        if (ctx.open || bgCtx.open) { setCtx(c => ({ ...c, open: false })); setBgCtx(c => ({ ...c, open: false })); return; }
+        if (addMenuOpen) { setAddMenuOpen(false); return; }
+        if (arrowFrom || activeStroke || activeFreeArrow) { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); return; }
+        if (selectedTool !== 'select') { setSelectedTool('select'); return; }
+        if (selected.size || selectedStrokes.size || selectedArrows.size) {
+          setSelected(new Set()); setSelectedStrokes(new Set()); setSelectedArrows(new Set());
+          return;
+        }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform, timeTravelUndo, timeTravelRedo]);
+  }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform, timeTravelUndo, timeTravelRedo,
+      zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
+      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool]);
 
   // ── Pan helpers ───────────────────────────────────────────────────────────
   // Same ref-driven, direct-DOM-mutation pattern as the wheel handler so a
