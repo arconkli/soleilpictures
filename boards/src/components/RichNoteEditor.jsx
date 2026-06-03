@@ -13,6 +13,39 @@ import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 
+// Tags kept when pasting rich content into a note. Everything else is unwrapped
+// (children preserved) and every attribute is stripped except a safe href on
+// <a> and a tiny inline-style allowlist — so pasting from Word / Google Docs
+// can't inject markup that breaks subsequent formatting.
+const PASTE_ALLOWED = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'A', 'BR', 'P', 'DIV', 'UL', 'OL', 'LI', 'SPAN', 'H1', 'H2', 'H3', 'BLOCKQUOTE', 'CODE']);
+function sanitizePastedHtml(html) {
+  const root = document.createElement('div');
+  root.innerHTML = html;
+  root.querySelectorAll('script,style,meta,link,iframe,object,embed,img,svg,video,audio,form,input,button').forEach(el => el.remove());
+  // Unwrap disallowed elements (repeat until stable to handle nesting).
+  let pass = 0;
+  while (pass++ < 100) {
+    const bad = [...root.querySelectorAll('*')].find(el => !PASTE_ALLOWED.has(el.tagName));
+    if (!bad || !bad.parentNode) break;
+    while (bad.firstChild) bad.parentNode.insertBefore(bad.firstChild, bad);
+    bad.parentNode.removeChild(bad);
+  }
+  // Strip attributes from the surviving allowed elements.
+  root.querySelectorAll('*').forEach(el => {
+    const href = el.tagName === 'A' ? el.getAttribute('href') : null;
+    const style = el.getAttribute('style') || '';
+    [...el.attributes].forEach(a => el.removeAttribute(a.name));
+    if (href && /^(https?:|mailto:)/i.test(href)) {
+      el.setAttribute('href', href);
+      el.setAttribute('target', '_blank');
+      el.setAttribute('rel', 'noopener noreferrer');
+    }
+    const safe = (style.match(/(?:font-weight|font-style|text-decoration[\w-]*|color)\s*:\s*[^;]+/gi) || []).join('; ');
+    if (safe) el.setAttribute('style', safe);
+  });
+  return root.innerHTML;
+}
+
 export function RichNoteEditor({
   html, body, bgColor, textColor, fontFamily, fontSize,
   onChangeHTML, onChangeBg, onChangeColor,
@@ -107,6 +140,10 @@ export function RichNoteEditor({
       clearSelection();
     };
   }, [editing]);
+
+  // Drop any open @-mention picker when leaving edit mode so a stale picker
+  // can't linger over a read-only note.
+  useEffect(() => { if (!editing) setMention(null); }, [editing]);
 
   // Enable styleWithCSS so font-size / color use inline CSS instead of <font>.
   useEffect(() => {
@@ -217,6 +254,29 @@ export function RichNoteEditor({
         if (!manuallyResized) measureAndReport();
       }
     }
+  };
+
+  // Normalize pasted content. Rich HTML (Word / Google Docs / web pages) is
+  // sanitized to the editor's allowed inline tags so it can't inject markup
+  // that breaks later formatting; plain text is inserted as-is. Without this,
+  // raw foreign HTML landed in the note unsanitized.
+  const onPaste = (e) => {
+    if (!editing) return;
+    const cd = e.clipboardData;
+    if (!cd) return;
+    const html = cd.getData('text/html');
+    const text = cd.getData('text/plain');
+    if (!html && !text) return;
+    e.preventDefault();
+    try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
+    if (html) {
+      document.execCommand('insertHTML', false, sanitizePastedHtml(html));
+    } else {
+      document.execCommand('insertText', false, text);
+    }
+    onMentionInput();
+    broadcastLive();
+    if (!manuallyResized) measureAndReport();
   };
 
   const onBodyClick = (e) => {
@@ -402,6 +462,7 @@ export function RichNoteEditor({
            onMouseDown={editing ? (e) => e.stopPropagation() : undefined}
            onBlur={editing ? commit : undefined}
            onKeyDown={editing ? onKey : undefined}
+           onPaste={editing ? onPaste : undefined}
            onInput={editing ? onMentionInput : undefined}
            onClick={onBodyClick}
            onDoubleClick={!editing ? onOuterDouble : undefined}

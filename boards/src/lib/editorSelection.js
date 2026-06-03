@@ -3,6 +3,7 @@
 
 let savedRange = null;
 let savedRoot = null;
+let savedOffsets = null;
 
 export function captureSelection() {
   const sel = window.getSelection();
@@ -14,23 +15,36 @@ export function captureSelection() {
   if (editable) {
     savedRange = r.cloneRange();
     savedRoot = editable;
+    // Also store character offsets so the selection survives an innerHTML
+    // rewrite (font-preview reset, re-render) that detaches savedRange's
+    // live nodes — generalizing what the font picker used to do on its own.
+    savedOffsets = captureSelectionOffsets(editable);
   }
 }
 
 export function clearSelection() {
   savedRange = null;
   savedRoot = null;
+  savedOffsets = null;
 }
 
 export function restoreSelection() {
-  if (!savedRange || !savedRoot || !document.contains(savedRoot)) return false;
+  if (!savedRoot || !document.contains(savedRoot)) return false;
   try { savedRoot.focus(); } catch (_) { return false; }
   const sel = window.getSelection();
-  sel.removeAllRanges();
-  try {
-    sel.addRange(savedRange);
-    return true;
-  } catch (_) { return false; }
+  // Prefer the live Range, but only if its nodes are still attached to the
+  // editable. After an innerHTML rewrite the cloned Range points at detached
+  // nodes and addRange silently restores nothing — fall back to offsets.
+  if (savedRange &&
+      savedRoot.contains(savedRange.startContainer) &&
+      savedRoot.contains(savedRange.endContainer)) {
+    sel.removeAllRanges();
+    try { sel.addRange(savedRange); return true; } catch (_) { /* fall through */ }
+  }
+  if (savedOffsets) {
+    return restoreSelectionFromOffsets(savedRoot, savedOffsets.start, savedOffsets.end);
+  }
+  return false;
 }
 
 export function withSelection(fn) {
@@ -170,12 +184,18 @@ function collectTextNodes(range) {
   );
   let n;
   while ((n = walker.nextNode())) out.push(n);
-  // Edge case: the range is fully inside a single text node — the walker
-  // started AT that node's parent, so it should be included by the
-  // intersectsNode check above. If not present, push it explicitly.
-  if (out.length === 0 && range.startContainer === range.endContainer && range.startContainer.nodeType === 3) {
-    out.push(range.startContainer);
-  }
+  // Belt-and-suspenders: `intersectsNode` can drop the exact boundary text
+  // nodes at block / line-break edges in some browsers, which is why applying
+  // a format across a multi-line selection used to skip the first/last
+  // characters (or the first/last line entirely). Make sure the start and end
+  // containers are present, in document order.
+  const ensure = (node, atFront) => {
+    if (!node || node.nodeType !== 3 || !node.nodeValue || !node.nodeValue.length) return;
+    if (out.indexOf(node) !== -1) return;
+    if (atFront) out.unshift(node); else out.push(node);
+  };
+  ensure(range.startContainer, true);
+  ensure(range.endContainer, false);
   return out;
 }
 
