@@ -110,7 +110,7 @@ function FeedbackDialog({ dialog, onClose }) {
       >
         <div className="feedback-hd">
           <div className="feedback-title">{dialog.title}</div>
-          <button type="button" className="modal-x" aria-label="Close" onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}>x</button>
+          <button type="button" className="modal-x" aria-label="Close" onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}><Icon as={X} size={16} /></button>
         </div>
         {dialog.message && <div className="feedback-message">{dialog.message}</div>}
         {dialog.kind === 'prompt' && (

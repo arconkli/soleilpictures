@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { lockScroll, unlockScroll } from './Modal.jsx';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
@@ -60,6 +61,18 @@ export function PricingModal({ onClose, header = null }) {
     if (!redirectingRef.current) logEvent(EV.PRICING_ABANDON, { header, plan, surface: 'modal' });
     onClose?.();
   };
+
+  // Escape-to-close + body scroll-lock. This modal keeps its own
+  // upgrade-backdrop DOM (its z-index can't move onto <Modal> without a CSS
+  // reshuffle), so it shares Modal's ref-counted scroll lock directly.
+  const handleCloseRef = useRef(handleClose);
+  handleCloseRef.current = handleClose;
+  useEffect(() => {
+    lockScroll();
+    const onKey = (e) => { if (e.key === 'Escape') handleCloseRef.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); unlockScroll(); };
+  }, []);
 
   return createPortal(
     <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>

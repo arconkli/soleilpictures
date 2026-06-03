@@ -27,14 +27,17 @@ const FOCUSABLE = [
 // Ref-counted body scroll lock so stacked modals don't unlock prematurely.
 let lockCount = 0;
 let prevOverflow = '';
-function lockScroll() {
+// Exported so overlays that keep their own DOM/CSS (e.g. the upgrade-backdrop
+// pricing/waitlist modals, whose stacking can't be re-parented onto Modal
+// without a CSS reshuffle) can still share the same ref-counted scroll lock.
+export function lockScroll() {
   if (lockCount === 0) {
     prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
   }
   lockCount += 1;
 }
-function unlockScroll() {
+export function unlockScroll() {
   lockCount = Math.max(0, lockCount - 1);
   if (lockCount === 0) document.body.style.overflow = prevOverflow;
 }

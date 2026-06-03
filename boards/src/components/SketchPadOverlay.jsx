@@ -22,6 +22,7 @@ import { Icon } from './Icon.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { addRecentColor } from '../lib/recentColors.js';
 import { useRecentColors } from '../hooks/useRecentColors.js';
+import { useFeedback } from './AppFeedback.jsx';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -76,6 +77,29 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   const [strokes, setStrokes]       = useState([]);
   const [activeStroke, setActive]   = useState(null);
   const wrapRef = useRef(null);
+  const feedback = useFeedback();
+  // Live mirror of strokes so the discard prompt reads the CURRENT count (the
+  // Escape handler is bound on [open], so a plain closure saw a stale count
+  // and would close without prompting after the user drew something).
+  const strokesRef = useRef(strokes);
+  strokesRef.current = strokes;
+  const discardingRef = useRef(false);
+  // In-app discard confirm (replaces window.confirm so it layers/traps/styles
+  // correctly). Returns true to proceed. Re-entrancy guard prevents a second
+  // prompt while one is already open.
+  const confirmDiscard = async () => {
+    if (!strokesRef.current?.length) return true;
+    if (discardingRef.current) return false;
+    discardingRef.current = true;
+    const ok = await feedback.confirm({
+      title: 'Discard sketch?',
+      message: 'Your drawing will be lost.',
+      confirmLabel: 'Discard',
+      danger: true,
+    });
+    discardingRef.current = false;
+    return ok;
+  };
 
   // Reset on open. Escape to close (unsaved strokes prompt). When the
   // pad opens to edit an existing art canvas, seed it with that card's
@@ -93,14 +117,9 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     }
     setActive(null);
     setTool('pen');
-    const onKey = (e) => {
+    const onKey = async (e) => {
       if (e.key === 'Escape') {
-        // If there are strokes, ask before discarding.
-        if (strokes.length > 0) {
-          const ok = window.confirm('Discard sketch?');
-          if (!ok) return;
-        }
-        onClose?.();
+        if (await confirmDiscard()) onClose?.();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -247,9 +266,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
           <span style={{ flex: 1 }} />
           <button type="button"
                   className="sp-action"
-                  onClick={() => {
-                    if (strokes.length && !window.confirm('Discard sketch?')) return;
-                    onClose?.();
+                  onClick={async () => {
+                    if (await confirmDiscard()) onClose?.();
                   }}>Cancel</button>
           <button type="button"
                   className="sp-action sp-action-primary"

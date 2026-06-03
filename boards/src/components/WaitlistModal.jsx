@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { lockScroll, unlockScroll } from './Modal.jsx';
 import { supabase } from '../lib/supabase.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -76,6 +77,20 @@ export function WaitlistModal({ onClose }) {
     }
     onClose?.();
   };
+
+  // Escape-to-close + body scroll-lock (keeps its own upgrade-backdrop DOM;
+  // shares Modal's ref-counted scroll lock). Escape is ignored while busy so a
+  // submit-in-flight can't be interrupted, matching the disabled close button.
+  const handleCloseRef = useRef(handleClose);
+  handleCloseRef.current = handleClose;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  useEffect(() => {
+    lockScroll();
+    const onKey = (e) => { if (e.key === 'Escape' && !busyRef.current) handleCloseRef.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); unlockScroll(); };
+  }, []);
 
   return createPortal(
     <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
