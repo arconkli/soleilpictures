@@ -4,7 +4,7 @@
 // masquerade as a great channel.
 
 import { formatCount } from '../../../../lib/adminFormat.js';
-import { RateCell } from './SmallN.jsx';
+import { RateCell } from '../../SmallN.jsx';
 
 export function AcquisitionBreakdown({ rows = [], days = 30 }) {
   if (!rows || rows.length === 0) {

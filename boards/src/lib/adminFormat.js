@@ -33,6 +33,44 @@ export function shortDate(d) {
   return `${dt.getMonth() + 1}/${dt.getDate()}`;
 }
 
+// "forever" / "today" / "in 5d (6/8/2026)" / "6/8/2026" / "expired 6/1/2026" —
+// human expiry phrasing for time-bound things (paid grants). Consolidated from
+// AdminGrantsTab so the vocabulary stays one source of truth.
+export function formatExpires(iso) {
+  if (!iso) return 'forever';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const ms = d.getTime() - Date.now();
+  if (ms < 0) return `expired ${d.toLocaleDateString()}`;
+  const days = Math.floor(ms / 86400000);
+  if (days < 1)  return 'today';
+  if (days < 30) return `in ${days}d (${d.toLocaleDateString()})`;
+  return d.toLocaleDateString();
+}
+
+// <input type="datetime-local"> works in LOCAL time as "YYYY-MM-DDTHH:MM".
+// These convert between that and ISO-UTC. isoToLocalInput(null) defaults to one
+// week out, on the hour (handy for a "schedule acceptance" picker). Consolidated
+// from AdminWaitlistTab.
+function localInputString(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+export function isoToLocalInput(iso) {
+  if (!iso) {
+    const d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    d.setMinutes(0, 0, 0);
+    return localInputString(d);
+  }
+  return localInputString(new Date(iso));
+}
+export function localInputToIso(local) {
+  if (!local) return null;
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 // Whole-number-grouped count. "12,431".
 export function formatCount(n) {
   return (Number(n) || 0).toLocaleString();

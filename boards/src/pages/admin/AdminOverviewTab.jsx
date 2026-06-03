@@ -18,8 +18,7 @@ import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminStatCard } from './AdminStatCard.jsx';
 import { TierPill } from './AdminPills.jsx';
-
-const SOLEIL = '#ffa500';
+import { CHART } from './chartTheme.js';
 
 export function AdminOverviewTab() {
   const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
@@ -93,13 +92,11 @@ export function AdminOverviewTab() {
               <div className="admin-chart-body">
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={signups.map((r) => ({ ...r, label: shortDate(r.day) }))} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-                    <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
-                    <XAxis dataKey="label" stroke="var(--ink-3)" fontSize={10} interval="preserveStartEnd" tickLine={false} axisLine={false} />
-                    <YAxis stroke="var(--ink-3)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip cursor={{ fill: 'rgba(255,165,0,.08)' }}
-                      contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
-                      labelStyle={{ color: 'var(--ink-1)' }} itemStyle={{ color: 'var(--soleil)' }} />
-                    <Bar dataKey="signups" fill={SOLEIL} radius={[3, 3, 0, 0]} />
+                    <CartesianGrid {...CHART.grid} />
+                    <XAxis dataKey="label" {...CHART.axis} interval="preserveStartEnd" />
+                    <YAxis {...CHART.axis} allowDecimals={false} />
+                    <Tooltip {...CHART.tooltip} />
+                    <Bar dataKey="signups" fill={CHART.soleil} radius={[3, 3, 0, 0]} {...CHART.noAnim} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -113,11 +110,10 @@ export function AdminOverviewTab() {
               <div className="admin-chart-body">
                 <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
-                    <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={56} outerRadius={86} paddingAngle={2} stroke="var(--bg-1)">
+                    <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={56} outerRadius={86} paddingAngle={2} stroke="var(--bg-1)" {...CHART.noAnim}>
                       {pieData.map((d) => <Cell key={d.name} fill={TIER_COLORS[d.name] || '#888'} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }}
-                      labelStyle={{ color: 'var(--ink-1)' }} itemStyle={{ color: 'var(--ink-0)' }} />
+                    <Tooltip {...CHART.tooltip} />
                     <Legend verticalAlign="bottom" align="center" iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -136,13 +132,13 @@ export function AdminOverviewTab() {
             <div className="admin-chart-body">
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={funnel.map((r) => ({ ...r, label: shortDate(r.day) }))} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-                  <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
-                  <XAxis dataKey="label" stroke="var(--ink-3)" fontSize={10} interval="preserveStartEnd" tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--ink-3)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: 'var(--ink-1)' }} />
+                  <CartesianGrid {...CHART.grid} />
+                  <XAxis dataKey="label" {...CHART.axis} interval="preserveStartEnd" />
+                  <YAxis {...CHART.axis} allowDecimals={false} />
+                  <Tooltip {...CHART.tooltip} />
                   <Legend verticalAlign="top" align="right" iconSize={10} iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }} />
-                  <Line type="monotone" dataKey="submitted" stroke="#9aa0aa" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="accepted"  stroke={SOLEIL}  strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="submitted" stroke={CHART.series[3]} strokeWidth={2} dot={false} {...CHART.noAnim} />
+                  <Line type="monotone" dataKey="accepted"  stroke={CHART.soleil}    strokeWidth={2} dot={false} {...CHART.noAnim} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

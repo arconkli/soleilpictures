@@ -19,7 +19,7 @@
 
 import { ResponsiveContainer, LineChart, Line } from 'recharts';
 import { formatCount, formatCompact, formatPct, formatMoney, MIN_RATE_FLAG, MIN_RATE_SHOW, MIN_POINTS } from '../../lib/adminFormat.js';
-import { NFlag } from './analytics/widgets/SmallN.jsx';
+import { NFlag } from './SmallN.jsx';
 import { CHART } from './chartTheme.js';
 
 const num = (x) => (x == null || (typeof x === 'number' && Number.isNaN(x)) ? null : Number(x));

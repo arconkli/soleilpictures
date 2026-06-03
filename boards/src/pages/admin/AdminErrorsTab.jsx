@@ -10,6 +10,7 @@ import { CopyableText } from '../../components/CopyableText.jsx';
 import { relativeTime, fmtDateTime, formatCount } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
+import { AdminStatCard } from './AdminStatCard.jsx';
 import { AdminTimeRange } from './AdminTimeRange.jsx';
 import { Warning } from '../../lib/icons.js';
 
@@ -37,6 +38,13 @@ export function AdminErrorsTab() {
   const summary = data?.summary || [];
   const recent = data?.recent || [];
 
+  // Window totals derived from the grouped rows (no extra RPC). Users/sessions
+  // are summed across groups, so they're an upper bound (the same person can
+  // hit more than one error) — labelled as such.
+  const totalOccurrences = summary.reduce((a, g) => a + (Number(g.occurrences) || 0), 0);
+  const totalUsers = summary.reduce((a, g) => a + (Number(g.users) || 0), 0);
+  const totalSessions = summary.reduce((a, g) => a + (Number(g.sessions) || 0), 0);
+
   const toggle = (set, setter, key) => {
     setter((prev) => {
       const n = new Set(prev);
@@ -58,7 +66,7 @@ export function AdminErrorsTab() {
         loading={loading}
         error={error}
         onRetry={refresh}
-        skeleton={<AdminSkeleton variant="list" rows={6} />}
+        skeleton={<><AdminSkeleton variant="cards" rows={3} /><AdminSkeleton variant="table" /><AdminSkeleton variant="list" /></>}
         isEmpty={summary.length === 0 && recent.length === 0}
         empty={{
           icon: Warning,
@@ -67,69 +75,103 @@ export function AdminErrorsTab() {
         }}
       >
         <div className={refreshing ? 'is-refreshing' : ''}>
+          {/* ── At-a-glance window totals ─────────────────────────────────── */}
+          {summary.length > 0 && (
+            <div className="admin-stat-grid">
+              <AdminStatCard
+                label="Errors"
+                value={formatCount(totalOccurrences)}
+                sub={`${formatCount(summary.length)} distinct · last ${days}d`}
+              />
+              <AdminStatCard
+                label="Users affected"
+                value={formatCount(totalUsers)}
+                sub="across grouped errors"
+                title="Summed across error groups — the same person can hit more than one error, so this is an upper bound."
+              />
+              <AdminStatCard
+                label="Sessions"
+                value={formatCount(totalSessions)}
+                sub="across grouped errors"
+                title="Summed across error groups — a session can hit more than one error, so this is an upper bound."
+              />
+            </div>
+          )}
+
           {/* ── Grouped: top errors by message ───────────────────────────── */}
           {summary.length > 0 && (
-            <section className="admin-chart-panel admin-chart-panel-wide">
-              <header className="admin-chart-head">
-                <h3 className="admin-chart-title">Top errors · last {days} days</h3>
-                <span className="admin-chart-sub t-meta">grouped by message — click a row for the stack</span>
-              </header>
-              <div className="admin-chart-body">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Error</th>
-                      <th className="num">Count</th>
-                      <th className="num">Users</th>
-                      <th className="num">Sessions</th>
-                      <th className="num">Last seen</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.map((g, i) => {
-                      const key = `${g.message}-${i}`;
-                      const isOpen = openGroup.has(key);
-                      return (
-                        <Fragment key={key}>
-                          <tr
-                            role="button"
-                            tabIndex={0}
-                            aria-expanded={isOpen}
-                            className="admin-error-grouprow"
-                            onClick={() => toggle(openGroup, setOpenGroup, key)}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(openGroup, setOpenGroup, key); } }}
-                          >
-                            <td>
-                              <span className="admin-error-kind t-meta">{g.kind || 'error'}</span>{' '}
-                              {g.message || '(no message)'}
-                            </td>
-                            <td className="num">{formatCount(g.occurrences)}</td>
-                            <td className="num">{formatCount(g.users)}</td>
-                            <td className="num">{formatCount(g.sessions)}</td>
-                            <td className="num" title={fmtDateTime(g.last_seen)}>{relativeTime(g.last_seen)}</td>
-                          </tr>
-                          {isOpen && g.sample_stack && (
-                            <tr>
-                              <td colSpan={5}><pre className="admin-error-stack">{g.sample_stack}</pre></td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            <>
+              <h2 className="admin-section-title">Top errors</h2>
+              <div className="admin-section-sub">
+                Grouped by message over the selected window — click a row for the sample stack.
               </div>
-            </section>
+              <section className="admin-chart-panel admin-chart-panel-wide">
+                <header className="admin-chart-head">
+                  <h3 className="admin-chart-title">Top errors · last {days} days</h3>
+                  <span className="admin-chart-sub t-meta">grouped by message — click a row for the stack</span>
+                </header>
+                <div className="admin-chart-body">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Error</th>
+                        <th className="num">Count</th>
+                        <th className="num">Users</th>
+                        <th className="num">Sessions</th>
+                        <th className="num">Last seen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.map((g, i) => {
+                        const key = `${g.message}-${i}`;
+                        const isOpen = openGroup.has(key);
+                        return (
+                          <Fragment key={key}>
+                            <tr
+                              role="button"
+                              tabIndex={0}
+                              aria-expanded={isOpen}
+                              className="admin-error-grouprow"
+                              onClick={() => toggle(openGroup, setOpenGroup, key)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(openGroup, setOpenGroup, key); } }}
+                            >
+                              <td>
+                                <span className="admin-error-kind t-meta">{g.kind || 'error'}</span>{' '}
+                                {g.message || '(no message)'}
+                              </td>
+                              <td className="num">{formatCount(g.occurrences)}</td>
+                              <td className="num">{formatCount(g.users)}</td>
+                              <td className="num">{formatCount(g.sessions)}</td>
+                              <td className="num" title={fmtDateTime(g.last_seen)}>{relativeTime(g.last_seen)}</td>
+                            </tr>
+                            {isOpen && g.sample_stack && (
+                              <tr>
+                                <td colSpan={5}><pre className="admin-error-stack">{g.sample_stack}</pre></td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </>
           )}
 
           {/* ── Recent stream ────────────────────────────────────────────── */}
           {recent.length > 0 && (
-            <section className="admin-chart-panel admin-chart-panel-wide">
-              <header className="admin-chart-head">
-                <h3 className="admin-chart-title">Recent · last {days} days</h3>
-                <span className="admin-chart-sub t-meta">click a row for the full stack</span>
-              </header>
-              <div className="admin-feedback-list">
+            <>
+              <h2 className="admin-section-title">Recent stream</h2>
+              <div className="admin-section-sub">
+                The raw event stream — newest first. Click a row to expand its full stack.
+              </div>
+              <section className="admin-chart-panel admin-chart-panel-wide">
+                <header className="admin-chart-head">
+                  <h3 className="admin-chart-title">Recent · last {days} days</h3>
+                  <span className="admin-chart-sub t-meta">click a row for the full stack</span>
+                </header>
+                <div className="admin-feedback-list">
                 {recent.map((r) => {
                   const isOpen = openRow.has(r.id);
                   return (
@@ -163,8 +205,9 @@ export function AdminErrorsTab() {
                     </div>
                   );
                 })}
-              </div>
-            </section>
+                </div>
+              </section>
+            </>
           )}
         </div>
       </AdminAsync>

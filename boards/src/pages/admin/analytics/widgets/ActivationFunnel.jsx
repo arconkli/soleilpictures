@@ -6,7 +6,7 @@
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, LabelList } from 'recharts';
 import { formatCount, formatPct, MIN_RATE_FLAG } from '../../../../lib/adminFormat.js';
 import { CHART } from '../../chartTheme.js';
-import { PanelNote } from './SmallN.jsx';
+import { PanelNote } from '../../SmallN.jsx';
 
 const STEPS = [
   { key: 'signed_up',      label: 'Signed up' },

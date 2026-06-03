@@ -9,11 +9,11 @@
 // Pre-signup emails are stored as pending and auto-applied on first login.
 // Expired grants are swept hourly by pg_cron + opportunistically on open.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../../components/AppFeedback.jsx';
 import { CopyableText } from '../../components/CopyableText.jsx';
-import { fmtDate, fmtDateTime, formatCount } from '../../lib/adminFormat.js';
+import { fmtDate, fmtDateTime, formatCount, formatExpires } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { StatusPill } from './AdminPills.jsx';
@@ -49,17 +49,6 @@ function parseEmails(raw) {
     out.push(e);
   }
   return out;
-}
-
-function formatExpires(iso) {
-  if (!iso) return 'forever';
-  const d = new Date(iso);
-  const ms = d.getTime() - Date.now();
-  if (ms < 0) return `expired ${d.toLocaleDateString()}`;
-  const days = Math.floor(ms / 86400000);
-  if (days < 1)  return 'today';
-  if (days < 30) return `in ${days}d (${d.toLocaleDateString()})`;
-  return d.toLocaleDateString();
 }
 
 export function AdminGrantsTab() {
@@ -193,165 +182,179 @@ export function AdminGrantsTab() {
     <div className="admin-section">
 
       {/* ===== Grant form ===== */}
-      <form onSubmit={onGrant} className="admin-grant-form">
-        <h3 className="t-section admin-section-title">Grant paid access</h3>
+      <section className="admin-chart-panel admin-chart-panel-wide">
+        <header className="admin-chart-head">
+          <h3 className="admin-chart-title">Issue a grant</h3>
+          <span className="admin-chart-sub t-meta">
+            Paste emails, pick a duration, and grant paid-tier access. Pre-signup emails apply on first login.
+          </span>
+        </header>
 
-        <textarea
-          className="auth-input admin-grant-emails"
-          rows={4}
-          placeholder="emails — one per line, or comma/space separated"
-          value={emailsRaw}
-          onChange={(e) => setEmailsRaw(e.target.value)}
-        />
-
-        <div className="admin-grant-controls">
-          <label className="t-meta admin-muted" htmlFor="grant-duration">Duration</label>
-          <select
-            id="grant-duration"
-            className="auth-input admin-filter-select admin-grant-duration"
-            value={preset === null ? 'forever' : String(preset)}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === 'forever')      setPreset(null);
-              else if (v === 'custom')  setPreset('custom');
-              else                      setPreset(Number(v));
-            }}
-          >
-            {DURATION_PRESETS.map((p) => (
-              <option key={p.label} value={p.days === null ? 'forever' : p.days === 'custom' ? 'custom' : String(p.days)}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-
-          {preset === 'custom' && (
-            <>
-              <input
-                className="auth-input admin-grant-customdays"
-                type="number"
-                min="1"
-                placeholder="days"
-                value={customDays}
-                onChange={(e) => setCustomDays(e.target.value)}
-              />
-              <span className="t-meta admin-muted">days</span>
-            </>
-          )}
-
-          <input
-            className="auth-input admin-grant-note"
-            type="text"
-            placeholder="note (optional)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
+        <form onSubmit={onGrant} className="admin-grant-form">
+          <textarea
+            className="auth-input admin-grant-emails"
+            rows={4}
+            placeholder="emails — one per line, or comma/space separated"
+            value={emailsRaw}
+            onChange={(e) => setEmailsRaw(e.target.value)}
           />
 
-          <button type="submit" className="admin-action admin-action-primary" disabled={granting || parsedEmails.length === 0}>
-            {granting ? 'Granting…' : `Grant access${parsedEmails.length > 0 ? ` (${parsedEmails.length})` : ''}`}
-          </button>
-        </div>
+          <div className="admin-grant-controls">
+            <label className="t-meta admin-muted" htmlFor="grant-duration">Duration</label>
+            <select
+              id="grant-duration"
+              className="auth-input admin-filter-select admin-grant-duration"
+              value={preset === null ? 'forever' : String(preset)}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === 'forever')      setPreset(null);
+                else if (v === 'custom')  setPreset('custom');
+                else                      setPreset(Number(v));
+              }}
+            >
+              {DURATION_PRESETS.map((p) => (
+                <option key={p.label} value={p.days === null ? 'forever' : p.days === 'custom' ? 'custom' : String(p.days)}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
 
-        {parsedEmails.length > 0 && (
-          <div className="t-meta admin-muted">
-            {parsedEmails.length} unique email{parsedEmails.length === 1 ? '' : 's'} parsed
+            {preset === 'custom' && (
+              <>
+                <input
+                  className="auth-input admin-grant-customdays"
+                  type="number"
+                  min="1"
+                  placeholder="days"
+                  value={customDays}
+                  onChange={(e) => setCustomDays(e.target.value)}
+                />
+                <span className="t-meta admin-muted">days</span>
+              </>
+            )}
+
+            <input
+              className="auth-input admin-grant-note"
+              type="text"
+              placeholder="note (optional)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+
+            <button type="submit" className="admin-action admin-action-primary" disabled={granting || parsedEmails.length === 0}>
+              {granting ? 'Granting…' : `Grant access${parsedEmails.length > 0 ? ` (${parsedEmails.length})` : ''}`}
+            </button>
           </div>
-        )}
-      </form>
+
+          {parsedEmails.length > 0 && (
+            <div className="t-meta admin-muted">
+              {parsedEmails.length} unique email{parsedEmails.length === 1 ? '' : 's'} parsed
+            </div>
+          )}
+        </form>
+      </section>
 
       {/* ===== List ===== */}
-      <h3 className="t-section admin-section-title">Grants</h3>
+      <section className="admin-chart-panel admin-chart-panel-wide">
+        <header className="admin-chart-head">
+          <h3 className="admin-chart-title">Active grants</h3>
+          <span className="admin-chart-sub t-meta">
+            Every grant — active, forever, expired, and revoked. Expired grants are swept hourly and on open.
+          </span>
+        </header>
 
-      <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
-        <input
-          className="auth-input admin-search-input"
-          type="text"
-          placeholder="search email…"
-          value={query}
-          onChange={(e) => setQueryRaw(e.target.value)}
-          aria-label="Search by email"
-        />
-        <select
-          className="auth-input admin-filter-select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          aria-label="Filter by status"
+        <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
+          <input
+            className="auth-input admin-search-input"
+            type="text"
+            placeholder="search email…"
+            value={query}
+            onChange={(e) => setQueryRaw(e.target.value)}
+            aria-label="Search by email"
+          />
+          <select
+            className="auth-input admin-filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="Filter by status"
+          >
+            {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <span className="admin-filter-meta t-meta">
+            {loading
+              ? 'Loading…'
+              : total === 0
+                ? 'No grants'
+                : `${formatCount(firstIdx)}–${formatCount(lastIdx)} of ${formatCount(total)}`}
+          </span>
+        </AdminToolbar>
+
+        <AdminAsync
+          loading={loading}
+          error={error}
+          onRetry={refresh}
+          skeleton={<AdminSkeleton variant="table" rows={6} cols={8} />}
+          isEmpty={rows.length === 0}
+          empty={{
+            icon: Sparkle,
+            title: statusFilter || query ? 'No grants match these filters' : 'No grants yet',
+            body: statusFilter || query ? 'Try a different filter or search.' : 'Grant paid access using the form above.',
+          }}
         >
-          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <span className="admin-filter-meta t-meta">
-          {loading
-            ? 'Loading…'
-            : total === 0
-              ? 'No grants'
-              : `${formatCount(firstIdx)}–${formatCount(lastIdx)} of ${formatCount(total)}`}
-        </span>
-      </AdminToolbar>
+          <table className={`admin-table ${refreshing ? 'is-refreshing' : ''}`}>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Signed up?</th>
+                <th>Tier</th>
+                <th>Status</th>
+                <th>Expires</th>
+                <th>Granted by</th>
+                <th>Granted</th>
+                <th>Note</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const isRevoked = r.status === 'revoked';
+                return (
+                  <tr key={r.email}>
+                    <td className="admin-email"><CopyableText value={r.email} className="admin-email" /></td>
+                    <td className="admin-muted">
+                      {r.signed_up ? '✓' : <span title="grant will apply on first sign-in">pending</span>}
+                    </td>
+                    <td className="admin-muted">{r.current_tier || '—'}</td>
+                    <td><StatusPill kind={r.status} /></td>
+                    <td className="admin-muted">{formatExpires(r.expires_at)}</td>
+                    <td className="admin-muted">{r.granted_by_email || '—'}</td>
+                    <td className="admin-muted" title={fmtDateTime(r.granted_at)}>{fmtDate(r.granted_at)}</td>
+                    <td className="admin-muted">{r.note || ''}</td>
+                    <td className="admin-actions">
+                      <button
+                        className="admin-action admin-action-danger"
+                        disabled={isRevoked || busyEmail === r.email}
+                        onClick={() => onRevoke(r)}
+                        title={isRevoked ? 'Already revoked' : 'Revoke this grant'}
+                      >
+                        {busyEmail === r.email ? '…' : isRevoked ? 'revoked' : 'Revoke'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </AdminAsync>
 
-      <AdminAsync
-        loading={loading}
-        error={error}
-        onRetry={refresh}
-        skeleton={<AdminSkeleton variant="table" rows={6} cols={8} />}
-        isEmpty={rows.length === 0}
-        empty={{
-          icon: Sparkle,
-          title: statusFilter || query ? 'No grants match these filters' : 'No grants yet',
-          body: statusFilter || query ? 'Try a different filter or search.' : 'Grant paid access using the form above.',
-        }}
-      >
-        <table className={`admin-table ${refreshing ? 'is-refreshing' : ''}`}>
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Signed up?</th>
-              <th>Tier</th>
-              <th>Status</th>
-              <th>Expires</th>
-              <th>Granted by</th>
-              <th>Granted</th>
-              <th>Note</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const isRevoked = r.status === 'revoked';
-              return (
-                <tr key={r.email}>
-                  <td className="admin-email"><CopyableText value={r.email} className="admin-email" /></td>
-                  <td className="admin-muted">
-                    {r.signed_up ? '✓' : <span title="grant will apply on first sign-in">pending</span>}
-                  </td>
-                  <td className="admin-muted">{r.current_tier || '—'}</td>
-                  <td><StatusPill kind={r.status} /></td>
-                  <td className="admin-muted">{formatExpires(r.expires_at)}</td>
-                  <td className="admin-muted">{r.granted_by_email || '—'}</td>
-                  <td className="admin-muted" title={fmtDateTime(r.granted_at)}>{fmtDate(r.granted_at)}</td>
-                  <td className="admin-muted">{r.note || ''}</td>
-                  <td className="admin-actions">
-                    <button
-                      className="admin-action admin-action-danger"
-                      disabled={isRevoked || busyEmail === r.email}
-                      onClick={() => onRevoke(r)}
-                      title={isRevoked ? 'Already revoked' : 'Revoke this grant'}
-                    >
-                      {busyEmail === r.email ? '…' : isRevoked ? 'revoked' : 'Revoke'}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </AdminAsync>
-
-      {pageCount > 1 && (
-        <div className="admin-pagination">
-          <button className="admin-action" disabled={page === 0 || refreshing} onClick={() => setPage((p) => Math.max(0, p - 1))}>← Prev</button>
-          <span className="admin-muted">Page {page + 1} of {pageCount}</span>
-          <button className="admin-action" disabled={page >= pageCount - 1 || refreshing} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>Next →</button>
-        </div>
-      )}
+        {pageCount > 1 && (
+          <div className="admin-pagination">
+            <button className="admin-action" disabled={page === 0 || refreshing} onClick={() => setPage((p) => Math.max(0, p - 1))}>← Prev</button>
+            <span className="admin-muted">Page {page + 1} of {pageCount}</span>
+            <button className="admin-action" disabled={page >= pageCount - 1 || refreshing} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>Next →</button>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

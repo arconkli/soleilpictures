@@ -14,7 +14,7 @@
 
 import { useMemo } from 'react';
 import { formatCount, formatPct, MIN_RATE_FLAG } from '../../../../lib/adminFormat.js';
-import { PanelNote } from './SmallN.jsx';
+import { PanelNote } from '../../SmallN.jsx';
 
 const SOLEIL = '#ffa500';
 const GREEN  = '#50c878';

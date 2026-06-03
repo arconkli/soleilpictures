@@ -1,4 +1,4 @@
-// SmallN — the shared honesty layer for the analytics dashboard.
+// SmallN — the shared honesty layer for the admin dashboard.
 //
 // At early-stage volumes almost every rate rests on a tiny denominator, so the
 // dashboard must never show "100%" off n=1 as if it were a trend. These pieces
@@ -10,7 +10,7 @@
 //
 // Red is reserved for leaks/losses; amber means "interpret carefully".
 
-import { MIN_POINTS, formatCount, formatPct, safeRate } from '../../../../lib/adminFormat.js';
+import { MIN_POINTS, formatCount, formatPct, safeRate } from '../../lib/adminFormat.js';
 
 // Amber "directional · n=N" chip — for KPI tiles whose rate is below the trust
 // floor but above the suppression floor.

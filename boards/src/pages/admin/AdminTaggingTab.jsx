@@ -13,10 +13,10 @@
 //      ground-truth labels, plus a what-if slider for AUTO_DIST so the
 //      operator can see how metrics shift without persisting anything.
 //
-// All data fetched in parallel on mount. Distance math runs client-side
-// (324 embeddings × 3 tags ≈ 1k cosine distances — trivial). RLS scopes
-// what the admin sees to the workspaces they're a member of; the
-// project owner is in every workspace, so in practice this shows the
+// All data fetched in parallel via useAdminData. Distance math runs
+// client-side (324 embeddings × 3 tags ≈ 1k cosine distances — trivial).
+// RLS scopes what the admin sees to the workspaces they're a member of;
+// the project owner is in every workspace, so in practice this shows the
 // whole graph.
 
 import { useEffect, useMemo, useState } from 'react';
@@ -24,29 +24,25 @@ import { supabase } from '../../lib/supabase.js';
 import { cosineDist, SILENT_APPLY_DIST, NO_MATCH_DIST, SUGGEST_DIST } from '../../lib/clusterMath.js';
 import { parsePgvector } from '../../lib/tagsClient.js';
 import { runEval, buildHistogram, summarize } from '../../lib/tagEval.js';
+import { AdminAsync, AdminSkeleton, AdminToolbar } from './AdminStates.jsx';
+import { useAdminData } from './useAdminData.js';
+import { formatCount, formatPct, MIN_RATE_FLAG } from '../../lib/adminFormat.js';
+import { AdminStatCard } from './AdminStatCard.jsx';
+import { NFlag, ChartGate } from './SmallN.jsx';
+import { Tag } from '../../lib/icons.js';
 
 export function AdminTaggingTab() {
-  const [tags, setTags]               = useState([]);          // [{ id, name, slug, color, description, workspace_id }]
-  const [workspaces, setWorkspaces]   = useState(new Map());   // id -> { id, name }
-  const [centroids, setCentroids]     = useState(new Map());   // tag_id -> vector
-  const [embeddings, setEmbeddings]   = useState([]);          // [{ card_id, workspace_id, board_id, vector }]
-  const [appliedSet, setAppliedSet]   = useState(new Set());   // `${tag_id}::card::${card_id}`
-  const [cardIndex, setCardIndex]     = useState(new Map());   // card_id -> { title, body, kind, board_id }
-  const [labels, setLabels]           = useState([]);          // [{ tag_id, source_kind, source_id, label }]
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState(null);
-
   const [selectedTagId, setSelectedTagId] = useState(null);
   // What-if AUTO_DIST. Default to the production constant; user can
   // drag without affecting the live system.
-  const [whatIfAuto, setWhatIfAuto]   = useState(SILENT_APPLY_DIST);
+  const [whatIfAuto, setWhatIfAuto]       = useState(SILENT_APPLY_DIST);
   const [whatIfSuggest, setWhatIfSuggest] = useState(SUGGEST_DIST);
+  // Optimistic local copy of the ground-truth labels, seeded from the fetch.
+  const [labelEdits, setLabelEdits] = useState(null);
 
   // ── Load everything in parallel. ───────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    Promise.all([
+  const q = useAdminData(async () => {
+    const [t, w, c, e, l, ci, el] = await Promise.all([
       supabase.from('tags').select('id, name, slug, color, description, workspace_id'),
       supabase.from('workspaces').select('id, name'),
       supabase.from('tag_centroids').select('tag_id, centroid'),
@@ -56,46 +52,59 @@ export function AdminTaggingTab() {
         .eq('target_kind', 'tag').eq('link_kind', 'applied'),
       supabase.from('card_index').select('card_id, board_id, kind, title, body'),
       supabase.from('tag_eval_labels').select('tag_id, source_kind, source_id, label, workspace_id, created_at'),
-    ])
-      .then(([t, w, c, e, l, ci, el]) => {
-        if (cancelled) return;
-        if (t.error)  throw t.error;
-        if (w.error)  throw w.error;
-        if (c.error)  throw c.error;
-        if (e.error)  throw e.error;
-        if (l.error)  throw l.error;
-        if (ci.error) throw ci.error;
-        if (el.error) throw el.error;
-        setTags(t.data || []);
-        const wsMap = new Map();
-        for (const r of (w.data || [])) wsMap.set(r.id, r);
-        setWorkspaces(wsMap);
-        const cMap = new Map();
-        for (const r of (c.data || [])) {
-          const v = parsePgvector(r.centroid);
-          if (v) cMap.set(r.tag_id, v);
-        }
-        setCentroids(cMap);
-        const eRows = [];
-        for (const r of (e.data || [])) {
-          const v = parsePgvector(r.embedding);
-          if (v) eRows.push({ card_id: r.card_id, workspace_id: r.workspace_id, board_id: r.board_id, vector: v });
-        }
-        setEmbeddings(eRows);
-        const appSet = new Set();
-        for (const r of (l.data || [])) {
-          if (r.source_kind === 'card') appSet.add(`${r.target_id}::card::${r.source_id}`);
-        }
-        setAppliedSet(appSet);
-        const idx = new Map();
-        for (const r of (ci.data || [])) idx.set(r.card_id, r);
-        setCardIndex(idx);
-        setLabels(el.data || []);
-      })
-      .catch((err) => { if (!cancelled) setError(err?.message || String(err)); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    ]);
+    if (t.error)  throw t.error;
+    if (w.error)  throw w.error;
+    if (c.error)  throw c.error;
+    if (e.error)  throw e.error;
+    if (l.error)  throw l.error;
+    if (ci.error) throw ci.error;
+    if (el.error) throw el.error;
+
+    const tags = t.data || [];
+
+    const workspaces = new Map();
+    for (const r of (w.data || [])) workspaces.set(r.id, r);
+
+    const centroids = new Map();
+    for (const r of (c.data || [])) {
+      const v = parsePgvector(r.centroid);
+      if (v) centroids.set(r.tag_id, v);
+    }
+
+    const embeddings = [];
+    for (const r of (e.data || [])) {
+      const v = parsePgvector(r.embedding);
+      if (v) embeddings.push({ card_id: r.card_id, workspace_id: r.workspace_id, board_id: r.board_id, vector: v });
+    }
+
+    const appliedSet = new Set();
+    for (const r of (l.data || [])) {
+      if (r.source_kind === 'card') appliedSet.add(`${r.target_id}::card::${r.source_id}`);
+    }
+
+    const cardIndex = new Map();
+    for (const r of (ci.data || [])) cardIndex.set(r.card_id, r);
+
+    const labels = el.data || [];
+
+    return { tags, workspaces, centroids, embeddings, appliedSet, cardIndex, labels };
   }, []);
+
+  // Labels: server-fetched baseline, overlaid by optimistic local edits so a
+  // ground-truth mutation reflects instantly without a full refetch.
+  const labels = labelEdits ?? (q.data?.labels || []);
+  const tags        = q.data?.tags        || [];
+  const workspaces  = q.data?.workspaces  || EMPTY_MAP;
+  const centroids   = q.data?.centroids   || EMPTY_MAP;
+  const embeddings  = q.data?.embeddings  || EMPTY_ARR;
+  const appliedSet  = q.data?.appliedSet  || EMPTY_SET;
+  const cardIndex   = q.data?.cardIndex   || EMPTY_MAP;
+
+  // Re-baseline optimistic label edits whenever a fetch completes (initial load
+  // or a manual refresh) so the server stays authoritative; edits made between
+  // fetches still apply instantly via the overlay above.
+  useEffect(() => { setLabelEdits(null); }, [q.data]);
 
   // ── Per-tag computed stats for the overview + drill-down. ──────────
   const tagStats = useMemo(() => {
@@ -130,6 +139,14 @@ export function AdminTaggingTab() {
       };
     });
   }, [tags, centroids, embeddings, appliedSet, labels]);
+
+  // ── Hero at-a-glance counts, derived from data already computed. ───
+  const hero = useMemo(() => {
+    const tagCount = tagStats.length;
+    const missingCentroid = tagStats.filter(s => s.centroidMissing).length;
+    const labeled = tagStats.reduce((acc, s) => acc + (s.labelCount || 0), 0);
+    return { tagCount, missingCentroid, labeled };
+  }, [tagStats]);
 
   const selectedStats = useMemo(() => {
     if (!selectedTagId) return null;
@@ -170,9 +187,11 @@ export function AdminTaggingTab() {
       console.warn('[admin-tagging] label upsert failed', err.message);
       return;
     }
-    // Optimistic local update.
-    setLabels(prev => {
-      const next = prev.filter(l => !(l.tag_id === tagId && l.source_kind === 'card' && l.source_id === cardId));
+    // Optimistic local update — base off the latest edits (or the server
+    // baseline on the first edit), never a stale closure copy of `labels`.
+    setLabelEdits((prev) => {
+      const base = prev ?? (q.data?.labels || []);
+      const next = base.filter(l => !(l.tag_id === tagId && l.source_kind === 'card' && l.source_id === cardId));
       next.push({ tag_id: tagId, source_kind: 'card', source_id: cardId, workspace_id: workspaceId, label });
       return next;
     });
@@ -189,7 +208,7 @@ export function AdminTaggingTab() {
       console.warn('[admin-tagging] label delete failed', err.message);
       return;
     }
-    setLabels(prev => prev.filter(l => !(l.tag_id === tagId && l.source_kind === 'card' && l.source_id === cardId)));
+    setLabelEdits((prev) => (prev ?? (q.data?.labels || [])).filter(l => !(l.tag_id === tagId && l.source_kind === 'card' && l.source_id === cardId)));
   };
 
   const labelByKey = useMemo(() => {
@@ -198,141 +217,188 @@ export function AdminTaggingTab() {
     return m;
   }, [labels]);
 
-  if (loading) return <div className="admin-tagging"><p>Loading…</p></div>;
-  if (error)   return <div className="admin-tagging"><p style={{ color: '#ef4444' }}>{error}</p></div>;
+  const selectedLabelCount = selectedTagId
+    ? labels.filter(l => l.tag_id === selectedTagId).length
+    : 0;
 
   return (
     <div className="admin-tagging">
-      <div className="admin-tagging-head">
-        <h2>Tagging quality</h2>
-        <span className="admin-tagging-thresholds">
-          Live thresholds: AUTO &lt; {SILENT_APPLY_DIST.toFixed(2)} · SUGGEST &lt; {SUGGEST_DIST.toFixed(2)}
-        </span>
-      </div>
+      <AdminToolbar onRefresh={q.refresh} refreshing={q.refreshing} lastUpdated={q.lastUpdated} />
 
-      <div className="admin-tagging-overview">
-        <table className="admin-tagging-table">
-          <thead>
-            <tr>
-              <th>Tag</th>
-              <th>Workspace</th>
-              <th className="num">Members</th>
-              <th className="num">Mean d</th>
-              <th className="num">p95 d</th>
-              <th className="num" title="Non-members within AUTO_DIST">&lt; AUTO</th>
-              <th className="num" title="Non-members within SUGGEST_DIST">&lt; SUGGEST</th>
-              <th className="num">Labels</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tagStats.map(s => {
-              const ws = workspaces.get(s.tag.workspace_id);
-              const isSel = s.tag.id === selectedTagId;
-              return (
-                <tr key={s.tag.id}
-                    className={`admin-tagging-row ${isSel ? 'is-selected' : ''} ${s.centroidMissing ? 'is-missing' : ''}`}
-                    onClick={() => setSelectedTagId(s.tag.id)}>
-                  <td>
-                    <span className="admin-tagging-tag-dot" style={{ background: s.tag.color || '#888' }} />
-                    {s.tag.name}
-                  </td>
-                  <td className="dim">{ws?.name || s.tag.workspace_id.slice(0, 8)}</td>
-                  <td className="num">{s.memberCount ?? 0}</td>
-                  <td className="num">{fmt(s.summary?.mean)}</td>
-                  <td className="num">{fmt(s.summary?.p95)}</td>
-                  <td className="num">{s.withinAuto ?? 0}</td>
-                  <td className="num">{s.withinSuggest ?? 0}</td>
-                  <td className="num">{s.labelCount ?? 0}</td>
+      <AdminAsync
+        loading={q.loading}
+        error={q.error}
+        onRetry={q.refresh}
+        skeleton={<><AdminSkeleton variant="cards" rows={3} /><div style={{ height: 16 }} /><AdminSkeleton variant="table" rows={6} cols={8} /></>}
+        isEmpty={tagStats.length === 0}
+        empty={{
+          icon: Tag,
+          title: 'No tags yet',
+          body: 'Once tags exist in a workspace you can see, this panel audits how the embeddings tagger scores cards against each one.',
+        }}
+      >
+        <div className={q.refreshing ? 'is-refreshing' : ''}>
+          <h2 className="admin-section-title">Tagging quality</h2>
+          <div className="admin-section-sub">
+            Live thresholds: AUTO &lt; {SILENT_APPLY_DIST.toFixed(2)} · SUGGEST &lt; {SUGGEST_DIST.toFixed(2)}. Distances are cosine — lower is closer.
+          </div>
+
+          <div className="admin-stat-grid">
+            <AdminStatCard label="Tags" value={formatCount(hero.tagCount)} sub="across visible workspaces" />
+            <AdminStatCard label="Without centroid" value={formatCount(hero.missingCentroid)} sub="awaiting next score" />
+            <AdminStatCard label="Ground-truth labels" value={formatCount(hero.labeled)} sub="across all tags" />
+          </div>
+
+          <section className="admin-chart-panel admin-chart-panel-wide">
+            <header className="admin-chart-head">
+              <h3 className="admin-chart-title">Per-tag overview</h3>
+              <span className="admin-chart-sub t-meta">Click a tag to drill down</span>
+            </header>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Tag</th>
+                  <th>Workspace</th>
+                  <th className="num">Members</th>
+                  <th className="num">Mean d</th>
+                  <th className="num">p95 d</th>
+                  <th className="num" title="Non-members within AUTO_DIST">&lt; AUTO</th>
+                  <th className="num" title="Non-members within SUGGEST_DIST">&lt; SUGGEST</th>
+                  <th className="num">Labels</th>
                 </tr>
-              );
-            })}
-            {tagStats.length === 0 && (
-              <tr><td colSpan={8} className="dim">No tags yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {tagStats.map(s => {
+                  const ws = workspaces.get(s.tag.workspace_id);
+                  const isSel = s.tag.id === selectedTagId;
+                  return (
+                    <tr key={s.tag.id}
+                        className={`admin-tagging-row ${isSel ? 'is-selected' : ''} ${s.centroidMissing ? 'is-missing' : ''}`}
+                        onClick={() => setSelectedTagId(s.tag.id)}>
+                      <td>
+                        <span className="admin-tagging-tag-dot" style={{ background: s.tag.color || '#888' }} />
+                        {s.tag.name}
+                      </td>
+                      <td className="dim">{ws?.name || s.tag.workspace_id.slice(0, 8)}</td>
+                      <td className="num">{formatCount(s.memberCount ?? 0)}</td>
+                      <td className="num">{fmtDist(s.summary?.mean)}</td>
+                      <td className="num">{fmtDist(s.summary?.p95)}</td>
+                      <td className="num">{formatCount(s.withinAuto ?? 0)}</td>
+                      <td className="num">{formatCount(s.withinSuggest ?? 0)}</td>
+                      <td className="num">{formatCount(s.labelCount ?? 0)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </section>
 
-      {selectedStats && !selectedStats.centroidMissing && (
-        <div className="admin-tagging-drill">
-          <div className="admin-tagging-drill-head">
-            <h3>{selectedStats.tag.name}</h3>
-            {selectedStats.tag.description && (
-              <p className="admin-tagging-desc">{selectedStats.tag.description}</p>
-            )}
-          </div>
+          <h2 className="admin-section-title">Drill-down</h2>
 
-          <Histogram histogram={histogram} max={NO_MATCH_DIST}
-                     autoMark={whatIfAuto} suggestMark={whatIfSuggest} />
+          {!selectedStats && (
+            <div className="admin-section-sub">Select a tag above to inspect its distance distribution, suspect cards, and eval metrics.</div>
+          )}
 
-          <div className="admin-tagging-suspects">
-            <SuspectList
-              title={`Members applied at high distance (> ${SILENT_APPLY_DIST.toFixed(2)})`}
-              hint="Old auto-applies that wouldn't auto-apply under tighter thresholds. Possible historical false positives — label them as ground truth to verify."
-              rows={selectedStats.rows
-                .filter(r => r.applied && r.distance > SILENT_APPLY_DIST)
-                .sort((a, b) => b.distance - a.distance)
-                .slice(0, 30)}
-              tag={selectedStats.tag}
-              cardIndex={cardIndex}
-              labelByKey={labelByKey}
-              setLabel={setLabel}
-              clearLabel={clearLabel}
-            />
-            <SuspectList
-              title={`Non-members at low distance (< ${SUGGEST_DIST.toFixed(2)})`}
-              hint="Cards the system would surface as suggestions on the next score. Closest-first."
-              rows={selectedStats.rows
-                .filter(r => !r.applied && r.distance < SUGGEST_DIST)
-                .sort((a, b) => a.distance - b.distance)
-                .slice(0, 30)}
-              tag={selectedStats.tag}
-              cardIndex={cardIndex}
-              labelByKey={labelByKey}
-              setLabel={setLabel}
-              clearLabel={clearLabel}
-            />
-          </div>
+          {selectedStats && selectedStats.centroidMissing && (
+            <div className="admin-section-sub">
+              This tag has no stored centroid yet. It will be seeded on the next suggestTags call.
+            </div>
+          )}
 
-          <div className="admin-tagging-eval">
-            <h4>Eval against ground truth</h4>
-            {labels.filter(l => l.tag_id === selectedTagId).length === 0 ? (
-              <p className="dim">Label at least one row above to start measuring.</p>
-            ) : (
-              <>
-                <div className="admin-tagging-eval-controls">
-                  <label>
-                    AUTO_DIST: <strong>{whatIfAuto.toFixed(3)}</strong>
-                    <input type="range" min="0.05" max="0.40" step="0.005"
-                           value={whatIfAuto}
-                           onChange={(e) => setWhatIfAuto(parseFloat(e.target.value))} />
-                  </label>
-                  <label>
-                    SUGGEST_DIST: <strong>{whatIfSuggest.toFixed(3)}</strong>
-                    <input type="range" min="0.05" max="0.55" step="0.005"
-                           value={whatIfSuggest}
-                           onChange={(e) => setWhatIfSuggest(parseFloat(e.target.value))} />
-                  </label>
-                  <button className="admin-tagging-eval-reset"
-                          onClick={() => { setWhatIfAuto(SILENT_APPLY_DIST); setWhatIfSuggest(SUGGEST_DIST); }}>
-                    Reset to live thresholds
-                  </button>
+          {selectedStats && !selectedStats.centroidMissing && (
+            <>
+              <section className="admin-chart-panel admin-chart-panel-wide">
+                <header className="admin-chart-head">
+                  <h3 className="admin-chart-title">{selectedStats.tag.name} — distance distribution</h3>
+                  <span className="admin-chart-sub t-meta">{formatCount(selectedStats.memberCount ?? 0)} members</span>
+                </header>
+                {selectedStats.tag.description && (
+                  <p className="admin-tagging-desc">{selectedStats.tag.description}</p>
+                )}
+                <div className="admin-chart-body">
+                  <ChartGate
+                    count={selectedStats.memberCount ?? 0}
+                    min={5}
+                    title="Not enough cards to chart"
+                    sub="This tag needs at least 5 scored cards before a distance histogram is meaningful."
+                  >
+                    <Histogram histogram={histogram} max={NO_MATCH_DIST}
+                               autoMark={whatIfAuto} suggestMark={whatIfSuggest} />
+                  </ChartGate>
                 </div>
-                {evalResult && <EvalReadout result={evalResult} />}
-              </>
-            )}
-          </div>
-        </div>
-      )}
+              </section>
 
-      {selectedStats?.centroidMissing && (
-        <div className="admin-tagging-drill">
-          <p className="dim">This tag has no stored centroid yet. It will be seeded on the next suggestTags call.</p>
+              <div className="admin-tagging-suspects">
+                <SuspectList
+                  title={`Members applied at high distance (> ${SILENT_APPLY_DIST.toFixed(2)})`}
+                  hint="Old auto-applies that wouldn't auto-apply under tighter thresholds. Possible historical false positives — label them as ground truth to verify."
+                  rows={selectedStats.rows
+                    .filter(r => r.applied && r.distance > SILENT_APPLY_DIST)
+                    .sort((a, b) => b.distance - a.distance)
+                    .slice(0, 30)}
+                  tag={selectedStats.tag}
+                  cardIndex={cardIndex}
+                  labelByKey={labelByKey}
+                  setLabel={setLabel}
+                  clearLabel={clearLabel}
+                />
+                <SuspectList
+                  title={`Non-members at low distance (< ${SUGGEST_DIST.toFixed(2)})`}
+                  hint="Cards the system would surface as suggestions on the next score. Closest-first."
+                  rows={selectedStats.rows
+                    .filter(r => !r.applied && r.distance < SUGGEST_DIST)
+                    .sort((a, b) => a.distance - b.distance)
+                    .slice(0, 30)}
+                  tag={selectedStats.tag}
+                  cardIndex={cardIndex}
+                  labelByKey={labelByKey}
+                  setLabel={setLabel}
+                  clearLabel={clearLabel}
+                />
+              </div>
+
+              <section className="admin-chart-panel admin-chart-panel-wide">
+                <header className="admin-chart-head">
+                  <h3 className="admin-chart-title">Eval against ground truth</h3>
+                  <span className="admin-chart-sub t-meta">What-if thresholds — not persisted</span>
+                </header>
+                {selectedLabelCount === 0 ? (
+                  <p className="dim">Label at least one row above to start measuring.</p>
+                ) : (
+                  <>
+                    <div className="admin-tagging-eval-controls">
+                      <label>
+                        AUTO_DIST: <strong>{whatIfAuto.toFixed(3)}</strong>
+                        <input type="range" min="0.05" max="0.40" step="0.005"
+                               value={whatIfAuto}
+                               onChange={(e) => setWhatIfAuto(parseFloat(e.target.value))} />
+                      </label>
+                      <label>
+                        SUGGEST_DIST: <strong>{whatIfSuggest.toFixed(3)}</strong>
+                        <input type="range" min="0.05" max="0.55" step="0.005"
+                               value={whatIfSuggest}
+                               onChange={(e) => setWhatIfSuggest(parseFloat(e.target.value))} />
+                      </label>
+                      <button className="admin-action"
+                              onClick={() => { setWhatIfAuto(SILENT_APPLY_DIST); setWhatIfSuggest(SUGGEST_DIST); }}>
+                        Reset to live thresholds
+                      </button>
+                    </div>
+                    {evalResult && <EvalReadout result={evalResult} labelCount={selectedLabelCount} />}
+                  </>
+                )}
+              </section>
+            </>
+          )}
         </div>
-      )}
+      </AdminAsync>
     </div>
   );
 }
+
+const EMPTY_MAP = new Map();
+const EMPTY_SET = new Set();
+const EMPTY_ARR = [];
 
 function Histogram({ histogram, max, autoMark, suggestMark }) {
   const peak = Math.max(1, ...histogram.map(b => b.applied + b.notApplied));
@@ -368,60 +434,95 @@ function Histogram({ histogram, max, autoMark, suggestMark }) {
 
 function SuspectList({ title, hint, rows, tag, cardIndex, labelByKey, setLabel, clearLabel }) {
   return (
-    <div className="admin-tagging-suspect-block">
-      <h5>{title} <span className="dim">({rows.length})</span></h5>
+    <section className="admin-chart-panel admin-tagging-suspect-block">
+      <header className="admin-chart-head">
+        <h3 className="admin-chart-title">{title}</h3>
+        <span className="admin-chart-sub t-meta">{formatCount(rows.length)} cards</span>
+      </header>
       {hint && <p className="admin-tagging-suspect-hint">{hint}</p>}
       {rows.length === 0 ? (
         <p className="dim">None.</p>
       ) : (
-        <ul className="admin-tagging-suspect-list">
-          {rows.map(r => {
-            const card = cardIndex.get(r.card_id);
-            const title = (card?.title || '').trim()
-              || (card?.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
-              || `card ${r.card_id.slice(0, 8)}`;
-            const labelKey = `${tag.id}::card::${r.card_id}`;
-            const currentLabel = labelByKey.get(labelKey);
-            return (
-              <li key={r.card_id} className="admin-tagging-suspect-row">
-                <span className="admin-tagging-suspect-dist">{r.distance.toFixed(3)}</span>
-                <span className="admin-tagging-suspect-title">{title}</span>
-                {currentLabel && (
-                  <span className={`admin-tagging-label-chip is-${currentLabel}`}>
-                    {currentLabel === 'should_apply' ? 'apply ✓' : 'no ✗'}
-                  </span>
-                )}
-                <span className="admin-tagging-suspect-actions">
-                  <button onClick={() => setLabel(tag.id, r.card_id, tag.workspace_id, 'should_apply')}
-                          className={currentLabel === 'should_apply' ? 'is-on' : ''}>
-                    Should apply
-                  </button>
-                  <button onClick={() => setLabel(tag.id, r.card_id, tag.workspace_id, 'should_not_apply')}
-                          className={currentLabel === 'should_not_apply' ? 'is-on' : ''}>
-                    Should NOT
-                  </button>
-                  {currentLabel && (
-                    <button onClick={() => clearLabel(tag.id, r.card_id)} className="dim">clear</button>
-                  )}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th className="num">d</th>
+              <th>Card</th>
+              <th>Ground truth</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => {
+              const card = cardIndex.get(r.card_id);
+              const cardTitle = (card?.title || '').trim()
+                || (card?.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
+                || `card ${r.card_id.slice(0, 8)}`;
+              const labelKey = `${tag.id}::card::${r.card_id}`;
+              const currentLabel = labelByKey.get(labelKey);
+              return (
+                <tr key={r.card_id}>
+                  <td className="num"><span className="admin-tagging-suspect-dist">{r.distance.toFixed(3)}</span></td>
+                  <td>
+                    <span className="admin-tagging-suspect-title">{cardTitle}</span>
+                    {currentLabel && (
+                      <span className={`admin-tagging-label-chip is-${currentLabel}`}>
+                        {currentLabel === 'should_apply' ? 'apply ✓' : 'no ✗'}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <span className="admin-tagging-suspect-actions">
+                      <button
+                        className={`admin-action ${currentLabel === 'should_apply' ? 'is-on' : ''}`}
+                        onClick={() => setLabel(tag.id, r.card_id, tag.workspace_id, 'should_apply')}>
+                        Should apply
+                      </button>
+                      <button
+                        className={`admin-action ${currentLabel === 'should_not_apply' ? 'is-on' : ''}`}
+                        onClick={() => setLabel(tag.id, r.card_id, tag.workspace_id, 'should_not_apply')}>
+                        Should NOT
+                      </button>
+                      {currentLabel && (
+                        <button className="admin-action dim" onClick={() => clearLabel(tag.id, r.card_id)}>clear</button>
+                      )}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
-    </div>
+    </section>
   );
 }
 
-function EvalReadout({ result }) {
+function EvalReadout({ result, labelCount }) {
   const { confusion, precision, recall, f1, disagreements, matchedCount, unmatchedCount } = result;
+  const smallSample = labelCount < MIN_RATE_FLAG;
   return (
     <div className="admin-tagging-eval-readout">
-      <div className="admin-tagging-eval-metrics">
-        <div><span className="dim">Precision</span> <strong>{pct(precision)}</strong></div>
-        <div><span className="dim">Recall</span>    <strong>{pct(recall)}</strong></div>
-        <div><span className="dim">F1</span>        <strong>{pct(f1)}</strong></div>
-        <div><span className="dim">N</span>         <strong>{matchedCount}{unmatchedCount > 0 ? ` (+${unmatchedCount} unmatched)` : ''}</strong></div>
+      <div className="admin-stat-grid">
+        <AdminStatCard
+          label="Precision"
+          value={precision == null ? '—' : formatPct(precision)}
+          sub={smallSample ? <NFlag n={labelCount} /> : 'predicted apply that were right'}
+        />
+        <AdminStatCard
+          label="Recall"
+          value={recall == null ? '—' : formatPct(recall)}
+          sub={smallSample ? <NFlag n={labelCount} /> : 'true applies that were caught'}
+        />
+        <AdminStatCard
+          label="F1"
+          value={f1 == null ? '—' : formatPct(f1)}
+          sub="harmonic mean"
+        />
+        <AdminStatCard
+          label="Labeled (N)"
+          value={formatCount(matchedCount)}
+          sub={unmatchedCount > 0 ? `+${formatCount(unmatchedCount)} unmatched` : 'ground-truth rows'}
+        />
       </div>
       <table className="admin-tagging-confusion">
         <thead>
@@ -450,5 +551,6 @@ function EvalReadout({ result }) {
   );
 }
 
-function fmt(n) { return n == null ? '—' : n.toFixed(3); }
-function pct(n) { return n == null ? '—' : `${(n * 100).toFixed(1)}%`; }
+// Cosine distances have no adminFormat helper (they're a unit-less [0,1]
+// math quantity, not a count/rate/money), so keep the 3-decimal fixed format.
+function fmtDist(n) { return n == null ? '—' : n.toFixed(3); }

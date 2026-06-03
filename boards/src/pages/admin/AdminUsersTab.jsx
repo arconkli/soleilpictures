@@ -16,6 +16,7 @@ import { formatDuration } from '../../lib/formatDuration.js';
 import { relativeTime, fmtDate, fmtDateTime, formatCount, formatMoney } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
+import { AdminStatCard } from './AdminStatCard.jsx';
 import { AdminUserRowMenu } from './AdminUserRowMenu.jsx';
 import { User as UsersIcon } from '../../lib/icons.js';
 
@@ -187,8 +188,24 @@ export function AdminUsersTab() {
     } finally { setBusyId(null); }
   };
 
+  const isFiltered = !!(debounced || tierFilter);
+
   return (
     <div className="admin-section">
+      <h2 className="admin-section-title">Users</h2>
+      <div className="admin-section-sub">
+        Every account on the platform. Search by email or filter by tier, then change a tier inline
+        or ban / re-sync / delete from the row menu.
+      </div>
+
+      <div className={`admin-stat-grid ${refreshing ? 'is-refreshing' : ''}`}>
+        <AdminStatCard
+          label={isFiltered ? 'Matching users' : 'Total users'}
+          value={loading ? '—' : formatCount(total)}
+          sub={isFiltered ? 'current search / tier filter' : 'all accounts'}
+        />
+      </div>
+
       <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
         <input
           className="auth-input admin-search-input"

@@ -6,7 +6,7 @@
 // span (no empty D0..D60 wall), and grey out cells from sub-floor cohorts.
 
 import { MIN_COHORT_SIZE } from '../../../../lib/adminFormat.js';
-import { ChartPlaceholder } from './SmallN.jsx';
+import { ChartPlaceholder } from '../../SmallN.jsx';
 
 export function RetentionCohorts({ rows = [] }) {
   const byWeek = new Map();
