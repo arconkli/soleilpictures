@@ -425,6 +425,14 @@ export function CanvasSurface({
   const [multiResize, setMultiResize] = useState(null);
   const [rotateState, setRotateState] = useState(null); // { id, rot }
   const [marquee, setMarquee] = useState(null);
+
+  // Tracks the in-flight pointer gesture (drag / resize / multi-resize /
+  // rotate / marquee) so Escape can abort it. Each gesture registers a
+  // cleanup fn on pointerdown (remove its window listeners, cancel rAFs,
+  // reset its transient state to the pre-gesture value) and clears it on
+  // pointerup. Without this, the window pointermove/pointerup listeners stay
+  // armed after Escape and still commit the gesture on release.
+  const pointerOpAbortRef = useRef(null);
   const [arrowFrom, setArrowFrom] = useState(null);
   const [activeStroke, setActiveStroke] = useState(null);
   const [activeFreeArrow, setActiveFreeArrow] = useState(null); // { from:{x,y}, to:{x,y} }
@@ -2040,6 +2048,15 @@ export function CanvasSurface({
         return;
       }
       if (e.key === 'Escape') {
+        // Abort any in-progress pointer gesture first so Escape cancels the
+        // drag/resize/marquee instead of letting it commit on pointerup.
+        if (pointerOpAbortRef.current) {
+          const abort = pointerOpAbortRef.current;
+          pointerOpAbortRef.current = null;
+          e.preventDefault();
+          try { abort(); } catch (_) {}
+          return;
+        }
         setAddMenuOpen(false);
         setSelected(new Set());
         setSelectedStrokes(new Set());
@@ -2270,8 +2287,13 @@ export function CanvasSurface({
       nextSelected = new Set([c.id]);
     }
     setSelected(nextSelected);
-    setSelectedStrokes(new Set());
-    setSelectedArrows(new Set());
+    // Only a fresh (non-additive) selection clears stroke/arrow selection.
+    // Shift+Click is building a mixed selection, so leave them intact —
+    // matching onStrokeClick / onArrowClick, which only clear when !shift.
+    if (!e.shiftKey) {
+      setSelectedStrokes(new Set());
+      setSelectedArrows(new Set());
+    }
     if (e.shiftKey) return;
 
     // Expand the drag set to cover every groupmate of every selected
@@ -2575,6 +2597,7 @@ export function CanvasSurface({
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      pointerOpAbortRef.current = null;
       // Cancel any queued mid-drag pointermove that's about to flush —
       // we're about to commit final positions, so a trailing flush would
       // re-render the dragged cards once at a stale delta before settling.
@@ -2687,22 +2710,36 @@ export function CanvasSurface({
             const afterKeys = cardsMap ? [...cardsMap.keys()] : [];
             const afterCount = afterKeys.length;
             const actualDelta = beforeCount - afterCount;
+            const afterKeySet = new Set(afterKeys);
+            const dragIdSet = new Set(dragIds);
+            // Per-id invariant (robust to concurrent edits): every dragged
+            // card must be gone, and NOTHING else may have been removed. We
+            // intentionally ignore keys that were ADDED during the async
+            // window — a peer creating a card mid-drop is harmless and must
+            // not trip a false rollback (the old beforeCount-afterCount delta
+            // check rolled back on any concurrent add or unrelated delete).
+            const dragIdsStillPresent = dragIds.filter(k => afterKeySet.has(k));
+            const unexpectedlyRemoved = beforeKeys.filter(k => !dragIdSet.has(k) && !afterKeySet.has(k));
+            const invariantOk = dragIdsStillPresent.length === 0 && unexpectedlyRemoved.length === 0;
             console.log('[drag-into-board] post-delete', {
               afterCount,
               actualDelta,
               expectedDelta,
-              keysRemoved: beforeKeys.filter(k => !afterKeys.includes(k)),
-              keysAdded:   afterKeys.filter(k => !beforeKeys.includes(k)),
+              dragIdsStillPresent,
+              unexpectedlyRemoved,
+              keysAdded: afterKeys.filter(k => !beforeKeys.includes(k)),
             });
 
-            // CRITICAL INVARIANT: source must lose exactly dragIds.length
-            // cards. If we lost more (or fewer), something is silently
-            // mutating the cards map and we need to roll back hard.
-            if (actualDelta !== expectedDelta) {
+            // CRITICAL INVARIANT: source must lose exactly the dragged cards —
+            // no more, no fewer. If a dragged card survived or an unrelated
+            // card vanished, something is silently mutating the cards map and
+            // we roll back hard.
+            if (!invariantOk) {
               console.error('[drag-into-board] INVARIANT VIOLATED — auto-rolling back', {
                 beforeCount, afterCount, expectedDelta, actualDelta,
                 dragIds, beforeKeys, afterKeys,
-                keysUnexpectedlyRemoved: beforeKeys.filter(k => !dragIds.includes(k) && !afterKeys.includes(k)),
+                dragIdsStillPresent,
+                unexpectedlyRemoved,
               });
               try {
                 if (preDropSnapshotId) {
@@ -2792,6 +2829,22 @@ export function CanvasSurface({
       }
       setDrag(null);
     };
+    // Escape-abort: tear down listeners + queued frames, drop the live-drag
+    // broadcast, clear drop hints, and revert cards to their committed
+    // positions (setDrag(null)) WITHOUT committing the move.
+    pointerOpAbortRef.current = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
+      if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
+      pendingMoveEv = null;
+      pendingLiveDrag = null;
+      try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
+      updateBoardDropTarget(null);
+      document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
+      setSnapHints(null);
+      setDrag(null);
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   };
@@ -2801,6 +2854,11 @@ export function CanvasSurface({
     e.stopPropagation();
     e.currentTarget.setPointerCapture?.(e.pointerId);
     setSelected(new Set([c.id]));
+    // Resizing a single card is a fresh selection — clear any stroke/arrow
+    // selection too so the selection state is consistent (matches the card
+    // pointerdown path).
+    setSelectedStrokes(new Set());
+    setSelectedArrows(new Set());
     const startClient = { x: e.clientX, y: e.clientY };
     setResize({ id: c.id, dw: 0, dh: 0 });
 
@@ -2926,6 +2984,7 @@ export function CanvasSurface({
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      pointerOpAbortRef.current = null;
       const rawDwRaw = (ev.clientX - startClient.x) / zoom;
       const rawDhRaw = (ev.clientY - startClient.y) / zoom;
       const bypass = ev.metaKey || ev.ctrlKey;
@@ -2944,6 +3003,13 @@ export function CanvasSurface({
       setResize(null);
       setSnapHints(null);
     };
+    // Escape-abort: revert to the committed size (setResize(null)).
+    pointerOpAbortRef.current = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      setSnapHints(null);
+      setResize(null);
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   };
@@ -2959,7 +3025,17 @@ export function CanvasSurface({
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const anchor = oppositeCorner(handle, startBounds);
     const startById = new Map();
-    items.forEach(c => startById.set(c.id, { x: c.x, y: c.y, w: c.w, h: c.h, kind: c.kind, manuallyResized: !!c.manuallyResized }));
+    // Coerce dimensions to positive finite numbers up front. A card with a
+    // missing/zero w or h would otherwise make `start.w * sx` produce NaN
+    // (or a divide that clamps wrong), corrupting every item's new size.
+    items.forEach(c => startById.set(c.id, {
+      x: Number.isFinite(c.x) ? c.x : 0,
+      y: Number.isFinite(c.y) ? c.y : 0,
+      w: (Number.isFinite(c.w) && c.w > 0) ? c.w : MIN_W,
+      h: (Number.isFinite(c.h) && c.h > 0) ? c.h : MIN_H,
+      kind: c.kind,
+      manuallyResized: !!c.manuallyResized,
+    }));
     const startClient = { x: e.clientX, y: e.clientY };
     // Pointer-down corresponds to a specific corner / edge of the union
     // bounds. We track where that corner *started* in canvas space so
@@ -3023,6 +3099,7 @@ export function CanvasSurface({
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      pointerOpAbortRef.current = null;
       const live = computeUpdates(ev);
       const updates = [];
       for (const [id, lv] of live) {
@@ -3037,6 +3114,12 @@ export function CanvasSurface({
         updates.push({ id, patch });
       }
       if (updates.length) mutators.updateCards?.(updates);
+      setMultiResize(null);
+    };
+    // Escape-abort: revert to committed bounds (setMultiResize(null)).
+    pointerOpAbortRef.current = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
       setMultiResize(null);
     };
     window.addEventListener('pointermove', onMove);
@@ -3067,8 +3150,15 @@ export function CanvasSurface({
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      pointerOpAbortRef.current = null;
       const rot = compute(ev);
       mutators.updateCard?.(c.id, { rotation: Math.round(rot) || null });
+      setRotateState(null);
+    };
+    // Escape-abort: revert to the committed rotation (setRotateState(null)).
+    pointerOpAbortRef.current = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
       setRotateState(null);
     };
     window.addEventListener('pointermove', onMove);
@@ -3867,30 +3957,44 @@ export function CanvasSurface({
       return;
     }
 
-    // Select tool: marquee
+    // Select tool: marquee. Snapshot the pre-marquee selection so we can
+    // restore it if Escape aborts, and treat Shift as additive. We do NOT
+    // clear the current selection on pointerdown — doing so used to drop a
+    // multi-selection the instant a click twitched a pixel. Clearing happens
+    // only once the gesture is confirmed as a drag (first move past the
+    // threshold) or resolves as a plain click on empty canvas (pointerup).
     const startClient = { x: e.clientX, y: e.clientY };
     const startCanvas = clientToCanvas(e.clientX, e.clientY);
     setMarquee({ x0: startCanvas.x, y0: startCanvas.y, x1: startCanvas.x, y1: startCanvas.y });
     const wasShift = e.shiftKey;
-    const initialSelection = wasShift ? new Set(selected) : null;
-    if (!wasShift) {
+    const preSelected = new Set(selected);
+    const preStrokes = new Set(selectedStrokes);
+    const preArrows = new Set(selectedArrows);
+
+    let moved = false;
+    let cleared = false;
+    // Fresh (non-shift) marquee: clear the existing selection the first time
+    // movement is confirmed, so the live preview reflects only the box.
+    const clearForFreshMarquee = () => {
+      if (cleared || wasShift) return;
+      cleared = true;
       setSelected(new Set());
       setSelectedStrokes(new Set());
       setSelectedArrows(new Set());
-    }
-
-    let moved = false;
+    };
     const onMove = (ev) => {
       const dxClient = ev.clientX - startClient.x;
       const dyClient = ev.clientY - startClient.y;
       if (!moved && Math.abs(dxClient) < 3 && Math.abs(dyClient) < 3) return;
       moved = true;
+      clearForFreshMarquee();
       const cur = clientToCanvas(ev.clientX, ev.clientY);
       setMarquee(prev => prev ? { ...prev, x1: cur.x, y1: cur.y } : null);
     };
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      pointerOpAbortRef.current = null;
       if (moved) {
         const cur = clientToCanvas(ev.clientX, ev.clientY);
         const minX = Math.min(startCanvas.x, cur.x);
@@ -3914,12 +4018,32 @@ export function CanvasSurface({
                Math.min(s.y, e.y) <= rect.maxY && Math.max(s.y, e.y) >= rect.minY)) ? index : null;
           })
           .filter(index => index !== null);
-        const next = new Set(initialSelection || []);
+        // Shift = additive (union with the pre-marquee selection); a plain
+        // marquee replaces it. Applied uniformly to cards, strokes, arrows.
+        const next = new Set(wasShift ? preSelected : []);
         hits.forEach(id => next.add(id));
+        const nextStrokes = new Set(wasShift ? preStrokes : []);
+        strokeHits.forEach(i => nextStrokes.add(i));
+        const nextArrows = new Set(wasShift ? preArrows : []);
+        arrowHits.forEach(i => nextArrows.add(i));
         setSelected(next);
-        setSelectedStrokes(new Set(strokeHits));
-        setSelectedArrows(new Set(arrowHits));
+        setSelectedStrokes(nextStrokes);
+        setSelectedArrows(nextArrows);
+      } else if (!wasShift) {
+        // Plain click on empty canvas → deselect everything.
+        setSelected(new Set());
+        setSelectedStrokes(new Set());
+        setSelectedArrows(new Set());
       }
+      setMarquee(null);
+    };
+    // Escape-abort: restore the pre-marquee selection and drop the box.
+    pointerOpAbortRef.current = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      setSelected(preSelected);
+      setSelectedStrokes(preStrokes);
+      setSelectedArrows(preArrows);
       setMarquee(null);
     };
     window.addEventListener('pointermove', onMove);
