@@ -73,6 +73,16 @@ export function DocFindReplace({ editor, open, onClose }) {
   const [r, setR] = useState('');
   const [showReplace, setShowReplace] = useState(false);
   const inputRef = useRef(null);
+  const replaceInputRef = useRef(null);
+
+  // Close and return focus to the editor (otherwise the next keystroke is lost
+  // into the void after the find bar unmounts). Focus on the next frame so it
+  // lands AFTER React removes the find input — focusing synchronously would be
+  // undone when the still-focused input unmounts and blurs to <body>.
+  const close = () => {
+    onClose();
+    requestAnimationFrame(() => { try { editor?.commands?.focus(); } catch (_) {} });
+  };
 
   // Recompute matches whenever query / doc changes; push into the plugin.
   useEffect(() => {
@@ -122,7 +132,10 @@ export function DocFindReplace({ editor, open, onClose }) {
     if (!total || current < 0) return;
     const [from, to] = ranges[current];
     editor.chain().focus().insertContentAt({ from, to }, r).run();
-    // Recompute matches after replacement.
+    // Recompute matches after the replacement transaction settles. Dispatching
+    // the meta synchronously here re-enters ProseMirror mid-commit and the
+    // replacement gets rolled back — the deferral is load-bearing, not just a
+    // cosmetic debounce.
     setTimeout(() => {
       const next = findMatches(editor.state.doc, q);
       editor.view.dispatch(editor.state.tr.setMeta(findKey, { ranges: next, current: Math.min(current, next.length - 1) }));
@@ -140,7 +153,21 @@ export function DocFindReplace({ editor, open, onClose }) {
   };
 
   const onKey = (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      // Stop the Escape here — otherwise it also bubbles to the doc card
+      // modal's handler and closes the WHOLE doc, not just the find bar.
+      e.stopPropagation();
+      e.nativeEvent?.stopImmediatePropagation?.();
+      // From the Replace field, Escape collapses Replace and returns to Find
+      // instead of closing the whole bar.
+      if (showReplace && e.target === replaceInputRef.current) {
+        setShowReplace(false);
+        inputRef.current?.focus();
+        return;
+      }
+      close();
+    }
     else if (e.key === 'Enter') { e.preventDefault(); goto((current >= 0 ? current : -1) + (e.shiftKey ? -1 : 1)); }
   };
 
@@ -161,7 +188,8 @@ export function DocFindReplace({ editor, open, onClose }) {
       {showReplace && (
         <>
           <span className="doc-find-sep" />
-          <input className="doc-find-input"
+          <input ref={replaceInputRef}
+                 className="doc-find-input"
                  placeholder="Replace"
                  value={r}
                  onChange={(e) => setR(e.target.value)} />
@@ -169,7 +197,7 @@ export function DocFindReplace({ editor, open, onClose }) {
           <button className="doc-find-btn" onClick={replaceAll}>All</button>
         </>
       )}
-      <button className="doc-find-x" onClick={onClose} title="Close (Esc)">×</button>
+      <button className="doc-find-x" onClick={close} title="Close (Esc)">×</button>
     </div>
   );
 }

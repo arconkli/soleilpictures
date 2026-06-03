@@ -307,7 +307,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
     const rect = winSel?.rangeCount
       ? winSel.getRangeAt(0).getBoundingClientRect()
       : { left: 100, top: 100, right: 200, bottom: 120 };
-    setLinkPicker({ anchor: rect, multi: true, initialSelected, existingLinkId });
+    // Stash the selection range so we can restore it if the picker is
+    // cancelled (opening/typing in the picker collapses the editor caret).
+    setLinkPicker({ anchor: rect, multi: true, initialSelected, existingLinkId, from: sel.from, to: sel.to });
   }, [ydoc]);
 
   const commitLink = useCallback((targets) => {
@@ -1168,7 +1170,15 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
           multi={linkPicker.multi}
           initialSelected={linkPicker.initialSelected}
           onCommit={commitLink}
-          onCancel={() => setLinkPicker(null)}
+          onCancel={() => {
+            // Restore the text selection the picker was opened over, so the
+            // caret/highlight isn't lost on Escape / click-outside.
+            const ed = editorRef.current;
+            if (ed && linkPicker && linkPicker.from != null) {
+              try { ed.chain().focus().setTextSelection({ from: linkPicker.from, to: linkPicker.to }).run(); } catch (_) {}
+            }
+            setLinkPicker(null);
+          }}
           urlMode
         />
       )}
