@@ -167,6 +167,15 @@
     fbq('track', 'PageView');
   </script>
   <!-- End Meta Pixel Code -->
+
+  <!-- Boot splash: the branded sun loader is painted from the very first frame
+       (see #boot-splash in <body>) so JS users NEVER see the robots/SEO text
+       block while the entry chunk loads. The dark html/body bg avoids any white
+       flash in the hand-off to React's own SplashLoading sun. The <noscript>
+       rule hides the splash for non-JS visitors so they fall through to the
+       real, crawlable SEO content underneath. -->
+  <style>html,body{margin:0;background:#0a0a0c;}</style>
+  <noscript><style>#boot-splash{display:none!important;}</style></noscript>
 </head>
 <body>
   <!-- Meta Pixel (noscript fallback) — lives in <body>: an <img> inside a
@@ -175,12 +184,43 @@
     src="https://www.facebook.com/tr?id=1671656413978924&ev=PageView&noscript=1"
   /></noscript>
   <div id="root">
+    <!-- Boot splash — FIRST child of #root so it paints (and, via z-index,
+         stacks) above the SEO <main> from the very first frame, even on a
+         slow/streamed connection. Pixel-matched to React's SplashLoading
+         (SoleilMark size=32, --soleil #ffa500, glow, --bg-0 #0a0a0c, auth-glow
+         radial) so the hand-off is one continuous sun. Self-contained inline
+         styles because styles.css isn't applied yet this early. createRoot()
+         clears ALL of #root on its first commit, removing this splash and the
+         SEO block together — no manual teardown. Hidden for no-JS via the
+         <noscript> rule in <head>. -->
+    <div id="boot-splash" aria-hidden="true"
+         style="position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:#0a0a0c;overflow:hidden;">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 800px 600px at 50% 45%, rgba(255,165,0,.10) 0%, transparent 60%);"></div>
+      <svg width="32" height="32" viewBox="0 0 24 24"
+           style="display:block;filter:drop-shadow(0 0 12px rgba(255,165,0,.35));">
+        <circle cx="12" cy="12" r="2.6" fill="#ffa500"/>
+        <g stroke="#ffa500" stroke-width="1" stroke-linecap="round">
+          <line x1="17.5" y1="12" x2="22" y2="12"/>
+          <line x1="16.763" y1="14.75" x2="20.66" y2="17"/>
+          <line x1="14.75" y1="16.763" x2="17" y2="20.66"/>
+          <line x1="12" y1="17.5" x2="12" y2="22"/>
+          <line x1="9.25" y1="16.763" x2="7" y2="20.66"/>
+          <line x1="7.237" y1="14.75" x2="3.34" y2="17"/>
+          <line x1="6.5" y1="12" x2="2" y2="12"/>
+          <line x1="7.237" y1="9.25" x2="3.34" y2="7"/>
+          <line x1="9.25" y1="7.237" x2="7" y2="3.34"/>
+          <line x1="12" y1="6.5" x2="12" y2="2"/>
+          <line x1="14.75" y1="7.237" x2="17" y2="3.34"/>
+          <line x1="16.763" y1="9.25" x2="20.66" y2="7"/>
+        </g>
+      </svg>
+    </div>
     <!-- SEO + no-JS fallback. Real, indexable content for search crawlers and
-         visitors without JavaScript. React (createRoot) clears #root on mount,
-         so anyone with JS NEVER sees this — the cinematic landing is untouched.
-         The same HTML is served to everyone (not cloaking); it just gives Google
-         genuine text + internal links to index. position:fixed + dark bg means
-         any sub-100ms flash on a slow connection reads as intentional. -->
+         visitors without JavaScript. Stays in the served HTML for everyone (not
+         cloaking) so Google gets genuine text + internal links to index. JS
+         users never SEE it — #boot-splash above covers it until React clears
+         #root on mount; no-JS users get it because the splash is hidden for
+         them. -->
     <main style="position:fixed;inset:0;overflow:auto;background:#0a0908;color:#e8e4dc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55;">
       <div style="max-width:680px;margin:0 auto;padding:14vh 24px 24px;">
         <h1 style="font-size:1.9rem;font-weight:600;letter-spacing:-0.01em;margin:0 0 .6em;">Soleil Clusters</h1>
