@@ -5,19 +5,22 @@
 //   as = 'icon'                — tb-icon-style inline button
 //                                (caller controls placement)
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PaperPlaneTilt } from '@phosphor-icons/react';
+import { PaperPlaneTilt, Bug, Lightbulb, Heart, ChatCircle, CheckCircle } from '@phosphor-icons/react';
 import { supabase } from '../lib/supabase.js';
 
 const FEEDBACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/send-feedback';
 const SUPPORT_EMAIL = 'clusters@soleilpictures.com';
+const MAX_MESSAGE = 4000;
 const KINDS = [
-  { id: 'bug',    label: 'Bug',    hint: "Something's broken or wrong" },
-  { id: 'idea',   label: 'Idea',   hint: 'Feature request or improvement' },
-  { id: 'praise', label: 'Praise', hint: 'You love something' },
-  { id: 'other',  label: 'Other',  hint: 'Anything else' },
+  { id: 'idea',   label: 'Idea',   icon: Lightbulb,  hint: 'A feature request or improvement' },
+  { id: 'bug',    label: 'Bug',    icon: Bug,        hint: "Something's broken or wrong" },
+  { id: 'praise', label: 'Praise', icon: Heart,      hint: 'You love something' },
+  { id: 'other',  label: 'Other',  icon: ChatCircle, hint: 'Anything else' },
 ];
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 // Downscale a chosen image to a small JPEG data URL so a screenshot can ride
 // along in the feedback payload without bloating the row. Caps the longest
@@ -49,13 +52,49 @@ function fileToDownscaledDataUrl(file) {
 
 export function FeedbackButton({ as = 'floating' }) {
   const [open, setOpen]       = useState(false);
-  const [kind, setKind]       = useState('bug');
+  const [kind, setKind]       = useState('idea');
   const [message, setMessage] = useState('');
   const [image, setImage]     = useState(null);  // { dataUrl, name } | null
   const [busy, setBusy]       = useState(false);
   const [status, setStatus]   = useState(null);  // 'sent' | 'error' | null
   const [error, setError]     = useState('');
-  const fileRef = useRef(null);
+  const fileRef    = useRef(null);
+  const panelRef   = useRef(null);
+  const lastFocus  = useRef(null);   // element to restore focus to on close
+
+  const canSend = message.trim().length >= 2 && !busy;
+
+  const close = () => { if (!busy) setOpen(false); };
+
+  // While open: lock background scroll, trap Tab inside the panel, Esc closes.
+  useEffect(() => {
+    if (!open) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+      if (e.key === 'Tab') {
+        const panel = panelRef.current;
+        if (!panel) return;
+        const nodes = Array.from(panel.querySelectorAll(FOCUSABLE)).filter((n) => n.getClientRects().length > 0);
+        if (!nodes.length) return;
+        const first = nodes[0];
+        const last  = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+      // Restore focus to whatever opened the modal once it unmounts.
+      const t = lastFocus.current; lastFocus.current = null;
+      if (t && typeof t.focus === 'function') {
+        requestAnimationFrame(() => { try { t.focus({ preventScroll: true }); } catch (_) {} });
+      }
+    };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickImage = async (e) => {
     const file = e.target.files?.[0];
@@ -104,7 +143,7 @@ export function FeedbackButton({ as = 'floating' }) {
       setStatus('sent');
       setMessage('');
       setImage(null);
-      setTimeout(() => { setOpen(false); setStatus(null); }, 1200);
+      setTimeout(() => { setOpen(false); setStatus(null); }, 1600);
     } catch (e) {
       setError(e?.message || String(e));
       setStatus('error');
@@ -113,103 +152,131 @@ export function FeedbackButton({ as = 'floating' }) {
     }
   };
 
-  const openModal = () => { setOpen(true); setStatus(null); setError(''); setImage(null); };
+  const onTextareaKeyDown = (e) => {
+    // ⌘/Ctrl + Enter sends — the universal "submit this form" shortcut.
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSend) { e.preventDefault(); submit(); }
+  };
+
+  const openModal = (e) => {
+    lastFocus.current = e?.currentTarget || (typeof document !== 'undefined' ? document.activeElement : null);
+    setOpen(true);
+    setStatus(null);
+    setError('');
+    setImage(null);
+  };
 
   const Trigger = as === 'icon' ? (
-    <button
-      type="button"
-      className="tb-icon"
-      title="Send feedback"
-      aria-label="Send feedback"
-      onClick={openModal}
-    >
+    <button type="button" className="tb-icon" title="Send feedback" aria-label="Send feedback" onClick={openModal}>
       <PaperPlaneTilt size={16} weight="regular" />
     </button>
   ) : (
-    <button
-      type="button"
-      className="feedback-trigger"
-      onClick={openModal}
-      title="Send feedback"
-      aria-label="Send feedback"
-    >
-      Feedback
+    <button type="button" className="feedback-trigger" onClick={openModal} title="Send feedback" aria-label="Send feedback">
+      <PaperPlaneTilt size={14} weight="fill" /> Feedback
     </button>
   );
 
-  // The modal is rendered through a portal to document.body so a
-  // parent with backdrop-filter / transform / contain (which create
-  // a containing block for position: fixed) can never clip it.
+  const activeHint = KINDS.find((k) => k.id === kind)?.hint || 'Tell us…';
+
+  // The modal is rendered through a portal to document.body so a parent with
+  // backdrop-filter / transform / contain (which create a containing block for
+  // position: fixed) can never clip it.
   const Modal = open && typeof document !== 'undefined' ? createPortal(
-    <div className="feedback-overlay" onClick={() => !busy && setOpen(false)}>
-      <div className="feedback-modal surface-frosted" onClick={(e) => e.stopPropagation()}>
+    <div className="feedback-overlay" onMouseDown={close}>
+      <div
+        ref={panelRef}
+        className="feedback-modal surface-frosted"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Send feedback"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <header className="feedback-head">
-          <div className="t-h3">Send feedback</div>
-          <button type="button" className="feedback-x" onClick={() => !busy && setOpen(false)} aria-label="Close">×</button>
+          <div className="feedback-head-title">
+            <span className="feedback-head-ico" aria-hidden="true"><PaperPlaneTilt size={16} weight="fill" /></span>
+            <span className="t-h3">Send feedback</span>
+          </div>
+          <button type="button" className="feedback-x" onClick={close} aria-label="Close" disabled={busy}>×</button>
         </header>
-        <div className="feedback-body">
-          <p className="feedback-help t-meta" style={{ margin: '0 0 2px' }}>
-            Hit a bug or something broken? Email{' '}
-            <a className="auth-link" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>{' '}
-            and we'll jump on it. For ideas, requests, and everything else, tell us here:
-          </p>
-          <div className="feedback-kinds">
-            {KINDS.map((k) => (
-              <button
-                key={k.id}
-                type="button"
-                className={`feedback-kind ${kind === k.id ? 'is-active' : ''}`}
-                onClick={() => setKind(k.id)}
-                title={k.hint}
-                disabled={busy}
-              >
-                {k.label}
-              </button>
-            ))}
+
+        {status === 'sent' ? (
+          <div className="feedback-success" role="status">
+            <span className="feedback-success-ico" aria-hidden="true"><CheckCircle size={40} weight="fill" /></span>
+            <div className="feedback-success-title">Thanks — got it.</div>
+            <div className="feedback-success-sub t-meta">We read every note that comes in.</div>
           </div>
-          <textarea
-            className="feedback-textarea"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={KINDS.find((k) => k.id === kind)?.hint || 'Tell us…'}
-            rows={5}
-            disabled={busy}
-            autoFocus
-            maxLength={4000}
-          />
-          <div className="feedback-attach" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            {image ? (
-              <>
-                <img
-                  src={image.dataUrl}
-                  alt="attachment preview"
-                  style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6, flex: '0 0 auto' }}
+        ) : (
+          <>
+            <div className="feedback-body">
+              <div className="feedback-kinds" role="radiogroup" aria-label="Feedback type">
+                {KINDS.map((k) => {
+                  const KIco = k.icon;
+                  const active = kind === k.id;
+                  return (
+                    <button
+                      key={k.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={`feedback-kind ${active ? 'is-active' : ''}`}
+                      onClick={() => setKind(k.id)}
+                      title={k.hint}
+                      disabled={busy}
+                    >
+                      <span className="feedback-kind-ico" aria-hidden="true"><KIco size={17} weight={active ? 'fill' : 'regular'} /></span>
+                      {k.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="feedback-field">
+                <textarea
+                  className="feedback-textarea"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={onTextareaKeyDown}
+                  placeholder={activeHint}
+                  rows={5}
+                  disabled={busy}
+                  autoFocus
+                  maxLength={MAX_MESSAGE}
                 />
-                <span className="t-meta" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {image.name}
-                </span>
-                <button type="button" className="auth-link" onClick={() => setImage(null)} disabled={busy}>Remove</button>
-              </>
-            ) : (
-              <button type="button" className="auth-link" onClick={() => fileRef.current?.click()} disabled={busy}>
-                + Add a screenshot
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" onChange={pickImage} style={{ display: 'none' }} />
-          </div>
-          {error && <div className="feedback-error t-meta">{error}</div>}
-        </div>
-        <footer className="feedback-foot">
-          <button type="button" className="auth-link" onClick={() => !busy && setOpen(false)} disabled={busy}>Cancel</button>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={submit}
-            disabled={busy || message.trim().length < 2}
-          >
-            {status === 'sent' ? 'Thanks!' : busy ? 'Sending…' : 'Send'}
-          </button>
-        </footer>
+                {message.length > 0 && (
+                  <span className={`feedback-count t-meta ${message.length >= MAX_MESSAGE ? 'is-max' : ''}`}>
+                    {message.length}/{MAX_MESSAGE}
+                  </span>
+                )}
+              </div>
+
+              <div className="feedback-attach">
+                {image ? (
+                  <div className="feedback-attach-chip">
+                    <img src={image.dataUrl} alt="" className="feedback-attach-thumb" />
+                    <span className="feedback-attach-name t-meta">{image.name}</span>
+                    <button type="button" className="auth-link" onClick={() => setImage(null)} disabled={busy}>Remove</button>
+                  </div>
+                ) : (
+                  <button type="button" className="feedback-attach-add" onClick={() => fileRef.current?.click()} disabled={busy}>
+                    + Add a screenshot
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" onChange={pickImage} style={{ display: 'none' }} />
+              </div>
+
+              {error && <div className="feedback-error t-meta" role="alert">{error}</div>}
+            </div>
+
+            <footer className="feedback-foot">
+              <a className="feedback-email t-meta" href={`mailto:${SUPPORT_EMAIL}`}>Prefer email?</a>
+              <div className="feedback-foot-actions">
+                <button type="button" className="auth-link" onClick={close} disabled={busy}>Cancel</button>
+                <button type="button" className="btn-primary" onClick={submit} disabled={!canSend}>
+                  {busy ? 'Sending…' : 'Send'}
+                </button>
+              </div>
+            </footer>
+          </>
+        )}
       </div>
     </div>,
     document.body,
