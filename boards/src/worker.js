@@ -120,7 +120,9 @@ export default {
     if (which === '15 * * * *') {
       ctx.waitUntil(runCompactionJob1(env));
     } else {
-      ctx.waitUntil(runR2Sweep(env));
+      // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),
+      // then the history-aware orphan sweep. Sequential so R2 ops don't spike.
+      ctx.waitUntil(runImageSizeBackfill(env).then(() => runR2Sweep(env)));
     }
   },
 };
@@ -453,6 +455,32 @@ async function handleBackfillImageSizes(request, env) {
   const url   = new URL(request.url);
   const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 100)));
 
+  try {
+    const result = await backfillImageSizesOnce(env, limit);
+    return json({ ok: true, ...result });
+  } catch (_) {
+    return json({ error: 'list failed' }, 500);
+  }
+}
+
+// Run an async fn over items with a bounded number in flight at once, so a few
+// hundred R2 HEADs don't fire all at once (or run dead-sequentially).
+async function mapLimit(items, limit, fn) {
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      await fn(items[idx]);
+    }
+  });
+  await Promise.all(workers);
+}
+
+// Core of the size backfill: HEAD up to `limit` size-less R2 objects and write
+// their byte size back to images.size_bytes. Shared by the admin HTTP endpoint
+// and the nightly cron. Additive only (sets a metadata column; never deletes),
+// idempotent, and returns how many rows still need a size so a caller can loop.
+async function backfillImageSizesOnce(env, limit) {
   const listUrl =
     `${env.SUPABASE_URL}/rest/v1/images?size_bytes=is.null&deleted_at=is.null` +
     `&select=id,storage_path&limit=${limit}&order=created_at.desc`;
@@ -462,15 +490,15 @@ async function handleBackfillImageSizes(request, env) {
       authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
     },
   });
-  if (!listRes.ok) return json({ error: 'list failed' }, 500);
+  if (!listRes.ok) throw new Error('list failed');
   const rows = await listRes.json();
 
   let processed = 0, notFound = 0, errors = 0;
-  for (const row of rows) {
-    if (!row?.storage_path) continue;
+  await mapLimit(rows, 8, async (row) => {
+    if (!row?.storage_path) return;
     try {
       const obj = await env.IMAGES.head(row.storage_path);
-      if (!obj) { notFound++; continue; }
+      if (!obj) { notFound++; return; }
       const upd = await fetch(
         `${env.SUPABASE_URL}/rest/v1/images?id=eq.${row.id}`,
         {
@@ -486,9 +514,9 @@ async function handleBackfillImageSizes(request, env) {
       );
       if (upd.ok) processed++; else errors++;
     } catch (_) { errors++; }
-  }
+  });
 
-  // Remaining count so the UI can keep looping.
+  // Remaining count so a caller can keep looping until it hits zero.
   const remRes = await fetch(
     `${env.SUPABASE_URL}/rest/v1/images?size_bytes=is.null&deleted_at=is.null&select=id&limit=1`,
     {
@@ -502,5 +530,36 @@ async function handleBackfillImageSizes(request, env) {
   const remHeader = remRes.headers.get('content-range') || '';
   const remaining = parseInt(remHeader.split('/').pop() || '0', 10) || 0;
 
-  return json({ ok: true, processed, not_found: notFound, errors, remaining });
+  return { processed, not_found: notFound, errors, remaining };
+}
+
+// Nightly auto-backfill (runs from the daily cron). Drains size-less image rows
+// in batches until done, until a batch makes no progress (e.g. the only rows
+// left are not_found — their R2 object is gone, so they can never get a size),
+// or until a per-run cap. New uploads already stamp size_bytes, so this only
+// has to clear the historical backlog once and then stays at ~0. Safe to run
+// live with no dry-run gate — it never deletes anything.
+async function runImageSizeBackfill(env, { cap = 5000 } = {}) {
+  if (!env.IMAGES || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.log('[size-backfill] skipped — missing IMAGES binding or SUPABASE_SERVICE_ROLE_KEY');
+    return;
+  }
+  let totalProcessed = 0, totalErrors = 0, totalNotFound = 0, remaining = null, rounds = 0;
+  while (totalProcessed < cap) {
+    let r;
+    try {
+      r = await backfillImageSizesOnce(env, 200);
+    } catch (e) {
+      console.log(`[size-backfill] batch failed: ${e?.message || e}`);
+      break;
+    }
+    rounds++;
+    totalProcessed += r.processed;
+    totalErrors    += r.errors;
+    totalNotFound  += r.not_found;
+    remaining = r.remaining;
+    if (r.remaining === 0) break;
+    if (r.processed === 0) break;   // no recoverable rows left — avoid an infinite loop
+  }
+  console.log(`[size-backfill] processed=${totalProcessed} errors=${totalErrors} not_found=${totalNotFound} remaining=${remaining} rounds=${rounds}`);
 }
