@@ -8,6 +8,7 @@
 // Class component because hooks can't catch errors.
 
 import { Component } from 'react';
+import { logClientError } from '../lib/errorReporting.js';
 
 export class AppErrorBoundary extends Component {
   constructor(props) {
@@ -24,6 +25,8 @@ export class AppErrorBoundary extends Component {
     // devtools. The on-screen panel only shows a trimmed view.
     console.error('[AppErrorBoundary] caught', error);
     console.error('[AppErrorBoundary] componentStack:', info?.componentStack);
+    // Log to our first-party client_errors table (keepalive beacon, no SDK).
+    logClientError(error, { kind: 'render', componentStack: info?.componentStack });
     this.setState({ info });
   }
 

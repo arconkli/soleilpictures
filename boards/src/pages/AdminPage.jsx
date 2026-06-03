@@ -7,6 +7,7 @@
 //   • Grants    — issue / revoke time-bound paid access
 //   • Waitlist  — pending entries with Accept now / Reject / Reschedule
 //   • Feedback  — in-app feedback submissions
+//   • Errors    — first-party client-side error logs (client_errors)
 //   • Tagging   — embeddings tagger quality audit
 //
 // Opens on Overview (fast) and remembers the active tab in the URL
@@ -28,6 +29,7 @@ import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
+import { AdminErrorsTab } from './admin/AdminErrorsTab.jsx';
 import { AdminTaggingTab } from './admin/AdminTaggingTab.jsx';
 import { FeedbackButton } from '../components/FeedbackButton.jsx';
 import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
@@ -40,6 +42,7 @@ const TABS = [
   { id: 'grants',    label: 'Grants' },
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
+  { id: 'errors',    label: 'Errors' },
   { id: 'tagging',   label: 'Tagging' },
   { id: 'universe',  label: 'Universe' },
 ];
@@ -168,6 +171,7 @@ export function AdminPage() {
         {tab === 'grants'    && <AdminGrantsTab />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
         {tab === 'feedback'  && <AdminFeedbackTab />}
+        {tab === 'errors'    && <AdminErrorsTab />}
         {tab === 'tagging'   && <AdminTaggingTab />}
       </main>
     </div>

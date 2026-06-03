@@ -15,6 +15,7 @@
 //   the UI call site.
 
 import { supabase } from './supabase.js';
+import { setErrorUser } from './errorReporting.js';
 
 const SESSION_KEY  = 'soleil_session_id';
 const SOURCE_KEY   = 'soleil_first_source';   // sessionStorage — first-touch acquisition
@@ -106,6 +107,8 @@ if (supabase) {
       cachedUserId = session?.user?.id ?? null;
       cachedAccessToken = session?.access_token ?? null;
       userIdResolved = true;
+      // Attribute first-party error logs to the signed-in user by id (no PII).
+      setErrorUser(cachedUserId);
       if (session?.user?.id) stampFirstSourceIfNeeded();
     });
   } catch (_) {}

@@ -12,6 +12,13 @@ compatibility_date = "2025-01-01"
 # here, because zone provisioning needs to happen interactively).
 workers_dev = true
 
+# Retain Worker logs (fetch + scheduled handlers) in the Cloudflare dashboard
+# so server-side errors caught in worker.js (/api/* try-catch + cron jobs) are
+# inspectable. Client-side crashes go to Sentry; this is the server-side half.
+# A fuller @sentry/cloudflare withSentry() wrapper is a possible follow-up.
+[observability]
+enabled = true
+
 # Public Supabase config used by the /api/tags/* routes to verify the
 # user's JWT against /auth/v1/user. Both values are public-by-design
 # (the anon key is gated by RLS, not secrecy) — safe to commit.

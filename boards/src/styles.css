@@ -5362,6 +5362,20 @@ body {
 .admin-feedback-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
 .admin-feedback-message { color: var(--ink-1); font: 500 13px/1.45 var(--font-sans); white-space: pre-wrap; word-break: break-word; }
 
+/* Admin Errors tab — client_errors triage view. */
+.admin-error-kind {
+  text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; font-weight: 600;
+  color: var(--ink-2); border: 1px solid var(--line-2); border-radius: 5px; padding: 1px 5px;
+}
+.admin-error-grouprow { cursor: pointer; }
+.admin-error-grouprow:hover { background: var(--bg-2); }
+.admin-error-stack {
+  margin: 6px 0 2px; padding: 10px 12px; max-height: 280px; overflow: auto;
+  background: var(--bg-0, var(--bg-1)); border: 1px solid var(--line-1); border-radius: 8px;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink-2); white-space: pre-wrap; word-break: break-word;
+}
+
 /* Retention cohort heatmap — compact table with cell bg encoded
    as retention %. Brighter = more cohort still active that day. */
 .admin-cohort-table { width: 100%; border-collapse: collapse; font: 500 11px/1 var(--font-sans); }

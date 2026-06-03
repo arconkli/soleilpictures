@@ -11,9 +11,12 @@
 //                             refresh). Tier is preserved so unban restores it.
 //     • unban               → clear profiles.banned_* + lift the native ban.
 //                             Does NOT resurrect the canceled subscription.
-//     • delete              → cancel any active sub, then hard-delete the auth
-//                             user (cascades profiles/subscriptions/grants/…;
-//                             content they authored persists with created_by NULL).
+//     • delete              → cancel any active sub, anonymize their analytics
+//                             events + client error logs (GDPR erasure — drop
+//                             user_id/session_id + scrub props PII), then
+//                             hard-delete the auth user (cascades profiles/
+//                             subscriptions/grants/…; content they authored
+//                             persists with created_by NULL).
 //     • resync_subscription → re-pull the sub from Stripe and recompute
 //                             status/period/plan + net monthly amount + discount
 //                             (fixes MRR for legacy/comped rows on demand).
@@ -164,9 +167,18 @@ Deno.serve(async (req) => {
 
       case "delete": {
         const r = await cancelStripeSub(admin, body.user_id);
+        // GDPR erasure: anonymize the user's analytics events + client error logs
+        // (drop user_id + session_id, scrub props PII) BEFORE deleting the auth
+        // user. After deletion the FKs only SET-NULL user_id, leaving rows
+        // correlatable by session_id, so this must run while user_id is set.
+        // Best-effort: log but don't strand the deletion on a transient failure.
+        const anon = await admin.rpc("anonymize_user_analytics", { p_user_id: body.user_id });
+        if (anon.error) console.error("[admin-account-action] anonymize_user_analytics failed", anon.error.message);
+        const anonErr = await admin.rpc("anonymize_user_client_errors", { p_user_id: body.user_id });
+        if (anonErr.error) console.error("[admin-account-action] anonymize_user_client_errors failed", anonErr.error.message);
         const del = await admin.auth.admin.deleteUser(body.user_id);
         if (del.error) return json({ error: del.error.message }, 500);
-        return json({ ok: true, action: "delete", subscription_canceled: r.canceled }, 200);
+        return json({ ok: true, action: "delete", subscription_canceled: r.canceled, analytics_anonymized: anon.data ?? null, errors_anonymized: anonErr.data ?? null }, 200);
       }
 
       case "resync_subscription": {

@@ -9,6 +9,7 @@ import { initCapacitor } from './lib/capacitorInit.js';
 import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
 import { getRecentFonts } from './lib/customFonts.js';
 import { captureFbclid, installSpaPageViews } from './lib/metaPixel.js';
+import { logClientError } from './lib/errorReporting.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
@@ -21,6 +22,16 @@ const AppShell        = lazy(() => import('./AppShell.jsx'));
 const PublicBoardView = lazy(() => import('./components/PublicBoardView.jsx').then(m => ({ default: m.PublicBoardView })));
 const LegalPage       = lazy(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
 const PublicPricingPage = lazy(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
+
+// First-party error logging: capture uncaught errors + unhandled promise
+// rejections into our own client_errors table (see lib/errorReporting.js).
+// fire-and-forget keepalive beacon, no SDK — safe on the landing critical path.
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (e) =>
+    logClientError(e?.error || new Error(e?.message || 'window.onerror'), { kind: 'window' }));
+  window.addEventListener('unhandledrejection', (e) =>
+    logClientError(e?.reason instanceof Error ? e.reason : new Error(`Unhandled rejection: ${String(e?.reason)}`), { kind: 'unhandledrejection' }));
+}
 
 // Meta Pixel: persist any ?fbclid= ad-click id (durable _fbc) BEFORE anything
 // reads getFbCookies(), so a conversion attributes to the ad even days later.
