@@ -13870,6 +13870,11 @@ button.msg-panel-name:hover { color: var(--soleil); }
   transition: background var(--dur-base) var(--ease);
   flex-shrink: 0;
 }
+/* Keyboard focus ring — the switch is now tabbable + Space/Enter operable. */
+.settings-toggle-switch:focus-visible {
+  outline: 2px solid var(--soleil);
+  outline-offset: 2px;
+}
 .settings-toggle-switch.is-on {
   background: var(--soleil);
   border-color: var(--soleil);

@@ -255,21 +255,28 @@ export function PublicBoardView({ token }) {
           <span className="public-brand-name">Clusters</span>
         </a>
         {showCrumbs ? (
-          <div className="public-crumbs">
+          <nav className="public-crumbs" aria-label="Breadcrumb">
             {stack.map((id, i) => {
               const name = (i === stack.length - 1 ? board.name : navBoards[id]) || 'Board';
               const last = i === stack.length - 1;
               return (
                 <span key={id} className="public-crumb-wrap">
                   {i > 0 && <span className="public-crumb-sep" aria-hidden="true">›</span>}
-                  <span className={`public-crumb ${last ? 'here' : 'clk'}`}
-                        onClick={last ? undefined : () => goToCrumb(i)}>
-                    {name}
-                  </span>
+                  {last ? (
+                    <span className="public-crumb here" aria-current="page">{name}</span>
+                  ) : (
+                    <span className="public-crumb clk"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => goToCrumb(i)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToCrumb(i); } }}>
+                      {name}
+                    </span>
+                  )}
                 </span>
               );
             })}
-          </div>
+          </nav>
         ) : (
           <div className="public-board-name">{board.name || 'Untitled'}</div>
         )}

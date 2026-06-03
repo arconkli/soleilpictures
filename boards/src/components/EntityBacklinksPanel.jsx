@@ -75,7 +75,7 @@ export function EntityBacklinksPanel({ ref: targetRef, onClose }) {
           // 2. Text occurrences via the popover RPC. Only meaningful
           // if we know the entity's name (otherwise we'd be searching
           // for an empty string).
-          (entityName && entityName.length >= 4 && workspaceId)
+          (entityName && entityName.length >= 2 && workspaceId)
             ? supabase.rpc('get_entity_mentions', {
                 p_term: entityName, p_workspace: workspaceId, p_limit: 50,
               })
