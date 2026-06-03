@@ -1161,7 +1161,9 @@ function Toggle({ label, desc, value, onChange }) {
       </span>
       <span className={`settings-toggle-switch ${value ? 'is-on' : ''}`}
             onClick={() => onChange(!value)}
+            onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onChange(!value); } }}
             role="switch"
+            tabIndex={0}
             aria-checked={value}>
         <span className="settings-toggle-thumb" />
       </span>

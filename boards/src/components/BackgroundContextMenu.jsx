@@ -44,10 +44,11 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
     };
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('mousedown', onDocDown);
-    window.addEventListener('keydown', onKey);
+    // Capture phase so a submenu/menu-item stopPropagation can't swallow Escape.
+    window.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('mousedown', onDocDown);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
     };
   }, [open, onClose]);
 

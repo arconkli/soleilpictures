@@ -127,7 +127,7 @@ export function MessageBubble({
                     onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false); }} />
           <div className="msg-bubble-edit-actions">
             <button type="button" onClick={() => setEditing(false)}>Cancel</button>
-            <button type="submit" className="msg-composer-send">Save</button>
+            <button type="submit" className="msg-composer-send" disabled={!editBody.trim()}>Save</button>
           </div>
         </form>
       ) : (

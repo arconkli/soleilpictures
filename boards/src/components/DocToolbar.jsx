@@ -160,6 +160,8 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
            onClick={() => editor.chain().focus().toggleStrike().run()}><s>S</s></Btn>
       <Btn title="Inline code" active={isActive('code')} disabled={disabled}
            onClick={() => editor.chain().focus().toggleCode().run()}><code style={{ fontSize: 11 }}>{'<>'}</code></Btn>
+      <Btn title="Highlight (⌘⇧H)" active={isActive('highlight')} disabled={disabled}
+           onClick={() => editor.chain().focus().toggleHighlight().run()}><mark style={{ background: '#fff09a', color: '#222', padding: '0 3px', borderRadius: 2, fontSize: 11 }}>H</mark></Btn>
 
       <span className="doc-tb-sep" />
 

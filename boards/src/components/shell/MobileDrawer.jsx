@@ -40,6 +40,10 @@ export function MobileDrawer({ open, onClose, children }) {
     setDragX(dx);
   };
   const onPointerUp = (e) => {
+    // Always release the capture taken in onPointerDown (this handler also
+    // serves onPointerCancel) so a mid-swipe interruption can't leave the
+    // pointer captured and lock out further interaction.
+    try { e.currentTarget.releasePointerCapture?.(e.pointerId); } catch (_) {}
     if (!dragStart.current || dragStart.current.id !== e.pointerId) return;
     const dx = Math.min(0, e.clientX - dragStart.current.x);
     dragStart.current = null;

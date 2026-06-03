@@ -2032,8 +2032,8 @@ export function CanvasSurface({
       }
       if (cmd && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
       if (cmd && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); doDuplicate(); return; }
-      if (cmd && (e.key === 'c' || e.key === 'C')) { doCopy(); return; }
-      if (cmd && (e.key === 'x' || e.key === 'X')) { doCut(); return; }
+      if (cmd && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); doCopy(); return; }
+      if (cmd && (e.key === 'x' || e.key === 'X')) { e.preventDefault(); doCut(); return; }
 
       if (cmd && e.key === '0') { e.preventDefault(); enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); return; }
       if (cmd && (e.key === '=' || e.key === '+')) { e.preventDefault(); enableSmoothTransform(); setZoom(z => Math.min(ZOOM_MAX, z * 1.25)); return; }
@@ -2057,6 +2057,7 @@ export function CanvasSurface({
           try { abort(); } catch (_) {}
           return;
         }
+        e.preventDefault();
         setAddMenuOpen(false);
         setSelected(new Set());
         setSelectedStrokes(new Set());
@@ -4284,9 +4285,17 @@ export function CanvasSurface({
   useEffect(() => {
     if (!tagChipMenu) return;
     const onAway = () => setTagChipMenu(null);
+    // Capture phase so an inner stopPropagation can't swallow Escape, and a
+    // named handler (not {once:true}) so it (a) keeps working across repeated
+    // opens and (b) is actually removed on cleanup instead of leaking until
+    // some unrelated Escape fires.
+    const onKey = (e) => { if (e.key === 'Escape') setTagChipMenu(null); };
     window.addEventListener('mousedown', onAway, { capture: true });
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setTagChipMenu(null); }, { once: true });
-    return () => window.removeEventListener('mousedown', onAway, { capture: true });
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => {
+      window.removeEventListener('mousedown', onAway, { capture: true });
+      window.removeEventListener('keydown', onKey, { capture: true });
+    };
   }, [tagChipMenu]);
   const toggleTagOnCard = async (cardId, tag) => {
     if (!workspaceId || !board?.id || !cardId || !tag) return;

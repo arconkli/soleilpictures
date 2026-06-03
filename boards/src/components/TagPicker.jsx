@@ -56,13 +56,19 @@ export function TagPicker({
              value={query}
              onChange={(e) => { setQuery(e.target.value); setHover(0); }}
              onKeyDown={(e) => {
+               // The conditional "Create" row renders at index matches.length,
+               // so ArrowDown must be allowed to reach it (was capped one short).
+               const hasCreateRow = !!q && !hasExact;
+               const maxIndex = hasCreateRow ? matches.length : matches.length - 1;
                if (e.key === 'Enter') {
                  e.preventDefault();
-                 if (q && !hasExact) { onCreate?.(query.trim()); onClose?.(); return; }
+                 // Honour the highlighted row instead of always creating.
+                 if (hasCreateRow && hover === matches.length) { onCreate?.(query.trim()); onClose?.(); return; }
                  const m = matches[hover];
-                 if (m) onToggle?.(m);
+                 if (m) { onToggle?.(m); return; }
+                 if (hasCreateRow) { onCreate?.(query.trim()); onClose?.(); }
                }
-               if (e.key === 'ArrowDown') { e.preventDefault(); setHover(h => Math.min(h + 1, matches.length - 1)); }
+               if (e.key === 'ArrowDown') { e.preventDefault(); setHover(h => Math.min(h + 1, maxIndex)); }
                if (e.key === 'ArrowUp')   { e.preventDefault(); setHover(h => Math.max(h - 1, 0)); }
              }} />
       <div className="tag-picker-list">
