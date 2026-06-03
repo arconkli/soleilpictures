@@ -305,20 +305,20 @@ export function HomeGraph({ workspaceId, onNavigate }) {
     }),
   }), [data, kinds]);
 
-  // Scatter dots onto varied orbits instead of one even shell: give each
-  // structural parent↔child link an orbital distance jittered deterministically
-  // (±35%) by the child id. Semantic backlinks keep the default so
-  // cross-references aren't stretched. Keyed on `filtered` so it re-applies
-  // whenever the engine rebuilds the link force on a data change.
+  // Scatter dots onto varied orbits instead of one even shell: vary each
+  // structural parent↔child link's ideal distance by a deterministic ±35%
+  // (semantic backlinks keep the default 30 so cross-references aren't
+  // stretched). forceLink caches per-link distances at initialize() time, so
+  // re-feed the links to force a recompute. We deliberately do NOT call
+  // d3ReheatSimulation(): it flips engineRunning on before the kapsule digest
+  // has assigned state.layout, so the render loop ticks an undefined layout
+  // (blanks the graph). The engine's own warmup/cooldown applies the new
+  // distances. Keyed on `filtered` so it re-applies on each data change.
   useEffect(() => {
-    const fg = fgRef.current;
-    const link = fg?.d3Force?.('link');
-    if (!link) return;
+    const link = fgRef.current?.d3Force?.('link');
+    if (!link?.distance) return;
     link.distance(l => l.kind === 'structural' ? 30 * orbitJitter(targetId(l)) : 30);
-    // Runs while graphReady is still false (reveal is gated 650ms after load),
-    // so any re-settle happens behind the curtain — the user still sees an
-    // already-stable layout when the reveal lands.
-    fg.d3ReheatSimulation?.();
+    if (typeof link.links === 'function') link.links(link.links()); // recompute cached distances
   }, [filtered]);
 
   // Build each node as a tinted "planet": solid core sphere + an additive
