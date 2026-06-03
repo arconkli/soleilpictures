@@ -162,6 +162,7 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
       <form className="canvas-comment-card canvas-comment-card-draft"
             onSubmit={(e) => { e.preventDefault(); onSubmit?.(body); }}>
         <textarea className="canvas-comment-draft-input"
+                  autoFocus
                   rows={2}
                   value={body}
                   placeholder="Add a comment…"

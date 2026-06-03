@@ -124,7 +124,11 @@ export function MessageBubble({
           <textarea autoFocus value={editBody}
                     onChange={(e) => setEditBody(e.target.value)}
                     className="msg-composer-input" rows={2}
-                    onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false); }} />
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') { e.preventDefault(); setEditing(false); return; }
+                      // Enter submits (matches the main composer); Shift+Enter = newline.
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(); }
+                    }} />
           <div className="msg-bubble-edit-actions">
             <button type="button" onClick={() => setEditing(false)}>Cancel</button>
             <button type="submit" className="msg-composer-send" disabled={!editBody.trim()}>Save</button>
