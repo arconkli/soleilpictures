@@ -532,6 +532,9 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
   }, [editingCaption]);
 
   const onImgDblClick = (e) => {
+    // Don't hijack a double-click that lands on the caption / an inner editor
+    // into "edit title" — mirrors LinkCard's guard.
+    if (e.target.closest && e.target.closest('.editable')) return;
     e.stopPropagation();
     setEditingTitle(true);
   };
@@ -696,6 +699,14 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
   // the card on the canvas locks it again.
   const [embedActive, setEmbedActive] = useState(false);
   useEffect(() => { if (!isSelected) setEmbedActive(false); }, [isSelected]);
+  // Escape deactivates the embed iframe (mirrors AudioCard's cover mode). Capture
+  // phase + stopPropagation so it doesn't also trigger the canvas Escape.
+  useEffect(() => {
+    if (!embedActive) return;
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setEmbedActive(false); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [embedActive]);
   const onBodyDouble = (e) => {
     if (!onUpdate) return;
     if (e.target.closest && e.target.closest('.editable')) return; // let inner editors win
@@ -1226,15 +1237,19 @@ function AudioCard({ src, title, duration, cover,
     };
     const onKey = (e) => {
       if (e.key === 'Escape') {
+        // Isolate from the canvas Escape so it only exits cover-drop, then
+        // return focus to the card.
+        e.stopPropagation();
         setCoverDropMode(false);
         setCoverDragOver(false);
+        rootRef.current?.focus?.();
       }
     };
     document.addEventListener('pointerdown', onDocDown, true);
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('pointerdown', onDocDown, true);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
     };
   }, [coverDropMode]);
 
