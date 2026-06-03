@@ -85,3 +85,29 @@ export const TIER_COLORS = {
   demo:     '#9aa0aa',  // mid-grey
   waitlist: '#7a8090',  // dim
 };
+
+// ── Small-N honesty ─────────────────────────────────────────────────
+// At early-stage volumes (today: 135 sessions, 12 users, 1 payer) almost
+// every rate rests on a tiny denominator, so a raw "100%" off n=1 reads
+// as a trend when it's noise. These thresholds drive ONE two-tier rule
+// used across the whole dashboard so honesty is consistent, not ad-hoc:
+//   denom ≥ MIN_RATE_FLAG                  → show the rate solid
+//   MIN_RATE_SHOW ≤ denom < MIN_RATE_FLAG  → show it, flagged "directional"
+//   denom < MIN_RATE_SHOW                  → hide it (placeholder), don't pretend
+export const MIN_RATE_FLAG  = 20;  // ≥ this denominator → trustworthy
+export const MIN_RATE_SHOW  = 5;   // < this denominator → suppress entirely
+export const MIN_POINTS     = 3;   // fewer real datapoints → no line/sparkline
+export const MIN_COHORT_SIZE = 5;  // cohort smaller than this → grey/suppress its row
+
+// safeRate(numer, denom) — the single decision point for "can we trust
+// this rate?". Pair `.rate` with formatPct(); show `.n` as the sample size.
+//   { ok:true,  flag:false, rate, n }   denom ≥ MIN_RATE_FLAG  → solid
+//   { ok:true,  flag:true,  rate, n }   MIN_RATE_SHOW..FLAG     → directional
+//   { ok:false, hide:true,  rate, n }   denom < MIN_RATE_SHOW   → suppress
+export function safeRate(numer, denom) {
+  const n = Number(denom) || 0;
+  const rate = n > 0 ? (Number(numer) || 0) / n : 0;
+  if (n < MIN_RATE_SHOW) return { ok: false, hide: true, flag: false, n, rate };
+  if (n < MIN_RATE_FLAG) return { ok: true, hide: false, flag: true, n, rate };
+  return { ok: true, hide: false, flag: false, n, rate };
+}

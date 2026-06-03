@@ -14,7 +14,7 @@
 // (?tab=) + localStorage, so a reload / back / shared link returns to the
 // operator's tab instead of remounting the heavy WebGL Universe graph.
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { useFeedback } from '../components/AppFeedback.jsx';
@@ -25,7 +25,6 @@ import { AdminError } from './admin/AdminStates.jsx';
 import { AdminUniverseTab } from './admin/AdminUniverseTab.jsx';
 import { AdminOverviewTab } from './admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
-import { AdminFunnelTab } from './admin/AdminFunnelTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
@@ -39,7 +38,6 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 const TABS = [
   { id: 'overview',  label: 'Overview' },
   { id: 'analytics', label: 'Analytics' },
-  { id: 'funnel',    label: 'Funnel' },
   { id: 'users',     label: 'Users' },
   { id: 'grants',    label: 'Grants' },
   { id: 'waitlist',  label: 'Waitlist' },
@@ -51,13 +49,19 @@ const TABS = [
 const TAB_IDS = TABS.map((t) => t.id);
 const STORAGE_KEY = 'admin.tab';
 
+// The 'funnel' tab was merged into Analytics (now the Overview sub-tab). Old
+// deep links and persisted prefs alias to 'analytics' so they don't dead-end.
+const TAB_ALIASES = { funnel: 'analytics' };
+
 // Restore the last tab from ?tab= (preferred — survives deep links), then
 // localStorage, then default to the fast Overview tab.
 function initialTab() {
   try {
     const fromUrl = new URLSearchParams(window.location.search).get('tab');
+    if (fromUrl && TAB_ALIASES[fromUrl]) return TAB_ALIASES[fromUrl];
     if (fromUrl && TAB_IDS.includes(fromUrl)) return fromUrl;
     const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored && TAB_ALIASES[stored]) return TAB_ALIASES[stored];
     if (stored && TAB_IDS.includes(stored)) return stored;
   } catch { /* ignore */ }
   return 'overview';
@@ -81,6 +85,20 @@ export function AdminPage() {
       url.searchParams.set('tab', id);
       window.history.replaceState({}, '', url);
       window.localStorage.setItem(STORAGE_KEY, id);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Rewrite an old ?tab=funnel deep link to the merged tab + its hero sub-tab
+  // (the funnel now lives on Analytics → Overview), once on mount.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('tab') === 'funnel') {
+        url.searchParams.set('tab', 'analytics');
+        url.searchParams.set('view', 'overview');
+        window.history.replaceState({}, '', url);
+        window.localStorage.setItem(STORAGE_KEY, 'analytics');
+      }
     } catch { /* ignore */ }
   }, []);
 
@@ -169,7 +187,6 @@ export function AdminPage() {
         {tab === 'universe'  && <AdminUniverseTab />}
         {tab === 'overview'  && <AdminOverviewTab />}
         {tab === 'analytics' && <AdminAnalyticsTab />}
-        {tab === 'funnel'    && <AdminFunnelTab />}
         {tab === 'users'     && <AdminUsersTab />}
         {tab === 'grants'    && <AdminGrantsTab />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}

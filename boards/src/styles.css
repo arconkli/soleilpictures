@@ -5732,6 +5732,121 @@ body {
   white-space: nowrap;
 }
 
+/* ══ Analytics redesign: sub-tabs, internal toggle, small-N honesty, hero funnel ══
+   Additive only — extends the existing .admin- system. */
+
+/* Sub-tab row under the header: in-flow + underline-active, one level quieter
+   than the main .admin-tab pill so the nav hierarchy reads tab → sub-tab. */
+.admin-subtabs {
+  display: flex; gap: 4px;
+  border-bottom: 1px solid var(--line-1);
+  margin: 0 0 18px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-subtab {
+  background: transparent; border: 0;
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-sans);
+  letter-spacing: .04em;
+  padding: 9px 14px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer; white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.admin-subtab:hover { color: var(--ink-0); }
+.admin-subtab.is-active { color: var(--soleil); border-bottom-color: var(--soleil); }
+
+/* Internal-traffic toggle (toolbar). */
+.admin-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bg-2); border: 1px solid var(--line-2);
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-sans);
+  padding: 7px 12px; border-radius: 999px; cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.admin-toggle:hover { color: var(--ink-0); }
+.admin-toggle-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ink-3);
+  transition: background var(--dur-fast) var(--ease); }
+.admin-toggle.is-on { color: var(--soleil); border-color: rgba(255, 165, 0, .4); }
+.admin-toggle.is-on .admin-toggle-dot { background: var(--soleil); }
+
+/* Small-N honesty: sample-size flag, muted low-N value, sparse-sparkline note.
+   Amber = "interpret carefully"; red stays reserved for leaks/losses. */
+.admin-stat-flag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font: 600 10px/1 var(--font-sans); letter-spacing: .04em; text-transform: uppercase;
+  color: #d99033; background: rgba(217, 144, 51, .12);
+  border-radius: 999px; padding: 3px 7px; white-space: nowrap;
+}
+.admin-stat-card.is-lown .admin-stat-value { color: var(--ink-2); }
+.admin-lown { color: var(--ink-2); }
+.admin-stat-spark-empty { height: 30px; display: flex; align-items: center; color: var(--ink-3); font-size: 10px; }
+
+/* Panel footer note (sample size / caveat). */
+.admin-panel-note {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px dashed var(--line-1);
+  font: 500 11px/1.4 var(--font-sans); color: var(--ink-3);
+}
+
+/* "Not enough data yet" placeholder (distinct from empty = zero rows). */
+.admin-chart-placeholder {
+  display: flex; flex-direction: column; gap: 6px;
+  align-items: center; justify-content: center;
+  min-height: 200px; padding: 24px; text-align: center;
+  border: 1px dashed var(--line-2); border-radius: var(--radius-lg, 14px);
+  background: repeating-linear-gradient(135deg, var(--bg-2) 0 10px, var(--bg-1) 10px 20px);
+  color: var(--ink-3);
+}
+.admin-chart-placeholder-title { font: 600 13px/1.3 var(--font-sans); color: var(--ink-2); }
+.admin-chart-placeholder-sub { font: 500 11px/1.4 var(--font-sans); max-width: 440px; }
+
+/* Hero funnel — stepped horizontal bars; all four numbers per step visible. */
+.admin-hero-funnel { display: flex; flex-direction: column; gap: 2px; }
+.admin-funnel-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 64px 64px 120px;
+  align-items: center; gap: 12px;
+  padding: 7px 8px; border-radius: var(--radius);
+}
+.admin-funnel-row:hover { background: var(--bg-1); }
+.admin-funnel-row-head { color: var(--ink-3); font: 700 10px/1 var(--font-sans);
+  letter-spacing: .06em; text-transform: uppercase; }
+.admin-funnel-row-head:hover { background: transparent; }
+.admin-funnel-row-label { display: flex; align-items: center; gap: 6px;
+  font: 500 12.5px/1.3 var(--font-sans); color: var(--ink-1); min-width: 0; }
+.admin-funnel-marker { font-size: 11px; flex: 0 0 auto; }
+.admin-funnel-bar-lg { height: 22px; border-radius: var(--radius);
+  background: var(--bg-2); border: 1px solid var(--line-1); overflow: hidden; }
+.admin-funnel-row-count { font: 600 13px/1 var(--font-sans); color: var(--ink-0);
+  text-align: right; font-variant-numeric: tabular-nums; }
+.admin-funnel-row-pct { font-size: 12px; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
+.admin-funnel-row-drop { font-size: 12px; color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; }
+.admin-funnel-row-drop.is-loss { color: rgb(220, 120, 120); }
+.admin-funnel-row.is-biggest-leak { background: rgba(220, 80, 80, .06); box-shadow: inset 3px 0 0 rgb(220, 120, 120); }
+.admin-funnel-leak-warn { color: rgb(220, 120, 120); font-weight: 700; }
+.admin-funnel-fork { color: var(--ink-3); font: 700 10px/1 var(--font-sans);
+  letter-spacing: .06em; text-transform: uppercase; margin: 12px 0 2px; padding-left: 8px; }
+.admin-funnel-branch-label { font: 600 12px/1 var(--font-sans); margin: 8px 0 2px; padding-left: 8px; }
+
+/* Data-quality list (System view). */
+.admin-dq-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.admin-dq-list li { font: 500 12.5px/1.5 var(--font-sans); color: var(--ink-2); }
+.admin-dq-list code { font-family: var(--font-mono, monospace); font-size: 11.5px;
+  background: var(--bg-2); padding: 1px 5px; border-radius: 4px; }
+.admin-dq-pill { display: inline-block; margin-right: 8px;
+  font: 600 10px/1 var(--font-sans); letter-spacing: .04em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px; }
+.admin-dq-pill.is-on { color: var(--soleil); background: rgba(255, 165, 0, .12); }
+.admin-dq-pill.is-off { color: #d99033; background: rgba(217, 144, 51, .12); }
+
+@media (max-width: 900px) {
+  .admin-funnel-row { grid-template-columns: 108px 1fr 50px 46px 92px; gap: 8px; }
+  .admin-funnel-row-label { font-size: 12px; }
+}
+
 /* ══ Admin polish: shared loading / error / toolbar / copy / a11y ════════
    Additive only — extends the existing .admin- system, no restyle. */
 
