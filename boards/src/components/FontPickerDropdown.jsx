@@ -97,9 +97,14 @@ export function FontPickerDropdown({
       close(false);
     };
     const onKey = (e) => { if (e.key === 'Escape') close(false); };
+    // pointerdown (capture) AND mousedown — pointerdown fires first on most
+    // platforms and isn't swallowed by inner stopPropagation, matching the
+    // dismissal pattern the color picker uses.
+    document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
+      document.removeEventListener('pointerdown', onDown, true);
       document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };

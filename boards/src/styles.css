@@ -11602,7 +11602,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   text-align: left;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.entity-picker-row:hover { background: var(--bg-hov); color: var(--ink-0); }
+.entity-picker-row:hover,
+.entity-picker-row.is-active { background: var(--bg-hov); color: var(--ink-0); }
 .entity-picker-row.is-selected { background: var(--soleil-soft); color: var(--ink-0); }
 .entity-picker-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entity-picker-url { color: var(--soleil); font-style: italic; }

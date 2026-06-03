@@ -4,6 +4,7 @@ import { Icon } from './Icon.jsx';
 import { Search, X, Check, LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar, Link as LinkIcon, User } from '../lib/icons.js';
 import { searchEntities } from '../lib/entitySearch.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
+import { useListboxNav } from '../hooks/useListboxNav.js';
 
 const PAD = 8;
 const WIDTH = 380;
@@ -121,6 +122,26 @@ export function EntityPicker({
     }
   };
 
+  // Flat, in-render-order list of keyboard-selectable items (URL row, then every
+  // result row across groups) so Arrow/Enter can traverse the grouped list.
+  const showUrlRow = urlMode && /^https?:\/\//i.test(query);
+  const flat = useMemo(() => {
+    const items = [];
+    if (showUrlRow) items.push({ key: '__url', activate: () => onCommit?.([{ kind: 'url', href: query }]) });
+    for (const [, rows] of grouped) for (const row of rows) items.push({ key: row.id, activate: () => toggle(row) });
+    return items;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grouped, showUrlRow, query, selected, multi]);
+  const flatIndexByKey = useMemo(() => {
+    const m = new Map();
+    flat.forEach((it, i) => m.set(it.key, i));
+    return m;
+  }, [flat]);
+  const { active, setActive, onKeyDown, registerItem } = useListboxNav(flat.length, {
+    onSelect: (i) => flat[i]?.activate(),
+    resetKey: query,
+  });
+
   return createPortal(
     <div
       ref={popRef}
@@ -134,6 +155,7 @@ export function EntityPicker({
           placeholder="Search boards, docs, cards…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onKeyDown}
         />
         {query && (
           <button className="entity-picker-clear" onClick={() => setQuery('')} aria-label="Clear">
@@ -143,9 +165,11 @@ export function EntityPicker({
       </div>
 
       <div className="entity-picker-body">
-        {urlMode && query.match(/^https?:\/\//i) && (
+        {showUrlRow && (
           <button
-            className="entity-picker-row entity-picker-url"
+            ref={registerItem(flatIndexByKey.get('__url'))}
+            className={`entity-picker-row entity-picker-url ${active === flatIndexByKey.get('__url') ? 'is-active' : ''}`}
+            onMouseEnter={() => setActive(flatIndexByKey.get('__url'))}
             onClick={() => onCommit?.([{ kind: 'url', href: query }])}
           >
             <Icon as={LinkIcon} size={14} />
@@ -161,7 +185,9 @@ export function EntityPicker({
             {rows.map(row => (
               <button
                 key={row.id}
-                className={`entity-picker-row ${isSelected(row) ? 'is-selected' : ''}`}
+                ref={registerItem(flatIndexByKey.get(row.id))}
+                className={`entity-picker-row ${isSelected(row) ? 'is-selected' : ''} ${active === flatIndexByKey.get(row.id) ? 'is-active' : ''}`}
+                onMouseEnter={() => setActive(flatIndexByKey.get(row.id))}
                 onClick={() => toggle(row)}
                 draggable
                 onDragStart={(e) => onPickerRowDragStart(e, row)}
