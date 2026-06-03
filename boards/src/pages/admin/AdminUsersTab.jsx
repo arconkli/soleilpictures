@@ -268,6 +268,9 @@ export function AdminUsersTab() {
                         </button>
                       ))}
                     </div>
+                    {r.tier === 'waitlist' && !r.joined_waitlist && (
+                      <span className="admin-badge-ghost" title="Signed up but never joined the waitlist — fell off">ghost</span>
+                    )}
                   </td>
                   <td className="admin-muted num">{formatCount(r.card_count)}</td>
                   <td className="admin-muted num" title={`${(r.seconds_in_app ?? 0).toLocaleString()} seconds`}>

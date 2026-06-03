@@ -5223,7 +5223,8 @@ body {
 
 /* Inline row badges. */
 .admin-badge-banned,
-.admin-badge-promo {
+.admin-badge-promo,
+.admin-badge-ghost {
   display: inline-block; margin-left: 6px;
   padding: 1px 6px; border-radius: 999px;
   font: 600 10px/1.5 var(--font-sans);
@@ -5231,6 +5232,7 @@ body {
 }
 .admin-badge-banned { color: rgb(220,120,120); background: rgba(220,80,80,.14); }
 .admin-badge-promo  { color: var(--soleil);    background: var(--soleil-soft); }
+.admin-badge-ghost  { color: rgb(200,110,90);  background: rgba(200,110,90,.14); }
 
 /* Suspended-account takeover (TierRouter). */
 .auth-card-message { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
