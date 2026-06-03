@@ -181,7 +181,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
 
       <span className="doc-tb-sep" />
 
-      <Btn title="Align left" active={isActive({ textAlign: 'left' })} disabled={disabled}
+      <Btn title="Align left" active={isActive({ textAlign: 'left' }) || (!isActive({ textAlign: 'center' }) && !isActive({ textAlign: 'right' }) && !isActive({ textAlign: 'justify' }))} disabled={disabled}
            onClick={() => editor.chain().focus().setTextAlign('left').run()}><Glyph as={AlignLeft} size={14} /></Btn>
       <Btn title="Align center" active={isActive({ textAlign: 'center' })} disabled={disabled}
            onClick={() => editor.chain().focus().setTextAlign('center').run()}><Glyph as={AlignCenter} size={14} /></Btn>
@@ -194,7 +194,8 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
            onClick={() => onOpenLink?.(editor)}><Glyph as={LinkPh} size={14} /></Btn>
       <Btn title="Bookmark this spot" disabled={disabled}
            onClick={() => onInsertBookmark?.(editor)}><Glyph as={Bookmark} size={14} /></Btn>
-      <Btn title="Add comment (⌘⌥M)" disabled={disabled || !editor || editor.state.selection.empty}
+      <Btn title={(!disabled && editor && !editor.state.selection.empty) ? 'Add comment (⌘⌥M)' : 'Select text to comment on'}
+           disabled={disabled || !editor || editor.state.selection.empty}
            onClick={() => onAddComment?.()}><Glyph as={MessageCircle} size={14} /></Btn>
       <Btn title="Find (⌘F)" disabled={disabled}
            onClick={() => onOpenFind?.()}><Glyph as={Search} size={14} /></Btn>

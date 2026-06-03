@@ -107,6 +107,64 @@ function useNoteForeColor(active) {
   return color;
 }
 
+// Active inline-format state at the caret/selection, so the note toolbar can
+// reflect what's already applied (bold/italic/etc. highlighted, current font
+// size shown). Mirrors useNoteForeColor: subscribes to selectionchange while
+// the note is being edited, rAF-debounced. Uses queryCommandState because the
+// note editor formats via execCommand.
+const EMPTY_FMT = { bold: false, italic: false, underline: false, strike: false, listType: null, fontSize: null, align: null };
+function useNoteFormatState(active) {
+  const [state, setState] = useState(EMPTY_FMT);
+  useEffect(() => {
+    if (!active) { setState(EMPTY_FMT); return; }
+    let raf = null;
+    const update = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const sel = window.getSelection?.();
+        if (!sel || sel.rangeCount === 0) return;
+        let node = sel.getRangeAt(0).startContainer;
+        if (node && node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+        if (!node || !node.closest?.('.note-body')) return;
+        let bold = false, italic = false, underline = false, strike = false;
+        let align = null;
+        try {
+          bold = document.queryCommandState('bold');
+          italic = document.queryCommandState('italic');
+          underline = document.queryCommandState('underline');
+          strike = document.queryCommandState('strikeThrough');
+          if (document.queryCommandState('justifyCenter')) align = 'center';
+          else if (document.queryCommandState('justifyRight')) align = 'right';
+          else if (document.queryCommandState('justifyLeft')) align = 'left';
+        } catch (_) {}
+        let listType = null;
+        const li = node.closest?.('li');
+        if (li) {
+          const list = li.parentElement;
+          if (list?.tagName === 'UL') listType = list.classList.contains('note-checklist') ? 'task' : 'ul';
+          else if (list?.tagName === 'OL') listType = 'ol';
+        }
+        let fontSize = null;
+        try { const fs = parseFloat(window.getComputedStyle(node).fontSize); if (fs) fontSize = Math.round(fs); } catch (_) {}
+        setState(prev => (
+          prev.bold === bold && prev.italic === italic && prev.underline === underline &&
+          prev.strike === strike && prev.listType === listType && prev.fontSize === fontSize && prev.align === align
+            ? prev
+            : { bold, italic, underline, strike, listType, fontSize, align }
+        ));
+      });
+    };
+    document.addEventListener('selectionchange', update);
+    update();
+    return () => {
+      document.removeEventListener('selectionchange', update);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [active]);
+  return state;
+}
+
 export function ToolOptionsBar({
   selectedTool,
   drawOptions, setDrawOptions,
@@ -420,24 +478,25 @@ export function ToolOptionsBar({
 // every tool's bar.
 function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote }) {
   const currentFore = useNoteForeColor(true);
+  const fmt = useNoteFormatState(true);
   return (
     <div {...tobProps}
          onPointerDown={(e) => e.stopPropagation()}>
       <FontPicker />
-      <SizePicker />
+      <SizePicker value={fmt.fontSize} />
       <span className="tob-sep" />
-      <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold />
-      <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" />
-      <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" />
-      <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" />
+      <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold active={fmt.bold} />
+      <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" active={fmt.italic} />
+      <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" active={fmt.underline} />
+      <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" active={fmt.strike} />
       <span className="tob-sep" />
-      <ListBtn label="•"  title="Bulleted list" type="ul" />
-      <ListBtn label="1." title="Numbered list" type="ol" />
-      <ListBtn label="☐"  title="Checklist"     type="task" />
+      <ListBtn label="•"  title="Bulleted list" type="ul"   active={fmt.listType === 'ul'} />
+      <ListBtn label="1." title="Numbered list" type="ol"   active={fmt.listType === 'ol'} />
+      <ListBtn label="☐"  title="Checklist"     type="task" active={fmt.listType === 'task'} />
       <span className="tob-sep" />
-      <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft" />
-      <FormatBtn label="≡" title="Align center" cmd="justifyCenter" />
-      <FormatBtn label="⇥" title="Align right"  cmd="justifyRight" />
+      <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft"   active={fmt.align === 'left'} />
+      <FormatBtn label="≡" title="Align center" cmd="justifyCenter" active={fmt.align === 'center'} />
+      <FormatBtn label="⇥" title="Align right"  cmd="justifyRight"  active={fmt.align === 'right'} />
       <span className="tob-sep" />
       <ColorBtn title="Text color" glyph="A" defaultColor={currentFore}
                 swatches={TEXT_COLORS}
@@ -499,11 +558,11 @@ function LineAngleInput({ angle, onCommit }) {
       className="tob-numinput tob-angle-input"
       value={draft}
       onFocus={(e) => { setEditing(true); e.target.select(); }}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => { const v = e.target.value; if (v === '' || /^-?\d*\.?\d*$/.test(v)) setDraft(v); }}
       onBlur={commit}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
-        if (e.key === 'Escape') { setDraft(formatAngleForDisplay(angle)); setEditing(false); e.currentTarget.blur(); }
+        if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { e.stopPropagation(); setDraft(formatAngleForDisplay(angle)); setEditing(false); e.currentTarget.blur(); }
       }}
       style={{ width: 56, textAlign: 'right' }}
       title="Line angle in degrees (0 = horizontal right, 90 = straight down)"
@@ -538,11 +597,11 @@ function LinePxInput({ value, onCommit }) {
       className="tob-numinput tob-px-input"
       value={draft}
       onFocus={(e) => { setEditing(true); e.target.select(); }}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setDraft(v); }}
       onBlur={commit}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
-        if (e.key === 'Escape') { setDraft(formatAngleForDisplay(value)); setEditing(false); e.currentTarget.blur(); }
+        if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { e.stopPropagation(); setDraft(formatAngleForDisplay(value)); setEditing(false); e.currentTarget.blur(); }
       }}
       style={{ width: 56, textAlign: 'right' }}
       title="Line width in pixels (0 = none)"
@@ -550,10 +609,11 @@ function LinePxInput({ value, onCommit }) {
   );
 }
 
-function FormatBtn({ label, title, cmd, val, bold }) {
+function FormatBtn({ label, title, cmd, val, bold, active = false }) {
   return (
-    <button className="tob-btn"
+    <button className={`tob-btn ${active ? 'is-active' : ''}`.trim()}
             title={title}
+            aria-pressed={active}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => execCmd(cmd, val)}
             style={bold ? { fontWeight: 700 } : undefined}>
@@ -562,10 +622,11 @@ function FormatBtn({ label, title, cmd, val, bold }) {
   );
 }
 
-function ListBtn({ label, title, type }) {
+function ListBtn({ label, title, type, active = false }) {
   return (
-    <button className="tob-btn"
+    <button className={`tob-btn ${active ? 'is-active' : ''}`.trim()}
             title={title}
+            aria-pressed={active}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => withSelection(() => toggleList(type))}>
       {label}
@@ -662,17 +723,21 @@ function FontPicker() {
   );
 }
 
-function SizePicker() {
+function SizePicker({ value = null }) {
+  // Controlled by the caret's current font size so the dropdown reflects the
+  // selection instead of always showing the "Size" placeholder. A non-standard
+  // size (not in SIZES) is shown as its own leading option.
+  const cur = value ? String(value) : '';
+  const opts = value && !SIZES.includes(value) ? [value, ...SIZES] : SIZES;
   return (
     <select className="tob-select"
+            value={cur}
             onChange={(e) => {
               const v = Number(e.target.value);
               if (v) applyStyle({ fontSize: v + 'px' });
-              e.target.value = '';
-            }}
-            defaultValue="">
+            }}>
       <option value="" disabled>Size</option>
-      {SIZES.map(s => <option key={s} value={s}>{s}px</option>)}
+      {opts.map(s => <option key={s} value={s}>{s}px</option>)}
     </select>
   );
 }
