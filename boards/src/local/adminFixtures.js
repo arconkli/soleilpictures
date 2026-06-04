@@ -171,6 +171,18 @@ const RPCS = {
   admin_cards_per_day: cardsPerDay,
   admin_kpi_summary: kpi,
   admin_signup_funnel: signupFunnel,
+  // FB/IG instant-demo funnel (admin_fb_funnel) — fbclid ad traffic skips the
+  // waitlist; ad_offer_view is the fork, demo|buy branch off it. demo+checkout
+  // open ≈ saw-offer so the fork reads cleanly.
+  admin_fb_funnel: [
+    { ord: 1, step: 'landing_view',     label: 'Landing view',          branch: 'core', sessions: 420, users: 0 },
+    { ord: 2, step: 'email_submit',     label: 'Email submitted',       branch: 'core', sessions: 168, users: 0 },
+    { ord: 3, step: 'otp_verify',       label: 'Account created',       branch: 'core', sessions: 154, users: 154 },
+    { ord: 4, step: 'ad_offer_view',    label: 'Saw the price offer',   branch: 'core', sessions: 150, users: 150 },
+    { ord: 5, step: 'ad_offer_enter',   label: 'Stepped into the demo', branch: 'demo', sessions: 119, users: 119 },
+    { ord: 6, step: 'checkout_open',    label: 'Opened checkout',       branch: 'buy',  sessions: 31,  users: 31 },
+    { ord: 7, step: 'checkout_success', label: 'Completed payment',     branch: 'buy',  sessions: 22,  users: 22 },
+  ],
   admin_funnel_segments: funnelSegments,
   admin_acquisition_breakdown: [
     { source: 'google',  signups: 412, converted: 79, conversion: 0.1917 },

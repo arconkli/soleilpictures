@@ -16,10 +16,12 @@ export function AcquisitionView() {
     const [ab, fn, fb] = await Promise.allSettled([
       supabase.rpc('admin_acquisition_breakdown', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_signup_funnel',         { p_days: f.days, p_source: f.source || null, p_campaign: f.campaign || null, p_content: f.content || null, p_exclude_internal: f.excludeInternal }),
-      // The FB/IG segment is its own funnel — fbclid only, ignoring the UTM
-      // selectors (FB ads carry no UTM). Tolerates errors via val() so it can
-      // never break the main funnel.
-      supabase.rpc('admin_signup_funnel',         { p_days: f.days, p_has_fbclid: true, p_exclude_internal: f.excludeInternal }),
+      // The FB/IG segment is its OWN funnel shape (admin_fb_funnel) — fbclid ad
+      // traffic skips the waitlist for instant demo, so it models the actual
+      // ad path (landing → signup → price offer → demo|buy), not the generic
+      // waitlist/pricing flow. Tolerates errors via val(): a failure renders the
+      // FB panel empty without ever blocking the main funnel.
+      supabase.rpc('admin_fb_funnel',             { p_days: f.days, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
@@ -39,7 +41,9 @@ export function AcquisitionView() {
           title="Funnel for this segment" sub="filtered by the source / campaign / creative selectors above" />
         <SignupFunnelPanel steps={q.data?.fbSteps || []} days={f.days}
           title="Facebook / Instagram funnel"
-          sub="visitors who arrived via an FB/IG click (fbclid) — paid ads + organic, since fbclid can't separate them" />
+          sub="FB/IG clicks (fbclid) fast-tracked to instant demo — saw the price first, then took the free workspace or bought. Paid + organic (fbclid can't separate them)."
+          branches={['demo', 'buy']}
+          forkLabel="Forks at the offer →" />
         <CloudflareAnalyticsLink />
       </div>
     </AdminAsync>

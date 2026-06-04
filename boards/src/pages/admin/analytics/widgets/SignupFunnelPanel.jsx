@@ -19,8 +19,11 @@ import { PanelNote } from '../../SmallN.jsx';
 const SOLEIL = '#ffa500';
 const GREEN  = '#50c878';
 const BRANCH_META = {
-  waitlist: { marker: '◆', color: SOLEIL, label: 'Waitlist intent' },
-  pricing:  { marker: '◇', color: GREEN,  label: 'Pricing intent'  },
+  waitlist: { marker: '◆', color: SOLEIL, label: 'Waitlist intent'  },
+  pricing:  { marker: '◇', color: GREEN,  label: 'Pricing intent'   },
+  // FB/IG instant-demo funnel: the two choices on the AdWelcome price offer.
+  demo:     { marker: '◆', color: SOLEIL, label: 'Free workspace'   },
+  buy:      { marker: '◇', color: GREEN,  label: 'Creator purchase' },
 };
 
 function row(s, sessions, prev, top, branch, isForkStart) {
@@ -55,12 +58,15 @@ function buildRows(steps, branches) {
   });
 
   // Biggest single drop across every sequential transition → gets the ⚠.
+  // Skip each branch's FIRST row: its "drop" from the fork is the split between
+  // the branches (e.g. chose the demo instead of buying), not a sequential
+  // leak, so flagging it as the biggest leak would be misleading.
   let biggest = null;
   const scan = (rows) => rows.forEach((r) => {
     if (r.drop > 0 && (!biggest || r.dropPct > biggest.dropPct)) biggest = r;
   });
   scan(coreRows.slice(1));
-  branchRows.forEach((bg) => scan(bg.rows));
+  branchRows.forEach((bg) => scan(bg.rows.filter((r) => !r.isForkStart)));
 
   return { top, coreRows, branchRows, biggestKey: biggest?.key || null };
 }
@@ -96,6 +102,7 @@ export function SignupFunnelPanel({
   title = 'Signup funnel',
   sub = 'where sessions fall off, top → fork → outcome',
   branches = ['waitlist', 'pricing'],
+  forkLabel = 'Forks at Welcome →',
 }) {
   const { top, coreRows, branchRows, biggestKey } = useMemo(() => buildRows(steps, branches), [steps, branches]);
   const lowN = top > 0 && top < MIN_RATE_FLAG;
@@ -132,7 +139,7 @@ export function SignupFunnelPanel({
           ))}
 
           {branchRows.length > 0 && (
-            <div className="admin-funnel-fork">Forks at Welcome →</div>
+            <div className="admin-funnel-fork">{forkLabel}</div>
           )}
 
           {branchRows.map((bg) => (
