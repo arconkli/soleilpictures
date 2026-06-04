@@ -79,6 +79,16 @@ export function TierRouter({ children }) {
   if (tier === 'demo' && adOfferPending) {
     return <AdWelcome onEnter={async () => {
       await refetch();
+      // Dev preview (?local=1&tier=demo&adoffer=1): tier is a static QA override,
+      // so refetch can't clear adOfferPending — drop ?adoffer and reload to fall
+      // through into the seeded app. Inert in prod (that param is never present;
+      // there adOfferPending comes from the server and refetch clears it).
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('adoffer')) {
+        url.searchParams.delete('adoffer');
+        window.location.replace(url.pathname + url.search);
+        return;
+      }
       if (window.location.pathname !== '/') window.history.replaceState({}, '', '/');
     }} />;
   }
