@@ -41,6 +41,7 @@ import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { ReadOnlyBanner } from './components/ReadOnlyBanner.jsx';
+import { MobileDesktopNotice } from './components/MobileDesktopNotice.jsx';
 import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
@@ -2322,6 +2323,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               title="Exit clean mode (⌘.)">
         Exit clean mode
       </button>
+      {/* One-time "open on desktop" notice for mobile/tablet/touch users.
+          Self-gates on the breakpoint and portals to <body>. */}
+      <MobileDesktopNotice />
       {isPhone && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
              onClick={() => setMobileNavOpen(false)}
