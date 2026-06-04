@@ -15397,7 +15397,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 }
 
 /* Side rails */
-.cc-rail { display: flex; flex-direction: column; gap: 14px; pointer-events: auto; min-height: 0; overflow-y: auto; }
+.cc-rail { display: flex; flex-direction: column; gap: 14px; pointer-events: auto; min-height: 0; overflow-y: auto; justify-content: space-between; }
 .cc-rail-left  { grid-area: left; }
 .cc-rail-right { grid-area: right; }
 .cc-panel { border-radius: 14px; padding: 12px 14px; }

@@ -76,15 +76,21 @@ export function AdminCommandCenter() {
       supabase.rpc('admin_signups_by_day', { p_days: 30 }),
       supabase.rpc('admin_waitlist_funnel', { p_days: 30 }),
       supabase.rpc('admin_activation_funnel'),
+      // Command Center is the "everything happening" wall → include all activity
+      // (exclude_internal:false) so these match the live placement stream.
+      supabase.rpc('admin_card_stats',    { p_days: 90, p_exclude_internal: false }),
+      supabase.rpc('admin_cards_per_day', { p_days: 30, p_exclude_internal: false }),
     ]);
     const val = (x) => (x.status === 'fulfilled' && !x.value.error ? x.value.data : null);
     return {
-      stats:      val(r[0]),
-      activeNow:  val(r[1]),
-      history:    val(r[2]) || [],
-      signups:    val(r[3]) || [],
-      waitlist:   val(r[4]) || [],
-      activation: val(r[5]),
+      stats:       val(r[0]),
+      activeNow:   val(r[1]),
+      history:     val(r[2]) || [],
+      signups:     val(r[3]) || [],
+      waitlist:    val(r[4]) || [],
+      activation:  val(r[5]),
+      cardStats:   val(r[6]),
+      cardsPerDay: val(r[7]) || [],
     };
   }, [], { pollIntervalMs: 20000 });
 
@@ -115,7 +121,28 @@ export function AdminCommandCenter() {
     .map((t) => ({ name: t, value: tiers[t] || 0 }))
     .filter((d) => d.value > 0);
 
-  const placements = useCardPlacements();
+  const { items: placements, liveTotal } = useCardPlacements();
+
+  // Content mix (card kinds) — pairs visually with the tier-mix donut above it.
+  const contentMix = Object.entries((data?.cardStats || {}).by_kind || {})
+    .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+    .filter((d) => d.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const contentTotal = contentMix.reduce((a, b) => a + b.value, 0);
+
+  // Cards created · 30d — today's (last) bar ticks up live between the 20s polls
+  // as placements stream in. Baseline resets on each poll (lastUpdated) so the
+  // bump never double-counts what the fresh poll already includes.
+  const [cardsBaseline, setCardsBaseline] = useState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setCardsBaseline(liveTotal); }, [lastUpdated]);
+  const liveBump = Math.max(0, liveTotal - cardsBaseline);
+  const cardsDaily = (data?.cardsPerDay || []).map((r) => ({ label: shortDate(r.day), cards: r.cards || 0 }));
+  if (cardsDaily.length && liveBump > 0) {
+    const i = cardsDaily.length - 1;
+    cardsDaily[i] = { ...cardsDaily[i], cards: cardsDaily[i].cards + liveBump };
+  }
+  const cardsTotal = cardsDaily.reduce((a, b) => a + b.cards, 0);
 
   const toggleFullscreen = () => {
     const el = stageRef.current;
@@ -202,6 +229,20 @@ export function AdminCommandCenter() {
               </PieChart>
             </ResponsiveContainer>
           </CcPanel>
+
+          <CcPanel title="Content mix" sub={`${formatCount(contentTotal)} cards`}>
+            <ResponsiveContainer width="100%" height={120}>
+              <PieChart>
+                <Pie data={contentMix} dataKey="value" nameKey="name" innerRadius={30} outerRadius={50}
+                     paddingAngle={2} stroke="var(--bg-1)">
+                  {contentMix.map((d) => <Cell key={d.name} fill={KIND_COLOR[d.name] || GREY} />)}
+                </Pie>
+                <Tooltip {...TIP} itemStyle={{ color: 'var(--ink-0)' }} />
+                <Legend verticalAlign="middle" align="right" layout="vertical" iconSize={9}
+                        iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CcPanel>
         </div>
 
         {/* Centerpiece — the live universe, bounded + centered in the middle box,
@@ -246,6 +287,19 @@ export function AdminCommandCenter() {
                 <YAxis type="category" dataKey="stage" {...AXIS} width={66} />
                 <Tooltip {...TIP} cursor={{ fill: 'rgba(255,165,0,.08)' }} />
                 <Bar dataKey="value" fill={GREEN} radius={[0, 3, 3, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CcPanel>
+
+          <CcPanel title="Cards created · 30d"
+                   sub={<><span className="cc-live-dot" /> {formatCount(cardsTotal)}</>}>
+            <ResponsiveContainer width="100%" height={120}>
+              <BarChart data={cardsDaily} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
+                <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
+                <XAxis dataKey="label" {...AXIS} interval="preserveStartEnd" minTickGap={24} />
+                <YAxis {...AXIS} width={28} allowDecimals={false} />
+                <Tooltip {...TIP} cursor={{ fill: 'rgba(255,165,0,.08)' }} />
+                <Bar dataKey="cards" fill={SOLEIL} radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CcPanel>
