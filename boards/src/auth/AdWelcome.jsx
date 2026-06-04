@@ -88,7 +88,7 @@ export function AdWelcome({ onEnter }) {
               onClick={onContinue}
               disabled={busy || entering}
             >
-              {entering ? 'Entering…' : 'Continue into your workspace →'}
+              {entering ? 'Starting…' : 'Try the demo →'}
             </button>
             <button
               className="pricing-cta pricing-cta-primary waitlist-status-cta"
