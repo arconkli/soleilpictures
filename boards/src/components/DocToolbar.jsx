@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { DocExportMenu } from './DocExportMenu.jsx';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
+import { SizeInput } from './SizeInput.jsx';
 import { useCustomFonts, useRecentFonts } from '../hooks/useCustomFonts.js';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
@@ -135,18 +136,17 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
         disabled={disabled}
       />
 
-      <select className="doc-tb-select" disabled={disabled}
-              value={(() => {
-                const fs = editor?.getAttributes('textStyle')?.fontSize;
-                if (!fs) return '';
-                const px = parseInt(fs, 10);
-                return SIZES.includes(px) ? String(px) : '';
-              })()}
-              onChange={(e) => setSize(e.target.value)}
-              title="Font size" aria-label="Font size">
-        <option value="" disabled>Size</option>
-        {SIZES.map(s => <option key={s} value={s}>{s}px</option>)}
-      </select>
+      <SizeInput
+        value={(() => {
+          const fs = editor?.getAttributes('textStyle')?.fontSize;
+          const px = fs ? parseInt(fs, 10) : NaN;
+          return Number.isFinite(px) ? px : null;
+        })()}
+        presets={SIZES}
+        className="doc-tb-size-combo"
+        disabled={disabled}
+        onCommit={(px) => setSize(px)}
+      />
 
       <span className="doc-tb-sep" />
 

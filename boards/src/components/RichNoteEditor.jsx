@@ -154,6 +154,13 @@ export function RichNoteEditor({
     // saved before the placeholder fix may have one of those shapes; this
     // makes them editable again on entry.
     if (ref.current) normalizeChecklists(ref.current);
+    // Legacy @-mention chips were saved with contenteditable="false", which
+    // blocks native drag-select across them. Strip it on entry so existing
+    // notes get the same both-directions selection as freshly-inserted chips
+    // (the committed html re-saves clean on the next blur).
+    if (ref.current) {
+      ref.current.querySelectorAll('.tt-link[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    }
     setTimeout(() => {
       if (!ref.current) return;
       ref.current.focus();
@@ -417,7 +424,14 @@ export function RichNoteEditor({
       const span = document.createElement('span');
       span.className = 'tt-link tt-link-manual';
       span.setAttribute('data-entity-ref', JSON.stringify(ref0));
-      span.contentEditable = 'false';
+      // Intentionally NOT contenteditable=false. An inline ce=false island
+      // breaks native drag-select ACROSS it: forward selection stalls and
+      // backward selection fails outright (verified with a real pointer drag;
+      // user-select:all rescues forward but not backward). This is the exact
+      // problem makeEmptyCheckbox documents for checklist boxes. The chip's
+      // text is cosmetic — the display renderer rebuilds the real link from
+      // data-entity-ref — so leaving it editable is benign and lets a user
+      // drag a selection straight through an @-mention.
       span.textContent = target.title || target.name || ref0.kind;
       tokenRange.insertNode(span);
       // Drop a trailing space + collapse caret after the chip.
@@ -458,6 +472,13 @@ export function RichNoteEditor({
            className="note-body"
            contentEditable={editing}
            suppressContentEditableWarning
+           // Match the doc editor: explicitly opt this contenteditable in to
+           // Grammarly so its checker attaches consistently. (Underline
+           // alignment is still constrained by the canvas zoom transform —
+           // see the .note-body line-height note in styles.css.)
+           data-gramm="true"
+           data-gramm_editor="true"
+           data-enable-grammarly="true"
            onPointerDown={editing ? onEditingPointerDown : undefined}
            onMouseDown={editing ? (e) => e.stopPropagation() : undefined}
            onBlur={editing ? commit : undefined}

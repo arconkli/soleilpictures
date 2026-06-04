@@ -3880,7 +3880,12 @@ body {
 .note.is-transparent { background: transparent; border-color: transparent; box-shadow: none; }
 
 .note-body {
-  font-size: 13px; line-height: 1.62; color: var(--ink-0);
+  /* 15px default (up from 13) for more comfortable reading; per-card and
+     per-selection sizes still override via inline styles. line-height kept
+     tight (1.5, down from 1.62) so the text box hugs the glyphs — a taller
+     line-box pushes the Grammarly spell-check underline visibly above the
+     word inside the zoom-transformed canvas. */
+  font-size: 15px; line-height: 1.5; color: var(--ink-0);
   letter-spacing: -0.002em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -7447,6 +7452,38 @@ body {
   margin: 0;
 }
 .tob-numinput:focus { outline: none; border-color: var(--line-3); }
+
+/* Editable font-size combobox (shared by the note + doc toolbars). Type an
+   exact px size or pick a preset from the native datalist dropdown. */
+.size-combo {
+  appearance: none;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  color: var(--ink-1);
+  font: inherit;
+  font-size: 11.5px;
+  width: 62px;
+  /* extra right padding leaves room for the browser's native datalist arrow */
+  padding: 3px 18px 3px 8px;
+  cursor: text;
+}
+.size-combo::placeholder { color: var(--ink-3); }
+.size-combo:focus { outline: none; border-color: var(--line-3); }
+.size-combo:disabled { opacity: .5; cursor: default; }
+/* Doc toolbar variant — match the doc selects' taller, rounder look. */
+.doc-tb-size-combo {
+  background: transparent;
+  border: 0;
+  font: 500 12.5px/1 var(--font-sans);
+  letter-spacing: -0.005em;
+  height: 28px;
+  border-radius: 6px;
+  width: 66px;
+}
+.doc-tb-size-combo:hover:not(:disabled) { background-color: var(--bg-hov); color: var(--ink-0); }
+.doc-tb-size-combo:focus { background: var(--bg-3); border: 1px solid var(--line-2); }
+
 .tob-swatches { display: flex; gap: 3px; }
 .tob-sw {
   appearance: none;

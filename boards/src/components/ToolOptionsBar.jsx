@@ -17,6 +17,7 @@ import { addRecentColor } from '../lib/recentColors.js';
 import { useCustomFonts, useRecentFonts } from '../hooks/useCustomFonts.js';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
+import { SizeInput } from './SizeInput.jsx';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
 
@@ -31,7 +32,7 @@ const FONTS = [
   { id: 'serif', name: 'Serif', css: 'ui-serif, Georgia, "Times New Roman", serif' },
   { id: 'mono', name: 'Mono', css: 'JetBrains Mono, ui-monospace, monospace' },
 ];
-const SIZES = [11, 13, 16, 20, 28, 40, 56];
+const SIZES = [11, 13, 15, 18, 24, 32, 48, 64];
 
 const SHAPES = [
   { id: 'rect', label: 'Rect' },
@@ -724,21 +725,16 @@ function FontPicker() {
 }
 
 function SizePicker({ value = null }) {
-  // Controlled by the caret's current font size so the dropdown reflects the
-  // selection instead of always showing the "Size" placeholder. A non-standard
-  // size (not in SIZES) is shown as its own leading option.
-  const cur = value ? String(value) : '';
-  const opts = value && !SIZES.includes(value) ? [value, ...SIZES] : SIZES;
+  // Editable combobox: reflects the caret's current size, lets the user type
+  // an exact px value, or pick a preset from the dropdown. The note apply path
+  // (wrapSelectionStyle) already accepts arbitrary px, so any typed size works.
   return (
-    <select className="tob-select"
-            value={cur}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              if (v) applyStyle({ fontSize: v + 'px' });
-            }}>
-      <option value="" disabled>Size</option>
-      {opts.map(s => <option key={s} value={s}>{s}px</option>)}
-    </select>
+    <SizeInput
+      value={value}
+      presets={SIZES}
+      className="tob-size-combo"
+      onCommit={(px) => applyStyle({ fontSize: px + 'px' })}
+    />
   );
 }
 
