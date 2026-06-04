@@ -9,10 +9,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
+import { BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds } from '../lib/dragMimes.js';
+import { wouldCreateCycle } from '../lib/boardTree.js';
 
 const HOVER_PREFETCH_MS = 80;
-
-const BOARD_REF_MIME = 'application/x-soleil-board-ref';
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
 
 function loadExpanded(workspaceId) {
@@ -51,6 +51,18 @@ export function SidebarBoardTree({
   // Touch path: set when drag goes active in the document-level pointer
   // listener (further below), cleared on pointerup the same way.
   const dragGestureRef = useRef({ dragged: false });
+  // Row currently highlighted as a reparent drop target.
+  const [dropTargetId, setDropTargetId] = useState(null);
+  // Multi-select set for dragging several boards at once (cmd/shift-click).
+  const [selectedTreeBoards, setSelectedTreeBoards] = useState(() => new Set());
+  // Live boards map for the touch DnD listener (its effect deps are []).
+  const boardsRef = useRef(boards);
+  boardsRef.current = boards;
+  // Ordered list of currently-visible board ids (for shift-range select),
+  // populated during render.
+  const visibleOrderRef = useRef([]);
+  // Anchor row for shift-range selection.
+  const lastClickedRef = useRef(null);
   const hoverEnter = (boardId) => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => {
@@ -84,6 +96,8 @@ export function SidebarBoardTree({
   // sets in localStorage so each workspace remembers its own open branches.
   useEffect(() => {
     setExpanded(loadExpanded(workspaceId));
+    setSelectedTreeBoards(new Set());
+    lastClickedRef.current = null;
   }, [workspaceId]);
 
   const toggle = (id) => {
@@ -112,6 +126,51 @@ export function SidebarBoardTree({
 
   const roots = childrenByParent.get('__root__') || [];
 
+  // Flattened visible board order (honoring expansion) for shift-range select.
+  const visibleOrder = (() => {
+    const out = [];
+    const walk = (arr) => {
+      for (const b of arr) {
+        out.push(b.id);
+        if (expanded.has(b.id)) walk(childrenByParent.get(b.id) || []);
+      }
+    };
+    walk(roots);
+    return out;
+  })();
+  visibleOrderRef.current = visibleOrder;
+
+  // Click selection: plain = open + select-one; ⌘/Ctrl = toggle; Shift = range.
+  const onRowClick = (e, board) => {
+    if (dragGestureRef.current.dragged) { dragGestureRef.current.dragged = false; return; }
+    if (renaming?.boardId === board.id) return;
+    if (e.metaKey || e.ctrlKey) {
+      e.preventDefault();
+      setSelectedTreeBoards(prev => {
+        const n = new Set(prev);
+        if (n.has(board.id)) n.delete(board.id); else n.add(board.id);
+        return n;
+      });
+      lastClickedRef.current = board.id;
+      return;
+    }
+    if (e.shiftKey && lastClickedRef.current) {
+      e.preventDefault();
+      const order = visibleOrderRef.current;
+      const a = order.indexOf(lastClickedRef.current);
+      const b = order.indexOf(board.id);
+      if (a !== -1 && b !== -1) {
+        const [lo, hi] = a <= b ? [a, b] : [b, a];
+        setSelectedTreeBoards(new Set(order.slice(lo, hi + 1)));
+        return;
+      }
+    }
+    // Plain click — single-select + open.
+    setSelectedTreeBoards(new Set([board.id]));
+    lastClickedRef.current = board.id;
+    onOpenBoard?.(board.id);
+  };
+
   const renderRow = (board, depth) => {
     const kids = childrenByParent.get(board.id) || [];
     const hasKids = kids.length > 0;
@@ -137,33 +196,65 @@ export function SidebarBoardTree({
     })();
 
     const isRenaming = renaming?.boardId === board.id;
+    const isDropTarget = dropTargetId === board.id;
+    const isSelected = selectedTreeBoards.has(board.id);
     return (
       <div key={board.id} className="sb-tree-node">
-        <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${isRenaming ? 'is-renaming' : ''}`}
+        <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}`}
              style={{ paddingLeft: 6 + depth * 14 }}
              data-board-id={board.id}
              draggable={!isRenaming}
              onDragStart={(e) => {
                dragGestureRef.current.dragged = true;
+               // Drag the whole selection when this row is part of a multi-select.
+               const ids = (selectedTreeBoards.size > 1 && selectedTreeBoards.has(board.id))
+                 ? [...selectedTreeBoards]
+                 : [board.id];
+               try { window.__soleilBoardDrag = { boardIds: ids }; } catch (_) {}
                try {
                  e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: board.id, name: board.name }));
-                 e.dataTransfer.effectAllowed = 'copy';
+                 if (ids.length > 1) e.dataTransfer.setData(BOARD_REF_LIST_MIME, JSON.stringify(ids));
+                 e.dataTransfer.effectAllowed = 'copyMove';
                } catch (_) {}
              }}
              onDragEnd={() => {
+               try { window.__soleilBoardDrag = null; } catch (_) {}
+               setDropTargetId(null);
                // The stray click fires AFTER dragend in some browsers — clear
                // on the next macrotask so the click handler still sees the flag.
                setTimeout(() => { dragGestureRef.current.dragged = false; }, 0);
              }}
+             onDragOver={(e) => {
+               const t = e.dataTransfer.types;
+               if (!t.includes(BOARD_REF_MIME) && !t.includes(BOARD_REF_LIST_MIME)) return;
+               // Read the dragged ids from the side-channel (dataTransfer.getData
+               // isn't readable during dragover) to reject self / descendant /
+               // already-a-child targets with a no-drop cursor (no highlight).
+               const ids = (typeof window !== 'undefined' && window.__soleilBoardDrag?.boardIds) || [];
+               const invalid = ids.length > 0 &&
+                 (ids.includes(board.id) || ids.some(id => wouldCreateCycle(boardsRef.current, id, board.id)));
+               if (invalid) { try { e.dataTransfer.dropEffect = 'none'; } catch (_) {} return; }
+               e.preventDefault();
+               try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+               if (dropTargetId !== board.id) setDropTargetId(board.id);
+             }}
+             onDragLeave={(e) => {
+               if (e.currentTarget.contains?.(e.relatedTarget)) return;
+               setDropTargetId(prev => (prev === board.id ? null : prev));
+             }}
+             onDrop={(e) => {
+               setDropTargetId(null);
+               const childIds = readBoardRefIds(e.dataTransfer);
+               if (!childIds.length) return;
+               e.preventDefault();
+               e.stopPropagation();
+               document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+                 detail: { childIds, targetId: board.id, sourceSurface: 'sidebar' },
+               }));
+             }}
              onMouseEnter={() => hoverEnter(board.id)}
              onMouseLeave={hoverLeave}
-             onClick={() => {
-               if (dragGestureRef.current.dragged) {
-                 dragGestureRef.current.dragged = false;
-                 return;
-               }
-               if (!isRenaming) onOpenBoard?.(board.id);
-             }}
+             onClick={(e) => onRowClick(e, board)}
              onDoubleClick={(e) => {
                // Double-click anywhere on the row enters rename mode.
                // Skip if the chevron caught it (let toggle do its thing).
@@ -171,7 +262,7 @@ export function SidebarBoardTree({
                e.stopPropagation();
                beginRename(board);
              }}
-             title={isRenaming ? '' : 'Click to open · double-click to rename · drag onto a canvas to embed'}>
+             title={isRenaming ? '' : 'Click to open · double-click to rename · drag onto another board to nest it'}>
           <button className="sb-tree-chev"
                   onClick={(e) => { e.stopPropagation(); if (hasKids) toggle(board.id); }}
                   style={{ visibility: hasKids ? 'visible' : 'hidden' }}
@@ -279,9 +370,23 @@ export function SidebarBoardTree({
     const onUp = (e) => {
       if (!drag) return;
       if (drag.active) {
-        document.dispatchEvent(new CustomEvent('soleil-touch-board-drop', {
-          detail: { boardId: drag.boardId, name: drag.name, clientX: e.clientX, clientY: e.clientY },
-        }));
+        // If released over another board ROW, reparent (nest) into it. The
+        // mouse path does this via HTML5 onDrop; mirror it for touch so the
+        // two never diverge. Otherwise fall back to the canvas-embed event.
+        const overRow = document.elementFromPoint?.(e.clientX, e.clientY)?.closest?.('.sb-tree-row');
+        const targetId = overRow?.dataset?.boardId || null;
+        const valid = targetId && targetId !== drag.boardId &&
+          !wouldCreateCycle(boardsRef.current, drag.boardId, targetId);
+        if (valid) {
+          document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+            detail: { childIds: [drag.boardId], targetId, sourceSurface: 'sidebar-touch' },
+          }));
+        } else {
+          document.dispatchEvent(new CustomEvent('soleil-touch-board-drop', {
+            detail: { boardId: drag.boardId, name: drag.name, clientX: e.clientX, clientY: e.clientY },
+          }));
+        }
+        setDropTargetId(null);
         drag.ghost?.remove();
         setTimeout(() => { dragGestureRef.current.dragged = false; }, 0);
       }

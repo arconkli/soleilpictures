@@ -23,6 +23,15 @@ export function isDocQaMode() {
   return new URLSearchParams(window.location.search).get('docqa') === '1';
 }
 
+// Dev-only drag-and-drop QA bridge. Active ONLY in a DEV build with ?dndqa=1.
+// Publishes the PURE drag/drop logic helpers (boardTree cycle/plan, canvas
+// clamp, dragMimes coercion) on window.__soleilDndTest so Playwright logic
+// specs can exercise them directly — no UI, no backend.
+export function isDndQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('dndqa') === '1';
+}
+
 // Dev-only tier override for Playwright. Active ONLY in a DEV build with
 // ?local=1 (same trust boundary as isLocalQaMode), so it can never affect a
 // production build. Lets specs render the tier-gated pricing/billing surfaces

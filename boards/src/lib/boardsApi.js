@@ -436,8 +436,65 @@ export async function createBoard({ workspaceId, parentBoardId = null, name, vie
   return sel.data || row;
 }
 
+// Reparent boards under targetId (null = workspace root) via the validated,
+// atomic `move_boards_under` RPC — the SINGLE authoritative write path for
+// parent_board_id. The RPC re-checks per child server-side (exists, write
+// access, same workspace, not self, not already there, NO CYCLE) and skips
+// offenders rather than failing the batch. parent_board_id is the source of
+// truth; the CALLER reconciles the derived `kind:'board'` canvas cards.
+//
+// We snapshot each child's current parent BEFORE the move and log one
+// board_meta_history row per moved board (field 'parent_board_id') so the
+// reparent is auditable and Cmd+Z can reverse it (see applyMetaChangeUndo).
+// Logging the accurate pre-move parent is what makes redo land correctly.
+// Returns { moved: string[], skipped: [{id, reason}] }.
+export async function moveBoardsUnder(childIds, targetId = null, opts = {}) {
+  const ids = [...new Set((childIds || []).filter(Boolean))];
+  if (ids.length === 0) return { moved: [], skipped: [] };
+  // Capture current parents BEFORE the move for accurate history before_value.
+  const beforeById = {};
+  try {
+    const { data: pre } = await supabase
+      .from('boards')
+      .select('id, workspace_id, parent_board_id')
+      .in('id', ids);
+    for (const r of (pre || [])) beforeById[r.id] = r;
+  } catch (_) {}
+  const { data, error } = await supabase.rpc('move_boards_under', {
+    p_child_ids: ids,
+    p_target_id: targetId ?? null,
+  });
+  if (error) throw error;
+  const result = data || { moved: [], skipped: [] };
+  try {
+    const histRows = (result.moved || [])
+      .filter(id => beforeById[id])
+      .map(id => {
+        const prevParent = beforeById[id].parent_board_id ?? null;
+        return {
+          board_id: id,
+          workspace_id: beforeById[id].workspace_id,
+          field: 'parent_board_id',
+          before_value: prevParent == null ? null : { v: prevParent },
+          after_value: targetId == null ? null : { v: targetId },
+          changed_by: opts.userId ?? null,
+          session_id: opts.sessionId ?? null,
+        };
+      });
+    if (histRows.length) {
+      const ins = await supabase.from('board_meta_history').insert(histRows);
+      if (ins.error) console.warn('[moveBoardsUnder] history insert failed', ins.error);
+    }
+  } catch (e) {
+    console.warn('[moveBoardsUnder] history threw', e);
+  }
+  return result;
+}
+
 // Set of fields tracked in board_meta_history so Cmd+Z can reverse them.
-// Edits to other columns (e.g. updated_at) are not audited.
+// Edits to other columns (e.g. updated_at) are not audited. parent_board_id
+// is logged separately by moveBoardsUnder (not via updateBoardMeta), so it's
+// intentionally NOT listed here.
 const META_TRACKED_FIELDS = ['name', 'cover', 'view', 'bg_color', 'meta'];
 
 // Internal: diff current vs patch and write one history row per changed
@@ -527,6 +584,15 @@ export async function listBoardMetaHistory(boardId, limit = 200) {
 export async function applyMetaChangeUndo(row, opts = {}) {
   if (!row?.board_id || !row?.field) return;
   const before = row.before_value?.v ?? null;
+  // parent_board_id reversals route through the validated reparent RPC (not a
+  // bare updateBoardMeta) so cycle/permission/workspace checks apply and the
+  // reversal is re-logged for redo. The derived canvas board-cards self-heal
+  // via the reconcile-drift effect + planCanvasReconcile when the affected
+  // boards are next opened.
+  if (row.field === 'parent_board_id') {
+    await moveBoardsUnder([row.board_id], before, opts);
+    return;
+  }
   const patch = { [row.field]: before };
   await updateBoardMeta(row.board_id, patch, opts);
 }

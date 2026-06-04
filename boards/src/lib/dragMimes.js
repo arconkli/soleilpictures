@@ -1,9 +1,12 @@
 // MIME types used for drag-and-drop between Soleil surfaces. Used by the
 // chat-attachment → canvas drop, by board-link drags from the sidebar,
 // and by card transfers between panes.
-export const INBOX_MIME         = 'application/x-soleil-inbox';
-export const BOARD_REF_MIME     = 'application/x-soleil-board-ref';
-export const CARD_TRANSFER_MIME = 'application/x-soleil-card';
+export const INBOX_MIME          = 'application/x-soleil-inbox';
+export const BOARD_REF_MIME      = 'application/x-soleil-board-ref';
+// Multi-select board drag (sidebar / list). Payload is JSON string[] of board
+// ids. Drop targets prefer this over BOARD_REF_MIME when present.
+export const BOARD_REF_LIST_MIME = 'application/x-soleil-board-ref-list';
+export const CARD_TRANSFER_MIME  = 'application/x-soleil-card';
 // Universal entity-ref drags. Set by every <EntityLink>, every entity
 // row in the picker, and every canvas chip card so any drop target can
 // recognize "an entity is being dragged here." Payload is JSON.
@@ -11,6 +14,29 @@ export const CARD_TRANSFER_MIME = 'application/x-soleil-card';
 // multi-target manual links so a drop preserves all targets).
 export const ENTITY_REF_MIME      = 'application/vnd.soleil.entity-ref+json';
 export const ENTITY_REF_LIST_MIME = 'application/vnd.soleil.entity-ref-list+json';
+
+// Read board ids from a drag's DataTransfer: prefer the multi-select LIST
+// payload, fall back to the single BOARD_REF payload. Returns string[].
+export function readBoardRefIds(dt) {
+  if (!dt) return [];
+  try {
+    const rawList = dt.getData(BOARD_REF_LIST_MIME);
+    if (rawList) {
+      const arr = JSON.parse(rawList);
+      if (Array.isArray(arr)) {
+        return arr.map(x => (typeof x === 'string' ? x : x?.boardId)).filter(Boolean);
+      }
+    }
+  } catch (_) {}
+  try {
+    const rawOne = dt.getData(BOARD_REF_MIME);
+    if (rawOne) {
+      const o = JSON.parse(rawOne);
+      if (o?.boardId) return [o.boardId];
+    }
+  } catch (_) {}
+  return [];
+}
 
 // Convert a dragged payload (chat attachment, sidebar board link, etc) into
 // a board-card object at canvas-space (x, y). Callers center if they want;

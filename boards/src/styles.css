@@ -2422,6 +2422,14 @@ body {
   box-shadow: 0 0 0 2px var(--soleil-soft);
 }
 .sb-tree-row.is-renaming { cursor: text; }
+/* Reparent drag affordances: highlight the row a board will nest into, and
+   show which rows are part of a multi-select drag. */
+.sb-tree-row.is-drop-target {
+  background: var(--soleil-soft);
+  box-shadow: inset 0 0 0 1.5px var(--soleil);
+  border-radius: 6px;
+}
+.sb-tree-row.is-selected:not(.active) { background: var(--soleil-soft); }
 
 .sb-search {
   display: flex; align-items: center; gap: 8px;
@@ -8423,6 +8431,12 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 /* List view selection */
 .list-tile { transition: box-shadow .12s, transform .12s; }
 .list-tile.is-selected { box-shadow: 0 0 0 2px var(--ink-1); border-radius: var(--radius-lg); }
+/* A board tile a dragged board will nest into. */
+.list-tile.is-drop-target {
+  box-shadow: 0 0 0 2px var(--soleil), 0 0 0 8px var(--soleil-soft);
+  border-radius: var(--radius-lg);
+  transform: translateY(-1px);
+}
 .lf-row.is-selected { background: var(--bg-act); box-shadow: inset 0 0 0 1px var(--line-3); }
 
 .list-selbar {

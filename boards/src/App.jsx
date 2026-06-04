@@ -68,7 +68,8 @@ import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
+import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
@@ -2191,6 +2192,183 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => document.removeEventListener('soleil-card-into-board-drop', onDrop);
   }, [boards, feedback, currentYDoc, currentBoard?.id, user?.id]);
 
+  // ── Global drop safety net ────────────────────────────────────────────────
+  // Without this, a file / URL / text dropped ANYWHERE that isn't one of our
+  // registered drop targets (the sidebar, toolbar, gaps between panes, the
+  // bare body) makes the browser NAVIGATE to that file/url — silently blowing
+  // away the unsaved board. We install a window-level guard that preventDefaults
+  // any such drag the app didn't already handle.
+  //
+  // Bubble phase + `defaultPrevented`: a real in-app drop target (canvas, list,
+  // message composer) calls preventDefault in its own handler, which runs as
+  // the event bubbles through the React root BELOW window — so by the time we
+  // see it, defaultPrevented is true and we leave it alone. We only catch the
+  // truly-unhandled ones. Editable targets are skipped so native text-drop into
+  // inputs / the rename field still works.
+  useEffect(() => {
+    const isDataDrag = (e) => {
+      const t = e.dataTransfer?.types;
+      if (!t) return false;
+      const has = (x) => (typeof t.includes === 'function'
+        ? t.includes(x)
+        : Array.prototype.indexOf.call(t, x) >= 0);
+      return has('Files') || has('text/uri-list') || has('text/plain') || has('text/html');
+    };
+    const onDragOver = (e) => {
+      if (e.defaultPrevented || isEditableTarget(e)) return;
+      if (isDataDrag(e)) e.preventDefault();
+    };
+    const onDrop = (e) => {
+      if (e.defaultPrevented || isEditableTarget(e)) return;
+      if (!isDataDrag(e)) return;
+      e.preventDefault(); // stop the browser navigating to / opening the drop
+      try { feedback?.toast?.({ type: 'info', message: 'Drop onto a board’s canvas to add it.' }); } catch (_) {}
+    };
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [feedback]);
+
+  // ── Shared "drop a board into a board" (reparent) handler ─────────────────
+  // The ONE place every drop surface (sidebar tree, canvas, list) routes to so
+  // there's no per-surface divergence. parent_board_id is the source of truth;
+  // the kind:'board' canvas card is a derived mirror.
+  //
+  // Order (see the plan's A3): commit STRUCTURE first (the validated atomic
+  // move_boards_under RPC), THEN reconcile the canvas mirror best-effort. If
+  // the RPC throws, nothing changed. If a post-commit canvas step fails, the
+  // tree is still 100% correct and the only artifact is a cosmetic card that
+  // the reconcile-drift effect / planCanvasReconcile heal on next open.
+  useEffect(() => {
+    const REASON_TEXT = {
+      cycle: "can't put a board inside itself",
+      self: "can't drop a board onto itself",
+      'same-parent': 'already there',
+      'cross-workspace': 'different workspace',
+      'no-write': 'no edit access',
+      missing: 'not found',
+      'target-missing': 'destination not found',
+    };
+    const onReparent = async (e) => {
+      const { childIds, targetId = null, onDone, onFailed } = e.detail || {};
+      const done = (r) => { try { onDone?.(r); } catch (_) {} };
+      const fail = (err) => { try { onFailed?.(err); } catch (_) {} };
+      if (!Array.isArray(childIds) || childIds.length === 0) { fail(new Error('no boards')); return; }
+
+      // 1) Pure pre-validate (advisory; the RPC re-checks authoritatively).
+      const { movable, skipped } = planReparent(boards, childIds, targetId);
+      if (!movable.length) {
+        if (skipped.length) {
+          const reasons = [...new Set(skipped.map(s => REASON_TEXT[s.reason] || s.reason))];
+          feedback.toast({ type: 'info', message: `Nothing moved — ${reasons.join(', ')}.` });
+        }
+        done({ moved: [], skipped });
+        return;
+      }
+
+      // 2) Remember each child's current parent so we know whose canvas mirror
+      //    to clean up afterward.
+      const prevParents = new Map();
+      for (const id of movable) prevParents.set(id, boards[id]?.parent_board_id ?? null);
+      const targetName = targetId ? (boards[targetId]?.name || 'board') : 'top level';
+
+      // 3) Pre-reparent canvas snapshot of the board the user is looking at
+      //    (cheap; the riskiest mutation is removing its mirror card). Closed
+      //    boards rely on the abort-if-null + invariant guards in the
+      //    round-trip helper below.
+      if (currentYDoc && currentId) {
+        try {
+          await saveBoardVersion(currentId, currentYDoc, {
+            triggerKind: 'pre-reparent',
+            sessionId: yb?.sessionId || null,
+            userId: user?.id || null,
+            label: 'pre-reparent',
+            opSummary: { action: 'reparent', target_board: targetId, child_count: movable.length },
+          });
+        } catch (_) {}
+      }
+
+      // 4) DURABLE STRUCTURAL WRITE (commit point).
+      let result;
+      try {
+        result = await moveBoardsUnder(movable, targetId, { userId: user?.id || null, sessionId: yb?.sessionId || null });
+      } catch (err) {
+        console.error('[reparent] move_boards_under failed', err);
+        feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
+        fail(err);
+        return;
+      }
+      const moved = result?.moved || [];
+
+      // 5) CANVAS MIRROR RECONCILE (best-effort).
+      //    ADD to target: handled automatically by the reconcile-drift effect
+      //    on whichever client has the target open (now or next open) — no
+      //    action needed here. REMOVE the stale mirror card from each OLD
+      //    parent: nothing else does this, so we must.
+      const removeBoardCard = (ydoc, ids) => {
+        const m = ydoc.getMap('cards');
+        let removed = 0;
+        ydoc.transact(() => {
+          for (const id of ids) { if (m.has(id)) { m.delete(id); removed++; } }
+        }, 'reparent-reconcile');
+        return removed;
+      };
+      // Group moved children by their OLD parent.
+      const byOldParent = new Map();
+      for (const id of moved) {
+        const p = prevParents.get(id) ?? null;
+        if (!p) continue; // was a root board — no parent canvas to clean
+        if (!byOldParent.has(p)) byOldParent.set(p, []);
+        byOldParent.get(p).push(id);
+      }
+      for (const [oldParent, ids] of byOldParent) {
+        try {
+          if (oldParent === currentId && currentYDoc) {
+            removeBoardCard(currentYDoc, ids); // live doc; syncs + persists
+          } else {
+            const snap = await loadBoardSnapshot(oldParent);
+            if (!snap) continue; // abort-if-null: never overwrite with empty
+            const tmp = new Y.Doc();
+            Y.applyUpdate(tmp, b64ToBytes(snap));
+            const before = tmp.getMap('cards').size;
+            const removed = removeBoardCard(tmp, ids);
+            const after = tmp.getMap('cards').size;
+            if (removed > 0 && after === before - removed) {
+              await saveBoardSnapshot(oldParent, tmp);
+            }
+            tmp.destroy();
+          }
+        } catch (err) {
+          console.warn('[reparent] old-parent canvas cleanup failed (structure ok)', oldParent, err);
+        }
+      }
+
+      // 6) Refresh the local boards map (peers refresh via realtime) so the
+      //    tree/list re-derive and the drift effect materializes target cards.
+      try { await refreshBoards(); } catch (_) {}
+
+      // 7) Tell the user.
+      if (moved.length) {
+        const msg = moved.length === 1
+          ? `Moved “${boards[moved[0]]?.name || 'board'}” into ${targetName === 'top level' ? 'top level' : `“${targetName}”`}`
+          : `Moved ${moved.length} boards into ${targetName === 'top level' ? 'top level' : `“${targetName}”`}`;
+        const extra = (result?.skipped?.length)
+          ? ` · skipped ${result.skipped.length}`
+          : '';
+        feedback.toast({ type: 'success', message: msg + extra });
+      } else if (result?.skipped?.length) {
+        const reasons = [...new Set(result.skipped.map(s => REASON_TEXT[s.reason] || s.reason))];
+        feedback.toast({ type: 'info', message: `Nothing moved — ${reasons.join(', ')}.` });
+      }
+      done(result);
+    };
+    document.addEventListener('soleil-board-reparent-drop', onReparent);
+    return () => document.removeEventListener('soleil-board-reparent-drop', onReparent);
+  }, [boards, feedback, currentYDoc, currentId, user?.id, refreshBoards]);
+
   // ⌘B / Ctrl-B — toggle compact sidebar.
   useEffect(() => {
     const onKey = (e) => {
@@ -2263,6 +2441,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      onOpenBoard={openBoard}
                      onOpenPicker={() => setPickerOpen(true)}
                      onDropInboxItem={dropInboxItem}
+                     canEdit={isMain ? canEditCurrent : true}
                      peersHereByBoard={peersHereByBoard}
                      peersBelowByBoard={peersBelowByBoard}
                      onJumpToPeer={jumpToPeer}

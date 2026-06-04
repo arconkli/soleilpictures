@@ -3,7 +3,8 @@ import { BoardCard, BoardLinkCard } from './cards.jsx';
 import { ImagePlaceholder } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
 import { TEAMMATES } from '../data.js';
-import { INBOX_MIME, inboxItemToCard } from '../lib/dragMimes.js';
+import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
+import { wouldCreateCycle } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
@@ -11,6 +12,7 @@ const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform
 export function ListSurface({
   board, boards, cards, childBoards,
   onOpenBoard, onOpenPicker, onDropInboxItem,
+  canEdit = true,
   mutators = {},
   peersHereByBoard, peersBelowByBoard,
   // For nested list-mode previews — let inner BoardCards render
@@ -104,9 +106,18 @@ export function ListSurface({
   }, [feedback, selectedBoards, selectedCards, boards, mutators]);
 
   const [dragOver, setDragOver] = useState(false);
+  // Board tile currently highlighted as a reparent drop target.
+  const [dropTileId, setDropTileId] = useState(null);
+  // Recognize any drag we either handle or want to swallow so it can never
+  // navigate the browser away from the board (the old handler only matched
+  // INBOX_MIME, so files/urls/text/boards dropped here navigated the page).
+  const isRecognizedDrag = (t) =>
+    t.includes(INBOX_MIME) || t.includes(BOARD_REF_MIME) || t.includes(BOARD_REF_LIST_MIME) ||
+    t.includes('Files') || t.includes('text/uri-list') || t.includes('text/plain') || t.includes('text/html');
   const handleDragOver = (e) => {
-    if (!e.dataTransfer.types.includes(INBOX_MIME)) return;
+    if (!isRecognizedDrag(e.dataTransfer.types)) return;
     e.preventDefault();
+    if (!canEdit) { e.dataTransfer.dropEffect = 'none'; return; }
     e.dataTransfer.dropEffect = 'copy';
     if (!dragOver) setDragOver(true);
   };
@@ -116,14 +127,35 @@ export function ListSurface({
   };
   const handleDrop = (e) => {
     setDragOver(false);
+    const t = e.dataTransfer.types;
+    if (!isRecognizedDrag(t)) return;
+    e.preventDefault(); // swallow so the browser never navigates
+    if (!canEdit) {
+      feedback?.toast?.({ type: 'info', message: 'This board is view-only — drops are disabled.' });
+      return;
+    }
+    // Board(s) dropped here → nest under this board (reparent). See the
+    // shared soleil-board-reparent-drop handler in App.jsx.
+    const boardIds = readBoardRefIds(e.dataTransfer);
+    if (boardIds.length) {
+      document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+        detail: { childIds: boardIds, targetId: board.id, sourceSurface: 'list' },
+      }));
+      return;
+    }
+    // Chat attachment → card (existing behavior).
     const raw = e.dataTransfer.getData(INBOX_MIME);
-    if (!raw) return;
-    e.preventDefault();
-    let item;
-    try { item = JSON.parse(raw); } catch (_) { return; }
-    const card = inboxItemToCard(item, 0, 0);
-    if (!card) return;
-    onDropInboxItem && onDropInboxItem(item.id, card);
+    if (raw) {
+      let item;
+      try { item = JSON.parse(raw); } catch (_) { return; }
+      const card = inboxItemToCard(item, 0, 0);
+      if (!card) return;
+      onDropInboxItem && onDropInboxItem(item.id, card);
+      return;
+    }
+    // Files / URLs / text have no canvas coordinates in list view — guide the
+    // user instead of dropping into the void.
+    feedback?.toast?.({ type: 'info', message: 'Switch to canvas view to drop files, links or text onto a board.' });
   };
 
   const totalSel = selectedBoards.size + selectedCards.size;
@@ -154,9 +186,42 @@ export function ListSurface({
             <div className="list-grid">
               {subBoards.map(b => (
                 <div key={b.id}
-                     className={`list-tile ${selectedBoards.has(b.id) ? 'is-selected' : ''}`}
+                     className={`list-tile ${selectedBoards.has(b.id) ? 'is-selected' : ''} ${dropTileId === b.id ? 'is-drop-target' : ''}`}
+                     draggable={canEdit}
                      onClick={(e) => onTileClick(e, 'board', b.id)}
-                     onDoubleClick={(e) => onTileDoubleClick(e, 'board', b.id)}>
+                     onDoubleClick={(e) => onTileDoubleClick(e, 'board', b.id)}
+                     onDragStart={(e) => {
+                       const ids = (selectedBoards.size > 1 && selectedBoards.has(b.id)) ? [...selectedBoards] : [b.id];
+                       try { window.__soleilBoardDrag = { boardIds: ids }; } catch (_) {}
+                       try {
+                         e.dataTransfer.setData(BOARD_REF_MIME, JSON.stringify({ boardId: b.id, name: b.name }));
+                         if (ids.length > 1) e.dataTransfer.setData(BOARD_REF_LIST_MIME, JSON.stringify(ids));
+                         e.dataTransfer.effectAllowed = 'copyMove';
+                       } catch (_) {}
+                     }}
+                     onDragEnd={() => { try { window.__soleilBoardDrag = null; } catch (_) {} setDropTileId(null); }}
+                     onDragOver={(e) => {
+                       const t = e.dataTransfer.types;
+                       if (!t.includes(BOARD_REF_MIME) && !t.includes(BOARD_REF_LIST_MIME)) return;
+                       const ids = (typeof window !== 'undefined' && window.__soleilBoardDrag?.boardIds) || [];
+                       const invalid = ids.length > 0 && (ids.includes(b.id) || ids.some(id => wouldCreateCycle(boards, id, b.id)));
+                       if (invalid) { try { e.dataTransfer.dropEffect = 'none'; } catch (_) {} return; }
+                       e.preventDefault();
+                       e.stopPropagation();
+                       try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+                       if (dropTileId !== b.id) setDropTileId(b.id);
+                     }}
+                     onDragLeave={(e) => { if (e.currentTarget.contains?.(e.relatedTarget)) return; setDropTileId(prev => (prev === b.id ? null : prev)); }}
+                     onDrop={(e) => {
+                       setDropTileId(null);
+                       const childIds = readBoardRefIds(e.dataTransfer);
+                       if (!childIds.length) return;
+                       e.preventDefault();
+                       e.stopPropagation();
+                       document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+                         detail: { childIds, targetId: b.id, sourceSurface: 'list' },
+                       }));
+                     }}>
                   <BoardCard board={b} boards={boards} teammates={TEAMMATES}
                              peersHere={peersHereByBoard?.get?.(b.id) || []}
                              peersBelow={peersBelowByBoard?.get?.(b.id) || []}

@@ -42,28 +42,49 @@ async function getAccessToken() {
   return data?.session?.access_token || '';
 }
 
+// Retry transient failures (network error or 5xx) with exponential backoff;
+// fail fast on 4xx (auth / bad request won't fix themselves). Used to make a
+// single flaky presign not blow away a whole drop.
+async function withRetry(fn, { tries = 3, baseMs = 250 } = {}) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try { return await fn(); }
+    catch (err) {
+      lastErr = err;
+      const m = String(err?.message || err).match(/\b(\d{3})\b/);
+      const status = m ? parseInt(m[1], 10) : 0;          // 0 = network/no status
+      const retryable = status === 0 || status >= 500;
+      if (!retryable || i === tries - 1) throw err;
+      await new Promise(r => setTimeout(r, baseMs * Math.pow(2, i)));
+    }
+  }
+  throw lastErr;
+}
+
 async function presign({ workspaceId, boardId, file }) {
   const token = await getAccessToken();
   if (!token) throw new Error('Not signed in');
   const ext = (file.name.split('.').pop() || 'bin').toLowerCase().slice(0, 8);
   const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(workspaceId)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      fileExt: ext,
-      contentType: file.type || 'application/octet-stream',
-      boardId: boardId || null,
-    }),
+  return withRetry(async () => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        fileExt: ext,
+        contentType: file.type || 'application/octet-stream',
+        boardId: boardId || null,
+      }),
+    });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => res.statusText);
+      throw new Error(`Presign failed: ${res.status} ${msg}`);
+    }
+    return res.json();   // { uploadUrl, key }
   });
-  if (!res.ok) {
-    const msg = await res.text().catch(() => res.statusText);
-    throw new Error(`Presign failed: ${res.status} ${msg}`);
-  }
-  return res.json();   // { uploadUrl, key }
 }
 
 // Presign a deterministic per-board thumbnail PUT URL. Unlike presign() this
@@ -75,19 +96,21 @@ async function presignThumb({ workspaceId, boardId, thumbKey, contentType = 'ima
   const token = await getAccessToken();
   if (!token) throw new Error('Not signed in');
   const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(workspaceId)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ boardId, thumbKey, contentType, fileExt: 'webp' }),
+  return withRetry(async () => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ boardId, thumbKey, contentType, fileExt: 'webp' }),
+    });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => res.statusText);
+      throw new Error(`Thumb presign failed: ${res.status} ${msg}`);
+    }
+    return res.json();   // { uploadUrl, key }
   });
-  if (!res.ok) {
-    const msg = await res.text().catch(() => res.statusText);
-    throw new Error(`Thumb presign failed: ${res.status} ${msg}`);
-  }
-  return res.json();   // { uploadUrl, key }
 }
 
 // Presign a deterministic per-image preview PUT URL. Like presignThumb but the
@@ -98,19 +121,21 @@ async function presignPreview({ workspaceId, boardId, previewKey }) {
   const token = await getAccessToken();
   if (!token) throw new Error('Not signed in');
   const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(workspaceId)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ boardId: boardId || null, previewKey, contentType: 'image/webp', fileExt: 'webp' }),
+  return withRetry(async () => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ boardId: boardId || null, previewKey, contentType: 'image/webp', fileExt: 'webp' }),
+    });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => res.statusText);
+      throw new Error(`Preview presign failed: ${res.status} ${msg}`);
+    }
+    return res.json();   // { uploadUrl, key }
   });
-  if (!res.ok) {
-    const msg = await res.text().catch(() => res.statusText);
-    throw new Error(`Preview presign failed: ${res.status} ${msg}`);
-  }
-  return res.json();   // { uploadUrl, key }
 }
 
 // XHR PUT with a real upload-progress callback. Browser fetch() doesn't
@@ -319,17 +344,19 @@ export async function uploadImage({ file, workspaceId, boardId, cardId = null, u
     .select('*')
     .single();
   if (rowErr) {
-    // Bytes are uploaded; the row insert is bookkeeping only.
+    // The images row is what authorizes /sign-reads to issue a signed URL —
+    // without it the image can NEVER load. Better to fail the drop (caller
+    // removes the optimistic card + toasts) than to leave a permanently-broken
+    // card. The orphaned R2 object has no images row, so the R2 retention
+    // sweep reclaims it (ref_count 0).
     console.warn('[uploads] images row insert failed', rowErr);
+    throw new Error('Could not finish saving the image — please try again.');
   }
 
   // Generate Tier-0 blur + Tier-1 preview in the background so the card appears
-  // immediately. Needs the images row to exist (set_image_variant looks it up),
-  // so only kick off when the insert succeeded.
-  if (!rowErr) {
-    generateAndUploadVariants({ workspaceId, boardId: boardId || null, storagePath: key, imageSource: file })
-      .catch(() => {});
-  }
+  // immediately. Needs the images row to exist (set_image_variant looks it up).
+  generateAndUploadVariants({ workspaceId, boardId: boardId || null, storagePath: key, imageSource: file })
+    .catch(() => {});
 
   return {
     id: row?.id || null,
@@ -469,7 +496,11 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
       size_bytes: file.size || null,
       uploaded_by: userId,
     });
-  if (rowErr) console.warn('[uploads] audio images row insert failed', rowErr);
+  if (rowErr) {
+    // Same as images: no row → sign-reads won't authorize → audio never plays.
+    console.warn('[uploads] audio images row insert failed', rowErr);
+    throw new Error('Could not finish saving the audio — please try again.');
+  }
 
   return {
     src: `r2:${key}`,
@@ -491,7 +522,12 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
     throw new Error(`Video too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
   }
   const meta = await readVideoMeta(file);
-  if (meta.duration && meta.duration > maxDurationSec) {
+  // Fail CLOSED: if we couldn't read the duration we can't prove it's within
+  // the limit, so reject rather than let a possibly-huge video through.
+  if (meta.duration == null || Number.isNaN(meta.duration)) {
+    throw new Error('Could not read the video length — re-export and try again.');
+  }
+  if (meta.duration > maxDurationSec) {
     throw new Error(`Video too long (${Math.round(meta.duration)}s; max ${maxDurationSec}s)`);
   }
   const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
@@ -510,7 +546,11 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
       size_bytes: file.size || null,
       uploaded_by: userId,
     });
-  if (rowErr) console.warn('[uploads] video images row insert failed', rowErr);
+  if (rowErr) {
+    // Same as images: no row → sign-reads won't authorize → video never plays.
+    console.warn('[uploads] video images row insert failed', rowErr);
+    throw new Error('Could not finish saving the video — please try again.');
+  }
 
   return {
     src: `r2:${key}`,

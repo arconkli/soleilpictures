@@ -23,7 +23,8 @@ import {
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { TEAMMATES } from '../data.js';
-import { INBOX_MIME, BOARD_REF_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, inboxItemToCard } from '../lib/dragMimes.js';
+import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
+import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio } from '../lib/uploads.js';
 import { R2Image } from './R2Image.jsx';
@@ -55,7 +56,7 @@ import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
 } from '../lib/arrowGeometry.js';
-import { boundsOfCards, oppositeCorner } from '../lib/canvasGeom.js';
+import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
 
 const RESIZE_HANDLE_PX = 14;
@@ -1371,8 +1372,13 @@ export function CanvasSurface({
   // can already drag/select it), then uploads in the background. When the
   // upload resolves we patch the card with the real R2 url and clear
   // pending. On failure, we drop the card and toast the error.
+  // Live current-board id so an in-flight upload can tell if the user switched
+  // boards before it finished (and avoid patching the wrong board's card).
+  const boardIdRef = useRef(board?.id);
+  boardIdRef.current = board?.id;
   const optimisticDropImage = useCallback(async (file, cx, cy) => {
     if (!file) return;
+    const dropBoardId = board?.id;
     if (useLocalImages) {
       // Local QA path — no upload. Just add the card directly.
       try {
@@ -1410,12 +1416,21 @@ export function CanvasSurface({
     }
     const id = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     if (blobUrl) setLocalImagePreview(prev => ({ ...prev, [id]: blobUrl }));
+    // Keep the whole card on-screen even when dropped near the right/bottom edge.
+    let bounds = null;
+    const wrap = wrapRef.current;
+    if (wrap) {
+      const r = wrap.getBoundingClientRect();
+      const tl = clientToCanvas(r.left, r.top);
+      const br = clientToCanvas(r.right, r.bottom);
+      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
+    }
+    const placed = clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
     // src omitted here — blob URLs aren't useful to peers, so we keep the
     // doc clean and let localImagePreview drive the local view.
     mutators.addCard?.({
       id, kind: 'image',
-      x: Math.max(8, Math.round(cx - w / 2)),
-      y: Math.max(8, Math.round(cy - h / 2)),
+      x: placed.x, y: placed.y,
       w, h,
       pending: true,
     });
@@ -1424,11 +1439,16 @@ export function CanvasSurface({
         setUploadProgressById(prev => ({ ...prev, [id]: frac }));
       };
       const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
-      mutators.updateCard?.(id, { src: up.src, pending: false });
+      // If the user navigated to a different board mid-upload, the active
+      // mutators no longer target the board this card lives on — skip the
+      // patch (the abandoned-pending sweep cleans the card on next open).
+      if (boardIdRef.current === dropBoardId) {
+        mutators.updateCard?.(id, { src: up.src, pending: false });
+      }
     } catch (err) {
       console.error('image upload failed', err);
       feedback.toast({ type: 'error', message: 'Image upload failed: ' + (err.message || err) });
-      mutators.deleteCard?.(id);
+      if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
     } finally {
       setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
       setLocalImagePreview(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
@@ -2693,6 +2713,20 @@ export function CanvasSurface({
       updateBoardDropTarget(null);
       if (targetBoardId && (Math.abs(dx) + Math.abs(dy) > 4)) {
         const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
+        // If the dragged selection is ENTIRELY board references, NEST them under
+        // the target board (reparent) instead of moving them as cards. The
+        // shared handler validates cycle/self; the post-reparent reconcile
+        // removes the dragged board card(s) from this canvas.
+        const draggedBoardIds = movedCards
+          .map(c => c.kind === 'board' ? c.id : (c.kind === 'boardlink' ? c.target : null))
+          .filter(Boolean);
+        if (movedCards.length > 0 && draggedBoardIds.length === movedCards.length) {
+          document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+            detail: { childIds: draggedBoardIds, targetId: targetBoardId, sourceSurface: 'canvas' },
+          }));
+          setDrag(null);
+          return;
+        }
         if (movedCards.length) {
           // Run the drop as an async transaction so we can capture
           // before/after state around mutators.deleteCards and roll
@@ -3399,6 +3433,40 @@ export function CanvasSurface({
           run: () => setInfoFor({ cardId: c.id, x: ctx.x, y: ctx.y }) });
       }
       return items;
+    }
+
+    // "Move to board…" non-drag fallback for board references (works for a
+    // single board card or a multi-select of board cards). Routes to the same
+    // shared reparent handler the drag surfaces use.
+    {
+      const actingCards = (multi ? [...selected] : [c.id])
+        .map(id => (cards || []).find(x => x.id === id))
+        .filter(Boolean);
+      const actingBoardIds = actingCards
+        .map(cc => cc.kind === 'board' ? cc.id : (cc.kind === 'boardlink' ? cc.target : null))
+        .filter(Boolean);
+      const allBoards = actingCards.length > 0 && actingBoardIds.length === actingCards.length;
+      if (allBoards) {
+        const targets = Object.values(boards)
+          .filter(b => b && b.workspace_id === workspaceId
+            && !actingBoardIds.includes(b.id)
+            && !actingBoardIds.some(cid => wouldCreateCycle(boards, cid, b.id)))
+          .sort((a, b2) => (a.name || '').localeCompare(b2.name || ''))
+          .slice(0, 50);
+        const dispatchMove = (targetId) => document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+          detail: { childIds: actingBoardIds, targetId, sourceSurface: 'menu' },
+        }));
+        const submenu = [
+          { id: 'mtb-root', label: 'Top level', run: () => dispatchMove(null) },
+          ...(targets.length ? [{ divider: true }] : []),
+          ...targets.map(b => ({ id: 'mtb-' + b.id, label: b.name || 'Untitled', run: () => dispatchMove(b.id) })),
+        ];
+        items.push({
+          id: 'move-to-board',
+          label: actingBoardIds.length > 1 ? `Move ${actingBoardIds.length} boards to…` : 'Move to board…',
+          submenu,
+        });
+      }
     }
 
     if (!multi) {
@@ -4960,13 +5028,21 @@ export function CanvasSurface({
     const types = e.dataTransfer.types;
     if (!types.includes(INBOX_MIME) &&
         !types.includes(BOARD_REF_MIME) &&
+        !types.includes(BOARD_REF_LIST_MIME) &&
         !types.includes(CARD_TRANSFER_MIME) &&
         !types.includes(ENTITY_REF_MIME) &&
         !types.includes(ENTITY_REF_LIST_MIME) &&
         !types.includes('application/x-soleil-doc-page') &&
         !types.includes('text/uri-list') &&
+        !types.includes('text/plain') &&
+        !types.includes('text/html') &&
         !types.includes('Files')) return;
+    // Always preventDefault for a recognized-intent drag so (a) the drop
+    // event fires here and (b) the window-level safety net doesn't have to.
     e.preventDefault();
+    // View-only board: accept the event (no browser navigation) but show a
+    // no-drop cursor and don't highlight — the drop handler will reject it.
+    if (!canEdit) { e.dataTransfer.dropEffect = 'none'; return; }
     // Cross-pane card transfer defaults to MOVE; hold ⌘/Ctrl to copy.
     if (types.includes(CARD_TRANSFER_MIME)) {
       e.dataTransfer.dropEffect = (e.metaKey || e.ctrlKey) ? 'copy' : 'move';
@@ -4999,6 +5075,13 @@ export function CanvasSurface({
   const handleDrop = async (e) => {
     setDragOver(false);
     setTagDropTarget(null);
+    // View-only board: swallow the drop (so the browser never navigates) and
+    // tell the user, rather than silently no-op'ing the mutators.
+    if (!canEdit) {
+      e.preventDefault();
+      feedback?.toast?.({ type: 'info', message: 'This board is view-only — drops are disabled.' });
+      return;
+    }
     const types = e.dataTransfer.types;
     const { x: cx, y: cy } = clientToCanvas(e.clientX, e.clientY);
 
@@ -5060,7 +5143,7 @@ export function CanvasSurface({
       if (!payload?.boardId) return;
       const w = 220, h = 160;
       mutators.addCard?.({
-        id: `xlink-${Date.now()}`,
+        id: `xlink-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
         kind: 'boardlink', target: payload.boardId,
         note: payload.pageName ? `Doc · ${payload.pageName}` : null,
         x: Math.max(8, Math.round(cx - w / 2)),
@@ -5168,20 +5251,23 @@ export function CanvasSurface({
       return;
     }
 
-    // Sidebar board → drop a board card pointing at it.
-    if (types.includes(BOARD_REF_MIME)) {
+    // Sidebar / list board(s) dropped onto this canvas → NEST them (reparent).
+    // Default target is the board this canvas shows; if the drop landed on a
+    // board card, nest under THAT board instead. The shared handler validates
+    // cycles/self and the reconcile-drift effect materializes the card.
+    if (types.includes(BOARD_REF_MIME) || types.includes(BOARD_REF_LIST_MIME)) {
       e.preventDefault();
-      let payload;
-      try { payload = JSON.parse(e.dataTransfer.getData(BOARD_REF_MIME)); }
-      catch (_) { return; }
-      if (!payload?.boardId) return;
-      const w = 280, h = 220;
-      mutators.addCard?.({
-        id: payload.boardId, kind: 'board',
-        x: Math.max(8, Math.round(cx - w / 2)),
-        y: Math.max(8, Math.round(cy - h / 2)),
-        w, h,
-      });
+      const childIds = readBoardRefIds(e.dataTransfer);
+      if (!childIds.length) return;
+      let targetId = board.id;
+      const cardEl = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('[data-card-id]');
+      const overId = cardEl?.getAttribute('data-card-id');
+      const overCard = overId ? (cards || []).find(c => c.id === overId) : null;
+      if (overCard?.kind === 'board') targetId = overCard.id;
+      else if (overCard?.kind === 'boardlink' && overCard.target) targetId = overCard.target;
+      document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+        detail: { childIds, targetId, sourceSurface: 'canvas' },
+      }));
       return;
     }
 
@@ -5220,7 +5306,7 @@ export function CanvasSurface({
       // Just create a boardlink instead.
       if (c.kind === 'board' && payload.sourceBoardId !== board.id) {
         mutators.addCard?.({
-          id: `xlink-${Date.now()}`,
+          id: `xlink-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
           kind: 'boardlink', target: c.id,
           x: c.x, y: c.y, w: c.w || 220, h: c.h || 160,
         });
@@ -5251,6 +5337,32 @@ export function CanvasSurface({
       return;
     }
 
+    // Plain / rich text dragged from another app or browser tab → note card.
+    // (URLs are handled by the text/uri-list branch above; this is reached
+    // only for selections that aren't a URI.) We deliberately extract PLAIN
+    // text from any text/html payload rather than embedding markup — a note
+    // dropped from an arbitrary page must never inject HTML.
+    if (types.includes('text/plain') || types.includes('text/html')) {
+      e.preventDefault();
+      let text = '';
+      try { text = e.dataTransfer.getData('text/plain') || ''; } catch (_) {}
+      if (!text && types.includes('text/html')) {
+        try {
+          const html = e.dataTransfer.getData('text/html') || '';
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          text = (doc.body?.textContent || '');
+        } catch (_) {}
+      }
+      text = text.trim();
+      if (!text) return;
+      const card = inboxItemToCard({ kind: 'note', body: text }, 0, 0);
+      if (!card) return;
+      card.x = Math.max(8, Math.round(cx - card.w / 2));
+      card.y = Math.max(8, Math.round(cy - card.h / 2));
+      mutators.addCard?.(card);
+      return;
+    }
+
     // Files (images / videos / audio dragged from Finder).
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
@@ -5258,6 +5370,10 @@ export function CanvasSurface({
       const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
       const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
       const audioFiles = Array.from(files).filter(f => f.type.startsWith('audio/'));
+      // Anything we can't place becomes a card-less silent loss otherwise —
+      // collect the skipped names so we can tell the user instead.
+      const handled = new Set([...imageFiles, ...videoFiles, ...audioFiles]);
+      const skipped = Array.from(files).filter(f => !handled.has(f));
       let offsetX = 0;
       for (const f of imageFiles) {
         // Optimistic — adds the card and uploads in the background so
@@ -5283,7 +5399,23 @@ export function CanvasSurface({
           feedback.toast({ type: 'error', message: 'Audio upload failed: ' + (err.message || err) });
         }
       }
+      if (skipped.length) {
+        const exts = [...new Set(skipped.map(f => (f.name?.split('.').pop() || f.type || 'file').toLowerCase()))].slice(0, 4);
+        feedback.toast({
+          type: 'warning',
+          message: skipped.length === files.length
+            ? `Can't add ${skipped.length === 1 ? 'that file' : 'those files'} (${exts.join(', ')}) — images, video and audio only.`
+            : `Added ${handled.size}; skipped ${skipped.length} unsupported (${exts.join(', ')}).`,
+          duration: 6000,
+        });
+      }
+      return;
     }
+
+    // Catch-all: a recognized-intent drag (it passed the dragover allow-list)
+    // that matched no branch above. Swallow it so the browser never navigates
+    // away from the board.
+    e.preventDefault();
   };
 
   // Listen for "card was moved out of this canvas" events so we can delete
@@ -5342,19 +5474,23 @@ export function CanvasSurface({
       if (!wrap) return;
       const rect = wrap.getBoundingClientRect();
       if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return;
-      const { x: cx, y: cy } = clientToCanvas(clientX, clientY);
-      const w = 280, h = 220;
-      mutators.addCard?.({
-        id: boardId, kind: 'board',
-        x: Math.max(8, Math.round(cx - w / 2)),
-        y: Math.max(8, Math.round(cy - h / 2)),
-        w, h,
-      });
+      // Mirror the mouse sidebar→canvas path: NEST the board under this canvas's
+      // board (or under a board card the touch landed on). The shared handler
+      // validates cycles/self; the reconcile-drift effect adds the card.
+      let targetId = board.id;
+      const cardEl = document.elementFromPoint(clientX, clientY)?.closest?.('[data-card-id]');
+      const overId = cardEl?.getAttribute('data-card-id');
+      const overCard = overId ? (cards || []).find(c => c.id === overId) : null;
+      if (overCard?.kind === 'board') targetId = overCard.id;
+      else if (overCard?.kind === 'boardlink' && overCard.target) targetId = overCard.target;
+      document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+        detail: { childIds: [boardId], targetId, sourceSurface: 'canvas-touch' },
+      }));
     };
     document.addEventListener('soleil-touch-board-drop', onTouchBoardDrop);
     return () => document.removeEventListener('soleil-touch-board-drop', onTouchBoardDrop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board.id, mutators]);
+  }, [board.id, mutators, cards]);
 
   // Highlight ourselves as a drop target while another pane's pointer drag
   // is over us. The source pane fires "hover" on every pointermove and "end"

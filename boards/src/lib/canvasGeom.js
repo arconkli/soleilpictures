@@ -14,6 +14,25 @@ export function boundsOfCards(cards) {
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY, right: maxX, bottom: maxY };
 }
 
+// Clamp a card's top-left so the whole card stays inside the visible canvas
+// bounds (canvas space). Guards left/top AND right/bottom so a drop near an
+// edge doesn't land partly off-screen. `bounds` = { minX, minY, maxX, maxY };
+// pass null to only floor at (8,8). Defensive: if bounds are smaller than the
+// card, pin to the top-left edge rather than emitting negatives/NaN.
+export function clampDropRect(rect, bounds) {
+  const w = Math.max(0, rect?.w || 0);
+  const h = Math.max(0, rect?.h || 0);
+  let x = rect?.x ?? 0;
+  let y = rect?.y ?? 0;
+  const minX = Number.isFinite(bounds?.minX) ? bounds.minX : 8;
+  const minY = Number.isFinite(bounds?.minY) ? bounds.minY : 8;
+  if (bounds && Number.isFinite(bounds.maxX) && bounds.maxX - w > minX) x = Math.min(x, bounds.maxX - w);
+  if (bounds && Number.isFinite(bounds.maxY) && bounds.maxY - h > minY) y = Math.min(y, bounds.maxY - h);
+  x = Math.max(minX, x);
+  y = Math.max(minY, y);
+  return { ...rect, x: Math.round(x), y: Math.round(y), w, h };
+}
+
 // Returns the canvas-space anchor for a given handle on a bounds rect.
 // The anchor is the *opposite* corner / midpoint so dragging a handle
 // scales away from it.

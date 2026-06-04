@@ -2,7 +2,7 @@ import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isAdminPreviewMode } from './lib/localMode.js';
+import { isDocQaMode, isAdminPreviewMode, isDndQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -183,6 +183,18 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
         </AppErrorBoundary>
       </StrictMode>
     );
+  });
+} else if (import.meta.env.DEV && isDndQaMode()) {
+  // Pure drag/drop logic bridge — no component, just expose the helpers and a
+  // ready flag the specs wait on. Dropped from production by the DEV guard.
+  Promise.all([
+    import('./lib/boardTree.js'),
+    import('./lib/canvasGeom.js'),
+    import('./lib/dragMimes.js'),
+  ]).then(([boardTree, canvasGeom, dragMimes]) => {
+    window.__soleilDndTest = { ...boardTree, ...canvasGeom, ...dragMimes };
+    const el = document.getElementById('root');
+    if (el) el.textContent = 'dndqa ready';
   });
 } else if (import.meta.env.DEV && isDocQaMode()) {
   import('./local/DocQaHarness.jsx').then(({ DocQaHarness }) => {
