@@ -121,7 +121,7 @@ export function AdminCommandCenter() {
     .map((t) => ({ name: t, value: tiers[t] || 0 }))
     .filter((d) => d.value > 0);
 
-  const { items: placements, liveTotal } = useCardPlacements();
+  const { items: placements } = useCardPlacements();
 
   // Content mix (card kinds) — pairs visually with the tier-mix donut above it.
   const contentMix = Object.entries((data?.cardStats || {}).by_kind || {})
@@ -130,19 +130,12 @@ export function AdminCommandCenter() {
     .sort((a, b) => b.value - a.value);
   const contentTotal = contentMix.reduce((a, b) => a + b.value, 0);
 
-  // Cards created · 30d — today's (last) bar ticks up live between the 20s polls
-  // as placements stream in. Baseline resets on each poll (lastUpdated) so the
-  // bump never double-counts what the fresh poll already includes.
-  const [cardsBaseline, setCardsBaseline] = useState(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setCardsBaseline(liveTotal); }, [lastUpdated]);
-  const liveBump = Math.max(0, liveTotal - cardsBaseline);
+  // Card activity · 30d — how many cards were *last edited* on each day.
+  // card_index has no creation time (only updated_at), so this is a recency /
+  // activity view, not a creation count — labeled accordingly. It's not a
+  // running total, so it deliberately doesn't compete with the live universe
+  // "Cards" tally in the bottom strip.
   const cardsDaily = (data?.cardsPerDay || []).map((r) => ({ label: shortDate(r.day), cards: r.cards || 0 }));
-  if (cardsDaily.length && liveBump > 0) {
-    const i = cardsDaily.length - 1;
-    cardsDaily[i] = { ...cardsDaily[i], cards: cardsDaily[i].cards + liveBump };
-  }
-  const cardsTotal = cardsDaily.reduce((a, b) => a + b.cards, 0);
 
   const toggleFullscreen = () => {
     const el = stageRef.current;
@@ -291,8 +284,7 @@ export function AdminCommandCenter() {
             </ResponsiveContainer>
           </CcPanel>
 
-          <CcPanel title="Cards created · 30d"
-                   sub={<><span className="cc-live-dot" /> {formatCount(cardsTotal)}</>}>
+          <CcPanel title="Card activity · 30d" sub="by last edit">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cardsDaily} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
                 <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
