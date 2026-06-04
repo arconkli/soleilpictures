@@ -13,14 +13,18 @@ import { CloudflareAnalyticsLink } from '../widgets/CloudflareAnalyticsLink.jsx'
 export function AcquisitionView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
-    const [ab, fn] = await Promise.allSettled([
+    const [ab, fn, fb] = await Promise.allSettled([
       supabase.rpc('admin_acquisition_breakdown', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_signup_funnel',         { p_days: f.days, p_source: f.source || null, p_campaign: f.campaign || null, p_content: f.content || null, p_exclude_internal: f.excludeInternal }),
+      // The FB/IG segment is its own funnel — fbclid only, ignoring the UTM
+      // selectors (FB ads carry no UTM). Tolerates errors via val() so it can
+      // never break the main funnel.
+      supabase.rpc('admin_signup_funnel',         { p_days: f.days, p_has_fbclid: true, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     if (fn.status !== 'fulfilled' || fn.value.error) throw errOf(fn) || new Error('Failed to load funnel');
-    return { acquisition: val(ab) || [], steps: val(fn) || [] };
+    return { acquisition: val(ab) || [], steps: val(fn) || [], fbSteps: val(fb) || [] };
   }, [f.days, f.source, f.campaign, f.content, f.excludeInternal]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
@@ -33,6 +37,9 @@ export function AcquisitionView() {
         <AcquisitionBreakdown rows={q.data?.acquisition || []} days={f.days} />
         <SignupFunnelPanel steps={q.data?.steps || []} days={f.days}
           title="Funnel for this segment" sub="filtered by the source / campaign / creative selectors above" />
+        <SignupFunnelPanel steps={q.data?.fbSteps || []} days={f.days}
+          title="Facebook / Instagram funnel"
+          sub="visitors who arrived via an FB/IG click (fbclid) — paid ads + organic, since fbclid can't separate them" />
         <CloudflareAnalyticsLink />
       </div>
     </AdminAsync>
