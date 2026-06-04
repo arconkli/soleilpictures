@@ -5662,7 +5662,6 @@ body {
    the whole page. Flex (not a fragile 100vh magic number) makes the 2-pane
    absorb whatever's left after the heading + stat card. */
 .admin-section-users { max-width: 1280px; height: 100%; display: flex; flex-direction: column; min-height: 0; }
-.admin-section-users .admin-stat-grid { margin-bottom: 16px; }
 
 .admin-users-2pane {
   flex: 1 1 auto;
@@ -5869,6 +5868,8 @@ body {
 }
 .admin-src-badge.src-twitter  { color: rgb(140,180,225); border-color: rgba(100,160,220,.30); }
 .admin-src-badge.src-twitter  .admin-src-glyph { background: #1d9bf0; color: #fff; }
+.admin-src-badge.src-reddit   { color: rgb(255,150,100); border-color: rgba(255,69,0,.30); }
+.admin-src-badge.src-reddit   .admin-src-glyph { background: #ff4500; color: #fff; }
 .admin-src-badge.src-search   { color: rgb(120,200,150); border-color: rgba(80,200,120,.28); }
 .admin-src-badge.src-search   .admin-src-dot { color: rgb(80,200,120); }
 .admin-src-badge.src-referral { color: var(--soleil); border-color: rgba(255,165,0,.30); }

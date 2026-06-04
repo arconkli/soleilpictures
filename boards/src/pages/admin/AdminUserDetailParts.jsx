@@ -39,12 +39,25 @@ export function Avatar({ email, name, color, size, className = '' }) {
 //   'twitter'/x.com/t.co    → Twitter
 //   'direct'                → Direct
 //   anything else (host / utm_source) → Referral, showing the raw label
+const titleCase = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
 function sourceVariant(label) {
-  const l = String(label || 'direct').toLowerCase();
-  if (/facebook|instagram|meta|fb|ig/.test(l)) return { variant: 'facebook', display: 'FB / IG', glyph: 'f' };
-  if (/twitter|x\.com|t\.co/.test(l))          return { variant: 'twitter',  display: 'Twitter', glyph: 'X' };
-  if (/google|bing|duckduckgo|search|yahoo/.test(l)) return { variant: 'search', display: l === 'search' ? 'Search' : l, dot: true };
-  if (l === 'direct')                          return { variant: 'direct',   display: 'Direct', dot: true };
+  const raw = String(label || 'direct').toLowerCase().trim();
+  if (!raw || raw === 'direct') return { variant: 'direct', display: 'Direct', dot: true };
+  // Reduce a referrer host to its domain word (reddit.com → reddit,
+  // old.reddit.com → reddit, t.co → t) before brand-matching; plain utm_source
+  // words pass through unchanged. Matching whole tokens — not loose substrings —
+  // avoids false hits like "reddit.com" containing "t.co", or hosts containing "ig".
+  let token = raw;
+  if (raw.includes('.')) {
+    const parts = raw.split('/')[0].split('.').filter(Boolean);
+    token = parts.length >= 2 ? parts[parts.length - 2] : (parts[0] || raw);
+  }
+  if (['facebook', 'instagram', 'meta', 'fb', 'ig'].includes(token)) return { variant: 'facebook', display: 'FB / IG', glyph: 'f' };
+  if (['twitter', 'x'].includes(token) || raw === 't.co')            return { variant: 'twitter',  display: 'Twitter', glyph: 'X' };
+  if (token === 'reddit')                                            return { variant: 'reddit',   display: 'Reddit', glyph: 'r' };
+  if (['google', 'bing', 'duckduckgo', 'yahoo', 'ecosia', 'baidu', 'search'].includes(token))
+    return { variant: 'search', display: token === 'search' ? 'Search' : titleCase(token), dot: true };
   return { variant: 'referral', display: label, dot: true };
 }
 

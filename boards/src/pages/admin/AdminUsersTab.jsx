@@ -16,9 +16,8 @@ import { supabase } from '../../lib/supabase.js';
 import { useAuth } from '../../auth/AuthGate.jsx';
 import { useFeedback } from '../../components/AppFeedback.jsx';
 import { adminAccountAction } from '../../lib/checkout.js';
-import { formatCount, formatMoney } from '../../lib/adminFormat.js';
+import { formatMoney } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
-import { AdminStatCard } from './AdminStatCard.jsx';
 import { AdminUserList } from './AdminUserList.jsx';
 import { AdminUserDetail } from './AdminUserDetail.jsx';
 
@@ -246,14 +245,6 @@ export function AdminUsersTab() {
         Every account on the platform. Search, filter or sort the list, then select a user to see their full
         profile — acquisition, activation, engagement, billing &amp; grants — and change their tier or ban /
         re-sync / delete them.
-      </div>
-
-      <div className={`admin-stat-grid ${refreshing ? 'is-refreshing' : ''}`}>
-        <AdminStatCard
-          label={isFiltered ? 'Matching users' : 'Total users'}
-          value={loading ? '—' : formatCount(total)}
-          sub={isFiltered ? 'current search / tier filter' : 'all accounts'}
-        />
       </div>
 
       <div className="admin-users-2pane">
