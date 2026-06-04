@@ -16,6 +16,10 @@ export function TierPill({ tier }) {
 const STATUS_COLOR = {
   pending: 'pending', accepted: 'accepted', rejected: 'rejected', canceled: 'canceled',
   active: 'accepted', forever: 'admin', expired: 'canceled', revoked: 'rejected',
+  // Stripe subscription statuses (Billing section): a healthy trial reads green,
+  // a billing problem reads as needs-attention (orange) rather than dead (grey).
+  trialing: 'accepted', past_due: 'pending', unpaid: 'rejected',
+  incomplete: 'pending', incomplete_expired: 'canceled', paused: 'canceled',
 };
 export function StatusPill({ kind }) {
   const color = STATUS_COLOR[kind] || 'canceled';

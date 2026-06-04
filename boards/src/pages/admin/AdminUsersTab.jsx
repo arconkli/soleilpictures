@@ -1,27 +1,41 @@
-// AdminUsersTab — paginated, filterable list of every user.
+// AdminUsersTab — two-pane master–detail view of every account.
 //
-//   • Toolbar: search (debounced 300ms) + tier filter + refresh.
-//   • Body: table with Email | Tier pills | Cards | Time in app | Joined |
-//     Last sign-in | Subscription. Clicking a non-current tier pill confirms
-//     then calls admin_set_tier. Self-row pills are disabled.
-//   • Bottom: pagination (50 / page), clamped after mutations.
+//   • Shell owns: search (debounced 300ms) + tier filter + sort + pagination,
+//     the selected user, and every mutation handler (tier change incl. Stripe-
+//     cancel-first, ban / unban / re-sync / delete).
+//   • Left  (<AdminUserList>):  compact searchable/filterable user list.
+//   • Right (<AdminUserDetail>): rich profile for the selected user, fed by the
+//     admin_user_detail RPC — acquisition, activation, engagement, billing, grants.
+//     The interactive tier pills (the one part worth keeping) live in its header.
+//   • Two useAdminData instances: #1 list, #2 detail (keyed by selection +
+//     detailEpoch). Every mutation refreshes BOTH so the row and the open
+//     profile stay consistent. Below 900px the detail becomes a slide-in drawer.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useAuth } from '../../auth/AuthGate.jsx';
 import { useFeedback } from '../../components/AppFeedback.jsx';
-import { CopyableText } from '../../components/CopyableText.jsx';
 import { adminAccountAction } from '../../lib/checkout.js';
-import { formatDuration } from '../../lib/formatDuration.js';
-import { relativeTime, fmtDate, fmtDateTime, formatCount, formatMoney } from '../../lib/adminFormat.js';
+import { formatCount, formatMoney } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
-import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminStatCard } from './AdminStatCard.jsx';
-import { AdminUserRowMenu } from './AdminUserRowMenu.jsx';
-import { User as UsersIcon } from '../../lib/icons.js';
+import { AdminUserList } from './AdminUserList.jsx';
+import { AdminUserDetail } from './AdminUserDetail.jsx';
 
 const PAGE_SIZE = 50;
-const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
+
+// Tiny media-query hook for the responsive drawer collapse.
+function useMediaQuery(query) {
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const on = () => setMatch(m.matches);
+    on();
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, [query]);
+  return match;
+}
 
 export function AdminUsersTab() {
   const { user } = useAuth();
@@ -30,8 +44,15 @@ export function AdminUsersTab() {
   const [query, setQueryRaw]   = useState('');
   const [debounced, setDebounced] = useState('');
   const [tierFilter, setTierFilter] = useState('');   // '' = all tiers
+  const [sort, setSort]        = useState('recent');
   const [page, setPage]        = useState(0);          // 0-indexed
   const [busyId, setBusyId]    = useState(null);
+
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [detailEpoch, setDetailEpoch] = useState(0);
+  const bumpDetailEpoch = () => setDetailEpoch((e) => e + 1);
+
+  const isNarrow = useMediaQuery('(max-width: 900px)');
 
   // Debounce search input
   useEffect(() => {
@@ -39,20 +60,21 @@ export function AdminUsersTab() {
     return () => clearTimeout(t);
   }, [query]);
 
-  // Reset page when filters change
-  useEffect(() => { setPage(0); }, [debounced, tierFilter]);
+  // Reset page when filters / sort change
+  useEffect(() => { setPage(0); }, [debounced, tierFilter, sort]);
 
+  // ── List query (#1) ──
   const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
     const q = debounced || null;
     const t = tierFilter || null;
     const [listRes, countRes] = await Promise.all([
-      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t }),
-      supabase.rpc('admin_user_count', { p_query: q, p_tier: t }),
+      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t, p_sort: sort, p_status: null, p_source: null }),
+      supabase.rpc('admin_user_count', { p_query: q, p_tier: t, p_status: null, p_source: null }),
     ]);
     if (listRes.error)  throw listRes.error;
     if (countRes.error) throw countRes.error;
     return { rows: listRes.data || [], total: Number(countRes.data) || 0 };
-  }, [page, debounced, tierFilter]);
+  }, [page, debounced, tierFilter, sort]);
 
   const rows  = data?.rows || [];
   const total = data?.total || 0;
@@ -63,7 +85,33 @@ export function AdminUsersTab() {
   // Clamp page into range after a mutation shrinks total (no empty-page strand).
   useEffect(() => { if (page > pageCount - 1) setPage(pageCount - 1); }, [pageCount, page]);
 
+  // ── Detail query (#2) — fetched on selection; re-runs on detailEpoch bump ──
+  const { data: detailData, loading: detailLoading, error: detailError, refreshing: detailRefreshing } = useAdminData(async () => {
+    if (!selectedUserId) return { detail: null };
+    const { data: d, error: e } = await supabase.rpc('admin_user_detail', { p_user_id: selectedUserId });
+    if (e) throw e;
+    return { detail: d ?? null };
+  }, [selectedUserId, detailEpoch]);
+
+  const selectedRow = rows.find((r) => r.user_id === selectedUserId) || null;
+
+  // Drop a selection that's no longer in the list (deleted, or paged/filtered away).
+  useEffect(() => {
+    if (selectedUserId && !rows.some((r) => r.user_id === selectedUserId)) setSelectedUserId(null);
+  }, [rows, selectedUserId]);
+
+  // Escape closes the mobile drawer.
+  useEffect(() => {
+    if (!(isNarrow && selectedUserId)) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setSelectedUserId(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isNarrow, selectedUserId]);
+
   const hasActiveSub = (row) => ['active', 'trialing'].includes(row.subscription_status || '');
+
+  // After any mutation, refresh the list row AND the open detail.
+  const refreshBoth = async () => { await refresh(); bumpDetailEpoch(); };
 
   const onChangeTier = async (row, nextTier) => {
     if (row.tier === nextTier) return;
@@ -104,7 +152,7 @@ export function AdminUsersTab() {
       const { error: err } = await supabase.rpc('admin_set_tier', { p_user_id: row.user_id, p_tier: nextTier });
       if (err) throw err;
       feedback.toast({ type: 'success', message: `${row.email} → ${nextTier}` });
-      await refresh();
+      await refreshBoth();
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Tier change failed: ' + (e?.message || e) });
     } finally {
@@ -126,7 +174,7 @@ export function AdminUsersTab() {
     try {
       await adminAccountAction({ userId: row.user_id, action: 'ban' });
       feedback.toast({ type: 'success', message: `Banned ${row.email}` });
-      await refresh();
+      await refreshBoth();
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Ban failed: ' + (e?.message || e) });
     } finally { setBusyId(null); }
@@ -143,7 +191,7 @@ export function AdminUsersTab() {
     try {
       await adminAccountAction({ userId: row.user_id, action: 'unban' });
       feedback.toast({ type: 'success', message: `Unbanned ${row.email}` });
-      await refresh();
+      await refreshBoth();
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Unban failed: ' + (e?.message || e) });
     } finally { setBusyId(null); }
@@ -159,7 +207,7 @@ export function AdminUsersTab() {
         const amt = res?.monthly_amount_cents != null ? ` (${formatMoney(res.monthly_amount_cents)}/mo)` : '';
         feedback.toast({ type: 'success', message: `Re-synced billing for ${row.email}${amt}` });
       }
-      await refresh();
+      await refreshBoth();
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Re-sync failed: ' + (e?.message || e) });
     } finally { setBusyId(null); }
@@ -182,6 +230,7 @@ export function AdminUsersTab() {
     try {
       await adminAccountAction({ userId: row.user_id, action: 'delete' });
       feedback.toast({ type: 'success', message: `Deleted ${row.email}` });
+      setSelectedUserId(null);          // the account is gone — close its profile
       await refresh();
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Delete failed: ' + (e?.message || e) });
@@ -191,11 +240,12 @@ export function AdminUsersTab() {
   const isFiltered = !!(debounced || tierFilter);
 
   return (
-    <div className="admin-section">
+    <div className="admin-section admin-section-users">
       <h2 className="admin-section-title">Users</h2>
       <div className="admin-section-sub">
-        Every account on the platform. Search by email or filter by tier, then change a tier inline
-        or ban / re-sync / delete from the row menu.
+        Every account on the platform. Search, filter or sort the list, then select a user to see their full
+        profile — acquisition, activation, engagement, billing &amp; grants — and change their tier or ban /
+        re-sync / delete them.
       </div>
 
       <div className={`admin-stat-grid ${refreshing ? 'is-refreshing' : ''}`}>
@@ -206,131 +256,58 @@ export function AdminUsersTab() {
         />
       </div>
 
-      <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
-        <input
-          className="auth-input admin-search-input"
-          type="text"
-          placeholder="search email…"
-          value={query}
-          onChange={(e) => setQueryRaw(e.target.value)}
-          aria-label="Search by email"
+      <div className="admin-users-2pane">
+        <AdminUserList
+          rows={rows}
+          total={total}
+          loading={loading}
+          error={error}
+          refreshing={refreshing}
+          lastUpdated={lastUpdated}
+          page={page}
+          pageCount={pageCount}
+          firstIdx={firstIdx}
+          lastIdx={lastIdx}
+          query={query}
+          onQueryChange={setQueryRaw}
+          tierFilter={tierFilter}
+          onTierFilterChange={setTierFilter}
+          sort={sort}
+          onSortChange={setSort}
+          onPrevPage={() => setPage((p) => Math.max(0, p - 1))}
+          onNextPage={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+          onRefresh={refresh}
+          selectedUserId={selectedUserId}
+          onSelect={setSelectedUserId}
+          currentUserId={user?.id}
+          isFiltered={isFiltered}
         />
-        <select
-          className="auth-input admin-filter-select"
-          value={tierFilter}
-          onChange={(e) => setTierFilter(e.target.value)}
-          aria-label="Filter by tier"
-        >
-          <option value="">All tiers</option>
-          {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <span className="admin-filter-meta t-meta">
-          {loading
-            ? 'Loading…'
-            : total === 0
-              ? 'No matches'
-              : `${formatCount(firstIdx)}–${formatCount(lastIdx)} of ${formatCount(total)}`}
-        </span>
-      </AdminToolbar>
 
-      <AdminAsync
-        loading={loading}
-        error={error}
-        onRetry={refresh}
-        skeleton={<AdminSkeleton variant="table" rows={8} cols={8} />}
-        isEmpty={rows.length === 0}
-        empty={{
-          icon: UsersIcon,
-          title: 'No users match these filters',
-          body: debounced || tierFilter ? 'Try a broader search or a different tier.' : 'Users will appear here as they sign up.',
-        }}
-      >
-        <table className={`admin-table ${refreshing ? 'is-refreshing' : ''}`}>
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Tier</th>
-              <th className="num">Cards</th>
-              <th className="num">Time in app</th>
-              <th>Joined</th>
-              <th>Last sign-in</th>
-              <th>Subscription</th>
-              <th aria-label="Actions"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const isSelf = r.user_id === user?.id;
-              const subLabel = r.subscription_status
-                ? `${r.subscription_plan || 'sub'} · ${r.subscription_status}`
-                : '—';
-              return (
-                <tr key={r.user_id}>
-                  <td className="admin-email">
-                    <CopyableText value={r.email} className="admin-email" />
-                    {isSelf && <span className="admin-muted"> · you</span>}
-                    {r.banned && <span className="admin-badge-banned" title="Account suspended">banned</span>}
-                  </td>
-                  <td>
-                    <div className="admin-tier-pill-group">
-                      {TIERS.map((t) => (
-                        <button
-                          key={t}
-                          className={`admin-tier-pill admin-tier-pill-${t} ${r.tier === t ? 'is-active' : ''}`}
-                          disabled={isSelf || busyId === r.user_id}
-                          title={isSelf ? "Can't change your own tier" : r.tier === t ? `Already ${t}` : `Change to ${t}`}
-                          onClick={() => onChangeTier(r, t)}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                    {r.tier === 'waitlist' && !r.joined_waitlist && (
-                      <span className="admin-badge-ghost" title="Signed up but never joined the waitlist — fell off">ghost</span>
-                    )}
-                  </td>
-                  <td className="admin-muted num">{formatCount(r.card_count)}</td>
-                  <td className="admin-muted num" title={`${(r.seconds_in_app ?? 0).toLocaleString()} seconds`}>
-                    {formatDuration(Number(r.seconds_in_app || 0))}
-                  </td>
-                  <td className="admin-muted" title={fmtDateTime(r.created_at)}>{fmtDate(r.created_at)}</td>
-                  <td className="admin-muted" title={fmtDateTime(r.last_sign_in_at)}>
-                    {r.last_sign_in_at ? relativeTime(r.last_sign_in_at) : '—'}
-                  </td>
-                  <td className="admin-muted">
-                    {subLabel}
-                    {r.subscription_status && r.subscription_amount_cents != null && (
-                      <> · {formatMoney(r.subscription_amount_cents)}/mo</>
-                    )}
-                    {r.subscription_discounted && (
-                      <span className="admin-badge-promo" title="Discounted via a promo code"> promo</span>
-                    )}
-                  </td>
-                  <td className="admin-actions">
-                    <AdminUserRowMenu
-                      row={r}
-                      disabled={isSelf || busyId === r.user_id}
-                      busy={busyId === r.user_id}
-                      onBan={onBan}
-                      onUnban={onUnban}
-                      onResync={onResync}
-                      onDelete={onDelete}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </AdminAsync>
+        <AdminUserDetail
+          detail={detailData?.detail || null}
+          loading={detailLoading}
+          error={detailError}
+          onRetry={bumpDetailEpoch}
+          refreshing={detailRefreshing}
+          selectedRow={selectedRow}
+          currentUserId={user?.id}
+          busyId={busyId}
+          onChangeTier={onChangeTier}
+          onBan={onBan}
+          onUnban={onUnban}
+          onResync={onResync}
+          onDelete={onDelete}
+          isOpen={isNarrow && !!selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+        />
 
-      {pageCount > 1 && (
-        <div className="admin-pagination">
-          <button className="admin-action" disabled={page === 0 || refreshing} onClick={() => setPage((p) => Math.max(0, p - 1))}>← Prev</button>
-          <span className="admin-muted">Page {page + 1} of {pageCount}</span>
-          <button className="admin-action" disabled={page >= pageCount - 1 || refreshing} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>Next →</button>
-        </div>
-      )}
+        {isNarrow && (
+          <div
+            className={`admin-users-detail-backdrop ${selectedUserId ? 'is-open' : ''}`}
+            onClick={() => setSelectedUserId(null)}
+          />
+        )}
+      </div>
     </div>
   );
 }
