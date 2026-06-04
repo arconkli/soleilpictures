@@ -27,6 +27,7 @@ import { AdminOverviewTab } from './admin/AdminOverviewTab.jsx';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
+import { AdminCampaignTab } from './admin/AdminCampaignTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
 import { AdminErrorsTab } from './admin/AdminErrorsTab.jsx';
@@ -40,6 +41,7 @@ const TABS = [
   { id: 'analytics', label: 'Analytics' },
   { id: 'users',     label: 'Users' },
   { id: 'grants',    label: 'Grants' },
+  { id: 'campaign',  label: 'Campaign' },
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
   { id: 'errors',    label: 'Errors' },
@@ -189,6 +191,7 @@ export function AdminPage() {
         {tab === 'analytics' && <AdminAnalyticsTab />}
         {tab === 'users'     && <AdminUsersTab />}
         {tab === 'grants'    && <AdminGrantsTab />}
+        {tab === 'campaign'  && <AdminCampaignTab />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
         {tab === 'feedback'  && <AdminFeedbackTab />}
         {tab === 'errors'    && <AdminErrorsTab />}

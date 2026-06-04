@@ -43,5 +43,9 @@ export function qaTierOverride() {
     subscriptionStatus: q.get('substatus') || (tier === 'paid' ? 'active' : null),
     currentPeriodEnd:   q.get('periodend') || null,
     cancelAtPeriodEnd:  q.get('cancel') === '1',
+    // ?adoffer=1 renders the ad-sourced price-first AdWelcome screen
+    // (what a Facebook/Instagram ad click sees) — e.g.
+    //   /?local=1&tier=demo&adoffer=1
+    adOfferPending:     q.get('adoffer') === '1',
   };
 }
