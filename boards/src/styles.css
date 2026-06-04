@@ -15422,6 +15422,25 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .cc-leader-count { color: var(--ink-0); font-weight: 600; font-variant-numeric: tabular-nums; }
 .cc-leader-empty { color: var(--ink-3); }
 
+/* Live card-placement ticker (replaces the static "Top creators" leaderboard). */
+.cc-ticker { display: flex; flex-direction: column; }
+.cc-ticker .cc-leaders-title { display: flex; align-items: center; gap: 7px; }
+.cc-ticker-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
+.cc-ticker-row {
+  display: flex; align-items: center; gap: 8px;
+  font: 500 12px/1.35 var(--font-sans); color: var(--ink-1);
+  animation: cc-ticker-in var(--dur-base, 220ms) var(--ease, ease) both;
+}
+.cc-ticker-dot { width: 6px; height: 6px; border-radius: 999px; flex: 0 0 auto; background: currentColor; box-shadow: 0 0 7px currentColor; }
+.cc-ticker-actor { color: var(--ink-0); font-weight: 600; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-ticker-what { color: var(--ink-2); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-ticker-time { color: var(--ink-3); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+@keyframes cc-ticker-in {
+  from { opacity: 0; transform: translateY(-6px); background: rgba(255,165,0,.12); }
+  to   { opacity: 1; transform: none; background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .cc-ticker-row { animation: none; } }
+
 /* Corner controls (float above the frame) */
 .cc-controls { position: absolute; top: 14px; right: 14px; z-index: 6; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
 .cc-updated { font: 500 11px/1 var(--font-sans); color: var(--ink-2); padding: 6px 12px; border-radius: 999px; }

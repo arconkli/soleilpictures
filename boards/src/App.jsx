@@ -14,7 +14,8 @@ import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
-import { logEvent } from './lib/analytics.js';
+import { logEvent, logEventNow } from './lib/analytics.js';
+import { EV } from './lib/analyticsEvents.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
@@ -597,6 +598,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const c = stampCreate({ z: nextZ(), ...card });
         m.set(c.id, cardToYMap(c));
       }, 'local');
+      // Live activity signal → admin Command Center placement ticker. Prompt
+      // (beacon) delivery so it shows up ~live, not at the next 5s batch flush.
+      logEventNow(EV.CARD_PLACED, {
+        n: 1, kind: card?.kind || 'card',
+        board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
+      });
     };
 
     const addCards = (cardsToAdd) => {
@@ -623,6 +630,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           m.set(c.id, cardToYMap(c));
         }
       }, 'local');
+      // One ticker entry per bulk action (collapsed) — "placed N cards".
+      const kinds = new Set(cardsToAdd.map((c) => c?.kind).filter(Boolean));
+      logEventNow(EV.CARD_PLACED, {
+        n: cardsToAdd.length, kind: kinds.size === 1 ? [...kinds][0] : 'mixed',
+        board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
+      });
     };
 
     const updateCard = (cardId, patch) => {

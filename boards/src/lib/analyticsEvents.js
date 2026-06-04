@@ -64,6 +64,9 @@ export const EV = Object.freeze({
   AD_OFFER_VIEW:           'ad_offer_view',               // price-first screen shown to ad-sourced demo user
   AD_OFFER_ENTER:          'ad_offer_enter',              // chose "continue into workspace" (skipped buying) {plan}
   AD_OFFER_DWELL:          'ad_offer_dwell',              // {ms}
+
+  // ── Product activity ──
+  CARD_PLACED:             'card_placed',                 // card(s) placed on a board {n,kind,board_id,workspace_id,actor} — powers the admin Command Center live ticker
 });
 
 // Map an auth/network error to a stable machine code for *_error events.

@@ -23,14 +23,14 @@ import {
 } from 'recharts';
 import { supabase } from '../../lib/supabase.js';
 import {
-  formatMoney, formatCount, formatCompact, shortDate, TIER_COLORS,
+  formatMoney, formatCount, formatCompact, shortDate, relativeTime, TIER_COLORS,
 } from '../../lib/adminFormat.js';
 import { Icon } from '../../components/Icon.jsx';
 import { Maximize2, ArrowsClockwise } from '../../lib/icons.js';
 import { useAdminData } from './useAdminData.js';
 import { useUniverseStats } from './useUniverseStream.js';
 import { UniverseGraph } from './UniverseGraph.jsx';
-import { TierPill } from './AdminPills.jsx';
+import { useCardPlacements } from './useCardPlacements.js';
 
 const SOLEIL = '#ffa500';
 const GREEN  = '#50c878';
@@ -42,6 +42,13 @@ const TIP = {
   itemStyle:    { color: 'var(--soleil)' },
 };
 const AXIS = { stroke: 'var(--ink-3)', fontSize: 10, tickLine: false, axisLine: false };
+
+// Live-placement ticker labels + per-kind dot color.
+const KIND_ARTICLE = { image: 'an image', note: 'a note', link: 'a link', palette: 'a palette', doc: 'a doc', url: 'a URL' };
+const KIND_COLOR   = { image: '#ffa500', note: '#50c878', link: '#7da0dc', palette: '#c08cff', doc: '#7da0dc', url: '#9aa0aa' };
+function placementText(p) {
+  return p.n > 1 ? `placed ${p.n} cards` : `placed ${KIND_ARTICLE[p.kind] || 'a card'}`;
+}
 
 export function AdminCommandCenter() {
   const stageRef = useRef(null);
@@ -69,7 +76,6 @@ export function AdminCommandCenter() {
       supabase.rpc('admin_signups_by_day', { p_days: 30 }),
       supabase.rpc('admin_waitlist_funnel', { p_days: 30 }),
       supabase.rpc('admin_activation_funnel'),
-      supabase.rpc('admin_top_users', { p_tier: null, p_limit: 8 }),
     ]);
     const val = (x) => (x.status === 'fulfilled' && !x.value.error ? x.value.data : null);
     return {
@@ -79,7 +85,6 @@ export function AdminCommandCenter() {
       signups:    val(r[3]) || [],
       waitlist:   val(r[4]) || [],
       activation: val(r[5]),
-      topUsers:   val(r[6]) || [],
     };
   }, [], { pollIntervalMs: 20000 });
 
@@ -110,7 +115,7 @@ export function AdminCommandCenter() {
     .map((t) => ({ name: t, value: tiers[t] || 0 }))
     .filter((d) => d.value > 0);
 
-  const topUsers = data?.topUsers || [];
+  const placements = useCardPlacements();
 
   const toggleFullscreen = () => {
     const el = stageRef.current;
@@ -256,18 +261,22 @@ export function AdminCommandCenter() {
             <UniCell label="New · 24h"  value={uni?.nodes_created_24h} />
           </div>
 
-          <div className="cc-leaders">
-            <div className="cc-leaders-title">Top creators</div>
-            <ol className="cc-leaders-list">
-              {topUsers.slice(0, 6).map((u, i) => (
-                <li key={u.user_id} className="cc-leader">
-                  <span className="cc-leader-rank">{i + 1}</span>
-                  <span className="cc-leader-email">{u.email}</span>
-                  <TierPill tier={u.tier} />
-                  <span className="cc-leader-count">{formatCount(u.card_count)}</span>
+          <div className="cc-leaders cc-ticker">
+            <div className="cc-leaders-title"><span className="cc-live-dot" /> Live placements</div>
+            <ol className="cc-ticker-list">
+              {placements.map((p) => (
+                <li key={p._key} className="cc-ticker-row">
+                  <span className="cc-ticker-dot" style={{ color: KIND_COLOR[p.kind] || 'var(--soleil)' }} />
+                  <span className="cc-ticker-actor">{p.actor || 'someone'}</span>
+                  <span className="cc-ticker-what">{placementText(p)}</span>
+                  <span className="cc-ticker-time" title={p.occurred_at ? new Date(p.occurred_at).toLocaleString() : ''}>
+                    {relativeTime(p.occurred_at)}
+                  </span>
                 </li>
               ))}
-              {topUsers.length === 0 && <li className="cc-leader cc-leader-empty">No data yet.</li>}
+              {placements.length === 0 && (
+                <li className="cc-ticker-row cc-leader-empty">Waiting for the next card…</li>
+              )}
             </ol>
           </div>
         </div>
