@@ -179,7 +179,7 @@ export function AdminCommandCenter() {
         {/* Left rail — revenue + growth + mix */}
         <div className="cc-rail cc-rail-left">
           <CcPanel title="Revenue · MRR" sub={sparse ? 'trend builds daily' : `${trend.length}d`}>
-            <ResponsiveContainer width="100%" height={132}>
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trend} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
                 <defs>
                   <linearGradient id="ccMrr" x1="0" y1="0" x2="0" y2="1">
@@ -198,7 +198,7 @@ export function AdminCommandCenter() {
           </CcPanel>
 
           <CcPanel title="Users · growth" sub={sparse ? 'trend builds daily' : `${trend.length}d`}>
-            <ResponsiveContainer width="100%" height={132}>
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trend} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
                 <defs>
                   <linearGradient id="ccUsers" x1="0" y1="0" x2="0" y2="1">
@@ -217,7 +217,7 @@ export function AdminCommandCenter() {
           </CcPanel>
 
           <CcPanel title="Tier mix" sub={`${pieData.reduce((a, b) => a + b.value, 0)} accounts`}>
-            <ResponsiveContainer width="100%" height={132}>
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={34} outerRadius={54}
                      paddingAngle={2} stroke="var(--bg-1)">
@@ -231,7 +231,7 @@ export function AdminCommandCenter() {
           </CcPanel>
 
           <CcPanel title="Content mix" sub={`${formatCount(contentTotal)} cards`}>
-            <ResponsiveContainer width="100%" height={120}>
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={contentMix} dataKey="value" nameKey="name" innerRadius={30} outerRadius={50}
                      paddingAngle={2} stroke="var(--bg-1)">
@@ -255,7 +255,7 @@ export function AdminCommandCenter() {
         <div className="cc-rail cc-rail-right">
           <CcPanel title="Signups · 30d"
                    sub={`${formatCount(signups.reduce((a, b) => a + (b.signups || 0), 0))} total`}>
-            <ResponsiveContainer width="100%" height={132}>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={signups} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
                 <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
                 <XAxis dataKey="label" {...AXIS} interval="preserveStartEnd" minTickGap={24} />
@@ -268,7 +268,7 @@ export function AdminCommandCenter() {
 
           <CcPanel title="Waitlist funnel · 30d"
                    sub={`${formatCount(waitlist.reduce((a, b) => a + (b.accepted || 0), 0))} accepted`}>
-            <ResponsiveContainer width="100%" height={132}>
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={waitlist} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
                 <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
                 <XAxis dataKey="label" {...AXIS} interval="preserveStartEnd" minTickGap={24} />
@@ -281,7 +281,7 @@ export function AdminCommandCenter() {
           </CcPanel>
 
           <CcPanel title="Activation funnel">
-            <ResponsiveContainer width="100%" height={132}>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={activation} layout="vertical" margin={{ top: 2, right: 10, bottom: 2, left: 2 }}>
                 <XAxis type="number" {...AXIS} hide allowDecimals={false} />
                 <YAxis type="category" dataKey="stage" {...AXIS} width={66} />
@@ -293,7 +293,7 @@ export function AdminCommandCenter() {
 
           <CcPanel title="Cards created · 30d"
                    sub={<><span className="cc-live-dot" /> {formatCount(cardsTotal)}</>}>
-            <ResponsiveContainer width="100%" height={120}>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cardsDaily} margin={{ top: 6, right: 8, bottom: 0, left: -16 }}>
                 <CartesianGrid stroke="var(--line-1)" strokeDasharray="2 4" vertical={false} />
                 <XAxis dataKey="label" {...AXIS} interval="preserveStartEnd" minTickGap={24} />
