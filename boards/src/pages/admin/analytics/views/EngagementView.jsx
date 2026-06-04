@@ -6,6 +6,8 @@ import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 import { ActivationFunnel } from '../widgets/ActivationFunnel.jsx';
+import { RetentionCurve } from '../widgets/RetentionCurve.jsx';
+import { LifespanDistribution } from '../widgets/LifespanDistribution.jsx';
 import { RetentionCohorts } from '../widgets/RetentionCohorts.jsx';
 import { AdminCardsSection } from '../../AdminCardsSection.jsx';
 import { AdminTierCompareTable } from '../../AdminTierCompareTable.jsx';
@@ -13,8 +15,11 @@ import { AdminTierCompareTable } from '../../AdminTierCompareTable.jsx';
 export function EngagementView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
-    const [af, ch, cs, pd, tc] = await Promise.allSettled([
+    const [af, rc, ls, ch, cs, pd, tc] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel',   { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      // Retention graphs — degrade gracefully via val(); never gate the view.
+      supabase.rpc('admin_retention_curve',     { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_user_lifespan',       { p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_retention_cohorts',   { p_window_days: Math.max(f.days, 60), p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_card_stats',          { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_cards_per_day',       { p_days: f.days, p_exclude_internal: f.excludeInternal }),
@@ -26,7 +31,7 @@ export function EngagementView() {
     if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
       throw errOf(core.find(errOf)) || new Error('Failed to load engagement');
     }
-    return { activation: val(af), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [] };
+    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [] };
   }, [f.days, f.excludeInternal]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
@@ -38,6 +43,8 @@ export function EngagementView() {
         <h2 className="admin-section-title">Activation &amp; retention</h2>
         <div className="admin-section-sub">How signed-up users progress, and whether cohorts keep coming back.</div>
         {q.data?.activation && <ActivationFunnel data={q.data.activation} days={f.days} />}
+        <RetentionCurve rows={q.data?.retention || []} />
+        <LifespanDistribution data={q.data?.lifespan} />
         <RetentionCohorts rows={q.data?.cohorts || []} />
 
         <h2 className="admin-section-title">Cards &amp; product</h2>

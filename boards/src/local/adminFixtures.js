@@ -120,6 +120,32 @@ for (let w = 0; w < 6; w++) {
   }
 }
 
+// admin_retention_curve — pooled retention by day-since-signup, split all/demo/paid.
+// Paid retains longest; eligibility stays trustworthy across the span so all three
+// lines render in the preview (real prod data starts much sparser).
+const retentionCurve = [];
+for (let d = 0; d <= 21; d++) {
+  const eligAll  = Math.max(24, Math.round(140 - d * 4));
+  const eligDemo = Math.round(eligAll * 0.7);
+  const eligPaid = Math.round(eligAll * 0.18);
+  const pctAll  = d === 0 ? 1 : 0.62 * Math.exp(-d / 9)  + 0.06;
+  const pctDemo = d === 0 ? 1 : 0.50 * Math.exp(-d / 8)  + 0.04;
+  const pctPaid = d === 0 ? 1 : 0.80 * Math.exp(-d / 16) + 0.12;
+  const mk = (segment, eligible, pct) => ({ segment, day_offset: d, eligible,
+    active: Math.round(eligible * pct), active_pct: Number(pct.toFixed(4)) });
+  retentionCurve.push(mk('all', eligAll, pctAll), mk('demo', eligDemo, pctDemo), mk('paid', eligPaid, pctPaid));
+}
+
+// admin_user_lifespan — active-days-per-user distribution + median stickiness.
+const lifespan = {
+  total_users: 420, median_active_days: 4, p90_active_days: 16, mean_active_days: 5.8,
+  buckets: [
+    { label: '0–1', ord: 1, users: 96 }, { label: '2', ord: 2, users: 70 },
+    { label: '3–4', ord: 3, users: 88 }, { label: '5–7', ord: 4, users: 74 },
+    { label: '8–14', ord: 5, users: 58 }, { label: '15+', ord: 6, users: 34 },
+  ],
+};
+
 // ── tagging (small but enough for overview + a drill-down histogram) ──
 const vec = (a) => `[${a.join(',')}]`;
 const tagWorkspaces = [{ id: 'ws1', name: 'Acme Studio' }];
@@ -193,6 +219,8 @@ const RPCS = {
   ],
   admin_activation_funnel: { signed_up: 96, first_board: 78, first_card: 58, first_share: 31, first_backlink: 19, first_paid: 17 },
   admin_retention_cohorts: cohorts,
+  admin_retention_curve: retentionCurve,
+  admin_user_lifespan: lifespan,
   admin_card_stats: {
     total: 18420,
     by_kind: { image: 8210, note: 4120, link: 2890, palette: 1640, doc: 980, url: 580 },
