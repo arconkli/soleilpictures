@@ -18,10 +18,18 @@ import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 // <a> and a tiny inline-style allowlist — so pasting from Word / Google Docs
 // can't inject markup that breaks subsequent formatting.
 const PASTE_ALLOWED = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'A', 'BR', 'P', 'DIV', 'UL', 'OL', 'LI', 'SPAN', 'H1', 'H2', 'H3', 'BLOCKQUOTE', 'CODE']);
-function sanitizePastedHtml(html) {
+// Shared note-HTML scrubber. The paste-in path (default) sanitizes foreign
+// rich text down to the allowed tags while keeping inline `color` so emphasis
+// colors survive. The copy-out path (`dropChrome`) additionally removes the
+// note's own affordances (link previews, checkbox boxes) and drops `color` —
+// so text copied out of a note adopts the destination's own foreground rather
+// than the note's light-on-dark theme color, which is invisible on a white
+// page. `background-color` is never kept on either path.
+function scrubNoteHtml(html, { dropChrome = false } = {}) {
   const root = document.createElement('div');
   root.innerHTML = html;
   root.querySelectorAll('script,style,meta,link,iframe,object,embed,img,svg,video,audio,form,input,button').forEach(el => el.remove());
+  if (dropChrome) root.querySelectorAll('.note-link-preview,.note-preview-hidden,.ck-box').forEach(el => el.remove());
   // Unwrap disallowed elements (repeat until stable to handle nesting).
   let pass = 0;
   while (pass++ < 100) {
@@ -30,6 +38,9 @@ function sanitizePastedHtml(html) {
     while (bad.firstChild) bad.parentNode.insertBefore(bad.firstChild, bad);
     bad.parentNode.removeChild(bad);
   }
+  const styleRe = dropChrome
+    ? /(?:font-weight|font-style|text-decoration[\w-]*)\s*:\s*[^;]+/gi
+    : /(?:font-weight|font-style|text-decoration[\w-]*|color)\s*:\s*[^;]+/gi;
   // Strip attributes from the surviving allowed elements.
   root.querySelectorAll('*').forEach(el => {
     const href = el.tagName === 'A' ? el.getAttribute('href') : null;
@@ -40,11 +51,13 @@ function sanitizePastedHtml(html) {
       el.setAttribute('target', '_blank');
       el.setAttribute('rel', 'noopener noreferrer');
     }
-    const safe = (style.match(/(?:font-weight|font-style|text-decoration[\w-]*|color)\s*:\s*[^;]+/gi) || []).join('; ');
+    const safe = (style.match(styleRe) || []).join('; ');
     if (safe) el.setAttribute('style', safe);
   });
   return root.innerHTML;
 }
+const sanitizePastedHtml = (html) => scrubNoteHtml(html);
+const sanitizeCopiedHtml = (html) => scrubNoteHtml(html, { dropChrome: true });
 
 export function RichNoteEditor({
   html, body, bgColor, textColor, fontFamily, fontSize,
@@ -286,6 +299,37 @@ export function RichNoteEditor({
     if (!manuallyResized) measureAndReport();
   };
 
+  // Copy / cut OUT of a note. The browser's default copy bakes the note's
+  // computed styles — the dark `.note` background and the light theme text
+  // color — into the clipboard HTML, so pasting elsewhere drags a black box
+  // along (see ws11-note-copy.spec). We take over: write the selection as
+  // sanitized HTML (inline formatting kept, chrome dropped) plus matching
+  // plain text, so a normal paste lands as clean, readable text.
+  const writeSelectionToClipboard = (e) => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false;
+    const node = ref.current;
+    if (!node || !node.contains(sel.anchorNode) || !node.contains(sel.focusNode)) return false;
+    const cd = e.clipboardData;
+    if (!cd) return false;
+    const holder = document.createElement('div');
+    holder.appendChild(sel.getRangeAt(0).cloneContents());
+    cd.setData('text/html', sanitizeCopiedHtml(holder.innerHTML));
+    cd.setData('text/plain', sel.toString());
+    e.preventDefault();
+    return true;
+  };
+
+  const onCopy = (e) => { writeSelectionToClipboard(e); };
+
+  const onCut = (e) => {
+    if (!writeSelectionToClipboard(e)) return;
+    document.execCommand('delete');
+    onMentionInput();
+    broadcastLive();
+    if (!manuallyResized) measureAndReport();
+  };
+
   const onBodyClick = (e) => {
     // Checklist box toggle — fire whether or not the note is currently
     // editing; checking off items shouldn't require a double-click in.
@@ -484,6 +528,8 @@ export function RichNoteEditor({
            onBlur={editing ? commit : undefined}
            onKeyDown={editing ? onKey : undefined}
            onPaste={editing ? onPaste : undefined}
+           onCopy={editing ? onCopy : undefined}
+           onCut={editing ? onCut : undefined}
            onInput={editing ? onMentionInput : undefined}
            onClick={onBodyClick}
            onDoubleClick={!editing ? onOuterDouble : undefined}
