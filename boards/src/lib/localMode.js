@@ -3,6 +3,16 @@ export function isLocalQaMode() {
   return new URLSearchParams(window.location.search).get('local') === '1';
 }
 
+// Dev-only admin preview harness. Active ONLY in a DEV build with
+// ?adminpreview=1 (same trust boundary as isLocalQaMode / isDocQaMode) so it can
+// never affect a production build. Renders the real admin tab components with
+// fixture data and no auth, so the admin UI can be screenshotted + iterated on
+// visually without logging in. See ../local/AdminPreviewHarness.jsx.
+export function isAdminPreviewMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('adminpreview') === '1';
+}
+
 // Dev-only doc QA harness. Active ONLY in a DEV build with ?docqa=1 (same
 // trust boundary as isLocalQaMode) so it can never affect a production build.
 // Mounts the real RichDocCard/DocSurface against an in-memory Y.Doc — no

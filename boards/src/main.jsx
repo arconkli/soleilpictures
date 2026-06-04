@@ -2,7 +2,7 @@ import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode } from './lib/localMode.js';
+import { isDocQaMode, isAdminPreviewMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -168,7 +168,23 @@ preloadRecentGoogleFonts(getRecentFonts());
 // import('./local/DocQaHarness.jsx') chunk — from production builds. It
 // short-circuits the normal app tree so tests get a clean, backend-free
 // surface for the real doc components.
-if (import.meta.env.DEV && isDocQaMode()) {
+if (import.meta.env.DEV && isAdminPreviewMode()) {
+  // Dev-only admin preview (?adminpreview=1). Same trust boundary + static
+  // DEV guard as the doc QA harness, so the harness + its fixtures are dropped
+  // from production builds. Renders the real admin tabs with fixture data and
+  // no auth so the admin UI can be screenshotted / iterated on visually.
+  import('./local/AdminPreviewHarness.jsx').then(({ AdminPreviewHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <AppErrorBoundary>
+          <FeedbackProvider>
+            <AdminPreviewHarness />
+          </FeedbackProvider>
+        </AppErrorBoundary>
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isDocQaMode()) {
   import('./local/DocQaHarness.jsx').then(({ DocQaHarness }) => {
     createRoot(document.getElementById('root')).render(
       <StrictMode>

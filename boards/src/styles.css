@@ -5450,35 +5450,44 @@ body {
 }
 .admin-stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
 @media (max-width: 900px) {
   .admin-stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
 .admin-stat-card {
   background: var(--bg-2);
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line-1);
   border-radius: var(--radius-lg, 14px);
-  padding: 16px 18px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 100px;
+  min-height: 104px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    0 2px 4px rgba(0,0,0,.28),
+    0 12px 30px -14px rgba(0,0,0,.55);
 }
 .admin-stat-card.is-accent {
-  border-color: rgba(255, 165, 0, 0.45);
-  background: linear-gradient(180deg, rgba(255,165,0,0.06), var(--bg-2) 60%);
+  border-color: rgba(255, 165, 0, 0.42);
+  background: linear-gradient(180deg, rgba(255,165,0,0.10), var(--bg-2) 62%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,165,0,.18),
+    0 0 0 1px rgba(255,165,0,.10),
+    0 12px 32px -12px rgba(255,165,0,.24);
 }
 .admin-stat-label {
-  font: 600 11px/1 var(--font-sans);
-  letter-spacing: .12em;
+  font: 700 10px/1 var(--font-display, var(--font-sans));
+  letter-spacing: .16em;
   text-transform: uppercase;
   color: var(--ink-2);
 }
 .admin-stat-value {
-  font: 700 30px/1.1 var(--font-display, var(--font-sans));
+  font: 700 32px/1.05 var(--font-display, var(--font-sans));
   color: var(--ink-0);
+  letter-spacing: .005em;
   font-variant-numeric: tabular-nums;
 }
 .admin-stat-card.is-accent .admin-stat-value { color: var(--soleil); }
@@ -5510,11 +5519,11 @@ body {
 
 /* Section grouping for the reorganized Analytics narrative. */
 .admin-section-title {
-  font: 700 13px/1 var(--font-sans);
-  letter-spacing: .06em;
+  font: 700 16px/1.2 var(--font-display, var(--font-sans));
+  letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--ink-1);
-  margin: 30px 0 12px;
+  color: var(--ink-0);
+  margin: 32px 0 14px;
 }
 .admin-section-title:first-of-type { margin-top: 10px; }
 .admin-section-sub {
@@ -5533,12 +5542,16 @@ body {
 }
 .admin-chart-panel {
   background: var(--bg-2);
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line-1);
   border-radius: var(--radius-lg, 14px);
-  padding: 16px 18px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    0 2px 4px rgba(0,0,0,.26),
+    0 12px 30px -16px rgba(0,0,0,.5);
 }
 .admin-chart-panel-wide { grid-column: 1 / -1; }
 .admin-chart-head {
@@ -5549,9 +5562,9 @@ body {
 }
 .admin-chart-title {
   margin: 0;
-  font: 600 13px/1 var(--font-sans);
+  font: 600 14px/1.2 var(--font-sans);
   color: var(--ink-0);
-  letter-spacing: .02em;
+  letter-spacing: .01em;
 }
 .admin-chart-sub { color: var(--ink-3); }
 .admin-chart-body {
@@ -5890,6 +5903,77 @@ body {
 .admin-refresh { padding: 6px 8px; }
 .admin-spin { animation: admin-spin 0.8s linear infinite; }
 @keyframes admin-spin { to { transform: rotate(360deg); } }
+
+/* ══ Admin premium pass: match the product's elevation / motion / glow ════
+   Adopts the landing/pricing vocabulary (soft shadows already set on the
+   cards/panels above; here: button motion, focus glow, pill scannability,
+   input focus, gentle entrance). */
+
+/* Buttons lift + cast a shadow on hover, press in on active — like the
+   pricing CTAs. (Base colors/sizing remain from .admin-action above.) */
+.admin-action {
+  border-radius: var(--radius-md, 8px);
+  padding: 7px 13px;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur-base) var(--ease);
+}
+.admin-action:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-1); }
+.admin-action:active:not(:disabled) { transform: translateY(0) scale(.99); }
+.admin-action-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
+
+/* The product's signature dual-ring focus glow, everywhere interactive. */
+.admin-tab:focus-visible,
+.admin-subtab:focus-visible,
+.admin-action:focus-visible,
+.admin-tier-pill:focus-visible,
+.admin-copyable:focus-visible,
+.admin-toggle:focus-visible,
+.admin-search-input:focus-visible,
+.admin-filter-select:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-glow);
+  border-color: transparent;
+}
+/* Inputs/selects: border melts into a soleil glow on focus (like pricing). */
+.admin-search-input, .admin-filter-select, .admin-grant-emails, .admin-grant-note {
+  transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
+}
+.admin-search-input:focus, .admin-filter-select:focus,
+.admin-grant-emails:focus, .admin-grant-note:focus {
+  outline: none; border-color: transparent; box-shadow: var(--shadow-glow);
+}
+
+/* Status / tier / kind pills: a leading dot in the pill's own color so a
+   column of them scans at a glance. */
+.admin-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 8px;
+}
+.admin-status::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: 0 0 auto;
+  box-shadow: 0 0 6px currentColor;
+  opacity: .9;
+}
+/* The dashed waitlist pill reads as "not yet" — no dot. */
+.admin-status-waitlist::before { display: none; }
+
+/* Gentle entrance so a tab/sub-tab switch feels alive (not on refetch — the
+   panels don't remount then). Respects reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .admin-stat-card,
+  .admin-chart-panel { animation: admin-rise var(--dur-base) var(--ease) both; }
+}
+@keyframes admin-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* Dim (don't blank) data while a refetch is in flight. */
 .is-refreshing { opacity: 0.55; transition: opacity var(--dur-base) var(--ease); pointer-events: none; }
