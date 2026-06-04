@@ -22,7 +22,7 @@ import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { peekPendingInviteEmail, claimPendingInvite } from '../lib/inviteApi.js';
-import { trackRegistration } from '../lib/metaPixel.js';
+import { trackRegistration, getFbCookies } from '../lib/metaPixel.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
@@ -329,13 +329,19 @@ function SignIn() {
     setError(null);
     setBusy(true);
     try {
+      // If this visitor arrived via a Facebook/Instagram click, the persisted
+      // _fbc ('fb.1.<ms>.<fbclid>') rides along in signup metadata so the
+      // server trigger can fast-track ad traffic to instant demo while the
+      // campaign flag is on. No-op for organic/direct visitors (no _fbc).
+      const { fbc } = getFbCookies();
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim().toLowerCase(),
         options: {
           // shouldCreateUser defaults to true — new emails get an account
-          // at verify time. The 0067 migration sets tier='waitlist' so
-          // they're routed through /welcome before they can use the app.
+          // at verify time. tier defaults to 'waitlist' (server trigger);
+          // ad_fbc may bump it to 'demo' while the campaign flag is on.
           emailRedirectTo: window.location.origin,
+          ...(fbc ? { data: { ad_fbc: fbc } } : {}),
         },
       });
       if (error) throw error;

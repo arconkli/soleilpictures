@@ -59,6 +59,11 @@ export const EV = Object.freeze({
   CHECKOUT_SUPPORT_CLICK:  'checkout_support_click',      // {surface:'stalled'|'missing_session'}
   CHECKOUT_ACTIVATED_SEEN: 'checkout_activated_seen',     // tier→paid celebration {tier,plan} (must-land)
   CHECKOUT_SUCCESS_DWELL:  'checkout_success_dwell',      // {ms,outcome}
+
+  // ── Ad offer (fbclid instant-demo) ──
+  AD_OFFER_VIEW:           'ad_offer_view',               // price-first screen shown to ad-sourced demo user
+  AD_OFFER_ENTER:          'ad_offer_enter',              // chose "continue into workspace" (skipped buying) {plan}
+  AD_OFFER_DWELL:          'ad_offer_dwell',              // {ms}
 });
 
 // Map an auth/network error to a stable machine code for *_error events.

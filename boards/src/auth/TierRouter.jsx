@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { WelcomePage } from './WelcomePage.jsx';
+import { AdWelcome } from './AdWelcome.jsx';
 import { WaitlistConfirm } from './WaitlistConfirm.jsx';
 import { PricingPage } from './PricingPage.jsx';
 import { PricingSuccess } from './PricingSuccess.jsx';
@@ -26,7 +27,7 @@ import { SoleilMark } from '../components/primitives.jsx';
 
 export function TierRouter({ children }) {
   const { user, signOut } = useAuth();
-  const { tier, loading, banned } = useMyTier({ userId: user?.id });
+  const { tier, loading, banned, adOfferPending, refetch } = useMyTier({ userId: user?.id });
   const [hasEntry, setHasEntry] = useState(null);
   const path = window.location.pathname;
 
@@ -69,6 +70,17 @@ export function TierRouter({ children }) {
       }
     }
     return hasEntry ? <WaitlistConfirm /> : <WelcomePage />;
+  }
+
+  // Ad-sourced demo users (fbclid instant-demo) see the price-first offer once
+  // before entering the app. AdWelcome clears the flag (dismiss_ad_offer); the
+  // refetch here then drops them into the workspace. Buying flips tier→paid,
+  // which also falls out of this branch. Organic demo users never set the flag.
+  if (tier === 'demo' && adOfferPending) {
+    return <AdWelcome onEnter={async () => {
+      await refetch();
+      if (window.location.pathname !== '/') window.history.replaceState({}, '', '/');
+    }} />;
   }
 
   // tier in (admin, paid, demo) — signed-in-only side pages

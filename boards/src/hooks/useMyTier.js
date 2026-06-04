@@ -31,6 +31,7 @@ export function useMyTier({ userId } = {}) {
     grantActive: false,
     grantExpiresAt: null,
     banned: false,
+    adOfferPending: false,
   });
   const [loading, setLoading] = useState(!override);
   const [error, setError] = useState(null);
@@ -51,6 +52,7 @@ export function useMyTier({ userId } = {}) {
         grantActive:        Boolean(row?.grant_active),
         grantExpiresAt:     row?.grant_expires_at || null,
         banned:             Boolean(row?.banned),
+        adOfferPending:     Boolean(row?.ad_offer_pending),
       });
       setError(null);
     } catch (e) {

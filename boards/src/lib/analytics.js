@@ -50,6 +50,18 @@ function getFirstSource() {
         }
       } catch (_) {}
     }
+    // Facebook/Instagram ad-click id. Stays in the URL on the landing page; if
+    // it's already been consumed, fall back to the persisted _fbc the Meta layer
+    // saved ('fb.1.<ms>.<fbclid>'). Lets the admin slice the ad cohort apart from
+    // the rest of first_source (referrer/utm).
+    let fbclid = params.get('fbclid');
+    if (!fbclid) {
+      try {
+        const fbc = localStorage.getItem('soleil.meta.fbc');
+        if (fbc) { const parts = fbc.split('.'); if (parts.length >= 4) fbclid = parts.slice(3).join('.'); }
+      } catch (_) {}
+    }
+    if (fbclid) source.fbclid = String(fbclid).slice(0, 200);
     sessionStorage.setItem(SOURCE_KEY, JSON.stringify(source));
     cachedSource = source;
   } catch (_) { cachedSource = {}; }
