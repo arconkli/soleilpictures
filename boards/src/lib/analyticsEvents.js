@@ -65,6 +65,12 @@ export const EV = Object.freeze({
   AD_OFFER_ENTER:          'ad_offer_enter',              // chose "continue into workspace" (skipped buying) {plan}
   AD_OFFER_DWELL:          'ad_offer_dwell',              // {ms}
 
+  // ── Onboarding (first-run) ──
+  ONBOARDING_VIEW:         'onboarding_view',             // first-card coachmark shown {board_id}
+  ONBOARDING_SEED:         'onboarding_seed',             // starter cards seeded into the root board {n,board_id}
+  ONBOARDING_FIRST_CARD:   'onboarding_first_card',       // user placed their OWN first card during onboarding (activation north-star)
+  ONBOARDING_DISMISS:      'onboarding_dismiss',          // onboarding ended {reason:'placed'|'dismissed'}
+
   // ── Product activity ──
   CARD_PLACED:             'card_placed',                 // card(s) placed on a board {n,kind,board_id,workspace_id,actor} — powers the admin Command Center live ticker
 });

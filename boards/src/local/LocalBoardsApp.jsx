@@ -11,6 +11,8 @@ import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
+import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
+import { STARTER_CARDS } from '../lib/onboardingStarter.js';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -71,6 +73,28 @@ function createInitialState() {
   return { boards, boardState };
 }
 
+// Dev-only first-run preview: ?local=1&onboard=1 boots an empty "Studio" with
+// the real STARTER_CARDS + coachmark, so the brand-new-user board can be seen
+// locally (the real seed lives in App.jsx's Workspace, which needs a live
+// session). Mirrors the existing ?adoffer / ?reset dev affordances.
+const ONBOARD_PREVIEW = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).get('onboard') === '1';
+
+function createOnboardingState() {
+  return {
+    boards: {
+      [ROOT_ID]: {
+        id: ROOT_ID, name: 'Studio', view: 'canvas',
+        workspace_id: 'local-workspace', parent_board_id: null,
+        created_at: new Date(0).toISOString(),
+      },
+    },
+    boardState: {
+      [ROOT_ID]: { cards: clone(STARTER_CARDS), arrows: [], strokes: [] },
+    },
+  };
+}
+
 function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
@@ -95,8 +119,10 @@ function collectBoardTreeIds(boards, rootIds) {
 }
 
 export function LocalBoardsApp({ user, signOut }) {
-  const [initialSession] = useState(loadLocalSession);
-  const [{ boards, boardState }, setLocalState] = useState(() => initialSession?.localState || createInitialState());
+  const [initialSession] = useState(() => (ONBOARD_PREVIEW ? null : loadLocalSession()));
+  const [{ boards, boardState }, setLocalState] = useState(() => (
+    ONBOARD_PREVIEW ? createOnboardingState() : (initialSession?.localState || createInitialState())
+  ));
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
@@ -108,12 +134,14 @@ export function LocalBoardsApp({ user, signOut }) {
   const [autoFocusId, setAutoFocusId] = useState(null);
   const [currentSurface, setCurrentSurface] = useState('board');
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
+  const [onboardCoachOpen, setOnboardCoachOpen] = useState(ONBOARD_PREVIEW);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', tweak.theme);
   }, [tweak.theme]);
 
   useEffect(() => {
+    if (ONBOARD_PREVIEW) return;   // preview is throwaway — never pollute the saved local session
     try {
       localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({
         localState: { boards, boardState },
@@ -688,6 +716,10 @@ export function LocalBoardsApp({ user, signOut }) {
       )}
 
       <LocalSettingsPanel tweak={tweak} setTweak={setTweak} />
+
+      {ONBOARD_PREVIEW && onboardCoachOpen && currentId === ROOT_ID && currentSurface === 'board' && (
+        <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} />
+      )}
 
       {isPhone && (
         <MobileBottomNav

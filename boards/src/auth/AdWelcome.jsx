@@ -85,16 +85,20 @@ export function AdWelcome({ onEnter }) {
 
           {error && <div className="auth-error t-meta">{error}</div>}
 
+          {/* Product-first for cold ad traffic: "Try it free" is the primary
+              (gold) CTA so the workspace is one tap away, not a paywall dead-end
+              — half of ad visitors used to bounce on this screen without ever
+              entering the app. The paid offer stays visible but secondary. */}
           <div className="waitlist-status-cta-row">
             <button
-              className="pricing-cta pricing-cta-secondary waitlist-status-cta"
+              className="pricing-cta pricing-cta-primary waitlist-status-cta"
               onClick={onContinue}
               disabled={busy || entering}
             >
-              {entering ? 'Starting…' : 'Try the demo →'}
+              {entering ? 'Starting…' : 'Try it free →'}
             </button>
             <button
-              className="pricing-cta pricing-cta-primary waitlist-status-cta"
+              className="pricing-cta pricing-cta-secondary waitlist-status-cta"
               onClick={onBuy}
               disabled={busy || entering}
             >

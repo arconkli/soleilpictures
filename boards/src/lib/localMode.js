@@ -56,5 +56,12 @@ export function qaTierOverride() {
     // (what a Facebook/Instagram ad click sees) — e.g.
     //   /?local=1&tier=demo&adoffer=1
     adOfferPending:     q.get('adoffer') === '1',
+    // First-run onboarding. Default ({seeded:false,done:false}) triggers the
+    // starter-card seed + coachmark, so /?local=1&tier=demo exercises first-run.
+    // &onboarded=1 simulates a user who already finished onboarding.
+    onboarding: {
+      seeded: q.get('seeded') === '1',
+      done:   q.get('onboarded') === '1',
+    },
   };
 }

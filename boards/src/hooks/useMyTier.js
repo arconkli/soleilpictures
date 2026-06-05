@@ -32,6 +32,7 @@ export function useMyTier({ userId } = {}) {
     grantExpiresAt: null,
     banned: false,
     adOfferPending: false,
+    onboarding: {},
   });
   const [loading, setLoading] = useState(!override);
   const [error, setError] = useState(null);
@@ -53,6 +54,9 @@ export function useMyTier({ userId } = {}) {
         grantExpiresAt:     row?.grant_expires_at || null,
         banned:             Boolean(row?.banned),
         adOfferPending:     Boolean(row?.ad_offer_pending),
+        // First-run onboarding state { seeded, done } — drives the starter-card
+        // seed + first-card coachmark in App.jsx. {} for users predating the flag.
+        onboarding:         row?.onboarding || {},
       });
       setError(null);
     } catch (e) {

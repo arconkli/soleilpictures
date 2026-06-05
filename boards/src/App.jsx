@@ -13,6 +13,8 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
+import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
+import { STARTER_CARDS } from './lib/onboardingStarter.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { logEvent, logEventNow } from './lib/analytics.js';
 import { EV } from './lib/analyticsEvents.js';
@@ -1731,6 +1733,68 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (myTier.tier) logEvent('app_open', { tier: myTier.tier });
   }, [myTier.tier]);
 
+  // ── First-run onboarding ──────────────────────────────────────────────────
+  // New users were landing on a blank Studio canvas and bouncing (~44s median;
+  // only a fraction ever placed a card). On first run we seed a few starter
+  // cards and show a one-time first-card coachmark. State persists in
+  // profiles.settings.onboarding {seeded,done} via merge_profile_settings, and
+  // is read back through get_my_tier()/useMyTier.
+  const seedAttemptedRef = useRef(false);
+  const [onboardingUiActive, setOnboardingUiActive] = useState(false);
+
+  const dismissOnboarding = (reason) => {
+    setOnboardingUiActive(false);
+    logEvent(EV.ONBOARDING_DISMISS, { reason: reason || 'dismissed' });
+    updateOwnSettings({ onboarding: { ...(myTier.onboarding || {}), seeded: true, done: true } })
+      .then(() => myTier.refetch?.())
+      .catch(() => {});
+  };
+
+  // Returning first-run user (seeded a prior session but never finished) →
+  // re-show the coachmark. Brand-new users get it switched on by the seed effect.
+  useEffect(() => {
+    if (myTier.onboarding?.seeded === true && myTier.onboarding?.done !== true) {
+      setOnboardingUiActive(true);
+    }
+  }, [myTier.onboarding?.seeded, myTier.onboarding?.done]);
+
+  // Seed once, into the empty Studio root, for a genuinely new user. Triple-
+  // gated so an existing user is never seeded: durable `seeded` flag, on the
+  // personal root, and only when the canvas is truly empty. Idempotent via the
+  // stable onb- ids + the ref guard.
+  useEffect(() => {
+    if (seedAttemptedRef.current) return;
+    if (myTier.loading) return;                                     // wait for tier/onboarding
+    if (myTier.onboarding?.seeded === true || myTier.onboarding?.done === true) return;
+    if (!currentYDoc || !yb.ready) return;                         // doc hydrated
+    if (currentId !== rootBoard.id) return;                        // personal root only
+    if (yb.cards.length !== 0) return;                             // empty canvas only
+    seedAttemptedRef.current = true;
+    mainMutators.addCards?.(STARTER_CARDS);
+    logEvent(EV.ONBOARDING_SEED, { n: STARTER_CARDS.length, board_id: rootBoard.id });
+    setOnboardingUiActive(true);
+    // Persist immediately so a reload / second tab never re-seeds.
+    updateOwnSettings({ onboarding: { ...(myTier.onboarding || {}), seeded: true } })
+      .then(() => myTier.refetch?.())
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myTier.loading, myTier.onboarding, currentYDoc, yb.ready, yb.cards.length, currentId, rootBoard.id, mainMutators]);
+
+  // Auto-complete: when the user places their OWN first card on the root (not an
+  // onb- seed), record activation (the north-star) and end onboarding.
+  useEffect(() => {
+    if (!onboardingUiActive) return;
+    if (currentId !== rootBoard.id) return;
+    const placedOwn = yb.cards.some((c) => c && c.id && !String(c.id).startsWith('onb-'));
+    if (placedOwn) {
+      logEvent(EV.ONBOARDING_FIRST_CARD, { board_id: rootBoard.id });
+      dismissOnboarding('placed');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onboardingUiActive, yb.cards, currentId, rootBoard.id]);
+
+  const showCoachmark = onboardingUiActive && currentId === rootBoard.id;
+
   // Permission for the currently-active board — drives VIEW ONLY pill
   // in the topbar + canvas/doc readonly states.
   const currentBoardPerm = useBoardPermission({
@@ -2970,6 +3034,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       {upgradeReason && (
         <UpgradeModal reason={upgradeReason} onClose={() => setUpgradeReason(null)} />
+      )}
+
+      {showCoachmark && (
+        <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} />
       )}
 
       {isPhone && (
