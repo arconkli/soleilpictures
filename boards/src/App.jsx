@@ -2303,7 +2303,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       const moved = result?.moved || [];
 
-      // 5) CANVAS MIRROR RECONCILE (best-effort).
+      // 5) Refresh the local boards map BEFORE touching any canvas mirror.
+      //    This ordering is load-bearing, not cosmetic. The reconcile-drift
+      //    effect (≈ line 1194) re-runs on every cards/boards change and
+      //    re-adds a kind:'board' card for any child of the CURRENT board that
+      //    lacks one. If we delete the old-parent mirror while `boards` still
+      //    says the moved board is a child of the current (old-parent) board,
+      //    that effect fires on our deletion and instantly re-creates the card
+      //    we just removed — so it lingers on the old parent forever while the
+      //    target also shows it (its card materializes on open). Refreshing
+      //    first makes the effect see the new parentage, so the deletion
+      //    sticks. Same refresh-then-strip order as deleteBoardsById.
+      try { await refreshBoards(); } catch (_) {}
+
+      // 6) CANVAS MIRROR RECONCILE (best-effort).
       //    ADD to target: handled automatically by the reconcile-drift effect
       //    on whichever client has the target open (now or next open) — no
       //    action needed here. REMOVE the stale mirror card from each OLD
@@ -2345,10 +2358,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           console.warn('[reparent] old-parent canvas cleanup failed (structure ok)', oldParent, err);
         }
       }
-
-      // 6) Refresh the local boards map (peers refresh via realtime) so the
-      //    tree/list re-derive and the drift effect materializes target cards.
-      try { await refreshBoards(); } catch (_) {}
 
       // 7) Tell the user.
       if (moved.length) {
