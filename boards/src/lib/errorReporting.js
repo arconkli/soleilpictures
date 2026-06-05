@@ -31,11 +31,31 @@ function sessionId() {
 }
 function trim(s, n) { return typeof s === 'string' ? s.slice(0, n) : null; }
 
+// Third-party / un-actionable noise we don't want cluttering the prod table:
+//  - cross-origin "Script error." (opaque, no stack we can act on)
+//  - Android in-app-browser bridges (iabjs:// + navigation_performance_logger)
+//    injected by the FB/IG webview, not our code — grows with ad traffic
+//  - browser-extension crashes (chrome-extension:// / moz-extension:// frames)
+//  - benign ResizeObserver loop warnings the browser emits as errors
+function isNoise(message, stack) {
+  const m = message || '';
+  const s = stack || '';
+  if (m === 'Script error.') return true;
+  if (/^ResizeObserver loop/i.test(m)) return true;
+  if (/iabjs:\/\/|navigation_performance_logger/i.test(s + m)) return true;
+  if (/chrome-extension:\/\/|moz-extension:\/\/|safari-extension:\/\//i.test(s)) return true;
+  return false;
+}
+
 export function logClientError(error, { kind = 'error', componentStack = null } = {}) {
   if (!error || !PUBLIC_KEY || typeof fetch === 'undefined') return;
+  // Dev errors go to the browser console only — never the production table.
+  // (Vite HMR artifacts + the DEV-gated QA harnesses would otherwise dominate.)
+  if (import.meta.env.DEV) return;
   try {
     const message = trim(error.message || String(error), 2000);
     const stack   = trim(error.stack, 8000);
+    if (isNoise(message, stack)) return;
     // Dedupe on kind + message + the first real stack frame, capped per page load.
     const key = `${kind}:${message}:${(stack || '').split('\n')[1] || ''}`;
     if (_seen.has(key)) return;

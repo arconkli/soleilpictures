@@ -1,10 +1,11 @@
-import { createContext, lazy, Suspense, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, Suspense, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 
 // The visual layer (confirm/prompt dialogs + toast stack) is the only part of
 // this always-mounted provider that pulls in @phosphor-icons + react-dom's
 // createPortal. Lazy-load it and only render it when there's something to show,
 // so the signed-out landing never downloads Phosphor.
-const FeedbackOverlay = lazy(() => import('./FeedbackOverlay.jsx'));
+const FeedbackOverlay = lazyWithReload(() => import('./FeedbackOverlay.jsx'));
 
 const TOAST_EXIT_MS = 200;
 

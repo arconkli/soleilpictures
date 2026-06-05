@@ -674,7 +674,7 @@ export function LocalBoardsApp({ user, signOut }) {
               h: height || 180,
             })}
             workspaceId="local-workspace"
-            userId={user.id}
+            userId={user?.id ?? 'local-user'}
             personalWorkspaceId="local-workspace"
             selectedTool={selectedTool}
             setSelectedTool={setSelectedTool}

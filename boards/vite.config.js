@@ -1,8 +1,22 @@
+import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Build-time release tag stamped onto first-party client error logs
+// (public.client_errors via errorReporting.js, which reads VITE_RELEASE). The
+// short git SHA makes prod errors attributable to a deploy. Cloudflare Workers
+// Builds runs the build in a checked-out repo so this resolves there too; the
+// try/catch keeps it a no-op (null) if git is unavailable.
+const release = (() => {
+  try { return execSync('git rev-parse --short HEAD').toString().trim() || null; }
+  catch (_) { return null; }
+})();
+
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'import.meta.env.VITE_RELEASE': JSON.stringify(release),
+  },
   server: {
     port: 5173,
     strictPort: false,

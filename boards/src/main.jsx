@@ -1,4 +1,4 @@
-import { StrictMode, Suspense, lazy } from 'react';
+import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
@@ -10,6 +10,7 @@ import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
 import { getRecentFonts } from './lib/customFonts.js';
 import { captureFbclid, installSpaPageViews } from './lib/metaPixel.js';
 import { logClientError } from './lib/errorReporting.js';
+import { lazyWithReload } from './lib/lazyWithReload.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
@@ -18,10 +19,10 @@ import './styles.css';
 // AppShell (TierRouter + App + the whole editor) only loads once signed in;
 // the share + legal viewers load only on their routes. A single <Suspense>
 // below covers all three, using AuthGate's own SplashLoading as the fallback.
-const AppShell        = lazy(() => import('./AppShell.jsx'));
-const PublicBoardView = lazy(() => import('./components/PublicBoardView.jsx').then(m => ({ default: m.PublicBoardView })));
-const LegalPage       = lazy(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
-const PublicPricingPage = lazy(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
+const AppShell        = lazyWithReload(() => import('./AppShell.jsx'));
+const PublicBoardView = lazyWithReload(() => import('./components/PublicBoardView.jsx').then(m => ({ default: m.PublicBoardView })));
+const LegalPage       = lazyWithReload(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
+const PublicPricingPage = lazyWithReload(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
