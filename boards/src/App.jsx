@@ -486,6 +486,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const splitYDoc = splitYb.ready && splitYb.boardId === splitId ? splitYb.ydoc : null;
   const [splitPickerOpen, setSplitPickerOpen] = useState(false);
   const [splitRatio, setSplitRatio] = useState(() => initialSession?.splitRatio || 0.5);
+  // Board cards whose reparent is in flight — childBoardId → oldParentId. The
+  // render filter (see renderSurface) hides each from its OLD parent's canvas
+  // the instant the drop is dispatched, so the dragged card doesn't snap back
+  // to its original spot for the duration of the async move before vanishing.
+  // Cleared (un-hidden) when the move settles or fails. See the onReparent handler.
+  const [pendingReparent, setPendingReparent] = useState(() => new Map());
   // Persist split state.
   useEffect(() => {
     writeSession(sessionKey, { stack, viewOverride, splitId, splitRatio });
@@ -2339,6 +2345,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       for (const id of movable) prevParents.set(id, boards[id]?.parent_board_id ?? null);
       const targetName = targetId ? (boards[targetId]?.name || 'board') : 'top level';
 
+      // 2b) Optimistically hide each moved card from its OLD parent's canvas
+      //     right now, so it doesn't snap back to its drag-origin and linger
+      //     there for the duration of the async move before finally vanishing.
+      //     dispatchEvent is synchronous, so this setState batches into the
+      //     SAME render as the canvas's setDrag(null) — the card is filtered
+      //     out before it can paint at the snapped-back position (no flash).
+      //     Pure render filter (see renderSurface), reversible. Skips root
+      //     boards (null old parent → no parent canvas to hide from). Cleared
+      //     on EVERY exit below: success (card already removed from the doc by
+      //     then) and failure (card restored in place).
+      const flashIds = movable.filter(id => (prevParents.get(id) ?? null) != null);
+      if (flashIds.length) {
+        setPendingReparent(prev => {
+          const next = new Map(prev);
+          for (const id of flashIds) next.set(id, prevParents.get(id));
+          return next;
+        });
+      }
+      const clearPending = () => {
+        if (!flashIds.length) return;
+        setPendingReparent(prev => {
+          const next = new Map(prev);
+          for (const id of flashIds) next.delete(id);
+          return next;
+        });
+      };
+
       // 3) Pre-reparent canvas snapshot of the board the user is looking at
       //    (cheap; the riskiest mutation is removing its mirror card). Closed
       //    boards rely on the abort-if-null + invariant guards in the
@@ -2362,6 +2395,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (err) {
         console.error('[reparent] move_boards_under failed', err);
         feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
+        clearPending(); // un-hide — the move didn't happen, restore the card
         fail(err);
         return;
       }
@@ -2436,6 +2470,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const reasons = [...new Set(result.skipped.map(s => REASON_TEXT[s.reason] || s.reason))];
         feedback.toast({ type: 'info', message: `Nothing moved — ${reasons.join(', ')}.` });
       }
+      // Un-hide: on success the moved card is already gone from the doc (step 6
+      // removal ran in this same sync continuation), so clearing now can't
+      // re-show it; on a partial/no-op result it restores any card we hid.
+      clearPending();
       done(result);
     };
     document.addEventListener('soleil-board-reparent-drop', onReparent);
@@ -2498,11 +2536,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const yd = ready ? yh.ydoc : null;
     // Hide orphan board / boardlink references — see the comment above
     // currentCards. We filter at the render layer for both panes (main +
-    // split) so a stale Y.Doc entry never produces a flashing card.
+    // split) so a stale Y.Doc entry never produces a flashing card. Also hide
+    // any board card whose reparent is in flight FROM this pane's board — keyed
+    // on board.id so the card vanishes instantly from its old parent on drop
+    // (no snap-back) while the target pane, if open, still shows it via the
+    // reconcile-drift effect. See pendingReparent + the onReparent handler.
     const rawCards = ready ? yh.cards : [];
     const cards = (boardsLoading || !boards || Object.keys(boards).length === 0)
       ? rawCards
-      : rawCards.filter(c => !isOrphanRef(c));
+      : rawCards.filter(c =>
+          !isOrphanRef(c) &&
+          !(c.kind === 'board' && pendingReparent.get(c.id) === board.id));
     const arrows = ready ? yh.arrows : [];
     const strokes = ready ? yh.strokes : [];
     const groups = ready ? (yh.groups || []) : [];
