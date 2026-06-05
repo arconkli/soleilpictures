@@ -101,6 +101,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .logo-text h1 { animation: none; opacity: 1; }
   .logo-letter { animation: none; opacity: 1; transform: none; filter: none; }
+  .bottom-nav a { transition: none; }
 }
 
 .logo-text {
@@ -121,48 +122,73 @@ body {
 
 .common-logo-position {
   position: absolute;
-  top: 20px;
+  top: calc(20px + env(safe-area-inset-top, 0px));
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
 }
 
-/* Bottom navigation - Minimal */
+/* Bottom navigation - Unified glass bar */
 .bottom-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 24px);
   display: flex;
+  flex-wrap: nowrap;
   justify-content: center;
-  gap: 1.5rem;
-  padding: 20px 20px 24px;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 6px;
   z-index: 10;
+
+  /* Dark-tinted frosted glass keeps white text legible over the bright orb */
+  background: rgba(15, 12, 10, 0.35);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
 }
 
 .bottom-nav a {
   text-decoration: none;
-  color: rgba(255, 255, 255, 0.85);
-  padding: 9px 18px;
+  color: rgba(255, 255, 255, 0.88);
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 16px;
   border-radius: 999px;
   font-family: var(--font-family);
   font-weight: 500;
-  font-size: 0.78rem;
-  letter-spacing: 0.22em;
+  font-size: 0.74rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  white-space: nowrap;
   background-color: transparent;
-  transition: all var(--transition-smooth);
+  transition: color var(--transition-smooth), background-color var(--transition-smooth);
 }
 
-.bottom-nav a:hover {
+/* Hover only on hover-capable devices so touch never gets a stuck state */
+@media (hover: hover) {
+  .bottom-nav a:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.bottom-nav a:active {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.bottom-nav a:focus-visible {
+  outline: none;
   box-shadow:
-    0 0 20px rgba(255, 255, 255, 0.18),
-    inset 0 0 20px rgba(255, 255, 255, 0.06);
-  transform: translateY(-1px);
+    0 0 0 2px rgba(255, 255, 255, 0.85),
+    0 0 12px rgba(255, 255, 255, 0.4);
 }
 
 /* Projects page body */
@@ -313,7 +339,7 @@ body.projects-page {
 /* Slide indicators */
 .slide-indicators {
   position: absolute;
-  bottom: 70px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -322,6 +348,7 @@ body.projects-page {
 }
 
 .slide-dot {
+  position: relative;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -330,6 +357,18 @@ body.projects-page {
   cursor: pointer;
   transition: all 0.4s ease;
   padding: 0;
+}
+
+/* Invisible 44px hit target without enlarging the visible dot */
+.slide-dot::before {
+  content: "";
+  position: absolute;
+  inset: -17px;
+}
+
+.slide-dot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
 }
 
 .slide-dot.active {
@@ -454,6 +493,7 @@ body.projects-page {
   font-family: var(--font-family);
   max-width: 600px;
   padding: 30px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 .content h2 {
@@ -500,8 +540,10 @@ body.projects-page {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.founder-container:hover {
-  padding-left: 6px;
+@media (hover: hover) {
+  .founder-container:hover {
+    padding-left: 6px;
+  }
 }
 
 .founder-container.active-bio {
@@ -635,6 +677,7 @@ body.projects-page {
   .content {
     line-height: 1.6;
     padding: 20px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
     margin: 10px;
   }
 
@@ -648,6 +691,7 @@ body.projects-page {
 
   .logo-text {
     font-size: 2rem;
+    letter-spacing: 0.4rem;
     margin-bottom: 20px;
     text-shadow:
       0 0 15px rgba(255, 255, 255, 0.4),
@@ -661,7 +705,7 @@ body.projects-page {
   .project-slide-inner {
     flex-direction: column;
     gap: 1rem;
-    padding: 20px 20px 70px;
+    padding: 20px 20px calc(110px + env(safe-area-inset-bottom, 0px));
     justify-content: center;
     text-align: center;
     overflow-y: auto;
@@ -725,32 +769,35 @@ body.projects-page {
 
   .password-input {
     padding: 12px 14px;
-    font-size: 14px;
+    font-size: 16px; /* 16px prevents iOS auto-zoom on focus */
   }
 
   .slide-counter {
-    top: 16px;
+    top: calc(16px + env(safe-area-inset-top, 0px));
     right: 16px;
     font-size: 0.8rem;
   }
 
   .scroll-hint {
-    right: 16px;
+    right: calc(16px + env(safe-area-inset-right, 0px));
   }
 
   .slide-indicators {
-    bottom: 55px;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   }
 
   .bottom-nav {
-    gap: 0.25rem;
-    padding: 14px 8px 18px;
+    gap: 2px;
+    padding: 5px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100% - 16px);
   }
 
   .bottom-nav a {
-    padding: 8px 10px;
-    font-size: 0.7rem;
-    letter-spacing: 0.18em;
+    padding: 10px 9px;
+    min-height: 44px;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
   }
 
   .founder-container {
@@ -759,6 +806,15 @@ body.projects-page {
 
   .documents {
     padding: 15px;
+  }
+}
+
+/* Smallest phones: keep all four nav links on one row inside the bar */
+@media only screen and (max-width: 360px) {
+  .bottom-nav a {
+    padding: 10px 7px;
+    font-size: 0.58rem;
+    letter-spacing: 0.05em;
   }
 }
 
@@ -809,6 +865,18 @@ body.projects-page {
   background: rgba(255, 255, 255, 0.3);
   box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
   transform: translateY(-2px);
+}
+
+#search-btn:active {
+  background: rgba(255, 255, 255, 0.28);
+  transform: translateY(0);
+}
+
+#search-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.8),
+    0 0 18px rgba(255, 255, 255, 0.2);
 }
 
 .result-item {
