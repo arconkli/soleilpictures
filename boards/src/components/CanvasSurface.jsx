@@ -51,7 +51,7 @@ import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion } from '../lib/tagsApi.js';
-import { syncCardIndex, saveBoardVersion, fetchPrevChange, fetchNextChange, loadBoardVersionDoc, restoreBoard, applyMetaChangeUndo, bulletproofRestore, decodeSnapshotBytes } from '../lib/boardsApi.js';
+import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
@@ -1059,127 +1059,11 @@ export function CanvasSurface({
     } catch (_) {}
   };
 
-  // Universal undo via time-travel restore. When the in-tab UndoManager is
-  // exhausted (or wiped by a page reload), Cmd+Z walks back through the
-  // board_versions snapshots one at a time. Cmd+Shift+Z walks forward.
-  // ttPointerRef: snapshot_at of the version we're currently parked at,
-  // or null = "live state" (the head). ttForwardRef: in-memory stack of
-  // (snapshot_at) values we've stepped over, so Cmd+Shift+Z can replay.
-  const ttPointerRef = useRef(null);
-  const ttForwardRef = useRef([]);
-  const ttBusyRef = useRef(false);
-  const ttSnapshotTakenRef = useRef(false);
-
-  // Restore the boards referenced as kind=board cards in a Y.Doc
-  // produced from snapshot bytes — so an undone delete brings every
-  // linked sub-board back from the soft-delete state. Called BEFORE
-  // bulletproofRestore tears down the live Y.Doc.
-  const restoreReferencedBoardsFromBytes = useCallback(async (b64) => {
-    try {
-      const tmp = decodeSnapshotBytes(b64);
-      const cardsMap = tmp.getMap('cards');
-      const ids = [];
-      cardsMap.forEach((ym, id) => {
-        if (ym?.get?.('kind') === 'board') ids.push(id);
-      });
-      tmp.destroy();
-      for (const bid of ids) {
-        try { await restoreBoard(bid); } catch (_) {}
-      }
-    } catch (_) {}
-  }, []);
-
-  const timeTravelUndo = useCallback(async () => {
-    if (!ydoc || !board?.id) return;
-    if (ttBusyRef.current) return;
-    ttBusyRef.current = true;
-    try {
-      // First fall-through from live: pre-restore checkpoint so user can
-      // come back to where they were no matter how far they walk.
-      if (!ttSnapshotTakenRef.current && ttPointerRef.current === null) {
-        await saveBoardVersion(board.id, ydoc, {
-          triggerKind: 'pre-restore',
-          sessionId,
-          userId,
-          label: 'pre-undo',
-          opSummary: { action: 'time-travel-undo-from-live' },
-        });
-        ttSnapshotTakenRef.current = true;
-      }
-      const change = await fetchPrevChange(board.id, ttPointerRef.current);
-      if (!change) {
-        try { feedback.toast({ type: 'info', message: 'Nothing further to undo' }); } catch (_) {}
-        return;
-      }
-      ttForwardRef.current.push(ttPointerRef.current);
-      ttPointerRef.current = change.at;
-      if (change.type === 'version') {
-        const b64 = await loadBoardVersionDoc(change.row.id);
-        if (!b64) {
-          console.warn('[timeTravelUndo] version doc missing', change.row.id);
-          return;
-        }
-        await restoreReferencedBoardsFromBytes(b64);
-        // Bulletproof: writes board_state, kicks the PartyKit room, and
-        // fires soleil-board-reset → useYBoard tears this CanvasSurface
-        // down and re-cold-loads with the restored state.
-        await bulletproofRestore(board.id, b64);
-      } else {
-        // Meta change: apply its before_value back to boards. No Y.Doc
-        // mutation, no room reset needed.
-        await applyMetaChangeUndo(change.row, { userId, sessionId });
-      }
-      try { feedback.toast({ type: 'success', message: `Rolled back to ${new Date(change.at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
-    } catch (e) {
-      console.error('[timeTravelUndo]', e);
-      try { feedback.toast({ type: 'error', message: 'Undo failed: ' + (e.message || e) }); } catch (_) {}
-    } finally {
-      ttBusyRef.current = false;
-    }
-  }, [ydoc, board?.id, sessionId, userId, feedback, restoreReferencedBoardsFromBytes]);
-
-  const timeTravelRedo = useCallback(async () => {
-    if (!ydoc || !board?.id) return;
-    if (ttBusyRef.current) return;
-    ttBusyRef.current = true;
-    try {
-      const change = await fetchNextChange(board.id, ttPointerRef.current);
-      if (!change) {
-        try { feedback.toast({ type: 'info', message: 'Nothing further to redo' }); } catch (_) {}
-        return;
-      }
-      ttPointerRef.current = change.at;
-      if (change.type === 'version') {
-        const b64 = await loadBoardVersionDoc(change.row.id);
-        if (b64) {
-          await restoreReferencedBoardsFromBytes(b64);
-          await bulletproofRestore(board.id, b64);
-        }
-      } else {
-        await applyMetaChangeUndo(change.row, { userId, sessionId });
-      }
-      try { feedback.toast({ type: 'success', message: `Forward to ${new Date(change.at).toLocaleString(undefined,{timeStyle:'short',dateStyle:'short'})}` }); } catch (_) {}
-    } catch (e) {
-      console.error('[timeTravelRedo]', e);
-      try { feedback.toast({ type: 'error', message: 'Redo failed: ' + (e.message || e) }); } catch (_) {}
-    } finally {
-      ttBusyRef.current = false;
-    }
-  }, [ydoc, board?.id, sessionId, userId, feedback, restoreReferencedBoardsFromBytes]);
-  // Any local edit clears the forward stack (classic redo semantics) and
-  // resets the "park" pointer to live. Watching the `cards` length is a
-  // simple proxy — granular update events would also work but this avoids
-  // wiring into the ydoc update listener directly.
-  useEffect(() => {
-    if (!ttBusyRef.current && ttPointerRef.current !== null) {
-      // New edit happened while we were parked — assume the user is now
-      // moving forward from the restored state. Clear forward stack and
-      // reset pointer so the next Cmd+Z snapshots fresh.
-      ttForwardRef.current = [];
-      ttPointerRef.current = null;
-      ttSnapshotTakenRef.current = false;
-    }
-  }, [cards.length]);
+  // Undo/redo is the in-session Yjs UndoManager (see mutators.undo/redo and
+  // the Cmd+Z handler below). No time-travel fallback: it was fragile
+  // (network round-trips, PartyKit room resets, a cards.length proxy that
+  // missed same-count edits) and undo must work every time. Deleted-board
+  // recovery now lives in the Trash modal; catastrophic rewind in Settings.
 
   // Holds the most-recently-created card whose Yjs write hasn't yet
   // surfaced through the useYBoard subscription back to `cards` here.
@@ -1758,6 +1642,12 @@ export function CanvasSurface({
 
   // Delete-selected handles cards, strokes, AND arrows.
   const doDeleteSelected = useCallback(async () => {
+    // One undo-step boundary for the whole delete: strokes + arrows + cards
+    // are separate mutator calls but should collapse into a single Cmd+Z.
+    // breakUndo() ends the prior action's merge window so the delete is its
+    // own step; the leaf delete mutators deliberately DON'T call breakUndo
+    // (that would fragment a mixed delete into several steps).
+    mutators.breakUndo?.();
     if (selectedStrokes.size > 0) {
       mutators.deleteStrokes?.([...selectedStrokes]);
       setSelectedStrokes(new Set());
@@ -1780,8 +1670,9 @@ export function CanvasSurface({
     const items = [...selected].map(id => cardById[id]).filter(Boolean);
     if (items.length === 0) return;
     setClipboard(items, board.id);
+    mutators.breakUndo?.();
     await doDeleteIds([...selected]);
-  }, [selected, cardById, board.id, doDeleteIds]);
+  }, [selected, cardById, board.id, doDeleteIds, mutators]);
 
   const doPaste = useCallback(async (atCanvas) => {
     const items = getClipboard();
@@ -2075,25 +1966,18 @@ export function CanvasSurface({
       const cmd = e.metaKey || e.ctrlKey;
 
       if (cmd && e.key === 'z' && !e.shiftKey) {
+        // In-session UndoManager only — synchronous and CRDT-correct, so it
+        // can't network-fail. preventDefault unconditionally so a stray
+        // focused input can't trigger native browser undo; an empty stack is
+        // a silent no-op (mutators.undo already guards). Undo does not survive
+        // a full reload by design — auto-save protects the data.
         e.preventDefault();
-        // Universal undo: try the in-tab UndoManager first (fine-grained
-        // local edits). If it's exhausted, fall through to a time-travel
-        // restore that walks back through board_versions snapshots.
-        if (mutators.canUndo && mutators.canUndo()) {
-          mutators.undo?.();
-        } else {
-          timeTravelUndo();
-        }
+        mutators.undo?.();
         return;
       }
       if ((cmd && e.key === 'z' && e.shiftKey) || (cmd && e.key === 'y')) {
         e.preventDefault();
-        // Mirror logic: try UndoManager redo first, then time-travel redo.
-        if (mutators.canRedo && mutators.canRedo()) {
-          mutators.redo?.();
-        } else {
-          timeTravelRedo();
-        }
+        mutators.redo?.();
         return;
       }
       if (cmd && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); selectAll(); return; }
@@ -2157,9 +2041,45 @@ export function CanvasSurface({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform, timeTravelUndo, timeTravelRedo,
+  }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
       ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool]);
+
+  // ── Preserve card selection across undo/redo ──────────────────────────────
+  // On each undoable action the UndoManager fires 'stack-item-added'; we stash
+  // the current card selection onto that stack item's meta. When the item is
+  // popped (undo OR redo) we restore the stashed selection — so undoing a
+  // delete brings the cards back already selected, and undoing a move re-selects
+  // the moved cards. Guards against ids that no longer exist. Only card ids are
+  // preserved: stroke/arrow selection is index-based and unstable across undo.
+  useEffect(() => {
+    const um = mutators.undoManager;
+    if (!um) return;
+    const SEL_KEY = 'soleil-selection';
+    const onAdded = (e) => {
+      try { e.stackItem.meta.set(SEL_KEY, { cards: [...selectedRef.current] }); } catch (_) {}
+    };
+    const onPopped = (e) => {
+      try {
+        const saved = e.stackItem.meta.get(SEL_KEY);
+        if (!saved) return;
+        // Defer one frame: undoing a delete repopulates `cards` via the
+        // RAF-coalesced useYBoard refresh, so cardsRef isn't fresh yet. We
+        // filter to ids that actually exist after the cards land.
+        requestAnimationFrame(() => {
+          const live = new Set((cardsRef.current || []).map(c => c.id));
+          const ids = (saved.cards || []).filter(id => live.has(id));
+          setSelected(new Set(ids));
+        });
+      } catch (_) {}
+    };
+    um.on('stack-item-added', onAdded);
+    um.on('stack-item-popped', onPopped);
+    return () => {
+      um.off('stack-item-added', onAdded);
+      um.off('stack-item-popped', onPopped);
+    };
+  }, [mutators.undoManager]);
 
   // ── Pan helpers ───────────────────────────────────────────────────────────
   // Same ref-driven, direct-DOM-mutation pattern as the wheel handler so a

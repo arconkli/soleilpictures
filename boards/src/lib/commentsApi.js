@@ -127,21 +127,6 @@ export async function unhideAllOnBoard(boardId) {
   return (data || []).length;
 }
 
-// Comment history for a single board — every comment ever, including
-// resolved + hidden + SOFT-DELETED. Used by the History modal's Comments
-// tab so users can audit conversations and restore deleted comments.
-export async function listAllBoardComments(boardId, limit = 200) {
-  if (!boardId) return [];
-  const { data, error } = await supabase
-    .from('comments')
-    .select('*')
-    .eq('board_id', boardId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return data || [];
-}
-
 // View-state for top-level comment threads — used to drive the small
 // "unread reply" dot on canvas bubbles. Per-user; RLS scopes to self.
 // We pass the root ids in explicitly (rather than join via SQL) so

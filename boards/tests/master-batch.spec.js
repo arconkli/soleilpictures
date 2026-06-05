@@ -292,15 +292,6 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(bundle.includes('committedRef')).toBe(true);
   });
 
-  test('history modal has tabs + comment status pills', async ({ page }) => {
-    await go(page);
-    expect(await hasCssRule(page, /\.hist-tabs/)).toBe(true);
-    expect(await hasCssRule(page, /\.hist-tab\.is-active/)).toBe(true);
-    expect(await hasCssRule(page, /\.hist-pill/)).toBe(true);
-    expect(await hasCssRule(page, /\.hist-comment-status-resolved/)).toBe(true);
-    expect(await hasCssRule(page, /\.hist-comment-status-hidden/)).toBe(true);
-  });
-
   test('resolved comments are hidden on the canvas (display:none)', async ({ page }) => {
     await go(page);
     const display = await page.evaluate(() => {

@@ -220,9 +220,15 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   const docBookmarks = ydoc.getMap('docBookmarks');
   const docComments = ydoc.getMap('docComments');
 
+  // captureTimeout (Yjs default 500ms) coalesces transactions fired within
+  // the window into ONE undo step — desirable for gesture commits (a drag/
+  // resize is one transaction anyway) and per-keystroke note edits. Discrete
+  // actions (add/delete/group/…) call undoManager.stopCapturing() via the
+  // `breakUndo` helper in buildMutators so two quick clicks don't collapse
+  // into a single Cmd+Z. Made explicit here to document the intent.
   const undoManager = new Y.UndoManager(
     [cards, arrows, strokes, groups, docPages, docPageContent, docBookmarks, docComments],
-    { trackedOrigins: new Set(['local']) }
+    { trackedOrigins: new Set(['local']), captureTimeout: 500 }
   );
 
   let snapTimer = null;

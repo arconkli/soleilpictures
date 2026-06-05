@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 
 // Bottom sheet primitive. Used as the phone-width alternative to
 // modals and side drawers in P2 (MessagesPanel, SettingsPanel,
-// ShareModal, RecoveryModal, TimeTravelModal, context menus).
+// ShareModal, RecoveryModal, TrashModal, context menus).
 //
 // Props:
 //   open      — controlled

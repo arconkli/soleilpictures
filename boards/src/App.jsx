@@ -50,7 +50,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, History, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
@@ -79,7 +79,7 @@ import { cardToYMap } from './lib/yhelpers.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore } from './lib/docState.js';
 import { uploadImage } from './lib/uploads.js';
-import { TimeTravelModal } from './components/TimeTravelModal.jsx';
+import { TrashModal } from './components/TrashModal.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
@@ -502,7 +502,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (splitId && !boardsLoading && !boards[splitId]) setSplitIdState(null);
   }, [splitId, boards, boardsLoading]);
   const currentUndoManager = yb.ready && yb.boardId === currentBoard.id ? yb.undoManager : null;
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [workspaceRecoveryOpen, setWorkspaceRecoveryOpen] = useState(false);
 
   const recents = useRecents(workspace.id);
@@ -548,6 +548,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const arrowsArr = () => ydoc.getArray('arrows');
     const strokesArr = () => ydoc.getArray('strokes');
     const groupsMap = () => ydoc.getMap('groups');
+
+    // End the current undo merge window so the next write starts a fresh
+    // stack item. Called at the top of discrete "one click = one action"
+    // mutators (add/delete/group/…) so two quick clicks within the 500ms
+    // captureTimeout don't collapse into a single Cmd+Z. NOT called from
+    // updateCard(s): those are gesture commits + per-keystroke note edits
+    // where coalescing is desirable.
+    const breakUndo = () => { try { undoManager?.stopCapturing(); } catch (_) {} };
 
     const nextZ = () => {
       const m = cardsMap(); if (!m) return 1;
@@ -604,6 +612,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
         }
       }
+      breakUndo();
       ydoc.transact(() => {
         const c = stampCreate({ z: nextZ(), ...card });
         m.set(c.id, cardToYMap(c));
@@ -633,6 +642,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
         }
       }
+      breakUndo();
       ydoc.transact(() => {
         let z = nextZ();
         for (const card of cardsToAdd) {
@@ -745,6 +755,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const duplicateCards = (ids) => {
       const m = cardsMap(); if (!m || !ids?.length) return [];
       const newIds = [];
+      breakUndo();
       ydoc.transact(() => {
         let z = nextZ();
         for (const id of ids) {
@@ -825,6 +836,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); const gm = groupsMap();
       if (!m || !gm) return null;
       const id = `g-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      breakUndo();
       ydoc.transact(() => {
         const g = new Y.Map();
         g.set('id', id);
@@ -847,6 +859,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); const gm = groupsMap();
       if (!m || !gm) return;
       const a = arrowsArr();
+      breakUndo();
       ydoc.transact(() => {
         m.forEach((ym) => { if (ym.get('groupId') === groupId) ym.set('groupId', null); });
         gm.delete(groupId);
@@ -910,15 +923,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const typeOf = (r) => typeof r === 'string' ? 'card' : (r?.type || 'card');
       if (typeOf(fromId) === typeOf(toId) && idOf(fromId) === idOf(toId)) return;
       const a = arrowsArr(); if (!a) return;
+      breakUndo();
       ydoc.transact(() => { a.push([{ from: fromId, to: toId, ...opts }]); }, 'local');
     };
 
     const addStroke = (stroke) => {
       const s = strokesArr(); if (!s) return;
+      breakUndo();
       ydoc.transact(() => { s.push([stroke]); }, 'local');
     };
     const clearStrokes = () => {
       const s = strokesArr(); if (!s || s.length === 0) return;
+      breakUndo();
       ydoc.transact(() => { s.delete(0, s.length); }, 'local');
     };
     const replaceStrokes = (nextStrokes) => {
@@ -939,6 +955,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const addFreeArrow = (from, to, opts = {}) => {
       const a = arrowsArr(); if (!a) return;
+      breakUndo();
       ydoc.transact(() => { a.push([{ from, to, ...opts }]); }, 'local');
     };
     const deleteArrows = (indices) => {
@@ -1144,7 +1161,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setBoardCover,
       // Workspace-scoped mutators (rename, delete, clone) close over outer
       // scope and are filled in below since they don't need ydoc.
-      undo, redo, canUndo, canRedo,
+      undo, redo, canUndo, canRedo, undoManager, breakUndo,
       // Internal helper exposed so addLink / dropInboxItem / dropFileImage
       // (which sit at parent scope and need to know which pane they target)
       // can drop a card directly without re-implementing addCard.
@@ -2929,8 +2946,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!yb.canRedo} onClick={() => mainMutators.redo?.()}>
               <Icon as={Redo} size={16} />
             </button>
-            <button className="tb-icon tb-icon-history" title="History — time travel, comments, trash" onClick={() => setHistoryOpen(true)}>
-              <Icon as={History} size={16} />
+            <button className="tb-icon tb-icon-trash" title="Deleted boards (Trash)" onClick={() => setTrashOpen(true)}>
+              <Icon as={Trash2} size={16} />
             </button>
             <FeedbackButton as="icon" />
             <span className="tb-divider" aria-hidden="true" />
@@ -3033,15 +3050,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onPick={(b) => { setSplitId(b.id); setSplitPickerOpen(false); }}
       />
 
-      <TimeTravelModal
-        open={historyOpen}
-        boardId={currentBoard.id}
+      <TrashModal
+        open={trashOpen}
         workspaceId={workspace.id}
-        ydoc={currentYDoc}
-        userId={user.id}
-        wsPeers={wsPeers}
         onBoardRestored={() => refreshBoards()}
-        onClose={() => setHistoryOpen(false)}
+        onClose={() => setTrashOpen(false)}
       />
 
       <WorkspaceRecoveryModal

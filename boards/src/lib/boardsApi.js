@@ -445,8 +445,9 @@ export async function createBoard({ workspaceId, parentBoardId = null, name, vie
 //
 // We snapshot each child's current parent BEFORE the move and log one
 // board_meta_history row per moved board (field 'parent_board_id') so the
-// reparent is auditable and Cmd+Z can reverse it (see applyMetaChangeUndo).
-// Logging the accurate pre-move parent is what makes redo land correctly.
+// reparent stays auditable. (Note: reparent is NOT covered by Cmd+Z — undo
+// is the in-session Yjs UndoManager, which tracks canvas edits, not the
+// server-side board parent. The history row is for the audit trail only.)
 // Returns { moved: string[], skipped: [{id, reason}] }.
 export async function moveBoardsUnder(childIds, targetId = null, opts = {}) {
   const ids = [...new Set((childIds || []).filter(Boolean))];
@@ -576,25 +577,6 @@ export async function listBoardMetaHistory(boardId, limit = 200) {
     .limit(limit);
   if (error) { console.warn('[listBoardMetaHistory]', error); return []; }
   return data || [];
-}
-
-// Reverse a single meta-history row by writing its before_value back to
-// the boards row. Logs the reversal as a new history row so the action
-// itself remains auditable (and so Cmd+Shift+Z can redo it).
-export async function applyMetaChangeUndo(row, opts = {}) {
-  if (!row?.board_id || !row?.field) return;
-  const before = row.before_value?.v ?? null;
-  // parent_board_id reversals route through the validated reparent RPC (not a
-  // bare updateBoardMeta) so cycle/permission/workspace checks apply and the
-  // reversal is re-logged for redo. The derived canvas board-cards self-heal
-  // via the reconcile-drift effect + planCanvasReconcile when the affected
-  // boards are next opened.
-  if (row.field === 'parent_board_id') {
-    await moveBoardsUnder([row.board_id], before, opts);
-    return;
-  }
-  const patch = { [row.field]: before };
-  await updateBoardMeta(row.board_id, patch, opts);
 }
 
 // Soft-delete a board so it (and all its content) can be undone for 30
@@ -968,20 +950,6 @@ export async function listBoardVersions(boardId, limit = 200) {
   return data || [];
 }
 
-// Follow-up 3: op-density histogram for the TimeTravelModal density bar.
-// Returns [{bucket_start, op_count, delete_count, authors}, ...].
-// Empty array until Phase 4 captures board_ops data.
-export async function fetchBoardOpDensity(boardId, fromTs, toTs, bucketSeconds = 300) {
-  const { data, error } = await supabase.rpc('board_op_density', {
-    p_board_id: boardId,
-    p_from_ts: fromTs,
-    p_to_ts: toTs,
-    p_bucket_seconds: bucketSeconds,
-  });
-  if (error) throw error;
-  return data || [];
-}
-
 // Follow-up 1: workspace-wide rewind preview. Returns per-board rows
 // showing what each board would look like if rewound to target_ts.
 export async function previewWorkspaceRewind(workspaceId, targetTs) {
@@ -1043,23 +1011,6 @@ export async function acknowledgeAlert(alertId) {
   if (error) throw error;
 }
 
-// Phase 5: list snapshots from the new board_snapshots table for the
-// TimeTravelModal. Includes migrated legacy versions (kind='legacy-*'),
-// pre/post-restore snapshots, manual saves, and future auto-* tiers.
-//
-// Returns rows in reverse chronological order. Does NOT pull doc_b64 —
-// that's fetched lazily when a row is previewed (it can be hundreds of KB).
-export async function listBoardSnapshots(boardId, limit = 500) {
-  const { data, error } = await supabase
-    .from('board_snapshots')
-    .select('id, at_ts, at_seq, storage, kind, label, created_by, created_at, legacy_version_id, r2_keys_referenced')
-    .eq('board_id', boardId)
-    .order('at_ts', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return data || [];
-}
-
 export async function loadBoardVersionDoc(versionId) {
   const { data, error } = await supabase
     .from('board_versions')
@@ -1100,71 +1051,6 @@ export async function fetchNextVersion(boardId, currentSnapshotAt) {
     .limit(1);
   if (error) { console.warn('[fetchNextVersion]', error); return null; }
   return (data && data[0]) || null;
-}
-
-// Unified Cmd+Z fallthrough: walks the union of board_versions and
-// board_meta_history, ordered by timestamp. Returns whichever row is
-// most recent that's STRICTLY OLDER than `currentAt` (or the absolute
-// newest if `currentAt` is null). The returned shape is one of:
-//   { type: 'version', at, row }     — has Y.Doc-snapshot semantics
-//   { type: 'meta',    at, row }     — has field/before/after semantics
-// Caller branches on `type` and dispatches to restoreVersionInto or
-// applyMetaChangeUndo respectively.
-export async function fetchPrevChange(boardId, currentAt = null) {
-  const verQ = supabase
-    .from('board_versions')
-    .select('id, snapshot_at, card_count, label, made_by, session_id, trigger_kind, op_summary')
-    .eq('board_id', boardId)
-    .order('snapshot_at', { ascending: false })
-    .limit(1);
-  const metaQ = supabase
-    .from('board_meta_history')
-    .select('id, board_id, field, before_value, after_value, changed_by, changed_at, session_id')
-    .eq('board_id', boardId)
-    .order('changed_at', { ascending: false })
-    .limit(1);
-  const [ver, meta] = await Promise.all([
-    currentAt ? verQ.lt('snapshot_at', currentAt) : verQ,
-    currentAt ? metaQ.lt('changed_at', currentAt) : metaQ,
-  ]);
-  const verRow = ver.data?.[0] || null;
-  const metaRow = meta.data?.[0] || null;
-  if (!verRow && !metaRow) return null;
-  if (!metaRow) return { type: 'version', at: verRow.snapshot_at, row: verRow };
-  if (!verRow) return { type: 'meta', at: metaRow.changed_at, row: metaRow };
-  return verRow.snapshot_at > metaRow.changed_at
-    ? { type: 'version', at: verRow.snapshot_at, row: verRow }
-    : { type: 'meta',    at: metaRow.changed_at,  row: metaRow };
-}
-
-// Unified Cmd+Shift+Z: returns the change STRICTLY NEWER than currentAt,
-// from the union of board_versions and board_meta_history.
-export async function fetchNextChange(boardId, currentAt) {
-  if (!currentAt) return null;
-  const [ver, meta] = await Promise.all([
-    supabase
-      .from('board_versions')
-      .select('id, snapshot_at, card_count, label, made_by, session_id, trigger_kind, op_summary')
-      .eq('board_id', boardId)
-      .gt('snapshot_at', currentAt)
-      .order('snapshot_at', { ascending: true })
-      .limit(1),
-    supabase
-      .from('board_meta_history')
-      .select('id, board_id, field, before_value, after_value, changed_by, changed_at, session_id')
-      .eq('board_id', boardId)
-      .gt('changed_at', currentAt)
-      .order('changed_at', { ascending: true })
-      .limit(1),
-  ]);
-  const verRow = ver.data?.[0] || null;
-  const metaRow = meta.data?.[0] || null;
-  if (!verRow && !metaRow) return null;
-  if (!metaRow) return { type: 'version', at: verRow.snapshot_at, row: verRow };
-  if (!verRow) return { type: 'meta', at: metaRow.changed_at, row: metaRow };
-  return verRow.snapshot_at < metaRow.changed_at
-    ? { type: 'version', at: verRow.snapshot_at, row: verRow }
-    : { type: 'meta',    at: metaRow.changed_at,  row: metaRow };
 }
 
 // ── Bulletproof restore ────────────────────────────────────────────────────
@@ -1224,54 +1110,11 @@ export function decodeSnapshotBytes(b64) {
   return doc;
 }
 
-// Phase 5: new reliable restore path. Calls the board-restore edge function
-// which atomically:
-//   1. Takes a pre-restore snapshot (so the restore is itself undoable)
-//   2. Writes the target bytes into board_state (cold-load source)
-//   3. Inserts a post-restore snapshot
-//   4. Bumps board_state_version.version
-//   5. Notifies PartyKit /reset
-//
-// Clients receive the version bump via Supabase Realtime (see restoreSignal.js)
-// and remount their Y.Doc. The durable DB signal replaces the previous
-// fire-and-forget window event + PartyKit broadcast.
-//
-// Accepts EITHER a target_snapshot_id (new system) or a target_legacy_version_id
-// (a board_versions.id, mapped via legacy_version_id on board_snapshots).
-//
-// Throws on failure — caller should catch and toast.
-export async function restoreBoardToTarget(boardId, target, { reason = null, clientRequestId = null } = {}) {
-  if (!boardId || !target) throw new Error('restoreBoardToTarget: missing args');
-  const session = await supabase.auth.getSession();
-  const accessToken = session?.data?.session?.access_token;
-  if (!accessToken) throw new Error('not signed in');
-
-  const url = `${supabase.supabaseUrl}/functions/v1/board-restore`;
-  const body = { board_id: boardId, reason, client_request_id: clientRequestId };
-  if (target.snapshotId != null) body.target_snapshot_id = target.snapshotId;
-  else if (target.legacyVersionId) body.target_legacy_version_id = target.legacyVersionId;
-  else throw new Error('restoreBoardToTarget: target must include snapshotId or legacyVersionId');
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok || !json?.ok) {
-    throw new Error(json?.error || `restore failed (${res.status})`);
-  }
-  return json;
-}
-
-// Legacy wrapper. The old bulletproofRestore took raw bytes; some callers
-// might still pass them. New code should call restoreBoardToTarget directly.
-// This wrapper finds the matching board_snapshots row for the given bytes
-// (if any) and uses the new endpoint; otherwise it falls back to the
-// pre-Phase-5 client-driven flow.
+// Restore a board's Y.Doc from snapshot bytes (base64). Used by the
+// drag-into-board safety net to auto-roll-back when the source-delete
+// invariant is violated. Writes the bytes to board_state, wipes the
+// PartyKit room, records an audit version, and fires the reset event so
+// every mounted useYBoard tears down + re-cold-loads the restored state.
 //
 // Throws on any failure — UI should catch and surface a toast.
 export async function bulletproofRestore(boardId, b64) {
@@ -1315,7 +1158,7 @@ export async function bulletproofRestore(boardId, b64) {
   } catch (e) {
     console.warn('[bulletproofRestore] room reset failed (continuing)', e);
   }
-  // 3) Audit row so the History modal shows the bulletproof restore.
+  // 3) Audit row (board_versions) recording the bulletproof restore.
   try {
     const userId = (await supabase.auth.getUser())?.data?.user?.id || null;
     const seed = decodeSnapshotBytes(b64);
