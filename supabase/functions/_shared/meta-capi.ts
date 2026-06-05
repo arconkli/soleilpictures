@@ -25,6 +25,42 @@ const TOKEN     = Deno.env.get("META_CAPI_TOKEN")          || "";
 const GRAPH_VER = Deno.env.get("META_GRAPH_VERSION")       || "v21.0";
 const TEST_CODE = Deno.env.get("META_CAPI_TEST_EVENT_CODE") || "";
 
+// First-party delivery log (meta_capi_log). Best-effort + service-role, written
+// via PostgREST so this module stays dependency-light. NEVER affects the send.
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")              || "";
+const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const LOG_URL      = SUPABASE_URL ? `${SUPABASE_URL}/rest/v1/meta_capi_log` : "";
+
+// Keep a detached promise alive past the response on Supabase Edge; no-op locally.
+function keepAlive(p: Promise<unknown>): void {
+  const er = (globalThis as unknown as {
+    EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  if (er?.waitUntil) { try { er.waitUntil(p); } catch (_) { /* run detached */ } }
+}
+
+async function logCapi(eventName: string, eventId: string, ok: boolean, status: number | null, error: string | null): Promise<void> {
+  if (!LOG_URL || !SERVICE_KEY) return;
+  try {
+    await fetch(LOG_URL, {
+      method:  "POST",
+      headers: {
+        apikey:         SERVICE_KEY,
+        authorization:  `Bearer ${SERVICE_KEY}`,
+        "content-type": "application/json",
+        prefer:         "return=minimal",
+      },
+      body: JSON.stringify({ event_name: eventName, event_id: eventId, ok, status, error: error ? error.slice(0, 500) : null }),
+    });
+  } catch (_) { /* best-effort: a logging failure must never affect the send */ }
+}
+
+// Fire the delivery log WITHOUT awaiting (so it can never add latency to the
+// send path) but keep it alive via waitUntil so the row isn't lost.
+function fireLog(eventName: string, eventId: string, ok: boolean, status: number | null, error: string | null): void {
+  keepAlive(logCapi(eventName, eventId, ok, status, error));
+}
+
 export interface CapiUserData {
   email?: string | null;
   externalId?: string | null;     // our Supabase user id (hashed → external_id)
@@ -74,6 +110,7 @@ async function buildUserData(u: CapiUserData): Promise<Record<string, unknown>> 
 export async function sendCapiEvent(ev: CapiEvent): Promise<boolean> {
   if (!TOKEN) {
     console.log(`[meta-capi] no META_CAPI_TOKEN; skipping ${ev.eventName} (${ev.eventId})`);
+    fireLog(ev.eventName, ev.eventId, false, null, "no_token");
     return false;
   }
   try {
@@ -99,11 +136,15 @@ export async function sendCapiEvent(ev: CapiEvent): Promise<boolean> {
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
       console.warn(`[meta-capi] ${ev.eventName} -> ${res.status}: ${txt.slice(0, 400)}`);
+      fireLog(ev.eventName, ev.eventId, false, res.status, txt.slice(0, 400));
       return false;
     }
+    fireLog(ev.eventName, ev.eventId, true, res.status, null);
     return true;
   } catch (e) {
-    console.warn(`[meta-capi] ${ev.eventName} threw`, (e as Error)?.message || e);
+    const msg = (e as Error)?.message || String(e);
+    console.warn(`[meta-capi] ${ev.eventName} threw`, msg);
+    fireLog(ev.eventName, ev.eventId, false, null, msg);
     return false;
   }
 }
@@ -113,13 +154,7 @@ export async function sendCapiEvent(ev: CapiEvent): Promise<boolean> {
 // unavailable we let the promise run detached. Either way nothing is awaited and
 // nothing throws upward.
 export function emitCapi(ev: CapiEvent): void {
-  const p = sendCapiEvent(ev).catch(() => {});
-  const er = (globalThis as unknown as {
-    EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
-  }).EdgeRuntime;
-  if (er?.waitUntil) {
-    try { er.waitUntil(p); } catch (_) { /* run detached */ }
-  }
+  keepAlive(sendCapiEvent(ev).catch(() => {}));
 }
 
 // Pull the best-effort client IP from a request's forwarding headers. The first

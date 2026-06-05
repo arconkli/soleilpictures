@@ -22,10 +22,11 @@ const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY     = Deno.env.get("SUPABASE_ANON_KEY") || SERVICE_KEY;
 const APP_URL      = Deno.env.get("APP_URL") || "";
 
-// Standard events this endpoint is allowed to forward. Keep tight — anything
-// with a server-trusted dedup key + value (Purchase, Lead) is emitted from its
-// own authoritative function instead.
-const ALLOWED_EVENTS = new Set(["CompleteRegistration"]);
+// Standard events this endpoint forwards. CompleteRegistration fires for any
+// signed-in new account; Lead is the ad-cohort parallel to the waitlist Lead
+// (submit-waitlist owns the organic one) — gated below to ad_signups members so
+// an arbitrary authed client can't fire it. Purchase stays in its own fn.
+const ALLOWED_EVENTS = new Set(["CompleteRegistration", "Lead"]);
 
 const cors = {
   "access-control-allow-origin":  "*",
@@ -59,10 +60,20 @@ Deno.serve(async (req) => {
     const eventName = String(body.event_name || "");
     if (!ALLOWED_EVENTS.has(eventName)) return json({ error: "event_name not allowed" }, 400);
 
-    // Default dedup key is stable per user+event so a misfire (e.g. an existing
-    // user re-firing on a new device) can never double-count: it collapses into
-    // the user's original CompleteRegistration.
-    const eventId = String(body.event_id || `reg:${userId}`).slice(0, 200);
+    // Server-trusted dedup keys. Lead is ad-cohort only: verify ad_signups
+    // membership with the service role, then FORCE lead:<uid> so it can't be
+    // spoofed and dedups with the organic waitlist Lead (same key). Others
+    // default to reg:<uid> but accept a caller key.
+    let eventId: string;
+    if (eventName === "Lead") {
+      const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+      const { data: adRow, error: adErr } = await admin.from("ad_signups").select("user_id").eq("user_id", userId).maybeSingle();
+      if (adErr) return json({ error: "membership lookup failed" }, 500);   // surface real DB errors, don't silently drop the Lead
+      if (!adRow) return json({ ok: true, skipped: "not_ad_cohort" }, 200);
+      eventId = `lead:${userId}`;
+    } else {
+      eventId = String(body.event_id || `reg:${userId}`).slice(0, 200);
+    }
 
     emitCapi({
       eventName,

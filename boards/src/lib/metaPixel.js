@@ -156,6 +156,42 @@ export async function trackRegistration(session) {
   }
 }
 
+const ADLEAD_FLAG_PREFIX = 'soleil.meta.adlead.';   // + userId
+
+// Fire a Meta Lead ONCE for an ad-cohort user when they enter the demo — the
+// parallel to the organic waitlist Lead (submit-waitlist), so Facebook/Instagram
+// ad traffic produces a mid-funnel signal even though it skips the waitlist.
+// Routed through track-conversion, which re-checks ad_signups membership and
+// dedups by lead:<userId> (the SAME key as the waitlist Lead), so a stray call
+// for a non-ad user is a safe server-side no-op.
+export async function trackAdLead(session) {
+  try {
+    const user  = session?.user;
+    const token = session?.access_token;
+    if (!user?.id || !token || typeof localStorage === 'undefined') return;
+
+    const flag = ADLEAD_FLAG_PREFIX + user.id;
+    if (localStorage.getItem(flag)) return;        // already handled on this device
+
+    const eventId = 'lead:' + user.id;
+
+    // Deduped browser pixel signal (collapsed with the server event by event_id).
+    if (fbqReady()) {
+      try { window.fbq('track', 'Lead', {}, { eventID: eventId }); } catch (_) {}
+    }
+
+    const { fbp, fbc } = getFbCookies();
+    await fetch(TRACK_URL, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ event_name: 'Lead', event_id: eventId, fbp, fbc }),
+    });
+    try { localStorage.setItem(flag, '1'); } catch (_) {}
+  } catch (_) {
+    // Never throw into the enter-demo flow.
+  }
+}
+
 // Patch the History API so SPA navigations fire PageView. Call once at startup.
 let spaInstalled = false;
 let lastPath = typeof window !== 'undefined' ? window.location.pathname : null;

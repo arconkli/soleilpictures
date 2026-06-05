@@ -221,6 +221,12 @@ const RPCS = {
   admin_retention_cohorts: cohorts,
   admin_retention_curve: retentionCurve,
   admin_user_lifespan: lifespan,
+  admin_meta_capi_health: [
+    { event_name: 'Purchase',             sends: 142, ok: 142, failed: 0, success_pct: 1,      last_sent: tsISO(11),  last_error: null },
+    { event_name: 'InitiateCheckout',     sends: 210, ok: 208, failed: 2, success_pct: 0.9905, last_sent: tsISO(4),   last_error: 'graph timeout' },
+    { event_name: 'CompleteRegistration', sends: 96,  ok: 95,  failed: 1, success_pct: 0.9896, last_sent: tsISO(2),   last_error: '400: Invalid parameter fbc' },
+    { event_name: 'Lead',                 sends: 64,  ok: 64,  failed: 0, success_pct: 1,      last_sent: tsISO(26),  last_error: null },
+  ],
   admin_card_stats: {
     total: 18420,
     by_kind: { image: 8210, note: 4120, link: 2890, palette: 1640, doc: 980, url: 580 },

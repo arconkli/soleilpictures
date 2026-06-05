@@ -20,7 +20,7 @@ import { useAuth } from './AuthGate.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
 import { CREATOR_FEATURES, CTA, PRICING } from '../lib/billingCopy.js';
-import { trackViewContent } from '../lib/metaPixel.js';
+import { trackViewContent, trackAdLead } from '../lib/metaPixel.js';
 
 // `onEnter` is invoked AFTER the offer flag has been cleared server-side, so the
 // parent (TierRouter) can refetch tier and drop the user into the app.
@@ -53,6 +53,9 @@ export function AdWelcome({ onEnter }) {
     if (entering) return;
     setEntering(true);
     logEvent(EV.AD_OFFER_ENTER, { plan });
+    // Ad-cohort Meta Lead (the parallel to the waitlist Lead) — fire-and-forget,
+    // never blocks entering the app.
+    supabase.auth.getSession().then(({ data }) => trackAdLead(data?.session)).catch(() => {});
     try { await supabase.rpc('dismiss_ad_offer'); } catch (_) { /* best-effort */ }
     try { await onEnter?.(); } catch (_) {}
   };

@@ -4,6 +4,7 @@
 
 import { MIN_RATE_FLAG, MIN_RATE_SHOW, MIN_POINTS, MIN_COHORT_SIZE } from '../../../../lib/adminFormat.js';
 import { AdminStorageSection } from '../../AdminStorageSection.jsx';
+import { MetaCapiHealth } from '../widgets/MetaCapiHealth.jsx';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 
 function DataQualityPanel({ excludeInternal }) {
@@ -53,6 +54,10 @@ export function SystemView() {
       <h2 className="admin-section-title">Data quality</h2>
       <div className="admin-section-sub">The honesty contract for this dashboard.</div>
       <DataQualityPanel excludeInternal={f.excludeInternal} />
+
+      <h2 className="admin-section-title">Ad conversion delivery</h2>
+      <div className="admin-section-sub">Whether server-side Meta conversions are reaching the ads platform.</div>
+      <MetaCapiHealth />
 
       <h2 className="admin-section-title">Infrastructure</h2>
       <div className="admin-section-sub">Storage footprint by tier and heaviest accounts.</div>
