@@ -13,6 +13,7 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
+import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { STARTER_CARDS } from './lib/onboardingStarter.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -70,7 +71,7 @@ import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
@@ -2226,7 +2227,35 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }
         console.log('[xbm:save] done');
         tmp.destroy();
-        // Target save complete — tell the source it's safe to delete.
+        // CRITICAL: reset the target's PartyKit room before we let the source
+        // delete. We wrote the moved cards straight to board_state, bypassing
+        // the target's live CRDT. If the target's room is warm (it was open
+        // recently, or is open in another tab / the split pane), its Durable
+        // Object re-merges its STALE state and silently undoes our board_state
+        // write — so the cards never persist to the target while the source
+        // still deletes them => permanent loss. This is the exact failure
+        // mode bulletproofRestore guards against (see its step 2). Resetting
+        // forces the room to cold-load from the board_state we just wrote.
+        // Best-effort: most targets are closed (cold room) so a failure here
+        // usually means there was nothing to clobber — but if it throws we do
+        // NOT ack, so the source keeps its cards rather than risk the loss.
+        try {
+          await forceResetBoardRoom(targetBoardId);
+        } catch (resetErr) {
+          console.error('[xbm] target room reset failed; NOT acking (source keeps cards)', resetErr);
+          feedback.toast({
+            type: 'error',
+            message: 'Move incomplete — could not finalize the destination board. Your cards are safe on this board; try again.',
+            duration: 8000,
+          });
+          reject(resetErr);
+          return;
+        }
+        // If the target happens to be open (e.g. the split pane / another
+        // tab), tell its mounted Y.Doc to tear down + re-cold-load so the
+        // moved cards show up immediately instead of after a manual reopen.
+        try { window.__soleilEmitBoardReset?.(targetBoardId); } catch (_) {}
+        // Target save complete + room reset — safe to delete the source.
         ack();
 
         // ── Repoint attached comments to the target board. ──
@@ -2600,7 +2629,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="split-bar-x" title="Close split" onClick={onClose}>×</button>
           </div>
         )}
-        {surfaceJsx}
+        <SurfaceErrorBoundary>{surfaceJsx}</SurfaceErrorBoundary>
         {/* Loading overlay while the Y.Doc is hydrating. Keeps the page feeling
             alive during the boot window where CanvasSurface mounts but holds
             no data — without this, the user stares at an empty canvas with

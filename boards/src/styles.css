@@ -268,6 +268,24 @@ body {
 }
 .app-error-btn.is-primary:hover { background: #dc2626; }
 
+/* Surface (per-pane) error boundary. Passthrough wrapper so it adds no
+   layout box around the canvas/list; the fallback shows only after auto
+   re-mounts are exhausted, scoped to the crashed pane. */
+.surface-eb-root { display: contents; }
+.surface-error {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 24px; text-align: center;
+  background: var(--bg-0, #0c0c0e); color: var(--ink-1, #aaa);
+}
+.surface-error-text { font-size: 14px; }
+.surface-error-btn {
+  padding: 8px 16px; border-radius: 8px;
+  border: 1px solid var(--line, #333); background: var(--bg-1, #16161a);
+  color: var(--ink-0, #eee); cursor: pointer; font-size: 13px;
+}
+.surface-error-btn:hover { background: var(--bg-hov, #222); }
+
 /* ─────────────────────────── Type utilities ─────────────────────────────── */
 
 .t-display { font-family: var(--font-display); font-weight: 700; font-size: 56px; line-height: 1.05; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-0); }
