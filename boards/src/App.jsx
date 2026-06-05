@@ -2495,6 +2495,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             const after = tmp.getMap('cards').size;
             if (removed > 0 && after === before - removed) {
               await saveBoardSnapshot(oldParent, tmp);
+              // We wrote oldParent's board_state directly (it's not open
+              // here), so a warm PartyKit room for it would re-merge its
+              // stale state and bring the removed mirror card BACK. Reset the
+              // room so it cold-loads what we just wrote. Best-effort + NON
+              // fatal: this is cosmetic mirror cleanup (the structural move
+              // already committed), so unlike the cross-board card move we do
+              // NOT fail the operation if the reset can't run (e.g. plain vite
+              // dev has no /reset proxy) — at worst a stale card lingers until
+              // the reconcile heals it on next open. See the PartyKit clobber
+              // note: same mechanism bulletproofRestore step 2 guards against.
+              try {
+                await forceResetBoardRoom(oldParent);
+                window.__soleilEmitBoardReset?.(oldParent);
+              } catch (resetErr) {
+                console.warn('[reparent] old-parent room reset failed (cosmetic only)', oldParent, resetErr);
+              }
             }
             tmp.destroy();
           }

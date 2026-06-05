@@ -808,7 +808,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
   // the source of truth, so a stale signature only ever costs one extra
   // (correct) upsert, never data loss.
   const cache = _cardIndexCache.get(boardId) || { sigs: new Map(), ids: new Set() };
-  const sigFor = (r) => `${r.kind} ${r.title} ${r.body} ${JSON.stringify(r.meta ?? null)}`;
+  const sigFor = (r) => `${r.kind}\x00${r.title}\x00${r.body}\x00${JSON.stringify(r.meta ?? null)}`;
   const changed = rows.filter(r => cache.sigs.get(r.card_id) !== sigFor(r));
 
   if (changed.length > 0) {
