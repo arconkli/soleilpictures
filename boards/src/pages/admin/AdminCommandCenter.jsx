@@ -157,6 +157,31 @@ export function AdminCommandCenter() {
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, []);
 
+  // Kiosk: in fullscreen, hide the cursor after a few seconds of no movement
+  // (any move/click/scroll brings it back). Toggle a class on the stage so the
+  // high-frequency mousemove path never re-renders React.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!isFullscreen || !stage) return;
+    let t;
+    const wake = () => {
+      stage.classList.remove('cc-idle');
+      clearTimeout(t);
+      t = setTimeout(() => stage.classList.add('cc-idle'), 2500);
+    };
+    wake();
+    window.addEventListener('mousemove', wake);
+    window.addEventListener('mousedown', wake);
+    window.addEventListener('wheel', wake, { passive: true });
+    return () => {
+      clearTimeout(t);
+      stage.classList.remove('cc-idle');
+      window.removeEventListener('mousemove', wake);
+      window.removeEventListener('mousedown', wake);
+      window.removeEventListener('wheel', wake);
+    };
+  }, [isFullscreen]);
+
   return (
     <div className={`cc-stage ${isFullscreen ? 'is-fullscreen' : ''}`} ref={stageRef}>
       {/* Full-bleed live universe — fills the whole stage; the frosted frame

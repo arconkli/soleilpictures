@@ -15380,6 +15380,9 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .cc-stage:fullscreen .cc-frame { padding-top: 18px; }
 .cc-stage:-webkit-full-screen .cc-updated { display: none; }
 .cc-stage:fullscreen .cc-updated { display: none; }
+/* Kiosk: hide the cursor after a few seconds idle in fullscreen (JS toggles
+   .cc-idle on mouse inactivity; any move/click/scroll removes it). */
+.cc-stage.cc-idle, .cc-stage.cc-idle * { cursor: none !important; }
 
 /* Edge-framing grid floating over the full-bleed universe: the frame itself is
    pointer-events:none so clicks in the empty center + 14px gaps reach the
