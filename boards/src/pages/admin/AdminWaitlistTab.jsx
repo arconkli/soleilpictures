@@ -1,302 +1,301 @@
-// AdminWaitlistTab — review waitlist entries.
-// Per pending row: Accept now, custom date/time reschedule, quick +7d,
-// Reject (confirmed). Every action confirms-if-destructive, toasts its
-// outcome, and refetches — so a failed action can't read as success.
+// AdminWaitlistTab — two-pane master–detail review of the waitlist.
 //
-// Search (debounced email ilike) + status filter + 50/page pagination,
-// with a per-status hero strip for an at-a-glance breakdown.
+//   • Shell owns: search (debounced) + status filter + contacted filter, the
+//     selected entry, a bulk-selection Set, and every mutation handler.
+//   • Left  (<AdminWaitlistList>):  searchable/filterable entry list + bulk bar.
+//   • Right (<AdminWaitlistDetail>): full entry — links, timezone, timeline,
+//     status-appropriate actions, and the unified Outreach log.
+//
+// Data comes from admin_list_waitlist (which embeds each entry's outreach), so
+// the detail pane needs no separate fetch. ACCEPT still goes through the
+// admin-waitlist-action edge fn (it sends the welcome email); reject / reschedule
+// / reopen are SECURITY DEFINER RPCs (migration 0123), and outreach is logged by
+// email so it shows on the Users tab too. Below 900px the detail is a drawer.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../../components/AppFeedback.jsx';
-import { CopyableText } from '../../components/CopyableText.jsx';
+import { formatCount } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
-import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminStatCard } from './AdminStatCard.jsx';
-import { StatusPill } from './AdminPills.jsx';
-import { fmtDate, fmtDateTime, formatCount, isoToLocalInput, localInputToIso } from '../../lib/adminFormat.js';
-import { Inbox } from '../../lib/icons.js';
+import { AdminWaitlistList } from './AdminWaitlistList.jsx';
+import { AdminWaitlistDetail } from './AdminWaitlistDetail.jsx';
 
 const ACTION_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/admin-waitlist-action';
 const PAGE_SIZE = 50;
-const STATUS_OPTIONS = ['pending', 'accepted', 'rejected', 'canceled'];
-// Statuses surfaced in the at-a-glance hero strip.
-const HERO_STATUSES = ['pending', 'accepted', 'rejected'];
 
-// <input type="datetime-local"> works in LOCAL time as "YYYY-MM-DDTHH:MM".
-// Used only for the picker's min= floor; ISO⇄local conversion lives in
-// adminFormat (isoToLocalInput / localInputToIso).
-function localInputString(d) {
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function useMediaQuery(query) {
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const on = () => setMatch(m.matches);
+    on();
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, [query]);
+  return match;
 }
 
 export function AdminWaitlistTab() {
   const feedback = useFeedback();
-  const [query, setQueryRaw] = useState('');
+
+  const [query, setQueryRaw]   = useState('');
   const [debounced, setDebounced] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [page, setPage] = useState(0);            // 0-indexed
-  const [busyId, setBusyId] = useState(null);
-  // Local edit state per row's date picker. Map<entry_id, local-input-string>.
-  const [drafts, setDrafts] = useState({});
+  const [contacted, setContacted] = useState('');
+  const [page, setPage]        = useState(0);
+  const [busy, setBusy]        = useState(false);
 
-  // Debounce the email search.
+  const [selectedId, setSelectedId] = useState(null);
+  const [selected, setSelected] = useState(() => new Set());   // bulk-select ids
+
+  const isNarrow = useMediaQuery('(max-width: 900px)');
+
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 300);
     return () => clearTimeout(t);
   }, [query]);
 
-  // Reset to the first page whenever the query or filter changes.
-  useEffect(() => { setPage(0); }, [debounced, statusFilter]);
+  // Filters/page change → reset page + clear bulk selection (scoped to the view).
+  useEffect(() => { setPage(0); }, [debounced, statusFilter, contacted]);
+  useEffect(() => { setSelected(new Set()); }, [debounced, statusFilter, contacted, page]);
 
-  const fetchEntries = useCallback(async () => {
+  const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
     const q = debounced || null;
-    const offset = page * PAGE_SIZE;
-
-    // Page of rows.
-    let listQ = supabase
-      .from('waitlist_entries')
-      .select('id, email, links, status, scheduled_accept_at, accepted_at, rejected_at, created_at')
-      .order('scheduled_accept_at', { ascending: true, nullsFirst: false })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + PAGE_SIZE - 1);
-    if (statusFilter) listQ = listQ.eq('status', statusFilter);
-    if (q) listQ = listQ.ilike('email', `%${q}%`);
-
-    // Total matching the same filters (head count, no rows).
-    let countQ = supabase
-      .from('waitlist_entries')
-      .select('id', { count: 'exact', head: true });
-    if (statusFilter) countQ = countQ.eq('status', statusFilter);
-    if (q) countQ = countQ.ilike('email', `%${q}%`);
-
-    // Per-status hero counts (cheap head counts, independent of the active
-    // filter so the breakdown stays a stable at-a-glance summary).
-    const heroQ = HERO_STATUSES.map((s) =>
-      supabase.from('waitlist_entries').select('id', { count: 'exact', head: true }).eq('status', s)
-    );
-
-    const [listRes, countRes, ...heroRes] = await Promise.all([listQ, countQ, ...heroQ]);
-    if (listRes.error) throw listRes.error;
+    const s = statusFilter || null;
+    const c = contacted || null;
+    const [listRes, countRes, statsRes] = await Promise.all([
+      supabase.rpc('admin_list_waitlist', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_status: s, p_contacted: c }),
+      supabase.rpc('admin_waitlist_count', { p_query: q, p_status: s, p_contacted: c }),
+      supabase.rpc('admin_waitlist_status_counts'),
+    ]);
+    if (listRes.error)  throw listRes.error;
     if (countRes.error) throw countRes.error;
+    return { rows: listRes.data || [], total: Number(countRes.data) || 0, statusCounts: statsRes.data || {} };
+  }, [page, debounced, statusFilter, contacted]);
 
-    const statusCounts = {};
-    HERO_STATUSES.forEach((s, i) => {
-      statusCounts[s] = heroRes[i]?.error ? null : (heroRes[i]?.count ?? 0);
-    });
-
-    return {
-      rows: listRes.data || [],
-      total: countRes.count ?? 0,
-      statusCounts,
-    };
-  }, [debounced, statusFilter, page]);
-
-  const { data, loading, error, refreshing, lastUpdated, refresh } =
-    useAdminData(fetchEntries, [debounced, statusFilter, page]);
-
-  const rows = data?.rows || [];
+  const rows  = data?.rows || [];
   const total = data?.total || 0;
   const statusCounts = data?.statusCounts || {};
-  const heroTotal = HERO_STATUSES.reduce((acc, s) => acc + (statusCounts[s] || 0), 0);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const firstIdx = total === 0 ? 0 : page * PAGE_SIZE + 1;
-  const lastIdx = Math.min(total, (page + 1) * PAGE_SIZE);
-  // Next is enabled when this page came back full (more may follow).
-  const hasNext = rows.length === PAGE_SIZE && page < pageCount - 1;
+  const firstIdx  = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const lastIdx   = Math.min(total, (page + 1) * PAGE_SIZE);
 
-  // Clamp page into range after a mutation shrinks total (no empty-page strand).
   useEffect(() => { if (page > pageCount - 1) setPage(pageCount - 1); }, [pageCount, page]);
 
-  const post = async (entry, action, extras, successMsg, label) => {
-    setBusyId(entry.id);
+  const selectedRow = rows.find((r) => r.id === selectedId) || null;
+
+  // Drop a selection that paged/filtered/mutated away.
+  useEffect(() => {
+    if (selectedId && !rows.some((r) => r.id === selectedId)) setSelectedId(null);
+  }, [rows, selectedId]);
+
+  useEffect(() => {
+    if (!(isNarrow && selectedId)) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setSelectedId(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isNarrow, selectedId]);
+
+  // ── selection helpers ──
+  const clearSelection = () => setSelected(new Set());
+  const toggleCheck = (id) => setSelected((prev) => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const toggleAllOnPage = () => setSelected((prev) => {
+    const ids = rows.map((r) => r.id);
+    const allChecked = ids.length > 0 && ids.every((id) => prev.has(id));
+    if (allChecked) return new Set();
+    return new Set(ids);
+  });
+
+  // ── accept (edge fn — sends the welcome email) ──
+  const acceptOne = async (id) => {
+    const { data: s } = await supabase.auth.getSession();
+    const token = s?.session?.access_token;
+    const res = await fetch(ACTION_URL, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ entry_id: id, action: 'accept' }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    return body;
+  };
+
+  const acceptIds = async (ids) => {
+    if (!ids.length) { feedback.toast({ type: 'info', message: 'No pending entries selected.' }); return; }
+    setBusy(true);
+    let ok = 0, fail = 0;
+    for (const id of ids) { try { await acceptOne(id); ok += 1; } catch { fail += 1; } }
+    feedback.toast({ type: fail ? 'info' : 'success', message: `Accepted ${ok}${fail ? ` · ${fail} failed` : ''}` });
+    clearSelection();
+    await refresh();
+    setBusy(false);
+  };
+
+  // ── RPC mutations (reject / reschedule / reopen — bulk-capable) ──
+  const rpcMutate = async (rpc, params, verb, count) => {
+    setBusy(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      const res = await fetch(ACTION_URL, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ entry_id: entry.id, action, ...extras }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-      setDrafts((d) => { const n = { ...d }; delete n[entry.id]; return n; });
-      feedback.toast({ type: 'success', message: successMsg });
+      const { data: res, error: err } = await supabase.rpc(rpc, params);
+      if (err) throw err;
+      const affected = res?.affected ?? count;
+      const skipped = res?.skipped ?? 0;
+      feedback.toast({ type: 'success', message: `${verb} ${affected}${skipped ? ` · ${skipped} skipped` : ''}` });
+      clearSelection();
       await refresh();
+      return true;
     } catch (e) {
-      feedback.toast({ type: 'error', message: `${label} failed: ` + (e?.message || e) });
+      feedback.toast({ type: 'error', message: `${verb} failed: ` + (e?.message || e) });
+      return false;
     } finally {
-      setBusyId(null);
+      setBusy(false);
     }
   };
 
-  const onAccept = (entry) =>
-    post(entry, 'accept', {}, `Accepted ${entry.email}`, 'Accept');
-
-  const onReject = async (entry) => {
+  const rejectIds = async (ids) => {
+    if (!ids.length) return;
     const ok = await feedback.confirm({
-      title: `Reject ${entry.email}?`,
-      message: 'They stay on the waitlist and cannot sign in. You can re-accept them later.',
-      confirmLabel: 'Reject',
-      danger: true,
+      title: `Reject ${ids.length} ${ids.length === 1 ? 'entry' : 'entries'}?`,
+      message: 'They stay on the waitlist and cannot sign in. You can re-open them later. Only pending entries are affected.',
+      confirmLabel: 'Reject', danger: true,
     });
     if (!ok) return;
-    post(entry, 'reject', {}, `Rejected ${entry.email}`, 'Reject');
+    await rpcMutate('admin_waitlist_reject', { p_ids: ids }, 'Rejected', ids.length);
   };
 
-  const onReschedule = (entry, local) => {
-    const iso = localInputToIso(local);
-    if (!iso) return;
-    if (new Date(iso).getTime() < Date.now()) {
-      feedback.toast({ type: 'info', message: 'Pick a future date/time.' });
-      return;
+  const rescheduleIds = async (ids, opts = {}) => {
+    if (!ids.length) return;
+    await rpcMutate('admin_waitlist_reschedule',
+      { p_ids: ids, p_scheduled_at: opts.scheduled_at ?? null, p_days: opts.days ?? null },
+      'Rescheduled', ids.length);
+  };
+
+  const reopenIds = async (ids) => {
+    if (!ids.length) return;
+    const ok = await feedback.confirm({
+      title: `Move ${ids.length} back to pending?`,
+      message: 'Re-opens the entry for review. Any accepted user among them loses access (demo → waitlist) until re-accepted.',
+      confirmLabel: 'Move to pending', danger: true,
+    });
+    if (!ok) return;
+    await rpcMutate('admin_waitlist_reopen', { p_ids: ids }, 'Re-opened', ids.length);
+  };
+
+  // ── outreach (unified by email — shows on the Users tab too) ──
+  const onLogOutreach = async (entry, note) => {
+    try {
+      const { error: err } = await supabase.rpc('admin_log_outreach', { p_email: entry.email, p_note: note || null });
+      if (err) throw err;
+      feedback.toast({ type: 'success', message: `Logged outreach to ${entry.email}` });
+      await refresh();
+      return true;
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not log outreach: ' + (e?.message || e) });
+      return false;
     }
-    post(entry, 'reschedule', { scheduled_at: iso }, `Rescheduled ${entry.email}`, 'Reschedule');
   };
 
-  const minLocal = localInputString(new Date());
-  const countLabel = loading
-    ? 'Loading…'
-    : total === 0
-      ? 'No matches'
-      : `${formatCount(firstIdx)}–${formatCount(lastIdx)} of ${formatCount(total)}`;
+  const onDeleteOutreach = async (entry, id) => {
+    const ok = await feedback.confirm({
+      title: 'Remove this outreach entry?',
+      message: 'This deletes the logged outreach note — it can’t be undone.',
+      confirmLabel: 'Remove', danger: true,
+    });
+    if (!ok) return false;
+    try {
+      const { error: err } = await supabase.rpc('admin_delete_outreach', { p_id: id });
+      if (err) throw err;
+      feedback.toast({ type: 'success', message: 'Outreach entry removed' });
+      await refresh();
+      return true;
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not remove entry: ' + (e?.message || e) });
+      return false;
+    }
+  };
+
+  // Bulk-bar entry points (operate on the current selection).
+  const selectedIds = useMemo(() => Array.from(selected), [selected]);
+  const selectedPendingIds = useMemo(
+    () => rows.filter((r) => selected.has(r.id) && r.status === 'pending').map((r) => r.id),
+    [rows, selected],
+  );
+
+  const isFiltered = !!(debounced || statusFilter || contacted);
 
   return (
-    <div className="admin-section">
-      <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
-        <input
-          className="auth-input admin-search-input"
-          type="text"
-          placeholder="search email…"
-          value={query}
-          onChange={(e) => setQueryRaw(e.target.value)}
-          aria-label="Search by email"
-        />
-        <select
-          className="auth-input admin-filter-select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          aria-label="Filter by status"
-        >
-          <option value="">All statuses</option>
-          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <span className="admin-filter-meta t-meta">{countLabel}</span>
-      </AdminToolbar>
+    <div className="admin-section admin-section-users">
+      <h2 className="admin-section-title">Waitlist</h2>
+      <div className="admin-section-sub">
+        Review signups awaiting access. Search, filter, or select multiple to act in bulk; pick an entry to see
+        its links, schedule access, and log outreach — outreach is shared with the Users tab so nobody double-contacts.
+      </div>
 
-      {!loading && !error && (
-        <div className="admin-stat-grid">
-          <AdminStatCard label="Total" value={formatCount(heroTotal)} sub="waitlist entries" />
-          <AdminStatCard label="Pending" value={statusCounts.pending == null ? null : formatCount(statusCounts.pending)} sub="awaiting review" />
-          <AdminStatCard label="Accepted" value={statusCounts.accepted == null ? null : formatCount(statusCounts.accepted)} sub="granted access" />
-          <AdminStatCard label="Rejected" value={statusCounts.rejected == null ? null : formatCount(statusCounts.rejected)} sub="held off" />
-        </div>
-      )}
+      <div className="admin-stat-grid">
+        <AdminStatCard label="Total"    value={statusCounts.total == null ? null : formatCount(statusCounts.total)} sub="waitlist entries" />
+        <AdminStatCard label="Pending"  value={statusCounts.pending == null ? null : formatCount(statusCounts.pending)} sub="awaiting review" />
+        <AdminStatCard label="Accepted" value={statusCounts.accepted == null ? null : formatCount(statusCounts.accepted)} sub="granted access" />
+        <AdminStatCard label="Rejected" value={statusCounts.rejected == null ? null : formatCount(statusCounts.rejected)} sub="held off" />
+      </div>
 
-      <section className="admin-chart-panel admin-chart-panel-wide">
-        <header className="admin-chart-head">
-          <h3 className="admin-chart-title">Waitlist entries</h3>
-          <span className="admin-chart-sub t-meta">
-            {statusFilter ? `${statusFilter} only` : 'All statuses'}
-            {debounced ? ` · matching “${debounced}”` : ''}
-          </span>
-        </header>
-
-        <AdminAsync
+      <div className="admin-users-2pane">
+        <AdminWaitlistList
+          rows={rows}
+          total={total}
           loading={loading}
           error={error}
-          onRetry={refresh}
-          skeleton={<AdminSkeleton variant="table" rows={6} cols={6} />}
-          isEmpty={rows.length === 0}
-          empty={{
-            icon: Inbox,
-            title: debounced
-              ? 'No entries match your search'
-              : statusFilter ? `No ${statusFilter} entries` : 'No waitlist entries yet',
-            body: debounced
-              ? 'Try a different email or clear the search.'
-              : statusFilter ? 'Try a different status filter.' : 'New signups awaiting access will appear here.',
-          }}
-        >
-          <table className={`admin-table admin-waitlist-table ${refreshing ? 'is-refreshing' : ''}`}>
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Links</th>
-                <th>Status</th>
-                <th>Scheduled</th>
-                <th>Joined</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                const links = Array.isArray(r.links) ? r.links : [];
-                const isPending = r.status === 'pending';
-                const busy = busyId === r.id;
-                return (
-                  <tr key={r.id}>
-                    <td className="admin-email"><CopyableText value={r.email} className="admin-email" /></td>
-                    <td className="admin-links">
-                      {links.length === 0 ? <span className="admin-muted">—</span> : links.slice(0, 3).map((l, i) => (
-                        <a key={i}
-                           href={/^https?:\/\//.test(l) ? l : `https://${l}`}
-                           target="_blank"
-                           rel="noreferrer"
-                           className="admin-link">
-                          {l.replace(/^https?:\/\//, '').slice(0, 40)}
-                        </a>
-                      ))}
-                      {links.length > 3 && <span className="admin-muted">+{links.length - 3}</span>}
-                    </td>
-                    <td><StatusPill kind={r.status} /></td>
-                    <td className="admin-muted" title={fmtDateTime(r.scheduled_accept_at)}>
-                      {r.scheduled_accept_at ? fmtDateTime(r.scheduled_accept_at) : '—'}
-                    </td>
-                    <td className="admin-muted" title={fmtDateTime(r.created_at)}>{fmtDate(r.created_at)}</td>
-                    <td className="admin-actions">
-                      {isPending ? (
-                        <div className="admin-waitlist-actions">
-                          <button className="admin-action admin-action-primary" disabled={busy} onClick={() => onAccept(r)}>
-                            {busy ? '…' : 'Accept'}
-                          </button>
-                          <input
-                            type="datetime-local"
-                            className="admin-action admin-waitlist-when"
-                            min={minLocal}
-                            value={drafts[r.id] ?? isoToLocalInput(r.scheduled_accept_at)}
-                            disabled={busy}
-                            onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
-                          />
-                          <button
-                            className="admin-action"
-                            disabled={busy}
-                            title="Reschedule to the selected date/time"
-                            onClick={() => onReschedule(r, drafts[r.id] ?? isoToLocalInput(r.scheduled_accept_at))}
-                          >
-                            Set
-                          </button>
-                          <button className="admin-action" disabled={busy} onClick={() => post(r, 'reschedule', { days: 7 }, `Pushed ${r.email} +7d`, 'Reschedule')}>+7d</button>
-                          <button className="admin-action admin-action-danger" disabled={busy} onClick={() => onReject(r)}>Reject</button>
-                        </div>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </AdminAsync>
+          refreshing={refreshing}
+          lastUpdated={lastUpdated}
+          page={page}
+          pageCount={pageCount}
+          firstIdx={firstIdx}
+          lastIdx={lastIdx}
+          query={query}
+          onQueryChange={setQueryRaw}
+          statusFilter={statusFilter}
+          onStatusChange={setStatusFilter}
+          contacted={contacted}
+          onContactedChange={setContacted}
+          onPrevPage={() => setPage((p) => Math.max(0, p - 1))}
+          onNextPage={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+          onRefresh={refresh}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          selected={selected}
+          onToggleCheck={toggleCheck}
+          onToggleAllOnPage={toggleAllOnPage}
+          busy={busy}
+          onBulkAccept={() => acceptIds(selectedPendingIds)}
+          onBulkReject={() => rejectIds(selectedIds)}
+          onBulkReschedule={(opts) => rescheduleIds(selectedIds, opts)}
+          onBulkReopen={() => reopenIds(selectedIds)}
+          isFiltered={isFiltered}
+        />
 
-        {pageCount > 1 && (
-          <div className="admin-pagination">
-            <button className="admin-action" disabled={page === 0 || refreshing} onClick={() => setPage((p) => Math.max(0, p - 1))}>← Prev</button>
-            <span className="admin-muted">Page {page + 1} of {pageCount}</span>
-            <button className="admin-action" disabled={!hasNext || refreshing} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>Next →</button>
-          </div>
+        <AdminWaitlistDetail
+          entry={selectedRow}
+          busy={busy}
+          isOpen={isNarrow && !!selectedId}
+          onClose={() => setSelectedId(null)}
+          onAccept={(entry) => acceptIds([entry.id])}
+          onReject={(entry) => rejectIds([entry.id])}
+          onReschedule={(entry, opts) => rescheduleIds([entry.id], opts)}
+          onReopen={(entry) => reopenIds([entry.id])}
+          onLogOutreach={onLogOutreach}
+          onDeleteOutreach={onDeleteOutreach}
+        />
+
+        {isNarrow && (
+          <div
+            className={`admin-users-detail-backdrop ${selectedId ? 'is-open' : ''}`}
+            onClick={() => setSelectedId(null)}
+          />
         )}
-      </section>
+      </div>
     </div>
   );
 }

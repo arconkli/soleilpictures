@@ -6093,6 +6093,25 @@ body {
 .admin-outreach-del:hover:not(:disabled) { color: rgb(220,120,120); background: rgba(220,80,80,.12); }
 .admin-outreach-del:disabled { opacity: .5; cursor: default; }
 
+/* ── Waitlist two-pane (reuses .admin-users-2pane / .admin-user-row grid) ── */
+/* Bulk-select checkbox sits in the row's empty "avatar" column. */
+.admin-wl-check { grid-area: avatar; justify-self: center; align-self: center; width: 16px; height: 16px; cursor: pointer; }
+.admin-wl-bulkbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 12px; border-bottom: 1px solid var(--line-1); background: var(--bg-act);
+}
+.admin-wl-selall { display: inline-flex; align-items: center; gap: 8px; font: 600 12px/1 var(--font-sans); color: var(--ink-1); }
+.admin-wl-bulk-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.admin-wl-bulk-actions .admin-action { padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+/* Detail-pane actions + reschedule picker. */
+.admin-wl-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.admin-wl-actions .admin-action { display: inline-flex; align-items: center; gap: 5px; }
+.admin-wl-resched { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.admin-wl-when { padding: 5px 8px; font: 500 12px/1 var(--font-sans); min-width: 0; max-width: 220px; }
+/* Full (un-truncated) links list. */
+.admin-wl-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.admin-wl-links a { word-break: break-all; }
+
 /* ── Presence dot ── */
 .admin-presence {
   display: inline-flex; align-items: center; gap: 6px;

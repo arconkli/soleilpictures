@@ -10,11 +10,10 @@
 // list row, which already carries tier / subscription_* / banned), so they work
 // the instant a row is picked, before the rich detail RPC resolves.
 
-import { useState } from 'react';
 import { CopyableText } from '../../components/CopyableText.jsx';
 import { Icon } from '../../components/Icon.jsx';
 import {
-  User as UsersIcon, GlobeIcon, Sparkle, Clock, Tag, Star, MessageCircle as ChatCircle,
+  User as UsersIcon, GlobeIcon, Sparkle, Clock, Tag, Star,
 } from '../../lib/icons.js';
 import { formatDuration } from '../../lib/formatDuration.js';
 import {
@@ -24,6 +23,7 @@ import { StatusPill } from './AdminPills.jsx';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminUserRowMenu } from './AdminUserRowMenu.jsx';
 import { Avatar, SourceBadge, PresenceDot, DetailSection, Timeline } from './AdminUserDetailParts.jsx';
+import { OutreachSection } from './AdminOutreachSection.jsx';
 
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
 
@@ -133,76 +133,6 @@ function GrantsSection({ grants }) {
                 {g.revoked_at && <span>revoked {fmtDate(g.revoked_at)}</span>}
               </div>
               {g.note && <div className="admin-detail-grant-note">{g.note}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-    </DetailSection>
-  );
-}
-
-// Outreach log — the whole point of the tab for cold contact: see who's already
-// been reached out to (so two admins don't double-contact) and jot a note of
-// "with what". Header carries an inline optional-note + Log; body lists every
-// past touch (who · when · note) with a per-entry remove. Mirrors GrantsSection.
-function OutreachSection({ outreach, row, onLogOutreach, onDeleteOutreach }) {
-  const [note, setNote] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
-  const list = outreach || [];
-
-  const submit = async (e) => {
-    e?.preventDefault?.();
-    if (submitting) return;
-    setSubmitting(true);
-    const ok = await onLogOutreach(row, note.trim() || null);
-    setSubmitting(false);
-    if (ok) setNote('');
-  };
-
-  const remove = async (id) => {
-    setDeletingId(id);
-    await onDeleteOutreach(row, id);
-    setDeletingId(null);
-  };
-
-  return (
-    <DetailSection title="Outreach" icon={ChatCircle}>
-      <form className="admin-outreach-form" onSubmit={submit}>
-        <input
-          className="auth-input admin-outreach-input"
-          type="text"
-          placeholder="note (optional) — e.g. DM'd on IG re: pricing"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          disabled={submitting}
-          aria-label="Outreach note"
-        />
-        <button type="submit" className="admin-action admin-action-primary admin-outreach-log" disabled={submitting}>
-          {submitting ? 'Logging…' : 'Log outreach'}
-        </button>
-      </form>
-      {list.length === 0 ? (
-        <div className="admin-detail-note">No outreach logged yet — log a note when you reach out so nobody double-contacts them.</div>
-      ) : (
-        <div className="admin-detail-grants">
-          {list.map((o) => (
-            <div key={o.id} className="admin-detail-grant">
-              <div className="admin-detail-grant-meta">
-                <span>by <b>{o.reached_by_email || '—'}</b></span>
-                {o.reached_at && <span>{fmtDate(o.reached_at)}</span>}
-                <button
-                  type="button"
-                  className="admin-outreach-del"
-                  title="Remove this entry"
-                  disabled={deletingId === o.id}
-                  onClick={() => remove(o.id)}
-                  aria-label="Remove outreach entry"
-                >
-                  {deletingId === o.id ? '…' : '×'}
-                </button>
-              </div>
-              {o.note && <div className="admin-detail-grant-note">{o.note}</div>}
             </div>
           ))}
         </div>

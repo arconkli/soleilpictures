@@ -329,6 +329,34 @@ const waitlistEntries = Array.from({ length: 24 }, (_, i) => {
   };
 });
 
+// admin_list_waitlist RPC shape (entry + resolved fields + embedded outreach).
+const waitlistRpcRows = waitlistEntries.map((w, i) => {
+  const contacted = i % 4 === 0;
+  return {
+    ...w,
+    timezone: ['America/Los_Angeles', 'America/New_York', 'Europe/London', 'Asia/Tokyo'][i % 4],
+    scheduled_accept_at: w.scheduled_accept_at || tsISO(-1440 * ((i % 5) + 1)),
+    reviewed_by: null,
+    reviewed_by_email: w.status === 'pending' ? null : 'andrew@andrewconklin.com',
+    user_id: w.status === 'accepted' ? `u-${i % 20}` : null,
+    last_reached_out_at: contacted ? tsISO(1440 * (i % 3) + 120) : null,
+    outreach_count: contacted ? 1 + (i % 2) : 0,
+    outreach: contacted
+      ? [{ id: `o-${i}`, email: w.email, reached_at: tsISO(1440 * (i % 3) + 120),
+          reached_by_email: 'andrew@andrewconklin.com', note: i % 2 ? 'DM’d on IG re: access' : 'Sent intro email' }]
+      : [],
+  };
+});
+RPCS.admin_list_waitlist = waitlistRpcRows;
+RPCS.admin_waitlist_count = waitlistRpcRows.length;
+RPCS.admin_waitlist_status_counts = {
+  total:    waitlistRpcRows.length,
+  pending:  waitlistRpcRows.filter((w) => w.status === 'pending').length,
+  accepted: waitlistRpcRows.filter((w) => w.status === 'accepted').length,
+  rejected: waitlistRpcRows.filter((w) => w.status === 'rejected').length,
+  canceled: 0,
+};
+
 const TABLES = {
   waitlist_entries: waitlistEntries,
   tags, workspaces: tagWorkspaces, tag_centroids: tagCentroids,
