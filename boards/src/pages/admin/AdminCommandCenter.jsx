@@ -159,6 +159,11 @@ export function AdminCommandCenter() {
 
   return (
     <div className={`cc-stage ${isFullscreen ? 'is-fullscreen' : ''}`} ref={stageRef}>
+      {/* Full-bleed live universe — fills the whole stage; the frosted frame
+          floats on top. Pointer events pass through the frame's empty center. */}
+      <div className="cc-universe-bg">
+        <UniverseGraph onNodeClick={() => {}} resetSignal={resetSignal} fitAll />
+      </div>
       <div className="cc-frame">
         {/* Top — hero KPI row */}
         <div className="cc-top">
@@ -241,12 +246,6 @@ export function AdminCommandCenter() {
               </PieChart>
             </ResponsiveContainer>
           </CcPanel>
-        </div>
-
-        {/* Centerpiece — the live universe, bounded + centered in the middle box,
-            framed to show every node (fitAll). */}
-        <div className="cc-universe">
-          <UniverseGraph onNodeClick={() => {}} resetSignal={resetSignal} fitAll />
         </div>
 
         {/* Right rail — funnels */}
