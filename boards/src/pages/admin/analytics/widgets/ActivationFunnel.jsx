@@ -12,6 +12,7 @@ const STEPS = [
   { key: 'signed_up',      label: 'Signed up' },
   { key: 'first_board',    label: 'Created board' },
   { key: 'first_card',     label: 'Created card' },
+  { key: 'populated_board', label: 'Populated a board' },
   { key: 'first_share',    label: 'Shared a board' },
   { key: 'first_backlink', label: 'Linked a doc' },
   { key: 'first_paid',     label: 'Became paid' },
