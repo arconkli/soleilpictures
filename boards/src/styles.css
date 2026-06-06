@@ -6093,24 +6093,34 @@ body {
 .admin-outreach-del:hover:not(:disabled) { color: rgb(220,120,120); background: rgba(220,80,80,.12); }
 .admin-outreach-del:disabled { opacity: .5; cursor: default; }
 
-/* ── Waitlist two-pane (reuses .admin-users-2pane / .admin-user-row grid) ── */
-/* Bulk-select checkbox sits in the row's empty "avatar" column. */
-.admin-wl-check { grid-area: avatar; justify-self: center; align-self: center; width: 16px; height: 16px; cursor: pointer; }
+/* ── Waitlist all-in-one table ── */
+/* Bulk-select bar above the table when rows are checked. */
 .admin-wl-bulkbar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 7px 12px; border-bottom: 1px solid var(--line-1); background: var(--bg-act);
+  padding: 7px 12px; margin-bottom: 8px;
+  border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--bg-act);
 }
 .admin-wl-selall { display: inline-flex; align-items: center; gap: 8px; font: 600 12px/1 var(--font-sans); color: var(--ink-1); }
 .admin-wl-bulk-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .admin-wl-bulk-actions .admin-action { padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
-/* Detail-pane actions + reschedule picker. */
-.admin-wl-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.admin-wl-actions .admin-action { display: inline-flex; align-items: center; gap: 5px; }
-.admin-wl-resched { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.admin-wl-when { padding: 5px 8px; font: 500 12px/1 var(--font-sans); min-width: 0; max-width: 220px; }
-/* Full (un-truncated) links list. */
-.admin-wl-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* Checkbox column — narrow, centered. */
+.admin-waitlist-table th.admin-wl-checkcol,
+.admin-waitlist-table td.admin-wl-checkcol { width: 28px; text-align: center; padding-right: 4px; }
+/* Links cell: show all links wrapping (no 40-char truncation), top-aligned. */
+.admin-waitlist-table td.admin-wl-links-cell { white-space: normal; vertical-align: top; max-width: 260px; }
+.admin-wl-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .admin-wl-links a { word-break: break-all; }
+/* Contacted cell toggle (badge + chevron) that expands the outreach row. */
+.admin-wl-expand-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 0; background: transparent; cursor: pointer; padding: 2px 4px;
+  border-radius: var(--radius); color: var(--ink-2);
+}
+.admin-wl-expand-toggle:hover { background: var(--bg-hov); }
+.admin-wl-chevron { font-size: 10px; color: var(--ink-3); }
+/* Inline outreach row under an entry. */
+.admin-wl-expandrow > td { padding: 0 12px 12px 40px; background: var(--bg-1); }
+.admin-wl-expandrow .admin-detail-section { gap: 8px; }
 
 /* ── Presence dot ── */
 .admin-presence {
