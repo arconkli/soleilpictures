@@ -16,7 +16,7 @@ import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../../components/AppFeedback.jsx';
 import { CopyableText } from '../../components/CopyableText.jsx';
 import { Icon } from '../../components/Icon.jsx';
-import { Inbox, RotateCcw } from '../../lib/icons.js';
+import { Inbox, RotateCcw, MessageCircle } from '../../lib/icons.js';
 import { fmtDate, fmtDateTime, formatCount, relativeTime, isoToLocalInput, localInputToIso } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
@@ -32,12 +32,24 @@ const CONTACTED_OPTIONS = [
   { value: 'no',  label: 'Not contacted' },
   { value: 'yes', label: 'Contacted' },
 ];
-const COLS = 9;   // table column count (for the expand row's colSpan)
+const COLS = 7;   // table column count (for the expand row's colSpan)
 
 // <input type="datetime-local"> works in LOCAL time as "YYYY-MM-DDTHH:MM".
 function localInputString(d) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// A link's site name for a compact pill: strip protocol/www, take the host's
+// domain word (instagram.com/jane → "instagram", janedoe.com → "janedoe").
+function linkLabel(url) {
+  const raw = String(url || '').trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+  const host = raw.split('/')[0];
+  const parts = host.split('.').filter(Boolean);
+  return (parts.length >= 2 ? parts[parts.length - 2] : (parts[0] || raw)) || raw;
+}
+function linkHref(url) {
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
 export function AdminWaitlistTab() {
@@ -313,10 +325,8 @@ export function AdminWaitlistTab() {
                 </th>
                 <th>Email</th>
                 <th>Links</th>
-                <th>Timezone</th>
                 <th>Status</th>
                 <th>Scheduled</th>
-                <th>Joined</th>
                 <th>Contacted</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -335,37 +345,35 @@ export function AdminWaitlistTab() {
                       <td className="admin-email"><CopyableText value={r.email} className="admin-email" /></td>
                       <td className="admin-wl-links-cell">
                         {links.length === 0 ? <span className="admin-muted">—</span> : (
-                          <ul className="admin-wl-links">
-                            {links.map((l, i) => (
-                              <li key={i}>
-                                <a href={/^https?:\/\//.test(l) ? l : `https://${l}`} target="_blank" rel="noreferrer" className="admin-link">
-                                  {String(l).replace(/^https?:\/\//, '')}
-                                </a>
-                              </li>
+                          <span className="admin-wl-linkpills">
+                            {links.slice(0, 2).map((l, i) => (
+                              <a key={i} href={linkHref(l)} target="_blank" rel="noreferrer"
+                                 className="admin-wl-linkpill" title={String(l)} onClick={(e) => e.stopPropagation()}>
+                                {linkLabel(l)}
+                              </a>
                             ))}
-                          </ul>
+                            {links.length > 2 && <span className="admin-muted admin-wl-linkmore">+{links.length - 2}</span>}
+                          </span>
                         )}
                       </td>
-                      <td className="admin-muted">{r.timezone || '—'}</td>
                       <td><StatusPill kind={r.status} /></td>
                       <td className="admin-muted" title={fmtDateTime(r.scheduled_accept_at)}>
-                        {r.scheduled_accept_at ? fmtDateTime(r.scheduled_accept_at) : '—'}
+                        {r.scheduled_accept_at ? fmtDate(r.scheduled_accept_at) : '—'}
                       </td>
-                      <td className="admin-muted" title={fmtDateTime(r.created_at)}>{fmtDate(r.created_at)}</td>
                       <td>
                         <button
                           type="button"
                           className="admin-wl-expand-toggle"
                           onClick={() => setExpandedId((id) => (id === r.id ? null : r.id))}
                           aria-expanded={isOpen}
-                          title={isOpen ? 'Hide outreach' : 'Show / log outreach'}
+                          title={isOpen ? 'Hide details' : 'Show details + outreach'}
                         >
                           {r.outreach_count > 0 ? (
                             <span
                               className="admin-badge-contacted"
                               title={`Reached out ${r.outreach_count}×${r.last_reached_out_at ? ` · last ${relativeTime(r.last_reached_out_at)}` : ''}`}
                             >
-                              contacted{r.outreach_count > 1 ? ` ·${r.outreach_count}` : ''}
+                              <Icon as={MessageCircle} size={11} /> {r.outreach_count}
                             </span>
                           ) : (
                             <span className="admin-muted">—</span>
@@ -377,16 +385,6 @@ export function AdminWaitlistTab() {
                         {isPending ? (
                           <div className="admin-waitlist-actions">
                             <button className="admin-action admin-action-primary" disabled={busy} onClick={() => acceptIds([r.id])}>Accept</button>
-                            <input
-                              type="datetime-local"
-                              className="admin-action admin-waitlist-when"
-                              min={minLocal}
-                              value={drafts[r.id] ?? isoToLocalInput(r.scheduled_accept_at)}
-                              disabled={busy}
-                              onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
-                            />
-                            <button className="admin-action" disabled={busy} title="Reschedule to the selected date/time"
-                              onClick={() => rescheduleToDraft(r, drafts[r.id] ?? isoToLocalInput(r.scheduled_accept_at))}>Set</button>
                             <button className="admin-action" disabled={busy} onClick={() => rescheduleIds([r.id], { days: 7 })}>+7d</button>
                             <button className="admin-action admin-action-danger" disabled={busy} onClick={() => rejectIds([r.id])}>Reject</button>
                           </div>
@@ -400,7 +398,41 @@ export function AdminWaitlistTab() {
                     {isOpen && (
                       <tr className="admin-wl-expandrow">
                         <td colSpan={COLS}>
-                          <OutreachSection outreach={r.outreach} row={r} onLogOutreach={onLogOutreach} onDeleteOutreach={onDeleteOutreach} />
+                          <div className="admin-wl-expand">
+                            <div className="admin-wl-expand-meta t-meta">
+                              <span>tz: {r.timezone || '—'}</span>
+                              <span>joined {fmtDate(r.created_at)}</span>
+                              {r.reviewed_by_email && <span>reviewed by {r.reviewed_by_email}</span>}
+                            </div>
+                            {links.length > 0 && (
+                              <ul className="admin-wl-links">
+                                {links.map((l, i) => (
+                                  <li key={i}>
+                                    <a href={linkHref(l)} target="_blank" rel="noreferrer" className="admin-link">
+                                      {String(l).replace(/^https?:\/\//, '')}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {isPending && (
+                              <div className="admin-wl-resched">
+                                <span className="t-meta admin-muted">Reschedule</span>
+                                <input
+                                  type="datetime-local"
+                                  className="auth-input admin-waitlist-when"
+                                  min={minLocal}
+                                  value={drafts[r.id] ?? isoToLocalInput(r.scheduled_accept_at)}
+                                  disabled={busy}
+                                  onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
+                                />
+                                <button className="admin-action" disabled={busy} title="Reschedule to the selected date/time"
+                                  onClick={() => rescheduleToDraft(r, drafts[r.id] ?? isoToLocalInput(r.scheduled_accept_at))}>Set date</button>
+                                <button className="admin-action" disabled={busy} onClick={() => rescheduleIds([r.id], { days: 7 })}>+7d</button>
+                              </div>
+                            )}
+                            <OutreachSection outreach={r.outreach} row={r} onLogOutreach={onLogOutreach} onDeleteOutreach={onDeleteOutreach} />
+                          </div>
                         </td>
                       </tr>
                     )}

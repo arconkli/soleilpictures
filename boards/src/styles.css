@@ -6106,8 +6106,17 @@ body {
 /* Checkbox column — narrow, centered. */
 .admin-waitlist-table th.admin-wl-checkcol,
 .admin-waitlist-table td.admin-wl-checkcol { width: 28px; text-align: center; padding-right: 4px; }
-/* Links cell: show all links wrapping (no 40-char truncation), top-aligned. */
-.admin-waitlist-table td.admin-wl-links-cell { white-space: normal; vertical-align: top; max-width: 260px; }
+/* Links cell: compact host pills on ONE line; the full list lives in the expand. */
+.admin-waitlist-table td.admin-wl-links-cell { max-width: 200px; }
+.admin-wl-linkpills { display: inline-flex; align-items: center; gap: 5px; max-width: 200px; overflow: hidden; }
+.admin-wl-linkpill {
+  display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 1px 8px; border-radius: 999px; font: 500 11px/1.6 var(--font-sans);
+  color: var(--ink-2); background: var(--bg-2); border: 1px solid var(--line-1); text-decoration: none;
+}
+.admin-wl-linkpill:hover { color: var(--ink-0); border-color: var(--line-2); }
+.admin-wl-linkmore { font-size: 11px; flex: 0 0 auto; }
+/* Full vertical link list — expand row only. */
 .admin-wl-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .admin-wl-links a { word-break: break-all; }
 /* Contacted cell toggle (badge + chevron) that expands the outreach row. */
@@ -6121,6 +6130,10 @@ body {
 /* Inline outreach row under an entry. */
 .admin-wl-expandrow > td { padding: 0 12px 12px 40px; background: var(--bg-1); }
 .admin-wl-expandrow .admin-detail-section { gap: 8px; }
+.admin-wl-expand { display: flex; flex-direction: column; gap: 10px; padding-top: 10px; }
+.admin-wl-expand-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-3); }
+.admin-wl-resched { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-wl-expand-toggle .admin-badge-contacted { display: inline-flex; align-items: center; gap: 3px; }
 
 /* ── Presence dot ── */
 .admin-presence {
