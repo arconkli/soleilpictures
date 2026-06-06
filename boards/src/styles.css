@@ -15355,7 +15355,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .universe-subtab.is-active { background: var(--soleil); color: #0a0a0c; }
 
 /* ───────── Command Center (big-screen metrics wall) ───────── */
-.cc-stage { position: absolute; inset: 0; width: 100%; height: 100%; background: #0a0908; }
+.cc-stage { position: absolute; inset: 0; width: 100%; height: 100%; background: #0a0a0c; }
 /* Same dark + animated grain the Universe view paints, so the Command Center
    reads as the same surface — including in fullscreen, where there's no
    admin-body showing through behind it. */
@@ -15371,8 +15371,17 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   opacity: 0.03;
 }
 [data-theme='light'] .cc-stage::before { opacity: 0.025; }
-.cc-stage:-webkit-full-screen { width: 100vw; height: 100vh; background: #0a0908; }
-.cc-stage:fullscreen { width: 100vw; height: 100vh; background: #0a0908; }
+.cc-stage:-webkit-full-screen { width: 100vw; height: 100vh; background: #0a0a0c; }
+.cc-stage:fullscreen { width: 100vw; height: 100vh; background: #0a0a0c; }
+/* Fullscreen: the .universe-subtabs pill is a sibling OUTSIDE .cc-stage, so its
+   62px top reservation becomes an empty gap here. Pull the frame up; reserve a
+   right lane for the always-visible corner controls + hide the redundant stamp. */
+.cc-stage:-webkit-full-screen .cc-frame { padding-top: 18px; }
+.cc-stage:fullscreen .cc-frame { padding-top: 18px; }
+.cc-stage:-webkit-full-screen .cc-top { padding-right: 92px; }
+.cc-stage:fullscreen .cc-top { padding-right: 92px; }
+.cc-stage:-webkit-full-screen .cc-updated { display: none; }
+.cc-stage:fullscreen .cc-updated { display: none; }
 
 /* Edge-framing grid: the universe lives in the center cell, panels frame it. */
 .cc-frame {
@@ -15477,11 +15486,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .cc-uni-num { font: 700 22px/1 var(--font-display, var(--font-sans)); color: var(--ink-0); font-variant-numeric: tabular-nums; }
 .cc-uni-label { font: 600 10px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
 .cc-uni-delta { font: 600 10px/1 var(--font-sans); color: var(--soleil); }
-/* position:relative + overflow:hidden so the ticker list can be pulled out of
-   flow (below) — then .cc-uni alone drives the bottom-row height and the list
-   clips to fit instead of inflating the strip. */
-.cc-leaders { border-radius: 14px; padding: 12px 16px; min-width: 0; position: relative; overflow: hidden; }
-.cc-leaders-title { font: 600 11px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 8px; }
+.cc-leaders { border-radius: 14px; padding: 12px 16px; min-width: 0; }
 .cc-leaders-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .cc-leader { display: flex; align-items: center; gap: 8px; font: 500 12px/1.3 var(--font-sans); color: var(--ink-1); }
 .cc-leader-rank { width: 16px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
@@ -15489,34 +15494,34 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .cc-leader-count { color: var(--ink-0); font-weight: 600; font-variant-numeric: tabular-nums; }
 .cc-leader-empty { color: var(--ink-3); }
 
-/* Live card-placement ticker (replaces the static "Top creators" leaderboard). */
-.cc-ticker { display: flex; flex-direction: column; }
-.cc-ticker .cc-leaders-title { display: flex; align-items: center; gap: 7px; }
-/* Absolutely filled below the title so the list never inflates the bottom row
-   (.cc-uni drives the height). Two columns pack more placements into the small
-   fixed height; the bottom is clipped by .cc-leaders' overflow:hidden. */
-.cc-ticker-list {
-  list-style: none; margin: 0; padding: 0;
-  position: absolute; left: 16px; right: 16px; top: 34px; bottom: 12px;
-  display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px;
-  grid-auto-rows: min-content; align-content: start;
-  overflow: hidden;
+/* Live card-placement ticker — horizontal auto-scrolling tape (stock-ticker style). */
+.cc-ticker { display: flex; flex-direction: row; align-items: center; gap: 12px; }
+.cc-tape-label {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px;
+  font: 600 11px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2);
 }
-.cc-ticker-row {
-  display: flex; align-items: center; gap: 6px; min-width: 0;
-  font: 500 11px/1.3 var(--font-sans); color: var(--ink-1);
-  animation: cc-ticker-in var(--dur-base, 220ms) var(--ease, ease) both;
+/* Masked viewport: the track is 2× the content; edges fade so items enter/leave
+   cleanly instead of popping at the hard border. */
+.cc-tape {
+  position: relative; flex: 1 1 auto; min-width: 0; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
 }
+/* Two identical copies; translateX(-50%) lands copy-2's start exactly where
+   copy-1 began → seamless loop. Duration set inline (∝ item count). */
+.cc-tape-track {
+  display: inline-flex; align-items: center; gap: 28px; white-space: nowrap;
+  animation: cc-tape-roll 40s linear infinite; will-change: transform;
+}
+.cc-tape:hover .cc-tape-track { animation-play-state: paused; }
+.cc-tape-item { display: inline-flex; align-items: center; gap: 6px; font: 500 11px/1.3 var(--font-sans); color: var(--ink-1); }
 .cc-ticker-dot { width: 5px; height: 5px; border-radius: 999px; flex: 0 0 auto; background: currentColor; box-shadow: 0 0 6px currentColor; }
-.cc-ticker-actor { color: var(--ink-0); font-weight: 600; flex: 0 1 auto; max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cc-ticker-what { color: var(--ink-2); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cc-ticker-time { color: var(--ink-3); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-.cc-ticker-list .cc-leader-empty { grid-column: 1 / -1; }
-@keyframes cc-ticker-in {
-  from { opacity: 0; transform: translateY(-6px); background: rgba(255,165,0,.12); }
-  to   { opacity: 1; transform: none; background: transparent; }
-}
-@media (prefers-reduced-motion: reduce) { .cc-ticker-row { animation: none; } }
+.cc-tape-actor { color: var(--ink-0); font-weight: 600; }
+.cc-tape-what { color: var(--ink-2); }
+.cc-tape-time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.cc-tape-empty { font: 500 12px/1.3 var(--font-sans); color: var(--ink-3); }
+@keyframes cc-tape-roll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .cc-tape-track { animation: none; } }
 
 /* Corner controls (float above the frame) */
 .cc-controls { position: absolute; top: 14px; right: 14px; z-index: 6; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
@@ -15538,14 +15543,6 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   .cc-universe { min-height: 360px; }
   .cc-rail { overflow: visible; }
   .cc-bottom { grid-template-columns: 1fr; }
-  /* Stacked: the ticker is full-width and no longer races .cc-uni for row
-     height, so restore it to a normal in-flow single-column list (the absolute
-     fill + 2-col grid only make sense in the side-by-side desktop strip). */
-  .cc-leaders { overflow: visible; }
-  .cc-ticker-list {
-    position: static; left: auto; right: auto; top: auto; bottom: auto;
-    grid-template-columns: 1fr;
-  }
 }
 .universe-error {
   display: flex;

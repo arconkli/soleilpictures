@@ -122,6 +122,11 @@ export function AdminCommandCenter() {
     .filter((d) => d.value > 0);
 
   const { items: placements } = useCardPlacements();
+  // Pad a short feed up to ≥6 before doubling so the seamless -50% scroll never
+  // exposes a blank gap on a quiet wall; the track always renders two copies.
+  const tapeBase = placements.length && placements.length < 6
+    ? Array.from({ length: Math.ceil(6 / placements.length) }, () => placements).flat()
+    : placements;
 
   // Content mix (card kinds) — pairs visually with the tier-mix donut above it.
   const contentMix = Object.entries((data?.cardStats || {}).by_kind || {})
@@ -308,22 +313,24 @@ export function AdminCommandCenter() {
           </div>
 
           <div className="cc-leaders cc-ticker">
-            <div className="cc-leaders-title"><span className="cc-live-dot" /> Live placements</div>
-            <ol className="cc-ticker-list">
-              {placements.slice(0, 8).map((p) => (
-                <li key={p._key} className="cc-ticker-row">
-                  <span className="cc-ticker-dot" style={{ color: KIND_COLOR[p.kind] || 'var(--soleil)' }} />
-                  <span className="cc-ticker-actor">{p.actor || 'someone'}</span>
-                  <span className="cc-ticker-what">{placementText(p)}</span>
-                  <span className="cc-ticker-time" title={p.occurred_at ? new Date(p.occurred_at).toLocaleString() : ''}>
-                    {relativeTime(p.occurred_at)}
-                  </span>
-                </li>
-              ))}
-              {placements.length === 0 && (
-                <li className="cc-ticker-row cc-leader-empty">Waiting for the next card…</li>
+            <span className="cc-tape-label"><span className="cc-live-dot" /> Live</span>
+            <div className="cc-tape">
+              {placements.length === 0 ? (
+                <span className="cc-tape-empty">Waiting for the next card…</span>
+              ) : (
+                <div className="cc-tape-track"
+                     style={{ animationDuration: `${Math.max(28, tapeBase.length * 4.5)}s` }}>
+                  {[...tapeBase, ...tapeBase].map((p, i) => (
+                    <span className="cc-tape-item" key={`${p._key}-${i}`}>
+                      <span className="cc-ticker-dot" style={{ color: KIND_COLOR[p.kind] || 'var(--soleil)' }} />
+                      <span className="cc-tape-actor">{p.actor || 'someone'}</span>
+                      <span className="cc-tape-what">{placementText(p)}</span>
+                      <span className="cc-tape-time">{relativeTime(p.occurred_at)}</span>
+                    </span>
+                  ))}
+                </div>
               )}
-            </ol>
+            </div>
           </div>
         </div>
 
