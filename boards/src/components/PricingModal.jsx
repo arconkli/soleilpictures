@@ -23,7 +23,7 @@ import { FeatureList, PlanToggle, CreatorPriceRow } from './PricingBits.jsx';
 import { CTA, CREATOR_FEATURES, PRICING } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 
-export function PricingModal({ onClose, header = null }) {
+export function PricingModal({ onClose, header = null, surface = 'modal' }) {
   const { user } = useAuth();
   const { tier } = useMyTier({ userId: user?.id });
   const [plan, setPlan]   = useState('annual');
@@ -45,10 +45,10 @@ export function PricingModal({ onClose, header = null }) {
     setError(null);
     setBusy(true);
     redirectingRef.current = true;
-    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface: 'modal', already_paid: alreadyPaid });
+    logEventNow(EV.PRICING_CREATOR_INTENT, { plan, surface, already_paid: alreadyPaid });
     try {
-      if (alreadyPaid) await startPortal({ surface: 'modal' });
-      else             await startCheckout({ plan, surface: 'modal' });
+      if (alreadyPaid) await startPortal({ surface });
+      else             await startCheckout({ plan, surface });
     } catch (err) {
       redirectingRef.current = false;
       setError(err?.message || String(err));
@@ -91,6 +91,12 @@ export function PricingModal({ onClose, header = null }) {
               <div className="upgrade-eyebrow t-eyebrow">EDIT ACCESS REQUIRED</div>
               <h2 className="upgrade-title">Editing shared boards is a Creator feature.</h2>
               <p className="upgrade-sub t-body">You can view this board. Upgrade to Creator to edit any board you've been invited to — plus unlimited cards and boards.</p>
+            </>
+          ) : header === 'first-value' ? (
+            <>
+              <div className="upgrade-eyebrow t-eyebrow">YOU'RE OFF THE GROUND</div>
+              <h2 className="upgrade-title">Love it? Keep building.</h2>
+              <p className="upgrade-sub t-body">You've made your first board. Upgrade to Creator for unlimited cards, boards, video/audio, and full edit access.</p>
             </>
           ) : (
             <>

@@ -65,3 +65,30 @@ export function qaTierOverride() {
     },
   };
 }
+
+// Dev-only force-show for the first-value upgrade banner. Active ONLY in a DEV
+// build with ?local=1 (same trust boundary as qaTierOverride). Lets specs render
+// the banner deterministically without simulating a genuine card placement:
+//   /?local=1&tier=demo&firstvalue=1
+// The banner stays demo-gated at the render site, so &tier=paid still won't show it.
+export function qaForceFirstValue() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  const q = new URLSearchParams(window.location.search);
+  return q.get('local') === '1' && q.get('firstvalue') === '1';
+}
+
+// Dev-only waitlist-status override. Active ONLY in a DEV build with ?local=1
+// (same trust boundary as qaTierOverride). Lets us preview each branch of the
+// WaitlistConfirm status page without an authenticated waitlist_entries row
+// (the mocked local user has no Supabase session, so the real query returns
+// nothing). Returns the status to stub, or undefined when not overriding:
+//   pending  → "On the waitlist" + pay-to-skip box   (the canonical screen)
+//   rejected → "wasn't approved" + pay-to-skip CTA
+//   none     → "No application yet" / pick-a-path
+//   /waitlist/status?local=1&tier=waitlist&wlstatus=pending
+export function qaWaitlistStatus() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return undefined;
+  const q = new URLSearchParams(window.location.search);
+  if (q.get('local') !== '1') return undefined;
+  return q.get('wlstatus') || undefined;
+}

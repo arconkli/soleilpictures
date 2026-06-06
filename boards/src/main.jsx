@@ -14,6 +14,16 @@ import { lazyWithReload } from './lib/lazyWithReload.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
+// DEV-only logic bridge for Playwright specs (first-value-upgrade.spec.js).
+// Dynamic + DEV-guarded so it never ships in the signed-out landing chunk.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  import('./lib/firstValueTrigger.js')
+    .then((m) => { window.__soleilFirstValueTest = {
+      hasGenuineCard: m.hasGenuineCard, isSeedCard: m.isSeedCard, genuineCards: m.genuineCards,
+    }; })
+    .catch(() => {});
+}
+
 // Heavy/post-auth subtrees are code-split out of the entry chunk so the
 // signed-out landing (AuthGate → SignIn → SignInBackdrop) ships minimal JS.
 // AppShell (TierRouter + App + the whole editor) only loads once signed in;

@@ -16,8 +16,9 @@ import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { STARTER_CARDS } from './lib/onboardingStarter.js';
+import { genuineCards, isSeedCard } from './lib/firstValueTrigger.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
-import { logEvent, logEventNow } from './lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce } from './lib/analytics.js';
 import { EV } from './lib/analyticsEvents.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
@@ -98,6 +99,20 @@ const TWEAK_DEFAULTS = {
 };
 
 const SESSION_PREFIX = 'soleil.boards.session.';
+
+// In-product engagement: card_edit fires at most once per card per page-session
+// (the analytics.js batcher coalesces these) and ONLY for content edits — not
+// drags / resizes / restacks — so it measures real editing depth, not movement.
+const _editedCardsThisSession = new Set();
+const CARD_CONTENT_KEYS = new Set(['html', 'title', 'body', 'text', 'caption', 'content', 'name']);
+function isContentEdit(patch) {
+  return !!patch && Object.keys(patch).some((k) => CARD_CONTENT_KEYS.has(k));
+}
+function logCardEdit(cardId, kind, boardId) {
+  if (!cardId || _editedCardsThisSession.has(cardId)) return;
+  _editedCardsThisSession.add(cardId);
+  logEvent(EV.CARD_EDIT, { kind: kind || 'card', board_id: boardId });
+}
 
 function readSession(key) {
   if (typeof localStorage === 'undefined') return null;
@@ -507,7 +522,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [workspaceRecoveryOpen, setWorkspaceRecoveryOpen] = useState(false);
 
   const recents = useRecents(workspace.id);
-  const openBoard = (id) => { setStack(s => [...s, id]); recents.push(id); };
+  const openBoard = (id) => {
+    setStack(s => [...s, id]);
+    recents.push(id);
+    // Breadth signal: which boards get opened, and how deep (sub-board nesting).
+    logEvent(EV.BOARD_OPEN, { board_id: id, depth: stack.length, is_subboard: !!rootBoard && id !== rootBoard.id });
+  };
   const goTo = (i) => setStack(s => s.slice(0, i + 1));
 
   // Prune recents when boards are deleted so the sidebar list stays clean.
@@ -621,10 +641,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }, 'local');
       // Live activity signal → admin Command Center placement ticker. Prompt
       // (beacon) delivery so it shows up ~live, not at the next 5s batch flush.
-      logEventNow(EV.CARD_PLACED, {
-        n: 1, kind: card?.kind || 'card',
-        board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
-      });
+      // Seeds (onb-*) are not real placements — exclude so card_placed only ever
+      // means a genuine card (it was inflating the activation funnel).
+      if (!isSeedCard(card)) {
+        logEventNow(EV.CARD_PLACED, {
+          n: 1, kind: card?.kind || 'card',
+          board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
+        });
+      }
     };
 
     const addCards = (cardsToAdd) => {
@@ -653,11 +677,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }
       }, 'local');
       // One ticker entry per bulk action (collapsed) — "placed N cards".
-      const kinds = new Set(cardsToAdd.map((c) => c?.kind).filter(Boolean));
-      logEventNow(EV.CARD_PLACED, {
-        n: cardsToAdd.length, kind: kinds.size === 1 ? [...kinds][0] : 'mixed',
-        board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
-      });
+      // Count only genuine cards so the onboarding seed batch (all onb-*) never
+      // emits a card_placed — the seed was being counted as activation.
+      const genuine = genuineCards(cardsToAdd);
+      if (genuine.length) {
+        const kinds = new Set(genuine.map((c) => c?.kind).filter(Boolean));
+        logEventNow(EV.CARD_PLACED, {
+          n: genuine.length, kind: kinds.size === 1 ? [...kinds][0] : 'mixed',
+          board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
+        });
+      }
     };
 
     const updateCard = (cardId, patch) => {
@@ -668,6 +697,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         for (const [k, v] of Object.entries(patch)) ym.set(k, v);
         writeUpdateStamp(ym);
       }, 'local');
+      if (isContentEdit(patch)) logCardEdit(cardId, ym.get('kind'), boardId);
     };
 
     const updateCards = (updates) => {
@@ -678,6 +708,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           const ym = m.get(id); if (!ym) continue;
           for (const [k, v] of Object.entries(patch)) ym.set(k, v);
           writeUpdateStamp(ym);
+          if (isContentEdit(patch)) logCardEdit(id, ym.get('kind'), boardId);
         }
       }, 'local');
     };
@@ -1561,6 +1592,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //  hook resolves on first render.)
   // ShareModal lifecycle. Replaces the old "invite to workspace" prompt.
   const [shareOpen, setShareOpen] = useState(false);
+  // Collaboration-loop signal: fire when the share surface opens (any path).
+  useEffect(() => { if (shareOpen) logEvent(EV.SHARE_OPEN, { board_id: currentId }); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [shareOpen]);
   // "Linked from" side drawer for the currently-viewed board (or any
   // entity surfaced by other components via setBacklinksRef).
   const [backlinksRef, setBacklinksRef] = useState(null);
@@ -1774,7 +1807,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Funnel: app_open fires once per mount with the caller's tier so we
   // can correlate retention (app opens / unique user / week).
   useEffect(() => {
-    if (myTier.tier) logEvent('app_open', { tier: myTier.tier });
+    if (!myTier.tier) return;
+    logEvent(EV.APP_OPEN, { tier: myTier.tier });
+    // Return-session: app_open on a later calendar day than we last saw this
+    // browser — the literal re-engagement signal (complements server-side
+    // user_active_day, and survives even if the heartbeat misses).
+    try {
+      const key = `soleil_last_seen_day_${user?.id || 'anon'}`;
+      const today = new Date().toISOString().slice(0, 10);
+      const last = localStorage.getItem(key);
+      if (last && last !== today) {
+        const days = Math.max(1, Math.round((Date.parse(today) - Date.parse(last)) / 86400000));
+        logEvent(EV.RETURN_SESSION, { days_since_last_seen: days, tier: myTier.tier });
+      }
+      localStorage.setItem(key, today);
+    } catch { /* localStorage unavailable */ }
   }, [myTier.tier]);
 
   // ── First-run onboarding ──────────────────────────────────────────────────
@@ -1824,18 +1871,65 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTier.loading, myTier.onboarding, currentYDoc, yb.ready, yb.cards.length, currentId, rootBoard.id, mainMutators]);
 
-  // Auto-complete: when the user places their OWN first card on the root (not an
-  // onb- seed), record activation (the north-star) and end onboarding.
+  // Activation detection — DECOUPLED from the onboarding coachmark UI. The old
+  // version only fired ONBOARDING_FIRST_CARD while the coachmark was showing AND
+  // on the root board, so it never fired in practice (users place their first
+  // card on a sub-board, or after dismissing the coachmark). Now: the first
+  // genuine card on ANY owned board records the activation north-star + triggers
+  // the first-value nudge; the first board to reach POP_BOARD_THRESHOLD genuine
+  // cards records the "populated board" activation bar. Server triggers
+  // (profiles.first_card_at / first_populated_board_at, migration 0120) remain the
+  // source of truth; these client events add funnel timing + power the nudge.
+  // localStorage stamps keep them ~once-per-account (admin RPCs dedupe by distinct
+  // user_id regardless), and let us skip the O(n) scan for established users.
+  const POP_BOARD_THRESHOLD = 3; // genuine cards on one board = a "populated" board
+  // Re-timed first-value nudge: fire a beat AFTER the first genuine card (the 2nd
+  // card, or ~15s after the 1st), not on the first card itself. Timer ref persists
+  // across renders; cleared on unmount.
+  const firstValueTimerRef = useRef(null);
+  useEffect(() => () => { if (firstValueTimerRef.current) clearTimeout(firstValueTimerRef.current); }, []);
   useEffect(() => {
-    if (!onboardingUiActive) return;
-    if (currentId !== rootBoard.id) return;
-    const placedOwn = yb.cards.some((c) => c && c.id && !String(c.id).startsWith('onb-'));
-    if (placedOwn) {
-      logEvent(EV.ONBOARDING_FIRST_CARD, { board_id: rootBoard.id });
-      dismissOnboarding('placed');
+    if (!user?.id) return;
+    const fcKey = `soleil_first_card_logged_${user.id}`;
+    const popKey = `soleil_activated_logged_${user.id}`;
+    const fvKey = `soleil_firstvalue_${user.id}`;
+    let fcDone = true, popDone = true, fvDone = true;
+    try { fcDone = !!localStorage.getItem(fcKey); popDone = !!localStorage.getItem(popKey); fvDone = !!localStorage.getItem(fvKey); } catch { /* ignore */ }
+    if (fcDone && popDone && fvDone && !onboardingUiActive) return; // nothing left to detect/dismiss
+    const genuine = genuineCards(yb.cards);
+    if (genuine.length === 0) return;
+    try {
+      if (!fcDone) {
+        localStorage.setItem(fcKey, '1');
+        logEventOnce('first_card', EV.ONBOARDING_FIRST_CARD, { board_id: currentId });
+      }
+      if (genuine.length >= POP_BOARD_THRESHOLD && !popDone) {
+        localStorage.setItem(popKey, '1');
+        logEventOnce('activated', EV.ACTIVATED, { board_id: currentId, n: genuine.length });
+      }
+    } catch { /* localStorage unavailable — logEventOnce still de-dupes per page load */ }
+
+    // Re-timed first-value nudge (demo only): fire a beat AFTER the first genuine
+    // card — on the 2nd genuine card, or ~15s after the first, whichever comes
+    // first — so we never interrupt the very first action. UpgradeChip owns the
+    // demo-gate + once-per-account guard + the soft banner; we just emit the window
+    // event (works the same in the ?local=1 harness). The localStorage stamp avoids
+    // re-arming across reloads; UpgradeChip de-dupes per account regardless.
+    if (!fvDone && myTier.tier === 'demo') {
+      const dispatchFirstValue = () => {
+        if (firstValueTimerRef.current) { clearTimeout(firstValueTimerRef.current); firstValueTimerRef.current = null; }
+        try { localStorage.setItem(fvKey, '1'); } catch { /* ignore */ }
+        window.dispatchEvent(new CustomEvent('soleil:first-value'));
+      };
+      if (genuine.length >= 2) dispatchFirstValue();                          // 2nd genuine card → now
+      else if (!firstValueTimerRef.current) firstValueTimerRef.current = setTimeout(dispatchFirstValue, 15000); // 1st → ~15s beat
     }
+
+    // Close the coachmark when a genuine card lands while it's showing (UI only;
+    // the analytics above no longer depends on it).
+    if (onboardingUiActive) dismissOnboarding('placed');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onboardingUiActive, yb.cards, currentId, rootBoard.id]);
+  }, [user?.id, yb.cards, currentId, onboardingUiActive]);
 
   const showCoachmark = onboardingUiActive && currentId === rootBoard.id;
 

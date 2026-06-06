@@ -38,6 +38,7 @@ export const EV = Object.freeze({
   WAITLIST_SIGNOUT:        'waitlist_signout',
   WAITLIST_ACCEPTED_SEEN:  'waitlist_accepted_seen',      // tier flipped {tier} (must-land)
   WAITLIST_STATUS_DWELL:   'waitlist_status_dwell',       // {ms,status}
+  GATE_DEAD_END:           'gate_dead_end',               // waitlist user dwelled on /welcome with no queue entry + no CTA — the silent leak {dwell_ms}
 
   // ── Pricing / Checkout ──
   PRICING_VIEW:            'pricing_view',                // {surface:'page'|'modal',header?}
@@ -71,8 +72,23 @@ export const EV = Object.freeze({
   ONBOARDING_FIRST_CARD:   'onboarding_first_card',       // user placed their OWN first card during onboarding (activation north-star)
   ONBOARDING_DISMISS:      'onboarding_dismiss',          // onboarding ended {reason:'placed'|'dismissed'}
 
+  // ── First-value upgrade nudge (demo, once per account) ──
+  FIRST_VALUE_UPGRADE_VIEW:   'first_value_upgrade_view',   // soft banner shown at first genuine card {board_id}
+  FIRST_VALUE_UPGRADE_CTA:    'first_value_upgrade_cta',    // "See Creator" clicked → opens first-value modal (must-land) {board_id}
+  FIRST_VALUE_UPGRADE_DISMISS:'first_value_upgrade_dismiss',// "Not now" clicked {board_id}
+
   // ── Product activity ──
-  CARD_PLACED:             'card_placed',                 // card(s) placed on a board {n,kind,board_id,workspace_id,actor} — powers the admin Command Center live ticker
+  APP_OPEN:                'app_open',                    // app mounted with tier loaded {tier} — session/retention marker
+  CARD_PLACED:             'card_placed',                 // GENUINE card(s) placed on a board {n,kind,board_id,workspace_id,actor} — seeds excluded (see firstValueTrigger.areSeedCards); powers the admin Command Center live ticker
+  ACTIVATED:               'activated',                   // first POPULATED board — a board crossed the genuine-card threshold {board_id,n} (the activation bar)
+
+  // ── In-product engagement (breadth / depth / intent / loop / return — batched, high-signal) ──
+  BOARD_OPEN:              'board_open',                  // opened/navigated to a board {board_id,depth,is_subboard}
+  CARD_EDIT:               'card_edit',                   // edited a card's content (once per card per session) {kind,board_id}
+  DOC_EDIT:                'doc_edit',                    // edited a doc surface (once per doc per session) {board_id}
+  SEARCH_RUN:              'search_run',                  // ran a search / command {has_results}
+  SHARE_OPEN:              'share_open',                  // opened the share surface {board_id}
+  RETURN_SESSION:          'return_session',              // app_open on a later calendar day than last-seen {days_since_last_seen,tier}
 });
 
 // Map an auth/network error to a stable machine code for *_error events.

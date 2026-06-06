@@ -16387,4 +16387,66 @@ button, [role="button"], a {
   .onboarding-coachmark { bottom: 96px; max-width: calc(100vw - 24px); }
 }
 
+/* ───────────── First-value upgrade nudge (demo, one-time soft banner) ──────── */
+/* Soft, non-blocking bottom slide-in shown the first time a demo user places a
+   genuine card. Reuses the coachmark's tokens; never blocks the canvas. */
+.fv-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  z-index: 61;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 12px 14px 12px 16px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3), var(--soleil-glow);
+  animation: fv-banner-in var(--dur-base, .24s) var(--ease, ease) both;
+}
+.fv-banner-spark {
+  flex: none;
+  color: var(--soleil);
+  font-size: 18px;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(255, 165, 0, .45));
+}
+.fv-banner-copy { min-width: 0; flex: 1 1 auto; }
+.fv-banner-title { font: 600 13px/1.2 var(--font-sans); color: var(--ink-0); }
+.fv-banner-body { margin-top: 2px; font: 400 12px/1.35 var(--font-sans); color: var(--ink-2); }
+.fv-banner-actions { flex: none; display: flex; align-items: center; gap: 8px; }
+.fv-banner-cta {
+  height: 30px;
+  padding: 0 14px;
+  background: var(--soleil);
+  color: #1a1206;
+  border: 0;
+  border-radius: var(--radius);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+  transition: transform var(--dur-fast, .12s) var(--ease, ease),
+              box-shadow var(--dur-base, .24s) var(--ease, ease);
+}
+.fv-banner-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-1); }
+.fv-banner-dismiss {
+  height: 30px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--ink-2);
+  border: 0;
+  border-radius: var(--radius);
+  font: 500 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.fv-banner-dismiss:hover { color: var(--ink-0); }
+@keyframes fv-banner-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (max-width: 640px) {
+  .fv-banner { bottom: 96px; max-width: calc(100vw - 24px); flex-wrap: wrap; }
+  .fv-banner-actions { width: 100%; justify-content: flex-end; }
+}
+
 
