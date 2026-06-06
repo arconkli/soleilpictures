@@ -1226,11 +1226,16 @@ export function CanvasSurface({
 
   const clientToCanvas = useCallback((clientX, clientY) => {
     const rect = wrapRef.current.getBoundingClientRect();
+    // Read live pan/zoom refs (not debounced state) so the conversion always
+    // matches the currently-rendered transform. State lags refs by up to 140ms
+    // after any wheel/trackpad pan or pinch (scheduleCommit), which otherwise
+    // offsets every placement (e.g. right-click → Add) made in that window.
+    const px = panRef.current.x, py = panRef.current.y, z = zoomRef.current;
     return {
-      x: (clientX - rect.left - pan.x) / zoom,
-      y: (clientY - rect.top  - pan.y) / zoom,
+      x: (clientX - rect.left - px) / z,
+      y: (clientY - rect.top  - py) / z,
     };
-  }, [pan.x, pan.y, zoom]);
+  }, []);
 
   // Inverse of clientToCanvas — returns viewport-relative pixel coords for
   // a canvas-space point. Used by the comments layer to anchor floating
