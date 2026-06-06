@@ -76,6 +76,7 @@ import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
+import { evaluateDemoCap } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore } from './lib/docState.js';
 import { uploadImage } from './lib/uploads.js';
@@ -596,11 +597,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const addCard = (card) => {
       const m = cardsMap(); if (!m) return;
       if (isDemoBlockedOnThisBoard()) return;
-      // Demo-tier cap: hard-block at 100 cards total across the user's
-      // own boards. The trigger on card_index keeps demo_card_count in
+      // Demo-tier cap: hard-block at the limit (cards total across the user's
+      // own boards). The trigger on card_index keeps demo_card_count in
       // sync server-side; the chip and this check read the cached value.
       if (myTier.tier === 'demo') {
-        if (myTier.demoCardCount >= 100) {
+        const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1 });
+        if (capHit) {
           setUpgradeReason('cap-hit');
           return;
         }
@@ -629,10 +631,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); if (!m || !cardsToAdd?.length) return;
       if (isDemoBlockedOnThisBoard()) return;
       if (myTier.tier === 'demo') {
-        const remaining = Math.max(0, 100 - myTier.demoCardCount);
-        if (remaining === 0) { setUpgradeReason('cap-hit'); return; }
-        if (cardsToAdd.length > remaining) {
-          cardsToAdd = cardsToAdd.slice(0, remaining);
+        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: cardsToAdd.length });
+        if (capHit && accepted === 0) { setUpgradeReason('cap-hit'); return; }
+        if (capHit) {
+          cardsToAdd = cardsToAdd.slice(0, accepted);
           setUpgradeReason('cap-hit');
         } else if (myTier.demoCardCount + cardsToAdd.length >= 90 && myTier.demoCardCount < 90) {
           feedback.toast({
@@ -754,15 +756,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const duplicateCards = (ids) => {
       const m = cardsMap(); if (!m || !ids?.length) return [];
+      if (isDemoBlockedOnThisBoard()) return [];
+      // Resolve the cards that would actually be duplicated (skip missing +
+      // board cards) so the demo cap counts only real new cards.
+      let sources = ids.map(id => m.get(id)).filter(ym => ym && ym.get('kind') !== 'board');
+      // Demo-tier cap: same gate as addCard/addCards — block at the limit, slice
+      // an over-cap batch to what fits, warn when crossing the 90 threshold.
+      if (myTier.tier === 'demo') {
+        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: sources.length });
+        if (capHit && accepted === 0) { setUpgradeReason('cap-hit'); return []; }
+        if (capHit) {
+          sources = sources.slice(0, accepted);
+          setUpgradeReason('cap-hit');
+        } else if (myTier.demoCardCount + sources.length >= 90 && myTier.demoCardCount < 90) {
+          feedback.toast({
+            type: 'warning',
+            message: "You're approaching the 100-card demo limit. Upgrade for unlimited.",
+            action: { label: 'Upgrade', onClick: () => setUpgradeReason('cap-hit') },
+          });
+        }
+      }
       const newIds = [];
       breakUndo();
       ydoc.transact(() => {
         let z = nextZ();
-        for (const id of ids) {
-          const ym = m.get(id); if (!ym) continue;
+        for (const ym of sources) {
           const obj = {};
           ym.forEach((v, k) => { obj[k] = v; });
-          if (obj.kind === 'board') continue;
           obj.id = `${obj.kind || 'card'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
           obj.x = (obj.x || 0) + 24;
           obj.y = (obj.y || 0) + 24;
