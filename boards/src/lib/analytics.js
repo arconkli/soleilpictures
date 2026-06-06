@@ -16,6 +16,7 @@
 
 import { supabase } from './supabase.js';
 import { setErrorUser } from './errorReporting.js';
+import { getDeviceInfo } from './device.js';
 
 const SESSION_KEY  = 'soleil_session_id';
 const SOURCE_KEY   = 'soleil_first_source';   // sessionStorage — first-touch acquisition
@@ -147,10 +148,17 @@ let flushTimer = null;
 
 function buildRow(name, props) {
   const source = getFirstSource();
+  const device = getDeviceInfo();
   const merged = (props && typeof props === 'object') ? { ...props } : {};
   // First-touch source merged into every event so funnel queries are trivial
   // ("what % of pricing_view came from utm_source=reddit").
   for (const k in source) if (merged[k] === undefined) merged[k] = source[k];
+  // Device class (type/os/browser) merged into every event so the admin device
+  // breakdown + per-user device read straight from props. Categories only —
+  // never the raw user-agent.
+  if (merged.device_type === undefined) merged.device_type = device.device_type;
+  if (merged.os === undefined)          merged.os          = device.os;
+  if (merged.browser === undefined)     merged.browser     = device.browser;
   return {
     session_id:  getSessionId(),
     user_id:     cachedUserId,   // best-effort; backfilled at flush if it resolves late

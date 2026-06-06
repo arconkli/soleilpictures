@@ -50,8 +50,10 @@ function AcquisitionSection({ acq }) {
   );
 }
 
-function EngagementSection({ eng, tier, lastSignInAt }) {
+function EngagementSection({ eng, tier, lastSignInAt, device }) {
   if (!eng) return null;
+  const last = device?.last;
+  const others = Array.isArray(device?.breakdown) ? device.breakdown : [];
   return (
     <DetailSection title="Engagement" icon={Clock}>
       <dl className="admin-detail-kv">
@@ -62,6 +64,21 @@ function EngagementSection({ eng, tier, lastSignInAt }) {
         {lastSignInAt && <Row label="Last sign-in">{relativeTime(lastSignInAt)}</Row>}
         {tier === 'demo' && (
           <Row label="Demo cards">{formatCount(eng.demo_card_count)} / {eng.demo_card_cap || 100}</Row>
+        )}
+        <Row label="Device">
+          {last?.device_type ? (
+            <>
+              <span className="is-strong" style={{ textTransform: 'capitalize' }}>{last.device_type}</span>
+              <span className="is-muted">{[last.os, last.browser].filter(Boolean).map((x) => ` · ${x}`).join('')}</span>
+            </>
+          ) : <span className="is-muted">No device data yet</span>}
+        </Row>
+        {others.length > 1 && (
+          <Row label="Devices used">
+            <span className="is-muted" style={{ textTransform: 'capitalize' }}>
+              {others.map((b) => `${b.device_type} (${formatCount(b.events)})`).join(' · ')}
+            </span>
+          </Row>
         )}
       </dl>
     </DetailSection>
@@ -215,7 +232,7 @@ export function AdminUserDetail({
           <DetailSection title="Activation" icon={Sparkle}>
             <Timeline activation={detail?.activation} />
           </DetailSection>
-          <EngagementSection eng={detail?.engagement} tier={detail?.identity?.tier || row.tier} lastSignInAt={row.last_sign_in_at} />
+          <EngagementSection eng={detail?.engagement} tier={detail?.identity?.tier || row.tier} lastSignInAt={row.last_sign_in_at} device={detail?.device} />
           <BillingSection billing={detail?.billing} />
           <GrantsSection grants={detail?.grants} />
         </div>
