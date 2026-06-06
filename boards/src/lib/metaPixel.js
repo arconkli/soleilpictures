@@ -9,10 +9,12 @@
 //     (TierRouter) don't spam, and the cold-load PageView isn't double-fired.
 //   • trackPurchase()       — deduped browser Purchase on the success page;
 //     shares event_id (Stripe session id) with the server Purchase.
-//   • trackRegistration()   — fires CompleteRegistration once for a genuinely-new
-//     account, routed through the track-conversion edge fn (CAPI) so it's
-//     reliable and the access token stays server-side. Deduped browser pixel
-//     signal fires alongside under the same event_id.
+//   • trackRegistration()   — fires CompleteRegistration once, routed through the
+//     track-conversion edge fn (CAPI) so it's reliable and the access token stays
+//     server-side. Deduped browser pixel signal fires alongside under the same
+//     event_id. Fires at first product use (first genuine card) via
+//     skipAgeCheck:true; the legacy age gate is kept for any caller that still
+//     wants the signup-time semantics.
 //   • getFbCookies()        — read _fbp/_fbc for threading into checkout/waitlist.
 //
 // Everything is best-effort and never throws into the UI.
@@ -118,11 +120,16 @@ export function trackInitiateCheckout({ value, currency, plan, eventId } = {}) {
 const REG_FLAG_PREFIX = 'soleil.meta.reg.';      // + userId
 const REG_WINDOW_MS   = 15 * 60 * 1000;          // only accounts created in the last 15m are "new"
 
-// Fire CompleteRegistration once for a genuinely-new account. We go through the
-// server (track-conversion) so it's reliable; the server dedups by reg:<userId>,
-// so even if this misfires for an existing user signing in on a fresh device it
-// collapses into their original registration and can't double-count.
-export async function trackRegistration(session) {
+// Fire CompleteRegistration once per user. We go through the server
+// (track-conversion) so it's reliable; the server dedups by reg:<userId>, so even
+// if this misfires for an existing user on a fresh device it collapses into their
+// original registration and can't double-count.
+//
+// skipAgeCheck:true is the first-product-use path — we fire when the user does
+// something real (their first genuine card), which can be days after signup, so
+// the 15m "new account" gate must be bypassed. Without it (the legacy default)
+// the event only fires for accounts created in the last 15 minutes.
+export async function trackRegistration(session, { skipAgeCheck = false } = {}) {
   try {
     const user  = session?.user;
     const token = session?.access_token;
@@ -131,13 +138,19 @@ export async function trackRegistration(session) {
     const flag = REG_FLAG_PREFIX + user.id;
     if (localStorage.getItem(flag)) return;       // already handled on this device
 
-    // Only fire for recently-created accounts; mark-and-skip older ones so we
-    // don't re-check on every load for the rest of the user's life.
-    const createdMs = user.created_at ? Date.parse(user.created_at) : NaN;
-    const isNew = Number.isFinite(createdMs) && (Date.now() - createdMs) < REG_WINDOW_MS;
-    if (!isNew) { try { localStorage.setItem(flag, '1'); } catch (_) {} return; }
+    if (!skipAgeCheck) {
+      // Only fire for recently-created accounts; mark-and-skip older ones so we
+      // don't re-check on every load for the rest of the user's life.
+      const createdMs = user.created_at ? Date.parse(user.created_at) : NaN;
+      const isNew = Number.isFinite(createdMs) && (Date.now() - createdMs) < REG_WINDOW_MS;
+      if (!isNew) { try { localStorage.setItem(flag, '1'); } catch (_) {} return; }
+    }
 
     const eventId = 'reg:' + user.id;
+    // Stamp before the network call so a StrictMode double-invoke can't double-POST
+    // (the server reg:<userId> dedup would collapse it anyway, but this avoids the
+    // duplicate request entirely).
+    try { localStorage.setItem(flag, '1'); } catch (_) {}
 
     // Deduped browser pixel signal (collapsed with the server event by event_id).
     if (fbqReady()) {
@@ -150,7 +163,6 @@ export async function trackRegistration(session) {
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({ event_name: 'CompleteRegistration', event_id: eventId, fbp, fbc }),
     });
-    try { localStorage.setItem(flag, '1'); } catch (_) {}
   } catch (_) {
     // Never throw into the auth flow.
   }

@@ -22,7 +22,7 @@ import { logEvent, logEventOnce } from '../lib/analytics.js';
 import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { peekPendingInviteEmail, claimPendingInvite } from '../lib/inviteApi.js';
-import { trackRegistration, getFbCookies } from '../lib/metaPixel.js';
+import { getFbCookies } from '../lib/metaPixel.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
@@ -220,14 +220,10 @@ export function AuthGate({ children }) {
     };
   }, [localMode, devWithoutSupabase]);
 
-  // Meta CompleteRegistration (CAPI) — fires once for a genuinely-new account.
-  // Idempotent: localStorage-guarded per device + server dedup by reg:<userId>,
-  // and only fires when user.created_at is recent, so re-running on session
-  // changes (or for returning users) is a safe no-op.
-  useEffect(() => {
-    if (localMode || devWithoutSupabase) return;
-    if (session?.user) trackRegistration(session);
-  }, [session, localMode, devWithoutSupabase]);
+  // Meta CompleteRegistration now fires at first product use (first genuine card),
+  // not at signup — see the activation effect in App.jsx. This keeps Facebook ad
+  // optimization training on people who actually use the app, not sign-up-only
+  // no-shows.
 
   if (localMode || devWithoutSupabase) {
     const localUser = { id: 'local-qa-user', email: 'local@soleilpictures.com' };

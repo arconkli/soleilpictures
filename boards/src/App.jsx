@@ -72,6 +72,7 @@ import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
+import { trackRegistration } from './lib/metaPixel.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
@@ -1883,6 +1884,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // localStorage stamps keep them ~once-per-account (admin RPCs dedupe by distinct
   // user_id regardless), and let us skip the O(n) scan for established users.
   const POP_BOARD_THRESHOLD = 3; // genuine cards on one board = a "populated" board
+  // Which moment fires the Meta CompleteRegistration conversion.
+  // 'first_card' = first genuine card (more volume, exits Meta's learning phase
+  // faster); 'populated' = board hits POP_BOARD_THRESHOLD cards (stronger signal,
+  // lower volume). Flip this single value to switch the activation bar.
+  const META_REG_BAR = 'first_card'; // 'first_card' | 'populated'
   // Re-timed first-value nudge: fire a beat AFTER the first genuine card (the 2nd
   // card, or ~15s after the 1st), not on the first card itself. Timer ref persists
   // across renders; cleared on unmount.
@@ -1898,14 +1904,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (fcDone && popDone && fvDone && !onboardingUiActive) return; // nothing left to detect/dismiss
     const genuine = genuineCards(yb.cards);
     if (genuine.length === 0) return;
+    // Fire Meta CompleteRegistration at the chosen activation bar — fire-and-forget,
+    // owner-gated (never for a collaborator on someone else's board), never blocks
+    // or throws into this effect. trackRegistration owns the durable per-device
+    // guard (soleil.meta.reg.<uid>) + server dedup by reg:<uid>, so repeat calls
+    // are no-ops.
+    const fireMetaReg = () => {
+      // Only the user's OWN boards count — never a collaborator's view of a shared
+      // board. The personal root is always owned (and this also covers the brief
+      // window before the owned-boards list has finished loading).
+      const isOwn = currentId === rootBoard.id || !!ownedBoards?.[currentId];
+      if (!isOwn) return;
+      supabase.auth.getSession()
+        .then(({ data }) => trackRegistration(data?.session, { skipAgeCheck: true }))
+        .catch(() => {});
+    };
     try {
       if (!fcDone) {
         localStorage.setItem(fcKey, '1');
         logEventOnce('first_card', EV.ONBOARDING_FIRST_CARD, { board_id: currentId });
+        if (META_REG_BAR === 'first_card') fireMetaReg();
       }
       if (genuine.length >= POP_BOARD_THRESHOLD && !popDone) {
         localStorage.setItem(popKey, '1');
         logEventOnce('activated', EV.ACTIVATED, { board_id: currentId, n: genuine.length });
+        if (META_REG_BAR === 'populated') fireMetaReg();
       }
     } catch { /* localStorage unavailable — logEventOnce still de-dupes per page load */ }
 
