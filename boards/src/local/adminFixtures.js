@@ -48,6 +48,7 @@ const NAMES = ['mara', 'devon', 'priya', 'liang', 'sofia', 'theo', 'amina', 'jon
 const listUsers = NAMES.map((name, i) => {
   const tier = TIERS[i % TIERS.length];
   const paid = tier === 'paid';
+  const contacted = i % 5 === 0;   // sprinkle a few "reached out" users for the preview
   return {
     user_id: `u-${i}`,
     email: `${name}@${['studio.co', 'gmail.com', 'acme.io', 'proton.me'][i % 4]}`,
@@ -63,6 +64,8 @@ const listUsers = NAMES.map((name, i) => {
     subscription_discounted: paid && i % 3 === 0,
     banned: i === 13,
     joined_waitlist: tier === 'waitlist' || i % 4 === 0,
+    outreach_count: contacted ? 1 + (i % 2) : 0,
+    last_reached_out_at: contacted ? tsISO((i % 4) * 1440 + 60) : null,
   };
 });
 

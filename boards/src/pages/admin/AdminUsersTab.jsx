@@ -43,6 +43,7 @@ export function AdminUsersTab() {
   const [query, setQueryRaw]   = useState('');
   const [debounced, setDebounced] = useState('');
   const [tierFilter, setTierFilter] = useState('');   // '' = all tiers
+  const [contacted, setContacted] = useState('');     // '' = all · 'yes' · 'no'
   const [sort, setSort]        = useState('recent');
   const [page, setPage]        = useState(0);          // 0-indexed
   const [busyId, setBusyId]    = useState(null);
@@ -60,20 +61,21 @@ export function AdminUsersTab() {
   }, [query]);
 
   // Reset page when filters / sort change
-  useEffect(() => { setPage(0); }, [debounced, tierFilter, sort]);
+  useEffect(() => { setPage(0); }, [debounced, tierFilter, contacted, sort]);
 
   // ── List query (#1) ──
   const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
     const q = debounced || null;
     const t = tierFilter || null;
+    const c = contacted || null;
     const [listRes, countRes] = await Promise.all([
-      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t, p_sort: sort, p_status: null, p_source: null }),
-      supabase.rpc('admin_user_count', { p_query: q, p_tier: t, p_status: null, p_source: null }),
+      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t, p_sort: sort, p_status: null, p_source: null, p_contacted: c }),
+      supabase.rpc('admin_user_count', { p_query: q, p_tier: t, p_status: null, p_source: null, p_contacted: c }),
     ]);
     if (listRes.error)  throw listRes.error;
     if (countRes.error) throw countRes.error;
     return { rows: listRes.data || [], total: Number(countRes.data) || 0 };
-  }, [page, debounced, tierFilter, sort]);
+  }, [page, debounced, tierFilter, contacted, sort]);
 
   const rows  = data?.rows || [];
   const total = data?.total || 0;
@@ -236,7 +238,42 @@ export function AdminUsersTab() {
     } finally { setBusyId(null); }
   };
 
-  const isFiltered = !!(debounced || tierFilter);
+  // Outreach log — additive, low-stakes, so no confirm on log (only on remove).
+  // Both refresh the row (badge / contacted filter) and the open detail (entry list).
+  const onLogOutreach = async (row, note) => {
+    try {
+      const { error: err } = await supabase.rpc('admin_log_outreach', { p_user_id: row.user_id, p_note: note || null });
+      if (err) throw err;
+      feedback.toast({ type: 'success', message: `Logged outreach to ${row.email}` });
+      await refreshBoth();
+      return true;
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not log outreach: ' + (e?.message || e) });
+      return false;
+    }
+  };
+
+  const onDeleteOutreach = async (row, id) => {
+    const ok = await feedback.confirm({
+      title:   'Remove this outreach entry?',
+      message: 'This deletes the logged outreach note — it can’t be undone.',
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return false;
+    try {
+      const { error: err } = await supabase.rpc('admin_delete_outreach', { p_id: id });
+      if (err) throw err;
+      feedback.toast({ type: 'success', message: 'Outreach entry removed' });
+      await refreshBoth();
+      return true;
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not remove entry: ' + (e?.message || e) });
+      return false;
+    }
+  };
+
+  const isFiltered = !!(debounced || tierFilter || contacted);
 
   return (
     <div className="admin-section admin-section-users">
@@ -263,6 +300,8 @@ export function AdminUsersTab() {
           onQueryChange={setQueryRaw}
           tierFilter={tierFilter}
           onTierFilterChange={setTierFilter}
+          contacted={contacted}
+          onContactedChange={setContacted}
           sort={sort}
           onSortChange={setSort}
           onPrevPage={() => setPage((p) => Math.max(0, p - 1))}
@@ -288,6 +327,8 @@ export function AdminUsersTab() {
           onUnban={onUnban}
           onResync={onResync}
           onDelete={onDelete}
+          onLogOutreach={onLogOutreach}
+          onDeleteOutreach={onDeleteOutreach}
           isOpen={isNarrow && !!selectedUserId}
           onClose={() => setSelectedUserId(null)}
         />

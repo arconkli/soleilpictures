@@ -9,6 +9,7 @@
 import { useEffect, useRef } from 'react';
 import { Icon } from '../../components/Icon.jsx';
 import { ArrowsClockwise, User as UsersIcon } from '../../lib/icons.js';
+import { relativeTime } from '../../lib/adminFormat.js';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { Avatar, SourceBadge, PresenceDot } from './AdminUserDetailParts.jsx';
 
@@ -19,6 +20,11 @@ const SORTS = [
   { value: 'cards',  label: 'Most cards' },
   { value: 'spend',  label: 'Top spend' },
   { value: 'name',   label: 'Name A–Z' },
+];
+const CONTACTED = [
+  { value: '',    label: 'Contacted: all' },
+  { value: 'no',  label: 'Not contacted' },
+  { value: 'yes', label: 'Contacted' },
 ];
 
 function UserListRow({ row, selected, isSelf, onSelect }) {
@@ -40,6 +46,14 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
       <div className="admin-user-badges">
         <SourceBadge source={row.acquisition_source} />
         {isSelf && <span className="admin-muted admin-user-you">you</span>}
+        {row.outreach_count > 0 && (
+          <span
+            className="admin-badge-contacted"
+            title={`Reached out ${row.outreach_count}×${row.last_reached_out_at ? ` · last ${relativeTime(row.last_reached_out_at)}` : ''}`}
+          >
+            contacted{row.outreach_count > 1 ? ` ·${row.outreach_count}` : ''}
+          </span>
+        )}
         {row.banned && <span className="admin-badge-banned" title="Account suspended">banned</span>}
         {ghost && <span className="admin-badge-ghost" title="Signed up but never joined the waitlist">ghost</span>}
       </div>
@@ -58,6 +72,7 @@ export function AdminUserList({
   page, pageCount, firstIdx, lastIdx,
   query, onQueryChange,
   tierFilter, onTierFilterChange,
+  contacted, onContactedChange,
   sort, onSortChange,
   onPrevPage, onNextPage, onRefresh,
   selectedUserId, onSelect, currentUserId, isFiltered,
@@ -104,6 +119,14 @@ export function AdminUserList({
           >
             <option value="">All tiers</option>
             {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select
+            className="auth-input admin-filter-select"
+            value={contacted}
+            onChange={(e) => onContactedChange(e.target.value)}
+            aria-label="Filter by outreach status"
+          >
+            {CONTACTED.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
           <select
             className="auth-input admin-filter-select"
