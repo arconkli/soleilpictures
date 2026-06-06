@@ -15463,6 +15463,12 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .cc-panel-sub { font: 500 10px/1 var(--font-sans); color: var(--ink-3); }
 .cc-panel-body { width: 100%; }
 .cc-rail .cc-panel-body { flex: 1 1 auto; min-height: 0; }
+/* Pie panels need a hard vertical floor: a donut clips if its body shrinks
+   below the ring + bottom legend. flex:1 1 0 stays, so all four panels still
+   split evenly on tall screens (min-height only wins when the even split would
+   be shorter); the rail's overflow-y:auto then scrolls instead of clipping on
+   very short windows. */
+.cc-pie .cc-panel-body { min-height: 132px; }
 
 /* Bottom strip — live universe totals + leaderboard */
 .cc-bottom { grid-area: bottom; pointer-events: auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
@@ -15471,7 +15477,10 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .cc-uni-num { font: 700 22px/1 var(--font-display, var(--font-sans)); color: var(--ink-0); font-variant-numeric: tabular-nums; }
 .cc-uni-label { font: 600 10px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
 .cc-uni-delta { font: 600 10px/1 var(--font-sans); color: var(--soleil); }
-.cc-leaders { border-radius: 14px; padding: 12px 16px; min-width: 0; }
+/* position:relative + overflow:hidden so the ticker list can be pulled out of
+   flow (below) — then .cc-uni alone drives the bottom-row height and the list
+   clips to fit instead of inflating the strip. */
+.cc-leaders { border-radius: 14px; padding: 12px 16px; min-width: 0; position: relative; overflow: hidden; }
 .cc-leaders-title { font: 600 11px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 8px; }
 .cc-leaders-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .cc-leader { display: flex; align-items: center; gap: 8px; font: 500 12px/1.3 var(--font-sans); color: var(--ink-1); }
@@ -15483,16 +15492,26 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 /* Live card-placement ticker (replaces the static "Top creators" leaderboard). */
 .cc-ticker { display: flex; flex-direction: column; }
 .cc-ticker .cc-leaders-title { display: flex; align-items: center; gap: 7px; }
-.cc-ticker-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
+/* Absolutely filled below the title so the list never inflates the bottom row
+   (.cc-uni drives the height). Two columns pack more placements into the small
+   fixed height; the bottom is clipped by .cc-leaders' overflow:hidden. */
+.cc-ticker-list {
+  list-style: none; margin: 0; padding: 0;
+  position: absolute; left: 16px; right: 16px; top: 34px; bottom: 12px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px;
+  grid-auto-rows: min-content; align-content: start;
+  overflow: hidden;
+}
 .cc-ticker-row {
-  display: flex; align-items: center; gap: 8px;
-  font: 500 12px/1.35 var(--font-sans); color: var(--ink-1);
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font: 500 11px/1.3 var(--font-sans); color: var(--ink-1);
   animation: cc-ticker-in var(--dur-base, 220ms) var(--ease, ease) both;
 }
-.cc-ticker-dot { width: 6px; height: 6px; border-radius: 999px; flex: 0 0 auto; background: currentColor; box-shadow: 0 0 7px currentColor; }
-.cc-ticker-actor { color: var(--ink-0); font-weight: 600; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-ticker-dot { width: 5px; height: 5px; border-radius: 999px; flex: 0 0 auto; background: currentColor; box-shadow: 0 0 6px currentColor; }
+.cc-ticker-actor { color: var(--ink-0); font-weight: 600; flex: 0 1 auto; max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cc-ticker-what { color: var(--ink-2); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cc-ticker-time { color: var(--ink-3); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.cc-ticker-list .cc-leader-empty { grid-column: 1 / -1; }
 @keyframes cc-ticker-in {
   from { opacity: 0; transform: translateY(-6px); background: rgba(255,165,0,.12); }
   to   { opacity: 1; transform: none; background: transparent; }
@@ -15519,6 +15538,14 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   .cc-universe { min-height: 360px; }
   .cc-rail { overflow: visible; }
   .cc-bottom { grid-template-columns: 1fr; }
+  /* Stacked: the ticker is full-width and no longer races .cc-uni for row
+     height, so restore it to a normal in-flow single-column list (the absolute
+     fill + 2-col grid only make sense in the side-by-side desktop strip). */
+  .cc-leaders { overflow: visible; }
+  .cc-ticker-list {
+    position: static; left: auto; right: auto; top: auto; bottom: auto;
+    grid-template-columns: 1fr;
+  }
 }
 .universe-error {
   display: flex;

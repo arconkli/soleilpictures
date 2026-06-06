@@ -209,30 +209,30 @@ export function AdminCommandCenter() {
             </ResponsiveContainer>
           </CcPanel>
 
-          <CcPanel title="Tier mix" sub={`${pieData.reduce((a, b) => a + b.value, 0)} accounts`}>
+          <CcPanel title="Tier mix" className="cc-pie" sub={`${pieData.reduce((a, b) => a + b.value, 0)} accounts`}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={34} outerRadius={54}
+                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={28} outerRadius={44}
                      paddingAngle={2} stroke="var(--bg-1)">
                   {pieData.map((d) => <Cell key={d.name} fill={TIER_COLORS[d.name] || '#888'} />)}
                 </Pie>
                 <Tooltip {...TIP} itemStyle={{ color: 'var(--ink-0)' }} />
-                <Legend verticalAlign="middle" align="right" layout="vertical" iconSize={9}
-                        iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }} />
+                <Legend verticalAlign="bottom" align="center" layout="horizontal" iconSize={9}
+                        iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)', lineHeight: '14px' }} />
               </PieChart>
             </ResponsiveContainer>
           </CcPanel>
 
-          <CcPanel title="Content mix" sub={`${formatCount(contentTotal)} cards`}>
+          <CcPanel title="Content mix" className="cc-pie" sub={`${formatCount(contentTotal)} cards`}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={contentMix} dataKey="value" nameKey="name" innerRadius={30} outerRadius={50}
+                <Pie data={contentMix} dataKey="value" nameKey="name" innerRadius={26} outerRadius={42}
                      paddingAngle={2} stroke="var(--bg-1)">
                   {contentMix.map((d) => <Cell key={d.name} fill={KIND_COLOR[d.name] || GREY} />)}
                 </Pie>
                 <Tooltip {...TIP} itemStyle={{ color: 'var(--ink-0)' }} />
-                <Legend verticalAlign="middle" align="right" layout="vertical" iconSize={9}
-                        iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)' }} />
+                <Legend verticalAlign="bottom" align="center" layout="horizontal" iconSize={9}
+                        iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)', lineHeight: '14px' }} />
               </PieChart>
             </ResponsiveContainer>
           </CcPanel>
@@ -310,7 +310,7 @@ export function AdminCommandCenter() {
           <div className="cc-leaders cc-ticker">
             <div className="cc-leaders-title"><span className="cc-live-dot" /> Live placements</div>
             <ol className="cc-ticker-list">
-              {placements.map((p) => (
+              {placements.slice(0, 8).map((p) => (
                 <li key={p._key} className="cc-ticker-row">
                   <span className="cc-ticker-dot" style={{ color: KIND_COLOR[p.kind] || 'var(--soleil)' }} />
                   <span className="cc-ticker-actor">{p.actor || 'someone'}</span>
@@ -355,9 +355,9 @@ function Kpi({ label, value, sub, accent, live }) {
   );
 }
 
-function CcPanel({ title, sub, children }) {
+function CcPanel({ title, sub, className = '', children }) {
   return (
-    <section className="cc-panel">
+    <section className={`cc-panel ${className}`.trim()}>
       <header className="cc-panel-head">
         <h4 className="cc-panel-title">{title}</h4>
         {sub && <span className="cc-panel-sub">{sub}</span>}
