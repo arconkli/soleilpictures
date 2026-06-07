@@ -3335,7 +3335,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {showCoachmark && (
-        <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} />
+        <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} />
       )}
 
       {isPhone && (

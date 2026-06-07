@@ -62,6 +62,11 @@ import { ArrowPopover } from './ArrowPopover.jsx';
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
+// Viewport-px margin used when fitting content into the viewport. Full 80 on
+// >640px screens; smaller on phones so a desktop-sized margin (160px of a ~390px
+// screen) doesn't shrink the content to a tiny zoom. Keeps desktop/tablet framing
+// unchanged.
+const fitMargin = (r) => (r.width > 640 ? 80 : Math.max(16, Math.round(r.width * 0.05)));
 const DRAW_DEFAULT_COLOR = '#f5f5f6';
 const DRAW_DEFAULT_WIDTH = 3;
 const ERASER_DEFAULT_WIDTH = 16;
@@ -858,7 +863,7 @@ export function CanvasSurface({
     }
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
-    const margin = 80;
+    const margin = fitMargin(r);
     const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
       (r.width - margin * 2) / contentW,
       (r.height - margin * 2) / contentH,
@@ -899,7 +904,7 @@ export function CanvasSurface({
     }
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
-    const margin = 80;
+    const margin = fitMargin(r);
     const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
       (r.width - margin * 2) / contentW,
       (r.height - margin * 2) / contentH,

@@ -42,13 +42,14 @@ const DESKTOP = {
   board: { x: 470, y: 320, w: 280, h: 200 },
 };
 
-// Phone layout — a single ~300px-wide column so every card fits a narrow canvas
-// at a readable zoom (~100%) instead of auto-fitting to a tiny ~35%. The Ideas
-// board sits directly below the drag note so the drag-to-nest AHA still works.
+// Phone layout — a single ~300px-wide column. To keep the first screen focused on
+// the AHA, phones get ONE combined intro+drag note with the Ideas board directly
+// below it (a short downward drag), instead of the desktop welcome+drag+board trio.
+// The responsive auto-fit in CanvasSurface frames this column at ~1x on a ~390px
+// phone (it uses a small fit margin below 640px), so the note reads at full size.
 const PHONE = {
-  welcome: { x: 24, y: 64, w: 300, h: 180 },
-  drag: { x: 24, y: 268, w: 300, h: 132 },
-  board: { x: 24, y: 424, w: 300, h: 180 },
+  note:  { x: 24, y: 72,  w: 300, h: 188 },
+  board: { x: 24, y: 288, w: 300, h: 188 },
 };
 
 function welcomeHtml(touch) {
@@ -63,6 +64,12 @@ function dragHtml(narrow) {
     : '<p><strong>Try it:</strong> drag this note into the “Ideas” board →</p><p>It’s how you keep ideas together. Everything saves automatically.</p>';
 }
 
+// Phone: one combined welcome + drag instruction, so the first screen is just this
+// note and the Ideas board below it.
+function phoneIntroHtml() {
+  return '<p><strong>Welcome 👋</strong></p><p>Drag this note down into the “Ideas” board ↓ — it’s how you keep ideas together. Everything saves automatically.</p>';
+}
+
 function buildCards(layout, narrow, touch) {
   return [
     { id: 'onb-welcome', kind: 'note', seed: true, html: welcomeHtml(touch), ...layout.welcome },
@@ -71,10 +78,14 @@ function buildCards(layout, narrow, touch) {
 }
 
 // The starter NOTES, positioned + worded for the CURRENT device. Prefer this
-// over the static STARTER_CARDS so the seed adapts to phones.
+// over the static STARTER_CARDS so the seed adapts to phones. Phones get a SINGLE
+// combined note (keeping the stable `onb-drag` id so nest-detection + first-card
+// semantics are unchanged); desktop keeps the welcome + drag pair.
 export function getStarterCards() {
-  const narrow = isNarrow();
-  return buildCards(narrow ? PHONE : DESKTOP, narrow, isTouch());
+  if (isNarrow()) {
+    return [{ id: 'onb-drag', kind: 'note', seed: true, html: phoneIntroHtml(), ...PHONE.note }];
+  }
+  return buildCards(DESKTOP, false, isTouch());
 }
 
 // The tutorial "Ideas" board mirror card (real seed only — App.jsx). seed:true

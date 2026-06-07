@@ -12,7 +12,7 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
-import { getStarterCards } from '../lib/onboardingStarter.js';
+import { getStarterCards, getStarterTutorialCard } from '../lib/onboardingStarter.js';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -81,6 +81,12 @@ const ONBOARD_PREVIEW = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('onboard') === '1';
 
 function createOnboardingState() {
+  // Mirror the real seed (App.jsx): a tutorial "Ideas" child board + its mirror
+  // card, so the preview shows the FULL first-run layout (notes + a real board to
+  // drag into) and the drag-to-nest gesture can be exercised on a phone emulator.
+  // A kind:'board' card needs a matching boards-map entry or it renders as an
+  // orphan — hence both the board row and the card.
+  const IDEAS_ID = 'local-ideas';
   return {
     boards: {
       [ROOT_ID]: {
@@ -88,9 +94,18 @@ function createOnboardingState() {
         workspace_id: 'local-workspace', parent_board_id: null,
         created_at: new Date(0).toISOString(),
       },
+      [IDEAS_ID]: {
+        id: IDEAS_ID, name: 'Ideas', view: 'canvas',
+        workspace_id: 'local-workspace', parent_board_id: ROOT_ID,
+        created_at: new Date(0).toISOString(),
+      },
     },
     boardState: {
-      [ROOT_ID]: { cards: clone(getStarterCards()), arrows: [], strokes: [] },
+      [ROOT_ID]: {
+        cards: [...clone(getStarterCards()), clone(getStarterTutorialCard(IDEAS_ID))],
+        arrows: [], strokes: [],
+      },
+      [IDEAS_ID]: { cards: [], arrows: [], strokes: [] },
     },
   };
 }
