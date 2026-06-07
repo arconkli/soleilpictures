@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../../components/AppFeedback.jsx';
 import { CopyableText } from '../../components/CopyableText.jsx';
-import { fmtDate, fmtDateTime, formatCount, formatExpires } from '../../lib/adminFormat.js';
+import { fmtDate, fmtDateTime, formatCount, formatExpires, relativeTime } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { StatusPill } from './AdminPills.jsx';
@@ -62,6 +62,26 @@ export function AdminGrantsTab() {
   const [granting, setGranting]   = useState(false);
 
   const parsedEmails = useMemo(() => parseEmails(emailsRaw), [emailsRaw]);
+
+  // Flag emails we've already contacted/granted so we don't double-email someone
+  // during outreach. Debounced lookup against admin_check_grant_emails (0125).
+  const [dupes, setDupes] = useState([]);
+  useEffect(() => {
+    if (parsedEmails.length === 0) { setDupes([]); return undefined; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const { data, error: err } = await supabase.rpc('admin_check_grant_emails', { p_emails: parsedEmails });
+      if (!cancelled) setDupes(err ? [] : (data || []));
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [parsedEmails]);
+
+  const dupeSet = useMemo(() => new Set(dupes.map((d) => d.email)), [dupes]);
+  const dupeCount = dupes.length;
+  const removeDupes = () => setEmailsRaw(parsedEmails.filter((e) => !dupeSet.has(e)).join('\n'));
+  const dupeReason = (d) => (d.has_grant
+    ? `granted ${relativeTime(d.granted_at)}${d.granted_by_email ? ` by ${d.granted_by_email}` : ''}`
+    : `contacted ${relativeTime(d.last_reached_out_at)}${d.last_reached_by_email ? ` by ${d.last_reached_by_email}` : ''}`);
 
   // --- List state ---
   const [query, setQueryRaw]      = useState('');
@@ -124,10 +144,15 @@ export function AdminGrantsTab() {
     }
 
     const label = durationDays === null ? 'forever' : `${durationDays} day${durationDays === 1 ? '' : 's'}`;
+    const dupNote = dupeCount > 0
+      ? `\n\n⚠ ${dupeCount} of these ${dupeCount === 1 ? 'was' : 'were'} already contacted (you may have emailed them already): `
+        + `${dupes.slice(0, 6).map((d) => d.email).join(', ')}${dupeCount > 6 ? '…' : ''}.`
+      : '';
     const ok = await feedback.confirm({
       title: `Grant paid access to ${parsedEmails.length} email${parsedEmails.length === 1 ? '' : 's'}?`,
-      message: `They'll be granted paid-tier access for ${label}. Re-granting replaces any previous expiry.`,
-      confirmLabel: 'Grant access',
+      message: `They'll be granted paid-tier access for ${label}. Re-granting replaces any previous expiry.` + dupNote,
+      confirmLabel: dupeCount > 0 ? 'Grant anyway' : 'Grant access',
+      danger: dupeCount > 0,
     });
     if (!ok) return;
 
@@ -249,6 +274,27 @@ export function AdminGrantsTab() {
           {parsedEmails.length > 0 && (
             <div className="t-meta admin-muted">
               {parsedEmails.length} unique email{parsedEmails.length === 1 ? '' : 's'} parsed
+              {dupeCount > 0 && ` · ${parsedEmails.length - dupeCount} new`}
+            </div>
+          )}
+
+          {dupeCount > 0 && (
+            <div className="admin-grant-dupes">
+              <div className="admin-grant-dupes-head">
+                <span>⚠ {dupeCount} already contacted — you may have emailed {dupeCount === 1 ? 'them' : 'them'} already</span>
+                <button type="button" className="admin-action admin-grant-dupes-remove" onClick={removeDupes}>
+                  Remove already-contacted
+                </button>
+              </div>
+              <ul className="admin-grant-dupes-list">
+                {dupes.slice(0, 8).map((d) => (
+                  <li key={d.email}>
+                    <span className="admin-grant-dupe-email">{d.email}</span>
+                    <span className="admin-muted"> · {dupeReason(d)}</span>
+                  </li>
+                ))}
+                {dupeCount > 8 && <li className="admin-muted">+{dupeCount - 8} more</li>}
+              </ul>
             </div>
           )}
         </form>

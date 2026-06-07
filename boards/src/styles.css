@@ -6547,6 +6547,24 @@ body {
 .admin-grant-customdays { width: 100px; }
 .admin-grant-note { flex: 1 1 220px; min-width: 220px; }
 
+/* Already-contacted warning in the grant form (avoid double outreach). */
+.admin-grant-dupes {
+  margin-top: 10px; padding: 10px 12px;
+  border: 1px solid rgba(210,150,70,.4); border-radius: var(--radius-md);
+  background: rgba(210,150,70,.10);
+}
+.admin-grant-dupes-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font: 600 12px/1.4 var(--font-sans); color: rgb(200,140,70);
+}
+.admin-grant-dupes-remove { flex: 0 0 auto; padding: 4px 8px; font-size: 11px; }
+.admin-grant-dupes-list {
+  list-style: none; margin: 8px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 3px;
+  font: 500 12px/1.4 var(--font-sans);
+}
+.admin-grant-dupe-email { color: var(--ink-1); font-weight: 600; }
+
 /* ── Copy-to-clipboard text ────────────────────────────────────────── */
 .admin-copyable {
   display: inline-flex;
