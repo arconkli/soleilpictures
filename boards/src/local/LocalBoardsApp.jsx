@@ -87,6 +87,10 @@ function createOnboardingState() {
   // A kind:'board' card needs a matching boards-map entry or it renders as an
   // orphan — hence both the board row and the card.
   const IDEAS_ID = 'local-ideas';
+  // Apollo 11's Eagle touched down 1969-07-20 20:17 UTC. A deliberate, fun
+  // placeholder date for the demo "Ideas" board — the board card formats anything
+  // older than ~30 days as a calendar date, so the tile reads "Jul 20, 1969".
+  const MOON_LANDING = '1969-07-20T20:17:00.000Z';
   return {
     boards: {
       [ROOT_ID]: {
@@ -97,7 +101,7 @@ function createOnboardingState() {
       [IDEAS_ID]: {
         id: IDEAS_ID, name: 'Ideas', view: 'canvas',
         workspace_id: 'local-workspace', parent_board_id: ROOT_ID,
-        created_at: new Date(0).toISOString(),
+        created_at: MOON_LANDING,
       },
     },
     boardState: {
