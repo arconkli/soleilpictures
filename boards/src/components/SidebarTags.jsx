@@ -186,10 +186,12 @@ export function SidebarTags({
       setMenuFor(null);
     };
     const onKey = (e) => { if (e.key === 'Escape') setMenuFor(null); };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [menuFor]);
@@ -504,10 +506,12 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
       onCancel?.();
     };
     const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [onCancel]);

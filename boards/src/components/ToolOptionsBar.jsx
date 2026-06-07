@@ -796,8 +796,12 @@ function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, o
       if (wrapRef.current?.contains(e.target)) return;
       setOpen(false);
     };
+    document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
-    return () => document.removeEventListener('mousedown', onDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
+    };
   }, [open]);
 
   // The bottom bar (.tob) has a translateX transform, which establishes a

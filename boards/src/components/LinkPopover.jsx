@@ -42,9 +42,11 @@ export function LinkPopover({ anchor, link, onNavigate, onClose }) {
   useEffect(() => {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
+      document.removeEventListener('pointerdown', onDown, true);
       document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };

@@ -5,6 +5,7 @@ import { Search, X, Check, LayoutGrid, FileText, StickyNote, Image as ImageIcon,
 import { searchEntities } from '../lib/entitySearch.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
+import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 
 const PAD = 8;
 const WIDTH = 380;
@@ -67,24 +68,18 @@ export function EntityPicker({
       const top = placeAbove
         ? Math.max(PAD, anchor.top - maxHeight - PAD)
         : Math.min(vh - maxHeight - PAD, anchor.bottom + PAD);
-      const left = Math.min(Math.max(PAD, anchor.left), vw - WIDTH - PAD);
-      setPos({ top, left, maxHeight });
+      // Cap width to the viewport so the 380px picker doesn't overflow a phone.
+      const width = Math.min(WIDTH, vw - 2 * PAD);
+      const left = Math.min(Math.max(PAD, anchor.left), vw - width - PAD);
+      setPos({ top, left, maxHeight, width });
     };
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, [anchor]);
 
-  useEffect(() => {
-    const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onCancel?.(); };
-    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
-    document.addEventListener('mousedown', onDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onCancel]);
+  // Close on outside tap/click (touch-safe via pointerdown) or Escape.
+  useDismissOnOutside(popRef, true, onCancel);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -146,7 +141,7 @@ export function EntityPicker({
     <div
       ref={popRef}
       className="entity-picker surface-frosted"
-      style={{ top: pos.top, left: pos.left, width: WIDTH, maxHeight: pos.maxHeight }}
+      style={{ top: pos.top, left: pos.left, width: pos.width ?? WIDTH, maxHeight: pos.maxHeight }}
     >
       <div className="entity-picker-search">
         <Icon as={Search} size={14} />

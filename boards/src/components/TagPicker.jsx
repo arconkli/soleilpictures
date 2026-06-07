@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 
 const POP_W = 280;
 
@@ -19,21 +20,8 @@ export function TagPicker({
   const [hover, setHover] = useState(0);
   const ref = useRef(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (!ref.current) return;
-      if (ref.current.contains(e.target)) return;
-      onClose?.();
-    };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    document.addEventListener('mousedown', onDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open, onClose]);
+  // Close on outside tap/click (touch-safe via pointerdown) or Escape.
+  useDismissOnOutside(ref, open, onClose);
 
   const q = query.trim().toLowerCase();
   const matches = useMemo(() => {

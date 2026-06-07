@@ -15,7 +15,7 @@ import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
-import { STARTER_CARDS } from './lib/onboardingStarter.js';
+import { getStarterCards, getStarterTutorialCard } from './lib/onboardingStarter.js';
 import { genuineCards, isSeedCard } from './lib/firstValueTrigger.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { logEvent, logEventNow, logEventOnce } from './lib/analytics.js';
@@ -46,7 +46,6 @@ import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { ReadOnlyBanner } from './components/ReadOnlyBanner.jsx';
-import { MobileDesktopNotice } from './components/MobileDesktopNotice.jsx';
 import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
@@ -1890,8 +1889,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // sees the board already "placed" and never adds a duplicate (non-seed)
       // mirror.
       const cardsToSeed = tutorialBoardId
-        ? [...STARTER_CARDS, { id: tutorialBoardId, kind: 'board', seed: true, x: 470, y: 320, w: 280, h: 200 }]
-        : [...STARTER_CARDS];
+        ? [...getStarterCards(), getStarterTutorialCard(tutorialBoardId)]
+        : [...getStarterCards()];
       mainMutators.addCards?.(cardsToSeed);
       logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId });
       setOnboardingUiActive(true);
@@ -2894,9 +2893,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               title="Exit clean mode (⌘.)">
         Exit clean mode
       </button>
-      {/* One-time "open on desktop" notice for mobile/tablet/touch users.
-          Self-gates on the breakpoint and portals to <body>. */}
-      <MobileDesktopNotice />
       {isPhone && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
              onClick={() => setMobileNavOpen(false)}
@@ -3429,12 +3425,15 @@ function TopbarAddMenu({ onAddBoard, onAddDoc, onLinkBoard }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (event) => { if (event.key === 'Escape') setOpen(false); };
-    const onDown = (event) => { if (!event.target.closest('.topbar-add')) setOpen(false); };
+    const onDown = (event) => { if (!event.target.closest?.('.topbar-add')) setOpen(false); };
     window.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onDown);
+    // pointerdown (capture) + mousedown so a tap-away closes it on touch.
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     return () => {
       window.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
     };
   }, [open]);
 

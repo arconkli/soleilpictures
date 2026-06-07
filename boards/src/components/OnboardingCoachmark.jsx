@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
 // First-run coachmark. A small dismissible pill anchored bottom-center of the
 // canvas, shown ONCE to a brand-new user right after we seed their starter
@@ -12,6 +13,7 @@ import { EV } from '../lib/analyticsEvents.js';
 // card placed, or when the user clicks "Got it" here. This component only
 // renders + fires the one-time view event.
 export function OnboardingCoachmark({ boardId, onDismiss }) {
+  const { isTouch } = useBreakpoint();
   useEffect(() => {
     logEventOnce('onboarding_view', EV.ONBOARDING_VIEW, { board_id: boardId || null });
   }, [boardId]);
@@ -22,7 +24,9 @@ export function OnboardingCoachmark({ boardId, onDismiss }) {
       <div className="onboarding-coachmark-copy">
         <div className="onboarding-coachmark-title">Make it yours</div>
         <div className="onboarding-coachmark-body">
-          Right-click, use the + on the left, or drag an image straight in to add your first card.
+          {isTouch
+            ? 'Tap the + on the left, or long-press the canvas, to add your first card.'
+            : 'Right-click, use the + on the left, or drag an image straight in to add your first card.'}
         </div>
       </div>
       <button

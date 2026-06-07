@@ -174,11 +174,11 @@ export function TweaksPanel({ title = 'Tweaks', children }) {
       clampToViewport();
     };
     const up = () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
     };
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   };
 
   return (
@@ -194,10 +194,10 @@ export function TweaksPanel({ title = 'Tweaks', children }) {
       {open && (
         <div ref={dragRef} className="twk-panel"
              style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
-          <div className="twk-hd" onMouseDown={onDragStart}>
+          <div className="twk-hd" onPointerDown={onDragStart} style={{ touchAction: 'none' }}>
             <b>{title}</b>
             <button className="twk-x" aria-label="Close tweaks"
-                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => setOpen(false)}>✕</button>
           </div>
           <div className="twk-body">{children}</div>

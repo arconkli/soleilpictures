@@ -195,9 +195,11 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     if (!menu) return;
     const onAway = (e) => { if (!e.target.closest?.('.tag-detail-menu')) setMenu(null); };
     const onKey = (e) => { if (e.key === 'Escape') setMenu(null); };
+    window.addEventListener('pointerdown', onAway, { capture: true });
     window.addEventListener('mousedown', onAway, { capture: true });
     window.addEventListener('keydown', onKey);
     return () => {
+      window.removeEventListener('pointerdown', onAway, { capture: true });
       window.removeEventListener('mousedown', onAway, { capture: true });
       window.removeEventListener('keydown', onKey);
     };

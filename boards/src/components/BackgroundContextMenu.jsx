@@ -40,14 +40,17 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
   useEffect(() => {
     if (!open) return;
     const onDocDown = (e) => {
-      if (!e.target.closest('.ctx-menu')) onClose();
+      if (!e.target.closest?.('.ctx-menu')) onClose();
     };
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('mousedown', onDocDown);
-    // Capture phase so a submenu/menu-item stopPropagation can't swallow Escape.
+    // Capture phase + both pointer and mouse so a card's stopPropagation can't
+    // swallow the outside-tap on touch (pointerdown fires before mousedown).
+    document.addEventListener('pointerdown', onDocDown, true);
+    document.addEventListener('mousedown', onDocDown, true);
     window.addEventListener('keydown', onKey, true);
     return () => {
-      document.removeEventListener('mousedown', onDocDown);
+      document.removeEventListener('pointerdown', onDocDown, true);
+      document.removeEventListener('mousedown', onDocDown, true);
       window.removeEventListener('keydown', onKey, true);
     };
   }, [open, onClose]);

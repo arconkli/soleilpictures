@@ -141,10 +141,12 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
       onCancel?.();
     };
     const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [onCancel]);
@@ -503,10 +505,12 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       setOpen(false);
     };
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
@@ -825,10 +829,12 @@ export function CommentArchivePopover({
       onClose?.();
     };
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [onClose]);

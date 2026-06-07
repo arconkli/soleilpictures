@@ -292,14 +292,16 @@ export function TagRangeHoverPopover({
     const measure = () => {
       const vw = window.innerWidth, vh = window.innerHeight;
       const popH = popRef.current?.scrollHeight || 200;
+      // Cap width to the viewport so the popover never overflows a narrow phone.
+      const w = Math.min(W, vw - 2 * PAD);
       const spaceRight = vw - anchor.right - PAD;
-      const openLeft = spaceRight < W + PAD;
+      const openLeft = spaceRight < w + PAD;
       const left = openLeft
-        ? Math.max(PAD, anchor.left - W - 12)
-        : Math.min(vw - W - PAD, anchor.right + 12);
+        ? Math.max(PAD, anchor.left - w - 12)
+        : Math.min(vw - w - PAD, anchor.right + 12);
       const desiredTop = anchor.top + (anchor.height / 2) - (popH / 2);
       const top = Math.max(PAD, Math.min(vh - popH - PAD, desiredTop));
-      setPos({ top, left });
+      setPos({ top, left, w });
       setOpenSide(openLeft ? 'left' : 'right');
     };
     measure();
@@ -341,10 +343,13 @@ export function TagRangeHoverPopover({
       onClose?.();
     };
     document.addEventListener('keydown', onKey, true);
-    document.addEventListener('mousedown', onDown);
+    // pointerdown (capture) too so a tap-away closes it on touch.
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     return () => {
       document.removeEventListener('keydown', onKey, true);
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
     };
   }, [onClose, lightboxIdx, data.images.length]);
 
@@ -361,7 +366,7 @@ export function TagRangeHoverPopover({
     <>
     <div ref={popRef}
          className={`tag-pop tag-pop-from-${openSide} ${enter ? 'is-in' : ''}`}
-         style={{ top: pos.top, left: pos.left, width: W, '--tag-color': tagColor }}
+         style={{ top: pos.top, left: pos.left, width: pos.w ?? W, '--tag-color': tagColor }}
          onMouseEnter={onMouseEnter}
          onMouseLeave={onMouseLeave}>
       <button className="tag-pop-header" onClick={openTag} title="Open tag detail">

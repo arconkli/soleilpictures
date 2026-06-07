@@ -4350,9 +4350,12 @@ export function CanvasSurface({
     // opens and (b) is actually removed on cleanup instead of leaking until
     // some unrelated Escape fires.
     const onKey = (e) => { if (e.key === 'Escape') setTagChipMenu(null); };
+    // pointerdown too so a tap-away closes it on touch (mousedown may not fire).
+    window.addEventListener('pointerdown', onAway, { capture: true });
     window.addEventListener('mousedown', onAway, { capture: true });
     window.addEventListener('keydown', onKey, { capture: true });
     return () => {
+      window.removeEventListener('pointerdown', onAway, { capture: true });
       window.removeEventListener('mousedown', onAway, { capture: true });
       window.removeEventListener('keydown', onKey, { capture: true });
     };
@@ -6848,10 +6851,13 @@ function CardInfoPopover({ x, y, card, currentUserId, getAwareness, onClose }) {
   useEffect(() => {
     const onDocDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose?.(); };
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    document.addEventListener('mousedown', onDocDown);
+    // Capture + pointerdown so a tap outside closes it on touch.
+    document.addEventListener('pointerdown', onDocDown, true);
+    document.addEventListener('mousedown', onDocDown, true);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDocDown);
+      document.removeEventListener('pointerdown', onDocDown, true);
+      document.removeEventListener('mousedown', onDocDown, true);
       document.removeEventListener('keydown', onKey);
     };
   }, [onClose]);

@@ -55,9 +55,11 @@ export function CommentInlinePopover({ ydoc, scope, threadId, anchor, currentUse
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
     document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     return () => {
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown, true);
       document.removeEventListener('mousedown', onDown, true);
     };
   }, [onClose]);

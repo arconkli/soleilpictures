@@ -16192,69 +16192,6 @@ button, [role="button"], a {
 @keyframes sheet-up   { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }
 
-/* Mobile "best on desktop" notice ---------------------------------------- */
-/* One-time bottom sheet (phone) / centered card (tablet). Gated in JS by
-   useBreakpoint(), so it never paints on a precise-pointer desktop. */
-.mdn-root {
-  position: fixed; inset: 0; z-index: 1100;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 16px;
-}
-.mdn-backdrop {
-  position: absolute; inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(2px);
-  animation: mdn-fade var(--dur-base) var(--ease);
-}
-.mdn-panel {
-  position: relative;
-  box-sizing: border-box;
-  width: 100%; max-width: 360px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-3);
-  padding: 24px 22px;
-  display: flex; flex-direction: column; align-items: center;
-  text-align: center;
-  animation: mdn-pop 220ms var(--ease);
-}
-.mdn-icon {
-  color: var(--soleil);
-  filter: drop-shadow(0 0 16px rgba(255, 165, 0, .30));
-  margin-bottom: 12px;
-}
-.mdn-title {
-  font: 600 17px/1.25 var(--font-sans);
-  color: var(--ink-0);
-  margin-bottom: 8px;
-}
-.mdn-body {
-  font: 400 13px/1.5 var(--font-sans);
-  color: var(--ink-2);
-  margin-bottom: 18px;
-}
-.mdn-cta { width: 100%; padding: 11px 16px; font-size: 13px; }
-
-/* Phone: dock to the bottom as a sheet. */
-@media (max-width: 640px) {
-  .mdn-root { justify-content: flex-end; padding: 0; }
-  .mdn-panel {
-    max-width: none;
-    border-left: none; border-right: none; border-bottom: none;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    padding-bottom: calc(24px + var(--safe-bottom));
-    animation: mdn-up 260ms var(--ease);
-  }
-}
-
-@keyframes mdn-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes mdn-pop  { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
-@keyframes mdn-up   { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) {
-  .mdn-backdrop, .mdn-panel { animation: none; }
-}
 
 /* MobileBottomNav -------------------------------------------------------- */
 .mb-nav {
@@ -16484,7 +16421,11 @@ button, [role="button"], a {
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
 @media (max-width: 640px) {
-  .onboarding-coachmark { bottom: 96px; max-width: calc(100vw - 24px); }
+  /* Stack on phones: spark + copy on the first row, full-width tap-target button
+     below — so the copy isn't squeezed into a narrow column by the button. */
+  .onboarding-coachmark { bottom: 96px; max-width: calc(100vw - 24px); flex-wrap: wrap; row-gap: 10px; }
+  .onboarding-coachmark-copy { flex: 1 1 auto; }
+  .onboarding-coachmark-dismiss { width: 100%; height: 40px; order: 3; }
 }
 
 /* ───────────── First-value upgrade nudge (demo, one-time soft banner) ──────── */

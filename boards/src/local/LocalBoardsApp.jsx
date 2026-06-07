@@ -12,7 +12,7 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
-import { STARTER_CARDS } from '../lib/onboardingStarter.js';
+import { getStarterCards } from '../lib/onboardingStarter.js';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -90,7 +90,7 @@ function createOnboardingState() {
       },
     },
     boardState: {
-      [ROOT_ID]: { cards: clone(STARTER_CARDS), arrows: [], strokes: [] },
+      [ROOT_ID]: { cards: clone(getStarterCards()), arrows: [], strokes: [] },
     },
   };
 }
@@ -757,12 +757,14 @@ function LocalTopbarAddMenu({ onAddBoard, onLinkBoard }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (event) => { if (event.key === 'Escape') setOpen(false); };
-    const onDown = (event) => { if (!event.target.closest('.topbar-add')) setOpen(false); };
+    const onDown = (event) => { if (!event.target.closest?.('.topbar-add')) setOpen(false); };
     window.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     return () => {
       window.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
     };
   }, [open]);
 

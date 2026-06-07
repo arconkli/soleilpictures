@@ -156,8 +156,11 @@ export function EntityHoverPopover({
       const top = placeAbove
         ? Math.max(PAD, anchor.top - popHClamped - PAD)
         : Math.min(vh - popHClamped - PAD, anchor.bottom + PAD);
-      const left = Math.min(Math.max(PAD, anchor.left), vw - W - PAD);
-      setPos({ top, left, placeAbove });
+      // Cap width to the viewport so a 380px popover doesn't overflow a ~375px
+      // phone (the left-clamp alone would just push it off the left edge).
+      const w = Math.min(W, vw - 2 * PAD);
+      const left = Math.min(Math.max(PAD, anchor.left), vw - w - PAD);
+      setPos({ top, left, placeAbove, w });
     };
     measure();
     window.addEventListener('resize', measure);
@@ -175,10 +178,13 @@ export function EntityHoverPopover({
       if (popRef.current && !popRef.current.contains(e.target)) onClose?.();
     };
     document.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onDown);
+    // pointerdown (capture) too so a tap-away closes it on touch.
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
     };
   }, [onClose]);
 
@@ -189,7 +195,7 @@ export function EntityHoverPopover({
     <div
       ref={popRef}
       className="ent-pop surface-frosted"
-      style={{ top: pos.top, left: pos.left, width: W, maxHeight: `${MAX_H_VH * 100}vh` }}
+      style={{ top: pos.top, left: pos.left, width: pos.w ?? W, maxHeight: `${MAX_H_VH * 100}vh` }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
