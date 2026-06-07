@@ -1,25 +1,26 @@
 // Starter cards seeded into a brand-new user's empty "Studio" root on first run
 // (see the onboarding effect in App.jsx's Workspace). Stable `onb-` ids keep the
 // seed idempotent (re-running m.set with the same ids overwrites, never
-// duplicates) and let the "placed their own first card" detector ignore them.
-// Plain notes — they render as floating text, matching the product's aesthetic.
+// duplicates); the `seed:true` flag is the durable, id-agnostic marker the
+// "placed their own first card" detector + card_index sync use to ignore seeds
+// (so the seeded "Ideas" board — whose card id is a real UUID — is excluded too).
+//
+// These are the floating-text NOTES only. The seed effect in App.jsx also creates
+// a real nested "Ideas" board at runtime (it needs a DB-generated UUID) and adds
+// its mirror card to the right of `onb-drag`, so a brand-new user immediately sees
+// a board to drag the note into — the core "organize" AHA.
 //
 // Shared by the real seed (App.jsx) and the local first-run preview
-// (LocalBoardsApp, ?local=1&onboard=1) so both render the identical board.
+// (LocalBoardsApp, ?local=1&onboard=1).
 export const STARTER_CARDS = [
   {
-    id: 'onb-welcome', kind: 'note',
-    html: '<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Right-click anywhere, or use the + on the left, to add a note, board and more. You can also drag images and files straight in. ⌘Z undoes anything.</p>',
-    x: 80, y: 90, w: 340, h: 200,
+    id: 'onb-welcome', kind: 'note', seed: true,
+    html: '<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Right-click anywhere, or use the + on the left, to add a note, board and more. Drag images and files straight in. ⌘Z undoes anything.</p>',
+    x: 80, y: 80, w: 340, h: 190,
   },
   {
-    id: 'onb-try', kind: 'note',
-    html: '<p>Try it now: right-click the canvas, or hit the + on the left, to add your first note.</p>',
-    x: 80, y: 300, w: 280, h: 120,
-  },
-  {
-    id: 'onb-tip', kind: 'note',
-    html: '<p><strong>Tip:</strong> drop a board inside a board to nest ideas. Everything saves automatically.</p>',
-    x: 430, y: 90, w: 300, h: 170,
+    id: 'onb-drag', kind: 'note', seed: true,
+    html: '<p><strong>Try it:</strong> drag this note into the “Ideas” board →</p><p>It’s how you keep ideas together. Everything saves automatically.</p>',
+    x: 80, y: 320, w: 300, h: 150,
   },
 ];

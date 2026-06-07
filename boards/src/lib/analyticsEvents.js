@@ -68,9 +68,10 @@ export const EV = Object.freeze({
 
   // ── Onboarding (first-run) ──
   ONBOARDING_VIEW:         'onboarding_view',             // first-card coachmark shown {board_id}
-  ONBOARDING_SEED:         'onboarding_seed',             // starter cards seeded into the root board {n,board_id}
+  ONBOARDING_SEED:         'onboarding_seed',             // starter cards + tutorial board seeded into the root board {n,board_id,tutorial_board_id}
   ONBOARDING_FIRST_CARD:   'onboarding_first_card',       // user placed their OWN first card during onboarding (activation north-star)
-  ONBOARDING_DISMISS:      'onboarding_dismiss',          // onboarding ended {reason:'placed'|'dismissed'}
+  ONBOARDING_NEST:         'onboarding_nest',             // first time the seed note is dragged into the tutorial board — the retention AHA {board_id,source_board_id,n}
+  ONBOARDING_DISMISS:      'onboarding_dismiss',          // onboarding ended {reason:'placed'|'dismissed'|'nested'}
 
   // ── First-value upgrade nudge (demo, once per account) ──
   FIRST_VALUE_UPGRADE_VIEW:   'first_value_upgrade_view',   // soft banner shown at first genuine card {board_id}

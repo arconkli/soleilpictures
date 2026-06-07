@@ -1853,7 +1853,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Seed once, into the empty Studio root, for a genuinely new user. Triple-
   // gated so an existing user is never seeded: durable `seeded` flag, on the
   // personal root, and only when the canvas is truly empty. Idempotent via the
-  // stable onb- ids + the ref guard.
+  // stable onb- ids + the ref guard. We also create a real nested "Ideas" board
+  // and drop a "drag me in" note next to it, so the user can immediately learn
+  // the organize-by-dragging AHA (see the nest-detection in the onDrop handler).
   useEffect(() => {
     if (seedAttemptedRef.current) return;
     if (myTier.loading) return;                                     // wait for tier/onboarding
@@ -1861,14 +1863,54 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!currentYDoc || !yb.ready) return;                         // doc hydrated
     if (currentId !== rootBoard.id) return;                        // personal root only
     if (yb.cards.length !== 0) return;                             // empty canvas only
+    // Set the guard SYNCHRONOUSLY, before any await, so a StrictMode double-mount
+    // (dev) or a re-render mid-await can never enter again and create TWO "Ideas"
+    // boards. The ref covers this mount's lifetime; the durable `seeded` flag +
+    // the empty-canvas gate cover reloads / second tabs.
     seedAttemptedRef.current = true;
-    mainMutators.addCards?.(STARTER_CARDS);
-    logEvent(EV.ONBOARDING_SEED, { n: STARTER_CARDS.length, board_id: rootBoard.id });
-    setOnboardingUiActive(true);
-    // Persist immediately so a reload / second tab never re-seeds.
-    updateOwnSettings({ onboarding: { ...(myTier.onboarding || {}), seeded: true } })
-      .then(() => myTier.refetch?.())
-      .catch(() => {});
+    (async () => {
+      let tutorialBoardId = null;
+      try {
+        const b = await createBoard({
+          workspaceId: workspace.id,
+          parentBoardId: rootBoard.id,
+          name: 'Ideas',
+          view: 'canvas',
+          userId: user.id,
+        });
+        tutorialBoardId = b?.id || null;
+      } catch (e) {
+        // Graceful fallback — onboarding still works with just the notes.
+        console.error('[onboarding] createBoard(Ideas) failed; seeding notes only', e);
+        tutorialBoardId = null;
+      }
+      // The board card id MUST equal the real DB UUID (kind:'board' renders via
+      // boards[id]); seed:true keeps it out of card_placed / activation /
+      // card_index. Add it BEFORE refreshBoards() so the reconcile-drift effect
+      // sees the board already "placed" and never adds a duplicate (non-seed)
+      // mirror.
+      const cardsToSeed = tutorialBoardId
+        ? [...STARTER_CARDS, { id: tutorialBoardId, kind: 'board', seed: true, x: 470, y: 320, w: 280, h: 200 }]
+        : [...STARTER_CARDS];
+      mainMutators.addCards?.(cardsToSeed);
+      logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId });
+      setOnboardingUiActive(true);
+      // Make the new child board visible in the boards map so its card renders as
+      // a real board (not an orphan tile). After addCards so reconcile sees it.
+      if (tutorialBoardId) { try { await refreshBoards(); } catch (_) {} }
+      // Persist durably (one shallow-merge patch — merge_profile_settings replaces
+      // the whole `onboarding` key): the seeded flag so we never re-seed, plus the
+      // tutorial board id so the nest-detection knows which board completes the AHA.
+      updateOwnSettings({
+        onboarding: {
+          ...(myTier.onboarding || {}),
+          seeded: true,
+          ...(tutorialBoardId ? { tutorialBoardId } : {}),
+        },
+      })
+        .then(() => myTier.refetch?.())
+        .catch(() => {});
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTier.loading, myTier.onboarding, currentYDoc, yb.ready, yb.cards.length, currentId, rootBoard.id, mainMutators]);
 
@@ -2193,6 +2235,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const reject = (err) => { try { onTargetFailed?.(err); } catch (_) {} };
       if (!sourceBoardId || !targetBoardId || !movedCards?.length) { reject(new Error('bad event')); return; }
       if (sourceBoardId === targetBoardId) { ack(); return; }
+      // ── Onboarding AHA: first time the seed note is dragged into the tutorial
+      // "Ideas" board. Match on e.detail.cards (ORIGINAL ids like 'onb-drag' —
+      // the new-id remap happens below) + the durable tutorialBoardId. Gated on
+      // onboarding not-yet-done so it fires exactly once. Fire-and-forget; do NOT
+      // early-return — the note still genuinely moves into the board.
+      try {
+        const ob = myTier.onboarding || {};
+        if (ob.done !== true && ob.tutorialBoardId && targetBoardId === ob.tutorialBoardId
+            && movedCards.some((c) => isSeedCard(c))) {
+          logEvent(EV.ONBOARDING_NEST, { board_id: targetBoardId, source_board_id: sourceBoardId, n: movedCards.length });
+          feedback.toast({ type: 'success', message: 'Nice — that’s how you organize ✨' });
+          dismissOnboarding('nested'); // sets onboarding.done:true + logs ONBOARDING_DISMISS
+        }
+      } catch (_) { /* never block the move on the celebration */ }
       console.log('[xbm] start', { sourceBoardId, targetBoardId, movedCount: movedCards.length, movedIds: movedCards.map(c => c.id), movedKinds: movedCards.map(c => c.kind) });
       try {
         // ── ID remapping ──
@@ -2443,7 +2499,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     document.addEventListener('soleil-card-into-board-drop', onDrop);
     return () => document.removeEventListener('soleil-card-into-board-drop', onDrop);
-  }, [boards, feedback, currentYDoc, currentBoard?.id, user?.id]);
+    // myTier.onboarding: re-subscribe when onboarding settings change so the
+    // listener captures the fresh tutorialBoardId (set after the seed effect's
+    // refetch) rather than a stale-null one at drop time. (dismissOnboarding is
+    // deliberately NOT a dep — it's recreated each render and would force a
+    // re-subscribe on every render; the closure captured when onboarding last
+    // changed already reads the correct onboarding state.)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boards, feedback, currentYDoc, currentBoard?.id, user?.id, myTier.onboarding]);
 
   // ── Global drop safety net ────────────────────────────────────────────────
   // Without this, a file / URL / text dropped ANYWHERE that isn't one of our

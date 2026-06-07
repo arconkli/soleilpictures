@@ -10,19 +10,25 @@
 // (ONBOARDING_FIRST_CARD) signal so the two never diverge.
 
 // A genuine card is any card the user placed themselves — i.e. NOT one of the
-// onboarding starter cards, whose ids are stable `onb-*` (see onboardingStarter.js
-// + the seed effect in App.jsx).
+// onboarding starter cards (see onboardingStarter.js + the seed effect in App.jsx).
 export function hasGenuineCard(cards) {
-  return Array.isArray(cards)
-    && cards.some((c) => c && c.id && !String(c.id).startsWith('onb-'));
+  return Array.isArray(cards) && cards.some((c) => c && c.id && !isSeedCard(c));
 }
 
-// A single card is a seed (onboarding starter) iff its id is one of the stable
-// `onb-*` ids. Inverse of the genuine test above, kept here so the client (the
-// card_placed suppression + the activation detector) and the server trigger
-// (_stamp_first_card in 0120) share ONE definition and never drift.
+// A single card is a seed (onboarding starter) iff its id is a stable `onb-*` id
+// OR it carries an explicit `seed:true` flag. The flag covers the seeded nested
+// "Ideas" board, whose canvas card id MUST equal its real DB UUID (kind:'board'
+// renders via boards[c.id]) and therefore CANNOT use an onb- id. The flag is a
+// durable card field (cards persist via raw Y.encodeStateAsUpdate, no field
+// whitelisting), so it survives reloads — keeping the card_placed suppression +
+// the activation detector aligned with intent. NOTE: the server triggers
+// (_stamp_first_card / _stamp_first_populated_board in 0120) still key on
+// `onb-%` only; they never see the seed board because it's excluded from
+// card_index entirely (see _doSyncCardIndex in boardsApi.js).
 export function isSeedCard(card) {
-  return !!(card && card.id && String(card.id).startsWith('onb-'));
+  if (!card) return false;
+  if (card.seed === true) return true;
+  return !!(card.id && String(card.id).startsWith('onb-'));
 }
 
 // The genuine subset of a card batch — drops onboarding seeds. Used so

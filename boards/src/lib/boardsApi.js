@@ -738,6 +738,16 @@ async function _doSyncCardIndex(boardId, ydoc) {
   cardsMap.forEach((v, id) => {
     if (!v) return;
     const get = (k) => v?.get?.(k) ?? v?.[k];
+    // Onboarding seeds never enter the entity-search index. The seeded "Ideas"
+    // board uses a real UUID card id, so an id-prefix test alone is insufficient
+    // — also honor the durable seed:true flag. Keeping these rows OUT of
+    // card_index stops the server triggers _stamp_first_card /
+    // _stamp_first_populated_board (migration 0120, which only exclude
+    // card_id like 'onb-%') from falsely stamping activation at seed time. Boards
+    // render from the `boards` table, not card_index, so the board stays fully
+    // functional; previously-indexed onb- rows are removed by the orphan sweep
+    // below once the live id set changes.
+    if (get('seed') === true || (id && String(id).startsWith('onb-'))) return;
     const kind = get('kind') || 'note';
     const title = get('title') || get('name') || get('label') || get('url') || '';
     // Notes carry text in `html`, not `body` — fall through so we
