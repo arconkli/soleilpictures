@@ -11,11 +11,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
+import { useAuth } from '../../auth/AuthGate.jsx';
 import { useFeedback } from '../../components/AppFeedback.jsx';
 import { CopyableText } from '../../components/CopyableText.jsx';
 import { fmtDate, fmtDateTime, formatCount, formatExpires, relativeTime } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
+import { AdminStatCard } from './AdminStatCard.jsx';
 import { StatusPill } from './AdminPills.jsx';
 import { Sparkle } from '../../lib/icons.js';
 
@@ -28,8 +30,11 @@ const DURATION_PRESETS = [
   { label: '6 months', days: 180 },
   { label: '1 year',   days: 365 },
   { label: 'Forever',  days: null },
-  { label: 'Custom…',  days: 'custom' },
+  { label: 'Custom',   days: 'custom' },
 ];
+
+// preset state (number days | null forever | 'custom') → the pill's key.
+const presetKey = (days) => (days === null ? 'forever' : days === 'custom' ? 'custom' : days);
 
 const STATUS_OPTIONS = [
   { value: '',         label: 'All statuses' },
@@ -53,6 +58,7 @@ function parseEmails(raw) {
 
 export function AdminGrantsTab() {
   const feedback = useFeedback();
+  const { user } = useAuth();
 
   // --- Grant form state ---
   const [emailsRaw, setEmailsRaw] = useState('');
@@ -102,17 +108,19 @@ export function AdminGrantsTab() {
   const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
     const q = debounced || null;
     const s = statusFilter || null;
-    const [listRes, countRes] = await Promise.all([
+    const [listRes, countRes, statsRes] = await Promise.all([
       supabase.rpc('admin_list_paid_grants', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_status: s }),
       supabase.rpc('admin_paid_grants_count', { p_query: q, p_status: s }),
+      supabase.rpc('admin_paid_grants_status_counts'),
     ]);
     if (listRes.error)  throw listRes.error;
     if (countRes.error) throw countRes.error;
-    return { rows: listRes.data || [], total: Number(countRes.data) || 0 };
+    return { rows: listRes.data || [], total: Number(countRes.data) || 0, statusCounts: statsRes.data || {} };
   }, [page, debounced, statusFilter]);
 
   const rows  = data?.rows || [];
   const total = data?.total || 0;
+  const statusCounts = data?.statusCounts || {};
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const firstIdx  = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const lastIdx   = Math.min(total, (page + 1) * PAGE_SIZE);
@@ -203,8 +211,24 @@ export function AdminGrantsTab() {
     }
   };
 
+  // "Granted" cell: who (you / local-part) — concise; full email in the title.
+  const grantedByLabel = (r) => {
+    if (!r.granted_by_email) return '—';
+    if (user?.email && r.granted_by_email.toLowerCase() === user.email.toLowerCase()) return 'you';
+    return r.granted_by_email.split('@')[0];
+  };
+
   return (
     <div className="admin-section">
+
+      {!loading && !error && (
+        <div className="admin-stat-grid">
+          <AdminStatCard label="Active"  value={statusCounts.active  == null ? null : formatCount(statusCounts.active)}  sub="time-bound" />
+          <AdminStatCard label="Forever" value={statusCounts.forever == null ? null : formatCount(statusCounts.forever)} sub="no expiry" />
+          <AdminStatCard label="Expired" value={statusCounts.expired == null ? null : formatCount(statusCounts.expired)} sub="lapsed" />
+          <AdminStatCard label="Revoked" value={statusCounts.revoked == null ? null : formatCount(statusCounts.revoked)} sub="removed" />
+        </div>
+      )}
 
       {/* ===== Grant form ===== */}
       <section className="admin-chart-panel admin-chart-panel-wide">
@@ -224,28 +248,24 @@ export function AdminGrantsTab() {
             onChange={(e) => setEmailsRaw(e.target.value)}
           />
 
-          <div className="admin-grant-controls">
-            <label className="t-meta admin-muted" htmlFor="grant-duration">Duration</label>
-            <select
-              id="grant-duration"
-              className="auth-input admin-filter-select admin-grant-duration"
-              value={preset === null ? 'forever' : String(preset)}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === 'forever')      setPreset(null);
-                else if (v === 'custom')  setPreset('custom');
-                else                      setPreset(Number(v));
-              }}
-            >
-              {DURATION_PRESETS.map((p) => (
-                <option key={p.label} value={p.days === null ? 'forever' : p.days === 'custom' ? 'custom' : String(p.days)}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-
-            {preset === 'custom' && (
-              <>
+          <div className="admin-grant-duration-row">
+            <span className="t-meta admin-muted">Duration</span>
+            <div className="admin-grant-pills" role="group" aria-label="Grant duration">
+              {DURATION_PRESETS.map((p) => {
+                const active = presetKey(preset) === presetKey(p.days);
+                return (
+                  <button
+                    type="button"
+                    key={p.label}
+                    className={`admin-grant-pill ${active ? 'is-active' : ''}`}
+                    aria-pressed={active}
+                    onClick={() => setPreset(p.days === 'custom' ? 'custom' : p.days)}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+              {preset === 'custom' && (
                 <input
                   className="auth-input admin-grant-customdays"
                   type="number"
@@ -253,11 +273,13 @@ export function AdminGrantsTab() {
                   placeholder="days"
                   value={customDays}
                   onChange={(e) => setCustomDays(e.target.value)}
+                  aria-label="Custom duration in days"
                 />
-                <span className="t-meta admin-muted">days</span>
-              </>
-            )}
+              )}
+            </div>
+          </div>
 
+          <div className="admin-grant-controls">
             <input
               className="auth-input admin-grant-note"
               type="text"
@@ -265,7 +287,6 @@ export function AdminGrantsTab() {
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
-
             <button type="submit" className="admin-action admin-action-primary" disabled={granting || parsedEmails.length === 0}>
               {granting ? 'Granting…' : `Grant access${parsedEmails.length > 0 ? ` (${parsedEmails.length})` : ''}`}
             </button>
@@ -339,7 +360,7 @@ export function AdminGrantsTab() {
           loading={loading}
           error={error}
           onRetry={refresh}
-          skeleton={<AdminSkeleton variant="table" rows={6} cols={8} />}
+          skeleton={<AdminSkeleton variant="table" rows={6} cols={7} />}
           isEmpty={rows.length === 0}
           empty={{
             icon: Sparkle,
@@ -347,15 +368,13 @@ export function AdminGrantsTab() {
             body: statusFilter || query ? 'Try a different filter or search.' : 'Grant paid access using the form above.',
           }}
         >
-          <table className={`admin-table ${refreshing ? 'is-refreshing' : ''}`}>
+          <table className={`admin-table admin-grants-table ${refreshing ? 'is-refreshing' : ''}`}>
             <thead>
               <tr>
                 <th>Email</th>
-                <th>Signed up?</th>
-                <th>Tier</th>
+                <th>Signed up</th>
                 <th>Status</th>
                 <th>Expires</th>
-                <th>Granted by</th>
                 <th>Granted</th>
                 <th>Note</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
@@ -370,12 +389,12 @@ export function AdminGrantsTab() {
                     <td className="admin-muted">
                       {r.signed_up ? '✓' : <span title="grant will apply on first sign-in">pending</span>}
                     </td>
-                    <td className="admin-muted">{r.current_tier || '—'}</td>
                     <td><StatusPill kind={r.status} /></td>
                     <td className="admin-muted">{formatExpires(r.expires_at)}</td>
-                    <td className="admin-muted">{r.granted_by_email || '—'}</td>
-                    <td className="admin-muted" title={fmtDateTime(r.granted_at)}>{fmtDate(r.granted_at)}</td>
-                    <td className="admin-muted">{r.note || ''}</td>
+                    <td className="admin-muted" title={`${r.granted_by_email || '—'}${r.granted_at ? ` · ${fmtDateTime(r.granted_at)}` : ''}`}>
+                      {grantedByLabel(r)} · {fmtDate(r.granted_at)}
+                    </td>
+                    <td className="admin-muted admin-grants-note" title={r.note || ''}>{r.note || ''}</td>
                     <td className="admin-actions">
                       <button
                         className="admin-action admin-action-danger"

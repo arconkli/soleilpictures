@@ -357,6 +357,12 @@ RPCS.admin_waitlist_status_counts = {
   canceled: 0,
 };
 
+RPCS.admin_paid_grants_status_counts = (() => {
+  const g = RPCS.admin_list_paid_grants || [];
+  const by = (s) => g.filter((r) => r.status === s).length;
+  return { total: g.length, active: by('active'), forever: by('forever'), expired: by('expired'), revoked: by('revoked') };
+})();
+
 const TABLES = {
   waitlist_entries: waitlistEntries,
   tags, workspaces: tagWorkspaces, tag_centroids: tagCentroids,
