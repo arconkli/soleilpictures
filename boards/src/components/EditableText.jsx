@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { scanForAutoLinks } from '../lib/scanForAutoLinks.js';
 import { EntityLink } from './EntityLink.jsx';
+import { tapIsDouble } from '../lib/doubleTap.js';
 
 export function EditableText({
   value, onChange,
@@ -32,6 +33,14 @@ export function EditableText({
   const setEditing = isControlled ? setEditingProp : setInternalEditing;
   const ref = useRef(null);
   const initialRef = useRef(value);
+  // Touch double-tap → edit. `lastTapRef` feeds tapIsDouble; `lastPtrTypeRef`
+  // records the most recent pointer type so startEdit (also reachable via
+  // onClick in singleClickEdit mode) knows when to focus in-gesture; and
+  // `touchEntryRef` tells the focus effect below to skip its out-of-gesture
+  // refocus (we already focused in the tap gesture to raise the iOS keyboard).
+  const lastTapRef = useRef({});
+  const lastPtrTypeRef = useRef('mouse');
+  const touchEntryRef = useRef(false);
 
   useEffect(() => {
     if (!editing) initialRef.current = value;
@@ -39,6 +48,10 @@ export function EditableText({
 
   useEffect(() => {
     if (editing && ref.current) {
+      // Touch entry already focused + placed the caret synchronously inside
+      // the tap gesture (see startEdit). A second focus here runs out of
+      // user-activation (iOS ignores it for the keyboard); skip it.
+      if (touchEntryRef.current) { touchEntryRef.current = false; return; }
       // Avoid scrollIntoView side-effect: the canvas is transformed, and
       // a browser auto-scroll-into-view on a focused contenteditable
       // can shove the entire page out of place — manifests as the
@@ -80,12 +93,46 @@ export function EditableText({
   };
 
   const startEdit = (e) => {
-    if (stopPropagation) e.stopPropagation();
+    if (stopPropagation) e.stopPropagation?.();
+    // Touch: the iOS soft keyboard only rises if focus() runs synchronously in
+    // the tap gesture on an already-editable element. React flips
+    // contentEditable on the next render, so make it editable + focus NOW;
+    // the focus effect above is gated to not re-focus out of gesture.
+    if (lastPtrTypeRef.current === 'touch' && ref.current) {
+      const el = ref.current;
+      try {
+        el.contentEditable = 'true';
+        el.focus({ preventScroll: true });
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        if (!selectAllOnFocus) range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {
+        try { el.focus(); } catch (_) { /* noop */ }
+      }
+      touchEntryRef.current = true;
+    }
     setEditing(true);
   };
 
+  // Record the pointer type on every pointerdown so startEdit (incl. the
+  // singleClickEdit onClick path) knows whether to focus in-gesture; keep the
+  // editing-time stopPropagation that the old `swallow` provided.
+  const onPtrDown = (e) => {
+    lastPtrTypeRef.current = e.pointerType || 'mouse';
+    if (stopPropagation && editing) e.stopPropagation();
+  };
+  // Touch double-tap enters edit (native dblclick is unreliable on touch).
+  // singleClickEdit mode keeps using onClick — now keyboard-correct via the
+  // startEdit augmentation above.
+  const onPtrUp = (!editing && !singleClickEdit)
+    ? (e) => { if (e.pointerType === 'touch' && tapIsDouble(lastTapRef, e)) startEdit(e); }
+    : undefined;
+
   const swallow = stopPropagation && editing
-    ? { onPointerDown: (e) => e.stopPropagation(), onMouseDown: (e) => e.stopPropagation() }
+    ? { onMouseDown: (e) => e.stopPropagation() }
     : {};
 
   // When editing, the displayed text is whatever the user has typed (we let
@@ -113,6 +160,8 @@ export function EditableText({
       suppressContentEditableWarning
       onClick={clickHandler}
       onDoubleClick={dblClickHandler}
+      onPointerDown={onPtrDown}
+      onPointerUp={onPtrUp}
       onKeyDown={onKey}
       onBlur={commit}
       {...swallow}

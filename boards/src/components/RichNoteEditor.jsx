@@ -12,6 +12,7 @@ import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
+import { tapIsDouble } from '../lib/doubleTap.js';
 
 // Tags kept when pasting rich content into a note. Everything else is unwrapped
 // (children preserved) and every attribute is stripped except a safe href on
@@ -84,6 +85,13 @@ export function RichNoteEditor({
   // a drag-to-select that ends on/near a checkbox doesn't accidentally
   // flip it).
   const tapStartRef = useRef(null);
+  // Touch double-tap → edit. `lastTapRef` tracks the previous tap for
+  // tapIsDouble; `touchEditEntryRef` tells the editing effect below to SKIP
+  // its deferred refocus, because the touch path already focused in-gesture
+  // (required to raise the iOS keyboard) — a second out-of-gesture focus would
+  // flicker the keyboard.
+  const lastTapRef = useRef({});
+  const touchEditEntryRef = useRef(false);
   const { workspaceId } = useEntityTrie();
   // @-mention state: { tokenStart, query, anchorRect, tokenRange }
   // tokenRange is a live DOM Range covering the @<query> text so we
@@ -173,6 +181,15 @@ export function RichNoteEditor({
     // (the committed html re-saves clean on the next blur).
     if (ref.current) {
       ref.current.querySelectorAll('.tt-link[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    }
+    // Touch entry already focused + placed the caret synchronously inside the
+    // tap gesture (see onNotePointerUp). A second focus here would run out of
+    // user-activation (iOS ignores it for the keyboard) and the
+    // removeAllRanges/addRange churn flickers the soft keyboard. Skip it.
+    if (touchEditEntryRef.current) {
+      touchEditEntryRef.current = false;
+      captureSelection();
+      return;
     }
     setTimeout(() => {
       if (!ref.current) return;
@@ -423,6 +440,43 @@ export function RichNoteEditor({
     startEdit(e);
   };
 
+  // Touch-only double-tap → enter edit mode AND raise the soft keyboard.
+  // Native dblclick (onOuterDouble) is unreliable on touch, so we detect the
+  // double-tap from two pointerups. The iOS keyboard only rises if focus()
+  // runs synchronously in THIS gesture on an already-editable element — so we
+  // flip contentEditable=true imperatively and focus before setEditing's
+  // re-render. Mouse / pen keep the native dblclick path untouched.
+  const onNotePointerUp = (e) => {
+    if (editing) return;
+    if (e.pointerType !== 'touch') return;
+    if (e.target.closest && e.target.closest('a, .note-preview-remove, .ck-box')) return;
+    if (!tapIsDouble(lastTapRef, e)) return;
+    const el = ref.current;
+    if (el) {
+      try {
+        el.contentEditable = 'true';
+        el.focus({ preventScroll: true });
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {
+        try { el.focus(); } catch (_) { /* noop */ }
+      }
+    }
+    // Do NOT stopPropagation here: onCardPointerDown registered the drag's
+    // cleanup as a window-bubble `pointerup` listener, and stopping
+    // propagation would prevent it from firing (leaking the move/up
+    // listeners). Letting the event bubble is harmless — the wrapper's
+    // onCardPointerUp → onCardDoubleClick bails now that the body is
+    // contentEditable. Also no preventDefault — on iOS it can cancel the
+    // trailing click that commits the keyboard.
+    touchEditEntryRef.current = true;
+    setEditing(true);
+  };
+
   // Walk the caret's text node backward to find an unbroken @<query>
   // span. Returns { tokenStart, query, tokenRange, anchorRect } | null.
   const detectMentionAtCaret = () => {
@@ -511,18 +565,32 @@ export function RichNoteEditor({
   return (
     <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''}`}
          style={noteStyle}
+         onPointerUp={!editing ? onNotePointerUp : undefined}
          onDoubleClick={onOuterDouble}>
       <div ref={ref}
            className="note-body"
            contentEditable={editing}
            suppressContentEditableWarning
-           // Match the doc editor: explicitly opt this contenteditable in to
-           // Grammarly so its checker attaches consistently. (Underline
-           // alignment is still constrained by the canvas zoom transform —
-           // see the .note-body line-height note in styles.css.)
-           data-gramm="true"
-           data-gramm_editor="true"
-           data-enable-grammarly="true"
+           // Opt this contenteditable OUT of Grammarly. Grammarly overlays a
+           // raw contenteditable with its own pointer-capturing layer, which
+           // silently breaks native MOUSE drag-select across line breaks (the
+           // selection won't extend past a block boundary) while keyboard
+           // select-all (⌘A) keeps working — the exact symptom users hit on
+           // every multi-line note. Confirmed by elimination: in a Grammarly-
+           // free browser the same .note-body markup + CSS drag-selects across
+           // line breaks fine in both directions. The Docs editor
+           // (DocPageEditor) KEEPS Grammarly because Tiptap/ProseMirror manages
+           // its own selection and is immune to the overlay.
+           data-gramm="false"
+           data-gramm_editor="false"
+           data-enable-grammarly="false"
+           // With Grammarly off, notes rely on the browser/OS native
+           // spellchecker for red wavy underlines + right-click "correct to…".
+           // Set it explicitly (matching DocPageEditor) so the spell-check
+           // experience can't silently turn off via a contentEditable default
+           // change. Only takes effect while editing; the read-only display path
+           // is a separate non-editable div, so no squiggles on display.
+           spellCheck={true}
            onPointerDown={editing ? onEditingPointerDown : undefined}
            onMouseDown={editing ? (e) => e.stopPropagation() : undefined}
            onBlur={editing ? commit : undefined}

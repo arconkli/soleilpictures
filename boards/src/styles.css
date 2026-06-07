@@ -7937,6 +7937,35 @@ body {
   z-index: 100;
 }
 
+/* Mobile: the default bar is `max-width: calc(100% - 360px)`, which collapses
+   to ~30px on a phone and stacks every button into an unusable vertical
+   sliver. On narrow screens make it a full-width, single-row, horizontally
+   swipeable bar with real touch targets. `position: fixed` makes `bottom`
+   viewport-relative so the visualViewport effect in ToolOptionsBar can lift it
+   above the soft keyboard while editing a note. (All five `.tob` variants —
+   note / draw / shape / arrow / line — share this fix; the picker popovers are
+   portaled to <body>, so the overflow clip here doesn't hide them.) */
+@media (max-width: 640px) {
+  .tob {
+    left: 8px; right: 8px;
+    transform: none;
+    max-width: none;
+    position: fixed;
+    bottom: calc(8px + var(--safe-bottom, 0px));
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    justify-content: flex-start;
+    gap: 2px;
+    padding: 6px 8px;
+  }
+  .tob::-webkit-scrollbar { display: none; }
+  .tob-btn, .tob-action, .tob-icon-btn, .tob-thick { min-width: 38px; min-height: 38px; }
+  .tob-sep { flex: 0 0 auto; }
+}
+
 /* ──────────────────────────── Phase 4.9: erase, strokes-on-top, polish ─── */
 
 /* Strokes always above cards */
@@ -7980,6 +8009,11 @@ body {
   box-shadow: 0 12px 28px rgba(0,0,0,.35);
   transition: box-shadow .12s ease;
   transform: none;
+  /* The dragged card sits under the finger/cursor; make it transparent to
+     hit-testing so document.elementsFromPoint reliably finds the board
+     beneath it (drag-into-board). Drag move/end use window-level listeners,
+     so the card itself needs no pointer events while dragging. */
+  pointer-events: none;
 }
 .card.is-dragging.card-kind-shape { box-shadow: none; }
 .card.is-dragging .card-resize { opacity: 0; }

@@ -1,6 +1,7 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import * as perf from '../lib/perf.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard,
@@ -2320,6 +2321,16 @@ export function CanvasSurface({
     const dragIds = [...expanded];
     const dragSet = new Set(dragIds);
     markRecentDrag(dragIds);
+    // For touch-friendly drop detection: the grabbed card (primary) + every
+    // board/boardlink we could nest into, captured once (cards don't change
+    // mid-drag). Used by the overlap fallback in flushMove when the finger
+    // itself isn't over a board.
+    const primaryId = c.id;
+    const dropCandidateIds = Object.keys(cardById).filter((id) => {
+      if (dragSet.has(id)) return false;
+      const k = cardById[id];
+      return k && (k.kind === 'board' || (k.kind === 'boardlink' && k.target));
+    });
     const startPositions = {};
     dragIds.forEach(id => {
       const dc = cardById[id];
@@ -2587,6 +2598,32 @@ export function CanvasSurface({
           if (tc?.kind === 'boardlink' && tc.target) { nextDropTarget = tc.target; break; }
           // Keep walking the stack — non-board cards aren't drop
           // targets but we don't want to stop on them either.
+        }
+        // Touch-friendly fallback: on a phone the finger is offset from the
+        // card and occludes small boards, so the point hit-test above often
+        // misses the board you're clearly dragging ONTO. Pick the candidate
+        // board the dragged card visually overlaps the most.
+        if (!nextDropTarget && dropCandidateIds.length) {
+          const dragEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(primaryId) : primaryId}"]`);
+          const dr = dragEl?.getBoundingClientRect();
+          if (dr && dr.width && dr.height) {
+            let best = 0;
+            for (const bid of dropCandidateIds) {
+              const bEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(bid) : bid}"]`);
+              const br = bEl?.getBoundingClientRect();
+              if (!br || !br.width || !br.height) continue;
+              const ox = Math.max(0, Math.min(dr.right, br.right) - Math.max(dr.left, br.left));
+              const oy = Math.max(0, Math.min(dr.bottom, br.bottom) - Math.max(dr.top, br.top));
+              const overlap = ox * oy;
+              if (overlap <= 0) continue;
+              const minArea = Math.min(dr.width * dr.height, br.width * br.height);
+              if (overlap > best && overlap > 0.18 * minArea) {
+                best = overlap;
+                const tc = cardById[bid];
+                nextDropTarget = tc?.kind === 'boardlink' ? tc.target : bid;
+              }
+            }
+          }
         }
       }
       updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
@@ -4706,6 +4743,18 @@ export function CanvasSurface({
     // right-click → Open instead.)
   };
 
+  // Touch: synthesize the double-tap that native dblclick fumbles on mobile so
+  // board/boardlink tiles still OPEN (and art still re-opens) on a phone.
+  // Reuses onCardDoubleClick, which already encodes the per-kind action, bails
+  // on `.editable`, and no-ops for notes/images. Notes & inline titles detect
+  // their OWN double-tap and stopPropagation on the 2nd tap, so this never
+  // double-fires for them.
+  const lastCardTapRef = useRef({});
+  const onCardPointerUp = (e, c) => {
+    if (e.pointerType !== 'touch') return;
+    if (tapIsDouble(lastCardTapRef, e, { key: c.id })) onCardDoubleClick(e, c);
+  };
+
   // Cards that support rotation. Excludes board / boardlink (their click
   // semantics get muddled when rotated) — easy to add later.
   const ROTATABLE = new Set(['shape', 'note', 'image', 'link', 'doc', 'palette']);
@@ -4791,6 +4840,7 @@ export function CanvasSurface({
       className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
+      onPointerUp: (e) => onCardPointerUp(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
       onDoubleClick: (e) => onCardDoubleClick(e, c),
       onMouseEnter: onCardMouseEnter,

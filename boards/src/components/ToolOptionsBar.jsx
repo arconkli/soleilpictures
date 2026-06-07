@@ -480,8 +480,34 @@ export function ToolOptionsBar({
 function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote }) {
   const currentFore = useNoteForeColor(true);
   const fmt = useNoteFormatState(true);
+  const barRef = useRef(null);
+  // Mobile: lift the bar above the soft keyboard. In mobile Safari the keyboard
+  // overlays the layout viewport (visualViewport shrinks, the page doesn't), so
+  // a CSS `bottom` would sit the bar UNDER the keyboard. Track visualViewport
+  // and set the bar's bottom to the keyboard height + a small gap. Desktop / no
+  // keyboard → kb = 0 → no-op. The Capacitor app resizes natively, which the
+  // same math also handles. Re-subscribes per edit (the bar mounts when a note
+  // edit begins).
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    const el = barRef.current;
+    if (!vv || !el) return;
+    if (!window.matchMedia('(max-width: 640px)').matches) return;
+    const apply = () => {
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      el.style.bottom = `calc(${Math.round(kb)}px + 8px)`;
+    };
+    apply();
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
+    return () => {
+      vv.removeEventListener('resize', apply);
+      vv.removeEventListener('scroll', apply);
+    };
+  }, []);
   return (
     <div {...tobProps}
+         ref={barRef}
          onPointerDown={(e) => e.stopPropagation()}>
       <FontPicker />
       <SizePicker value={fmt.fontSize} />
@@ -616,6 +642,7 @@ function FormatBtn({ label, title, cmd, val, bold, active = false }) {
             title={title}
             aria-pressed={active}
             onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
             onClick={() => execCmd(cmd, val)}
             style={bold ? { fontWeight: 700 } : undefined}>
       {label}
@@ -629,6 +656,7 @@ function ListBtn({ label, title, type, active = false }) {
             title={title}
             aria-pressed={active}
             onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
             onClick={() => withSelection(() => toggleList(type))}>
       {label}
     </button>
@@ -829,6 +857,7 @@ function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, o
     <span className="tob-pop-wrap" ref={wrapRef}>
       <button className={`tob-btn ${glyph ? 'tob-color-btn' : ''}`} title={title}
               onMouseDown={(e) => e.preventDefault()}
+              onPointerDown={(e) => e.preventDefault()}
               onClick={() => setOpen(o => !o)}>
         {glyph ? (
           <span className="tob-color-stack">
