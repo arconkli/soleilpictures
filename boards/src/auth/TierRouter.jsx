@@ -12,8 +12,9 @@
 //
 // Anyone signed in can hit /pricing (e.g. demo upgrading).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { WelcomePage } from './WelcomePage.jsx';
@@ -21,7 +22,9 @@ import { AdWelcome } from './AdWelcome.jsx';
 import { WaitlistConfirm } from './WaitlistConfirm.jsx';
 import { PricingPage } from './PricingPage.jsx';
 import { PricingSuccess } from './PricingSuccess.jsx';
-import { AdminPage } from '../pages/AdminPage.jsx';
+// Lazy: AdminPage pulls in recharts (~133KB gz) but only the /admin route (admins
+// only) renders it. Keeping it lazy means no other user downloads the charts lib.
+const AdminPage = lazyWithReload(() => import('../pages/AdminPage.jsx').then(m => ({ default: m.AdminPage })));
 import { UpgradeChip } from '../components/UpgradeChip.jsx';
 import { SoleilMark } from '../components/primitives.jsx';
 
@@ -94,7 +97,7 @@ export function TierRouter({ children }) {
   }
 
   // tier in (admin, paid, demo) — signed-in-only side pages
-  if (path === '/admin')             return <AdminPage />;
+  if (path === '/admin')             return <Suspense fallback={<Splash />}><AdminPage /></Suspense>;
 
   // Default → app, with the UpgradeChip overlay for demo users.
   return (

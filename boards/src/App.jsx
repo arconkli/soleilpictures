@@ -3,7 +3,7 @@
 // (parent_board_id). Each board's cards/arrows live in a Y.Doc whose
 // snapshot is persisted to board_state.
 
-import React, { useState, useEffect, useMemo, useRef, Profiler } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Profiler, Suspense } from 'react';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import * as perf from './lib/perf.js';
 import { isEditableTarget } from './lib/isEditableTarget.js';
@@ -68,7 +68,9 @@ import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
-import { LocalBoardsApp } from './local/LocalBoardsApp.jsx';
+// Lazy: the ?local=1 / no-Supabase QA harness (and its deps — demo data,
+// TweaksPanel, HomeGraph) should never ship in the eager production bundle.
+const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx').then(m => ({ default: m.LocalBoardsApp })));
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
@@ -85,7 +87,11 @@ import { TrashModal } from './components/TrashModal.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
-import { HomeGraph } from './components/HomeGraph.jsx';
+import { lazyWithReload } from './lib/lazyWithReload.js';
+// Lazy: HomeGraph pulls in three.js + react-force-graph-3d (~365KB gz) but only
+// renders on the Home view. Keeping it out of the eager App bundle means a board
+// canvas no longer downloads the 3D-graph libs.
+const HomeGraph = lazyWithReload(() => import('./components/HomeGraph.jsx').then(m => ({ default: m.HomeGraph })));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 
@@ -175,7 +181,7 @@ export function App() {
   }, []);
 
   const { user, signOut } = useAuth();
-  if (isLocalQaMode() || !isSupabaseConfigured) return <LocalBoardsApp user={user} signOut={signOut} />;
+  if (isLocalQaMode() || !isSupabaseConfigured) return <Suspense fallback={null}><LocalBoardsApp user={user} signOut={signOut} /></Suspense>;
 
   const { loading: wsLoading, workspace: personalWorkspace, rootBoard: personalRoot, error: wsError } = useWorkspace();
   const { workspaces, refresh: refreshWorkspaces } = useAllWorkspaces(user);
@@ -3196,19 +3202,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         )}
 
         {currentSurface === 'home' ? (
-          <HomeGraph
-            workspaceId={workspace.id}
-            onNavigate={(target) => {
-              setCurrentSurface('board');
-              if (target?.kind === 'url') {
-                window.open(target.href, '_blank', 'noopener,noreferrer');
-                return;
-              }
-              if (target?.kind === 'board') setStack([target.id]);
-              if (target?.kind === 'card')  setStack([target.boardId]);
-              if (target?.kind === 'doc')   { /* doc cards open inside their board canvas; future wiring */ }
-            }}
-          />
+          <Suspense fallback={<div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}><SoleilMark size={28} color="var(--soleil)" glow /></div>}>
+            <HomeGraph
+              workspaceId={workspace.id}
+              onNavigate={(target) => {
+                setCurrentSurface('board');
+                if (target?.kind === 'url') {
+                  window.open(target.href, '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                if (target?.kind === 'board') setStack([target.id]);
+                if (target?.kind === 'card')  setStack([target.boardId]);
+                if (target?.kind === 'doc')   { /* doc cards open inside their board canvas; future wiring */ }
+              }}
+            />
+          </Suspense>
         ) : currentSurface === 'tag' && activeTag ? (
           <TagDetailView
             tag={activeTag}
