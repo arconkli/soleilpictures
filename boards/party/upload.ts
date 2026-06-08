@@ -31,9 +31,20 @@ import { AwsClient } from "aws4fetch";
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_djb-_42yVCKWTNTfhhVqTQ_9TVpSNAr";
 
-// Read-URL TTL — short enough that a leaked URL goes stale fast,
-// long enough that the client cache (4 min) refreshes before expiry.
-const READ_URL_TTL_SECONDS = 300;
+// Read-URL TTL — long-lived (7 days = SigV4 max) so the client can persist
+// signed URLs across reloads and reuse the SAME url string, turning repeat
+// board views into instant browser-disk-cache hits instead of a re-sign +
+// re-download every cold open. Paired with the response-cache-control override
+// below so R2 actually returns cacheable bytes. Tradeoff: a leaked read URL
+// stays valid up to 7 days (was 5 min).
+const READ_URL_TTL_SECONDS = 7 * 24 * 60 * 60;  // 604800 (SigV4 max)
+
+// Applied to every signed GET via the SigV4 `response-cache-control` query
+// override, so even already-uploaded objects (no re-PUT needed) come back with
+// durable, immutable browser caching. Object keys are content-stable (per-UUID
+// originals/previews; per-board thumbs overwritten in place), so `immutable`
+// is safe — a new image is a new key, never a mutated one.
+const READ_RESPONSE_CACHE_CONTROL = "public, max-age=604800, immutable";
 
 interface R2Env {
   accountId: string;
@@ -112,6 +123,22 @@ async function supabaseGet(path: string, token: string): Promise<any[] | null> {
   });
   if (!res.ok) return null;
   return res.json();
+}
+
+// Presign a long-lived GET URL for an R2 object, with a SigV4
+// `response-cache-control` override so R2 returns immutable browser-cache
+// headers on the response (no re-PUT of existing objects needed). The override
+// is a SIGNED query param — it must be on the URL before signing, or R2 rejects
+// the signature. Shared by /sign-reads and /share-bundle so both paths produce
+// identical, cacheable, persistable URLs.
+async function signReadUrl(r2: AwsClient, env: R2Env, key: string): Promise<string> {
+  const base = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
+  const r2Url = `${base}?response-cache-control=${encodeURIComponent(READ_RESPONSE_CACHE_CONTROL)}`;
+  const signed = await r2.sign(
+    new Request(r2Url, { method: "GET" }),
+    { aws: { signQuery: true }, expiresIn: READ_URL_TTL_SECONDS } as any,
+  );
+  return signed.url;
 }
 
 // ── Party ────────────────────────────────────────────────────────────
@@ -213,12 +240,7 @@ export default class UploadParty implements Party.Server {
     const imageUrls: Record<string, string> = {};
     await Promise.all(imageKeys.map(async (key) => {
       try {
-        const r2Url = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
-        const signed = await r2.sign(
-          new Request(r2Url, { method: "GET" }),
-          { aws: { signQuery: true }, expiresIn: READ_URL_TTL_SECONDS } as any,
-        );
-        imageUrls[key] = signed.url;
+        imageUrls[key] = await signReadUrl(r2, env, key);
       } catch (_) { /* skip unreachable keys */ }
     }));
 
@@ -333,12 +355,7 @@ export default class UploadParty implements Party.Server {
     const out: Record<string, string> = {};
     await Promise.all(requested.map(async (key) => {
       if (!allowedKeys.has(key)) return;
-      const r2Url = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
-      const signed = await r2.sign(
-        new Request(r2Url, { method: "GET" }),
-        { aws: { signQuery: true }, expiresIn: READ_URL_TTL_SECONDS } as any,
-      );
-      out[key] = signed.url;
+      out[key] = await signReadUrl(r2, env, key);
     }));
 
     return Response.json(

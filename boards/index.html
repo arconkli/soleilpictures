@@ -19,6 +19,15 @@
   <link rel="preconnect" href="https://checkout.stripe.com" crossorigin />
   <link rel="preconnect" href="https://js.stripe.com" crossorigin />
 
+  <!-- Warm the hot-path origins so the first auth check, image sign-reads call,
+       and realtime connection don't each pay a fresh DNS+TLS handshake — they
+       gate board open and first image paint. crossorigin: all are CORS
+       fetch/WebSocket. (R2's GET host is account-scoped and not known at build
+       time, so it only gets a DNS prefetch.) -->
+  <link rel="preconnect" href="https://ehlhlmbpwwalmeisvmdp.supabase.co" crossorigin />
+  <link rel="preconnect" href="https://soleil-boards-party.arconkli.partykit.dev" crossorigin />
+  <link rel="dns-prefetch" href="https://r2.cloudflarestorage.com" />
+
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/favicon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />

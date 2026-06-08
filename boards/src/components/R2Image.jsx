@@ -18,7 +18,7 @@
 //              un-backfilled image is seen.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cachedUrl, resolveSrc, getSignedUrl } from '../lib/r2.js';
+import { cachedUrl, resolveSrc, getSignedUrl, CACHE_TTL_MS } from '../lib/r2.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { runGated } from '../lib/backfillGate.js';
 import { thumbHashToDataURL } from 'thumbhash';
@@ -29,6 +29,11 @@ const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expir
 // One backfill attempt per image key per session (success OR definitive
 // failure). Cleared only by a page reload.
 const _backfillAttempted = new Set();
+
+// One metadata prime per image key per session — a card re-entering the viewport
+// must not re-fire primeImageMeta (imageMeta dedupes the query too, but this
+// avoids even scheduling the call). Cleared only by a page reload.
+const _primeAttempted = new Set();
 
 // Decode a base64 thumbhash to a data URL once (cheap, but cache anyway).
 const _blurCache = new Map();
@@ -100,7 +105,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
           if (cancelled) return;
           const fresh = await getSignedUrl(src.slice(3));
           if (!cancelled && fresh) setUrl(fresh);
-        }, 4 * 60 * 1000 - REFRESH_BEFORE_MS);
+        }, CACHE_TTL_MS - REFRESH_BEFORE_MS);
       }
     };
     tick();
@@ -215,7 +220,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // their metadata fetched lazily the first time they're visible.
   useEffect(() => {
     if (!visible || !originalKey) return;
-    if (getMeta(originalKey) == null) primeImageMeta([originalKey]);
+    if (_primeAttempted.has(originalKey)) return;
+    if (getMeta(originalKey) == null) { _primeAttempted.add(originalKey); primeImageMeta([originalKey]); }
   }, [visible, originalKey]);
 
   // Before anything has loaded, if a preview becomes known, prefer it (catches
@@ -244,7 +250,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
           if (cancelled) return;
           const fresh = await getSignedUrl(activeSrc.slice(3));
           if (!cancelled && fresh) setUrl(fresh);
-        }, 4 * 60 * 1000 - REFRESH_BEFORE_MS);
+        }, CACHE_TTL_MS - REFRESH_BEFORE_MS);
       }
     };
     tick();
@@ -264,7 +270,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (activeSrc !== `r2:${meta.previewKey}`) return;
     let cancelled = false;
     const ric = (typeof window !== 'undefined' && window.requestIdleCallback)
-      ? window.requestIdleCallback : (fn) => setTimeout(() => fn(), 1200);
+      ? window.requestIdleCallback : (fn) => setTimeout(() => fn(), 300);
     const cancelRic = (typeof window !== 'undefined' && window.cancelIdleCallback)
       ? window.cancelIdleCallback : clearTimeout;
     const id = ric(() => {

@@ -74,14 +74,18 @@ export async function primeImageMeta(keys) {
 
   const _t0 = perf.isEnabled() ? performance.now() : 0;
   const CHUNK = 200;
+  const chunks = [];
+  for (let i = 0; i < todo.length; i += CHUNK) chunks.push(todo.slice(i, i + CHUNK));
   try {
-    for (let i = 0; i < todo.length; i += CHUNK) {
-      const chunk = todo.slice(i, i + CHUNK);
+    // Run every 200-key chunk in parallel — a 500-image board primes in one
+    // round-trip's worth of wall time instead of three serialized ones, so the
+    // Tier-0 blur can paint sooner.
+    await Promise.all(chunks.map(async (chunk) => {
       const { data, error } = await supabase
         .from('images')
         .select('storage_path,blur_hash,preview_path,preview_w,preview_h,width,height')
         .in('storage_path', chunk);
-      if (error) { for (const k of chunk) inflight.delete(k); continue; }
+      if (error) { for (const k of chunk) inflight.delete(k); return; }
       const seen = new Set();
       for (const row of (data || [])) {
         cache.set(row.storage_path, rowToMeta(row));
@@ -96,7 +100,7 @@ export async function primeImageMeta(keys) {
         notify(k);
       }
       for (const k of seen) notify(k);
-    }
+    }));
   } finally {
     for (const k of todo) inflight.delete(k);
     if (_t0) {

@@ -12,7 +12,11 @@
 // global gate keeps the total backfill burst civil across BOTH features (a board
 // open shouldn't fire thumbnail PUTs and image-preview PUTs simultaneously).
 
-const CONCURRENCY = 2;
+// 4 in flight: the work is mostly async (createImageBitmap decode, R2 PUT,
+// Supabase RPC) so a cap of 2 left CPU + network idle and made late cards on a
+// 20-image board wait seconds for a preview slot. 4 keeps the burst civil
+// without starving the visible work.
+const CONCURRENCY = 4;
 let _active = 0;
 const _queue = [];
 
