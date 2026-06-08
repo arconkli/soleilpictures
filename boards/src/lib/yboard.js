@@ -22,6 +22,7 @@ import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 import { renderThumbnailBlob, quickVisualHash } from './renderThumbnail.js';
 import { uploadBoardThumbnail } from './uploads.js';
 import { peekBoardSnapshot, prefetchBoard } from './prefetchKinds.js';
+import { getSnapshot, putSnapshot } from './snapshotCache.js';
 import { invalidate as invalidatePrefetch } from './prefetch.js';
 import * as perf from './perf.js';
 // Round 16: serialize the localStorage preview envelope off the main
@@ -204,7 +205,7 @@ function clearLocalDraft(boardId, version) {
   } catch (_) {}
 }
 
-export function loadYBoard(boardId, { userId = null, user = null, workspaceId = null, hasThumb = false } = {}) {
+export function loadYBoard(boardId, { userId = null, user = null, workspaceId = null, hasThumb = false, onEarlyContent = null } = {}) {
   const _loadT0 = perf.isEnabled() ? performance.now() : 0;
   const ydoc = new Y.Doc();
   const cards = ydoc.getMap('cards');
@@ -338,6 +339,26 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
           if (ms > 100) console.warn('[perf] slow yboard.applyDraft', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`, boardId);
         }
       }
+      // Instant reopen: paint the last-cached snapshot before the network
+      // lands. origin 'snapshot' = same semantics as the draft/server applies
+      // (never marks dirty / never persists). The server fetch below still runs
+      // and reconciles — its full state carries tombstones, so nothing stale
+      // survives. Skipped when a local draft exists (that's newer, unsaved).
+      let paintedEarly = !!localDraft?.doc;
+      if (!localDraft?.doc) {
+        try {
+          const cached = await getSnapshot(boardId, userId);
+          if (cached?.b64 && !destroyed) {
+            Y.applyUpdate(ydoc, b64ToBytes(cached.b64), 'snapshot');
+            paintedEarly = true;
+            perf.bump('yboard.cacheHit');
+          }
+        } catch (_) {}
+      }
+      // Render whatever we have NOW (cache or draft) so the board appears
+      // instantly, ahead of the network snapshot.
+      if (paintedEarly) { try { onEarlyContent?.(); } catch (_) {} }
+
       // Consume a hover-warmed snapshot if one is sitting in the
       // prefetch cache; otherwise fall through to the fetcher (which
       // dedupes against any in-flight prefetch from the same hover).
@@ -365,6 +386,8 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
           perf.gauge('yboard.lastSnapshotBytes', bytes.length);
           if (ms > 100) console.warn('[perf] slow yboard.applySnapshot', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`, boardId);
         }
+        // Refresh the instant-reopen cache with the authoritative server state.
+        if (!destroyed) putSnapshot(boardId, userId, b64);
       }
     } catch (e) {
       console.error('loadBoardSnapshot failed', e);
@@ -435,6 +458,9 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     ydoc.off('update', onUpdate);
     if (initialized) {
       const version = saveLocalDraft(boardId, ydoc, ++draftVersion);
+      // Refresh the instant-reopen cache with the latest state on close so the
+      // next open of this board paints current content, not last session's.
+      try { putSnapshot(boardId, userId, bytesToB64(Y.encodeStateAsUpdate(ydoc))); } catch (_) {}
       saveBoardSnapshot(boardId, ydoc)
         .then(() => {
           clearLocalDraft(boardId, version);

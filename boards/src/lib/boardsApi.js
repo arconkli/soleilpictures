@@ -680,6 +680,10 @@ const _syncState = new Map();   // boardId → { last: timestamp, pending: timer
 // cards that actually changed (instead of re-writing — and re-broadcasting —
 // every card on the board every ~10s while editing).
 const _cardIndexCache = new Map();   // boardId → { sigs: Map<card_id, sig>, ids: Set<card_id> }
+// board_id → workspace_id is immutable for a board's lifetime, but the sync
+// fires every ~10s while editing — cache it so each flush is one round-trip,
+// not two.
+const _boardWsCache = new Map();
 
 export async function syncCardIndex({ boardId, ydoc }) {
   if (!supabase || !boardId || !ydoc) return;
@@ -709,10 +713,14 @@ function htmlToText(html) {
 
 async function _doSyncCardIndex(boardId, ydoc) {
   if (!supabase || !boardId || !ydoc) return;
-  const wsq = await supabase.from('boards').select('workspace_id').eq('id', boardId).maybeSingle();
-  if (wsq.error) { console.warn('syncCardIndex resolve workspace', wsq.error); return; }
-  const workspaceId = wsq.data?.workspace_id;
-  if (!workspaceId) return;
+  let workspaceId = _boardWsCache.get(boardId);
+  if (!workspaceId) {
+    const wsq = await supabase.from('boards').select('workspace_id').eq('id', boardId).maybeSingle();
+    if (wsq.error) { console.warn('syncCardIndex resolve workspace', wsq.error); return; }
+    workspaceId = wsq.data?.workspace_id;
+    if (!workspaceId) return;
+    _boardWsCache.set(boardId, workspaceId);
+  }
   const cardsMap = ydoc.getMap('cards');
   // Pull the groups map once so we can capture group names per
   // card in card_index.meta. Used by the tag detail view to render

@@ -93,7 +93,11 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     // Performance "Timings" lane via perf.mark's performance.measure shim.
     const _tOpen = performance.now();
     let _firstRefreshDone = false;
-    const handle = loadYBoard(boardId, { userId, user, workspaceId, hasThumb });
+    // Wired to scheduleRefresh once it's defined below; loadYBoard calls this
+    // after the instant cache/draft paint so the board renders ahead of the
+    // network snapshot.
+    let earlyRefresh = () => {};
+    const handle = loadYBoard(boardId, { userId, user, workspaceId, hasThumb, onEarlyContent: () => earlyRefresh() });
     handleRef.current = handle;
 
     let unmounted = false;
@@ -150,6 +154,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
         refresh();
       });
     };
+    earlyRefresh = scheduleRefresh;   // now safe to fire the instant cache paint
 
     const onUpdate = () => { perf.bump('yboard.update'); scheduleRefresh(); };
     handle.ydoc.on('update', onUpdate);
