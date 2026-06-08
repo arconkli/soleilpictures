@@ -62,6 +62,16 @@ class SetText      { constructor(t) { this.t = t; } element(el) { el.setInnerCon
 class SetContent   { constructor(v) { this.v = v; } element(el) { el.setAttribute('content', this.v); } }
 class SetHref      { constructor(h) { this.h = h; } element(el) { el.setAttribute('href', this.h); } }
 
+// Copy a response, forcing HTML documents to revalidate on every load so new
+// deploys' chunk hashes are picked up immediately. `no-cache` still lets the
+// browser/CDN cache the bytes — it just requires a conditional revalidation
+// first, so the common case is a cheap 304, not a full re-download.
+function withRevalidate(res) {
+  const headers = new Headers(res.headers);
+  headers.set('cache-control', 'no-cache');
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
 // Rewrite the document's title/description/canonical + the OG/Twitter mirrors
 // to `meta`, and point canonical/og:url at `canonical`.
 function injectRouteMeta(res, meta, canonical) {
@@ -93,17 +103,41 @@ export default {
     }
 
     const res = await env.ASSETS.fetch(request);
+    const contentType = res.headers.get('content-type') || '';
+
+    // A request for a content-hashed build asset (/assets/<name>-<hash>.js|css)
+    // that the SPA fallback answered with index.html (text/html) means that exact
+    // chunk no longer exists on this deploy — i.e. a stale client running the
+    // PREVIOUS build. Return a clean 404 so the browser rejects the dynamic
+    // import with "Failed to fetch dynamically imported module" (which
+    // lazyWithReload recognizes → one-shot reload) instead of trying to execute
+    // the HTML as JavaScript and crashing with "undefined (reading 'default')".
+    if (request.method === 'GET' && url.pathname.startsWith('/assets/') && contentType.includes('text/html')) {
+      return new Response('Not found', {
+        status: 404,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+      });
+    }
+
     // Inject per-route SEO metadata for HTML document navigations to a known
     // public route. The asset served is index.html (SPA fallback), but the
     // Worker still sees the real pathname, so we can give each URL its own meta.
     if (request.method === 'GET') {
       const meta = ROUTE_META[normalizePath(url.pathname)];
-      if (meta && (res.headers.get('content-type') || '').includes('text/html')) {
+      if (meta && contentType.includes('text/html')) {
         const p = normalizePath(url.pathname);
         const canonical = p === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${p}`;
-        return injectRouteMeta(res, meta, canonical);
+        return withRevalidate(injectRouteMeta(res, meta, canonical));
       }
     }
+
+    // index.html (the SPA document, served for every app route) must be
+    // revalidated so a returning client always picks up the newest deploy's
+    // content-hashed chunk references instead of running a stale index that
+    // points at chunks that have since been replaced. Hashed /assets/* keep
+    // their year-long immutable cache (public/_headers) — only the HTML shell
+    // is made always-fresh here.
+    if (contentType.includes('text/html')) return withRevalidate(res);
     return res;
   },
   async scheduled(event, env, ctx) {

@@ -19,29 +19,47 @@ const RELOAD_KEY = 'soleil:chunk-reload-at';   // shared with main.jsx vite:prel
 const RELOAD_WINDOW_MS = 10_000;
 
 // A genuine stale-chunk / network module-load failure (vs. a real runtime error
-// thrown from inside the module, which we must NOT swallow).
+// thrown from inside the module, which we must NOT swallow). Covers the two
+// shapes a vanished post-deploy chunk takes: a flat 404 ("Failed to fetch
+// dynamically imported module") AND the SPA fallback serving index.html where
+// JS was expected, which surfaces as a MIME-type error ("Failed to load module
+// script: Expected a JavaScript module script but the server responded with a
+// MIME type of text/html"). Phrasing varies by browser, so match each token.
 function isChunkLoadError(err) {
   const msg = String((err && err.message) || err || '');
-  return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|dynamically imported module/i.test(msg);
+  return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError|dynamically imported module|Failed to load module script|Expected a JavaScript module script|MIME type/i.test(msg);
+}
+
+// Shared recovery used by both lazyWithReload() and importWithReload(). Re-throws
+// anything that isn't a stale-chunk load failure so real runtime errors still
+// surface. On a stale-chunk error it reloads ONCE (guarded) and returns a
+// never-resolving promise so the caller's pending UI (a <Suspense> fallback, or
+// just nothing) stays put during the imminent reload instead of flashing an
+// error boundary. Throws to bubble; never returns a rejected promise.
+function recoverFromChunkError(err) {
+  if (typeof window === 'undefined' || !isChunkLoadError(err)) throw err;
+
+  let last = 0;
+  try { last = Number(sessionStorage.getItem(RELOAD_KEY)) || 0; } catch (_) { /* private mode */ }
+  // We just reloaded — the chunk is genuinely unreachable (offline / real
+  // 404), so surface the error instead of looping. A later deploy resets
+  // the clock and lets a fresh reload through.
+  if (Date.now() - last < RELOAD_WINDOW_MS) throw err;
+
+  try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch (_) { /* private mode */ }
+  window.location.reload();
+  // Keep whatever was showing up during the imminent reload: never resolve.
+  return new Promise(() => {});
 }
 
 export function lazyWithReload(factory) {
-  return lazy(() =>
-    factory().catch((err) => {
-      if (typeof window === 'undefined' || !isChunkLoadError(err)) throw err;
+  return lazy(() => factory().catch(recoverFromChunkError));
+}
 
-      let last = 0;
-      try { last = Number(sessionStorage.getItem(RELOAD_KEY)) || 0; } catch (_) { /* private mode */ }
-      // We just reloaded — the chunk is genuinely unreachable (offline / real
-      // 404), so surface the error instead of looping. A later deploy resets
-      // the clock and lets a fresh reload through.
-      if (Date.now() - last < RELOAD_WINDOW_MS) throw err;
-
-      try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch (_) { /* private mode */ }
-      window.location.reload();
-      // Keep the Suspense fallback up during the imminent reload rather than
-      // flashing the error boundary: never resolve.
-      return new Promise(() => {});
-    }),
-  );
+// One-shot equivalent for a bare dynamic import() that isn't a React.lazy route
+// (e.g. an on-interaction `import('../lib/uploads.js')`). Same guarded one-shot
+// reload on a stale post-deploy chunk, so non-lazy code paths self-heal too.
+//   importWithReload(() => import('../lib/uploads.js')).then(m => m.run())
+export function importWithReload(factory) {
+  return factory().catch(recoverFromChunkError);
 }

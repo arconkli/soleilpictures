@@ -43,21 +43,21 @@ if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) =>
     logClientError(e?.reason instanceof Error ? e.reason : new Error(`Unhandled rejection: ${String(e?.reason)}`), { kind: 'unhandledrejection' }));
 
-  // Stale-deploy chunk recovery. Asset filenames are content-hashed, so after a
-  // deploy a tab still running the PREVIOUS build 404s when it lazy-loads a
-  // now-replaced chunk — surfacing as "Failed to fetch dynamically imported
-  // module". Vite fires `vite:preloadError` for these; reload once to pull the
-  // fresh index.html + new chunk hashes. The timestamp guard stops a reload loop
-  // if the chunk is genuinely unreachable (offline / real 404) while still
-  // allowing a fresh reload on a later deploy. No-op in dev (no preload helper).
+  // Stale-deploy chunk recovery is owned ENTIRELY by lazyWithReload() (see
+  // lib/lazyWithReload.js): on a chunk-load rejection it reloads once AND returns
+  // a never-resolving promise so <Suspense> keeps its fallback up — no crash flash.
+  //
+  // We deliberately do NOT call e.preventDefault() here. Vite compiles
+  // `import('./X.jsx')` to `__vitePreload(() => import('X-<hash>.js'), deps)`,
+  // and its internal catch does `if (!e.defaultPrevented) throw err`. Calling
+  // preventDefault() makes __vitePreload RESOLVE WITH `undefined` instead of
+  // rejecting — React's lazy initializer then reads `undefined.default` and
+  // throws "Cannot read properties of undefined (reading 'default')" into the
+  // error boundary, while an async reload races (and loses). Letting the error
+  // propagate hands it cleanly to lazyWithReload's .catch instead. This listener
+  // is now just observability. No-op in dev (no preload helper).
   window.addEventListener('vite:preloadError', (e) => {
-    const KEY = 'soleil:chunk-reload-at';
-    let last = 0;
-    try { last = Number(sessionStorage.getItem(KEY)) || 0; } catch (_) {}
-    if (Date.now() - last < 10_000) return;   // just retried — let the error surface
-    try { sessionStorage.setItem(KEY, String(Date.now())); } catch (_) {}
-    e.preventDefault();                         // swallow the throw; we're reloading
-    window.location.reload();
+    console.warn('[vite:preloadError] lazy chunk load failed; lazyWithReload will recover', e?.payload || e);
   });
 }
 

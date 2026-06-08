@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cachedUrl, resolveSrc, getSignedUrl, CACHE_TTL_MS } from '../lib/r2.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { runGated } from '../lib/backfillGate.js';
+import { importWithReload } from '../lib/lazyWithReload.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
 
@@ -335,7 +336,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     // Dynamic import keeps the variant-generation/upload module (+ its canvas
     // encode path) out of the basic R2Image consumers (avatars, lightbox,
     // public viewer); it only loads when a writer actually backfills.
-    runGated(() => import('../lib/uploads.js').then(m => m.generateAndUploadVariants({
+    runGated(() => importWithReload(() => import('../lib/uploads.js')).then(m => m.generateAndUploadVariants({
       workspaceId: ws, boardId, storagePath: originalKey, imageSource: el,
     })));
   };
