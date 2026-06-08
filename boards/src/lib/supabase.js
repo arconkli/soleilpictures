@@ -185,7 +185,11 @@ if (supabase && typeof document !== 'undefined') {
   // Diagnostic: warn if we ever see channels.length === 0 — the
   // empty-channels auto-disconnect arms 50s after this happens (with
   // default config; we override it to 24h above as a safety net).
-  setInterval(() => {
+  // Gated behind a debug flag (?rtdebug or localStorage soleil.rtdebug=1) so it
+  // doesn't schedule a wakeup every 10s for every user in production.
+  let _rtDebug = false;
+  try { _rtDebug = /[?&]rtdebug/.test(location.search) || localStorage.getItem('soleil.rtdebug') === '1'; } catch (_) {}
+  if (_rtDebug) setInterval(() => {
     const n = supabase.realtime?.channels?.length ?? -1;
     if (n === 0) console.log('[realtime] CHANNELS EMPTY (auto-disconnect would arm with default config)');
   }, 10000);

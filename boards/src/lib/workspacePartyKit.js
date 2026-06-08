@@ -11,7 +11,11 @@ import PartySocket from 'partysocket';
 import { supabase } from './supabase.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
-const HEARTBEAT_MS = 5000;
+// Workspace presence (who's in the workspace / which board) tolerates a few
+// seconds of staleness — live board cursors are a separate 250ms-throttled
+// system (yPartyKit awareness). 15s matches the Supabase realtime workspace
+// cadence and cuts steady-state presence traffic 3x while users sit idle.
+const HEARTBEAT_MS = 15000;
 
 const TAB_ID = (() => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();

@@ -27,7 +27,12 @@
 
 import { supabase } from './supabase.js';
 
-const POLL_INTERVAL_MS = 10_000;
+// The Realtime INSERT subscription is the primary, instant signal; polling is
+// only a durability backstop. So poll slowly (60s) while Realtime is healthy
+// and fast (10s) only when it's degraded — cutting steady-state poll volume 6x
+// per open board.
+const POLL_DEGRADED_MS = 10_000;
+const POLL_HEALTHY_MS = 60_000;
 const SOFT_FAILURE_LOGGED = new Set();
 
 function softLog(boardId, message, err) {
@@ -52,6 +57,8 @@ export function watchBoardRestores(boardId, onRestore) {
   let lastVersion = null;
   let cancelled = false;
   let tableMissing = false; // sticky: once we see 42P01, stop polling
+  let realtimeHealthy = false; // SUBSCRIBED → poll slowly; errors → poll fast
+  const nextPollDelay = () => (realtimeHealthy ? POLL_HEALTHY_MS : POLL_DEGRADED_MS);
 
   // Fetch initial state. Establishes the baseline `version`. If the table is
   // missing (pre-Phase-1 migration), this 404s — we set `tableMissing` and
@@ -126,9 +133,9 @@ export function watchBoardRestores(boardId, onRestore) {
       } catch (_) {
         // ignore
       }
-      if (!cancelled && !tableMissing) pollTimer = setTimeout(tick, POLL_INTERVAL_MS);
+      if (!cancelled && !tableMissing) pollTimer = setTimeout(tick, nextPollDelay());
     };
-    pollTimer = setTimeout(tick, POLL_INTERVAL_MS);
+    pollTimer = setTimeout(tick, nextPollDelay());
   };
 
   // Realtime subscription. Skipped if the version table is known to be missing.
@@ -155,7 +162,10 @@ export function watchBoardRestores(boardId, onRestore) {
           (payload) => handleRow(payload?.new)
         )
         .subscribe((status) => {
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          if (status === 'SUBSCRIBED') {
+            realtimeHealthy = true;   // primary signal is live → poll can slow down
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            realtimeHealthy = false;  // degraded → next poll reschedules at the fast rate
             softLog(boardId, `realtime status=${status}; polling fallback continues`);
           }
         });
