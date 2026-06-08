@@ -184,6 +184,10 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [visible, setVisible] = useState(() => eager || !!initialUrl);
+  // Set after a crossOrigin (CORS-mode) load fails — we then reload the same
+  // URL without crossOrigin so the image still displays even if the R2 bucket
+  // lacks a CORS rule for this origin (we only lose the canvas-read backfill).
+  const [noCors, setNoCors] = useState(false);
 
   const rootRef = useRef(null);
   const imgRef = useRef(null);
@@ -219,6 +223,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     hitMarkedRef.current = false;
     setLoaded(false);
     setFailed(false);
+    setNoCors(false);
     const m = originalKey ? getMeta(originalKey) : null;
     setActiveSrc((m && m.previewKey) ? `r2:${m.previewKey}` : src);
   }, [src]);
@@ -327,6 +332,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
 
   const maybeBackfill = () => {
     if (!backfillEnabled || !originalKey) return;
+    if (noCors) return;                         // fell back to a non-cors (tainted) load — can't read the canvas
     if (meta && meta.previewKey) return;        // already has a preview
     if (_backfillAttempted.has(originalKey)) return;
     const el = imgRef.current;
@@ -371,9 +377,17 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
              decoding="async"
              fetchpriority={eager ? 'high' : 'low'}
              draggable={draggable}
-             crossOrigin={wantCorsRef.current ? 'anonymous' : undefined}
+             crossOrigin={(wantCorsRef.current && !noCors) ? 'anonymous' : undefined}
              onLoad={onImgLoad}
              onError={(e) => {
+               // A crossOrigin (CORS-mode) load is blocked when the R2 bucket has
+               // no CORS rule for this origin. Reload the SAME url without
+               // crossOrigin so the image still shows (we just skip the canvas
+               // backfill for it). Do this before treating it as a real failure.
+               if (wantCorsRef.current && !noCors) {
+                 setNoCors(true);
+                 return;
+               }
                // Re-presign once; if it still fails, show the blocked state.
                if (typeof activeSrc === 'string' && activeSrc.startsWith('r2:')) {
                  getSignedUrl(activeSrc.slice(3)).then(fresh => {
