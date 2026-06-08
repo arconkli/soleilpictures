@@ -124,8 +124,8 @@ export function ClustersMark({ size = 28 }) {
       style={{ width: size, height: size }}
       aria-hidden="true"
     >
-      <img src="/clusters-logo-dark.png" alt="" className="clusters-mark-img clusters-mark-dark" />
-      <img src="/clusters-logo-light.png" alt="" className="clusters-mark-img clusters-mark-light" />
+      <img src="/clusters-logo-dark.webp" alt="" className="clusters-mark-img clusters-mark-dark" />
+      <img src="/clusters-logo-light.webp" alt="" className="clusters-mark-img clusters-mark-light" />
     </span>
   );
 }

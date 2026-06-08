@@ -508,7 +508,7 @@ export function SignInBackdrop({ children, exploreHref }) {
 
             <div className="sb-chrome" ref={chromeRef} aria-hidden="true">
               <div className="sb-chrome-left">
-                <img src="/clusters-logo-dark.png" alt="" />
+                <img src="/clusters-logo-dark.webp" alt="" />
                 <span className="sb-chrome-brand">Clusters</span>
                 <span className="sb-chrome-sep" />
                 <span className="sb-chrome-crumb">Soleil Pictures</span>
