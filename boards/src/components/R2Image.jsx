@@ -26,6 +26,14 @@ import * as perf from '../lib/perf.js';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
+// A sign-reads call can transiently return null — the auth session isn't hydrated
+// yet on a cold board open, a worker/network hiccup, or a batch that came back
+// empty. That used to permanently lock the image (the `failed` state is sticky).
+// Retry a few times with backoff before falling back to the blocked placeholder,
+// so a momentary miss never strands an image the viewer can actually access.
+const MAX_SIGN_RETRIES = 4;
+const SIGN_RETRY_BASE_MS = 800; // backoff: 0.8s, 1.6s, 3.2s, 6.4s
+
 // One backfill attempt per image key per session (success OR definitive
 // failure). Cleared only by a page reload.
 const _backfillAttempted = new Set();
@@ -94,10 +102,22 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
     if (!visible) return;
     let cancelled = false;
     let refreshTimer = null;
+    let retryTimer = null;
+    let attempt = 0;
     const tick = async () => {
       const resolved = await resolveSrc(src);
       if (cancelled) return;
-      if (!resolved) { setFailed(true); return; }
+      if (!resolved) {
+        // Transient sign failures: retry with backoff before showing the lock.
+        if (typeof src === 'string' && src.startsWith('r2:') && attempt < MAX_SIGN_RETRIES) {
+          attempt += 1;
+          retryTimer = setTimeout(tick, SIGN_RETRY_BASE_MS * 2 ** (attempt - 1));
+          return;
+        }
+        setFailed(true);
+        return;
+      }
+      attempt = 0;
       setUrl(resolved);
       setFailed(false);
       if (typeof src === 'string' && src.startsWith('r2:')) {
@@ -109,7 +129,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
       }
     };
     tick();
-    return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); };
+    return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
   }, [src, visible]);
 
   if (failed) return <BlockedPlaceholder {...rest} />;
@@ -239,10 +259,22 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (!visible) return;
     let cancelled = false;
     let refreshTimer = null;
+    let retryTimer = null;
+    let attempt = 0;
     const tick = async () => {
       const resolved = await resolveSrc(activeSrc);
       if (cancelled) return;
-      if (!resolved) { setFailed(true); return; }
+      if (!resolved) {
+        // Transient sign failures: retry with backoff before showing the lock.
+        if (typeof activeSrc === 'string' && activeSrc.startsWith('r2:') && attempt < MAX_SIGN_RETRIES) {
+          attempt += 1;
+          retryTimer = setTimeout(tick, SIGN_RETRY_BASE_MS * 2 ** (attempt - 1));
+          return;
+        }
+        setFailed(true);
+        return;
+      }
+      attempt = 0;
       setUrl(resolved);
       setFailed(false);
       if (typeof activeSrc === 'string' && activeSrc.startsWith('r2:')) {
@@ -254,7 +286,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
       }
     };
     tick();
-    return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); };
+    return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
   }, [activeSrc, visible]);
 
   // Tier-2 upgrade: once a preview has painted, swap to the original on idle so
