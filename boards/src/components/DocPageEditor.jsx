@@ -463,41 +463,62 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
     hoverTimers.current.open = null;
     hoverTimers.current.close = null;
   };
+  // Resolve which chip (tag-range tint, manual link, or auto link) sits
+  // under an event target. Shared by the hover path and the touch-tap path.
+  const chipAtTarget = (target) => {
+    const tagRange = readTagRangeFromEl(target);
+    const manualEl = !tagRange && target.closest?.('[data-link-id]');
+    const autoEl   = !tagRange && !manualEl && target.closest?.('.tt-link-auto[data-records]');
+    const el = tagRange?.el || manualEl || autoEl;
+    return el ? { el, tagRange, manualEl, autoEl } : null;
+  };
+  const openChipPopover = ({ el, tagRange, manualEl, autoEl }) => {
+    if (tagRange) {
+      setTagHover({
+        anchor: el.getBoundingClientRect(),
+        tagId: tagRange.tagId,
+        tagName: tagRange.tagName,
+        tagColor: tagRange.tagColor,
+        source: el.getAttribute('data-source') || 'auto-word',
+        sourceAnchor: tagRange.sourceAnchor,
+      });
+      setLinkHover(null);
+      return;
+    }
+    let refs = null;
+    const term = el.textContent || '';
+    if (manualEl) refs = buildRefsFromManualLink(manualEl.dataset.linkId);
+    else if (autoEl) {
+      let records = [];
+      try { records = JSON.parse(autoEl.dataset.records || '[]'); } catch {}
+      refs = buildRefsFromCandidate(records);
+    }
+    setLinkHover({ anchor: el.getBoundingClientRect(), refs: refs || [], term });
+    setTagHover(null);
+  };
   const handleLinkHoverEnter = (e) => {
     // Tag-color tint (.tt-tag-word) hover opens the SAME tag popover
     // that the margin dot opens. Wins over manual / auto-detect spans
     // when both happen at the same point.
-    const tagRange = readTagRangeFromEl(e.target);
-    const manualEl = !tagRange && e.target.closest?.('[data-link-id]');
-    const autoEl   = !tagRange && !manualEl && e.target.closest?.('.tt-link-auto[data-records]');
-    const el = tagRange?.el || manualEl || autoEl;
-    if (!el) return;
-    if (lastChipRef.current === el && (hoverTimers.current.open || linkHover || tagHover)) return;
-    lastChipRef.current = el;
+    const chip = chipAtTarget(e.target);
+    if (!chip) return;
+    if (lastChipRef.current === chip.el && (hoverTimers.current.open || linkHover || tagHover)) return;
+    lastChipRef.current = chip.el;
     cancelHoverTimers();
     hoverTimers.current.open = setTimeout(() => {
       hoverTimers.current.open = null;
-      if (tagRange) {
-        setTagHover({
-          anchor: el.getBoundingClientRect(),
-          tagId: tagRange.tagId,
-          tagName: tagRange.tagName,
-          tagColor: tagRange.tagColor,
-          source: el.getAttribute('data-source') || 'auto-word',
-          sourceAnchor: tagRange.sourceAnchor,
-        });
-        setLinkHover(null);
-        return;
-      }
-      let refs = null, term = el.textContent || '';
-      if (manualEl) refs = buildRefsFromManualLink(manualEl.dataset.linkId);
-      else if (autoEl) {
-        let records = [];
-        try { records = JSON.parse(autoEl.dataset.records || '[]'); } catch {}
-        refs = buildRefsFromCandidate(records);
-      }
-      setLinkHover({ anchor: el.getBoundingClientRect(), refs: refs || [], term });
+      openChipPopover(chip);
     }, 250);
+  };
+  // Touch has no hover — a tap on a chip opens the same popover
+  // immediately (it carries the navigate/see-all actions).
+  const handleChipPointerUp = (e) => {
+    if (e.pointerType !== 'touch') return;
+    const chip = chipAtTarget(e.target);
+    if (!chip) return;
+    cancelHoverTimers();
+    lastChipRef.current = chip.el;
+    openChipPopover(chip);
   };
   const handleLinkHoverLeave = (e) => {
     const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records], .tt-tag-word');
@@ -1054,7 +1075,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
   if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
 
   return (
-    <div className="doc-editor-wrap" onClick={handleEditorClick} onMouseOver={handleLinkHoverEnter} onMouseOut={handleLinkHoverLeave}>
+    <div className="doc-editor-wrap" onClick={handleEditorClick} onMouseOver={handleLinkHoverEnter} onMouseOut={handleLinkHoverLeave} onPointerUp={handleChipPointerUp}>
       {onDeleteSheet && (
         <button className="doc-sheet-delete"
                 type="button"

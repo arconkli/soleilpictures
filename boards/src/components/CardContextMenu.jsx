@@ -213,7 +213,10 @@ function SubmenuItem({ item, onClose, claimFire = () => true }) {
 
   return (
     <div ref={wrapRef} className="ctx-submenu-wrap" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
-      <button className={`ctx-item ctx-has-submenu ${item.danger ? 'danger' : ''}`} disabled={item.disabled}>
+      {/* Tap also toggles — hover-only submenus are unreachable on touch. */}
+      <button className={`ctx-item ctx-has-submenu ${item.danger ? 'danger' : ''}`} disabled={item.disabled}
+              aria-haspopup="menu" aria-expanded={open}
+              onClick={() => { if (open) { setOpen(false); } else { setPos(computePos()); setOpen(true); } }}>
         <span className="ctx-label">{item.label}</span>
         <span className="ctx-chevron" aria-hidden="true">›</span>
       </button>

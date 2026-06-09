@@ -93,6 +93,16 @@ export function EntityLink({
       setAnchor(r); setOpen(true);
       return;
     }
+    // Touch: tap previews. There's no hover on touch, so navigating
+    // instantly would make the popover (the only place to see what a
+    // link points at, or pick among targets) unreachable — the popover
+    // itself carries the navigate action.
+    if (window.matchMedia?.('(hover: none)')?.matches && !open) {
+      e.preventDefault();
+      const r = elRef.current?.getBoundingClientRect();
+      setAnchor(r); setOpen(true);
+      return;
+    }
     // Single-target manual link → navigate directly.
     if (refs?.length === 1) {
       e.preventDefault();

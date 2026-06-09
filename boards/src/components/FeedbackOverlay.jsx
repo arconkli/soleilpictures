@@ -98,7 +98,7 @@ function FeedbackDialog({ dialog, onClose }) {
   };
 
   return (
-    <div className="feedback-bg" onMouseDown={() => onClose(dialog.kind === 'confirm' ? false : null)}>
+    <div className="feedback-bg" onPointerDown={() => onClose(dialog.kind === 'confirm' ? false : null)}>
       <form
         ref={formRef}
         className="feedback-dialog"
@@ -106,7 +106,7 @@ function FeedbackDialog({ dialog, onClose }) {
         aria-modal="true"
         aria-label={dialog.title}
         onSubmit={submit}
-        onMouseDown={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
       >
         <div className="feedback-hd">
           <div className="feedback-title">{dialog.title}</div>

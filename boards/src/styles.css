@@ -16421,14 +16421,25 @@ button, [role="button"], a {
      scoped — we don't want to blanket-bump every <button>. */
   .tb-icon,
   .modal-x,
+  .modal-shell-x,
   .twk-x,
   .picker-back,
   .sb-mid-collapse,
   .rail-toggle,
-  .rail-icon {
+  .rail-icon,
+  .ic-expand,
+  .cp-palsearch-x,
+  .cfont-x,
+  .comment-archive-x {
     min-width: 40px;
     min-height: 40px;
   }
+
+  /* Context-menu rows and entity-popover footer buttons sat at ~32px /
+     ~26px — below the 40px guideline, so adjacent destructive items got
+     fat-fingered. */
+  .ctx-item { min-height: 40px; }
+  .ent-pop-foot-btn { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
 }
 
 /* -------------------------------------------------------------------------

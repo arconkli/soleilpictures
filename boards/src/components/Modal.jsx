@@ -126,7 +126,10 @@ export function Modal({
   };
 
   return createPortal(
-    <div className={`modal-shell-bg ${backdropClassName}`.trim()} onMouseDown={onBackdropDown}>
+    // pointerdown, not mousedown: synthesized mouse events are unreliable
+    // on touch, which made modals impossible to dismiss by tapping outside
+    // (same fix useDismissOnOutside applies to popovers).
+    <div className={`modal-shell-bg ${backdropClassName}`.trim()} onPointerDown={onBackdropDown}>
       <div
         ref={panelRef}
         className={`modal-shell ${className}`.trim()}
