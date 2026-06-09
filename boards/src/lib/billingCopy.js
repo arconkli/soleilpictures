@@ -10,6 +10,8 @@
 
 export const PLAN_NAME = 'Creator';
 
+import { DEMO_CARD_LIMIT } from './demoCardCap.js';
+
 // Root pricing object — both "per month" (shown on the cards) and "billed"
 // (shown on the Billing tab) figures derive from these so they can't drift.
 //   monthly: $25/mo billed monthly        → $25/mo
@@ -75,7 +77,7 @@ export function planLabel({ tier, plan, demoCardCount, grantBacked } = {}) {
   }
   if (tier === 'demo') {
     const n = Number.isFinite(demoCardCount) ? demoCardCount : 0;
-    return `Free Demo · ${n}/100 cards`;
+    return `Free Demo · ${n}/${DEMO_CARD_LIMIT} cards`;
   }
   return 'Waitlist · not yet active';
 }

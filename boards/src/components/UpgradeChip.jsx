@@ -19,6 +19,7 @@ import { getOwnProfile, updateOwnSettings } from '../lib/boardsApi.js';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaForceFirstValue } from '../lib/localMode.js';
+import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
 
 export function UpgradeChip() {
   const { user } = useAuth();
@@ -82,7 +83,7 @@ export function UpgradeChip() {
       >
         <span className="upgrade-chip-label">Upgrade</span>
         <span className="upgrade-chip-sep">·</span>
-        <span className="upgrade-chip-count">{demoCardCount}/100</span>
+        <span className="upgrade-chip-count">{demoCardCount}/{DEMO_CARD_LIMIT}</span>
       </button>
       {open && <PricingModal onClose={() => setOpen(false)} header={null} />}
       {fvBanner && <FirstValueUpgradeBanner onSeeCreator={onSeeCreator} onDismiss={onDismiss} />}

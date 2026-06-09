@@ -4506,6 +4506,13 @@ body {
 .auth-btn:hover:not(:disabled) { box-shadow: var(--shadow-1); transform: translateY(-1px); }
 .auth-btn:active:not(:disabled) { transform: translateY(0) scale(0.99); }
 .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Anchor-as-button (e.g. "Email support") + the quiet secondary variant. */
+a.auth-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.auth-btn-secondary {
+  background: transparent;
+  color: var(--ink-1);
+  border: 1px solid var(--line-2);
+}
 .auth-error { color: var(--ink-error); }
 .auth-hint  { color: var(--ink-3); }
 .auth-foot  { position: absolute; bottom: 20px; left: 0; right: 0; color: var(--ink-3); text-align: center; font-size: 11px; letter-spacing: 0.04em; }

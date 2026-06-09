@@ -281,6 +281,7 @@ function SignIn() {
   const codeRef = useRef(null);
   const emailEngagedRef = useRef(false);   // fire landing_field_engage once per field
   const codeEngagedRef  = useRef(false);
+  const autoSubmitRef   = useRef(null);   // 6th-digit auto-submit debounce
 
   // Tick down the resend cooldown (Supabase rate-limits OTP requests at ~60s).
   useEffect(() => {
@@ -440,7 +441,18 @@ function SignIn() {
               value={code}
               onChange={(e) => {
                 if (!codeEngagedRef.current) { codeEngagedRef.current = true; logEvent(EV.LANDING_FIELD_ENGAGE, { field: 'code' }); }
-                setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                const next = e.target.value.replace(/\D/g, '').slice(0, 6);
+                setCode(next);
+                // Auto-submit on the 6th digit — a complete code sitting in
+                // the field with an unexplained "now press the button" step
+                // is pure friction. Brief delay so paste-then-fix still works.
+                if (next.length === 6 && !busy) {
+                  const form = e.target.closest('form');
+                  clearTimeout(autoSubmitRef.current);
+                  autoSubmitRef.current = setTimeout(() => {
+                    try { form?.requestSubmit?.(); } catch (_) {}
+                  }, 250);
+                }
               }}
               disabled={busy}
             />
@@ -450,9 +462,13 @@ function SignIn() {
             {error && <div className="auth-error t-meta">{error}</div>}
             <div className="auth-hint t-meta">
               Check your inbox for the 6-digit code.{' '}
-              {resendCooldown > 0
-                ? <span>Resend in {resendCooldown}s</span>
-                : <button type="button" className="auth-link" onClick={() => sendCode(true)} disabled={busy}>Resend code</button>}
+              {/* The resend control stays a button during cooldown (disabled,
+                  counting down) — swapping it for a bare span made it look
+                  like the option vanished. */}
+              <button type="button" className="auth-link" onClick={() => sendCode(true)}
+                      disabled={busy || resendCooldown > 0}>
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+              </button>
             </div>
           </form>
         )}

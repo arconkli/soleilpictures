@@ -164,8 +164,11 @@ export function WaitlistConfirm() {
           </div>
           <h2 className="waitlist-status-title">Your demo wasn't approved.</h2>
           <p className="waitlist-status-sub t-body">
-            We weren't able to offer you free demo access — but you can
-            still skip the wait with a paid plan.
+            We weren't able to offer you free demo access this round — we
+            review applications carefully to keep the community strong.
+            You can still skip the wait with a paid plan, or write to us
+            at <a className="auth-link" href="mailto:hello@soleilpictures.com?subject=Demo%20application">hello@soleilpictures.com</a> if
+            you think we got it wrong.
           </p>
           <button
             className="pricing-cta pricing-cta-primary waitlist-status-cta"

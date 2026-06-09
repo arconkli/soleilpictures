@@ -173,7 +173,14 @@ export function PricingSuccess() {
     if (body?.activated) {
       refetch();
     } else if (body?.reason && body.reason !== 'not_paid_yet') {
-      setVerifyErr(body.reason);
+      // Map raw verify reasons to copy a buyer can act on — the bare code
+      // ("session_expired") read as a bug and didn't say what to do next.
+      const REASON_COPY = {
+        session_expired: 'Your checkout session expired before activation. If your card was charged, the email receipt is your proof — write to support and we\'ll activate you right away.',
+        payment_failed: 'Your payment didn\'t go through — check your card details and try the checkout again.',
+        no_subscription: 'Stripe hasn\'t attached a subscription to this checkout yet. Give it a minute, then verify again.',
+      };
+      setVerifyErr(REASON_COPY[body.reason] || `Activation check came back with "${body.reason}" — if this persists, email support below.`);
     }
   };
 

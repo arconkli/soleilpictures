@@ -128,9 +128,12 @@ function Suspended({ onSignOut }) {
         <h1 className="auth-message-title">Account suspended</h1>
         <p className="auth-message-body t-meta">
           Your account has been suspended. If you think this is a mistake,
-          contact <a className="auth-link" href="mailto:hello@soleilpictures.com">hello@soleilpictures.com</a>.
+          we'll take a look.
         </p>
-        <button className="auth-btn" onClick={onSignOut}>Sign out</button>
+        <a className="auth-btn" href="mailto:hello@soleilpictures.com?subject=Account%20suspended">
+          Email support
+        </a>
+        <button className="auth-btn auth-btn-secondary" onClick={onSignOut}>Sign out</button>
       </div>
     </div>
   );
