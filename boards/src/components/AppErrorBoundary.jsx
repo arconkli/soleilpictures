@@ -9,6 +9,7 @@
 
 import { Component } from 'react';
 import { logClientError } from '../lib/errorReporting.js';
+import { looksLikeStaleChunk, reloadIfStaleChunk } from '../lib/lazyWithReload.js';
 
 export class AppErrorBoundary extends Component {
   constructor(props) {
@@ -17,10 +18,29 @@ export class AppErrorBoundary extends Component {
   }
 
   static getDerivedStateFromError(error) {
-    return { error };
+    // Pre-mark stale-deploy lazy-chunk failures as `recovering` (message-only
+    // check — no componentStack here) so render() shows a neutral "Updating…"
+    // instead of flashing the crash panel for a frame before we reload.
+    return { error, recovering: looksLikeStaleChunk(error) };
   }
 
   componentDidCatch(error, info) {
+    // Last-resort stale-deploy recovery: a content-hashed chunk vanished after a
+    // deploy and the failure slipped past lazyWithReload (unusual error phrasing,
+    // an undefined-module `.default` read, etc.). Reload ONCE (guarded, shared
+    // key) instead of stranding the user on the crash panel.
+    if (looksLikeStaleChunk(error)) {
+      const reloading = reloadIfStaleChunk(error, info?.componentStack);
+      // Still observable, but flagged distinctly so it doesn't read as a hard
+      // render crash in client_errors.
+      logClientError(error, { kind: 'chunk-recover', componentStack: info?.componentStack });
+      if (reloading) { this.setState({ info }); return; }
+      // Guard says we already reloaded and it's STILL failing (broken deploy or
+      // a real bug that merely looks like a chunk error) — surface the panel.
+      this.setState({ recovering: false, info });
+      return;
+    }
+
     // Log the full stack + componentStack so it's also visible in
     // devtools. The on-screen panel only shows a trimmed view.
     console.error('[AppErrorBoundary] caught', error);
@@ -47,8 +67,28 @@ export class AppErrorBoundary extends Component {
   };
 
   render() {
-    const { error, info } = this.state;
+    const { error, info, recovering } = this.state;
     if (!error) return this.props.children;
+
+    // Stale-deploy lazy-chunk failure: a one-shot reload is already in flight
+    // (componentDidCatch). Show a neutral "Updating…" rather than the alarming
+    // red crash panel for the brief moment before the page reloads. Styled
+    // inline so it never depends on (or is restyled by) the shared error CSS.
+    if (recovering) {
+      return (
+        <div className="app-error-boundary" role="status" aria-live="polite"
+             style={{ position: 'fixed', inset: 0, zIndex: 999, display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', padding: 24,
+                      background: 'rgba(10, 10, 12, 0.85)', backdropFilter: 'blur(6px)',
+                      font: '400 14px/1.45 system-ui, sans-serif', color: '#e7e7ea',
+                      textAlign: 'center' }}>
+          <div>
+            <div style={{ font: '600 16px/1.2 system-ui, sans-serif' }}>Updating…</div>
+            <div style={{ marginTop: 4, opacity: 0.7 }}>A new version is loading.</div>
+          </div>
+        </div>
+      );
+    }
 
     // Trim component stack to the top ~15 frames for the on-screen
     // view. The clipboard copy gets the full thing.
