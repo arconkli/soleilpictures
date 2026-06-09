@@ -3830,6 +3830,31 @@ export function CanvasSurface({
   };
 
   // ── Background pointer + context ──────────────────────────────────────────
+  // New-card pop-in: ids appearing after the first render get .is-new for
+  // ~280ms (scale+fade keyframes; disabled under prefers-reduced-motion).
+  // Seeded from the first cards array and reset per board so board loads
+  // and switches never wave; bulk arrivals (paste, board switch races)
+  // skip the animation too.
+  const knownCardIdsRef = useRef(null);
+  const [newCardIds, setNewCardIds] = useState(() => new Set());
+  useEffect(() => { knownCardIdsRef.current = null; setNewCardIds(new Set()); }, [board.id]);
+  useEffect(() => {
+    const ids = new Set(cards.map(c => c.id));
+    if (knownCardIdsRef.current === null) { knownCardIdsRef.current = ids; return; }
+    const fresh = [...ids].filter(id => !knownCardIdsRef.current.has(id));
+    knownCardIdsRef.current = ids;
+    if (fresh.length === 0 || fresh.length > 8) return;
+    setNewCardIds(prev => new Set([...prev, ...fresh]));
+    const t = setTimeout(() => {
+      setNewCardIds(prev => {
+        const next = new Set(prev);
+        fresh.forEach(id => next.delete(id));
+        return next;
+      });
+    }, 280);
+    return () => clearTimeout(t);
+  }, [cards, board.id]);
+
   // Double-click on empty canvas drops a note right there — the fastest
   // "just start typing" path (FigJam/Miro muscle memory; also what the
   // empty-board hint advertises). Cards, chrome, strokes and arrows keep
@@ -3874,8 +3899,10 @@ export function CanvasSurface({
         }
         // Score every art canvas by how many stroke points fall inside
         // its bbox; the one with the most overlap wins. Ties pick the
-        // top-most z (last wins). If nothing scores > 0, return null
-        // and the stroke falls through to the board's free-canvas.
+        // top-most z (last wins). A stroke routes INTO a card only when
+        // the majority of its points land inside — a board stroke that
+        // merely clips a corner used to be swallowed whole by the card
+        // (its outside portion silently vanished off the card's edge).
         const arts = liveCards.filter(c => c.kind === 'art');
         if (!arts.length) return null;
         let best = null, bestScore = 0;
@@ -3889,7 +3916,7 @@ export function CanvasSurface({
             best = c; bestScore = n;
           }
         }
-        return bestScore > 0 ? best : null;
+        return bestScore > pts.length / 2 ? best : null;
       };
       if (drawOptions.mode === 'eraser') {
         const radius = Math.max(4, (drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) / 2);
@@ -4154,7 +4181,10 @@ export function CanvasSurface({
     const onMove = (ev) => {
       const dxClient = ev.clientX - startClient.x;
       const dyClient = ev.clientY - startClient.y;
-      if (!moved && Math.abs(dxClient) < 3 && Math.abs(dyClient) < 3) return;
+      // 4px matches the card-drag click threshold — the old 3px meant a
+      // tiny drift could start a lasso where the same drift on a card
+      // still counted as a click.
+      if (!moved && Math.abs(dxClient) < 4 && Math.abs(dyClient) < 4) return;
       moved = true;
       clearForFreshMarquee();
       const cur = clientToCanvas(ev.clientX, ev.clientY);
@@ -4903,7 +4933,7 @@ export function CanvasSurface({
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onPointerUp: (e) => onCardPointerUp(e, c),
@@ -5678,8 +5708,19 @@ export function CanvasSurface({
 
   const gz = Math.max(8, 80 * zoom);
   const dz = Math.max(2, 20 * zoom);
+  // Size-accurate eraser cursor — the red stroke preview only showed the
+  // radius after you'd already erased something.
+  const eraserCursor = useMemo(() => {
+    if (selectedTool !== 'draw' || drawOptions.mode !== 'eraser') return null;
+    const d = Math.max(10, Math.min(96, Math.round((drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) * zoom)));
+    const r = d / 2;
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${d}' height='${d}'><circle cx='${r}' cy='${r}' r='${r - 1}' fill='none' stroke='%23ef4444' stroke-opacity='0.85' stroke-width='1.5'/></svg>`;
+    return `url("data:image/svg+xml;utf8,${svg}") ${r} ${r}, crosshair`;
+  }, [selectedTool, drawOptions.mode, drawOptions.eraserWidth, zoom]);
+
   const wrapStyle = {
     '--canvas-bg': board.bg_color || undefined,
+    ...(eraserCursor ? { cursor: eraserCursor } : null),
     backgroundColor: board.bg_color || undefined,
     backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
     backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px`,

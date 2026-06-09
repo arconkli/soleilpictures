@@ -2843,6 +2843,18 @@ body {
 }
 
 .cards-layer { position: absolute; inset: 0; }
+/* New-card pop-in — a soft scale+fade so a fresh card lands instead of
+   teleporting in. Skipped for bulk arrivals + board loads (JS side) and
+   under prefers-reduced-motion. */
+@keyframes card-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.card.is-new { animation: card-pop 200ms var(--ease); }
+@media (prefers-reduced-motion: reduce) {
+  .card.is-new { animation: none; }
+}
+
 .card {
   transition: transform var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
   overflow: hidden;
