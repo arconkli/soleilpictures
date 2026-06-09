@@ -93,12 +93,16 @@ test.describe('Topbar', () => {
 // ═══════════════ CANVAS — TOOLBAR & ADD MENU ═══════════════
 
 test.describe('Canvas tools', () => {
-  test('Add menu opens, lists Board / Text note / Doc / Palette / Linked board', async ({ page }) => {
+  test('Add menu opens, lists Doc / Shape / Palette / Linked board (Board + Text note moved off)', async ({ page }) => {
     await go(page);
     await page.getByRole('button', { name: 'Add menu', exact: true }).click();
-    for (const label of ['Board', 'Text note', 'Doc', 'Palette', 'Linked board']) {
+    for (const label of ['Doc', 'Shape', 'Palette', 'Linked board']) {
       await expect(page.getByRole('menuitem', { name: label, exact: true })).toBeVisible();
     }
+    // Board is now a first-class toolbar tool, and Text note is the toolbar's Add-note
+    // tool — so neither is repeated in the "+" menu anymore.
+    await expect(page.getByRole('menuitem', { name: 'Board', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: 'Text note', exact: true })).toHaveCount(0);
     await page.keyboard.press('Escape');
   });
 
@@ -124,11 +128,10 @@ test.describe('Canvas tools', () => {
     await expect(page.locator('.note').last()).toBeVisible();
   });
 
-  test('Add Board via Add menu → click → board card spawns', async ({ page }) => {
+  test('Add Board via toolbar → click → board card spawns', async ({ page }) => {
     await go(page);
     const before = await page.locator('.card').count();
-    await page.getByRole('button', { name: 'Add menu', exact: true }).click();
-    await page.getByRole('menuitem', { name: 'Board', exact: true }).click();
+    await page.getByTitle('Add board').click();
     await expect(page.getByText('Click on the canvas to place a board')).toBeVisible();
     await page.locator('.canvas-wrap').click({ position: { x: 380, y: 320 } });
     await expect(page.locator('.card')).toHaveCount(before + 1);
@@ -142,9 +145,10 @@ test.describe('Canvas tools', () => {
     await expect(page.locator('.pc').last()).toBeVisible();
   });
 
-  test('Shape tool activates + hint shows', async ({ page }) => {
+  test('Shape (via Add menu) activates + hint shows', async ({ page }) => {
     await go(page);
-    await page.getByTitle('Add shape').click();
+    await page.getByRole('button', { name: 'Add menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Shape', exact: true }).click();
     await expect(page.getByText('Click on the canvas to place a shape')).toBeVisible();
   });
 

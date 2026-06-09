@@ -20,7 +20,7 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
-  MousePointer2, Hand, NotePencil, Image as ImageIcon, Square, Scribble, ArrowRight, Plus,
+  MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { TEAMMATES } from '../data.js';
@@ -5569,15 +5569,17 @@ export function CanvasSurface({
     { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand },
     { id: 'text',   title: 'Add note', label: 'Add note tool', icon: NotePencil },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
-    { id: 'shape',  title: 'Add shape', label: 'Add shape tool', icon: Square },
+    { id: 'board',  title: 'Add board', label: 'Add board tool', icon: LayoutGrid },
     { id: 'draw',   title: 'Free-draw', label: 'Free-draw tool', icon: Scribble },
     { id: 'arrow',  title: 'Arrow - click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
   ];
 
   const addMenuItems = [
-    { label: 'Board', action: () => setSelectedTool('board') },
-    { label: 'Text note', action: () => setSelectedTool('text') },
+    // 'Board' is now a first-class toolbar tool, and 'Text note' is the toolbar's
+    // Add-note tool — so neither is repeated here. 'Shape' moved off the toolbar
+    // (boards took its slot) and lives here now.
     { label: 'Doc', action: () => mutators.addDocCard?.() },
+    { label: 'Shape', action: () => setSelectedTool('shape') },
     { label: 'Palette', action: () => setSelectedTool('palette') },
     { label: 'Linked board', action: () => onOpenPicker() },
   ];

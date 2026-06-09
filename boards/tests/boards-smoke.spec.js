@@ -55,17 +55,28 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await page.goto('/?local=1&reset=1');
 
   const canvas = page.locator('.canvas-wrap');
+  // The reset=1 fixture seeds a non-empty starter set asynchronously after navigation,
+  // so the baseline .count() races to 0 and throws off every +1 assertion below. Wait
+  // until the count is BOTH non-zero (seed has painted) AND stable across two reads
+  // (seed fully painted) before sampling — a bare `n === prevCount` would falsely settle
+  // on the initial 0,0. (Pre-existing fragility, fixed while reworking the toolbar.)
+  let prevCount = -1;
+  await expect.poll(async () => {
+    const n = await page.locator('.card').count();
+    const settled = n > 0 && n === prevCount;
+    prevCount = n;
+    return settled;
+  }, { timeout: 10000 }).toBe(true);
   const initialCardCount = await page.locator('.card').count();
 
-  await page.getByRole('button', { name: 'Add menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Board', exact: true }).click();
+  await page.getByTitle('Add board').click();
   await expect(page.getByText('Click on the canvas to place a board')).toBeVisible();
   await canvas.click({ position: { x: 220, y: 220 } });
   await expect(page.locator('.card')).toHaveCount(initialCardCount + 1);
 
   await page.getByRole('button', { name: 'Add menu', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: 'Link card' })).toHaveCount(0);
-  await expect(page.getByRole('menuitem', { name: 'Text note' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Shape', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 
   await page.getByTitle('Add note').click();
@@ -73,7 +84,8 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await canvas.click({ position: { x: 280, y: 260 } });
   await expect(page.locator('.note').last()).toBeVisible();
 
-  await page.getByTitle('Add shape').click();
+  await page.getByRole('button', { name: 'Add menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Shape', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a shape')).toBeVisible();
   await expect(page.locator('.tob').getByText('Shape')).toBeVisible();
   await canvas.click({ position: { x: 340, y: 300 } });
@@ -113,7 +125,8 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
 test('local QA mode keeps toolbar color picker polished and contained', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
 
-  await page.getByTitle('Add shape').click();
+  await page.getByRole('button', { name: 'Add menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Shape', exact: true }).click();
   await expect(page.locator('.tob').getByText('Shape')).toBeVisible();
   await page.locator('.tob').getByTitle(/Custom hex/).first().click();
 
