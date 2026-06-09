@@ -50,7 +50,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon, ChevronLeft, ChevronRight } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
@@ -544,6 +544,37 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     logEvent(EV.BOARD_OPEN, { board_id: id, depth: stack.length, is_subboard: !!rootBoard && id !== rootBoard.id });
   };
   const goTo = (i) => setStack(s => s.slice(0, i + 1));
+
+  // Session navigation history — browser-style back/forward over board
+  // navigation. Breadcrumbs only allow climbing the current path; this
+  // recovers "I mis-clicked, take me back to where I was" across jumps
+  // (sidebar, deep links, drill-downs). Entries are stack snapshots;
+  // back/forward replay them without re-recording (silent flag).
+  const navHistRef = useRef({ entries: [], index: -1, silent: false });
+  const [navCaps, setNavCaps] = useState({ back: false, fwd: false });
+  useEffect(() => {
+    const h = navHistRef.current;
+    const key = stack.join('/');
+    if (h.silent) {
+      h.silent = false;
+    } else if (h.entries[h.index]?.key !== key) {
+      h.entries = h.entries.slice(0, h.index + 1);
+      h.entries.push({ key, stack: [...stack] });
+      h.index = h.entries.length - 1;
+      // Unbounded history would grow forever in long sessions.
+      if (h.entries.length > 100) { h.entries.shift(); h.index -= 1; }
+    }
+    setNavCaps({ back: h.index > 0, fwd: h.index < h.entries.length - 1 });
+  }, [stack]);
+  const navHistGo = (dir) => {
+    const h = navHistRef.current;
+    const next = h.index + dir;
+    if (next < 0 || next >= h.entries.length) return;
+    h.index = next;
+    h.silent = true;
+    setStack(h.entries[next].stack);
+    setCurrentSurface('board');
+  };
 
   // Prune recents when boards are deleted so the sidebar list stays clean.
   useEffect(() => {
@@ -1525,6 +1556,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
+  // Phone: any navigation closes the drawer — tapping a board in the
+  // drawer used to leave it open, hiding the very board it just opened.
+  useEffect(() => {
+    if (isPhone) setMobileNavOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stack, currentSurface, activeTag]);
   const openTagSurface = (tag) => {
     setActiveTag(tag);
     setCurrentSurface('tag');
@@ -3145,6 +3182,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="tb-brand-text">Clusters</span>
             </button>
             <span className="tb-brand-sep" aria-hidden="true" />
+            <button className="tb-icon" title="Back" aria-label="Back"
+                    disabled={!navCaps.back} onClick={() => navHistGo(-1)}>
+              <Icon as={ChevronLeft} size={15} />
+            </button>
+            <button className="tb-icon" title="Forward" aria-label="Forward"
+                    disabled={!navCaps.fwd} onClick={() => navHistGo(1)}>
+              <Icon as={ChevronRight} size={15} />
+            </button>
             <div className="crumbs">
               {crumbs.map((c, i) => (
                 <React.Fragment key={`${c.id}-${i}`}>
