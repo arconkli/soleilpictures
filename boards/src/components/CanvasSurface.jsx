@@ -3807,6 +3807,18 @@ export function CanvasSurface({
   };
 
   // ── Background pointer + context ──────────────────────────────────────────
+  // Double-click on empty canvas drops a note right there — the fastest
+  // "just start typing" path (FigJam/Miro muscle memory; also what the
+  // empty-board hint advertises). Cards, chrome, strokes and arrows keep
+  // their own double-click behaviors.
+  const onBackgroundDoubleClick = (e) => {
+    if (!canEdit || selectedTool !== 'select') return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
+    // Strokes / arrows / snap guides are SVG children; the bare canvas is not.
+    if (e.target instanceof SVGElement && e.target.tagName !== 'svg') return;
+    mutators.addNote?.(clientToCanvas(e.clientX, e.clientY));
+  };
+
   const onBackgroundPointerDown = (e) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
@@ -5655,6 +5667,7 @@ export function CanvasSurface({
          onDrop={handleDrop}
          onDragStart={(e) => e.preventDefault()}
          onPointerDown={onBackgroundPointerDown}
+         onDoubleClick={onBackgroundDoubleClick}
          onContextMenu={onBackgroundContextMenu}>
       {/* Grain texture — sits behind cards on the canvas surface
           only. Cards / popovers / modals all stack above it. */}
@@ -6605,6 +6618,16 @@ export function CanvasSurface({
       )}
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (
         <div className="cnv-selcount">{selected.size + selectedStrokes.size + selectedArrows.size} selected</div>
+      )}
+      {/* Empty-board hint: faint, centered, non-interactive. The CSS fade-in
+          is delayed ~500ms so board switches and first-run seeding (which
+          fill the canvas within a tick) never flash it. */}
+      {canEdit && selectedTool === 'select'
+        && cards.length === 0 && (strokes?.length || 0) === 0 && (arrows?.length || 0) === 0 && (
+        <div className="cnv-empty-hint" aria-hidden="true">
+          <span className="cnv-empty-hint-fine">Double-click to add a note&ensp;·&ensp;drag in images&ensp;·&ensp;right-click for more</span>
+          <span className="cnv-empty-hint-coarse">Tap the + to add something — or long-press the canvas</span>
+        </div>
       )}
 
       <div className="cnv-zoom">

@@ -37,6 +37,28 @@ test('"?" while editing a note types instead of opening the overlay', async ({ p
   await expect(page.locator('.card .note-body').last()).toContainText('really?');
 });
 
+test('empty board shows a hint; double-click drops a note and clears it', async ({ page }) => {
+  await page.goto('/?local=1&reset=1');
+  await expect(page.locator('.canvas-wrap')).toBeVisible();
+
+  // The local root board ships full of demo cards — create a fresh board
+  // and open it to get an empty canvas.
+  await page.getByTitle('Add board').click();
+  const wrap = await page.locator('.canvas-wrap').boundingBox();
+  await page.locator('.canvas-wrap').click({ position: { x: wrap.width / 2, y: wrap.height / 2 } });
+  const newBoard = page.locator('.card', { hasText: 'Untitled board' }).first();
+  await newBoard.dblclick();
+  await expect(page.locator('.cnv-empty-hint')).toHaveCount(1);
+
+  const cb = await page.locator('.canvas-wrap').boundingBox();
+  await page.locator('.canvas-wrap').dblclick({ position: { x: cb.width / 2, y: cb.height / 2 } });
+
+  // Double-click on the bare canvas creates a note in edit mode...
+  await expect(page.locator('.card .note-body[contenteditable="true"]')).toBeVisible();
+  // ...and the board is no longer empty, so the hint goes away.
+  await expect(page.locator('.cnv-empty-hint')).toHaveCount(0);
+});
+
 test('N / D / A keys switch tools', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();

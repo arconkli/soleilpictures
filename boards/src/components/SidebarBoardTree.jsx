@@ -33,6 +33,7 @@ export function SidebarBoardTree({
   activeBoardId,
   onOpenBoard,
   onRenameBoard,           // (boardId, newName) => Promise — called on commit
+  onCreateBoard = null,    // () => void — empty-state "create first board" CTA
   peersHereByBoard,
   peersBelowByBoard,
   onJumpToPeer,
@@ -407,7 +408,16 @@ export function SidebarBoardTree({
   }, []);
 
   if (roots.length === 0) {
-    return <div className="sb-tree-empty">No boards yet</div>;
+    return (
+      <div className="sb-tree-empty">
+        <div>No boards yet</div>
+        {onCreateBoard && (
+          <button type="button" className="sb-tree-empty-cta" onClick={() => onCreateBoard()}>
+            + Create your first board
+          </button>
+        )}
+      </div>
+    );
   }
 
   return (

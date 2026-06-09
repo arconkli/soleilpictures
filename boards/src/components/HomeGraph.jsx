@@ -369,10 +369,19 @@ export function HomeGraph({ workspaceId, onNavigate }) {
     );
   }
 
+  // A 3-node constellation floating in the dark reads as "unfinished", not
+  // "get started" — give sparse graphs a quiet next-step nudge.
+  const sparseHint = filtered.nodes.length > 0 && filtered.nodes.length < 5 ? (
+    <div className="home-sparse-hint" aria-hidden="true">
+      Your map grows as you link things — type @ in any doc or note to connect boards, docs, and cards.
+    </div>
+  ) : null;
+
   if (!supportsWebGL) {
     return (
       <div className="home-graph-wrap" ref={containerRef}>
         <HomeGraph2DFallback data={filtered} width={size.w} height={size.h} onNodeClick={setSelected} />
+        {sparseHint}
       </div>
     );
   }
@@ -432,6 +441,7 @@ export function HomeGraph({ workspaceId, onNavigate }) {
         showNavInfo={false}
       />
       </div>
+      {sparseHint}
       {selected && (
         <HomeGraphDetailDrawer
           workspaceId={workspaceId}
