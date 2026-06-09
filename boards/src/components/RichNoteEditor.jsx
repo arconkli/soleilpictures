@@ -131,19 +131,12 @@ export function RichNoteEditor({
   const NOTE_AUTOSIZE_MAX = 480;
   const measureAndReport = () => {
     if (manuallyResized) return;
-    // Only report height while the user is editing. Outside edit mode the
-    // measurement runs against scrollHeight while custom fonts may still be
-    // swapping in (font-display: swap), shrinking the cached `h` to the
-    // fallback metrics — which persists permanently even after the font
-    // loads. Keep the saved height stable on snapshot load.
     if (!editing) return;
     if (!ref.current || !onAutoSize) return;
-    const NOTE_PAD = 14 * 2;
-    const contentH = ref.current.scrollHeight;
-    onAutoSize(Math.min(NOTE_AUTOSIZE_MAX, Math.max(40, contentH + NOTE_PAD)));
+    onAutoSize(Math.min(NOTE_AUTOSIZE_MAX, cardHeightForBody(ref.current)));
   };
   // Measure on every input + once on edit-start. ResizeObserver catches
-  // wraps from font-size or width changes that don't fire `input`.
+  // wraps from width changes that don't fire `input`.
   useEffect(() => {
     if (!ref.current || manuallyResized || !editing) return;
     measureAndReport();
@@ -153,6 +146,52 @@ export function RichNoteEditor({
     return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, html, body, manuallyResized]);
+  // The format toolbar's size/font pickers mutate the DOM directly
+  // (wrapSelectionStyle) without firing `input`, and the body's box doesn't
+  // change while the card pins it — so neither the input handler nor the
+  // ResizeObserver re-measures. A MutationObserver catches those edits;
+  // rAF-coalesced so a multi-span wrap measures once.
+  useEffect(() => {
+    if (!ref.current || manuallyResized || !editing) return;
+    if (typeof MutationObserver === 'undefined') return;
+    let raf = 0;
+    const mo = new MutationObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => measureAndReport());
+    });
+    mo.observe(ref.current, {
+      childList: true, subtree: true, characterData: true,
+      attributes: true, attributeFilter: ['style'],
+    });
+    return () => { cancelAnimationFrame(raf); mo.disconnect(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, manuallyResized]);
+  // Outside edit mode, re-fit once the document's fonts settle and when the
+  // card-level font props change. This fixes the font-display:swap drift —
+  // a height saved against fallback metrics used to persist (slightly
+  // clipping the note) even after the custom font loaded. Growth past the
+  // auto-size cap is left to the fade + "Show all" chip, and a ≤2px delta
+  // is ignored so multi-peer clients can't ping-pong patches.
+  const fitOutsideEditRef = useRef(null);
+  fitOutsideEditRef.current = () => {
+    if (editing || manuallyResized || !onAutoSize || !ref.current) return;
+    const note = ref.current.closest('.note');
+    if (!note) return;
+    const target = cardHeightForBody(ref.current);
+    if (target > NOTE_AUTOSIZE_MAX) return;
+    if (Math.abs(target - note.offsetHeight) > 2) onAutoSize(target);
+  };
+  useEffect(() => {
+    if (!editing) fitOutsideEditRef.current?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fontSize, fontFamily]);
+  useEffect(() => {
+    let live = true;
+    try {
+      document.fonts?.ready?.then?.(() => { if (live) fitOutsideEditRef.current?.(); });
+    } catch (_) { /* noop */ }
+    return () => { live = false; };
+  }, []);
 
   // Track selection so the bottom-bar's format buttons (which take focus)
   // can restore it before applying.

@@ -86,6 +86,28 @@ test('a deliberate vertical pull keeps pointer-controlled height (can clip)', as
   expect(scrollHeight).toBeGreaterThan(clientHeight + 2); // user pinned it short
 });
 
+test('bumping font size from the toolbar re-fits the note height', async ({ page }) => {
+  const card = await placeNoteWithText(page);
+  const before = await card.boundingBox();
+
+  // Re-enter edit mode and select all text.
+  await card.locator('.note-body').dblclick();
+  await expect(card.locator('.note-body[contenteditable="true"]')).toBeVisible();
+  await page.keyboard.press('ControlOrMeta+a');
+
+  // Commit a larger size via the toolbar combo (mutates the DOM without
+  // firing `input` — the MutationObserver path). 18px keeps the content
+  // inside the 480px auto-size cap; past the cap notes scroll by design.
+  const combo = page.locator('input.tob-size-combo');
+  await combo.click();
+  await combo.fill('18');
+  await page.keyboard.press('Enter');
+
+  await expect.poll(async () => (await card.boundingBox()).height).toBeGreaterThan(before.height + 20);
+  const { scrollHeight, clientHeight } = await overflowState(card);
+  expect(scrollHeight).toBeLessThanOrEqual(clientHeight + 2);
+});
+
 test('clipped note shows the overflow cue; "Show all" fits it back', async ({ page }) => {
   const card = await placeNoteWithText(page);
   const before = await card.boundingBox();
