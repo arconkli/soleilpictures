@@ -8861,6 +8861,15 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .tag-picker-kind-auto { color: var(--soleil); }
 .tag-picker-kind-ai { color: #a78bfa; }
+.tag-picker-kind-new { color: var(--soleil); }
+/* "Create" row dot doubles as a + badge so the row reads as an action,
+   not another existing tag. */
+.tag-picker-dot-new {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px;
+  font: 700 10px/1 var(--font-sans);
+  color: var(--bg-0);
+}
 .tag-picker-check {
   color: var(--soleil);
   font-size: 12px;

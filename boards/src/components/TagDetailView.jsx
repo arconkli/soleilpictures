@@ -869,8 +869,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             <div className="tag-detail-empty">
               No pending suggestions for <strong>{tag.name}</strong>.
               <div className="tag-detail-empty-hint">
-                The AI proposes new matches when you edit cards. Accept or
-                dismiss them here.
+                Suggestions appear here as you edit cards that look like they
+                belong under this tag — its name and description drive the
+                matching. Accept the good ones, dismiss the rest.
               </div>
             </div>
           ) : (

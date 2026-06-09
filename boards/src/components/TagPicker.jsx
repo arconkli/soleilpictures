@@ -79,9 +79,11 @@ export function TagPicker({
         })}
         {q && !hasExact && (
           <button className={`tag-picker-row tag-picker-create ${matches.length === hover ? 'is-hover' : ''}`}
+                  title="Press Enter to create this tag"
                   onClick={() => { onCreate?.(query.trim()); onClose?.(); }}>
-            <span className="tag-picker-dot" style={{ background: tagFallbackColor(q) }} />
+            <span className="tag-picker-dot tag-picker-dot-new" style={{ background: tagFallbackColor(q) }}>+</span>
             <span className="tag-picker-name">Create "<b>{query.trim()}</b>"</span>
+            <span className="tag-picker-kind tag-picker-kind-new">new</span>
           </button>
         )}
       </div>

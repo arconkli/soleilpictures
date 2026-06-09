@@ -119,6 +119,13 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
 
   return (
     <div className="doc-tb">
+      {/* Visible doorway into the slash menu — typing "/" is invisible to
+          anyone who hasn't read the placeholder. Inserting the trigger char
+          at the caret opens the same suggestion menu. */}
+      <button className="doc-tb-btn" disabled={disabled}
+              title="Insert a block — or type / anywhere in the text"
+              aria-label="Insert a block"
+              onClick={() => editor?.chain().focus().insertContent('/').run()}>+</button>
       <select className="doc-tb-select" value={headingValue} disabled={disabled}
               onChange={(e) => setHeading(e.target.value)}
               title="Block style" aria-label="Block style">

@@ -87,7 +87,8 @@ export function DocExportMenu({ editor, docName }) {
 
   return (
     <span className="doc-export-wrap" ref={ref}>
-      <button className="doc-tb-btn" title="Export"
+      <button className="doc-tb-btn" title="Export" aria-label="Export"
+              aria-haspopup="menu" aria-expanded={open}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setOpen(o => !o)}
               disabled={!editor}>
