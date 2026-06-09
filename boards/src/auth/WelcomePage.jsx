@@ -6,7 +6,7 @@
 // Auto-opens the WaitlistModal when the URL is /waitlist (preserves the
 // old route's destination without requiring a dedicated page).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from './AuthGate.jsx';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -24,6 +24,32 @@ export function WelcomePage() {
   }, []);
   useEffect(() => { logEventOnce('welcome_view', EV.WELCOME_VIEW); }, []);
   useDwellTime(EV.WELCOME_DWELL);
+
+  // gate_dead_end: a waitlist user who landed on /welcome and left WITHOUT
+  // engaging any path (no Submit Socials, no See Pricing) — the silent leak.
+  // These users never enter the accept queue, so they're stranded with no
+  // programmatic way in. Fires once, on hide/unmount, mirroring useDwellTime's
+  // timing; engagedRef flips true the moment they take a path (below), which
+  // suppresses the event. Turns the "19-user black hole" into a standing metric.
+  const engagedRef = useRef(false);
+  useEffect(() => { if (socialsOpen) engagedRef.current = true; }, [socialsOpen]);
+  useEffect(() => {
+    const startedAt = Date.now();
+    let fired = false;
+    const fire = () => {
+      if (fired || engagedRef.current) return;
+      fired = true;
+      try { logEvent(EV.GATE_DEAD_END, { dwell_ms: Date.now() - startedAt }); } catch (_) {}
+    };
+    const onHide = () => { if (document.visibilityState === 'hidden') fire(); };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', fire);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', fire);
+      fire();
+    };
+  }, []);
 
   return (
     <div className="pricing-screen">
@@ -47,13 +73,13 @@ export function WelcomePage() {
         <div className="waitlist-status-cta-row">
           <button
             className="pricing-cta pricing-cta-secondary waitlist-status-cta"
-            onClick={() => { logEvent(EV.WELCOME_CTA, { target: 'waitlist' }); setSocialsOpen(true); }}
+            onClick={() => { engagedRef.current = true; logEvent(EV.WELCOME_CTA, { target: 'waitlist' }); setSocialsOpen(true); }}
           >
             Submit Socials
           </button>
           <button
             className="pricing-cta pricing-cta-primary waitlist-status-cta"
-            onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'pricing' }); window.location.assign('/pricing'); }}
+            onClick={() => { engagedRef.current = true; logEventNow(EV.WELCOME_CTA, { target: 'pricing' }); window.location.assign('/pricing'); }}
           >
             See Pricing →
           </button>

@@ -21,6 +21,7 @@ import { CTA } from '../lib/billingCopy.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
+import { qaWaitlistStatus } from '../lib/localMode.js';
 import { Check } from '../lib/icons.js';
 import { Icon } from '../components/Icon.jsx';
 
@@ -36,9 +37,17 @@ export function WaitlistConfirm() {
   const [checkoutError, setCheckoutError] = useState(null);
   const [accepted, setAccepted] = useState(false);
   const redirected = useRef(false);
+  const [qaStatus] = useState(qaWaitlistStatus);   // dev-only ?wlstatus= override
 
   const loadEntry = useRef(null);
   loadEntry.current = async () => {
+    // Dev preview: stub the entry so each status branch renders without an
+    // authenticated waitlist_entries row (no-op in prod / without ?local=1).
+    if (qaStatus !== undefined) {
+      setEntry(qaStatus === 'none' ? null : { status: qaStatus });
+      setLoading(false);
+      return;
+    }
     if (!user?.email) return;
     const { data } = await supabase
       .from('waitlist_entries')

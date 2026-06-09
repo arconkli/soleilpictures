@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 
 // Folder-style board browser: one column at a time, breadcrumb to jump back,
 // search to flatten when needed. Pick any board to link.
@@ -22,6 +24,23 @@ export function BoardPicker({ open, onPick, onClose, excludeIds = [], boards, ro
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
+
+  // Intent signal: fire once per open when the user actually types a query
+  // (debounced — "ran a search", not per keystroke). has_results from a live count.
+  const searchedRef = useRef(false);
+  useEffect(() => { if (open) searchedRef.current = false; }, [open]);
+  useEffect(() => {
+    if (!open || !q.trim() || searchedRef.current) return;
+    const t = setTimeout(() => {
+      searchedRef.current = true;
+      const needle = q.toLowerCase();
+      const hits = Object.values(boards || {}).filter(
+        (b) => b.id !== rootId && !excludeIds.includes(b.id) && b.name?.toLowerCase().includes(needle)
+      ).length;
+      logEvent(EV.SEARCH_RUN, { has_results: hits > 0 });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [open, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open) return null;
 

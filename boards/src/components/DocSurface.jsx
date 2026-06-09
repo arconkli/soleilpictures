@@ -16,6 +16,8 @@ import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage } from '../lib/docState.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { isDocQaMode } from '../lib/localMode.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
@@ -397,6 +399,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // first loads); onEditorFocus fires every time the user clicks into a
   // particular sheet and re-points editorRef at that editor.
   const editorRef = useRef(null);
+  const docEditLoggedRef = useRef(false); // doc_edit: once per doc surface mount
   const [, force] = useState(0);
   // Dev-only: surface the active editor to the doc QA harness bridge so
   // Playwright can exercise editor-bound logic (e.g. bookmark relative-position
@@ -419,6 +422,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     if (editorRef.current !== ed) {
       editorRef.current = ed;
       force(n => n + 1);
+    }
+    // Depth signal for docs (a flagship surface with zero telemetry until now):
+    // the user clicked into the editor to write. Once per doc surface mount.
+    if (!docEditLoggedRef.current) {
+      docEditLoggedRef.current = true;
+      logEvent(EV.DOC_EDIT, { board_id: board?.id });
     }
     exposeEditor(ed);
   };
