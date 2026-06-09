@@ -1,0 +1,52 @@
+import { expect, test } from '@playwright/test';
+
+// Keyboard-shortcuts overlay — opened with "?" or the toolbar help button;
+// suppressed while typing in an editor.
+
+test('"?" toggles the shortcuts overlay; Escape closes it', async ({ page }) => {
+  await page.goto('/?local=1&reset=1');
+  await expect(page.locator('.canvas-wrap')).toBeVisible();
+
+  await page.keyboard.press('Shift+?');
+  const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Select / move');
+  await expect(dialog).toContainText('Drag a card onto a board card');
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+});
+
+test('help button in the toolbar opens the overlay', async ({ page }) => {
+  await page.goto('/?local=1&reset=1');
+  await expect(page.locator('.canvas-wrap')).toBeVisible();
+
+  await page.getByLabel('Keyboard shortcuts').click();
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible();
+});
+
+test('"?" while editing a note types instead of opening the overlay', async ({ page }) => {
+  await page.goto('/?local=1&reset=1');
+  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await page.getByTitle('Add note (N)').click();
+  const cb = await page.locator('.canvas-wrap').boundingBox();
+  await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
+
+  await page.keyboard.type('really?');
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).not.toBeVisible();
+  await expect(page.locator('.card .note-body').last()).toContainText('really?');
+});
+
+test('N / D / A keys switch tools', async ({ page }) => {
+  await page.goto('/?local=1&reset=1');
+  await expect(page.locator('.canvas-wrap')).toBeVisible();
+
+  await page.keyboard.press('n');
+  await expect(page.locator('.cnv-hint')).toContainText('place a note');
+  await page.keyboard.press('d');
+  await expect(page.locator('.cnv-hint')).toContainText('Drag to draw');
+  await page.keyboard.press('a');
+  await expect(page.locator('.cnv-hint')).toContainText('free arrow');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.cnv-hint')).not.toBeVisible();
+});

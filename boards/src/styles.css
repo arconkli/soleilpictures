@@ -7399,6 +7399,59 @@ body {
 }
 .modal-shell-x:hover { background: var(--bg-hov); color: var(--ink-0); }
 
+/* Keyboard-shortcuts overlay ("?" / toolbar help button). */
+.shortcuts-modal {
+  width: min(680px, calc(100vw - 48px));
+  max-height: min(80vh, 720px);
+  overflow-y: auto;
+  padding: 20px 24px 22px;
+  background: var(--bg-0);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+}
+.shortcuts-hd {
+  font: 600 16px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+}
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 28px;
+}
+@media (max-width: 560px) {
+  .shortcuts-grid { grid-template-columns: 1fr; }
+}
+.shortcuts-sec h3, .shortcuts-tips h3 {
+  margin: 0 0 8px;
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.shortcuts-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+.shortcuts-label { color: var(--ink-1); font-size: 13px; }
+.shortcuts-keys { display: inline-flex; gap: 4px; flex: none; }
+.shortcuts-keys kbd {
+  font: 500 11px/18px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink-1);
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-bottom-width: 2px;
+  border-radius: var(--radius);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.shortcuts-tips { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-1); }
+.shortcuts-tips ul { margin: 0; padding-left: 18px; }
+.shortcuts-tips li { color: var(--ink-1); font-size: 13px; line-height: 1.6; }
+
 .modal-hd {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px;

@@ -84,6 +84,7 @@ import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore } from './lib/docState.js';
 import { uploadImage } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
+import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
@@ -3284,6 +3285,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onBoardRestored={() => refreshBoards()}
         onClose={() => setTrashOpen(false)}
       />
+
+      <ShortcutsHost />
 
       <WorkspaceRecoveryModal
         open={workspaceRecoveryOpen}

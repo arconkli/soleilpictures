@@ -20,7 +20,7 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
-  MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus,
+  MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { TEAMMATES } from '../data.js';
@@ -2016,6 +2016,9 @@ export function CanvasSurface({
       if (!cmd && !e.altKey) {
         if (e.key === 'v' || e.key === 'V') { e.preventDefault(); setSelectedTool('select'); return; }
         if (e.key === 'h' || e.key === 'H') { e.preventDefault(); setSelectedTool('pan'); return; }
+        if (e.key === 'n' || e.key === 'N') { e.preventDefault(); setSelectedTool('text'); return; }
+        if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setSelectedTool('draw'); return; }
+        if (e.key === 'a' || e.key === 'A') { e.preventDefault(); setSelectedTool('arrow'); return; }
         if (e.key === '[') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('backward'); return; }
         if (e.key === ']') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('forward'); return; }
       }
@@ -5023,6 +5026,9 @@ export function CanvasSurface({
         )}
         {canEdit && selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
+               title={(c.kind === 'image' || c.kind === 'video')
+                 ? `Drag to resize — hold ${cmdKey} to break the aspect ratio`
+                 : undefined}
                style={{ width: RESIZE_HANDLE_PX, height: RESIZE_HANDLE_PX }} />
         )}
         {canEdit && selectedTool === 'select' && isSelected && canRotate && (
@@ -5595,11 +5601,11 @@ export function CanvasSurface({
   const tools = [
     { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2 },
     { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand },
-    { id: 'text',   title: 'Add note', label: 'Add note tool', icon: NotePencil },
+    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
     { id: 'board',  title: 'Add board', label: 'Add board tool', icon: LayoutGrid },
-    { id: 'draw',   title: 'Free-draw', label: 'Free-draw tool', icon: Scribble },
-    { id: 'arrow',  title: 'Arrow - click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
+    { id: 'draw',   title: 'Free-draw (D)', label: 'Free-draw tool', icon: Scribble },
+    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
   ];
 
   const addMenuItems = [
@@ -6559,6 +6565,24 @@ export function CanvasSurface({
             <Icon as={t.icon} size={20} />
           </div>
         ))}
+        <div className="cnv-tool-sep" />
+        <div className="cnv-tool"
+             title="Keyboard shortcuts (?)"
+             role="button"
+             tabIndex={0}
+             aria-label="Keyboard shortcuts"
+             onKeyDown={(e) => {
+               if (e.key === 'Enter' || e.key === ' ') {
+                 e.preventDefault();
+                 document.dispatchEvent(new CustomEvent('soleil-open-help'));
+               }
+             }}
+             onPointerDown={(e) => {
+               e.stopPropagation();
+               document.dispatchEvent(new CustomEvent('soleil-open-help'));
+             }}>
+          <Icon as={Question} size={20} />
+        </div>
       </div>
 
       {selectedTool === 'arrow' && (

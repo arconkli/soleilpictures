@@ -13,6 +13,7 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
 import { getStarterCards, getStarterTutorialCard } from '../lib/onboardingStarter.js';
+import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -531,6 +532,7 @@ export function LocalBoardsApp({ user, signOut }) {
 
   return (
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`} data-screen-label={`Local Board - ${currentBoard.name}`}>
+      <ShortcutsHost />
       {isPhone && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
              onClick={() => setMobileNavOpen(false)}
