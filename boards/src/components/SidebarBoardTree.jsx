@@ -6,7 +6,7 @@
 // preview rows, so the breadcrumb visual language is consistent
 // across canvas → list rows → sidebar tree.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import { BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds } from '../lib/dragMimes.js';
@@ -110,6 +110,30 @@ export function SidebarBoardTree({
     });
   };
 
+  // Ancestor chain of the active board: highlighted as the "you are here"
+  // path, and auto-expanded so deep links / cross-board jumps never land
+  // on a row hidden inside a collapsed branch.
+  const activeAncestors = useMemo(() => {
+    const set = new Set();
+    let p = boards?.[activeBoardId]?.parent_board_id;
+    let guard = 0;
+    while (p && boards[p] && guard++ < 100) { set.add(p); p = boards[p].parent_board_id; }
+    return set;
+  }, [boards, activeBoardId]);
+  useEffect(() => {
+    if (activeAncestors.size === 0) return;
+    setExpanded(prev => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of activeAncestors) {
+        if (!next.has(id)) { next.add(id); changed = true; }
+      }
+      if (!changed) return prev;
+      saveExpanded(workspaceId, next);
+      return next;
+    });
+  }, [activeAncestors, workspaceId]);
+
   // Children index: parentId → ordered child boards. null parent = roots.
   const childrenByParent = (() => {
     const out = new Map();
@@ -201,7 +225,7 @@ export function SidebarBoardTree({
     const isSelected = selectedTreeBoards.has(board.id);
     return (
       <div key={board.id} className="sb-tree-node">
-        <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}`}
+        <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${activeAncestors.has(board.id) ? 'is-ancestor' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}`}
              style={{ paddingLeft: 6 + depth * 14 }}
              data-board-id={board.id}
              draggable={!isRenaming}

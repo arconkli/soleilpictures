@@ -58,6 +58,19 @@ export function BoardPicker({ open, onPick, onClose, excludeIds = [], boards, ro
   const breadcrumb = path.map(id => boards[id]).filter(Boolean);
   const canPickCurrent = currentId !== rootId && !excludeIds.includes(currentId);
 
+  // Search flattens the hierarchy — show each hit's parent chain so two
+  // boards with the same name are distinguishable.
+  const parentPathLabel = (b) => {
+    const names = [];
+    let cur = boards?.[b.parent_board_id];
+    let guard = 0;
+    while (cur && cur.id !== rootId && guard++ < 8) {
+      names.unshift(cur.name || 'Untitled');
+      cur = boards[cur.parent_board_id];
+    }
+    return names.join(' › ');
+  };
+
   const enterBoard = (id) => setPath(p => [...p, id]);
   const goTo = (idx) => setPath(p => p.slice(0, idx + 1));
   const goBack = () => setPath(p => p.length > 1 ? p.slice(0, -1) : p);
@@ -128,9 +141,11 @@ export function BoardPicker({ open, onPick, onClose, excludeIds = [], boards, ro
                 <div className="picker-row-meta">
                   <div className="picker-row-name">{b.name}</div>
                   <div className="picker-row-sub">
-                    {isList
-                      ? `List · ${subChildCount} ${subChildCount === 1 ? 'board' : 'boards'}`
-                      : (b.meta || 'Canvas board')}
+                    {searchHits
+                      ? (parentPathLabel(b) || 'Top level')
+                      : (isList
+                        ? `List · ${subChildCount} ${subChildCount === 1 ? 'board' : 'boards'}`
+                        : (b.meta || 'Canvas board'))}
                   </div>
                 </div>
                 {hasChildren && !searchHits && (

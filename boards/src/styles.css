@@ -2422,7 +2422,14 @@ body {
      Override default 12px padding-left so depth-based indent works. */
   padding-left: 6px;
   gap: 6px;
+  /* Rows are draggable (drag onto another row to nest) — signal it. */
+  cursor: grab;
 }
+.sb-tree-row:active { cursor: grabbing; }
+/* "You are here" trail: ancestors of the active board get a quiet lift so
+   the hierarchy chain reads at a glance when nested several levels deep. */
+.sb-row.sb-tree-row.is-ancestor { color: var(--ink-1); }
+.sb-row.sb-tree-row.is-ancestor .sb-tree-chev { color: var(--soleil); opacity: .75; }
 .sb-tree-chev {
   appearance: none;
   background: transparent; border: 0;

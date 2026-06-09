@@ -3149,7 +3149,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               {crumbs.map((c, i) => (
                 <React.Fragment key={`${c.id}-${i}`}>
                   {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
-                  <span className={`crumb ${i === crumbs.length - 1 ? 'here' : 'clk'}`} onClick={() => goTo(i)}>{c.name}</span>
+                  <span className={`crumb ${i === crumbs.length - 1 ? 'here' : 'clk'}`} title={c.name} onClick={() => goTo(i)}>{c.name}</span>
                 </React.Fragment>
               ))}
             </div>
