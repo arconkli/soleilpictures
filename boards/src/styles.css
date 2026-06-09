@@ -3943,6 +3943,39 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+/* Clipped-text cue: when a note is pinned shorter than its text, fade the
+   bottom edge instead of hiding the rest behind an invisible scroll, and
+   surface a one-click "Show all" chip that fits the height back to the
+   content. The chip is hover-revealed on fine pointers and always visible
+   on touch (no hover there). */
+.note { position: relative; }
+.note.is-overflowing:not(.is-editing) .note-body {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+}
+.note-more-chip {
+  position: absolute;
+  right: 8px; bottom: 6px;
+  padding: 2px 9px;
+  font-size: 10px;
+  line-height: 16px;
+  font-family: inherit;
+  color: var(--ink-1);
+  background: var(--bg-1);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.note:hover .note-more-chip,
+.note-more-chip:focus-visible { opacity: 1; }
+.note-more-chip:hover { color: var(--ink-0); }
+[data-theme='light'] .note-more-chip { border-color: rgba(0,0,0,.10); }
+@media (hover: none) {
+  .note.is-overflowing .note-more-chip { opacity: .92; }
+}
+
 /* Note bodies inherit the global auto-hide scrollbar styling — no
    per-component override. */
 .note-body a {

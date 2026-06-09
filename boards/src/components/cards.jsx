@@ -7,7 +7,7 @@ import { Spinner } from './Spinner.jsx';
 import { resolveSrc } from '../lib/r2.js';
 import * as audioBus from '../lib/audioBus.js';
 import { EditableText } from './EditableText.jsx';
-import { RichNoteEditor } from './RichNoteEditor.jsx';
+import { RichNoteEditor, useNoteOverflow } from './RichNoteEditor.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
@@ -660,10 +660,16 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   const fontStyle = {};
   if (fontFamily) fontStyle.fontFamily = fontFamily;
   if (fontSize) fontStyle.fontSize = `${fontSize}px`;
+  // Read-only path still shows the clipped-text fade (no chip — viewers
+  // can't resize). Hooks run unconditionally; the ref stays null on the
+  // editable path so the hook is inert there.
+  const roNoteRef = useRef(null);
+  const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontFamily]);
   if (!onUpdate) {
     const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
     const hasBg = !!bgColor && bgColor !== 'transparent';
-    return <div className={`note ${hasBg ? 'has-bg' : ''}`}
+    return <div ref={roNoteRef}
+                className={`note ${hasBg ? 'has-bg' : ''} ${roOverflowing ? 'is-overflowing' : ''}`}
                 style={{ background: bgColor || undefined, color: textColor || undefined, ...fontStyle }}>
       <NoteAutoLinkBody html={display} />
     </div>;
@@ -678,6 +684,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
       onChangeColor={(c) => onUpdate({ textColor: c })}
       onEditingChange={onEditingChange}
       onAutoSize={(h) => onUpdate({ h: Math.round(h) })}
+      onFitHeight={(h) => onUpdate({ h: Math.round(h), manuallyResized: false })}
       manuallyResized={manuallyResized}
       autoFocus={autoFocus}
       awareness={awareness} cardId={cardId} boardId={boardId}

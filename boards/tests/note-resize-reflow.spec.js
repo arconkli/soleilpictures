@@ -85,3 +85,20 @@ test('a deliberate vertical pull keeps pointer-controlled height (can clip)', as
   const { scrollHeight, clientHeight } = await overflowState(card);
   expect(scrollHeight).toBeGreaterThan(clientHeight + 2); // user pinned it short
 });
+
+test('clipped note shows the overflow cue; "Show all" fits it back', async ({ page }) => {
+  const card = await placeNoteWithText(page);
+  const before = await card.boundingBox();
+  await dragHandle(page, card, -Math.round(before.width * 0.35), -Math.round(before.height * 0.45));
+
+  // Clipped → fade class + hover-revealed chip.
+  await expect(card.locator('.note')).toHaveClass(/is-overflowing/);
+  await card.hover();
+  const chip = card.locator('.note-more-chip');
+  await expect(chip).toBeVisible();
+
+  await chip.click();
+  await expect(card.locator('.note')).not.toHaveClass(/is-overflowing/);
+  const { scrollHeight, clientHeight } = await overflowState(card);
+  expect(scrollHeight).toBeLessThanOrEqual(clientHeight + 2);
+});

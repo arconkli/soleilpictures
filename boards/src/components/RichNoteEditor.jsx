@@ -13,6 +13,7 @@ import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
+import { cardHeightForBody } from '../lib/noteMeasure.js';
 
 // Tags kept when pasting rich content into a note. Everything else is unwrapped
 // (children preserved) and every attribute is stripped except a safe href on
@@ -65,6 +66,7 @@ export function RichNoteEditor({
   onChangeHTML, onChangeBg, onChangeColor,
   onEditingChange,
   onAutoSize, // (height) => void  — fires while editing if not manually resized
+  onFitHeight = null, // (height) => void — "Show all" chip on clipped notes
   manuallyResized = false,
   autoFocus = false,
   // Live-collab plumbing (optional). When provided, while the user is
@@ -97,6 +99,8 @@ export function RichNoteEditor({
   // tokenRange is a live DOM Range covering the @<query> text so we
   // can replace it on commit without re-finding the position.
   const [mention, setMention] = useState(null);
+  // Clipped-text cue: fades the bottom edge + shows the "Show all" chip.
+  const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontFamily, editing, peerLiveHtml, manuallyResized]);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -563,7 +567,7 @@ export function RichNoteEditor({
   // editing-state tints.
   if (bg) noteStyle['--has-bg-color'] = bg;
   return (
-    <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''}`}
+    <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''}`}
          style={noteStyle}
          onPointerUp={!editing ? onNotePointerUp : undefined}
          onDoubleClick={onOuterDouble}>
@@ -602,6 +606,21 @@ export function RichNoteEditor({
            onClick={onBodyClick}
            onDoubleClick={!editing ? onOuterDouble : undefined}
       />
+      {overflowing && !editing && onFitHeight && (
+        // Sibling of the contenteditable (never inside it) so commits can't
+        // serialize the chip into the note's html.
+        <button
+          type="button"
+          className="note-more-chip"
+          title="Show all text — fit the note to its content"
+          aria-label="Fit note height to its text"
+          onPointerDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onFitHeight(Math.min(1600, cardHeightForBody(ref.current))); }}
+        >
+          Show all
+        </button>
+      )}
       {mention && workspaceId && (
         <EntityPicker
           workspaceId={workspaceId}
@@ -613,6 +632,28 @@ export function RichNoteEditor({
       )}
     </div>
   );
+}
+
+// Shared overflow detector for note cards (editable + read-only paths).
+// True when the note's text is taller than its box — drives the fade-out
+// cue and the "Show all" chip so clipped text is never invisible. The ref
+// may point at the .note-body itself or any ancestor containing one.
+export function useNoteOverflow(ref, deps = []) {
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    const body = el?.classList?.contains('note-body') ? el : el?.querySelector?.('.note-body');
+    if (!body) { setOverflowing(false); return; }
+    const check = () => setOverflowing(body.scrollHeight > body.clientHeight + 2);
+    check();
+    if (typeof ResizeObserver === 'undefined') return;
+    // The body's box tracks the card height, so resizes re-check for free.
+    const ro = new ResizeObserver(check);
+    ro.observe(body);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return overflowing;
 }
 
 function escapeHtml(s) {
