@@ -91,10 +91,19 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => {
     if (awareness) return;
     let cancelled = false;
+    let attempts = 0;
     const tick = () => {
       if (cancelled) return;
       const aw = getAwareness?.();
       if (aw) { setAwareness(aw); return; }
+      // Give up after ~10s — if the realtime channel never attaches,
+      // presence simply won't render; polling forever just burns timers.
+      // The board-change reset effect below re-arms the loop.
+      attempts += 1;
+      if (attempts >= 50) {
+        console.warn('[doc] awareness never attached — presence disabled for this board');
+        return;
+      }
       setTimeout(tick, 200);
     };
     tick();

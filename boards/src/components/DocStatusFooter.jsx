@@ -53,7 +53,22 @@ export function DocStatusFooter({ editor, ydoc }) {
     return () => clearInterval(t);
   }, []);
 
+  // Honest offline state: edits keep applying locally (Yjs), but the
+  // snapshot can't persist remotely — say so instead of "Saved Xs ago".
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+
   const savedLabel = (() => {
+    if (!online) return 'Offline — changes will sync when you reconnect';
     if (saving) return 'Saving…';
     if (!savedAt) return 'All changes saved';
     const ago = Math.max(0, Math.floor((Date.now() - savedAt) / 1000));
@@ -65,7 +80,7 @@ export function DocStatusFooter({ editor, ydoc }) {
 
   return (
     <div className="doc-foot">
-      <span className={`doc-foot-status ${saving ? 'is-saving' : ''}`}>{savedLabel}</span>
+      <span className={`doc-foot-status ${saving ? 'is-saving' : ''} ${!online ? 'is-offline' : ''}`}>{savedLabel}</span>
       <span className="doc-foot-spacer" />
       <span className="doc-foot-counts">
         {counts.words} {counts.words === 1 ? 'word' : 'words'} · {counts.chars} {counts.chars === 1 ? 'char' : 'chars'}

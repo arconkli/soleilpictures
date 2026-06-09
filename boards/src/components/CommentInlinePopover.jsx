@@ -13,6 +13,30 @@ export function CommentInlinePopover({ ydoc, scope, threadId, anchor, currentUse
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const feedback = useFeedback();
 
+  // Guard an in-progress reply: Escape / outside-click used to discard it
+  // silently. Refs keep the dismiss handlers reading current state, and
+  // confirmingRef stops the confirm dialog's own clicks from re-triggering
+  // the outside-click close.
+  const replyRef = useRef('');
+  replyRef.current = reply;
+  const confirmingRef = useRef(false);
+  const requestClose = async () => {
+    if (confirmingRef.current) return;
+    if (replyRef.current.trim()) {
+      confirmingRef.current = true;
+      const ok = await feedback.confirm({
+        title: 'Discard reply?',
+        message: 'You have an unsent reply on this comment.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep writing',
+        danger: true,
+      });
+      confirmingRef.current = false;
+      if (!ok) return;
+    }
+    onClose?.();
+  };
+
   useEffect(() => {
     if (!ydoc || !threadId) return;
     const cm = commentsMap(ydoc, scope);
@@ -52,8 +76,12 @@ export function CommentInlinePopover({ ydoc, scope, threadId, anchor, currentUse
   }, [anchor]);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
+    const onKey = (e) => { if (e.key === 'Escape' && !confirmingRef.current) requestClose(); };
+    const onDown = (e) => {
+      // Clicks inside the popover or the discard-confirm dialog don't close.
+      if (e.target.closest?.('.feedback-bg')) return;
+      if (popRef.current && !popRef.current.contains(e.target)) requestClose();
+    };
     document.addEventListener('keydown', onKey);
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
@@ -62,6 +90,7 @@ export function CommentInlinePopover({ ydoc, scope, threadId, anchor, currentUse
       document.removeEventListener('pointerdown', onDown, true);
       document.removeEventListener('mousedown', onDown, true);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose]);
 
   if (!thread) return null;
