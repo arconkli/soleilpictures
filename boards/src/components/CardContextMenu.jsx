@@ -11,6 +11,16 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
 
 export function CardContextMenu({ open, x, y, items, onClose, workspaceId, boardId, card }) {
+  // Single-flight guard: one action per menu open. The menu closes on the
+  // first click, but a double-click can land two events before unmount —
+  // which used to double-fire async actions (double delete/duplicate).
+  const firedRef = useRef(false);
+  useEffect(() => { if (open) firedRef.current = false; }, [open]);
+  const claimFire = () => {
+    if (firedRef.current) return false;
+    firedRef.current = true;
+    return true;
+  };
   // Combined count from BOTH manual entity_links targeting the card
   // AND text occurrences of the card's name across docs / messages /
   // other cards. Drives the "Linked from N places" menu label so the
@@ -128,13 +138,13 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
       )}
       {items.map((it, i) => {
         if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
-        if (it.submenu) return <SubmenuItem key={it.id || i} item={it} onClose={onClose} />;
+        if (it.submenu) return <SubmenuItem key={it.id || i} item={it} onClose={onClose} claimFire={claimFire} />;
         return (
           <button
             key={it.id || i}
             className={`ctx-item ${it.danger ? 'danger' : ''}`}
             disabled={it.disabled}
-            onClick={async () => { onClose(); it.run && await it.run(); }}
+            onClick={async () => { if (!claimFire()) return; onClose(); it.run && await it.run(); }}
             role="menuitem"
           >
             <span className="ctx-label">{it.label}</span>
@@ -164,7 +174,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   );
 }
 
-function SubmenuItem({ item, onClose }) {
+function SubmenuItem({ item, onClose, claimFire = () => true }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(null); // {left, top, maxHeight}
   const wrapRef = useRef(null);
@@ -220,7 +230,7 @@ function SubmenuItem({ item, onClose }) {
                 <button key={sub.id || j}
                         className="ctx-item ctx-swatch-row"
                         disabled={sub.disabled}
-                        onClick={async () => { onClose(); sub.run && await sub.run(); }}>
+                        onClick={async () => { if (!claimFire()) return; onClose(); sub.run && await sub.run(); }}>
                   <span className="ctx-swatch-dot" style={{
                     background: sub.swatch === 'transparent'
                       ? 'repeating-linear-gradient(45deg,#222 0 4px,#444 4px 8px)'
@@ -234,7 +244,7 @@ function SubmenuItem({ item, onClose }) {
               <button key={sub.id || j}
                       className={`ctx-item ${sub.danger ? 'danger' : ''}`}
                       disabled={sub.disabled}
-                      onClick={() => { onClose(); sub.run && sub.run(); }}>
+                      onClick={() => { if (!claimFire()) return; onClose(); sub.run && sub.run(); }}>
                 <span className="ctx-label">{sub.label}</span>
                 {sub.shortcut && <span className="ctx-shortcut">{sub.shortcut}</span>}
               </button>

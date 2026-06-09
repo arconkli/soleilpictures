@@ -493,8 +493,10 @@ function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings
   const canEdit = role === 'editor' || role === 'owner';
   const isOwner = role === 'owner';
   const disabled = !canEdit;
-  // "Saved ✓" flash that fades after each successful save.
+  // "Saving… → Saved ✓" indicator: visible while the RPC is in flight so a
+  // slow network doesn't read as "did my change take?", then flashes Saved.
   const [savedAt, setSavedAt] = useState(0);
+  const [saving, setSaving] = useState(false);
   const flashSaved = () => setSavedAt(Date.now());
   useEffect(() => {
     if (!savedAt) return;
@@ -543,12 +545,15 @@ function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings
     for (const k of Object.keys(merged)) {
       if (merged[k] === null || merged[k] === undefined || merged[k] === '') delete merged[k];
     }
+    setSaving(true);
     try {
       await updateWorkspaceSettings(workspaceId, { [cat]: merged });
       refresh?.();
       flashSaved();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Save failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -556,7 +561,7 @@ function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings
     <div className="settings-section">
       <div className="settings-section-headrow">
         <h3 className="settings-section-title">Workspace defaults</h3>
-        <span className={`settings-saved-flash ${savedAt ? 'is-on' : ''}`}>Saved ✓</span>
+        <span className={`settings-saved-flash ${saving || savedAt ? 'is-on' : ''}`}>{saving ? 'Saving…' : 'Saved ✓'}</span>
       </div>
       <p className="settings-section-hint">
         These set the starting look of every new card on this workspace.

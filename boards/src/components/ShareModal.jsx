@@ -130,8 +130,14 @@ export function ShareModal({
         : new Date(Date.now() + (linkExpiry === '7d' ? 7 : 30) * 86400000).toISOString();
       const token = await createPublicLink({ boardId: board.id, expiresAt, includeSubboards: linkIncludeSubboards });
       const url = `${window.location.origin}/share/${token}`;
-      try { await navigator.clipboard.writeText(url); } catch (_) {}
-      feedback.toast({ type: 'success', message: 'Public link created and copied to clipboard.' });
+      let copied = true;
+      try { await navigator.clipboard.writeText(url); } catch (_) { copied = false; }
+      // If the clipboard write failed (permissions, non-secure context),
+      // say so — the link still appears in the list below with a Copy
+      // button, so point there instead of pretending it copied.
+      feedback.toast(copied
+        ? { type: 'success', message: 'Public link created and copied to clipboard.' }
+        : { type: 'warning', message: 'Public link created — copying failed, use the Copy button below.', ttl: 7000 });
       const rows = await listPublicLinks(board.id);
       setPublicLinks(rows.filter(l => !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())));
     } catch (e) {
@@ -204,14 +210,23 @@ export function ShareModal({
   // Parse a free-form email field that may contain one or many
   // addresses separated by commas, semicolons, whitespace, or newlines.
   // Loose validation: anything with "@" and a dot in the domain part.
+  // Invalid entries are surfaced (not silently dropped) so a typo'd
+  // address never looks like it was invited.
   const parseEmails = (raw) => {
-    return raw.split(/[\s,;]+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+    const parts = raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+    const valid = parts.filter(s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
+    const invalid = parts.filter(s => !valid.includes(s));
+    return { valid, invalid };
   };
 
   const submitInvite = async () => {
-    const emails = parseEmails(inviteEmail);
+    const { valid: emails, invalid } = parseEmails(inviteEmail);
+    if (invalid.length > 0) {
+      feedback.toast({
+        type: 'warning',
+        message: `Skipped ${invalid.length === 1 ? 'an invalid address' : `${invalid.length} invalid addresses`}: ${invalid.join(', ')}`,
+      });
+    }
     if (emails.length === 0 || inviting) return;
     setInviting(true);
     // granted = invitee already had an account; the share is live now
