@@ -364,12 +364,31 @@ test('local QA mode uses in-app dialogs instead of native prompts', async ({ pag
   await page.keyboard.press('Escape');
   await expect(page.locator('.picker')).toBeHidden();
 
+  // Plain-card delete: no confirm — an Undo toast instead.
   await page.getByTitle('Add note').click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
-  await page.locator('.card').last().click({ position: { x: 6, y: 6 } });
+  await page.keyboard.type('disposable');
+  // The fresh note opens in edit mode; click away to commit, then select it.
+  await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
+  const note = page.locator('.card', { hasText: 'disposable' }).first();
+  await note.click({ position: { x: 6, y: 6 } });
+  const cardCount = await page.locator('.card').count();
+  await page.keyboard.press('Backspace');
+  await expect(page.getByRole('dialog', { name: /Delete/i })).toBeHidden();
+  await expect(page.locator('.card')).toHaveCount(cardCount - 1);
+  const undoToast = page.locator('.toast', { hasText: 'Card deleted' });
+  await expect(undoToast).toBeVisible();
+  await expect(undoToast.getByRole('button', { name: 'Undo' })).toBeVisible();
+
+  // Board deletes keep the in-app confirm (they can contain a subtree).
+  const boardCard = page.locator('[data-card-id="b-sundown"]');
+  // Click the footer strip — the cover area opens the board on click.
+  const bb = await boardCard.boundingBox();
+  await boardCard.click({ position: { x: 12, y: bb.height - 8 } });
+  await expect(boardCard).toHaveClass(/is-selected/);
   await page.keyboard.press('Backspace');
   await expect(page.getByRole('dialog', { name: /Delete/i })).toBeVisible();
-  await page.getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('dialog', { name: /Delete/i })).toBeHidden();
 });
 

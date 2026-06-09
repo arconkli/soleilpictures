@@ -1618,8 +1618,10 @@ export function CanvasSurface({
     if (bn > 0) {
       return `Delete ${total} items, including ${bn} board${bn > 1 ? 's' : ''}?\n\nYou can undo this with Cmd+Z. Anything deleted is recoverable for 30 days.`;
     }
-    if (total === 1) return 'Delete this card?';
-    return `Delete ${total} cards?`;
+    // Plain cards don't need a confirm — the delete is one undo step and
+    // the toast below offers a one-click Undo. Boards keep the dialog
+    // (they can contain a whole subtree).
+    return null;
   }, [cardById, boards]);
 
   const doDeleteIds = useCallback(async (ids) => {
@@ -1649,6 +1651,15 @@ export function CanvasSurface({
       const next = new Set(prev);
       ids.forEach(id => next.delete(id));
       return next;
+    });
+    // Undo toast: the whole delete collapses into a single undo step
+    // (see doDeleteSelected's breakUndo), and undoing also restores the
+    // selection via the UndoManager's stack-item meta.
+    feedback.toast({
+      type: 'info',
+      message: ids.length === 1 ? 'Card deleted' : `${ids.length} cards deleted`,
+      action: { label: 'Undo', onClick: () => mutators.undo?.() },
+      ttl: 6000,
     });
   }, [buildDeleteMessage, feedback, mutators, ydoc, board?.id, sessionId, userId]);
 
