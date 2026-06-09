@@ -37,7 +37,9 @@ test.describe('Production deploy', () => {
     await page.goto(PROD_URL);
     await page.waitForLoadState('networkidle');
     // Either we're on auth (most likely fresh) OR signed-in. Both should be OK.
-    const authVisible = await page.locator('.auth-eyebrow').isVisible().catch(() => false);
+    // Signed-out landing is the SignInBackdrop scene (.sb-scene + email
+    // input); signed-in (cookied) sessions land in the app shell.
+    const authVisible = await page.locator('.sb-scene, .auth-input').first().isVisible().catch(() => false);
     const appVisible  = await page.locator('.sidebar, .app').first().isVisible().catch(() => false);
     expect(authVisible || appVisible).toBe(true);
     // Filter network noise + extension chatter that's not relevant.
