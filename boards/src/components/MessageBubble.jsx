@@ -26,8 +26,12 @@ export function MessageBubble({
   msg, selfId, highlight, replyMeta, parent, onJumpToMessage, isFocused,
   onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
   onAttachmentDragStart,
+  onRetrySend, onDiscardSend, // optimistic-send bubbles only
 }) {
   const isMine = msg.sender_id === selfId;
+  // 'sending' | 'failed' | null — optimistic messages that haven't been
+  // confirmed by the server yet. They render dimmed with no actions.
+  const sendState = msg.sendState || null;
   const within15min = msg.created_at && (Date.now() - new Date(msg.created_at).getTime()) < 15 * 60 * 1000;
   const [hover, setHover] = useState(false);
   const [emojiAnchor, setEmojiAnchor] = useState(null);
@@ -69,7 +73,7 @@ export function MessageBubble({
   const parentExcerpt = parent ? (parent.body || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
 
   return (
-    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''}`}
+    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''} ${sendState ? 'msg-bubble--pending' : ''}`}
          data-msg-id={msg.id}
          id={`msg-${msg.id}`}
          onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
@@ -107,10 +111,14 @@ export function MessageBubble({
           </span>
         )}
         <span className="msg-bubble-author">{senderName}</span>
-        <time className="msg-bubble-time" dateTime={msg.created_at} title={fullTime}>
-          {time}{msg.edited_at ? ' · edited' : ''}
-        </time>
-        <span className={`msg-bubble-actions ${hover && !editing ? 'is-visible' : ''}`}>
+        {sendState ? (
+          <span className="msg-bubble-time">{sendState === 'sending' ? 'Sending…' : ''}</span>
+        ) : (
+          <time className="msg-bubble-time" dateTime={msg.created_at} title={fullTime}>
+            {time}{msg.edited_at ? ' · edited' : ''}
+          </time>
+        )}
+        <span className={`msg-bubble-actions ${hover && !editing && !sendState ? 'is-visible' : ''}`}>
           {onReply && <button title="Reply in thread" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
           <button title="React" onClick={(e) => setEmojiAnchor(e.currentTarget.getBoundingClientRect())}><Icon as={Smile} size={12} /></button>
           {onPin && <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => onPin(msg)} className={msg.is_pinned ? 'is-active' : ''}><Icon as={Pin} size={12} /></button>}
@@ -143,6 +151,13 @@ export function MessageBubble({
             trie,
             workspaceId,
           })}
+        </div>
+      )}
+      {sendState === 'failed' && (
+        <div className="msg-bubble-failed" role="alert">
+          <span>Couldn't send</span>
+          <button type="button" onClick={() => onRetrySend?.(msg)}>Retry</button>
+          <button type="button" onClick={() => onDiscardSend?.(msg)}>Discard</button>
         </div>
       )}
       {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (

@@ -265,29 +265,60 @@ export function MessageThread({
   }, [messages, replyParent]);
 
   // ── Send / Edit / Delete / React / Reply / Pin / Copy-link ──────────
-  const handleSend = useCallback(async ({ body, attachments, mentions }) => {
-    if (!conversationId) return;
+  // Optimistic sends: the message renders instantly with a "Sending…"
+  // state; on failure it flips to a failed bubble with Retry/Discard (the
+  // composer already cleared, so the bubble owns recovery — plus an error
+  // toast in case the user has scrolled away).
+  const [pendingMsgs, setPendingMsgs] = useState([]);
+  useEffect(() => { setPendingMsgs([]); }, [conversationId]);
+
+  const deliverPending = useCallback(async (tmp) => {
     try {
       const inserted = await sendMessage({
         workspaceId, conversationId,
         senderId: userId,
         senderEmail: currentUser?.email || null,
-        parentId: replyParent?.id || null,
-        body, attachments, mentions,
+        parentId: tmp.parent_id,
+        body: tmp.body, attachments: tmp.attachments, mentions: tmp.mentions,
       });
       const payload = { ...inserted, sender_name: currentUser?.name || currentUser?.email };
       await broadcastConversationMessage({ conversationId, payload });
-      wasAtBottomRef.current = true;
-      refetch();
+      // refetch resolves after setMessages, so the real row is in place
+      // before the optimistic one unmounts — no flicker gap.
+      await refetch();
+      setPendingMsgs(p => p.filter(x => x.id !== tmp.id));
       onChanged?.();
-      return true;
     } catch (e) {
       console.warn('send failed', e);
-      // Returning false tells the composer to keep the draft + attachments.
-      feedback.toast({ type: 'error', message: "Message didn't send — check your connection and try again." });
-      return false;
+      setPendingMsgs(p => p.map(x => x.id === tmp.id ? { ...x, sendState: 'failed' } : x));
+      feedback.toast({ type: 'error', message: "Message didn't send — it's kept in the thread with a Retry button." });
     }
-  }, [workspaceId, userId, conversationId, currentUser, refetch, replyParent, onChanged, feedback]);
+  }, [workspaceId, conversationId, userId, currentUser, refetch, onChanged, feedback]);
+
+  const handleSend = useCallback(async ({ body, attachments, mentions }) => {
+    if (!conversationId) return false;
+    const tmp = {
+      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      body, attachments, mentions,
+      parent_id: replyParent?.id || null,
+      sender_id: userId,
+      sender_name: currentUser?.name || currentUser?.email,
+      created_at: new Date().toISOString(),
+      sendState: 'sending',
+    };
+    setPendingMsgs(p => [...p, tmp]);
+    wasAtBottomRef.current = true;
+    deliverPending(tmp);
+    return true;
+  }, [conversationId, replyParent, userId, currentUser, deliverPending]);
+
+  const retryPending = useCallback((msg) => {
+    setPendingMsgs(p => p.map(x => x.id === msg.id ? { ...x, sendState: 'sending' } : x));
+    deliverPending(msg);
+  }, [deliverPending]);
+  const discardPending = useCallback((msg) => {
+    setPendingMsgs(p => p.filter(x => x.id !== msg.id));
+  }, []);
 
   const handleDelete = useCallback(async (msg) => {
     const ok = await feedback.confirm({
@@ -581,6 +612,10 @@ export function MessageThread({
                 onAttachmentDragStart={handleAttachmentDragStart}
               />
             ))}
+            {pendingMsgs.filter(m => m.parent_id === replyParent.id).map(m => (
+              <MessageBubble key={m.id} msg={m} selfId={userId}
+                onRetrySend={retryPending} onDiscardSend={discardPending} />
+            ))}
           </>
         ) : (
           <>
@@ -603,6 +638,10 @@ export function MessageThread({
                 onPin={handlePin}
                 onCopyLink={handleCopyLink}
               />
+            ))}
+            {pendingMsgs.filter(m => !m.parent_id).map(m => (
+              <MessageBubble key={m.id} msg={m} selfId={userId}
+                onRetrySend={retryPending} onDiscardSend={discardPending} />
             ))}
             {typingUsers.size > 0 && (
               <div className="msg-typing">
