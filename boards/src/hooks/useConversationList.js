@@ -20,6 +20,9 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
   const [conversations, setConversations] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [counts, setCounts] = useState({});
+  // True once the first fetch settles — lets the panel show a skeleton
+  // instead of flashing "No conversations yet" while the list loads.
+  const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!workspaceId || !userId) return;
@@ -36,7 +39,10 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
   useEffect(() => {
     if (!workspaceId || !userId) return;
     let cancelled = false;
-    (async () => { try { await refresh(); } catch (_) {} if (cancelled) return; })();
+    (async () => {
+      try { await refresh(); } catch (_) {}
+      if (!cancelled) setLoaded(true);
+    })();
     return () => { cancelled = true; };
   }, [workspaceId, userId, refreshTick, refresh]);
 
@@ -101,5 +107,5 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
     return { participantsByConv: byConv, myStateByConv: mine, unreadByConv: unread };
   }, [conversations, participants, counts, userId]);
 
-  return { conversations, participantsByConv, myStateByConv, unreadByConv };
+  return { conversations, participantsByConv, myStateByConv, unreadByConv, loaded };
 }

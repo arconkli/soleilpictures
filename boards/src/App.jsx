@@ -2883,6 +2883,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             zero visual feedback for ~500ms-2s on cold loads. */}
         {!ready && (
           <div className="board-loading-overlay" aria-hidden="true">
+            {/* Ghost cards: the page reads as "a board is coming" instead
+                of a bare mark on an empty void. */}
+            <div className="board-loading-ghosts">
+              <span className="board-loading-ghost" />
+              <span className="board-loading-ghost" />
+              <span className="board-loading-ghost" />
+            </div>
             <SoleilMark size={36} color="var(--soleil)" glow />
           </div>
         )}

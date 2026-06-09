@@ -80,6 +80,9 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
   const initial = cachedUrl(src);
   const [url, setUrl] = useState(initial);
   const [failed, setFailed] = useState(false);
+  // After a couple of failed presign attempts, surface a quiet "still
+  // trying" cue so the shimmer doesn't read as hung during the backoff.
+  const [slowRetry, setSlowRetry] = useState(false);
   // Viewport gating: defer presign + image decode for cards that aren't near
   // the viewport. eager-marked images (lightbox hero, already-presigned cached
   // cards) skip the gate. Once visible, we stay visible.
@@ -112,6 +115,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
         // Transient sign failures: retry with backoff before showing the lock.
         if (typeof src === 'string' && src.startsWith('r2:') && attempt < MAX_SIGN_RETRIES) {
           attempt += 1;
+          if (attempt >= 2) setSlowRetry(true);
           retryTimer = setTimeout(tick, SIGN_RETRY_BASE_MS * 2 ** (attempt - 1));
           return;
         }
@@ -119,6 +123,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
         return;
       }
       attempt = 0;
+      setSlowRetry(false);
       setUrl(resolved);
       setFailed(false);
       if (typeof src === 'string' && src.startsWith('r2:')) {
@@ -137,7 +142,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
 
   if (!url) {
     // Loading shimmer; rootRef anchors the IntersectionObserver.
-    return <div ref={rootRef} className="r2-img r2-img-loading" {...rest} />;
+    return <div ref={rootRef} className={`r2-img r2-img-loading ${slowRetry ? 'r2-img-retrying' : ''}`} {...rest} />;
   }
 
   // Explicit width/height tell Chrome to decode-at-size and cache that decoded

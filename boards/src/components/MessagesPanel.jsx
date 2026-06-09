@@ -33,7 +33,7 @@ export function MessagesPanel({
 }) {
   const userId = currentUser?.id;
   const {
-    conversations, participantsByConv, myStateByConv, unreadByConv,
+    conversations, participantsByConv, myStateByConv, unreadByConv, loaded,
   } = useConversationList({ workspaceId, userId, refreshTick });
 
   const [pendingJumpMessageId, setPendingJumpMessageId] = useState(jumpToMessageId || null);
@@ -145,7 +145,21 @@ export function MessagesPanel({
       </div>
 
       <div className="msg-panel-body">
-        {visibleConversations.length === 0 && (
+        {!loaded && (
+          // First-load skeleton — "no data yet", not "no conversations".
+          <div className="msg-skel-list" aria-hidden="true">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="msg-skel-row">
+                <span className="msg-skel-avatar" />
+                <span className="msg-skel-lines">
+                  <span className="msg-skel-line" />
+                  <span className="msg-skel-line msg-skel-line-short" />
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {loaded && visibleConversations.length === 0 && (
           <div className="msg-empty t-meta">
             No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.
           </div>

@@ -12,6 +12,7 @@ import * as Y from 'yjs';
 import { loadBoardSnapshot } from '../lib/boardsApi.js';
 import { b64ToBytes } from '../lib/yhelpers.js';
 import { readBookmarks, readPages } from '../lib/docState.js';
+import { Spinner } from './Spinner.jsx';
 
 const cache = new Map(); // boardId -> { pages, bookmarks } | null
 
@@ -52,11 +53,18 @@ export function DocLinkPicker({ initialUrl = '', boards = {}, currentBoardId, on
     };
   }, [onClose]);
 
-  // Eagerly load bookmarks for the picked doc.
+  // Eagerly load bookmarks for the picked doc. docLoading drives a spinner
+  // so the empty column reads "loading", not "no bookmarks".
+  const [docLoading, setDocLoading] = useState(false);
   useEffect(() => {
     let cancelled = false;
     if (!docId) { setDocData({ pages: [], bookmarks: [] }); return; }
-    loadDocBookmarks(docId).then((d) => { if (!cancelled) setDocData(d); });
+    setDocLoading(true);
+    loadDocBookmarks(docId).then((d) => {
+      if (cancelled) return;
+      setDocData(d);
+      setDocLoading(false);
+    });
     return () => { cancelled = true; };
   }, [docId]);
 
@@ -142,10 +150,13 @@ export function DocLinkPicker({ initialUrl = '', boards = {}, currentBoardId, on
                 <div className="doc-link-col-head">Bookmark</div>
                 <div className="doc-link-list">
                   {!docId && <div className="doc-link-empty">Pick a doc on the left.</div>}
-                  {docId && docData.bookmarks.length === 0 && (
+                  {docId && docLoading && (
+                    <div className="doc-link-empty"><Spinner size={14} label="Loading bookmarks" /></div>
+                  )}
+                  {docId && !docLoading && docData.bookmarks.length === 0 && (
                     <div className="doc-link-empty">No bookmarks in this doc.</div>
                   )}
-                  {docId && docData.bookmarks.map(b => (
+                  {docId && !docLoading && docData.bookmarks.map(b => (
                     <button key={b.id} className="doc-link-row" onClick={() => pickBookmark(b)}>
                       <span className="doc-link-row-star">★</span>
                       <span className="doc-link-row-name">{b.name || 'Bookmark'}</span>

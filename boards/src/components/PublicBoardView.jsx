@@ -238,7 +238,10 @@ export function PublicBoardView({ token }) {
   if (status === 'loading') {
     return (
       <div className="public-shell">
-        <div className="public-loading">Loading…</div>
+        <div className="public-loading">
+          <SoleilMark size={42} color="var(--soleil)" glow />
+          <div>Preparing the board…</div>
+        </div>
       </div>
     );
   }

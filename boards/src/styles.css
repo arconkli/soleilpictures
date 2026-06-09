@@ -2097,6 +2097,8 @@ body {
 }
 .public-loading {
   display: grid; place-items: center;
+  align-content: center;
+  gap: 14px;
   height: 100vh;
   font: 500 14px/1 var(--font-sans);
   color: var(--ink-3);
@@ -11698,6 +11700,38 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   animation: board-loading-breathe 1.6s ease-in-out infinite;
   transform-origin: 50% 50%;
 }
+/* Faint ghost cards behind the mark — shares the r2 shimmer keyframes;
+   static under reduced motion. */
+.board-loading-ghosts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.board-loading-ghost {
+  position: absolute;
+  border-radius: var(--radius-md);
+  background: linear-gradient(100deg, var(--bg-1) 40%, var(--bg-hov) 50%, var(--bg-1) 60%);
+  background-size: 200% 100%;
+  animation: r2-shimmer 1.4s ease-in-out infinite;
+  opacity: .45;
+}
+.board-loading-ghost:nth-child(1) { left: 12%; top: 18%; width: 200px; height: 140px; }
+.board-loading-ghost:nth-child(2) { left: 38%; top: 46%; width: 240px; height: 110px; animation-delay: .2s; }
+.board-loading-ghost:nth-child(3) { left: 64%; top: 22%; width: 170px; height: 170px; animation-delay: .4s; }
+@media (prefers-reduced-motion: reduce) {
+  .board-loading-ghost { animation: none; }
+}
+/* Quiet "still trying" cue while image presign retries back off. */
+.r2-img-retrying { position: relative; }
+.r2-img-retrying::after {
+  content: 'still loading…';
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font: 500 10px/1 var(--font-sans);
+  letter-spacing: .04em;
+  color: var(--ink-3);
+}
 @keyframes board-loading-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -12704,6 +12738,27 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-3);
   font: 500 12px/1.4 var(--font-sans);
   text-align: center;
+}
+/* First-load skeleton rows for the conversation list (shares the r2
+   shimmer; static under reduced motion). */
+.msg-skel-list { padding: 8px 10px; display: flex; flex-direction: column; gap: 12px; }
+.msg-skel-row { display: flex; align-items: center; gap: 10px; }
+.msg-skel-avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex: none;
+  background: linear-gradient(100deg, var(--bg-1) 40%, var(--bg-hov) 50%, var(--bg-1) 60%);
+  background-size: 200% 100%;
+  animation: r2-shimmer 1.4s ease-in-out infinite;
+}
+.msg-skel-lines { flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; }
+.msg-skel-line {
+  height: 9px; border-radius: 4px;
+  background: linear-gradient(100deg, var(--bg-1) 40%, var(--bg-hov) 50%, var(--bg-1) 60%);
+  background-size: 200% 100%;
+  animation: r2-shimmer 1.4s ease-in-out infinite;
+}
+.msg-skel-line-short { width: 55%; }
+@media (prefers-reduced-motion: reduce) {
+  .msg-skel-avatar, .msg-skel-line { animation: none; }
 }
 .msg-empty-hero {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
