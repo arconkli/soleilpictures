@@ -294,6 +294,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     return merged;
   }, [ownedBoards, sharedBoards]);
+  // True only once the workspace board list has actually arrived over the
+  // network. The canvas snapshot (yb.cards) paints instantly from the
+  // IndexedDB instant-reopen cache, so board-reference cards can render a
+  // frame before `boards` is populated — gating on this lets the surfaces
+  // show a neutral shimmer placeholder during that window instead of a
+  // scary "Missing board" / "no access" tile. Once true, the isOrphanRef
+  // filter below removes any genuinely-missing references entirely.
+  const boardsReady = !boardsLoading && !!boards && Object.keys(boards).length > 0;
   // Idle prefetch: warm the top 8 most-recently-updated boards in
   // the background so first-click navigation is instant. Stops on
   // first user interaction.
@@ -2820,7 +2828,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const muts = isMain ? mainMutatorsFull : splitMutatorsFull;
     const surfaceJsx = (() => {
       if (view === 'list') return (
-        <ListSurface board={board} boards={boards} cards={cards}
+        <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
                      childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
                      onOpenBoard={openBoard}
                      onOpenPicker={() => setPickerOpen(true)}
@@ -2833,7 +2841,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       );
       return (
         <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
-          <CanvasSurface board={board} boards={boards} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
+          <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
                          ydoc={yd}
                          getAwareness={yh.getAwareness}
                          peersHereByBoard={peersHereByBoard}

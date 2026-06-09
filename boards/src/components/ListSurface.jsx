@@ -10,7 +10,7 @@ import { useFeedback } from './AppFeedback.jsx';
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
 export function ListSurface({
-  board, boards, cards, childBoards,
+  board, boards, boardsReady = true, cards, childBoards,
   onOpenBoard, onOpenPicker, onDropInboxItem,
   canEdit = true,
   mutators = {},
@@ -245,7 +245,9 @@ export function ListSurface({
                        className={`list-tile ${selectedCards.has(c.id) ? 'is-selected' : ''}`}
                        onClick={(e) => onTileClick(e, 'boardlink', c.id)}
                        onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)}>
-                    <BoardLinkCard targetBoard={t} note={c.note} onOpen={() => {}} />
+                    {(!t && !boardsReady)
+                      ? <div className="blc blc-loading" aria-hidden="true" />
+                      : <BoardLinkCard targetBoard={t} note={c.note} onOpen={() => {}} />}
                   </div>
                 );
               })}

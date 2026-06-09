@@ -188,7 +188,7 @@ const cmdKey = isMac ? '⌘' : 'Ctrl';
 const isEditorTarget = isEditableTarget;
 
 export function CanvasSurface({
-  board, boards, cards, arrows, strokes, groups = [],
+  board, boards, boardsReady = true, cards, arrows, strokes, groups = [],
   ydoc, // raw Y.Doc — needed by doc cards to access their per-card YMap
   getAwareness,            // () => Awareness | null  — for live presence
   currentUser,             // { id, name, color }     — for awareness localState
@@ -4860,7 +4860,7 @@ export function CanvasSurface({
     let inner = null;
     if (c.kind === 'board') {
       const target = boards[c.id];
-      if (!target && typeof window !== 'undefined') {
+      if (!target && boardsReady && typeof window !== 'undefined') {
         if (!window._missingBoardLogged) window._missingBoardLogged = new Set();
         if (!window._missingBoardLogged.has(c.id)) {
           window._missingBoardLogged.add(c.id);
@@ -4901,10 +4901,14 @@ export function CanvasSurface({
                      }}
                      onRename={canEdit ? (name) => mutators.renameBoardById?.(c.id, name) : null}
                      autoFocus={af} />
-        : <div className="bc bc-missing" title={`Missing board ${c.id}`}>Missing board</div>;
+        : boardsReady
+          ? <div className="bc bc-missing" title={`Missing board ${c.id}`}>Missing board</div>
+          : <div className="bc bc-loading" aria-hidden="true" />;
     } else if (c.kind === 'boardlink') {
       const target = boards[c.target];
-      inner = <BoardLinkCard targetBoard={target} note={c.note} onOpen={() => target && onOpenBoard(c.target)} />;
+      inner = (!target && !boardsReady)
+        ? <div className="blc blc-loading" aria-hidden="true" />
+        : <BoardLinkCard targetBoard={target} note={c.note} onOpen={() => target && onOpenBoard(c.target)} />;
     } else if (c.kind === 'image')   inner = <ImageCard src={c.src || localImagePreview[c.id] || null} tone={c.tone} label={c.label} title={c.title} link={c.link} aspect={`${c.w}/${c.h}`} w={Math.round(c.w)} h={Math.round(c.h)} caption={c.caption} onUpdate={onUpdate} autoFocus={af}
                                                      backfillEnabled={canEdit} boardId={board.id}
                                                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
