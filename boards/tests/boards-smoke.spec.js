@@ -109,7 +109,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   });
   await expect(page.locator('.strokes-layer path')).toHaveCount(strokePathCount + 2);
 
-  await page.getByTitle('Arrow - click 2 cards, or drag on empty canvas').click();
+  await page.getByTitle('Arrow (A) — click 2 cards, or drag on empty canvas').click();
   await expect(page.getByText('Click a card to start, or drag on empty canvas for a free arrow')).toBeVisible();
   // .tob renders arrow options; presence is enough.
   await expect(page.locator('.tob')).toBeVisible();

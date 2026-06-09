@@ -3,7 +3,9 @@
 
 import { expect, test } from '@playwright/test';
 
-const PROD_URL = process.env.BOARDS_PROD_URL || 'https://boards.soleilpictures.com';
+// clusters.soleilpictures.com is the live domain (rebranded from "Boards"
+// in May 2026 — the old boards. subdomain no longer resolves).
+const PROD_URL = process.env.BOARDS_PROD_URL || 'https://clusters.soleilpictures.com';
 
 test.describe('Production deploy', () => {
   test('returns 200 + valid HTML at the root', async ({ request }) => {
