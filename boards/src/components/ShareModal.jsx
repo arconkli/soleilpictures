@@ -449,7 +449,7 @@ export function ShareModal({
               <button className="share-invite-btn"
                       onClick={submitInvite}
                       disabled={!inviteEmail.trim() || inviting}>
-                {inviting ? '…' : 'Invite'}
+                {inviting ? 'Inviting…' : 'Invite'}
               </button>
             </div>
             <div className="share-hint">

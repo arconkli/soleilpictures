@@ -128,13 +128,18 @@ function FeedbackDialog({ dialog, onClose }) {
           </label>
         )}
         <div className="feedback-actions">
-          <button type="button" className="btn-secondary" onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}>
+          {/* Danger dialogs autofocus Cancel — autofocusing the destructive
+              button meant a stray Enter (or the keypress that opened the
+              dialog still settling) confirmed deletes instantly. */}
+          <button type="button" className="btn-secondary"
+                  autoFocus={dialog.danger && !requiresTyping}
+                  onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}>
             {dialog.cancelLabel}
           </button>
           <button
             type="submit"
             className={dialog.danger ? 'btn-primary btn-danger' : 'btn-primary'}
-            autoFocus={!requiresTyping}
+            autoFocus={!dialog.danger && !requiresTyping}
             disabled={requiresTyping && !typeMatches}
           >
             {dialog.confirmLabel}

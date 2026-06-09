@@ -205,6 +205,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
           )}
 
           {/* Time picker + preview button */}
+          <div className="wsr-step-hint">Step 1 — pick a time, then preview which boards would change.</div>
           <div className="wsr-picker">
             <label className="wsr-picker-label">Rewind to:</label>
             <input
@@ -225,6 +226,9 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
 
           {/* Preview table */}
           {previewError && <div className="modal-empty">Preview failed: {previewError}</div>}
+          {previewRows.length > 0 && (
+            <div className="wsr-step-hint">Step 2 — review the impact, check the boards to rewind, then confirm below.</div>
+          )}
           {previewRows.length > 0 && (
             <div className="wsr-table-wrap">
               <table className="wsr-table">
@@ -316,6 +320,9 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
             className="tb-btn tb-btn-primary"
             onClick={runRewind}
             disabled={busy || !previewRows.length || selectedIds.size === 0}
+            title={!previewRows.length
+              ? 'Run "Preview impact" first'
+              : (selectedIds.size === 0 ? 'Select at least one board in the preview' : undefined)}
           >
             {busy
               ? 'Rewinding…'

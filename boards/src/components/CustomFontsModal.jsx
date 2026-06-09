@@ -58,8 +58,9 @@ export function CustomFontsModal({ open, onClose }) {
         <div className="cfont-section">Add a font</div>
         <form className="cfont-add" onSubmit={submit}>
           <label className="cfont-field">
-            <span>Name</span>
+            <span>Name <span className="field-required" aria-hidden="true">*</span></span>
             <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)}
+                   required aria-required="true"
                    placeholder="e.g. Söhne, Inter, Crimson Pro" />
           </label>
           <div className="cfont-row-2">

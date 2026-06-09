@@ -111,7 +111,7 @@ export function WaitlistModal({ onClose }) {
 
         {/* Form section — matches the pricing-card "field list" feel */}
         <form className="waitlist-card-form" onSubmit={submit}>
-          <label className="waitlist-card-label">Your links</label>
+          <label className="waitlist-card-label">Your links <span className="field-required" aria-hidden="true">*</span></label>
 
           <div className="waitlist-card-fields">
             {rows.map((row, i) => (
