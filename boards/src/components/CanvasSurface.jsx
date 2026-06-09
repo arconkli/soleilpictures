@@ -58,6 +58,7 @@ import {
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
 } from '../lib/arrowGeometry.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
+import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
 
 const RESIZE_HANDLE_PX = 14;
@@ -2952,7 +2953,7 @@ export function CanvasSurface({
       bottomEdgeYs.push({ y: other.y + other.h,  x0: other.x, x1: other.x + other.w });
     });
 
-    const computeResizeSnap = (rawDw, rawDh, skip) => {
+    const computeResizeSnap = (rawDw, rawDh, skip, skipH) => {
       if (skip) return { dw: rawDw, dh: rawDh, hints: null };
       const thresh = SNAP_PX / zoom;
       const candW       = c.w + rawDw;
@@ -2971,12 +2972,14 @@ export function CanvasSurface({
         const d = Math.abs(adjust);
         if (d < bestDwDist) { bestDwDist = d; bestDwAdj = adjust; bestWMatch = { kind: 'edge', target: re }; }
       }
-      for (const hc of hCands) {
+      // skipH: note-reflow resizes own the height (it follows the text),
+      // so height snap candidates would fight the fitted height.
+      for (const hc of (skipH ? [] : hCands)) {
         const adjust = hc.value - candH;
         const d = Math.abs(adjust);
         if (d < bestDhDist) { bestDhDist = d; bestDhAdj = adjust; bestHMatch = { kind: 'numeric', owner: hc.owner }; }
       }
-      for (const be of bottomEdgeYs) {
+      for (const be of (skipH ? [] : bottomEdgeYs)) {
         const adjust = be.y - candBottom;
         const d = Math.abs(adjust);
         if (d < bestDhDist) { bestDhDist = d; bestDhAdj = adjust; bestHMatch = { kind: 'edge', target: be }; }
@@ -3039,15 +3042,49 @@ export function CanvasSurface({
       return { dw: newW - c.w, dh: newH - c.h };
     };
 
+    // Note cards reflow on resize: while the drag is mostly horizontal the
+    // height auto-follows the text at the new width, so resizing never
+    // hides text behind an invisible scroll. A deliberate vertical pull
+    // (>16px screen-space) latches "height mode" and hands height back to
+    // the pointer, with an extra snap target at the content height so
+    // dragging back to "exactly fits" is easy. Empty notes (no text to
+    // reflow) keep the legacy free-resize behavior.
+    const noteBody = c.kind === 'note'
+      ? document.querySelector(`[data-card-id="${c.id}"] .note-body`)
+      : null;
+    let noteMeasurer = noteBody ? createNoteMeasurer(noteBody) : null;
+    if (noteMeasurer?.isEmpty) { noteMeasurer.destroy(); noteMeasurer = null; }
+    let noteHeightMode = false;
+    const updateNoteLatch = (ev) => {
+      if (noteMeasurer && !noteHeightMode && Math.abs(ev.clientY - startClient.y) > 16) {
+        noteHeightMode = true;
+      }
+    };
+    const applyNoteReflow = (dw, dh, hints) => {
+      if (!noteMeasurer) return { dh, hints };
+      const newW = Math.max(MIN_W, Math.round(c.w + dw));
+      const fitH = noteMeasurer.cardHeightAt(newW);
+      if (!noteHeightMode) return { dh: fitH - c.h, hints };
+      // Height mode: snap to "fits exactly" when the pointer is close.
+      if (Math.abs((c.h + dh) - fitH) <= 12 / zoom) {
+        const merged = hints || { xs: [], ys: [], spacings: [] };
+        merged.ys = [...(merged.ys || []), { y: c.y + fitH, x0: c.x, x1: c.x + newW, label: 'fit' }];
+        return { dh: fitH - c.h, hints: merged };
+      }
+      return { dh, hints };
+    };
+
     const onMove = (ev) => {
       const rawDwRaw = (ev.clientX - startClient.x) / zoom;
       const rawDhRaw = (ev.clientY - startClient.y) / zoom;
       const bypass = ev.metaKey || ev.ctrlKey;
       const { dw: rawDw, dh: rawDh } = applyAspectLock(rawDwRaw, rawDhRaw, bypass);
+      updateNoteLatch(ev);
       // Aspect-locked resize skips edge/numeric snapping (would break the
       // lock); Alt continues to also disable snap for the free-resize case.
-      const { dw, dh, hints } = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey);
-      setResize({ id: c.id, dw, dh });
+      const snap = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey, !!noteMeasurer && !noteHeightMode);
+      const { dh, hints } = applyNoteReflow(snap.dw, snap.dh, snap.hints);
+      setResize({ id: c.id, dw: snap.dw, dh });
       setSnapHints(hints);
     };
     const onUp = (ev) => {
@@ -3058,17 +3095,26 @@ export function CanvasSurface({
       const rawDhRaw = (ev.clientY - startClient.y) / zoom;
       const bypass = ev.metaKey || ev.ctrlKey;
       const { dw: rawDw, dh: rawDh } = applyAspectLock(rawDwRaw, rawDhRaw, bypass);
-      const { dw, dh } = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey);
-      const newW = Math.max(MIN_W, Math.round(c.w + dw));
+      updateNoteLatch(ev);
+      const snap = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey, !!noteMeasurer && !noteHeightMode);
+      const { dh } = applyNoteReflow(snap.dw, snap.dh, snap.hints);
+      const newW = Math.max(MIN_W, Math.round(c.w + snap.dw));
       const newH = Math.max(MIN_H, Math.round(c.h + dh));
       if (newW !== c.w || newH !== c.h) {
-        // Manual resize sticks — note auto-sizing stops once the user has
-        // committed a hand-set size. Only matters for note cards but the
-        // flag is harmless on other kinds.
         const patch = { w: newW, h: newH };
-        if (c.kind === 'note' && !c.manuallyResized) patch.manuallyResized = true;
+        if (c.kind === 'note') {
+          // A note counts as manually sized only when the user deliberately
+          // pinned a height that differs from its content height. Width-only
+          // resizes keep the note auto-fitting — and explicitly writing
+          // `false` un-freezes notes frozen by the old always-stick behavior.
+          patch.manuallyResized = noteMeasurer
+            ? (noteHeightMode && newH !== noteMeasurer.cardHeightAt(newW))
+            : true;
+        }
         mutators.updateCard?.(c.id, patch);
       }
+      noteMeasurer?.destroy();
+      noteMeasurer = null;
       setResize(null);
       setSnapHints(null);
     };
@@ -3076,6 +3122,8 @@ export function CanvasSurface({
     pointerOpAbortRef.current = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      noteMeasurer?.destroy();
+      noteMeasurer = null;
       setSnapHints(null);
       setResize(null);
     };
@@ -3551,36 +3599,16 @@ export function CanvasSurface({
         items.push({ id: 'fit', label: 'Fit to content', run: () => {
           // Snap the note to the natural size of its rendered content so
           // there's no padding to the right of titles or short lines, and
-          // no empty space below. We clone the live note-body into an
-          // offscreen measurer with the same font/styles but width set to
-          // max-content; that gives us the unwrapped longest-line width.
-          // Then we set the note's width and re-measure height at that
-          // width so multi-line content still wraps correctly.
+          // no empty space below. The shared measurer gives the unwrapped
+          // longest-line width; we then re-measure height at that width so
+          // multi-line content still wraps correctly.
           const wrap = document.querySelector(`[data-card-id="${c.id}"] .note-body`);
-          if (!wrap) return;
-          const NOTE_PAD_X = 16 * 2; // .note padding left + right
-          const NOTE_PAD_Y = 16 * 2;
-          const cs = window.getComputedStyle(wrap);
-          const measurer = document.createElement('div');
-          measurer.innerHTML = wrap.innerHTML;
-          Object.assign(measurer.style, {
-            position: 'absolute', left: '-99999px', top: '0',
-            visibility: 'hidden',
-            width: 'max-content', maxWidth: 'none',
-            font: cs.font,
-            lineHeight: cs.lineHeight,
-            letterSpacing: cs.letterSpacing,
-            whiteSpace: 'pre-wrap',
-            overflowWrap: 'anywhere',
-          });
-          document.body.appendChild(measurer);
-          const naturalW = Math.ceil(measurer.scrollWidth);
+          const measurer = createNoteMeasurer(wrap);
+          if (!measurer) return;
           // Cap width so a giant single line doesn't blow out the canvas.
-          const newW = Math.min(560, Math.max(80, naturalW + NOTE_PAD_X));
-          // Re-measure height at the new content width.
-          measurer.style.width = (newW - NOTE_PAD_X) + 'px';
-          const newH = Math.max(40, Math.ceil(measurer.scrollHeight) + NOTE_PAD_Y);
-          measurer.remove();
+          const newW = Math.min(560, Math.max(80, measurer.naturalWidth() + NOTE_INNER_PAD));
+          const newH = measurer.cardHeightAt(newW);
+          measurer.destroy();
           mutators.updateCard?.(c.id, { w: newW, h: newH, manuallyResized: false });
         }});
       } else if (c.kind === 'link') {
