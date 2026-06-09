@@ -113,14 +113,17 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
     return { tokenStart: i, query: text.slice(i + 1, caret) };
   };
 
-  const send = () => {
+  const send = async () => {
     const v = body.trim();
     if (!v && attachments.length === 0) return;
-    onSend?.({
+    // onSend resolves false when the send failed — keep the draft and
+    // attachments so the user's message isn't silently lost.
+    const ok = await onSend?.({
       body: v,
       attachments: [...attachments, ...pendingEntityRefs],
       mentions: pendingMentions,
     });
+    if (ok === false) { inputRef.current?.focus(); return; }
     clearDraft();
     setAttachments([]);
     setPendingMentions([]);

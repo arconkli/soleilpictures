@@ -19,6 +19,7 @@ import { MessageComposer } from './MessageComposer.jsx';
 import { INBOX_MIME } from '../lib/dragMimes.js';
 import { inboxPayloadFor } from '../lib/messageAttachments.js';
 import { SoleilMark } from './primitives.jsx';
+import { useFeedback } from './AppFeedback.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
@@ -32,6 +33,7 @@ export function MessageThread({
 }) {
   const userId = currentUser?.id;
   const conversationId = conversation?.id;
+  const feedback = useFeedback();
 
   const { messages, typingUsers, refetch } = useMessageThread({
     conversationId, userId,
@@ -278,18 +280,41 @@ export function MessageThread({
       wasAtBottomRef.current = true;
       refetch();
       onChanged?.();
-    } catch (e) { console.warn('send failed', e); }
-  }, [workspaceId, userId, conversationId, currentUser, refetch, replyParent, onChanged]);
+      return true;
+    } catch (e) {
+      console.warn('send failed', e);
+      // Returning false tells the composer to keep the draft + attachments.
+      feedback.toast({ type: 'error', message: "Message didn't send — check your connection and try again." });
+      return false;
+    }
+  }, [workspaceId, userId, conversationId, currentUser, refetch, replyParent, onChanged, feedback]);
 
   const handleDelete = useCallback(async (msg) => {
-    await deleteMessage({ id: msg.id });
-    refetch();
-  }, [refetch]);
+    const ok = await feedback.confirm({
+      title: 'Delete message',
+      message: "Delete this message? This can't be undone.",
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteMessage({ id: msg.id });
+      refetch();
+    } catch (e) {
+      console.warn('delete failed', e);
+      feedback.toast({ type: 'error', message: 'Could not delete the message — try again.' });
+    }
+  }, [refetch, feedback]);
 
   const handleEdit = useCallback(async (msg, newBody) => {
-    await editMessage({ id: msg.id, body: newBody });
-    refetch();
-  }, [refetch]);
+    try {
+      await editMessage({ id: msg.id, body: newBody });
+      refetch();
+    } catch (e) {
+      console.warn('edit failed', e);
+      feedback.toast({ type: 'error', message: 'Could not save your edit — try again.' });
+    }
+  }, [refetch, feedback]);
 
   const handleReact = useCallback(async (msg, emoji) => {
     if (!emoji) return;
@@ -346,18 +371,30 @@ export function MessageThread({
     try {
       await renameConversation({ conversationId, title: next });
       onChanged?.();
-    } catch (e) { console.warn('rename failed', e); }
+    } catch (e) {
+      console.warn('rename failed', e);
+      feedback.toast({ type: 'error', message: 'Could not rename the conversation — try again.' });
+    }
   };
 
   const openLeaveConfirm = async () => {
     if (isDm) return;
     setMenuAnchor(null);
-    if (!window.confirm(`Leave "${titleText}"?`)) return;
+    const ok = await feedback.confirm({
+      title: 'Leave conversation',
+      message: `Leave "${titleText}"? You'll stop receiving its messages.`,
+      confirmLabel: 'Leave',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await leaveConversation({ conversationId, userId });
       onChanged?.();
       onBack?.();
-    } catch (e) { console.warn('leave failed', e); }
+    } catch (e) {
+      console.warn('leave failed', e);
+      feedback.toast({ type: 'error', message: 'Could not leave the conversation — try again.' });
+    }
   };
 
   // ── Render ───────────────────────────────────────────────────────────
@@ -662,6 +699,7 @@ function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) 
 // ── Add-participants picker (workspace member list + addParticipants) ──
 function AddParticipantsPicker({ workspaceId, conversationId, existingIds, anchor, onClose, onAdded, actorId, currentUser }) {
   const { members } = useWorkspaceMembers(workspaceId);
+  const feedback = useFeedback();
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -718,13 +756,12 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
   const handleAdd = async () => {
     if (picked.length === 0 || busy) return;
     setBusy(true);
+    const names = picked.map(uid => userProfiles.get(uid)?.name || userProfiles.get(uid)?.email || 'someone');
     try {
       await addParticipants({ conversationId, userIds: picked });
       // Post a system message announcing the additions.
-      const names = picked.map(uid => userProfiles.get(uid)?.name || userProfiles.get(uid)?.email || 'someone');
-      const verb = picked.length === 1 ? 'added' : 'added';
       const me = currentUser?.name || currentUser?.email || 'Someone';
-      const body = `${me} ${verb} ${names.join(', ')}`;
+      const body = `${me} added ${names.join(', ')}`;
       await sendMessage({
         workspaceId,
         conversationId,
@@ -733,9 +770,11 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
         body,
         kind: 'system',
       });
+      feedback.toast({ type: 'success', message: `Added ${names.join(', ')} to the conversation.` });
       onAdded?.();
     } catch (e) {
       console.warn('add participants failed', e);
+      feedback.toast({ type: 'error', message: 'Could not add people — try again.' });
     } finally {
       setBusy(false);
     }
@@ -748,7 +787,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
       style={{ position: 'fixed', top: pos.top, left: pos.left, width: 320, maxHeight: pos.maxHeight }}
     >
       <div className="msg-newconv-head">
-        <span className="t-eyebrow">ADD PEOPLE</span>
+        <span className="t-eyebrow">ADD TO THIS CONVERSATION</span>
         <button className="msg-panel-icon" onClick={onClose} aria-label="Close">
           <Icon as={X} size={12} />
         </button>
