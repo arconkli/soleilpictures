@@ -154,8 +154,11 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
          {...rest}
          onError={(e) => {
            if (typeof src === 'string' && src.startsWith('r2:')) {
-             getSignedUrl(src.slice(3)).then(fresh => {
-               if (fresh && fresh !== url) setUrl(fresh);
+             // Force a fresh sign (evicts the cached string) — the URL we were
+             // handed may be an expired signature, so re-presigning WITHOUT
+             // force would just hand back the same dead URL and lock the image.
+             getSignedUrl(src.slice(3), { force: true }).then(fresh => {
+               if (fresh) setUrl(fresh);
                else setFailed(true);
              });
            } else {
@@ -429,13 +432,15 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                  return;
                }
                // The browser may have chosen the sm srcset candidate; drop it so
-               // we fall back to the lg `src` (and its re-presign below) rather
-               // than retrying a bad sm URL.
+               // we fall back to the lg `src` rather than retrying a bad sm URL.
                if (smUrl) setSmUrl(null);
-               // Re-presign once; if it still fails, show the blocked state.
+               // Force a fresh sign (evicts the cached string). The URL may be an
+               // expired signature; re-presigning WITHOUT force would hand back
+               // the same dead URL and lock the image. A null result means real
+               // loss of access → blocked; any fresh URL → recover.
                if (typeof activeSrc === 'string' && activeSrc.startsWith('r2:')) {
-                 getSignedUrl(activeSrc.slice(3)).then(fresh => {
-                   if (fresh && fresh !== url) setUrl(fresh);
+                 getSignedUrl(activeSrc.slice(3), { force: true }).then(fresh => {
+                   if (fresh) setUrl(fresh);
                    else setFailed(true);
                  });
                } else {

@@ -133,10 +133,16 @@ async function supabaseGet(path: string, token: string): Promise<any[] | null> {
 // identical, cacheable, persistable URLs.
 async function signReadUrl(r2: AwsClient, env: R2Env, key: string): Promise<string> {
   const base = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
-  const r2Url = `${base}?response-cache-control=${encodeURIComponent(READ_RESPONSE_CACHE_CONTROL)}`;
+  // X-Amz-Expires MUST be a signed query param ON THE URL before signing.
+  // aws4fetch has no `expiresIn` option — if X-Amz-Expires is absent it forces
+  // its own 86400 (24h) default, so a URL we believe is good for 7 days actually
+  // dies in a day (the client then serves a dead URL → 403 → the "locked" image).
+  // Setting it here makes aws4fetch sign + keep our 7-day value.
+  const r2Url = `${base}?response-cache-control=${encodeURIComponent(READ_RESPONSE_CACHE_CONTROL)}`
+    + `&X-Amz-Expires=${READ_URL_TTL_SECONDS}`;
   const signed = await r2.sign(
     new Request(r2Url, { method: "GET" }),
-    { aws: { signQuery: true }, expiresIn: READ_URL_TTL_SECONDS } as any,
+    { aws: { signQuery: true } },
   );
   return signed.url;
 }

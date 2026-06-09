@@ -22,12 +22,43 @@ const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'http
 export const CACHE_TTL_MS = 6 * 24 * 60 * 60 * 1000;   // 6 days (1-day headroom under the 7-day URL)
 const cache = new Map();              // key → { url, expiresAt }
 
+// A presigned URL is only valid until its OWN signature expiry (X-Amz-Date +
+// X-Amz-Expires), no matter how long we'd like to cache the string. If our
+// cache ever claims a URL is valid past that instant we serve a dead URL → R2
+// 403 → the image shows the "locked" placeholder. So we always clamp the cache
+// lifetime to the real signature window (minus a re-sign margin). This also
+// self-heals any already-poisoned cache (e.g. URLs mistakenly signed for 24h).
+const SIG_REFRESH_MARGIN_MS = 60 * 1000;   // re-sign at least 60s before the signature dies
+function parseSigExpiryMs(url) {
+  try {
+    const u = new URL(url);
+    const d = u.searchParams.get('X-Amz-Date');               // e.g. 20260608T040315Z
+    const e = parseInt(u.searchParams.get('X-Amz-Expires') || '', 10);
+    if (!d || !Number.isFinite(e)) return null;
+    const m = d.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/);
+    if (!m) return null;
+    return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) + e * 1000;
+  } catch (_) { return null; }
+}
+// Cache lifetime for a freshly-signed URL: the smaller of our desired TTL and
+// the URL's real signature window. Non-r2 / unparseable URLs keep the desired TTL.
+function cacheExpiryFor(url, ttlMs) {
+  const want = Date.now() + Math.floor(ttlMs * 0.95);
+  const real = parseSigExpiryMs(url);
+  return real == null ? want : Math.min(want, real - SIG_REFRESH_MARGIN_MS);
+}
+
 // ── Persistence ───────────────────────────────────────────────────────────
 // Persist the signed-URL cache to localStorage so a reload reuses identical URL
 // strings (→ browser disk-cache hits). Keyed by the signed-in user's id and
 // cleared on sign-out: a signed URL grants 7-day read access to specific keys,
 // so a different user on a shared device must never inherit them.
-const LS_KEY = 'soleil.r2urls';
+// v2: the v1 store ('soleil.r2urls') was poisoned with URLs whose real signature
+// life (24h) was shorter than the cached lifetime, so reusing it served dead
+// URLs. Bumping the key abandons that store entirely on first load — instant
+// relief — and the v2 store only ever holds signature-clamped entries.
+const LS_KEY = 'soleil.r2urls.v2';
+const LS_KEY_LEGACY = 'soleil.r2urls';
 const LS_MAX_ENTRIES = 1500;          // cap so we never blow the ~5MB localStorage quota
 let _ownerUid = null;                 // uid the in-memory cache currently belongs to
 let _persistTimer = null;
@@ -51,13 +82,19 @@ function hydrate(uid) {
   _ownerUid = uid;
   try {
     if (typeof localStorage === 'undefined') return;
+    // Drop the poisoned v1 store outright (it may hold dead-but-"valid" URLs).
+    try { localStorage.removeItem(LS_KEY_LEGACY); } catch (_) {}
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
     if (!parsed || parsed.uid !== uid) { localStorage.removeItem(LS_KEY); return; }
     const now = Date.now();
     for (const [k, url, expiresAt] of (parsed.v || [])) {
-      if (expiresAt > now && !cache.has(k)) cache.set(k, { url, expiresAt });
+      // Re-derive the safe lifetime from the URL's real signature, so a stale
+      // persisted expiresAt can never resurrect a dead URL.
+      const real = parseSigExpiryMs(url);
+      const liveUntil = real == null ? expiresAt : Math.min(expiresAt, real - SIG_REFRESH_MARGIN_MS);
+      if (liveUntil > now && !cache.has(k)) cache.set(k, { url, expiresAt: liveUntil });
     }
   } catch (_) { /* malformed — ignore */ }
 }
@@ -153,10 +190,10 @@ async function flush() {
     return;
   }
 
-  const now = Date.now();
   for (const [key, cbs] of resolvers) {
     const url = urls[key] || null;
-    if (url) cache.set(key, { url, expiresAt: now + Math.floor(ttlMs * 0.95) });
+    // Clamp to the URL's real signature window so we never serve a dead URL.
+    if (url) cache.set(key, { url, expiresAt: cacheExpiryFor(url, ttlMs) });
     for (const cb of cbs) cb(url);
   }
   schedulePersist();
@@ -165,11 +202,15 @@ async function flush() {
 // Public: resolve a key to a signed URL (cached). Returns null if
 // the user isn't permitted to read this key, isn't signed in, or
 // network failed.
-export function getSignedUrl(key) {
+export function getSignedUrl(key, { force = false } = {}) {
   if (!key || typeof key !== 'string') return Promise.resolve(null);
   // Public viewer: resolve against the bundle's presigned map, never
   // touch the auth-gated sign-reads endpoint.
   if (_override) return Promise.resolve(_override(key) || null);
+  // force: the caller saw this URL fail (e.g. a 403 on an expired signature),
+  // so evict the cached string and re-sign over the network instead of handing
+  // back the same dead URL.
+  if (force) cache.delete(key);
   const cached = cache.get(key);
   if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.url);
 
