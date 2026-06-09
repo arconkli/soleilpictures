@@ -618,11 +618,13 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // playback uses a <video> element with a presigned read URL fetched
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
-function VideoCard({ src, title, onUpdate, autoFocus = false }) {
+function VideoCard({ src, title, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
   // video. Double-click to edit instead.
   const [editingTitle, setEditingTitle] = useState(false);
+  // Canvas context menu "Edit title" remote-trigger (same as Image/Link).
+  useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
   const showTitle = !!title || editingTitle;
   const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
   return (
@@ -881,7 +883,11 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
 }
 
 
-function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false, chipsOnly = false, onUpdate, autoFocus = false }) {
+function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false, chipsOnly = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+  // Canvas context menu "Edit title" remote-trigger — parity with the
+  // other titled card kinds.
+  const [editingTitle, setEditingTitle] = useState(autoFocus);
+  useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
   const [pickerIdx, setPickerIdx] = useState(null);
   const [pickerPos, setPickerPos] = useState(null);
   const [copiedIdx, setCopiedIdx] = useState(null);
@@ -1002,7 +1008,8 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
         <div className="pc-head">
           <EditableText className="pc-title" value={title || ''} placeholder="Palette"
                         onChange={(v) => onUpdate({ title: v })}
-                        autoFocus={autoFocus}
+                        editing={editingTitle}
+                        setEditing={setEditingTitle}
                         selectAllOnFocus={autoFocus} />
           <div className="pc-count">{countLabel}</div>
           {eyeBtn}
@@ -1086,10 +1093,21 @@ function DocCard({ title, lines, author, date, onUpdate, autoFocus = false }) {
   );
 }
 
-function ScheduleCard({ title, rows }) {
+function ScheduleCard({ title, rows, onUpdate = null, editTitleAt = 0 }) {
+  // Title is editable like every other card kind (double-click or
+  // right-click → Edit title); the rows stay read-only for now.
+  const [editingTitle, setEditingTitle] = useState(false);
+  useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
   return (
     <div className="sched">
-      <div className="sched-title">{title}</div>
+      {onUpdate ? (
+        <EditableText className="sched-title" value={title || ''} placeholder="Schedule"
+                      editing={editingTitle}
+                      setEditing={setEditingTitle}
+                      onChange={(v) => onUpdate({ title: v || null })} />
+      ) : (
+        <div className="sched-title">{title}</div>
+      )}
       <div className="sched-rows">
         {(rows || []).map((r, i) => (
           <div key={i} className="sched-row">
@@ -1108,7 +1126,8 @@ function ScheduleCard({ title, rows }) {
 // `dash`: 'solid' (default) | 'dashed' | 'dotted'.
 // No inline text — shapes are just shapes; edit colors / stroke / etc. via
 // the toolbar (revealed when a shape is selected).
-function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid' }) {
+function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid',
+                     label = null, onUpdate = null, editLabelAt = 0 }) {
   // strokeWidth: 0 = "No Border" for fillable shapes (rect, ellipse, etc.).
   // Line/arrow shapes have no fill, so 0 would make them invisible — clamp
   // to 1 in that case so the user can still see what they're editing.
@@ -1118,8 +1137,15 @@ function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', s
   const common = sw === 0
     ? { stroke: 'none', fill, vectorEffect: 'non-scaling-stroke' }
     : { stroke, fill, strokeWidth: sw, vectorEffect: 'non-scaling-stroke', strokeDasharray: dashArray };
+  // Optional centered label — double-click the shape (or right-click →
+  // Add label) to edit, matching the dblclick-to-edit convention every
+  // other card kind follows. Line/arrow shapes skip it (no interior).
+  const [editingLabel, setEditingLabel] = useState(false);
+  useEffect(() => { if (editLabelAt > 0 && !isStrokeOnly) setEditingLabel(true); }, [editLabelAt, isStrokeOnly]);
+  const showLabel = !!onUpdate && !isStrokeOnly && (!!label || editingLabel);
   return (
-    <div className="shape">
+    <div className="shape"
+         onDoubleClick={onUpdate && !isStrokeOnly ? (e) => { e.stopPropagation(); setEditingLabel(true); } : undefined}>
       <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
         {shape === 'rect' && <rect x={sw/2} y={sw/2} width={100 - sw} height={100 - sw} {...common} />}
         {shape === 'ellipse' && <ellipse cx="50" cy="50" rx={50 - sw/2} ry={50 - sw/2} {...common} />}
@@ -1139,6 +1165,12 @@ function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', s
             {...common} />
         )}
       </svg>
+      {showLabel && (
+        <EditableText className="shape-label" value={label || ''} placeholder="Label"
+                      editing={editingLabel}
+                      setEditing={setEditingLabel}
+                      onChange={(v) => onUpdate({ label: v || null })} />
+      )}
     </div>
   );
 }
@@ -1211,7 +1243,7 @@ function generatePeaks(seed, count = 56) {
 // or click to file-pick.
 function AudioCard({ src, title, duration, cover,
                             onUpdate, autoFocus = false,
-                            coverPickAt = 0,
+                            coverPickAt = 0, editTitleAt = 0,
                             onPickCover = null }) {
   const audioElRef = useRef(null);
   const rootRef = useRef(null);
@@ -1231,6 +1263,9 @@ function AudioCard({ src, title, duration, cover,
   useEffect(() => {
     if (coverPickAt > 0) setCoverDropMode(true);
   }, [coverPickAt]);
+  // Right-click "Edit title" signal — previously dispatched by the menu but
+  // never received here, so the action silently did nothing.
+  useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
 
   // Exit cover-drop mode when the user clicks anywhere outside the
   // card or presses Escape — the dashed outline shouldn't linger.

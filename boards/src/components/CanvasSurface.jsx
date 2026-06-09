@@ -3647,6 +3647,18 @@ export function CanvasSurface({
           items.push({ id: 'audio-cover-set', label: 'Set cover image…',
                        run: () => triggerInlineEdit(c.id, 'audioCover') });
         }
+      } else if (c.kind === 'video') {
+        items.push({ id: 'video-title', label: c.title ? 'Edit title' : 'Add title',
+                     run: () => triggerInlineEdit(c.id, 'title') });
+      } else if (c.kind === 'schedule') {
+        items.push({ id: 'schedule-title', label: c.title ? 'Edit title' : 'Add title',
+                     run: () => triggerInlineEdit(c.id, 'title') });
+      } else if (c.kind === 'palette') {
+        items.push({ id: 'palette-title', label: c.title ? 'Edit title' : 'Add title',
+                     run: () => triggerInlineEdit(c.id, 'title') });
+      } else if (c.kind === 'shape' && c.shape !== 'line' && c.shape !== 'arrow') {
+        items.push({ id: 'shape-label', label: c.label ? 'Edit label' : 'Add label',
+                     run: () => triggerInlineEdit(c.id, 'shapeLabel') });
       }
       if (items.length > 0) items.push({ divider: true });
     }
@@ -4983,11 +4995,14 @@ export function CanvasSurface({
                                                        isSelected={isSelected}
                                                        onUpdate={onUpdate} autoFocus={af}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} onUpdate={onUpdate} autoFocus={af} />;
-    else if (c.kind === 'video')     inner = <VideoCard src={c.src} title={c.title} onUpdate={onUpdate} autoFocus={af} />;
+    else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} onUpdate={onUpdate} autoFocus={af}
+                                                          editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
+    else if (c.kind === 'video')     inner = <VideoCard src={c.src} title={c.title} onUpdate={onUpdate} autoFocus={af}
+                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover}
                                                         onUpdate={onUpdate} autoFocus={af}
                                                         coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}
+                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                         onPickCover={(file) => pickAudioCover(c.id, file)} />;
     else if (c.kind === 'doc') {
       // Rich doc card. Pull the live cardYMap so RichDocCard can read its
@@ -5010,8 +5025,11 @@ export function CanvasSurface({
                      onUpdate={onUpdate} />
       ) : <DocCard title={c.title} lines={c.lines} author={c.author} date={c.date} onUpdate={onUpdate} autoFocus={af} />;
     }
-    else if (c.kind === 'schedule')  inner = <ScheduleCard title={c.title} rows={c.rows} />;
-    else if (c.kind === 'shape')     inner = <ShapeCard key={`shape-${c.shape}`} shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash} />;
+    else if (c.kind === 'schedule')  inner = <ScheduleCard title={c.title} rows={c.rows} onUpdate={onUpdate}
+                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
+    else if (c.kind === 'shape')     inner = <ShapeCard key={`shape-${c.shape}`} shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash}
+                                                        label={c.label} onUpdate={onUpdate}
+                                                        editLabelAt={editFieldSignal.id === c.id && editFieldSignal.field === 'shapeLabel' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'art')       inner = <ArtCanvasCard bg={c.bg || '#ffffff'} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
