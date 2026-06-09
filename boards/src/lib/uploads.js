@@ -27,6 +27,15 @@ const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'http
 const PREVIEW_LONGEST_EDGE = 1280;
 const PREVIEW_QUALITY = 0.72;
 
+// Small (DPR-down) preview variant: ~640px longest edge. A srcset on the card
+// <img> lets the browser pick this over the 1280px preview whenever the card is
+// shown small (a zoomed-out board, a small card on a 1x screen), cutting
+// first-paint bytes ~3-4×. Only generated ALONGSIDE the 1280px preview, so
+// "preview_sm implies preview" always holds (R2Image only offers the srcset
+// while it's in the preview tier).
+const PREVIEW_SM_LONGEST_EDGE = 640;
+const PREVIEW_SM_QUALITY = 0.72;
+
 function readImageDims(file) {
   return new Promise((res) => {
     const url = URL.createObjectURL(file);
@@ -266,6 +275,7 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
     catch (_) { perf.bump('image.backfill.taint'); /* tainted/odd image — skip blur */ }
 
     let previewKey = null, previewW = null, previewH = null;
+    let previewSmKey = null, previewSmW = null, previewSmH = null;
     let dn = null;
     try { dn = await downscaleDrawableToWebp(d, PREVIEW_LONGEST_EDGE, PREVIEW_QUALITY); }
     catch (_) { dn = null; }
@@ -281,6 +291,21 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
       previewW = dn.w; previewH = dn.h;
       await putWithProgress(presigned.uploadUrl, dn.blob, {});
       perf.mark('image.preview.bytes', dn.blob.size);
+
+      // Small (DPR-down) sibling preview for srcset. Best-effort + additive: any
+      // failure here just leaves the image with the 1280px preview only — the
+      // exact prior behavior, no regression. Generated only because we just
+      // produced the lg preview, so "preview_sm implies preview" holds.
+      try {
+        const dnSm = await downscaleDrawableToWebp(d, PREVIEW_SM_LONGEST_EDGE, PREVIEW_SM_QUALITY);
+        if (dnSm && dnSm.blob) {
+          const requestedSmKey = `${workspaceId}/previews/${crypto.randomUUID()}.webp`;
+          const presignedSm = await presignPreview({ workspaceId, boardId, previewKey: requestedSmKey });
+          previewSmKey = presignedSm.key || requestedSmKey;
+          previewSmW = dnSm.w; previewSmH = dnSm.h;
+          await putWithProgress(presignedSm.uploadUrl, dnSm.blob, {});
+        }
+      } catch (_) { previewSmKey = null; previewSmW = null; previewSmH = null; }
     }
 
     // Nothing to record? (small image with no blur computed.) Skip the RPC.
@@ -292,10 +317,13 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
       p_preview_path: previewKey,
       p_preview_w: previewW,
       p_preview_h: previewH,
+      p_preview_sm_path: previewSmKey,
+      p_preview_sm_w: previewSmW,
+      p_preview_sm_h: previewSmH,
     });
     if (error) return;  // viewer 403 / RLS — stay quiet
 
-    setMetaLocal(storagePath, { blur, previewKey, previewW, previewH });
+    setMetaLocal(storagePath, { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH });
     if (_t0) perf.mark('image.backfill.ms', performance.now() - _t0);
   } finally {
     d.release?.();

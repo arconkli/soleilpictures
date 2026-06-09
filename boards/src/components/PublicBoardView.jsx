@@ -77,10 +77,20 @@ export function PublicBoardView({ token }) {
   useEffect(() => {
     setReadUrlResolver((key) => imageMapRef.current[key] || null);
     // Resolve blur + preview metadata from the bundle (no Supabase session).
-    // R2ImageProgressive reads meta.blur / meta.previewKey off this shape.
+    // R2ImageProgressive reads blur/previewKey/previewSmKey (+ widths for the
+    // srcset & Tier-2 threshold) off this shape; the bundle keys them as
+    // preview / preview_sm / preview_*_w/h.
     setMetaResolver((key) => {
       const m = imageMetaRef.current[key];
-      return m ? { blur: m.blur || null, previewKey: m.preview || null } : null;
+      return m ? {
+        blur:         m.blur || null,
+        previewKey:   m.preview || null,
+        previewW:     m.preview_w ?? null,
+        previewH:     m.preview_h ?? null,
+        previewSmKey: m.preview_sm || null,
+        previewSmW:   m.preview_sm_w ?? null,
+        previewSmH:   m.preview_sm_h ?? null,
+      } : null;
     });
     return () => {
       clearReadUrlResolver();

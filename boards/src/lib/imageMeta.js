@@ -19,7 +19,7 @@
 import { supabase } from './supabase.js';
 import * as perf from './perf.js';
 
-const cache = new Map();        // storage_path → { blur, previewKey, previewW, previewH, w, h }
+const cache = new Map();        // storage_path → { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH, w, h }
 const inflight = new Set();     // storage_path currently being fetched (dedupe)
 const subscribers = new Map();  // storage_path → Set<cb>
 
@@ -44,12 +44,17 @@ function notifyAll() {
 
 function rowToMeta(row) {
   return {
-    blur:       row.blur_hash || null,
-    previewKey: row.preview_path || null,
-    previewW:   row.preview_w ?? null,
-    previewH:   row.preview_h ?? null,
-    w:          row.width ?? null,
-    h:          row.height ?? null,
+    blur:         row.blur_hash || null,
+    previewKey:   row.preview_path || null,
+    previewW:     row.preview_w ?? null,
+    previewH:     row.preview_h ?? null,
+    // Small (DPR-down) preview variant — used to build a srcset so small/
+    // zoomed-out cards fetch the ~640px webp instead of the 1280px one.
+    previewSmKey: row.preview_sm_path || null,
+    previewSmW:   row.preview_sm_w ?? null,
+    previewSmH:   row.preview_sm_h ?? null,
+    w:            row.width ?? null,
+    h:            row.height ?? null,
   };
 }
 
@@ -83,7 +88,7 @@ export async function primeImageMeta(keys) {
     await Promise.all(chunks.map(async (chunk) => {
       const { data, error } = await supabase
         .from('images')
-        .select('storage_path,blur_hash,preview_path,preview_w,preview_h,width,height')
+        .select('storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height')
         .in('storage_path', chunk);
       if (error) { for (const k of chunk) inflight.delete(k); return; }
       const seen = new Set();
@@ -95,7 +100,7 @@ export async function primeImageMeta(keys) {
       // entry so we don't re-query them every render; a later setMetaLocal
       // (e.g. after the upload's variant generation) overwrites it.
       for (const k of chunk) {
-        if (!seen.has(k)) cache.set(k, { blur: null, previewKey: null, previewW: null, previewH: null, w: null, h: null });
+        if (!seen.has(k)) cache.set(k, { blur: null, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null, w: null, h: null });
         inflight.delete(k);
         notify(k);
       }

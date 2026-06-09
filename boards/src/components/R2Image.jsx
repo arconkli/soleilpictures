@@ -188,6 +188,9 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // URL without crossOrigin so the image still displays even if the R2 bucket
   // lacks a CORS rule for this origin (we only lose the canvas-read backfill).
   const [noCors, setNoCors] = useState(false);
+  // Signed URL for the small (DPR-down) preview, resolved in parallel so the
+  // <img> can offer a srcset. null until resolved / when there's no sm variant.
+  const [smUrl, setSmUrl] = useState(null);
 
   const rootRef = useRef(null);
   const imgRef = useRef(null);
@@ -295,6 +298,19 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
   }, [activeSrc, visible]);
 
+  // Resolve the small (DPR-down) preview in parallel so the card <img> can offer
+  // a srcset and let the browser pick the right-sized candidate on first paint.
+  // Purely additive: the lg `url` above stays the canonical src + fallback.
+  // getSignedUrl is cached/batched and honors the public-viewer resolver, so the
+  // /share path resolves the bundle's presigned sm URL the same way.
+  const previewSmKey = (meta && meta.previewSmKey) || null;
+  useEffect(() => {
+    if (!visible || !previewSmKey) { setSmUrl(null); return; }
+    let cancelled = false;
+    getSignedUrl(previewSmKey).then((u) => { if (!cancelled) setSmUrl(u || null); });
+    return () => { cancelled = true; };
+  }, [visible, previewSmKey]);
+
   // Tier-2 upgrade: once a preview has painted, swap to the original on idle so
   // the card "slowly loads up to full quality" (no flash — same <img>). Gated
   // on the card's ACTUAL displayed size (getBoundingClientRect includes the
@@ -360,6 +376,28 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (meta?.blur) perf.bump('image.tier0.blurShown');
   };
 
+  // Offer a srcset ONLY while showing the preview tier with both candidate URLs
+  // ready (lazy cards; eager ones keep the single-src fast path). The `sizes`
+  // hint is the card's on-canvas width — `w` is the card's board-coordinate size
+  // (Math.round(c.w) from CanvasSurface), which is zoom-invariant because the
+  // canvas zooms via an ancestor CSS transform that doesn't change layout width.
+  // Handing the browser an explicit length (not sizes="auto") means this works
+  // on every browser, and the srcset w-descriptor algorithm picks the ~640px sm
+  // candidate when w*DPR <= 640 and the 1280px lg otherwise. That algorithm never
+  // selects an undersized candidate (smallest candidate >= needed device px, else
+  // the largest), so sm is never upscaled. Zooming a card in far enough triggers
+  // the Tier-2 swap to the original below. Outside the preview tier (Tier-2
+  // original, or any image with no sm variant — i.e. every pre-existing image)
+  // srcset is omitted, so legacy images are byte-for-byte unchanged.
+  const inPreviewTier = !!(meta && meta.previewKey) && activeSrc === `r2:${meta.previewKey}`;
+  const canSrcset = !eager && inPreviewTier && !!smUrl && !!url
+    && !!meta.previewSmW && !!meta.previewW && url !== smUrl;
+  const imgSrcSet = canSrcset ? `${smUrl} ${meta.previewSmW}w, ${url} ${meta.previewW}w` : undefined;
+  const cardDisplayW = (typeof w === 'number' && w > 0) ? Math.round(w) : null;
+  // Explicit length when we know the card width (the canvas + public-viewer
+  // case); fall back to sizes=auto only if it's somehow unknown.
+  const imgSizes = imgSrcSet ? (cardDisplayW ? `${cardDisplayW}px` : 'auto') : undefined;
+
   if (failed) return <BlockedPlaceholder {...rest} />;
 
   return (
@@ -370,6 +408,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
         <img ref={imgRef}
              className={`r2p-img ${loaded ? 'is-loaded' : ''}`}
              src={url}
+             srcSet={imgSrcSet}
+             sizes={imgSizes}
              alt={alt}
              width={w}
              height={h}
@@ -388,6 +428,10 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                  setNoCors(true);
                  return;
                }
+               // The browser may have chosen the sm srcset candidate; drop it so
+               // we fall back to the lg `src` (and its re-presign below) rather
+               // than retrying a bad sm URL.
+               if (smUrl) setSmUrl(null);
                // Re-presign once; if it still fails, show the blocked state.
                if (typeof activeSrc === 'string' && activeSrc.startsWith('r2:')) {
                  getSignedUrl(activeSrc.slice(3)).then(fresh => {
