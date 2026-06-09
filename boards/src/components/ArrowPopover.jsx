@@ -206,7 +206,7 @@ export function ArrowPopover({
 
       <div className="ap-divider" />
 
-      <button type="button" className="ap-delete" title="Delete arrow"
+      <button type="button" className="ap-delete" title="Delete arrow" aria-label="Delete arrow"
         onClick={() => onDelete?.()}>
         <svg width="13" height="13" viewBox="0 0 13 13"><path d="M3 3l7 7M10 3l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
       </button>

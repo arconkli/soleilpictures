@@ -177,11 +177,15 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           {pagePeers.length > 0 && (
             <span className="doc-tree-peers">
               {pagePeers.slice(0, 3).map(peer => (
-                <span key={peer.tabId || peer.user?.id}
-                      className="doc-tree-peer"
-                      title={`${peer.user?.name || 'Someone'} — jump here`}
-                      style={{ background: peer.user?.color || '#4f8df8' }}
-                      onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(peer.location); }} />
+                // Real button (matches SidebarBoardTree's peer dots) — a span
+                // with onClick was invisible to keyboard + screen readers.
+                <button key={peer.tabId || peer.user?.id}
+                        type="button"
+                        className="doc-tree-peer"
+                        title={`${peer.user?.name || 'Someone'} — jump here`}
+                        aria-label={`${peer.user?.name || 'Someone'} is editing this page — jump to them`}
+                        style={{ background: peer.user?.color || '#4f8df8' }}
+                        onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(peer.location); }} />
               ))}
               {pagePeers.length > 3 && (
                 <span className="doc-tree-peers-overflow">+{pagePeers.length - 3}</span>

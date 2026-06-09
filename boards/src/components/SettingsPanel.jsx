@@ -372,7 +372,7 @@ function ProfileTab({ user, workspaceId, onSaved }) {
       setInitial({ name: name.trim(), color, avatarUrl });
       onSaved?.({ name: name.trim(), color, avatarUrl });
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Save failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')' });
     } finally {
       setSaving(false);
     }
@@ -935,7 +935,7 @@ function ThemeTab({ mySettings, refresh }) {
       await updateOwnSettings({ ui: { ...ui, ...patch } });
       refresh?.();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Save failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')' });
     }
   };
 
@@ -1026,7 +1026,7 @@ function DisplayTab({ mySettings, refresh }) {
       await updateOwnSettings({ ui: { ...ui, ...patch } });
       refresh?.();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Save failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')' });
     }
   };
 
@@ -1094,7 +1094,7 @@ function NotificationsTab({ user }) {
       .update({ notification_prefs: next })
       .eq('user_id', user.id);
     if (error) {
-      feedback.toast({ type: 'error', message: 'Save failed: ' + (error.message || error) });
+      feedback.toast({ type: 'error', message: 'Save failed — check your connection and try again. (' + (error.message || error) + ')' });
       // Roll back optimistic flip
       setPrefs(prefs);
     }

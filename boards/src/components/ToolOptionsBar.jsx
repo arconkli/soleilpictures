@@ -252,7 +252,7 @@ export function ToolOptionsBar({
                         style={{ background: c }}
                         onClick={() => { setDrawOptions({ ...drawOptions, color: c }); addRecentColor(c); }} />
               ))}
-              <button className="tob-sw tob-sw-custom" title="Custom hex…"
+              <button className="tob-sw tob-sw-custom" title="Custom hex…" aria-label="Custom color"
                       onClick={(e) => openPickerAt(e, {
                         value: drawOptions.color,
                         onChange: (col) => {
@@ -334,7 +334,7 @@ export function ToolOptionsBar({
                     style={{ background: c }}
                     onClick={() => { onUpdateEditingLineArrow({ customStroke: c }); addRecentColor(c); }} />
           ))}
-          <button className="tob-sw tob-sw-custom" title="Custom hex…"
+          <button className="tob-sw tob-sw-custom" title="Custom hex…" aria-label="Custom color"
                   onClick={(e) => openPickerAt(e, {
                     value: stroke,
                     onChange: (col) => onUpdateEditingLineArrow({ customStroke: col }),
@@ -407,7 +407,7 @@ export function ToolOptionsBar({
                     style={{ background: c }}
                     onClick={() => { setOpts({ ...opts, stroke: c }); if (editing) addRecentColor(c); }} />
           ))}
-          <button className="tob-sw tob-sw-custom" title="Custom hex…"
+          <button className="tob-sw tob-sw-custom" title="Custom hex…" aria-label="Custom color"
                   onClick={(e) => openPickerAt(e, {
                     value: opts.stroke,
                     onChange: (col) => setOpts({ ...opts, stroke: col }),
@@ -422,7 +422,7 @@ export function ToolOptionsBar({
                     style={{ background: c === 'transparent' ? 'repeating-linear-gradient(45deg,#222 0 4px,#444 4px 8px)' : c }}
                     onClick={() => { setOpts({ ...opts, fill: c }); if (editing && c !== 'transparent') addRecentColor(c); }} />
           ))}
-          <button className="tob-sw tob-sw-custom" title="Custom hex…"
+          <button className="tob-sw tob-sw-custom" title="Custom hex…" aria-label="Custom color"
                   onClick={(e) => openPickerAt(e, {
                     value: opts.fill === 'transparent' ? '#1c1c1f' : opts.fill,
                     onChange: (col) => setOpts({ ...opts, fill: col }),

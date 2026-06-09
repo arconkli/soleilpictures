@@ -26,6 +26,23 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   // other cards. Drives the "Linked from N places" menu label so the
   // user sees how rich the backlinks panel will be before opening it.
   const [refCount, setRefCount] = useState(null);
+
+  // WAI-ARIA menu keyboard pattern: Arrow keys walk the items, Home/End
+  // jump. role="menu" was already declared but the keys did nothing.
+  const onMenuKeyDown = (e) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const items = Array.from(e.currentTarget.querySelectorAll('button.ctx-item:not(:disabled)'));
+    if (!items.length) return;
+    const idx = items.indexOf(document.activeElement);
+    let next;
+    if (e.key === 'Home') next = items[0];
+    else if (e.key === 'End') next = items[items.length - 1];
+    else if (e.key === 'ArrowDown') next = items[(idx + 1 + items.length) % items.length];
+    else next = items[(idx - 1 + items.length) % items.length];
+    next?.focus();
+  };
   // Tags currently applied to this card. Shown at the top of the menu
   // so the user knows what concepts the system has attached before they
   // pick an action.
@@ -118,7 +135,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   const py = Math.min(y, window.innerHeight - hEst - 8);
 
   return (
-    <div className="ctx-menu" style={{ left: px, top: py }} role="menu">
+    <div className="ctx-menu" style={{ left: px, top: py }} role="menu" onKeyDown={onMenuKeyDown}>
       {card?.id && appliedTags.length > 0 && (
         <>
           <div className="ctx-tags-head">TAGS</div>

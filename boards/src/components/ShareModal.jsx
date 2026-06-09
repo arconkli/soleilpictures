@@ -141,7 +141,7 @@ export function ShareModal({
       const rows = await listPublicLinks(board.id);
       setPublicLinks(rows.filter(l => !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())));
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not create link: ' + (e.message || e) });
+      feedback.toast({ type: 'error', message: 'Could not create the link — try again. (' + (e.message || e) + ')' });
     } finally {
       setCreatingLink(false);
     }
@@ -429,11 +429,12 @@ export function ShareModal({
             <div className="share-invite-row">
               <input className="share-input"
                      type="text"
+                     aria-label="Email addresses to invite"
                      placeholder="Email address — add several, separated by commas"
                      value={inviteEmail}
                      onChange={(e) => setInviteEmail(e.target.value)}
                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
-              <select className="share-role-select"
+              <select className="share-role-select" aria-label="Access level for invitees"
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}>
                 {isDemo ? (
