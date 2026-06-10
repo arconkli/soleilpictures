@@ -66,6 +66,10 @@ async function notifyPartyKitReset(boardId: string, userToken: string): Promise<
           "Content-Type": "application/json",
         },
         body: "{}",
+        // A hung PartyKit would otherwise stall the user-visible restore
+        // response indefinitely; the reset is best-effort (clients also
+        // remount on the board_state change).
+        signal: AbortSignal.timeout(10_000),
       },
     );
     return { ok: res.ok, status: res.status };

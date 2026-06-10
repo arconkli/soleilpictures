@@ -1203,13 +1203,39 @@ export async function bulletproofRestore(boardId, b64) {
 // One row per (board_id, group_id) so groups appear in entity_search and
 // the universal linking system can find / hover / link to them.
 
+// Throttled + fingerprinted like syncCardIndex above: saveBoardSnapshot
+// fires every 250ms while editing, and group membership changes far less
+// often than card content. Without this, every save paid two round-trips
+// (workspace resolve + orphan SELECT) plus an unconditional upsert that
+// re-broadcast every group row over realtime.
+const _groupSyncState = new Map();   // boardId → { last, pending, latestYdoc }
+const _groupSigCache = new Map();    // boardId → fingerprint of last successful sync
+
 export async function syncGroupIndex({ boardId, ydoc }) {
   if (!supabase || !boardId || !ydoc) return;
+  const state = _groupSyncState.get(boardId) || { last: 0, pending: null };
+  state.latestYdoc = ydoc;
+  _groupSyncState.set(boardId, state);
+  if (state.pending) return;                       // already scheduled
+  const wait = Math.max(0, SYNC_THROTTLE_MS - (Date.now() - state.last));
+  state.pending = setTimeout(async () => {
+    state.pending = null;
+    state.last = Date.now();
+    await _doSyncGroupIndex(boardId, state.latestYdoc);
+  }, wait);
+}
+
+async function _doSyncGroupIndex(boardId, ydoc) {
+  if (!supabase || !boardId || !ydoc) return;
   try {
-    const wsq = await supabase.from('boards').select('workspace_id').eq('id', boardId).maybeSingle();
-    if (wsq.error) { console.warn('syncGroupIndex resolve workspace', wsq.error); return; }
-    const workspaceId = wsq.data?.workspace_id;
-    if (!workspaceId) return;
+    let workspaceId = _boardWsCache.get(boardId);
+    if (!workspaceId) {
+      const wsq = await supabase.from('boards').select('workspace_id').eq('id', boardId).maybeSingle();
+      if (wsq.error) { console.warn('syncGroupIndex resolve workspace', wsq.error); return; }
+      workspaceId = wsq.data?.workspace_id;
+      if (!workspaceId) return;
+      _boardWsCache.set(boardId, workspaceId);
+    }
 
     const groupsMap = ydoc.getMap('groups');
     const cardsMap = ydoc.getMap('cards');
@@ -1237,6 +1263,14 @@ export async function syncGroupIndex({ boardId, ydoc }) {
       });
     });
 
+    // Skip the write + orphan check entirely when nothing group-related
+    // changed since the last successful sync (updated_at excluded — it
+    // changes every call by construction).
+    const sig = JSON.stringify(
+      rows.map(r => [r.group_id, r.name, r.member_count, r.outline, r.color]).sort(),
+    );
+    if (_groupSigCache.get(boardId) === sig) return;
+
     if (rows.length > 0) {
       const ups = await supabase.from('group_index').upsert(rows, { onConflict: 'board_id,group_id' });
       if (ups.error) { console.warn('group_index upsert', ups.error); return; }
@@ -1249,6 +1283,7 @@ export async function syncGroupIndex({ boardId, ydoc }) {
     if (orphans.length > 0) {
       await supabase.from('group_index').delete().eq('board_id', boardId).in('group_id', orphans);
     }
+    _groupSigCache.set(boardId, sig);
   } catch (e) {
     console.warn('syncGroupIndex failed', e);
   }

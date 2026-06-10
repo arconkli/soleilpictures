@@ -32,15 +32,22 @@ export interface AuthCheckResult {
 // not a member (or the resource doesn't exist).
 async function supabaseGet(path: string, accessToken: string): Promise<any[] | null> {
   const url = `${SUPABASE_URL}/rest/v1/${path}`;
-  const res = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
-    },
-  });
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const res = await fetch(url, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+      // A hung Supabase request would otherwise stall the WS upgrade
+      // indefinitely; fail the auth check instead and let the client retry.
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (_) {
+    return null;
+  }
 }
 
 // Decode the Supabase JWT payload (without verifying — we only use this
@@ -100,6 +107,7 @@ export async function canWriteBoard(
         Accept: "application/json",
       },
       body: JSON.stringify({ p_board_id: boardId }),
+      signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return false;
     const v = await res.json();

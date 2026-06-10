@@ -259,6 +259,10 @@ async function rpc(env, fn, params) {
       'accept': 'application/json',
     },
     body: JSON.stringify(params || {}),
+    // Generous because the cron RPCs (orphan scan, compaction) do real
+    // table scans — but bounded, so a hung request can't eat the whole
+    // scheduled() invocation.
+    signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -289,6 +293,7 @@ async function handleBoardReset(boardId, request) {
         'authorization': `Bearer ${token}`,
         'content-type': 'application/json',
       },
+      signal: AbortSignal.timeout(10_000),
     });
     const body = await res.text();
     return new Response(body, {
@@ -330,6 +335,7 @@ async function handleOg(url, request) {
       },
       redirect: 'follow',
       cf: { cacheTtl: 3600, cacheEverything: true },
+      signal: AbortSignal.timeout(10_000),
     });
     if (!upstream.ok) return json({ error: `upstream ${upstream.status}` }, 502);
     const ct = upstream.headers.get('content-type') || '';
@@ -463,15 +469,21 @@ async function handleBackfillImageSizes(request, env) {
 
   // Validate caller is admin via the existing get_my_tier RPC. We use
   // the user's JWT so RLS / function gate runs as them.
-  const tierRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_my_tier`, {
-    method: 'POST',
-    headers: {
-      apikey:        env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${userToken}`,
-      'content-type': 'application/json',
-    },
-    body: '{}',
-  });
+  let tierRes;
+  try {
+    tierRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_my_tier`, {
+      method: 'POST',
+      headers: {
+        apikey:        env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
+        authorization: `Bearer ${userToken}`,
+        'content-type': 'application/json',
+      },
+      body: '{}',
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (_) {
+    return json({ error: 'tier check failed' }, 502);
+  }
   if (!tierRes.ok) return json({ error: 'tier check failed' }, 401);
   const tierData = await tierRes.json();
   const tier = Array.isArray(tierData) ? tierData[0]?.tier : tierData?.tier;
@@ -523,6 +535,7 @@ async function backfillImageSizesOnce(env, limit) {
       apikey:        env.SUPABASE_SERVICE_ROLE_KEY,
       authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
     },
+    signal: AbortSignal.timeout(10_000),
   });
   if (!listRes.ok) throw new Error('list failed');
   const rows = await listRes.json();
@@ -544,6 +557,7 @@ async function backfillImageSizesOnce(env, limit) {
             prefer:        'return=minimal',
           },
           body: JSON.stringify({ size_bytes: obj.size }),
+          signal: AbortSignal.timeout(10_000),
         },
       );
       if (upd.ok) processed++; else errors++;
@@ -559,6 +573,7 @@ async function backfillImageSizesOnce(env, limit) {
         authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
         prefer:        'count=exact',
       },
+      signal: AbortSignal.timeout(10_000),
     },
   );
   const remHeader = remRes.headers.get('content-range') || '';

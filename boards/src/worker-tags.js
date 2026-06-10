@@ -44,20 +44,33 @@ export async function handleTagsRoute(url, request, env) {
   if (request.method !== 'POST') {
     return json({ error: 'method not allowed' }, 405);
   }
-  const auth = await verifyUser(request, env);
-  if (!auth.ok) return json({ error: auth.error }, auth.status || 401);
+  try {
+    const auth = await verifyUser(request, env);
+    if (!auth.ok) return json({ error: auth.error }, auth.status || 401);
 
-  if (url.pathname === '/api/tags/embed')        return handleEmbed(request, env);
-  if (url.pathname === '/api/tags/apply')        return handleApply(request, env);
-  if (url.pathname === '/api/tags/cluster-name') return handleClusterName(request, env);
+    if (url.pathname === '/api/tags/embed')        return await handleEmbed(request, env);
+    if (url.pathname === '/api/tags/apply')        return await handleApply(request, env);
+    if (url.pathname === '/api/tags/cluster-name') return await handleClusterName(request, env);
 
-  return json({ error: 'not found' }, 404);
+    return json({ error: 'not found' }, 404);
+  } catch (e) {
+    const timedOut = e?.name === 'TimeoutError' || e?.name === 'AbortError';
+    return json({ error: timedOut ? 'upstream timeout' : 'internal error' }, timedOut ? 504 : 500);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────
 // Auth — verify the user's JWT against Supabase. We don't trust the
 // client to tell us *who* they are; we ask Supabase. Single network call,
 // cheap (Supabase caches the verification path).
+// Verified-token cache. A tagging burst sends the same JWT on every call
+// (embed → apply → apply …); without this each request pays a serial GoTrue
+// round-trip before route dispatch. 60s TTL bounds revocation lag well under
+// the token's own ~1h lifetime. Per-isolate, so it only helps bursts — which
+// is exactly the hot case.
+const TOKEN_CACHE_TTL_MS = 60_000;
+const _tokenCache = new Map(); // token → { userId, expires }
+
 async function verifyUser(request, env) {
   const auth = request.headers.get('authorization') || '';
   const match = auth.match(/^Bearer\s+(.+)$/i);
@@ -65,15 +78,22 @@ async function verifyUser(request, env) {
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
     return { ok: false, status: 500, error: 'supabase env not configured' };
   }
+  const cached = _tokenCache.get(match[1]);
+  if (cached && cached.expires > Date.now()) {
+    return { ok: true, userId: cached.userId };
+  }
   const r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
     headers: {
       'apikey': env.SUPABASE_ANON_KEY,
       'authorization': `Bearer ${match[1]}`,
     },
+    signal: AbortSignal.timeout(10_000),
   });
   if (!r.ok) return { ok: false, status: 401, error: 'invalid token' };
   const user = await r.json().catch(() => null);
   if (!user?.id) return { ok: false, status: 401, error: 'invalid token' };
+  if (_tokenCache.size > 500) _tokenCache.clear();
+  _tokenCache.set(match[1], { userId: user.id, expires: Date.now() + TOKEN_CACHE_TTL_MS });
   return { ok: true, userId: user.id };
 }
 
@@ -108,6 +128,7 @@ async function handleEmbed(request, env) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({ model: EMBEDDING_MODEL, input: texts }),
+    signal: AbortSignal.timeout(30_000),
   });
   if (!r.ok) {
     const err = await r.text();
@@ -184,6 +205,7 @@ async function handleApply(request, env) {
         },
       },
     }),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!r.ok) {
     const err = await r.text();
@@ -253,6 +275,7 @@ async function handleClusterName(request, env) {
         },
       },
     }),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!r.ok) {
     const err = await r.text();

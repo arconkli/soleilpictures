@@ -29,9 +29,13 @@ export default class BoardParty implements Party.Server {
     const token = url.searchParams.get("access_token");
     if (!token) return new Response("Missing access_token", { status: 401 });
     const boardId = url.pathname.split("/").filter(Boolean).pop() ?? "";
-    const auth = await authBoard(token, boardId);
+    // Independent checks — run both round-trips concurrently so the WS
+    // upgrade waits on one Supabase RTT, not two.
+    const [auth, canWrite] = await Promise.all([
+      authBoard(token, boardId),
+      canWriteBoard(token, boardId),
+    ]);
     if (!auth.ok) return new Response(auth.reason ?? "Unauthorized", { status: 401 });
-    const canWrite = await canWriteBoard(token, boardId);
     req.headers.set("x-user-id", auth.userId ?? "");
     req.headers.set("x-user-email", auth.email ?? "");
     req.headers.set("x-workspace-id", auth.workspaceId ?? "");
@@ -112,9 +116,11 @@ export default class BoardParty implements Party.Server {
     const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
     if (!token) return new Response("Missing token", { status: 401, headers: corsHeaders });
     const boardId = this.room.id;
-    const a = await authBoard(token, boardId);
+    const [a, canWrite] = await Promise.all([
+      authBoard(token, boardId),
+      canWriteBoard(token, boardId),
+    ]);
     if (!a.ok) return new Response(a.reason || "Unauthorized", { status: 401, headers: corsHeaders });
-    const canWrite = await canWriteBoard(token, boardId);
     if (!canWrite) return new Response("Read-only", { status: 403, headers: corsHeaders });
 
     // ── Collab-safe reset sequence ───────────────────────────────────────

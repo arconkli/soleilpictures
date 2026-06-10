@@ -54,6 +54,8 @@ async function notifyPartyKitReset(boardId: string, userToken: string) {
         method: "POST",
         headers: { Authorization: `Bearer ${userToken}`, "Content-Type": "application/json" },
         body: "{}",
+        // Best-effort: don't let a hung PartyKit stall the rewind response.
+        signal: AbortSignal.timeout(10_000),
       },
     );
     return { board_id: boardId, ok: res.ok, status: res.status };

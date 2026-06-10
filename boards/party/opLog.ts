@@ -89,6 +89,11 @@ export function installOpLogCapture(opts: InstallOptions): void {
   // Maintain the "before" state for the classifier. We update this AFTER
   // each successful capture so subsequent updates see the prior state.
   let beforeState: Uint8Array = Y.encodeStateAsUpdate(yDoc);
+  let updatesSinceEncode = 0;
+  // mergeUpdates can't garbage-collect deleted content, so the merged
+  // buffer slowly outgrows a fresh encode; re-encode periodically to
+  // keep it compact.
+  const REENCODE_EVERY = 256;
 
   yDoc.on("update", async (update: Uint8Array, origin: unknown) => {
     if (shouldSkip(origin)) return;
@@ -96,9 +101,16 @@ export function installOpLogCapture(opts: InstallOptions): void {
     // protocol. If persistence fails, the system loses one row of history
     // (which board_state still has) and logs a warning.
     const stateAtCapture = beforeState;
-    // Move the cursor forward immediately so we never double-persist if
-    // updates fire close together.
-    beforeState = Y.encodeStateAsUpdate(yDoc);
+    // Move the cursor forward immediately (synchronously) so we never
+    // double-persist if updates fire close together. Merging the delta in
+    // is O(update); re-encoding the whole doc here was O(board size) on
+    // every keystroke-level edit.
+    if (++updatesSinceEncode >= REENCODE_EVERY) {
+      beforeState = Y.encodeStateAsUpdate(yDoc);
+      updatesSinceEncode = 0;
+    } else {
+      beforeState = Y.mergeUpdates([beforeState, update]);
+    }
 
     try {
       const classification = classifyUpdate(stateAtCapture, update);
@@ -141,6 +153,7 @@ export function installOpLogCapture(opts: InstallOptions): void {
           Prefer: "params=single-object",
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!res.ok) {
