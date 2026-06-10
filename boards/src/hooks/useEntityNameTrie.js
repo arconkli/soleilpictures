@@ -147,34 +147,22 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
     // so a re-mount with the same name returns the previously-
     // subscribed channel and `.on()` throws ("after subscribe").
     const sfx = Math.random().toString(36).slice(2, 9);
-    const ch1 = supabase.channel(`trie:boards:${workspaceId}:${sfx}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: `workspace_id=eq.${workspaceId}` }, schedule)
-      .subscribe();
-    const ch2 = supabase.channel(`trie:cards:${workspaceId}:${sfx}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'card_index', filter: `workspace_id=eq.${workspaceId}` }, schedule)
-      .subscribe();
-    const ch3 = supabase.channel(`trie:aliases:${workspaceId}:${sfx}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_aliases', filter: `workspace_id=eq.${workspaceId}` }, schedule)
-      .subscribe();
-    const ch4 = supabase.channel(`trie:ignore:${workspaceId}:${sfx}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'entity_ignore_terms', filter: `workspace_id=eq.${workspaceId}` }, schedule)
-      .subscribe();
-    // Tags are now first-class entities (migration 0036). The trie
-    // needs to rebuild when a tag is created / renamed / deleted so
-    // its name auto-underlines in prose like any other entity.
-    const ch5 = supabase.channel(`trie:tags:${workspaceId}:${sfx}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tags', filter: `workspace_id=eq.${workspaceId}` }, schedule)
-      .subscribe();
+    // One multiplexed channel carrying all five postgres_changes bindings
+    // (was five separate channels): same events, but a single websocket
+    // join + heartbeat slot per workspace instead of five. Tags are
+    // first-class entities (migration 0036) — a tag create/rename/delete
+    // rebuilds the trie so its name auto-underlines like any other entity.
+    const ch = supabase.channel(`trie:${workspaceId}:${sfx}`);
+    for (const table of ['boards', 'card_index', 'entity_aliases', 'entity_ignore_terms', 'tags']) {
+      ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `workspace_id=eq.${workspaceId}` }, schedule);
+    }
+    ch.subscribe();
 
     return () => {
       cancelled = true;
       if (pending) clearTimeout(pending);
       try { cancelIdle(initialIdleId); } catch (_) {}
-      try { supabase.removeChannel(ch1); } catch (_) {}
-      try { supabase.removeChannel(ch2); } catch (_) {}
-      try { supabase.removeChannel(ch3); } catch (_) {}
-      try { supabase.removeChannel(ch4); } catch (_) {}
-      try { supabase.removeChannel(ch5); } catch (_) {}
+      try { supabase.removeChannel(ch); } catch (_) {}
     };
   }, [workspaceId, JSON.stringify(ignoredTerms)]);
 

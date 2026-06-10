@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# Vestigial pre-consolidation migrations leftover (root-owned on disk; the
+# canonical migrations live at the repo-root supabase/ dir). Untracked 2026-06-10.
+supabase/
 test-results/
 playwright-report/
 .env

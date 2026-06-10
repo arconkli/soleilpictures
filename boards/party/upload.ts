@@ -76,12 +76,11 @@ interface ShareBundleBody { token?: string; boardId?: string }
 
 function corsHeaders(origin: string | null): HeadersInit {
   const allowed = new Set([
-    "https://boards.soleilpictures.com",
     "https://clusters.soleilpictures.com",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
   ]);
-  const allow = origin && allowed.has(origin) ? origin : "https://boards.soleilpictures.com";
+  const allow = origin && allowed.has(origin) ? origin : "https://clusters.soleilpictures.com";
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -316,10 +315,14 @@ export default class UploadParty implements Party.Server {
       service: "s3",
       region: "auto",
     });
-    const r2Url = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
+    // X-Amz-Expires must be a signed query param on the URL before signing —
+    // aws4fetch has no `expiresIn` option (see signReadUrl above), so the old
+    // `{ expiresIn: 300 }` was silently ignored and PUT URLs got the 86400s
+    // (24h) SigV4 default instead of the intended 5 minutes.
+    const r2Url = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}?X-Amz-Expires=300`;
     const signed = await r2.sign(
       new Request(r2Url, { method: "PUT", headers: { "Content-Type": contentType } }),
-      { aws: { signQuery: true }, expiresIn: 300 } as any,
+      { aws: { signQuery: true } },
     );
 
     return Response.json({ uploadUrl: signed.url, key }, {
