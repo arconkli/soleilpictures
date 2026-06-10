@@ -3895,7 +3895,16 @@ export function CanvasSurface({
           const selId = [...liveSelected][0];
           const sel = liveCards.find(c => c.id === selId)
                    || (pendingCardRef.current?.id === selId ? pendingCardRef.current : null);
-          if (sel) return sel;
+          // Only ART canvases accept routed strokes. Any other selected kind
+          // used to swallow the whole stroke into its card-local `strokes`
+          // prop, where .card{overflow:hidden} clipped everything outside the
+          // card's box — drawing on bare canvas with e.g. a note selected
+          // looked completely dead (and the tool auto-flipped to select).
+          // Non-art selections fall through to the bbox-majority scorer
+          // below, which is already art-only. The SketchPad-commit flow this
+          // shortcut exists for is unaffected: pendingCardRef is always
+          // created with kind:'art'.
+          if (sel && sel.kind === 'art') return sel;
         }
         // Score every art canvas by how many stroke points fall inside
         // its bbox; the one with the most overlap wins. Ties pick the
@@ -7019,8 +7028,11 @@ export function CanvasSurface({
 
 // ── CardStrokesOverlay ──────────────────────────────────────────────────
 // Renders a card's `strokes` array as an SVG layer bounded to the card's
-// box. Mounted on every card so any card type can carry annotations —
-// the draw tool routes strokes here when a single card is selected.
+// box. The draw tool only routes strokes here for ART canvases (selected or
+// majority-overlapped), but the overlay stays mounted on every card kind:
+// a routing bug used to write strokes onto whatever single card was
+// selected, and boards that carry those legacy annotations must keep
+// rendering them.
 // Memoized: props are all primitive / stable-by-card-identity, so default
 // shallow compare lets unchanged cards skip the path-string concat.
 const CardStrokesOverlay = memo(function CardStrokesOverlay({ strokes, w, h }) {
