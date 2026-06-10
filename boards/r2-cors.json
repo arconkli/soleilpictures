@@ -1,0 +1,14 @@
+[
+  {
+    "AllowedOrigins": [
+      "https://clusters.soleilpictures.com",
+      "https://boards.soleilpictures.com",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173"
+    ],
+    "AllowedMethods": ["GET", "HEAD", "PUT"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag", "Content-Length", "Content-Type"],
+    "MaxAgeSeconds": 3600
+  }
+]
