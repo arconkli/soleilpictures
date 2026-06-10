@@ -8,6 +8,9 @@
 //                       emergent clusters). See worker-tags.js for the
 //                       per-route contracts. All routes auth-checked
 //                       against the user's Supabase JWT.
+// /api/share-thumb/*  — serves a shared board's stored R2 thumbnail as the
+//                       og:image behind /share link previews. Gated by the
+//                       share token (get_share_meta RPC), no user auth.
 
 import { handleTagsRoute } from './worker-tags.js';
 import { runCompactionJob1 } from './worker-compaction.js';
@@ -61,6 +64,9 @@ function normalizePath(pathname) {
 class SetText      { constructor(t) { this.t = t; } element(el) { el.setInnerContent(this.t); } }
 class SetContent   { constructor(v) { this.v = v; } element(el) { el.setAttribute('content', this.v); } }
 class SetHref      { constructor(h) { this.h = h; } element(el) { el.setAttribute('href', this.h); } }
+// html:true appends are NOT escaped — the string must stay fully static
+// (never interpolate board names or other user data into it).
+class AppendHead   { constructor(h) { this.h = h; } element(el) { el.append(this.h, { html: true }); } }
 
 // Copy a response, forcing HTML documents to revalidate on every load so new
 // deploys' chunk hashes are picked up immediately. `no-cache` still lets the
@@ -87,6 +93,58 @@ function injectRouteMeta(res, meta, canonical) {
     .transform(res);
 }
 
+// ── Shared-board link previews ──────────────────────────────────────────
+// /share/<token> is served by the same SPA fallback as everything else, so
+// without intervention every shared board unfurls as the homepage card. Here
+// we resolve the token to its board (get_share_meta RPC, migration 0132 —
+// same validation semantics as get_share_bundle) and rewrite the OG/Twitter
+// meta to the board's name plus its stored R2 thumbnail, served token-gated
+// via /api/share-thumb/<token>. RPC failure/timeout → default meta; the
+// share page itself must never break on a metadata miss.
+const SHARE_PATH_RE = /^\/share\/([0-9a-f-]{36})\/?$/i;
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+const SHARE_DESCRIPTION =
+  'A board shared from Soleil Clusters — references, images, and ideas organized in one place.';
+
+function injectShareMeta(res, meta, token) {
+  const rw = new HTMLRewriter()
+    // Tokened URLs should never be indexed, even when the meta RPC failed.
+    .on('head', new AppendHead('<meta name="robots" content="noindex">'));
+
+  const name = (meta?.name || '').trim();
+  if (!name) return rw.transform(res); // no meta → keep homepage defaults
+
+  // Mirror the client's shareUrl() convention (PublicBoardView): the root
+  // board is the clean /share/<token> URL; sub-boards carry ?b=<id>.
+  const isSub = meta.board_id && meta.root_id && meta.board_id !== meta.root_id;
+  const shareUrl = `${SITE_ORIGIN}/share/${token}${isSub ? `?b=${meta.board_id}` : ''}`;
+  const title = `${name} — Soleil Clusters`;
+  rw.on('title',                            new SetText(title))
+    .on('meta[name="description"]',         new SetContent(SHARE_DESCRIPTION))
+    .on('meta[property="og:title"]',        new SetContent(title))
+    .on('meta[property="og:description"]',  new SetContent(SHARE_DESCRIPTION))
+    .on('meta[property="og:url"]',          new SetContent(shareUrl))
+    .on('meta[name="twitter:title"]',       new SetContent(title))
+    .on('meta[name="twitter:description"]', new SetContent(SHARE_DESCRIPTION))
+    .on('link[rel="canonical"]',            new SetHref(shareUrl));
+
+  // Only point og:image at the thumb route when the board HAS a stored
+  // thumbnail — otherwise leave the logo defaults untouched (some scrapers
+  // reject og:image URLs that redirect, so "don't rewrite" beats "fallback").
+  if (meta.thumb_key) {
+    const v = encodeURIComponent(meta.thumb_updated_at || '');
+    const img = `${SITE_ORIGIN}/api/share-thumb/${token}?b=${meta.board_id}&v=${v}`;
+    rw.on('meta[property="og:image"]',        new SetContent(img))
+      .on('meta[property="og:image:width"]',  new SetContent('800'))
+      .on('meta[property="og:image:height"]', new SetContent('600'))
+      .on('meta[property="og:image:type"]',   new SetContent('image/webp'))
+      .on('meta[property="og:image:alt"]',    new SetContent(name))
+      .on('meta[name="twitter:image"]',       new SetContent(img))
+      .on('meta[name="twitter:image:alt"]',   new SetContent(name));
+  }
+  return rw.transform(res);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -97,10 +155,20 @@ export default {
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request);
+      const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
+      if (thumbMatch) return await handleShareThumb(env, thumbMatch[1], url.searchParams, request);
       if (url.pathname === '/api/admin/backfill-image-sizes') return await handleBackfillImageSizes(request, env);
     } catch (e) {
       return json({ error: e?.message || String(e) }, 500);
     }
+
+    // Kick the share-meta RPC off BEFORE the assets fetch so the Supabase
+    // round-trip overlaps it instead of adding to TTFB. Failures (revoked
+    // token, timeout, network) resolve to null → default homepage meta.
+    const shareMatch = request.method === 'GET' ? url.pathname.match(SHARE_PATH_RE) : null;
+    const shareMetaPromise = shareMatch
+      ? fetchShareMeta(env, shareMatch[1], url.searchParams.get('b')).catch(() => null)
+      : null;
 
     const res = await env.ASSETS.fetch(request);
     const contentType = res.headers.get('content-type') || '';
@@ -129,6 +197,14 @@ export default {
         const canonical = p === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${p}`;
         return withRevalidate(injectRouteMeta(res, meta, canonical));
       }
+    }
+
+    // Shared-board link previews: rewrite OG/Twitter meta on /share/<token>
+    // HTML to the board's name + stored thumbnail so pasted links unfurl as
+    // the board itself (and noindex the tokened URL either way).
+    if (shareMatch && contentType.includes('text/html')) {
+      const meta = await shareMetaPromise;
+      return withRevalidate(injectShareMeta(res, meta, shareMatch[1]));
     }
 
     // index.html (the SPA document, served for every app route) must be
@@ -269,6 +345,76 @@ async function rpc(env, fn, params) {
     throw new Error(`rpc ${fn} ${res.status}: ${text.slice(0, 200)}`);
   }
   return await res.json();
+}
+
+// Anon-key variant of rpc() for token-gated public functions. Short timeout:
+// this runs inline with HTML serving, not in a cron — a slow Supabase must
+// degrade to default meta, not stall the share page.
+async function anonRpc(env, fn, params, timeoutMs = 1500) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'apikey': env.SUPABASE_ANON_KEY,
+      'authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+      'content-type': 'application/json',
+      'accept': 'application/json',
+    },
+    body: JSON.stringify(params || {}),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`rpc ${fn} ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return await res.json();
+}
+
+// Resolve a share token (+ optional sub-board) to {board_id, root_id, name,
+// thumb_key, thumb_updated_at}. All validation lives in the SECURITY DEFINER
+// RPC (migration 0132, lockstep with get_share_bundle): revoked/expired
+// tokens and unauthorized sub-boards throw — callers treat that as null.
+function fetchShareMeta(env, token, boardId) {
+  const params = { p_token: token };
+  if (boardId && UUID_RE.test(boardId)) params.p_board_id = boardId;
+  return anonRpc(env, 'get_share_meta', params);
+}
+
+// Serves a shared board's stored thumbnail (<ws>/thumbs/<board>.webp in R2)
+// as the og:image behind /share link previews. Same token gate as the share
+// bundle. injectShareMeta only points og:image here when the board HAS a
+// thumb, so the 302→logo below is a defensive fallback for stale unfurls
+// (revoked links, thumb rows that never resolved), not a normal path.
+async function handleShareThumb(env, token, searchParams, request) {
+  const fallback = () =>
+    new Response(null, {
+      status: 302,
+      headers: { location: `${SITE_ORIGIN}/clusters-logo-dark.png`, 'cache-control': 'no-store' },
+    });
+
+  let meta = null;
+  try {
+    meta = await fetchShareMeta(env, token, searchParams.get('b'));
+  } catch {
+    return fallback();
+  }
+  const key = (meta?.thumb_key || '').replace(/^r2:/, '');
+  if (!key || !env.IMAGES) return fallback();
+
+  const obj = await env.IMAGES.get(key);
+  if (!obj) return fallback();
+
+  const headers = {
+    'content-type': 'image/webp',
+    // 1h browser cache: the URL carries a v= cache-buster for freshness, and
+    // a short TTL bounds how long a just-revoked link keeps serving bytes.
+    'cache-control': 'public, max-age=3600',
+    'etag': obj.httpEtag,
+    'x-robots-tag': 'noindex',
+  };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(obj.body, { status: 200, headers });
 }
 
 // Same-origin proxy for PartyKit's /reset endpoint. The browser would
