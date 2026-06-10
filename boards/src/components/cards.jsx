@@ -671,7 +671,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
     const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
     const hasBg = !!bgColor && bgColor !== 'transparent';
     return <div ref={roNoteRef}
-                className={`note ${hasBg ? 'has-bg' : ''} ${roOverflowing ? 'is-overflowing' : ''}`}
+                className={`note ${hasBg ? 'has-bg' : ''} ${bgColor === 'transparent' ? 'is-transparent' : ''} ${roOverflowing ? 'is-overflowing' : ''}`}
                 style={{ background: bgColor || undefined, color: textColor || undefined, ...fontStyle }}>
       <NoteAutoLinkBody html={display} />
     </div>;

@@ -24,7 +24,11 @@ import { addRecentFont } from '../lib/customFonts.js';
 const STROKE_COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 const FILL_COLORS  = ['transparent', '#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#0a0a0c'];
 const TEXT_COLORS  = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
-const BG_COLORS    = ['#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#fde68a', '#ffffff'];
+const BG_COLORS    = ['transparent', '#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#fde68a', '#ffffff'];
+// Checkerboard stand-in for the 'transparent' swatch — same pattern the
+// shape fill strip uses, so "no background" reads consistently everywhere.
+const TRANSPARENT_SWATCH_BG = 'repeating-linear-gradient(45deg,#222 0 4px,#444 4px 8px)';
+const swatchBg = (c) => (c === 'transparent' ? TRANSPARENT_SWATCH_BG : c);
 const STROKE_WIDTHS = [0, 1, 2, 4, 8];
 const DRAW_THICKNESS = [2, 4, 8, 16];
 const FONTS = [
@@ -538,8 +542,13 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
                 paletteColors={paletteColors}
                 onPick={(c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c })}
                 onCustom={(e) => openPickerAt(e, {
-                  value: editingNoteCard?.bgColor || '#1c1c1f',
+                  // Seed the picker pad with a real hex when the current bg
+                  // is transparent (the pad can't represent 'transparent';
+                  // its None button emits it instead) — mirrors shape fills.
+                  value: (editingNoteCard?.bgColor && editingNoteCard.bgColor !== 'transparent')
+                    ? editingNoteCard.bgColor : '#1c1c1f',
                   onChange: (c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
+                  allowTransparent: true,
                 })} />
     </div>
   );
@@ -841,9 +850,13 @@ function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, o
           onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => e.stopPropagation()}>
       {allSwatches.slice(0, 16).map(c => (
-        <button key={c} className="tob-sw" style={{ background: c }}
+        <button key={c} className="tob-sw" style={{ background: swatchBg(c) }}
+                title={c === 'transparent' ? 'No background' : undefined}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => { onPick(c); addRecentColor(c); setOpen(false); }} />
+                // 'transparent' stays out of recents — in the recents strip it
+                // would render as an invisible swatch on color rows that don't
+                // checkerboard it (draw stroke colors, text color).
+                onClick={() => { onPick(c); if (c !== 'transparent') addRecentColor(c); setOpen(false); }} />
       ))}
       {onCustom && (
         <button className="tob-sw tob-sw-custom" title="Custom…"
@@ -862,10 +875,10 @@ function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, o
         {glyph ? (
           <span className="tob-color-stack">
             <span className="tob-color-glyph">{glyph}</span>
-            <span className="tob-color-bar" style={{ background: defaultColor }} />
+            <span className="tob-color-bar" style={{ background: swatchBg(defaultColor) }} />
           </span>
         ) : (
-          <span className="tob-sw-dot" style={{ background: defaultColor }} />
+          <span className="tob-sw-dot" style={{ background: swatchBg(defaultColor) }} />
         )}
       </button>
       {popNode && typeof document !== 'undefined'

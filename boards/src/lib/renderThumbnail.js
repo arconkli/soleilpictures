@@ -502,13 +502,19 @@ async function planToBlob(plan, { width, height, allowImages }) {
     if (c.kind === 'note') {
       // Faithful note: painted rounded rect + wrapped real text, clipped to
       // the card. Text color honors c.textColor, else auto-contrasts.
-      const bg = (c.bgColor && c.bgColor !== 'transparent') ? c.bgColor : '#262626';
-      ctx.save();
-      ctx.globalAlpha = 0.96;
-      ctx.fillStyle = bg;
-      if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill(); }
-      else ctx.fillRect(x, y, w, h);
-      ctx.restore();
+      // Transparent notes skip the fill so the board background shows
+      // through (the text-color fallback still seeds from the dark default,
+      // matching the app's light-text-on-transparent behavior).
+      const isTransparentBg = c.bgColor === 'transparent';
+      const bg = (c.bgColor && !isTransparentBg) ? c.bgColor : '#262626';
+      if (!isTransparentBg) {
+        ctx.save();
+        ctx.globalAlpha = 0.96;
+        ctx.fillStyle = bg;
+        if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill(); }
+        else ctx.fillRect(x, y, w, h);
+        ctx.restore();
+      }
 
       const text = extractNoteText(c);
       if (text) {
