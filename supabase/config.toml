@@ -5,3 +5,14 @@ project_id = "ehlhlmbpwwalmeisvmdp"
 # must let the request through unauthenticated.
 [functions.stripe-webhook]
 verify_jwt = false
+
+# Invoked by pg_cron / server-side callers with a shared secret instead of a
+# user JWT (the secret check inside each function is the auth boundary).
+# Pinned here so a config-driven redeploy doesn't silently flip them back to
+# verify_jwt=true and 401-kill email sending + waitlist acceptance — the
+# deployed state already runs with verify_jwt=false.
+[functions.send-transactional-email]
+verify_jwt = false
+
+[functions.waitlist-accept-cron]
+verify_jwt = false

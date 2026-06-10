@@ -46,20 +46,27 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-  // Durable audit log — every Stripe event we receive, even ones
-  // we don't act on. Dedups via unique (stripe_id) on replay. Fire
-  // and forget; logging failure should never block webhook handling.
+  // Durable audit log — every Stripe event we receive, even ones we don't
+  // act on. Unique (stripe_id) flags replays/retries; we still process them
+  // (handlers are idempotent and the checkout path re-checks live
+  // subscription status) so a 500-then-retry still completes. Note that
+  // supabase-js reports failures via .error, not by throwing.
   try {
-    await admin.from("stripe_webhook_events").insert({
+    const logged = await admin.from("stripe_webhook_events").insert({
       stripe_id: event.id,
       type: event.type,
       user_id: await extractUserIdFromEvent(admin, event),
       payload: event as unknown as Record<string, unknown>,
     });
+    if (logged.error) {
+      if ((logged.error as { code?: string }).code === "23505") {
+        console.log("[stripe-webhook] replay/retry of", event.id, event.type);
+      } else {
+        console.warn("[stripe-webhook] event log insert failed", logged.error.message);
+      }
+    }
   } catch (e) {
-    // Ignore duplicate-key on retry; log other errors but continue.
-    const msg = (e as Error)?.message || String(e);
-    if (!msg.includes("duplicate key")) console.warn("[stripe-webhook] event log insert failed", msg);
+    console.warn("[stripe-webhook] event log insert threw", (e as Error)?.message || String(e));
   }
 
   try {
@@ -105,13 +112,22 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
 
   // Expand discounts so we can record the real net amount (100%-off → $0).
   const subscription = subId ? await stripe.subscriptions.retrieve(subId, { expand: ["discounts"] }) : null;
+
+  // Replay guard: Stripe (or an operator re-send) can deliver an old
+  // checkout.session.completed long after the subscription was canceled.
+  // Activating from the stale event would silently re-grant paid tier —
+  // trust the subscription's LIVE status, not the event.
+  if (subscription && (subscription.status === "canceled" || subscription.status === "incomplete_expired")) {
+    console.warn("[stripe] skipping activation: subscription no longer live", { userId, subId, status: subscription.status });
+    return;
+  }
+
   const result = await activateUserFromSubscription(admin, {
     userId,
     customerId,
     subscription,
     subscriptionId: subId ?? null,
   });
-  if (!result.activated) console.warn("[stripe] activation failed", { userId, reason: result.reason });
 
   // Meta CAPI Purchase. The payment is real regardless of whether our DB tier
   // flip succeeded, so emit even if activation reported a soft failure. Keyed on
@@ -139,6 +155,11 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
       subscription_id: subId ?? null,
     },
   });
+
+  // Surface DB failures as a 500 AFTER the CAPI emit so Stripe retries the
+  // event instead of treating the lost write as delivered (emitCapi dedups
+  // on session.id across retries, so the emit stays single-counted).
+  if (!result.activated) throw new Error(`activation failed: ${result.reason}`);
 }
 
 async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub: Stripe.Subscription) {
@@ -153,7 +174,7 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
 
   const plan = planFromPriceId(full.items.data[0]?.price?.id);
   const billing = netMonthlyFromSubscription(full);
-  await admin.from("subscriptions").upsert({
+  const up = await admin.from("subscriptions").upsert({
     user_id: userId,
     stripe_customer_id: customerId,
     stripe_subscription_id: full.id,
@@ -165,10 +186,12 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
     discount: billing.discount,
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id" });
+  if (up.error) throw new Error(`subscriptions upsert failed: ${up.error.message}`);
 
   // Active subs → ensure tier='paid' (unless admin).
   if (full.status === "active" || full.status === "trialing") {
-    await admin.from("profiles").update({ tier: "paid" }).eq("user_id", userId).neq("tier", "admin");
+    const flip = await admin.from("profiles").update({ tier: "paid" }).eq("user_id", userId).neq("tier", "admin");
+    if (flip.error) throw new Error(`tier flip failed: ${flip.error.message}`);
   }
   // Past-due / unpaid → leave tier as-is, the cancel event will drop them.
 }
@@ -196,17 +219,22 @@ async function onSubscriptionDeleted(admin: ReturnType<typeof createClient>, sub
   const userId = await resolveUserId(admin, customerId, sub.metadata?.supabase_user_id, null);
   if (!userId) return;
 
-  await admin.from("subscriptions").update({
+  const cancelUpd = await admin.from("subscriptions").update({
     status: "canceled",
     cancel_at_period_end: false,
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
+  if (cancelUpd.error) throw new Error(`subscription cancel write failed: ${cancelUpd.error.message}`);
 
   // Don't drop to demo if the user still has an active admin grant —
-  // their paid access comes from the grant, independent of Stripe.
+  // their paid access comes from the grant, independent of Stripe. A
+  // transient RPC failure must NOT demote a grant-holder: bail to 500 and
+  // let Stripe retry rather than guessing.
   const grantQ = await admin.rpc("user_has_active_paid_grant", { p_user_id: userId });
+  if (grantQ.error) throw new Error(`grant check failed: ${grantQ.error.message}`);
   if (grantQ.data === true) return;
 
   // Drop tier to demo (existing data preserved per spec; cap re-enforced on adds).
-  await admin.from("profiles").update({ tier: "demo" }).eq("user_id", userId).eq("tier", "paid");
+  const demote = await admin.from("profiles").update({ tier: "demo" }).eq("user_id", userId).eq("tier", "paid");
+  if (demote.error) throw new Error(`tier demote failed: ${demote.error.message}`);
 }

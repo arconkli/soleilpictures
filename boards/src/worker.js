@@ -229,10 +229,14 @@ export default {
     const which = event?.cron || '';
     if (which === '15 * * * *') {
       ctx.waitUntil(runCompactionJob1(env));
-    } else {
+    } else if (which === '0 4 * * *') {
       // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),
       // then the history-aware orphan sweep. Sequential so R2 ops don't spike.
       ctx.waitUntil(runImageSizeBackfill(env).then(() => runR2Sweep(env)));
+    } else {
+      // An edited wrangler.toml schedule must never silently reroute into the
+      // destructive sweep — unknown crons are a loud no-op.
+      console.error('[cron] unrecognized schedule; nothing run:', which);
     }
   },
 };
@@ -276,11 +280,14 @@ async function runR2Sweep(env) {
       return;
     }
 
-    // Audit every candidate first, regardless of whether we proceed.
+    // Audit every candidate BEFORE any destructive op — the audit trail is
+    // the safety contract for the sweep. If we can't record what we're about
+    // to do, we don't do it; the next daily run picks the candidates up again.
     try {
       await rpc(env, 'record_r2_sweep_audit', { p_run_id: runId, p_rows: rows });
     } catch (e) {
-      console.warn('[r2-sweep] audit insert failed', e);
+      console.error(`[r2-sweep] run=${runId} audit insert failed; aborting sweep`, e);
+      return;
     }
 
     const deletedIds = [];
@@ -293,7 +300,12 @@ async function runR2Sweep(env) {
         toDelete++;
         continue;
       }
-      // decision === 'delete' and not in dry-run mode → actually delete.
+      // Only an explicit 'delete' decision is destructive — a decision value
+      // we don't recognize is treated as keep, never as delete.
+      if (row.decision !== 'delete') {
+        kept++;
+        continue;
+      }
       try {
         if (row.storage_path) await env.IMAGES.delete(row.storage_path);
         deletedIds.push(row.id);
