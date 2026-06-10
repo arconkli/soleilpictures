@@ -1459,6 +1459,28 @@ export function CanvasSurface({
     };
     const onWheel = (e) => {
       if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob')) return;
+      // Wheel over a SELECTED or EDITING note whose text overflows scrolls
+      // the note's text instead of panning the canvas (you could otherwise
+      // never wheel-scroll a clipped note — the canvas panned and flung the
+      // note off-screen mid-edit). Early-return → no preventDefault → the
+      // browser performs its native overflow scroll on .note-body
+      // (overflow:auto in both edit and display modes). There are no other
+      // scrollable ancestors between the body and the wrap, so nothing
+      // chain-scrolls into a page scroll; at the note's scroll end the
+      // wheel simply does nothing — predictable editor feel. Ctrl/Cmd+wheel
+      // still ZOOMS even over a note: zoom is a canvas-level gesture and
+      // the browser's own ctrl+wheel page-zoom must stay preventDefault'ed.
+      // The |deltaY| >= |deltaX| clause keeps horizontal trackpad pans
+      // working over notes (note text can't overflow horizontally).
+      if (!(e.ctrlKey || e.metaKey) && e.target.closest) {
+        const body = e.target.closest('.note-body');
+        if (body && body.scrollHeight > body.clientHeight + 1 &&
+            Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+          const isEditing = !!body.closest('.note')?.classList.contains('is-editing');
+          const isSelected = !!body.closest('.card')?.classList.contains('is-selected');
+          if (isEditing || isSelected) return;
+        }
+      }
       e.preventDefault();
       perf.bump('wheel.events');
       // Round 17: time the JS-side cost of zoom handling. A 'first-zoom
