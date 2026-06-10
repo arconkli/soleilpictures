@@ -5543,6 +5543,20 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .admin-error-grouprow { cursor: pointer; }
 .admin-error-grouprow:hover { background: var(--bg-2); }
+/* Icon-only row actions (mute / copy-all) + muted-row dimming. */
+.admin-iconbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  background: transparent;
+  color: var(--ink-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+.admin-iconbtn:hover:not(:disabled) { background: var(--bg-3); color: var(--ink-1); }
+.admin-iconbtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.admin-row-muted { opacity: 0.55; }
+.admin-row-muted:hover { opacity: 0.85; }
 .admin-error-stack {
   margin: 6px 0 2px; padding: 10px 12px; max-height: 280px; overflow: auto;
   background: var(--bg-0, var(--bg-1)); border: 1px solid var(--line-1); border-radius: 8px;
@@ -6582,6 +6596,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .admin-action:focus-visible,
 .admin-tier-pill:focus-visible,
 .admin-copyable:focus-visible,
+.admin-iconbtn:focus-visible,
 .admin-toggle:focus-visible,
 .admin-search-input:focus-visible,
 .admin-filter-select:focus-visible {
