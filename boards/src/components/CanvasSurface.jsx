@@ -1573,7 +1573,20 @@ export function CanvasSurface({
       target: wrapRef,
       eventOptions: { passive: false },
       pinch: { scaleBounds: { min: ZOOM_MIN / 4, max: ZOOM_MAX * 4 }, rubberband: true },
-      drag: { pointer: { touch: true }, threshold: 0 },
+      // `touch: true` only switches the drag engine to TouchEvents on
+      // devices where use-gesture's SUPPORT.touch ('ontouchstart') is true.
+      // On a touchless desktop it silently falls back to PointerEvents,
+      // whose default `capture: true` called setPointerCapture on EVERY
+      // left-button pointerdown inside the wrap. Capturing retargets all
+      // subsequent pointer events to the pressed element, which freezes
+      // the browser's native text-selection drag — selecting multiple note
+      // lines by mouse stopped dead at the first line boundary (backward
+      // drags ~always; forward drags raced). capture:false costs nothing:
+      // onDrag above ignores non-touch pointers entirely, and on real touch
+      // devices the TouchEvent path never captured to begin with. NOTE:
+      // card click handling must stay correct without capture — see the
+      // dragArmed comment in onCardPointerDown.
+      drag: { pointer: { touch: true, capture: false }, threshold: 0 },
     },
   );
 
@@ -2556,7 +2569,18 @@ export function CanvasSurface({
         hints: (xs.length || ys.length || spacings.length) ? { xs, ys, spacings } : null,
       };
     };
-    setDrag({ ids: dragIds, dx: 0, dy: 0, startPositions });
+    // Drag state is NOT armed here on pointerdown — only once movement
+    // crosses the 4px click threshold (in flushMove below). Arming on
+    // pointerdown put the card in .is-dragging for the duration of a plain
+    // click, and that class strips pointer-events (so drag-into-board's
+    // elementsFromPoint can see the board beneath). With no pointer capture
+    // in play, the pointerup of a click then hit-tested THROUGH the card to
+    // the canvas, so the click event resolved to .cards-layer and every
+    // in-card click handler (note link-preview remove "x", links, …)
+    // silently never fired. use-gesture's accidental mouse pointer-capture
+    // used to retarget pointerup back to the pressed element and mask all
+    // of this — see the drag config note near useGesture.
+    let dragArmed = false;
 
     // rAF-coalesced liveDrag broadcast. pointermove can fire ~120/sec;
     // peers only need ~60/sec (display refresh). We hold the latest
@@ -2586,6 +2610,13 @@ export function CanvasSurface({
       const ev = pendingMoveEv;
       pendingMoveEv = null;
       if (!ev) return;
+      // Click-vs-drag: same 4px screen-space distance onUp's wasClick check
+      // uses, so a gesture can never commit a move without having armed.
+      // Until the threshold is crossed the gesture stays a potential click
+      // and the card must NOT enter .is-dragging (see dragArmed above).
+      if (!dragArmed &&
+          Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) <= 4) return;
+      dragArmed = true;
       perf.bump('drag.flush');
       const _t0 = perf.isEnabled() ? performance.now() : 0;
       const rawDx = (ev.clientX - startClient.x) / zoom;
@@ -3877,6 +3908,18 @@ export function CanvasSurface({
     setBgCtx(b => ({ ...b, open: false }));
 
     if (spaceDown || selectedTool === 'pan') { startPan(e); return; }
+
+    // A pointerdown that ORIGINATES inside an editable text field (inline
+    // title <input>s, any contenteditable that doesn't already stop
+    // propagation) is the browser starting a native text-selection drag —
+    // never a tool gesture. Without this guard the select-tool marquee
+    // armed at 4px of drift and its overlay + selection-state churn fought
+    // the native selection. Deliberately NOT isEditorTarget(): that helper
+    // also checks document.activeElement / the live selection, which still
+    // point inside a note when the user clicks OUTSIDE it — and that click
+    // must keep reaching the marquee/deselect logic so blur-commit works.
+    if (e.target.isContentEditable ||
+        e.target.closest?.('[contenteditable="true"], input, textarea, select')) return;
 
     // Drawing
     if (selectedTool === 'draw') {
