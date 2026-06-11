@@ -28,6 +28,11 @@
 //   node scripts/backfill-image-variants.mjs --apply         # do it
 //   node scripts/backfill-image-variants.mjs --apply --limit=3   # pre-flight
 //   node scripts/backfill-image-variants.mjs --pass=2 --apply    # sm variants only
+//   --native-webp   also re-encode ≤1280px sources at native size when the
+//                   webp saves ≥20% bytes (floor 320px) — mirrors the client
+//                   rule added 2026-06-11 in uploads.js. Without it, ≤1280px
+//                   byte-heavy originals (most of the legacy corpus) only get
+//                   blur hashes and keep shipping multi-hundred-KB originals.
 //
 // Candidates JSON shape (array): { id, storage_path, workspace_id, board_id,
 //   width, height, preview_path, preview_w, preview_h }
@@ -69,6 +74,11 @@ const LIMIT = args.limit ? parseInt(args.limit, 10) : Infinity;
 const PASS = String(args.pass || 'all');   // '1' | '2' | 'all'
 const SQL_OUT = args['sql-out'] || 'backfill-stamps.sql';
 const CONCURRENCY = 4;
+// --native-webp: keep the rule in lockstep with uploads.js
+// (NATIVE_WEBP_MIN_EDGE / NATIVE_WEBP_MAX_RATIO there).
+const NATIVE_WEBP = !!args['native-webp'];
+const NATIVE_WEBP_MIN_EDGE = 320;
+const NATIVE_WEBP_MAX_RATIO = 0.8;
 
 // ── R2 access ────────────────────────────────────────────────────────────
 
@@ -236,6 +246,15 @@ async function makeWebp(buf, srcLongest, maxEdge) {
   return { buf: data, w: info.width, h: info.height };
 }
 
+// Native-size webp re-encode (no resize) — mirrors drawableToWebpNative in
+// uploads.js. Caller applies the byte-savings guard.
+async function makeWebpNative(buf) {
+  const { data, info } = await sharp(buf).rotate()
+    .webp({ quality: PREVIEW_QUALITY })
+    .toBuffer({ resolveWithObject: true });
+  return { buf: data, w: info.width, h: info.height };
+}
+
 // Deterministic preview keys, derived from the original row's id. The client
 // upload path mints random UUID keys, but here determinism is what makes a
 // rerun idempotent: a crash between the R2 PUTs and the DB stamp re-PUTs the
@@ -252,7 +271,14 @@ async function processPass1(row) {
   const longest = Math.max(dims.w, dims.h);
 
   const blur = await makeBlur(buf);
-  const lgOut = await makeWebp(buf, longest, PREVIEW_LONGEST_EDGE);
+  let lgOut = await makeWebp(buf, longest, PREVIEW_LONGEST_EDGE);
+  // --native-webp: ≤1280px sources still get a preview when the re-encode
+  // pays (≥20% byte savings, floor 320px) — without it these images ship the
+  // original forever and never get the 640px sm/srcset tier.
+  if (!lgOut && NATIVE_WEBP && longest > NATIVE_WEBP_MIN_EDGE) {
+    const native = await makeWebpNative(buf);
+    if (native && native.buf.length < buf.length * NATIVE_WEBP_MAX_RATIO) lgOut = native;
+  }
   let lg = null, sm = null;
   if (lgOut) {
     lg = { key: previewKeyFor(row, 'lg'), w: lgOut.w, h: lgOut.h };

@@ -36,6 +36,17 @@ const PREVIEW_QUALITY = 0.72;
 // while it's in the preview tier).
 const PREVIEW_SM_LONGEST_EDGE = 640;
 const PREVIEW_SM_QUALITY = 0.72;
+// Native-size webp re-encode for ≤1280px byte-heavy sources: only when the
+// source is bigger than this floor AND the webp saves ≥20% of the bytes.
+const NATIVE_WEBP_MIN_EDGE = 320;
+const NATIVE_WEBP_MAX_RATIO = 0.8;
+// CPU pre-filter: don't even attempt the encode unless the source is clearly
+// bloated. A well-compressed jpeg/webp sits around 0.05–0.2 bytes/pixel and
+// would fail the 0.8 byte-guard anyway — encoding it first just burns
+// main-thread time during multi-file uploads. Screenshot PNGs (the target)
+// run 0.5–3 B/px. Marginal cases the client skips here are still caught by
+// the operator script's bulk runs (it applies only the byte-guard, offline).
+const NATIVE_WEBP_MIN_BYTES_PER_PX = 0.25;
 
 function readImageDims(file) {
   return new Promise((res) => {
@@ -242,6 +253,23 @@ function downscaleDrawableToWebp({ drawable, w, h }, maxEdge, quality) {
   });
 }
 
+// Encode a drawable to WebP at NATIVE size (no resize). For ≤PREVIEW_LONGEST_EDGE
+// sources that are still byte-heavy (screenshot PNGs etc.): the webp re-encode
+// is ~5-10x smaller at identical pixels, and having a real preview row unlocks
+// the 640px sm sibling + srcset for small/zoomed-out cards.
+function drawableToWebpNative({ drawable, w, h }, quality) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(drawable, 0, 0, w, h);
+  return new Promise((resolve) => {
+    try {
+      canvas.toBlob((blob) => resolve(blob ? { blob, w, h } : null), 'image/webp', quality);
+    } catch (_) { resolve(null); }
+  });
+}
+
 // Compute a base64 ThumbHash from a drawable (downscaled to <=100px/side).
 function computeThumbHashBase64({ drawable, w, h }) {
   const maxSide = Math.max(w, h);
@@ -280,6 +308,25 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
     let dn = null;
     try { dn = await downscaleDrawableToWebp(d, PREVIEW_LONGEST_EDGE, PREVIEW_QUALITY); }
     catch (_) { dn = null; }
+    // ≤1280px sources used to get NO preview ("the original serves as
+    // Tier-1") — which optimizes pixels but not bytes: a ~600KB screenshot
+    // PNG re-encodes to a ~50KB webp at identical pixels, and without a
+    // preview row there's no sm sibling, so fit-all board views decode the
+    // full original for every tiny card. Generate a native-size webp when it
+    // actually pays: source bigger than the floor, byte size known
+    // (File/Blob — all current callers), and the webp saves ≥20%.
+    if (!dn) {
+      const sourceBytes = (typeof Blob !== 'undefined' && imageSource instanceof Blob)
+        ? imageSource.size : null;
+      if (sourceBytes
+          && Math.max(d.w, d.h) > NATIVE_WEBP_MIN_EDGE
+          && sourceBytes / (d.w * d.h) > NATIVE_WEBP_MIN_BYTES_PER_PX) {
+        try {
+          const native = await drawableToWebpNative(d, PREVIEW_QUALITY);
+          if (native?.blob && native.blob.size < sourceBytes * NATIVE_WEBP_MAX_RATIO) dn = native;
+        } catch (_) { /* keep dn = null — exact prior behavior */ }
+      }
+    }
     if (dn && dn.blob) {
       const requestedKey = `${workspaceId}/previews/${crypto.randomUUID()}.webp`;
       // Use the key the server actually assigns. A party that honors the
