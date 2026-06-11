@@ -45,16 +45,23 @@ const SIGN_RETRY_BASE_MS = 800; // backoff: 0.8s, 1.6s, 3.2s, 6.4s
 // avoids even scheduling the call). Cleared only by a page reload.
 const _primeAttempted = new Set();
 
+// A decoded original above this many pixels costs more GPU/decode memory
+// than the one-time blur-up it would avoid (a 12MP photo decodes to ~48MB;
+// dozens of those alive at once is how canvas raster tiles get dropped).
+// Below it, a warm original is comparable to the 1280px preview (~1.6MP).
+const MAX_WARM_ORIGINAL_PX = 2_500_000;
+
 // Pick which tier to mount/show before anything has loaded. Prefer the
 // preview ONLY when it's at least as warm as the original:
 //   preview signed URL cached → preview (smaller decode, the fast path)
 //   both cold                 → preview (smaller cold download)
-//   original warm, preview cold → original (a URL signed this session/recently
-//     means the bytes are near-certainly in the browser disk cache; a cold
-//     preview would trade that free paint for a presign round-trip + R2 fetch.
-//     This matters when a mid-session backfill mints a preview for an image
-//     the user is already looking at — viewport-culling remounts must not
-//     downgrade it to a cold key and re-blur.)
+//   original warm, preview cold → original IF it's small (≤2.5MP, unknown
+//     dims count as too big): a URL signed this session/recently means the
+//     bytes are near-certainly in the browser disk cache, so a culling
+//     remount right after a mid-session backfill must not downgrade to a
+//     cold preview key and re-blur. Large originals take the cold preview
+//     anyway — one blur-up, bounded GPU memory; the preview is warm from
+//     then on (its URL is pre-warmed by generateAndUploadVariants).
 // Public viewer: cachedUrl resolves via the share bundle, so every bundled
 // key counts as warm and the preview keeps winning there.
 function pickTierSrc(src, originalKey) {
@@ -62,6 +69,7 @@ function pickTierSrc(src, originalKey) {
   if (!m || !m.previewKey) return src;
   const pv = `r2:${m.previewKey}`;
   if (cachedUrl(pv) || !cachedUrl(src)) return pv;
+  if (!(m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX)) return pv;
   return src;
 }
 

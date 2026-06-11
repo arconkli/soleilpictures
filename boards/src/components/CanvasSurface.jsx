@@ -320,16 +320,21 @@ export function CanvasSurface({
       if (!z || !wrapW || !wrapH || !arr) return;
       // Canvas-space viewport bboxes, with hysteresis. ADD band: viewport
       // ± 1 viewport — cards entering it get mounted (no pop-in on pan).
-      // KEEP band: viewport ± 2.5 viewports — already-mounted cards stay
+      // KEEP band: viewport ± 1.5 viewports — already-mounted cards stay
       // until they leave it. Without the asymmetry, edge cards oscillate
       // across a single band and every modest pan/zoom unmounts
       // recently-visible cards — and an image card remount resets all of
       // R2ImageProgressive's state, replaying the blur-up from scratch.
+      // KEEP is deliberately modest (was 2.5): everything mounted paints
+      // into the single promoted .canvas layer, and at zoom-in those tiles
+      // rasterize at device resolution — an oversized band blows Chrome's
+      // tile budget and tiles get DROPPED (black background patches,
+      // glitching backdrop-filter toolbars) until a scroll re-rasters.
       const vx = -px / z, vy = -py / z;
       const vw = wrapW / z, vh = wrapH / z;
       const minX = vx - vw, maxX = vx + 2 * vw;
       const minY = vy - vh, maxY = vy + 2 * vh;
-      const KEEP = 2.5;
+      const KEEP = 1.5;
       const kMinX = vx - KEEP * vw, kMaxX = vx + (1 + KEEP) * vw;
       const kMinY = vy - KEEP * vh, kMaxY = vy + (1 + KEEP) * vh;
       const next = new Set();
@@ -347,9 +352,19 @@ export function CanvasSurface({
       // micro-movements that don't bring/take any card across the band).
       setVisibleIds(prev => {
         // Hysteresis: previously-mounted cards still inside KEEP stay
-        // mounted. (Set.add is idempotent, so mutating `next` here is safe
-        // under StrictMode's double-invoked updater.)
-        if (prev) for (const id of prev) { if (keep.has(id)) next.add(id); }
+        // mounted, but never retain past MOUNT_CAP — on dense boards the
+        // raster/texture cost of the extra mounts is exactly what drops
+        // GPU tiles. The cap bounds only the hysteresis EXTRAS; the ADD
+        // band (and the zoomed-out everything-in-view case) is unaffected.
+        // (Set.add is idempotent, so mutating `next` here is safe under
+        // StrictMode's double-invoked updater.)
+        const MOUNT_CAP = 300;
+        if (prev) {
+          for (const id of prev) {
+            if (next.size >= MOUNT_CAP) break;
+            if (keep.has(id)) next.add(id);
+          }
+        }
         if (prev && prev.size === next.size) {
           let same = true;
           for (const id of next) { if (!prev.has(id)) { same = false; break; } }
