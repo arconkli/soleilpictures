@@ -15,7 +15,10 @@ import { createPortal } from 'react-dom';
 // affordance for "tap outside to close."
 export function MobileDrawer({ open, onClose, children }) {
   const dragStart = useRef(null);
+  const snapTimer = useRef(null);
   const [dragX, setDragX] = useState(0);
+  // True for the ~200ms after a released drag while the drawer eases home.
+  const [snapping, setSnapping] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -25,8 +28,10 @@ export function MobileDrawer({ open, onClose, children }) {
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!open) setDragX(0);
+    if (!open) { setDragX(0); setSnapping(false); }
   }, [open]);
+
+  useEffect(() => () => clearTimeout(snapTimer.current), []);
 
   if (!open) return null;
 
@@ -47,8 +52,14 @@ export function MobileDrawer({ open, onClose, children }) {
     if (!dragStart.current || dragStart.current.id !== e.pointerId) return;
     const dx = Math.min(0, e.clientX - dragStart.current.x);
     dragStart.current = null;
-    if (dx < -80) onClose?.();
-    else setDragX(0);
+    if (dx < -80) { onClose?.(); return; }
+    if (dx < 0) {
+      // Ease back instead of snapping; transition exists only for this window.
+      setSnapping(true);
+      clearTimeout(snapTimer.current);
+      snapTimer.current = setTimeout(() => setSnapping(false), 220);
+    }
+    setDragX(0);
   };
 
   return createPortal(
@@ -56,7 +67,13 @@ export function MobileDrawer({ open, onClose, children }) {
       <div className="md-drawer-backdrop" onClick={onClose} />
       <aside
         className="md-drawer-panel"
-        style={dragX ? { transform: `translateX(${dragX}px)` } : undefined}
+        // Live drags track the finger 1:1 (no transition); a released drag
+        // keeps a transition just long enough to ease home.
+        style={dragX
+          ? { transform: `translateX(${dragX}px)`, transition: 'none' }
+          : snapping
+            ? { transition: 'transform 200ms var(--ease)' }
+            : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

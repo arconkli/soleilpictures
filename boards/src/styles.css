@@ -16744,6 +16744,10 @@ button, [role="button"], a {
   .rail-toggle,
   .rail-icon,
   .ic-expand,
+  .ic-add-caption,
+  .sp-tool,
+  .sp-color,
+  .sp-width,
   .cp-palsearch-x,
   .cfont-x,
   .comment-archive-x {
@@ -16792,7 +16796,8 @@ button, [role="button"], a {
 .sheet-grip-row {
   flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
-  padding: 8px 0 4px;
+  /* Generous row: the 4px grip is the drag handle, the padding is the target. */
+  padding: 12px 0 8px;
   cursor: grab;
 }
 .sheet-grip {

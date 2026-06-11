@@ -21,7 +21,10 @@ import { createPortal } from 'react-dom';
 export function Sheet({ open, onClose, title, children, snap = 'full' }) {
   const dragStart = useRef(null);
   const sheetRef = useRef(null);
+  const snapTimer = useRef(null);
   const [dragY, setDragY] = useState(0);
+  // True for the ~200ms after a released drag while the sheet eases home.
+  const [snapping, setSnapping] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -31,8 +34,10 @@ export function Sheet({ open, onClose, title, children, snap = 'full' }) {
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!open) setDragY(0);
+    if (!open) { setDragY(0); setSnapping(false); }
   }, [open]);
+
+  useEffect(() => () => clearTimeout(snapTimer.current), []);
 
   if (!open) return null;
 
@@ -50,8 +55,15 @@ export function Sheet({ open, onClose, title, children, snap = 'full' }) {
     if (!dragStart.current || dragStart.current.id !== e.pointerId) return;
     const dy = Math.max(0, e.clientY - dragStart.current.y);
     dragStart.current = null;
-    if (dy > 120) onClose?.();
-    else setDragY(0);
+    if (dy > 120) { onClose?.(); return; }
+    if (dy > 0) {
+      // Ease back instead of snapping. The transition style only exists for
+      // this window so the sheet carries no inline transform at rest.
+      setSnapping(true);
+      clearTimeout(snapTimer.current);
+      snapTimer.current = setTimeout(() => setSnapping(false), 220);
+    }
+    setDragY(0);
   };
 
   return createPortal(
@@ -60,7 +72,13 @@ export function Sheet({ open, onClose, title, children, snap = 'full' }) {
       <div
         ref={sheetRef}
         className="sheet-panel"
-        style={dragY ? { transform: `translateY(${dragY}px)` } : undefined}
+        // Live drags track the finger 1:1 (no transition); a released drag
+        // keeps a transition just long enough to ease home.
+        style={dragY
+          ? { transform: `translateY(${dragY}px)`, transition: 'none' }
+          : snapping
+            ? { transition: 'transform 200ms var(--ease)' }
+            : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
