@@ -20,9 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cachedUrl, resolveSrc, getSignedUrl, CACHE_TTL_MS } from '../lib/r2.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
-import { runGated } from '../lib/backfillGate.js';
-import { backfillAttempted } from '../lib/previewBackfill.js';
-import { importWithReload } from '../lib/lazyWithReload.js';
+import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
 
@@ -223,10 +221,6 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [visible, setVisible] = useState(() => eager || !!initialUrl);
-  // Set after a crossOrigin (CORS-mode) load fails — we then reload the same
-  // URL without crossOrigin so the image still displays even if the R2 bucket
-  // lacks a CORS rule for this origin (we only lose the canvas-read backfill).
-  const [noCors, setNoCors] = useState(false);
   // Signed URL for the small (DPR-down) preview, resolved in parallel so the
   // <img> can offer a srcset. null until resolved / when there's no sm variant.
   const [smUrl, setSmUrl] = useState(null);
@@ -252,16 +246,6 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const fastLoadRef = useRef(false);
   const FAST_LOAD_MS = 200;
 
-  // Freeze the crossOrigin decision at mount so a later meta update (e.g. our
-  // own backfill landing) doesn't flip the attribute and force the full image
-  // to refetch. We only need a CORS-clean canvas read when we'll backfill —
-  // i.e. a writer viewing an r2 original that has no preview yet.
-  const wantCorsRef = useRef(null);
-  if (wantCorsRef.current === null) {
-    const m0 = originalKey ? getMeta(originalKey) : null;
-    wantCorsRef.current = !!(backfillEnabled && originalKey && !(m0 && m0.previewKey));
-  }
-
   const blurUrl = useMemo(() => ((visible || eager) ? blurToDataUrl(meta?.blur) : null), [meta, visible, eager]);
 
   // Subscribe to metadata arriving after a cold open (the prime query landing,
@@ -284,7 +268,6 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     fastLoadRef.current = false;
     setLoaded(false);
     setFailed(false);
-    setNoCors(false);
     const next = pickTierSrc(src, originalKey);
     urlSetAtRef.current = cachedUrl(next) ? performance.now() : 0;
     setActiveSrc(next);
@@ -452,23 +435,6 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     return () => { cancelled = true; try { cancelRic(id); } catch (_) {} };
   }, [loaded, meta, activeSrc, src, upgradeToFull]);
 
-  const maybeBackfill = () => {
-    if (!backfillEnabled || !originalKey) return;
-    if (noCors) return;                         // fell back to a non-cors (tainted) load — can't read the canvas
-    if (meta && meta.previewKey) return;        // already has a preview
-    if (backfillAttempted.has(originalKey)) return;
-    const el = imgRef.current;
-    if (!el) return;
-    backfillAttempted.add(originalKey);
-    const ws = originalKey.split('/')[0];
-    // Dynamic import keeps the variant-generation/upload module (+ its canvas
-    // encode path) out of the basic R2Image consumers (avatars, lightbox,
-    // public viewer); it only loads when a writer actually backfills.
-    runGated(() => importWithReload(() => import('../lib/uploads.js')).then(m => m.generateAndUploadVariants({
-      workspaceId: ws, boardId, storagePath: originalKey, imageSource: el,
-    })));
-  };
-
   const onImgLoad = () => {
     // Fade skip is decided by MEASURED fetch+decode time from the moment the
     // URL was handed to the <img> — disk-cache loads come in well under the
@@ -488,8 +454,13 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
       // resolve and we recovered on the original.
       else if (originalKey) perf.bump(fellBackRef.current ? 'image.preview.fellBack' : 'image.preview.warmOriginal');
     }
-    // When we loaded the original because no preview existed, backfill one.
-    if (originalKey && activeSrc === src && !(meta && meta.previewKey)) maybeBackfill();
+    // When we loaded the original because no preview existed, generate one.
+    // Fetch-based (cache-bypassing) — never reads the displayed element's
+    // canvas, so the display img needs no crossOrigin and can't be broken by
+    // CORS cache poisoning (see previewBackfill.js).
+    if (backfillEnabled && originalKey && activeSrc === src && !(meta && meta.previewKey)) {
+      requestImageBackfill(originalKey, boardId);
+    }
     if (meta?.blur) perf.bump('image.tier0.blurShown');
   };
 
@@ -533,17 +504,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
              decoding="async"
              fetchpriority={eager ? 'high' : 'low'}
              draggable={draggable}
-             crossOrigin={(wantCorsRef.current && !noCors) ? 'anonymous' : undefined}
              onLoad={onImgLoad}
              onError={(e) => {
-               // A crossOrigin (CORS-mode) load is blocked when the R2 bucket has
-               // no CORS rule for this origin. Reload the SAME url without
-               // crossOrigin so the image still shows (we just skip the canvas
-               // backfill for it). Do this before treating it as a real failure.
-               if (wantCorsRef.current && !noCors) {
-                 setNoCors(true);
-                 return;
-               }
                // The browser may have chosen the sm srcset candidate; drop it so
                // we fall back to the lg `src` rather than retrying a bad sm URL.
                if (smUrl) setSmUrl(null);

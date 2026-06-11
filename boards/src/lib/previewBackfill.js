@@ -29,7 +29,7 @@ export const backfillAttempted = new Set();
 // broken images than the cap heals over successive sessions. Kept small and
 // late because the sweep's multi-MB original downloads compete with the
 // interactive image fetches the user actually sees.
-const MAX_PER_SWEEP = 6;
+const MAX_PER_SWEEP = 10;
 const START_DELAY_MS = 10000;
 const MAX_BYTES = 25 * 1024 * 1024;
 // Raster only: svg/audio/video rows also live in the images table (it doubles
@@ -99,13 +99,22 @@ export function scheduleBoardPreviewBackfill({ boardId, keys, enabled = true }) 
     let started = 0;
     for (const key of keys) {
       if (started >= MAX_PER_SWEEP) break;
-      if (!key || backfillAttempted.has(key) || !RASTER_RE.test(key)) continue;
-      const meta = getMeta(key);
-      if (!meta || meta.previewKey) continue;
-      backfillAttempted.add(key);
-      started += 1;
-      runGated(() => backfillOne(key, boardId));
+      if (requestImageBackfill(key, boardId)) started += 1;
     }
   }, START_DELAY_MS);
   return () => clearTimeout(t);
+}
+
+// Guarded single-image entry — shared by the board sweep above and R2Image's
+// on-view trigger (a writer looking at an original that has no preview yet).
+// All the dedupe/raster/meta guards live here so the two paths can never
+// disagree. Returns true when a job was actually queued.
+export function requestImageBackfill(key, boardId) {
+  if (_fetchBlocked) return false;
+  if (!key || backfillAttempted.has(key) || !RASTER_RE.test(key)) return false;
+  const meta = getMeta(key);
+  if (!meta || meta.previewKey) return false;
+  backfillAttempted.add(key);
+  runGated(() => backfillOne(key, boardId));
+  return true;
 }

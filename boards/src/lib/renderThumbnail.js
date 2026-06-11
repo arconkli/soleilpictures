@@ -14,6 +14,7 @@
 // Returns a blob: URL (caller is responsible for revokeObjectURL).
 
 import { resolveSrc, cachedUrl } from './r2.js';
+import { loadCorsCleanImage } from './corsImage.js';
 import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowHeadStyle,
@@ -284,18 +285,15 @@ async function resolveImageUrl(src) {
   try { return await resolveSrc(src); } catch (_) { return null; }
 }
 
-// Load a remote URL into an HTMLImageElement with CORS enabled so we can
-// drawImage it to a canvas without tainting. On any failure (network,
-// CORS, decode) returns null and the caller falls back to a placeholder.
+// Load a remote URL into an HTMLImageElement we can drawImage to a canvas
+// without tainting. Delegates to loadCorsCleanImage — a cache-bypassing
+// fetch → blob, NOT an <img crossOrigin> load, because R2 responses cached
+// by plain <img> tags carry no CORS headers and poison any later CORS-mode
+// load of the same signed URL (see lib/corsImage.js). On any failure the
+// caller falls back to a placeholder.
 function loadCorsImage(url) {
-  return new Promise((resolve) => {
-    if (!url) return resolve(null);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
+  if (!url) return Promise.resolve(null);
+  return loadCorsCleanImage(url);
 }
 
 // Draw the placeholder rect for an image card that didn't load (matches

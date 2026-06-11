@@ -29,6 +29,7 @@ import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio } from '../lib/uploads.js';
 import { scheduleBoardPreviewBackfill } from '../lib/previewBackfill.js';
+import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
@@ -2287,21 +2288,18 @@ export function CanvasSurface({
       let hex = null;
       let taintedFallbackUsed = false;
       try {
-        // Try a clean reload with crossOrigin set so the canvas isn't tainted.
-        const fresh = new Image();
-        fresh.crossOrigin = 'anonymous';
-        await new Promise((resolve, reject) => {
-          fresh.onload = resolve;
-          fresh.onerror = reject;
-          fresh.src = imgEl.src;
-        });
+        // Clean reload via cache-bypassing fetch → blob (loadCorsCleanImage)
+        // so the canvas isn't tainted. NOT an <img crossOrigin> load — the
+        // on-page img cached this URL's response without CORS headers, which
+        // poisons any CORS-mode load of the same signed URL (lib/corsImage.js).
+        const fresh = await loadCorsCleanImage(imgEl.src);
+        if (!fresh) throw new Error('cors-clean load failed');
         hex = sample(fresh);
       } catch (_) {
-        // The fresh load failed (most likely the storage bucket doesn't
-        // return Access-Control-Allow-Origin). The on-page image was
-        // loaded WITHOUT crossOrigin, so its canvas would also taint —
-        // but try anyway in case the source is same-origin or a data:
-        // URI. If it throws, surface a clear instruction.
+        // The fresh load failed. The on-page image was loaded WITHOUT
+        // crossOrigin, so its canvas would also taint — but try anyway in
+        // case the source is same-origin or a data: URI. If it throws,
+        // surface a clear instruction.
         try {
           taintedFallbackUsed = true;
           hex = sample(imgEl);
