@@ -11,12 +11,21 @@
 // Per-card storage means each doc card on a canvas is independent and travels
 // with the canvas's snapshot.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary, initCardDocStore } from '../lib/docState.js';
-import { DocSurface } from './DocSurface.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { Avatar } from './primitives.jsx';
 import { EditableText } from './EditableText.jsx';
+
+// DocSurface drags the entire TipTap/ProseMirror editor stack (vendor-editor,
+// ~400KB raw) into whichever chunk imports it statically — which used to be
+// CanvasSurface, taxing every board view including the read-only public
+// /share path where doc cards can never open (open() no-ops on isPublic).
+// Lazy: the chunk loads on the first doc-card OPEN; the closed-card preview
+// (readDocSummary) is TipTap-free. AppShell idle-prefetches it for signed-in
+// users so the skeleton is rarely seen.
+const DocSurface = lazyWithReload(() => import('./DocSurface.jsx').then(m => ({ default: m.DocSurface })));
 
 const DEFAULT_SIDE_RATIO = 0.5;
 const RATIO_KEY = 'soleil.boards.docCardSideRatio';
@@ -347,6 +356,7 @@ function DocCardOverlay({
           </button>
         </div>
         <div className="doc-card-modal-body">
+          <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
           <DocSurface
             board={{ id: card.id, name: card.title || 'Untitled doc' }}
             ydoc={ydoc}
@@ -366,6 +376,7 @@ function DocCardOverlay({
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit}
           />
+          </Suspense>
         </div>
       </div>
     </>
