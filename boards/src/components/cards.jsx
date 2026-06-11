@@ -832,7 +832,11 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
       {hasPreview && (
         <div className="lc-preview" onPointerDown={(e) => e.stopPropagation()} onClick={openLink} title={openHref || ''}>
           {image && (
-            <img className="lc-preview-img" src={image} alt="" loading="lazy"
+            // No native loading="lazy" on canvas imagery — the browser's
+            // lazy-loader doesn't re-evaluate when the canvas's ancestor
+            // transform (zoom/pan) moves a card on-screen, leaving the image
+            // unfetched until an unrelated style invalidation (see R2Image).
+            <img className="lc-preview-img" src={image} alt=""
                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           )}
           {onUpdate && (

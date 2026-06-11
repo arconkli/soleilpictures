@@ -148,13 +148,17 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
 
   // Explicit width/height tell Chrome to decode-at-size and cache that decoded
   // form (one decode per image per session — zoom is a pure compositor scale).
+  // NO native loading="lazy": the IO `visible` gate above is the lazy
+  // mechanism, and unlike the browser's lazy-loader it stays correct when the
+  // canvas moves content on-screen via ancestor transform only (zoom/pan).
+  // Native lazy left such images unfetched — stuck on their placeholder until
+  // an unrelated style invalidation (e.g. hover) re-ran its evaluation.
   return (
     <img ref={rootRef}
          src={url}
          alt={alt}
          width={w}
          height={h}
-         loading={eager ? 'eager' : 'lazy'}
          decoding="async"
          fetchpriority={eager ? 'high' : 'low'}
          {...rest}
@@ -443,7 +447,6 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
              alt={alt}
              width={w}
              height={h}
-             loading={eager ? 'eager' : 'lazy'}
              decoding="async"
              fetchpriority={eager ? 'high' : 'low'}
              draggable={draggable}
