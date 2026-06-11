@@ -121,17 +121,33 @@ export function ShareModal({
     return () => { cancelled = true; };
   }, [board?.id, isOwner]);
 
+  // Copy a link's URL to the clipboard; returns whether the write worked.
+  const copyLinkUrl = async (token) => {
+    const url = `${window.location.origin}/share/${token}`;
+    try { await navigator.clipboard.writeText(url); return true; }
+    catch (_) { return false; }
+  };
+
   const onCreatePublicLink = async () => {
     if (creatingLink) return;
+    // Reuse before mint: an active link with the same scope IS this board's
+    // link — copy it instead of accumulating interchangeable random tokens.
+    // (Rotating a leaked link still works: revoke it, then create.)
+    const existing = publicLinks.find(l => !!l.include_subboards === !!linkIncludeSubboards);
+    if (existing) {
+      const copied = await copyLinkUrl(existing.token);
+      feedback.toast(copied
+        ? { type: 'success', message: 'Copied your existing link — no new link created.' }
+        : { type: 'info', message: `${window.location.origin}/share/${existing.token}`, ttl: 8000 });
+      return;
+    }
     setCreatingLink(true);
     try {
       const expiresAt = linkExpiry === 'never'
         ? null
         : new Date(Date.now() + (linkExpiry === '7d' ? 7 : 30) * 86400000).toISOString();
       const token = await createPublicLink({ boardId: board.id, expiresAt, includeSubboards: linkIncludeSubboards });
-      const url = `${window.location.origin}/share/${token}`;
-      let copied = true;
-      try { await navigator.clipboard.writeText(url); } catch (_) { copied = false; }
+      const copied = await copyLinkUrl(token);
       // If the clipboard write failed (permissions, non-secure context),
       // say so — the link still appears in the list below with a Copy
       // button, so point there instead of pretending it copied.
@@ -709,8 +725,13 @@ export function ShareModal({
                   </label>
                   <button className="share-invite-btn"
                           onClick={onCreatePublicLink}
-                          disabled={creatingLink}>
-                    {creatingLink ? 'Creating…' : 'New link'}
+                          disabled={creatingLink}
+                          title="Copies your existing link when one with these settings is already active — a new link is only minted for a new scope.">
+                    {creatingLink
+                      ? 'Creating…'
+                      : publicLinks.some(l => !!l.include_subboards === !!linkIncludeSubboards)
+                        ? 'Copy existing link'
+                        : 'New link'}
                   </button>
                 </div>
               </div>
