@@ -481,7 +481,7 @@ function humanError(e) {
   const msg = (e?.message || String(e || '')).toLowerCase();
   if (msg.includes('rate') || msg.includes('too many')) return 'Hold on — too many attempts. Try again in a minute.';
   if (msg.includes('expired'))                          return "That code expired. Request a new one.";
-  if (msg.includes('invalid') && msg.includes('token')) return "That code didn't work. Try again or request a new one.";
+  if (msg.includes('invalid') && msg.includes('token')) return "That code didn't match. Try again or request a new one.";
   if (msg.includes('email') && msg.includes('invalid')) return "That email doesn't look right.";
   return e?.message || String(e || 'Something went wrong.');
 }

@@ -453,7 +453,7 @@ export function PublicBoardView({ token }) {
         <PublicTopbar token={token} center={<div className="public-topbar-spacer" />} onCta={onCta} />
         <div className="public-loading">
           <SoleilMark size={42} color="var(--soleil)" glow />
-          <div>Opening the board…</div>
+          <div>Loading board…</div>
         </div>
       </div>
     );
@@ -467,7 +467,7 @@ export function PublicBoardView({ token }) {
           <div className="public-empty-title">This link is no longer live</div>
           <div className="public-empty-sub">
             The board you're looking for was shared with a link that has expired or
-            been revoked. Ask the owner for a fresh link — or make a board of your own.
+            been revoked. Ask the owner for a new link — or make a board of your own.
           </div>
           <div className="public-empty-actions">
             <a className="public-cta" href={ctaHref(token, 'invalid_page')} onClick={onCta('invalid_page')}>Try Clusters free</a>
