@@ -1282,8 +1282,9 @@ body {
   color: var(--ink-0);
   padding: 7px 10px;
   font: 400 12.5px/1.4 var(--font-sans);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
-.merge-picker-input:focus { outline: 0; border-color: var(--soleil); }
+.merge-picker-input:focus { outline: 0; border-color: var(--soleil); box-shadow: var(--shadow-glow); }
 .merge-picker-list {
   margin-top: 8px;
   display: flex; flex-direction: column; gap: 1px;
@@ -1394,8 +1395,9 @@ body {
   min-height: 44px;
   resize: vertical;
   outline: none;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
-.tag-detail-description-input:focus { border-color: var(--accent, var(--ink-2)); }
+.tag-detail-description-input:focus { border-color: var(--accent, var(--ink-2)); box-shadow: var(--shadow-glow); }
 .tag-detail-description-meta {
   font: 500 10px/1 var(--font-mono);
   color: var(--ink-3);
@@ -2349,6 +2351,7 @@ body {
 }
 .public-crumb.clk { cursor: pointer; }
 .public-crumb.clk:hover { color: var(--ink-0); }
+.public-crumb.clk:focus-visible { outline: none; border-radius: var(--radius); box-shadow: var(--shadow-glow); }
 .public-crumb.here { color: var(--ink-0); }
 .public-crumb-sep { color: var(--ink-3); flex-shrink: 0; }
 
@@ -4671,6 +4674,21 @@ body {
 .auth-input::placeholder { color: var(--ink-3); }
 .auth-input:focus { border-color: transparent; box-shadow: var(--shadow-glow); }
 .auth-input:disabled { opacity: 0.6; }
+/* Keep browser autofill on-theme — without this Chrome paints the dark form
+   with its pale yellow fill and illegible text. */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover {
+  -webkit-box-shadow: inset 0 0 0 999px var(--bg-3);
+  -webkit-text-fill-color: var(--ink-0);
+  caret-color: var(--ink-0);
+  transition: background-color 9999s ease-out 0s;
+}
+.auth-input:-webkit-autofill:focus {
+  -webkit-box-shadow: inset 0 0 0 999px var(--bg-3), var(--shadow-glow);
+  -webkit-text-fill-color: var(--ink-0);
+  caret-color: var(--ink-0);
+  transition: background-color 9999s ease-out 0s;
+}
 .auth-btn {
   height: 44px;
   background: var(--ink-0);
@@ -4696,6 +4714,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .auth-foot  { position: absolute; bottom: 20px; left: 0; right: 0; color: var(--ink-3); text-align: center; font-size: 11px; letter-spacing: 0.04em; }
 .auth-link  { background: transparent; border: 0; color: var(--soleil); cursor: pointer; font: 500 13px/1 var(--font-sans); padding: 8px 12px; }
 .auth-link:hover { text-decoration: underline; }
+.auth-link:focus-visible { outline: none; border-radius: var(--radius); box-shadow: var(--shadow-glow); }
 .auth-sent  { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .auth-sent-title { color: var(--ink-0); }
 .auth-sent-sub   { color: var(--ink-1); }
@@ -10585,7 +10604,12 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   padding: 2px 5px;
   outline: none;
 }
-.doc-tree-rename:focus { border-color: transparent; box-shadow: var(--shadow-glow); }
+.doc-tree-rename:focus {
+  border-color: transparent;
+  /* Softer than the full glow — renaming happens inside the calm tree, a
+     bright flash on double-click reads as alarm. */
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--soleil) 30%, transparent);
+}
 .doc-tree-add { opacity: 0; transition: opacity var(--dur-fast) var(--ease); }
 .doc-tree-row:hover .doc-tree-add,
 .doc-tree-add:focus-visible { opacity: 1; }
@@ -12342,6 +12366,11 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   letter-spacing: -0.012em;
   outline: none;
   padding: 2px 0;
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+/* Quiet gold underline while the title is being edited. */
+.doc-card-title-input:focus {
+  box-shadow: 0 1px 0 0 color-mix(in oklab, var(--soleil) 45%, transparent);
 }
 .doc-card-title-input::placeholder { color: var(--ink-3); }
 .doc-card-icon, .doc-card-close {
@@ -16803,7 +16832,9 @@ button, [role="button"], a {
   font: 500 11px/1.2 var(--font-sans);
   cursor: pointer;
   position: relative;
+  transition: color var(--dur-fast) var(--ease);
 }
+.mb-nav-tab:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; border-radius: var(--radius); }
 .mb-nav-tab.is-active { color: var(--ink-0); }
 .mb-nav-tab.is-active::after {
   content: "";
@@ -17007,6 +17038,11 @@ button, [role="button"], a {
 }
 .onboarding-coachmark-dismiss:hover { transform: translateY(-1px); box-shadow: var(--shadow-1); }
 .onboarding-coachmark-dismiss:active { transform: translateY(0); box-shadow: none; }
+/* The global gold focus glow is invisible on this gold button — use a ring. */
+.onboarding-coachmark-dismiss:focus-visible {
+  outline: 2px solid var(--ink-0);
+  outline-offset: 2px;
+}
 @keyframes onboarding-coachmark-in {
   from { opacity: 0; transform: translate(-50%, 8px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
