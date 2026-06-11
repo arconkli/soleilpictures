@@ -1911,6 +1911,7 @@ body {
   display: grid; place-items: center;
   z-index: 9999;
   padding: 20px;
+  animation: pickerFade var(--dur-fast) var(--ease);
 }
 [data-theme='light'] .share-backdrop { background: rgba(28,28,31,.32); }
 .share-modal {
@@ -1922,6 +1923,7 @@ body {
   box-shadow: 0 24px 56px rgba(0,0,0,.5);
   display: flex; flex-direction: column;
   overflow: hidden;
+  animation: modalRise var(--dur-slow) var(--ease);
 }
 .share-head {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -7494,7 +7496,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .ctx-item:disabled { opacity: .4; cursor: default; }
 .ctx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
 .ctx-shortcut { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); flex-shrink: 0; }
-.ctx-divider { height: 1px; background: var(--line-1); margin: 4px 6px; }
+.ctx-divider { height: 1px; background: var(--line-2); margin: 4px 6px; }
 .ctx-section-label {
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-3);
@@ -7656,8 +7658,8 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   padding: 24px;
   overflow: auto;
   background: rgba(0,0,0,.45);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   animation: pickerFade var(--dur-fast) var(--ease);
 }
 [data-theme='light'] .modal-shell-bg { background: rgba(28,28,31,.32); }
@@ -9956,8 +9958,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: grid;
   place-items: center;
   background: rgba(0,0,0,.45);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   animation: pickerFade var(--dur-slow) var(--ease);
 }
 [data-theme='light'] .feedback-bg { background: rgba(28,28,31,.32); }
@@ -10099,7 +10101,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .toast-icon { display: inline-flex; flex: 0 0 auto; }
 .toast-success .toast-icon { color: #10b981; }
 .toast-error   .toast-icon { color: #ef4444; }
-.toast-info    .toast-icon { color: var(--ink-2); }
+.toast-info    .toast-icon { color: #8ab4f8; }
+[data-theme='light'] .toast-info .toast-icon { color: #3b82f6; }
 
 .toast-dismiss {
   flex: 0 0 auto;
@@ -17011,7 +17014,7 @@ button, [role="button"], a {
   color: var(--soleil);
   font-size: 18px;
   line-height: 1;
-  filter: drop-shadow(0 0 8px rgba(255, 165, 0, .45));
+  filter: drop-shadow(0 0 4px rgba(255, 165, 0, .28));
 }
 .onboarding-coachmark-copy { min-width: 0; }
 .onboarding-coachmark-title {
@@ -17078,7 +17081,7 @@ button, [role="button"], a {
   color: var(--soleil);
   font-size: 18px;
   line-height: 1;
-  filter: drop-shadow(0 0 8px rgba(255, 165, 0, .45));
+  filter: drop-shadow(0 0 4px rgba(255, 165, 0, .28));
 }
 .fv-banner-copy { min-width: 0; flex: 1 1 auto; }
 .fv-banner-title { font: 600 13px/1.2 var(--font-sans); color: var(--ink-0); }
