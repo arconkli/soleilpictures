@@ -188,13 +188,27 @@ export function PublicBoardView({ token }) {
   // root board. Keeps the Y.Doc ALIVE (CanvasSurface + doc cards read it);
   // it's destroyed on component unmount.
   const fetchBundle = useCallback(async (boardId) => {
-    const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/share-bundle`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, boardId: boardId || undefined }),
-    });
-    if (!res.ok) throw new Error('bundle-failed');
+    // Consume the worker-injected early fetch (window.__shareBundle — an
+    // inline script in the served /share HTML starts the POST during parse,
+    // overlapping the whole JS download) when it matches this exact request.
+    // One-shot: a Response body is single-read. Mismatch / rejection / dev
+    // builds (nothing injects there) fall through to the normal POST.
+    let res = null;
+    const early = typeof window !== 'undefined' ? window.__shareBundle : null;
+    if (early && early.token === token && (early.boardId || null) === (boardId || null)) {
+      window.__shareBundle = null;
+      try { res = await early.promise; } catch (_) { res = null; }
+      if (res && !res.ok) res = null;
+    }
+    if (!res) {
+      const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/share-bundle`;
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, boardId: boardId || undefined }),
+      });
+      if (!res.ok) throw new Error('bundle-failed');
+    }
     const bundle = await res.json();
     const ydoc = new Y.Doc();
     if (bundle.snapshot) {
@@ -329,10 +343,10 @@ export function PublicBoardView({ token }) {
         if (id && navBoardsRef.current[id] && !cacheRef.current[id] && !targets.includes(id)) targets.push(id);
         if (targets.length >= 3) break;
       }
-      for (const id of targets) {
-        if (cancelled || cacheRef.current[id]) continue;
-        try { applyBundle(await fetchBundle(id)); } catch (_) {}
-      }
+      await Promise.allSettled(targets.map((id) =>
+        (cancelled || cacheRef.current[id])
+          ? null
+          : fetchBundle(id).then((r) => { if (!cancelled) applyBundle(r); }).catch(() => {})));
     };
     const hasIdle = typeof window.requestIdleCallback === 'function';
     const handle = hasIdle
@@ -409,14 +423,29 @@ export function PublicBoardView({ token }) {
 
   // Boards map for CanvasSurface: reachable sub-boards (+ the current board)
   // so board / board-link cards render as real tiles and navigate via
-  // onOpenBoard. Unreachable targets are absent → BoardCard's "No access"
-  // tile, matching per-board sharing semantics.
+  // onOpenBoard.
   const boardsMap = useMemo(() => {
     const m = {};
     Object.entries(navBoards).forEach(([id, name]) => { m[id] = { id, name }; });
     if (cur?.board?.id) m[cur.board.id] = cur.board;
     return m;
   }, [navBoards, cur]);
+
+  // Public-only: a board/boardlink card whose target isn't reachable via
+  // this link (not shared, or deleted) is dropped entirely — a padlock /
+  // "Missing board" tile is noise on a marketing surface. Arrows that
+  // reference dropped cards are skipped (arrowGeometry resolveShape → null).
+  // Render-time (not decode-time) so late-merged navBoards re-evaluate it.
+  const visibleCards = useMemo(() => {
+    const cards = cur?.cards || EMPTY;
+    const filtered = cards.filter(c =>
+      c.kind === 'board'     ? !!boardsMap[c.id]
+    : c.kind === 'boardlink' ? !!boardsMap[c.target]
+    : true);
+    // Identity-stable when nothing was filtered (the common case) so
+    // CanvasSurface memos keyed on the cards array don't churn.
+    return filtered.length === cards.length ? cards : filtered;
+  }, [cur, boardsMap]);
 
   if (status === 'loading') {
     return (
@@ -500,7 +529,7 @@ export function PublicBoardView({ token }) {
             <CanvasSurface
               board={board}
               boards={boardsMap}
-              cards={cur?.cards || EMPTY}
+              cards={visibleCards}
               arrows={cur?.arrows || EMPTY}
               strokes={cur?.strokes || EMPTY}
               groups={cur?.groups || EMPTY}

@@ -24,12 +24,20 @@ function snapshotB64(cards) {
   return Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64');
 }
 
+// A board id NOT present in nav_boards — simulates a deleted sub-board or a
+// link created without include_subboards. The public viewer must HIDE cards
+// targeting it (no "Missing board" / "No access" tiles on marketing boards).
+export const UNREACHABLE_ID = 'dddddddd-0000-0000-0000-00000000dead';
+
 export function makeBundles() {
   const rootSnapshot = snapshotB64({
     'card-note-1': { kind: 'note', body: 'Welcome to the shared board', x: 120, y: 120, w: 240, h: 140 },
     // Board cards key the cards map by the target board's id (readCards
     // anchors card.id to the map key; CanvasSurface opens via onOpenBoard(c.id)).
     [SUB_ID]: { kind: 'board', x: 460, y: 120, w: 240, h: 160 },
+    // Unreachable targets — must be filtered out of the public render.
+    [UNREACHABLE_ID]: { kind: 'board', x: 460, y: 320, w: 240, h: 160 },
+    'card-deadlink-1': { kind: 'boardlink', target: UNREACHABLE_ID, x: 120, y: 320, w: 240, h: 100 },
   });
   const subSnapshot = snapshotB64({
     'card-note-2': { kind: 'note', body: 'Inside the sub-board', x: 120, y: 120, w: 240, h: 140 },

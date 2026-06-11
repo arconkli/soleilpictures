@@ -104,6 +104,24 @@ function injectRouteMeta(res, meta, canonical) {
 const SHARE_PATH_RE = /^\/share\/([0-9a-f-]{36})\/?$/i;
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
+// Early share-bundle fetch, injected into /share HTML so the POST overlaps
+// the entire JS download/parse instead of waiting for PublicBoardView to
+// mount (saves the serialized bundle RTT — hundreds of ms on mobile).
+// PublicBoardView consumes window.__shareBundle one-shot when token/boardId
+// match; any mismatch or rejection falls back to its normal fetch.
+// SAFETY: the string is fully static — token/?b are read from `location`
+// in-browser, never interpolated here (AppendHead html:true does not escape).
+// Only PARTYKIT_HOST (a build-time constant) is templated in.
+const SHARE_EARLY_FETCH = `<script>(function(){try{
+var m=location.pathname.match(/^\\/share\\/([0-9a-f-]{36})\\/?$/i);if(!m)return;
+var b=new URLSearchParams(location.search).get('b');
+var boardId=(b&&/^[0-9a-f-]{36}$/i.test(b))?b:null;
+var body={token:m[1]};if(boardId)body.boardId=boardId;
+window.__shareBundle={token:m[1],boardId:boardId,promise:fetch(
+'https://${PARTYKIT_HOST}/parties/upload/share/share-bundle',
+{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})};
+}catch(_){}})()<\/script>`;
+
 function injectShareMeta(res, meta, token) {
   const rw = new HTMLRewriter();
   // Tokened URLs are noindexed unless the link owner explicitly opted this
@@ -113,6 +131,12 @@ function injectShareMeta(res, meta, token) {
   // escape) — never interpolate board data here.
   if (!meta?.allow_indexing) {
     rw.on('head', new AppendHead('<meta name="robots" content="noindex">'));
+  }
+  // Resolved meta = the token is valid → start the bundle fetch during HTML
+  // parse. Invalid/expired tokens (meta null) skip it: no doomed POST, the
+  // client renders its dead-end normally.
+  if (meta?.board_id) {
+    rw.on('head', new AppendHead(SHARE_EARLY_FETCH));
   }
 
   const name = (meta?.name || '').trim();

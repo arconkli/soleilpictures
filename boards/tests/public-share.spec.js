@@ -121,6 +121,23 @@ test('engagement prompt: sub-board navigation trigger', async ({ page }) => {
   expect(rows.find((r) => r.event === 'share_prompt_view').props.trigger).toBe('subboard');
 });
 
+test('unreachable board tiles are hidden on public — no broken/locked tiles, no warn', async ({ page }) => {
+  const warns = [];
+  page.on('console', (msg) => { if (/canvas missing board card/.test(msg.text())) warns.push(msg.text()); });
+  await routeAnalytics(page, []);
+  await routeShareBundle(page);
+  await page.goto(`/share/${TOKEN}`);
+  await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
+
+  // The reachable sub-board tile still renders (filter doesn't over-filter)…
+  await expect(page.getByText('Inside Board', { exact: true })).toBeVisible();
+  // …while the unreachable board card + boardlink card are gone entirely.
+  await expect(page.locator('.bc-missing')).toHaveCount(0);
+  await expect(page.locator('.bc-locked')).toHaveCount(0);
+  await expect(page.locator('.blc')).toHaveCount(0); // only boardlink in fixture is unreachable
+  expect(warns).toEqual([]);
+});
+
 test('view-only canvas pans by dragging anywhere — pan is the default tool', async ({ page }) => {
   await routeAnalytics(page, []);
   await routeShareBundle(page);
@@ -147,6 +164,53 @@ test('view-only canvas pans by dragging anywhere — pan is the default tool', a
 
   // A clean click (no drag) on a board cover still opens the sub-board.
   await openSubBoard(page);
+});
+
+// NOTE on both early-fetch tests: dev builds run React StrictMode, whose
+// double-mount makes raw request COUNTS noisy (the remount falls back to a
+// normal POST after the one-shot was consumed). The precise, environment-
+// independent assertion is the consumption semantic: fetchBundle nulls
+// window.__shareBundle when it consumes it, and leaves it untouched when the
+// token/boardId don't match.
+test('worker-injected early bundle fetch is consumed (one-shot nulled)', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await routeShareBundle(page);
+  // Mirror the inline script the production worker injects into /share HTML.
+  await page.addInitScript(({ token }) => {
+    window.__shareBundle = {
+      token,
+      boardId: null,
+      promise: fetch('http://localhost:1999/parties/upload/share/share-bundle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      }),
+    };
+  }, { token: TOKEN });
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
+  await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
+  const leftover = await page.evaluate(() => window.__shareBundle);
+  expect(leftover).toBeNull(); // consumed — prod makes zero duplicate POSTs
+});
+
+test('early bundle fetch with a mismatched token is ignored — normal fetch renders', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await routeShareBundle(page);
+  await page.addInitScript(() => {
+    window.__shareBundle = {
+      token: '99999999-9999-9999-9999-999999999999',
+      boardId: null,
+      promise: fetch('http://localhost:1999/parties/upload/share/share-bundle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: '99999999-9999-9999-9999-999999999999' }),
+      }),
+    };
+  });
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
+  await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
+  const leftoverToken = await page.evaluate(() => window.__shareBundle && window.__shareBundle.token);
+  expect(leftoverToken).toBe('99999999-9999-9999-9999-999999999999'); // untouched
 });
 
 test('invalid/expired link renders a branded dead end with CTA', async ({ page }) => {
