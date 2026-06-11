@@ -36,13 +36,27 @@ const MAX_BYTES = 25 * 1024 * 1024;
 // as the sign-reads allowlist), and a static preview would freeze a gif card.
 const RASTER_RE = /\.(png|jpe?g|webp)$/i;
 
+// Circuit breaker: a fetch to R2 that rejects before any response (TypeError)
+// means CORS isn't configured on the bucket for this origin (r2-cors.json is
+// the source of truth but must be APPLIED via dashboard/wrangler — committing
+// it deploys nothing) or the network is down. Either way every subsequent
+// sweep fetch would fail identically — stop sweeping for the session instead
+// of spraying one CORS error per image per board open. Page reload retries.
+let _fetchBlocked = false;
+
 async function backfillOne(key, boardId) {
   const url = await getSignedUrl(key);
   if (!url) return;
   // priority:'low' keeps the multi-MB original download behind the user's
   // visible image fetches (Chromium honors it; other engines ignore unknown
   // RequestInit members, so it degrades to a normal fetch).
-  const res = await fetch(url, { priority: 'low' });
+  let res;
+  try {
+    res = await fetch(url, { priority: 'low' });
+  } catch (_) {
+    _fetchBlocked = true;
+    return;
+  }
   if (!res.ok) return;
   const len = parseInt(res.headers.get('content-length') || '0', 10);
   if (len > MAX_BYTES) { try { res.body?.cancel(); } catch (_) {} return; }
@@ -67,6 +81,7 @@ async function backfillOne(key, boardId) {
 // the next session.
 export function scheduleBoardPreviewBackfill({ boardId, keys, enabled = true }) {
   if (!enabled || !boardId || !Array.isArray(keys) || keys.length === 0) return undefined;
+  if (_fetchBlocked) return undefined;
   // Respect constrained connections — a sweep can download multi-MB originals,
   // which is exactly wrong on save-data mode or a 2G link.
   try {
