@@ -17057,6 +17057,15 @@ button, [role="button"], a {
   from { opacity: 0; transform: translate(-50%, 8px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
+/* "Got it" eases the pill out; the component delays unmount ~190ms to match. */
+.onboarding-coachmark.is-leaving {
+  animation: onboarding-coachmark-out 180ms var(--ease) forwards;
+  pointer-events: none;
+}
+@keyframes onboarding-coachmark-out {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to   { opacity: 0; transform: translate(-50%, 8px); }
+}
 @media (max-width: 640px) {
   /* Stack on phones: spark + copy on the first row, full-width tap-target button
      below — so the copy isn't squeezed into a narrow column by the button. */
@@ -17123,6 +17132,15 @@ button, [role="button"], a {
 @keyframes fv-banner-in {
   from { opacity: 0; transform: translate(-50%, 8px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
+}
+/* "Not now" eases the banner out; the component delays unmount ~190ms to match. */
+.fv-banner.is-leaving {
+  animation: fv-banner-out 180ms var(--ease) forwards;
+  pointer-events: none;
+}
+@keyframes fv-banner-out {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to   { opacity: 0; transform: translate(-50%, 8px); }
 }
 @media (max-width: 640px) {
   .fv-banner { bottom: 96px; max-width: calc(100vw - 24px); flex-wrap: wrap; }

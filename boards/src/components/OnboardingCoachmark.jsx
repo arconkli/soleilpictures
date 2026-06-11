@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -18,12 +18,23 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 // notes were seeded (hasTutorialBoard=false), it falls back to the add-a-card nudge.
 export function OnboardingCoachmark({ boardId, onDismiss, hasTutorialBoard = false }) {
   const { isTouch } = useBreakpoint();
+  // "Got it" animates out before App.jsx unmounts us; external dismissals
+  // (first card placed, note nested) still remove the pill immediately —
+  // the user is mid-action there and never watches it go.
+  const [leaving, setLeaving] = useState(false);
+  const leaveTimer = useRef(null);
+  useEffect(() => () => clearTimeout(leaveTimer.current), []);
+  const dismiss = () => {
+    if (leaving) return;
+    setLeaving(true);
+    leaveTimer.current = setTimeout(() => onDismiss?.('dismissed'), 190);
+  };
   useEffect(() => {
     logEventOnce('onboarding_view', EV.ONBOARDING_VIEW, { board_id: boardId || null });
   }, [boardId]);
 
   return (
-    <div className="onboarding-coachmark surface-frosted" role="status">
+    <div className={`onboarding-coachmark surface-frosted${leaving ? ' is-leaving' : ''}`} role="status">
       <div className="onboarding-coachmark-spark" aria-hidden="true">✦</div>
       <div className="onboarding-coachmark-copy">
         <div className="onboarding-coachmark-title">Make it yours</div>
@@ -37,7 +48,7 @@ export function OnboardingCoachmark({ boardId, onDismiss, hasTutorialBoard = fal
       </div>
       <button
         className="onboarding-coachmark-dismiss"
-        onClick={() => onDismiss?.('dismissed')}
+        onClick={dismiss}
       >
         Got it
       </button>

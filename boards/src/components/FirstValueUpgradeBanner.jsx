@@ -8,9 +8,21 @@
 // All state, once-per-account persistence, and analytics live in App.jsx (the
 // owner). This component is purely presentational + fires nothing on its own.
 
+import { useEffect, useRef, useState } from 'react';
+
 export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
+  // "Not now" animates out before App.jsx unmounts us. "See Creator" stays
+  // immediate — the pricing modal covers the banner anyway.
+  const [leaving, setLeaving] = useState(false);
+  const leaveTimer = useRef(null);
+  useEffect(() => () => clearTimeout(leaveTimer.current), []);
+  const dismiss = () => {
+    if (leaving) return;
+    setLeaving(true);
+    leaveTimer.current = setTimeout(() => onDismiss?.(), 190);
+  };
   return (
-    <div className="fv-banner surface-frosted" role="dialog" aria-label="Upgrade to Creator">
+    <div className={`fv-banner surface-frosted${leaving ? ' is-leaving' : ''}`} role="dialog" aria-label="Upgrade to Creator">
       <div className="fv-banner-spark" aria-hidden="true">✦</div>
       <div className="fv-banner-copy">
         <div className="fv-banner-title">Your first board is taking shape.</div>
@@ -20,7 +32,7 @@ export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
       </div>
       <div className="fv-banner-actions">
         <button className="fv-banner-cta" onClick={onSeeCreator}>See Creator</button>
-        <button className="fv-banner-dismiss" onClick={onDismiss}>Not now</button>
+        <button className="fv-banner-dismiss" onClick={dismiss}>Not now</button>
       </div>
     </div>
   );
