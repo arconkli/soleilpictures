@@ -146,7 +146,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorReady, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorReady, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -1086,7 +1086,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
         </button>
       )}
       {/* No floating menus — they crowded the cursor. Format from the top
-          toolbar (always visible) or right-click for a context menu. */}
+          toolbar (always visible) or right-click for a context menu.
+          Public viewers get the native context menu instead — every item
+          here is an editor action. */}
+      {!isPublic && (
       <DocEditorContextMenu editor={editor}
                             onOpenLinkPicker={openLinkPicker}
                             onAddComment={addComment.open}
@@ -1104,6 +1107,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
                                 feedback.toast({ type: 'error', message: 'Remove tag failed: ' + (err.message || err) });
                               }
                             } : null} />
+      )}
       {/* Page-level applied-tag chip strip removed — margin dots are
           the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
@@ -1236,6 +1240,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
           onCancel={() => setMention(null)}
         />
       )}
+      {/* Comments are a collaboration surface — hidden entirely for
+          anonymous public viewers (a reply would only write to their
+          throwaway local snapshot and silently vanish). */}
+      {!isPublic && (
       <CommentGutter
         ydoc={ydoc}
         scope={scope}
@@ -1246,7 +1254,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
           setOpenThread({ id, anchor: dot?.getBoundingClientRect() });
         }}
       />
-      {openThread && (
+      )}
+      {!isPublic && openThread && (
         <CommentInlinePopover
           ydoc={ydoc} scope={scope} threadId={openThread.id}
           anchor={openThread.anchor} currentUser={currentUser}

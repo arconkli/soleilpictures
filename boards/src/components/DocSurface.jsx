@@ -81,6 +81,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               onJumpToPeer,
                               // false → view-only doc: Tiptap editable=false.
                               canEdit = true,
+                              // true → anonymous /share viewer: hide the toolbar +
+                              // comment surfaces entirely (view-only MEMBERS keep
+                              // them — gate on this, not canEdit).
+                              isPublic = false,
                               onClose }) {
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
   // Subscribe to the awareness instance lazily — it's only created after the
@@ -89,6 +93,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // attaches, so we poll until non-null then store in state.
   const [awareness, setAwareness] = useState(() => getAwareness?.() || null);
   useEffect(() => {
+    // No getAwareness at all (public /share viewer) — there is nothing to
+    // poll for; skip the loop and its give-up warning entirely.
+    if (!getAwareness) return;
     if (awareness) return;
     let cancelled = false;
     let attempts = 0;
@@ -553,8 +560,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         )}
       </aside>
 
-      {/* Center — toolbar + editor */}
+      {/* Center — toolbar + editor. The toolbar is an editing surface —
+          hidden for anonymous public viewers (view-only members keep it). */}
       <section className="doc-center">
+        {!isPublic && (
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
                     onInsertBookmark={insertBookmarkAtCaret}
@@ -565,6 +574,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
                     onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
                     onZoomReset={() => setZoom(1)} />
+        )}
         <DocFindReplace editor={editorRef.current}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
@@ -602,6 +612,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 registerOpenAddComment={registerOpenAddComment}
                 boards={Object.values(boards || {})}
                 editable={canEdit}
+                isPublic={isPublic}
                 onDeleteSheet={canEdit && sid !== activePageId ? () => deleteSheet(sid) : null}
               />
             ))

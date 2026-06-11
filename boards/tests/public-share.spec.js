@@ -213,6 +213,51 @@ test('early bundle fetch with a mismatched token is ignored — normal fetch ren
   expect(leftoverToken).toBe('99999999-9999-9999-9999-999999999999'); // untouched
 });
 
+test('doc card opens read-only on public — editor chunk loads only on open', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await routeShareBundle(page, { withDoc: true });
+  const docChunkReqs = [];
+  page.on('request', (r) => { if (/DocSurface/.test(r.url())) docChunkReqs.push(r.url()); });
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
+
+  // Closed preview renders TipTap-free, chunk untouched.
+  await expect(page.locator('.doc-card')).toBeVisible();
+  await expect(page.locator('.doc-card-text')).toContainText('Hello from the public doc');
+  expect(docChunkReqs.length).toBe(0);
+
+  // Clean click opens the read-only fullscreen modal.
+  await page.locator('.doc-card').click();
+  await expect(page.locator('.doc-card-modal-body')).toBeVisible();
+  await expect(page.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'false');
+  await expect(page.locator('.ProseMirror')).toContainText('Hello from the public doc');
+  await expect(page.locator('.doc-tb')).toHaveCount(0);              // no toolbar
+  await expect(page.locator('.comment-gutter-dot')).toHaveCount(0);  // seeded thread stays hidden
+  expect(docChunkReqs.length).toBeGreaterThan(0);                     // chunk fetched on open
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.doc-card-modal')).toHaveCount(0);
+});
+
+test('pan-drag across a doc card pans without opening it', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await routeShareBundle(page, { withDoc: true });
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
+  const doc = page.locator('.doc-card');
+  await expect(doc).toBeVisible();
+
+  const canvas = page.locator('.canvas');
+  const before = await canvas.evaluate((el) => el.style.transform);
+  const box = await doc.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 150, box.y + box.height / 2 + 80, { steps: 5 });
+  await page.mouse.up();
+
+  await expect(page.locator('.doc-card-modal')).toHaveCount(0);
+  const after = await canvas.evaluate((el) => el.style.transform);
+  expect(after).not.toBe(before);
+});
+
 test('invalid/expired link renders a branded dead end with CTA', async ({ page }) => {
   const rows = [];
   await routeAnalytics(page, rows);

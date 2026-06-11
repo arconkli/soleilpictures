@@ -20,11 +20,11 @@ import { EditableText } from './EditableText.jsx';
 
 // DocSurface drags the entire TipTap/ProseMirror editor stack (vendor-editor,
 // ~400KB raw) into whichever chunk imports it statically — which used to be
-// CanvasSurface, taxing every board view including the read-only public
-// /share path where doc cards can never open (open() no-ops on isPublic).
-// Lazy: the chunk loads on the first doc-card OPEN; the closed-card preview
-// (readDocSummary) is TipTap-free. AppShell idle-prefetches it for signed-in
-// users so the skeleton is rarely seen.
+// CanvasSurface, taxing every board view. Lazy: the chunk loads on the first
+// doc-card OPEN; the closed-card preview (readDocSummary) is TipTap-free, so
+// a public /share board with no opened docs never downloads the editor.
+// AppShell idle-prefetches it for signed-in users so the skeleton is rarely
+// seen; public viewers pay the fetch only when they actually open a doc.
 const DocSurface = lazyWithReload(() => import('./DocSurface.jsx').then(m => ({ default: m.DocSurface })));
 
 const DEFAULT_SIDE_RATIO = 0.5;
@@ -82,7 +82,35 @@ export function RichDocCard({
   const summary = (ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : { pages: [], firstText: '', firstPageName: '' };
   const pageCount = summary.pages.length;
 
-  const open = (m) => { if (isPublic) return; setMode(m); };
+  // Public viewers can open docs too — read-only, and always FULLSCREEN
+  // (side mode's dock layout assumes the workspace topbar, and the dock
+  // affordance is pointless on the chromeless /share surface).
+  const open = (m) => setMode(isPublic ? 'full' : m);
+
+  // Public single-click-to-open. Mirrors the board-cover pattern in
+  // CanvasSurface's read-only branch: a release within 4px is a click and
+  // opens; anything longer is a pan (the event still bubbles to the card
+  // wrapper, whose public branch starts the pan — no stopPropagation /
+  // preventDefault here). A plain onClick can't be used: Chrome fires
+  // click after a pan released over the same card, which would pop the
+  // doc open at the end of every drag across it.
+  const onPublicPointerDown = (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    if (e.target.closest?.('.editable')) return; // title clicks don't open
+    const pid = e.pointerId, sx = e.clientX, sy = e.clientY;
+    const onUp = (ev) => {
+      if (ev.pointerId !== pid) return;
+      cleanup();
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) <= 4) setMode('full');
+    };
+    const onCancel = (ev) => { if (ev.pointerId === pid) cleanup(); };
+    const cleanup = () => {
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+    };
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+  };
   const close = () => {
     setMode('closed');
     setPreviewKey((n) => n + 1);
@@ -137,7 +165,9 @@ export function RichDocCard({
 
   return (
     <>
-      <div className="doc-card" onDoubleClick={(e) => { e.stopPropagation(); open('full'); }}>
+      <div className="doc-card"
+           onDoubleClick={(e) => { e.stopPropagation(); open('full'); }}
+           onPointerDown={isPublic ? onPublicPointerDown : undefined}>
         {/* Peer-presence dots — shown on the card preview when peers are
             inside this doc card. Same visual + interaction model as the
             BoardCard presence stack so the breadcrumb trail (canvas →
@@ -223,6 +253,7 @@ export function RichDocCard({
           peersOnCard={peersOnCard}
           onJumpToPeer={onJumpToPeer}
           canEdit={canEdit}
+          isPublic={isPublic}
         />,
         document.body
       )}
@@ -236,6 +267,7 @@ function DocCardOverlay({
   pendingScroll, onPendingScrollConsumed,
   peersOnCard = [], onJumpToPeer,
   canEdit = true,
+  isPublic = false,
 }) {
   // Esc closes from either mode.
   useEffect(() => {
@@ -310,7 +342,8 @@ function DocCardOverlay({
                  aria-label="Document title"
                  value={card.title || ''}
                  placeholder="Untitled doc"
-                 onChange={(e) => onUpdate?.({ title: e.target.value })} />
+                 readOnly={!canEdit}
+                 onChange={(e) => { if (canEdit) onUpdate?.({ title: e.target.value }); }} />
           {/* Peer-avatar stack — one per workspace peer currently in this
               doc card. Click an avatar → jumpToPeer takes you to their
               exact page + scroll. Hover shows their name. */}
@@ -329,8 +362,10 @@ function DocCardOverlay({
               )}
             </div>
           )}
-          {/* Mode toggles */}
-          {mode === 'full' ? (
+          {/* Mode toggles — hidden on public: side mode's dock layout
+              assumes the workspace topbar, and the public viewer always
+              opens fullscreen. */}
+          {isPublic ? null : mode === 'full' ? (
             <button className="doc-card-icon" title="Dock to side (split with canvas)"
                     aria-label="Dock to side"
                     onClick={() => onSetMode('side')}>
@@ -375,6 +410,7 @@ function DocCardOverlay({
             peersOnBoard={peersOnCard}
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit}
+            isPublic={isPublic}
           />
           </Suspense>
         </div>
