@@ -2348,6 +2348,30 @@ export function CanvasSurface({
     // etc.); subsequent attempts on this board are silent.
     if (!canEdit) {
       e.stopPropagation();
+      // Board / board-link covers still navigate for read-only viewers —
+      // same single-click affordance editors get via openOnClick below
+      // (released within 4px = click; a drag attempt is not a click).
+      // Without this, public /share visitors had to discover double-click.
+      const openTarget =
+        (c.kind === 'board' && e.target.closest?.('.bc-cover')) ? c.id
+        : (c.kind === 'boardlink' && boards[c.target]) ? c.target
+        : null;
+      if (openTarget) {
+        const pid = e.pointerId, sx = e.clientX, sy = e.clientY;
+        const onUp = (ev) => {
+          if (ev.pointerId !== pid) return; // another finger/pen — not this gesture
+          cleanup();
+          if (Math.hypot(ev.clientX - sx, ev.clientY - sy) <= 4) onOpenBoard(openTarget);
+        };
+        const onCancel = (ev) => { if (ev.pointerId === pid) cleanup(); };
+        const cleanup = () => {
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onCancel);
+        };
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onCancel);
+        return;
+      }
       e.preventDefault();
       showEditBlockedToast();
       return;
@@ -4935,6 +4959,10 @@ export function CanvasSurface({
     if (isEditorTarget(e)) return;
     if (e.target.closest && e.target.closest('.editable')) return;
     if (c.kind === 'board') {
+      // Read-only viewers already navigate on single click (the !canEdit
+      // branch of onCardPointerDown) — suppress the double-click path so a
+      // double-tap doesn't fire onOpenBoard twice for the same gesture.
+      if (!canEdit) return;
       const t = e.target;
       const inCover = t.closest && t.closest('.bc-cover');
       // List-mode boards have no .bc-cover. Accept double-click anywhere
@@ -4945,7 +4973,7 @@ export function CanvasSurface({
       if (inCover || inListBody) onOpenBoard(c.id);
       return;
     }
-    if (c.kind === 'boardlink') { boards[c.target] && onOpenBoard(c.target); return; }
+    if (c.kind === 'boardlink') { if (canEdit) { boards[c.target] && onOpenBoard(c.target); } return; }
     // Double-click an art canvas → re-open it in the fullscreen
     // SketchPad with its existing strokes loaded for editing.
     if (c.kind === 'art') {

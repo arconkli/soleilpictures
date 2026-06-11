@@ -90,6 +90,14 @@ export const EV = Object.freeze({
   SEARCH_RUN:              'search_run',                  // ran a search / command {has_results}
   SHARE_OPEN:              'share_open',                  // opened the share surface {board_id}
   RETURN_SESSION:          'return_session',              // app_open on a later calendar day than last-seen {days_since_last_seen,tier}
+
+  // ── Public share viewer (/share/<token>, anonymous) ──
+  SHARE_VIEW:              'share_view',                  // public viewer mounted {share_token,board_id,root_id,include_subboards,valid}
+  SHARE_SUBBOARD_OPEN:     'share_subboard_open',         // navigated into a sub-board {share_token,board_id,from_board_id,depth,cached}
+  SHARE_CTA_CLICK:         'share_cta_click',             // signup CTA clicked {surface:'topbar'|'prompt'|'invalid_page'|'badge'|'signin',share_token} (must-land)
+  SHARE_DWELL:             'share_dwell',                 // time on the public viewer {ms,share_token,board_id,boards_opened}
+  SHARE_PROMPT_VIEW:       'share_prompt_view',           // engagement prompt shown {trigger:'dwell'|'subboard'}
+  SHARE_PROMPT_DISMISS:    'share_prompt_dismiss',        // prompt dismissed {trigger,visible_ms}
 });
 
 // Map an auth/network error to a stable machine code for *_error events.

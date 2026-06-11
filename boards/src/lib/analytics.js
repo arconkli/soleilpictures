@@ -69,6 +69,28 @@ function getFirstSource() {
   return cachedSource;
 }
 
+// Merge share-link first-touch fields into the session source. Called by the
+// public /share viewer on mount, BEFORE its first logEvent. First-touch wins:
+// existing utm_* / referrer keys are preserved; share_token is added only if
+// absent (an earlier share link this session keeps the credit). Persists to
+// sessionStorage so it survives the /share → / full-page navigation in the
+// same tab, where stampFirstSourceIfNeeded() lands it in profiles.first_source
+// at first sign-in. Lives here because SOURCE_KEY + cachedSource are private
+// to this module — mutating sessionStorage from outside would be ignored once
+// the cache is warm.
+export function seedShareFirstSource(token) {
+  if (!token || typeof window === 'undefined') return;
+  const src = { ...getFirstSource() };
+  if (src.share_token) return;
+  src.share_token = String(token).slice(0, 40);
+  // Make share traffic visible in every utm-sliced funnel query — but never
+  // clobber a real campaign tag (a shared link inside a paid ad keeps its ad
+  // attribution and merely gains the share_token).
+  if (!src.utm_source) { src.utm_source = 'share_link'; src.utm_medium = 'share_page'; }
+  try { sessionStorage.setItem(SOURCE_KEY, JSON.stringify(src)); } catch (_) {}
+  cachedSource = src;
+}
+
 // Stamp the caller's profile.first_source the first time they
 // authenticate (server-side first-touch wins). One-shot per
 // auth-state-change → 'SIGNED_IN'.

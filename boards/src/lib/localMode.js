@@ -32,6 +32,20 @@ export function isDndQaMode() {
   return new URLSearchParams(window.location.search).get('dndqa') === '1';
 }
 
+// Dev-only override for the public-share engagement prompt's dwell trigger.
+// Active ONLY in a DEV build with ?shareqa=1 (same trust boundary as
+// qaTierOverride), so the 30s threshold can never be shortened in production.
+// Lets Playwright exercise the dwell-triggered prompt without waiting:
+//   /share/<token>?shareqa=1&promptms=300
+// Returns the override in ms, or null when not overriding.
+export function qaSharePromptMs() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null;
+  const q = new URLSearchParams(window.location.search);
+  if (q.get('shareqa') !== '1') return null;
+  const ms = Number(q.get('promptms'));
+  return Number.isFinite(ms) && ms >= 0 ? ms : null;
+}
+
 // Dev-only tier override for Playwright. Active ONLY in a DEV build with
 // ?local=1 (same trust boundary as isLocalQaMode), so it can never affect a
 // production build. Lets specs render the tier-gated pricing/billing surfaces
