@@ -8074,6 +8074,51 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .size-combo::placeholder { color: var(--ink-3); }
 .size-combo:focus { outline: none; border-color: var(--line-3); }
 .size-combo:disabled { opacity: .5; cursor: default; }
+/* Combobox shell: input + chevron + preset dropdown (replaced the native
+   datalist, whose suggestions Chrome only shows while typing — invisible).
+   The pop is absolute within the wrap; .is-drop-up opens it above the field
+   for bottom-docked bars (.tob). */
+.size-combo-wrap { position: relative; display: inline-flex; align-items: center; }
+.size-combo-arrow {
+  position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 18px;
+  border: 0; border-radius: 3px;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 8px; line-height: 1;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.size-combo-arrow:hover:not(:disabled) { color: var(--ink-1); background: var(--bg-hov); }
+.size-combo-arrow:disabled { opacity: .4; cursor: default; }
+.size-combo-pop {
+  position: absolute; left: 0; top: calc(100% + 4px);
+  z-index: 60;
+  display: flex; flex-direction: column;
+  min-width: 100%;
+  max-height: 220px; overflow-y: auto;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 3px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}
+.size-combo-wrap.is-drop-up .size-combo-pop { top: auto; bottom: calc(100% + 4px); }
+.size-combo-item {
+  border: 0; border-radius: 4px;
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit; font-size: 12px;
+  text-align: left;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.size-combo-item:hover { background: var(--bg-hov); }
+.size-combo-item.is-current { color: var(--soleil); font-weight: 600; }
+/* Stepper buttons flanking the note bar's size combo. */
+.tob-size-group { display: inline-flex; align-items: center; gap: 2px; }
+.tob-size-step { min-width: 20px; padding: 3px 4px; }
 /* Doc toolbar variant — match the doc selects' taller, rounder look. */
 .doc-tb-size-combo {
   background: transparent;

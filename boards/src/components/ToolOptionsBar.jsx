@@ -56,14 +56,61 @@ const DASH_STYLES = [
 ];
 
 // Format helpers — operate on the saved selection from RichNoteEditor.
+//
+// Every apply path dispatches FMT_EVT so the toolbar-state hooks re-sample
+// immediately. `selectionchange` alone is not enough: applying a style can
+// leave the range boundaries untouched (no selectionchange fires) while the
+// computed styles under it changed — the bar then showed stale state until
+// the next caret move ("what displays on the toolbar isn't always accurate").
+const FMT_EVT = 'soleil-note-format-applied';
+const notifyFormatChanged = () => { try { document.dispatchEvent(new Event(FMT_EVT)); } catch (_) {} };
+
 function execCmd(cmd, val = null) {
   withSelection(() => {
     try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
     document.execCommand(cmd, false, val);
   });
+  notifyFormatChanged();
 }
+
+// Deterministic B/I/U/S toggles. execCommand picks the toggle DIRECTION from
+// the browser's own reading of the selection, which on a MIXED selection is
+// sampled at the range start — it can disagree with the lit button the user
+// just read. Clicking "unbold" could then re-bold the whole selection. Pass
+// the user's intent (the inverse of the lit state) and re-run once if the
+// post-state disagrees — idempotent in both directions.
+function execToggle(cmd, wantOn) {
+  withSelection(() => {
+    try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
+    document.execCommand(cmd);
+    try {
+      if (document.queryCommandState(cmd) !== wantOn) document.execCommand(cmd);
+    } catch (_) { /* leave the single-toggle result */ }
+  });
+  notifyFormatChanged();
+}
+
 function applyStyle(style) {
   withSelection(() => wrapSelectionStyle(style));
+  notifyFormatChanged();
+}
+
+// Selection → style the selection; collapsed caret → apply to the WHOLE note
+// via its card-level props (the fallback callback). wrapSelectionStyle bails
+// on collapsed ranges, so size/font/color picks with nothing selected used
+// to silently do nothing while the input still displayed the typed value.
+// The note-level default deliberately does NOT override existing inline
+// spans — predictable contract: "selection styles selection; no selection
+// sets the note's base".
+function applyStyleOrNoteDefault(style, applyNoteDefault) {
+  let styledSelection = false;
+  const restored = withSelection(() => {
+    const sel = window.getSelection?.();
+    const r = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+    if (r && !r.collapsed) { wrapSelectionStyle(style); styledSelection = true; }
+  });
+  if (restored && !styledSelection) applyNoteDefault?.();
+  notifyFormatChanged();
 }
 
 // Parse "rgb(r, g, b)" / "rgba(r, g, b, a)" into "#rrggbb". Returns null on
@@ -82,6 +129,21 @@ function rgbToHex(rgb) {
 // static default). Re-evaluates on `selectionchange` and after the caret
 // moves between spans with different inline `color` styles. Idle / no
 // editable selection → returns the last value.
+// Resolve the element whose computed style represents the range start.
+// `startContainer` is often an ELEMENT right after wrapSelectionStyle
+// reselects via setStartBefore(span) — reading the PARENT's computed style
+// there showed the pre-apply value (the size box displayed the old size
+// right after applying a new one). Descend to the child the range actually
+// starts at before walking up from a text node.
+function styleNodeAtRangeStart(range) {
+  let node = range.startContainer;
+  if (node && node.nodeType === Node.ELEMENT_NODE && node.childNodes.length) {
+    node = node.childNodes[Math.min(range.startOffset, node.childNodes.length - 1)] || node;
+  }
+  if (node && node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+  return node;
+}
+
 function useNoteForeColor(active) {
   const [color, setColor] = useState('#f5f5f6');
   useEffect(() => {
@@ -93,8 +155,7 @@ function useNoteForeColor(active) {
         raf = null;
         const sel = window.getSelection?.();
         if (!sel || sel.rangeCount === 0) return;
-        let node = sel.getRangeAt(0).startContainer;
-        if (node && node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+        const node = styleNodeAtRangeStart(sel.getRangeAt(0));
         if (!node || !node.closest?.('.note-body')) return;
         try {
           const hex = rgbToHex(window.getComputedStyle(node).color);
@@ -103,9 +164,11 @@ function useNoteForeColor(active) {
       });
     };
     document.addEventListener('selectionchange', update);
+    document.addEventListener(FMT_EVT, update);
     update();
     return () => {
       document.removeEventListener('selectionchange', update);
+      document.removeEventListener(FMT_EVT, update);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [active]);
@@ -117,7 +180,7 @@ function useNoteForeColor(active) {
 // size shown). Mirrors useNoteForeColor: subscribes to selectionchange while
 // the note is being edited, rAF-debounced. Uses queryCommandState because the
 // note editor formats via execCommand.
-const EMPTY_FMT = { bold: false, italic: false, underline: false, strike: false, listType: null, fontSize: null, align: null };
+const EMPTY_FMT = { bold: false, italic: false, underline: false, strike: false, listType: null, fontSize: null, fontFamily: null, align: null };
 function useNoteFormatState(active) {
   const [state, setState] = useState(EMPTY_FMT);
   useEffect(() => {
@@ -129,8 +192,7 @@ function useNoteFormatState(active) {
         raf = null;
         const sel = window.getSelection?.();
         if (!sel || sel.rangeCount === 0) return;
-        let node = sel.getRangeAt(0).startContainer;
-        if (node && node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+        const node = styleNodeAtRangeStart(sel.getRangeAt(0));
         if (!node || !node.closest?.('.note-body')) return;
         let bold = false, italic = false, underline = false, strike = false;
         let align = null;
@@ -150,20 +212,32 @@ function useNoteFormatState(active) {
           if (list?.tagName === 'UL') listType = list.classList.contains('note-checklist') ? 'task' : 'ul';
           else if (list?.tagName === 'OL') listType = 'ol';
         }
-        let fontSize = null;
-        try { const fs = parseFloat(window.getComputedStyle(node).fontSize); if (fs) fontSize = Math.round(fs); } catch (_) {}
+        let fontSize = null, fontFamily = null;
+        try {
+          const cs = window.getComputedStyle(node);
+          const fs = parseFloat(cs.fontSize);
+          if (fs) fontSize = Math.round(fs);
+          // First family of the computed stack, unquoted — drives the font
+          // picker's trigger label so it names the font under the caret
+          // instead of a static "Font".
+          const fam = (cs.fontFamily || '').split(',')[0].trim().replace(/^["']|["']$/g, '');
+          if (fam) fontFamily = fam;
+        } catch (_) {}
         setState(prev => (
           prev.bold === bold && prev.italic === italic && prev.underline === underline &&
-          prev.strike === strike && prev.listType === listType && prev.fontSize === fontSize && prev.align === align
+          prev.strike === strike && prev.listType === listType && prev.fontSize === fontSize &&
+          prev.fontFamily === fontFamily && prev.align === align
             ? prev
-            : { bold, italic, underline, strike, listType, fontSize, align }
+            : { bold, italic, underline, strike, listType, fontSize, fontFamily, align }
         ));
       });
     };
     document.addEventListener('selectionchange', update);
+    document.addEventListener(FMT_EVT, update);
     update();
     return () => {
       document.removeEventListener('selectionchange', update);
+      document.removeEventListener(FMT_EVT, update);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [active]);
@@ -513,13 +587,17 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
     <div {...tobProps}
          ref={barRef}
          onPointerDown={(e) => e.stopPropagation()}>
-      <FontPicker />
-      <SizePicker value={fmt.fontSize} />
+      <FontPicker currentLabel={fmt.fontFamily || 'Font'}
+                  onApplyFont={(css) => applyStyleOrNoteDefault({ fontFamily: css },
+                    () => onUpdateEditingNote && onUpdateEditingNote({ fontFamily: css }))} />
+      <SizePicker value={fmt.fontSize}
+                  onApply={(px) => applyStyleOrNoteDefault({ fontSize: px + 'px' },
+                    () => onUpdateEditingNote && onUpdateEditingNote({ fontSize: px }))} />
       <span className="tob-sep" />
-      <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold active={fmt.bold} />
-      <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" active={fmt.italic} />
-      <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" active={fmt.underline} />
-      <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" active={fmt.strike} />
+      <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold toggle active={fmt.bold} />
+      <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" toggle active={fmt.italic} />
+      <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" toggle active={fmt.underline} />
+      <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" toggle active={fmt.strike} />
       <span className="tob-sep" />
       <ListBtn label="•"  title="Bulleted list" type="ul"   active={fmt.listType === 'ul'} />
       <ListBtn label="1." title="Numbered list" type="ol"   active={fmt.listType === 'ol'} />
@@ -532,10 +610,12 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
       <ColorBtn title="Text color" glyph="A" defaultColor={currentFore}
                 swatches={TEXT_COLORS}
                 paletteColors={paletteColors}
-                onPick={(c) => applyStyle({ color: c })}
+                onPick={(c) => applyStyleOrNoteDefault({ color: c },
+                  () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c }))}
                 onCustom={(e) => openPickerAt(e, {
                   value: currentFore,
-                  onChange: (c) => applyStyle({ color: c }),
+                  onChange: (c) => applyStyleOrNoteDefault({ color: c },
+                    () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c })),
                 })} />
       <ColorBtn title="Card background" defaultColor={editingNoteCard?.bgColor || '#1c1c1f'}
                 swatches={BG_COLORS}
@@ -645,14 +725,16 @@ function LinePxInput({ value, onCommit }) {
   );
 }
 
-function FormatBtn({ label, title, cmd, val, bold, active = false }) {
+function FormatBtn({ label, title, cmd, val, bold, active = false, toggle = false }) {
   return (
     <button className={`tob-btn ${active ? 'is-active' : ''}`.trim()}
             title={title}
             aria-pressed={active}
             onMouseDown={(e) => e.preventDefault()}
             onPointerDown={(e) => e.preventDefault()}
-            onClick={() => execCmd(cmd, val)}
+            // Toggle buttons (B/I/U/S) act on the state the user SAW lit, so
+            // the click always inverts it; align buttons stay plain commands.
+            onClick={() => (toggle ? execToggle(cmd, !active) : execCmd(cmd, val))}
             style={bold ? { fontWeight: 700 } : undefined}>
       {label}
     </button>
@@ -666,13 +748,13 @@ function ListBtn({ label, title, type, active = false }) {
             aria-pressed={active}
             onMouseDown={(e) => e.preventDefault()}
             onPointerDown={(e) => e.preventDefault()}
-            onClick={() => withSelection(() => toggleList(type))}>
+            onClick={() => { withSelection(() => toggleList(type)); notifyFormatChanged(); }}>
       {label}
     </button>
   );
 }
 
-function FontPicker() {
+function FontPicker({ currentLabel = 'Font', onApplyFont = null }) {
   const customFonts = useCustomFonts();
   const recentFonts = useRecentFonts();
   const allFonts = combineAllFonts(FONTS, customFonts);
@@ -738,7 +820,10 @@ function FontPicker() {
   const handleCommit = (entry) => {
     if (entry?.gfName) ensureGoogleFontLoaded(entry.gfName);
     if (snapshotRef.current != null) resetToSnapshotAndSelection();
-    applyStyle({ fontFamily: entry.css });
+    // Caret-only commits fall back to the whole-note font (card prop) via
+    // onApplyFont — picking a font with nothing selected used to no-op.
+    if (onApplyFont) onApplyFont(entry.css);
+    else applyStyle({ fontFamily: entry.css });
     clearSnapshot();
     if (entry?.label || entry?.name) {
       addRecentFont({ name: entry.label || entry.name, css: entry.css, gfName: entry.gfName || null });
@@ -748,7 +833,7 @@ function FontPicker() {
   return (
     <>
       <FontPickerDropdown
-        currentLabel="Font"
+        currentLabel={currentLabel}
         recentFonts={recentFonts}
         allFonts={allFonts}
         onPreview={handlePreview}
@@ -761,17 +846,31 @@ function FontPicker() {
   );
 }
 
-function SizePicker({ value = null }) {
-  // Editable combobox: reflects the caret's current size, lets the user type
-  // an exact px value, or pick a preset from the dropdown. The note apply path
-  // (wrapSelectionStyle) already accepts arbitrary px, so any typed size works.
+function SizePicker({ value = null, onApply }) {
+  // Editable combobox flanked by −/+ steppers: reflects the caret's current
+  // size, steps by 1, lets the user type an exact px value, or pick a preset
+  // from the dropdown. Apply goes through onApply (selection-or-whole-note
+  // semantics — see applyStyleOrNoteDefault).
+  const commit = (px) => onApply?.(Math.min(200, Math.max(6, Math.round(px))));
+  const pd = (e) => e.preventDefault(); // keep editor focus, like FormatBtn
   return (
-    <SizeInput
-      value={value}
-      presets={SIZES}
-      className="tob-size-combo"
-      onCommit={(px) => applyStyle({ fontSize: px + 'px' })}
-    />
+    <span className="tob-size-group">
+      <button className="tob-btn tob-size-step" title="Decrease font size"
+              aria-label="Decrease font size"
+              onMouseDown={pd} onPointerDown={pd}
+              onClick={() => commit((value ?? 15) - 1)}>−</button>
+      <SizeInput
+        value={value}
+        presets={SIZES}
+        className="tob-size-combo"
+        dropUp
+        onCommit={commit}
+      />
+      <button className="tob-btn tob-size-step" title="Increase font size"
+              aria-label="Increase font size"
+              onMouseDown={pd} onPointerDown={pd}
+              onClick={() => commit((value ?? 15) + 1)}>+</button>
+    </span>
   );
 }
 
