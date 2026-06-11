@@ -13,7 +13,7 @@ export const TOKEN   = '11111111-2222-3333-4444-555555555555';
 export const ROOT_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 export const SUB_ID  = 'aaaaaaaa-0000-0000-0000-000000000002';
 
-function snapshotB64(cards) {
+function snapshotB64(cards, strokes = []) {
   const doc = new Y.Doc();
   const map = doc.getMap('cards');
   for (const [id, card] of Object.entries(cards)) {
@@ -21,7 +21,20 @@ function snapshotB64(cards) {
     for (const [k, v] of Object.entries(card)) m.set(k, v);
     map.set(id, m);
   }
+  if (strokes.length) doc.getArray('strokes').push(strokes);
   return Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64');
+}
+
+// A grid of small freehand scribbles spread over a wide extent — drives the
+// stroke viewport-culling spec (far-off strokes must not render at deep
+// zoom; everything renders at fit-all).
+function gridStrokes(n) {
+  return Array.from({ length: n }, (_, i) => {
+    const ox = (i % 12) * 600 + 80;
+    const oy = Math.floor(i / 12) * 600 + 80;
+    const points = Array.from({ length: 8 }, (_, j) => [ox + j * 12, oy + (j % 2) * 18]);
+    return { points, color: '#f59e0b', width: 3 };
+  });
 }
 
 // A board id NOT present in nav_boards — simulates a deleted sub-board or a
@@ -56,8 +69,9 @@ function docCardEntry() {
 }
 
 // opts.withDoc adds a rich doc card to the root board; opts.dense replaces
-// the root with a 60-note grid (for the zoom-cull spec).
-export function makeBundles({ withDoc = false, dense = false } = {}) {
+// the root with a 60-note grid (for the zoom-cull spec); opts.withStrokes
+// adds 120 spread-out scribbles (for the stroke-cull spec).
+export function makeBundles({ withDoc = false, dense = false, withStrokes = false } = {}) {
   const rootCards = dense
     ? Object.fromEntries(Array.from({ length: 60 }, (_, i) => [
         `card-grid-${i}`,
@@ -73,7 +87,7 @@ export function makeBundles({ withDoc = false, dense = false } = {}) {
         'card-deadlink-1': { kind: 'boardlink', target: UNREACHABLE_ID, x: 120, y: 320, w: 240, h: 100 },
         ...(withDoc ? { 'card-doc-1': docCardEntry() } : {}),
       };
-  const rootSnapshot = snapshotB64(rootCards);
+  const rootSnapshot = snapshotB64(rootCards, withStrokes ? gridStrokes(120) : []);
   const subSnapshot = snapshotB64({
     'card-note-2': { kind: 'note', body: 'Inside the sub-board', x: 120, y: 120, w: 240, h: 140 },
   });
@@ -98,8 +112,8 @@ export function makeBundles({ withDoc = false, dense = false } = {}) {
 // responses (makes the nav progress shimmer observable); opts.fail404 fails
 // every bundle request (drives the invalid-link page); opts.withDoc /
 // opts.dense select the fixture variant (see makeBundles).
-export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false } = {}) {
-  const bundles = makeBundles({ withDoc, dense });
+export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false, withStrokes = false } = {}) {
+  const bundles = makeBundles({ withDoc, dense, withStrokes });
   await page.route('**/parties/upload/share/share-bundle', async (route) => {
     if (fail404) return route.fulfill({ status: 404, body: 'not found' });
     let boardId = null;

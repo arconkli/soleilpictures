@@ -1,5 +1,6 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import * as perf from '../lib/perf.js';
+import { setPerfContext, clearPerfContext, markGestureActiveUntil } from '../lib/perfReport.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
@@ -76,6 +77,16 @@ const DRAW_DEFAULT_WIDTH = 3;
 const ERASER_DEFAULT_WIDTH = 16;
 const VIRTUAL_CANVAS_PX = 100000;
 const STROKE_HIT_PADDING = 12; // invisible hit region added around each stroke
+
+// Build the SVG path string for a freehand stroke. Module scope + memoized
+// per stroke (strokeGeom below) — this string-builds from every point, and
+// used to re-run for EVERY stroke on EVERY render.
+function strokeToPath(pts) {
+  if (!pts || pts.length === 0) return '';
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) d += ` L${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)}`;
+  return d;
+}
 // Module-level singleton — used as the "no peers on this card" default so
 // BoardCard's memo doesn't bust from a fresh `|| []` allocation each render.
 const EMPTY_PEERS_ARR = [];
@@ -254,6 +265,21 @@ export function CanvasSurface({
     return scheduleBoardPreviewBackfill({ boardId: board.id, keys });
   }, [board.id, cards, canEdit, isPublic, useLocalImages]);
 
+  // Field jank telemetry context (lib/perfReport.js — always on, unlike the
+  // perf.js HUD). Board identity + content scale, refreshed when they change;
+  // zoom is refreshed at gesture-settle commits below. Cheap object merges.
+  useEffect(() => {
+    setPerfContext({
+      boardId: board?.id || null,
+      workspaceId: workspaceId || null,
+      isPublic: !!isPublic,
+      cardsTotal: cards.length,
+      strokesCount: (strokes || []).length,
+      arrowsCount: (arrows || []).length,
+    });
+    return () => clearPerfContext();
+  }, [board?.id, workspaceId, isPublic, cards.length, strokes, arrows]);
+
   const [pan, setPan] = useState({ x: 40, y: 60 });
   const [zoom, setZoom] = useState(1);
   // Mirror pan/zoom into refs so live handlers (cursor broadcast,
@@ -318,6 +344,7 @@ export function CanvasSurface({
   // run one strict recompute to prune. A timestamp (not a boolean) so a
   // cancel-terminated gesture self-heals on the next recompute.
   const gestureUntilRef = useRef(0);
+  const _perfVisRef = useRef(-1);   // last cardsVisible pushed to perfReport
   const scheduleVisibleRecompute = useCallback(() => {
     if (visibleRafRef.current) return;
     visibleRafRef.current = requestAnimationFrame(() => {
@@ -1078,6 +1105,16 @@ export function CanvasSurface({
   sortedCardsRef.current = sortedCards;
   perf.gauge('cards.total', sortedCards.length);
   perf.gauge('cards.visible', visibleIds ? visibleIds.size : sortedCards.length);
+  // Mirror the mounted count into the always-on jank reporter (perf.js
+  // gauges are dead when the HUD is off). Changed-guarded — runs per render
+  // but writes only when the number moves.
+  {
+    const visNow = visibleIds ? visibleIds.size : sortedCards.length;
+    if (_perfVisRef.current !== visNow) {
+      _perfVisRef.current = visNow;
+      setPerfContext({ cardsVisible: visNow });
+    }
+  }
   useEffect(() => { scheduleVisibleRecompute(); }, [sortedCards, scheduleVisibleRecompute]);
 
   // cardById has STABLE object identity across snapshots — we mutate the
@@ -1523,6 +1560,8 @@ export function CanvasSurface({
         // only re-runs when the VALUES change, so a clamped or
         // returned-to-origin gesture would otherwise never prune.
         gestureUntilRef.current = 0;
+        markGestureActiveUntil(0);
+        setPerfContext({ zoom: zoomRef.current });
         setPan({ x: panRef.current.x, y: panRef.current.y });
         setZoom(zoomRef.current);
         scheduleVisibleRecompute();
@@ -1582,6 +1621,7 @@ export function CanvasSurface({
         panRef.current = { x: curPan.x - e.deltaX, y: curPan.y - e.deltaY };
       }
       gestureUntilRef.current = performance.now() + 200; // ADD-only cull while zoom/scroll is live
+      markGestureActiveUntil(gestureUntilRef.current);
       applyCanvasTransform();
       scheduleVisibleRecompute();
       scheduleCommit();
@@ -1612,6 +1652,8 @@ export function CanvasSurface({
       touchPanCommitTimer.current = 0;
       // Gesture settled — see scheduleCommit for the prune contract.
       gestureUntilRef.current = 0;
+      markGestureActiveUntil(0);
+      setPerfContext({ zoom: zoomRef.current });
       setPan({ x: panRef.current.x, y: panRef.current.y });
       setZoom(zoomRef.current);
       scheduleVisibleRecompute();
@@ -1641,6 +1683,7 @@ export function CanvasSurface({
           y: oy - rect.top  - cy * targetZoom,
         };
         gestureUntilRef.current = performance.now() + 200; // ADD-only cull while pinching
+        markGestureActiveUntil(gestureUntilRef.current);
         applyCanvasTransform();
         scheduleVisibleRecompute();
         scheduleTouchPanCommit();
@@ -1663,6 +1706,7 @@ export function CanvasSurface({
         const p = panRef.current;
         panRef.current = { x: p.x + dx, y: p.y + dy };
         gestureUntilRef.current = performance.now() + 200; // ADD-only cull while two-finger panning
+        markGestureActiveUntil(gestureUntilRef.current);
         applyCanvasTransform();
         scheduleVisibleRecompute();
         scheduleTouchPanCommit();
@@ -2248,6 +2292,7 @@ export function CanvasSurface({
         y: startPanXY.y + (ev.clientY - startClient.y),
       };
       gestureUntilRef.current = performance.now() + 200; // ADD-only cull while panning
+      markGestureActiveUntil(gestureUntilRef.current);
       applyCanvasTransform();
       scheduleVisibleRecompute();
     };
@@ -5888,97 +5933,83 @@ export function CanvasSurface({
     height: Math.abs(marquee.y1 - marquee.y0),
   };
 
-  const strokeToPath = (pts) => {
-    if (!pts || pts.length === 0) return '';
-    let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-    for (let i = 1; i < pts.length; i++) d += ` L${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)}`;
-    return d;
-  };
-
   const isPanMode = spaceDown || selectedTool === 'pan';
   const strokesInteractive = selectedTool === 'select';
 
-  const gz = Math.max(8, 80 * zoom);
-  const dz = Math.max(2, 20 * zoom);
-  // Size-accurate eraser cursor — the red stroke preview only showed the
-  // radius after you'd already erased something.
-  const eraserCursor = useMemo(() => {
-    if (selectedTool !== 'draw' || drawOptions.mode !== 'eraser') return null;
-    const d = Math.max(10, Math.min(96, Math.round((drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) * zoom)));
-    const r = d / 2;
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${d}' height='${d}'><circle cx='${r}' cy='${r}' r='${r - 1}' fill='none' stroke='%23ef4444' stroke-opacity='0.85' stroke-width='1.5'/></svg>`;
-    return `url("data:image/svg+xml;utf8,${svg}") ${r} ${r}, crosshair`;
-  }, [selectedTool, drawOptions.mode, drawOptions.eraserWidth, zoom]);
+  // Stroke geometry memo: SVG path string + padded bbox per stroke. The
+  // strokes array identity changes only on Y.Doc edits (useYBoard snapshot /
+  // the public bundle decode), so this survives every pan/zoom/selection
+  // render — previously strokeToPath re-ran per stroke per render.
+  const strokeGeom = useMemo(() => (strokes || []).map((s) => {
+    const pts = s.points || [];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < pts.length; i++) {
+      const x = pts[i][0], y = pts[i][1];
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const pad = (s.width || DRAW_DEFAULT_WIDTH) / 2 + STROKE_HIT_PADDING;
+    return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad, d: strokeToPath(pts) };
+  }), [strokes]);
 
-  const wrapStyle = {
-    '--canvas-bg': board.bg_color || undefined,
-    ...(eraserCursor ? { cursor: eraserCursor } : null),
-    backgroundColor: board.bg_color || undefined,
-    backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
-    backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px`,
-    backgroundPosition: `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
-  };
+  // World-space cull band for the stroke/arrow SVG layers — same KEEP math
+  // as the card cull, but derived from committed pan/zoom STATE (updates at
+  // gesture settle; the imperative mid-gesture transform visually masks the
+  // ≤140ms lag, same class as card pop-in). Null until the wrap is measured
+  // → render everything.
+  const svgCullBand = useMemo(() => {
+    const { w, h } = wrapWHRef.current;
+    if (!w || !h || !zoom) return null;
+    const vx = -pan.x / zoom, vy = -pan.y / zoom;
+    const vw = w / zoom, vh = h / zoom;
+    const KEEP = 1.5;
+    return {
+      minX: vx - KEEP * vw, maxX: vx + (1 + KEEP) * vw,
+      minY: vy - KEEP * vh, maxY: vy + (1 + KEEP) * vh,
+    };
+  }, [pan.x, pan.y, zoom]);
 
-  return (
-    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''}`}
-         data-eyedrop={eyedropFor ? '1' : undefined}
-         ref={wrapRef}
-         style={wrapStyle}
-         onDragOver={handleDragOver}
-         onDragLeave={handleDragLeave}
-         onDrop={handleDrop}
-         onDragStart={(e) => e.preventDefault()}
-         onPointerDown={onBackgroundPointerDown}
-         onDoubleClick={onBackgroundDoubleClick}
-         onContextMenu={onBackgroundContextMenu}>
-      {/* Grain texture — sits behind cards on the canvas surface
-          only. Cards / popovers / modals all stack above it. */}
-      <div className="grain-canvas" aria-hidden="true" />
-      {(tagsByBoard?.get(board.id) || []).length > 0 && (
-        <div className="board-tags-strip" data-board-id={board.id}>
-          {(tagsByBoard.get(board.id) || []).slice(0, 6).map(t => (
-            <span key={t.id}
-                  className={`card-tag-chip is-${t.source || 'user'}`}
-                  style={{ '--tag-c': t.color || '#4f8df8' }}
-                  title={t.source && t.source !== 'user' ? `${t.name} (${t.source}) — right-click to confirm` : t.name}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'board', targetId: board.id, tag: t });
-                  }}>
-              <span className="card-tag-chip-dot" />
-              <span className="card-tag-chip-name">{t.name}</span>
-            </span>
-          ))}
-        </div>
-      )}
-      <CanvasPresence
-        getAwareness={getAwareness}
-        boardId={board.id}
-        pan={pan}
-        zoom={zoom}
-        selfId={currentUser?.id}
-      />
-      <div ref={canvasRef}
-           className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
-           style={{
-             // transform is set imperatively (see applyCanvasTransform +
-             // the useLayoutEffect above) so 120Hz wheel/pinch updates
-             // don't go through React reconciliation. Initial mount: the
-             // layout effect fires sync before paint, so first frame has
-             // the correct transform.
-             transformOrigin: '0 0',
-           }}>
-        {/* Group outlines + name labels — drawn behind the cards.
-            Two shapes:
-              'box' (default) — one rounded rect around the bounding box.
-              'hug'           — per-card rounded rects whose outlines
-                                merge where cards overlap, so the
-                                contour follows the cluster instead of
-                                a giant rectangle. */}
-        {groups.length > 0 && (
-          <div className="groups-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-            {groups.map(g => {
+  // Arrow geometry memo: the obstacle-avoidance bezier (buildArrowPath) plus
+  // a padded segment bbox per arrow. Recomputes only when arrows/cards
+  // change — previously rebuilt for EVERY arrow on EVERY render.
+  const arrowGeom = useMemo(() => (arrows || []).map((a, i) => {
+    const att = arrowAttachments[i];
+    if (!att?.from || !att?.to) return null;
+    // Anchor cards (or group members) stay in the obstacle set with a 1px
+    // pad so the bezier can attach at the edge while the body still can't
+    // sweep back across its own card.
+    const anchorIds = new Set();
+    const ef = excludedCardIdsForRef(a.from);
+    const et = excludedCardIdsForRef(a.to);
+    if (ef) ef.forEach(id => anchorIds.add(id));
+    if (et) et.forEach(id => anchorIds.add(id));
+    const obstacles = a.straight ? null
+      : arrowObstacleRects.map(r => (anchorIds.has(r.id) ? { ...r, pad: 1 } : r));
+    const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
+    if (!built) return null;
+    // Cull box = endpoint-segment bbox padded generously for the bezier's
+    // obstacle detours, arrowheads, and labels. An arrow crossing the
+    // viewport with both endpoints out-of-band still intersects this box.
+    const PAD = 300;
+    return {
+      ...built,
+      minX: Math.min(att.from.point.x, att.to.point.x) - PAD,
+      maxX: Math.max(att.from.point.x, att.to.point.x) + PAD,
+      minY: Math.min(att.from.point.y, att.to.point.y) - PAD,
+      maxY: Math.max(att.from.point.y, att.to.point.y) + PAD,
+    };
+  }), [arrows, arrowAttachments, arrowObstacleRects, excludedCardIdsForRef]);
+
+  // Group outlines + name labels, memoized: the body does O(members) bbox
+  // work per group (plus per-member SVG rects in hug mode) and used to
+  // re-run on EVERY render (every gesture-settle commit included). Deps are
+  // the audited free variables of the body — KEEP IN SYNC with any future
+  // edit inside this memo. (The state setters it calls — setArrowFrom /
+  // setSelectedTool / setBgCtx — are stable and deliberately omitted.)
+  const groupOutlineEls = useMemo(() => (
+    groups.map(g => {
               const members = cardsByGroup.get(g.id) || [];
               if (members.length < 2) return null;
               const stroke = g.color || 'var(--soleil)';
@@ -6127,7 +6158,91 @@ export function CanvasSurface({
                   {labelEl}
                 </Fragment>
               );
-            })}
+            })
+  ), [groups, cardsByGroup, drag, arrowFrom, selectedTool, mutators, arrowOptions]);
+
+
+  const gz = Math.max(8, 80 * zoom);
+  const dz = Math.max(2, 20 * zoom);
+  // Size-accurate eraser cursor — the red stroke preview only showed the
+  // radius after you'd already erased something.
+  const eraserCursor = useMemo(() => {
+    if (selectedTool !== 'draw' || drawOptions.mode !== 'eraser') return null;
+    const d = Math.max(10, Math.min(96, Math.round((drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) * zoom)));
+    const r = d / 2;
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${d}' height='${d}'><circle cx='${r}' cy='${r}' r='${r - 1}' fill='none' stroke='%23ef4444' stroke-opacity='0.85' stroke-width='1.5'/></svg>`;
+    return `url("data:image/svg+xml;utf8,${svg}") ${r} ${r}, crosshair`;
+  }, [selectedTool, drawOptions.mode, drawOptions.eraserWidth, zoom]);
+
+  const wrapStyle = {
+    '--canvas-bg': board.bg_color || undefined,
+    ...(eraserCursor ? { cursor: eraserCursor } : null),
+    backgroundColor: board.bg_color || undefined,
+    backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
+    backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px`,
+    backgroundPosition: `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
+  };
+
+  return (
+    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''}`}
+         data-eyedrop={eyedropFor ? '1' : undefined}
+         ref={wrapRef}
+         style={wrapStyle}
+         onDragOver={handleDragOver}
+         onDragLeave={handleDragLeave}
+         onDrop={handleDrop}
+         onDragStart={(e) => e.preventDefault()}
+         onPointerDown={onBackgroundPointerDown}
+         onDoubleClick={onBackgroundDoubleClick}
+         onContextMenu={onBackgroundContextMenu}>
+      {/* Grain texture — sits behind cards on the canvas surface
+          only. Cards / popovers / modals all stack above it. */}
+      <div className="grain-canvas" aria-hidden="true" />
+      {(tagsByBoard?.get(board.id) || []).length > 0 && (
+        <div className="board-tags-strip" data-board-id={board.id}>
+          {(tagsByBoard.get(board.id) || []).slice(0, 6).map(t => (
+            <span key={t.id}
+                  className={`card-tag-chip is-${t.source || 'user'}`}
+                  style={{ '--tag-c': t.color || '#4f8df8' }}
+                  title={t.source && t.source !== 'user' ? `${t.name} (${t.source}) — right-click to confirm` : t.name}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'board', targetId: board.id, tag: t });
+                  }}>
+              <span className="card-tag-chip-dot" />
+              <span className="card-tag-chip-name">{t.name}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      <CanvasPresence
+        getAwareness={getAwareness}
+        boardId={board.id}
+        pan={pan}
+        zoom={zoom}
+        selfId={currentUser?.id}
+      />
+      <div ref={canvasRef}
+           className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
+           style={{
+             // transform is set imperatively (see applyCanvasTransform +
+             // the useLayoutEffect above) so 120Hz wheel/pinch updates
+             // don't go through React reconciliation. Initial mount: the
+             // layout effect fires sync before paint, so first frame has
+             // the correct transform.
+             transformOrigin: '0 0',
+           }}>
+        {/* Group outlines + name labels — drawn behind the cards.
+            Two shapes:
+              'box' (default) — one rounded rect around the bounding box.
+              'hug'           — per-card rounded rects whose outlines
+                                merge where cards overlap, so the
+                                contour follows the cluster instead of
+                                a giant rectangle. */}
+        {groups.length > 0 && (
+          <div className="groups-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {groupOutlineEls}
           </div>
         )}
         {/* Viewport culling: only render cards inside the visibleIds set,
@@ -6357,24 +6472,18 @@ export function CanvasSurface({
                         pointerEvents: 'none',
                         overflow: 'visible' }}>
             {(arrows || []).map((a, i) => {
+              // Geometry (incl. the obstacle-avoidance bezier) comes from
+              // the arrowGeom memo — recomputed only on data changes.
+              const g = arrowGeom[i];
+              if (!g) return null;
+              const sel = selectedArrows.has(i);
+              // Viewport cull on the padded segment bbox; `null` keeps the
+              // index coupling. Selected arrows always render (handles).
+              if (svgCullBand && !sel &&
+                  (g.maxX < svgCullBand.minX || g.minX > svgCullBand.maxX ||
+                   g.maxY < svgCullBand.minY || g.minY > svgCullBand.maxY)) return null;
               const att = arrowAttachments[i];
-              if (!att?.from || !att?.to) return null;
-              // Keep the arrow's anchor cards (or group members) in the
-              // obstacle set but with a 1px pad so the bezier can attach
-              // at the edge while the body still can't sweep back across
-              // its own card. All other cards keep the geometry helper's
-              // default OBSTACLE_PAD.
-              const anchorIds = new Set();
-              const ef = excludedCardIdsForRef(a.from);
-              const et = excludedCardIdsForRef(a.to);
-              if (ef) ef.forEach(id => anchorIds.add(id));
-              if (et) et.forEach(id => anchorIds.add(id));
-              const obstacles = a.straight ? null
-                : arrowObstacleRects.map(r =>
-                    anchorIds.has(r.id) ? { ...r, pad: 1 } : r);
-              const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight }, obstacles });
-              if (!built) return null;
-              const { path, fromTangentIn, toTangentIn } = built;
+              const { path, fromTangentIn, toTangentIn } = g;
               // Lines created via the Shape tool override the arrow's
               // palette/thickness tokens with raw values so the user's
               // chosen color, stroke width, and dash style apply directly.
@@ -6394,7 +6503,6 @@ export function CanvasSurface({
               if (a.customDash === 'dashed') dashArray = `${sw * 4} ${sw * 3}`;
               else if (a.customDash === 'dotted') dashArray = `${sw * 1} ${sw * 2}`;
               else if (a.dashed) dashArray = `${sw * 4} ${sw * 3}`;
-              const sel = selectedArrows.has(i);
               const pathId = `${arrowPathIdPrefix}${i}`;
               return (
                 <g key={i} data-arrow-idx={i}>
@@ -6552,8 +6660,17 @@ export function CanvasSurface({
                       overflow: 'visible' }}>
           {(strokes || []).map((s, i) => {
             const sel = selectedStrokes.has(i);
+            const g = strokeGeom[i];
+            // Viewport cull: off-band strokes render nothing. `null` keeps
+            // the array-index coupling (key / data-stroke-idx /
+            // selectedStrokes / onStrokeClick all use i). Selected strokes
+            // always render so the selection ring survives panning away.
+            // Erase + marquee operate on the strokes ARRAY, not the DOM.
+            if (svgCullBand && g && !sel &&
+                (g.maxX < svgCullBand.minX || g.minX > svgCullBand.maxX ||
+                 g.maxY < svgCullBand.minY || g.minY > svgCullBand.maxY)) return null;
             const w = s.width || DRAW_DEFAULT_WIDTH;
-            const path = strokeToPath(s.points);
+            const path = g ? g.d : strokeToPath(s.points);
             const hitW = Math.max(w + STROKE_HIT_PADDING, 14);
             return (
               <g key={i} data-stroke-idx={i}>

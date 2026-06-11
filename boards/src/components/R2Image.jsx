@@ -23,6 +23,7 @@ import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
+import { bumpPerf } from '../lib/perfReport.js';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
@@ -69,6 +70,21 @@ function pickTierSrc(src, originalKey) {
   if (cachedUrl(pv) || !cachedUrl(src)) return pv;
   if (!(m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX)) return pv;
   return src;
+}
+
+// The Tier-2 upgrade only pays when the original genuinely has more pixels
+// than the preview AND decodes within the GPU-tile budget:
+//   - native-resolution webp previews (the ≤1280px byte-heavy re-encode
+//     path) have previewW == original width — upgrading re-downloads a
+//     multi-hundred-KB original for ZERO extra pixels;
+//   - originals above MAX_WARM_ORIGINAL_PX are exactly the decodes that
+//     blow Chrome's canvas raster-tile budget (black patches mid-pan).
+// Unknown dims keep the legacy behavior (upgrade) — can't prove zero gain.
+function originalWorthUpgrade(m) {
+  if (!m) return true;
+  if (m.w && m.previewW && m.w <= m.previewW) return false;
+  if (m.w && m.h && m.w * m.h > MAX_WARM_ORIGINAL_PX) return false;
+  return true;
 }
 
 // Decode a base64 thumbhash to a data URL once (cheap, but cache anyway).
@@ -399,6 +415,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   useEffect(() => {
     if (!visible || warmedRef.current || !upgradeToFull || upgradedRef.current) return;
     if (!originalKey || !meta || !meta.previewKey) return;
+    if (!originalWorthUpgrade(meta)) return;
     let displayedPx = 0;
     try {
       const r = rootRef.current?.getBoundingClientRect();
@@ -420,6 +437,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   useEffect(() => {
     if (!upgradeToFull || upgradedRef.current || !loaded) return;
     if (!meta || !meta.previewKey) return;
+    if (!originalWorthUpgrade(meta)) return;
     if (activeSrc !== `r2:${meta.previewKey}`) return;
     let cancelled = false;
     const ric = (typeof window !== 'undefined' && window.requestIdleCallback)
@@ -441,6 +459,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
       upgradedRef.current = true;
       setActiveSrc(src);                 // original (Tier 2)
       perf.bump('image.tier2Upgrade');
+      bumpPerf('image.tier2Upgrade');
     });
     return () => { cancelled = true; try { cancelRic(id); } catch (_) {} };
   }, [loaded, meta, activeSrc, src, upgradeToFull]);
@@ -456,8 +475,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (!hitMarkedRef.current) {
       hitMarkedRef.current = true;
       const showingPreview = !!(meta && meta.previewKey) && activeSrc === `r2:${meta.previewKey}`;
-      if (showingPreview) perf.bump('image.preview.hit');
-      else if (originalKey && !(meta && meta.previewKey)) perf.bump('image.preview.miss');
+      if (showingPreview) { perf.bump('image.preview.hit'); bumpPerf('image.preview.hit'); }
+      else if (originalKey && !(meta && meta.previewKey)) { perf.bump('image.preview.miss'); bumpPerf('image.preview.miss'); }
       // Two distinct third paths, counted separately so the warm-tier
       // strategy stays observable: warmOriginal = pickTierSrc deliberately
       // kept the warm original; fellBack = the preview tier failed to
