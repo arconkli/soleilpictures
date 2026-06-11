@@ -402,7 +402,15 @@ export function pageFragmentToText(fragment, max = 240) {
   let out = '';
   const walk = (node) => {
     if (!node || out.length >= max) return;
-    if (typeof node.toString === 'function' && (node.constructor?.name === 'YXmlText' || node._item?.parentSub === undefined && node.toDelta)) {
+    // Text leaf = has toDelta (Y.Text/Y.XmlText) but no toArray (which
+    // XmlElement/XmlFragment have). DUCK-TYPED on purpose: the old
+    // `constructor?.name === 'YXmlText'` check silently broke in any
+    // bundled build — vite's dev pre-bundle renames the class to
+    // `_YXmlText` and prod minification mangles it entirely — so canvas
+    // doc previews rendered title-only with no body text. (Its fallback
+    // clause compared `parentSub === undefined`, but yjs uses null for
+    // array content, so it never matched either.)
+    if (typeof node.toDelta === 'function' && typeof node.toArray !== 'function') {
       try { out += node.toString(); } catch (_) {}
       return;
     }
