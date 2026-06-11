@@ -93,14 +93,18 @@ export async function primeImageMeta(keys) {
       if (error) { for (const k of chunk) inflight.delete(k); return; }
       const seen = new Set();
       for (const row of (data || [])) {
-        cache.set(row.storage_path, rowToMeta(row));
+        // Never clobber an entry that landed mid-flight — these keys had no
+        // cache entry when this prime started (the dedupe above), so anything
+        // present now came from setMetaLocal (a just-finished backfill/upload)
+        // or the board-id prime, both fresher than this query's snapshot.
+        if (!cache.has(row.storage_path)) cache.set(row.storage_path, rowToMeta(row));
         seen.add(row.storage_path);
       }
       // Keys with no row (RLS-hidden or not yet inserted) get a null-meta
       // entry so we don't re-query them every render; a later setMetaLocal
       // (e.g. after the upload's variant generation) overwrites it.
       for (const k of chunk) {
-        if (!seen.has(k)) cache.set(k, { blur: null, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null, w: null, h: null });
+        if (!seen.has(k) && !cache.has(k)) cache.set(k, { blur: null, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null, w: null, h: null });
         inflight.delete(k);
         notify(k);
       }
@@ -112,6 +116,41 @@ export async function primeImageMeta(keys) {
       perf.mark('imageMeta.prime.ms', performance.now() - _t0);
       perf.gauge('imageMeta.cacheSize', cache.size);
     }
+  }
+}
+
+// Prime metadata for every image on a board in ONE query keyed by board id —
+// callable before the board snapshot has even decoded (no card keys needed),
+// so it runs in parallel with the snapshot fetch on board open. Covers rows
+// uploaded to the board (board_id) plus rows referenced onto it from other
+// boards (referenced_in_board_ids). Already-cached keys are never clobbered
+// (an in-session setMetaLocal from a backfill/upload wins). Fire-and-forget;
+// once per board per session — the key-based primeImageMeta stays the safety
+// net for keys this query can't see.
+const primedBoards = new Set();
+export async function primeImageMetaForBoard(boardId) {
+  if (_resolver) return;  // public viewer: metadata comes from the bundle
+  if (!boardId || !/^[0-9a-f-]{36}$/i.test(String(boardId))) return;
+  if (primedBoards.has(boardId)) return;
+  primedBoards.add(boardId);
+  const _t0 = perf.isEnabled() ? performance.now() : 0;
+  try {
+    const { data, error } = await supabase
+      .from('images')
+      .select('storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height')
+      .or(`board_id.eq.${boardId},referenced_in_board_ids.cs.{${boardId}}`);
+    if (error) { primedBoards.delete(boardId); return; }
+    for (const row of (data || [])) {
+      if (cache.has(row.storage_path)) continue;
+      cache.set(row.storage_path, rowToMeta(row));
+      notify(row.storage_path);
+    }
+    if (_t0) {
+      perf.mark('imageMeta.primeBoard.ms', performance.now() - _t0);
+      perf.gauge('imageMeta.cacheSize', cache.size);
+    }
+  } catch (_) {
+    primedBoards.delete(boardId);
   }
 }
 

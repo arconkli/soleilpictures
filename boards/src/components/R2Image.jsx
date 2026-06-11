@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cachedUrl, resolveSrc, getSignedUrl, CACHE_TTL_MS } from '../lib/r2.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { runGated } from '../lib/backfillGate.js';
+import { backfillAttempted } from '../lib/previewBackfill.js';
 import { importWithReload } from '../lib/lazyWithReload.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
@@ -35,9 +36,9 @@ const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expir
 const MAX_SIGN_RETRIES = 4;
 const SIGN_RETRY_BASE_MS = 800; // backoff: 0.8s, 1.6s, 3.2s, 6.4s
 
-// One backfill attempt per image key per session (success OR definitive
-// failure). Cleared only by a page reload.
-const _backfillAttempted = new Set();
+// One-backfill-attempt-per-key dedupe lives in previewBackfill.js
+// (backfillAttempted) — shared with the whole-board sweep so the two paths
+// never generate variants for the same image twice.
 
 // One metadata prime per image key per session — a card re-entering the viewport
 // must not re-fire primeImageMeta (imageMeta dedupes the query too, but this
@@ -319,6 +320,27 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     return () => { cancelled = true; };
   }, [visible, previewSmKey]);
 
+  // Warm the Tier-2 signed URL as soon as the upgrade is predictable — the card
+  // is already displayed near/above the preview's native size — instead of
+  // paying preview-load → idle → rAF presign batch (~400ms) before the original
+  // can even start downloading. Only the URL is warmed: no bytes are fetched
+  // until the upgrade effect below actually swaps the src, so a card that never
+  // upgrades costs at most one extra key in an already-batched presign call.
+  const warmedRef = useRef(false);
+  useEffect(() => {
+    if (!visible || warmedRef.current || !upgradeToFull || upgradedRef.current) return;
+    if (!originalKey || !meta || !meta.previewKey) return;
+    let displayedPx = 0;
+    try {
+      const r = rootRef.current?.getBoundingClientRect();
+      displayedPx = (r?.width || 0) * (window.devicePixelRatio || 1);
+    } catch (_) {}
+    const threshold = meta.previewW ? meta.previewW * 0.85 : 1000;
+    if (displayedPx < threshold) return;
+    warmedRef.current = true;
+    getSignedUrl(originalKey);
+  }, [visible, meta, upgradeToFull, originalKey]);
+
   // Tier-2 upgrade: once a preview has painted, swap to the original on idle so
   // the card "slowly loads up to full quality" (no flash — same <img>). Gated
   // on the card's ACTUAL displayed size (getBoundingClientRect includes the
@@ -358,10 +380,10 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (!backfillEnabled || !originalKey) return;
     if (noCors) return;                         // fell back to a non-cors (tainted) load — can't read the canvas
     if (meta && meta.previewKey) return;        // already has a preview
-    if (_backfillAttempted.has(originalKey)) return;
+    if (backfillAttempted.has(originalKey)) return;
     const el = imgRef.current;
     if (!el) return;
-    _backfillAttempted.add(originalKey);
+    backfillAttempted.add(originalKey);
     const ws = originalKey.split('/')[0];
     // Dynamic import keeps the variant-generation/upload module (+ its canvas
     // encode path) out of the basic R2Image consumers (avatars, lightbox,

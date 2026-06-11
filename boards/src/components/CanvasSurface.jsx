@@ -28,6 +28,7 @@ import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, EN
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio } from '../lib/uploads.js';
+import { scheduleBoardPreviewBackfill } from '../lib/previewBackfill.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
@@ -237,6 +238,20 @@ export function CanvasSurface({
     if (!board?.id || !ydoc) return;
     syncCardIndex({ boardId: board.id, ydoc }).catch(() => {});
   }, [board?.id, ydoc, isPublic]);
+
+  // Whole-board preview self-heal (writers only): any image card still
+  // missing its Tier-1 preview gets variants generated a few seconds after
+  // open (see lib/previewBackfill.js). The cleanup cancels the pending sweep
+  // whenever cards change, so it effectively debounces until the board has
+  // been quiet for the scheduler's delay — it never competes with first
+  // paint or an active edit burst.
+  useEffect(() => {
+    if (!canEdit || isPublic || useLocalImages) return undefined;
+    const keys = cards
+      .filter(c => c.kind === 'image' && typeof c.src === 'string' && c.src.startsWith('r2:'))
+      .map(c => c.src.slice(3));
+    return scheduleBoardPreviewBackfill({ boardId: board.id, keys });
+  }, [board.id, cards, canEdit, isPublic, useLocalImages]);
 
   const [pan, setPan] = useState({ x: 40, y: 60 });
   const [zoom, setZoom] = useState(1);

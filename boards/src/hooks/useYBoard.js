@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { loadYBoard } from '../lib/yboard.js';
 import { readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.js';
 import { watchBoardRestores } from '../lib/restoreSignal.js';
-import { primeImageMeta } from '../lib/imageMeta.js';
+import { primeImageMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
 import * as perf from '../lib/perf.js';
 
 // Fires whenever bulletproofRestore completes for a board. Listeners
@@ -86,6 +86,14 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     }
     if (handleRef.current) handleRef.current.destroy();
     setSnapshot(emptySnapshot(boardId));
+    // Prime blur/preview metadata for the whole board IN PARALLEL with the
+    // snapshot fetch — keyed by board id, since card keys aren't known until
+    // the snapshot decodes. Meta is then usually cached before the first card
+    // renders: the Tier-0 blur paints on render 1 and R2ImageProgressive
+    // initializes activeSrc to the preview instead of racing to fetch the
+    // multi-MB original on a cold open. The key-based prime in refresh()
+    // below stays as the safety net for keys this query can't see.
+    try { primeImageMetaForBoard(boardId); } catch (_) {}
     // Round 17: end-to-end "user clicked board → cards in React state" timer.
     // Captures loadYBoard resolution + handle.ready await + snapshot
     // Y.applyUpdate + the first refresh() (readCards + setState). Surfaces
