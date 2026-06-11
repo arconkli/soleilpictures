@@ -364,6 +364,14 @@ export async function setPublicLinkSubboards({ token, include }) {
   if (error) throw error;
 }
 
+// Owner-only. Flip whether search engines may index this link's /share page
+// (the Worker omits its noindex robots tag when allowed). Default OFF.
+export async function setPublicLinkIndexing({ token, allow }) {
+  const { error } = await supabase
+    .rpc('set_public_link_indexing', { p_token: token, p_allow: allow });
+  if (error) throw error;
+}
+
 export async function listPublicLinks(boardId) {
   if (!boardId) return [];
   const { data, error } = await supabase

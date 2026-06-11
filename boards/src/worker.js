@@ -103,13 +103,17 @@ function injectRouteMeta(res, meta, canonical) {
 // share page itself must never break on a metadata miss.
 const SHARE_PATH_RE = /^\/share\/([0-9a-f-]{36})\/?$/i;
 const UUID_RE = /^[0-9a-f-]{36}$/i;
-const SHARE_DESCRIPTION =
-  'A board shared from Soleil Clusters — references, images, and ideas organized in one place.';
 
 function injectShareMeta(res, meta, token) {
-  const rw = new HTMLRewriter()
-    // Tokened URLs should never be indexed, even when the meta RPC failed.
-    .on('head', new AppendHead('<meta name="robots" content="noindex">'));
+  const rw = new HTMLRewriter();
+  // Tokened URLs are noindexed unless the link owner explicitly opted this
+  // link into search (allow_indexing, migration 0134 — used for marketing
+  // boards). A failed/missing meta fetch keeps the noindex: fail closed.
+  // NOTE: the appended string must stay fully static (AppendHead does not
+  // escape) — never interpolate board data here.
+  if (!meta?.allow_indexing) {
+    rw.on('head', new AppendHead('<meta name="robots" content="noindex">'));
+  }
 
   const name = (meta?.name || '').trim();
   if (!name) return rw.transform(res); // no meta → keep homepage defaults
@@ -119,13 +123,16 @@ function injectShareMeta(res, meta, token) {
   const isSub = meta.board_id && meta.root_id && meta.board_id !== meta.root_id;
   const shareUrl = `${SITE_ORIGIN}/share/${token}${isSub ? `?b=${meta.board_id}` : ''}`;
   const title = `${name} — Soleil Clusters`;
+  // Board-specific description for unfurls + (when indexable) SERP snippets.
+  // The name only ever flows through SetContent/SetText, which escape it.
+  const description = `“${name}” — a board shared from Soleil Clusters. References, images, and ideas in one place. Explore it, then make your own free.`;
   rw.on('title',                            new SetText(title))
-    .on('meta[name="description"]',         new SetContent(SHARE_DESCRIPTION))
+    .on('meta[name="description"]',         new SetContent(description))
     .on('meta[property="og:title"]',        new SetContent(title))
-    .on('meta[property="og:description"]',  new SetContent(SHARE_DESCRIPTION))
+    .on('meta[property="og:description"]',  new SetContent(description))
     .on('meta[property="og:url"]',          new SetContent(shareUrl))
     .on('meta[name="twitter:title"]',       new SetContent(title))
-    .on('meta[name="twitter:description"]', new SetContent(SHARE_DESCRIPTION))
+    .on('meta[name="twitter:description"]', new SetContent(description))
     .on('link[rel="canonical"]',            new SetHref(shareUrl));
 
   // Only point og:image at the thumb route when the board HAS a stored

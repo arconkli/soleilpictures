@@ -13,7 +13,7 @@ import { Modal } from './Modal.jsx';
 import {
   shareBoard, unshareBoard, listBoardShares,
   removeWorkspaceMember, transferWorkspaceOwnership,
-  createPublicLink, revokePublicLink, listPublicLinks, setPublicLinkSubboards,
+  createPublicLink, revokePublicLink, listPublicLinks, setPublicLinkSubboards, setPublicLinkIndexing,
   inviteWorkspaceMember,
   listPendingInvitesForBoard, listPendingInvitesForWorkspace,
   revokePendingInvite,
@@ -181,6 +181,22 @@ export function ShareModal({
     setPublicLinks(arr => arr.map(l => l.token === link.token ? { ...l, include_subboards: next } : l));
     try {
       await setPublicLinkSubboards({ token: link.token, include: next });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not update link: ' + (e.message || e) });
+      try {
+        const rows = await listPublicLinks(board.id);
+        setPublicLinks(rows.filter(l => !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())));
+      } catch (_) {}
+    }
+  };
+
+  // Flip whether search engines may index this link's /share page.
+  // Same optimistic pattern as onToggleLinkSubboards.
+  const onToggleLinkIndexing = async (link) => {
+    const next = !link.allow_indexing;
+    setPublicLinks(arr => arr.map(l => l.token === link.token ? { ...l, allow_indexing: next } : l));
+    try {
+      await setPublicLinkIndexing({ token: link.token, allow: next });
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not update link: ' + (e.message || e) });
       try {
@@ -651,12 +667,20 @@ export function ShareModal({
                       <div className="share-row-sub">
                         View-only · {l.include_subboards ? 'with sub-boards' : 'this board only'} · created {new Date(l.created_at).toLocaleDateString()}
                         {l.expires_at ? ` · expires ${new Date(l.expires_at).toLocaleDateString()}` : ''}
+                        {l.allow_indexing ? ' · indexable by search' : ''}
                       </div>
                     </div>
                     <button className="share-remove"
                             onClick={() => onToggleLinkSubboards(l)}
                             title={l.include_subboards ? 'Stop sharing sub-boards' : 'Also share sub-boards'}>
                       {l.include_subboards ? 'Hide sub-boards' : 'Add sub-boards'}
+                    </button>
+                    <button className="share-remove"
+                            onClick={() => onToggleLinkIndexing(l)}
+                            title={l.allow_indexing
+                              ? 'Search engines may index this link — click to hide it from search'
+                              : 'Hidden from search engines — click to let this link rank (for marketing boards)'}>
+                      {l.allow_indexing ? 'Hide from search' : 'Allow indexing'}
                     </button>
                     <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title="Copy URL">
                       Copy
