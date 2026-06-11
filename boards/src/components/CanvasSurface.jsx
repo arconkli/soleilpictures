@@ -308,6 +308,16 @@ export function CanvasSurface({
   const sortedCardsRef = useRef(null);
   const wrapWHRef = useRef({ w: 0, h: 0 });
   const visibleRafRef = useRef(0);
+  // Active wheel/pinch/pan gesture deadline (performance.now() + ~200ms,
+  // refreshed per event; 0 = settled). While a gesture is live the cull is
+  // ADD-ONLY: the bands are world-space (vw = wrapW/z), so fast zoom-IN
+  // shrinks them and would mass-unmount off-center cards each rAF — and the
+  // matching zoom-OUT then REMOUNTS them, resetting R2ImageProgressive to
+  // its blur tier (visible re-blur churn). The gesture-settle commits
+  // (scheduleCommit / scheduleTouchPanCommit / startPan onUp) zero this and
+  // run one strict recompute to prune. A timestamp (not a boolean) so a
+  // cancel-terminated gesture self-heals on the next recompute.
+  const gestureUntilRef = useRef(0);
   const scheduleVisibleRecompute = useCallback(() => {
     if (visibleRafRef.current) return;
     visibleRafRef.current = requestAnimationFrame(() => {
@@ -351,19 +361,25 @@ export function CanvasSurface({
       }
       // Skip the setState if the id set didn't change (common on pan
       // micro-movements that don't bring/take any card across the band).
+      const gestureActive = performance.now() < gestureUntilRef.current;
       setVisibleIds(prev => {
         // Hysteresis: previously-mounted cards still inside KEEP stay
         // mounted, but never retain past MOUNT_CAP — on dense boards the
         // raster/texture cost of the extra mounts is exactly what drops
         // GPU tiles. The cap bounds only the hysteresis EXTRAS; the ADD
         // band (and the zoomed-out everything-in-view case) is unaffected.
+        // During an ACTIVE gesture the keep-band requirement is waived
+        // entirely (still capped): nothing unmounts mid-zoom/pan, so
+        // visibleIds keeps its identity (zero re-renders) and zoom-out
+        // never remounts what zoom-in would have dropped. The settle
+        // commit runs one strict recompute to prune.
         // (Set.add is idempotent, so mutating `next` here is safe under
         // StrictMode's double-invoked updater.)
         const MOUNT_CAP = 300;
         if (prev) {
           for (const id of prev) {
             if (next.size >= MOUNT_CAP) break;
-            if (keep.has(id)) next.add(id);
+            if (gestureActive || keep.has(id)) next.add(id);
           }
         }
         if (prev && prev.size === next.size) {
@@ -1502,8 +1518,14 @@ export function CanvasSurface({
       if (commitTimer) clearTimeout(commitTimer);
       commitTimer = setTimeout(() => {
         commitTimer = 0;
+        // Gesture settled: end ADD-only cull mode and run one strict
+        // recompute to prune. Explicit call — the pan/zoom layout effect
+        // only re-runs when the VALUES change, so a clamped or
+        // returned-to-origin gesture would otherwise never prune.
+        gestureUntilRef.current = 0;
         setPan({ x: panRef.current.x, y: panRef.current.y });
         setZoom(zoomRef.current);
+        scheduleVisibleRecompute();
       }, 140);
     };
     const onWheel = (e) => {
@@ -1559,6 +1581,7 @@ export function CanvasSurface({
       } else {
         panRef.current = { x: curPan.x - e.deltaX, y: curPan.y - e.deltaY };
       }
+      gestureUntilRef.current = performance.now() + 200; // ADD-only cull while zoom/scroll is live
       applyCanvasTransform();
       scheduleVisibleRecompute();
       scheduleCommit();
@@ -1587,8 +1610,11 @@ export function CanvasSurface({
     if (touchPanCommitTimer.current) clearTimeout(touchPanCommitTimer.current);
     touchPanCommitTimer.current = setTimeout(() => {
       touchPanCommitTimer.current = 0;
+      // Gesture settled — see scheduleCommit for the prune contract.
+      gestureUntilRef.current = 0;
       setPan({ x: panRef.current.x, y: panRef.current.y });
       setZoom(zoomRef.current);
+      scheduleVisibleRecompute();
     }, 140);
   };
   useEffect(() => () => {
@@ -1614,6 +1640,7 @@ export function CanvasSurface({
           x: ox - rect.left - cx * targetZoom,
           y: oy - rect.top  - cy * targetZoom,
         };
+        gestureUntilRef.current = performance.now() + 200; // ADD-only cull while pinching
         applyCanvasTransform();
         scheduleVisibleRecompute();
         scheduleTouchPanCommit();
@@ -1635,6 +1662,7 @@ export function CanvasSurface({
         if (event?.cancelable) event.preventDefault();
         const p = panRef.current;
         panRef.current = { x: p.x + dx, y: p.y + dy };
+        gestureUntilRef.current = performance.now() + 200; // ADD-only cull while two-finger panning
         applyCanvasTransform();
         scheduleVisibleRecompute();
         scheduleTouchPanCommit();
@@ -2219,6 +2247,7 @@ export function CanvasSurface({
         x: startPanXY.x + (ev.clientX - startClient.x),
         y: startPanXY.y + (ev.clientY - startClient.y),
       };
+      gestureUntilRef.current = performance.now() + 200; // ADD-only cull while panning
       applyCanvasTransform();
       scheduleVisibleRecompute();
     };
@@ -2235,9 +2264,14 @@ export function CanvasSurface({
       if (ev.pointerId !== initialPointerId) return;
       cleanup();
       if (aborted) return;
+      // Gesture settled — end ADD-only cull mode and prune (see
+      // scheduleCommit). The aborted path doesn't clear: the pinch that
+      // caused the abort owns the gesture and its commit clears it.
+      gestureUntilRef.current = 0;
       // Commit once at gesture end so persistence + downstream consumers
       // catch up to the gesture-time ref values.
       setPan({ x: panRef.current.x, y: panRef.current.y });
+      scheduleVisibleRecompute();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
