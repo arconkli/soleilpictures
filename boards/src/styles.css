@@ -3540,7 +3540,11 @@ body {
   border-radius: 50%;
   cursor: grab;
 }
-.cnv-zoom-slider::-webkit-slider-thumb:active { cursor: grabbing; background: var(--accent, var(--ink-0)); }
+.cnv-zoom-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  background: var(--accent, var(--ink-0));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+}
 .cnv-zoom-slider::-moz-range-track {
   height: 3px;
   background: var(--line-2);
@@ -3552,6 +3556,11 @@ body {
   border: 1px solid var(--bg-1);
   border-radius: 50%;
   cursor: grab;
+}
+.cnv-zoom-slider::-moz-range-thumb:active {
+  cursor: grabbing;
+  background: var(--accent, var(--ink-0));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
 }
 
 /* Master comments-visibility toggle — top-left of the canvas-wrap,
@@ -3916,9 +3925,11 @@ body {
   overflow: hidden;
   cursor: pointer;
   display: flex; flex-direction: column;
-  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-base) var(--ease);
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease);
 }
-.bc:hover { border-color: var(--soleil); }
+/* Depth only — no transform: board tiles are drag-into-board targets and the
+   canvas suppresses hover lifts in select mode; moving geometry would fight both. */
+.bc:hover { border-color: var(--soleil); box-shadow: var(--shadow-2); }
 /* Neutral shimmer placeholder for a board / board-link tile whose target
    board hasn't arrived yet (boards map still loading). Keeps the exact card
    footprint (no layout shift), shows a calm shimmer instead of a scary
@@ -4957,6 +4968,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .pricing-toggle-pill:disabled { cursor: not-allowed; }
+.pricing-toggle-pill:hover:not(.is-active):not(:disabled) { color: var(--ink-1); }
 .pricing-toggle-pill.is-active {
   background: var(--soleil-soft);
   color: var(--soleil);
@@ -8443,8 +8455,12 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 
 /* Tool buttons hover scale */
-.cnv-tool { transition: background .12s, color .12s, transform .12s; }
+.cnv-tool { transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); }
 .cnv-tool:hover:not(.active) { transform: translateX(1px); }
+/* Touch has no hover — give taps the same nudge as press feedback. */
+@media (hover: none) {
+  .cnv-tool:active:not(.active) { transform: translateX(1px); }
+}
 
 
 /* ──────────────────────────── Phase 4.10: picker, submenus, palette ───── */
@@ -10390,13 +10406,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-0);
   cursor: pointer;
   display: grid; place-items: center;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 .lightbox-x { right: 18px; font-size: 20px; line-height: 1; }
 .lightbox-download { right: 60px; }
 .lightbox-x:hover,
 .lightbox-download:hover:not(:disabled) {
   background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.24);
+  transform: scale(1.06);
 }
 .lightbox-download:disabled { opacity: .5; cursor: progress; }
 
@@ -13759,9 +13776,10 @@ button.msg-panel-name:hover { color: var(--soleil); }
   width: 28px; height: 28px;
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 .emoji-palette-btn:hover { background: var(--bg-hov); }
+.emoji-palette-btn:active { transform: scale(.92); }
 
 .sb-row-ws {
   position: relative;
@@ -16984,10 +17002,11 @@ button, [role="button"], a {
   border-radius: var(--radius);
   font: 600 12px/1 var(--font-sans);
   cursor: pointer;
-  transition: transform var(--dur-fast, .12s) var(--ease, var(--ease)),
-              box-shadow var(--dur-base, .24s) var(--ease, ease);
+  transition: transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur-base) var(--ease);
 }
 .onboarding-coachmark-dismiss:hover { transform: translateY(-1px); box-shadow: var(--shadow-1); }
+.onboarding-coachmark-dismiss:active { transform: translateY(0); box-shadow: none; }
 @keyframes onboarding-coachmark-in {
   from { opacity: 0; transform: translate(-50%, 8px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
@@ -17038,10 +17057,11 @@ button, [role="button"], a {
   border-radius: var(--radius);
   font: 600 12px/1 var(--font-sans);
   cursor: pointer;
-  transition: transform var(--dur-fast, .12s) var(--ease, var(--ease)),
-              box-shadow var(--dur-base, .24s) var(--ease, ease);
+  transition: transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur-base) var(--ease);
 }
 .fv-banner-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-1); }
+.fv-banner-cta:active { transform: translateY(0); box-shadow: none; }
 .fv-banner-dismiss {
   height: 30px;
   padding: 0 10px;
