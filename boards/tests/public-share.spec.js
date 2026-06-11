@@ -121,6 +121,34 @@ test('engagement prompt: sub-board navigation trigger', async ({ page }) => {
   expect(rows.find((r) => r.event === 'share_prompt_view').props.trigger).toBe('subboard');
 });
 
+test('view-only canvas pans by dragging anywhere — pan is the default tool', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await routeShareBundle(page);
+  await page.goto(`/share/${TOKEN}`);
+  await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
+
+  // Pan is the default tool in the public viewer (grab cursor via is-pan).
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/is-pan/);
+
+  const canvas = page.locator('.canvas');
+  const before = await canvas.evaluate((el) => el.style.transform);
+
+  // Drag starting ON a card (the note): view-only never moves cards, so
+  // the gesture must pan the canvas instead of being swallowed.
+  const note = page.getByText('Welcome to the shared board');
+  const box = await note.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 160, box.y + box.height / 2 + 90, { steps: 6 });
+  await page.mouse.up();
+
+  const after = await canvas.evaluate((el) => el.style.transform);
+  expect(after).not.toBe(before);
+
+  // A clean click (no drag) on a board cover still opens the sub-board.
+  await openSubBoard(page);
+});
+
 test('invalid/expired link renders a branded dead end with CTA', async ({ page }) => {
   const rows = [];
   await routeAnalytics(page, rows);

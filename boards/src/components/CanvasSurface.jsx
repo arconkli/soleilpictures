@@ -2370,6 +2370,16 @@ export function CanvasSurface({
         };
         window.addEventListener('pointerup', onUp);
         window.addEventListener('pointercancel', onCancel);
+        // Public viewer: a drag that starts on a cover should still pan —
+        // the ≤4px click check above keeps clean clicks opening the board.
+        if (isPublic) startPan(e);
+        return;
+      }
+      if (isPublic) {
+        // Public viewer is navigation-only: drag anywhere — including over
+        // images and notes — pans the canvas. (Authenticated view-only
+        // members keep the subscribe-to-edit toast on drag attempts.)
+        startPan(e);
         return;
       }
       e.preventDefault();

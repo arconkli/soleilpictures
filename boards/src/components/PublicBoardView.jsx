@@ -514,7 +514,7 @@ export function PublicBoardView({ token }) {
               onOpenPicker={NOOP}
               tweak={PUBLIC_TWEAK}
               depth={Math.max(0, stack.length - 1)}
-              selectedTool="select"
+              selectedTool="pan"
               setSelectedTool={NOOP}
               defaults={null}
               workspaceId={null}
