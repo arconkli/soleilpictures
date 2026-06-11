@@ -26,9 +26,11 @@ import { importWithReload } from './lazyWithReload.js';
 export const backfillAttempted = new Set();
 
 // Conservative caps: this is a self-heal, not a migration. A board with more
-// broken images than the cap heals over successive sessions.
-const MAX_PER_SWEEP = 12;
-const START_DELAY_MS = 4000;
+// broken images than the cap heals over successive sessions. Kept small and
+// late because the sweep's multi-MB original downloads compete with the
+// interactive image fetches the user actually sees.
+const MAX_PER_SWEEP = 6;
+const START_DELAY_MS = 10000;
 const MAX_BYTES = 25 * 1024 * 1024;
 // Raster only: svg/audio/video rows also live in the images table (it doubles
 // as the sign-reads allowlist), and a static preview would freeze a gif card.
@@ -37,7 +39,10 @@ const RASTER_RE = /\.(png|jpe?g|webp)$/i;
 async function backfillOne(key, boardId) {
   const url = await getSignedUrl(key);
   if (!url) return;
-  const res = await fetch(url);
+  // priority:'low' keeps the multi-MB original download behind the user's
+  // visible image fetches (Chromium honors it; other engines ignore unknown
+  // RequestInit members, so it degrades to a normal fetch).
+  const res = await fetch(url, { priority: 'low' });
   if (!res.ok) return;
   const len = parseInt(res.headers.get('content-length') || '0', 10);
   if (len > MAX_BYTES) { try { res.body?.cancel(); } catch (_) {} return; }

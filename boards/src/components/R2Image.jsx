@@ -45,6 +45,26 @@ const SIGN_RETRY_BASE_MS = 800; // backoff: 0.8s, 1.6s, 3.2s, 6.4s
 // avoids even scheduling the call). Cleared only by a page reload.
 const _primeAttempted = new Set();
 
+// Pick which tier to mount/show before anything has loaded. Prefer the
+// preview ONLY when it's at least as warm as the original:
+//   preview signed URL cached → preview (smaller decode, the fast path)
+//   both cold                 → preview (smaller cold download)
+//   original warm, preview cold → original (a URL signed this session/recently
+//     means the bytes are near-certainly in the browser disk cache; a cold
+//     preview would trade that free paint for a presign round-trip + R2 fetch.
+//     This matters when a mid-session backfill mints a preview for an image
+//     the user is already looking at — viewport-culling remounts must not
+//     downgrade it to a cold key and re-blur.)
+// Public viewer: cachedUrl resolves via the share bundle, so every bundled
+// key counts as warm and the preview keeps winning there.
+function pickTierSrc(src, originalKey) {
+  const m = originalKey ? getMeta(originalKey) : null;
+  if (!m || !m.previewKey) return src;
+  const pv = `r2:${m.previewKey}`;
+  if (cachedUrl(pv) || !cachedUrl(src)) return pv;
+  return src;
+}
+
 // Decode a base64 thumbhash to a data URL once (cheap, but cache anyway).
 const _blurCache = new Map();
 function base64ToU8(b64) {
@@ -186,12 +206,10 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const originalKey = (typeof src === 'string' && src.startsWith('r2:')) ? src.slice(3) : null;
 
   const [meta, setMeta] = useState(() => (originalKey ? getMeta(originalKey) : null));
-  // The r2 sentinel currently being shown. Prefers the preview when known;
-  // never downgrades a loaded image (see the pre-load switch effect below).
-  const [activeSrc, setActiveSrc] = useState(() => {
-    const m = originalKey ? getMeta(originalKey) : null;
-    return (m && m.previewKey) ? `r2:${m.previewKey}` : src;
-  });
+  // The r2 sentinel currently being shown. Prefers the warmest tier
+  // (pickTierSrc); never downgrades a loaded image (see the pre-load switch
+  // effect below).
+  const [activeSrc, setActiveSrc] = useState(() => pickTierSrc(src, originalKey));
   const initialUrl = cachedUrl(activeSrc);
   const [url, setUrl] = useState(initialUrl);
   const [failed, setFailed] = useState(false);
@@ -209,6 +227,22 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const imgRef = useRef(null);
   const upgradedRef = useRef(false);
   const hitMarkedRef = useRef(false);
+  // Set after the resolve effect exhausted its retries on the preview tier
+  // and fell back to the original — stops the prefer-preview effect from
+  // flipping back (ping-pong). Reset on src change.
+  const fellBackRef = useRef(false);
+  // One failed→retry re-arm per mount (see the resolve effect) so a transient
+  // sign-reads outage doesn't brick the card until reload.
+  const rearmedRef = useRef(false);
+  // Fast-load fade skip: when fetch+decode completes quickly (bytes were in
+  // the browser disk cache — the common case for a viewport-culling remount),
+  // the 0.35s blur-fade would only delay an instant paint, so onImgLoad sets
+  // fastLoadRef and the img gets the r2p-warm (transition: none) class.
+  // Measured, not guessed from cache state, so it can't go stale. is-loaded
+  // still gates opacity and the blur stays underneath — never a blank flash.
+  const urlSetAtRef = useRef(initialUrl ? performance.now() : 0);
+  const fastLoadRef = useRef(false);
+  const FAST_LOAD_MS = 200;
 
   // Freeze the crossOrigin decision at mount so a later meta update (e.g. our
   // own backfill landing) doesn't flip the attribute and force the full image
@@ -237,11 +271,15 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   useEffect(() => {
     upgradedRef.current = false;
     hitMarkedRef.current = false;
+    fellBackRef.current = false;
+    rearmedRef.current = false;
+    fastLoadRef.current = false;
     setLoaded(false);
     setFailed(false);
     setNoCors(false);
-    const m = originalKey ? getMeta(originalKey) : null;
-    setActiveSrc((m && m.previewKey) ? `r2:${m.previewKey}` : src);
+    const next = pickTierSrc(src, originalKey);
+    urlSetAtRef.current = cachedUrl(next) ? performance.now() : 0;
+    setActiveSrc(next);
   }, [src]);
 
   // Viewport gate (same as basic; rootRef on the always-present wrapper).
@@ -266,15 +304,15 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (getMeta(originalKey) == null) { _primeAttempted.add(originalKey); primeImageMeta([originalKey]); }
   }, [visible, originalKey]);
 
-  // Before anything has loaded, if a preview becomes known, prefer it (catches
-  // the late-prime race without downgrading an already-loaded original).
+  // Before anything has loaded, re-evaluate the tier when metadata lands
+  // (late prime, or a mid-session backfill's setMetaLocal). pickTierSrc keeps
+  // a warm original in place — a backfill completing must NOT flip a
+  // disk-cached original to a cold preview while the user is panning.
   useEffect(() => {
-    if (loaded || upgradedRef.current) return;
-    if (meta && meta.previewKey) {
-      const pv = `r2:${meta.previewKey}`;
-      if (activeSrc !== pv) setActiveSrc(pv);
-    }
-  }, [meta, loaded, activeSrc]);
+    if (loaded || upgradedRef.current || fellBackRef.current) return;
+    const want = pickTierSrc(src, originalKey);
+    if (want !== activeSrc) setActiveSrc(want);
+  }, [meta, loaded, activeSrc, src, originalKey]);
 
   // Resolve the active src → signed URL; refresh before TTL expiry.
   useEffect(() => {
@@ -293,10 +331,36 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
           retryTimer = setTimeout(tick, SIGN_RETRY_BASE_MS * 2 ** (attempt - 1));
           return;
         }
+        // The preview tier exhausted its retries, but the original may still
+        // resolve (its URL is often already cached). Fall back ONCE per
+        // mount: setActiveSrc re-runs this effect with a fresh retry budget
+        // against the original. fellBackRef keeps the prefer-preview effect
+        // from flipping back. The blocked placeholder is reserved for the
+        // case where the ORIGINAL can't resolve either — real loss of access.
+        if (originalKey && activeSrc !== src && !fellBackRef.current) {
+          fellBackRef.current = true;
+          setActiveSrc(src);
+          return;
+        }
         setFailed(true);
+        // One slow re-arm per mount: a transient sign-reads outage must not
+        // brick the card until reload (the lock renders no <img>, so even the
+        // onError force-resign path can never fire). Genuine loss of access
+        // re-locks after this one extra cycle and stays locked.
+        if (!rearmedRef.current) {
+          rearmedRef.current = true;
+          retryTimer = setTimeout(() => {
+            if (cancelled) return;
+            fellBackRef.current = false;
+            attempt = 0;
+            setFailed(false);
+            tick();
+          }, 30000);
+        }
         return;
       }
       attempt = 0;
+      urlSetAtRef.current = performance.now();
       setUrl(resolved);
       setFailed(false);
       if (typeof activeSrc === 'string' && activeSrc.startsWith('r2:')) {
@@ -398,12 +462,23 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   };
 
   const onImgLoad = () => {
+    // Fade skip is decided by MEASURED fetch+decode time from the moment the
+    // URL was handed to the <img> — disk-cache loads come in well under the
+    // threshold, network loads don't. Set before setLoaded so the is-loaded
+    // render picks it up.
+    fastLoadRef.current = urlSetAtRef.current > 0 &&
+      (performance.now() - urlSetAtRef.current) < FAST_LOAD_MS;
     setLoaded(true);
     if (!hitMarkedRef.current) {
       hitMarkedRef.current = true;
       const showingPreview = !!(meta && meta.previewKey) && activeSrc === `r2:${meta.previewKey}`;
       if (showingPreview) perf.bump('image.preview.hit');
       else if (originalKey && !(meta && meta.previewKey)) perf.bump('image.preview.miss');
+      // Two distinct third paths, counted separately so the warm-tier
+      // strategy stays observable: warmOriginal = pickTierSrc deliberately
+      // kept the warm original; fellBack = the preview tier failed to
+      // resolve and we recovered on the original.
+      else if (originalKey) perf.bump(fellBackRef.current ? 'image.preview.fellBack' : 'image.preview.warmOriginal');
     }
     // When we loaded the original because no preview existed, backfill one.
     if (originalKey && activeSrc === src && !(meta && meta.previewKey)) maybeBackfill();
@@ -440,7 +515,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
       {!blurUrl && !url && <div className="r2p-layer r2-img-loading" />}
       {url && (
         <img ref={imgRef}
-             className={`r2p-img ${loaded ? 'is-loaded' : ''}`}
+             className={`r2p-img ${loaded ? 'is-loaded' : ''}${fastLoadRef.current ? ' r2p-warm' : ''}`}
              src={url}
              srcSet={imgSrcSet}
              sizes={imgSizes}

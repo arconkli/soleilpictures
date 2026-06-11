@@ -295,7 +295,9 @@ export function CanvasSurface({
     el.style.transform = `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${zoomRef.current})`;
   };
   // ── Viewport culling state (D1) ──────────────────────────────────────────
-  // visibleIds = Set of card ids currently within (viewport + 1-screen margin).
+  // visibleIds = Set of mounted card ids: everything inside the ADD band
+  // (viewport ± 1 screen) plus previously-mounted cards still inside the
+  // larger KEEP band (hysteresis — see the recompute below).
   // null sentinel means "render all" — used before the first measurement so
   // we don't ever show an empty board.
   // sortedCardsRef + wrapWHRef + visibleRafRef are read by the RAF-throttled
@@ -316,15 +318,27 @@ export function CanvasSurface({
       const { w: wrapW, h: wrapH } = wrapWHRef.current;
       const arr = sortedCardsRef.current;
       if (!z || !wrapW || !wrapH || !arr) return;
-      // Canvas-space viewport bbox, expanded by one viewport in each
-      // direction so cards just off-screen stay mounted (no pop-in on pan).
+      // Canvas-space viewport bboxes, with hysteresis. ADD band: viewport
+      // ± 1 viewport — cards entering it get mounted (no pop-in on pan).
+      // KEEP band: viewport ± 2.5 viewports — already-mounted cards stay
+      // until they leave it. Without the asymmetry, edge cards oscillate
+      // across a single band and every modest pan/zoom unmounts
+      // recently-visible cards — and an image card remount resets all of
+      // R2ImageProgressive's state, replaying the blur-up from scratch.
       const vx = -px / z, vy = -py / z;
       const vw = wrapW / z, vh = wrapH / z;
       const minX = vx - vw, maxX = vx + 2 * vw;
       const minY = vy - vh, maxY = vy + 2 * vh;
+      const KEEP = 2.5;
+      const kMinX = vx - KEEP * vw, kMaxX = vx + (1 + KEEP) * vw;
+      const kMinY = vy - KEEP * vh, kMaxY = vy + (1 + KEEP) * vh;
       const next = new Set();
+      const keep = new Set();
       for (let i = 0; i < arr.length; i++) {
         const c = arr[i];
+        if (c.x + c.w < kMinX || c.x > kMaxX) continue;
+        if (c.y + c.h < kMinY || c.y > kMaxY) continue;
+        keep.add(c.id);
         if (c.x + c.w < minX || c.x > maxX) continue;
         if (c.y + c.h < minY || c.y > maxY) continue;
         next.add(c.id);
@@ -332,6 +346,10 @@ export function CanvasSurface({
       // Skip the setState if the id set didn't change (common on pan
       // micro-movements that don't bring/take any card across the band).
       setVisibleIds(prev => {
+        // Hysteresis: previously-mounted cards still inside KEEP stay
+        // mounted. (Set.add is idempotent, so mutating `next` here is safe
+        // under StrictMode's double-invoked updater.)
+        if (prev) for (const id of prev) { if (keep.has(id)) next.add(id); }
         if (prev && prev.size === next.size) {
           let same = true;
           for (const id of next) { if (!prev.has(id)) { same = false; break; } }

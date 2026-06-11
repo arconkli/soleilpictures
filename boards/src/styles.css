@@ -3859,6 +3859,11 @@ body {
   image-rendering: -webkit-optimize-contrast;
 }
 .r2p-img.is-loaded { opacity: 1; }
+/* Fast load (fetch+decode completed under R2Image's FAST_LOAD_MS — i.e. the
+   bytes came from the browser disk cache): pop in instead of replaying the
+   0.35s blur-fade. A viewport-culling remount of an already-seen image must
+   read as a no-op, not a reload. */
+.r2p-img.r2p-warm { transition: none; }
 
 .r2-img-loading {
   background: linear-gradient(120deg,

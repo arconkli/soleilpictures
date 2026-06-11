@@ -13,6 +13,7 @@
 
 import { supabase } from './supabase.js';
 import { setMetaLocal } from './imageMeta.js';
+import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
 import * as perf from './perf.js';
 
@@ -324,6 +325,12 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
     if (error) return;  // viewer 403 / RLS — stay quiet
 
     setMetaLocal(storagePath, { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH });
+    // Warm the new preview's signed URL now (batched presign, zero image
+    // bytes) so a culled card that later remounts can resolve it
+    // synchronously instead of paying a presign round-trip mid-pan. Lives
+    // here — not in the sweep — because all three variant producers funnel
+    // through this function (board sweep, R2Image on-view backfill, upload).
+    if (previewKey) { getSignedUrl(previewKey); if (previewSmKey) getSignedUrl(previewSmKey); }
     if (_t0) perf.mark('image.backfill.ms', performance.now() - _t0);
   } finally {
     d.release?.();
