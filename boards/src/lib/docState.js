@@ -411,7 +411,16 @@ export function pageFragmentToText(fragment, max = 240) {
     // clause compared `parentSub === undefined`, but yjs uses null for
     // array content, so it never matched either.)
     if (typeof node.toDelta === 'function' && typeof node.toArray !== 'function') {
-      try { out += node.toString(); } catch (_) {}
+      // NOT toString(): Y.XmlText serializes formatting marks as XML-ish tags
+      // (<textStyle color="…">…</textStyle>, <bold>…</bold>), which leaked
+      // raw markup into card previews for any styled text. The delta stream's
+      // string inserts are the plain text.
+      try {
+        for (const d of node.toDelta()) {
+          if (typeof d.insert === 'string') out += d.insert;
+          if (out.length >= max) break;
+        }
+      } catch (_) {}
       return;
     }
     if (typeof node.toArray === 'function') {
