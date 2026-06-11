@@ -2370,7 +2370,7 @@ body {
   z-index: 60;
   width: 300px;
   max-width: calc(100vw - 36px);
-  padding: 16px 18px;
+  padding: 20px 18px 16px;
   background: var(--bg-1);
   border: 1px solid var(--line-1);
   border-radius: var(--radius-lg);
@@ -2551,7 +2551,7 @@ body {
 .sb-tree { display: flex; flex-direction: column; }
 .sb-tree-empty {
   font: 500 11.5px/1.3 var(--font-sans);
-  color: var(--ink-3);
+  color: var(--ink-2);
   padding: 8px 14px;
   font-style: italic;
 }
@@ -2900,7 +2900,7 @@ body {
 .crumb.clk:hover { background: var(--bg-hov); color: var(--ink-0); }
 .crumb.here { color: var(--ink-0); cursor: default; }
 .crumb.here:hover { background: transparent; }
-.crumb-sep { color: var(--ink-3); font: 400 14px/1 var(--font-sans); flex-shrink: 0; }
+.crumb-sep { color: var(--ink-3); font: 400 14px/1 var(--font-sans); flex-shrink: 0; padding: 0 4px; }
 
 .view-pill {
   display: inline-flex;
@@ -4711,7 +4711,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   color: var(--ink-1);
   border: 1px solid var(--line-2);
 }
-.auth-error { color: var(--ink-error); }
+.auth-error { color: var(--ink-error); margin-top: 6px; }
 .auth-hint  { color: var(--ink-3); }
 .auth-foot  { position: absolute; bottom: 20px; left: 0; right: 0; color: var(--ink-3); text-align: center; font-size: 11px; letter-spacing: 0.04em; }
 .auth-link  { background: transparent; border: 0; color: var(--soleil); cursor: pointer; font: 500 13px/1 var(--font-sans); padding: 8px 12px; }
@@ -8891,8 +8891,10 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   font-family: var(--font-mono); font-size: 9px;
   letter-spacing: .14em; text-transform: uppercase;
   color: var(--ink-3);
-  margin: 4px 0 4px;
+  /* Extra top margin so Presets / Recent / Saved read as groups. */
+  margin: 10px 0 4px;
 }
+.cp-section:first-child { margin-top: 4px; }
 
 /* Palette section header — "Palette  Name  ↑ 1/3 ↓  🔍" */
 .cp-pal-head {
@@ -10861,7 +10863,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   margin: 18px auto 0;
   padding: 12px 16px;
   background: transparent;
-  border: 1px dashed color-mix(in oklab, var(--ink-3) 30%, transparent);
+  border: 1px dashed color-mix(in oklab, var(--ink-3) 45%, transparent);
   border-radius: 4px;
   color: color-mix(in oklab, var(--ink-2) 80%, transparent);
   font: 500 12.5px/1.2 var(--font-sans);
@@ -10918,8 +10920,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: #1a1a1f;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.04),
-    0 6px 18px rgba(0, 0, 0, 0.06);
+    0 1px 0 rgba(0, 0, 0, 0.02),
+    0 4px 12px rgba(0, 0, 0, 0.04);
 }
 @media (max-width: 900px) {
   .doc-editor-wrap { padding: 72px 56px; }
@@ -11563,7 +11565,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .doc-slash-item:hover { background: var(--bg-hov); color: var(--ink-0); }
 .doc-slash-item.is-active { background: var(--soleil-soft); color: var(--ink-0); }
 .doc-slash-item-title { font: 600 13px/1.3 var(--font-sans); letter-spacing: -0.005em; }
-.doc-slash-item-sub { font: 400 11px/1.4 var(--font-sans); color: var(--ink-3); margin-top: 2px; }
+.doc-slash-item-sub { font: 400 11px/1.4 var(--font-sans); color: var(--ink-3); margin-top: 3px; }
 .doc-slash-item.is-active .doc-slash-item-sub { color: var(--ink-2); }
 
 /* Find & replace bar */
@@ -12884,7 +12886,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .home-empty-glow {
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse 800px 600px at 50% 50%, rgba(255,165,0,.10), transparent 60%);
+  background: radial-gradient(ellipse 800px 600px at 50% 50%, rgba(255,165,0,.14), transparent 60%);
   pointer-events: none;
 }
 .home-empty-title { color: var(--ink-0); margin-bottom: 16px; }
@@ -15210,7 +15212,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 }
 [data-theme='light'] .sketchpad-surface {
   background-image:
-    radial-gradient(circle at 50% 50%, rgba(0,0,0,.07) 1px, transparent 1.4px);
+    radial-gradient(circle at 50% 50%, rgba(0,0,0,.12) 1px, transparent 1.4px);
 }
 .sketchpad-surface.is-eraser { cursor: cell; }
 .sketchpad-surface.is-bucket { cursor: copy; }
