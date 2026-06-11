@@ -198,18 +198,18 @@ body {
   max-height: 80vh; overflow: auto;
   padding: 24px;
   background: var(--bg-1);
-  border: 2px solid #ef4444;
+  border: 2px solid var(--ink-error);
   border-radius: 12px;
   color: var(--ink-0);
   font-family: var(--font-sans);
-  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-3);
 }
 .app-error-header { margin-bottom: 18px; }
 .app-error-title {
   display: block;
   font: 700 20px/1.2 var(--font-sans);
   letter-spacing: -0.012em;
-  color: #ef4444;
+  color: var(--ink-error);
 }
 .app-error-sub {
   display: block;
@@ -222,13 +222,13 @@ body {
   padding: 12px 14px;
   background: rgba(239, 68, 68, 0.08);
   border-radius: 6px;
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid var(--ink-error);
 }
 .app-error-name {
   font: 700 11px/1 var(--font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #ef4444;
+  color: var(--ink-error);
   margin-bottom: 4px;
 }
 .app-error-text {
@@ -1130,7 +1130,7 @@ body {
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
 [data-theme='light'] .card-info-popover {
-  background: #ffffff;
+  background: var(--bg-3);
   border-color: rgba(0,0,0,.10);
   color: #1a1a1f;
 }
@@ -5684,7 +5684,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   min-height: 110px;
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
-.feedback-textarea:focus { outline: none; border-color: rgba(255,165,0,0.55); box-shadow: 0 0 0 3px var(--soleil-soft); }
+.feedback-textarea:focus { outline: none; border-color: color-mix(in oklab, var(--soleil) 55%, transparent); box-shadow: 0 0 0 3px var(--soleil-soft); }
 .feedback-count { position: absolute; right: 10px; bottom: 8px; pointer-events: none; opacity: 0.7; }
 .feedback-count.is-max { color: rgba(220,120,120,1); opacity: 1; }
 
@@ -10916,7 +10916,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   .doc-editor-wrap { animation: none; }
 }
 [data-theme='light'] .doc-editor-wrap {
-  background: #ffffff;
+  background: var(--bg-3);
   color: #1a1a1f;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow:
