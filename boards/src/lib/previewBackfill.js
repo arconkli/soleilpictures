@@ -50,9 +50,16 @@ async function backfillOne(key, boardId) {
   // priority:'low' keeps the multi-MB original download behind the user's
   // visible image fetches (Chromium honors it; other engines ignore unknown
   // RequestInit members, so it degrades to a normal fetch).
+  //
+  // cache:'no-store' is REQUIRED, not an optimization: these objects are
+  // usually already in the HTTP cache from a plain <img> load, and that
+  // request sent no Origin — so the cached response has NO CORS headers.
+  // A cors-mode fetch that reuses it fails "No ACAO header present" even
+  // though the bucket CORS policy is fine (classic CORS cache poisoning;
+  // can't cache-bust via URL either, the query string is signed).
   let res;
   try {
-    res = await fetch(url, { priority: 'low' });
+    res = await fetch(url, { priority: 'low', cache: 'no-store' });
   } catch (_) {
     _fetchBlocked = true;
     return;
