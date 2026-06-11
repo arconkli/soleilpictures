@@ -83,7 +83,17 @@ function blurToDataUrl(b64) {
   if (!b64) return null;
   if (_blurCache.has(b64)) return _blurCache.get(b64);
   let url = null;
-  try { url = thumbHashToDataURL(base64ToU8(b64)); } catch (_) { url = null; }
+  try {
+    const u8 = base64ToU8(b64);
+    // hasAlpha header bit: thumbhash composites transparent pixels onto the
+    // image's average color, so for a cutout the placeholder is a smear across
+    // regions the real image leaves transparent — and the blur layer sits
+    // underneath the loaded image forever, so the smear would keep showing
+    // through. No placeholder beats a wrong one; alpha images shimmer instead.
+    if (!(((u8[0] | (u8[1] << 8) | (u8[2] << 16)) >> 23) & 1)) {
+      url = thumbHashToDataURL(u8);
+    }
+  } catch (_) { url = null; }
   _blurCache.set(b64, url);
   return url;
 }
@@ -461,7 +471,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (backfillEnabled && originalKey && activeSrc === src && !(meta && meta.previewKey)) {
       requestImageBackfill(originalKey, boardId);
     }
-    if (meta?.blur) perf.bump('image.tier0.blurShown');
+    if (blurUrl) perf.bump('image.tier0.blurShown');
   };
 
   // Offer a srcset ONLY while showing the preview tier with both candidate URLs
