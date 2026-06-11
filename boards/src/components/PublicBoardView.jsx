@@ -40,6 +40,7 @@ import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { logEvent, logEventNow, logEventOnce, seedShareFirstSource } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { qaShareNoPrefetch } from '../lib/localMode.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
@@ -56,6 +57,10 @@ const PUBLIC_TWEAK = { showArrows: true };
 // R2Image's force-resign self-heal also reads the stale entry). Refresh the
 // map well before then.
 const URL_REFRESH_AGE_MS = 24 * 60 * 60 * 1000;
+
+// QA kill switch, captured at module load (the viewer's replaceState drops
+// query params before any effect reads them). DEV-only.
+const NO_PREFETCH = qaShareNoPrefetch();
 
 // Build the /share URL for a given board within a link. The root board
 // omits the ?b= param so the canonical share URL stays clean.
@@ -120,6 +125,14 @@ export function PublicBoardView({ token }) {
   const cur = currentId ? cache[currentId] : null;
   const currentIdRef = useRef(null);
   currentIdRef.current = currentId;
+  // Render-time mirrors so async effects (URL refresh, prefetch) read fresh
+  // state without listing cache/navBoards as deps (each prefetched bundle
+  // updates cache, which would cancel the very loop that fetched it).
+  const cacheRef = useRef(cache);
+  cacheRef.current = cache;
+  const navBoardsRef = useRef(navBoards);
+  navBoardsRef.current = navBoards;
+  const prefetchedRef = useRef(new Set());
 
   const onCta = useCallback((surface) => () => {
     ctaClickedRef.current = true;
@@ -296,6 +309,40 @@ export function PublicBoardView({ token }) {
     const iv = setInterval(maybeRefresh, 60 * 60 * 1000);
     return () => { document.removeEventListener('visibilitychange', onVis); clearInterval(iv); };
   }, [status, rootId, fetchBundle]);
+
+  // Idle prefetch: warm the first few sub-board bundles reachable from the
+  // current board so navigating into them is instant (marketing demos live
+  // or die on that first click). Sequential, capped at 3, once per board;
+  // prefetched bundles flow into the cache, so SHARE_SUBBOARD_OPEN's
+  // `cached` prop measures the win.
+  useEffect(() => {
+    if (NO_PREFETCH || status !== 'ok' || !includeSubboards || !currentId) return undefined;
+    if (prefetchedRef.current.has(currentId)) return undefined;
+    prefetchedRef.current.add(currentId);
+    let cancelled = false;
+    const run = async () => {
+      const decoded = cacheRef.current[currentId];
+      if (!decoded) return;
+      const targets = [];
+      for (const c of decoded.cards) {
+        const id = c.kind === 'board' ? c.id : (c.kind === 'boardlink' ? c.target : null);
+        if (id && navBoardsRef.current[id] && !cacheRef.current[id] && !targets.includes(id)) targets.push(id);
+        if (targets.length >= 3) break;
+      }
+      for (const id of targets) {
+        if (cancelled || cacheRef.current[id]) continue;
+        try { applyBundle(await fetchBundle(id)); } catch (_) {}
+      }
+    };
+    const hasIdle = typeof window.requestIdleCallback === 'function';
+    const handle = hasIdle
+      ? window.requestIdleCallback(run, { timeout: 4000 })
+      : setTimeout(run, 1500);
+    return () => {
+      cancelled = true;
+      if (hasIdle) window.cancelIdleCallback?.(handle); else clearTimeout(handle);
+    };
+  }, [status, includeSubboards, currentId, fetchBundle, applyBundle]);
 
   // Browser back/forward — restore the stack we stamped into history.state.
   useEffect(() => {

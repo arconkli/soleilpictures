@@ -60,7 +60,9 @@ test('sub-board navigation: progress shimmer, breadcrumbs, title, deep-link URL,
   const rows = [];
   await routeAnalytics(page, rows);
   await routeShareBundle(page, { subDelayMs: 700 });
-  await page.goto(`/share/${TOKEN}`);
+  // prefetch=0: the idle prefetch would otherwise warm the sub-board cache
+  // and race away the shimmer + cached:false this test asserts.
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
   await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
 
   await page.locator('.bc-cover').first().click();

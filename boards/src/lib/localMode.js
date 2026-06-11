@@ -46,6 +46,16 @@ export function qaSharePromptMs() {
   return Number.isFinite(ms) && ms >= 0 ? ms : null;
 }
 
+// Dev-only kill switch for the public-share sub-board prefetch. Active ONLY
+// in a DEV build with ?shareqa=1&prefetch=0 — lets the Playwright nav spec
+// observe a genuinely uncached sub-board fetch (progress shimmer,
+// cached:false) without racing the idle prefetch.
+export function qaShareNoPrefetch() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  const q = new URLSearchParams(window.location.search);
+  return q.get('shareqa') === '1' && q.get('prefetch') === '0';
+}
+
 // Dev-only tier override for Playwright. Active ONLY in a DEV build with
 // ?local=1 (same trust boundary as isLocalQaMode), so it can never affect a
 // production build. Lets specs render the tier-gated pricing/billing surfaces
