@@ -96,3 +96,41 @@ export function logClientError(error, { kind = 'error', componentStack = null } 
     });
   } catch (_) { /* never let the reporter throw into the app */ }
 }
+
+// Field PERFORMANCE incidents (lib/perfReport.js) ride the same table with
+// kind='perf': the bucket string is the row's `message` (kept CONSTANT so the
+// admin Errors tab groups them) and the full JSON context goes in `stack`.
+// Deliberately bypasses isNoise + the _seen dedupe — perfReport enforces its
+// own hard caps (≤6/session, ≥20s apart), which IS the flood policy.
+export function postPerfIncident(bucket, context = {}) {
+  if (!bucket || !PUBLIC_KEY || typeof fetch === 'undefined') return;
+  if (import.meta.env.DEV) return;   // window.__perfReport still records for tests
+  try {
+    const row = {
+      session_id:      sessionId(),
+      user_id:         cachedUserId,
+      kind:            'perf',
+      name:            'PerfIncident',
+      message:         trim(bucket, 2000),
+      stack:           trim(JSON.stringify(context, null, 2), 8000),
+      component_stack: null,
+      path:            typeof window !== 'undefined' ? window.location.pathname : null,
+      release:         RELEASE,
+      user_agent:      typeof navigator !== 'undefined' ? trim(navigator.userAgent, 500) : null,
+    };
+    const body = JSON.stringify([row]);
+    fetch(REST_URL, {
+      method: 'POST',
+      keepalive: true,
+      headers: { apikey: PUBLIC_KEY, 'content-type': 'application/json', prefer: 'return=minimal' },
+      body,
+    }).catch(() => {
+      try {
+        navigator.sendBeacon(
+          `${REST_URL}?apikey=${encodeURIComponent(PUBLIC_KEY)}`,
+          new Blob([body], { type: 'application/json' }),
+        );
+      } catch (_) {}
+    });
+  } catch (_) { /* never throw into the app */ }
+}

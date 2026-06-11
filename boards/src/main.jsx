@@ -10,6 +10,7 @@ import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
 import { getRecentFonts } from './lib/customFonts.js';
 import { captureFbclid, installSpaPageViews } from './lib/metaPixel.js';
 import { logClientError } from './lib/errorReporting.js';
+import { initPerfReport } from './lib/perfReport.js';
 import { lazyWithReload } from './lib/lazyWithReload.js';
 import './styles/breakpoints.css';
 import './styles.css';
@@ -42,6 +43,10 @@ if (typeof window !== 'undefined') {
     logClientError(e?.error || new Error(e?.message || 'window.onerror'), { kind: 'window' }));
   window.addEventListener('unhandledrejection', (e) =>
     logClientError(e?.reason instanceof Error ? e.reason : new Error(`Unhandled rejection: ${String(e?.reason)}`), { kind: 'unhandledrejection' }));
+
+  // Always-on field jank telemetry (longtasks + interaction-time low fps) →
+  // client_errors kind='perf', hard-capped. See lib/perfReport.js.
+  initPerfReport();
 
   // Stale-deploy chunk recovery is owned ENTIRELY by lazyWithReload() (see
   // lib/lazyWithReload.js): on a chunk-load rejection it reloads once AND returns
