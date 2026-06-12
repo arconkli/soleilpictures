@@ -12245,6 +12245,9 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-0);
   letter-spacing: -0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* Never let the flex column compress the title — when the preview text
+     overflows the card, an unpinned title shrinks and its glyphs clip. */
+  flex-shrink: 0;
 }
 .doc-card-h1 {
   font-size: 12px; font-weight: 600;
@@ -12252,11 +12255,13 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   letter-spacing: -0.005em;
   margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 .doc-card-rule {
   height: 1px;
   background: linear-gradient(to right, var(--line-2), transparent);
   margin: 4px 0;
+  flex-shrink: 0;
 }
 .doc-card-text {
   font-size: 11px;
@@ -12272,6 +12277,11 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   letter-spacing: -0.003em;
   flex: 1 1 auto;
   min-height: 0;
+  /* The box is usually shorter than the 18-line clamp, so overflow slices
+     the last line mid-glyph. Fade it out instead; when the text fits, the
+     fade zone is empty and invisible. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent);
 }
 .doc-card-muted { color: var(--ink-3); font-style: italic; }
 .doc-card-foot {
