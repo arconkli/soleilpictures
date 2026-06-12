@@ -78,6 +78,11 @@ export function bumpPerf(name, n = 1) {
 export function markGestureActiveUntil(ts) {
   gestureActiveUntil = ts || 0;
 }
+// R2Image's tier demotion consults the same deadline so it never swaps image
+// bytes mid-gesture (a settle is coming; let that one decide).
+export function getGestureActiveUntil() {
+  return gestureActiveUntil;
+}
 
 function buildContext(extra) {
   let heapMB = null;

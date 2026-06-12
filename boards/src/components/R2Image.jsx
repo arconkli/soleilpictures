@@ -23,8 +23,8 @@ import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
-import { bumpPerf } from '../lib/perfReport.js';
-import { getCanvasScale } from '../lib/canvasScale.js';
+import { bumpPerf, getGestureActiveUntil } from '../lib/perfReport.js';
+import { getCanvasScale, onCanvasSettle } from '../lib/canvasScale.js';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
@@ -239,9 +239,12 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const originalKey = (typeof src === 'string' && src.startsWith('r2:')) ? src.slice(3) : null;
 
   const [meta, setMeta] = useState(() => (originalKey ? getMeta(originalKey) : null));
-  // The r2 sentinel currently being shown. Prefers the warmest tier
-  // (pickTierSrc); never downgrades a loaded image (see the pre-load switch
-  // effect below).
+  // The r2 sentinel currently being shown. Prefers the warmest tier at mount
+  // (pickTierSrc); before load it only ever switches via the pre-load switch
+  // effect below. AFTER load it moves both ways: the promotion effect climbs
+  // a tier when the card is displayed near/past the variant's native size,
+  // and the demotion effect steps down at gesture settles — always probe-
+  // decoded first, so a loaded image never visually regresses (no re-blur).
   const [activeSrc, setActiveSrc] = useState(() => pickTierSrc(src, originalKey));
   const initialUrl = cachedUrl(activeSrc);
   const [url, setUrl] = useState(initialUrl);
@@ -251,6 +254,11 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // Signed URL for the small (DPR-down) preview, resolved in parallel so the
   // <img> can offer a srcset. null until resolved / when there's no sm variant.
   const [smUrl, setSmUrl] = useState(null);
+  // Bumped once per gesture-settle (canvasScale.js) — the only deps of the
+  // tier promotion/demotion effects that actually change with zoom (layout
+  // width is zoom-invariant on the canvas), so this is what re-measures a
+  // card that stays mounted across a zoom.
+  const [settleTick, setSettleTick] = useState(0);
 
   const rootRef = useRef(null);
   const imgRef = useRef(null);
@@ -299,6 +307,13 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     urlSetAtRef.current = cachedUrl(next) ? performance.now() : 0;
     setActiveSrc(next);
   }, [src]);
+
+  // Re-evaluate tiers once per gesture settle, visible cards only (an
+  // off-screen mounted card re-measures when it next becomes visible anyway).
+  useEffect(() => {
+    if (!visible) return undefined;
+    return onCanvasSettle(() => setSettleTick((t) => t + 1));
+  }, [visible]);
 
   // Viewport gate (same as basic; rootRef on the always-present wrapper).
   useEffect(() => {
@@ -428,18 +443,26 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     getSignedUrl(originalKey);
   }, [visible, meta, upgradeToFull, originalKey]);
 
-  // Tier-2 upgrade: once a preview has painted, swap to the original on idle so
-  // the card "slowly loads up to full quality" (no flash — same <img>). Gated
-  // on the card's ACTUAL displayed size (getBoundingClientRect includes the
-  // canvas zoom transform): a zoomed-out board shows the card far smaller than
-  // the 1280px preview, so the preview is already crisp and we must NOT
-  // re-download the multi-MB original. We only upgrade when the card is shown
-  // large enough that the preview would be visibly upscaled.
+  // Tier PROMOTION: once the shown tier has painted, climb one tier on idle
+  // when the card is displayed large enough that the shown variant is being
+  // visibly upscaled — ≥85% of its native width (vs the 70%-of-target demote
+  // headroom below: a wide hysteresis band, so settle churn can't ping-pong).
+  // Same <img> swap = no flash (the browser keeps the old bitmap until the
+  // new src's first frame decodes). sm climbs to the lg preview; the lg
+  // preview climbs to the original (Tier 2) only when the original genuinely
+  // has more pixels (originalWorthUpgrade) and wasn't already taken
+  // (upgradedRef — CLEARED by a demotion, so zoom-out → zoom-in re-upgrades).
+  // settleTick re-runs the evaluation after every gesture settle: a card that
+  // stays mounted through a deep zoom-in never changes any other dep
+  // (getBoundingClientRect is the only thing that moved), so without it the
+  // card silently stayed on its mount-time tier forever.
   useEffect(() => {
-    if (!upgradeToFull || upgradedRef.current || !loaded) return;
-    if (!meta || !meta.previewKey) return;
-    if (!originalWorthUpgrade(meta)) return;
-    if (activeSrc !== `r2:${meta.previewKey}`) return;
+    if (!upgradeToFull || !loaded) return undefined;
+    if (!meta || !meta.previewKey) return undefined;
+    const atSm = !!meta.previewSmKey && activeSrc === `r2:${meta.previewSmKey}`;
+    const atPreview = activeSrc === `r2:${meta.previewKey}`;
+    if (!atSm && !atPreview) return undefined;
+    if (atPreview && (upgradedRef.current || !originalWorthUpgrade(meta))) return undefined;
     let cancelled = false;
     const ric = (typeof window !== 'undefined' && window.requestIdleCallback)
       ? window.requestIdleCallback : (fn) => setTimeout(() => fn(), 300);
@@ -453,6 +476,15 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
         const r = el?.getBoundingClientRect();
         displayedPx = (r?.width || 0) * (window.devicePixelRatio || 1);
       } catch (_) {}
+      if (atSm) {
+        // sm being stretched toward/past 1:1 — step up to the lg preview.
+        const threshold = meta.previewSmW ? meta.previewSmW * 0.85 : 540;
+        if (displayedPx < threshold) return;
+        setActiveSrc(`r2:${meta.previewKey}`);
+        perf.bump('image.tierPromote');
+        bumpPerf('image.tierPromote');
+        return;
+      }
       // Threshold: ~85% of the preview's width means it's being stretched
       // toward/past 1:1 — worth the original. Below that the preview suffices.
       const threshold = meta.previewW ? meta.previewW * 0.85 : 1000;
@@ -463,7 +495,68 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
       bumpPerf('image.tier2Upgrade');
     });
     return () => { cancelled = true; try { cancelRic(id); } catch (_) {} };
-  }, [loaded, meta, activeSrc, src, upgradeToFull]);
+  }, [loaded, meta, activeSrc, src, upgradeToFull, settleTick]);
+
+  // Tier DEMOTION — the other half of the lifecycle. Promotion used to be
+  // one-way: a fast zoom-in/out cycle left every card holding its largest
+  // decoded variant, and at fit-all that aggregate (dozens of originals/lg
+  // previews under the single GPU-promoted canvas layer) is exactly what
+  // drops raster tiles and freezes the compositor. After each settle, a card
+  // whose on-screen width fits comfortably inside a SMALLER variant (≥1.4×
+  // headroom — displayedPx < 70% of the target's native width) swaps down to
+  // the smallest such variant. The target's bytes are probe-decoded BEFORE
+  // the swap, so the visible <img> never regresses — `loaded` never resets,
+  // is-loaded keeps opacity 1, the blur never resurfaces. Never runs
+  // mid-gesture (another settle is coming; let that one decide). Thresholds
+  // are target-relative on purpose: they need no original w/h (the public
+  // bundle's meta has none) and they can't overlap the 85% promote gate.
+  useEffect(() => {
+    if (!settleTick || !loaded || failed) return undefined;
+    if (!originalKey || !meta || !meta.previewKey) return undefined;
+    const atOriginal = activeSrc === src;
+    const atPreview = activeSrc === `r2:${meta.previewKey}`;
+    if (!atOriginal && !atPreview) return undefined;   // sm is the floor
+    let cancelled = false;
+    const ric = (typeof window !== 'undefined' && window.requestIdleCallback)
+      ? window.requestIdleCallback : (fn) => setTimeout(() => fn(), 300);
+    const cancelRic = (typeof window !== 'undefined' && window.cancelIdleCallback)
+      ? window.cancelIdleCallback : clearTimeout;
+    const id = ric(async () => {
+      if (cancelled) return;
+      try { if (performance.now() < getGestureActiveUntil()) return; } catch (_) {}
+      let displayedPx = 0;
+      try {
+        const r = imgRef.current?.getBoundingClientRect();
+        displayedPx = (r?.width || 0) * (window.devicePixelRatio || 1);
+      } catch (_) {}
+      if (!displayedPx) return;
+      const DEMOTE_HEADROOM = 0.7;
+      let targetKey = null;
+      if (meta.previewSmKey && meta.previewSmW && displayedPx < meta.previewSmW * DEMOTE_HEADROOM) {
+        targetKey = meta.previewSmKey;          // smallest variant that covers
+      } else if (atOriginal && meta.previewW && displayedPx < meta.previewW * DEMOTE_HEADROOM) {
+        targetKey = meta.previewKey;            // no/too-small sm → lg preview
+      }
+      if (!targetKey || activeSrc === `r2:${targetKey}`) return;
+      // Probe-decode first: the swap must be invisible, and a target that
+      // fails to resolve or decode simply aborts — no visual change, no
+      // failed state on a perfectly fine card.
+      const u = await getSignedUrl(targetKey);
+      if (cancelled || !u) return;
+      try {
+        const probe = new Image();
+        probe.src = u;
+        await probe.decode();
+      } catch (_) { return; }
+      if (cancelled) return;
+      try { if (performance.now() < getGestureActiveUntil()) return; } catch (_) {}
+      upgradedRef.current = false;   // zooming back in may re-promote
+      setActiveSrc(`r2:${targetKey}`);
+      perf.bump('image.tierDemote');
+      bumpPerf('image.tierDemote');
+    });
+    return () => { cancelled = true; try { cancelRic(id); } catch (_) {} };
+  }, [settleTick, loaded, failed, meta, activeSrc, src, originalKey]);
 
   const onImgLoad = () => {
     // Fade skip is decided by MEASURED fetch+decode time from the moment the
