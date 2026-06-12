@@ -4,20 +4,42 @@
 // over the same socket, and reconnects automatically. Auth is enforced
 // at the WebSocket upgrade by the party server (see party/auth.ts).
 //
-// IMPORTANT — token refresh: the access_token is encoded in the WS URL
-// query string at connect time. partysocket auto-reconnects but reuses
-// the same URL — so when Supabase rotates the JWT (default every 60
-// minutes), the WS keeps reconnecting with the stale token and gets
-// 401 forever. We listen for `TOKEN_REFRESHED` from supabase auth and
-// rebuild the provider with the new token. Same goes for the manual
-// "I just woke up from sleep" refresh below.
+// TOKEN REFRESH — the access_token rides the WS URL query string. `params`
+// is an async FUNCTION: YPartyKitProvider.connect() re-evaluates it and
+// rebuilds the URL before every explicit (re)connect, so a Supabase JWT
+// rotation (default hourly) needs NO action while the socket is healthy —
+// the server validates the token at upgrade only. The one gap is the base
+// provider's AUTO-reconnect path (setTimeout(setupWS) reuses this.url), so
+// after the server closes a connection whose URL token went stale, native
+// backoff would retry 401 forever. The reconnector (partyTokenRefresh.js)
+// watches connection-close: when the current session token differs from the
+// one baked into the URL it runs a CHEAP refresh cycle — disconnect() +
+// connect() on the SAME provider. Y.Doc, awareness and every handler stay
+// alive; the sync delta is whatever changed while offline.
+//
+// The previous design destroyed + reconstructed the entire provider on
+// every TOKEN_REFRESHED/SIGNED_IN pair (URL-token limitation workaround):
+// a full state resync + render burst, observed in the field landing in the
+// middle of zoom gestures as multi-hundred-ms freezes.
 
 import YPartyKitProvider from 'y-partykit/provider';
 import { Awareness } from 'y-protocols/awareness';
 import { supabase } from './supabase.js';
+import { createStaleTokenReconnector } from './partyTokenRefresh.js';
+import { getGestureActiveUntil } from './perfReport.js';
 import * as perf from './perf.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
+
+async function freshAccessToken() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token ?? '';
+  } catch (e) {
+    console.warn('[partykit] no supabase session', e);
+    return '';
+  }
+}
 
 export function attachRealtime(ydoc, boardId, { user } = {}) {
   if (!boardId) return { destroy() {}, awareness: null };
@@ -32,152 +54,123 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     });
   }
 
-  let provider = null;
   let destroyed = false;
-  let buildSeq = 0;
-  // Hoisted here so `buildProvider` (defined below and called immediately)
-  // can update lastBuiltAt before the rebuild-coalescing infra runs.
-  let lastBuiltAt = 0;
-  let resetCooldownUntil = 0;
-  let rebuildTimer = null;
+  let lastUsedToken = '';
 
-  // (Re)build the WS provider with a fresh token. Cheap to call —
-  // tears down the old socket, opens a new one. Y.Doc + Awareness
-  // instances are kept across rebuilds so app state is unaffected.
-  const buildProvider = async () => {
-    const seq = ++buildSeq;
-    lastBuiltAt = Date.now();
-    let accessToken = '';
+  // ONE provider for the lifetime of this attach.
+  const _tCtor0 = perf.isEnabled() ? performance.now() : 0;
+  const provider = new YPartyKitProvider(PARTYKIT_HOST, boardId, ydoc, {
+    params: async () => {
+      const accessToken = await freshAccessToken();
+      if (accessToken) lastUsedToken = accessToken;   // what the URL will carry
+      return { access_token: accessToken };
+    },
+    awareness,
+  });
+  if (_tCtor0) {
+    const ms = performance.now() - _tCtor0;
+    perf.mark('partykit.provider.construct.ms', ms);
+    perf.bump('partykit.provider.construct');
+    if (ms > 50) console.warn('[perf] slow partykit.provider.construct', `${ms.toFixed(0)}ms`, boardId);
+  }
+
+  const reconnector = createStaleTokenReconnector({
+    getFreshToken: freshAccessToken,
+    getLastUsedToken: () => lastUsedToken,
+    isConnected: () => !!provider.wsconnected,
+    isGestureActive: () => {
+      try { return performance.now() < getGestureActiveUntil(); } catch (_) { return false; }
+    },
+    refresh: () => {
+      if (destroyed) return;
+      console.log('[partykit] board', boardId, 'refresh-connect (rotated token)');
+      perf.bump('partykit.refreshConnect');
+      // Same provider object: disconnect() closes + clears shouldConnect;
+      // connect() re-evaluates the async params (fresh URL) before the base
+      // class reconnects. Race-safe in both close-event orderings — the URL
+      // rebuild happens in YPartyKitProvider.connect() itself, and setupWS
+      // only runs once shouldConnect is true AND the old socket is nulled.
+      try { provider.disconnect(); } catch (_) {}
+      try { provider.connect(); } catch (_) {}
+    },
+  });
+
+  // Intercept text frames on the underlying WS. y-partykit's protocol is
+  // binary (Uint8Array) Yjs frames; the server uses TEXT frames for
+  // out-of-band control signals like "soleil-board-reset" that tell peers
+  // to remount their useYBoard so a restore propagates without a CRDT-merge
+  // race. y-partykit ignores text frames internally, so our handler is the
+  // only consumer. The socket OBJECT is replaced on every (re)connect, so
+  // the listener is wired per connection from the status handler
+  // (WeakSet-deduped) — attaching once at construction left the signal dead
+  // after the first auto-reconnect.
+  const wiredSockets = new WeakSet();
+  const onTextFrame = (e) => {
+    if (typeof e.data !== 'string') return;
+    let msg;
+    try { msg = JSON.parse(e.data); } catch (_) { return; }
+    if (!msg || msg.type !== 'soleil-board-reset') return;
+    if (msg.boardId && msg.boardId !== boardId) return;
+    console.log('[partykit] board', boardId, '← reset signal');
     try {
-      const { data } = await supabase.auth.getSession();
-      accessToken = data?.session?.access_token ?? '';
-    } catch (e) {
-      console.warn('[partykit] no supabase session', e);
-    }
-    // If a newer rebuild has started while we were awaiting, bail.
-    if (destroyed || seq !== buildSeq) return;
+      if (typeof window !== 'undefined' && typeof window.__soleilEmitBoardReset === 'function') {
+        window.__soleilEmitBoardReset(boardId);
+      } else {
+        window.dispatchEvent(new CustomEvent('soleil-board-reset', { detail: { boardId } }));
+      }
+    } catch (_) {}
+  };
+  const wireResetListener = () => {
+    const ws = provider.ws;
+    if (!ws || typeof ws.addEventListener !== 'function' || wiredSockets.has(ws)) return;
+    wiredSockets.add(ws);
+    ws.addEventListener('message', onTextFrame);
+  };
 
-    if (provider) {
-      try { provider.destroy(); } catch (_) {}
-      provider = null;
-    }
-
-    const _tCtor0 = perf.isEnabled() ? performance.now() : 0;
-    provider = new YPartyKitProvider(PARTYKIT_HOST, boardId, ydoc, {
-      params: { access_token: accessToken },
-      awareness,
-    });
-    if (_tCtor0) {
-      const ms = performance.now() - _tCtor0;
-      perf.mark('partykit.provider.construct.ms', ms);
-      perf.bump('partykit.provider.construct');
-      if (ms > 50) console.warn('[perf] slow partykit.provider.construct', `${ms.toFixed(0)}ms`, boardId);
-    }
-    const _tConnect0 = performance.now();
-    provider.on('status', ({ status }) => {
-      console.log('[partykit] board', boardId, status);
-      if (status === 'connected' && perf.isEnabled()) {
-        const ms = performance.now() - _tConnect0;
+  let connectStartedAt = performance.now();
+  provider.on('status', ({ status }) => {
+    console.log('[partykit] board', boardId, status);
+    if (status === 'connecting') {
+      connectStartedAt = performance.now();   // re-anchor per attempt
+      wireResetListener();
+    } else if (status === 'connected') {
+      wireResetListener();
+      if (perf.isEnabled()) {
+        const ms = performance.now() - connectStartedAt;
         perf.mark('partykit.connect.ms', ms);
         perf.bump('partykit.connect');
         if (ms > 300) console.warn('[perf] slow partykit.connect', `${ms.toFixed(0)}ms`, boardId);
       }
-      // If the connection drops or fails to open (e.g. the WS upgrade
-      // returned 401 because the token we used was already stale), clear
-      // the coalescing window so a subsequent TOKEN_REFRESHED can rebuild
-      // with the new token. Otherwise the 1500ms "already rebuilt" skip
-      // suppresses the very retry that would have used the fresh JWT.
-      if (status === 'disconnected') lastBuiltAt = 0;
-    });
-    // Intercept text frames on the underlying WS. y-partykit's protocol
-    // is binary (Uint8Array) Yjs frames; the server uses TEXT frames for
-    // out-of-band control signals like "soleil-board-reset" that tell
-    // peers to remount their useYBoard so a restore propagates without
-    // a CRDT-merge race. y-partykit ignores text frames internally, so
-    // our handler is the only consumer.
-    // Perf timing for WebSocket message handlers is now done globally by
-    // patching window.WebSocket in lib/perf.js. The previous per-provider
-    // sibling-listener approach didn't fire because the library's
-    // listener ran first synchronously; the global patch wraps the
-    // library's listener at registration time.
-    const ws = provider.ws;
-    if (ws && typeof ws.addEventListener === 'function') {
-      ws.addEventListener('message', (e) => {
-        if (typeof e.data !== 'string') return;
-        let msg;
-        try { msg = JSON.parse(e.data); } catch (_) { return; }
-        if (!msg || msg.type !== 'soleil-board-reset') return;
-        if (msg.boardId && msg.boardId !== boardId) return;
-        console.log('[partykit] board', boardId, '← reset signal');
-        try {
-          if (typeof window !== 'undefined' && typeof window.__soleilEmitBoardReset === 'function') {
-            window.__soleilEmitBoardReset(boardId);
-          } else {
-            window.dispatchEvent(new CustomEvent('soleil-board-reset', { detail: { boardId } }));
-          }
-        } catch (_) {}
-      });
     }
-  };
+  });
+  // Fires on every socket close, including failed reconnect attempts — the
+  // reconnector no-ops unless the session token actually changed.
+  provider.on('connection-close', () => {
+    if (!destroyed) reconnector.onConnectionClose();
+  });
 
-  buildProvider();
-
-  // Reconnect with the fresh JWT whenever Supabase rotates the token.
-  // This is the load-bearing fix for the "site open all night, all
-  // WebSockets stuck in 401 retry loop" symptom.
-  //
-  // Debounced: TOKEN_REFRESHED and SIGNED_IN often fire back-to-back
-  // (within tens of ms) when supabase auto-recovers a session. Without
-  // a debounce, each event tore down the in-flight WebSocket before
-  // it finished opening, producing a "closed before connection
-  // established" loop.
-  //
-  // Coalescing rules (stricter than the original 250ms):
-  //  - 750ms debounce on the rebuild itself
-  //  - any auth event within 1500ms of the LAST completed build is a
-  //    no-op (Supabase often fires TOKEN_REFRESHED + SIGNED_IN within
-  //    100ms of each other; we only want one rebuild for that pair)
-  //  - 2000ms cooldown after a `soleil-board-reset` event: the reset
-  //    flow remounts the entire useYBoard handle (which destroys+
-  //    recreates this provider), so an auth-driven rebuild on top of
-  //    that pile-up causes the "closed before connection established"
-  //    storm we just shipped a fix for. Sit out for 2s.
-  const scheduleRebuild = (reason) => {
-    const now = Date.now();
-    if (now < resetCooldownUntil) {
-      console.log('[partykit] board', boardId, 'skip rebuild (', reason, ') — in reset cooldown for', resetCooldownUntil - now, 'ms');
-      return;
-    }
-    if (now - lastBuiltAt < 1500) {
-      console.log('[partykit] board', boardId, 'skip rebuild (', reason, ') — already rebuilt', now - lastBuiltAt, 'ms ago');
-      return;
-    }
-    if (rebuildTimer) clearTimeout(rebuildTimer);
-    rebuildTimer = setTimeout(() => {
-      rebuildTimer = null;
-      if (destroyed) return;
-      lastBuiltAt = Date.now();
-      buildProvider();
-    }, 750);
-  };
+  // Auth events: a HEALTHY socket needs nothing (token is validated at
+  // upgrade only). A down socket routes through the reconnector.
   const authSub = supabase.auth.onAuthStateChange((event) => {
     if (destroyed) return;
     if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-      console.log('[partykit] board', boardId, 'auth event', event);
-      scheduleRebuild(event);
+      if (provider.wsconnected) {
+        console.log('[partykit] board', boardId, 'auth event', event, '— ignored (socket healthy)');
+      } else {
+        console.log('[partykit] board', boardId, 'auth event', event, '— socket down, token check');
+        reconnector.onAuthEvent();
+      }
     } else if (event === 'SIGNED_OUT') {
-      if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = null; }
-      try { provider?.destroy(); } catch (_) {}
-      provider = null;
+      try { provider.disconnect(); } catch (_) {}
     }
   });
 
-  // When a restore flow fires soleil-board-reset, useYBoard will tear
-  // down + recreate this provider. We don't want auth events to also
-  // pile a rebuild on top of that — set a cooldown.
+  // When a restore flow fires soleil-board-reset, useYBoard tears down +
+  // recreates this whole attach — the reconnector sits out so it can't pile
+  // a refresh cycle on top of that.
   const onBoardReset = (e) => {
     if (e?.detail?.boardId && e.detail.boardId !== boardId) return;
-    resetCooldownUntil = Date.now() + 2000;
+    reconnector.noteResetSignal();
   };
   if (typeof window !== 'undefined') {
     window.addEventListener('soleil-board-reset', onBoardReset);
@@ -187,8 +180,8 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     awareness,
     destroy() {
       destroyed = true;
-      if (rebuildTimer) clearTimeout(rebuildTimer);
-      try { provider?.destroy(); } catch (_) {}
+      reconnector.dispose();
+      try { provider.destroy(); } catch (_) {}
       try { authSub?.data?.subscription?.unsubscribe(); } catch (_) {}
       if (typeof window !== 'undefined') {
         try { window.removeEventListener('soleil-board-reset', onBoardReset); } catch (_) {}
