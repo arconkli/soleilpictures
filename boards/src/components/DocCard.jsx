@@ -189,17 +189,20 @@ export function RichDocCard({
             )}
           </div>
         )}
+        {/* Title is a top-pinned child of .doc-card (NOT inside the shrinking
+            .doc-card-page) so a short card clips the body/footer from the
+            bottom and the title is never cut off. */}
+        {(card.title || autoFocus || onUpdate) && (
+          <EditableText
+            className="doc-card-title editable"
+            value={card.title || ''}
+            placeholder="Untitled doc"
+            autoFocus={autoFocus}
+            selectAllOnFocus={autoFocus}
+            onChange={(v) => onUpdate?.({ title: v || null })}
+          />
+        )}
         <div className="doc-card-page" key={previewKey}>
-          {(card.title || autoFocus || onUpdate) && (
-            <EditableText
-              className="doc-card-title editable"
-              value={card.title || ''}
-              placeholder="Untitled doc"
-              autoFocus={autoFocus}
-              selectAllOnFocus={autoFocus}
-              onChange={(v) => onUpdate?.({ title: v || null })}
-            />
-          )}
           {summary.firstPageName && summary.firstPageName !== card.title && (
             <div className="doc-card-h1">{summary.firstPageName}</div>
           )}
