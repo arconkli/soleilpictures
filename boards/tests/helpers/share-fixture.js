@@ -68,11 +68,58 @@ function docCardEntry() {
   };
 }
 
+// Image-card grid for the tier-selection specs: 8 big (800px layout width)
+// image cards spread over a wide extent, so the fit-all zoom is ~0.2 and the
+// on-screen width (~160px) is FAR below the layout width. With zoom-aware
+// `sizes` the browser must pick the 640w sm candidate; the pre-fix behavior
+// (sizes = layout width = 800px) picked the 1280w lg for every mount.
+export const IMAGE_COUNT = 8;
+const imgKey = (i) => `ws1/img-${i}.png`;
+const imgLgKey = (i) => `ws1/img-${i}.lg.webp`;
+const imgSmKey = (i) => `ws1/img-${i}.sm.webp`;
+function imageFixture() {
+  const cards = Object.fromEntries(Array.from({ length: IMAGE_COUNT }, (_, i) => [
+    `card-img-${i}`,
+    { kind: 'image', src: `r2:${imgKey(i)}`, x: (i % 4) * 1600 + 100, y: Math.floor(i / 4) * 1400 + 100, w: 800, h: 600 },
+  ]));
+  cards['card-img-note'] = { kind: 'note', body: 'Image board ready', x: 100, y: 3000, w: 240, h: 140 };
+  const urls = {};
+  const meta = {};
+  for (let i = 0; i < IMAGE_COUNT; i++) {
+    urls[imgKey(i)]   = `https://imgcdn.test/${i}-orig.png`;
+    urls[imgLgKey(i)] = `https://imgcdn.test/${i}-lg.webp`;
+    urls[imgSmKey(i)] = `https://imgcdn.test/${i}-sm.webp`;
+    meta[imgKey(i)] = {
+      blur: null,
+      preview: imgLgKey(i), preview_w: 1280, preview_h: 960,
+      preview_sm: imgSmKey(i), preview_sm_w: 640, preview_sm_h: 480,
+      w: 1600, h: 1200,
+    };
+  }
+  return { cards, urls, meta };
+}
+
+// Serve every fixture image URL as a tiny in-memory PNG (the bytes don't
+// matter — the specs assert WHICH candidate the browser selected via
+// currentSrc, not what it looks like).
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+export async function routeImageCdn(page) {
+  await page.route('https://imgcdn.test/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: TINY_PNG }));
+}
+
 // opts.withDoc adds a rich doc card to the root board; opts.dense replaces
 // the root with a 60-note grid (for the zoom-cull spec); opts.withStrokes
-// adds 120 spread-out scribbles (for the stroke-cull spec).
-export function makeBundles({ withDoc = false, dense = false, withStrokes = false } = {}) {
-  const rootCards = dense
+// adds 120 spread-out scribbles (for the stroke-cull spec); opts.withImages
+// replaces the root with the image grid above (for the tier specs).
+export function makeBundles({ withDoc = false, dense = false, withStrokes = false, withImages = false } = {}) {
+  const images = withImages ? imageFixture() : null;
+  const rootCards = images
+    ? images.cards
+    : dense
     ? Object.fromEntries(Array.from({ length: 60 }, (_, i) => [
         `card-grid-${i}`,
         { kind: 'note', body: `Note ${i}`, x: (i % 10) * 400 + 100, y: Math.floor(i / 10) * 400 + 100, w: 240, h: 140 },
@@ -92,8 +139,8 @@ export function makeBundles({ withDoc = false, dense = false, withStrokes = fals
     'card-note-2': { kind: 'note', body: 'Inside the sub-board', x: 120, y: 120, w: 240, h: 140 },
   });
   const base = {
-    image_urls: {},
-    image_meta: {},
+    image_urls: images ? images.urls : {},
+    image_meta: images ? images.meta : {},
     role: 'viewer',
     root_id: ROOT_ID,
     include_subboards: true,
@@ -112,8 +159,8 @@ export function makeBundles({ withDoc = false, dense = false, withStrokes = fals
 // responses (makes the nav progress shimmer observable); opts.fail404 fails
 // every bundle request (drives the invalid-link page); opts.withDoc /
 // opts.dense select the fixture variant (see makeBundles).
-export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false, withStrokes = false } = {}) {
-  const bundles = makeBundles({ withDoc, dense, withStrokes });
+export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false, withStrokes = false, withImages = false } = {}) {
+  const bundles = makeBundles({ withDoc, dense, withStrokes, withImages });
   await page.route('**/parties/upload/share/share-bundle', async (route) => {
     if (fail404) return route.fulfill({ status: 404, body: 'not found' });
     let boardId = null;

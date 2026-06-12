@@ -1,6 +1,7 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
+import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
@@ -453,9 +454,15 @@ export function CanvasSurface({
   useLayoutEffect(() => {
     panRef.current = pan;
     zoomRef.current = zoom;
+    // Settled zoom only (mid-gesture zoom lives in the refs) — R2Image uses
+    // this to translate a card's zoom-invariant layout width into on-screen
+    // device pixels for image tier selection.
+    setCanvasScale(zoom);
     applyCanvasTransform();
     scheduleVisibleRecompute();
   }, [pan.x, pan.y, zoom, scheduleVisibleRecompute]);
+  // A deep zoom must not leak into the next surface's first image mounts.
+  useEffect(() => () => setCanvasScale(1), []);
   // Drain deferred prunes: one follow-up recompute per commit until the
   // updater stops deferring. A deferring pass always changed the set (it
   // removed a full chunk first), so keying on visibleIds can't stall; a new
@@ -1595,6 +1602,7 @@ export function CanvasSurface({
         setPan({ x: panRef.current.x, y: panRef.current.y });
         setZoom(zoomRef.current);
         scheduleVisibleRecompute();
+        emitCanvasSettle();
       }, 140);
     };
     const onWheel = (e) => {
@@ -1687,6 +1695,7 @@ export function CanvasSurface({
       setPan({ x: panRef.current.x, y: panRef.current.y });
       setZoom(zoomRef.current);
       scheduleVisibleRecompute();
+      emitCanvasSettle();
     }, 140);
   };
   useEffect(() => () => {
@@ -2347,6 +2356,7 @@ export function CanvasSurface({
       // catch up to the gesture-time ref values.
       setPan({ x: panRef.current.x, y: panRef.current.y });
       scheduleVisibleRecompute();
+      emitCanvasSettle();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);

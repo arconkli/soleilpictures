@@ -24,6 +24,7 @@ import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
 import { bumpPerf } from '../lib/perfReport.js';
+import { getCanvasScale } from '../lib/canvasScale.js';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
@@ -495,17 +496,22 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
 
   // Offer a srcset ONLY while showing the preview tier with both candidate URLs
   // ready (lazy cards; eager ones keep the single-src fast path). The `sizes`
-  // hint is the card's on-canvas width — `w` is the card's board-coordinate size
+  // hint is the card's ON-SCREEN width: `w` is the card's board-coordinate size
   // (Math.round(c.w) from CanvasSurface), which is zoom-invariant because the
-  // canvas zooms via an ancestor CSS transform that doesn't change layout width.
+  // canvas zooms via an ancestor CSS transform that doesn't change layout
+  // width — so it's multiplied by the settled canvas scale (canvasScale.js).
+  // Without that factor, a board opened at fit-all told the browser every card
+  // was its full layout width and EVERY mount decoded the 1280px lg candidate
+  // (~4× the texture bytes of sm) for cards covering ~100 device px.
   // Handing the browser an explicit length (not sizes="auto") means this works
   // on every browser, and the srcset w-descriptor algorithm picks the ~640px sm
-  // candidate when w*DPR <= 640 and the 1280px lg otherwise. That algorithm never
-  // selects an undersized candidate (smallest candidate >= needed device px, else
-  // the largest), so sm is never upscaled. Zooming a card in far enough triggers
-  // the Tier-2 swap to the original below. Outside the preview tier (Tier-2
-  // original, or any image with no sm variant — i.e. every pre-existing image)
-  // srcset is omitted, so legacy images are byte-for-byte unchanged.
+  // candidate when w*scale*DPR <= 640 and the 1280px lg otherwise. That
+  // algorithm never selects an undersized candidate (smallest candidate >=
+  // needed device px, else the largest), so sm is never upscaled. Zooming a
+  // card in far enough triggers the Tier-2 swap to the original below. Outside
+  // the preview tier (Tier-2 original, or any image with no sm variant — i.e.
+  // every pre-existing image) srcset is omitted, so legacy images are
+  // byte-for-byte unchanged.
   const inPreviewTier = !!(meta && meta.previewKey) && activeSrc === `r2:${meta.previewKey}`;
   const canSrcset = !eager && inPreviewTier && !!smUrl && !!url
     && !!meta.previewSmW && !!meta.previewW && url !== smUrl;
@@ -513,7 +519,9 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const cardDisplayW = (typeof w === 'number' && w > 0) ? Math.round(w) : null;
   // Explicit length when we know the card width (the canvas + public-viewer
   // case); fall back to sizes=auto only if it's somehow unknown.
-  const imgSizes = imgSrcSet ? (cardDisplayW ? `${cardDisplayW}px` : 'auto') : undefined;
+  const imgSizes = imgSrcSet
+    ? (cardDisplayW ? `${Math.max(1, Math.round(cardDisplayW * getCanvasScale()))}px` : 'auto')
+    : undefined;
 
   if (failed) return <BlockedPlaceholder {...rest} />;
 
