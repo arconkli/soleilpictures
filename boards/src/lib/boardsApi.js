@@ -561,16 +561,27 @@ export async function updateBoardMeta(boardId, patch, opts = {}) {
   if (error) throw error;
 }
 
+// The board's canvas background color, for the thumbnail renderer. The
+// regen path in yboard.js only has a boardId (its handle outlives any board
+// row it was created with), so it re-reads the live value per regen — one
+// tiny indexed select behind an 8s throttle + content-hash gate.
+export async function getBoardBgColor(boardId) {
+  const { data, error } = await supabase.from('boards').select('bg_color').eq('id', boardId).maybeSingle();
+  if (error) return null;
+  return data?.bg_color || null;
+}
+
 // Stamp a board's stored-preview pointer (thumb_key / card_count) after the
 // editing client regenerates its thumbnail. Deliberately does NOT touch
 // `updated_at` or log to board_meta_history (unlike updateBoardMeta) so the
 // tile's "Updated X ago" stays meaningful and undo/meta-history isn't
 // polluted by background preview refreshes. RLS: boards update =
 // can_write_workspace, so the editing user is permitted. Fire-and-forget.
-export async function updateBoardThumb(boardId, { thumbKey = null, cardCount = null } = {}) {
+export async function updateBoardThumb(boardId, { thumbKey = null, cardCount = null, thumbVersion = null } = {}) {
   const patch = { thumb_updated_at: new Date().toISOString() };
   if (thumbKey != null) patch.thumb_key = thumbKey;
   if (cardCount != null) patch.card_count = cardCount;
+  if (thumbVersion != null) patch.thumb_version = thumbVersion;
   const { error } = await supabase.from('boards').update(patch).eq('id', boardId);
   if (error) console.warn('[updateBoardThumb]', error);
 }

@@ -10192,6 +10192,21 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .bc:hover .bc-thumb { opacity: 0.92; }
 [data-theme='light'] .bc-thumb { opacity: 0.78; }
 [data-theme='light'] .bc:hover .bc-thumb { opacity: 0.95; }
+/* v2 mini-screenshot thumbnails (RENDER_VERSION 2): the render carries its
+   own opaque canvas bg + dot grid, so it goes edge-to-edge cover instead of
+   the inset/contain framing legacy transparent renders need. The opacity
+   quieting was tuned for transparent renders floating on the wrap bg — an
+   opaque dark mini-canvas dimmed to .74 just looks murky, so run brighter. */
+.bc-thumb--cover {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.94;
+}
+.bc:hover .bc-thumb--cover { opacity: 1; }
+[data-theme='light'] .bc-thumb--cover { opacity: 0.94; }
+[data-theme='light'] .bc:hover .bc-thumb--cover { opacity: 1; }
 
 /* List-mode board card on canvas — no thumbnail, just a clickable list of
    child boards. Header on top, scroll the rest. */

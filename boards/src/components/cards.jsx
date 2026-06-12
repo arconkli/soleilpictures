@@ -12,6 +12,7 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
 import { useThumbnailBackfill } from '../hooks/useThumbnailBackfill.js';
+import { RENDER_VERSION as THUMB_RENDER_VERSION } from '../lib/renderThumbnail.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { renderHtmlWithAutoLinks } from '../lib/renderHtmlWithAutoLinks.jsx';
@@ -302,15 +303,20 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
   // list to enumerate items). When a stored thumb exists, useBoardPreview is
   // disabled and returns null instantly — zero network/decode for the grid.
   const hasStoredThumb = !isList && !!board.thumb_key;
-  const preview = useBoardPreview(board.id, isList || (!hasStoredThumb && thumbVisible));
+  // Version gate: a stored thumb from an older renderer keeps DISPLAYING
+  // (no flash back to placeholder) but re-enables the preview decode +
+  // backfill below so it self-heals to the current look in the background.
+  const thumbCurrent = hasStoredThumb && board.thumb_version === THUMB_RENDER_VERSION;
+  const needsRegen = !isList && (!hasStoredThumb || !thumbCurrent);
+  const preview = useBoardPreview(board.id, isList || (needsRegen && thumbVisible));
   const liveHasPreview = !isList && !hasStoredThumb && preview &&
     (preview.cards?.length > 0 || preview.strokes?.length > 0);
 
-  // Self-heal: a visible tile-mode board with no stored thumbnail has its
-  // already-decoded preview persisted to R2 (writers only) so the next load
-  // is a cheap static image. No-ops for list mode, stored thumbs, empty
-  // boards, and viewers (presign 403). See useThumbnailBackfill.
-  useThumbnailBackfill({ board, preview, boards, enabled: !isList && !hasStoredThumb && thumbVisible });
+  // Self-heal: a visible tile-mode board with no stored thumbnail (or a
+  // stale-version one) has its already-decoded preview persisted to R2
+  // (writers only) so the next load is a cheap static image. No-ops for
+  // list mode, current thumbs, empty boards, and viewers (presign 403).
+  useThumbnailBackfill({ board, preview, boards, enabled: needsRegen && thumbVisible });
 
   // Item count survives without a decode thanks to boards.card_count; fall
   // back to the live preview's count (list mode / pre-backfill tiles).
@@ -409,15 +415,19 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
         {hasStoredThumb ? (
           <div className="bc-thumb-wrap"
                style={{ background: board.bg_color || 'var(--bg-2)' }}>
-            {/* key on thumb_updated_at so a regen remounts → fresh resolveSrc */}
+            {/* key on thumb_updated_at so a regen remounts → fresh resolveSrc.
+                v2 renders are opaque mini-screenshots → edge-to-edge cover;
+                legacy transparent renders keep the inset/contain framing. */}
             <R2Image src={board.thumb_key} key={board.thumb_updated_at || board.thumb_key}
-                     className="bc-thumb" alt="" draggable={false} />
+                     className={thumbCurrent ? 'bc-thumb bc-thumb--cover' : 'bc-thumb'}
+                     alt="" draggable={false} />
           </div>
         ) : liveHasPreview ? (
           <div className="bc-thumb-wrap"
                style={{ background: board.bg_color || 'var(--bg-2)' }}>
             <BoardThumbnail cards={preview.cards} strokes={preview.strokes}
-                            arrows={preview.arrows} boards={boards} />
+                            arrows={preview.arrows} boards={boards}
+                            bgColor={board.bg_color || null} />
           </div>
         ) : (
           <ImagePlaceholder tone={board.cover || 'neutral'} aspect="16/9" />

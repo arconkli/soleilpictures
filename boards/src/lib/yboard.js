@@ -13,13 +13,13 @@
 // onto the undo stack. Restores use 'restore'.
 
 import * as Y from 'yjs';
-import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb } from './boardsApi.js';
+import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb, getBoardBgColor } from './boardsApi.js';
 import { b64ToBytes, bytesToB64, readCards } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 // Round 23: render each board's preview ONCE on the editing client and
 // upload it to private R2, so board tiles display a static image instead
 // of re-decoding the Y.Doc + re-rasterizing Canvas2D on every view.
-import { renderThumbnailBlob, quickVisualHash } from './renderThumbnail.js';
+import { renderThumbnailBlob, quickVisualHash, RENDER_VERSION } from './renderThumbnail.js';
 import { uploadBoardThumbnail } from './uploads.js';
 import { peekBoardSnapshot, prefetchBoard } from './prefetchKinds.js';
 import { getSnapshot, putSnapshot } from './snapshotCache.js';
@@ -122,10 +122,15 @@ async function _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, 
   if (_thumbInFlight.has(boardId)) return;
   _thumbInFlight.add(boardId);
   try {
-    const blob = await renderThumbnailBlob({ cards, strokes, arrows, width: 800, height: 600 });
+    // Re-read bg_color live (the yboard handle outlives the board row it
+    // was opened with, so a passed-in value would go stale if the user
+    // repaints the canvas mid-session). Failure → default canvas bg.
+    let bgColor = null;
+    try { bgColor = await getBoardBgColor(boardId); } catch (_) {}
+    const blob = await renderThumbnailBlob({ cards, strokes, arrows, bgColor });
     if (!blob) return;
     const { src } = await uploadBoardThumbnail({ workspaceId, boardId, blob, userId });
-    await updateBoardThumb(boardId, { thumbKey: src, cardCount: cards.length });
+    await updateBoardThumb(boardId, { thumbKey: src, cardCount: cards.length, thumbVersion: RENDER_VERSION });
     _lastThumbHash.set(boardId, hash);
   } catch (e) {
     if (perf.isEnabled()) console.warn('[thumb] generate failed', boardId, e?.message || e);

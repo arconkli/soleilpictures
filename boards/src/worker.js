@@ -165,9 +165,13 @@ function injectShareMeta(res, meta, token) {
   if (meta.thumb_key) {
     const v = encodeURIComponent(meta.thumb_updated_at || '');
     const img = `${SITE_ORIGIN}/api/share-thumb/${token}?b=${meta.board_id}&v=${v}`;
+    // v2+ thumbnails (mini-screenshot rework) are 16:9 1200×675 logical;
+    // legacy v1 renders still serving are 800×600. Dims are advisory hints
+    // for scrapers, so the stale-bytes window during self-heal is harmless.
+    const isV2 = (meta.thumb_version || 0) >= 2;
     rw.on('meta[property="og:image"]',        new SetContent(img))
-      .on('meta[property="og:image:width"]',  new SetContent('800'))
-      .on('meta[property="og:image:height"]', new SetContent('600'))
+      .on('meta[property="og:image:width"]',  new SetContent(isV2 ? '1200' : '800'))
+      .on('meta[property="og:image:height"]', new SetContent(isV2 ? '675' : '600'))
       .on('meta[property="og:image:type"]',   new SetContent('image/webp'))
       .on('meta[property="og:image:alt"]',    new SetContent(name))
       .on('meta[name="twitter:image"]',       new SetContent(img))

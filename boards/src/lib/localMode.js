@@ -23,6 +23,16 @@ export function isDocQaMode() {
   return new URLSearchParams(window.location.search).get('docqa') === '1';
 }
 
+// Dev-only board-thumbnail QA harness. Active ONLY in a DEV build with
+// ?thumbqa=1 (same trust boundary as isDocQaMode). Renders fixture boards
+// through the real renderThumbnailBlob at tile + OG sizes so the thumbnail
+// look can be screenshotted + iterated on visually without a backend.
+// See ../local/ThumbQaHarness.jsx.
+export function isThumbQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('thumbqa') === '1';
+}
+
 // Dev-only drag-and-drop QA bridge. Active ONLY in a DEV build with ?dndqa=1.
 // Publishes the PURE drag/drop logic helpers (boardTree cycle/plan, canvas
 // clamp, dragMimes coercion) on window.__soleilDndTest so Playwright logic

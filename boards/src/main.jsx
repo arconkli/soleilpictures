@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isAdminPreviewMode, isDndQaMode } from './lib/localMode.js';
+import { isDocQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -211,6 +211,17 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     window.__soleilDndTest = { ...boardTree, ...canvasGeom, ...dragMimes };
     const el = document.getElementById('root');
     if (el) el.textContent = 'dndqa ready';
+  });
+} else if (import.meta.env.DEV && isThumbQaMode()) {
+  // Board-thumbnail visual QA (?thumbqa=1) — fixture boards rendered through
+  // the real renderThumbnailBlob at OG + tile sizes. Dropped from production
+  // by the DEV guard like the other harnesses.
+  import('./local/ThumbQaHarness.jsx').then(({ ThumbQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <ThumbQaHarness />
+      </StrictMode>
+    );
   });
 } else if (import.meta.env.DEV && isDocQaMode()) {
   import('./local/DocQaHarness.jsx').then(({ DocQaHarness }) => {

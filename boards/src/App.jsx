@@ -60,6 +60,7 @@ import { useAllWorkspaces } from './hooks/useAllWorkspaces.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
 import { useYBoard } from './hooks/useYBoard.js';
+import { RENDER_VERSION as THUMB_VERSION } from './lib/renderThumbnail.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -497,7 +498,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     feedback,
   });
 
-  const yb = useYBoard(currentBoard.id, user.id, userInfo, workspace.id, !!currentBoard.thumb_key);
+  // "hasThumb" = has a CURRENT-version stored thumbnail. A stale version
+  // (pre-rework render) counts as missing so the on-open backfill in
+  // loadYBoard regenerates it with the new look.
+  const yb = useYBoard(currentBoard.id, user.id, userInfo, workspace.id,
+    !!currentBoard.thumb_key && currentBoard.thumb_version === THUMB_VERSION);
 
   // Avatar-click → open DM with a workspace member. Exposed via context.
   const [pendingDmPeerId, setPendingDmPeerId] = useState(null);
@@ -514,7 +519,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const setSplitId = (id) => setSplitIdState(id);
   const splitBoard = splitId ? (boards[splitId] || null) : null;
   const splitView = splitBoard ? (viewOverride[splitId] || splitBoard.view || 'canvas') : null;
-  const splitYb = useYBoard(splitId, user.id, userInfo, workspace.id, !!(splitBoard && splitBoard.thumb_key));
+  const splitYb = useYBoard(splitId, user.id, userInfo, workspace.id,
+    !!(splitBoard && splitBoard.thumb_key && splitBoard.thumb_version === THUMB_VERSION));
   const splitYDoc = splitYb.ready && splitYb.boardId === splitId ? splitYb.ydoc : null;
   const [splitPickerOpen, setSplitPickerOpen] = useState(false);
   const [splitRatio, setSplitRatio] = useState(() => initialSession?.splitRatio || 0.5);

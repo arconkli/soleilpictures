@@ -20,7 +20,7 @@
 
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { renderThumbnailBlob } from '../lib/renderThumbnail.js';
+import { renderThumbnailBlob, RENDER_VERSION } from '../lib/renderThumbnail.js';
 import { uploadBoardThumbnail } from '../lib/uploads.js';
 import { updateBoardThumb } from '../lib/boardsApi.js';
 import { runGated } from '../lib/backfillGate.js';
@@ -38,7 +38,11 @@ const _runGated = runGated;
 export function useThumbnailBackfill({ board, preview, boards = {}, enabled = true }) {
   const boardId = board?.id;
   const workspaceId = board?.workspace_id;
-  const hasThumb = !!board?.thumb_key;
+  const bgColor = board?.bg_color || null;
+  // A stored thumb only counts when it's the CURRENT renderer's output —
+  // stale versions (pre-rework renders) regenerate in the background here
+  // while the tile keeps displaying the old image.
+  const hasThumb = !!board?.thumb_key && board?.thumb_version === RENDER_VERSION;
 
   useEffect(() => {
     if (!enabled || !boardId || !workspaceId || hasThumb) return;
@@ -62,7 +66,7 @@ export function useThumbnailBackfill({ board, preview, boards = {}, enabled = tr
     _runGated(async () => {
       try {
         const blob = await renderThumbnailBlob({
-          cards, strokes, arrows: preview?.arrows, boards, width: 800, height: 600,
+          cards, strokes, arrows: preview?.arrows, boards, bgColor,
         });
         if (!blob) return;
         let userId = null;
@@ -70,7 +74,7 @@ export function useThumbnailBackfill({ board, preview, boards = {}, enabled = tr
           userId = (await supabase.auth.getSession()).data?.session?.user?.id || null;
         } catch (_) { /* uploaded_by is nullable — proceed without it */ }
         const { src } = await uploadBoardThumbnail({ workspaceId, boardId, blob, userId });
-        await updateBoardThumb(boardId, { thumbKey: src, cardCount: cards.length });
+        await updateBoardThumb(boardId, { thumbKey: src, cardCount: cards.length, thumbVersion: RENDER_VERSION });
       } catch (e) {
         // Viewers hit a 403 at presign (can_write_board) — that's expected,
         // stay quiet. Any other failure is swallowed too; the board stays on
@@ -78,5 +82,5 @@ export function useThumbnailBackfill({ board, preview, boards = {}, enabled = tr
         if (perf.isEnabled()) console.warn('[thumb backfill] skipped', boardId, e?.message || e);
       }
     });
-  }, [enabled, boardId, workspaceId, hasThumb, preview, boards]);
+  }, [enabled, boardId, workspaceId, hasThumb, bgColor, preview, boards]);
 }

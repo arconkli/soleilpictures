@@ -21,17 +21,18 @@
 import { memo, useEffect, useState } from 'react';
 import { renderThumbnailToBlob } from '../lib/renderThumbnail.js';
 
-function BoardThumbnailImpl({ cards, strokes, arrows, boards = {} }) {
+function BoardThumbnailImpl({ cards, strokes, arrows, boards = {}, bgColor = null }) {
   const [blobUrl, setBlobUrl] = useState(null);
 
   useEffect(() => {
+    void bgColor; // re-render when the board's canvas color changes
     if ((!cards || cards.length === 0) && (!strokes || strokes.length === 0)) {
       setBlobUrl(null);
       return;
     }
     let cancelled = false;
     let createdUrl = null;
-    renderThumbnailToBlob({ cards, strokes, arrows, boards }).then(url => {
+    renderThumbnailToBlob({ cards, strokes, arrows, boards, bgColor }).then(url => {
       if (cancelled) {
         // Component unmounted while we were rendering. Don't leak the
         // blob URL even though the renderer's cache holds a reference;
@@ -50,13 +51,15 @@ function BoardThumbnailImpl({ cards, strokes, arrows, boards = {} }) {
       if (!cancelled) setBlobUrl(null);
     });
     return () => { cancelled = true; };
-  }, [cards, strokes, arrows, boards]);
+  }, [cards, strokes, arrows, boards, bgColor]);
 
   if (!blobUrl) return null;
 
   return (
     <img
-      className="bc-thumb"
+      // The v2 renderer always produces an opaque mini-screenshot, so the
+      // live path uses the edge-to-edge cover framing unconditionally.
+      className="bc-thumb bc-thumb--cover"
       src={blobUrl}
       alt=""
       draggable={false}
