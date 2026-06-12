@@ -14,9 +14,15 @@
 //      rest). Two consecutive ~1s windows under LOW_FPS → incident. This
 //      catches death-by-a-thousand-sub-50ms-tasks (the dense-board render
 //      churn signature) that the longtask observer can't see.
+//   3. Single FRAME GAPS ≥ FRAME_GAP_MS during interaction — the rAF delta
+//      between consecutive sampler ticks. A compositor/GPU-bound stall
+//      (texture upload, raster churn) freezes rAF while the main thread
+//      stays idle: no longtask fires and the per-second fps average can
+//      stay high, so signals 1 and 2 both miss it. This was exactly the
+//      field signature on image-heavy boards (450ms gaps, zero longtasks).
 //
 // GPU tile drops themselves are invisible to JS; their CAUSE (oversized
-// raster/render work) surfaces through these two signals.
+// raster/render work) surfaces through these signals.
 //
 // Bucket strings are CONSTANT (never interpolate values) — the admin Errors
 // tab groups rows by raw message; all variable data rides in the JSON
@@ -33,6 +39,10 @@ import { getDeviceInfo } from './device.js';
 const LONGTASK_MS = 300;
 const LOW_FPS = 20;
 const VERY_LOW_FPS = 10;
+const FRAME_GAP_MS = 350;
+const FRAME_GAP_HUGE_MS = 1_000;
+// Gaps beyond this are tab-switch / sleep artifacts, not jank.
+const FRAME_GAP_DISCARD_MS = 10_000;
 const MAX_PER_SESSION = 6;
 const MIN_GAP_MS = 20_000;
 const STARTUP_MUTE_MS = 3_000;
@@ -123,20 +133,40 @@ function lowFpsBucket(fps) {
     ? `perf: low-fps <10 interaction ${where()}`
     : `perf: low-fps 10-20 interaction ${where()}`;
 }
+function frameGapBucket(ms) {
+  return ms >= FRAME_GAP_HUGE_MS
+    ? `perf: frame-gap >1000ms ${where()}`
+    : `perf: frame-gap 350-1000ms ${where()}`;
+}
 
 // ── Interaction-gated fps sampler ─────────────────────────────────────────
 let samplerRunning = false;
 let windowStart = 0;
 let windowFrames = 0;
 let lowWindows = 0;
+let prevTickAt = 0;
 
 function samplerTick() {
   const now = performance.now();
+  // Frame-gap check FIRST, before the self-stop: by the time a stalled frame
+  // finally fires, lastInteractionAt may have aged past the window — what
+  // matters is that interaction was live when the gap BEGAN (prevTickAt).
+  // (lastInteractionAt can also move DURING a GPU-bound gap — input keeps
+  // dispatching while the compositor is stuck — which makes the delta
+  // negative; that still counts as interacting.)
+  if (prevTickAt > 0) {
+    const gap = now - prevTickAt;
+    if (gap >= FRAME_GAP_MS && gap < FRAME_GAP_DISCARD_MS
+        && prevTickAt - lastInteractionAt < INTERACTION_WINDOW_MS) {
+      report(frameGapBucket(gap), { gap_ms: Math.round(gap) });
+    }
+  }
+  prevTickAt = now;
   const interacting = now - lastInteractionAt < INTERACTION_WINDOW_MS;
   const visible = typeof document === 'undefined' || document.visibilityState === 'visible';
   if (!interacting || !visible) {
     samplerRunning = false;   // self-stop; interaction listeners restart it
-    windowFrames = 0; lowWindows = 0;
+    windowFrames = 0; lowWindows = 0; prevTickAt = 0;
     return;
   }
   windowFrames += 1;
@@ -164,6 +194,7 @@ function onInteraction() {
     samplerRunning = true;
     windowStart = lastInteractionAt;
     windowFrames = 0;
+    prevTickAt = 0;   // a restart is not a frame gap
     requestAnimationFrame(samplerTick);
   }
 }
@@ -192,5 +223,13 @@ export function initPerfReport() {
     window.addEventListener('pointerdown', onInteraction, opts);
     window.addEventListener('pointermove', onInteraction, opts);
     window.addEventListener('wheel', onInteraction, opts);
+  } catch (_) {}
+
+  // Hiding the tab pauses rAF; without this, the first tick after re-show
+  // would read the whole hidden span as one giant "frame gap".
+  try {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') prevTickAt = 0;
+    }, { passive: true });
   } catch (_) {}
 }

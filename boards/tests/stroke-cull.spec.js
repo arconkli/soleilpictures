@@ -79,3 +79,31 @@ test('always-on jank reporter records a longtask incident with board context', a
   expect(incident.ctx.cards_total).toBeGreaterThanOrEqual(60);
   expect(typeof incident.ctx.longtask_ms).toBe('number');
 });
+
+test('jank reporter records a frame-gap incident during interaction', async ({ page }) => {
+  await routeAnalytics(page, []);
+  await routeShareBundle(page, { dense: true });
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
+  await expect(page.getByText('Note 0', { exact: true })).toBeVisible();
+  await page.waitForTimeout(3200);   // startup mute
+
+  // Start the interaction-gated sampler, give it a couple of ticks so
+  // prevTickAt is anchored, then stall the main thread DIRECTLY in evaluate.
+  // CDP-evaluate execution emits NO longtask entry (see the test above), so
+  // the only detector that can fire here is the frame-gap path — rAF is
+  // frozen by the stall regardless of what queued the work.
+  await page.locator('.canvas-wrap').dispatchEvent('pointermove', { clientX: 200, clientY: 200 });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { const t = performance.now(); while (performance.now() - t < 450) { /* spin */ } });
+
+  await expect.poll(async () => page.evaluate(
+    () => window.__perfReport.incidents.filter((i) => /^perf: frame-gap /.test(i.bucket)).length,
+  ), { timeout: 4000 }).toBeGreaterThan(0);
+
+  const incident = await page.evaluate(
+    () => window.__perfReport.incidents.find((i) => /^perf: frame-gap /.test(i.bucket)),
+  );
+  expect(incident.bucket).toBe('perf: frame-gap 350-1000ms (canvas)');
+  expect(incident.ctx.gap_ms).toBeGreaterThanOrEqual(350);
+  expect(incident.ctx.is_public).toBe(true);
+});
