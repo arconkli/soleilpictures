@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
 import * as perf from '../lib/perf.js';
-import { setPerfContext, clearPerfContext, markGestureActiveUntil } from '../lib/perfReport.js';
+import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
@@ -344,6 +344,9 @@ export function CanvasSurface({
   // run one strict recompute to prune. A timestamp (not a boolean) so a
   // cancel-terminated gesture self-heals on the next recompute.
   const gestureUntilRef = useRef(0);
+  // Set by the visibleIds updater when it deferred prunes past REMOVE_CHUNK;
+  // the drain effect below schedules follow-up passes until it stays false.
+  const drainPendingRef = useRef(false);
   const _perfVisRef = useRef(-1);   // last cardsVisible pushed to perfReport
   const scheduleVisibleRecompute = useCallback(() => {
     if (visibleRafRef.current) return;
@@ -403,10 +406,26 @@ export function CanvasSurface({
         // (Set.add is idempotent, so mutating `next` here is safe under
         // StrictMode's double-invoked updater.)
         const MOUNT_CAP = 300;
+        // Settle prunes are CHUNKED: a deep zoom-in settle would otherwise
+        // unmount nearly all of a dense board's cards in ONE React commit
+        // (every card tears down image/observer state) — a 300-600ms burst
+        // landing exactly when the gesture ends. At most REMOVE_CHUNK cards
+        // actually unmount per pass; the rest stay mounted and the drain
+        // effect schedules another pass after this one commits. MOUNT_CAP
+        // still binds first — cap-driven drops stay immediate (bounding the
+        // raster/texture cost is the cap's whole job).
+        const REMOVE_CHUNK = 12;
+        let removed = 0;
         if (prev) {
           for (const id of prev) {
+            if (next.has(id)) continue;
             if (next.size >= MOUNT_CAP) break;
-            if (gestureActive || keep.has(id)) next.add(id);
+            if (gestureActive || keep.has(id)) { next.add(id); continue; }
+            if (removed < REMOVE_CHUNK) { removed += 1; continue; }
+            // Defer this prune: stays mounted for this pass. (Idempotent
+            // writes — safe under StrictMode's double-invoked updater.)
+            next.add(id);
+            drainPendingRef.current = true;
           }
         }
         if (prev && prev.size === next.size) {
@@ -437,6 +456,17 @@ export function CanvasSurface({
     applyCanvasTransform();
     scheduleVisibleRecompute();
   }, [pan.x, pan.y, zoom, scheduleVisibleRecompute]);
+  // Drain deferred prunes: one follow-up recompute per commit until the
+  // updater stops deferring. A deferring pass always changed the set (it
+  // removed a full chunk first), so keying on visibleIds can't stall; a new
+  // gesture flips the recompute to ADD-only (nothing removed, nothing
+  // deferred), so drains cancel naturally mid-interaction.
+  useEffect(() => {
+    if (!drainPendingRef.current) return;
+    drainPendingRef.current = false;
+    bumpPerf('cull.drainPass');
+    scheduleVisibleRecompute();
+  }, [visibleIds, scheduleVisibleRecompute]);
   // ResizeObserver on the wrap element so viewport recomputes when the
   // window or sidebar resizes (also seeds wrapWHRef with the initial size
   // synchronously after mount via the first observation callback).

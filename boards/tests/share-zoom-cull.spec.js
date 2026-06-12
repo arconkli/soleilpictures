@@ -56,6 +56,14 @@ test('fast zoom-in keeps every card mounted; settle prunes; renders stay flat', 
 
   // After settle the strict recompute prunes off-band cards.
   await expect.poll(() => cardCount(page), { timeout: 3000 }).toBeLessThan(initial);
+
+  // The prune is CHUNKED (≤12 unmounts per pass): pruning ~55 of 60 cards
+  // must have taken multiple drain passes, not one giant React commit.
+  // Convergence still completes — poll until only the in-band handful is
+  // mounted (deep zoom leaves < a third of the grid inside the KEEP band).
+  await expect.poll(() => cardCount(page), { timeout: 3000 }).toBeLessThan(initial / 3);
+  const drainPasses = await page.evaluate(() => window.__perfReport?.counters?.['cull.drainPass'] || 0);
+  expect(drainPasses).toBeGreaterThanOrEqual(2);
 });
 
 test('zoom back out remounts pruned cards (ADD path still live during gesture)', async ({ page }) => {
