@@ -136,6 +136,19 @@ test('demote drain waits for the idle window; a fresh settle defers it', async (
   expect(card.runs).toBe(1);
 });
 
+test('a card registered after the promote drain still demotes at idle', async () => {
+  // Cards that remount during a zoom-out and finish loading after the promote
+  // drain must not be stranded on a too-large tier: the demote drain
+  // re-evaluates fresh at idle rather than replaying a promote-time snapshot.
+  const h = makeHarness({ demoteIdleMs: 1500, promoteDelayMs: 150 });
+  h.scheduler.onSettle(0.5);
+  await h.advance(150);                  // promote drain runs with NO cards yet
+  const card = fakeCard({ kind: 'demote' });
+  h.scheduler.register('late', card.handle);   // registers AFTER the promote drain
+  await h.advance(1400);                 // reach the 1500ms idle window
+  expect(card.runs).toBe(1);
+});
+
 test('a resumed gesture aborts pending drains', async () => {
   const h = makeHarness({ promoteDelayMs: 150 });
   const card = fakeCard();

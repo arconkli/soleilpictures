@@ -80,11 +80,9 @@ export function createImageTierScheduler({
   // needs no further action at the current scale (intent 'none', or after a
   // swap actually runs) — a card with a still-pending promote/demote stays
   // re-evaluatable, so a pan-only settle in the demote-wait window can't
-  // silently cancel a queued demote.
+  // silently cancel a queued demote, and a card that loads/remounts AFTER the
+  // promote drain still gets demoted by the (fresh) demote drain.
   const cards = new Map();
-  // Demote intents found at the promote-drain evaluation, awaiting the idle
-  // timer. Re-stashed every settle; never spans a generation.
-  let pendingDemotes = [];
 
   function clearTimers() {
     if (promoteTimer != null) { clearTimer(promoteTimer); promoteTimer = null; }
@@ -94,15 +92,16 @@ export function createImageTierScheduler({
     if (demoteIdle != null) { try { cancelIdle(demoteIdle); } catch (_) {} demoteIdle = null; }
   }
 
-  // Evaluate every epsilon-eligible card ONCE for this settle (one gBCR each),
-  // partitioning the intents: promotes are returned to drain now (largest
-  // on-screen area first, and only if still in the viewport — no wasted
-  // original decode for a card the cull is about to drop); demotes are stashed
-  // for the idle timer. lastEvalScale advances only for cards that need no
-  // action (so a still-pending demote survives intervening pans).
-  function evaluateAndQueue(myGen) {
-    const promotes = [];
-    pendingDemotes = [];
+  // Evaluate every epsilon-eligible card (one gBCR each) and collect the
+  // intents matching this drain's kind, largest on-screen area first. Promotes
+  // additionally require the card to still be in the viewport (no wasted
+  // original decode for a card the cull is about to drop). lastEvalScale
+  // advances ONLY for cards that need no action this scale — a card with a
+  // still-pending action stays re-evaluatable, so (a) a pan-only settle can't
+  // cancel a queued demote, and (b) the demote drain re-evaluates fresh at idle
+  // time, catching cards that loaded/remounted after the promote drain ran.
+  function collectIntents(kind, myGen) {
+    const out = [];
     for (const [id, rec] of cards) {
       if (disposed || gen !== myGen) break;
       const last = rec.lastEvalScale;
@@ -111,19 +110,15 @@ export function createImageTierScheduler({
       let intent = null;
       try { intent = rec.handle.evaluate(); } catch (_) { intent = null; }
       if (!intent) { rec.lastEvalScale = currentScale; continue; }   // settled at this scale
-      if (intent.kind === 'promote') {
-        // Off-viewport promote: leave lastEvalScale stale so a pan that brings
-        // the card on-screen (same scale) still re-evaluates and promotes it.
-        if (intent.inViewport) promotes.push({ id, intent });
-      } else if (intent.kind === 'demote') {
-        pendingDemotes.push({ id, intent });   // lastEvalScale stays stale until it runs
-      } else {
-        rec.lastEvalScale = currentScale;
-      }
+      // Action card (promote or demote): leave lastEvalScale stale until it
+      // actually runs (advanced in drainBatches). Off-viewport promotes are
+      // dropped but also left stale, so a pan onto screen re-evaluates them.
+      if (intent.kind !== kind) continue;
+      if (kind === 'promote' && !intent.inViewport) continue;
+      out.push({ id, intent });
     }
-    promotes.sort((a, b) => (b.intent.area || 0) - (a.intent.area || 0));
-    pendingDemotes.sort((a, b) => (b.intent.area || 0) - (a.intent.area || 0));
-    return promotes;
+    out.sort((a, b) => (b.intent.area || 0) - (a.intent.area || 0));
+    return out;
   }
 
   async function drainBatches(items, myGen, kind) {
@@ -152,18 +147,17 @@ export function createImageTierScheduler({
   async function runPromoteDrain(myGen) {
     promoteIdle = null;
     if (disposed || gen !== myGen || isGestureActive()) return;
-    // One evaluation pass per settle; it also stashes pendingDemotes for the
-    // idle timer below.
-    await drainBatches(evaluateAndQueue(myGen), myGen, 'promote');
+    await drainBatches(collectIntents('promote', myGen), myGen, 'promote');
   }
 
   async function runDemoteDrain(myGen) {
     demoteIdle = null;
     if (disposed || gen !== myGen || isGestureActive()) return;
     // Only when genuinely idle: a settle since this was scheduled moved the
-    // clock forward, so we're still mid-interaction — skip.
+    // clock forward, so we're still mid-interaction — skip. Re-evaluate fresh
+    // (not a promote-time snapshot) so late-loading / remounted cards demote.
     if (now() - lastSettleAt < demoteIdleMs) return;
-    await drainBatches(pendingDemotes, myGen, 'demote');
+    await drainBatches(collectIntents('demote', myGen), myGen, 'demote');
   }
 
   return {
@@ -206,7 +200,6 @@ export function createImageTierScheduler({
       disposed = true;
       clearTimers();
       cards.clear();
-      pendingDemotes = [];
     },
   };
 }
