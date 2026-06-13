@@ -1,11 +1,12 @@
 // Zoom-aware image tier selection on the public /share canvas. The canvas
 // zooms via an ancestor CSS transform, so a card's LAYOUT width never changes
-// with zoom — the srcset `sizes` hint must multiply in the settled canvas
-// scale (lib/canvasScale.js). Pre-fix, a board opened at fit-all told the
-// browser every card was its full layout width, so EVERY mount decoded the
-// 1280px lg preview (~4× the texture bytes of sm) for cards covering ~160
-// device px — the aggregate is exactly what blew the GPU tile budget on
-// image-heavy boards.
+// with zoom — pickInitialTier multiplies in the settled canvas scale
+// (lib/canvasScale.js, published during CanvasSurface render) to pick the tier
+// the card's ON-SCREEN size justifies. There is no srcset: `activeSrc` is the
+// single tier decision-maker (mount via pickInitialTier, then the promote/
+// demote ladder). Pre-fix, a board opened at fit-all decoded the 1280px lg
+// preview for every tiny card (~4× the sm texture bytes) — the aggregate is
+// exactly what blew the GPU tile budget on image-heavy boards.
 
 import { expect, test } from '@playwright/test';
 import { TOKEN, IMAGE_COUNT, routeShareBundle, routeAnalytics, routeImageCdn } from './helpers/share-fixture.js';
@@ -25,6 +26,11 @@ test('fit-all mounts select the 640px sm preview, not lg', async ({ page }) => {
   await expect.poll(async () => (await loadedSrcs(page)).length, { timeout: 8000 })
     .toBeGreaterThanOrEqual(IMAGE_COUNT);
   for (const s of await loadedSrcs(page)) expect(s).toContain('-sm.webp');
+
+  // No srcset on the canvas imgs — activeSrc is the only tier control now.
+  const withSrcset = await page.evaluate(() =>
+    [...document.querySelectorAll('.r2p-img')].filter((el) => el.hasAttribute('srcset')).length);
+  expect(withSrcset).toBe(0);
 });
 
 test('zoom-in promotes to the original; zoom-out demotes back to sm — never re-blurring', async ({ page }) => {
@@ -75,9 +81,9 @@ test('zoom-in promotes to the original; zoom-out demotes back to sm — never re
   await zoomBurst(-240);
   await expect.poll(targetSrc, { timeout: 8000 }).toContain('-orig.png');
 
-  // Deep zoom-out: the settle demotion steps straight back down to sm.
-  // (At mount the card was on the PREVIEW tier with srcset showing the sm
-  // candidate — the sm ACTIVE tier only exists post-demotion.)
+  // Deep zoom-out: the settle demotion steps straight back down to sm
+  // (the card mounted on the sm ACTIVE tier via pickInitialTier, climbed to
+  // original on zoom-in, now returns to sm).
   await zoomBurst(240);
   await expect.poll(targetSrc, { timeout: 8000 }).toContain('-sm.webp');
 

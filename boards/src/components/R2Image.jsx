@@ -73,6 +73,40 @@ function pickTierSrc(src, originalKey) {
   return src;
 }
 
+// Pick the floor tier a card's ON-SCREEN size justifies at mount/src-change.
+// Generalizes pickTierSrc to also reach the 640px sm variant: a card whose
+// device-pixel width at the current settled canvas scale fits inside sm gets
+// sm, not the 1280px lg preview (~4× the texture bytes). This is the SOLE
+// first-paint tier decision now that the canvas imgs no longer carry a srcset
+// — the browser's w-descriptor picker never downgraded an already-chosen
+// candidate, and on a fit-all open the scale hint was 1.0 on first render, so
+// every tiny card decoded lg. The sm/lg/original ladder still climbs from here
+// via the promotion effect when a card is zoomed in.
+//
+// `displayedPx` needs the card's board-coordinate width × the settled canvas
+// scale × DPR (the canvas zooms via an ancestor transform, so layout width is
+// zoom-invariant). When width/scale are unknown it degrades to exactly
+// pickTierSrc (lg-or-original) — never worse than before.
+//
+// The warm-original guard is identical to pickTierSrc's: a viewport-culling
+// remount right after a mid-session backfill must not downgrade a disk-cached
+// original to a cold variant key and re-blur. Public viewer: bundle meta has
+// no w/h, so the guard's `m.w && m.h` is false and the floor variant (sm/lg)
+// wins — exactly what we want on /share.
+function pickInitialTier(src, originalKey, w) {
+  const m = originalKey ? getMeta(originalKey) : null;
+  if (!m || !m.previewKey) return src;
+  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+  const displayedPx = (typeof w === 'number' && w > 0)
+    ? Math.round(w) * getCanvasScale() * dpr : 0;
+  const smSrc = m.previewSmKey ? `r2:${m.previewSmKey}` : null;
+  const wantSm = !!smSrc && !!m.previewSmW && displayedPx > 0 && displayedPx <= m.previewSmW;
+  const floor = wantSm ? smSrc : `r2:${m.previewKey}`;
+  if (cachedUrl(floor) || !cachedUrl(src)) return floor;
+  if (m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX) return src;
+  return floor;
+}
+
 // The Tier-2 upgrade only pays when the original genuinely has more pixels
 // than the preview AND decodes within the GPU-tile budget:
 //   - native-resolution webp previews (the ≤1280px byte-heavy re-encode
@@ -245,15 +279,12 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // a tier when the card is displayed near/past the variant's native size,
   // and the demotion effect steps down at gesture settles — always probe-
   // decoded first, so a loaded image never visually regresses (no re-blur).
-  const [activeSrc, setActiveSrc] = useState(() => pickTierSrc(src, originalKey));
+  const [activeSrc, setActiveSrc] = useState(() => pickInitialTier(src, originalKey, w));
   const initialUrl = cachedUrl(activeSrc);
   const [url, setUrl] = useState(initialUrl);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [visible, setVisible] = useState(() => eager || !!initialUrl);
-  // Signed URL for the small (DPR-down) preview, resolved in parallel so the
-  // <img> can offer a srcset. null until resolved / when there's no sm variant.
-  const [smUrl, setSmUrl] = useState(null);
   // Bumped once per gesture-settle (canvasScale.js) — the only deps of the
   // tier promotion/demotion effects that actually change with zoom (layout
   // width is zoom-invariant on the canvas), so this is what re-measures a
@@ -303,7 +334,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     fastLoadRef.current = false;
     setLoaded(false);
     setFailed(false);
-    const next = pickTierSrc(src, originalKey);
+    const next = pickInitialTier(src, originalKey, w);
     urlSetAtRef.current = cachedUrl(next) ? performance.now() : 0;
     setActiveSrc(next);
   }, [src]);
@@ -343,7 +374,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // disk-cached original to a cold preview while the user is panning.
   useEffect(() => {
     if (loaded || upgradedRef.current || fellBackRef.current) return;
-    const want = pickTierSrc(src, originalKey);
+    const want = pickInitialTier(src, originalKey, w);
     if (want !== activeSrc) setActiveSrc(want);
   }, [meta, loaded, activeSrc, src, originalKey]);
 
@@ -407,19 +438,6 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     tick();
     return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
   }, [activeSrc, visible]);
-
-  // Resolve the small (DPR-down) preview in parallel so the card <img> can offer
-  // a srcset and let the browser pick the right-sized candidate on first paint.
-  // Purely additive: the lg `url` above stays the canonical src + fallback.
-  // getSignedUrl is cached/batched and honors the public-viewer resolver, so the
-  // /share path resolves the bundle's presigned sm URL the same way.
-  const previewSmKey = (meta && meta.previewSmKey) || null;
-  useEffect(() => {
-    if (!visible || !previewSmKey) { setSmUrl(null); return; }
-    let cancelled = false;
-    getSignedUrl(previewSmKey).then((u) => { if (!cancelled) setSmUrl(u || null); });
-    return () => { cancelled = true; };
-  }, [visible, previewSmKey]);
 
   // Warm the Tier-2 signed URL as soon as the upgrade is predictable — the card
   // is already displayed near/above the preview's native size — instead of
@@ -587,34 +605,12 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (blurUrl) perf.bump('image.tier0.blurShown');
   };
 
-  // Offer a srcset ONLY while showing the preview tier with both candidate URLs
-  // ready (lazy cards; eager ones keep the single-src fast path). The `sizes`
-  // hint is the card's ON-SCREEN width: `w` is the card's board-coordinate size
-  // (Math.round(c.w) from CanvasSurface), which is zoom-invariant because the
-  // canvas zooms via an ancestor CSS transform that doesn't change layout
-  // width — so it's multiplied by the settled canvas scale (canvasScale.js).
-  // Without that factor, a board opened at fit-all told the browser every card
-  // was its full layout width and EVERY mount decoded the 1280px lg candidate
-  // (~4× the texture bytes of sm) for cards covering ~100 device px.
-  // Handing the browser an explicit length (not sizes="auto") means this works
-  // on every browser, and the srcset w-descriptor algorithm picks the ~640px sm
-  // candidate when w*scale*DPR <= 640 and the 1280px lg otherwise. That
-  // algorithm never selects an undersized candidate (smallest candidate >=
-  // needed device px, else the largest), so sm is never upscaled. Zooming a
-  // card in far enough triggers the Tier-2 swap to the original below. Outside
-  // the preview tier (Tier-2 original, or any image with no sm variant — i.e.
-  // every pre-existing image) srcset is omitted, so legacy images are
-  // byte-for-byte unchanged.
-  const inPreviewTier = !!(meta && meta.previewKey) && activeSrc === `r2:${meta.previewKey}`;
-  const canSrcset = !eager && inPreviewTier && !!smUrl && !!url
-    && !!meta.previewSmW && !!meta.previewW && url !== smUrl;
-  const imgSrcSet = canSrcset ? `${smUrl} ${meta.previewSmW}w, ${url} ${meta.previewW}w` : undefined;
-  const cardDisplayW = (typeof w === 'number' && w > 0) ? Math.round(w) : null;
-  // Explicit length when we know the card width (the canvas + public-viewer
-  // case); fall back to sizes=auto only if it's somehow unknown.
-  const imgSizes = imgSrcSet
-    ? (cardDisplayW ? `${Math.max(1, Math.round(cardDisplayW * getCanvasScale()))}px` : 'auto')
-    : undefined;
+  // No srcset on the canvas imgs: `activeSrc` is the single tier decision-maker
+  // (pickInitialTier at mount, then the promote/demote ladder). The browser's
+  // w-descriptor picker fought that — it never downgrades an already-chosen
+  // candidate, so a card zoomed in then out stayed on lg — and its first-paint
+  // pick depended on a `sizes` hint that read scale=1 before the layout effect
+  // ran. One src, one decision.
 
   if (failed) return <BlockedPlaceholder {...rest} />;
 
@@ -626,8 +622,6 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
         <img ref={imgRef}
              className={`r2p-img ${loaded ? 'is-loaded' : ''}${fastLoadRef.current ? ' r2p-warm' : ''}`}
              src={url}
-             srcSet={imgSrcSet}
-             sizes={imgSizes}
              alt={alt}
              width={w}
              height={h}
@@ -636,9 +630,6 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
              draggable={draggable}
              onLoad={onImgLoad}
              onError={(e) => {
-               // The browser may have chosen the sm srcset candidate; drop it so
-               // we fall back to the lg `src` rather than retrying a bad sm URL.
-               if (smUrl) setSmUrl(null);
                // Force a fresh sign (evicts the cached string). The URL may be an
                // expired signature; re-presigning WITHOUT force would hand back
                // the same dead URL and lock the image. A null result means real

@@ -291,6 +291,13 @@ export function CanvasSurface({
   // appeared to disappear from their screen while we panned.
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
+  // Publish the canvas scale DURING render (idempotent module write), before
+  // any image card renders, so first-paint tier selection (R2Image
+  // pickInitialTier) sees the real zoom instead of the default 1.0. The
+  // pan/zoom layout effect below also writes it — but that runs AFTER children
+  // render, so a fit-all open used to decode the 1280px preview for every tiny
+  // card. StrictMode double-invokes this harmlessly (same value).
+  setCanvasScale(zoom);
   // The .canvas div whose CSS transform we mutate imperatively during pan/
   // zoom gestures. Gesture-time updates write to panRef/zoomRef AND to
   // this element's style.transform directly; React state is only committed
