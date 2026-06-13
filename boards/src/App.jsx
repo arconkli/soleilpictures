@@ -20,6 +20,7 @@ import { genuineCards, isSeedCard } from './lib/firstValueTrigger.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { logEvent, logEventNow, logEventOnce } from './lib/analytics.js';
 import { EV } from './lib/analyticsEvents.js';
+import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
 import { useResolvedDefaults } from './hooks/useResolvedDefaults.js';
@@ -98,7 +99,10 @@ import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 
 const TWEAK_DEFAULTS = {
-  theme: 'dark',
+  // NOTE: theme is intentionally NOT a tweak. It lives in the per-user
+  // server setting (profiles.settings.ui.theme) via lib/theme.js so it
+  // syncs across devices and can't drift from the Settings panel. See the
+  // theme unification in Workspace + SettingsPanel.
   showArrows: true,
   // Messages defaults to closed — the unread badge guides you to open it.
   // (Replaces the old showInbox: true default; that drawer was demoware.)
@@ -198,7 +202,9 @@ export function App() {
   }, [personalWorkspace?.id, refreshWorkspaces]);
 
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  useEffect(() => { document.documentElement.setAttribute('data-theme', tweak.theme); }, [tweak.theme]);
+  // Theme is applied from the per-user server setting inside Workspace
+  // (see the mySettings effect + setTheme), NOT from tweak — having two
+  // independent stores write data-theme was the reset bug.
 
   // One-time: rename tweak.showInbox → tweak.showMessages so existing users
   // keep their drawer-open state across the rename.
@@ -403,12 +409,47 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // addX mutator's initial values + the SettingsPanel UI. Stash in a ref
   // so mutators read the latest at call time without re-memo cascades.
   const { defaults, role: workspaceRole, refresh: refreshSettings,
-          workspaceSettings, mySettings } = useResolvedDefaults({
+          workspaceSettings, mySettings, mySettingsLoaded } = useResolvedDefaults({
     workspaceId: workspace?.id,
     userId: user?.id,
   });
   const defaultsRef = useRef(defaults);
   useEffect(() => { defaultsRef.current = defaults; }, [defaults]);
+
+  // ── Theme (single source of truth) ─────────────────────────────────────
+  // The rendered theme reflects the per-user server setting; themeMode just
+  // mirrors the live data-theme attribute so the topbar toggle's icon and
+  // any "current" reads stay in sync. setTheme is the ONE write path shared
+  // by the topbar quick toggle and Settings → Theme pills: it applies +
+  // caches synchronously (so remounts/cold-loads are instant and correct)
+  // then persists to Supabase.
+  const [themeMode, setThemeMode] = useState(() => currentTheme());
+  const setTheme = React.useCallback((next) => {
+    const t = applyThemeNow(next);           // data-theme + soleil.ui cache, instant
+    setThemeMode(t);
+    updateOwnSettings({ ui: { ...(mySettings?.ui || {}), theme: t } })
+      .then(() => refreshSettings?.())
+      .catch(() => { /* offline: cache + attribute already updated */ });
+  }, [mySettings, refreshSettings]);
+
+  // Follow the OS theme live for users who have never made an explicit
+  // choice. Once they pick one (mySettings.ui.theme set), this is a no-op.
+  useEffect(() => {
+    let mql;
+    try { mql = window.matchMedia('(prefers-color-scheme: light)'); } catch (_) { return undefined; }
+    const onChange = (e) => {
+      if (mySettings?.ui?.theme) return;     // explicit choice wins
+      const t = e.matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      setThemeMode(t);
+    };
+    if (mql.addEventListener) mql.addEventListener('change', onChange);
+    else if (mql.addListener) mql.addListener(onChange);
+    return () => {
+      if (mql.removeEventListener) mql.removeEventListener('change', onChange);
+      else if (mql.removeListener) mql.removeListener(onChange);
+    };
+  }, [mySettings?.ui?.theme]);
 
   // Apply per-user UI preferences on load + whenever they change.
   // Theme attribute, accent custom-property, body-font custom-property,
@@ -416,11 +457,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // We also mirror to localStorage so the bootstrap script in index.html
   // can apply these before React mounts on the next page load (no flicker).
   useEffect(() => {
+    // Wait for the real profile before touching anything — mySettings is {}
+    // until getOwnProfile resolves, and writing that empty blob would poison
+    // the soleil.ui bootstrap cache + clear accent/font for a frame. The
+    // pre-React bootstrap already applied the cached/OS theme; leave it be
+    // until we have the authoritative value.
+    if (!mySettingsLoaded) return;
     const ui = mySettings?.ui || {};
     try { localStorage.setItem('soleil.ui', JSON.stringify(ui)); } catch (_) {}
-    if (ui.theme) {
-      document.documentElement.setAttribute('data-theme', ui.theme);
-    }
+    // Explicit choice wins; otherwise follow the OS (new users) — without
+    // persisting, so a later toggle is what locks their preference in.
+    const resolvedTheme = resolveTheme(ui.theme);
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
+    setThemeMode(resolvedTheme);
     // We inject overrides into a single <style> element so changing
     // settings doesn't accumulate stale rules.
     let el = document.getElementById('user-theme-overrides');
@@ -450,7 +499,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Clean mode body attribute
     if (ui.hideChrome) document.body.setAttribute('data-clean-mode', '1');
     else document.body.removeAttribute('data-clean-mode');
-  }, [mySettings]);
+  }, [mySettings, mySettingsLoaded]);
 
   // ⌘. toggles clean mode quickly. Persists via merge_profile_settings.
   useEffect(() => {
@@ -3253,8 +3302,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
             </button>
             <button className="tb-icon tb-icon-theme" title="Toggle theme"
-                    onClick={() => setTweak('theme', tweak.theme === 'dark' ? 'light' : 'dark')}>
-              <Icon as={tweak.theme === 'dark' ? Sun : Moon} size={16} />
+                    onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
+              <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
             </button>
             <button className="tb-icon tb-icon-split"
                     onClick={() => splitId ? setSplitId(null) : setSplitPickerOpen(true)}

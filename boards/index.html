@@ -120,9 +120,13 @@
     (function () {
       try {
         var raw = localStorage.getItem('soleil.ui');
-        if (!raw) return;
-        var ui = JSON.parse(raw) || {};
-        if (ui.theme) document.documentElement.setAttribute('data-theme', ui.theme);
+        var ui = raw ? (JSON.parse(raw) || {}) : {};
+        // Theme precedence: explicit user choice → OS preference → dark.
+        // Runs even with no cache so first-time visitors get their OS theme
+        // (kept in sync with lib/theme.js resolveTheme).
+        var theme = (ui.theme === 'light' || ui.theme === 'dark') ? ui.theme
+          : ((window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
         if (ui.hideChrome) document.body && document.body.setAttribute('data-clean-mode', '1');
         // Inject accent + font overrides into a style tag we'll
         // reuse from React so we don't double-up.

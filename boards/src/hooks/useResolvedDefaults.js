@@ -87,6 +87,11 @@ function mergeCat(left, right) {
 export function useResolvedDefaults({ workspaceId, userId }) {
   const [workspaceSettings, setWorkspaceSettings] = useState({});
   const [mySettings, setMySettings] = useState({});
+  // False until getOwnProfile settles (resolve OR reject). Consumers gate
+  // side effects (e.g. applying theme/accent/font, mirroring the soleil.ui
+  // bootstrap cache) on this so they never overwrite a good cached value
+  // with the empty {} that mySettings holds before the fetch returns.
+  const [mySettingsLoaded, setMySettingsLoaded] = useState(false);
   const [role, setRole] = useState(null);
   const [tick, setTick] = useState(0);
 
@@ -116,11 +121,13 @@ export function useResolvedDefaults({ workspaceId, userId }) {
     let cancelled = false;
     if (!userId) {
       setMySettings({});
+      setMySettingsLoaded(false);
       return;
     }
     getOwnProfile()
       .then(p => { if (!cancelled) setMySettings(p?.settings || {}); })
-      .catch(() => { if (!cancelled) setMySettings({}); });
+      .catch(() => { if (!cancelled) setMySettings({}); })
+      .finally(() => { if (!cancelled) setMySettingsLoaded(true); });
     return () => { cancelled = true; };
   }, [userId, tick]);
 
@@ -140,5 +147,5 @@ export function useResolvedDefaults({ workspaceId, userId }) {
     return out;
   }, [workspaceSettings, mySettings]);
 
-  return { defaults, role, refresh, workspaceSettings, mySettings };
+  return { defaults, role, refresh, workspaceSettings, mySettings, mySettingsLoaded };
 }

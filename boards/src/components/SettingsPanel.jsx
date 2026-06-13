@@ -21,6 +21,7 @@ import { PricingModal } from './PricingModal.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { R2Image } from './R2Image.jsx';
 import { HARDCODED_FALLBACKS } from '../hooks/useResolvedDefaults.js';
+import { applyThemeNow } from '../lib/theme.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { planLabel, formatPeriodEnd, grantCopy } from '../lib/billingCopy.js';
 import { startPortal } from '../lib/checkout.js';
@@ -939,10 +940,14 @@ function ThemeTab({ mySettings, refresh }) {
     }
   };
 
-  // Apply theme attribute live on change so the user sees it instantly.
+  // Apply theme live on change so the user sees it instantly. applyThemeNow
+  // sets data-theme AND mirrors it into the soleil.ui cache synchronously —
+  // the same shared path the topbar quick toggle uses — so the two controls
+  // and the next remount/cold-load can never disagree. setUi then persists
+  // the choice server-side.
   const applyTheme = (theme) => {
     if (!theme) return;
-    document.documentElement.setAttribute('data-theme', theme);
+    applyThemeNow(theme);
     setUi({ theme });
   };
 
