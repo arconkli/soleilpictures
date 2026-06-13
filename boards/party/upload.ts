@@ -71,6 +71,7 @@ interface PresignBody {
 
 interface SignReadsBody { keys?: string[] }
 interface ShareBundleBody { token?: string; boardId?: string }
+interface PublicBundleBody { slug?: string; boardId?: string }
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -171,6 +172,10 @@ export default class UploadParty implements Party.Server {
     if (url.pathname.endsWith("/share-bundle")) {
       return this.handleShareBundle(req, env, origin);
     }
+    // /public-bundle is also anon-callable (slug-keyed marketing boards).
+    if (url.pathname.endsWith("/public-bundle")) {
+      return this.handlePublicBundle(req, env, origin);
+    }
 
     const accessToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
     if (!accessToken) {
@@ -232,9 +237,58 @@ export default class UploadParty implements Party.Server {
         status: 404, headers: corsHeaders(origin),
       });
     }
+    return this.respondWithBundle(bundle, env, origin);
+  }
 
-    // Presign every image key referenced on the board (5-minute URLs,
-    // matching the normal sign-reads TTL).
+  // POST /public-bundle — anon-callable. Body: { slug, boardId? }. Identical to
+  // /share-bundle but keyed by a published public-board slug
+  // (get_public_board_bundle) instead of a share token. The RPC validates the
+  // slug (published + not-deleted) and re-checks any boardId stays in the
+  // published subtree. LOCKSTEP with handleShareBundle / get_share_bundle.
+  async handlePublicBundle(
+    req: Party.Request, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    let body: PublicBundleBody = {};
+    try { body = (await req.json()) as PublicBundleBody; } catch (_) {}
+    const slug = (body.slug || "").trim();
+    const boardId = (body.boardId || "").trim();
+    if (!slug) {
+      return new Response("Missing slug", { status: 400, headers: corsHeaders(origin) });
+    }
+
+    const rpcBody: Record<string, string> = { p_slug: slug };
+    if (boardId) rpcBody.p_board_id = boardId;
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_public_board_bundle`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(rpcBody),
+    });
+    if (!rpcRes.ok) {
+      const msg = await rpcRes.text().catch(() => "");
+      return new Response(`No such public board${msg ? `: ${msg}` : ""}`, {
+        status: 404, headers: corsHeaders(origin),
+      });
+    }
+    const bundle: any = await rpcRes.json();
+    if (!bundle?.board?.id) {
+      return new Response("No such public board", {
+        status: 404, headers: corsHeaders(origin),
+      });
+    }
+    return this.respondWithBundle(bundle, env, origin);
+  }
+
+  // Presign every image key in a bundle (get_share_bundle / get_public_board_bundle
+  // return an identical shape) and format the client-facing JSON. Shared so the
+  // share + public paths stay byte-for-byte consistent.
+  async respondWithBundle(
+    bundle: any, env: R2Env, origin: string | null,
+  ): Promise<Response> {
     const r2 = new AwsClient({
       accessKeyId: env.accessKeyId,
       secretAccessKey: env.secretAccessKey,
@@ -255,8 +309,8 @@ export default class UploadParty implements Party.Server {
         snapshot: bundle.snapshot || null,
         image_urls: imageUrls,
         // Per-original progressive-loading metadata (blur + preview key). The
-        // preview keys are already in image_keys (same board_id) so their
-        // presigned URLs are in image_urls above.
+        // preview keys are already in image_keys so their presigned URLs are in
+        // image_urls above.
         image_meta: bundle.image_meta || {},
         role: 'viewer',
         root_id: bundle.root_id || null,

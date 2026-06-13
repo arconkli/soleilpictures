@@ -98,6 +98,9 @@ export const EV = Object.freeze({
   SHARE_DWELL:             'share_dwell',                 // time on the public viewer {ms,share_token,board_id,boards_opened}
   SHARE_PROMPT_VIEW:       'share_prompt_view',           // engagement prompt shown {trigger:'dwell'|'subboard'}
   SHARE_PROMPT_DISMISS:    'share_prompt_dismiss',        // prompt dismissed {trigger,visible_ms}
+
+  // ── Public marketing boards (/c/<slug> + /explore, migration 0136) ──
+  EXPLORE_VIEW:            'explore_view',                // /explore index mounted {count}
 });
 
 // Map an auth/network error to a stable machine code for *_error events.

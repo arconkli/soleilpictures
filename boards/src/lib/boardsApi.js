@@ -380,6 +380,45 @@ export async function listPublicLinks(boardId) {
   return data || [];
 }
 
+// ── Public marketing boards (admin-only; migration 0136) ────────────────────
+// Curate which boards are publicly discoverable at /c/<slug> with their own SEO
+// copy. Every RPC is gated on is_admin() server-side; the UI gate is cosmetic.
+
+export async function adminListPublicBoards() {
+  const { data, error } = await supabase.rpc('admin_list_public_boards');
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+// Create/update a public board. Identify the board by boardId OR a pasted
+// /share/<token> (shareToken). slug + SEO fields are upserted; `published`
+// toggles live status. Returns { board_id, slug, published }.
+export async function adminSetPublicBoard({
+  boardId = null, shareToken = null, slug,
+  seoTitle = null, seoDescription = null, seoBody = null,
+  targetKeyword = null, ogImageKey = null, priority = 0, published = false,
+}) {
+  const { data, error } = await supabase.rpc('admin_set_public_board', {
+    p_slug: slug,
+    p_board_id: boardId,
+    p_share_token: shareToken,
+    p_seo_title: seoTitle,
+    p_seo_description: seoDescription,
+    p_seo_body: seoBody,
+    p_target_keyword: targetKeyword,
+    p_og_image_key: ogImageKey,
+    p_priority: priority,
+    p_published: published,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function adminUnpublishBoard(boardId) {
+  const { error } = await supabase.rpc('admin_unpublish_board', { p_board_id: boardId });
+  if (error) throw error;
+}
+
 // ── Boards ─────────────────────────────────────────────────────────────────
 
 export async function listBoards(workspaceId) {

@@ -32,6 +32,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 // below covers all three, using AuthGate's own SplashLoading as the fallback.
 const AppShell        = lazyWithReload(() => import('./AppShell.jsx'));
 const PublicBoardView = lazyWithReload(() => import('./components/PublicBoardView.jsx').then(m => ({ default: m.PublicBoardView })));
+const ExplorePage     = lazyWithReload(() => import('./pages/ExplorePage.jsx').then(m => ({ default: m.ExplorePage })));
 const LegalPage       = lazyWithReload(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
 const PublicPricingPage = lazyWithReload(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
 
@@ -142,6 +143,13 @@ if (typeof window !== 'undefined' &&
 // other path falls through to the normal app + auth gate.
 const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$/i);
 
+// /c/<slug> = admin-curated public marketing board (migration 0136); /explore =
+// the public board index. Both bypass auth and render the public viewer chunk,
+// just like /share. The Worker has already injected per-page SEO meta +
+// crawlable content; React hydrates over it once mounted.
+const publicBoardMatch = window.location.pathname.match(/^\/c\/([a-z0-9][a-z0-9-]{0,79})\/?$/);
+const exploreMatch = /^\/explore\/?$/.test(window.location.pathname);
+
 // /legal/<privacy|terms|cookies> = public legal documents. Like /share, these
 // render before the AuthGate so they're reachable signed-out (footer links,
 // ad-policy review, etc). SPA fallback in the Worker serves these deep links.
@@ -245,6 +253,10 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <LegalPage doc={legalMatch[1].toLowerCase()} />
             ) : showPublicPricing ? (
               <PublicPricingPage />
+            ) : exploreMatch ? (
+              <ExplorePage />
+            ) : publicBoardMatch ? (
+              <PublicBoardView slug={publicBoardMatch[1]} />
             ) : shareMatch ? (
               <PublicBoardView token={shareMatch[1]} />
             ) : (

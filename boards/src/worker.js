@@ -67,6 +67,28 @@ class SetHref      { constructor(h) { this.h = h; } element(el) { el.setAttribut
 // html:true appends are NOT escaped — the string must stay fully static
 // (never interpolate board names or other user data into it).
 class AppendHead   { constructor(h) { this.h = h; } element(el) { el.append(this.h, { html: true }); } }
+// Replace an element's inner HTML with a (pre-escaped) string. Used to drop
+// server-rendered crawlable content into <main id="seo-fallback">.
+class SetInnerHtml { constructor(h) { this.h = h; } element(el) { el.setInnerContent(this.h, { html: true }); } }
+
+// Escape for HTML text/attribute contexts. EVERY interpolation of board/card/
+// admin-authored text into injected HTML MUST pass through this — the public
+// board pages render USER-authored card titles/alt + admin SEO copy, all
+// untrusted. (AppendHead / setInnerContent with html:true do NOT escape.)
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+// Serialize an object to embed inside <script type="application/ld+json">.
+// JSON.stringify escapes quotes; we additionally neutralize </script> breakout
+// and HTML-active chars so card/admin text can't break out of the script tag.
+function jsonLdSafe(obj) {
+  return JSON.stringify(obj)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+}
 
 // Copy a response, forcing HTML documents to revalidate on every load so new
 // deploys' chunk hashes are picked up immediately. `no-cache` still lets the
@@ -104,6 +126,14 @@ function injectRouteMeta(res, meta, canonical) {
 const SHARE_PATH_RE = /^\/share\/([0-9a-f-]{36})\/?$/i;
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
+// Admin-curated public marketing boards (migration 0136): clean keyword slugs at
+// /c/<slug>, plus the /explore index. The slug charset is a deliberate superset
+// of the DB CHECK (which forbids consecutive/edge hyphens) — the DB is the real
+// gate; the route only needs to catch every valid slug. A non-matching-but-
+// routed slug just resolves to no published board → default meta, no noindex.
+const PUBLIC_BOARD_PATH_RE = /^\/c\/([a-z0-9][a-z0-9-]{0,79})\/?$/;
+const EXPLORE_PATH_RE = /^\/explore\/?$/;
+
 // Early share-bundle fetch, injected into /share HTML so the POST overlaps
 // the entire JS download/parse instead of waiting for PublicBoardView to
 // mount (saves the serialized bundle RTT — hundreds of ms on mobile).
@@ -122,14 +152,32 @@ window.__shareBundle={token:m[1],boardId:boardId,promise:fetch(
 {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})};
 }catch(_){}})()<\/script>`;
 
+// Early public-bundle fetch for /c/<slug> marketing pages — the slug-keyed
+// analog of SHARE_EARLY_FETCH. Overlaps the bundle POST with JS download so
+// PublicBoardView can consume window.__publicBundle instead of re-fetching.
+// SAFETY: fully static — slug/?b are read from `location` in-browser, never
+// interpolated here. Only PARTYKIT_HOST (build constant) is templated.
+const PUBLIC_EARLY_FETCH = `<script>(function(){try{
+var m=location.pathname.match(/^\\/c\\/([a-z0-9][a-z0-9-]{0,79})\\/?$/);if(!m)return;
+var b=new URLSearchParams(location.search).get('b');
+var boardId=(b&&/^[0-9a-f-]{36}$/i.test(b))?b:null;
+var body={slug:m[1]};if(boardId)body.boardId=boardId;
+window.__publicBundle={slug:m[1],boardId:boardId,promise:fetch(
+'https://${PARTYKIT_HOST}/parties/upload/share/public-bundle',
+{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})};
+}catch(_){}})()<\/script>`;
+
 function injectShareMeta(res, meta, token) {
   const rw = new HTMLRewriter();
-  // Tokened URLs are noindexed unless the link owner explicitly opted this
-  // link into search (allow_indexing, migration 0134 — used for marketing
-  // boards). A failed/missing meta fetch keeps the noindex: fail closed.
+  // Tokened URLs are noindexed unless the link owner opted in (allow_indexing,
+  // 0134) OR the board is a published public board (public_slug, 0136). In the
+  // public_slug case we DROP the noindex and canonicalize this /share/<token>
+  // onto /c/<slug> below, so the legacy link consolidates its ranking instead of
+  // being deindexed (Google ignores rel=canonical when combined with noindex).
+  // A failed/missing meta fetch keeps the noindex: fail closed.
   // NOTE: the appended string must stay fully static (AppendHead does not
   // escape) — never interpolate board data here.
-  if (!meta?.allow_indexing) {
+  if (!meta?.public_slug && !meta?.allow_indexing) {
     rw.on('head', new AppendHead('<meta name="robots" content="noindex">'));
   }
   // Resolved meta = the token is valid → start the bundle fetch during HTML
@@ -146,6 +194,9 @@ function injectShareMeta(res, meta, token) {
   // board is the clean /share/<token> URL; sub-boards carry ?b=<id>.
   const isSub = meta.board_id && meta.root_id && meta.board_id !== meta.root_id;
   const shareUrl = `${SITE_ORIGIN}/share/${token}${isSub ? `?b=${meta.board_id}` : ''}`;
+  // Consolidate ranking: when this board is a published public board, point both
+  // og:url and rel=canonical at its /c/<slug> instead of the tokened URL.
+  const canonicalUrl = meta.public_slug ? `${SITE_ORIGIN}/c/${meta.public_slug}` : shareUrl;
   const title = `${name} — Soleil Clusters`;
   // Board-specific description for unfurls + (when indexable) SERP snippets.
   // The name only ever flows through SetContent/SetText, which escape it.
@@ -154,10 +205,10 @@ function injectShareMeta(res, meta, token) {
     .on('meta[name="description"]',         new SetContent(description))
     .on('meta[property="og:title"]',        new SetContent(title))
     .on('meta[property="og:description"]',  new SetContent(description))
-    .on('meta[property="og:url"]',          new SetContent(shareUrl))
+    .on('meta[property="og:url"]',          new SetContent(canonicalUrl))
     .on('meta[name="twitter:title"]',       new SetContent(title))
     .on('meta[name="twitter:description"]', new SetContent(description))
-    .on('link[rel="canonical"]',            new SetHref(shareUrl));
+    .on('link[rel="canonical"]',            new SetHref(canonicalUrl));
 
   // Only point og:image at the thumb route when the board HAS a stored
   // thumbnail — otherwise leave the logo defaults untouched (some scrapers
@@ -193,6 +244,14 @@ export default {
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
       if (thumbMatch) return await handleShareThumb(env, thumbMatch[1], url.searchParams, request);
       if (url.pathname === '/api/admin/backfill-image-sizes') return await handleBackfillImageSizes(request, env);
+      // Public marketing boards (migration 0136). Dynamic sitemap + indexable
+      // og:image + crawlable per-card images, all keyed by slug. Intercepted
+      // here (before env.ASSETS) so /sitemap.xml wins over any static asset.
+      if (url.pathname === '/sitemap.xml') return await handleSitemap(env);
+      const pubThumbMatch = url.pathname.match(/^\/api\/public-thumb\/([a-z0-9][a-z0-9-]{0,79})$/);
+      if (pubThumbMatch) return await handlePublicThumb(env, pubThumbMatch[1], url.searchParams, request);
+      const pubImgMatch = url.pathname.match(/^\/api\/public-img\/([a-z0-9][a-z0-9-]{0,79})$/);
+      if (pubImgMatch) return await handlePublicImg(env, pubImgMatch[1], url.searchParams, request);
     } catch (e) {
       return json({ error: e?.message || String(e) }, 500);
     }
@@ -204,6 +263,15 @@ export default {
     const shareMetaPromise = shareMatch
       ? fetchShareMeta(env, shareMatch[1], url.searchParams.get('b')).catch(() => null)
       : null;
+
+    // Same overlap trick for /c/<slug> marketing pages + the /explore index:
+    // kick the Supabase RPCs off before the asset fetch. All fail to null →
+    // /c falls back to default homepage meta (never noindex), /explore to empty.
+    const pubMatch = request.method === 'GET' ? url.pathname.match(PUBLIC_BOARD_PATH_RE) : null;
+    const pubMetaPromise = pubMatch ? fetchPublicBoardMeta(env, pubMatch[1]).catch(() => null) : null;
+    const pubContentPromise = pubMatch ? fetchPublicBoardContent(env, pubMatch[1]).catch(() => null) : null;
+    const exploreMatch = request.method === 'GET' ? url.pathname.match(EXPLORE_PATH_RE) : null;
+    const exploreListPromise = exploreMatch ? fetchPublicBoards(env).catch(() => null) : null;
 
     const res = await env.ASSETS.fetch(request);
     const contentType = res.headers.get('content-type') || '';
@@ -232,6 +300,20 @@ export default {
         const canonical = p === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${p}`;
         return withRevalidate(injectRouteMeta(res, meta, canonical));
       }
+    }
+
+    // Public marketing board (/c/<slug>): keyword-rich meta + crawlable
+    // server-rendered content + JSON-LD. Never noindex — these are meant to
+    // rank. RPC miss → SPA shell with default meta (still no noindex).
+    if (pubMatch && contentType.includes('text/html')) {
+      const [meta, content] = await Promise.all([pubMetaPromise, pubContentPromise]);
+      return withRevalidate(injectPublicBoard(res, meta, content, pubMatch[1]));
+    }
+
+    // Public board index (/explore): crawlable list of /c/<slug> links + JSON-LD.
+    if (exploreMatch && contentType.includes('text/html')) {
+      const boards = await exploreListPromise;
+      return withRevalidate(injectExplore(res, boards));
     }
 
     // Shared-board link previews: rewrite OG/Twitter meta on /share/<token>
@@ -424,6 +506,295 @@ function fetchShareMeta(env, token, boardId) {
   const params = { p_token: token };
   if (boardId && UUID_RE.test(boardId)) params.p_board_id = boardId;
   return anonRpc(env, 'get_share_meta', params);
+}
+
+// ── Public marketing boards (migration 0136) ────────────────────────────────
+// Anon RPC helpers. All SECURITY DEFINER + gated on published_at + not-deleted.
+function fetchPublicBoardMeta(env, slug)    { return anonRpc(env, 'get_public_board_meta', { p_slug: slug }); }
+function fetchPublicBoardContent(env, slug) { return anonRpc(env, 'get_public_board_content', { p_slug: slug }); }
+function fetchPublicBoards(env, timeoutMs = 4000) { return anonRpc(env, 'list_public_boards', {}, timeoutMs); }
+
+function imgContentType(key) {
+  const ext = (String(key).split('.').pop() || '').toLowerCase();
+  return ext === 'png' ? 'image/png'
+    : ext === 'webp' ? 'image/webp'
+    : ext === 'gif' ? 'image/gif'
+    : ext === 'svg' ? 'image/svg+xml'
+    : 'image/jpeg';
+}
+
+// Inject /c/<slug> meta + crawlable content + JSON-LD. NEVER noindex: a public
+// board is meant to rank, and a transient RPC miss must not deindex it — on miss
+// we serve the SPA shell untouched (default homepage meta, no noindex).
+function injectPublicBoard(res, meta, content, slug) {
+  const rw = new HTMLRewriter();
+  if (!meta?.board_id) return rw.transform(res);
+
+  // Early bundle fetch (overlaps JS download). Fully static; slug read in-browser.
+  rw.on('head', new AppendHead(PUBLIC_EARLY_FETCH));
+
+  const name = (meta.name || '').trim();
+  const title = (meta.seo_title || `${name} — Soleil Clusters`).trim();
+  const description = (meta.seo_description
+    || `${name} — a curated board on Soleil Clusters. References, images, and ideas in one place.`).trim();
+  const canonical = `${SITE_ORIGIN}/c/${slug}`;
+
+  // name/title/description flow through SetContent/SetText, which escape.
+  rw.on('title',                            new SetText(title))
+    .on('meta[name="description"]',         new SetContent(description))
+    .on('meta[property="og:title"]',        new SetContent(title))
+    .on('meta[property="og:description"]',  new SetContent(description))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[name="twitter:title"]',       new SetContent(title))
+    .on('meta[name="twitter:description"]', new SetContent(description))
+    .on('link[rel="canonical"]',            new SetHref(canonical));
+
+  // og:image — served INDEXABLE from /api/public-thumb/<slug>.
+  if (meta.thumb_key || meta.og_image_key) {
+    const v = encodeURIComponent(meta.thumb_updated_at || '');
+    const img = `${SITE_ORIGIN}/api/public-thumb/${slug}?v=${v}`;
+    const isV2 = (meta.thumb_version || 0) >= 2;
+    rw.on('meta[property="og:image"]',        new SetContent(img))
+      .on('meta[property="og:image:width"]',  new SetContent(isV2 ? '1200' : '800'))
+      .on('meta[property="og:image:height"]', new SetContent(isV2 ? '675' : '600'))
+      .on('meta[property="og:image:type"]',   new SetContent('image/webp'))
+      .on('meta[property="og:image:alt"]',    new SetContent(name))
+      .on('meta[name="twitter:image"]',       new SetContent(img))
+      .on('meta[name="twitter:image:alt"]',   new SetContent(name));
+  }
+
+  // Crawlable server-rendered content (replaces the homepage SEO fallback) +
+  // JSON-LD. All interpolation escaped (escapeHtml / jsonLdSafe).
+  const cards = Array.isArray(content?.cards) ? content.cards : [];
+  rw.on('main#seo-fallback', new SetInnerHtml(buildCrawlableHtml(meta, content, slug)));
+  rw.on('head', new AppendHead(
+    '<script type="application/ld+json">' + jsonLdSafe(buildPublicJsonLd(meta, cards, slug)) + '</script>'
+  ));
+  return rw.transform(res);
+}
+
+// Build the crawlable inner HTML for <main id="seo-fallback">. Server text MUST
+// match what PublicBoardView renders from the same card_index (anti-cloaking).
+// Every value is escapeHtml'd; image src is an index into /api/public-img, never
+// a reflected key; link URLs render as escaped text, never as an href (avoids
+// javascript:-scheme reflection).
+function buildCrawlableHtml(meta, content, slug) {
+  const h1 = escapeHtml(meta.seo_title || meta.name || '');
+  const desc = meta.seo_description ? `<p>${escapeHtml(meta.seo_description)}</p>` : '';
+  const body = meta.seo_body ? `<section>${escapeHtml(meta.seo_body)}</section>` : '';
+  const cards = Array.isArray(content?.cards) ? content.cards : [];
+  const items = cards.map((c, i) => {
+    const parts = [];
+    if (c.media) {
+      const alt = escapeHtml(c.media.alt || c.title || meta.name || '');
+      parts.push(`<img src="${SITE_ORIGIN}/api/public-img/${escapeHtml(slug)}?i=${i}" alt="${alt}" loading="lazy" width="320" height="240">`);
+    }
+    if (c.title) parts.push(`<h3>${escapeHtml(c.title)}</h3>`);
+    if (c.body) parts.push(`<p>${escapeHtml(c.body)}</p>`);
+    else if (c.kind === 'link' && c.href) parts.push(`<p>${escapeHtml(c.href)}</p>`);
+    return parts.length ? `<li>${parts.join('')}</li>` : '';
+  }).join('');
+  const subs = Array.isArray(content?.subboards) ? content.subboards : [];
+  const subList = subs.length
+    ? `<p>Sections: ${subs.map((s) => escapeHtml(s.name)).join(', ')}</p>`
+    : '';
+  return `<div style="max-width:880px;margin:0 auto;padding:14vh 24px 24px;">
+  <article>
+    <h1 style="font-size:1.9rem;font-weight:600;margin:0 0 .5em;">${h1}</h1>
+    ${desc}
+    ${body}
+    ${subList}
+    <ul style="list-style:none;padding:0;">${items}</ul>
+    <nav style="margin-top:1.6em;"><a href="/explore" style="color:#FFA500;">Explore more boards</a></nav>
+  </article>
+</div>`;
+}
+
+// CollectionPage → ImageGallery (ImageObject per image, capped) → BreadcrumbList.
+function buildPublicJsonLd(meta, cards, slug) {
+  const url = `${SITE_ORIGIN}/c/${slug}`;
+  const name = meta.seo_title || meta.name || '';
+  const images = cards
+    .map((c, i) => ({ c, i }))
+    .filter((x) => x.c.media)
+    .slice(0, 25)
+    .map(({ c, i }) => ({
+      '@type': 'ImageObject',
+      contentUrl: `${SITE_ORIGIN}/api/public-img/${slug}?i=${i}`,
+      name: c.media.alt || c.title || name,
+      caption: c.media.alt || c.title || undefined,
+    }));
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': `${url}#page`,
+        url,
+        name,
+        description: meta.seo_description || undefined,
+        isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+        mainEntity: {
+          '@type': 'ImageGallery',
+          name,
+          ...(images.length ? { associatedMedia: images } : {}),
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
+          { '@type': 'ListItem', position: 2, name: 'Explore', item: `${SITE_ORIGIN}/explore` },
+          { '@type': 'ListItem', position: 3, name, item: url },
+        ],
+      },
+    ],
+  };
+}
+
+// Inject the /explore index: crawlable list of /c/<slug> links + JSON-LD ItemList.
+function injectExplore(res, boards) {
+  const rw = new HTMLRewriter();
+  const list = Array.isArray(boards) ? boards : [];
+  const title = 'Explore Boards — Soleil Clusters';
+  const description = 'Browse curated public moodboards and reference collections made with Soleil Clusters.';
+  const canonical = `${SITE_ORIGIN}/explore`;
+  rw.on('title',                            new SetText(title))
+    .on('meta[name="description"]',         new SetContent(description))
+    .on('meta[property="og:title"]',        new SetContent(title))
+    .on('meta[property="og:description"]',  new SetContent(description))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[name="twitter:title"]',       new SetContent(title))
+    .on('meta[name="twitter:description"]', new SetContent(description))
+    .on('link[rel="canonical"]',            new SetHref(canonical));
+
+  const items = list.map((b) => {
+    const t = escapeHtml(b.seo_title || b.slug);
+    const d = b.seo_description ? `<p style="color:#b7b1a6;margin:.2em 0 0;">${escapeHtml(b.seo_description)}</p>` : '';
+    return `<li style="margin:0 0 1.1em;"><a href="/c/${escapeHtml(b.slug)}" style="color:#FFA500;font-size:1.15rem;font-weight:600;text-decoration:none;">${t}</a>${d}</li>`;
+  }).join('');
+  const html = `<div style="max-width:760px;margin:0 auto;padding:14vh 24px 24px;">
+  <article>
+    <h1 style="font-size:1.9rem;font-weight:600;margin:0 0 .5em;">Explore Boards</h1>
+    <p style="color:#b7b1a6;margin:0 0 1.5em;">${escapeHtml(description)}</p>
+    <ul style="list-style:none;padding:0;">${items}</ul>
+  </article>
+</div>`;
+  rw.on('main#seo-fallback', new SetInnerHtml(html));
+
+  const jsonld = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    url: canonical,
+    name: title,
+    description,
+    isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: list.slice(0, 50).map((b, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: b.seo_title || b.slug,
+        url: `${SITE_ORIGIN}/c/${b.slug}`,
+      })),
+    },
+  };
+  rw.on('head', new AppendHead('<script type="application/ld+json">' + jsonLdSafe(jsonld) + '</script>'));
+  return rw.transform(res);
+}
+
+// Dynamic /sitemap.xml: static pages + /explore + every published /c/<slug>.
+// MUST never 500 or shrink to empty (Google reads a sudden empty sitemap as a
+// deindex signal): on RPC failure we still emit the static set. Short-cached.
+async function handleSitemap(env) {
+  const staticUrls = [
+    { loc: `${SITE_ORIGIN}/`,               changefreq: 'weekly',  priority: '1.0' },
+    { loc: `${SITE_ORIGIN}/pricing`,        changefreq: 'monthly', priority: '0.9' },
+    { loc: `${SITE_ORIGIN}/explore`,        changefreq: 'daily',   priority: '0.8' },
+    { loc: `${SITE_ORIGIN}/legal/privacy`,  changefreq: 'yearly',  priority: '0.3' },
+    { loc: `${SITE_ORIGIN}/legal/terms`,    changefreq: 'yearly',  priority: '0.3' },
+    { loc: `${SITE_ORIGIN}/legal/cookies`,  changefreq: 'yearly',  priority: '0.3' },
+  ];
+  let boards = null;
+  try { boards = await fetchPublicBoards(env, 4000); } catch (_) { boards = null; }
+  const urls = [...staticUrls];
+  if (Array.isArray(boards)) {
+    for (const b of boards) {
+      if (!b?.slug) continue;
+      urls.push({
+        loc: `${SITE_ORIGIN}/c/${b.slug}`,
+        lastmod: b.updated_at ? String(b.updated_at).slice(0, 10) : null,
+        changefreq: 'weekly',
+        priority: '0.7',
+      });
+    }
+  }
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n`
+    + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
+    + urls.map((u) => `  <url><loc>${escapeHtml(u.loc)}</loc>`
+        + (u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : '')
+        + (u.changefreq ? `<changefreq>${u.changefreq}</changefreq>` : '')
+        + (u.priority ? `<priority>${u.priority}</priority>` : '')
+        + `</url>`).join('\n')
+    + `\n</urlset>\n`;
+  return new Response(body, {
+    headers: {
+      'content-type': 'application/xml; charset=utf-8',
+      'cache-control': 'public, max-age=300, s-maxage=3600',
+    },
+  });
+}
+
+// og:image for /c/<slug> — clone of handleShareThumb but slug-keyed and
+// INDEXABLE (no x-robots-tag: noindex). Prefers an admin og_image_key override.
+async function handlePublicThumb(env, slug, searchParams, request) {
+  const fallback = () =>
+    new Response(null, {
+      status: 302,
+      headers: { location: `${SITE_ORIGIN}/clusters-logo-dark.png`, 'cache-control': 'no-store' },
+    });
+  let meta = null;
+  try { meta = await fetchPublicBoardMeta(env, slug); } catch { return fallback(); }
+  const key = (meta?.og_image_key || meta?.thumb_key || '').replace(/^r2:/, '');
+  if (!key || !env.IMAGES) return fallback();
+  const obj = await env.IMAGES.get(key);
+  if (!obj) return fallback();
+  const headers = {
+    'content-type': obj.httpMetadata?.contentType || imgContentType(key),
+    'cache-control': 'public, max-age=3600',
+    'etag': obj.httpEtag,
+  };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(obj.body, { status: 200, headers });
+}
+
+// Crawlable per-card image for /c/<slug> (?i=<index>). Re-authorizes on EVERY
+// request: re-resolves the slug through the published+not-deleted gate, bounds
+// the index, and only serves a key that actually belongs to that board's image
+// card (no enumeration oracle). INDEXABLE (no noindex).
+async function handlePublicImg(env, slug, searchParams, request) {
+  const i = parseInt(searchParams.get('i') || '', 10);
+  if (!Number.isInteger(i) || i < 0) return new Response('Not found', { status: 404 });
+  let content = null;
+  try { content = await fetchPublicBoardContent(env, slug); } catch { return new Response('Not found', { status: 404 }); }
+  const cards = Array.isArray(content?.cards) ? content.cards : [];
+  const card = cards[i];
+  if (!card || card.kind !== 'image' || !card.media) return new Response('Not found', { status: 404 });
+  const key = String(card.media.preview_key || card.media.src_key || '').replace(/^r2:/, '');
+  if (!key || !env.IMAGES) return new Response('Not found', { status: 404 });
+  const obj = await env.IMAGES.get(key);
+  if (!obj) return new Response('Not found', { status: 404 });
+  const headers = {
+    'content-type': obj.httpMetadata?.contentType || imgContentType(key),
+    'cache-control': 'public, max-age=86400',
+    'etag': obj.httpEtag,
+  };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(obj.body, { status: 200, headers });
 }
 
 // Serves a shared board's stored thumbnail (<ws>/thumbs/<board>.webp in R2)

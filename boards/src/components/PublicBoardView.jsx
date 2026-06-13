@@ -38,7 +38,7 @@ import { setMetaResolver, clearMetaResolver } from '../lib/imageMeta.js';
 import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
-import { logEvent, logEventNow, logEventOnce, seedShareFirstSource } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce, seedShareFirstSource, seedPublicBoardFirstSource } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
 
@@ -62,42 +62,56 @@ const URL_REFRESH_AGE_MS = 24 * 60 * 60 * 1000;
 // query params before any effect reads them). DEV-only.
 const NO_PREFETCH = qaShareNoPrefetch();
 
-// Build the /share URL for a given board within a link. The root board
-// omits the ?b= param so the canonical share URL stays clean.
-function shareUrl(token, boardId, rootId) {
-  return (!boardId || boardId === rootId)
-    ? `/share/${token}`
-    : `/share/${token}?b=${boardId}`;
+// Build the viewer URL for a board within this link/board. The root board omits
+// ?b= so the canonical URL stays clean. `ctx` is {token} for /share/<token>
+// links or {slug} for /c/<slug> marketing boards — the slug path must NEVER emit
+// a /share/<token> URL (it has no token), or it would clobber the clean slug in
+// the address bar and re-introduce duplicate-content URLs.
+function viewerUrl(ctx, boardId, rootId) {
+  const base = ctx.slug ? `/c/${ctx.slug}` : `/share/${ctx.token}`;
+  return (!boardId || boardId === rootId) ? base : `${base}?b=${boardId}`;
 }
 
 // Signup CTAs land on "/" carrying explicit utm params as the attribution
-// FALLBACK: the primary mechanism (seedShareFirstSource → sessionStorage)
-// only survives same-tab navigation, so cmd-click / "open in new tab" still
-// attributes the signup to this share link.
-function ctaHref(token, surface) {
-  return `/?utm_source=share_link&utm_medium=${surface}&utm_campaign=${token}`;
+// FALLBACK: the primary mechanism (seed*FirstSource → sessionStorage) only
+// survives same-tab navigation, so cmd-click / "open in new tab" still
+// attributes the signup. Public marketing boards → public_board/<slug>; share
+// links → share_link/<token>.
+function ctaHref(ctx, surface) {
+  const src = ctx.slug ? 'public_board' : 'share_link';
+  return `/?utm_source=${src}&utm_medium=${surface}&utm_campaign=${ctx.slug || ctx.token}`;
 }
 
 // Branded top bar — rendered in every viewer state (loading / invalid / ok)
 // so the wordmark and signup CTA are visible from the first paint.
-function PublicTopbar({ token, center, busy, onCta }) {
+function PublicTopbar({ ctx, center, busy, onCta }) {
   return (
     <div className="public-topbar">
-      <a className="public-brand" href={ctaHref(token, 'badge')} title="Clusters home" onClick={onCta('badge')}>
+      <a className="public-brand" href={ctaHref(ctx, 'badge')} title="Clusters home" onClick={onCta('badge')}>
         <ClustersMark size={20} />
         <span className="public-brand-name">Clusters</span>
       </a>
       {center}
       <div className="public-topbar-actions">
-        <a className="public-signin-quiet" href={ctaHref(token, 'signin')} onClick={onCta('signin')}>Sign in</a>
-        <a className="public-cta" href={ctaHref(token, 'topbar')} onClick={onCta('topbar')}>Try Clusters free</a>
+        <a className="public-signin-quiet" href={ctaHref(ctx, 'signin')} onClick={onCta('signin')}>Sign in</a>
+        <a className="public-cta" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try Clusters free</a>
       </div>
       {busy && <div className="public-nav-progress" aria-hidden="true" />}
     </div>
   );
 }
 
-export function PublicBoardView({ token }) {
+// Renders both /share/<token> (token mode) and /c/<slug> (admin-curated public
+// marketing board, slug mode). Exactly one of token/slug is set. Slug mode hits
+// the public-bundle endpoint, attributes to public_board, and keeps the address
+// bar on /c/<slug> — it never synthesizes a token.
+export function PublicBoardView({ token, slug }) {
+  // Stable identity helpers for the two modes. ctx drives URL/CTA building;
+  // attrib is spread into every analytics event; linkKey de-dupes once-events.
+  const ctx = useMemo(() => ({ token, slug }), [token, slug]);
+  const attrib = useMemo(() => (slug ? { public_slug: slug } : { share_token: token }), [slug, token]);
+  const linkKey = slug || token;
+
   const [status, setStatus] = useState('loading');   // 'loading' | 'ok' | 'invalid'
   const [cache, setCache] = useState({});             // boardId → decoded bundle
   const [navBoards, setNavBoards] = useState({});     // boardId → name (reachable)
@@ -136,14 +150,14 @@ export function PublicBoardView({ token }) {
 
   const onCta = useCallback((surface) => () => {
     ctaClickedRef.current = true;
-    logEventNow(EV.SHARE_CTA_CLICK, { surface, share_token: token });
-  }, [token]);
+    logEventNow(EV.SHARE_CTA_CLICK, { surface, ...attrib });
+  }, [attrib]);
 
   // Time-on-board, fired once on leave (hide/unload/unmount). board_id and
   // boards_opened are read at fire time so they reflect where the visitor
   // actually ended up.
   useDwellTime(EV.SHARE_DWELL, () => ({
-    share_token: token,
+    ...attrib,
     board_id: currentIdRef.current,
     boards_opened: openCountRef.current,
   }));
@@ -152,8 +166,9 @@ export function PublicBoardView({ token }) {
   // first event of this pageload, so share_token (+ utm_source=share_link)
   // rides on every row and lands in profiles.first_source at signup.
   useEffect(() => {
-    seedShareFirstSource(token);
-  }, [token]);
+    if (slug) seedPublicBoardFirstSource(slug);
+    else seedShareFirstSource(token);
+  }, [token, slug]);
 
   // Install the public image resolver so every `r2:<key>` image surface
   // (cards, board-tile thumbnails, doc images…) resolves from the bundle's
@@ -188,26 +203,45 @@ export function PublicBoardView({ token }) {
   // root board. Keeps the Y.Doc ALIVE (CanvasSurface + doc cards read it);
   // it's destroyed on component unmount.
   const fetchBundle = useCallback(async (boardId) => {
-    // Consume the worker-injected early fetch (window.__shareBundle — an
-    // inline script in the served /share HTML starts the POST during parse,
+    // Consume the worker-injected early fetch (window.__shareBundle / __publicBundle
+    // — an inline script in the served HTML starts the POST during parse,
     // overlapping the whole JS download) when it matches this exact request.
     // One-shot: a Response body is single-read. Mismatch / rejection / dev
-    // builds (nothing injects there) fall through to the normal POST.
+    // builds (nothing injects there) fall through to the normal POST. Slug mode
+    // (/c/<slug>) hits /public-bundle; token mode (/share) hits /share-bundle.
     let res = null;
-    const early = typeof window !== 'undefined' ? window.__shareBundle : null;
-    if (early && early.token === token && (early.boardId || null) === (boardId || null)) {
-      window.__shareBundle = null;
-      try { res = await early.promise; } catch (_) { res = null; }
-      if (res && !res.ok) res = null;
-    }
-    if (!res) {
-      const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/share-bundle`;
-      res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, boardId: boardId || undefined }),
-      });
-      if (!res.ok) throw new Error('bundle-failed');
+    if (slug) {
+      const early = typeof window !== 'undefined' ? window.__publicBundle : null;
+      if (early && early.slug === slug && (early.boardId || null) === (boardId || null)) {
+        window.__publicBundle = null;
+        try { res = await early.promise; } catch (_) { res = null; }
+        if (res && !res.ok) res = null;
+      }
+      if (!res) {
+        const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/public-bundle`;
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, boardId: boardId || undefined }),
+        });
+        if (!res.ok) throw new Error('bundle-failed');
+      }
+    } else {
+      const early = typeof window !== 'undefined' ? window.__shareBundle : null;
+      if (early && early.token === token && (early.boardId || null) === (boardId || null)) {
+        window.__shareBundle = null;
+        try { res = await early.promise; } catch (_) { res = null; }
+        if (res && !res.ok) res = null;
+      }
+      if (!res) {
+        const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/share-bundle`;
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, boardId: boardId || undefined }),
+        });
+        if (!res.ok) throw new Error('bundle-failed');
+      }
     }
     const bundle = await res.json();
     const ydoc = new Y.Doc();
@@ -227,7 +261,7 @@ export function PublicBoardView({ token }) {
       groups: readGroups(ydoc),
     };
     return { bundle, decoded };
-  }, [token]);
+  }, [token, slug]);
 
   // Fold a fetched bundle into state; returns the resolved board id.
   const applyBundle = useCallback(({ bundle, decoded }) => {
@@ -266,10 +300,10 @@ export function PublicBoardView({ token }) {
         const root = r.bundle.root_id || id;
         const initStack = (id && id !== root) ? [root, id] : [root];
         setStack(initStack);
-        try { window.history.replaceState({ shareStack: initStack }, '', shareUrl(token, id, root)); } catch (_) {}
+        try { window.history.replaceState({ shareStack: initStack }, '', viewerUrl(ctx, id, root)); } catch (_) {}
         setStatus('ok');
-        logEventOnce(`share_view:${token}`, EV.SHARE_VIEW, {
-          share_token: token,
+        logEventOnce(`share_view:${linkKey}`, EV.SHARE_VIEW, {
+          ...attrib,
           board_id: id || null,
           root_id: root || null,
           include_subboards: !!r.bundle.include_subboards,
@@ -279,12 +313,12 @@ export function PublicBoardView({ token }) {
         console.error('[share] bundle fetch failed', e);
         if (!cancelled) {
           setStatus('invalid');
-          logEventOnce(`share_view_invalid:${token}`, EV.SHARE_VIEW, { share_token: token, valid: false });
+          logEventOnce(`share_view_invalid:${linkKey}`, EV.SHARE_VIEW, { ...attrib, valid: false });
         }
       }
     })();
     return () => { cancelled = true; };
-  }, [token, fetchBundle, applyBundle]);
+  }, [token, slug, ctx, attrib, linkKey, fetchBundle, applyBundle]);
 
   // Keep the tab title in sync with the visible board — same format the
   // worker injects server-side for the root board's unfurl/title.
@@ -390,13 +424,13 @@ export function PublicBoardView({ token }) {
       }
       setStack(prev => {
         const next = [...prev, boardId];
-        try { window.history.pushState({ shareStack: next }, '', shareUrl(token, boardId, rootId)); } catch (_) {}
+        try { window.history.pushState({ shareStack: next }, '', viewerUrl(ctx, boardId, rootId)); } catch (_) {}
         return next;
       });
       openCountRef.current += 1;
       setSubboardOpened(true);
       logEvent(EV.SHARE_SUBBOARD_OPEN, {
-        share_token: token,
+        ...attrib,
         board_id: boardId,
         from_board_id: currentId,
         depth: stack.length,
@@ -408,7 +442,7 @@ export function PublicBoardView({ token }) {
       openingRef.current = false;
       if (!wasCached) setNavBusy(false);
     }
-  }, [cache, currentId, fetchBundle, applyBundle, navBusy, token, rootId, stack.length]);
+  }, [cache, currentId, fetchBundle, applyBundle, navBusy, ctx, attrib, rootId, stack.length]);
 
   // Jump to a breadcrumb level.
   const goToCrumb = useCallback((i) => {
@@ -416,10 +450,10 @@ export function PublicBoardView({ token }) {
       if (i >= prev.length - 1) return prev;
       const next = prev.slice(0, i + 1);
       const id = next[next.length - 1];
-      try { window.history.pushState({ shareStack: next }, '', shareUrl(token, id, rootId)); } catch (_) {}
+      try { window.history.pushState({ shareStack: next }, '', viewerUrl(ctx, id, rootId)); } catch (_) {}
       return next;
     });
-  }, [token, rootId]);
+  }, [ctx, rootId]);
 
   // Boards map for CanvasSurface: reachable sub-boards (+ the current board)
   // so board / board-link cards render as real tiles and navigate via
@@ -450,7 +484,7 @@ export function PublicBoardView({ token }) {
   if (status === 'loading') {
     return (
       <div className="public-shell">
-        <PublicTopbar token={token} center={<div className="public-topbar-spacer" />} onCta={onCta} />
+        <PublicTopbar ctx={ctx} center={<div className="public-topbar-spacer" />} onCta={onCta} />
         <div className="public-loading">
           <SoleilMark size={42} color="var(--soleil)" glow />
           <div>Loading board…</div>
@@ -461,17 +495,18 @@ export function PublicBoardView({ token }) {
   if (status === 'invalid') {
     return (
       <div className="public-shell">
-        <PublicTopbar token={token} center={<div className="public-topbar-spacer" />} onCta={onCta} />
+        <PublicTopbar ctx={ctx} center={<div className="public-topbar-spacer" />} onCta={onCta} />
         <div className="public-empty">
           <SoleilMark size={42} color="var(--soleil)" glow />
-          <div className="public-empty-title">This link is no longer live</div>
+          <div className="public-empty-title">{slug ? 'This board isn’t available' : 'This link is no longer live'}</div>
           <div className="public-empty-sub">
-            The board you're looking for was shared with a link that has expired or
-            been revoked. Ask the owner for a new link — or make a board of your own.
+            {slug
+              ? 'This board may have been unpublished or moved. Explore other boards — or make one of your own.'
+              : 'The board you’re looking for was shared with a link that has expired or been revoked. Ask the owner for a new link — or make a board of your own.'}
           </div>
           <div className="public-empty-actions">
-            <a className="public-cta" href={ctaHref(token, 'invalid_page')} onClick={onCta('invalid_page')}>Try Clusters free</a>
-            <a className="public-signin-quiet" href={ctaHref(token, 'signin')} onClick={onCta('signin')}>Sign in</a>
+            <a className="public-cta" href={ctaHref(ctx, 'invalid_page')} onClick={onCta('invalid_page')}>Try Clusters free</a>
+            <a className="public-signin-quiet" href={ctaHref(ctx, 'signin')} onClick={onCta('signin')}>Sign in</a>
           </div>
         </div>
       </div>
@@ -488,7 +523,7 @@ export function PublicBoardView({ token }) {
   return (
     <div className="public-shell" style={{ background: board.bg_color || 'var(--bg-0)' }}>
       <PublicTopbar
-        token={token}
+        ctx={ctx}
         busy={navBusy}
         onCta={onCta}
         center={showCrumbs ? (
@@ -554,7 +589,7 @@ export function PublicBoardView({ token }) {
       </EntityNavigateContext.Provider>
 
       <SharePrompt
-        href={ctaHref(token, 'prompt')}
+        href={ctaHref(ctx, 'prompt')}
         onCtaClick={onCta('prompt')}
         subboardOpened={subboardOpened}
         ctaClickedRef={ctaClickedRef}

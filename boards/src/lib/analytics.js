@@ -91,6 +91,20 @@ export function seedShareFirstSource(token) {
   cachedSource = src;
 }
 
+// Same first-touch seeding for admin-curated public marketing boards
+// (/c/<slug>, migration 0136). Attributes to public_board/<slug> instead of
+// share_link/<token> so signups from a discoverable board are sliceable in the
+// funnel. First-touch wins; never clobbers a real campaign tag.
+export function seedPublicBoardFirstSource(slug) {
+  if (!slug || typeof window === 'undefined') return;
+  const src = { ...getFirstSource() };
+  if (src.public_slug) return;
+  src.public_slug = String(slug).slice(0, 80);
+  if (!src.utm_source) { src.utm_source = 'public_board'; src.utm_medium = 'public_page'; }
+  try { sessionStorage.setItem(SOURCE_KEY, JSON.stringify(src)); } catch (_) {}
+  cachedSource = src;
+}
+
 // Stamp the caller's profile.first_source the first time they
 // authenticate (server-side first-touch wins). One-shot per
 // auth-state-change → 'SIGNED_IN'.
