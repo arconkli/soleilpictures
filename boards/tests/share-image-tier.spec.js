@@ -31,6 +31,19 @@ test('fit-all mounts select the 640px sm preview, not lg', async ({ page }) => {
   const withSrcset = await page.evaluate(() =>
     [...document.querySelectorAll('.r2p-img')].filter((el) => el.hasAttribute('srcset')).length);
   expect(withSrcset).toBe(0);
+
+  // The blur layers unmount a beat after the images paint (freeing paint
+  // budget at fit-all). Watch that no .r2p-img loses is-loaded as they go.
+  await page.evaluate(() => {
+    window.__reblurs = 0;
+    for (const el of document.querySelectorAll('.r2p-img')) {
+      new MutationObserver(() => { if (!el.classList.contains('is-loaded')) window.__reblurs += 1; })
+        .observe(el, { attributes: true, attributeFilter: ['class'] });
+    }
+  });
+  await expect.poll(async () => page.evaluate(
+    () => document.querySelectorAll('.r2p-blur').length), { timeout: 4000 }).toBe(0);
+  expect(await page.evaluate(() => window.__reblurs)).toBe(0);
 });
 
 test('zoom-in promotes to the original; zoom-out demotes back to sm — never re-blurring', async ({ page }) => {

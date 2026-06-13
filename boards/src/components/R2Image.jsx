@@ -288,6 +288,13 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [visible, setVisible] = useState(() => eager || !!initialUrl);
+  // The blur placeholder is a real <img> layer behind every card. It USED to
+  // stay mounted for the whole session — ~70 extra painted layers sampled in
+  // every fit-all raster. Once the real image has painted and faded in, the
+  // blur is fully occluded, so we unmount it (a frame later than the fade) to
+  // hand that paint budget back. A culling remount is a fresh component →
+  // blurMounted resets true → the blur shows again under the reload (fine).
+  const [blurMounted, setBlurMounted] = useState(true);
 
   const rootRef = useRef(null);
   const imgRef = useRef(null);
@@ -311,6 +318,18 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const FAST_LOAD_MS = 200;
 
   const blurUrl = useMemo(() => ((visible || eager) ? blurToDataUrl(meta?.blur) : null), [meta, visible, eager]);
+
+  // Once the real image has painted, drop the blur layer a beat after the
+  // 0.35s fade completes (it's fully occluded by then). Frees ~1 painted layer
+  // per card — at fit-all on a 70-image board that's the difference between the
+  // compositor sampling 70 vs 140 textures every raster. `loaded` can't unset
+  // while mounted, so this never strands a card on a blank.
+  const BLUR_UNMOUNT_MS = 500;
+  useEffect(() => {
+    if (!loaded || !blurUrl || !blurMounted) return undefined;
+    const t = setTimeout(() => setBlurMounted(false), BLUR_UNMOUNT_MS);
+    return () => clearTimeout(t);
+  }, [loaded, blurUrl, blurMounted]);
 
   // Subscribe to metadata arriving after a cold open (the prime query landing,
   // or a fresh upload's variant generation).
@@ -600,7 +619,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
 
   return (
     <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}>
-      {blurUrl && <img className="r2p-blur" src={blurUrl} alt="" aria-hidden="true" draggable="false" />}
+      {blurUrl && blurMounted && <img className="r2p-blur" src={blurUrl} alt="" aria-hidden="true" draggable="false" />}
       {!blurUrl && !url && <div className="r2p-layer r2-img-loading" />}
       {url && (
         <img ref={imgRef}
