@@ -217,10 +217,10 @@ export function createImageTierScheduler({
 let _singleton = null;
 export function getImageTierScheduler() {
   if (_singleton) return _singleton;
-  // Lazily resolve the real gesture deadline. Until the dynamic import lands
-  // (a microtask, long before any zoom settle), the probe reports "no gesture"
-  // — harmless: CanvasSurface also calls onGesture() to abort, and no drain is
-  // even scheduled before the first settle.
+  // Lazily resolve the real gesture deadline + settle signal via dynamic
+  // import, so this file imports nothing at module load (the factory unit-tests
+  // in bare Node). Both land in a microtask — long before any zoom settle, and
+  // settles only fire after the user interacts.
   let gestureProbe = () => false;
   import('./perfReport.js')
     .then((m) => {
@@ -229,6 +229,12 @@ export function getImageTierScheduler() {
       };
     })
     .catch(() => {});
-  _singleton = createImageTierScheduler({ isGestureActive: () => gestureProbe() });
+  const sched = createImageTierScheduler({ isGestureActive: () => gestureProbe() });
+  _singleton = sched;
+  // ONE settle subscription for the whole app (vs the old ~70 per-card ones):
+  // every canvas gesture settle drives one onSettle with the settled scale.
+  import('./canvasScale.js')
+    .then((cs) => { cs.onCanvasSettle(() => sched.onSettle(cs.getCanvasScale())); })
+    .catch(() => {});
   return _singleton;
 }

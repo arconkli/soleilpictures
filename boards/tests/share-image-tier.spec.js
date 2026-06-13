@@ -76,20 +76,20 @@ test('zoom-in promotes to the original; zoom-out demotes back to sm — never re
     }
   }, { dy: deltaY, x: target.x, y: target.y });
 
-  // Deep zoom-in (one burst saturates ZOOM_MAX): after settle the promotion
-  // chain climbs sm → lg preview → original across idle callbacks.
+  // Deep zoom-in (one burst saturates ZOOM_MAX): the scheduler's promote drain
+  // (~150ms after the settle) jumps the displayed-large card straight to the
+  // original. Poll timeout covers the drain + presign + decode.
   await zoomBurst(-240);
   await expect.poll(targetSrc, { timeout: 8000 }).toContain('-orig.png');
 
-  // Deep zoom-out: the settle demotion steps straight back down to sm
-  // (the card mounted on the sm ACTIVE tier via pickInitialTier, climbed to
-  // original on zoom-in, now returns to sm).
+  // Deep zoom-out: the scheduler's demote drain steps the card back down to sm,
+  // but only after ~1.5s of true idle (demotes never run mid-interaction), so
+  // the poll must outlast that window.
   await zoomBurst(240);
   await expect.poll(targetSrc, { timeout: 8000 }).toContain('-sm.webp');
 
-  // Zoom back in: upgradedRef was cleared by the demotion, so the card must
-  // climb again — this leg exercises the explicit sm → lg preview promote
-  // (no srcset on the sm tier) and the repeat Tier-2 upgrade.
+  // Zoom back in: upgradedRef was cleared by the demotion, so the card climbs
+  // again — exercises a repeat Tier-2 upgrade from sm after a full cycle.
   await zoomBurst(-240);
   await expect.poll(targetSrc, { timeout: 8000 }).toContain('-orig.png');
 
@@ -100,7 +100,9 @@ test('zoom-in promotes to the original; zoom-out demotes back to sm — never re
     demote: window.__perfReport?.counters?.['image.tierDemote'] || 0,
   }));
   expect(after.reblurs).toBe(0);
-  expect(after.promote).toBeGreaterThanOrEqual(1);
+  // Two zoom-in legs each reach the original (jump-to-best-tier means the
+  // sm→preview micro-step may be skipped, so assert on the combined climb).
+  expect(after.promote + after.upgrade).toBeGreaterThanOrEqual(2);
   expect(after.upgrade).toBeGreaterThanOrEqual(2);
   expect(after.demote).toBeGreaterThanOrEqual(1);
 });
