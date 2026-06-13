@@ -41,8 +41,15 @@ const LOW_FPS = 20;
 const VERY_LOW_FPS = 10;
 const FRAME_GAP_MS = 350;
 const FRAME_GAP_HUGE_MS = 1_000;
-// Gaps beyond this are tab-switch / sleep artifacts, not jank.
+// Gaps beyond this used to be discarded wholesale as tab-switch / sleep
+// artifacts. But a true renderer freeze (GPU raster storm on a dense board)
+// can stall rAF for multiple seconds with NO visibilitychange — exactly the
+// "everything DIES" report. So a gap in [FREEZE_MIN_MS, FREEZE_MAX_MS) that
+// did NOT span a tab-hide is reported as a rare `freeze` incident; only gaps
+// ≥ FREEZE_MAX_MS are still treated as sleep/tab artifacts and dropped.
 const FRAME_GAP_DISCARD_MS = 10_000;
+const FREEZE_MIN_MS = 10_000;
+const FREEZE_MAX_MS = 60_000;
 const MAX_PER_SESSION = 6;
 const MIN_GAP_MS = 20_000;
 const STARTUP_MUTE_MS = 3_000;
@@ -57,6 +64,9 @@ let lastInteractionAt = 0;
 let gestureActiveUntil = 0;
 let lastFps = null;
 let inited = false;
+// performance.now() of the last visibilitychange→hidden. Used to tell a real
+// renderer freeze (no hide during the gap) from a tab-switch (hide spans it).
+let lastHiddenAt = 0;
 
 function off() {
   try { return localStorage.getItem('perfReportOff') === '1'; } catch (_) { return false; }
@@ -110,12 +120,14 @@ function buildContext(extra) {
   };
 }
 
-function report(bucket, extra) {
+function report(bucket, extra, opts) {
   if (off()) return;
   const now = performance.now();
   if (now - initAt < STARTUP_MUTE_MS) return;
   if (sentCount >= MAX_PER_SESSION) return;
-  if (lastSentAt && now - lastSentAt < MIN_GAP_MS) return;
+  // A multi-second freeze is rare and the whole point of its bucket — let it
+  // bypass the 20s anti-spam gap, but it still counts toward MAX_PER_SESSION.
+  if (!opts?.bypassMinGap && lastSentAt && now - lastSentAt < MIN_GAP_MS) return;
   if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
   sentCount += 1;
   lastSentAt = now;
@@ -143,6 +155,9 @@ function frameGapBucket(ms) {
     ? `perf: frame-gap >1000ms ${where()}`
     : `perf: frame-gap 350-1000ms ${where()}`;
 }
+function freezeBucket() {
+  return `perf: freeze >10s ${where()}`;
+}
 
 // ── Interaction-gated fps sampler ─────────────────────────────────────────
 let samplerRunning = false;
@@ -161,9 +176,15 @@ function samplerTick() {
   // negative; that still counts as interacting.)
   if (prevTickAt > 0) {
     const gap = now - prevTickAt;
-    if (gap >= FRAME_GAP_MS && gap < FRAME_GAP_DISCARD_MS
-        && prevTickAt - lastInteractionAt < INTERACTION_WINDOW_MS) {
+    const interactingAtGapStart = prevTickAt - lastInteractionAt < INTERACTION_WINDOW_MS;
+    if (gap >= FRAME_GAP_MS && gap < FRAME_GAP_DISCARD_MS && interactingAtGapStart) {
       report(frameGapBucket(gap), { gap_ms: Math.round(gap) });
+    } else if (gap >= FREEZE_MIN_MS && gap < FREEZE_MAX_MS && interactingAtGapStart
+        && lastHiddenAt < prevTickAt) {
+      // A real renderer freeze: rAF stalled 10–60s while interacting and the
+      // tab was NEVER hidden during the gap (a tab-switch would have stamped
+      // lastHiddenAt inside [prevTickAt, now]). Bypass the anti-spam gap.
+      report(freezeBucket(), { gap_ms: Math.round(gap) }, { bypassMinGap: true });
     }
   }
   prevTickAt = now;
@@ -234,7 +255,10 @@ export function initPerfReport() {
   // would read the whole hidden span as one giant "frame gap".
   try {
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState !== 'visible') prevTickAt = 0;
+      if (document.visibilityState !== 'visible') {
+        lastHiddenAt = performance.now();
+        prevTickAt = 0;
+      }
     }, { passive: true });
   } catch (_) {}
 }

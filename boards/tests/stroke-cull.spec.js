@@ -107,3 +107,30 @@ test('jank reporter records a frame-gap incident during interaction', async ({ p
   expect(incident.ctx.gap_ms).toBeGreaterThanOrEqual(350);
   expect(incident.ctx.is_public).toBe(true);
 });
+
+test('jank reporter records a freeze incident for a multi-second rAF stall', async ({ page }) => {
+  test.setTimeout(40_000);
+  await routeAnalytics(page, []);
+  await routeShareBundle(page, { dense: true });
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
+  await expect(page.getByText('Note 0', { exact: true })).toBeVisible();
+  await page.waitForTimeout(3200);   // startup mute
+
+  // Anchor the sampler, then stall rAF for >10s directly in evaluate (no
+  // tab-hide). A gap in [10s, 60s) with no visibilitychange→hidden during it
+  // is a real renderer freeze — reported instead of discarded as tab-switch.
+  await page.locator('.canvas-wrap').dispatchEvent('pointermove', { clientX: 200, clientY: 200 });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { const t = performance.now(); while (performance.now() - t < 11000) { /* spin */ } });
+
+  await expect.poll(async () => page.evaluate(
+    () => window.__perfReport.incidents.filter((i) => /^perf: freeze /.test(i.bucket)).length,
+  ), { timeout: 4000 }).toBeGreaterThan(0);
+
+  const incident = await page.evaluate(
+    () => window.__perfReport.incidents.find((i) => /^perf: freeze /.test(i.bucket)),
+  );
+  expect(incident.bucket).toBe('perf: freeze >10s (canvas)');
+  expect(incident.ctx.gap_ms).toBeGreaterThanOrEqual(10_000);
+  expect(incident.ctx.is_public).toBe(true);
+});
