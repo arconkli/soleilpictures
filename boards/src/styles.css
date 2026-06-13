@@ -5641,6 +5641,18 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 @keyframes feedback-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
 [data-theme='light'] .feedback-modal { background: rgba(255,255,255,0.97); border-color: rgba(0,0,0,0.08); box-shadow: 0 24px 60px rgba(0,0,0,0.18); }
+/* Light-mode overrides for the feedback modal internals — the panel flips to
+   near-white, so the dark-theme white-on-white tints/borders/dividers vanish.
+   Re-tint them with neutral black at matching alphas. (Additive; dark stays
+   byte-identical.) */
+[data-theme='light'] .feedback-head { border-bottom-color: rgba(0,0,0,0.06); }
+[data-theme='light'] .feedback-x:hover:not(:disabled) { background: rgba(0,0,0,0.05); }
+[data-theme='light'] .feedback-kind { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.10); }
+[data-theme='light'] .feedback-kind:hover:not(:disabled):not(.is-active) { background: rgba(0,0,0,0.05); }
+[data-theme='light'] .feedback-textarea { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.10); }
+[data-theme='light'] .feedback-attach-add { border-color: rgba(0,0,0,0.18); }
+[data-theme='light'] .feedback-attach-thumb { border-color: rgba(0,0,0,0.10); }
+[data-theme='light'] .feedback-foot { border-top-color: rgba(0,0,0,0.06); }
 @media (prefers-reduced-motion: reduce) {
   .feedback-overlay, .feedback-modal, .feedback-success { animation: none; }
 }
@@ -8221,6 +8233,12 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(245,245,246,.5)' d='M0 0h10L5 6z'/></svg>");
   background-repeat: no-repeat;
   background-position: right 6px center;
+}
+/* The chevron glyph is baked into the SVG background-image with a near-white
+   fill, which disappears on the white var(--bg-3) in light mode. Swap to a
+   neutral-gray arrow in light (matches .doc-tb-select / .share-role-select). */
+[data-theme='light'] .tob-select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(80,80,86,.6)' d='M0 0h10L5 6z'/></svg>");
 }
 /* Free-form numeric inputs in the toolbar — same look as .tob-select
    but without the dropdown chevron (these are typed inputs, not
@@ -12912,6 +12930,10 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   text-align: center;
   padding: 0 32px;
 }
+/* The populated HomeGraph canvas flips its bg per theme (HomeGraph.jsx
+   BG_FOR.light = #f5f5f7); without this the empty-state stays an orphaned
+   dark island where var(--ink-0) title text is near-black on near-black. */
+[data-theme='light'] .home-empty { background: #f5f5f7; }
 .home-empty-glow {
   position: absolute; inset: 0;
   background: radial-gradient(ellipse 800px 600px at 50% 50%, rgba(255,165,0,.14), transparent 60%);
@@ -15081,6 +15103,10 @@ body[data-clean-mode='1'] .app { grid-template-columns: 0 1fr !important; }
   transition: opacity var(--dur-base) var(--ease);
 }
 .clean-mode-exit:hover { opacity: 1; }
+/* The pill keeps its dark glass slab over the (now-light) canvas, but the
+   text color flips with the theme — pin it to the dark-mode ink so the label
+   stays legible light-on-dark instead of near-black-on-dark in light mode. */
+[data-theme='light'] .clean-mode-exit { color: #d0d0d4; }
 body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 
 /* Eyedropper mode — when picking a color from a board image, the
