@@ -39,6 +39,7 @@ import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { logEvent, logEventNow, logEventOnce, seedShareFirstSource, seedPublicBoardFirstSource } from '../lib/analytics.js';
+import { getRelatedPublicBoards } from '../lib/publicBoardsApi.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
 
@@ -120,6 +121,7 @@ export function PublicBoardView({ token, slug }) {
   const [stack, setStack] = useState([]);             // board ids, last = current
   const [navBusy, setNavBusy] = useState(false);
   const [subboardOpened, setSubboardOpened] = useState(false); // SharePrompt trigger B
+  const [relatedBoards, setRelatedBoards] = useState(EMPTY);   // slug mode: tag-related public boards
 
   // Session-wide presigned image map (merged across every board fetched)
   // + the live Y.Docs we keep alive for CanvasSurface (doc cards read their
@@ -326,6 +328,15 @@ export function PublicBoardView({ token, slug }) {
     const name = (cur?.board?.name || '').trim();
     document.title = name ? `${name} — Soleil Clusters` : 'Soleil Clusters';
   }, [cur]);
+
+  // Slug mode only: load tag-related public boards for the bottom strip (the
+  // worker also injects these as crawlable links for search engines).
+  useEffect(() => {
+    if (!slug || status !== 'ok') return undefined;
+    let cancelled = false;
+    getRelatedPublicBoards(slug, 6).then((r) => { if (!cancelled) setRelatedBoards(r); });
+    return () => { cancelled = true; };
+  }, [slug, status]);
 
   // Long-lived-tab URL freshness: when the tab becomes visible (or hourly
   // while open) and the bundle is >24h old, silently re-fetch the current
@@ -587,6 +598,26 @@ export function PublicBoardView({ token, slug }) {
           </div>
         </OpenDmContext.Provider>
       </EntityNavigateContext.Provider>
+
+      {/* Related boards (slug mode) — a subtle bottom strip of internal links to
+          tag-related public boards. The worker also injects these server-side as
+          crawlable anchors; this is the live-app equivalent for visitors. */}
+      {slug && relatedBoards.length > 0 && (
+        <nav className="public-related" aria-label="Related boards" style={{
+          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 6,
+          display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+          padding: '8px 14px', background: 'rgba(10,9,8,0.72)', backdropFilter: 'blur(8px)',
+          borderTop: '1px solid rgba(255,255,255,0.08)', pointerEvents: 'auto',
+        }}>
+          <span className="t-meta" style={{ color: 'var(--text-soft, #b7b1a6)', fontWeight: 600 }}>Related:</span>
+          {relatedBoards.slice(0, 5).map((r) => (
+            <a key={r.slug} href={`/c/${r.slug}`} style={{
+              color: '#FFA500', textDecoration: 'none', fontSize: '.85rem',
+              border: '1px solid rgba(255,165,0,0.3)', borderRadius: 999, padding: '3px 10px', whiteSpace: 'nowrap',
+            }}>{r.seo_title || r.slug}</a>
+          ))}
+        </nav>
+      )}
 
       <SharePrompt
         href={ctaHref(ctx, 'prompt')}

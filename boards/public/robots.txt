@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
 Sitemap: https://clusters.soleilpictures.com/sitemap.xml
+Sitemap: https://clusters.soleilpictures.com/sitemap-images.xml

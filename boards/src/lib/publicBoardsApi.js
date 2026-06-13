@@ -23,3 +23,13 @@ export async function getPublicBoardMeta(slug) {
   if (error) throw error;
   return data || null;
 }
+
+// Published boards sharing tags with this one — the live "Related boards" strip
+// (the worker also injects these as crawlable links). Never throws.
+export async function getRelatedPublicBoards(slug, limit = 6) {
+  try {
+    const { data, error } = await supabase.rpc('get_related_public_boards', { p_slug: slug, p_limit: limit });
+    if (error) return [];
+    return Array.isArray(data) ? data : [];
+  } catch (_) { return []; }
+}

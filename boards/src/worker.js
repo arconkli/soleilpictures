@@ -13,6 +13,7 @@
 //                       share token (get_share_meta RPC), no user auth.
 
 import { handleTagsRoute } from './worker-tags.js';
+import { handleSeoRoute, INDEXNOW_KEY } from './worker-seo.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 
 const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
@@ -239,6 +240,7 @@ export default {
     try {
       if (url.pathname === '/api/og') return await handleOg(url, request);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
+      if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
@@ -248,6 +250,11 @@ export default {
       // og:image + crawlable per-card images, all keyed by slug. Intercepted
       // here (before env.ASSETS) so /sitemap.xml wins over any static asset.
       if (url.pathname === '/sitemap.xml') return await handleSitemap(env);
+      if (url.pathname === '/sitemap-images.xml') return await handleImageSitemap(env);
+      // IndexNow ownership key file (Bing/Yandex verify our submissions here).
+      if (url.pathname === `/${INDEXNOW_KEY}.txt`) {
+        return new Response(INDEXNOW_KEY, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=86400' } });
+      }
       const pubThumbMatch = url.pathname.match(/^\/api\/public-thumb\/([a-z0-9][a-z0-9-]{0,79})$/);
       if (pubThumbMatch) return await handlePublicThumb(env, pubThumbMatch[1], url.searchParams, request);
       const pubImgMatch = url.pathname.match(/^\/api\/public-img\/([a-z0-9][a-z0-9-]{0,79})$/);
@@ -270,6 +277,7 @@ export default {
     const pubMatch = request.method === 'GET' ? url.pathname.match(PUBLIC_BOARD_PATH_RE) : null;
     const pubMetaPromise = pubMatch ? fetchPublicBoardMeta(env, pubMatch[1]).catch(() => null) : null;
     const pubContentPromise = pubMatch ? fetchPublicBoardContent(env, pubMatch[1]).catch(() => null) : null;
+    const pubRelatedPromise = pubMatch ? fetchRelatedPublicBoards(env, pubMatch[1]).catch(() => null) : null;
     const exploreMatch = request.method === 'GET' ? url.pathname.match(EXPLORE_PATH_RE) : null;
     const exploreListPromise = exploreMatch ? fetchPublicBoards(env).catch(() => null) : null;
 
@@ -306,8 +314,8 @@ export default {
     // server-rendered content + JSON-LD. Never noindex — these are meant to
     // rank. RPC miss → SPA shell with default meta (still no noindex).
     if (pubMatch && contentType.includes('text/html')) {
-      const [meta, content] = await Promise.all([pubMetaPromise, pubContentPromise]);
-      return withRevalidate(injectPublicBoard(res, meta, content, pubMatch[1]));
+      const [meta, content, related] = await Promise.all([pubMetaPromise, pubContentPromise, pubRelatedPromise]);
+      return withRevalidate(injectPublicBoard(res, meta, content, pubMatch[1], related));
     }
 
     // Public board index (/explore): crawlable list of /c/<slug> links + JSON-LD.
@@ -512,6 +520,7 @@ function fetchShareMeta(env, token, boardId) {
 // Anon RPC helpers. All SECURITY DEFINER + gated on published_at + not-deleted.
 function fetchPublicBoardMeta(env, slug)    { return anonRpc(env, 'get_public_board_meta', { p_slug: slug }); }
 function fetchPublicBoardContent(env, slug) { return anonRpc(env, 'get_public_board_content', { p_slug: slug }); }
+function fetchRelatedPublicBoards(env, slug) { return anonRpc(env, 'get_related_public_boards', { p_slug: slug }); }
 function fetchPublicBoards(env, timeoutMs = 4000) { return anonRpc(env, 'list_public_boards', {}, timeoutMs); }
 
 function imgContentType(key) {
@@ -526,7 +535,7 @@ function imgContentType(key) {
 // Inject /c/<slug> meta + crawlable content + JSON-LD. NEVER noindex: a public
 // board is meant to rank, and a transient RPC miss must not deindex it — on miss
 // we serve the SPA shell untouched (default homepage meta, no noindex).
-function injectPublicBoard(res, meta, content, slug) {
+function injectPublicBoard(res, meta, content, slug, related) {
   const rw = new HTMLRewriter();
   if (!meta?.board_id) return rw.transform(res);
 
@@ -566,7 +575,7 @@ function injectPublicBoard(res, meta, content, slug) {
   // Crawlable server-rendered content (replaces the homepage SEO fallback) +
   // JSON-LD. All interpolation escaped (escapeHtml / jsonLdSafe).
   const cards = Array.isArray(content?.cards) ? content.cards : [];
-  rw.on('main#seo-fallback', new SetInnerHtml(buildCrawlableHtml(meta, content, slug)));
+  rw.on('main#seo-fallback', new SetInnerHtml(buildCrawlableHtml(meta, content, slug, related)));
   rw.on('head', new AppendHead(
     '<script type="application/ld+json">' + jsonLdSafe(buildPublicJsonLd(meta, cards, slug)) + '</script>'
   ));
@@ -578,7 +587,7 @@ function injectPublicBoard(res, meta, content, slug) {
 // Every value is escapeHtml'd; image src is an index into /api/public-img, never
 // a reflected key; link URLs render as escaped text, never as an href (avoids
 // javascript:-scheme reflection).
-function buildCrawlableHtml(meta, content, slug) {
+function buildCrawlableHtml(meta, content, slug, related) {
   const h1 = escapeHtml(meta.seo_title || meta.name || '');
   const desc = meta.seo_description ? `<p>${escapeHtml(meta.seo_description)}</p>` : '';
   const body = meta.seo_body ? `<section>${escapeHtml(meta.seo_body)}</section>` : '';
@@ -598,6 +607,13 @@ function buildCrawlableHtml(meta, content, slug) {
   const subList = subs.length
     ? `<p>Sections: ${subs.map((s) => escapeHtml(s.name)).join(', ')}</p>`
     : '';
+  // Related boards (shared tags) — internal-linking spokes with keyword anchors.
+  const rel = Array.isArray(related) ? related : [];
+  const relNav = rel.length
+    ? `<nav aria-label="Related boards" style="margin-top:1.6em;"><h2 style="font-size:1.1rem;">Related boards</h2><ul>${
+        rel.map((r) => `<li><a href="/c/${escapeHtml(r.slug)}" style="color:#FFA500;">${escapeHtml(r.seo_title || r.slug)}</a></li>`).join('')
+      }</ul></nav>`
+    : '';
   return `<div style="max-width:880px;margin:0 auto;padding:14vh 24px 24px;">
   <article>
     <h1 style="font-size:1.9rem;font-weight:600;margin:0 0 .5em;">${h1}</h1>
@@ -605,6 +621,7 @@ function buildCrawlableHtml(meta, content, slug) {
     ${body}
     ${subList}
     <ul style="list-style:none;padding:0;">${items}</ul>
+    ${relNav}
     <nav style="margin-top:1.6em;"><a href="/explore" style="color:#FFA500;">Explore more boards</a></nav>
   </article>
 </div>`;
@@ -742,6 +759,40 @@ async function handleSitemap(env) {
       'content-type': 'application/xml; charset=utf-8',
       'cache-control': 'public, max-age=300, s-maxage=3600',
     },
+  });
+}
+
+// Dedicated image sitemap (/sitemap-images.xml) — surfaces each board's images
+// (which only load via JS on the live canvas) to Google Images, our highest-ROI
+// surface. Per board, emits its crawlable /api/public-img/<slug>?i=N entries;
+// the ?i index matches get_public_board_content's default ordering 1:1 (both use
+// the default limit). Bounded + cached so the per-board content fetches are cheap.
+async function handleImageSitemap(env) {
+  let boards = null;
+  try { boards = await fetchPublicBoards(env, 4000); } catch (_) { boards = null; }
+  const list = (Array.isArray(boards) ? boards : []).slice(0, 40);
+  const blocks = await Promise.all(list.map(async (b) => {
+    if (!b?.slug) return '';
+    let content = null;
+    try { content = await fetchPublicBoardContent(env, b.slug); } catch (_) { return ''; }
+    const cards = Array.isArray(content?.cards) ? content.cards : [];
+    const imgs = [];
+    cards.forEach((c, i) => {
+      if (c.media && imgs.length < 30) {
+        const title = escapeHtml((c.media.alt || c.title || b.seo_title || b.slug || '').slice(0, 200));
+        imgs.push(`    <image:image><image:loc>${SITE_ORIGIN}/api/public-img/${escapeHtml(b.slug)}?i=${i}</image:loc>`
+          + (title ? `<image:title>${title}</image:title>` : '') + `</image:image>`);
+      }
+    });
+    if (!imgs.length) return '';
+    return `  <url><loc>${SITE_ORIGIN}/c/${escapeHtml(b.slug)}</loc>\n${imgs.join('\n')}\n  </url>`;
+  }));
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n`
+    + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`
+    + blocks.filter(Boolean).join('\n')
+    + `\n</urlset>\n`;
+  return new Response(body, {
+    headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=600, s-maxage=3600' },
   });
 }
 

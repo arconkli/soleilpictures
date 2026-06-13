@@ -9,11 +9,14 @@
 // Master-detail: left = published + draft boards (+ "add a board" by pasting a
 // board id or a /share/<link>); right = the SEO editor with guardrails.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../../components/AppFeedback.jsx';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
-import { adminListPublicBoards, adminSetPublicBoard, adminUnpublishBoard } from '../../lib/boardsApi.js';
+import { adminListPublicBoards, adminSetPublicBoard, adminUnpublishBoard,
+  aiDraftBoardSeo, aiGenerateBoardAlts, pingIndexNow,
+  adminPublicBoardStats, adminImportGscCsv } from '../../lib/boardsApi.js';
 
 const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
 // Mirror of the DB CHECK (migration 0136) so the UI flags problems before the
@@ -47,6 +50,45 @@ function parseBoardRef(input) {
   return null;
 }
 
+// Tolerant parse of a Google Search Console "Pages" CSV export → clean rows.
+// Only rows whose page URL contains /c/<slug> are kept by the server importer.
+function parseGscCsv(text) {
+  const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim());
+  if (!lines.length) return [];
+  const split = (l) => {
+    const out = []; let cur = ''; let q = false;
+    for (const ch of l) {
+      if (ch === '"') q = !q;
+      else if (ch === ',' && !q) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map((s) => s.trim());
+  };
+  const header = split(lines[0]).map((h) => h.toLowerCase());
+  const idx = (names) => header.findIndex((h) => names.some((n) => h.includes(n)));
+  const pi = idx(['page', 'url', 'address', 'landing']);
+  const ci = idx(['click']);
+  const ii = idx(['impress']);
+  const ti = idx(['ctr']);
+  const oi = idx(['position']);
+  const num = (v) => { const n = parseFloat(String(v || '').replace(/[%,]/g, '')); return Number.isNaN(n) ? null : n; };
+  const rows = [];
+  for (let k = 1; k < lines.length; k++) {
+    const c = split(lines[k]);
+    const page = pi >= 0 ? c[pi] : c[0];
+    if (!page) continue;
+    rows.push({
+      page,
+      clicks: ci >= 0 ? (num(c[ci]) || 0) : 0,
+      impressions: ii >= 0 ? (num(c[ii]) || 0) : 0,
+      ctr: ti >= 0 ? num(c[ti]) : null,
+      position: oi >= 0 ? num(c[oi]) : null,
+    });
+  }
+  return rows;
+}
+
 const inputStyle = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
   border: '1px solid var(--border, #2a2722)', background: 'var(--bg-0, #0a0908)',
@@ -64,6 +106,9 @@ export function AdminDiscoverTab() {
   const [form, setForm] = useState(EMPTY);
   const [origSlug, setOrigSlug] = useState('');
   const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [audit, setAudit] = useState(null);   // admin_seo_audit for the selected saved board
+  const [statsBySlug, setStatsBySlug] = useState({});   // GSC perf per slug (latest snapshot)
 
   // Load a selected board into the form. Intentionally NOT keyed on `boards`,
   // so a background refresh doesn't clobber in-progress edits.
@@ -82,6 +127,46 @@ export function AdminDiscoverTab() {
   const current = selected && selected !== NEW ? boards.find((b) => b.board_id === selected) : null;
   const slugErr = slugError(form.slug);
   const onField = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // SEO audit (image count, %-with-alt, body uniqueness, related count) for the
+  // publish-quality gate. Re-fetched on board change + after save / alt-gen.
+  const refreshAudit = useCallback(async (boardId) => {
+    if (!boardId) { setAudit(null); return; }
+    try {
+      const { data, error } = await supabase.rpc('admin_seo_audit', { p_board_id: boardId });
+      if (!error) setAudit(data);
+    } catch (_) { /* non-fatal */ }
+  }, []);
+  useEffect(() => { refreshAudit(current?.board_id || null); }, [current?.board_id, refreshAudit]);
+
+  // The board id AI tooling can target: a saved board, or a pasted UUID in NEW
+  // mode. A pasted /share token has no client-side board id until first save.
+  const aiBoardId = current?.board_id || (selected === NEW ? (parseBoardRef(addRef)?.boardId || null) : null);
+
+  // GSC performance per slug (latest snapshot). Loaded on mount + after import.
+  const loadStats = useCallback(async () => {
+    try {
+      const rows = await adminPublicBoardStats(90);
+      const map = {};
+      for (const r of rows) map[r.slug] = r;
+      setStatsBySlug(map);
+    } catch (_) { /* non-fatal */ }
+  }, []);
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  const onImportCsv = async (file) => {
+    if (!file || busy) return;
+    try {
+      const text = await file.text();
+      const rows = parseGscCsv(text).filter((r) => /\/c\/[a-z0-9]/i.test(r.page));
+      if (!rows.length) { feedback.toast({ type: 'error', message: 'No /c/<slug> rows found in that CSV.' }); return; }
+      const n = await adminImportGscCsv(rows);
+      feedback.toast({ type: 'success', message: `Imported GSC stats for ${n} board${n === 1 ? '' : 's'}.` });
+      await loadStats();
+    } catch (ex) {
+      feedback.toast({ type: 'error', message: 'CSV import failed: ' + (ex?.message || ex) });
+    }
+  };
 
   const startNew = () => { setSelected(NEW); setForm(EMPTY); setOrigSlug(''); setAddRef(''); };
 
@@ -129,14 +214,49 @@ export function AdminDiscoverTab() {
         published: willPublish,
       });
       feedback.toast({ type: 'success', message: willPublish ? 'Saved — live' : 'Saved as draft' });
+      if (willPublish) pingIndexNow(res?.slug || form.slug);  // best-effort Bing/Yandex ping
       await refresh();
       setSelected(res?.board_id || null);
       setOrigSlug(form.slug);
+      await refreshAudit(res?.board_id || null);
     } catch (ex) {
       feedback.toast({ type: 'error', message: 'Save failed: ' + (ex?.message || ex) });
     } finally {
       setBusy(false);
     }
+  };
+
+  // AI: draft the SEO copy from the board's real content (fills the form for
+  // human review — does NOT save). Requires a concrete board id.
+  const onDraftAI = async () => {
+    if (aiBusy || !aiBoardId) return;
+    setAiBusy(true);
+    try {
+      const { draft } = await aiDraftBoardSeo(aiBoardId);
+      setForm((f) => ({
+        ...f,
+        seoTitle: draft.seo_title || f.seoTitle,
+        seoDescription: draft.seo_description || f.seoDescription,
+        seoBody: draft.seo_body || f.seoBody,
+        targetKeyword: f.targetKeyword || draft.suggested_keyword || '',
+      }));
+      feedback.toast({ type: 'success', message: 'AI draft filled in — review and edit before publishing.' });
+    } catch (ex) {
+      feedback.toast({ type: 'error', message: 'Draft failed: ' + (ex?.message || ex) });
+    } finally { setAiBusy(false); }
+  };
+
+  // AI: generate + write alt text for image cards lacking it (into card_alts).
+  const onGenAlts = async () => {
+    if (aiBusy || !aiBoardId) return;
+    setAiBusy(true);
+    try {
+      const r = await aiGenerateBoardAlts(aiBoardId);
+      feedback.toast({ type: 'success', message: `Alt text — wrote ${r.written}, ${r.remaining} remaining.` });
+      await refreshAudit(aiBoardId);
+    } catch (ex) {
+      feedback.toast({ type: 'error', message: 'Alt generation failed: ' + (ex?.message || ex) });
+    } finally { setAiBusy(false); }
   };
 
   const unpublish = async () => {
@@ -159,6 +279,31 @@ export function AdminDiscoverTab() {
     }
   };
 
+  // ── Publish-quality checklist (Phase C) ──────────────────────────────────
+  // Text checks come from the live form (instant feedback); image/uniqueness/
+  // related checks come from the server audit (DB-backed). `required` checks
+  // gate the Publish action; warnings don't.
+  const titleLen = form.seoTitle.trim().length;
+  const descLen = form.seoDescription.trim().length;
+  const bodyWords = form.seoBody.trim() ? form.seoBody.trim().split(/\s+/).length : 0;
+  const kw = form.targetKeyword.trim();
+  const checks = [
+    { label: 'SEO title 10–60 characters', ok: titleLen >= 10 && titleLen <= TITLE_MAX, required: true },
+    { label: 'Meta description 50–155 characters', ok: descLen >= 50 && descLen <= DESC_MAX, required: true },
+    { label: 'Body copy ≥ 40 unique words', ok: bodyWords >= 40, required: true },
+    { label: 'Target keyword set', ok: !!kw, required: true },
+    { label: 'Keyword appears in the title', ok: !!kw && form.seoTitle.toLowerCase().includes(kw.toLowerCase()), required: false },
+    { label: '≥ 3 images on the board', ok: !audit || audit.image_count >= 3, required: true, pending: !audit },
+    { label: '≥ 60% of images have alt text', ok: !audit || audit.alt_pct == null || audit.alt_pct >= 60, required: true, pending: !audit },
+    { label: 'Body not a near-duplicate of another board', ok: !audit || (audit.body_max_similarity ?? 0) < 0.7, required: true, pending: !audit },
+    { label: 'Has related boards (shared tags)', ok: !!audit && audit.related_board_count > 0, required: false, pending: !audit },
+  ];
+  const requiredFailing = checks.filter((c) => c.required && !c.ok);
+  const publishable = requiredFailing.length === 0;
+  const score = Math.round((100 * checks.filter((c) => c.ok).length) / checks.length);
+  const isLive = !!current?.is_published;
+  const isNew = selected === NEW;
+
   return (
     <div className="admin-section">
       <section className="admin-chart-panel admin-chart-panel-wide">
@@ -172,6 +317,12 @@ export function AdminDiscoverTab() {
 
         <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
           <button className="btn-secondary" onClick={startNew}>+ Add a board</button>
+          <label className="btn-secondary" style={{ cursor: 'pointer' }}
+                 title="Import a Google Search Console 'Pages' CSV export to see per-board clicks/impressions/position">
+            Import GSC CSV
+            <input type="file" accept=".csv,text/csv" style={{ display: 'none' }}
+                   onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onImportCsv(f); }} />
+          </label>
         </AdminToolbar>
 
         <AdminAsync loading={loading} error={error} onRetry={refresh}
@@ -208,6 +359,24 @@ export function AdminDiscoverTab() {
                       <div className="t-meta admin-muted" style={{ marginTop: 2 }}>
                         /c/{b.slug}{b.deleted ? ' · board deleted' : ''}
                       </div>
+                      {(() => {
+                        const st = statsBySlug[b.slug];
+                        if (st && st.impressions > 0) {
+                          return (
+                            <div className="t-meta" style={{ marginTop: 3, color: '#74e39b' }}>
+                              {st.impressions} impr · {st.clicks} clicks · pos {st.position ?? '—'}
+                            </div>
+                          );
+                        }
+                        if (b.is_published) {
+                          return (
+                            <div className="t-meta" style={{ marginTop: 3, color: '#e0a366' }}>
+                              no search impressions yet
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </button>
                   </li>
                 );
@@ -244,6 +413,22 @@ export function AdminDiscoverTab() {
                     {slugErr || `${SITE_ORIGIN}/c/${form.slug || '…'}`}
                   </div>
 
+                  {/* AI assist (Phase B). Drafts copy from the board's real content (fills
+                      the form for review — never auto-saves) + fills empty image alt. */}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button className="btn-secondary" disabled={aiBusy || !aiBoardId} onClick={onDraftAI}
+                            title={aiBoardId ? 'Draft title/description/body from this board' : 'Save as draft first (or paste a board id)'}>
+                      {aiBusy ? 'Working…' : '✨ Draft SEO with AI'}
+                    </button>
+                    <button className="btn-secondary" disabled={aiBusy || !aiBoardId} onClick={onGenAlts}
+                            title={aiBoardId ? 'Generate alt text for images missing it' : 'Save as draft first (or paste a board id)'}>
+                      🖼 Generate alt text
+                    </button>
+                    {!aiBoardId && (
+                      <span className="t-meta admin-muted">Save as draft first to enable AI.</span>
+                    )}
+                  </div>
+
                   <label style={labelStyle}>SEO title <span style={{ fontWeight: 400 }}>({form.seoTitle.length}/{TITLE_MAX})</span></label>
                   <input style={inputStyle} value={form.seoTitle} onChange={onField('seoTitle')}
                          placeholder="Backrooms Fanart — Curated Community Art | Soleil Clusters" />
@@ -264,14 +449,63 @@ export function AdminDiscoverTab() {
                   <label style={labelStyle}>Priority <span style={{ fontWeight: 400 }}>(higher sorts first on /explore)</span></label>
                   <input style={{ ...inputStyle, width: 120 }} type="number" value={form.priority} onChange={onField('priority')} />
 
-                  <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button className="btn-primary" disabled={busy || !!slugErr} onClick={() => save(true)}>
-                      {busy ? 'Saving…' : (current?.is_published ? 'Save & keep live' : 'Publish')}
-                    </button>
+                  {/* SEO score / publish-quality gate (Phase C). */}
+                  <div style={{
+                    marginTop: 18, padding: '12px 14px', borderRadius: 10,
+                    border: '1px solid var(--border, #2a2722)', background: 'var(--bg-1, #14110d)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontWeight: 600 }}>SEO readiness</span>
+                      <span style={{
+                        fontSize: '.78rem', fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                        background: publishable ? 'rgba(80,200,120,.16)' : 'rgba(224,166,102,.16)',
+                        color: publishable ? '#74e39b' : '#e0a366',
+                      }}>{score}% {publishable ? '· ready' : '· needs work'}</span>
+                      {isNew && <span className="t-meta admin-muted">save as draft to run image/uniqueness checks</span>}
+                    </div>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 3 }}>
+                      {checks.map((c, i) => (
+                        <li key={i} className="t-meta" style={{
+                          color: c.pending ? 'var(--text-soft, #b7b1a6)' : (c.ok ? '#74e39b' : (c.required ? '#e06666' : '#e0a366')),
+                        }}>
+                          {c.pending ? '○' : (c.ok ? '✓' : (c.required ? '✗' : '!'))} {c.label}{!c.required ? ' (recommended)' : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Search performance (GSC, Phase E) for this board, if imported. */}
+                  {current && (() => {
+                    const st = statsBySlug[current.slug];
+                    return (
+                      <div className="t-meta" style={{ marginTop: 12, color: 'var(--text-soft, #b7b1a6)' }}>
+                        {st && st.impressions > 0
+                          ? <>Search (last snapshot): <b style={{ color: '#74e39b' }}>{st.impressions}</b> impressions · {st.clicks} clicks · avg position {st.position ?? '—'}{st.top_query ? <> · top query “{st.top_query}”</> : null}</>
+                          : (current.is_published
+                              ? <>No search impressions yet — give it time, then check it’s indexed in GSC. Import a GSC CSV to track it here.</>
+                              : <>Publish + import a GSC CSV to track search performance here.</>)}
+                      </div>
+                    );
+                  })()}
+
+                  <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {isLive ? (
+                      <button className="btn-primary" disabled={busy || !!slugErr} onClick={() => save(true)}>
+                        {busy ? 'Saving…' : 'Save & keep live'}
+                      </button>
+                    ) : (
+                      <button className="btn-primary"
+                              disabled={busy || !!slugErr || isNew || !publishable}
+                              title={isNew ? 'Save as draft first, then publish once the checklist passes'
+                                : (!publishable ? 'Fix the required SEO checklist items first' : '')}
+                              onClick={() => save(true)}>
+                        {busy ? 'Saving…' : 'Publish'}
+                      </button>
+                    )}
                     <button className="btn-secondary" disabled={busy || !!slugErr} onClick={() => save(false)}>
                       Save as draft
                     </button>
-                    {current?.is_published && (
+                    {isLive && (
                       <>
                         <a className="btn-secondary" href={`/c/${current.slug}`} target="_blank" rel="noreferrer">View live ↗</a>
                         <button className="btn-primary btn-danger" disabled={busy} onClick={unpublish}>

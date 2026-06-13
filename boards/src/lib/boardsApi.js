@@ -419,6 +419,57 @@ export async function adminUnpublishBoard(boardId) {
   if (error) throw error;
 }
 
+// GSC measurement loop (migration 0138). Stats reader + CSV importer.
+export async function adminPublicBoardStats(days = 90) {
+  const { data, error } = await supabase.rpc('admin_public_board_stats', { p_days: days });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+// rows: [{ page|slug, clicks, impressions, ctr, position }]; asOf: 'YYYY-MM-DD'.
+export async function adminImportGscCsv(rows, asOf = null) {
+  const { data, error } = await supabase.rpc('admin_import_gsc_csv', { p_rows: rows, p_as_of: asOf });
+  if (error) throw error;
+  return data; // count imported
+}
+
+// AI SEO tooling (migration 0137) — admin-only worker routes (worker-seo.js),
+// gated server-side on tier='admin'. Same same-origin Bearer pattern as
+// forceResetBoardRoom. gpt-4o-mini drafts copy / writes image alt; both return
+// results for the admin to review (draft is NOT auto-saved).
+async function seoWorkerPost(path, boardId) {
+  let accessToken = '';
+  try { const { data } = await supabase.auth.getSession(); accessToken = data?.session?.access_token || ''; } catch (_) {}
+  if (!accessToken) throw new Error('not signed in');
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ board_id: boardId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `${path} ${res.status}`);
+  return data;
+}
+
+// Returns { draft: { seo_title, seo_description, seo_body, suggested_keyword }, grounded_on }.
+export function aiDraftBoardSeo(boardId) { return seoWorkerPost('/api/seo/draft', boardId); }
+// Generates + writes AI alt for image cards lacking it. Returns { generated, written, remaining }.
+export function aiGenerateBoardAlts(boardId) { return seoWorkerPost('/api/seo/alt', boardId); }
+
+// Ping IndexNow (Bing/Yandex) for a freshly published slug. Best-effort — never
+// throws (Google ignores IndexNow; this is bonus coverage, not the indexing path).
+export async function pingIndexNow(slug) {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data?.session?.access_token || '';
+    if (!accessToken || !slug) return;
+    await fetch('/api/seo/indexnow', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ slug }),
+    });
+  } catch (_) { /* non-fatal */ }
+}
+
 // ── Boards ─────────────────────────────────────────────────────────────────
 
 export async function listBoards(workspaceId) {
