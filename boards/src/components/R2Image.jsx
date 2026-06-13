@@ -529,12 +529,14 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
               upgradedRef.current = true;
               setActiveSrc(st.src);                 // original (Tier 2)
               perf.bump('image.tier2Upgrade'); bumpPerf('image.tier2Upgrade');
+              return true;
             } };
           }
           if (atSm && m.previewSmW && displayedPx >= m.previewSmW * 0.85) {
             return { kind: 'promote', area, inViewport, run: () => {
               setActiveSrc(`r2:${m.previewKey}`); // sm → lg preview
               perf.bump('image.tierPromote'); bumpPerf('image.tierPromote');
+              return true;
             } };
           }
         }
@@ -552,14 +554,17 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
             return { kind: 'demote', area, inViewport, run: async () => {
               // The card owns the no-mid-gesture invariant (the scheduler gates
               // too — belt + suspenders, since the presign+decode takes time).
-              try { if (performance.now() < getGestureActiveUntil()) return; } catch (_) {}
+              // Returns true ONLY if the swap committed; any abort leaves the
+              // card re-evaluatable so the next idle drain retries it.
+              try { if (performance.now() < getGestureActiveUntil()) return false; } catch (_) {}
               const u = await getSignedUrl(targetKey);
-              if (!u) return;
-              try { const probe = new Image(); probe.src = u; await probe.decode(); } catch (_) { return; }
-              try { if (performance.now() < getGestureActiveUntil()) return; } catch (_) {}
+              if (!u) return false;
+              try { const probe = new Image(); probe.src = u; await probe.decode(); } catch (_) { return false; }
+              try { if (performance.now() < getGestureActiveUntil()) return false; } catch (_) {}
               upgradedRef.current = false;          // zooming back in may re-promote
               setActiveSrc(`r2:${targetKey}`);
               perf.bump('image.tierDemote'); bumpPerf('image.tierDemote');
+              return true;
             } };
           }
         }

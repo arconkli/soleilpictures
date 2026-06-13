@@ -47,13 +47,13 @@ function makeHarness(overrides = {}) {
 
 // A fake card handle. `kind` + `area` + `inViewport` drive the intent; run()
 // records that the swap committed.
-function fakeCard({ kind = 'promote', area = 100, inViewport = true } = {}) {
-  const c = { evals: 0, runs: 0, kind, area, inViewport };
+function fakeCard({ kind = 'promote', area = 100, inViewport = true, commit = true } = {}) {
+  const c = { evals: 0, runs: 0, kind, area, inViewport, commit };
   c.handle = {
     evaluate: () => {
       c.evals += 1;
       if (!c.kind) return null;
-      return { kind: c.kind, area: c.area, inViewport: c.inViewport, run: async () => { c.runs += 1; } };
+      return { kind: c.kind, area: c.area, inViewport: c.inViewport, run: async () => { c.runs += 1; return c.commit; } };
     },
   };
   return c;
@@ -147,6 +147,31 @@ test('a card registered after the promote drain still demotes at idle', async ()
   h.scheduler.register('late', card.handle);   // registers AFTER the promote drain
   await h.advance(1400);                 // reach the 1500ms idle window
   expect(card.runs).toBe(1);
+});
+
+test('a swap that aborts stays re-evaluatable (not epsilon-skipped) next settle', async () => {
+  // A demote whose run() returns falsy (target won't decode, or a gesture
+  // superseded it) must NOT advance lastEvalScale — otherwise the card is
+  // epsilon-skipped forever at this scale and stranded on the larger tier.
+  const h = makeHarness({ promoteDelayMs: 150 });
+  const card = fakeCard({ kind: 'promote', commit: false });
+  h.scheduler.register('c', card.handle);
+
+  h.scheduler.onSettle(0.5);
+  await h.advance(200);
+  expect(card.runs).toBe(1);            // ran, but did not commit
+
+  h.scheduler.onSettle(0.5);            // SAME scale — would epsilon-skip if advanced
+  await h.advance(200);
+  expect(card.runs).toBe(2);            // re-evaluated + retried (not skipped)
+
+  card.commit = true;                   // now it succeeds
+  h.scheduler.onSettle(0.5);
+  await h.advance(200);
+  expect(card.runs).toBe(3);
+  h.scheduler.onSettle(0.5);            // committed → now epsilon-skipped
+  await h.advance(200);
+  expect(card.runs).toBe(3);
 });
 
 test('a resumed gesture aborts pending drains', async () => {

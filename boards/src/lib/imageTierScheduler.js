@@ -135,8 +135,13 @@ export function createImageTierScheduler({
         if (disposed || gen !== myGen) return;
         const rec = cards.get(id);
         if (!rec) return;                    // unregistered (unmounted) mid-drain
-        try { await intent.run(); } catch (_) {}
-        rec.lastEvalScale = currentScale;    // acted at this scale → now settled
+        let committed = false;
+        try { committed = (await intent.run()) === true; } catch (_) {}
+        // Advance lastEvalScale ONLY when the swap actually committed. A demote
+        // that aborts (target won't presign/decode, or a gesture superseded it
+        // mid-batch) must stay re-evaluatable — otherwise the card is
+        // epsilon-skipped forever at this scale and stuck on the larger tier.
+        if (committed) rec.lastEvalScale = currentScale;
       }));
       if (i < items.length && !disposed && gen === myGen) {
         await new Promise((resolve) => { batchTimer = setTimer(resolve, batchGapMs); });
