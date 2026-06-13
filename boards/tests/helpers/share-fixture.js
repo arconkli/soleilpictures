@@ -68,24 +68,31 @@ function docCardEntry() {
   };
 }
 
-// Image-card grid for the tier-selection specs: 8 big (800px layout width)
-// image cards spread over a wide extent, so the fit-all zoom is ~0.2 and the
-// on-screen width (~160px) is FAR below the layout width. With zoom-aware
-// `sizes` the browser must pick the 640w sm candidate; the pre-fix behavior
-// (sizes = layout width = 800px) picked the 1280w lg for every mount.
+// Image-card grid for the tier-selection specs: big (800px layout width) image
+// cards spread over a wide extent, so the fit-all zoom is ~0.2 and the on-screen
+// width (~160px) is FAR below the layout width. pickInitialTier must pick the
+// 640w sm variant; the pre-fix behavior (sizes = layout width = 800px) picked
+// the 1280w lg for every mount.
+//
+// Two sizes: IMAGE_COUNT (8, the basic tier spec) and DENSE_IMAGE_COUNT (24, a
+// 6-wide grid for the bounded-storm spec — zooming into one corner leaves a
+// ring of neighbors mounted-but-off-viewport, so the scheduler's viewport gate
+// has something to filter).
 export const IMAGE_COUNT = 8;
+export const DENSE_IMAGE_COUNT = 24;
 const imgKey = (i) => `ws1/img-${i}.png`;
 const imgLgKey = (i) => `ws1/img-${i}.lg.webp`;
 const imgSmKey = (i) => `ws1/img-${i}.sm.webp`;
-function imageFixture() {
-  const cards = Object.fromEntries(Array.from({ length: IMAGE_COUNT }, (_, i) => [
+function imageFixture(count = IMAGE_COUNT, cols = 4, dx = 1600, dy = 1400) {
+  const cards = Object.fromEntries(Array.from({ length: count }, (_, i) => [
     `card-img-${i}`,
-    { kind: 'image', src: `r2:${imgKey(i)}`, x: (i % 4) * 1600 + 100, y: Math.floor(i / 4) * 1400 + 100, w: 800, h: 600 },
+    { kind: 'image', src: `r2:${imgKey(i)}`, x: (i % cols) * dx + 100, y: Math.floor(i / cols) * dy + 100, w: 800, h: 600 },
   ]));
-  cards['card-img-note'] = { kind: 'note', body: 'Image board ready', x: 100, y: 3000, w: 240, h: 140 };
+  const noteY = Math.ceil(count / cols) * dy + 200;
+  cards['card-img-note'] = { kind: 'note', body: 'Image board ready', x: 100, y: noteY, w: 240, h: 140 };
   const urls = {};
   const meta = {};
-  for (let i = 0; i < IMAGE_COUNT; i++) {
+  for (let i = 0; i < count; i++) {
     urls[imgKey(i)]   = `https://imgcdn.test/${i}-orig.png`;
     urls[imgLgKey(i)] = `https://imgcdn.test/${i}-lg.webp`;
     urls[imgSmKey(i)] = `https://imgcdn.test/${i}-sm.webp`;
@@ -115,8 +122,9 @@ export async function routeImageCdn(page) {
 // the root with a 60-note grid (for the zoom-cull spec); opts.withStrokes
 // adds 120 spread-out scribbles (for the stroke-cull spec); opts.withImages
 // replaces the root with the image grid above (for the tier specs).
-export function makeBundles({ withDoc = false, dense = false, withStrokes = false, withImages = false } = {}) {
-  const images = withImages ? imageFixture() : null;
+export function makeBundles({ withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false } = {}) {
+  const images = denseImages ? imageFixture(DENSE_IMAGE_COUNT, 6, 1000, 900)
+    : withImages ? imageFixture() : null;
   const rootCards = images
     ? images.cards
     : dense
@@ -159,8 +167,8 @@ export function makeBundles({ withDoc = false, dense = false, withStrokes = fals
 // responses (makes the nav progress shimmer observable); opts.fail404 fails
 // every bundle request (drives the invalid-link page); opts.withDoc /
 // opts.dense select the fixture variant (see makeBundles).
-export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false, withStrokes = false, withImages = false } = {}) {
-  const bundles = makeBundles({ withDoc, dense, withStrokes, withImages });
+export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false } = {}) {
+  const bundles = makeBundles({ withDoc, dense, withStrokes, withImages, denseImages });
   await page.route('**/parties/upload/share/share-bundle', async (route) => {
     if (fail404) return route.fulfill({ status: 404, body: 'not found' });
     let boardId = null;
