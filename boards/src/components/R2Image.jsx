@@ -613,6 +613,22 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (blurUrl) perf.bump('image.tier0.blurShown');
   };
 
+  // Cached-image safety net. When a viewport-culling remount renders an <img>
+  // whose bytes are already warm in the browser cache (the common case during
+  // a fast zoom-out — the card unmounted and remounted within seconds), the
+  // load can COMPLETE before React attaches the onLoad handler, so onImgLoad
+  // never fires: `loaded` stays false, the img sits at opacity 0 and only the
+  // blur shows — cards stranded blurry after fast zooming. Detect the
+  // already-complete element after each url change and run the handler. (We do
+  // not reset urlSetAtRef here, so a genuinely-cached load still counts as a
+  // fast load and skips the fade.)
+  useEffect(() => {
+    if (!url || loaded) return;
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth > 0) onImgLoad();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, loaded]);
+
   // No srcset on the canvas imgs: `activeSrc` is the single tier decision-maker
   // (pickInitialTier at mount, then the promote/demote ladder). The browser's
   // w-descriptor picker fought that — it never downgrades an already-chosen

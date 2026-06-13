@@ -107,3 +107,29 @@ test('zoom-in promotes only on-screen cards; off-screen mounted cards stay sm; n
   }, { timeout: 9000 }).toBe(true);
   expect(await page.evaluate(() => window.__reblurs)).toBe(0);
 });
+
+test('rapid zoom cycles never strand a card on its blur (cached-load reaches is-loaded)', async ({ page }) => {
+  await openDense(page);
+  const cycle = (dy, n) => page.evaluate(({ dy, n }) => {
+    const wrap = document.querySelector('.canvas-wrap');
+    const x = window.innerWidth / 2, y = window.innerHeight / 2;
+    for (let i = 0; i < n; i++) {
+      wrap.dispatchEvent(new WheelEvent('wheel', { deltaY: dy, ctrlKey: true, bubbles: true, cancelable: true, clientX: x, clientY: y }));
+    }
+  }, { dy, n });
+
+  // Several fast in/out cycles → cards unmount and remount with warm-cache
+  // images, which complete before React attaches onLoad. Without the
+  // cached-complete safety net those cards' `loaded` state sticks false: the
+  // <img> sits at opacity 0 and only the blur shows.
+  for (let k = 0; k < 4; k++) { await cycle(-240, 8); await page.waitForTimeout(120); await cycle(240, 10); await page.waitForTimeout(120); }
+
+  // Every mounted canvas image must reach is-loaded (its real bytes visible),
+  // and the blur layers must drain — no card stranded blurry.
+  await expect.poll(async () => page.evaluate(() => {
+    const imgs = [...document.querySelectorAll('.r2p-img')];
+    return imgs.length > 0 && imgs.every((el) => el.classList.contains('is-loaded'));
+  }), { timeout: 9000 }).toBe(true);
+  await expect.poll(async () => page.evaluate(
+    () => document.querySelectorAll('.r2p-blur').length), { timeout: 5000 }).toBe(0);
+});
