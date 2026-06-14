@@ -32,6 +32,12 @@ directory = "./dist"
 not_found_handling = "single-page-application"
 binding = "ASSETS"
 
+# Cloudflare Workers AI — powers the admin SEO tooling (/api/seo/*): a vision
+# model captions board images for alt text, a text model drafts SEO copy.
+# Free in-worker tier, no API key/credits. See boards/src/worker-seo.js.
+[ai]
+binding = "AI"
+
 # Scheduled R2 orphan sweep — runs daily at 04:00 UTC, after the pg_cron
 # retention jobs (03:00–03:10) have finished hard-purging soft-deleted
 # rows. The Worker scans the `images` table for rows whose card no longer

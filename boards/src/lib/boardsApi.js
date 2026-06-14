@@ -434,7 +434,7 @@ export async function adminImportGscCsv(rows, asOf = null) {
 
 // AI SEO tooling (migration 0137) — admin-only worker routes (worker-seo.js),
 // gated server-side on tier='admin'. Same same-origin Bearer pattern as
-// forceResetBoardRoom. gpt-4o-mini drafts copy / writes image alt; both return
+// forceResetBoardRoom. Cloudflare Workers AI drafts copy / writes image alt; both return
 // results for the admin to review (draft is NOT auto-saved).
 async function seoWorkerPost(path, boardId) {
   let accessToken = '';

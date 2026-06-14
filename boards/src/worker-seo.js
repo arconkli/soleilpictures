@@ -1,22 +1,26 @@
 // SEO AI tooling routes (migration 0137). Admin-only. Two endpoints:
 //
 //   POST /api/seo/draft  { board_id }
-//     gpt-4o-mini drafts { seo_title, seo_description, seo_body, suggested_keyword }
+//     A text model drafts { seo_title, seo_description, seo_body, suggested_keyword }
 //     GROUNDED in the board's real content (name, tags, card titles, notes) so
 //     the output is unique per board. Returns the draft to the client — does NOT
 //     save. The admin edits + saves via the normal publish flow (human-in-loop).
 //
 //   POST /api/seo/alt    { board_id }
-//     gpt-4o-mini VISION writes descriptive alt text for image cards that lack
-//     it, into the card_alts sidecar (source='ai'). Fixes the empty-alt gap that
+//     A vision model writes descriptive alt text for image cards that lack it,
+//     into the card_alts sidecar (source='ai'). Fixes the empty-alt gap that
 //     blocks Google Images. Returns the generated set for admin spot-check.
 //
-// Both gate on tier='admin' (get_my_tier with the caller's JWT), then use the
-// service-role key for privileged reads/writes — same pattern as
-// handleBackfillImageSizes in worker.js. OpenAI call shape mirrors worker-tags.js.
+// Inference runs on Cloudflare Workers AI via env.AI (free in-worker tier — no
+// API key/credits). Both gate on tier='admin' (get_my_tier with the caller's
+// JWT), then use the service-role key for privileged reads/writes — same admin
+// pattern as handleBackfillImageSizes in worker.js.
 
-const OPENAI_CHAT = 'https://api.openai.com/v1/chat/completions';
-const MODEL = 'gpt-4o-mini';
+// Cloudflare Workers AI (free in-worker tier — no API key/credits). The vision
+// model captions images for alt text; the text model drafts SEO copy. Both run
+// via the env.AI binding (declared in wrangler.toml). Models are swappable.
+const VISION_MODEL = '@cf/llava-hf/llava-1.5-7b-hf';
+const TEXT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
 // IndexNow ownership key (public token, not a secret). Worker serves it at
@@ -49,21 +53,14 @@ function cors204() {
   });
 }
 
-function imgContentType(key) {
-  const ext = (String(key).split('.').pop() || '').toLowerCase();
-  return ext === 'png' ? 'image/png'
-    : ext === 'webp' ? 'image/webp'
-    : ext === 'gif' ? 'image/gif'
-    : 'image/jpeg';
-}
-function abToBase64(ab) {
-  const bytes = new Uint8Array(ab);
-  let s = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    s += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  }
-  return btoa(s);
+// Tolerant JSON extraction for text-model output (strips ``` fences / prose).
+function parseJsonLoose(text) {
+  if (!text) return null;
+  let s = String(text).trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  const a = s.indexOf('{');
+  const b = s.lastIndexOf('}');
+  if (a >= 0 && b > a) s = s.slice(a, b + 1);
+  try { return JSON.parse(s); } catch { return null; }
 }
 
 // REST helpers (service-role) — used after the admin gate passes.
@@ -132,7 +129,7 @@ export async function handleSeoRoute(url, request, env) {
   let tier;
   try { tier = await getTier(env, userToken); } catch { return json({ error: 'tier check failed' }, 502); }
   if (tier !== 'admin') return json({ error: 'admin only' }, 403);
-  if (!env.OPENAI_API_KEY) return json({ error: 'OPENAI_API_KEY not set on the Worker' }, 500);
+  if (!env.AI) return json({ error: 'Workers AI (env.AI) binding not configured on the Worker' }, 500);
   if (!env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: 'SUPABASE_SERVICE_ROLE_KEY not set on the Worker' }, 500);
 
   let body = {};
@@ -176,17 +173,6 @@ async function handleIndexNow(env, body) {
 }
 
 // ── /api/seo/draft ──────────────────────────────────────────────────────────
-const DRAFT_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['seo_title', 'seo_description', 'seo_body', 'suggested_keyword'],
-  properties: {
-    seo_title: { type: 'string' },
-    seo_description: { type: 'string' },
-    seo_body: { type: 'string' },
-    suggested_keyword: { type: 'string' },
-  },
-};
 const DRAFT_SYSTEM = [
   'You write SEO copy for a single curated visual moodboard ("board") page on Soleil Clusters.',
   'Use ONLY the board content provided. Do NOT invent artists, facts, levels, or details not present in the input.',
@@ -223,24 +209,22 @@ async function handleSeoDraft(env, boardId) {
     notes_from_board: notes,
   };
 
-  const res = await fetch(OPENAI_CHAT, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature: 0.5,
+  let out;
+  try {
+    out = await env.AI.run(TEXT_MODEL, {
       messages: [
         { role: 'system', content: DRAFT_SYSTEM },
-        { role: 'user', content: JSON.stringify(payload) },
+        { role: 'user', content: JSON.stringify(payload)
+          + '\n\nReturn ONLY a JSON object with keys: seo_title, seo_description, seo_body, suggested_keyword. No markdown, no commentary.' },
       ],
-      response_format: { type: 'json_schema', json_schema: { name: 'seo_draft', strict: true, schema: DRAFT_SCHEMA } },
-    }),
-    signal: AbortSignal.timeout(45_000),
-  });
-  if (!res.ok) return json({ error: `openai ${res.status}`, detail: (await res.text().catch(() => '')).slice(0, 300) }, 502);
-  const data = await res.json();
-  let draft;
-  try { draft = JSON.parse(data.choices[0].message.content); } catch { return json({ error: 'bad model output' }, 502); }
+      max_tokens: 800,
+      temperature: 0.5,
+    });
+  } catch (e) {
+    return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, 502);
+  }
+  const draft = parseJsonLoose(out?.response || '');
+  if (!draft || !draft.seo_title) return json({ error: 'model returned no usable draft — try again' }, 502);
   return json({ draft, grounded_on: { tags: tags.length, titles: titles.length, notes: notes.length, image_count: imageCount } });
 }
 
@@ -286,28 +270,14 @@ async function handleSeoAlt(env, boardId) {
     try {
       const obj = await env.IMAGES.get(key);
       if (!obj) return { card_id: card.card_id, error: 'image not found' };
-      const b64 = abToBase64(await obj.arrayBuffer());
-      const dataUri = `data:${obj.httpMetadata?.contentType || imgContentType(key)};base64,${b64}`;
-      const res = await fetch(OPENAI_CHAT, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model: MODEL,
-          temperature: 0.2,
-          max_tokens: 60,
-          messages: [
-            { role: 'system', content: ALT_SYSTEM },
-            { role: 'user', content: [
-              { type: 'text', text: `This image is on a board about "${topic}". Write its alt text.` },
-              { type: 'image_url', image_url: { url: dataUri, detail: 'low' } },
-            ] },
-          ],
-        }),
-        signal: AbortSignal.timeout(30_000),
+      // Workers AI vision takes the raw image bytes as a number[] (no base64).
+      const image = [...new Uint8Array(await obj.arrayBuffer())];
+      const out = await env.AI.run(VISION_MODEL, {
+        image,
+        prompt: `${ALT_SYSTEM} The image is on a board about "${topic}".`,
+        max_tokens: 64,
       });
-      if (!res.ok) return { card_id: card.card_id, error: `openai ${res.status}` };
-      const data = await res.json();
-      let alt = (data.choices?.[0]?.message?.content || '').trim().replace(/^["']|["']$/g, '');
+      let alt = (out?.description || '').trim().replace(/^["']|["']$/g, '');
       if (alt.length > ALT_MAXLEN) alt = alt.slice(0, ALT_MAXLEN).replace(/\s+\S*$/, '');
       if (!alt) return { card_id: card.card_id, error: 'empty' };
       return { card_id: card.card_id, alt };
