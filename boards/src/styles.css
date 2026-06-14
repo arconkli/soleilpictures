@@ -5534,6 +5534,21 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .admin-rowmenu-item-danger:hover { background: rgba(220,80,80,.12); }
 .admin-rowmenu-sep { height: 1px; background: var(--line-1); margin: 4px 6px; }
 
+/* "More" overflow in the admin top nav. The trigger reuses .admin-tab so it
+   reads as a peer pill; only the caret alignment + a little breathing room
+   from the primary pills are new. The popup/items reuse .admin-rowmenu-*. */
+.admin-moremenu { margin-left: 4px; }
+.admin-tab-more { display: inline-flex; align-items: center; gap: 5px; }
+.admin-moremenu .admin-rowmenu-item { font-size: 13px; }
+.admin-moremenu-label { flex: 1 1 auto; }                 /* push hint/check right */
+.admin-rowmenu-item.is-active { color: var(--soleil); }   /* buried-active row */
+.admin-rowmenu-hint {                                      /* heaviest-to-mount tag */
+  font: 600 10px/1 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-3);
+}
+
 /* Inline row badges. */
 .admin-badge-banned,
 .admin-badge-promo,

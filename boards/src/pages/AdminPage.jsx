@@ -33,6 +33,7 @@ import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
 import { AdminErrorsTab } from './admin/AdminErrorsTab.jsx';
 import { AdminTaggingTab } from './admin/AdminTaggingTab.jsx';
+import { AdminMoreMenu } from './admin/AdminMoreMenu.jsx';
 import { FeedbackButton } from '../components/FeedbackButton.jsx';
 import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -52,6 +53,24 @@ const TABS = [
 ];
 const TAB_IDS = TABS.map((t) => t.id);
 const STORAGE_KEY = 'admin.tab';
+
+// The header shows only the daily/frequent sections as pills; the rarely-touched
+// long tail folds into a single "More" overflow so the bar isn't 11 items wide.
+// PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
+const PRIMARY_IDS = ['overview', 'analytics', 'users', 'waitlist'];
+// Overflow order is triage-first, then rare/config, split by a single divider.
+const OVERFLOW_IDS = ['discover', 'feedback', 'errors', 'grants', 'campaign', 'tagging', 'universe'];
+const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
+const HEAVY_IDS = new Set(['universe']);  // heaviest to mount → flagged in the menu
+
+const labelOf = (id) => TABS.find((t) => t.id === id)?.label || id;
+const PRIMARY_TABS = PRIMARY_IDS.map((id) => TABS.find((t) => t.id === id)).filter(Boolean);
+const OVERFLOW_ITEMS = OVERFLOW_IDS.map((id) => ({
+  id,
+  label: labelOf(id),
+  heavy: HEAVY_IDS.has(id),
+  sepAfter: id === OVERFLOW_SEP_AFTER,
+}));
 
 // The 'funnel' tab was merged into Analytics (now the Overview sub-tab). Old
 // deep links and persisted prefs alias to 'analytics' so they don't dead-end.
@@ -79,6 +98,7 @@ export function AdminPage() {
   const [signingOut, setSigningOut] = useState(false);
   const { isPhone } = useBreakpoint();
   const tabRefs = useRef([]);
+  const moreTriggerRef = useRef(null);
 
   // Persist tab to ?tab= (path stays /admin, so TierRouter does not
   // remount) + localStorage.
@@ -106,16 +126,25 @@ export function AdminPage() {
     } catch { /* ignore */ }
   }, []);
 
+  // Roving focus spans the VISIBLE controls only — the primary pills plus the
+  // More trigger at index PRIMARY_TABS.length. Selection follows focus for the
+  // real tabs; arrowing onto the More trigger just moves focus (Enter/↓ opens
+  // its menu), so we never auto-activate an overflow section from the bar.
+  const focusVisible = (i) => {
+    if (i < PRIMARY_TABS.length) tabRefs.current[i]?.focus();
+    else moreTriggerRef.current?.focus();
+  };
   const onTabKeyDown = (e, idx) => {
+    const last = PRIMARY_TABS.length; // the More trigger
     let next = null;
-    if (e.key === 'ArrowRight') next = (idx + 1) % TABS.length;
-    else if (e.key === 'ArrowLeft') next = (idx - 1 + TABS.length) % TABS.length;
+    if (e.key === 'ArrowRight') next = idx >= last ? 0 : idx + 1;
+    else if (e.key === 'ArrowLeft') next = idx <= 0 ? last : idx - 1;
     else if (e.key === 'Home') next = 0;
-    else if (e.key === 'End') next = TABS.length - 1;
+    else if (e.key === 'End') next = last;
     if (next == null) return;
     e.preventDefault();
-    selectTab(TABS[next].id);
-    tabRefs.current[next]?.focus();
+    if (next < last) selectTab(PRIMARY_TABS[next].id);
+    focusVisible(next);
   };
 
   const onSignOut = async () => {
@@ -160,23 +189,41 @@ export function AdminPage() {
     );
   }
 
+  // Where roving focus's tabIndex=0 lives: the active primary pill, or — when
+  // the active section is buried in More — the trigger (last visible control).
+  const overflowActive = OVERFLOW_IDS.includes(tab);
+  const activePrimaryIdx = PRIMARY_TABS.findIndex((t) => t.id === tab);
+  const activeVisibleIdx = overflowActive
+    ? PRIMARY_TABS.length
+    : (activePrimaryIdx >= 0 ? activePrimaryIdx : 0);
+
   return (
     <div className="admin-screen">
       <header className="admin-header">
         <SoleilWordmark size="block" />
         <div className="admin-tabs" role="tablist" aria-label="Admin sections">
-          {TABS.map((t, i) => (
+          {PRIMARY_TABS.map((t, i) => (
             <button key={t.id}
                     ref={(el) => { tabRefs.current[i] = el; }}
                     role="tab"
                     aria-selected={tab === t.id}
-                    tabIndex={tab === t.id ? 0 : -1}
+                    tabIndex={activeVisibleIdx === i ? 0 : -1}
                     className={`admin-tab ${tab === t.id ? 'is-active' : ''}`}
                     onClick={() => selectTab(t.id)}
                     onKeyDown={(e) => onTabKeyDown(e, i)}>
               {t.label}
             </button>
           ))}
+          <AdminMoreMenu
+            items={OVERFLOW_ITEMS}
+            activeId={tab}
+            isActive={overflowActive}
+            activeLabel={labelOf(tab)}
+            onSelect={selectTab}
+            rovingTabIndex={activeVisibleIdx === PRIMARY_TABS.length ? 0 : -1}
+            onTriggerKeyDown={(e) => onTabKeyDown(e, PRIMARY_TABS.length)}
+            triggerRef={moreTriggerRef}
+          />
         </div>
         <div className="admin-header-right">
           <FeedbackButton as="icon" />
