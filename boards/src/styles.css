@@ -7460,6 +7460,41 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   .cnv-empty-hint-fine { display: none; }
   .cnv-empty-hint-coarse { display: inline; }
 }
+/* first_card_cta arm B: a bold, centered call-to-action on the empty board
+   instead of the faint hint. Pointer-events ON (it's interactive, unlike the
+   hint). Soleil-filled so it reads as the obvious next step. */
+.cnv-empty-cta {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 5;
+  text-align: center;
+  opacity: 0;
+  animation: cnvEmptyHintIn var(--dur-base) var(--ease) 500ms forwards;
+}
+.cnv-empty-cta-btn {
+  padding: 12px 22px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--soleil);
+  color: #1a1206;
+  font: 600 15px/1 var(--font-sans);
+  cursor: pointer;
+  box-shadow: var(--shadow-2), var(--soleil-glow);
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease);
+}
+.cnv-empty-cta-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-3), var(--soleil-glow); }
+.cnv-empty-cta-btn:active { transform: translateY(0); }
+.cnv-empty-cta-btn:focus-visible { outline: 2px solid var(--ink-0); outline-offset: 2px; }
+.cnv-empty-cta-sub { font: 500 12px/1.5 var(--font-sans); color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) {
+  .cnv-empty-cta { animation: none; opacity: 1; }
+}
+
 /* Passive escalation: the new user tripped the stuck signal (frictionSignal.js).
    Brighten the create hint and give it a few attention pulses — no modal, no new
    button (the chosen "passive" intervention). */

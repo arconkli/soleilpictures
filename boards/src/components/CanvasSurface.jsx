@@ -265,6 +265,8 @@ export function CanvasSurface({
   frictionStuck = false,   // true → a new user tripped the stuck signal
                            // (frictionSignal.js); brightens the empty-board
                            // hint as the passive escalation.
+  firstCardArm = 'A',      // first_card_cta experiment arm: 'B' → bold CTA button
+                           // on the empty board; 'A'/anything else → passive hint.
 }) {
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
@@ -7162,14 +7164,37 @@ export function CanvasSurface({
           fill the canvas within a tick) never flash it. */}
       {canEdit && selectedTool === 'select'
         && cards.length === 0 && (strokes?.length || 0) === 0 && (arrows?.length || 0) === 0 && (
-        // Passive escalation: when a new user trips the stuck signal the hint
-        // brightens (is-escalated) and, because it's no longer decorative,
-        // becomes announceable to screen readers (role=status, aria-hidden off).
-        <div className={`cnv-empty-hint${frictionStuck ? ' is-escalated' : ''}`}
-          aria-hidden={frictionStuck ? undefined : 'true'} role={frictionStuck ? 'status' : undefined}>
-          <span className="cnv-empty-hint-fine">Double-click to add a note&ensp;·&ensp;drag in images&ensp;·&ensp;right-click for more</span>
-          <span className="cnv-empty-hint-coarse">Tap the + to add something — or long-press the canvas</span>
-        </div>
+        firstCardArm === 'B' ? (
+          // first_card_cta arm B: a bold, obvious affordance instead of the faint
+          // hint. The button does NOT auto-create — the CLICK is the user's genuine
+          // first-card gesture (same as double-click), so it counts as real
+          // activation; auto-placing would game the reward.
+          <div className="cnv-empty-cta" role="group" aria-label="Get started">
+            <button type="button" className="cnv-empty-cta-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => {
+                noteCreateIntent('empty_cta');
+                const wrap = wrapRef.current;
+                const rect = wrap?.getBoundingClientRect();
+                const pos = rect
+                  ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
+                  : { x: 200, y: 200 };
+                mutators.addNote?.(pos);
+              }}>
+              ＋ Add your first card
+            </button>
+            <span className="cnv-empty-cta-sub">or double-click anywhere · drag in an image</span>
+          </div>
+        ) : (
+          // Passive escalation: when a new user trips the stuck signal the hint
+          // brightens (is-escalated) and, because it's no longer decorative,
+          // becomes announceable to screen readers (role=status, aria-hidden off).
+          <div className={`cnv-empty-hint${frictionStuck ? ' is-escalated' : ''}`}
+            aria-hidden={frictionStuck ? undefined : 'true'} role={frictionStuck ? 'status' : undefined}>
+            <span className="cnv-empty-hint-fine">Double-click to add a note&ensp;·&ensp;drag in images&ensp;·&ensp;right-click for more</span>
+            <span className="cnv-empty-hint-coarse">Tap the + to add something — or long-press the canvas</span>
+          </div>
+        )
       )}
 
       <div className="cnv-zoom">

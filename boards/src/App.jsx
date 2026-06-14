@@ -19,9 +19,9 @@ import { getStarterCards, getStarterTutorialCard } from './lib/onboardingStarter
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
-import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments } from './lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm } from './lib/analytics.js';
 import { EV } from './lib/analyticsEvents.js';
-import { getActiveExperiments, assignArm } from './lib/experiments.js';
+import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
@@ -2019,13 +2019,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'add_cards', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
       }
       logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId });
-      // A/B enrollment — genuinely-new users only (this triple-gated seed effect),
-      // so existing/dormant users are never retroactively bucketed. Assignment is
-      // deterministic; we stamp it to profiles.settings.experiments (server-side
-      // retention split) and prime the analytics merge (event-level exp_<key>).
+      // Bandit enrollment — genuinely-new users only (this triple-gated seed
+      // effect), so existing/dormant users are never retroactively bucketed. Draw
+      // each arm from the LIVE weights (recomputed nightly by experiment_optimize);
+      // fall back to the registry-weighted deterministic pick if the config fetch
+      // fails. Stamp once (set_experiment_arm is absent-only → first-touch wins
+      // even though drawArm is random) + prime the event-merge cache.
+      let expCfg = null;
+      try { expCfg = (await supabase.rpc('get_experiment_config')).data; } catch (_) {}
       const enrolled = {};
       for (const key of getActiveExperiments()) {
-        const arm = assignArm(key, user.id);
+        const c = expCfg?.[key];
+        if (expCfg && c && c.enabled === false) continue;     // operator paused it at runtime
+        const arm = c?.weights ? drawArm(key, c.weights) : assignArm(key, user.id);
         if (!arm) continue;
         enrolled[`exp_${key}`] = arm;
         supabase.rpc('set_experiment_arm', { p_key: key, p_arm: arm }).catch(() => {});
@@ -3019,6 +3025,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          autotagReady={autotagReady}
                          sessionId={yh?.sessionId || null}
                          frictionStuck={isMain ? frictionStuck : false}
+                         firstCardArm={isMain ? (getEnrolledArm('first_card_cta') || 'A') : 'A'}
                          defaults={defaults} />
         </Profiler>
       );
@@ -3525,7 +3532,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {showCoachmark && (
-        <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={assignArm('coachmark_copy', user?.id)} />
+        <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={getEnrolledArm('coachmark_copy')} />
       )}
 
       {isPhone && (

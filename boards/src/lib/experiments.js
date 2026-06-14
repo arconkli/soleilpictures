@@ -19,16 +19,52 @@
 // Each experiment: { enabled, arms:[{id, weight}] }. Arm 'A' is ALWAYS the
 // control = current production behavior, so a variant table that omits 'A' (or an
 // assignArm() of null) renders exactly what shipped before — zero regression.
+// NOTE: `weight` here is only the FALLBACK / warmup default (used when the live
+// config fetch fails, or before a config row exists). The real, live allocation
+// comes from app_config 'experiments' and is recomputed nightly by the bandit
+// (experiment_optimize). `enabled` is the code-level master switch (whether the
+// client assigns + a consumer renders); the runtime on/off lives in config.
 export const EXPERIMENTS = {
-  // v1: does sharper, action-first coachmark copy lift first-card activation?
-  coachmark_copy: {
+  // ACTIVE lever: does a bold "+ Add your first card" button (arm B) on the empty
+  // board lift the COMPOSITE payment-weighted reward vs the passive hint (arm A)?
+  first_card_cta: {
     enabled: true,
+    arms: [
+      { id: 'A', weight: 50 }, // control — current passive empty-state hint
+      { id: 'B', weight: 50 }, // variant — the bold CTA button (CanvasSurface empty-state)
+    ],
+  },
+  // PAUSED — one big lever at a time at current volume. Flip enabled:true + add a
+  // config row to resume. Copy is the weakest lever, so it waits.
+  coachmark_copy: {
+    enabled: false,
     arms: [
       { id: 'A', weight: 50 }, // control — the current copy
       { id: 'B', weight: 50 }, // variant — see COACHMARK_VARIANTS.B
     ],
   },
 };
+
+// Weighted random draw from LIVE weights (bandit assignment is randomized per new
+// user, then stamped once via set_experiment_arm — first-touch wins). Browser RNG
+// is fine here. `weights` is the app_config map { armId: weight }. Returns an arm
+// id or null. This REPLACES assignArm in the seed path; assignArm stays as the
+// deterministic fallback when the live-config fetch fails.
+export function drawArm(key, weights) {
+  const w = weights || {};
+  const total = Object.values(w).reduce((s, x) => s + (Number(x) || 0), 0);
+  if (total <= 0) return null;
+  let r = Math.random() * total, acc = 0;
+  for (const [arm, weight] of Object.entries(w)) { acc += Number(weight) || 0; if (r < acc) return arm; }
+  return Object.keys(w).pop() || null;
+}
+
+// Registry fallback weights for a key, as the { armId: weight } map drawArm wants
+// (used when the live config is unavailable).
+export function defaultWeights(key) {
+  const arms = EXPERIMENTS[key]?.arms || [];
+  return Object.fromEntries(arms.map((a) => [a.id, a.weight || 0]));
+}
 
 // ── Deterministic assignment ─────────────────────────────────────────────────
 // cyrb53: a fast, well-distributed 53-bit string hash (good arm balance on small

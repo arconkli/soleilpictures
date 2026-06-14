@@ -145,6 +145,31 @@ export function setEnrolledExperiments(map) {
   try { localStorage.setItem(EXPERIMENTS_KEY, JSON.stringify(cachedExperiments)); } catch (_) {}
 }
 
+// Synchronous read of the caller's stamped arm for one experiment. Consumers use
+// this (NOT assignArm) because bandit assignment is randomized — the arm is only
+// knowable from the stamp/cache, never recomputable from the user id.
+export function getEnrolledArm(key) {
+  return getExperiments()[`exp_${key}`] || null;
+}
+
+// Cross-browser backfill: a returning user on a fresh device has no cache, but the
+// server has their stamped arms. Best-effort, once per page-load, never blocks
+// render. Only seeds the cache when it's EMPTY (a seed-written map always wins).
+let experimentsPrimed = false;
+async function primeEnrolledExperiments() {
+  if (experimentsPrimed || !supabase) return;
+  experimentsPrimed = true;
+  try {
+    if (Object.keys(getExperiments()).length > 0) return;   // cache already warm
+    const { data } = await supabase.rpc('get_my_experiments');
+    if (data && typeof data === 'object' && Object.keys(data).length) {
+      const map = {};
+      for (const k in data) map[`exp_${k}`] = data[k];
+      if (Object.keys(getExperiments()).length === 0) setEnrolledExperiments(map);
+    }
+  } catch (_) {}
+}
+
 function getSessionId() {
   if (typeof localStorage === 'undefined') return null;
   try {
@@ -184,7 +209,7 @@ if (supabase) {
       userIdResolved = true;
       // Attribute first-party error logs to the signed-in user by id (no PII).
       setErrorUser(cachedUserId);
-      if (session?.user?.id) stampFirstSourceIfNeeded();
+      if (session?.user?.id) { stampFirstSourceIfNeeded(); primeEnrolledExperiments(); }
     });
   } catch (_) {}
 }

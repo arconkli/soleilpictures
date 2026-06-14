@@ -17,6 +17,7 @@ import { TimeToFirstCard } from '../widgets/TimeToFirstCard.jsx';
 import { FirstCardFriction } from '../widgets/FirstCardFriction.jsx';
 import { OnboardingErrorCoverage } from '../widgets/OnboardingErrorCoverage.jsx';
 import { RetentionByExperiment } from '../widgets/RetentionByExperiment.jsx';
+import { ActivationByExperiment } from '../widgets/ActivationByExperiment.jsx';
 import { getActiveExperiments } from '../../../../lib/experiments.js';
 import { AdminCardsSection } from '../../AdminCardsSection.jsx';
 import { AdminTierCompareTable } from '../../AdminTierCompareTable.jsx';
@@ -46,17 +47,25 @@ export function EngagementView() {
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
-    // A/B retention split, one fetch per active experiment (migration 0140) —
-    // graceful; empty until new users are enrolled + their cohorts mature.
+    // A/B per-experiment splits + live bandit state (migrations 0140/0141) —
+    // graceful; empty until new users are enrolled + their cohorts mature. The
+    // activation split (composite payment-weighted reward) is what the bandit
+    // optimizes; retention-by-arm is a supporting view.
     const activeExps = getActiveExperiments();
-    const expResults = await Promise.allSettled(activeExps.map((k) =>
-      supabase.rpc('admin_retention_by_experiment', { p_key: k, p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal })));
+    const expResults = await Promise.allSettled([
+      ...activeExps.map((k) => supabase.rpc('admin_retention_by_experiment', { p_key: k, p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal })),
+      ...activeExps.map((k) => supabase.rpc('admin_activation_by_experiment', { p_key: k, p_days: f.days, p_exclude_internal: f.excludeInternal })),
+      supabase.rpc('admin_get_experiment_state'),
+    ]);
+    const nE = activeExps.length;
     const experimentRetention = activeExps.map((k, i) => ({ key: k, rows: val(expResults[i]) || [] }));
+    const experimentState = val(expResults[2 * nE]) || {};
+    const experimentActivation = activeExps.map((k, i) => ({ key: k, rows: val(expResults[nE + i]) || [], state: experimentState?.[k] || null }));
     const core = [cs, pd];
     if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
       throw errOf(core.find(errOf)) || new Error('Failed to load engagement');
     }
-    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], experimentRetention };
+    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], experimentRetention, experimentActivation };
   }, [f.days, f.excludeInternal]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
@@ -81,6 +90,12 @@ export function EngagementView() {
         <TimeToFirstCard data={q.data?.timeToCard} />
         <FirstCardFriction data={q.data?.friction} />
         <OnboardingErrorCoverage rows={q.data?.onboardingErrors || []} />
+
+        <h2 className="admin-section-title">Experiments (auto-optimizing)</h2>
+        <div className="admin-section-sub">Onboarding A/B arms, scored on a composite payment-weighted reward. The bandit auto-shifts traffic nightly; directional until each arm clears ~20 enrollees.</div>
+        {(q.data?.experimentActivation || []).map((e) => (
+          <ActivationByExperiment key={e.key} expKey={e.key} rows={e.rows} state={e.state} />
+        ))}
         {(q.data?.experimentRetention || []).map((e) => (
           <RetentionByExperiment key={e.key} expKey={e.key} rows={e.rows} />
         ))}
