@@ -128,6 +128,21 @@ let _override = null;
 export function setReadUrlResolver(fn) { _override = typeof fn === 'function' ? fn : null; }
 export function clearReadUrlResolver() { _override = null; }
 
+// Auth-error escalation for the public viewers. When a read-URL override is
+// installed (the /share + /c viewers answer r2:<key> from a presigned bundle
+// map), an expired/403 image CANNOT self-heal via getSignedUrl(force) — that
+// just re-reads the same dead entry out of the map. So R2Image escalates here
+// and the viewer re-fetches the whole bundle to mint fresh presigned URLs.
+let _authErrHandler = null;
+export function setImageAuthErrorHandler(fn) { _authErrHandler = typeof fn === 'function' ? fn : null; }
+export function clearImageAuthErrorHandler() { _authErrHandler = null; }
+// Called by R2Image when an image errors. No-op unless a read-URL override is
+// active — the authenticated app self-heals via getSignedUrl(force) and must
+// never trigger bundle re-fetches.
+export function notifyImageAuthError(key) {
+  if (_override && _authErrHandler) { try { _authErrHandler(key); } catch (_) {} }
+}
+
 let pendingResolvers = new Map();     // key → array of resolve fns
 let pendingTimer = null;
 

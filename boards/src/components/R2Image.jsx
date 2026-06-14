@@ -18,7 +18,7 @@
 //              un-backfilled image is seen.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cachedUrl, resolveSrc, getSignedUrl, CACHE_TTL_MS } from '../lib/r2.js';
+import { cachedUrl, resolveSrc, getSignedUrl, notifyImageAuthError, CACHE_TTL_MS } from '../lib/r2.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
@@ -259,6 +259,10 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
                if (fresh) setUrl(fresh);
                else setFailed(true);
              });
+             // Public viewers resolve from a static presigned map, so the
+             // force-sign above can't help — escalate so the viewer re-fetches
+             // the bundle for fresh URLs (no-op in the authenticated app).
+             notifyImageAuthError(src.slice(3));
            } else {
              setFailed(true);
            }
@@ -663,6 +667,10 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                    if (fresh) setUrl(fresh);
                    else setFailed(true);
                  });
+                 // Public viewers resolve from a static presigned map → the
+                 // force-sign can't recover an expired URL; escalate for a
+                 // bundle re-fetch (no-op in the authenticated app).
+                 notifyImageAuthError(activeSrc.slice(3));
                } else {
                  setFailed(true);
                }

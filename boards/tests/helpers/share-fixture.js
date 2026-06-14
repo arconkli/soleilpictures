@@ -122,7 +122,7 @@ export async function routeImageCdn(page) {
 // the root with a 60-note grid (for the zoom-cull spec); opts.withStrokes
 // adds 120 spread-out scribbles (for the stroke-cull spec); opts.withImages
 // replaces the root with the image grid above (for the tier specs).
-export function makeBundles({ withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false } = {}) {
+export function makeBundles({ withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false, nullSnapshot = false } = {}) {
   const images = denseImages ? imageFixture(DENSE_IMAGE_COUNT, 6, 1000, 900)
     : withImages ? imageFixture() : null;
   const rootCards = images
@@ -158,7 +158,10 @@ export function makeBundles({ withDoc = false, dense = false, withStrokes = fals
     ],
   };
   return {
-    [ROOT_ID]: { ...base, board: { id: ROOT_ID, name: 'Marketing Root', bg_color: null }, snapshot: rootSnapshot },
+    // nullSnapshot simulates a board with NO board_state row (a data anomaly) —
+    // the party would return snapshot: null. The viewer must render the calm
+    // empty state, not a blank canvas.
+    [ROOT_ID]: { ...base, board: { id: ROOT_ID, name: 'Marketing Root', bg_color: null }, snapshot: nullSnapshot ? null : rootSnapshot },
     [SUB_ID]:  { ...base, board: { id: SUB_ID, name: 'Inside Board', bg_color: null }, snapshot: subSnapshot },
   };
 }
@@ -167,8 +170,8 @@ export function makeBundles({ withDoc = false, dense = false, withStrokes = fals
 // responses (makes the nav progress shimmer observable); opts.fail404 fails
 // every bundle request (drives the invalid-link page); opts.withDoc /
 // opts.dense select the fixture variant (see makeBundles).
-export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false } = {}) {
-  const bundles = makeBundles({ withDoc, dense, withStrokes, withImages, denseImages });
+export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false, nullSnapshot = false } = {}) {
+  const bundles = makeBundles({ withDoc, dense, withStrokes, withImages, denseImages, nullSnapshot });
   await page.route('**/parties/upload/share/share-bundle', async (route) => {
     if (fail404) return route.fulfill({ status: 404, body: 'not found' });
     let boardId = null;

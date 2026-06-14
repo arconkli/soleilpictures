@@ -33,8 +33,9 @@ import { SoleilMark } from './primitives.jsx';
 import { ClustersMark } from './SoleilWordmark.jsx';
 import { CanvasSurface } from './CanvasSurface.jsx';
 import { SharePrompt } from './SharePrompt.jsx';
-import { setReadUrlResolver, clearReadUrlResolver } from '../lib/r2.js';
+import { setReadUrlResolver, clearReadUrlResolver, setImageAuthErrorHandler, clearImageAuthErrorHandler } from '../lib/r2.js';
 import { setMetaResolver, clearMetaResolver } from '../lib/imageMeta.js';
+import { logClientError } from '../lib/errorReporting.js';
 import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
@@ -122,6 +123,7 @@ export function PublicBoardView({ token, slug }) {
   const [navBusy, setNavBusy] = useState(false);
   const [subboardOpened, setSubboardOpened] = useState(false); // SharePrompt trigger B
   const [relatedBoards, setRelatedBoards] = useState(EMPTY);   // slug mode: tag-related public boards
+  const [imgEpoch, setImgEpoch] = useState(0);                 // bumped on a forced URL refresh → canvas re-resolves
 
   // Session-wide presigned image map (merged across every board fetched)
   // + the live Y.Docs we keep alive for CanvasSurface (doc cards read their
@@ -135,12 +137,17 @@ export function PublicBoardView({ token, slug }) {
   const ctaClickedRef = useRef(false);     // any CTA clicked → suppress SharePrompt
   const bundleFetchedAtRef = useRef(0);    // last successful bundle fetch (URL freshness)
   const refreshingRef = useRef(false);
+  const refreshTimerRef = useRef(null);    // pending retry after a failed periodic refresh
+  const lastForcedAtRef = useRef(0);       // throttle auth-error-driven forced refreshes (≤1/30s)
+  const reportedMissingRef = useRef(new Set()); // board ids whose missing-state we've already reported
   const openingRef = useRef(false);        // openBoard reentrancy guard (navBusy state lags a render)
 
   const currentId = stack.length ? stack[stack.length - 1] : null;
   const cur = currentId ? cache[currentId] : null;
   const currentIdRef = useRef(null);
   currentIdRef.current = currentId;
+  const rootIdRef = useRef(null);
+  rootIdRef.current = rootId;
   // Render-time mirrors so async effects (URL refresh, prefetch) read fresh
   // state without listing cache/navBoards as deps (each prefetched bundle
   // updates cache, which would cancel the very loop that fetched it).
@@ -256,6 +263,10 @@ export function PublicBoardView({ token, slug }) {
       board: bundle.board || {},
       imageUrls: bundle.image_urls || {},
       imageMeta: bundle.image_meta || {},
+      // A null snapshot means the board has NO board_state row — a data
+      // anomaly (a legitimately empty board still ships a non-null empty-doc
+      // snapshot). Surface it instead of silently rendering a blank canvas.
+      missingState: !bundle.snapshot,
       ydoc,
       cards: readCards(ydoc),
       arrows: readArrows(ydoc),
@@ -329,6 +340,18 @@ export function PublicBoardView({ token, slug }) {
     document.title = name ? `${name} — Soleil Clusters` : 'Soleil Clusters';
   }, [cur]);
 
+  // Report a missing board_state row (a blank-render anomaly) once per board,
+  // so it surfaces in the admin Errors tab instead of failing invisibly. A
+  // legitimately empty board ships a non-null empty-doc snapshot, so this only
+  // fires on genuine data loss.
+  useEffect(() => {
+    if (status !== 'ok' || !cur?.missingState) return;
+    const id = currentIdRef.current;
+    if (reportedMissingRef.current.has(id)) return;
+    reportedMissingRef.current.add(id);
+    logClientError(new Error('share_missing_board_state'), { kind: 'warn' });
+  }, [status, cur]);
+
   // Slug mode only: load tag-related public boards for the bottom strip (the
   // worker also injects these as crawlable links for search engines).
   useEffect(() => {
@@ -338,36 +361,70 @@ export function PublicBoardView({ token, slug }) {
     return () => { cancelled = true; };
   }, [slug, status]);
 
-  // Long-lived-tab URL freshness: when the tab becomes visible (or hourly
-  // while open) and the bundle is >24h old, silently re-fetch the current
-  // board's bundle and merge ONLY image_urls/image_meta into the session
-  // refs — cache/state untouched, so nothing remounts or re-renders. The
-  // throwaway Y.Doc is destroyed immediately. Failures are swallowed (old
-  // URLs still have days of life; the next tick retries).
+  // URL freshness for long-lived public tabs. Presigned image URLs live 7
+  // days; we re-mint them well before that. Two triggers feed this one path:
+  //   • periodic / visibility — when the bundle is >24h old (the common case);
+  //   • forced — an image actually 403'd (notifyImageAuthError), so we can't
+  //     wait on the clock. A forced refresh bumps imgEpoch to remount the
+  //     canvas once so its <img>s re-resolve against the fresh URL map.
+  // Either way we merge ONLY image_urls/image_meta into the session refs and
+  // throw the snapshot Y.Doc away — board CONTENT stays the open-time snapshot
+  // (static by design); this only keeps images from decaying.
+  const maybeRefresh = useCallback(async ({ force = false } = {}) => {
+    if (refreshingRef.current) return;
+    if (!force && Date.now() - bundleFetchedAtRef.current < URL_REFRESH_AGE_MS) return;
+    refreshingRef.current = true;
+    try {
+      const id = currentIdRef.current;
+      const rid = rootIdRef.current;
+      const { decoded } = await fetchBundle(!id || id === rid ? null : id);
+      Object.assign(imageMapRef.current, decoded.imageUrls);
+      Object.assign(imageMetaRef.current, decoded.imageMeta);
+      bundleFetchedAtRef.current = Date.now();
+      ydocsRef.current.delete(decoded.ydoc);
+      try { decoded.ydoc.destroy(); } catch (_) {}
+      if (force) setImgEpoch((e) => e + 1);
+    } catch (_) {
+      // Retry a transient failure sooner than the hourly tick so URLs can't
+      // age toward the 7-day signing cliff. (Forced refreshes don't self-retry
+      // — if images are still broken the next error re-escalates.)
+      if (!force && !refreshTimerRef.current) {
+        refreshTimerRef.current = setTimeout(() => {
+          refreshTimerRef.current = null;
+          maybeRefresh();
+        }, 5 * 60 * 1000);
+      }
+    } finally {
+      refreshingRef.current = false;
+    }
+  }, [fetchBundle]);
+
+  // Periodic / visibility-driven refresh (the >24h-old common path).
   useEffect(() => {
     if (status !== 'ok') return undefined;
-    const maybeRefresh = async () => {
-      if (refreshingRef.current) return;
-      if (Date.now() - bundleFetchedAtRef.current < URL_REFRESH_AGE_MS) return;
-      refreshingRef.current = true;
-      try {
-        const id = currentIdRef.current;
-        const { decoded } = await fetchBundle(!id || id === rootId ? null : id);
-        Object.assign(imageMapRef.current, decoded.imageUrls);
-        Object.assign(imageMetaRef.current, decoded.imageMeta);
-        bundleFetchedAtRef.current = Date.now();
-        ydocsRef.current.delete(decoded.ydoc);
-        try { decoded.ydoc.destroy(); } catch (_) {}
-      } catch (_) {
-      } finally {
-        refreshingRef.current = false;
-      }
-    };
     const onVis = () => { if (document.visibilityState === 'visible') maybeRefresh(); };
     document.addEventListener('visibilitychange', onVis);
-    const iv = setInterval(maybeRefresh, 60 * 60 * 1000);
-    return () => { document.removeEventListener('visibilitychange', onVis); clearInterval(iv); };
-  }, [status, rootId, fetchBundle]);
+    const iv = setInterval(() => maybeRefresh(), 60 * 60 * 1000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      clearInterval(iv);
+      if (refreshTimerRef.current) { clearTimeout(refreshTimerRef.current); refreshTimerRef.current = null; }
+    };
+  }, [status, maybeRefresh]);
+
+  // Escalation: an image 403'd in the canvas (expired presigned URL). The
+  // public resolver hands back the same dead URL, so R2Image's force-sign
+  // can't recover — re-fetch the bundle for fresh URLs. Throttled to ≤1/30s.
+  useEffect(() => {
+    if (status !== 'ok') return undefined;
+    setImageAuthErrorHandler(() => {
+      const now = Date.now();
+      if (now - lastForcedAtRef.current < 30 * 1000) return;
+      lastForcedAtRef.current = now;
+      maybeRefresh({ force: true });
+    });
+    return () => clearImageAuthErrorHandler();
+  }, [status, maybeRefresh]);
 
   // Idle prefetch: warm the first few sub-board bundles reachable from the
   // current board so navigating into them is instant (marketing demos live
@@ -526,6 +583,10 @@ export function PublicBoardView({ token, slug }) {
 
   const board = cur?.board || EMPTY_OBJ;
   const showCrumbs = stack.length > 1;
+  // The current board has no board_state row (null snapshot) — render a calm
+  // empty state rather than a silent blank canvas. (The anomaly is reported to
+  // the Errors tab by the effect above.)
+  const missing = !!cur?.missingState;
 
   // Keep the dark app chrome regardless of board.bg_color (only the canvas
   // surface honors it): chrome built from theme tokens can't guarantee
@@ -569,10 +630,24 @@ export function PublicBoardView({ token, slug }) {
           .public-canvas-host). The empty/no-op context providers keep any
           live <EntityLink> mention chips or avatars inside notes/cards from
           crashing — they simply become non-interactive. */}
+      {missing ? (
+        <div className="public-empty">
+          <SoleilMark size={42} color="var(--soleil)" glow />
+          <div className="public-empty-title">This board doesn’t have any content yet</div>
+          <div className="public-empty-sub">
+            There’s nothing to show here right now. Check back later — or make a board of your own.
+          </div>
+          <div className="public-empty-actions">
+            <a className="public-cta" href={ctaHref(ctx, 'empty_board')} onClick={onCta('empty_board')}>Try Clusters free</a>
+            <a className="public-signin-quiet" href={ctaHref(ctx, 'signin')} onClick={onCta('signin')}>Sign in</a>
+          </div>
+        </div>
+      ) : (
       <EntityNavigateContext.Provider value={EMPTY_OBJ}>
         <OpenDmContext.Provider value={NOOP}>
           <div className={`public-canvas-host${navBusy ? ' is-nav-busy' : ''}`} aria-busy={navBusy}>
             <CanvasSurface
+              key={`cv-${imgEpoch}`}
               board={board}
               boards={boardsMap}
               cards={visibleCards}
@@ -598,6 +673,7 @@ export function PublicBoardView({ token, slug }) {
           </div>
         </OpenDmContext.Provider>
       </EntityNavigateContext.Provider>
+      )}
 
       {/* Related boards (slug mode) — a subtle bottom strip of internal links to
           tag-related public boards. The worker also injects these server-side as

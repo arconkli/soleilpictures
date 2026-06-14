@@ -258,6 +258,21 @@ test('pan-drag across a doc card pans without opening it', async ({ page }) => {
   expect(after).not.toBe(before);
 });
 
+test('board with no saved state shows the calm empty state, not a blank canvas', async ({ page }) => {
+  // The party returns snapshot: null when a board has no board_state row (a
+  // data anomaly — a legitimately empty board still ships an empty-doc
+  // snapshot). The viewer must surface it, keeping the branded chrome, rather
+  // than rendering an indistinguishable blank canvas.
+  await routeAnalytics(page, []);
+  await routeShareBundle(page, { nullSnapshot: true });
+  await page.goto(`/share/${TOKEN}?shareqa=1&prefetch=0`);
+
+  await expect(page.locator('.public-board-name')).toHaveText('Marketing Root'); // topbar chrome stays
+  await expect(page.locator('.public-empty-title')).toHaveText('This board doesn’t have any content yet');
+  await expect(page.locator('.public-canvas-host')).toHaveCount(0);              // no blank canvas
+  await expect(page.locator('.public-empty-actions .public-cta')).toHaveText('Try Clusters free');
+});
+
 test('invalid/expired link renders a branded dead end with CTA', async ({ page }) => {
   const rows = [];
   await routeAnalytics(page, rows);
