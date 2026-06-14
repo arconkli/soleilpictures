@@ -108,6 +108,45 @@ test('zoom-in promotes only on-screen cards; off-screen mounted cards stay sm; n
   expect(await page.evaluate(() => window.__reblurs)).toBe(0);
 });
 
+test('canvas layer de-promotes at fit-all and re-promotes when zoomed in', async ({ page }) => {
+  // GPU compositor relief: at fit-all (all cards mounted) the .canvas layer
+  // must NOT be GPU-promoted (no will-change, plain 2D translate) — promoting
+  // forces every card + the virtual-canvas SVG to overlap-composite, blowing
+  // the GPU budget (toolbars vanish / background tears on constrained GPUs).
+  // Zoomed in (few cards mounted) it re-promotes for smooth pan.
+  await openDense(page);
+
+  const canvasState = () => page.evaluate(() => {
+    const c = document.querySelector('.canvas');
+    const t = c.style.transform || getComputedStyle(c).transform;
+    return { willChange: c.style.willChange, has3d: /translate3d/.test(t), has2d: /translate\(/.test(t) };
+  });
+
+  // Fit-all on the 24-card board lands well below the promote threshold.
+  await expect.poll(async () => (await canvasState()).willChange, { timeout: 6000 }).toBe('auto');
+  let s = await canvasState();
+  expect(s.has3d).toBe(false);
+  expect(s.has2d).toBe(true);
+
+  // Zoom in hard (anchored center) past the promote-on threshold (0.42).
+  await page.evaluate(() => {
+    const wrap = document.querySelector('.canvas-wrap');
+    const x = window.innerWidth / 2, y = window.innerHeight / 2;
+    for (let i = 0; i < 12; i++) wrap.dispatchEvent(new WheelEvent('wheel', { deltaY: -240, ctrlKey: true, bubbles: true, cancelable: true, clientX: x, clientY: y }));
+  });
+  await expect.poll(async () => (await canvasState()).willChange, { timeout: 6000 }).toBe('transform');
+  s = await canvasState();
+  expect(s.has3d).toBe(true);
+
+  // Zoom back out to fit-all → de-promote again.
+  await page.evaluate(() => {
+    const wrap = document.querySelector('.canvas-wrap');
+    const x = window.innerWidth / 2, y = window.innerHeight / 2;
+    for (let i = 0; i < 14; i++) wrap.dispatchEvent(new WheelEvent('wheel', { deltaY: 240, ctrlKey: true, bubbles: true, cancelable: true, clientX: x, clientY: y }));
+  });
+  await expect.poll(async () => (await canvasState()).willChange, { timeout: 6000 }).toBe('auto');
+});
+
 test('rapid zoom cycles never strand a card on its blur (cached-load reaches is-loaded)', async ({ page }) => {
   await openDense(page);
   const cycle = (dy, n) => page.evaluate(({ dy, n }) => {

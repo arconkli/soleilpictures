@@ -2983,17 +2983,16 @@ body {
   position: absolute; inset: 0;
   width: 1500px; height: 1100px;
   transform-origin: 40px 30px;
-  /* Compositor hints:
-     - will-change: transform — primary GPU-promotion hint. Chrome may
-       silently ignore this when the resulting layer would exceed the
-       max raster size; applyCanvasTransform() writes translate3d(x,y,0)
-       on every transform update as a belt-and-suspenders fallback.
-     - contain: layout style — bounds layout / restyle invalidations to
-       inside this element. (Dropped `paint` because clipping the box
-       would hide card context menus / popovers / hover cards that
-       extend past the canvas — root-cause of the round-10 board-load
-       weirdness.) */
-  will-change: transform;
+  /* GPU promotion is driven IMPERATIVELY by applyCanvasTransform() (will-change
+     + translate3d), and is gated by zoom: promoted at normal zoom for smooth
+     pan, but DE-promoted at fit-all (~<=0.3) where promoting forces every
+     mounted card + the 100000² SVG to overlap-composite into its own layer —
+     a multi-hundred-MB GPU backing store that tears/evicts on constrained GPUs.
+     So `will-change` is NOT declared here (it would unconditionally promote and
+     re-introduce the blowup); the JS sets/clears it per zoom.
+     contain: layout style — bounds layout/restyle invalidations. (Dropped
+     `paint` because clipping the box hides card context menus / popovers /
+     hover cards that extend past the canvas — the round-10 regression.) */
   contain: layout style;
 }
 

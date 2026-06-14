@@ -68,6 +68,21 @@ import { ArrowPopover } from './ArrowPopover.jsx';
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
+// GPU-promotion of the .canvas layer is GREAT for smooth pan/zoom — but it
+// FORCES every overlapping descendant (all mounted cards + the virtual-canvas
+// SVG layers) to be composited into its own GPU layer ("Overlap" compositing).
+// At normal zoom the viewport cull keeps only a handful of cards mounted, so
+// that cascade is small. But at fit-all (~0.11 on a wide board) ALL cards mount
+// at once → dozens of native-size card layers + a 100000²-px stroke layer → a
+// multi-hundred-MB backing store that a memory-constrained GPU can't hold, so
+// it evicts sibling layers (toolbars vanish), tears tiles (background) and
+// thrashes textures (images flicker). So we DE-promote the canvas below a zoom
+// threshold (no will-change, plain 2D translate) — the whole board collapses
+// back to ~one root layer, painted at the small displayed scale. Hysteresis
+// (off below LO, on above HI) so a zoom that lingers at the boundary can't flap
+// the layerization.
+const CANVAS_PROMOTE_OFF_BELOW = 0.30;
+const CANVAS_PROMOTE_ON_ABOVE = 0.42;
 // Viewport-px margin used when fitting content into the viewport. Full 80 on
 // >640px screens; smaller on phones so a desktop-sized margin (160px of a ~390px
 // screen) doesn't shrink the content to a tiny zoom. Keeps desktop/tablet framing
@@ -317,17 +332,34 @@ export function CanvasSurface({
   const _zoomCountRef = useRef(0);
 
   const canvasRef = useRef(null);
+  // Whether the canvas layer is currently GPU-promoted. Hysteresis-gated by
+  // zoom (see CANVAS_PROMOTE_* above) so it doesn't flap at the boundary.
+  const canvasPromotedRef = useRef(true);
   const applyCanvasTransform = () => {
     const el = canvasRef.current;
     if (!el) return;
-    // translateZ(0) hint at the end keeps the GPU layer promoted across
-    // transform changes. Round 9's CSS `will-change: transform` can be
-    // silently ignored by Chrome when the resulting layer would exceed
-    // the max raster size — translateZ(0) is the legacy promotion hint
-    // that survives that fallback. We include it on every transform
-    // update because the CSS-side declaration would otherwise be
-    // overwritten by this imperative assignment.
-    el.style.transform = `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${zoomRef.current})`;
+    const z = zoomRef.current;
+    let promoted = canvasPromotedRef.current;
+    if (promoted && z <= CANVAS_PROMOTE_OFF_BELOW) promoted = false;
+    else if (!promoted && z >= CANVAS_PROMOTE_ON_ABOVE) promoted = true;
+    canvasPromotedRef.current = promoted;
+    if (promoted) {
+      // GPU-promoted: translateZ(0) keeps the layer promoted across transform
+      // changes (Round 9's CSS `will-change` can be silently dropped when the
+      // layer would exceed the max raster size; this imperative hint survives).
+      // will-change is also set here because this assignment overwrites the
+      // CSS-side declaration.
+      el.style.transform = `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${z})`;
+      if (el.style.willChange !== 'transform') el.style.willChange = 'transform';
+    } else {
+      // De-promoted at fit-all: a plain 2D transform with NO will-change so the
+      // canvas is NOT a compositing layer → its descendants stop being
+      // overlap-composited → the 100000² SVG + dozens of card layers collapse
+      // into the root layer, rastered at the small displayed scale. Pan
+      // re-paints on the CPU, but at ~0.1 scale that region is cheap.
+      el.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`;
+      if (el.style.willChange !== 'auto') el.style.willChange = 'auto';
+    }
   };
   // ── Viewport culling state (D1) ──────────────────────────────────────────
   // visibleIds = Set of mounted card ids: everything inside the ADD band
