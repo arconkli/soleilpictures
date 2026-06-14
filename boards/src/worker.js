@@ -15,6 +15,7 @@
 import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY } from './worker-seo.js';
 import { runCompactionJob1 } from './worker-compaction.js';
+import { isRingCanary, mintRingCookieValue, ringSetCookieHeader, ringClearCookieHeader } from './worker-ring.js';
 
 const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
 
@@ -95,10 +96,23 @@ function jsonLdSafe(obj) {
 // deploys' chunk hashes are picked up immediately. `no-cache` still lets the
 // browser/CDN cache the bytes — it just requires a conditional revalidation
 // first, so the common case is a cheap 304, not a full re-download.
-function withRevalidate(res) {
-  const headers = new Headers(res.headers);
+function withRevalidate(res, env) {
+  // On the staging Worker, every HTML document gets a window.__env='staging'
+  // marker (drives the in-app RingIndicator so testers know they're on the
+  // latest build) and X-Robots-Tag: noindex (keep the preview out of search).
+  // No-op on prod (env.ENVIRONMENT is undefined there). All HTML returns funnel
+  // through here, so this is the single place that covers them.
+  let out = res;
+  const isStaging = env && env.ENVIRONMENT === 'staging';
+  if (isStaging && (res.headers.get('content-type') || '').includes('text/html')) {
+    out = new HTMLRewriter()
+      .on('head', new AppendHead(`<script>window.__env='staging'</script>`))
+      .transform(res);
+  }
+  const headers = new Headers(out.headers);
   headers.set('cache-control', 'no-cache');
-  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  if (isStaging) headers.set('x-robots-tag', 'noindex');
+  return new Response(out.body, { status: out.status, statusText: out.statusText, headers });
 }
 
 // Rewrite the document's title/description/canonical + the OG/Twitter mirrors
@@ -235,6 +249,36 @@ function injectShareMeta(res, meta, token) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // ── Staging-preview ring ──────────────────────────────────────────────
+    // Ring control + the proxy that routes eligible admins to the LATEST
+    // (staging) build on the real domain. Handled before everything else so
+    // /api/ring/* always runs locally (never proxied) and the proxy can
+    // short-circuit cleanly. See worker-ring.js + proxyToStaging below.
+    if (url.pathname === '/api/ring/join')  return await handleRingJoin(request, env);
+    if (url.pathname === '/api/ring/leave') return await handleRingLeave(request, env);
+    // Escape hatch: ?ring=off drops the cookie and bounces to the clean URL, so
+    // an admin can always leave a broken staging build even if the in-app
+    // toggle is unreachable.
+    if (request.method === 'GET' && url.searchParams.get('ring') === 'off') {
+      url.searchParams.delete('ring');
+      return new Response(null, {
+        status: 302,
+        headers: { location: url.pathname + url.search, 'set-cookie': ringClearCookieHeader() },
+      });
+    }
+    // Proxy eligible ring users to the staging Worker (latest build). Pure
+    // crypto check, no Supabase round-trip. The staging Worker itself
+    // (ENVIRONMENT='staging') never proxies — loop guard — as does the
+    // x-soleil-proxied header. Fails OPEN to prod if staging is unreachable.
+    if (env.ENVIRONMENT !== 'staging' &&
+        env.STAGING_ORIGIN &&
+        request.headers.get('x-soleil-proxied') !== '1' &&
+        await isRingCanary(request, env)) {
+      const proxied = await proxyToStaging(request, env, url);
+      if (proxied) return proxied;
+    }
+
     // Guard every /api/* route: an uncaught throw here would otherwise surface
     // as a contentless Cloudflare 500. await so rejected promises are caught.
     try {
@@ -306,7 +350,7 @@ export default {
       if (meta && contentType.includes('text/html')) {
         const p = normalizePath(url.pathname);
         const canonical = p === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${p}`;
-        return withRevalidate(injectRouteMeta(res, meta, canonical));
+        return withRevalidate(injectRouteMeta(res, meta, canonical), env);
       }
     }
 
@@ -315,13 +359,13 @@ export default {
     // rank. RPC miss → SPA shell with default meta (still no noindex).
     if (pubMatch && contentType.includes('text/html')) {
       const [meta, content, related] = await Promise.all([pubMetaPromise, pubContentPromise, pubRelatedPromise]);
-      return withRevalidate(injectPublicBoard(res, meta, content, pubMatch[1], related));
+      return withRevalidate(injectPublicBoard(res, meta, content, pubMatch[1], related), env);
     }
 
     // Public board index (/explore): crawlable list of /c/<slug> links + JSON-LD.
     if (exploreMatch && contentType.includes('text/html')) {
       const boards = await exploreListPromise;
-      return withRevalidate(injectExplore(res, boards));
+      return withRevalidate(injectExplore(res, boards), env);
     }
 
     // Shared-board link previews: rewrite OG/Twitter meta on /share/<token>
@@ -329,7 +373,7 @@ export default {
     // the board itself (and noindex the tokened URL either way).
     if (shareMatch && contentType.includes('text/html')) {
       const meta = await shareMetaPromise;
-      return withRevalidate(injectShareMeta(res, meta, shareMatch[1]));
+      return withRevalidate(injectShareMeta(res, meta, shareMatch[1]), env);
     }
 
     // index.html (the SPA document, served for every app route) must be
@@ -338,7 +382,7 @@ export default {
     // points at chunks that have since been replaced. Hashed /assets/* keep
     // their year-long immutable cache (public/_headers) — only the HTML shell
     // is made always-fresh here.
-    if (contentType.includes('text/html')) return withRevalidate(res);
+    if (contentType.includes('text/html')) return withRevalidate(res, env);
     return res;
   },
   async scheduled(event, env, ctx) {
@@ -1063,6 +1107,111 @@ function json(data, status = 200, cacheable = false) {
     headers['cache-control'] = 'no-store';
   }
   return new Response(JSON.stringify(data), { status, headers });
+}
+
+// ── Staging-preview ring helpers ────────────────────────────────────────
+// Proxy the entire request to the staging Worker (the latest build) and return
+// its response verbatim, so a ring-eligible admin tests the full latest stack
+// (Worker + SPA) on the real domain with their session intact. Loop-safe: the
+// x-soleil-proxied header + the staging Worker's ENVIRONMENT='staging' guard
+// both stop a proxy bouncing back. Returns null on failure so the caller falls
+// through to normal prod serving (fail-open — an admin is never hard-stuck).
+async function proxyToStaging(request, env, url) {
+  try {
+    const origin = String(env.STAGING_ORIGIN).replace(/\/+$/, '');
+    const proxied = new Request(origin + url.pathname + url.search, request);
+    proxied.headers.set('x-soleil-proxied', '1');
+    return await fetch(proxied);
+  } catch (_) {
+    return null;
+  }
+}
+
+// Decode a JWT's `sub` claim WITHOUT verifying — the eligibility RPC already
+// authenticated the same token; this is cosmetic traceability in the cookie.
+function jwtSub(jwt) {
+  try {
+    const payload = jwt.split('.')[1] || '';
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))).sub || '';
+  } catch (_) { return ''; }
+}
+
+// POST /api/ring/join — if the caller is ring-eligible (admin OR internal
+// allowlist via am_i_ring_eligible), mint the signed soleil_ring cookie so the
+// prod Worker proxies them to the latest build. Same forward-the-JWT pattern as
+// handleBackfillImageSizes. Always runs on the prod Worker (never proxied).
+async function handleRingJoin(request, env) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: {
+      'access-control-allow-origin':      SITE_ORIGIN,
+      'access-control-allow-methods':     'POST, OPTIONS',
+      'access-control-allow-headers':     'authorization, content-type',
+      'access-control-allow-credentials': 'true',
+    } });
+  }
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+  if (!env.RING_COOKIE_SECRET) return json({ error: 'ring not configured' }, 503);
+
+  const userToken = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!userToken) return json({ error: 'auth required' }, 401);
+
+  let eligRes;
+  try {
+    eligRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/am_i_ring_eligible`, {
+      method: 'POST',
+      headers: {
+        apikey:        env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
+        authorization: `Bearer ${userToken}`,
+        'content-type': 'application/json',
+      },
+      body: '{}',
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (_) {
+    return json({ error: 'eligibility check failed' }, 502);
+  }
+  if (!eligRes.ok) return json({ error: 'eligibility check failed' }, 401);
+  const eligible = await eligRes.json().catch(() => false);
+
+  const base = {
+    'content-type':                     'application/json; charset=utf-8',
+    'cache-control':                    'no-store',
+    'access-control-allow-origin':      SITE_ORIGIN,
+    'access-control-allow-credentials': 'true',
+  };
+  // Not eligible → clear any stale cookie and report it (the client stays on prod).
+  if (eligible !== true) {
+    return new Response(JSON.stringify({ ok: true, ring: 'prod', eligible: false }), {
+      status: 200, headers: { ...base, 'set-cookie': ringClearCookieHeader() },
+    });
+  }
+  const { value, maxAge } = await mintRingCookieValue(env, jwtSub(userToken));
+  return new Response(JSON.stringify({ ok: true, ring: 'canary', eligible: true }), {
+    status: 200, headers: { ...base, 'set-cookie': ringSetCookieHeader(value, maxAge) },
+  });
+}
+
+// POST /api/ring/leave — clear the cookie so the next load is served by prod.
+async function handleRingLeave(request, env) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: {
+      'access-control-allow-origin':      SITE_ORIGIN,
+      'access-control-allow-methods':     'POST, OPTIONS',
+      'access-control-allow-headers':     'authorization, content-type',
+      'access-control-allow-credentials': 'true',
+    } });
+  }
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+  return new Response(JSON.stringify({ ok: true, ring: 'prod' }), {
+    status: 200,
+    headers: {
+      'content-type':                     'application/json; charset=utf-8',
+      'cache-control':                    'no-store',
+      'set-cookie':                       ringClearCookieHeader(),
+      'access-control-allow-origin':      SITE_ORIGIN,
+      'access-control-allow-credentials': 'true',
+    },
+  });
 }
 
 // Admin-only: backfill public.images.size_bytes by HEAD-ing every R2
