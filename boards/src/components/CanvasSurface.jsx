@@ -91,7 +91,16 @@ const fitMargin = (r) => (r.width > 640 ? 80 : Math.max(16, Math.round(r.width *
 const DRAW_DEFAULT_COLOR = '#f5f5f6';
 const DRAW_DEFAULT_WIDTH = 3;
 const ERASER_DEFAULT_WIDTH = 16;
-const VIRTUAL_CANVAS_PX = 100000;
+// The stroke/arrow/snap/shape SVGs are positioned at (0,0) in canvas space with
+// NO viewBox and `overflow: visible`, so their child paths render at raw board
+// coordinates regardless of the SVG element's own width/height. The element box
+// used to be 100000×100000 — but an SVG that big forces its composited layer
+// (when the canvas is GPU-promoted, every overlapping element is) to a 100000²
+// backing store, ~40,000MP, which blows the GPU budget at fit-all. Since
+// overflow is visible, the box only needs to be a 1px anchor: the layer bounds
+// then collapse to the actual painted stroke/arrow extent. Rendering is
+// byte-identical (paths still draw at their board coords).
+const SVG_ANCHOR_PX = 1;
 const STROKE_HIT_PADDING = 12; // invisible hit region added around each stroke
 
 // Build the SVG path string for a freehand stroke. Module scope + memoized
@@ -6388,7 +6397,7 @@ export function CanvasSurface({
             `is-visible` class is keyed off live `snapHints`. */}
         {displayedHints && (displayedHints.xs?.length || displayedHints.ys?.length || displayedHints.spacings?.length) && (
           <svg className={`snap-guides ${snapHints ? 'is-visible' : ''}`}
-               width={VIRTUAL_CANVAS_PX} height={VIRTUAL_CANVAS_PX}
+               width={SVG_ANCHOR_PX} height={SVG_ANCHOR_PX}
                style={{ position: 'absolute', left: 0, top: 0,
                         pointerEvents: 'none', overflow: 'visible',
                         zIndex: 999997 }}>
@@ -6514,7 +6523,7 @@ export function CanvasSurface({
           // Line preview drawn directly from drag-start to drag-current
           // so the on-screen preview matches the line that will be
           // committed (preserving the user's drag direction).
-          <svg className="shape-preview" width={VIRTUAL_CANVAS_PX} height={VIRTUAL_CANVAS_PX}
+          <svg className="shape-preview" width={SVG_ANCHOR_PX} height={SVG_ANCHOR_PX}
                style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', overflow: 'visible' }}>
             <line x1={activeShape.from.x} y1={activeShape.from.y}
                   x2={activeShape.to.x}   y2={activeShape.to.y}
@@ -6547,7 +6556,7 @@ export function CanvasSurface({
             pointer-events:stroke when select/erase is active, so cards
             underneath remain clickable. */}
         {tweak.showArrows && (arrows?.length || activeFreeArrow) && (
-          <svg className="arrows-layer" width={VIRTUAL_CANVAS_PX} height={VIRTUAL_CANVAS_PX}
+          <svg className="arrows-layer" width={SVG_ANCHOR_PX} height={SVG_ANCHOR_PX}
                style={{ position: 'absolute', left: 0, top: 0,
                         pointerEvents: 'none',
                         overflow: 'visible' }}>
@@ -6734,7 +6743,7 @@ export function CanvasSurface({
 
         {/* Strokes layer — visually on top of cards, but clicks pass through
             EXCEPT on actual stroke pixels (pointer-events:stroke on hit path). */}
-        <svg className="strokes-layer" width={VIRTUAL_CANVAS_PX} height={VIRTUAL_CANVAS_PX}
+        <svg className="strokes-layer" width={SVG_ANCHOR_PX} height={SVG_ANCHOR_PX}
              style={{ position: 'absolute', left: 0, top: 0,
                       pointerEvents: 'none',
                       overflow: 'visible' }}>
