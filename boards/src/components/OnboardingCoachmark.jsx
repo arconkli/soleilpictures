@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { COACHMARK_VARIANTS } from '../lib/experiments.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
 // First-run coachmark. A small dismissible pill anchored bottom-center of the
@@ -16,8 +17,11 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 // When a tutorial "Ideas" board was seeded (the common path), the copy reinforces
 // the drag-to-nest AHA the seeded note teaches. If board creation failed and only
 // notes were seeded (hasTutorialBoard=false), it falls back to the add-a-card nudge.
-export function OnboardingCoachmark({ boardId, onDismiss, hasTutorialBoard = false }) {
+export function OnboardingCoachmark({ boardId, onDismiss, hasTutorialBoard = false, escalated = false, arm = null }) {
   const { isTouch } = useBreakpoint();
+  // A/B copy variant (experiments.js). A null/'A'/missing variant = the original
+  // copy below, so the control arm and a disabled experiment are zero-regression.
+  const v = COACHMARK_VARIANTS[arm] || null;
   // "Got it" animates out before App.jsx unmounts us; external dismissals
   // (first card placed, note nested) still remove the pill immediately —
   // the user is mid-action there and never watches it go.
@@ -34,16 +38,16 @@ export function OnboardingCoachmark({ boardId, onDismiss, hasTutorialBoard = fal
   }, [boardId]);
 
   return (
-    <div className={`onboarding-coachmark surface-frosted${leaving ? ' is-leaving' : ''}`} role="status">
+    <div className={`onboarding-coachmark surface-frosted${leaving ? ' is-leaving' : ''}${escalated ? ' is-escalated' : ''}`} role="status">
       <div className="onboarding-coachmark-spark" aria-hidden="true">✦</div>
       <div className="onboarding-coachmark-copy">
-        <div className="onboarding-coachmark-title">Make it yours</div>
+        <div className="onboarding-coachmark-title">{v?.title || 'Make it yours'}</div>
         <div className="onboarding-coachmark-body">
           {hasTutorialBoard
-            ? 'Drag the note into the “Ideas” board to organize it ✨'
+            ? (v?.hasTutorial || 'Drag the note into the “Ideas” board to organize it ✨')
             : isTouch
-              ? 'Tap the + on the left, or long-press the canvas, to add your first card.'
-              : 'Right-click, use the + on the left, or drag an image straight in to add your first card.'}
+              ? (v?.touch || 'Tap the + on the left, or long-press the canvas, to add your first card.')
+              : (v?.desktop || 'Right-click, use the + on the left, or drag an image straight in to add your first card.')}
         </div>
       </div>
       <button

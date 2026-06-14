@@ -115,8 +115,34 @@ async function stampFirstSourceIfNeeded() {
   if (!src || Object.keys(src).length === 0) { firstSourceStamped = true; return; }
   const { data } = await supabase.auth.getSession();
   if (!data?.session?.user?.id) return;
-  try { await supabase.rpc('set_first_source', { p_source: src }); } catch (_) {}
+  // A failed stamp leaves profiles.first_source empty → all by-source retention
+  // attribution silently breaks for this user. Record it (kept here because
+  // SOURCE_KEY/cachedSource are private to this module). Uses the EV string
+  // literal to avoid an import cycle with analyticsEvents.
+  try { await supabase.rpc('set_first_source', { p_source: src }); }
+  catch (e) { try { logEvent('onboarding_first_source_failed', { reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {} }
   firstSourceStamped = true;
+}
+
+// Experiment arms ride every event as exp_<key>, exactly like first_source. The
+// enrolled map is written by App's seed effect (new users only) via
+// setEnrolledExperiments and cached in localStorage so it survives reloads in the
+// same browser. Existing users (no seed) have no map → no exp_* on their events,
+// keeping the event-level cohort aligned with the server-stamped one.
+const EXPERIMENTS_KEY = 'soleil_experiments';
+let cachedExperiments = null;
+function getExperiments() {
+  if (cachedExperiments !== null) return cachedExperiments;
+  if (typeof localStorage === 'undefined') { cachedExperiments = {}; return cachedExperiments; }
+  try { const raw = localStorage.getItem(EXPERIMENTS_KEY); cachedExperiments = raw ? JSON.parse(raw) : {}; }
+  catch (_) { cachedExperiments = {}; }
+  return cachedExperiments;
+}
+// Called once at enrollment (App seed effect) with { exp_<key>: arm }.
+export function setEnrolledExperiments(map) {
+  if (!map || typeof map !== 'object') return;
+  cachedExperiments = { ...map };
+  try { localStorage.setItem(EXPERIMENTS_KEY, JSON.stringify(cachedExperiments)); } catch (_) {}
 }
 
 function getSessionId() {
@@ -195,6 +221,9 @@ function buildRow(name, props) {
   if (merged.device_type === undefined) merged.device_type = device.device_type;
   if (merged.os === undefined)          merged.os          = device.os;
   if (merged.browser === undefined)     merged.browser     = device.browser;
+  // A/B arm(s) the user is enrolled in, so any event can be sliced by treatment.
+  const exp = getExperiments();
+  for (const k in exp) if (merged[k] === undefined) merged[k] = exp[k];
   return {
     session_id:  getSessionId(),
     user_id:     cachedUserId,   // best-effort; backfilled at flush if it resolves late

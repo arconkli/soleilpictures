@@ -13,13 +13,18 @@ import { ReturnRate } from '../widgets/ReturnRate.jsx';
 import { RetentionBySource } from '../widgets/RetentionBySource.jsx';
 import { UserDormancy } from '../widgets/UserDormancy.jsx';
 import { EventCoverage } from '../widgets/EventCoverage.jsx';
+import { TimeToFirstCard } from '../widgets/TimeToFirstCard.jsx';
+import { FirstCardFriction } from '../widgets/FirstCardFriction.jsx';
+import { OnboardingErrorCoverage } from '../widgets/OnboardingErrorCoverage.jsx';
+import { RetentionByExperiment } from '../widgets/RetentionByExperiment.jsx';
+import { getActiveExperiments } from '../../../../lib/experiments.js';
 import { AdminCardsSection } from '../../AdminCardsSection.jsx';
 import { AdminTierCompareTable } from '../../AdminTierCompareTable.jsx';
 
 export function EngagementView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
-    const [af, rc, ls, ch, cs, pd, tc, rr, rs, dm, ec] = await Promise.allSettled([
+    const [af, rc, ls, ch, cs, pd, tc, rr, rs, dm, ec, tt, fc, oe] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel',   { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       // Retention graphs — degrade gracefully via val(); never gate the view.
       supabase.rpc('admin_retention_curve',     { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal }),
@@ -33,14 +38,25 @@ export function EngagementView() {
       supabase.rpc('admin_retention_by_source', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_user_dormancy',       { p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_event_coverage',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      // First-card friction RPCs (migration 0139) — return zeros until the
+      // client emits the friction events; widgets show "still collecting".
+      supabase.rpc('admin_time_to_first_card',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_first_card_friction',     { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_onboarding_error_coverage', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
+    // A/B retention split, one fetch per active experiment (migration 0140) —
+    // graceful; empty until new users are enrolled + their cohorts mature.
+    const activeExps = getActiveExperiments();
+    const expResults = await Promise.allSettled(activeExps.map((k) =>
+      supabase.rpc('admin_retention_by_experiment', { p_key: k, p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal })));
+    const experimentRetention = activeExps.map((k, i) => ({ key: k, rows: val(expResults[i]) || [] }));
     const core = [cs, pd];
     if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
       throw errOf(core.find(errOf)) || new Error('Failed to load engagement');
     }
-    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [] };
+    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], experimentRetention };
   }, [f.days, f.excludeInternal]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
@@ -59,6 +75,15 @@ export function EngagementView() {
         <RetentionBySource rows={q.data?.bySource || []} />
         <UserDormancy rows={q.data?.dormancy || []} />
         <EventCoverage rows={q.data?.coverage || []} />
+
+        <h2 className="admin-section-title">First-card friction</h2>
+        <div className="admin-section-sub">Where new users get stuck before placing their first card — attempts, failures, and how long it takes.</div>
+        <TimeToFirstCard data={q.data?.timeToCard} />
+        <FirstCardFriction data={q.data?.friction} />
+        <OnboardingErrorCoverage rows={q.data?.onboardingErrors || []} />
+        {(q.data?.experimentRetention || []).map((e) => (
+          <RetentionByExperiment key={e.key} expKey={e.key} rows={e.rows} />
+        ))}
 
         <h2 className="admin-section-title">Cards &amp; product</h2>
         <div className="admin-section-sub">What's being created and which tiers create it.</div>

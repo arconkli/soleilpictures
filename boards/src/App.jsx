@@ -16,10 +16,12 @@ import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { getStarterCards, getStarterTutorialCard } from './lib/onboardingStarter.js';
-import { genuineCards, isSeedCard } from './lib/firstValueTrigger.js';
+import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
+import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
-import { logEvent, logEventNow, logEventOnce } from './lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments } from './lib/analytics.js';
 import { EV } from './lib/analyticsEvents.js';
+import { getActiveExperiments, assignArm } from './lib/experiments.js';
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
@@ -715,15 +717,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return !(inActiveWs && ownsActiveWs);
     };
 
+    // Record a card-create that the mutator refused (the un-bypassable layer —
+    // every add path routes through here). Seeds never count. Snake-case reasons
+    // ONLY (see analyticsEvents.js); the user-facing 'cap-hit' string is not one.
+    const noteBlocked = (reason) => { try { logEvent(EV.CARD_CREATE_BLOCKED, { reason, board_id: boardId }); } catch (_) {} };
+
     const addCard = (card) => {
-      const m = cardsMap(); if (!m) return;
-      if (isDemoBlockedOnThisBoard()) return;
+      const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return; }
+      if (isDemoBlockedOnThisBoard()) { if (!isSeedCard(card)) noteBlocked('demo_blocked'); return; }
       // Demo-tier cap: hard-block at the limit (cards total across the user's
       // own boards). The trigger on card_index keeps demo_card_count in
       // sync server-side; the chip and this check read the cached value.
       if (myTier.tier === 'demo') {
         const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1 });
         if (capHit) {
+          if (!isSeedCard(card)) noteBlocked('demo_cap');   // modal already opens below
           setUpgradeReason('cap-hit');
           return;
         }
@@ -753,11 +761,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     const addCards = (cardsToAdd) => {
-      const m = cardsMap(); if (!m || !cardsToAdd?.length) return;
-      if (isDemoBlockedOnThisBoard()) return;
+      const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return; }
+      if (isDemoBlockedOnThisBoard()) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_blocked'); return; }
       if (myTier.tier === 'demo') {
         const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: cardsToAdd.length });
-        if (capHit && accepted === 0) { setUpgradeReason('cap-hit'); return; }
+        if (capHit && accepted === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return; }
         if (capHit) {
           cardsToAdd = cardsToAdd.slice(0, accepted);
           setUpgradeReason('cap-hit');
@@ -887,8 +895,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const deleteCard = (cardId) => deleteCards([cardId]);
 
     const duplicateCards = (ids) => {
-      const m = cardsMap(); if (!m || !ids?.length) return [];
-      if (isDemoBlockedOnThisBoard()) return [];
+      const m = cardsMap(); if (!m || !ids?.length) { if (!m && ids?.length) noteBlocked('mutator_null'); return []; }
+      if (isDemoBlockedOnThisBoard()) { noteBlocked('demo_blocked'); return []; }
       // Resolve the cards that would actually be duplicated (skip missing +
       // board cards) so the demo cap counts only real new cards.
       let sources = ids.map(id => m.get(id)).filter(ym => ym && ym.get('kind') !== 'board');
@@ -896,7 +904,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // an over-cap batch to what fits, warn when crossing the 90 threshold.
       if (myTier.tier === 'demo') {
         const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: sources.length });
-        if (capHit && accepted === 0) { setUpgradeReason('cap-hit'); return []; }
+        if (capHit && accepted === 0) { if (sources.length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return []; }
         if (capHit) {
           sources = sources.slice(0, accepted);
           setUpgradeReason('cap-hit');
@@ -1939,13 +1947,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // is read back through get_my_tier()/useMyTier.
   const seedAttemptedRef = useRef(false);
   const [onboardingUiActive, setOnboardingUiActive] = useState(false);
+  // Passive escalation: true once a brand-new user trips the stuck signal
+  // (frictionSignal.js) — brightens the empty-board hint + coachmark. Cleared the
+  // instant their first genuine card lands.
+  const [frictionStuck, setFrictionStuck] = useState(false);
 
   const dismissOnboarding = (reason) => {
     setOnboardingUiActive(false);
     logEvent(EV.ONBOARDING_DISMISS, { reason: reason || 'dismissed' });
     updateOwnSettings({ onboarding: { ...(myTier.onboarding || {}), seeded: true, done: true } })
       .then(() => myTier.refetch?.())
-      .catch(() => {});
+      .catch((e) => { try { logEvent(EV.ONBOARDING_SETTINGS_PERSIST_FAILED, { op: 'dismiss', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {} });
   };
 
   // Returning first-run user (seeded a prior session but never finished) →
@@ -1986,8 +1998,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         });
         tutorialBoardId = b?.id || null;
       } catch (e) {
-        // Graceful fallback — onboarding still works with just the notes.
+        // Graceful fallback — onboarding still works with just the notes. Now
+        // instrumented: a failed Ideas-board create used to leave no signal even
+        // though it silently breaks the nest-the-note AHA.
         console.error('[onboarding] createBoard(Ideas) failed; seeding notes only', e);
+        try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'create_board', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
         tutorialBoardId = null;
       }
       // The board card id MUST equal the real DB UUID (kind:'board' renders via
@@ -1998,8 +2013,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const cardsToSeed = tutorialBoardId
         ? [...getStarterCards(), getStarterTutorialCard(tutorialBoardId)]
         : [...getStarterCards()];
-      mainMutators.addCards?.(cardsToSeed);
+      try {
+        mainMutators.addCards?.(cardsToSeed);
+      } catch (e) {
+        try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'add_cards', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
+      }
       logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId });
+      // A/B enrollment — genuinely-new users only (this triple-gated seed effect),
+      // so existing/dormant users are never retroactively bucketed. Assignment is
+      // deterministic; we stamp it to profiles.settings.experiments (server-side
+      // retention split) and prime the analytics merge (event-level exp_<key>).
+      const enrolled = {};
+      for (const key of getActiveExperiments()) {
+        const arm = assignArm(key, user.id);
+        if (!arm) continue;
+        enrolled[`exp_${key}`] = arm;
+        supabase.rpc('set_experiment_arm', { p_key: key, p_arm: arm }).catch(() => {});
+        logEvent(EV.EXPERIMENT_ENROLLED, { key, arm });
+      }
+      if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled);
       setOnboardingUiActive(true);
       // Make the new child board visible in the boards map so its card renders as
       // a real board (not an orphan tile). After addCards so reconcile sees it.
@@ -2015,7 +2047,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         },
       })
         .then(() => myTier.refetch?.())
-        .catch(() => {});
+        .catch((e) => { try { logEvent(EV.ONBOARDING_SETTINGS_PERSIST_FAILED, { op: 'seed', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {} });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTier.loading, myTier.onboarding, currentYDoc, yb.ready, yb.cards.length, currentId, rootBoard.id, mainMutators]);
@@ -2072,6 +2104,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         localStorage.setItem(fcKey, '1');
         logEventOnce('first_card', EV.ONBOARDING_FIRST_CARD, { board_id: currentId });
         if (META_REG_BAR === 'first_card') fireMetaReg();
+        // A small confirming beat on the very first genuine card — once per account
+        // (the fcKey stamp guards it, so a reload never re-fires it).
+        try { feedback.toast({ type: 'success', message: 'Nice — your first card is on the board 🎉', ttl: 3500 }); } catch (_) {}
+        // First value reached → end any passive escalation immediately (the
+        // dedicated effect below also stops the friction signal on this change).
+        setFrictionStuck(false);
       }
       if (genuine.length >= POP_BOARD_THRESHOLD && !popDone) {
         localStorage.setItem(popKey, '1');
@@ -2101,6 +2139,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (onboardingUiActive) dismissOnboarding('placed');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, yb.cards, currentId, onboardingUiActive]);
+
+  // ── First-card friction signal ────────────────────────────────────────────
+  // Detect when a brand-new user is STRUGGLING to place a first card and passively
+  // escalate the hint. Scoped tightly: only while onboarding isn't finished (or a
+  // fresh demo account) AND there's no genuine card yet — and it stops the instant
+  // their first card lands, so established/power users are never escalated. The
+  // gesture sites (CanvasSurface) feed recordIntent(); this owns start/stop + the
+  // onStuck → passive-escalation wiring. getCards reads a live ref so the signal's
+  // own genuine-card self-check never goes stale between renders.
+  const ybCardsRef = useRef(yb.cards);
+  ybCardsRef.current = yb.cards;
+  const frictionEligible = !myTier.loading && !!user?.id && !hasGenuineCard(yb.cards)
+    && ((myTier.onboarding?.seeded === true && myTier.onboarding?.done !== true) || myTier.tier === 'demo');
+  useEffect(() => {
+    if (!frictionEligible) { stopFriction(); setFrictionStuck(false); return undefined; }
+    startFriction({
+      getCards: () => ybCardsRef.current,
+      onStuck: (payload) => {
+        setFrictionStuck(true);
+        try { logEventOnce('card_create_stuck', EV.CARD_CREATE_STUCK, payload); } catch (_) {}
+      },
+    });
+    return () => stopFriction();
+  }, [frictionEligible]);
 
   const showCoachmark = onboardingUiActive && currentId === rootBoard.id;
 
@@ -2956,6 +3018,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          autotagSuggest={autotagSuggest}
                          autotagReady={autotagReady}
                          sessionId={yh?.sessionId || null}
+                         frictionStuck={isMain ? frictionStuck : false}
                          defaults={defaults} />
         </Profiler>
       );
@@ -3462,7 +3525,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {showCoachmark && (
-        <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} />
+        <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={assignArm('coachmark_copy', user?.id)} />
       )}
 
       {isPhone && (

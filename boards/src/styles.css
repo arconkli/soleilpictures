@@ -7445,6 +7445,22 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   .cnv-empty-hint-fine { display: none; }
   .cnv-empty-hint-coarse { display: inline; }
 }
+/* Passive escalation: the new user tripped the stuck signal (frictionSignal.js).
+   Brighten the create hint and give it a few attention pulses — no modal, no new
+   button (the chosen "passive" intervention). */
+.cnv-empty-hint.is-escalated {
+  opacity: 1;
+  color: var(--ink-1);
+  font-weight: 600;
+  animation: cnvEmptyHintPulse 1.6s var(--ease) 0s 3;
+}
+@keyframes cnvEmptyHintPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50%      { transform: translate(-50%, -50%) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cnv-empty-hint.is-escalated { animation: none; opacity: 1; }
+}
 
 /* Sparse home-graph nudge — same quiet register as the empty-board hint. */
 .home-sparse-hint {
@@ -17118,6 +17134,22 @@ button, [role="button"], a {
 @keyframes onboarding-coachmark-out {
   from { opacity: 1; transform: translate(-50%, 0); }
   to   { opacity: 0; transform: translate(-50%, 8px); }
+}
+/* Passive escalation: brighten the pill (soleil ring) and pulse a few times when
+   the stuck signal fires. :not(.is-leaving) so the dismiss animation always wins. */
+.onboarding-coachmark.is-escalated:not(.is-leaving) {
+  box-shadow: var(--shadow-3), 0 0 0 2px var(--soleil), var(--soleil-glow);
+  animation: onboarding-coachmark-in var(--dur-base, .24s) var(--ease, ease) both,
+             onboarding-coachmark-pulse 1.6s var(--ease) 260ms 3;
+}
+@keyframes onboarding-coachmark-pulse {
+  0%, 100% { transform: translate(-50%, 0) scale(1); }
+  50%      { transform: translate(-50%, 0) scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-coachmark.is-escalated:not(.is-leaving) {
+    animation: onboarding-coachmark-in var(--dur-base, .24s) var(--ease, ease) both;
+  }
 }
 @media (max-width: 640px) {
   /* Stack on phones: spark + copy on the first row, full-width tap-target button

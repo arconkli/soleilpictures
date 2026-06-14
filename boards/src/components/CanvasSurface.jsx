@@ -35,6 +35,9 @@ import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { recordIntent } from '../lib/frictionSignal.js';
 import { useGesture } from '@use-gesture/react';
 import { useLongPress } from '../hooks/useLongPress.js';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
@@ -259,6 +262,9 @@ export function CanvasSurface({
                            // fit-to-content on open, never persist view
                            // state, skip card-index sync, and suppress the
                            // heavy doc editor (the closed doc preview is fine).
+  frictionStuck = false,   // true → a new user tripped the stuck signal
+                           // (frictionSignal.js); brightens the empty-board
+                           // hint as the passive escalation.
 }) {
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
@@ -973,6 +979,45 @@ export function CanvasSurface({
       ttl: 5000,
     });
   };
+
+  // ── First-card friction instrumentation ─────────────────────────────────
+  // noteCreateIntent fires at every "make a card" gesture (the missing half of
+  // the funnel) AND feeds the stuck signal (recordIntent is a no-op unless App
+  // started a session for this onboarding/demo user). noteCreateBlocked records
+  // a create attempt that produced nothing — the silent canvas dead-ends, now
+  // visible. See analyticsEvents.js for the pinned method/reason enums.
+  const noteCreateIntent = (method) => {
+    try { logEvent(EV.CARD_CREATE_INTENT, { method, board_id: board?.id }); } catch (_) {}
+    try { recordIntent(method); } catch (_) {}
+  };
+  const noteCreateBlocked = (reason, method) => {
+    try { logEvent(EV.CARD_CREATE_BLOCKED, { reason, method, board_id: board?.id }); } catch (_) {}
+  };
+  // Resolve a sane paste position. lastMouseCanvasRef tracks the cursor over the
+  // canvas, but after a pan/zoom with no mousemove since it can point far
+  // off-screen — a paste would then land where the user can't see it (the silent
+  // stale-paste dead-end). Clamp to the visible viewport center in that case and
+  // report that we recovered.
+  const resolvePastePos = () => {
+    const raw = lastMouseCanvasRef.current;
+    const wrap = wrapRef.current;
+    if (!wrap) return { pos: raw, clamped: false };
+    const rect = wrap.getBoundingClientRect();
+    const tl = clientToCanvas(rect.left, rect.top);
+    const br = clientToCanvas(rect.right, rect.bottom);
+    const inView = raw && raw.x >= tl.x && raw.x <= br.x && raw.y >= tl.y && raw.y <= br.y;
+    if (inView) return { pos: raw, clamped: false };
+    return { pos: clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2), clamped: true };
+  };
+  const notePasteCreate = (clamped) => {
+    noteCreateIntent('paste');
+    if (clamped) {
+      noteCreateBlocked('stale_paste', 'paste');
+      feedback.toast({ type: 'info', message: 'Pasted into view.', ttl: 2500 });
+    }
+  };
+  // Place tools (click empty canvas to drop a card); 'draw'/'arrow' are not.
+  const PLACE_TOOLS = ['text', 'image', 'board', 'shape', 'palette'];
 
   // Briefly enable smooth transform after programmatic zoom changes.
   const enableSmoothTransform = useCallback(() => {
@@ -2174,7 +2219,8 @@ export function CanvasSurface({
             e.preventDefault();
             const file = item.getAsFile();
             if (file) {
-              const pos = lastMouseCanvasRef.current;
+              const { pos, clamped } = resolvePastePos();
+              notePasteCreate(clamped);
               optimisticDropImage(file, pos.x, pos.y);
             }
             return;
@@ -2196,12 +2242,13 @@ export function CanvasSurface({
         return;
       }
 
-      const pos = lastMouseCanvasRef.current;
+      const { pos, clamped } = resolvePastePos();
       const urlMatch = text.match(/^\s*(https?:\/\/\S+)\s*$/i);
 
       // 4) Bare URL → link / embed card.
       if (urlMatch) {
         e.preventDefault();
+        notePasteCreate(clamped);
         createLinkCardFromUrl(urlMatch[1], pos);
         return;
       }
@@ -2209,6 +2256,7 @@ export function CanvasSurface({
       // 5) Any other non-empty text → note card.
       if (text.trim().length > 0) {
         e.preventDefault();
+        notePasteCreate(clamped);
         createNoteCardFromText(text, pos);
         return;
       }
@@ -2563,6 +2611,16 @@ export function CanvasSurface({
       return;
     }
     if (spaceDown || selectedTool === 'pan') { startPan(e); return; }
+    // A place tool is armed but the click landed on a CARD, not empty canvas —
+    // the background placer never runs, so the create silently does nothing.
+    // Keep the tool armed, point the user at empty canvas, and record the miss.
+    if (PLACE_TOOLS.includes(selectedTool)) {
+      e.stopPropagation();
+      noteCreateIntent('tool_place');
+      noteCreateBlocked('place_miss', 'tool_place');
+      feedback.toast({ type: 'info', message: `Click an empty spot to place the ${selectedTool === 'text' ? 'note' : selectedTool}.`, ttl: 3000 });
+      return;
+    }
     if (isEditorTarget(e)) return;
     if (e.target.closest?.('.editable.is-editing, .note-toolbar, .rb-swatch-pop, .ic-link, .ic-add-caption, .editable')) return;
 
@@ -4160,10 +4218,21 @@ export function CanvasSurface({
   // empty-board hint advertises). Cards, chrome, strokes and arrows keep
   // their own double-click behaviors.
   const onBackgroundDoubleClick = (e) => {
-    if (!canEdit || selectedTool !== 'select') return;
+    if (selectedTool !== 'select') return;   // a place tool handles its own click
+    // Clicks on UI chrome / cards are not a "make a card here" gesture.
     if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
+    // A read-only viewer's double-click to create dies here — surface it (the
+    // toast self-silences for public/share viewers) and record the block.
+    if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
     // Strokes / arrows / snap guides are SVG children; the bare canvas is not.
-    if (e.target instanceof SVGElement && e.target.tagName !== 'svg') return;
+    // A double-click the user means for empty canvas but that an SVG overlay
+    // intercepts is the silent dead-end — record the intent AND the no-op.
+    if (e.target instanceof SVGElement && e.target.tagName !== 'svg') {
+      noteCreateIntent('dblclick');
+      noteCreateBlocked('noop_svg', 'dblclick');
+      return;
+    }
+    noteCreateIntent('dblclick');
     mutators.addNote?.(clientToCanvas(e.clientX, e.clientY));
   };
 
@@ -4449,6 +4518,7 @@ export function CanvasSurface({
 
     if (selectedTool !== 'select') {
       const pos = clientToCanvas(e.clientX, e.clientY);
+      if (PLACE_TOOLS.includes(selectedTool)) noteCreateIntent('tool_place');
       if (selectedTool === 'board')   { mutators.addNewBoard?.(pos);  setSelectedTool('select'); return; }
       if (selectedTool === 'image')   { mutators.addImageAt?.(pos);   setSelectedTool('select'); return; }
       if (selectedTool === 'text')    { mutators.addNote?.(pos);      setSelectedTool('select'); return; }
@@ -4675,12 +4745,12 @@ export function CanvasSurface({
     const pos = bgCtx.canvasPos || lastMouseCanvasRef.current;
     return [
       { id: 'add', label: 'Add', submenu: [
-        { id: 'board', label: 'Board',  run: () => mutators.addNewBoard?.(pos) },
-        { id: 'image', label: 'Image',  run: () => mutators.addImageAt?.(pos) },
-        { id: 'note',  label: 'Text note', run: () => mutators.addNote?.(pos) },
-        { id: 'doc',   label: 'Doc',    run: () => mutators.addDocCard?.(pos) },
-        { id: 'shape', label: 'Shape',  run: () => mutators.addShape?.(pos, shapeOptions) },
-        { id: 'palette', label: 'Color palette', run: () => mutators.addPalette?.(pos) },
+        { id: 'board', label: 'Board',  run: () => { noteCreateIntent('context_menu'); mutators.addNewBoard?.(pos); } },
+        { id: 'image', label: 'Image',  run: () => { noteCreateIntent('context_menu'); mutators.addImageAt?.(pos); } },
+        { id: 'note',  label: 'Text note', run: () => { noteCreateIntent('context_menu'); mutators.addNote?.(pos); } },
+        { id: 'doc',   label: 'Doc',    run: () => { noteCreateIntent('context_menu'); mutators.addDocCard?.(pos); } },
+        { id: 'shape', label: 'Shape',  run: () => { noteCreateIntent('context_menu'); mutators.addShape?.(pos, shapeOptions); } },
+        { id: 'palette', label: 'Color palette', run: () => { noteCreateIntent('context_menu'); mutators.addPalette?.(pos); } },
       ]},
       { id: 'comment', label: 'Add comment', run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
       { id: 'addurl', label: 'Add link…', run: async () => {
@@ -6009,7 +6079,7 @@ export function CanvasSurface({
     // 'Board' is now a first-class toolbar tool, and 'Text note' is the toolbar's
     // Add-note tool — so neither is repeated here. 'Shape' moved off the toolbar
     // (boards took its slot) and lives here now.
-    { label: 'Doc', action: () => mutators.addDocCard?.() },
+    { label: 'Doc', action: () => { noteCreateIntent('add_menu'); mutators.addDocCard?.(); } },
     { label: 'Shape', action: () => setSelectedTool('shape') },
     { label: 'Palette', action: () => setSelectedTool('palette') },
     { label: 'Linked board', action: () => onOpenPicker() },
@@ -7092,7 +7162,11 @@ export function CanvasSurface({
           fill the canvas within a tick) never flash it. */}
       {canEdit && selectedTool === 'select'
         && cards.length === 0 && (strokes?.length || 0) === 0 && (arrows?.length || 0) === 0 && (
-        <div className="cnv-empty-hint" aria-hidden="true">
+        // Passive escalation: when a new user trips the stuck signal the hint
+        // brightens (is-escalated) and, because it's no longer decorative,
+        // becomes announceable to screen readers (role=status, aria-hidden off).
+        <div className={`cnv-empty-hint${frictionStuck ? ' is-escalated' : ''}`}
+          aria-hidden={frictionStuck ? undefined : 'true'} role={frictionStuck ? 'status' : undefined}>
           <span className="cnv-empty-hint-fine">Double-click to add a note&ensp;·&ensp;drag in images&ensp;·&ensp;right-click for more</span>
           <span className="cnv-empty-hint-coarse">Tap the + to add something — or long-press the canvas</span>
         </div>

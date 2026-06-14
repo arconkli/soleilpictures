@@ -78,6 +78,23 @@ export const EV = Object.freeze({
   FIRST_VALUE_UPGRADE_CTA:    'first_value_upgrade_cta',    // "See Creator" clicked → opens first-value modal (must-land) {board_id}
   FIRST_VALUE_UPGRADE_DISMISS:'first_value_upgrade_dismiss',// "Not now" clicked {board_id}
 
+  // ── First-card friction (the MISSING half of the funnel: attempts + failures,
+  //    not just successes) — see frictionSignal.js + the admin First-Card Friction
+  //    view (admin_first_card_friction / admin_time_to_first_card RPCs). Emit the
+  //    enum strings below EXACTLY (snake_case) so the GROUP BY never fragments —
+  //    NOTE the UI's setUpgradeReason('cap-hit') hyphen is NOT a valid reason here.
+  CARD_CREATE_INTENT:      'card_create_intent',            // user did something that signals "make a card" {method,board_id} — method:'dblclick'|'add_menu'|'context_menu'|'tool_place'|'drag_in'|'paste'. Fired BEFORE the mutator so a blocked create still has a preceding intent.
+  CARD_CREATE_BLOCKED:     'card_create_blocked',           // an intent that produced no card {reason,method?,board_id} — reason:'demo_cap'|'demo_blocked'|'read_only'|'place_miss'|'stale_paste'|'noop_svg'|'mutator_null'
+  CARD_CREATE_STUCK:       'card_create_stuck',             // new user appears stuck placing a first card {reason,intents,seconds,method_last} — reason:'timeout'|'rage' (logEventOnce per page-load)
+
+  // ── Onboarding failure paths (previously SILENT — a broken seed/persist left no signal) ──
+  ONBOARDING_SEED_FAILED:            'onboarding_seed_failed',             // a seed step threw {stage,reason} — stage:'create_board'|'add_cards'|'persist'
+  ONBOARDING_SETTINGS_PERSIST_FAILED:'onboarding_settings_persist_failed', // merge_profile_settings rejected {op,reason} — op:'seed'|'dismiss'
+  ONBOARDING_FIRST_SOURCE_FAILED:    'onboarding_first_source_failed',     // set_first_source rejected {reason} (fired inside analytics.js where the RPC lives)
+
+  // ── Experiments (A/B harness, see experiments.js + profiles.settings.experiments) ──
+  EXPERIMENT_ENROLLED:     'experiment_enrolled',           // a genuinely-new user was assigned an arm at first seed {key,arm} (arms also ride every event as exp_<key>)
+
   // ── Product activity ──
   APP_OPEN:                'app_open',                    // app mounted with tier loaded {tier} — session/retention marker
   CARD_PLACED:             'card_placed',                 // GENUINE card(s) placed on a board {n,kind,board_id,workspace_id,actor} — seeds excluded (see firstValueTrigger.areSeedCards); powers the admin Command Center live ticker
