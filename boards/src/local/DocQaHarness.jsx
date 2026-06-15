@@ -16,6 +16,9 @@ import { useEffect, useState } from 'react';
 import * as Y from 'yjs';
 import * as docState from '../lib/docState.js';
 import * as docExport from '../lib/docFullExport.js';
+import * as screenplayFlow from '../components/docExtensions/screenplay/screenplayFlow.js';
+import * as screenplayIO from '../lib/screenplayIO.js';
+import * as screenplayPaginate from '../lib/screenplayPaginate.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { RichDocCard } from '../components/DocCard.jsx';
 
@@ -56,6 +59,7 @@ export function DocQaHarness() {
       ...docState,
       ...(window.__soleilDocTest || {}), // preserve `editor` set by DocSurface
       docExport,
+      screenplay: { ...screenplayFlow, ...screenplayIO, ...screenplayPaginate },
       encodeAnchor,
       resolveAnchor,
       Y,
