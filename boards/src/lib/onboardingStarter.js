@@ -98,3 +98,77 @@ export function getStarterTutorialCard(id) {
 
 // Back-compat static array (desktop layout). Prefer getStarterCards().
 export const STARTER_CARDS = buildCards(DESKTOP, false, false);
+
+// ── Welcome showcase (welcome_showcase experiment, arm B) ────────────────────
+// A curated "look what you can build" moodboard seeded onto the new user's root
+// when they're bucketed into arm B — modeled on the Clusters Logo brand board,
+// but built from PUBLIC assets. (We can't clone the real board's cards: its
+// images are r2:<key> objects in the OWNER's workspace, and cross-workspace
+// reads are RLS/ref-count gated, so a clone would render broken images for every
+// new user.) Public /clusters-logo-*.webp + /signin-*.webp resolve as-is via
+// resolveSrc (lib/r2.js) for everyone.
+//
+// Every card is seed:true (so it NEVER counts as the user's own first card /
+// activation — see firstValueTrigger.isSeedCard) AND showcase:true (the flag the
+// one-click "Clear & try it yourself" banner targets to remove exactly the demo
+// cards — see ShowcaseBanner + CanvasSurface). Laid out clear of the onb-drag
+// note + Ideas board so the proven nest AHA still reads. Theme-aware logo;
+// lighter single-column stack on phones. No emoji in any copy.
+const SHOWCASE_DESKTOP = {
+  logo:    { x: 80,  y: 70,  w: 300, h: 170 },
+  welcome: { x: 410, y: 70,  w: 340, h: 170 },
+  still1:  { x: 800, y: 70,  w: 220, h: 165 },
+  still2:  { x: 800, y: 255, w: 220, h: 165 },
+  palette: { x: 800, y: 440, w: 220, h: 120 },
+  how:     { x: 80,  y: 560, w: 340, h: 210 },
+};
+const SHOWCASE_PHONE = {
+  logo:   { x: 24, y: 504, w: 300, h: 150 },
+  still1: { x: 24, y: 670, w: 300, h: 200 },
+  how:    { x: 24, y: 886, w: 300, h: 210 },
+};
+
+const SOLEIL_SWATCHES = [
+  { name: 'Soleil', hex: '#ffa500' },
+  { name: 'Ink',    hex: '#0a0a0c' },
+  { name: 'Stone',  hex: '#525258' },
+  { name: 'Paper',  hex: '#f5f5f5' },
+];
+
+function showcaseWelcomeHtml() {
+  return '<p><strong>Welcome to Soleil Clusters</strong></p><p>Your infinite visual canvas. This is a quick demo of what you can make — clear it whenever you’re ready and start your own.</p>';
+}
+
+function showcaseHowHtml() {
+  return '<p><strong>How it works</strong></p><ul><li>Double-click anywhere to add a note</li><li>Drag images &amp; files straight in</li><li>Group ideas into boards — try dragging a note into the “Ideas” board</li><li>⌘Z undoes anything</li></ul>';
+}
+
+// The curated showcase flair. `theme` ('light'|'dark') picks the logo variant;
+// the device split mirrors getStarterCards (phones get a lighter stack).
+export function getShowcaseCards({ theme = 'dark' } = {}) {
+  const logoSrc = theme === 'light' ? '/clusters-logo-light.webp' : '/clusters-logo-dark.webp';
+  const base = { seed: true, showcase: true };
+  if (isNarrow()) {
+    const L = SHOWCASE_PHONE;
+    return [
+      { id: 'sc-logo',   kind: 'image', ...base, src: logoSrc,               ...L.logo },
+      { id: 'sc-still1', kind: 'image', ...base, src: '/signin-yahweh.webp', ...L.still1 },
+      { id: 'sc-how',    kind: 'note',  ...base, html: showcaseHowHtml(),    ...L.how },
+    ];
+  }
+  const L = SHOWCASE_DESKTOP;
+  return [
+    { id: 'sc-logo',    kind: 'image',   ...base, src: logoSrc,                        ...L.logo },
+    { id: 'sc-welcome', kind: 'note',    ...base, html: showcaseWelcomeHtml(),         ...L.welcome },
+    { id: 'sc-still1',  kind: 'image',   ...base, src: '/signin-yahweh.webp',          ...L.still1 },
+    { id: 'sc-still2',  kind: 'image',   ...base, src: '/signin-losttime-still1.webp', ...L.still2 },
+    { id: 'sc-palette', kind: 'palette', ...base, title: 'Soleil palette', swatches: SOLEIL_SWATCHES, ...L.palette },
+    { id: 'sc-how',     kind: 'note',    ...base, html: showcaseHowHtml(),             ...L.how },
+  ];
+}
+
+// True for the curated welcome-showcase flair cards. The one-click clear targets
+// exactly these (not the user's own cards, not the onb-drag note / Ideas board).
+export function isShowcaseCard(card) {
+  return !!(card && card.showcase === true);
+}

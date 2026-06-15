@@ -15,7 +15,7 @@ import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
-import { getStarterCards, getStarterTutorialCard } from './lib/onboardingStarter.js';
+import { getStarterCards, getStarterTutorialCard, getShowcaseCards, isShowcaseCard } from './lib/onboardingStarter.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -2005,26 +2005,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'create_board', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
         tutorialBoardId = null;
       }
-      // The board card id MUST equal the real DB UUID (kind:'board' renders via
-      // boards[id]); seed:true keeps it out of card_placed / activation /
-      // card_index. Add it BEFORE refreshBoards() so the reconcile-drift effect
-      // sees the board already "placed" and never adds a duplicate (non-seed)
-      // mirror.
-      const cardsToSeed = tutorialBoardId
-        ? [...getStarterCards(), getStarterTutorialCard(tutorialBoardId)]
-        : [...getStarterCards()];
-      try {
-        mainMutators.addCards?.(cardsToSeed);
-      } catch (e) {
-        try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'add_cards', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
-      }
-      logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId });
-      // Bandit enrollment — genuinely-new users only (this triple-gated seed
-      // effect), so existing/dormant users are never retroactively bucketed. Draw
-      // each arm from the LIVE weights (recomputed nightly by experiment_optimize);
-      // fall back to the registry-weighted deterministic pick if the config fetch
-      // fails. Stamp once (set_experiment_arm is absent-only → first-touch wins
-      // even though drawArm is random) + prime the event-merge cache.
+      // Bandit enrollment FIRST — we draw the welcome_showcase arm BEFORE
+      // composing the seed so arm B can swap in the showcase. Genuinely-new users
+      // only (this triple-gated effect), so existing/dormant users are never
+      // retroactively bucketed. Draw each arm from the LIVE weights (recomputed
+      // nightly by experiment_optimize); fall back to the registry-weighted
+      // deterministic pick if the config fetch fails. Stamp once (set_experiment_arm
+      // is absent-only → first-touch wins even though drawArm is random) + prime
+      // the event-merge cache.
       let expCfg = null;
       try { expCfg = (await supabase.rpc('get_experiment_config')).data; } catch (_) {}
       const enrolled = {};
@@ -2038,6 +2026,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         logEvent(EV.EXPERIMENT_ENROLLED, { key, arm });
       }
       if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled);
+
+      // The board card id MUST equal the real DB UUID (kind:'board' renders via
+      // boards[id]); seed:true keeps it out of card_placed / activation /
+      // card_index. Add it BEFORE refreshBoards() so the reconcile-drift effect
+      // sees the board already "placed" and never adds a duplicate (non-seed)
+      // mirror. welcome_showcase arm B: drop the redundant onb-welcome note (the
+      // showcase brings its own welcome), keep onb-drag + the Ideas board so the
+      // proven nest AHA is unchanged, and append the curated showcase flair (all
+      // seed:true + showcase:true → cleared in one click by ShowcaseBanner).
+      const showcase = enrolled['exp_welcome_showcase'] === 'B';
+      const starter = showcase
+        ? getStarterCards().filter((c) => c.id !== 'onb-welcome')
+        : getStarterCards();
+      const flair = showcase ? getShowcaseCards({ theme: currentTheme() }) : [];
+      const cardsToSeed = tutorialBoardId
+        ? [...starter, getStarterTutorialCard(tutorialBoardId), ...flair]
+        : [...starter, ...flair];
+      try {
+        mainMutators.addCards?.(cardsToSeed);
+      } catch (e) {
+        try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'add_cards', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
+      }
+      logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId, showcase });
       setOnboardingUiActive(true);
       // Make the new child board visible in the boards map so its card renders as
       // a real board (not an orphan tile). After addCards so reconcile sees it.
@@ -2170,7 +2181,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => stopFriction();
   }, [frictionEligible]);
 
-  const showCoachmark = onboardingUiActive && currentId === rootBoard.id;
+  // Suppress the coachmark while the welcome-showcase flair is still on the root
+  // (the ShowcaseBanner is the guide then); it resumes once the demo is cleared.
+  const showCoachmark = onboardingUiActive && currentId === rootBoard.id
+    && !(yb.cards || []).some(isShowcaseCard);
 
   // Permission for the currently-active board — drives VIEW ONLY pill
   // in the topbar + canvas/doc readonly states.
@@ -3026,6 +3040,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          sessionId={yh?.sessionId || null}
                          frictionStuck={isMain ? frictionStuck : false}
                          firstCardArm={isMain ? (getEnrolledArm('first_card_cta') || 'A') : 'A'}
+                         showcaseArm={isMain ? (getEnrolledArm('welcome_showcase') || 'A') : 'A'}
                          defaults={defaults} />
         </Profiler>
       );

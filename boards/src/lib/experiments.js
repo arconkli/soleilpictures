@@ -25,10 +25,25 @@
 // (experiment_optimize). `enabled` is the code-level master switch (whether the
 // client assigns + a consumer renders); the runtime on/off lives in config.
 export const EXPERIMENTS = {
-  // ACTIVE lever: does a bold "+ Add your first card" button (arm B) on the empty
-  // board lift the COMPOSITE payment-weighted reward vs the passive hint (arm A)?
-  first_card_cta: {
+  // ACTIVE lever: greet a brand-new user with a curated brand "showcase" board
+  // (arm B) — logo, sample stills, palette, "how it works" — that they clear in
+  // one click ("try it yourself"), vs the current minimal onboarding (arm A).
+  // Does the wow lift the COMPOSITE payment-weighted reward, or just add clutter
+  // to clear? The bandit decides. The arm is drawn at seed time and decides what
+  // gets seeded onto the root (see App.jsx seed effect + getShowcaseCards).
+  welcome_showcase: {
     enabled: true,
+    arms: [
+      { id: 'A', weight: 50 }, // control — current minimal onboarding (starter note + Ideas)
+      { id: 'B', weight: 50 }, // variant — the brand showcase + "Clear & try it yourself" banner
+    ],
+  },
+  // PAUSED — its empty-board surface is subsumed by the showcase, and we run one
+  // clean lever at current volume (the showcase's own clear-and-start affordance
+  // is the "try it yourself" CTA). Flip enabled:true + re-enable its config row
+  // to resume; already-enrolled users keep their stamped arm regardless.
+  first_card_cta: {
+    enabled: false,
     arms: [
       { id: 'A', weight: 50 }, // control — current passive empty-state hint
       { id: 'B', weight: 50 }, // variant — the bold CTA button (CanvasSurface empty-state)

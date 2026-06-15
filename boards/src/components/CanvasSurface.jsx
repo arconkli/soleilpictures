@@ -37,6 +37,8 @@ import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { ShowcaseBanner } from './ShowcaseBanner.jsx';
+import { isShowcaseCard } from '../lib/onboardingStarter.js';
 import { recordIntent } from '../lib/frictionSignal.js';
 import { useGesture } from '@use-gesture/react';
 import { useLongPress } from '../hooks/useLongPress.js';
@@ -267,6 +269,9 @@ export function CanvasSurface({
                            // hint as the passive escalation.
   firstCardArm = 'A',      // first_card_cta experiment arm: 'B' → bold CTA button
                            // on the empty board; 'A'/anything else → passive hint.
+  showcaseArm = 'A',       // welcome_showcase experiment arm: 'B' → root was
+                           // seeded with the brand demo; show the "Clear & try it
+                           // yourself" banner while its cards are present.
 }) {
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
@@ -7195,6 +7200,27 @@ export function CanvasSurface({
             <span className="cnv-empty-hint-coarse">Tap the + to add something — or long-press the canvas</span>
           </div>
         )
+      )}
+
+      {/* welcome_showcase arm B: while the seeded brand demo is still present,
+          show the "try it yourself" banner. One click clears exactly the
+          showcase cards (one undoable step + Undo toast) so the user takes over
+          the canvas; the onb-drag note + Ideas board survive for a clean handoff,
+          and the cards vanishing self-hides the banner (no extra flag). */}
+      {showcaseArm === 'B' && canEdit && cards.some(isShowcaseCard) && (
+        <ShowcaseBanner onClear={async () => {
+          const ids = cards.filter(isShowcaseCard).map((c) => c.id);
+          if (!ids.length) return;
+          mutators.breakUndo?.();                 // collapse to one undo step
+          await mutators.deleteCards?.(ids);
+          feedback.toast({
+            type: 'info',
+            message: 'Demo cleared — your canvas is yours',
+            action: { label: 'Undo', onClick: () => mutators.undo?.() },
+            ttl: 6000,
+          });
+          try { logEvent(EV.ONBOARDING_SHOWCASE_CLEARED, { n: ids.length, board_id: board?.id }); } catch (_) {}
+        }} />
       )}
 
       <div className="cnv-zoom">

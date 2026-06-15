@@ -7495,6 +7495,49 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   .cnv-empty-cta { animation: none; opacity: 1; }
 }
 
+/* welcome_showcase arm B — the "this is a demo" banner pinned bottom-center while
+   the seeded showcase cards are present. Its button is the "try it yourself" CTA
+   (clears the demo in one undoable step). Mirrors the coachmark's frosted pill. */
+.cnv-showcase-banner {
+  position: absolute;
+  left: 50%; bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(92vw, 560px);
+  padding: 10px 12px 10px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-3);
+  z-index: 6;
+  opacity: 0;
+  animation: cnvEmptyHintIn var(--dur-base) var(--ease) 350ms forwards;
+}
+.cnv-showcase-banner-text { font: 500 13px/1.4 var(--font-sans); color: var(--ink-1); }
+.cnv-showcase-banner-btn {
+  flex: none;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--soleil);
+  color: #1a1206;
+  font: 600 13px/1 var(--font-sans);
+  cursor: pointer;
+  box-shadow: var(--shadow-1), var(--soleil-glow);
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease);
+}
+.cnv-showcase-banner-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-2), var(--soleil-glow); }
+.cnv-showcase-banner-btn:active { transform: translateY(0); }
+.cnv-showcase-banner-btn:focus-visible { outline: 2px solid var(--ink-0); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .cnv-showcase-banner { flex-direction: column; gap: 10px; bottom: 92px; padding: 14px 18px; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cnv-showcase-banner { animation: none; opacity: 1; }
+}
+
 /* Passive escalation: the new user tripped the stuck signal (frictionSignal.js).
    Brighten the create hint and give it a few attention pulses — no modal, no new
    button (the chosen "passive" intervention). */
