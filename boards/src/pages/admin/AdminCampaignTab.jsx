@@ -16,43 +16,7 @@ import { useFeedback } from '../../components/AppFeedback.jsx';
 import { formatCount } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
-import { Sparkle } from '../../lib/icons.js';
-
-// Brand-coloured iOS-style toggle. Inline styles only (no shared CSS) so it
-// stands alone. role="switch" + aria-checked keeps it accessible.
-function ToggleSwitch({ checked, onClick, disabled }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label="Toggle instant demo for ad traffic"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        position: 'relative',
-        width: 56, height: 32, flex: '0 0 auto',
-        borderRadius: 999,
-        border: '1px solid rgba(255,255,255,0.14)',
-        background: checked ? 'var(--soleil, #ffb000)' : 'rgba(255,255,255,0.12)',
-        cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.6 : 1,
-        transition: 'background .18s ease',
-        padding: 0,
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          position: 'absolute', top: 3, left: checked ? 27 : 3,
-          width: 24, height: 24, borderRadius: '50%',
-          background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.45)',
-          transition: 'left .18s ease',
-        }}
-      />
-    </button>
-  );
-}
+import { ToggleSwitch } from './AdminToggle.jsx';
 
 export function AdminCampaignTab() {
   const feedback = useFeedback();
@@ -125,7 +89,7 @@ export function AdminCampaignTab() {
           isEmpty={false}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '4px 2px 8px' }}>
-            <ToggleSwitch checked={enabled} onClick={onToggle} disabled={busy || refreshing} />
+            <ToggleSwitch checked={enabled} onClick={onToggle} disabled={busy || refreshing} label="Toggle instant demo for ad traffic" />
             <div>
               <div className="t-body" style={{ fontWeight: 600 }}>
                 {busy
@@ -144,6 +108,12 @@ export function AdminCampaignTab() {
             ⚠ <b>fbclid is on every Facebook/Instagram click</b> — paid ads <i>and</i> organic
             posts, shares, and DMs. Leave this ON only while a campaign is running, then turn it
             OFF so off-campaign social visitors don't skip the invite-only line.
+          </p>
+
+          <p className="t-meta admin-muted" style={{ marginTop: 8, maxWidth: 640 }}>
+            Note: this switch only matters while the <b>Waitlist</b> master switch is ON. With the
+            waitlist OFF, every signup already lands on demo + the Creator offer, so ad clicks get
+            the same thing regardless of this toggle (it still records the ad-signup cohort).
           </p>
         </AdminAsync>
       </section>

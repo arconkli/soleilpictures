@@ -23,6 +23,7 @@ import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminStatCard } from './AdminStatCard.jsx';
 import { StatusPill } from './AdminPills.jsx';
 import { OutreachSection } from './AdminOutreachSection.jsx';
+import { ToggleSwitch } from './AdminToggle.jsx';
 
 const ACTION_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/admin-waitlist-action';
 const PAGE_SIZE = 50;
@@ -50,6 +51,90 @@ function linkLabel(url) {
 }
 function linkHref(url) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+// The master switch: whether new signups are gated behind the waitlist. While
+// OFF (the default now), every signup lands on demo + the one-time Creator offer
+// and steps straight into the app. Flip ON to re-gate new signups — the queue,
+// accept-cron, and edge functions below are all still wired. Backed by the
+// app_config `waitlist_enabled` flag (flipped via admin_set_waitlist_enabled).
+function WaitlistGatePanel() {
+  const feedback = useFeedback();
+  const [busy, setBusy] = useState(false);
+
+  const { data, loading, error, refreshing, refresh } = useAdminData(async () => {
+    const { data: row, error: err } = await supabase
+      .from('app_config').select('value').eq('key', 'waitlist_enabled').maybeSingle();
+    if (err) throw err;
+    return { enabled: !!row?.value?.enabled };
+  }, []);
+
+  const enabled = !!data?.enabled;
+
+  const onToggle = async () => {
+    if (busy) return;
+    const next = !enabled;
+    if (next) {
+      const ok = await feedback.confirm({
+        title: 'Turn the waitlist back ON?',
+        message: 'New signups will be gated behind the waitlist again (/welcome → /waitlist/status) '
+          + 'until the accept-cron or an admin lets them in. People already in the app keep their access.',
+        confirmLabel: 'Turn on waitlist',
+      });
+      if (!ok) return;
+    }
+    setBusy(true);
+    try {
+      const { error: err } = await supabase.rpc('admin_set_waitlist_enabled', { p_enabled: next });
+      if (err) throw err;
+      feedback.toast({
+        type: 'success',
+        message: next ? 'Waitlist is ON — new signups are gated' : 'Waitlist is OFF — new signups go straight in',
+      });
+      await refresh();
+    } catch (ex) {
+      feedback.toast({ type: 'error', message: 'Toggle failed: ' + (ex?.message || ex) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="admin-chart-panel admin-chart-panel-wide" style={{ marginBottom: 16 }}>
+      <header className="admin-chart-head">
+        <h3 className="admin-chart-title">Waitlist gate</h3>
+        <span className="admin-chart-sub t-meta">
+          Master switch for whether new signups are held behind the waitlist.
+        </span>
+      </header>
+
+      <AdminAsync
+        loading={loading}
+        error={error}
+        onRetry={refresh}
+        skeleton={<AdminSkeleton variant="cards" rows={1} />}
+        isEmpty={false}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '4px 2px 8px' }}>
+          <ToggleSwitch checked={enabled} onClick={onToggle} disabled={busy || refreshing} label="Toggle the waitlist gate" />
+          <div>
+            <div className="t-body" style={{ fontWeight: 600 }}>
+              {busy
+                ? 'Saving…'
+                : enabled
+                  ? 'On — new signups are gated behind the waitlist'
+                  : 'Off — new signups land on demo + the Creator offer, straight into the app'}
+            </div>
+            <div className="t-meta admin-muted">
+              {enabled
+                ? 'The queue below is live; the accept-cron lets people in on schedule.'
+                : 'The queue below is kept for history and reactivates when you turn this back on.'}
+            </div>
+          </div>
+        </div>
+      </AdminAsync>
+    </section>
+  );
 }
 
 export function AdminWaitlistTab() {
@@ -239,6 +324,8 @@ export function AdminWaitlistTab() {
 
   return (
     <div className="admin-section">
+      <WaitlistGatePanel />
+
       <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
         <input
           className="auth-input admin-search-input"

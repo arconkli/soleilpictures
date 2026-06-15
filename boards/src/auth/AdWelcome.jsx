@@ -1,14 +1,15 @@
-// AdWelcome — one-time, price-first offer screen for ad-sourced demo users.
+// AdWelcome — one-time, price-first offer screen shown to new demo users.
 //
-// Shown by TierRouter when tier==='demo' && adOfferPending, a flag the signup
-// trigger sets ONLY for Facebook/Instagram ad-click traffic (detected via the
-// fbclid Facebook appends to every ad click) while the campaign gate is on.
-// Paid-ad visitors get instant access, but land here first so they SEE the
-// Creator price and can buy on the spot — or step into the free workspace.
+// Shown by TierRouter when tier==='demo' && adOfferPending. While the waitlist
+// master switch is OFF (the default), the signup trigger sets that flag for
+// EVERY new signup, so everyone lands here once — they SEE the Creator price and
+// can buy on the spot, or step into the free workspace. Dismissing clears the
+// flag (dismiss_ad_offer), so it's a one-time gate, not a recurring paywall.
 //
-// Organic/direct visitors never reach this (they hit the waitlist /welcome
-// flow). Organic demo users (auto-accepted off the waitlist) don't carry the
-// flag, so they go straight into the app.
+// (When the waitlist is ON instead, only Facebook/Instagram ad-click traffic —
+// detected via the fbclid appended to every ad click, while the ad campaign gate
+// is on — carries the flag; organic signups hit the waitlist /welcome flow.)
+// Named AdWelcome for historical reasons — it's now the universal welcome offer.
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
