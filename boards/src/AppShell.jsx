@@ -6,6 +6,8 @@ import { useEffect } from 'react';
 import { TierRouter } from './auth/TierRouter.jsx';
 import { App as RawApp } from './App.jsx';
 import { withPerfTime } from './lib/perf.js';
+import { maybeRedirectToLatest } from './lib/stagingRedirect.js';
+import { StagingBanner } from './components/StagingBanner.jsx';
 
 // Wrap App so render.App.ms surfaces in perf.dump() without touching App.jsx.
 const App = withPerfTime(RawApp, 'App');
@@ -24,9 +26,17 @@ export default function AppShell() {
     return () => clearTimeout(t);
   }, []);
 
+  // Staging auto-redirect: on the prod domain, send eligible admins (admin or
+  // internal allowlist) to the latest preview build, session handed off so they
+  // stay logged in. No-op for everyone else / when opted to stable / when no
+  // preview URL is set. Runs once we know the user is signed in (AppShell only
+  // mounts inside AuthGate).
+  useEffect(() => { maybeRedirectToLatest(); }, []);
+
   return (
     <TierRouter>
       <App />
+      <StagingBanner />
     </TierRouter>
   );
 }
