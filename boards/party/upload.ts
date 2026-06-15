@@ -81,7 +81,11 @@ function corsHeaders(origin: string | null): HeadersInit {
     "http://localhost:5173",
     "http://127.0.0.1:5173",
   ]);
-  const allow = origin && allowed.has(origin) ? origin : "https://clusters.soleilpictures.com";
+  // Staging/preview builds run on the workers.dev subdomain (the stable
+  // main-soleil-boards.<sub>.workers.dev alias + per-version URLs). Reflect any
+  // *.arconkli.workers.dev origin so presign/sign-reads work on the preview too.
+  const isPreview = !!origin && /^https:\/\/[a-z0-9-]+\.arconkli\.workers\.dev$/i.test(origin);
+  const allow = origin && (allowed.has(origin) || isPreview) ? origin : "https://clusters.soleilpictures.com";
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
