@@ -566,6 +566,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         {!isPublic && (
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
+                    ydoc={ydoc}
+                    scope={scope}
                     onInsertBookmark={insertBookmarkAtCaret}
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}

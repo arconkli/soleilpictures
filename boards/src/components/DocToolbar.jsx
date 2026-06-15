@@ -38,6 +38,7 @@ const SIZES = [12, 14, 16, 18, 22, 28, 36];
 const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink, onAddComment,
+                               ydoc = null, scope = null,
                                zoom = 1, onZoomIn, onZoomOut, onZoomReset }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
@@ -206,7 +207,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
            onClick={() => onAddComment?.()}><Glyph as={MessageCircle} size={14} /></Btn>
       <Btn title="Find (⌘F)" disabled={disabled}
            onClick={() => onOpenFind?.()}><Glyph as={Search} size={14} /></Btn>
-      <DocExportMenu editor={editor} docName={docName} />
+      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} />
 
       <span className="doc-tb-spacer" />
 

@@ -7,9 +7,14 @@
 // in the system dialog.
 
 import { useEffect, useRef, useState } from 'react';
+import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown } from '../lib/docFullExport.js';
 
-export function DocExportMenu({ editor, docName }) {
+// Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
+// EVERY sheet (the single-focused-sheet path was silent data loss); the bare
+// `editor` is only a fallback for the rare caller without doc state.
+export function DocExportMenu({ editor, docName, ydoc = null, scope = null }) {
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -37,6 +42,8 @@ export function DocExportMenu({ editor, docName }) {
   const printableHTML = (bodyHTML) => `<!doctype html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(safeName)}</title>
 <style>
+  @page { margin: 0.75in; }
+  [style*="break-after:page"] { break-after: page; page-break-after: always; }
   body { font-family: ui-serif, Georgia, "Iowan Old Style", serif; font-size: 12pt; line-height: 1.6; color: #111; max-width: 720px; margin: 40px auto; padding: 0 20px; }
   h1 { font-size: 28pt; margin: 1.2em 0 .3em; }
   h2 { font-size: 20pt; margin: 1.2em 0 .3em; }
@@ -59,30 +66,48 @@ export function DocExportMenu({ editor, docName }) {
   ul[data-type="taskList"] li { display: flex; gap: 8px; align-items: flex-start; }
 </style></head><body>${bodyHTML}</body></html>`;
 
-  const exportHTML = () => {
-    if (!editor) return;
-    const bodyHTML = editor.getHTML();
-    downloadBlob(new Blob([printableHTML(bodyHTML)], { type: 'text/html' }), 'html');
-    setOpen(false);
+  // Whole-doc body HTML (all pages × sheets, assets resolved). Falls back to
+  // the focused editor only when doc state isn't available.
+  const fullBodyHtml = async () => {
+    if (ydoc) return collectFullDocHtml(ydoc, scope);
+    return editor ? editor.getHTML() : '';
   };
 
-  const exportMarkdown = () => {
-    if (!editor) return;
-    const md = jsonToMarkdown(editor.getJSON());
-    downloadBlob(new Blob([md], { type: 'text/markdown' }), 'md');
-    setOpen(false);
+  const exportHTML = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const bodyHTML = await fullBodyHtml();
+      downloadBlob(new Blob([printableHTML(bodyHTML)], { type: 'text/html' }), 'html');
+      setOpen(false);
+    } finally { setBusy(false); }
   };
 
-  const exportPDF = () => {
-    if (!editor) return;
-    const bodyHTML = editor.getHTML();
+  const exportMarkdown = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const md = ydoc ? await collectFullDocMarkdown(ydoc, scope)
+                      : (editor ? jsonToMarkdown(editor.getJSON()) : '');
+      downloadBlob(new Blob([md], { type: 'text/markdown' }), 'md');
+      setOpen(false);
+    } finally { setBusy(false); }
+  };
+
+  const exportPDF = async () => {
+    if (busy) return;
+    setBusy(true);
+    // Open the print window synchronously (popup-blockers require it be tied to
+    // the click) and fill it once the async body resolves.
     const w = window.open('', '_blank', 'noopener');
-    if (!w) return;
-    w.document.write(printableHTML(bodyHTML));
-    w.document.close();
-    // Trigger the system print dialog — user chooses "Save as PDF".
-    setTimeout(() => { try { w.focus(); w.print(); } catch (_) {} }, 300);
-    setOpen(false);
+    try {
+      const bodyHTML = await fullBodyHtml();
+      if (!w) return;
+      w.document.write(printableHTML(bodyHTML));
+      w.document.close();
+      setTimeout(() => { try { w.focus(); w.print(); } catch (_) {} }, 300);
+      setOpen(false);
+    } finally { setBusy(false); }
   };
 
   return (
@@ -110,99 +135,4 @@ export function DocExportMenu({ editor, docName }) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
-}
-
-// Tiptap JSON → GFM-flavored Markdown. Covers the blocks our editor produces:
-// paragraph, heading, bulletList/orderedList/taskList, listItem, taskItem,
-// blockquote, codeBlock, code (inline), bold, italic, strike, underline (HTML),
-// link, image, hardBreak, horizontalRule, table.
-function jsonToMarkdown(doc) {
-  const out = [];
-  const renderInline = (nodes = []) => nodes.map(renderInlineNode).join('');
-  const renderInlineNode = (n) => {
-    if (n.type === 'text') return wrapMarks(n.text || '', n.marks || []);
-    if (n.type === 'hardBreak') return '  \n';
-    if (n.type === 'image') return `![${n.attrs?.alt || ''}](${n.attrs?.src || ''})`;
-    return '';
-  };
-  const wrapMarks = (text, marks) => {
-    let s = text;
-    for (const m of marks) {
-      if (m.type === 'bold') s = `**${s}**`;
-      else if (m.type === 'italic') s = `*${s}*`;
-      else if (m.type === 'strike') s = `~~${s}~~`;
-      else if (m.type === 'code') s = `\`${s}\``;
-      else if (m.type === 'underline') s = `<u>${s}</u>`;
-      else if (m.type === 'link') s = `[${s}](${m.attrs?.href || ''})`;
-      else if (m.type === 'highlight') s = `==${s}==`;
-    }
-    return s;
-  };
-  const renderBlock = (node, depth = 0) => {
-    if (!node) return;
-    switch (node.type) {
-      case 'doc': (node.content || []).forEach(c => renderBlock(c, depth)); break;
-      case 'paragraph': out.push(renderInline(node.content)); out.push(''); break;
-      case 'heading': {
-        const lvl = node.attrs?.level || 1;
-        out.push('#'.repeat(Math.min(6, lvl)) + ' ' + renderInline(node.content));
-        out.push('');
-        break;
-      }
-      case 'bulletList': (node.content || []).forEach((li, i) => renderListItem(li, '-', depth)); out.push(''); break;
-      case 'orderedList': (node.content || []).forEach((li, i) => renderListItem(li, `${i + 1}.`, depth)); out.push(''); break;
-      case 'taskList': (node.content || []).forEach(li => renderTaskItem(li, depth)); out.push(''); break;
-      case 'blockquote': (node.content || []).forEach(c => {
-        const before = out.length;
-        renderBlock(c, depth);
-        for (let i = before; i < out.length; i++) out[i] = '> ' + out[i];
-      }); out.push(''); break;
-      case 'codeBlock': {
-        const lang = node.attrs?.language || '';
-        const text = (node.content || []).map(c => c.text || '').join('');
-        out.push('```' + lang); out.push(text); out.push('```'); out.push('');
-        break;
-      }
-      case 'horizontalRule': out.push('---'); out.push(''); break;
-      case 'image': out.push(`![${node.attrs?.alt || ''}](${node.attrs?.src || ''})`); out.push(''); break;
-      case 'table': renderTable(node); out.push(''); break;
-      default: if (node.content) (node.content).forEach(c => renderBlock(c, depth));
-    }
-  };
-  const renderListItem = (li, marker, depth) => {
-    const indent = '  '.repeat(depth);
-    const inner = [];
-    (li.content || []).forEach((child) => {
-      if (child.type === 'paragraph') inner.push(renderInline(child.content));
-      else {
-        const buf = []; const save = out.length;
-        renderBlock(child, depth + 1);
-        const lines = out.splice(save).filter(Boolean);
-        inner.push(lines.join('\n'));
-      }
-    });
-    out.push(indent + marker + ' ' + (inner[0] || ''));
-    for (let i = 1; i < inner.length; i++) out.push(indent + '  ' + inner[i]);
-  };
-  const renderTaskItem = (li, depth) => {
-    const indent = '  '.repeat(depth);
-    const checked = li.attrs?.checked ? '[x]' : '[ ]';
-    const text = (li.content || [])
-      .filter(c => c.type === 'paragraph')
-      .map(c => renderInline(c.content)).join(' ');
-    out.push(indent + '- ' + checked + ' ' + text);
-  };
-  const renderTable = (table) => {
-    const rows = (table.content || []).map(row =>
-      (row.content || []).map(cell =>
-        (cell.content || []).map(c => renderInline(c.content || [])).join(' ')
-      )
-    );
-    if (!rows.length) return;
-    out.push('| ' + rows[0].join(' | ') + ' |');
-    out.push('|' + rows[0].map(() => '---').join('|') + '|');
-    for (let i = 1; i < rows.length; i++) out.push('| ' + rows[i].join(' | ') + ' |');
-  };
-  renderBlock(doc);
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }
