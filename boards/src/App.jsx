@@ -2102,22 +2102,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     (async () => {
       try {
         const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Showcase preview', view: 'canvas', userId: user.id });
-        if (!b?.id) return;
-        const tpl = (await supabase.rpc('prepare_showcase', { p_board_id: b.id })).data;
+        if (!b?.id) { feedback.toast({ type: 'error', message: 'Showcase preview: could not create the board.' }); return; }
+        const res = await supabase.rpc('prepare_showcase', { p_board_id: b.id });
+        if (res.error) { feedback.toast({ type: 'error', message: 'Showcase preview failed: ' + (res.error.message || 'RPC error') }); }
+        const tpl = res.data;
         if (tpl?.snapshot) {
           const ydoc = new Y.Doc();
           Y.applyUpdate(ydoc, b64ToBytes(tpl.snapshot));
           await saveBoardSnapshot(b.id, ydoc);
           ydoc.destroy();
+          // CRITICAL: wipe the fresh PartyKit room so it can't re-persist its empty
+          // in-memory doc over the clone we just saved (the bulletproofRestore race).
+          // Without this the board opens EMPTY and recompute_image_refs then strips
+          // the image grant. Best-effort: if the party is unreachable, proceed.
+          try { await forceResetBoardRoom(b.id); } catch (e) { console.warn('[showcasepreview] room reset failed (continuing)', e); }
         } else {
-          console.warn('[showcasepreview] no snapshot — showcase disabled in app_config?');
+          feedback.toast({ type: 'error', message: 'Showcase preview: no content returned (showcase disabled in config?).' });
         }
         try { await refreshBoards(); } catch (_) {}
         setStack([b.id]);
+        if (tpl?.snapshot) feedback.toast({ type: 'success', message: 'Showcase preview ready — delete this board when done.' });
         // strip the param so a reload doesn't make a second copy
         try { const u = new URL(window.location.href); u.searchParams.delete('showcasepreview'); window.history.replaceState({}, '', u.toString()); } catch (_) {}
       } catch (e) {
         console.error('[showcasepreview] failed', e);
+        feedback.toast({ type: 'error', message: 'Showcase preview failed: ' + (e?.message || e) });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
