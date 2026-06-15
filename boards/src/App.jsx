@@ -2156,6 +2156,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the source images first, so they render. Delete the board when done. Works for
   // any signed-in account; harmless + self-scoped (only seeds into your own space).
   const showcasePreviewRef = useRef(false);
+  // The board the ?showcasepreview clone landed in — forces showcaseArm='B' on it so
+  // the welcome banner renders (a real arm-B user gets it via getEnrolledArm).
+  const [showcasePreviewBoardId, setShowcasePreviewBoardId] = useState(null);
   useEffect(() => {
     if (showcasePreviewRef.current || typeof window === 'undefined') return;
     if (new URLSearchParams(window.location.search).get('showcasepreview') !== '1') return;
@@ -2169,10 +2172,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (res.error) { feedback.toast({ type: 'error', message: 'Showcase preview failed: ' + (res.error.message || 'RPC error') }); }
         const tpl = res.data;
         if (tpl?.snapshot) {
+          // Stamp the cloned cards seed:true + showcase:true (decodeShowcaseCards) so
+          // the welcome banner renders + "Start fresh" targets them — same as a real
+          // arm-B seed, instead of a verbatim (unflagged) snapshot copy.
+          const cards = decodeShowcaseCards(tpl.snapshot);
           const ydoc = new Y.Doc();
-          Y.applyUpdate(ydoc, b64ToBytes(tpl.snapshot));
+          const m = ydoc.getMap('cards');
+          ydoc.transact(() => { for (const c of cards) m.set(c.id, cardToYMap(c)); });
           await saveBoardSnapshot(b.id, ydoc);
           ydoc.destroy();
+          setShowcasePreviewBoardId(b.id);   // force showcaseArm='B' on this board → banner shows
           // CRITICAL: wipe the fresh PartyKit room so it can't re-persist its empty
           // in-memory doc over the clone we just saved (the bulletproofRestore race).
           // Without this the board opens EMPTY and recompute_image_refs then strips
@@ -3165,7 +3174,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          sessionId={yh?.sessionId || null}
                          frictionStuck={isMain ? frictionStuck : false}
                          firstCardArm={isMain ? (getEnrolledArm('first_card_cta') || 'A') : 'A'}
-                         showcaseArm={isMain ? (getEnrolledArm('welcome_showcase') || 'A') : 'A'}
+                         showcaseArm={isMain ? (getEnrolledArm('welcome_showcase') || (board?.id === showcasePreviewBoardId ? 'B' : 'A')) : 'A'}
                          defaults={defaults} />
         </Profiler>
       );
