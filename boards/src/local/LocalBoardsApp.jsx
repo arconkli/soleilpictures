@@ -13,6 +13,8 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
 import { getStarterCards, getStarterTutorialCard } from '../lib/onboardingStarter.js';
+import { loadBoardSnapshot } from '../lib/boardsApi.js';
+import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
 
 const TWEAK_DEFAULTS = {
@@ -81,6 +83,29 @@ function createInitialState() {
 const ONBOARD_PREVIEW = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('onboard') === '1';
 
+// Dev-only: ?local=1&showcase=1 renders welcome_showcase arm B locally — it loads
+// the REAL "Clusters Logo" board snapshot (you must be signed in at localhost AND
+// a member of its workspace, which the owner/admin is) via loadBoardSnapshot,
+// decodes it the same way production does (showcaseClone), and shows it on the
+// root with the "Clear & try it yourself" banner. Images presign via your session.
+const SHOWCASE_PREVIEW = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).get('showcase') === '1';
+const SHOWCASE_SOURCE_BOARD_ID = 'ebf42869-d19f-4b86-8659-763b082095c8';
+
+function createShowcasePreviewState() {
+  // A clean Studio root; the snapshot loads into it asynchronously (effect below).
+  return {
+    boards: {
+      [ROOT_ID]: {
+        id: ROOT_ID, name: 'Studio', view: 'canvas',
+        workspace_id: 'local-workspace', parent_board_id: null,
+        created_at: new Date(0).toISOString(),
+      },
+    },
+    boardState: { [ROOT_ID]: { cards: [], arrows: [], strokes: [] } },
+  };
+}
+
 function createOnboardingState() {
   // Mirror the real seed (App.jsx): a tutorial "Ideas" child board + its mirror
   // card, so the preview shows the FULL first-run layout (notes + a real board to
@@ -139,9 +164,11 @@ function collectBoardTreeIds(boards, rootIds) {
 }
 
 export function LocalBoardsApp({ user, signOut }) {
-  const [initialSession] = useState(() => (ONBOARD_PREVIEW ? null : loadLocalSession()));
+  const [initialSession] = useState(() => ((ONBOARD_PREVIEW || SHOWCASE_PREVIEW) ? null : loadLocalSession()));
   const [{ boards, boardState }, setLocalState] = useState(() => (
-    ONBOARD_PREVIEW ? createOnboardingState() : (initialSession?.localState || createInitialState())
+    SHOWCASE_PREVIEW ? createShowcasePreviewState()
+      : ONBOARD_PREVIEW ? createOnboardingState()
+      : (initialSession?.localState || createInitialState())
   ));
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
@@ -160,8 +187,34 @@ export function LocalBoardsApp({ user, signOut }) {
     document.documentElement.setAttribute('data-theme', tweak.theme);
   }, [tweak.theme]);
 
+  // Showcase preview: pull the real Clusters Logo board snapshot + decode it the
+  // same way production arm B does, then drop it onto the root. Best-effort — if
+  // you're not signed in / not a member, the source read fails and the board stays
+  // empty (check the console). Throwaway; never persisted.
   useEffect(() => {
-    if (ONBOARD_PREVIEW) return;   // preview is throwaway — never pollute the saved local session
+    if (!SHOWCASE_PREVIEW) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await loadBoardSnapshot(SHOWCASE_SOURCE_BOARD_ID);
+        const cards = decodeShowcaseCards(snap);
+        if (!cancelled && cards.length) {
+          setLocalState((prev) => ({
+            ...prev,
+            boardState: { ...prev.boardState, [ROOT_ID]: { cards, arrows: [], strokes: [] } },
+          }));
+        } else if (!cards.length) {
+          console.warn('[showcase preview] no cards — sign in at localhost as a workspace member first');
+        }
+      } catch (e) {
+        console.warn('[showcase preview] could not load the Clusters Logo board', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (ONBOARD_PREVIEW || SHOWCASE_PREVIEW) return;   // preview is throwaway — never pollute the saved local session
     try {
       localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({
         localState: { boards, boardState },
@@ -702,6 +755,7 @@ export function LocalBoardsApp({ user, signOut }) {
             mutators={mutators}
             autoFocusId={autoFocusId}
             clearAutoFocus={() => setAutoFocusId(null)}
+            showcaseArm={SHOWCASE_PREVIEW && currentId === ROOT_ID ? 'B' : 'A'}
             useLocalImages
           />
         ) : (
