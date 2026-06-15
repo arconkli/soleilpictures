@@ -19,17 +19,19 @@ export function seedCrowded() {
   const cards = [
     card('A', 0, 0), card('X', 300, 5), card('B', 700, 0),
     card('P1', 0, 450), card('P2', 1000, 450),
-    card('g00', 300, 300), card('g10', 500, 300), card('g20', 700, 300),
-    card('g01', 300, 450), card('g11', 500, 450), card('g21', 700, 450),
-    card('g02', 300, 600), card('g12', 500, 600), card('g22', 700, 600),
+    // Solid block (no internal corridor a bowed curve could thread) so P1→P2 is
+    // forced into a clean elbow — exercises the smart-blend switch.
+    card('WALL', 300, 280, 540, 430),
     card('F1', 0, 850), card('F2', 320, 850),
     card('O1', 0, 1100), card('O2', 360, 1100),
+    card('V1', 1000, 850), card('V2', 1000, 1080),
   ];
   const arrows = [
     { from: 'A', to: 'B' },                                   // 0: deflect, stays curve
     { from: 'P1', to: 'P2' },                                 // 1: elbow around the wall
     { from: 'F1', to: 'F2' }, { from: 'F1', to: 'F2' }, { from: 'F1', to: 'F2' }, // 2-4: fan-out
-    { from: 'O1', to: 'O2' },                                 // 5: open-space curve
+    { from: 'O1', to: 'O2' },                                 // 5: open same-row → soft bow
+    { from: 'V1', to: 'V2' },                                 // 6: open same-column → soft bow
   ];
   return { cards, arrows };
 }

@@ -22,8 +22,14 @@ export const ARROW_TUNING = Object.freeze({
   FAN_T_MIN: 0.14,          // keep arrows off the corners (a touch tighter than the
   FAN_T_MAX: 0.86,          //   old 0.12/0.88 now that endpoints are pushed out by STANDOFF)
   HANDLE_MIN: 28,           // cubic bezier control magnitude floor
-  HANDLE_MAX: 180,          //   …and ceiling (was 200 — slightly less ballooned)
-  HANDLE_K: 0.34,           //   …× distance between anchors (was 0.42 — gentler curves)
+  HANDLE_MAX: 200,          //   …and ceiling
+  HANDLE_K: 0.40,           //   …× distance between anchors (curve "body")
+  // Soft perpendicular bow so open-space arrows arc gently instead of going
+  // dead-straight when two cards line up head-on (see buildArrowPath). Applied
+  // before obstacle deflection, so crowded arrows still flatten / elbow.
+  BOW_K: 0.14,              // floor bow as a fraction of chord length (~10% midpoint dip)
+  BOW_MAX: 80,              // cap so long arrows don't balloon
+  BOW_DIR: 1,               // default bow side for perfectly-straight pairs (±1)
   STANDOFF: 6,              // gap between a card edge and the arrow's own tail/head
   OBSTACLE_PAD: 14,         // aspirational breathing room for deflection (overridable per obstacle)
   CHECK_PAD: 2,             // hard-clip threshold — flag samples that ACTUALLY overlap a card
@@ -45,6 +51,9 @@ const FAN_T_MAX = ARROW_TUNING.FAN_T_MAX;
 const HANDLE_MIN = ARROW_TUNING.HANDLE_MIN;
 const HANDLE_MAX = ARROW_TUNING.HANDLE_MAX;
 const HANDLE_K   = ARROW_TUNING.HANDLE_K;
+const BOW_K = ARROW_TUNING.BOW_K;
+const BOW_MAX = ARROW_TUNING.BOW_MAX;
+const BOW_DIR = ARROW_TUNING.BOW_DIR;
 const STANDOFF = ARROW_TUNING.STANDOFF;
 const OBSTACLE_PAD = ARROW_TUNING.OBSTACLE_PAD;
 const CHECK_PAD = ARROW_TUNING.CHECK_PAD;
@@ -742,6 +751,28 @@ export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
   const mag = Math.max(HANDLE_MIN, Math.min(HANDLE_MAX, len * HANDLE_K));
   let c1 = { x: s.x + from.tangent.ux * mag, y: s.y + from.tangent.uy * mag };
   let c2 = { x: e.x + to.tangent.ux   * mag, y: e.y + to.tangent.uy   * mag };
+
+  // Soft bow: keep arrows feeling hand-drawn even when the endpoints line up
+  // head-on — that case puts both control points ON the chord, collapsing the
+  // bezier to a dead-straight line. Measure the curve's natural perpendicular
+  // swing, then ensure at least a gentle, length-scaled bow IN THE SAME
+  // DIRECTION (defaulting to one side when the natural swing is ~0). Never
+  // inverts or flattens an existing curve; only adds swing. Applied before the
+  // obstacle deflection below, so a crowded arrow still flattens / elbows —
+  // "curvy only when there's room" falls out for free.
+  {
+    const perpUx = -dy / len, perpUy = dx / len;
+    const natBow = (
+      (c1.x - s.x) * perpUx + (c1.y - s.y) * perpUy +
+      (c2.x - e.x) * perpUx + (c2.y - e.y) * perpUy
+    ) / 2;
+    const targetMag = Math.min(len * BOW_K, BOW_MAX);
+    const dir = natBow > 1 ? 1 : natBow < -1 ? -1 : BOW_DIR;
+    const targetBow = dir * Math.max(Math.abs(natBow), targetMag);
+    const add = targetBow - natBow;
+    c1 = { x: c1.x + perpUx * add, y: c1.y + perpUy * add };
+    c2 = { x: c2.x + perpUx * add, y: c2.y + perpUy * add };
+  }
 
   // Deflect the curve around any card rects the caller marked as obstacles.
   if (obstacles && obstacles.length) {

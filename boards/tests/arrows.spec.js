@@ -62,6 +62,25 @@ test.describe('arrow routing (smart blend)', () => {
     expect(r.side2).toBe('top');   // a genuine move still flips it
   });
 
+  test('an aligned open arrow bows softly instead of going dead-straight', async ({ page }) => {
+    const dev = await page.evaluate(() => {
+      const T = window.__soleilArrowTest;
+      // Same row, clear space between → head-on attachment that WOULD be a
+      // straight line without the soft bow.
+      const cards = [{ id: 'A', x: 0, y: 0, w: 140, h: 90 }, { id: 'B', x: 500, y: 0, w: 140, h: 90 }];
+      const arrows = [{ from: 'A', to: 'B' }];
+      const att = T.attachmentsFor(cards, arrows)[0];
+      const s = att.from.point, e = att.to.point;
+      const pts = T.samplePath(T.buildPathFor(cards, arrows, 0).path, 100);
+      const mid = pts[Math.floor(pts.length / 2)];
+      const len = Math.hypot(e.x - s.x, e.y - s.y);
+      const perpX = -(e.y - s.y) / len, perpY = (e.x - s.x) / len;
+      // perpendicular distance of the path midpoint from the straight chord
+      return Math.abs((mid.x - (s.x + e.x) / 2) * perpX + (mid.y - (s.y + e.y) / 2) * perpY);
+    });
+    expect(dev).toBeGreaterThan(8); // straight ≈ 0; a real bow is tens of px
+  });
+
   test('the detour is never null (always returns a tidy route)', async ({ page }) => {
     // Box an endpoint in tightly so the simple L/Z search is stressed — the
     // hardened rails fallback must still hand back a path, not null.
