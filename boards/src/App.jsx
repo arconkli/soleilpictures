@@ -727,7 +727,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // ONLY (see analyticsEvents.js); the user-facing 'cap-hit' string is not one.
     const noteBlocked = (reason) => { try { logEvent(EV.CARD_CREATE_BLOCKED, { reason, board_id: boardId }); } catch (_) {} };
 
-    const addCard = (card) => {
+    const addCard = (card, { afterInsert = null } = {}) => {
       const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return; }
       if (isDemoBlockedOnThisBoard()) { if (!isSeedCard(card)) noteBlocked('demo_blocked'); return; }
       // Demo-tier cap: hard-block at the limit (cards total across the user's
@@ -752,6 +752,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ydoc.transact(() => {
         const c = stampCreate({ z: nextZ(), ...card });
         m.set(c.id, cardToYMap(c));
+        // Run any per-card initialization (e.g. a doc card's Y store) INSIDE
+        // this transaction so create+init is ONE undo step. Yjs transact is
+        // reentrant, so a nested ydoc.transact inside afterInsert merges here.
+        if (afterInsert) { try { afterInsert(m.get(c.id)); } catch (_) {} }
       }, 'local');
       // Live activity signal → admin Command Center placement ticker. Prompt
       // (beacon) delivery so it shows up ~live, not at the next 5s batch flush.
@@ -1192,11 +1196,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         id, kind: 'doc', title: 'Untitled doc',
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
+      }, {
+        // Initialize the per-card doc store (pages, content, bookmarks,
+        // comments) in the SAME transaction as the insert — so the first ⌘Z
+        // after creating a doc removes the whole card, not just its store
+        // (which used to leave a broken, unopenable shell).
+        afterInsert: (cardYM) => { if (cardYM) initCardDocStore(ydoc, cardYM); },
       });
-      // Initialize the per-card doc store (pages, content, bookmarks, comments).
-      const m = cardsMap();
-      const cardYM = m?.get(id);
-      if (cardYM) initCardDocStore(ydoc, cardYM);
       setAutoFocusId(id); // signals "open the doc editor immediately"
     };
 
