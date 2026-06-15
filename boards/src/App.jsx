@@ -15,7 +15,8 @@ import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
-import { getStarterCards, getStarterTutorialCard, getShowcaseCards, isShowcaseCard } from './lib/onboardingStarter.js';
+import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
+import { decodeShowcaseCards } from './lib/showcaseClone.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -1987,26 +1988,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // the empty-canvas gate cover reloads / second tabs.
     seedAttemptedRef.current = true;
     (async () => {
-      let tutorialBoardId = null;
-      try {
-        const b = await createBoard({
-          workspaceId: workspace.id,
-          parentBoardId: rootBoard.id,
-          name: 'Ideas',
-          view: 'canvas',
-          userId: user.id,
-        });
-        tutorialBoardId = b?.id || null;
-      } catch (e) {
-        // Graceful fallback — onboarding still works with just the notes. Now
-        // instrumented: a failed Ideas-board create used to leave no signal even
-        // though it silently breaks the nest-the-note AHA.
-        console.error('[onboarding] createBoard(Ideas) failed; seeding notes only', e);
-        try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'create_board', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
-        tutorialBoardId = null;
-      }
       // Bandit enrollment FIRST — we draw the welcome_showcase arm BEFORE
-      // composing the seed so arm B can swap in the showcase. Genuinely-new users
+      // composing the seed so arm B can clone the brand board. Genuinely-new users
       // only (this triple-gated effect), so existing/dormant users are never
       // retroactively bucketed. Draw each arm from the LIVE weights (recomputed
       // nightly by experiment_optimize); fall back to the registry-weighted
@@ -2027,22 +2010,57 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled);
 
-      // The board card id MUST equal the real DB UUID (kind:'board' renders via
-      // boards[id]); seed:true keeps it out of card_placed / activation /
-      // card_index. Add it BEFORE refreshBoards() so the reconcile-drift effect
-      // sees the board already "placed" and never adds a duplicate (non-seed)
-      // mirror. welcome_showcase arm B: drop the redundant onb-welcome note (the
-      // showcase brings its own welcome), keep onb-drag + the Ideas board so the
-      // proven nest AHA is unchanged, and append the curated showcase flair (all
-      // seed:true + showcase:true → cleared in one click by ShowcaseBanner).
-      const showcase = enrolled['exp_welcome_showcase'] === 'B';
-      const starter = showcase
-        ? getStarterCards().filter((c) => c.id !== 'onb-welcome')
-        : getStarterCards();
-      const flair = showcase ? getShowcaseCards({ theme: currentTheme() }) : [];
-      const cardsToSeed = tutorialBoardId
-        ? [...starter, getStarterTutorialCard(tutorialBoardId), ...flair]
-        : [...starter, ...flair];
+      // welcome_showcase arm B: CLONE the real "Clusters Logo" brand board onto the
+      // root — the cloned board IS the first canvas; the user clears it in one click
+      // ("try it yourself") to start their own. prepare_showcase hands us the source
+      // snapshot AND grants this root board cross-workspace read on the source images
+      // (referenced_in_board_ids) BEFORE we render, so the images load with no broken
+      // flash. Any failure → no cards → we fall back to standard onboarding below.
+      let showcaseCards = null;
+      if (enrolled['exp_welcome_showcase'] === 'B') {
+        try {
+          const tpl = (await supabase.rpc('prepare_showcase', { p_board_id: rootBoard.id })).data;
+          if (tpl?.snapshot) {
+            const cards = decodeShowcaseCards(tpl.snapshot);
+            if (cards.length) showcaseCards = cards;
+          }
+        } catch (e) {
+          try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'showcase_clone', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
+        }
+      }
+      const showcase = !!showcaseCards;
+
+      let tutorialBoardId = null;
+      let cardsToSeed;
+      if (showcase) {
+        // The cloned brand board is the whole first canvas — no Ideas board / starter
+        // notes. Clearing it leaves an empty canvas the coachmark then guides.
+        cardsToSeed = showcaseCards;
+      } else {
+        // Standard onboarding: a nested "Ideas" tutorial board + starter notes (the
+        // nest-the-note AHA). The board card id MUST equal the real DB UUID
+        // (kind:'board' renders via boards[id]); seed:true keeps it out of
+        // card_placed / activation / card_index. Add it BEFORE refreshBoards() so the
+        // reconcile-drift effect sees the board already "placed" and never adds a
+        // duplicate (non-seed) mirror.
+        try {
+          const b = await createBoard({
+            workspaceId: workspace.id,
+            parentBoardId: rootBoard.id,
+            name: 'Ideas',
+            view: 'canvas',
+            userId: user.id,
+          });
+          tutorialBoardId = b?.id || null;
+        } catch (e) {
+          console.error('[onboarding] createBoard(Ideas) failed; seeding notes only', e);
+          try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'create_board', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
+          tutorialBoardId = null;
+        }
+        cardsToSeed = tutorialBoardId
+          ? [...getStarterCards(), getStarterTutorialCard(tutorialBoardId)]
+          : [...getStarterCards()];
+      }
       try {
         mainMutators.addCards?.(cardsToSeed);
       } catch (e) {

@@ -12,7 +12,7 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
-import { getStarterCards, getStarterTutorialCard, getShowcaseCards } from '../lib/onboardingStarter.js';
+import { getStarterCards, getStarterTutorialCard } from '../lib/onboardingStarter.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
 
 const TWEAK_DEFAULTS = {
@@ -80,11 +80,6 @@ function createInitialState() {
 // session). Mirrors the existing ?adoffer / ?reset dev affordances.
 const ONBOARD_PREVIEW = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('onboard') === '1';
-// Dev-only: ?local=1&onboard=1&showcase=1 mirrors welcome_showcase arm B —
-// appends the real getShowcaseCards() flair (and drops the redundant onb-welcome,
-// exactly like the App.jsx seed branch) so the brand demo can be seen locally.
-const SHOWCASE_PREVIEW = typeof window !== 'undefined'
-  && new URLSearchParams(window.location.search).get('showcase') === '1';
 
 function createOnboardingState() {
   // Mirror the real seed (App.jsx): a tutorial "Ideas" child board + its mirror
@@ -112,11 +107,7 @@ function createOnboardingState() {
     },
     boardState: {
       [ROOT_ID]: {
-        cards: [
-          ...clone(getStarterCards()).filter((c) => !(SHOWCASE_PREVIEW && c.id === 'onb-welcome')),
-          clone(getStarterTutorialCard(IDEAS_ID)),
-          ...(SHOWCASE_PREVIEW ? clone(getShowcaseCards()) : []),
-        ],
+        cards: [...clone(getStarterCards()), clone(getStarterTutorialCard(IDEAS_ID))],
         arrows: [], strokes: [],
       },
       [IDEAS_ID]: { cards: [], arrows: [], strokes: [] },
@@ -163,9 +154,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const [autoFocusId, setAutoFocusId] = useState(null);
   const [currentSurface, setCurrentSurface] = useState('board');
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
-  // The real App.jsx gate suppresses the coachmark while showcase flair is up
-  // (the banner guides instead) — mirror that so the showcase preview is faithful.
-  const [onboardCoachOpen, setOnboardCoachOpen] = useState(ONBOARD_PREVIEW && !SHOWCASE_PREVIEW);
+  const [onboardCoachOpen, setOnboardCoachOpen] = useState(ONBOARD_PREVIEW);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', tweak.theme);
@@ -713,7 +702,6 @@ export function LocalBoardsApp({ user, signOut }) {
             mutators={mutators}
             autoFocusId={autoFocusId}
             clearAutoFocus={() => setAutoFocusId(null)}
-            showcaseArm={SHOWCASE_PREVIEW && currentId === ROOT_ID ? 'B' : 'A'}
             useLocalImages
           />
         ) : (

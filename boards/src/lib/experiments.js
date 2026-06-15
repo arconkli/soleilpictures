@@ -30,7 +30,8 @@ export const EXPERIMENTS = {
   // one click ("try it yourself"), vs the current minimal onboarding (arm A).
   // Does the wow lift the COMPOSITE payment-weighted reward, or just add clutter
   // to clear? The bandit decides. The arm is drawn at seed time and decides what
-  // gets seeded onto the root (see App.jsx seed effect + getShowcaseCards).
+  // gets seeded onto the root (see App.jsx seed effect: arm B clones the real
+  // Clusters Logo board via prepare_showcase + showcaseClone.decodeShowcaseCards).
   welcome_showcase: {
     enabled: true,
     arms: [
