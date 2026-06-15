@@ -16,6 +16,7 @@ import {
   Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle,
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
+import { ELEMENTS as SP_ELEMENTS, ELEMENT_LABELS as SP_LABELS } from './docExtensions/screenplay/screenplayFlow.js';
 
 const HEADING_OPTIONS = [
   { value: 'p', label: 'Body' },
@@ -38,7 +39,7 @@ const SIZES = [12, 14, 16, 18, 22, 28, 36];
 const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink, onAddComment,
-                               ydoc = null, scope = null,
+                               ydoc = null, scope = null, docMode = 'doc', onToggleScreenplay,
                                zoom = 1, onZoomIn, onZoomOut, onZoomReset }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
@@ -114,6 +115,12 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
     const hit = all.find(f => f.css === currentFontCss);
     return hit?.label || hit?.name || 'Font';
   })();
+  // Screenplay element <select> (replaces the block-style picker in script mode).
+  const screenplayElement = editor?.isActive('screenplayBlock')
+    ? (editor.getAttributes('screenplayBlock')?.element || 'action')
+    : '';
+  const setScreenplayElement = (el) => editor?.chain().focus().setScreenplayElement(el).run();
+
   const setSize = (px) => editor?.chain().focus().setFontSize(`${px}px`).run();
   const setColor = (c) => editor?.chain().focus().setColor(c).run();
   const clearColor = () => editor?.chain().focus().unsetColor().run();
@@ -127,11 +134,26 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
               title="Insert a block — or type / anywhere in the text"
               aria-label="Insert a block"
               onClick={() => editor?.chain().focus().insertContent('/').run()}>+</button>
-      <select className="doc-tb-select" value={headingValue} disabled={disabled}
-              onChange={(e) => setHeading(e.target.value)}
-              title="Block style" aria-label="Block style">
-        {HEADING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      {onToggleScreenplay && (
+        <button className={`doc-tb-btn doc-tb-screenplay-toggle${docMode === 'screenplay' ? ' is-active' : ''}`}
+                title={docMode === 'screenplay' ? 'Screenplay mode on — click for a normal document' : 'Switch to screenplay mode'}
+                aria-pressed={docMode === 'screenplay'}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onToggleScreenplay()}>Screenplay</button>
+      )}
+      {docMode === 'screenplay' ? (
+        <select className="doc-tb-select" value={screenplayElement || 'action'} disabled={disabled || !editor?.isActive('screenplayBlock')}
+                onChange={(e) => setScreenplayElement(e.target.value)}
+                title="Screenplay element" aria-label="Screenplay element">
+          {SP_ELEMENTS.map(el => <option key={el} value={el}>{SP_LABELS[el] || el}</option>)}
+        </select>
+      ) : (
+        <select className="doc-tb-select" value={headingValue} disabled={disabled}
+                onChange={(e) => setHeading(e.target.value)}
+                title="Block style" aria-label="Block style">
+          {HEADING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      )}
 
       <FontPickerDropdown
         currentLabel={currentFontLabel}

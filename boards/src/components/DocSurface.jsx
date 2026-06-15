@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage, getDocMode, setDocMode, metaMap } from '../lib/docState.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { isDocQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
@@ -136,6 +136,21 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => { onActivePageChange?.(activePageId || null); }, [activePageId, onActivePageChange]);
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
+
+  // Doc mode ('doc' | 'screenplay'). Lives in the per-scope docMeta map so it
+  // persists + collaborates; observe it so a peer's toggle reflects here.
+  const [docMode, setDocModeState] = useState(() => getDocMode(ydoc, scope));
+  useEffect(() => {
+    const m = metaMap(ydoc, scope);
+    setDocModeState(getDocMode(ydoc, scope));
+    if (!m) return;
+    const update = () => setDocModeState(getDocMode(ydoc, scope));
+    m.observe(update);
+    return () => m.unobserve(update);
+  }, [ydoc, scope]);
+  const toggleScreenplay = useCallback(() => {
+    setDocMode(ydoc, scope, docMode === 'screenplay' ? 'doc' : 'screenplay');
+  }, [ydoc, scope, docMode]);
 
   // Ref to .doc-paper — declared early because the zoom/pinch effect
   // below needs it. The DocPresence overlay also uses it later (cursor/
@@ -568,6 +583,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     docName={board.name}
                     ydoc={ydoc}
                     scope={scope}
+                    docMode={docMode}
+                    onToggleScreenplay={toggleScreenplay}
                     onInsertBookmark={insertBookmarkAtCaret}
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
@@ -580,7 +597,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
         <DocFindReplace editor={editorRef.current}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
-        <div className="doc-paper" ref={paperRef}
+        <div className={`doc-paper${docMode === 'screenplay' ? ' is-screenplay' : ''}`} ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': zoom }}>
           {/* Grain texture is painted as a background-image on .doc-paper
               with background-attachment:local so it tiles across the
@@ -595,9 +612,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               // key forces a fresh editor instance per sheet — Tiptap's
               // Collaboration extension can't re-bind to a different fragment.
               <DocPageEditor
-                key={sid}
+                key={`${sid}:${docMode}`}
                 ydoc={ydoc}
                 scope={scope}
+                docMode={docMode}
                 pageId={activePageId}
                 sheetId={sid}
                 activePageId={activePageId}

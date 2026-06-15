@@ -29,6 +29,7 @@ export function rootScope(ydoc) {
     // live in these new maps and are referenced by their own sheet ID.
     pageSheets: ydoc.getMap('docPageSheets'),       // pageId → Y.Array<{ id }>
     sheetContent: ydoc.getMap('docSheetContent'),   // sheetId → Y.XmlFragment
+    meta: ydoc.getMap('docMeta'),                   // doc-level settings (e.g. mode)
   };
 }
 export function cardScope(cardYMap) {
@@ -39,6 +40,7 @@ export function cardScope(cardYMap) {
     comments: cardYMap.get('docComments'),
     pageSheets: cardYMap.get('docPageSheets'),
     sheetContent: cardYMap.get('docSheetContent'),
+    meta: cardYMap.get('docMeta'),
   };
 }
 // Initialize the Y types on a fresh card YMap so cardScope(...) returns
@@ -51,6 +53,7 @@ export function initCardDocStore(ydoc, cardYMap) {
     if (!cardYMap.get('docComments'))      cardYMap.set('docComments', new Y.Map());
     if (!cardYMap.get('docPageSheets'))    cardYMap.set('docPageSheets', new Y.Map());
     if (!cardYMap.get('docSheetContent'))  cardYMap.set('docSheetContent', new Y.Map());
+    if (!cardYMap.get('docMeta'))          cardYMap.set('docMeta', new Y.Map());
   }, 'local');
 }
 
@@ -62,6 +65,19 @@ export function bookmarksMap(ydoc, scope)      { return S(ydoc, scope).bookmarks
 export function commentsMap(ydoc, scope)       { return S(ydoc, scope).comments; }
 export function pageSheetsMap(ydoc, scope)     { return S(ydoc, scope).pageSheets; }
 export function sheetContentMap(ydoc, scope)   { return S(ydoc, scope).sheetContent; }
+export function metaMap(ydoc, scope)           { return S(ydoc, scope).meta; }
+
+// Doc-level mode: 'doc' (default) | 'screenplay'. Stored in the per-scope
+// docMeta map so it persists with the board snapshot + collaborates.
+export function getDocMode(ydoc, scope) {
+  const m = metaMap(ydoc, scope);
+  return (m && m.get('mode')) || 'doc';
+}
+export function setDocMode(ydoc, scope, mode) {
+  const m = metaMap(ydoc, scope);
+  if (!m) return;
+  ydoc.transact(() => { m.set('mode', mode === 'screenplay' ? 'screenplay' : 'doc'); }, 'local');
+}
 
 export function readPages(ydoc, scope) {
   const arr = pagesArray(ydoc, scope);
@@ -430,7 +446,7 @@ export function pageFragmentToText(fragment, max = 240) {
         if (out.length >= max) break;
       }
       const tag = node.nodeName;
-      if (tag && /^(paragraph|heading|listItem|blockquote|codeBlock|hardBreak)$/i.test(tag)) {
+      if (tag && /^(paragraph|heading|listItem|blockquote|codeBlock|hardBreak|screenplayBlock)$/i.test(tag)) {
         if (!out.endsWith(' ') && !out.endsWith('\n')) out += ' ';
       }
     } else if (typeof node.forEach === 'function') {

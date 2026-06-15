@@ -17428,3 +17428,30 @@ button, [role="button"], a {
   .pdfv-title { max-width: 30vw; }
   .pdfv-pageind, .pdfv-zoomind { min-width: 44px; }
 }
+
+/* ── Screenplay mode (ScreenplayBlock + .doc-paper.is-screenplay) ─────────── */
+/* Courier 12pt single-spaced grid. Courier New is on every OS; swap in a
+   self-hosted Courier Prime woff2 later for exact print parity. */
+.doc-paper.is-screenplay .ProseMirror {
+  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+  font-size: 12pt;
+  line-height: 1;
+}
+.doc-paper.is-screenplay .sp-el { white-space: pre-wrap; margin: 0; }
+/* Industry element geometry (indents measured from the page text column). */
+.doc-paper.is-screenplay [data-screenplay-element="scene"] {
+  text-transform: uppercase; font-weight: 700; margin-top: 1.5em;
+}
+.doc-paper.is-screenplay [data-screenplay-element="action"] { margin-top: 1em; }
+.doc-paper.is-screenplay [data-screenplay-element="shot"] { text-transform: uppercase; margin-top: 1em; }
+.doc-paper.is-screenplay [data-screenplay-element="character"] {
+  text-transform: uppercase; margin-top: 1em; padding-left: 2in;
+}
+.doc-paper.is-screenplay [data-screenplay-element="parenthetical"] { padding-left: 1.5in; padding-right: 2in; }
+.doc-paper.is-screenplay [data-screenplay-element="dialogue"] { padding-left: 1in; padding-right: 1.5in; }
+.doc-paper.is-screenplay [data-screenplay-element="transition"] {
+  text-transform: uppercase; text-align: right; margin-top: 1em;
+}
+.doc-paper.is-screenplay [data-screenplay-element="centered"] { text-align: center; margin-top: 1em; }
+/* The screenplay toggle pill in the toolbar. */
+.doc-tb-screenplay-toggle.is-active { background: var(--soleil, #ffa500); color: #1a1205; font-weight: 600; }

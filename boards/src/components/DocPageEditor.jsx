@@ -34,6 +34,7 @@ import { DocTagGutter } from './DocTagGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
+import { ScreenplayKeymap } from './docExtensions/screenplay/ScreenplayKeymap.js';
 import { MentionExtension } from './docExtensions/MentionExtension.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
@@ -146,7 +147,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorReady, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', onEditorReady, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -692,6 +693,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
       // BlockHandleExtension removed — per-block drag handles felt
       // too Notion-y; Google-Docs-style flowing prose works better.
       ExtraShortcuts,
+      // Screenplay Tab/Enter cycling + auto-caps (priority:1000 so it wins
+      // over ExtraShortcuts/AutoDetect/mention; gated to screenplayBlock).
+      ...(docMode === 'screenplay' ? [ScreenplayKeymap] : []),
       mentionExt,
     ],
     // Don't steal focus from an active text field (e.g. the page-rename
@@ -779,9 +783,17 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
         return false;
       },
     },
-    // Force a fresh editor when the bound page changes.
-    // (Editor identity is keyed on the parent's `key={pageId}` — see DocSurface.)
-  }, [pageId]);
+    // Seed a brand-new screenplay sheet's first block as a Scene Heading so
+    // the writer starts in the right element. Gated on isEmpty so it never
+    // clobbers loaded content.
+    onCreate: ({ editor }) => {
+      if (docMode === 'screenplay' && editor.isEmpty) {
+        editor.chain().setScreenplayElement('scene').run();
+      }
+    },
+    // Force a fresh editor when the bound page or doc mode changes. (Editor
+    // identity is ALSO keyed on the parent's key={sid:docMode} — see DocSurface.)
+  }, [pageId, docMode]);
 
   // Notify parent so it can wire the toolbar to the live editor instance.
   const lastNotified = useRef(null);
