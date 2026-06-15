@@ -13,7 +13,7 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
 import { getStarterCards, getStarterTutorialCard } from '../lib/onboardingStarter.js';
-import { loadBoardSnapshot } from '../lib/boardsApi.js';
+import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
 
@@ -83,14 +83,14 @@ function createInitialState() {
 const ONBOARD_PREVIEW = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('onboard') === '1';
 
-// Dev-only: ?local=1&showcase=1 renders welcome_showcase arm B locally — it loads
-// the REAL "Clusters Logo" board snapshot (you must be signed in at localhost AND
-// a member of its workspace, which the owner/admin is) via loadBoardSnapshot,
-// decodes it the same way production does (showcaseClone), and shows it on the
-// root with the "Clear & try it yourself" banner. Images presign via your session.
+// Dev-only: ?local=1&showcase=1 renders welcome_showcase arm B exactly as a new
+// user gets it — calls the real prepare_showcase RPC (grants this session's images
+// read + returns the Clusters Logo snapshot), decodes it the same way production
+// does (showcaseClone), and shows it on the root with the "Clear & try it yourself"
+// banner. Works for ANY signed-in account (member or demo). You must be signed in
+// ON THIS ORIGIN (the dev server you're viewing) for the images to presign.
 const SHOWCASE_PREVIEW = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('showcase') === '1';
-const SHOWCASE_SOURCE_BOARD_ID = 'ebf42869-d19f-4b86-8659-763b082095c8';
 
 function createShowcasePreviewState() {
   // A clean Studio root; the snapshot loads into it asynchronously (effect below).
@@ -196,18 +196,25 @@ export function LocalBoardsApp({ user, signOut }) {
     let cancelled = false;
     (async () => {
       try {
-        const snap = await loadBoardSnapshot(SHOWCASE_SOURCE_BOARD_ID);
-        const cards = decodeShowcaseCards(snap);
+        const { data: au } = await supabase.auth.getUser();
+        if (!au?.user?.id) { console.warn('[showcase preview] not signed in on this origin — sign in here first'); return; }
+        // prepare_showcase needs a board you can write as the image-grant anchor;
+        // any board in your workspace works (RLS only returns yours).
+        const { data: mine } = await supabase.from('boards').select('id').is('deleted_at', null).limit(1);
+        const anchor = mine?.[0]?.id;
+        if (!anchor) { console.warn('[showcase preview] no board found to anchor the image grant'); return; }
+        const tpl = (await supabase.rpc('prepare_showcase', { p_board_id: anchor })).data;
+        const cards = decodeShowcaseCards(tpl?.snapshot);
         if (!cancelled && cards.length) {
           setLocalState((prev) => ({
             ...prev,
             boardState: { ...prev.boardState, [ROOT_ID]: { cards, arrows: [], strokes: [] } },
           }));
-        } else if (!cards.length) {
-          console.warn('[showcase preview] no cards — sign in at localhost as a workspace member first');
+        } else {
+          console.warn('[showcase preview] no cards returned (showcase disabled in config, or snapshot empty)');
         }
       } catch (e) {
-        console.warn('[showcase preview] could not load the Clusters Logo board', e);
+        console.warn('[showcase preview] failed', e);
       }
     })();
     return () => { cancelled = true; };
