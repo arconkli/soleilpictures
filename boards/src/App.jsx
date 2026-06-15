@@ -2087,6 +2087,42 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTier.loading, myTier.onboarding, currentYDoc, yb.ready, yb.cards.length, currentId, rootBoard.id, mainMutators]);
 
+  // Preview affordance: ?showcasepreview=1 clones the welcome_showcase source board
+  // (the real Clusters Logo board) into a throwaway board in YOUR workspace and
+  // opens it — so the arm-B experience can be seen WITH images on any origin you're
+  // signed in to (incl. production). prepare_showcase grants this new board read on
+  // the source images first, so they render. Delete the board when done. Works for
+  // any signed-in account; harmless + self-scoped (only seeds into your own space).
+  const showcasePreviewRef = useRef(false);
+  useEffect(() => {
+    if (showcasePreviewRef.current || typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('showcasepreview') !== '1') return;
+    if (!workspace?.id || !rootBoard?.id || !user?.id) return;
+    showcasePreviewRef.current = true;
+    (async () => {
+      try {
+        const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Showcase preview', view: 'canvas', userId: user.id });
+        if (!b?.id) return;
+        const tpl = (await supabase.rpc('prepare_showcase', { p_board_id: b.id })).data;
+        if (tpl?.snapshot) {
+          const ydoc = new Y.Doc();
+          Y.applyUpdate(ydoc, b64ToBytes(tpl.snapshot));
+          await saveBoardSnapshot(b.id, ydoc);
+          ydoc.destroy();
+        } else {
+          console.warn('[showcasepreview] no snapshot — showcase disabled in app_config?');
+        }
+        try { await refreshBoards(); } catch (_) {}
+        setStack([b.id]);
+        // strip the param so a reload doesn't make a second copy
+        try { const u = new URL(window.location.href); u.searchParams.delete('showcasepreview'); window.history.replaceState({}, '', u.toString()); } catch (_) {}
+      } catch (e) {
+        console.error('[showcasepreview] failed', e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.id, rootBoard?.id, user?.id]);
+
   // Activation detection — DECOUPLED from the onboarding coachmark UI. The old
   // version only fired ONBOARDING_FIRST_CARD while the coachmark was showing AND
   // on the root board, so it never fired in practice (users place their first
