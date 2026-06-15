@@ -6,8 +6,6 @@ import { useEffect } from 'react';
 import { TierRouter } from './auth/TierRouter.jsx';
 import { App as RawApp } from './App.jsx';
 import { withPerfTime } from './lib/perf.js';
-import { maybeAutoJoinRing } from './lib/ringAuto.js';
-import { RingIndicator } from './components/RingIndicator.jsx';
 
 // Wrap App so render.App.ms surfaces in perf.dump() without touching App.jsx.
 const App = withPerfTime(RawApp, 'App');
@@ -26,16 +24,9 @@ export default function AppShell() {
     return () => clearTimeout(t);
   }, []);
 
-  // Ring auto-join: eligible admins (admin OR internal allowlist) get silently
-  // routed to the latest build on the real domain. No-op for everyone else and
-  // when already on latest / opted to stable. Runs once we know the user is
-  // signed in (AppShell only mounts inside AuthGate).
-  useEffect(() => { maybeAutoJoinRing(); }, []);
-
   return (
     <TierRouter>
       <App />
-      <RingIndicator />
     </TierRouter>
   );
 }
