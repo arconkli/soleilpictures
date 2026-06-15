@@ -61,3 +61,12 @@ test('Tab/Enter cycle elements and scene/character lines auto-uppercase', async 
   await page.keyboard.type('Hello there.');
   await expect(page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first()).toHaveText('Hello there.');
 });
+
+test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.locator('.doc-card-modal .doc-export-wrap button').first().click();
+  await expect(page.getByRole('button', { name: /Export Fountain/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Export Final Draft/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Import Fountain/ })).toBeVisible();
+});

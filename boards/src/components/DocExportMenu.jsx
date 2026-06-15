@@ -7,12 +7,16 @@
 // in the system dialog.
 
 import { useEffect, useRef, useState } from 'react';
-import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown } from '../lib/docFullExport.js';
+import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown, collectFullDocJSON } from '../lib/docFullExport.js';
+import {
+  jsonToFountain, fountainToBlocks, jsonToFdx, fdxToBlocks, blocksToDocJSON,
+} from '../lib/screenplayIO.js';
 
 // Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
 // `editor` is only a fallback for the rare caller without doc state.
-export function DocExportMenu({ editor, docName, ydoc = null, scope = null }) {
+// Screenplay docs additionally get Fountain/FDX export + import.
+export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc' }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const ref = useRef(null);
@@ -110,6 +114,41 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null }) {
     } finally { setBusy(false); }
   };
 
+  const scriptBlocks = () => {
+    if (ydoc) return collectFullDocJSON(ydoc, scope);
+    return editor ? editor.getJSON() : { type: 'doc', content: [] };
+  };
+  const exportFountain = () => {
+    downloadBlob(new Blob([jsonToFountain(scriptBlocks())], { type: 'text/plain' }), 'fountain');
+    setOpen(false);
+  };
+  const exportFdx = () => {
+    downloadBlob(new Blob([jsonToFdx(scriptBlocks())], { type: 'application/xml' }), 'fdx');
+    setOpen(false);
+  };
+  const importScript = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.fountain,.txt,.fdx,application/xml,text/plain';
+    input.onchange = async () => {
+      const f = input.files?.[0]; if (!f) return;
+      try {
+        const text = await f.text();
+        const isFdx = /\.fdx$/i.test(f.name) || /<FinalDraft/i.test(text);
+        const blocks = isFdx ? fdxToBlocks(text) : fountainToBlocks(text);
+        if (!blocks.length) return;
+        if (editor) {
+          // Replace the focused sheet's content. Undoable via ⌘Z; confirm only
+          // when there's existing content to clobber.
+          if (!editor.isEmpty && !window.confirm('Replace this document with the imported screenplay?')) return;
+          editor.chain().focus().setContent(blocksToDocJSON(blocks)).run();
+        }
+      } catch (_) { /* malformed file — no-op */ }
+    };
+    input.click();
+    setOpen(false);
+  };
+
   return (
     <span className="doc-export-wrap" ref={ref}>
       <button className="doc-tb-btn" title="Export" aria-label="Export"
@@ -124,6 +163,14 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null }) {
       </button>
       {open && (
         <div className="doc-export-menu" role="menu">
+          {docMode === 'screenplay' && (
+            <>
+              <button onClick={exportFountain}>Export Fountain (.fountain)</button>
+              <button onClick={exportFdx}>Export Final Draft (.fdx)</button>
+              <button onClick={importScript}>Import Fountain / Final Draft…</button>
+              <div className="doc-export-sep" />
+            </>
+          )}
           <button onClick={exportHTML}>Export HTML</button>
           <button onClick={exportMarkdown}>Export Markdown</button>
           <button onClick={exportPDF}>Print / Save as PDF</button>

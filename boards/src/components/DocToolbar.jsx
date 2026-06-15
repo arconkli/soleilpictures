@@ -229,7 +229,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
            onClick={() => onAddComment?.()}><Glyph as={MessageCircle} size={14} /></Btn>
       <Btn title="Find (⌘F)" disabled={disabled}
            onClick={() => onOpenFind?.()}><Glyph as={Search} size={14} /></Btn>
-      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} />
+      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} />
 
       <span className="doc-tb-spacer" />
 

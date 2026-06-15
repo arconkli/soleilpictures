@@ -17455,3 +17455,4 @@ button, [role="button"], a {
 .doc-paper.is-screenplay [data-screenplay-element="centered"] { text-align: center; margin-top: 1em; }
 /* The screenplay toggle pill in the toolbar. */
 .doc-tb-screenplay-toggle.is-active { background: var(--soleil, #ffa500); color: #1a1205; font-weight: 600; }
+.doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line2, rgba(255,255,255,.1)); }
