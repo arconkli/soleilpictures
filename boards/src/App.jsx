@@ -674,6 +674,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const strokesArr = () => ydoc.getArray('strokes');
     const groupsMap = () => ydoc.getMap('groups');
 
+    // Undo-stack meta key carrying the board ids a delete soft-deleted, so
+    // undo()/redo() can restore / re-delete the board row (not just the card).
+    const BOARD_DELETE_META = 'soleil-soft-deleted-boards';
+
     // End the current undo merge window so the next write starts a fresh
     // stack item. Called at the top of discrete "one click = one action"
     // mutators (add/delete/group/…) so two quick clicks within the 500ms
@@ -892,6 +896,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       console.log('[delete] deleteCards done', {
         ids, cardsBefore, cardsAfter, stillPresent,
       });
+      // Boards were soft-deleted in Postgres above (deleteBoard). The Yjs
+      // UndoManager can't reverse that, so tag this undo step with the board
+      // ids; undo()/redo() below restore / re-delete them so the board (not
+      // just its canvas card) actually comes back.
+      if (boardIdsToCascade.length && undoManager?.undoStack?.length) {
+        const top = undoManager.undoStack[undoManager.undoStack.length - 1];
+        try { top?.meta.set(BOARD_DELETE_META, boardIdsToCascade.slice()); } catch (_) {}
+      }
     };
     const deleteCard = (cardId) => deleteCards([cardId]);
 
@@ -1303,8 +1315,46 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({ type: 'error', message: 'Could not create board: ' + (e.message || e) });
       }
     };
-    const undo = () => undoManager?.undo();
-    const redo = () => undoManager?.redo();
+    // ── Board-delete-aware undo/redo ──────────────────────────────────────
+    // Deleting a board card soft-deletes the board row in Postgres
+    // (boards.deleted_at), which the in-session Yjs UndoManager can't reverse
+    // on its own — undoManager.undo() only re-adds the canvas card, leaving the
+    // board hidden. We tag the delete's undo step (in deleteCards) with the
+    // soft-deleted board ids and restore/re-delete them here. Because the
+    // toast Undo, the toolbar button, AND Cmd+Z all funnel through these two
+    // functions, fixing them here fixes every entry point at once.
+    const restoreBoardsForUndo = async (ids) => {
+      for (const id of ids) { try { await restoreBoard(id); } catch (e) { console.error('[undo] restoreBoard failed', id, e); } }
+      await refreshBoards();
+    };
+    const reSoftDeleteBoardsForRedo = async (ids) => {
+      for (const id of ids) { try { await deleteBoard(id); } catch (e) { console.error('[redo] deleteBoard failed', id, e); } }
+      await refreshBoards();
+    };
+    const undo = () => {
+      if (!undoManager) return;
+      const top = undoManager.undoStack[undoManager.undoStack.length - 1];
+      const boardIds = top?.meta?.get(BOARD_DELETE_META);
+      undoManager.undo(); // re-adds the board card to the Y.Doc
+      if (boardIds?.length) {
+        // Carry the tag onto the freshly-created redo item so a later redo
+        // re-soft-deletes the board (the redo item already exists by now).
+        const r = undoManager.redoStack[undoManager.redoStack.length - 1];
+        try { r?.meta.set(BOARD_DELETE_META, boardIds); } catch (_) {}
+        restoreBoardsForUndo(boardIds); // clears deleted_at + refreshBoards
+      }
+    };
+    const redo = () => {
+      if (!undoManager) return;
+      const top = undoManager.redoStack[undoManager.redoStack.length - 1];
+      const boardIds = top?.meta?.get(BOARD_DELETE_META);
+      undoManager.redo();
+      if (boardIds?.length) {
+        const u = undoManager.undoStack[undoManager.undoStack.length - 1];
+        try { u?.meta.set(BOARD_DELETE_META, boardIds); } catch (_) {}
+        reSoftDeleteBoardsForRedo(boardIds);
+      }
+    };
     const canUndo = () => !!(undoManager && undoManager.undoStack.length > 0);
     const canRedo = () => !!(undoManager && undoManager.redoStack.length > 0);
 
@@ -1372,6 +1422,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         idSet.forEach(id => { if (m.has(id)) m.delete(id); });
       }, 'local');
     }
+    // This path doesn't go through the Yjs UndoManager, so give it its own
+    // Undo toast that reverses the soft-delete. refreshBoards() brings the
+    // board back to the grid; the drift-reconcile effect re-adds any canvas card.
+    feedback.toast({
+      type: 'info',
+      message: ids.length === 1 ? 'Board deleted' : `${ids.length} boards deleted`,
+      action: { label: 'Undo', onClick: async () => {
+        for (const id of ids) { try { await restoreBoard(id); } catch (e) { console.error('[undo] restoreBoard failed', id, e); } }
+        await refreshBoards();
+      } },
+      ttl: 6000,
+    });
   };
 
   // ── Reconcile drift: every child board must have a canvas card on the

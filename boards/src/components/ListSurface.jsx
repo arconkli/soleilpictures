@@ -83,10 +83,10 @@ export function ListSurface({
       const cn = cIds.length;
       let msg;
       if (bn > 0 && cn === 0) msg = bn === 1
-        ? `Delete board "${boards[bIds[0]]?.name || ''}" and ALL its content? Cannot be undone.`
-        : `Delete ${bn} boards and ALL their content? Cannot be undone.`;
+        ? `Delete board "${boards[bIds[0]]?.name || ''}" and all its content?\n\nYou can undo this — it's recoverable for 30 days.`
+        : `Delete ${bn} boards and all their content?\n\nYou can undo this — they're recoverable for 30 days.`;
       else if (bn === 0 && cn > 0) msg = cn === 1 ? 'Delete this card?' : `Delete ${cn} cards?`;
-      else msg = `Delete ${total} items, including ${bn} board${bn > 1 ? 's' : ''} (their content will also be lost)? Cannot be undone.`;
+      else msg = `Delete ${total} items, including ${bn} board${bn > 1 ? 's' : ''}?\n\nYou can undo this — anything deleted is recoverable for 30 days.`;
       if (msg) {
         const ok = await feedback.confirm({
           title: 'Delete selection',

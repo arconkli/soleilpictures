@@ -98,6 +98,18 @@ test.describe('UndoManager hardening wired', () => {
     expect(src).toMatch(/stack-item-added/);
     expect(src).toMatch(/stack-item-popped/);
   });
+
+  test('board delete is restored by undo/redo (not just the canvas card)', () => {
+    const app = read('src/App.jsx');
+    // deleteCards tags its undo step with the soft-deleted board ids…
+    expect(app).toMatch(/BOARD_DELETE_META/);
+    // …and undo()/redo() act on them so the board row (deleted_at) is reversed,
+    // not only the Y.Doc card. This is what makes the toast + toolbar + Cmd+Z work.
+    expect(app).toMatch(/restoreBoardsForUndo/);
+    expect(app).toMatch(/reSoftDeleteBoardsForRedo/);
+    // The list/grid delete path (no UndoManager) gets its own Undo toast.
+    expect(app).toMatch(/['"`]Board deleted['"`]/);
+  });
 });
 
 // ───────────────────────── 2. Engine behavior ──────────────────────────────
@@ -227,5 +239,82 @@ test.describe('Undo engine semantics (mirrors yboard.js config)', () => {
     expect(r.redoCleared.redoAfter).toBe(0);
     // (6)
     expect(r.untracked.stackLen).toBe(0);
+  });
+
+  // Mirrors the board-delete-aware undo/redo in App.jsx buildMutators: a board
+  // soft-delete is a Postgres side effect the UndoManager can't reverse, so the
+  // delete step is tagged with the board ids on its stack-item meta and the
+  // side effect (restore / re-delete) is replayed on undo / redo. Proves the
+  // engine assumptions that fix depends on: the tag is readable BEFORE the pop,
+  // the opposite-stack item exists right AFTER the pop to carry the tag onto,
+  // and the side effect therefore round-trips across undo→redo→undo.
+  test('soft-deleted board ids round-trip through the undo stack meta', async ({ page }) => {
+    await goLocal(page);
+
+    const r = await page.evaluate(() => {
+      const { Y } = window.__soleilTest;
+      const BOARD_DELETE_META = 'soleil-soft-deleted-boards';
+
+      const doc = new Y.Doc();
+      const cards = doc.getMap('cards');
+      const um = new Y.UndoManager([cards], { trackedOrigins: new Set(['local']), captureTimeout: 500 });
+
+      // Side-effect logs standing in for restoreBoard() / deleteBoard().
+      const restored = [];
+      const redeleted = [];
+
+      // undo()/redo() that mirror App.jsx exactly.
+      const undo = () => {
+        const top = um.undoStack[um.undoStack.length - 1];
+        const ids = top && top.meta.get(BOARD_DELETE_META);
+        um.undo();
+        if (ids && ids.length) {
+          const r = um.redoStack[um.redoStack.length - 1];
+          if (r) r.meta.set(BOARD_DELETE_META, ids); // carry forward so redo re-deletes
+          restored.push(...ids);
+        }
+      };
+      const redo = () => {
+        const top = um.redoStack[um.redoStack.length - 1];
+        const ids = top && top.meta.get(BOARD_DELETE_META);
+        um.redo();
+        if (ids && ids.length) {
+          const u = um.undoStack[um.undoStack.length - 1];
+          if (u) u.meta.set(BOARD_DELETE_META, ids);
+          redeleted.push(...ids);
+        }
+      };
+
+      // Simulate deleteCards: add a board card, boundary, delete it, tag the step.
+      doc.transact(() => { const m = new Y.Map(); m.set('id', 'b1'); m.set('kind', 'board'); cards.set('b1', m); }, 'local');
+      um.stopCapturing(); // breakUndo() boundary so the delete is its own step
+      doc.transact(() => { cards.delete('b1'); }, 'local');
+      const top = um.undoStack[um.undoStack.length - 1];
+      top.meta.set(BOARD_DELETE_META, ['b1']);
+
+      const cardAfterDelete = cards.has('b1');   // false — card gone
+      undo();
+      const cardAfterUndo = cards.has('b1');     // true  — Yjs re-added the card
+      const restoredAfterUndo = restored.slice();// ['b1'] — board restore fired
+      redo();
+      const cardAfterRedo = cards.has('b1');     // false — card removed again
+      const redeletedAfterRedo = redeleted.slice(); // ['b1'] — board re-soft-deleted
+      undo();
+      const cardAfterUndo2 = cards.has('b1');    // true
+      const restoredTotal = restored.slice();    // ['b1','b1'] — tag survived the round trip
+
+      return {
+        cardAfterDelete, cardAfterUndo, restoredAfterUndo,
+        cardAfterRedo, redeletedAfterRedo, cardAfterUndo2, restoredTotal,
+      };
+    });
+
+    expect(r.cardAfterDelete).toBe(false);
+    expect(r.cardAfterUndo).toBe(true);
+    expect(r.restoredAfterUndo).toEqual(['b1']);   // undo restores the board, not just the card
+    expect(r.cardAfterRedo).toBe(false);
+    expect(r.redeletedAfterRedo).toEqual(['b1']);  // redo re-deletes it
+    expect(r.cardAfterUndo2).toBe(true);
+    expect(r.restoredTotal).toEqual(['b1', 'b1']); // fired on BOTH undos → tag round-trips
   });
 });
