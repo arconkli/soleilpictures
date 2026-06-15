@@ -50,9 +50,12 @@ export function getStagingTarget() {
 }
 
 // Send the admin back to stable prod (used by the "exit" control + ?stable=1).
+// localStorage is per-origin, so setting the pref on the preview origin would NOT
+// stop the redirect back on the prod origin — we carry ?stable=1 so prod sets its
+// own opt-out (handled in maybeRedirectToLatest) and the exit actually sticks.
 export function exitToStable() {
   setStablePref(true);
-  try { window.location.replace(`https://${PROD_HOST}/`); } catch (_) {}
+  try { window.location.replace(`https://${PROD_HOST}/?stable=1`); } catch (_) {}
 }
 // Re-enable auto-routing to latest (used by the prod-side "switch to latest").
 export function switchToLatest() {
@@ -70,8 +73,13 @@ export async function maybeRedirectToLatest() {
   // ?stable=0 = re-enable. Works even if the in-app toggle is unreachable.
   try {
     const sp = new URLSearchParams(window.location.search);
-    if (sp.get('stable') === '1') setStablePref(true);
-    if (sp.get('stable') === '0') { setStablePref(false); sessionStorage.removeItem(REDIR_GUARD); }
+    if (sp.has('stable')) {
+      if (sp.get('stable') === '1') setStablePref(true);
+      if (sp.get('stable') === '0') { setStablePref(false); try { sessionStorage.removeItem(REDIR_GUARD); } catch (_) {} }
+      sp.delete('stable');
+      const qs = sp.toString();
+      window.history.replaceState({}, document.title, window.location.pathname + (qs ? `?${qs}` : ''));
+    }
   } catch (_) {}
 
   const target = await getStagingTarget(); // null ⇒ not eligible / none set / stale
