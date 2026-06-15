@@ -42,6 +42,16 @@ export function isDndQaMode() {
   return new URLSearchParams(window.location.search).get('dndqa') === '1';
 }
 
+// Dev-only arrow-geometry QA bridge. Active ONLY in a DEV build with ?arrowqa=1
+// (same trust boundary as isDndQaMode). Publishes the PURE arrow routing helpers
+// + a seeded crowded layout + a clearance assertion on window.__soleilArrowTest,
+// and mounts the seeded board, so Playwright can verify arrows never cross cards
+// (both the pure geometry and the rendered DOM paths). No backend, no UI chrome.
+export function isArrowQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('arrowqa') === '1';
+}
+
 // Dev-only override for the public-share engagement prompt's dwell trigger.
 // Active ONLY in a DEV build with ?shareqa=1 (same trust boundary as
 // qaTierOverride), so the 30s threshold can never be shortened in production.

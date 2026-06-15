@@ -611,6 +611,11 @@ export function CanvasSurface({
   // armed after Escape and still commit the gesture on release.
   const pointerOpAbortRef = useRef(null);
   const [arrowFrom, setArrowFrom] = useState(null);
+  // While the arrow tool has a source picked, the card the cursor is over
+  // (highlighted as the connect target) and the live cursor position (for the
+  // rubber-band preview). Cleared whenever the tool/source resets.
+  const [arrowHoverCardId, setArrowHoverCardId] = useState(null);
+  const [arrowCursor, setArrowCursor] = useState(null); // canvas-space {x,y}
   const [activeStroke, setActiveStroke] = useState(null);
   const [activeFreeArrow, setActiveFreeArrow] = useState(null); // { from:{x,y}, to:{x,y} }
   // Per-card upload progress (cardId → 0..1). Threaded into ImageCard so
@@ -1214,7 +1219,7 @@ export function CanvasSurface({
     mutators.createGroup?.({ name: 'Group', cardIds: [...selected] });
   }, [selected, mutators]);
 
-  useEffect(() => { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
+  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
   useEffect(() => {
     setSelected(new Set());
     setSelectedStrokes(new Set());
@@ -1430,16 +1435,34 @@ export function CanvasSurface({
   // (in addition to arrows + arrowCtx) so endpoint moves re-fire the
   // computation — cardById has stable identity now and won't trigger by
   // itself.
+  // Remembers each arrow's resolved attachment side (keyed by stable arrow key)
+  // across renders so a small card nudge can't flip the side / reshuffle fan-out
+  // every frame — see the hysteresis in computeArrowAttachments.
+  const arrowSidesRef = useRef(null);
   const arrowAttachments = useMemo(
     () => {
       const _t0 = perf.isEnabled() ? performance.now() : 0;
-      const out = computeArrowAttachments(arrows || [], arrowCtx);
+      const out = computeArrowAttachments(arrows || [], arrowCtx, arrowSidesRef.current);
+      // Feed the resolved sides back next render. Idempotent (stable keys), so
+      // assigning the ref from inside the memo is safe under double-invoke.
+      if (out && out.sides) arrowSidesRef.current = out.sides;
       perf.bump('arrows.runs');
       if (_t0) perf.mark('arrows.ms', performance.now() - _t0);
       return out;
     },
     [arrows, arrowCtx, cards]
   );
+
+  // The source endpoint's rect (card or group bbox) while drawing an arrow —
+  // used as the rubber-band's start so the preview leaves the card edge.
+  const arrowFromRect = useMemo(() => {
+    const ref = arrowFrom;
+    if (!ref) return null;
+    if (typeof ref === 'string') { const c = cardById[ref]; return c ? { x: c.x, y: c.y, w: c.w, h: c.h } : null; }
+    if (ref.type === 'card' && ref.id) { const c = cardById[ref.id]; return c ? { x: c.x, y: c.y, w: c.w, h: c.h } : null; }
+    if (ref.type === 'group' && ref.id) { const g = groupBoundsById[ref.id]; return g ? { x: g.x, y: g.y, w: g.w, h: g.h } : null; }
+    return null;
+  }, [arrowFrom, cardById, groupBoundsById]);
 
   // Rect list used as obstacles when shaping each arrow's bezier. Includes
   // every card; per-arrow we then drop its own endpoints (and any group
@@ -1482,6 +1505,17 @@ export function CanvasSurface({
       y: (clientY - rect.top  - py) / z,
     };
   }, []);
+
+  // Track the cursor (in canvas space) while an arrow source is chosen so we can
+  // draw a live rubber-band from the source to the pointer until the second
+  // click lands. Only armed in arrow-tool + source-picked state. Defined after
+  // clientToCanvas so its dependency isn't referenced in the TDZ.
+  useEffect(() => {
+    if (selectedTool !== 'arrow' || !arrowFrom) { setArrowCursor(null); return; }
+    const onMove = (ev) => setArrowCursor(clientToCanvas(ev.clientX, ev.clientY));
+    window.addEventListener('pointermove', onMove);
+    return () => window.removeEventListener('pointermove', onMove);
+  }, [selectedTool, arrowFrom, clientToCanvas]);
 
   // Inverse of clientToCanvas — returns viewport-relative pixel coords for
   // a canvas-space point. Used by the comments layer to anchor floating
@@ -5296,6 +5330,10 @@ export function CanvasSurface({
     const w = multiLive ? Math.max(MIN_W, multiLive.w) : Math.max(MIN_W, c.w + (resizeDelta?.dw || 0));
     const h = multiLive ? Math.max(MIN_H, multiLive.h) : Math.max(MIN_H, c.h + (resizeDelta?.dh || 0));
     const isArrowSource = arrowRefEquals(arrowFrom, c.id);
+    // Candidate connect target: arrow tool, a source already chosen, cursor over
+    // this (different) card. Highlights what the next click will connect to.
+    const isArrowTarget = selectedTool === 'arrow' && !!arrowFrom
+      && arrowHoverCardId === c.id && !isArrowSource;
     const isSelected = selected.has(c.id)
       || (marqueePreviewIds && marqueePreviewIds.has(c.id))
       || isArrowSource;
@@ -5328,21 +5366,26 @@ export function CanvasSurface({
     // click opens against an already-fetched cache.
     const hoverPrefetchTarget = c.kind === 'board' ? c.id
       : (c.kind === 'boardlink' ? c.target : null);
-    const onCardMouseEnter = hoverPrefetchTarget
-      ? () => scheduleHoverPrefetch(hoverPrefetchTarget)
-      : undefined;
+    const onCardMouseEnter = (e) => {
+      if (selectedTool === 'arrow') setArrowHoverCardId(c.id);
+      if (hoverPrefetchTarget) scheduleHoverPrefetch(hoverPrefetchTarget);
+    };
+    const onCardMouseLeave = (e) => {
+      if (selectedTool === 'arrow') setArrowHoverCardId(prev => (prev === c.id ? null : prev));
+      if (hoverPrefetchTarget) cancelHoverPrefetch();
+    };
     const wrapper = {
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onPointerUp: (e) => onCardPointerUp(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
       onDoubleClick: (e) => onCardDoubleClick(e, c),
       onMouseEnter: onCardMouseEnter,
-      onMouseLeave: hoverPrefetchTarget ? cancelHoverPrefetch : undefined,
+      onMouseLeave: onCardMouseLeave,
     };
 
     // View-only boards: nulling onUpdate flips every card kind into the
@@ -6632,7 +6675,7 @@ export function CanvasSurface({
             pointer events. Only the per-arrow hit-target paths have
             pointer-events:stroke when select/erase is active, so cards
             underneath remain clickable. */}
-        {tweak.showArrows && (arrows?.length || activeFreeArrow) && (
+        {tweak.showArrows && (arrows?.length || activeFreeArrow || arrowFrom) && (
           <svg className="arrows-layer" width={SVG_ANCHOR_PX} height={SVG_ANCHOR_PX}
                style={{ position: 'absolute', left: 0, top: 0,
                         pointerEvents: 'none',
@@ -6666,9 +6709,9 @@ export function CanvasSurface({
               // Dash pattern: customDash from shape-line ('dashed' / 'dotted'),
               // legacy a.dashed boolean, or solid.
               let dashArray = '0';
-              if (a.customDash === 'dashed') dashArray = `${sw * 4} ${sw * 3}`;
+              if (a.customDash === 'dashed') dashArray = `${sw * 5} ${sw * 3.5}`;
               else if (a.customDash === 'dotted') dashArray = `${sw * 1} ${sw * 2}`;
-              else if (a.dashed) dashArray = `${sw * 4} ${sw * 3}`;
+              else if (a.dashed) dashArray = `${sw * 5} ${sw * 3.5}`;
               const pathId = `${arrowPathIdPrefix}${i}`;
               return (
                 <g key={i} data-arrow-idx={i}>
@@ -6678,8 +6721,10 @@ export function CanvasSurface({
                         style={{ cursor: strokesInteractive ? 'move' : 'default' }}
                         onPointerDown={strokesInteractive ? (ev) => onArrowBodyPointerDown(ev, i) : undefined}
                         onContextMenu={strokesInteractive ? (ev) => onArrowContextMenu(ev, i) : undefined} />
+                  {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.18)"
+                                strokeWidth={sw + 8} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />}
                   {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)"
-                                strokeWidth={sw + 5} strokeLinecap="round" pointerEvents="none" />}
+                                strokeWidth={sw + 4} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />}
                   <path id={pathId} data-arrow-line d={path} fill="none" stroke={stroke} strokeWidth={sw}
                         strokeDasharray={dashArray}
                         strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
@@ -6698,7 +6743,27 @@ export function CanvasSurface({
             {activeFreeArrow && (() => {
               const s = activeFreeArrow.from, e = activeFreeArrow.to;
               const path = `M${s.x},${s.y} L${e.x},${e.y}`;
-              return <path d={path} stroke="rgba(245,158,11,.8)" strokeWidth="1.5" strokeDasharray="4 3" fill="none" pointerEvents="none" />;
+              return <path d={path} stroke="rgba(245,158,11,.8)" strokeWidth="1.5" strokeDasharray="5 3.5" fill="none" strokeLinecap="round" pointerEvents="none" />;
+            })()}
+            {/* Live rubber-band from the chosen source card to the cursor, so the
+                connection is visible before the second click lands. Starts at the
+                source's edge facing the cursor; hidden while the cursor is over
+                the source card itself. */}
+            {arrowFrom && arrowCursor && arrowFromRect && (() => {
+              const r = arrowFromRect;
+              if (arrowCursor.x > r.x && arrowCursor.x < r.x + r.w &&
+                  arrowCursor.y > r.y && arrowCursor.y < r.y + r.h) return null;
+              const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+              const dx = arrowCursor.x - cx, dy = arrowCursor.y - cy;
+              let sx = cx, sy = cy;
+              if (dx || dy) {
+                const k = Math.min(
+                  dx !== 0 ? (r.w / 2) / Math.abs(dx) : Infinity,
+                  dy !== 0 ? (r.h / 2) / Math.abs(dy) : Infinity);
+                sx = cx + dx * k; sy = cy + dy * k;
+              }
+              const path = `M${sx},${sy} L${arrowCursor.x},${arrowCursor.y}`;
+              return <path d={path} stroke="rgba(245,158,11,.7)" strokeWidth="1.5" strokeDasharray="5 3.5" fill="none" strokeLinecap="round" pointerEvents="none" />;
             })()}
             {/* Endpoint handles for the selected arrow. Only render when
                 exactly one arrow is selected so the handles aren't a mess

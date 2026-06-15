@@ -13,25 +13,52 @@
 // All numeric outputs are in *board-space* coordinates. The caller is
 // responsible for any pan/zoom transform.
 
-const PAD_GROUP = 12;                  // mirrors the groups-layer padding
-const FAN_T_MIN = 0.12;                // keep arrows off the corners
-const FAN_T_MAX = 0.88;
-const HANDLE_MIN = 32;                 // cubic bezier control magnitude floor
-const HANDLE_MAX = 200;                //   …and ceiling
-const HANDLE_K   = 0.42;               //   …× distance between anchors
-const OBSTACLE_PAD = 14;               // aspirational breathing room for deflection (overridable per obstacle)
-const CHECK_PAD = 2;                   // detour-trigger threshold — only flag samples that ACTUALLY clip
-                                       // (separate from OBSTACLE_PAD so curves can pass close to cards
-                                       //  without forcing a blocky orthogonal fallback)
-const DEFLECT_ITERS = 20;              // # of repulsion passes
-const DEFLECT_SAMPLES = 24;            // bezier sample points per deflection pass
-const CHECK_SAMPLES = 48;              // higher-resolution sampling for the final clip check
-const DEFLECT_BOOST = 3.0;             // over-push so the smoothed curve clears
-// After repulsion, if the bezier still overlaps an obstacle, fall back
-// to a 3-segment orthogonal route that's guaranteed not to cross the
-// box. The L-shape lives in `buildOrthogonalDetour`. Avoidance is the
+// All the tunable knobs in one place. Exported (frozen) so the QA harness and
+// any future tuning UI read the exact same numbers, and so tests can assert
+// against them. The bare `const`s below alias into this object to keep the rest
+// of the file a minimal diff.
+export const ARROW_TUNING = Object.freeze({
+  PAD_GROUP: 12,            // mirrors the groups-layer padding
+  FAN_T_MIN: 0.14,          // keep arrows off the corners (a touch tighter than the
+  FAN_T_MAX: 0.86,          //   old 0.12/0.88 now that endpoints are pushed out by STANDOFF)
+  HANDLE_MIN: 28,           // cubic bezier control magnitude floor
+  HANDLE_MAX: 180,          //   …and ceiling (was 200 — slightly less ballooned)
+  HANDLE_K: 0.34,           //   …× distance between anchors (was 0.42 — gentler curves)
+  STANDOFF: 6,              // gap between a card edge and the arrow's own tail/head
+  OBSTACLE_PAD: 14,         // aspirational breathing room for deflection (overridable per obstacle)
+  CHECK_PAD: 2,             // hard-clip threshold — flag samples that ACTUALLY overlap a card
+                            //   (separate from OBSTACLE_PAD so curves can pass close to cards)
+  ELBOW_TRIGGER_PAD: 10,    // a curve must keep at least this visible gap from non-anchor
+                            //   cards; if it can't, yield to a clean orthogonal elbow
+  DEFLECT_ITERS: 20,        // # of repulsion passes
+  DEFLECT_SAMPLES: 24,      // bezier sample points per deflection pass
+  CHECK_SAMPLES: 48,        // higher-resolution sampling for the clip / clearance checks
+  DEFLECT_BOOST: 3.0,       // over-push so the smoothed curve clears
+  DETOUR_PAD: 24,           // obstacle inflation for the orthogonal detour (was 28)
+  CORNER_RADIUS: 10,        // rounded-elbow radius (was a hard-coded 14 in buildSmoothPolyline)
+  OBSTACLE_CAP: 40,         // max obstacles considered in the dense-region detour search
+});
+
+const PAD_GROUP = ARROW_TUNING.PAD_GROUP;
+const FAN_T_MIN = ARROW_TUNING.FAN_T_MIN;
+const FAN_T_MAX = ARROW_TUNING.FAN_T_MAX;
+const HANDLE_MIN = ARROW_TUNING.HANDLE_MIN;
+const HANDLE_MAX = ARROW_TUNING.HANDLE_MAX;
+const HANDLE_K   = ARROW_TUNING.HANDLE_K;
+const STANDOFF = ARROW_TUNING.STANDOFF;
+const OBSTACLE_PAD = ARROW_TUNING.OBSTACLE_PAD;
+const CHECK_PAD = ARROW_TUNING.CHECK_PAD;
+const ELBOW_TRIGGER_PAD = ARROW_TUNING.ELBOW_TRIGGER_PAD;
+const DEFLECT_ITERS = ARROW_TUNING.DEFLECT_ITERS;
+const DEFLECT_SAMPLES = ARROW_TUNING.DEFLECT_SAMPLES;
+const CHECK_SAMPLES = ARROW_TUNING.CHECK_SAMPLES;
+const DEFLECT_BOOST = ARROW_TUNING.DEFLECT_BOOST;
+// After repulsion, if the bezier still overlaps an obstacle (or can't keep the
+// ELBOW_TRIGGER_PAD gap), fall back to an orthogonal route that's guaranteed not
+// to cross any box. The detour lives in `buildOrthogonalDetour`. Avoidance is the
 // user's stated invariant ("arrows should AVOID all cards at all costs").
-const DETOUR_PAD = 28;
+const DETOUR_PAD = ARROW_TUNING.DETOUR_PAD;
+const OBSTACLE_CAP = ARROW_TUNING.OBSTACLE_CAP;
 
 // Cubic-bezier point at parameter t.
 function bezierPoint(s, c1, c2, e, t) {
@@ -112,13 +139,56 @@ function bezierIntersectsObstacles(s, c1, c2, e, obstacles) {
   return false;
 }
 
+// Shortest distance from a point to the OUTSIDE of an axis-aligned rect.
+// Returns 0 when the point is inside (or on the edge).
+function pointRectDistance(px, py, r) {
+  const dx = Math.max(r.x - px, 0, px - (r.x + r.w));
+  const dy = Math.max(r.y - py, 0, py - (r.y + r.h));
+  return Math.hypot(dx, dy);
+}
+
+// Minimum gap between the curve and any NON-ANCHOR obstacle. Anchor cards
+// (marked by the caller with a `pad`) are skipped so an endpoint sitting near
+// its own card doesn't read as "too tight". Used to decide whether a soft curve
+// keeps enough breathing room or should yield to a clean orthogonal elbow.
+function bezierClearance(s, c1, c2, e, obstacles) {
+  let min = Infinity;
+  for (let i = 1; i < CHECK_SAMPLES; i++) {
+    const t = i / CHECK_SAMPLES;
+    const p = bezierPoint(s, c1, c2, e, t);
+    for (const ob of obstacles) {
+      if (ob.pad != null) continue; // anchor card — not an obstacle for the gap test
+      const d = pointRectDistance(p.x, p.y, ob);
+      if (d < min) { min = d; if (min <= 0) return 0; }
+    }
+  }
+  return min;
+}
+
+// Cheap gate before paying for the full clearance scan: a cubic bezier is
+// contained in the convex hull of its 4 control points, so if no non-anchor
+// obstacle reaches the control-point bbox (inflated by the trigger gap), the
+// curve is guaranteed to keep that gap and we can skip the scan entirely. Keeps
+// the common open-space case as cheap as before.
+function nearNonAnchorObstacle(s, c1, c2, e, obstacles) {
+  const x0 = Math.min(s.x, c1.x, c2.x, e.x) - ELBOW_TRIGGER_PAD;
+  const y0 = Math.min(s.y, c1.y, c2.y, e.y) - ELBOW_TRIGGER_PAD;
+  const x1 = Math.max(s.x, c1.x, c2.x, e.x) + ELBOW_TRIGGER_PAD;
+  const y1 = Math.max(s.y, c1.y, c2.y, e.y) + ELBOW_TRIGGER_PAD;
+  for (const ob of obstacles) {
+    if (ob.pad != null) continue; // anchors don't force a detour
+    if (!(ob.x + ob.w < x0 || ob.x > x1 || ob.y + ob.h < y0 || ob.y > y1)) return true;
+  }
+  return false;
+}
+
 // Build an SVG path string through N waypoints with rounded elbows. The
 // path is M p0 [L pre1 Q p1 post1 L pre2 Q p2 post2 ...] L pN. Each interior
 // waypoint becomes a quadratic-bezier rounded corner. Also returns the
 // pre/post points for the first and last elbow so the caller can compute
 // arrowhead travel directions.
 function buildSmoothPolyline(points) {
-  const RADIUS = 14;
+  const RADIUS = ARROW_TUNING.CORNER_RADIUS;
   if (points.length < 2) return null;
   if (points.length === 2) {
     const [p, q] = points;
@@ -162,7 +232,21 @@ function buildSmoothPolyline(points) {
 //      s→k1→k2→e is fully axis-aligned and clear.
 //   4) Round elbows with quadratic beziers for a tidy look.
 // Returns null only if even the 2-elbow search fails (extremely rare).
-function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
+function buildOrthogonalDetour(s, e, from, to, obstacles) {
+  // Leave/enter each card along its outward normal (a short axis-aligned stub)
+  // so elbows exit perpendicular to the edge like the curves do, instead of
+  // starting at an arbitrary angle. Only shape endpoints get a stub (their
+  // tangent is axis-aligned); free points keep their exact position. The
+  // routing search below runs between the stub points; the true endpoints are
+  // re-attached at the end.
+  const s0 = s, e0 = e;
+  const STUB = STANDOFF + ARROW_TUNING.CORNER_RADIUS;
+  if (from && from.kind === 'shape' && from.tangent) {
+    s = { x: s.x + from.tangent.ux * STUB, y: s.y + from.tangent.uy * STUB };
+  }
+  if (to && to.kind === 'shape' && to.tangent) {
+    e = { x: e.x + to.tangent.ux * STUB, y: e.y + to.tangent.uy * STUB };
+  }
   // Pad each obstacle for routing. Respect the per-obstacle pad so that
   // anchor cards (which the caller marks with pad=1) don't inflate to
   // DETOUR_PAD=28 and trap the endpoint inside their own inflated rect —
@@ -189,12 +273,12 @@ function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
   // Defensive cap on dense regions: keep the 40 obstacles whose centers
   // are closest to the chord midpoint. Avoids worst-case O(n²) blowups
   // in the 2-elbow search.
-  if (obs.length > 40) {
+  if (obs.length > OBSTACLE_CAP) {
     const cx = (s.x + e.x) / 2, cy = (s.y + e.y) / 2;
     obs = obs
       .map(o => ({ o, d: Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) }))
       .sort((a, b) => a.d - b.d)
-      .slice(0, 40)
+      .slice(0, OBSTACLE_CAP)
       .map(p => p.o);
   }
   // ── 1-elbow candidates ──────────────────────────────────────────────
@@ -300,30 +384,39 @@ function buildOrthogonalDetour(s, e, fromTangent, toTangent, obstacles) {
         { wp: [s, { x: maxX + 2, y: s.y }, { x: maxX + 2, y: e.y }, e] },
       ];
       let bestRail = null;
-      let bestLen = Infinity;
+      let bestScore = Infinity;
       for (const r of rails) {
         const w = r.wp;
-        if (segmentIntersectsAny(w[0], w[1], obs)) continue;
-        if (segmentIntersectsAny(w[1], w[2], obs)) continue;
-        if (segmentIntersectsAny(w[2], w[3], obs)) continue;
+        let clipped = 0;
+        if (segmentIntersectsAny(w[0], w[1], obs)) clipped++;
+        if (segmentIntersectsAny(w[1], w[2], obs)) clipped++;
+        if (segmentIntersectsAny(w[2], w[3], obs)) clipped++;
         const len = Math.hypot(w[1].x - w[0].x, w[1].y - w[0].y) +
                     Math.hypot(w[2].x - w[1].x, w[2].y - w[1].y) +
                     Math.hypot(w[3].x - w[2].x, w[3].y - w[2].y);
-        if (len < bestLen) { bestLen = len; bestRail = w; }
+        // Prefer a fully-clear rail; otherwise fall back to the least-clipping
+        // one so we ALWAYS return a tidy orthogonal route rather than null —
+        // null would drop the caller back onto a card-crossing bezier.
+        const score = clipped * 1e7 + len;
+        if (score < bestScore) { bestScore = score; bestRail = w; }
       }
       if (bestRail) waypoints = bestRail;
     }
   }
   if (!waypoints) return null;
+  // Re-attach the true endpoints in front of the stub points so the path
+  // actually touches the cards (each stub becomes the perpendicular exit leg).
+  if (s !== s0) waypoints = [s0, ...waypoints];
+  if (e !== e0) waypoints = [...waypoints, e0];
   const smooth = buildSmoothPolyline(waypoints);
   if (!smooth) return null;
-  // Travel-in direction at target = unit vector from lastPost → e.
-  const tdx = e.x - smooth.lastPost.x;
-  const tdy = e.y - smooth.lastPost.y;
+  // Travel-in direction at target = unit vector from lastPost → e0.
+  const tdx = e0.x - smooth.lastPost.x;
+  const tdy = e0.y - smooth.lastPost.y;
   const tlen = Math.hypot(tdx, tdy) || 1;
-  // Travel-in at source (for reverse heads) = unit vector from firstPre → s.
-  const fdx = s.x - smooth.firstPre.x;
-  const fdy = s.y - smooth.firstPre.y;
+  // Travel-in at source (for reverse heads) = unit vector from firstPre → s0.
+  const fdx = s0.x - smooth.firstPre.x;
+  const fdy = s0.y - smooth.firstPre.y;
   const flen = Math.hypot(fdx, fdy) || 1;
   const mid = waypoints[Math.floor(waypoints.length / 2)];
   return {
@@ -419,6 +512,50 @@ function sideFromCenterTo(rect, tx, ty) {
   return dy >= 0 ? 'bottom' : 'top';
 }
 
+// Hysteresis fraction (of half-extent) the freshly-computed side must win the
+// previous side by before we accept a flip. Stops arrows from snapping to a new
+// card side on tiny position jitter / unrelated edits.
+const SIDE_HYSTERESIS = 0.15;
+
+// Like sideFromCenterTo, but sticky: keep `prevSide` unless the raw winner pulls
+// away from it by a margin. `prevSide` null/undefined ⇒ no memory ⇒ raw result
+// (so first frame, and the read-only viewer, behave exactly as before).
+function sideFromCenterToStable(rect, tx, ty, prevSide) {
+  const raw = sideFromCenterTo(rect, tx, ty);
+  if (!prevSide || prevSide === raw) return raw;
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const dx = tx - cx, dy = ty - cy;
+  const halfW = Math.max(1, rect.w / 2);
+  const halfH = Math.max(1, rect.h / 2);
+  // Normalized outward "pull" toward each side (0 if the target is on the
+  // opposite side of center for that axis).
+  const pull = {
+    right:  dx > 0 ?  dx / halfW : 0,
+    left:   dx < 0 ? -dx / halfW : 0,
+    bottom: dy > 0 ?  dy / halfH : 0,
+    top:    dy < 0 ? -dy / halfH : 0,
+  };
+  return pull[raw] > pull[prevSide] + SIDE_HYSTERESIS ? raw : prevSide;
+}
+
+// Stable string key for an endpoint ref (card/group id, or a point's coords).
+// Used to remember per-arrow state (attachment side, fan order) across renders
+// even though arrows are stored index-keyed, not by id.
+function refKey(ref) {
+  if (ref == null) return '~';
+  if (typeof ref === 'string') return `c:${ref}`;
+  if (typeof ref !== 'object') return '~';
+  if (ref.type === 'card' && ref.id) return `c:${ref.id}`;
+  if (ref.type === 'group' && ref.id) return `g:${ref.id}`;
+  if (Number.isFinite(ref.x) && Number.isFinite(ref.y)) return `p:${ref.x},${ref.y}`;
+  return '~';
+}
+// Composite key for a whole arrow, from its two endpoint refs.
+export function arrowAnchorKey(a) {
+  return `${refKey(a?.from)}>${refKey(a?.to)}`;
+}
+
 // Outward unit normal of a side.
 function sideNormal(side) {
   if (side === 'top')    return { ux: 0,  uy: -1 };
@@ -446,12 +583,17 @@ function sortKey(side, otherX, otherY) {
 // the same (anchor, side) along the side. Free-point endpoints attach at
 // themselves and are skipped for fan-out. Returns an array indexed parallel
 // to `arrows` of objects: { from: {point, tangent, side, kind}, to: {...} }.
-export function computeArrowAttachments(arrows, ctx) {
+export function computeArrowAttachments(arrows, ctx, prevSides = null) {
   const N = (arrows || []).length;
-  // First pass: resolve refs + compute the "look-at" center used for side determination.
+  // First pass: resolve refs + compute the "look-at" center used for side
+  // determination. Also derive each arrow's stable anchor key for hysteresis
+  // and stable fan ordering (survives the index churn of updateArrow's
+  // delete+reinsert, since it's derived from the from/to refs, not the index).
   const ends = new Array(N);
+  const keys = new Array(N);
   for (let i = 0; i < N; i++) {
     const a = arrows[i] || {};
+    keys[i] = arrowAnchorKey(a);
     ends[i] = {
       from: resolveShape(a.from, ctx),
       to:   resolveShape(a.to,   ctx),
@@ -471,7 +613,8 @@ export function computeArrowAttachments(arrows, ctx) {
 
     const bucketize = (which, self, other) => {
       if (!self || self.kind !== 'shape') return;
-      const side = sideFromCenterTo(self.shape, other.x, other.y);
+      const prevSide = prevSides ? prevSides.get(`${keys[i]}|${which}`) : null;
+      const side = sideFromCenterToStable(self.shape, other.x, other.y, prevSide);
       const key = `${self.type}:${self.id}|${side}`;
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key).push({
@@ -481,23 +624,37 @@ export function computeArrowAttachments(arrows, ctx) {
         otherX: other.x,
         otherY: other.y,
         rect: self.shape,
+        aKey: keys[i],            // stable tie-break for fan ordering
       });
     };
     bucketize('from', from, toCenter);
     bucketize('to',   to,   fromCenter);
   }
 
-  // Second pass: within each bucket, distribute attachment points.
+  // Second pass: within each bucket, distribute attachment points. Sort by the
+  // other endpoint's projected position (so the fan doesn't self-cross), with a
+  // stable anchor-key tie-break so equal projections don't swap slots between
+  // renders (the "wandering" the user noticed during card drags).
   for (const list of buckets.values()) {
-    list.sort((a, b) => sortKey(a.side, a.otherX, a.otherY) - sortKey(b.side, b.otherX, b.otherY));
+    list.sort((a, b) => {
+      const d = sortKey(a.side, a.otherX, a.otherY) - sortKey(b.side, b.otherX, b.otherY);
+      if (d !== 0) return d;
+      return a.aKey < b.aKey ? -1 : a.aKey > b.aKey ? 1
+           : a.which < b.which ? -1 : a.which > b.which ? 1 : 0;
+    });
     const n = list.length;
     for (let j = 0; j < n; j++) {
       const e = list[j];
       const t = n === 1
         ? 0.5
         : FAN_T_MIN + (FAN_T_MAX - FAN_T_MIN) * (j / (n - 1));
-      const point = sidePoint(e.rect, e.side, t);
+      const base = sidePoint(e.rect, e.side, t);
       const nrm = sideNormal(e.side);
+      // Push the attachment a small STANDOFF off the card edge so the tail/head
+      // (and the drag handle) float just clear of the border instead of kissing
+      // it — reads as a deliberate, even gap. Fan-out arrows all shift out
+      // together, so they stay evenly spaced *and* evenly gapped.
+      const point = { x: base.x + nrm.ux * STANDOFF, y: base.y + nrm.uy * STANDOFF };
       placements[e.arrowIdx][e.which] = {
         point,
         tangent: { ux: nrm.ux, uy: nrm.uy }, // outward
@@ -537,6 +694,18 @@ export function computeArrowAttachments(arrows, ctx) {
       };
     }
   }
+
+  // Expose the resolved sides (keyed by stable arrow key) so the caller can feed
+  // them back as `prevSides` next render to drive the hysteresis above. Only
+  // shape endpoints have a side. Attached to the array so the return shape stays
+  // a plain placements list for callers that don't care (e.g. the viewer).
+  const sides = new Map();
+  for (let i = 0; i < N; i++) {
+    const pf = placements[i]?.from, pt = placements[i]?.to;
+    if (pf && pf.kind === 'shape') sides.set(`${keys[i]}|from`, pf.side);
+    if (pt && pt.kind === 'shape') sides.set(`${keys[i]}|to`, pt.side);
+  }
+  placements.sides = sides;
 
   return placements;
 }
@@ -581,19 +750,28 @@ export function buildArrowPath({ from, to, style = {}, obstacles = null }) {
     c2 = deflected.c2;
   }
 
-  // If the deflected curve STILL passes through any obstacle, fall back to
-  // a 3-segment orthogonal detour that's guaranteed clear. The user
-  // wants "arrows should AVOID all cards at all costs" — this is the
-  // hard-floor enforcement after the soft bezier repulsion gives up.
-  if (obstacles && obstacles.length && bezierIntersectsObstacles(s, c1, c2, e, obstacles)) {
-    const detour = buildOrthogonalDetour(s, e, from, to, obstacles);
-    if (detour) {
-      return {
-        path: detour.path,
-        midPoint: detour.midPoint,
-        toTangentIn: detour.toTangentIn,
-        fromTangentIn: detour.fromTangentIn,
-      };
+  // Smart blend: a soft curve is only acceptable if it actually clears the
+  // cards. Yield to a clean orthogonal elbow when the deflected curve either
+  // hard-clips a card OR can't keep the ELBOW_TRIGGER_PAD breathing gap from a
+  // non-anchor card (the cheap nearNonAnchorObstacle gate skips the gap scan in
+  // open space, keeping the common case fast). The detour is guaranteed clear,
+  // so this enforces the user's "arrows AVOID all cards" invariant while letting
+  // open-space hops stay curvy.
+  if (obstacles && obstacles.length) {
+    const clips = bezierIntersectsObstacles(s, c1, c2, e, obstacles);
+    const tooTight = !clips
+      && nearNonAnchorObstacle(s, c1, c2, e, obstacles)
+      && bezierClearance(s, c1, c2, e, obstacles) < ELBOW_TRIGGER_PAD;
+    if (clips || tooTight) {
+      const detour = buildOrthogonalDetour(s, e, from, to, obstacles);
+      if (detour) {
+        return {
+          path: detour.path,
+          midPoint: detour.midPoint,
+          toTangentIn: detour.toTangentIn,
+          fromTangentIn: detour.fromTangentIn,
+        };
+      }
     }
   }
 
@@ -634,18 +812,20 @@ export function arrowHeadPolygon(point, tangentIn, { size = 10, width = 4.5 } = 
   return `${point.x},${point.y} ${bx + px * width},${by + py * width} ${bx - px * width},${by - py * width}`;
 }
 
-// Convenience: pixel widths per token.
+// Convenience: pixel widths per token. Nudged up slightly so 'thin' arrows
+// don't disappear when zoomed out, while staying delicate.
 export function arrowStrokeWidth(thickness) {
-  if (thickness === 'thick') return 2.6;
-  if (thickness === 'medium') return 1.8;
-  return 1.1; // 'thin' or unset
+  if (thickness === 'thick') return 2.75;
+  if (thickness === 'medium') return 1.9;
+  return 1.25; // 'thin' or unset
 }
 
-// Convenience: arrowhead size scales with stroke width.
+// Convenience: arrowhead size scales with stroke width. Slightly slimmer and
+// longer than before for a cleaner, more modern point.
 export function arrowHeadSize(thickness) {
-  if (thickness === 'thick') return { size: 14, width: 6.5 };
-  if (thickness === 'medium') return { size: 12, width: 5.5 };
-  return { size: 10, width: 4.5 };
+  if (thickness === 'thick') return { size: 13, width: 5.2 };
+  if (thickness === 'medium') return { size: 11, width: 4.4 };
+  return { size: 9, width: 3.6 };
 }
 
 // Map color token → CSS variable. The actual var values live in styles.css.

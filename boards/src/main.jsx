@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode } from './lib/localMode.js';
+import { isDocQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -219,6 +219,18 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     window.__soleilDndTest = { ...boardTree, ...canvasGeom, ...dragMimes };
     const el = document.getElementById('root');
     if (el) el.textContent = 'dndqa ready';
+  });
+} else if (import.meta.env.DEV && isArrowQaMode()) {
+  // Arrow-geometry QA (?arrowqa=1). Renders the deterministic crowded layout
+  // with the real routing so smart-blend can be screenshotted, and installs
+  // window.__soleilArrowTest for the Playwright assertions. DEV guard drops it
+  // (and its fixtures) from production builds.
+  import('./local/ArrowQaHarness.jsx').then(({ ArrowQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <ArrowQaHarness />
+      </StrictMode>
+    );
   });
 } else if (import.meta.env.DEV && isThumbQaMode()) {
   // Board-thumbnail visual QA (?thumbqa=1) — fixture boards rendered through
