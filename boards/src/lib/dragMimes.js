@@ -58,6 +58,13 @@ export function inboxItemToCard(item, x, y) {
     return { id, kind: 'note', x, y, w: 280, h: 170,
              html: `<div>${escapeHtml(title)}</div><div>${escapeHtml(url)}</div>` };
   }
+  if (item.kind === 'pdf') {
+    return { id, kind: 'pdf', x, y, w: item.w || 300, h: item.h || 388,
+             pdfSrc: item.pdfSrc || item.src || null,
+             src: item.thumbSrc || null,
+             name: item.name || 'PDF',
+             pageCount: item.pageCount || null };
+  }
   if (item.kind === 'note') {
     return { id, kind: 'note', x, y, w: 240, h: 160,
              body: item.body || '' };

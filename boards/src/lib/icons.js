@@ -130,6 +130,7 @@ export {
   FloppyDisk,
   FilePlus,
   FileArrowDown,
+  FilePdf,
   Database,
   Function,
   Code as CodeIcon,

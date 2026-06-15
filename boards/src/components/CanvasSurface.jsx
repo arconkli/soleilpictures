@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
+import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment, Suspense } from 'react';
 import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
@@ -6,9 +6,14 @@ import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard,
+  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard,
 } from './cards.jsx';
 import { RichDocCard } from './DocCard.jsx';
+import { Spinner } from './Spinner.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
+
+// Fullscreen PDF viewer — lazy so pdfjs-dist never enters the main bundle.
+const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
 
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
@@ -29,7 +34,8 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
-import { uploadImage, uploadVideo, uploadAudio } from '../lib/uploads.js';
+import { uploadImage, uploadVideo, uploadAudio, uploadPdf } from '../lib/uploads.js';
+import { resolveSrc } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
@@ -930,6 +936,7 @@ export function CanvasSurface({
   // row, or the expand button on a canvas image card). Null when closed.
   // Esc handling + close-on-backdrop-click live inside ImageLightbox.
   const [lightbox, setLightbox] = useState(null);
+  const [pdfViewer, setPdfViewer] = useState(null); // { src: 'r2:<pdfKey>', name }
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
     color: DRAW_DEFAULT_COLOR,
@@ -1625,6 +1632,55 @@ export function CanvasSurface({
     }
   }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage]);
 
+  // Drop a PDF: add a pending card immediately, then upload + render the
+  // page-1 thumbnail in the background (same optimistic pattern as images).
+  // Distinct `pdf-` id prefix so card_index's `img-` src-recovery heuristics
+  // don't mistake it for an image.
+  const optimisticDropPdf = useCallback(async (file, cx, cy) => {
+    if (!file) return;
+    const dropBoardId = board?.id;
+    const id = `pdf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    let w = 300, h = 388; // portrait fallback; corrected from real page-1 dims
+    let bounds = null;
+    const wrap = wrapRef.current;
+    if (wrap) {
+      const r = wrap.getBoundingClientRect();
+      const tl = clientToCanvas(r.left, r.top);
+      const br = clientToCanvas(r.right, r.bottom);
+      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
+    }
+    const placed = clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+
+    if (useLocalImages) {
+      // Local QA — no backend. Point the viewer straight at a blob URL
+      // (resolveSrc passes non-r2: through unchanged; pdf.js loads blob URLs).
+      let blobUrl = null;
+      try { blobUrl = URL.createObjectURL(file); } catch (_) {}
+      mutators.addCard?.({ id, kind: 'pdf', pdfSrc: blobUrl, src: null, name: file.name || 'PDF',
+                           x: placed.x, y: placed.y, w, h });
+      return;
+    }
+
+    mutators.addCard?.({ id, kind: 'pdf', name: file.name || 'PDF',
+                         x: placed.x, y: placed.y, w, h, pending: true });
+    try {
+      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      if (boardIdRef.current === dropBoardId) {
+        mutators.updateCard?.(id, {
+          src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
+          name: up.name, w: up.w, h: up.h, pending: false,
+        });
+      }
+    } catch (err) {
+      console.error('pdf upload failed', err);
+      feedback.toast({ type: 'error', message: 'PDF upload failed: ' + (err.message || err) });
+      if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+    } finally {
+      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    }
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas]);
+
   // Upload a video file and place a video card centered on (cx, cy).
   // Validates duration via uploadVideo (default cap 60s, 30 MB). Toast
   // surfaces upload errors.
@@ -2256,6 +2312,16 @@ export function CanvasSurface({
       const items = e.clipboardData?.items;
       if (items) {
         for (const item of items) {
+          if (item.type === 'application/pdf') {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) {
+              const { pos, clamped } = resolvePastePos();
+              notePasteCreate(clamped);
+              optimisticDropPdf(file, pos.x, pos.y);
+            }
+            return;
+          }
           if (item.type.startsWith('image/')) {
             e.preventDefault();
             const file = item.getAsFile();
@@ -2312,7 +2378,7 @@ export function CanvasSurface({
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [feedback, optimisticDropImage, doPaste, mutators]);
+  }, [feedback, optimisticDropImage, optimisticDropPdf, doPaste, mutators]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -3436,7 +3502,7 @@ export function CanvasSurface({
     // user always sees the whole image without letterboxing or
     // unintended cropping. Hold Cmd/Ctrl during the drag to bypass and
     // resize freely (which then makes object-fit:cover crop the image).
-    const aspectLockKinds = new Set(['image', 'video']);
+    const aspectLockKinds = new Set(['image', 'video', 'pdf']);
     const lockAspect = aspectLockKinds.has(c.kind) && c.w > 0 && c.h > 0;
     const startAspect = lockAspect ? c.w / c.h : null;
 
@@ -3928,6 +3994,30 @@ export function CanvasSurface({
             input.click();
           }},
         ]});
+      } else if (c.kind === 'pdf') {
+        items.push({ id: 'pdf-open', label: 'Open',
+          run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' }); } });
+        items.push({ id: 'pdf-title', label: c.title ? 'Edit title' : 'Add title',
+          run: () => triggerInlineEdit(c.id, 'title') });
+        items.push({ id: 'pdf-download', label: 'Download', run: async () => {
+          if (!c.pdfSrc) return;
+          try {
+            const url = await resolveSrc(c.pdfSrc);
+            if (!url) return;
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const objUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            let fn = (c.name || c.title || 'document').toString().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
+            if (!/\.pdf$/i.test(fn)) fn += '.pdf';
+            a.href = objUrl; a.download = fn;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+          } catch (_) {
+            const url = await resolveSrc(c.pdfSrc).catch(() => null);
+            if (url) window.open(url, '_blank', 'noopener,noreferrer');
+          }
+        }});
       } else if (c.kind === 'shape') {
         items.push({ id: 'shape-kind', label: 'Shape', submenu: [
           { id: 'sk-rect', label: 'Rectangle', run: () => mutators.updateCard?.(c.id, { shape: 'rect' }) },
@@ -4788,6 +4878,7 @@ export function CanvasSurface({
       { id: 'add', label: 'Add', submenu: [
         { id: 'board', label: 'Board',  run: () => { noteCreateIntent('context_menu'); mutators.addNewBoard?.(pos); } },
         { id: 'image', label: 'Image',  run: () => { noteCreateIntent('context_menu'); mutators.addImageAt?.(pos); } },
+        { id: 'pdf',   label: 'PDF',    run: () => { noteCreateIntent('context_menu'); mutators.addPdfAt?.(pos); } },
         { id: 'note',  label: 'Text note', run: () => { noteCreateIntent('context_menu'); mutators.addNote?.(pos); } },
         { id: 'doc',   label: 'Doc',    run: () => { noteCreateIntent('context_menu'); mutators.addDocCard?.(pos); } },
         { id: 'shape', label: 'Shape',  run: () => { noteCreateIntent('context_menu'); mutators.addShape?.(pos, shapeOptions); } },
@@ -5270,6 +5361,12 @@ export function CanvasSurface({
       setSketchpadOpen(true);
       return;
     }
+    if (c.kind === 'pdf') {
+      if (!c.pdfSrc) return;
+      e.stopPropagation();
+      setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' });
+      return;
+    }
     // image / note / link / etc — defer to inner editors so dbl-click
     // re-enters edit mode reliably. (Open link via the link-card icon or
     // right-click → Open instead.)
@@ -5480,6 +5577,15 @@ export function CanvasSurface({
                                                         coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                         onPickCover={(file) => pickAudioCover(c.id, file)} />;
+    else if (c.kind === 'pdf')       inner = <PdfCard src={c.src || null} pdfSrc={c.pdfSrc} name={c.name} pageCount={c.pageCount}
+                                                      title={c.title} w={Math.round(c.w)} h={Math.round(c.h)}
+                                                      onUpdate={onUpdate} autoFocus={af}
+                                                      cardId={c.id} backfillEnabled={canEdit} boardId={board.id}
+                                                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
+                                                      pending={!!c.pending}
+                                                      uploadProgress={uploadProgressById[c.id] ?? null}
+                                                      onExpand={() => c.pdfSrc && setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' })}
+                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'doc') {
       // Rich doc card. Pull the live cardYMap so RichDocCard can read its
       // per-card pages/content/bookmarks/comments via cardScope().
@@ -5543,7 +5649,7 @@ export function CanvasSurface({
         )}
         {canEdit && selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
-               title={(c.kind === 'image' || c.kind === 'video')
+               title={(c.kind === 'image' || c.kind === 'video' || c.kind === 'pdf')
                  ? `Drag to resize — hold ${cmdKey} to break the aspect ratio`
                  : undefined}
                style={{ width: RESIZE_HANDLE_PX, height: RESIZE_HANDLE_PX }} />
@@ -5908,9 +6014,11 @@ export function CanvasSurface({
       const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
       const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
       const audioFiles = Array.from(files).filter(f => f.type.startsWith('audio/'));
+      // Some browsers report an empty type for .pdf drops — match the extension too.
+      const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''));
       // Anything we can't place becomes a card-less silent loss otherwise —
       // collect the skipped names so we can tell the user instead.
-      const handled = new Set([...imageFiles, ...videoFiles, ...audioFiles]);
+      const handled = new Set([...imageFiles, ...videoFiles, ...audioFiles, ...pdfFiles]);
       const skipped = Array.from(files).filter(f => !handled.has(f));
       let offsetX = 0;
       for (const f of imageFiles) {
@@ -5937,12 +6045,17 @@ export function CanvasSurface({
           feedback.toast({ type: 'error', message: 'Audio upload failed: ' + (err.message || err) });
         }
       }
+      for (const f of pdfFiles) {
+        // Optimistic — adds the card and uploads/renders in the background.
+        optimisticDropPdf(f, cx + offsetX, cy);
+        offsetX += 320;
+      }
       if (skipped.length) {
         const exts = [...new Set(skipped.map(f => (f.name?.split('.').pop() || f.type || 'file').toLowerCase()))].slice(0, 4);
         feedback.toast({
           type: 'warning',
           message: skipped.length === files.length
-            ? `Can't add ${skipped.length === 1 ? 'that file' : 'those files'} (${exts.join(', ')}) — images, video and audio only.`
+            ? `Can't add ${skipped.length === 1 ? 'that file' : 'those files'} (${exts.join(', ')}) — images, PDFs, video and audio only.`
             : `Added ${handled.size}; skipped ${skipped.length} unsupported (${exts.join(', ')}).`,
           duration: 6000,
         });
@@ -6130,6 +6243,7 @@ export function CanvasSurface({
     // Add-note tool — so neither is repeated here. 'Shape' moved off the toolbar
     // (boards took its slot) and lives here now.
     { label: 'Doc', action: () => { noteCreateIntent('add_menu'); mutators.addDocCard?.(); } },
+    { label: 'PDF', action: () => { noteCreateIntent('add_menu'); mutators.addPdfAt?.(); } },
     { label: 'Shape', action: () => setSelectedTool('shape') },
     { label: 'Palette', action: () => setSelectedTool('palette') },
     { label: 'Linked board', action: () => onOpenPicker() },
@@ -7519,6 +7633,11 @@ export function CanvasSurface({
       {lightbox && (
         <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt}
                        onClose={() => setLightbox(null)} />
+      )}
+      {pdfViewer && (
+        <Suspense fallback={<div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>}>
+          <PdfViewer src={pdfViewer.src} name={pdfViewer.name} onClose={() => setPdfViewer(null)} />
+        </Suspense>
       )}
       {boardDropTarget && boardDropHoverPos && (() => {
         const target = boards?.[boardDropTarget];

@@ -67,6 +67,7 @@ function labelForCard(c, boards) {
   if (c.kind === 'boardlink') return boards?.[c.target]?.name || 'Linked board';
   if (c.kind === 'link')      return c.title || c.source || 'Link';
   if (c.kind === 'image')     return c.title || c.label || '';
+  if (c.kind === 'pdf')       return c.name || c.title || 'PDF';
   if (c.kind === 'palette')   return c.title || 'Palette';
   if (c.kind === 'doc')       return c.title || 'Doc';
   if (c.kind === 'schedule')  return c.title || 'Schedule';
@@ -1008,6 +1009,7 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
     const loadJobs = [];
     for (const c of sorted) {
       const src = (c.kind === 'image' && c.src) ? c.src
+        : (c.kind === 'pdf' && c.src) ? c.src
         : (c.kind === 'link' && c.image) ? c.image
         : null;
       if (!src) continue;
@@ -1052,6 +1054,15 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
       if (c.kind === 'video') {
         beginCard(ctx, x, y, w, h, ppu, { fill: T.bg3 });
         drawVideoInterior(ctx, c, x, y, w, h);
+        endCard(ctx);
+        innerBorder(ctx, x, y, w, h, 8, T.line2);
+        continue;
+      }
+      if (c.kind === 'pdf') {
+        beginCard(ctx, x, y, w, h, ppu, { fill: T.bg3 });
+        const thumb = imageMap.get(c.id) || null;
+        if (thumb) drawImageInterior(ctx, c, x, y, w, h, thumb);
+        else drawGenericInterior(ctx, c, x, y, w, h, boards);
         endCard(ctx);
         innerBorder(ctx, x, y, w, h, 8, T.line2);
         continue;

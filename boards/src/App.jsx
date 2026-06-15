@@ -87,7 +87,7 @@ import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore } from './lib/docState.js';
-import { uploadImage } from './lib/uploads.js';
+import { uploadImage, uploadPdf } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
@@ -1293,6 +1293,39 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       input.click();
     };
 
+    const addPdfAt = (clickPos) => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'application/pdf,.pdf';
+      input.onchange = async () => {
+        const f = input.files?.[0]; if (!f) return;
+        // Re-validate by extension too — some OS pickers report empty MIME.
+        if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name || '')) {
+          feedback.toast({ type: 'error', message: 'Please choose a PDF file.' });
+          return;
+        }
+        const cardId = `pdf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        const w = 300, h = 388; // portrait fallback; corrected from page-1 dims
+        // Pending card first so the user sees feedback, then upload + render.
+        addCard({
+          id: cardId, kind: 'pdf', name: f.name || 'PDF', pending: true,
+          x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+          y: Math.max(8, Math.round((clickPos?.y ?? 200) - h / 2)), w, h,
+        });
+        try {
+          const up = await uploadPdf({ file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id });
+          updateCard(cardId, {
+            src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
+            name: up.name, w: up.w, h: up.h, pending: false,
+          });
+        } catch (e) {
+          console.error(e);
+          feedback.toast({ type: 'error', message: 'PDF upload failed: ' + (e.message || e) });
+          deleteCard(cardId);
+        }
+      };
+      input.click();
+    };
+
     const addNewBoard = async (clickPos = null, opts = {}) => {
       const d = defaultsRef.current?.board || {};
       const view = opts.view || d.view || 'canvas';
@@ -1365,7 +1398,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       createGroup, ungroup, renameGroup, setGroupOutline,
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,
-      addNote, addTextLink, addImageAt, addNewBoard, addPalette,
+      addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
       addDocCard,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,

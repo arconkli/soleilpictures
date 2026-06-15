@@ -43,8 +43,14 @@ export function inboxPayloadFor(att) {
   switch (att.kind) {
     case 'image':
       return { kind: 'image', src: url, label: att.name, w: att.width, h: att.height };
-    case 'file':
+    case 'file': {
+      // A PDF attachment becomes a real PDF card (opens in the in-app viewer).
+      // It lives in the public message-attachments bucket, so the viewer uses
+      // the plain URL (resolveSrc passes non-r2: through). No R2 thumbnail.
+      const isPdf = (att.mime === 'application/pdf') || /\.pdf$/i.test(att.name || '');
+      if (isPdf) return { kind: 'pdf', pdfSrc: url, src: null, name: att.name || 'PDF' };
       return { kind: 'link', url, title: att.name || url, source: 'attachment' };
+    }
     case 'url':
       return { kind: 'link', url: att.href, title: att.title || att.href, source: att.favicon };
     case 'board':

@@ -592,6 +592,93 @@ export async function uploadAudio({ file, workspaceId, boardId, userId, onProgre
   };
 }
 
+// Encode a canvas to a WebP Blob (used for the PDF page-1 thumbnail).
+function canvasToWebpBlob(canvas, quality = 0.82) {
+  return new Promise((resolve) => {
+    try { canvas.toBlob((b) => resolve(b), 'image/webp', quality); }
+    catch (_) { resolve(null); }
+  });
+}
+
+// Upload a PDF to R2 and produce a renderable card. Two R2 objects are created:
+//   1. the ORIGINAL pdf (its `images` row authorizes the viewer's signed GET)
+//   2. a page-1 WebP THUMBNAIL, uploaded through the proven uploadImage() path
+//      so it gets its OWN `images` row (required — /sign-reads only signs keys
+//      with a row; set_image_variant can't create that row, it raises on an
+//      unknown storage_path) PLUS the progressive blur/preview variants, so the
+//      card, board thumbnails, and OG export all show a real page-1 raster.
+// Returns { pdfSrc:'r2:<pdfKey>', src:'r2:<thumbKey>'|null, pageCount, name, w, h }.
+// If page-1 rendering fails we still return the PDF (src null) so the card
+// exists and the viewer works — only the thumbnail is missing.
+export async function uploadPdf({ file, workspaceId, boardId, cardId = null, userId, onProgress = null,
+                                  maxBytes = 50 * 1024 * 1024 }) {
+  if (!workspaceId) throw new Error('workspaceId required');
+  if (file.size > maxBytes) {
+    throw new Error(`PDF too large (${Math.round(file.size / 1024 / 1024)} MB; max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
+  }
+
+  // 1) Upload the original PDF + its authorizing images row.
+  const { uploadUrl, key } = await presign({ workspaceId, boardId, file });
+  await putWithProgress(uploadUrl, file, { onProgress });
+  const { error: rowErr } = await supabase
+    .from('images')
+    .insert({
+      workspace_id: workspaceId,
+      board_id: boardId || null,
+      card_id: cardId || null,
+      storage_path: key,
+      width: null,
+      height: null,
+      size_bytes: file.size || null,
+      uploaded_by: userId,
+    });
+  if (rowErr) {
+    // Same contract as images/audio/video: no row → sign-reads won't authorize
+    // → the PDF can never open. Fail the drop rather than leave a broken card.
+    console.warn('[uploads] pdf images row insert failed', rowErr);
+    throw new Error('Could not finish saving the PDF — please try again.');
+  }
+
+  // 2) Render page 1 → WebP thumbnail (best-effort) + read the page count.
+  let pageCount = null;
+  let thumbSrc = null;
+  let w = 300, h = 388; // US-Letter-ish portrait fallback
+  try {
+    const buf = await file.arrayBuffer();
+    const { loadPdfDocument, getPageCount, renderPageToCanvas, getPageViewport } = await import('./pdfEngine.js');
+    const doc = await loadPdfDocument(buf);
+    pageCount = getPageCount(doc);
+    try {
+      const vp = await getPageViewport(doc, 1, 1);
+      if (vp.width && vp.height) {
+        const aspect = vp.height / vp.width;
+        w = 300;
+        h = Math.max(80, Math.round(w * aspect));
+      }
+    } catch (_) {}
+    const canvas = await renderPageToCanvas(doc, 1, { targetWidth: 1024 });
+    const blob = await canvasToWebpBlob(canvas);
+    try { doc.destroy?.(); } catch (_) {}
+    if (blob) {
+      const base = (file.name || 'document').replace(/\.pdf$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'pdf';
+      const thumbFile = new File([blob], `${base}.webp`, { type: 'image/webp' });
+      const up = await uploadImage({ file: thumbFile, workspaceId, boardId, cardId, userId });
+      thumbSrc = up.src;
+    }
+  } catch (err) {
+    // Thumbnail/page-count are non-fatal — the card + viewer work without them.
+    console.warn('[uploads] pdf thumbnail render failed (card still usable)', err);
+  }
+
+  return {
+    pdfSrc: `r2:${key}`,
+    src: thumbSrc,
+    pageCount,
+    name: file.name || 'PDF',
+    w, h,
+  };
+}
+
 // Upload a short video to R2. Caller is expected to enforce constraints
 // (max duration, max bytes) BEFORE calling — we still validate here as
 // a backstop. Returns the same shape as uploadImage so callers can

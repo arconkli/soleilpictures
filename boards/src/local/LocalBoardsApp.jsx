@@ -518,6 +518,24 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
+  const addPdfAt = (clickPos = null) => {
+    // Local QA — point at the static sample fixture so PdfCard + PdfViewer
+    // can be exercised with no backend (resolveSrc passes plain URLs through).
+    const w = 300, h = 388;
+    addCard({
+      id: createId('pdf'),
+      kind: 'pdf',
+      pdfSrc: '/sample.pdf',
+      src: null,
+      name: 'sample.pdf',
+      pageCount: 3,
+      x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      w,
+      h,
+    });
+  };
+
   const addLink = (targetBoard) => {
     addCard({
       id: createId('xlink'),
@@ -575,6 +593,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addNote,
     addTextLink,
     addImageAt,
+    addPdfAt,
     addNewBoard,
     addPalette,
     addShape,

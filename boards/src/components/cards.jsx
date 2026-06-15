@@ -20,9 +20,10 @@ import { EntityLink } from './EntityLink.jsx';
 import {
   Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
   Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
-  Circle as CirclePh,
+  Circle as CirclePh, FilePdf,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { PdfCard } from './cards/PdfCard.jsx';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -52,6 +53,7 @@ const KIND_DOTS = {
   boardlink:'#6b6b75',
   audio:    '#ffa500',
   video:    '#ef4444',
+  pdf:      '#e2574c',
 };
 function htmlToText(html, max = 80) {
   if (!html) return '';
@@ -73,6 +75,7 @@ function KindIcon({ kind }) {
   if (kind === 'doc')      return <Icon as={FileText} size={22} />;
   if (kind === 'schedule') return <Icon as={CalendarPh} size={22} />;
   if (kind === 'shape')    return <Icon as={SquarePh} size={22} />;
+  if (kind === 'pdf')      return <Icon as={FilePdf} size={22} />;
   return <Icon as={CirclePh} size={22} />;
 }
 
@@ -213,6 +216,13 @@ function describeListItem(card, boards = {}) {
   }
   if (card.kind === 'video') {
     return { ...base, name: card.title || 'Video', meta: 'video' };
+  }
+  if (card.kind === 'pdf') {
+    return { ...base, src: card.src || null,
+             name: card.name || card.title || 'PDF',
+             meta: (Number.isFinite(card.pageCount) && card.pageCount > 0)
+               ? `${card.pageCount} ${card.pageCount === 1 ? 'page' : 'pages'}`
+               : 'pdf' };
   }
   // shape / unknown — skip from the list
   return null;
@@ -1574,6 +1584,7 @@ const MemoDocCard        = memo(DocCard,        shallowEqualIgnoreFns);
 const MemoScheduleCard   = memo(ScheduleCard,   shallowEqualIgnoreFns);
 const MemoShapeCard      = memo(ShapeCard,      shallowEqualIgnoreFns);
 const MemoAudioCard      = memo(AudioCard,      shallowEqualIgnoreFns);
+const MemoPdfCard        = memo(PdfCard,        shallowEqualIgnoreFns);
 
 export {
   MemoBoardCard     as BoardCard,
@@ -1587,4 +1598,5 @@ export {
   MemoScheduleCard  as ScheduleCard,
   MemoShapeCard     as ShapeCard,
   MemoAudioCard     as AudioCard,
+  MemoPdfCard       as PdfCard,
 };
