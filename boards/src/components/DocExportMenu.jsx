@@ -9,8 +9,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown, collectFullDocJSON } from '../lib/docFullExport.js';
 import {
-  jsonToFountain, fountainToBlocks, jsonToFdx, fdxToBlocks, blocksToDocJSON,
+  jsonToFountain, fountainToBlocks, jsonToFdx, fdxToBlocks, blocksToDocJSON, docJSONToBlocks,
 } from '../lib/screenplayIO.js';
+import { screenplayPrintHTML } from '../lib/screenplayPrint.js';
 
 // Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
@@ -105,9 +106,16 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
     // the click) and fill it once the async body resolves.
     const w = window.open('', '_blank', 'noopener');
     try {
-      const bodyHTML = await fullBodyHtml();
+      // Screenplay docs print from the line-accurate paginator (Courier, 1"
+      // margins, page numbers, MORE/CONT'D) so the PDF matches on-screen pages.
+      let html;
+      if (docMode === 'screenplay') {
+        html = screenplayPrintHTML(docJSONToBlocks(scriptBlocks()), { title: safeName });
+      } else {
+        html = printableHTML(await fullBodyHtml());
+      }
       if (!w) return;
-      w.document.write(printableHTML(bodyHTML));
+      w.document.write(html);
       w.document.close();
       setTimeout(() => { try { w.focus(); w.print(); } catch (_) {} }, 300);
       setOpen(false);

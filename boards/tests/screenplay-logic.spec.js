@@ -132,6 +132,32 @@ test('Fountain round-trips the core element types', async ({ page }) => {
   ]);
 });
 
+test('Courier print HTML renders paginated pages with numbers + MORE/CONT’D', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [
+      { element: 'scene', text: 'INT. OFFICE - DAY' },
+      { element: 'action', text: 'A'.repeat(60 * 45) },
+      { element: 'character', text: 'NARRATOR' },
+      { element: 'dialogue', text: 'B'.repeat(35 * 20) },
+    ];
+    const html = S.screenplayPrintHTML(blocks, { title: 'Test' });
+    const pageCount = (html.match(/class="sp-page"/g) || []).length;
+    return {
+      pageCount,
+      courier: /Courier/i.test(html),
+      hasPageNo: /class="sp-pageno">2\./.test(html),
+      hasMore: /\(MORE\)/.test(html),
+      hasContd: /\(CONT'D\)/.test(html),
+    };
+  });
+  expect(r.pageCount).toBeGreaterThanOrEqual(2);
+  expect(r.courier).toBe(true);
+  expect(r.hasPageNo).toBe(true);
+  expect(r.hasMore).toBe(true);
+  expect(r.hasContd).toBe(true);
+});
+
 test('FDX round-trips with exact Final Draft Type strings', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;
