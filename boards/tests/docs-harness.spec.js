@@ -20,6 +20,26 @@ async function openDoc(page) {
 
 const wraps = (page) => page.locator('.doc-card-modal .doc-editor-wrap');
 
+test('closed-card preview refreshes from a content edit (observer, no whole-doc rehash)', async ({ page }) => {
+  await page.goto('/?docqa=1');
+  await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
+  // Edit the doc's content WITHOUT opening the editor. RichDocCard's content
+  // observer must bump the preview (the card hash no longer changes on doc
+  // content edits — yhelpers.cardHash skips Y types for perf).
+  await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    const scope = T.getScope();
+    const pid = T.addPage(T.ydoc, { name: 'P', scope });
+    const frag = T.getOrCreatePageContent(T.ydoc, pid, scope);
+    T.ydoc.transact(() => {
+      const p = new T.Y.XmlElement('paragraph');
+      const t = new T.Y.XmlText(); t.insert(0, 'OBSERVER_PROBE_123');
+      p.insert(0, [t]); frag.insert(0, [p]);
+    }, 'local');
+  });
+  await expect(page.locator('.docqa-card-wrap .doc-card-text')).toContainText('OBSERVER_PROBE_123', { timeout: 5000 });
+});
+
 test('a fresh doc opens with exactly one page and one sheet (no seeding/pagination runaway)', async ({ page }) => {
   await openDoc(page);
   await expect(wraps(page)).toHaveCount(1);

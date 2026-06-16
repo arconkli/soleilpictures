@@ -82,6 +82,27 @@ export function RichDocCard({
   const summary = (ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : { pages: [], firstText: '', firstPageName: '' };
   const pageCount = summary.pages.length;
 
+  // Keep the closed-card preview fresh on content edits. This used to ride on
+  // readCards re-hashing the whole doc every board keystroke (a perf cliff now
+  // removed in yhelpers.cardHash) — observe THIS card's own doc store instead,
+  // rAF-coalesced so a burst of edits triggers one refresh.
+  useEffect(() => {
+    if (!ydoc || !cardYMap) return;
+    const sc = cardScope(cardYMap);
+    const targets = [sc.content, sc.pages, sc.sheetContent].filter(Boolean);
+    if (!targets.length) return;
+    let raf = 0;
+    const bump = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; setPreviewKey((n) => n + 1); });
+    };
+    targets.forEach((t) => t.observeDeep(bump));
+    return () => {
+      targets.forEach((t) => t.unobserveDeep(bump));
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [ydoc, cardYMap]);
+
   // Public viewers can open docs too — read-only, and always FULLSCREEN
   // (side mode's dock layout assumes the workspace topbar, and the dock
   // affordance is pointless on the chromeless /share surface).
