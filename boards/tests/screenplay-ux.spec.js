@@ -62,6 +62,22 @@ test('Tab/Enter cycle elements and scene/character lines auto-uppercase', async 
   await expect(page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first()).toHaveText('Hello there.');
 });
 
+test('a long screenplay shows on-screen page-break markers', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  // Load enough script to exceed one 54-line page.
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const ed = window.__soleilDocTest.editor;
+    const blocks = [{ element: 'scene', text: 'INT. OFFICE - DAY' }];
+    for (let i = 0; i < 90; i++) blocks.push({ element: 'action', text: 'The clock ticks forward another beat.' });
+    ed.chain().focus().setContent(S.blocksToDocJSON(blocks)).run();
+  });
+  await expect(page.locator('.doc-card-modal .sp-page-break').first()).toBeVisible({ timeout: 5000 });
+  // Page label reads "Page 2" on the first break.
+  await expect(page.locator('.doc-card-modal .sp-page-break-rule[data-page="2"]').first()).toBeAttached();
+});
+
 test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);

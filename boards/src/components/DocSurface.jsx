@@ -324,6 +324,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => { autoFiredRef.current = new Set(); }, [activePageId]);
   useEffect(() => {
     if (!ready || !activePageId) return;
+    // Screenplay docs paginate via the on-screen ScreenplayPagination overlay
+    // (line-accurate, matches the PDF) within a single continuous sheet — the
+    // height-fill sheet auto-append must not also fire.
+    if (docMode === 'screenplay') return;
     const paper = paperRef.current;
     if (!paper) return;
     const wraps = paper.querySelectorAll('.doc-editor-wrap');
@@ -378,7 +382,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       mo.disconnect();
       if (timer) clearTimeout(timer);
     };
-  }, [activePageId, ready, ydoc, scope, sheetIds]);
+  }, [activePageId, ready, ydoc, scope, sheetIds, docMode]);
 
   // Honor a "jump to this bookmark on open" request that came in via a
   // soleil:// link from another doc. Switch to its page first; the editor

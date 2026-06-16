@@ -17456,3 +17456,16 @@ button, [role="button"], a {
 /* The screenplay toggle pill in the toolbar. */
 .doc-tb-screenplay-toggle.is-active { background: var(--soleil, #ffa500); color: #1a1205; font-weight: 600; }
 .doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line2, rgba(255,255,255,.1)); }
+
+/* On-screen screenplay page-break marker (ScreenplayPagination decoration). */
+.doc-paper.is-screenplay .sp-page-break { display: block; margin: 1.5em 0; user-select: none; }
+.doc-paper.is-screenplay .sp-page-break-more { padding-left: 2in; font-family: inherit; }
+.doc-paper.is-screenplay .sp-page-break-contd { padding-left: 2in; text-transform: uppercase; font-weight: 700; }
+.doc-paper.is-screenplay .sp-page-break-rule {
+  position: relative; height: 0; border-top: 1px dashed var(--line2, #9994); margin: .6em 0;
+}
+.doc-paper.is-screenplay .sp-page-break-rule::after {
+  content: 'Page ' attr(data-page); position: absolute; right: 0; top: -0.9em;
+  font: 600 9px var(--font-display, sans-serif); letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-3, #888); background: var(--bg0, #fff); padding: 0 6px;
+}

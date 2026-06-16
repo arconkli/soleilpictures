@@ -35,6 +35,7 @@ import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { ScreenplayKeymap } from './docExtensions/screenplay/ScreenplayKeymap.js';
+import { ScreenplayPagination } from './docExtensions/screenplay/ScreenplayPagination.js';
 import { MentionExtension } from './docExtensions/MentionExtension.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
@@ -694,8 +695,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // too Notion-y; Google-Docs-style flowing prose works better.
       ExtraShortcuts,
       // Screenplay Tab/Enter cycling + auto-caps (priority:1000 so it wins
-      // over ExtraShortcuts/AutoDetect/mention; gated to screenplayBlock).
-      ...(docMode === 'screenplay' ? [ScreenplayKeymap] : []),
+      // over ExtraShortcuts/AutoDetect/mention; gated to screenplayBlock) +
+      // the on-screen line-accurate pagination overlay.
+      ...(docMode === 'screenplay' ? [ScreenplayKeymap, ScreenplayPagination] : []),
       mentionExt,
     ],
     // Don't steal focus from an active text field (e.g. the page-rename
