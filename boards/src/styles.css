@@ -17469,3 +17469,14 @@ button, [role="button"], a {
   font: 600 9px var(--font-display, sans-serif); letter-spacing: .04em; text-transform: uppercase;
   color: var(--ink-3, #888); background: var(--bg0, #fff); padding: 0 6px;
 }
+
+/* Screenplay character-name autocomplete popup (ScreenplaySuggest). */
+.sp-autocomplete {
+  position: fixed; z-index: 2147483646; display: none;
+  min-width: 160px; max-height: 240px; overflow-y: auto;
+  background: var(--bg0, #1a1a1f); border: 1px solid var(--line2, #3a3a42);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); padding: 4px;
+  font-family: var(--font-display, sans-serif); font-size: 13px;
+}
+.sp-autocomplete-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-1, #e8e8ea); text-transform: uppercase; }
+.sp-autocomplete-item.is-active, .sp-autocomplete-item:hover { background: var(--soleil, #ffa500); color: #1a1205; }

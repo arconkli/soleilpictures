@@ -78,6 +78,30 @@ test('a long screenplay shows on-screen page-break markers', async ({ page }) =>
   await expect(page.locator('.doc-card-modal .sp-page-break-rule[data-page="2"]').first()).toBeAttached();
 });
 
+test('character-name autocomplete suggests + completes a known name', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+
+  // Establish a character (MARGARET) earlier in the script.
+  await page.keyboard.type('int. room - day');
+  await page.keyboard.press('Enter');           // action
+  await page.keyboard.press('Tab');             // → character
+  await page.keyboard.type('margaret');
+  await page.keyboard.press('Enter');           // → dialogue
+  await page.keyboard.type('Hello.');
+  await page.keyboard.press('Enter');           // → action
+  await page.keyboard.press('Tab');             // → character
+  await page.keyboard.type('mar');
+
+  // Popup offers MARGARET; Enter accepts it.
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('.sp-autocomplete-item', { hasText: 'MARGARET' })).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.doc-card-modal [data-screenplay-element="character"]').last()).toHaveText('MARGARET');
+});
+
 test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);

@@ -15,7 +15,8 @@ import { nextOnEnter, nextOnTab, prevOnTab, shouldUppercase } from './screenplay
 // A slash (.doc-slash) or @-mention (.entity-picker) popup is open — let it own
 // Enter/Tab.
 function suggestionOpen() {
-  return typeof document !== 'undefined' && !!document.querySelector('.doc-slash, .entity-picker');
+  return typeof document !== 'undefined'
+    && !!document.querySelector('.doc-slash, .entity-picker, .sp-autocomplete.is-open');
 }
 
 function currentScreenplayElement(state) {

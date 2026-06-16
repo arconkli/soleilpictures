@@ -36,6 +36,7 @@ import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { ScreenplayKeymap } from './docExtensions/screenplay/ScreenplayKeymap.js';
 import { ScreenplayPagination } from './docExtensions/screenplay/ScreenplayPagination.js';
+import { ScreenplaySuggest } from './docExtensions/screenplay/ScreenplaySuggest.js';
 import { MentionExtension } from './docExtensions/MentionExtension.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
@@ -697,7 +698,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // Screenplay Tab/Enter cycling + auto-caps (priority:1000 so it wins
       // over ExtraShortcuts/AutoDetect/mention; gated to screenplayBlock) +
       // the on-screen line-accurate pagination overlay.
-      ...(docMode === 'screenplay' ? [ScreenplayKeymap, ScreenplayPagination] : []),
+      ...(docMode === 'screenplay' ? [ScreenplaySuggest, ScreenplayKeymap, ScreenplayPagination] : []),
       mentionExt,
     ],
     // Don't steal focus from an active text field (e.g. the page-rename
