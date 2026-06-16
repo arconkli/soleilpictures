@@ -17,7 +17,7 @@ import { getOrCreatePageContent, getOrCreateSheetContent, addBookmark, readPages
 import { encodeAnchor } from '../lib/bookmarkRelPos.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
-import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
+import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange } from '../lib/tagsApi.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
@@ -653,7 +653,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             // Find the DOM node at the caret. If it's inside a candidate span,
             // open the picker.
             const dom = editor.view.domAtPos(sel.from);
-            const el = (dom?.node?.nodeType === 3 ? dom.node.parentElement : dom?.node)?.closest?.('.tt-autolink-candidate');
+            const el = (dom?.node?.nodeType === 3 ? dom.node.parentElement : dom?.node)?.closest?.('.tt-link-auto[data-records]');
             if (!el) return false;
             let records = [];
             try { records = JSON.parse(el.dataset.records || '[]'); } catch {}
@@ -891,19 +891,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       editor.off('update', onUpdate);
     };
   }, [editor, workspaceId, scopeDocCardId, scopeBoardId, activePageId]);
-
-  // One-time idempotent migration: legacy bookmarks → kind='docPos' Links.
-  // Runs whenever ydoc binds (or changes), safe to call repeatedly.
-  useEffect(() => {
-    if (!ydoc) return;
-    const docCardId = (scope && scope.docCardId) || null;
-    try {
-      const n = migrateBookmarksToLinks(ydoc, { docCardId });
-      if (n > 0) console.info(`Migrated ${n} bookmarks → links in ${docCardId || 'root doc'}`);
-    } catch (e) {
-      console.warn('Bookmark migration failed', e);
-    }
-  }, [ydoc, scope]);
 
   // Observe links Y.Map and debounce-call updateBacklinks (2s inactivity).
   // Skipped for root doc — those have no docCardId to anchor backlinks.

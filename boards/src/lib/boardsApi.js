@@ -1516,3 +1516,19 @@ export async function updateBacklinks({ workspaceId, docCardId, pageId, links })
   }
   return { ok: true, count: legacyRows.length };
 }
+
+// Delete the derived-index rows a doc card authored (its page text + outgoing
+// backlinks/entity-links) when the doc card itself is deleted — otherwise the
+// universal "Appears in" hover, backlinks, and home graph keep surfacing a doc
+// that no longer exists. Source rows only (undo-safe: reopening a restored doc
+// re-syncs them via syncDocPageIndex/updateBacklinks). Fire-and-forget.
+export async function cleanupDocCards(docCardIds) {
+  if (!supabase || !docCardIds?.length) return;
+  for (const id of docCardIds) {
+    try {
+      await supabase.from('doc_page_index').delete().eq('doc_card_id', id);
+      await supabase.from('doc_backlinks').delete().eq('source_doc_card_id', id);
+      await supabase.from('entity_links').delete().eq('source_kind', 'doc').eq('source_id', id);
+    } catch (e) { console.warn('cleanupDocCards failed for', id, e); }
+  }
+}

@@ -55,6 +55,19 @@ const SECTIONS = [
       [['@'], 'Mention a board, doc, or card'],
     ],
   },
+  {
+    title: 'Document',
+    rows: [
+      [['/'], 'Insert menu (blocks, table, image…)'],
+      [[`${CMD}⌥1`, `${CMD}⌥0`], 'Heading 1 · body'],
+      [[`${CMD}⇧7`, `${CMD}⇧8`, `${CMD}⇧9`], 'Numbered · bullet · task list'],
+      [[`${CMD}⇧H`, `${CMD}E`], 'Highlight · inline code'],
+      [[`${CMD}⇧L`, `${CMD}⇧E`, `${CMD}⇧R`], 'Align left · center · right'],
+      [[`${CMD}K`, `${CMD}⌥M`], 'Link · comment'],
+      [[`${CMD}F`], 'Find in document'],
+      [['Tab', '⇧Tab'], 'Indent · outdent (screenplay: cycle element)'],
+    ],
+  },
 ];
 
 const TIPS = [

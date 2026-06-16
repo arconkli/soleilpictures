@@ -79,7 +79,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards } from './lib/boardsApi.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
@@ -837,9 +837,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (isDemoBlockedOnThisBoard()) return;
       const idSet = new Set(ids);
       const boardIdsToCascade = [];
+      const docCardIds = [];
       ids.forEach(id => {
         const ym = m.get(id);
         if (ym && ym.get('kind') === 'board') boardIdsToCascade.push(id);
+        if (ym && ym.get('kind') === 'doc') docCardIds.push(id);
       });
       console.log('[delete] deleteCards start', {
         ids,
@@ -900,6 +902,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       console.log('[delete] deleteCards done', {
         ids, cardsBefore, cardsAfter, stillPresent,
       });
+      // Clean up derived-index rows for deleted doc cards so the universal
+      // "Appears in" / backlinks stop surfacing a doc that no longer exists.
+      if (docCardIds.length) cleanupDocCards(docCardIds).catch(() => {});
       // Boards were soft-deleted in Postgres above (deleteBoard). The Yjs
       // UndoManager can't reverse that, so tag this undo step with the board
       // ids; undo()/redo() below restore / re-delete them so the board (not

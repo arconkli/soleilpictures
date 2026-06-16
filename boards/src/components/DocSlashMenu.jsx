@@ -53,7 +53,10 @@ const SlashList = forwardRef(function SlashList({ items, command }, ref) {
     onKeyDown: ({ event }) => {
       if (event.key === 'ArrowDown') { setActive(i => (i + 1) % items.length); return true; }
       if (event.key === 'ArrowUp')   { setActive(i => (i - 1 + items.length) % items.length); return true; }
-      if (event.key === 'Enter')     { items[active] && command(items[active]); return true; }
+      // Tab selects like Enter (Notion/Linear convention) — without this Tab
+      // fell through to the editor's Tab keymap and inserted spaces/indented
+      // a list while the menu sat open.
+      if (event.key === 'Enter' || event.key === 'Tab') { items[active] && command(items[active]); return true; }
       return false;
     },
   }), [items, active, command]);
