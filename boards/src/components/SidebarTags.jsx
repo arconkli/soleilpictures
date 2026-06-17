@@ -24,6 +24,7 @@ import { useDiscoveredTags } from '../hooks/useDiscoveredTags.js';
 import { isAiTaggerEnabled } from '../lib/aiTaggerFlag.js';
 import { levenshtein } from '../lib/stringSim.js';
 import { ColorPicker } from './ColorPicker.jsx';
+import { tagFallbackColor } from '../lib/tagColor.js';
 
 const EXPAND_KEY = 'soleil.tags.sb.expanded';
 function loadExpanded(workspaceId) {
@@ -36,16 +37,6 @@ function loadExpanded(workspaceId) {
 function saveExpanded(workspaceId, open) {
   if (typeof localStorage === 'undefined') return;
   try { localStorage.setItem(`${EXPAND_KEY}.${workspaceId}`, open ? '1' : '0'); } catch (_) {}
-}
-
-const TAG_PALETTE = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
-  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
-];
-function fallbackColor(slugOrName) {
-  const s = (slugOrName || '').toString();
-  let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
 }
 
 // Score existing tags as candidates for "did you mean" against draft
@@ -312,7 +303,7 @@ export function SidebarTags({
     try {
       e.dataTransfer.setData(ENTITY_REF_MIME, JSON.stringify({ kind: 'tag', id: tag.id }));
       e.dataTransfer.effectAllowed = 'copyLink';
-      const dot = tag.color || fallbackColor(tag.slug || tag.name);
+      const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
       window.__soleilTagDrag = { id: tag.id, color: dot, name: tag.name };
     } catch (_) {}
   };
@@ -352,7 +343,7 @@ export function SidebarTags({
               <>
                 <form className="sb-tag-row sb-tag-row-create"
                       onSubmit={(e) => { e.preventDefault(); finishCreate(draftName); }}>
-                  <span className="sb-dot" style={{ background: fallbackColor(draftName) }} />
+                  <span className="sb-dot" style={{ background: tagFallbackColor(draftName) }} />
                   <input ref={inputRef}
                          className="sb-tag-create-input"
                          placeholder="New tag…"
@@ -375,7 +366,7 @@ export function SidebarTags({
                   <div className="sb-tag-suggest-list" role="listbox" aria-label="Did you mean">
                     <div className="sb-tag-suggest-head">Did you mean…</div>
                     {draftSuggestions.map(tag => {
-                      const dot = tag.color || fallbackColor(tag.slug || tag.name);
+                      const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
                       return (
                         <button key={tag.id}
                                 type="button"
@@ -408,7 +399,7 @@ export function SidebarTags({
           {sorted.map(tag => {
             const c = counts.get(tag.id) || 0;
             const isActive = tag.id === activeTagId;
-            const dot = tag.color || fallbackColor(tag.slug || tag.name);
+            const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
             return (
               <div key={tag.id}
                    className={`sb-row sb-tag-row ${isActive ? 'active' : ''}`}
@@ -440,7 +431,7 @@ export function SidebarTags({
                      title={s.clusterIds?.length
                        ? `Found in ${s.items} related card${s.items > 1 ? 's' : ''}`
                        : `Mentioned in ${s.items} item${s.items > 1 ? 's' : ''} across ${s.boards} board${s.boards > 1 ? 's' : ''}`}>
-                  <span className="sb-dot" style={{ background: fallbackColor(s.term) }} />
+                  <span className="sb-dot" style={{ background: tagFallbackColor(s.term) }} />
                   <span className="sb-tag-suggestion-name">{s.term}</span>
                   <span className="sb-tag-suggestion-count">{s.items}</span>
                   <button className="sb-tag-suggestion-add"
@@ -483,7 +474,7 @@ export function SidebarTags({
 
       {colorPickerFor && (
         <ColorPicker
-          value={colorPickerFor.tag.color || fallbackColor(colorPickerFor.tag.slug || colorPickerFor.tag.name)}
+          value={colorPickerFor.tag.color || tagFallbackColor(colorPickerFor.tag.slug || colorPickerFor.tag.name)}
           onChange={applyColor}
           onClose={() => setColorPickerFor(null)}
           position={{ x: colorPickerFor.x, y: colorPickerFor.y }}
@@ -522,7 +513,7 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
   const matches = q
     ? tags.filter(t => (t.slug || t.name || '').toLowerCase().includes(q))
     : tags;
-  const fromColor = fromTag.color || fallbackColor(fromTag.slug || fromTag.name);
+  const fromColor = fromTag.color || tagFallbackColor(fromTag.slug || fromTag.name);
   return (
     <div className="merge-picker-bg" onMouseDown={onCancel}>
       <div ref={ref}
@@ -557,7 +548,7 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
           )}
           {matches.map((t, i) => {
             const c = counts.get(t.id) || 0;
-            const dot = t.color || fallbackColor(t.slug || t.name);
+            const dot = t.color || tagFallbackColor(t.slug || t.name);
             return (
               <button key={t.id}
                       className={`merge-picker-row ${i === hover ? 'is-hover' : ''}`}

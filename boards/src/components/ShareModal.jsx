@@ -5,8 +5,10 @@
 //   2. Workspace members — read-only list with Remove for owners
 //   3. Per-board shares — editable role + Remove for owners
 //
-// Non-owners see the modal in read-only mode (no add/remove/role-edit
-// affordances), but can still see who has access for transparency.
+// Owners and editors can invite people and create public links. Editors
+// may only remove/change the invites and links THEY created; the owner can
+// manage anything, plus workspace membership. Viewers see the modal in
+// read-only mode but can still see who has access for transparency.
 
 import { useEffect, useState } from 'react';
 import { Modal } from './Modal.jsx';
@@ -31,6 +33,7 @@ export function ShareModal({
   wsPeers = [],           // workspace presence — used to resolve names/emails
   selfUserId,
   tier,                   // caller's tier — 'demo' restricts invites to viewer
+  canManage = false,      // caller can write this board (owner OR editor) — mirrors can_write_board
   onUpgrade,              // open the in-app PricingModal
   onClose,
   onMembersChanged,       // refetch trigger after remove-member
@@ -38,6 +41,10 @@ export function ShareModal({
 }) {
   const feedback = useFeedback();
   const isOwner = workspace?.created_by === selfUserId;
+  // Editors share too: anyone who can write the board may invite people and
+  // create public links. The owner-only affordances (workspace membership,
+  // managing OTHER people's invites/links) stay gated on isOwner below.
+  const canInvite = isOwner || canManage;
   const isDemo  = tier === 'demo';
   const [shares, setShares] = useState([]);          // per-board shares
   const [loadingShares, setLoadingShares] = useState(false);
@@ -67,12 +74,14 @@ export function ShareModal({
 
   useEffect(() => userProfiles.subscribe(() => setProfilesTick(t => t + 1)), []);
 
-  // Owner sees per-board shares; non-owners can't list them (RLS
+  // Owners and editors can list per-board shares; viewers can't (RLS
   // permission denied), so we just skip the fetch in that case. We
   // also pull pending board-level + workspace-level invites in parallel
   // so the modal renders both granted shares and "pending signup" rows.
+  // (The workspace-level list stays owner-only server-side; its .catch
+  // below quietly yields [] for editors.)
   useEffect(() => {
-    if (!isOwner || !board?.id) {
+    if (!canInvite || !board?.id) {
       setShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]);
       return;
     }
@@ -96,7 +105,7 @@ export function ShareModal({
       })
       .finally(() => { if (!cancelled) setLoadingShares(false); });
     return () => { cancelled = true; };
-  }, [board?.id, isOwner, workspace?.id]);
+  }, [board?.id, canInvite, workspace?.id]);
 
   // Resolve names for workspace members too — peers covers online ones,
   // but offline members were rendering as a generic "Member".
@@ -104,10 +113,10 @@ export function ShareModal({
     workspaceMembers.forEach(m => userProfiles.resolve(m.user_id));
   }, [workspaceMembers]);
 
-  // Public links — owner-only. Filter to active (non-revoked,
+  // Public links — owner or editor. Filter to active (non-revoked,
   // non-expired) so the UI only shows useful links.
   useEffect(() => {
-    if (!isOwner || !board?.id) { setPublicLinks([]); return; }
+    if (!canInvite || !board?.id) { setPublicLinks([]); return; }
     let cancelled = false;
     listPublicLinks(board.id)
       .then(rows => {
@@ -119,7 +128,7 @@ export function ShareModal({
       })
       .catch(e => { console.warn('[share] list public links failed', e); });
     return () => { cancelled = true; };
-  }, [board?.id, isOwner]);
+  }, [board?.id, canInvite]);
 
   // Copy a link's URL to the clipboard; returns whether the write worked.
   const copyLinkUrl = async (token) => {
@@ -455,7 +464,7 @@ export function ShareModal({
         </div>
 
         {/* INVITE */}
-        {isOwner && (
+        {canInvite && (
           <div className="share-section">
             <div className="share-eyebrow">INVITE PEOPLE</div>
             <div className="share-invite-row">
@@ -475,7 +484,11 @@ export function ShareModal({
                   <>
                     <option value="editor">Can edit — this board &amp; its sub-boards</option>
                     <option value="viewer">Can view — this board &amp; its sub-boards</option>
-                    <option value="workspace">Workspace member — every board in this workspace</option>
+                    {/* Workspace membership grants access to every board, so
+                        only the owner may hand it out. */}
+                    {isOwner && (
+                      <option value="workspace">Workspace member — every board in this workspace</option>
+                    )}
                   </>
                 )}
               </select>
@@ -496,8 +509,7 @@ export function ShareModal({
               ) : (
                 <>
                   Anyone you add gets the same access to this board&apos;s
-                  sub-boards too. Workspace members can edit every board in this
-                  workspace, not just this one.
+                  sub-boards too.{isOwner && ' Workspace members can edit every board in this workspace, not just this one.'}
                 </>
               )}
             </div>
@@ -510,7 +522,7 @@ export function ShareModal({
             different scope AND different controls. */}
         <div className="share-section">
           <div className="share-eyebrow">
-            PEOPLE WITH ACCESS · {workspaceMembers.length + (isOwner ? shares.length : 0)}
+            PEOPLE WITH ACCESS · {workspaceMembers.length + (canInvite ? shares.length : 0)}
           </div>
 
           <div className="share-subhead">
@@ -573,7 +585,7 @@ export function ShareModal({
             ))}
           </div>
 
-          {isOwner && (
+          {canInvite && (
             <>
               <div className="share-subhead">
                 Added to this board · {shares.length}{pendingBoardInvites.length > 0 ? ` (+${pendingBoardInvites.length} pending)` : ''}
@@ -601,15 +613,19 @@ export function ShareModal({
                           {profile?.name && s.email ? `${s.email} · ` : ''}{ROLE_LABEL[s.role]}
                         </div>
                       </div>
-                      <select className="share-role-select share-row-role"
-                              value={s.role}
-                              onChange={(e) => onChangeShareRole(s, e.target.value)}>
-                        <option value="editor">Can edit</option>
-                        <option value="viewer">Can view</option>
-                      </select>
-                      <button className="share-remove" onClick={() => onRemoveShare(s)}>
-                        Remove
-                      </button>
+                      {(isOwner || s.invited_by === selfUserId) && (
+                        <>
+                          <select className="share-role-select share-row-role"
+                                  value={s.role}
+                                  onChange={(e) => onChangeShareRole(s, e.target.value)}>
+                            <option value="editor">Can edit</option>
+                            <option value="viewer">Can view</option>
+                          </select>
+                          <button className="share-remove" onClick={() => onRemoveShare(s)}>
+                            Remove
+                          </button>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -624,9 +640,11 @@ export function ShareModal({
                         {ROLE_LABEL[row.role] || row.role} · gets access when they sign up · {new Date(row.created_at).toLocaleDateString()}
                       </div>
                     </div>
-                    <button className="share-remove" onClick={() => onRevokePending(row)}>
-                      Revoke
-                    </button>
+                    {(isOwner || row.invited_by === selfUserId) && (
+                      <button className="share-remove" onClick={() => onRevokePending(row)}>
+                        Revoke
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -637,7 +655,7 @@ export function ShareModal({
         {/* ANYONE WITH THE LINK — anonymous, account-free, view-only access.
             Scope is THIS board only unless the sub-boards toggle is on, in
             which case viewers can also navigate into its sub-boards. */}
-        {isOwner && (
+        {canInvite && (
           <div className="share-section">
             <div className="share-eyebrow">ANYONE WITH THE LINK · {publicLinks.length} active</div>
             {publicLinks.length === 0 ? (
@@ -686,24 +704,30 @@ export function ShareModal({
                         {l.allow_indexing ? ' · indexable by search' : ''}
                       </div>
                     </div>
-                    <button className="share-remove"
-                            onClick={() => onToggleLinkSubboards(l)}
-                            title={l.include_subboards ? 'Stop sharing sub-boards' : 'Also share sub-boards'}>
-                      {l.include_subboards ? 'Hide sub-boards' : 'Add sub-boards'}
-                    </button>
-                    <button className="share-remove"
-                            onClick={() => onToggleLinkIndexing(l)}
-                            title={l.allow_indexing
-                              ? 'Search engines may index this link — click to hide it from search'
-                              : 'Hidden from search engines — click to let this link rank (for marketing boards)'}>
-                      {l.allow_indexing ? 'Hide from search' : 'Allow indexing'}
-                    </button>
+                    {(isOwner || l.created_by === selfUserId) && (
+                      <>
+                        <button className="share-remove"
+                                onClick={() => onToggleLinkSubboards(l)}
+                                title={l.include_subboards ? 'Stop sharing sub-boards' : 'Also share sub-boards'}>
+                          {l.include_subboards ? 'Hide sub-boards' : 'Add sub-boards'}
+                        </button>
+                        <button className="share-remove"
+                                onClick={() => onToggleLinkIndexing(l)}
+                                title={l.allow_indexing
+                                  ? 'Search engines may index this link — click to hide it from search'
+                                  : 'Hidden from search engines — click to let this link rank (for marketing boards)'}>
+                          {l.allow_indexing ? 'Hide from search' : 'Allow indexing'}
+                        </button>
+                      </>
+                    )}
                     <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title="Copy URL">
                       Copy
                     </button>
-                    <button className="share-remove" onClick={() => onRevokePublicLink(l.token)}>
-                      Revoke
-                    </button>
+                    {(isOwner || l.created_by === selfUserId) && (
+                      <button className="share-remove" onClick={() => onRevokePublicLink(l.token)}>
+                        Revoke
+                      </button>
+                    )}
                   </div>
                 ))}
                 <div className="share-link-create" style={{ marginTop: 8 }}>
@@ -739,11 +763,11 @@ export function ShareModal({
           </div>
         )}
 
-        {!isOwner && (
+        {!canInvite && (
           <div className="share-section">
             <div className="share-hint">
-              Only the workspace owner can change who has access. You can still
-              see who does, above.
+              Only people who can edit this board can change who has access. You
+              can still see who does, above.
             </div>
           </div>
         )}

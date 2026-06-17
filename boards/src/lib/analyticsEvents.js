@@ -122,6 +122,18 @@ export const EV = Object.freeze({
 
   // ── Public marketing boards (/c/<slug> + /explore, migration 0136) ──
   EXPLORE_VIEW:            'explore_view',                // /explore index mounted {count}
+
+  // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
+  //    Zero tag events existed before; this is how we finally measure whether
+  //    tagging pays off. ──
+  TAG_COLLECTION_OPEN:     'tag_collection_open',         // opened a tag's cross-board collection {tag_id,via:'card_chip'|'board_chip'|'hover'|'sidebar'|'doc'}
+  TAG_HOVER_OPEN:          'tag_hover_open',              // a rich tag hover popover opened {tag_id,surface:'doc'|'entity_popover'}
+  TAG_SEARCH:              'tag_search',                  // searched/jumped by tag {tag_id?,has_results}
+  TAG_MANUAL_APPLY:        'tag_manual_apply',            // user hand-applied a tag {target_kind,via}
+  TAG_CONFIRM:             'tag_confirm',                 // confirmed a borderline/auto suggestion {tag_id,target_kind}
+  TAG_DISMISS:             'tag_dismiss',                 // dismissed an auto/borderline suggestion {tag_id,target_kind}
+  TAG_MERGE:               'tag_merge',                   // merged one tag into another {from_tag_id,into_tag_id}
+  TAG_AUTO_PROMOTE:        'tag_auto_promote',            // a recurring term was auto-promoted to a real tag {tag_id,items,boards} (Phase 4)
 });
 
 // Map an auth/network error to a stable machine code for *_error events.

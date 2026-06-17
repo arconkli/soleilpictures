@@ -5627,9 +5627,19 @@ export function CanvasSurface({
           <div className="card-tags-strip" data-card-id={c.id}>
             {cardTags.slice(0, 4).map(t => (
               <span key={t.id}
-                    className={`card-tag-chip is-${t.source || 'user'}`}
-                    style={{ '--tag-c': t.color || '#4f8df8' }}
-                    title={t.source && t.source !== 'user' ? `${t.name} (${t.source})` : t.name}
+                    role="button"
+                    className={`card-tag-chip is-clickable is-${t.source || 'user'}`}
+                    style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
+                    title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source})` : ''} — click to see everywhere it's used`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      // Click-through to the tag's cross-board collection — the
+                      // payoff. Was a dead-end (right-click only) before.
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: t.id, via: 'card_chip' }); } catch (_) {}
+                      document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: t.id } }));
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -6525,9 +6535,17 @@ export function CanvasSurface({
         <div className="board-tags-strip" data-board-id={board.id}>
           {(tagsByBoard.get(board.id) || []).slice(0, 6).map(t => (
             <span key={t.id}
-                  className={`card-tag-chip is-${t.source || 'user'}`}
-                  style={{ '--tag-c': t.color || '#4f8df8' }}
-                  title={t.source && t.source !== 'user' ? `${t.name} (${t.source}) — right-click to confirm` : t.name}
+                  role="button"
+                  className={`card-tag-chip is-clickable is-${t.source || 'user'}`}
+                  style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
+                  title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source}) — right-click to confirm` : ''} — click to see everywhere it's used`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: t.id, via: 'board_chip' }); } catch (_) {}
+                    document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: t.id } }));
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

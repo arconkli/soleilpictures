@@ -20,6 +20,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { setTagDescription } from '../lib/tagsApi.js';
+import { tagFallbackColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
@@ -80,10 +81,6 @@ function itemExcerpt(it) {
   return null;
 }
 
-const TAG_PALETTE = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
-  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
-];
 // Inline editor for a tag's description. The AI tagger reads this when
 // deciding whether the tag applies — gives workspaces a way to disambiguate
 // tags whose names are too generic (e.g. "Cast" the film term vs "cast"
@@ -137,12 +134,6 @@ function TagDescriptionRow({ tag }) {
       </div>
     </div>
   );
-}
-
-function fallbackColor(slugOrName) {
-  const s = (slugOrName || '').toString();
-  let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
 }
 
 export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose }) {
@@ -446,7 +437,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   }, [allGroups, workspaceId]);
 
   if (!tag) return null;
-  const dot = tag.color || fallbackColor(tag.slug || tag.name);
+  const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
 
   // Index for "is this card directly tagged" lookup — controls
   // whether the right-click menu offers Remove vs nothing.

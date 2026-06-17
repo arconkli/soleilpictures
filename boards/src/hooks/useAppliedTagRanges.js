@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { tagFallbackColor } from '../lib/tagColor.js';
 
 export function useAppliedTagRanges({ workspaceId, docCardId, pageId }) {
   const [ranges, setRanges] = useState([]);
@@ -57,7 +58,7 @@ export function useAppliedTagRanges({ workspaceId, docCardId, pageId }) {
           keywordOffset: typeof a.keywordOffset === 'number' ? a.keywordOffset : null,
           keywordLength: typeof a.keywordLength === 'number' ? a.keywordLength : null,
           tagId: r.target_id,
-          tagColor: t.color || fallbackColor(t.name || r.target_id),
+          tagColor: t.color || tagFallbackColor(t.name || r.target_id),
           tagName: t.name || 'Tag',
           source: r.source,
         });
@@ -96,14 +97,4 @@ export function useAppliedTagRanges({ workspaceId, docCardId, pageId }) {
   }, [workspaceId, docCardId, pageId]);
 
   return ranges;
-}
-
-const PALETTE = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
-  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
-];
-function fallbackColor(s) {
-  const str = (s || '').toString();
-  let h = 0; for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-  return PALETTE[Math.abs(h) % PALETTE.length];
 }

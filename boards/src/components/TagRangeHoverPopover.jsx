@@ -33,24 +33,13 @@ import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette as PaletteIcon, Calendar, Link as LinkIcon, Tag as TagIcon } from '../lib/icons.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
-import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
+import { fetchTagVisuals } from '../lib/tagVisuals.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 
 const PAD = 8;
 const W = 320;
-// Per-section caps. The image grid is scrollable, so we collect a lot
-// — including images pulled transitively from tagged groups/boards.
-// The AI can't see image content, so almost no images are ever tagged
-// directly; the only realistic path is via a tagged container.
-const MAX_IMAGES = 120;
-const MAX_PALETTES = 3;
-const MAX_OTHER = 4;
-// We fetch more than we'll show so each section has enough candidates
-// to fill its cap. Caps apply per-kind, not globally.
-const FETCH_LIMIT = 80;
-// Per-container scan cap. A board with thousands of images shouldn't
-// pull every row into a hover popover.
-const IMAGES_PER_CONTAINER = 60;
 
 const KIND_ICON = {
   board: LayoutGrid, group: LayoutGrid, doc: FileText,
@@ -95,195 +84,15 @@ export function TagRangeHoverPopover({
   }, []);
 
   useEffect(() => {
-    if (!supabase || !workspaceId || !tagId) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const { data: links, count } = await supabase.from('entity_links')
-          .select('source_kind, source_id, source_board_id, source_page_id', { count: 'exact' })
-          .eq('source_workspace', workspaceId)
-          .eq('target_kind', 'tag')
-          .eq('target_id', tagId)
-          .eq('link_kind', 'applied')
-          .order('created_at', { ascending: false })
-          .limit(FETCH_LIMIT);
-        if (cancelled) return;
-        const rows = links || [];
-        const esIds = [];
-        const pageIds = [];
-        for (const r of rows) {
-          if (r.source_kind === 'board') esIds.push(r.source_id);
-          else if (r.source_kind === 'group') esIds.push(`${r.source_board_id}:g:${r.source_id}`);
-          else if (r.source_kind === 'card' || r.source_kind === 'note') esIds.push(`${r.source_board_id}:${r.source_id}`);
-          else if (r.source_kind === 'doc') {
-            esIds.push(r.source_id);
-            if (r.source_page_id) pageIds.push(r.source_page_id);
-          }
-        }
-        const [esResp, pageResp] = await Promise.all([
-          esIds.length
-            ? supabase.from('entity_search')
-                .select('id, kind, title, body, meta, board_id, card_id')
-                .eq('workspace_id', workspaceId)
-                .in('id', esIds)
-            : Promise.resolve({ data: [] }),
-          pageIds.length
-            ? supabase.from('doc_page_index')
-                .select('doc_card_id, page_id, page_title')
-                .in('page_id', pageIds)
-            : Promise.resolve({ data: [] }),
-        ]);
-        const byEs = new Map((esResp.data || []).map(r => [r.id, r]));
-        const byPage = new Map((pageResp.data || []).map(r => [r.page_id, r]));
-        const seenKeys = new Set();
-        // Dedup images by their card identity, not by section key —
-        // the same image card might be reachable directly AND via its
-        // tagged group, and we should only show it once.
-        const seenImageCards = new Set();
-        const images = [];
-        const palettes = [];
-        const other = [];
-        // Track tagged groups + boards so we can pull their images
-        // transitively after the direct pass below.
-        const taggedGroups = []; // [{ boardId, groupId }]
-        const taggedBoards = []; // [boardId]
-        for (const r of rows) {
-          if (r.source_kind === 'group' && r.source_board_id && r.source_id) {
-            taggedGroups.push({ boardId: r.source_board_id, groupId: r.source_id });
-          } else if (r.source_kind === 'board' && r.source_id) {
-            taggedBoards.push(r.source_id);
-          }
-        }
-        for (const r of rows) {
-          let key, navTarget, hit;
-          if (r.source_kind === 'board') {
-            hit = byEs.get(r.source_id);
-            key = `board:${r.source_id}`;
-            navTarget = { kind: 'board', id: r.source_id };
-          } else if (r.source_kind === 'group') {
-            hit = byEs.get(`${r.source_board_id}:g:${r.source_id}`);
-            key = `group:${r.source_id}`;
-            navTarget = { kind: 'board', id: r.source_board_id };
-          } else if (r.source_kind === 'doc') {
-            if (r.source_page_id) {
-              const p = byPage.get(r.source_page_id);
-              hit = { kind: 'doc', title: p?.page_title || 'Doc page', board_id: null, card_id: r.source_id, meta: null, body: null };
-              key = `doc:${r.source_id}:${r.source_page_id}`;
-              navTarget = { kind: 'doc', docCardId: r.source_id, pageId: r.source_page_id };
-            } else {
-              hit = byEs.get(r.source_id);
-              key = `doc:${r.source_id}`;
-              navTarget = { kind: 'doc', docCardId: r.source_id };
-            }
-          } else {
-            hit = byEs.get(`${r.source_board_id}:${r.source_id}`);
-            key = `${r.source_kind}:${r.source_board_id}:${r.source_id}`;
-            navTarget = { kind: r.source_kind, boardId: r.source_board_id, cardId: r.source_id };
-          }
-          if (!hit) continue;
-          if (seenKeys.has(key)) continue;
-          seenKeys.add(key);
-          const meta = hit.meta || null;
-          const title = (hit.title || '').trim() || (hit.body || '').trim().slice(0, 40);
-
-          // Route into the right section. Image + palette skip the
-          // title-required gate since their visual IS the content.
-          if (hit.kind === 'image' && meta?.src) {
-            const cardKey = `${hit.board_id || r.source_board_id}:${hit.card_id || r.source_id}`;
-            if (!seenImageCards.has(cardKey) && images.length < MAX_IMAGES) {
-              seenImageCards.add(cardKey);
-              images.push({ src: meta.src, title, navTarget });
-            }
-            continue;
-          }
-          if (hit.kind === 'palette' && Array.isArray(meta?.swatches) && meta.swatches.length) {
-            if (palettes.length < MAX_PALETTES) {
-              palettes.push({ swatches: meta.swatches, title, navTarget });
-            }
-            continue;
-          }
-          if (!title) continue;
-          if (other.length < MAX_OTHER) {
-            other.push({ kind: hit.kind || r.source_kind, title, navTarget });
-          }
-        }
-
-        // Transitive pass: any tagged group or board pulls in its
-        // image cards. The AI can't see image content so directly-
-        // tagged images are rare; tagging the container is the
-        // realistic path.
-        if (taggedGroups.length || taggedBoards.length) {
-          const groupQueries = taggedGroups.map(g => supabase.from('card_index')
-            .select('board_id, card_id, title, meta')
-            .eq('workspace_id', workspaceId)
-            .eq('board_id', g.boardId)
-            .eq('kind', 'image')
-            .filter('meta->>groupId', 'eq', g.groupId)
-            .limit(IMAGES_PER_CONTAINER));
-          const boardQueries = taggedBoards.map(b => supabase.from('card_index')
-            .select('board_id, card_id, title, meta')
-            .eq('workspace_id', workspaceId)
-            .eq('board_id', b)
-            .eq('kind', 'image')
-            .limit(IMAGES_PER_CONTAINER));
-          const responses = await Promise.all([...groupQueries, ...boardQueries]);
-          if (cancelled) return;
-          // Collect every candidate up-front, then recover missing
-          // meta.src in one batched lookup against the `images` table.
-          // This makes the popover work without first visiting the
-          // source board (card_index.meta.src is otherwise stale until
-          // the board's Y.Doc sync runs).
-          const candidates = [];
-          for (const resp of responses) {
-            for (const c of (resp.data || [])) {
-              candidates.push(c);
-            }
-          }
-          const missingCardIds = candidates
-            .filter(c => !c.meta?.src && c.card_id)
-            .map(c => c.card_id);
-          let srcByCardId = new Map();
-          if (missingCardIds.length > 0) {
-            try {
-              const { data: imgRows } = await supabase.from('images')
-                .select('card_id, board_id, storage_path')
-                .eq('workspace_id', workspaceId)
-                .in('card_id', missingCardIds);
-              for (const r of (imgRows || [])) {
-                if (r.card_id && r.storage_path) {
-                  srcByCardId.set(`${r.board_id}:${r.card_id}`, r.storage_path);
-                }
-              }
-            } catch (_) { /* leave missing src as-is */ }
-          }
-          for (const c of candidates) {
-            if (images.length >= MAX_IMAGES) break;
-            let src = c.meta?.src;
-            if (!src) {
-              const sp = srcByCardId.get(`${c.board_id}:${c.card_id}`);
-              if (sp) src = `r2:${sp}`;
-            }
-            if (!src) continue;
-            const cardKey = `${c.board_id}:${c.card_id}`;
-            if (seenImageCards.has(cardKey)) continue;
-            seenImageCards.add(cardKey);
-            images.push({
-              src,
-              title: c.title || '',
-              navTarget: { kind: 'image', boardId: c.board_id, cardId: c.card_id },
-            });
-          }
-        }
-
-        if (!cancelled) setData({
-          images, palettes, other,
-          total: count ?? rows.length,
-          loading: false,
-        });
-      } catch (_) {
-        if (!cancelled) setData({ images: [], palettes: [], other: [], total: 0, loading: false });
-      }
-    })();
+    setData(d => ({ ...d, loading: true }));
+    // Shared fetch (lib/tagVisuals) — same logic powers the generic
+    // name-hover popover, and a short-TTL cache keeps re-hover instant.
+    fetchTagVisuals({ tagId, workspaceId }).then(res => {
+      if (cancelled) return;
+      setData({ ...res, loading: false });
+      try { logEvent(EV.TAG_HOVER_OPEN, { tag_id: tagId, surface: 'doc' }); } catch (_) {}
+    });
     return () => { cancelled = true; };
   }, [workspaceId, tagId]);
 

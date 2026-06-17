@@ -3707,6 +3707,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           wsPeers={wsPeers}
           selfUserId={user.id}
           tier={myTier.tier}
+          canManage={canEditCurrent}
           onUpgrade={() => setUpgradeReason('manual')}
           onClose={() => setShareOpen(false)}
           onMembersChanged={() => { refreshWorkspaceMembers?.(); }}

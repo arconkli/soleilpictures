@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
+import { tagFallbackColor } from '../lib/tagColor.js';
 
 export function CardContextMenu({ open, x, y, items, onClose, workspaceId, boardId, card }) {
   // Single-flight guard: one action per menu open. The menu closes on the
@@ -94,7 +95,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
         const hydrated = (tags || []).map(t => ({
           id: t.id,
           name: t.name || 'Tag',
-          color: t.color || fallbackColor(t.name || t.id),
+          color: t.color || tagFallbackColor(t.name || t.id),
           source: sourceById.get(t.id) || 'user',
         }));
         if (!cancelled) setAppliedTags(hydrated);
@@ -275,14 +276,4 @@ function SubmenuItem({ item, onClose, claimFire = () => true }) {
       )}
     </div>
   );
-}
-
-const TAG_PALETTE = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
-  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
-];
-function fallbackColor(s) {
-  const str = (s || '').toString();
-  let h = 0; for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
 }
