@@ -117,7 +117,16 @@ export function CommentInlinePopover({ ydoc, scope, threadId, anchor, currentUse
               danger: true,
               confirmLabel: 'Delete',
             });
-            if (ok) { deleteCommentThread(ydoc, threadId, scope); onClose?.(); }
+            if (ok) {
+              deleteCommentThread(ydoc, threadId, scope);
+              // Also strip the now-orphaned highlight mark from the text
+              // (DocPageEditor listens + runs removeCommentById) so deleting a
+              // thread doesn't leave a dead underline behind.
+              try {
+                window.dispatchEvent(new CustomEvent('soleil-remove-comment-mark', { detail: { id: threadId } }));
+              } catch (_) {}
+              onClose?.();
+            }
           }}
         >×</button>
       </div>

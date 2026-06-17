@@ -189,3 +189,20 @@ test('comment add creates a tt-comment mark', async ({ page }) => {
     window.__soleilDocTest.readComments(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope()).length);
   expect(count).toBeGreaterThan(0);
 });
+
+test('deleting a comment thread strips its highlight mark (no dead underline)', async ({ page }) => {
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('mark me').selectAll().run());
+  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add comment (⌘⌥M)' }).click();
+  const composer = page.locator('.inline-composer-input');
+  await expect(composer).toBeVisible();
+  await composer.fill('temp');
+  await composer.press('Enter');
+  await expect(page.locator('.doc-card-modal .tt-comment')).toHaveCount(1);
+  // Simulate the thread-delete cleanup signal (the popover dispatches this).
+  await page.evaluate(() => {
+    const id = window.__soleilDocTest.readComments(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope())[0].id;
+    window.dispatchEvent(new CustomEvent('soleil-remove-comment-mark', { detail: { id } }));
+  });
+  await expect(page.locator('.doc-card-modal .tt-comment')).toHaveCount(0);
+});

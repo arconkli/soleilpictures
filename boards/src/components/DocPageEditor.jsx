@@ -812,6 +812,18 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     }
   }, [editor, onEditorReady]);
 
+  // When a comment thread is deleted, strip its now-orphaned highlight mark
+  // from this editor's text (no-op if the mark isn't in this sheet).
+  useEffect(() => {
+    if (!editor) return;
+    const onRemove = (e) => {
+      const id = e.detail?.id;
+      if (id != null) { try { editor.commands.removeCommentById(id); } catch (_) {} }
+    };
+    window.addEventListener('soleil-remove-comment-mark', onRemove);
+    return () => window.removeEventListener('soleil-remove-comment-mark', onRemove);
+  }, [editor]);
+
   // With stacked sheets, DocSurface needs to know which editor the user is
   // currently editing so the toolbar / find / link picker target the right
   // instance. Fire onEditorFocus with our editor on every focus.
