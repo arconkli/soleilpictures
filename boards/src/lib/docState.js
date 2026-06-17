@@ -13,6 +13,17 @@
 
 import * as Y from 'yjs';
 
+// Origin for doc STRUCTURAL ops (add/rename/delete page·sheet·bookmark·comment,
+// mode). Deliberately NOT 'local' so the board-level Y.UndoManager (which
+// tracks origin 'local' over the cards/doc maps) does NOT capture them — that
+// caused a split-brain ⌘Z where undoing in the doc could revert an unrelated
+// canvas card (and vice-versa). Still broadcast to peers (ySupabase only skips
+// 'remote') and still persisted (yboard persists every non-snapshot origin).
+// When called inside a canvas 'local' transaction (e.g. addCard's afterInsert
+// running initCardDocStore), Yjs transact is reentrant so the OUTER 'local'
+// origin wins and the doc-store init stays part of that one canvas undo step.
+const DOC_ORIGIN = 'doc-struct';
+
 // ── Scope plumbing ───────────────────────────────────────────────────────────
 // A "scope" is just a bag of Y types — pages / content / bookmarks / comments.
 // Helpers read from / write to the scope without caring whether it's rooted on
@@ -54,7 +65,7 @@ export function initCardDocStore(ydoc, cardYMap) {
     if (!cardYMap.get('docPageSheets'))    cardYMap.set('docPageSheets', new Y.Map());
     if (!cardYMap.get('docSheetContent'))  cardYMap.set('docSheetContent', new Y.Map());
     if (!cardYMap.get('docMeta'))          cardYMap.set('docMeta', new Y.Map());
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 const S = (ydoc, scope) => scope || rootScope(ydoc);
@@ -76,7 +87,7 @@ export function getDocMode(ydoc, scope) {
 export function setDocMode(ydoc, scope, mode) {
   const m = metaMap(ydoc, scope);
   if (!m) return;
-  ydoc.transact(() => { m.set('mode', mode === 'screenplay' ? 'screenplay' : 'doc'); }, 'local');
+  ydoc.transact(() => { m.set('mode', mode === 'screenplay' ? 'screenplay' : 'doc'); }, DOC_ORIGIN);
 }
 
 export function readPages(ydoc, scope) {
@@ -142,7 +153,7 @@ export function getOrCreatePageContent(ydoc, pageId, scope) {
   let frag = map.get(pageId);
   if (!frag) {
     frag = new Y.XmlFragment();
-    ydoc.transact(() => { map.set(pageId, frag); }, 'local');
+    ydoc.transact(() => { map.set(pageId, frag); }, DOC_ORIGIN);
   }
   return frag;
 }
@@ -185,7 +196,7 @@ export function getOrCreateSheetContent(ydoc, pageId, sheetId, scope) {
   let frag = map.get(sheetId);
   if (!frag) {
     frag = new Y.XmlFragment();
-    ydoc.transact(() => { map.set(sheetId, frag); }, 'local');
+    ydoc.transact(() => { map.set(sheetId, frag); }, DOC_ORIGIN);
   }
   return frag;
 }
@@ -220,7 +231,7 @@ export function addPageSheet(ydoc, pageId, scope, opts = {}) {
     }
     arr.insert(insertIdx, [{ id }]);
     sc.set(id, new Y.XmlFragment());
-  }, 'local');
+  }, DOC_ORIGIN);
   return id;
 }
 
@@ -239,7 +250,7 @@ export function deletePageSheet(ydoc, pageId, sheetId, scope) {
       }
     }
     sc.delete(sheetId);
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 function nextPageId() {
@@ -259,7 +270,7 @@ export function addPage(ydoc, opts = {}) {
       : 0;
     arr.push([{ id, name, parent_id, order, expanded: true }]);
     content.set(id, new Y.XmlFragment());
-  }, 'local');
+  }, DOC_ORIGIN);
   return id;
 }
 
@@ -270,7 +281,7 @@ export function renamePage(ydoc, id, name, scope) {
       const p = arr.get(i);
       if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, name }]); return; }
     }
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 export function setPageExpanded(ydoc, id, expanded, scope) {
@@ -280,7 +291,7 @@ export function setPageExpanded(ydoc, id, expanded, scope) {
       const p = arr.get(i);
       if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, expanded }]); return; }
     }
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 export function deletePage(ydoc, id, scope) {
@@ -315,7 +326,7 @@ export function deletePage(ydoc, id, scope) {
     bookmarks.forEach((v, k) => { if (toRemove.has(v.pageId)) bookmarks.delete(k); });
     // Drop comment threads anchored to removed pages so they don't orphan.
     comments?.forEach((v, k) => { if (toRemove.has(v.pageId)) comments.delete(k); });
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 export function movePage(ydoc, id, newParentId, newIndex, scope) {
@@ -342,7 +353,7 @@ export function movePage(ydoc, id, newParentId, newIndex, scope) {
       if (changedIds.has(arr.get(i).id)) arr.delete(i, 1);
     }
     renumbered.forEach(p => arr.push([p]));
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 // Comments ──────────────────────────────────────────────────────────────────
@@ -358,7 +369,7 @@ export function addCommentThread(ydoc, opts) {
       body: String(body || '').slice(0, 4000),
       replies: [], resolved: false,
     });
-  }, 'local');
+  }, DOC_ORIGIN);
   return id;
 }
 
@@ -373,18 +384,18 @@ export function addCommentReply(ydoc, id, opts) {
     authorColor: authorColor || '#4f8df8',
     body: String(body || '').slice(0, 4000),
   };
-  ydoc.transact(() => { map.set(id, { ...cur, replies: [...(cur.replies || []), reply] }); }, 'local');
+  ydoc.transact(() => { map.set(id, { ...cur, replies: [...(cur.replies || []), reply] }); }, DOC_ORIGIN);
 }
 
 export function resolveComment(ydoc, id, resolved = true, scope) {
   const map = commentsMap(ydoc, scope);
   const cur = map?.get(id); if (!cur) return;
-  ydoc.transact(() => { map.set(id, { ...cur, resolved }); }, 'local');
+  ydoc.transact(() => { map.set(id, { ...cur, resolved }); }, DOC_ORIGIN);
 }
 
 export function deleteCommentThread(ydoc, id, scope) {
   const map = commentsMap(ydoc, scope); if (!map) return;
-  ydoc.transact(() => { map.delete(id); }, 'local');
+  ydoc.transact(() => { map.delete(id); }, DOC_ORIGIN);
 }
 
 // Bookmarks ─────────────────────────────────────────────────────────────────
@@ -395,19 +406,19 @@ export function addBookmark(ydoc, opts) {
   // `anchor` is the legacy raw int position (kept as a fallback). `relAnchor`
   // is a durable Yjs relative position (base64) that survives edits — see
   // bookmarkRelPos.js. Resolution prefers relAnchor and falls back to anchor.
-  ydoc.transact(() => { map.set(id, { name, pageId, anchor, relAnchor }); }, 'local');
+  ydoc.transact(() => { map.set(id, { name, pageId, anchor, relAnchor }); }, DOC_ORIGIN);
   return id;
 }
 
 export function deleteBookmark(ydoc, id, scope) {
   const map = bookmarksMap(ydoc, scope); if (!map) return;
-  ydoc.transact(() => { map.delete(id); }, 'local');
+  ydoc.transact(() => { map.delete(id); }, DOC_ORIGIN);
 }
 
 export function renameBookmark(ydoc, id, name, scope) {
   const map = bookmarksMap(ydoc, scope);
   const cur = map?.get(id); if (!cur) return;
-  ydoc.transact(() => { map.set(id, { ...cur, name }); }, 'local');
+  ydoc.transact(() => { map.set(id, { ...cur, name }); }, DOC_ORIGIN);
 }
 
 // Walk a Y.XmlFragment / Y.XmlElement tree and pull out plain text. Used for

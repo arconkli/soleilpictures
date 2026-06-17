@@ -106,7 +106,7 @@ test('screenplay export menu offers Fountain + Final Draft import/export', async
   await openDoc(page);
   await enableScreenplay(page);
   await page.locator('.doc-card-modal .doc-export-wrap button').first().click();
-  await expect(page.getByRole('button', { name: /Export Fountain/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Export Final Draft/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Import Fountain/ })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /Export Fountain/ })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /Export Final Draft/ })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /Import Fountain/ })).toBeVisible();
 });
