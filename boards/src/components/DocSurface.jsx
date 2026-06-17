@@ -330,9 +330,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // Auto-add a sheet when the last sheet in the current page fills up. Fires
   // at most once per sheet — once a sheet has triggered, even further growth
   // won't fire again until the user navigates to a new last-sheet.
+  // Keyed by sheetId (globally unique), so the latch PERSISTS across page
+  // switches — revisiting a near-full page no longer re-fires and stacks a
+  // phantom empty sheet. (A sheet auto-appends at most once ever; trimming then
+  // re-growing it won't re-paginate, which is an acceptable trade for not
+  // spawning blank pages on every revisit.)
   const autoFiredRef = useRef(new Set());
-  // Clear the fired set on page switch so the new page starts fresh.
-  useEffect(() => { autoFiredRef.current = new Set(); }, [activePageId]);
   useEffect(() => {
     if (!ready || !activePageId) return;
     // Screenplay docs paginate via the on-screen ScreenplayPagination overlay
