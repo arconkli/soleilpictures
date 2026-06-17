@@ -63,8 +63,12 @@ test.describe('PDF card', () => {
   test('double-clicking the card opens the viewer', async ({ page }) => {
     await go(page);
     await addPdf(page);
-    await page.locator('.pdfc .pdfc-thumbwrap').first().dblclick();
-    await expect(page.locator('.pdfv')).toBeVisible();
+    const wrap = page.locator('.pdfc .pdfc-thumbwrap').first();
+    await expect(wrap).toBeVisible();
+    await wrap.dblclick();
+    // The Suspense fallback (.pdfv) shows immediately; the lazy chunk can take a
+    // moment to load under batch load, so allow extra time.
+    await expect(page.locator('.pdfv')).toBeVisible({ timeout: 15000 });
     await page.keyboard.press('Escape');
     await expect(page.locator('.pdfv')).toHaveCount(0);
   });
