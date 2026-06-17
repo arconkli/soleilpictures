@@ -17480,3 +17480,4 @@ button, [role="button"], a {
 }
 .sp-autocomplete-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-1, #e8e8ea); text-transform: uppercase; }
 .sp-autocomplete-item.is-active, .sp-autocomplete-item:hover { background: var(--soleil, #ffa500); color: #1a1205; }
+.doc-foot-status.is-error { color: var(--danger, #ef4444); }

@@ -1,16 +1,17 @@
-// Footer below the editor — live word/character count + "saved Xs ago" status.
+// Footer below the editor — live word/character count + an HONEST save status.
 //
-// Word count walks the active page's text. Autosave timestamp listens to the
-// per-board Y.Doc 'update' event (any local edit). Display says "Saving…"
-// for the first ~280ms after each edit (matches the snapshot debounce in
-// yboard.js), then "Saved Xs ago".
+// The save indicator is driven by yboard's real persistence lifecycle (the
+// `soleil-board-save-state` event: saving → saved / error) rather than a fixed
+// timer — so it no longer claims "Saved" when a write actually failed, and
+// peer edits don't flip your own indicator.
 
 import { useEffect, useState } from 'react';
 
-export function DocStatusFooter({ editor, ydoc }) {
+export function DocStatusFooter({ editor, ydoc, boardId = null }) {
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
   const [savedAt, setSavedAt] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   // Word/char count for current page.
   useEffect(() => {
@@ -25,26 +26,19 @@ export function DocStatusFooter({ editor, ydoc }) {
     return () => { editor.off('update', tick); };
   }, [editor]);
 
-  // Save indicator. yboard.js debounces snapshots ~250ms after each edit;
-  // we mirror that timing locally so the user sees "Saving… → Saved" UI.
+  // Save indicator driven by yboard's actual save lifecycle.
   useEffect(() => {
-    if (!ydoc) return;
-    let saveTimer = null;
-    const onUpdate = (_u, origin) => {
-      if (origin === 'snapshot' || origin === 'restore') return;
-      setSaving(true);
-      if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => {
-        setSaving(false);
-        setSavedAt(Date.now());
-      }, 280);
+    const onState = (e) => {
+      const d = e.detail || {};
+      // Match this board (when known); if boardId is unknown, accept any.
+      if (boardId && d.boardId && d.boardId !== boardId) return;
+      if (d.state === 'saving') { setSaving(true); setSaveError(false); }
+      else if (d.state === 'saved') { setSaving(false); setSaveError(false); setSavedAt(d.ts || Date.now()); }
+      else if (d.state === 'error') { setSaving(false); setSaveError(true); }
     };
-    ydoc.on('update', onUpdate);
-    return () => {
-      ydoc.off('update', onUpdate);
-      if (saveTimer) clearTimeout(saveTimer);
-    };
-  }, [ydoc]);
+    window.addEventListener('soleil-board-save-state', onState);
+    return () => window.removeEventListener('soleil-board-save-state', onState);
+  }, [boardId]);
 
   // Force a re-render every 30s so the "saved Xs ago" label stays fresh.
   const [, force] = useState(0);
@@ -69,6 +63,7 @@ export function DocStatusFooter({ editor, ydoc }) {
 
   const savedLabel = (() => {
     if (!online) return 'Offline — changes will sync when you reconnect';
+    if (saveError) return "Couldn't save — retrying";
     if (saving) return 'Saving…';
     if (!savedAt) return 'All changes saved';
     const ago = Math.max(0, Math.floor((Date.now() - savedAt) / 1000));
@@ -80,7 +75,7 @@ export function DocStatusFooter({ editor, ydoc }) {
 
   return (
     <div className="doc-foot">
-      <span className={`doc-foot-status ${saving ? 'is-saving' : ''} ${!online ? 'is-offline' : ''}`}>{savedLabel}</span>
+      <span className={`doc-foot-status ${saving ? 'is-saving' : ''} ${!online ? 'is-offline' : ''} ${saveError ? 'is-error' : ''}`}>{savedLabel}</span>
       <span className="doc-foot-spacer" />
       <span className="doc-foot-counts">
         {counts.words} {counts.words === 1 ? 'word' : 'words'} · {counts.chars} {counts.chars === 1 ? 'char' : 'chars'}

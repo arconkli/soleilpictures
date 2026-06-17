@@ -656,7 +656,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             </button>
           )}
         </div>
-        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} />
+        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={board.id} />
       </section>
 
       {embedPickerOpen && (
