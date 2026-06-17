@@ -397,7 +397,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     setActivePageId(target.pageId);
     let tries = 0;
     const tick = () => {
-      const ed = editorRef.current;
+      // A sheet-scoped bookmark must resolve against THAT sheet's editor (its
+      // relAnchor is tied to one fragment). Wait for that editor specifically;
+      // legacy bookmarks (no sheetId) fall back to the focused editor.
+      const sheetEd = target.sheetId ? editorsRef.current.get(target.sheetId) : null;
+      if (target.sheetId && !sheetEd) { if (tries++ < 30) setTimeout(tick, 40); return; }
+      const ed = sheetEd || editorRef.current;
       if (!ed) { if (tries++ < 30) setTimeout(tick, 40); return; }
       const docSize = ed.state.doc.content.size;
       // Prefer the durable relative anchor (rides along with edits); fall back
@@ -554,9 +559,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       confirmLabel: 'Add',
     });
     if (name == null) return; // cancelled
-    // Store a durable relative anchor (survives edits) alongside the raw int.
+    // Store a durable relative anchor (survives edits) alongside the raw int,
+    // plus the sheetId this editor is bound to (so a multi-sheet page resolves
+    // the anchor against the right sheet on jump).
     const relAnchor = encodeAnchor(editor, anchor);
-    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, relAnchor, scope });
+    let sheetId = activePageId;
+    for (const [sid, ed] of editorsRef.current.entries()) { if (ed === editor) { sheetId = sid; break; } }
+    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, sheetId, anchor, relAnchor, scope });
   };
 
   if (!ready) {

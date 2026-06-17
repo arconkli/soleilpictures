@@ -400,13 +400,16 @@ export function deleteCommentThread(ydoc, id, scope) {
 
 // Bookmarks ─────────────────────────────────────────────────────────────────
 export function addBookmark(ydoc, opts) {
-  const { name, pageId, anchor, relAnchor = null, scope } = opts;
+  const { name, pageId, sheetId = null, anchor, relAnchor = null, scope } = opts;
   const id = 'bm_' + Math.random().toString(36).slice(2, 10);
   const map = bookmarksMap(ydoc, scope); if (!map) return id;
   // `anchor` is the legacy raw int position (kept as a fallback). `relAnchor`
   // is a durable Yjs relative position (base64) that survives edits — see
   // bookmarkRelPos.js. Resolution prefers relAnchor and falls back to anchor.
-  ydoc.transact(() => { map.set(id, { name, pageId, anchor, relAnchor }); }, DOC_ORIGIN);
+  // sheetId pins the bookmark to the exact sheet it was made in — the relAnchor
+  // resolves against ONE Y.XmlFragment, so a multi-sheet page must resolve it
+  // against that sheet's editor (not whichever is focused).
+  ydoc.transact(() => { map.set(id, { name, pageId, sheetId, anchor, relAnchor }); }, DOC_ORIGIN);
   return id;
 }
 

@@ -108,6 +108,29 @@ test('the bookmark button opens the in-app dialog (not a native prompt) and save
   expect(bookmarks.find(b => b.name === 'My bookmark').relAnchor).toBeTruthy();
 });
 
+test('a bookmark on a non-primary sheet records that sheet id (multi-sheet jump)', async ({ page }) => {
+  await openDoc(page);
+  await page.locator('.doc-card-modal .doc-add-page-below').click();
+  await expect(page.locator('.doc-card-modal .doc-editor-wrap')).toHaveCount(2);
+  const sheet2 = await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    const pid = T.readPages(T.ydoc, T.getScope())[0].id;
+    return T.getPageSheetIds(T.ydoc, pid, T.getScope())[1];
+  });
+  await page.locator('.doc-card-modal .tt-editor').nth(1).click();
+  await page.keyboard.type('Anchor on sheet two');
+  await page.locator('.doc-card-modal').getByRole('button', { name: 'Bookmark this spot' }).click();
+  const dialog = page.locator('.feedback-dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('.feedback-field input').fill('Sheet2 mark');
+  await dialog.getByRole('button', { name: 'Add' }).click();
+  await expect(dialog).toHaveCount(0);
+  const bm = await page.evaluate(() =>
+    window.__soleilDocTest.readBookmarks(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope())
+      .find(b => b.name === 'Sheet2 mark'));
+  expect(bm.sheetId).toBe(sheet2);
+});
+
 test('the link button opens the in-app link picker (not a native prompt)', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('link me').selectAll().run());
