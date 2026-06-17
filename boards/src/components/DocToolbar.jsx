@@ -63,6 +63,10 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
 
   const headingValue = (() => {
     for (let l = 1; l <= 6; l++) if (isActive('heading', { level: l })) return 'h' + l;
+    // Don't claim "Body" when the caret is in a block this control can't
+    // represent (code/quote/lists) — show a neutral placeholder instead.
+    if (isActive('codeBlock') || isActive('blockquote')
+        || isActive('bulletList') || isActive('orderedList') || isActive('taskList')) return '';
     return 'p';
   })();
   const setHeading = (val) => {
@@ -150,7 +154,8 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
       ) : (
         <select className="doc-tb-select" value={headingValue} disabled={disabled}
                 onChange={(e) => setHeading(e.target.value)}
-                title="Block style" aria-label="Block style">
+                title="Paragraph style" aria-label="Paragraph style">
+          <option value="" disabled hidden>—</option>
           {HEADING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       )}

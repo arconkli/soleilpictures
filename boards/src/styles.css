@@ -17503,3 +17503,19 @@ button, [role="button"], a {
   .doc-surface.mobile-rail-open .doc-rail-toggle { display: none; }
   .doc-rail-backdrop { position: absolute; inset: 0; z-index: 29; background: rgba(0,0,0,.45); }
 }
+
+/* Full-mode doc overlay scrim (so the 24px inset frame isn't a live canvas
+   hit-zone) + phone edge-to-edge with safe-area insets. */
+.doc-card-modal-backdrop {
+  position: fixed; inset: 0; z-index: 2147483599;
+  background: rgba(8,8,10,.5); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+@media (max-width: 640px) {
+  .doc-card-modal-full {
+    inset: 0; border-radius: 0;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+/* Compose the focus ring with the active-state underline so a focused active
+   format button keeps showing it's on. */
+.doc-tb-btn.is-active:focus-visible { box-shadow: var(--shadow-glow), inset 0 -2px 0 0 var(--soleil); }

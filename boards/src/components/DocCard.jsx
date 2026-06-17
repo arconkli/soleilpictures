@@ -351,6 +351,14 @@ function DocCardOverlay({
              style={{ right: widthPct, top: 42 }}
              onPointerDown={onDividerDown} />
       )}
+      {/* Full mode: a scrim behind the inset modal so the 24px frame isn't a
+          live canvas hit-zone (a pointerdown there used to start a pan/marquee
+          behind the "fullscreen" doc). Click to close. */}
+      {mode === 'full' && (
+        <div className="doc-card-modal-backdrop"
+             onPointerDown={(e) => e.stopPropagation()}
+             onClick={close} />
+      )}
       <div className={`doc-card-modal doc-card-modal-${mode}`}
            // Position via inline style. IMPORTANT: declare `inset` FIRST,
            // then override individual sides — otherwise React applies them

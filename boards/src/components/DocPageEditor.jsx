@@ -120,9 +120,9 @@ const ExtraShortcuts = Extension.create({
       'Mod-Shift-e': () => this.editor.chain().focus().setTextAlign('center').run(),
       'Mod-Shift-r': () => this.editor.chain().focus().setTextAlign('right').run(),
       'Mod-Shift-j': () => this.editor.chain().focus().setTextAlign('justify').run(),
-      // Subscript/superscript: ⌘. / ⌘,
-      'Mod-.': () => this.editor.chain().focus().toggleSuperscript().run(),
-      'Mod-,': () => this.editor.chain().focus().toggleSubscript().run(),
+      // (Subscript/superscript ⌘./⌘, are the @tiptap/extension defaults — no
+      // need to re-bind them here, and ⌘. is also the app's global clean-mode
+      // toggle, so leave that key to the extension + global guard.)
       // Tab in lists: indent / outdent. Outside a list, fall back to a
       // 2-space tab so Tab still does something instead of yanking focus.
       Tab: () => {
