@@ -17481,3 +17481,25 @@ button, [role="button"], a {
 .sp-autocomplete-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-1, #e8e8ea); text-transform: uppercase; }
 .sp-autocomplete-item.is-active, .sp-autocomplete-item:hover { background: var(--soleil, #ffa500); color: #1a1205; }
 .doc-foot-status.is-error { color: var(--danger, #ef4444); }
+
+/* Phone: page rail becomes a slide-over drawer (desktop rail is display:none
+   at <=640px, which stranded multi-page navigation). */
+.doc-mobile-pages-btn { display: none; }
+@media (max-width: 640px) {
+  .doc-mobile-pages-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin: 6px 8px; padding: 6px 12px; min-height: 36px;
+    border: 1px solid var(--line2, #3a3a42); border-radius: 8px;
+    background: var(--bg1, #1a1a1f); color: var(--ink-1, #e8e8ea);
+    font: 600 12px var(--font-display, sans-serif); cursor: pointer;
+  }
+  .doc-surface.mobile-rail-open .doc-rail.doc-rail-left {
+    display: block; position: absolute; left: 0; top: 0; bottom: 0;
+    width: min(82%, 300px); z-index: 30; overflow-y: auto;
+    background: var(--bg0, #14141a); border-right: 1px solid var(--line2, #3a3a42);
+    box-shadow: 6px 0 28px rgba(0,0,0,.45);
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .doc-surface.mobile-rail-open .doc-rail-toggle { display: none; }
+  .doc-rail-backdrop { position: absolute; inset: 0; z-index: 29; background: rgba(0,0,0,.45); }
+}

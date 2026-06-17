@@ -136,6 +136,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => { onActivePageChange?.(activePageId || null); }, [activePageId, onActivePageChange]);
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
+  // On phone the rail is a slide-over drawer (the desktop rail + its only
+  // toggle are display:none at <=640px, which stranded multi-page navigation).
+  const [mobileRailOpen, setMobileRailOpen] = useState(false);
 
   // Doc mode ('doc' | 'screenplay'). Lives in the per-scope docMeta map so it
   // persists + collaborates; observe it so a peer's toggle reflects here.
@@ -553,7 +556,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   }
 
   return (
-    <div className={`doc-surface no-right-rail ${rails.left ? '' : 'rail-left-collapsed'}`}>
+    <div className={`doc-surface no-right-rail ${rails.left ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}`}>
+      {/* Phone-only backdrop that closes the page drawer. */}
+      {mobileRailOpen && <div className="doc-rail-backdrop" onClick={() => setMobileRailOpen(false)} />}
       {/* Left rail — page tree */}
       <aside className="doc-rail doc-rail-left">
         <button className="doc-rail-toggle"
@@ -572,7 +577,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             boardId={board.id}
             pages={pages}
             activePageId={activePageId}
-            onSelectPage={setActivePageId}
+            onSelectPage={(id) => { setActivePageId(id); setMobileRailOpen(false); }}
             peers={peersOnBoard}
             onJumpToPeer={onJumpToPeer}
           />
@@ -582,6 +587,16 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       {/* Center — toolbar + editor. The toolbar is an editing surface —
           hidden for anonymous public viewers (view-only members keep it). */}
       <section className="doc-center">
+        {/* Phone-only entry point to the page list (the desktop rail is hidden
+            at <=640px). Opens the rail as a slide-over drawer. */}
+        <button className="doc-mobile-pages-btn"
+                aria-label="Pages" aria-expanded={mobileRailOpen}
+                onClick={() => { setRails(r => ({ ...r, left: true })); setMobileRailOpen(o => !o); }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 3 H12 M2 7 H12 M2 11 H12" />
+          </svg>
+          Pages
+        </button>
         {!isPublic && (
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
