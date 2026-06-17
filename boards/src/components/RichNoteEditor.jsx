@@ -61,6 +61,11 @@ function scrubNoteHtml(html, { dropChrome = false } = {}) {
 const sanitizePastedHtml = (html) => scrubNoteHtml(html);
 const sanitizeCopiedHtml = (html) => scrubNoteHtml(html, { dropChrome: true });
 
+// Cap the auto-grown height so very long notes start scrolling instead of
+// taking over the canvas. Module-scoped so the shared useNoteOverflow hook
+// (below) can reason about the legitimately-capped/clipped case.
+const NOTE_AUTOSIZE_MAX = 480;
+
 export function RichNoteEditor({
   html, body, bgColor, textColor, fontFamily, fontSize,
   onChangeHTML, onChangeBg, onChangeColor,
@@ -125,10 +130,9 @@ export function RichNoteEditor({
   // each side). Reports up to NoteCard via onAutoSize so the card height
   // grows/shrinks with the typed text. Once `manuallyResized` becomes true,
   // we stop reporting and the card keeps its hand-set size.
-  // Cap the auto-grown height so very long notes start scrolling instead
-  // of taking over the canvas; the user can still drag-resize bigger if
-  // they want, which flips manuallyResized true and disables this cap.
-  const NOTE_AUTOSIZE_MAX = 480;
+  // NOTE_AUTOSIZE_MAX (the cap) is module-scoped above so useNoteOverflow can
+  // share it. Past the cap a long note is held fixed and the fade + "Show all"
+  // chip take over; the user can still drag-resize bigger (flips manuallyResized).
   const measureAndReport = () => {
     if (manuallyResized) return;
     if (!editing) return;
@@ -674,16 +678,35 @@ export function RichNoteEditor({
 }
 
 // Shared overflow detector for note cards (editable + read-only paths).
-// True when the note's text is taller than its box — drives the fade-out
-// cue and the "Show all" chip so clipped text is never invisible. The ref
-// may point at the .note-body itself or any ancestor containing one.
+// Drives the bottom fade-out cue + the "Show all" chip so clipped text is
+// never invisible. The ref may point at the .note-body itself or any
+// ancestor containing one.
+//
+// The decision is kept SELF-CONSISTENT with the fit model rather than reading
+// raw scrollHeight > clientHeight: a note auto-fit to its content sizes its
+// card to cardHeightForBody (= ceil(scrollHeight)+pad), and font-swap /
+// sub-pixel rounding used to leave scrollHeight a few px over clientHeight —
+// fading a note that visually fits. Instead we compare the height the note
+// WANTS (cardHeightForBody) against the height it actually HAS (the .note's
+// own box). A fit-sized note has want ≈ have, so it can't trip; only a note
+// pinned/held meaningfully shorter than its text fades.
 export function useNoteOverflow(ref, deps = []) {
   const [overflowing, setOverflowing] = useState(false);
   useEffect(() => {
     const el = ref.current;
     const body = el?.classList?.contains('note-body') ? el : el?.querySelector?.('.note-body');
     if (!body) { setOverflowing(false); return; }
-    const check = () => setOverflowing(body.scrollHeight > body.clientHeight + 2);
+    const check = () => {
+      const want = cardHeightForBody(body);       // ceil(scrollHeight)+NOTE_INNER_PAD
+      const note = body.closest('.note');
+      const have = note ? note.offsetHeight : body.clientHeight;
+      // Pinned/auto-held shorter than the text it needs (>6px absorbs border
+      // + sub-pixel + font-swap drift so a fitting note never trips).
+      const clippedByPin = want - have > 6;
+      // Long note held at the auto-size cap (before "Show all" grows it).
+      const clippedByCap = want > NOTE_AUTOSIZE_MAX && have <= NOTE_AUTOSIZE_MAX + 6;
+      setOverflowing(clippedByPin || clippedByCap);
+    };
     check();
     if (typeof ResizeObserver === 'undefined') return;
     // The body's box tracks the card height, so resizes re-check for free.

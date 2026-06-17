@@ -686,7 +686,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   // can't resize). Hooks run unconditionally; the ref stays null on the
   // editable path so the hook is inert there.
   const roNoteRef = useRef(null);
-  const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontFamily]);
+  const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontFamily, manuallyResized]);
   if (!onUpdate) {
     const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
     const hasBg = !!bgColor && bgColor !== 'transparent';
