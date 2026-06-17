@@ -172,32 +172,34 @@ export function DocFindReplace({ editor, open, onClose }) {
   };
 
   return (
-    <div className="doc-find" onKeyDown={onKey}>
+    <div className="doc-find" onKeyDown={onKey} role="search" aria-label="Find in document">
       <input ref={inputRef}
              className="doc-find-input"
              placeholder="Find"
+             aria-label="Find"
              value={q}
              onChange={(e) => setQ(e.target.value)} />
-      <span className="doc-find-count">
+      <span className="doc-find-count" aria-live="polite">
         {total === 0 ? (q ? '0/0' : '') : `${current + 1}/${total}`}
       </span>
-      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) - 1)} title="Previous (⇧⏎)">↑</button>
-      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) + 1)} title="Next (⏎)">↓</button>
+      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) - 1)} title="Previous (⇧⏎)" aria-label="Previous match">↑</button>
+      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) + 1)} title="Next (⏎)" aria-label="Next match">↓</button>
       <button className={`doc-find-btn ${showReplace ? 'is-active' : ''}`}
-              onClick={() => setShowReplace(s => !s)} title="Replace">⇄</button>
+              onClick={() => setShowReplace(s => !s)} title="Replace" aria-label="Toggle replace" aria-pressed={showReplace}>⇄</button>
       {showReplace && (
         <>
-          <span className="doc-find-sep" />
+          <span className="doc-find-sep" aria-hidden="true" />
           <input ref={replaceInputRef}
                  className="doc-find-input"
                  placeholder="Replace"
+                 aria-label="Replace with"
                  value={r}
                  onChange={(e) => setR(e.target.value)} />
           <button className="doc-find-btn" onClick={replaceOne}>One</button>
           <button className="doc-find-btn" onClick={replaceAll}>All</button>
         </>
       )}
-      <button className="doc-find-x" onClick={close} title="Close (Esc)">×</button>
+      <button className="doc-find-x" onClick={close} title="Close (Esc)" aria-label="Close find">×</button>
     </div>
   );
 }

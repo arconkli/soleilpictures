@@ -173,15 +173,15 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
         <div className="doc-export-menu" role="menu">
           {docMode === 'screenplay' && (
             <>
-              <button onClick={exportFountain}>Export Fountain (.fountain)</button>
-              <button onClick={exportFdx}>Export Final Draft (.fdx)</button>
-              <button onClick={importScript}>Import Fountain / Final Draft…</button>
-              <div className="doc-export-sep" />
+              <button role="menuitem" onClick={exportFountain}>Export Fountain (.fountain)</button>
+              <button role="menuitem" onClick={exportFdx}>Export Final Draft (.fdx)</button>
+              <button role="menuitem" onClick={importScript}>Import Fountain / Final Draft…</button>
+              <div className="doc-export-sep" role="separator" />
             </>
           )}
-          <button onClick={exportHTML}>Export HTML</button>
-          <button onClick={exportMarkdown}>Export Markdown</button>
-          <button onClick={exportPDF}>Print / Save as PDF</button>
+          <button role="menuitem" onClick={exportHTML}>Export HTML</button>
+          <button role="menuitem" onClick={exportMarkdown}>Export Markdown</button>
+          <button role="menuitem" onClick={exportPDF}>Print / Save as PDF</button>
         </div>
       )}
     </span>

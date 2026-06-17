@@ -126,7 +126,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
   const clearColor = () => editor?.chain().focus().unsetColor().run();
 
   return (
-    <div className="doc-tb">
+    <div className="doc-tb" role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
       {/* Visible doorway into the slash menu — typing "/" is invisible to
           anyone who hasn't read the placeholder. Inserting the trigger char
           at the caret opens the same suggestion menu. */}
@@ -178,7 +178,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
         onCommit={(px) => setSize(px)}
       />
 
-      <span className="doc-tb-sep" />
+      <span className="doc-tb-sep" aria-hidden="true" />
 
       <Btn title="Bold (⌘B)" active={isActive('bold')} disabled={disabled}
            onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></Btn>
@@ -193,12 +193,12 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
       <Btn title="Highlight (⌘⇧H)" active={isActive('highlight')} disabled={disabled}
            onClick={() => editor.chain().focus().toggleHighlight().run()}><mark style={{ background: '#fff09a', color: '#222', padding: '0 3px', borderRadius: 2, fontSize: 11 }}>H</mark></Btn>
 
-      <span className="doc-tb-sep" />
+      <span className="doc-tb-sep" aria-hidden="true" />
 
       <ColorBtn title="Text color" disabled={disabled}
                 onPick={setColor} onClear={clearColor} />
 
-      <span className="doc-tb-sep" />
+      <span className="doc-tb-sep" aria-hidden="true" />
 
       <Btn title="Bulleted list (⌘⇧8)" active={isActive('bulletList')} disabled={disabled}
            onClick={() => editor.chain().focus().toggleBulletList().run()}><Glyph as={List} size={14} /></Btn>
@@ -209,7 +209,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
       <Btn title="Quote" active={isActive('blockquote')} disabled={disabled}
            onClick={() => editor.chain().focus().toggleBlockquote().run()}><Glyph as={Quote} size={14} /></Btn>
 
-      <span className="doc-tb-sep" />
+      <span className="doc-tb-sep" aria-hidden="true" />
 
       <Btn title="Align left" active={isActive({ textAlign: 'left' }) || (!isActive({ textAlign: 'center' }) && !isActive({ textAlign: 'right' }) && !isActive({ textAlign: 'justify' }))} disabled={disabled}
            onClick={() => editor.chain().focus().setTextAlign('left').run()}><Glyph as={AlignLeft} size={14} /></Btn>
@@ -218,7 +218,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
       <Btn title="Align right" active={isActive({ textAlign: 'right' })} disabled={disabled}
            onClick={() => editor.chain().focus().setTextAlign('right').run()}><Glyph as={AlignRight} size={14} /></Btn>
 
-      <span className="doc-tb-sep" />
+      <span className="doc-tb-sep" aria-hidden="true" />
 
       <Btn title="Add link (⌘K)" disabled={disabled}
            onClick={() => onOpenLink?.(editor)}><Glyph as={LinkPh} size={14} /></Btn>
