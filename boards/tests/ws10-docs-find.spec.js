@@ -29,6 +29,23 @@ test('docs Find: Escape closes and returns focus to the editor', async ({ page }
   expect(await page.evaluate(() => window.__soleilDocTest.editor.getText())).toContain('Z');
 });
 
+test('docs Find spans every sheet of a page (not just the focused one)', async ({ page }) => {
+  await openDocEditor(page);
+  await page.keyboard.type('FINDME on page one');
+  // Add a second sheet and type a second match into it.
+  await page.locator('.doc-card-modal .doc-add-page-below').click();
+  await expect(page.locator('.doc-card-modal .doc-editor-wrap')).toHaveCount(2);
+  await page.locator('.doc-card-modal .tt-editor').nth(1).click();
+  await page.keyboard.type('FINDME on page two');
+  // Find sees BOTH sheets.
+  await page.keyboard.press('ControlOrMeta+f');
+  await page.locator('.doc-find-input').first().click();
+  await page.keyboard.type('FINDME');
+  await expect(page.locator('.doc-find-count')).toContainText('/2');
+  // A highlight is painted in each sheet.
+  await expect(page.locator('.doc-card-modal .doc-find-hit')).toHaveCount(2);
+});
+
 test('docs Find: Escape from the Replace field collapses Replace, not the bar', async ({ page }) => {
   await openDocEditor(page);
   await page.keyboard.type('foo foo foo');

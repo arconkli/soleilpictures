@@ -149,7 +149,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', onEditorReady, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -798,19 +798,20 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     // identity is ALSO keyed on the parent's key={sid:docMode} — see DocSurface.)
   }, [pageId, docMode]);
 
-  // Notify parent so it can wire the toolbar to the live editor instance.
-  const lastNotified = useRef(null);
+  // Register this sheet's editor with the parent (toolbar wiring + the
+  // sheet-editor registry for cross-sheet find/replace) on setup, and
+  // de-register on cleanup. Pairing them in ONE effect with STABLE callbacks
+  // is what survives React StrictMode's dev mount→unmount→mount cycle (a
+  // separate cleanup-only effect would delete the entry the register effect
+  // just added).
   useEffect(() => {
     editorRef.current = editor;
-    if (editor && lastNotified.current !== editor) {
-      lastNotified.current = editor;
-      onEditorReady?.(editor);
-      // Inject Google-catalog font stylesheets referenced by the loaded
-      // content. Without this, doc text saved with `font-family:'Inter',…`
-      // renders in the fallback after a cold reload.
-      try { ensureFontsFromHtml(editor.getHTML()); } catch (_) {}
-    }
-  }, [editor, onEditorReady]);
+    if (!editor) return undefined;
+    onEditorReady?.(editor, sheetId);
+    // Inject Google-catalog font stylesheets referenced by the loaded content.
+    try { ensureFontsFromHtml(editor.getHTML()); } catch (_) {}
+    return () => { onEditorDestroy?.(sheetId); };
+  }, [editor, sheetId, onEditorReady, onEditorDestroy]);
 
   // When a comment thread is deleted, strip its now-orphaned highlight mark
   // from this editor's text (no-op if the mark isn't in this sheet).

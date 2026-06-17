@@ -437,6 +437,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // first loads); onEditorFocus fires every time the user clicks into a
   // particular sheet and re-points editorRef at that editor.
   const editorRef = useRef(null);
+  // Registry of ALL live sheet editors (sheetId → editor) so find/replace can
+  // span every sheet of the active page, not just the focused one.
+  const editorsRef = useRef(new Map());
   const docEditLoggedRef = useRef(false); // doc_edit: once per doc surface mount
   const [, force] = useState(0);
   // Dev-only: surface the active editor to the doc QA harness bridge so
@@ -449,13 +452,26 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       (window.__soleilDocTest || (window.__soleilDocTest = {})).editor = ed;
     }
   };
-  const onEditorReady = (ed) => {
-    if (!editorRef.current) {
-      editorRef.current = ed;
-      force(n => n + 1);
-    }
+  // Stable identities (useCallback) so DocPageEditor's register/deregister
+  // effect doesn't churn on every parent render — and so it can pair
+  // register-on-setup with deregister-on-cleanup in ONE effect (which is what
+  // makes it survive React StrictMode's dev mount→unmount→mount cycle).
+  const onEditorReady = useCallback((ed, sheetId) => {
+    if (sheetId) editorsRef.current.set(sheetId, ed);
+    if (!editorRef.current) editorRef.current = ed;
+    force(n => n + 1);
     exposeEditor(ed);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const onEditorDestroy = useCallback((sheetId) => {
+    if (!sheetId || !editorsRef.current.has(sheetId)) return;
+    const ed = editorsRef.current.get(sheetId);
+    editorsRef.current.delete(sheetId);
+    if (editorRef.current === ed) {
+      editorRef.current = editorsRef.current.values().next().value || null;
+    }
+    force(n => n + 1);
+  }, []);
   const onEditorFocus = (ed) => {
     if (editorRef.current !== ed) {
       editorRef.current = ed;
@@ -614,6 +630,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     onZoomReset={() => setZoom(1)} />
         )}
         <DocFindReplace editor={editorRef.current}
+                        editors={activePageId ? sheetIds.map(sid => editorsRef.current.get(sid)).filter(Boolean) : []}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
         <div className={`doc-paper${docMode === 'screenplay' ? ' is-screenplay' : ''}`} ref={paperRef}
@@ -642,6 +659,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 userId={userId}
                 currentUser={currentUser}
                 onEditorReady={onEditorReady}
+                onEditorDestroy={onEditorDestroy}
                 onEditorFocus={onEditorFocus}
                 onRequestBoardEmbed={requestBoardEmbed}
                 onRequestLink={requestLink}
