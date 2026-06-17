@@ -46,6 +46,20 @@ test('docs Find spans every sheet of a page (not just the focused one)', async (
   await expect(page.locator('.doc-card-modal .doc-find-hit')).toHaveCount(2);
 });
 
+test('docs Replace preserves marks on the replaced text', async ({ page }) => {
+  await openDocEditor(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>plain <strong>TARGET</strong> end</p>'));
+  await page.keyboard.press('ControlOrMeta+f');
+  await page.locator('.doc-find-input').first().click();
+  await page.keyboard.type('TARGET');
+  await page.locator('.doc-find-btn[title="Replace"]').click();
+  await page.getByPlaceholder('Replace').fill('SWAPPED');
+  await page.getByRole('button', { name: 'All' }).click();
+  await page.waitForTimeout(120);
+  const html = await page.evaluate(() => window.__soleilDocTest.editor.getHTML());
+  expect(html).toContain('<strong>SWAPPED</strong>');
+});
+
 test('docs Find: Escape from the Replace field collapses Replace, not the bar', async ({ page }) => {
   await openDocEditor(page);
   await page.keyboard.type('foo foo foo');

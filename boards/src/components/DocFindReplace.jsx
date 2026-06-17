@@ -154,7 +154,13 @@ export function DocFindReplace({ editor, editors = [], open, onClose }) {
     const idx = Math.min(current, all.length - 1);
     const m = all[idx];
     const ed = eds[m.ei];
-    ed.chain().focus().insertContentAt({ from: m.from, to: m.to }, r).run();
+    // Preserve the matched text's OWN marks (read from inside the match, not the
+    // boundary) so bold/link/etc. survive a replace.
+    ed.chain().focus().command(({ tr, state }) => {
+      const marks = tr.doc.resolve(Math.min(m.from + 1, m.to)).marks();
+      if (r) tr.replaceWith(m.from, m.to, state.schema.text(r, marks)); else tr.delete(m.from, m.to);
+      return true;
+    }).run();
     // Defer: dispatching meta synchronously re-enters ProseMirror mid-commit
     // and the replacement gets rolled back.
     setTimeout(() => {
@@ -168,9 +174,14 @@ export function DocFindReplace({ editor, editors = [], open, onClose }) {
     eds.forEach((ed) => {
       const ranges = findMatches(ed.state.doc, q);
       if (!ranges.length) return;
-      const chain = ed.chain().focus();
-      [...ranges].reverse().forEach(([from, to]) => chain.insertContentAt({ from, to }, r));
-      chain.run();
+      // End→start so earlier positions don't shift; preserve each match's marks.
+      ed.chain().focus().command(({ tr, state }) => {
+        [...ranges].reverse().forEach(([from, to]) => {
+          const marks = tr.doc.resolve(Math.min(from + 1, to)).marks();
+          if (r) tr.replaceWith(from, to, state.schema.text(r, marks)); else tr.delete(from, to);
+        });
+        return true;
+      }).run();
     });
     setTimeout(() => { clearAll(); setTotal(0); setCurrent(0); }, 0);
   };
