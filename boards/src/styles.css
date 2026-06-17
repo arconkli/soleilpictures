@@ -17558,3 +17558,17 @@ button, [role="button"], a {
 /* Compose the focus ring with the active-state underline so a focused active
    format button keeps showing it's on. */
 .doc-tb-btn.is-active:focus-visible { box-shadow: var(--shadow-glow), inset 0 -2px 0 0 var(--soleil); }
+
+/* Touch-only selection bubble menu in docs (DocPageEditor BubbleMenu). */
+.doc-bubble {
+  display: flex; gap: 2px; padding: 4px;
+  background: var(--bg0, #1a1a1f); border: 1px solid var(--line2, #3a3a42);
+  border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+}
+.doc-bubble button {
+  min-width: 36px; height: 36px; padding: 0 8px;
+  border: 0; border-radius: 7px; background: transparent;
+  color: var(--ink-1, #e8e8ea); font-size: 15px; cursor: pointer;
+}
+.doc-bubble button.is-active { background: var(--soleil, #ffa500); color: #1a1205; }
+.doc-bubble button:active { background: var(--bg2, #2a2a33); }

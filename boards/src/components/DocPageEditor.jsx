@@ -824,6 +824,30 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     return () => { onEditorDestroy?.(sheetId); };
   }, [editor, sheetId, onEditorReady, onEditorDestroy]);
 
+  // Touch-only selection bubble: on a phone/tablet the format toolbar scrolls
+  // off-screen and tapping it can drop the selection, so a non-empty selection
+  // shows an in-place bubble for the core inline formats. Implemented as a
+  // plain fixed-position React element (NOT Tiptap's <BubbleMenu>, whose plugin
+  // fought EditorContent's DOM and threw insertBefore on editor remount).
+  const [bubble, setBubble] = useState(null); // { top, left } | null
+  useEffect(() => {
+    if (!editor) return undefined;
+    const coarse = typeof window !== 'undefined' && window.matchMedia
+      && window.matchMedia('(pointer: coarse)').matches;
+    if (!coarse) return undefined; // desktop keeps the top toolbar
+    const update = () => {
+      const sel = editor.state.selection;
+      if (sel.empty || !editor.isEditable || !editor.isFocused) { setBubble(null); return; }
+      try { const c = editor.view.coordsAtPos(sel.from); setBubble({ top: c.top, left: c.left }); }
+      catch (_) { setBubble(null); }
+    };
+    const hide = () => setBubble(null);
+    editor.on('selectionUpdate', update);
+    editor.on('focus', update);
+    editor.on('blur', hide);
+    return () => { editor.off('selectionUpdate', update); editor.off('focus', update); editor.off('blur', hide); };
+  }, [editor]);
+
   // When a comment thread is deleted, strip its now-orphaned highlight mark
   // from this editor's text (no-op if the mark isn't in this sheet).
   useEffect(() => {
@@ -1137,6 +1161,28 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       {/* Page-level applied-tag chip strip removed — margin dots are
           the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
+      {!isPublic && editable && bubble && (
+        <div className="doc-bubble" role="toolbar" aria-label="Selection formatting"
+             style={{ position: 'fixed', top: Math.max(8, bubble.top - 46),
+                      left: Math.max(8, Math.min(bubble.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
+                      zIndex: 2147483647 }}>
+          <button className={editor.isActive('bold') ? 'is-active' : ''} aria-label="Bold"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></button>
+          <button className={editor.isActive('italic') ? 'is-active' : ''} aria-label="Italic"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></button>
+          <button className={editor.isActive('underline') ? 'is-active' : ''} aria-label="Underline"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></button>
+          <button className={editor.isActive('highlight') ? 'is-active' : ''} aria-label="Highlight"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => editor.chain().focus().toggleHighlight().run()}>H</button>
+          <button aria-label="Link"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => openLinkPicker(editor)}>🔗</button>
+        </div>
+      )}
       <DocTagGutter
         editor={editor}
         ranges={appliedTagRanges}
