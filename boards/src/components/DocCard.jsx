@@ -133,6 +133,11 @@ export function RichDocCard({
     window.addEventListener('pointercancel', onCancel);
   };
   const close = () => {
+    // Flush the last ~250ms of typing synchronously on the close ACTION (App's
+    // soleil-doccard-unmount handler calls yboard.flushNow) rather than relying
+    // solely on the overlay's later unmount-effect — so closing then
+    // immediately leaving the tab can't drop the tail of an edit.
+    try { document.dispatchEvent(new CustomEvent('soleil-doccard-unmount', { detail: { cardId: card.id } })); } catch (_) {}
     setMode('closed');
     setPreviewKey((n) => n + 1);
   };

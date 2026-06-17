@@ -82,6 +82,17 @@ import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 // (pageId, tagId, snippetHash). Typing in a doc only re-fires the API
 // when the surrounding-snippet content actually changes.
 const verdictCache = new Map();
+// Bound the module-global cache so a long multi-doc session can't grow it
+// without limit (every distinct snippet/tag pair the AI tagger evaluates used
+// to stay forever). FIFO-evict the oldest entry past the cap.
+const VERDICT_CACHE_MAX = 2000;
+function verdictSet(key, val) {
+  if (verdictCache.size >= VERDICT_CACHE_MAX) {
+    const oldest = verdictCache.keys().next().value;
+    if (oldest !== undefined) verdictCache.delete(oldest);
+  }
+  verdictCache.set(key, val);
+}
 function verdictKey(pageId, tagId, snippetHash) {
   return `${pageId}::${tagId}::${snippetHash}`;
 }
@@ -1000,12 +1011,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                 if (!key) continue;
                 // worker returns tags[]; first entry is the only candidate we sent.
                 const c = (v.tags || [])[0]?.confidence || 'low';
-                verdictCache.set(key, c);
+                verdictSet(key, c);
               }
               // Any cards the model didn't return a verdict for → 'low' so
               // we don't keep refetching.
               for (const s of slice) {
-                if (!verdictCache.has(s._key)) verdictCache.set(s._key, 'low');
+                if (!verdictCache.has(s._key)) verdictSet(s._key, 'low');
               }
             } catch (e) {
               console.warn('tag-apply verdict', e?.message || e);
