@@ -312,3 +312,33 @@ test('[card] full page + sheet + comment flow works under card scope', async ({ 
   expect(res.sheetCount).toBe(2); // primary + 1
   expect(res.comments).toBe(1);
 });
+
+// Delete-sheet → Undo (detach keeps content; reattach restores it exactly).
+test('detachPageSheet keeps content; reattachPageSheet restores the same sheet', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    const ydoc = new T.Y.Doc();
+    const cardYMap = new T.Y.Map();
+    ydoc.transact(() => { ydoc.getMap('cards').set('c1', cardYMap); }, 'local');
+    T.initCardDocStore(ydoc, cardYMap);
+    const scope = { ...T.cardScope(cardYMap), cardId: 'c1', docCardId: 'c1' };
+    const pid = T.addPage(ydoc, { name: 'P', scope });
+    const sid = T.addPageSheet(ydoc, pid, scope);
+    const frag = T.getOrCreateSheetContent(ydoc, pid, sid, scope);
+    ydoc.transact(() => {
+      const p = new T.Y.XmlElement('paragraph'); const t = new T.Y.XmlText();
+      t.insert(0, 'KEEPME'); p.insert(0, [t]); frag.insert(0, [p]);
+    }, 'local');
+    const idx = T.detachPageSheet(ydoc, pid, sid, scope);
+    const afterDetach = T.getPageSheetIds(ydoc, pid, scope).length;
+    const contentKept = !!T.sheetContentMap(ydoc, scope).get(sid);
+    T.reattachPageSheet(ydoc, pid, sid, idx, scope);
+    const afterReattach = T.getPageSheetIds(ydoc, pid, scope).length;
+    const text = T.pageFragmentToText(T.sheetContentMap(ydoc, scope).get(sid));
+    return { afterDetach, contentKept, afterReattach, text };
+  });
+  expect(r.afterDetach).toBe(1);     // back to just the primary
+  expect(r.contentKept).toBe(true);  // content survived the detach
+  expect(r.afterReattach).toBe(2);   // sheet restored
+  expect(r.text).toContain('KEEPME');
+});

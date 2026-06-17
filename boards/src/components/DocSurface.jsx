@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage, getDocMode, setDocMode, metaMap } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, metaMap } from '../lib/docState.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { isDocQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
@@ -307,16 +307,24 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // (sheetId === pageId) is protected — to remove that, the user deletes
   // the whole page from the tree.
   const feedback = useFeedback();
-  const deleteSheet = useCallback(async (sheetId) => {
+  const deleteSheet = useCallback((sheetId) => {
     if (!activePageId || !sheetId || sheetId === activePageId) return;
-    const ok = await feedback.confirm({
-      title: 'Delete this page?',
-      message: 'The page and its contents will be removed.',
-      confirmLabel: 'Delete',
-      danger: true,
+    // Detach (keep content) + offer Undo, matching the app's delete→Undo-toast
+    // convention. Doc-structural ops are DOC_ORIGIN (untracked by the canvas
+    // UndoManager), so restore is explicit. Purge the orphaned content only if
+    // the user doesn't undo within the toast window.
+    const idx = detachPageSheet(ydoc, activePageId, sheetId, scope);
+    let undone = false;
+    feedback.toast({
+      type: 'info',
+      message: 'Page deleted',
+      duration: 6000,
+      action: {
+        label: 'Undo',
+        onClick: () => { undone = true; reattachPageSheet(ydoc, activePageId, sheetId, idx, scope); },
+      },
     });
-    if (!ok) return;
-    deletePageSheet(ydoc, activePageId, sheetId, scope);
+    setTimeout(() => { if (!undone) purgeSheetContent(ydoc, sheetId, scope); }, 6500);
   }, [activePageId, ydoc, scope, feedback]);
 
   // Auto-add a sheet when the last sheet in the current page fills up. Fires
@@ -490,6 +498,29 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     }
     exposeEditor(ed);
   };
+
+  // Mobile soft-keyboard: the layout viewport doesn't shrink when the iOS/
+  // Android keyboard opens, so the caret + footer can hide behind it. Pad the
+  // bottom of .doc-paper by the occluded height (so the last lines can scroll
+  // clear) and keep the caret in view.
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    const paper = paperRef.current;
+    if (!vv || !paper) return;
+    const onVV = () => {
+      const occluded = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const open = occluded > 80;
+      paper.style.paddingBottom = open ? `${occluded}px` : '';
+      if (open) { try { editorRef.current?.commands?.scrollIntoView(); } catch (_) {} }
+    };
+    vv.addEventListener('resize', onVV);
+    vv.addEventListener('scroll', onVV);
+    return () => {
+      vv.removeEventListener('resize', onVV);
+      vv.removeEventListener('scroll', onVV);
+      if (paper) paper.style.paddingBottom = '';
+    };
+  }, []);
 
   // Broadcast scrollTop on the doc-paper so workspace presence can carry
   // it for click-to-jump. Throttle to 200ms — peer scroll-sync only needs

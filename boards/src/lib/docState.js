@@ -253,6 +253,41 @@ export function deletePageSheet(ydoc, pageId, sheetId, scope) {
   }, DOC_ORIGIN);
 }
 
+// Detach a sheet from a page's array but KEEP its content fragment — so a
+// delete→Undo toast can restore the exact sheet (same id + content). Returns
+// the array index it was at (for reattach), or -1.
+export function detachPageSheet(ydoc, pageId, sheetId, scope) {
+  if (!pageId || !sheetId || sheetId === pageId) return -1;
+  const sm = pageSheetsMap(ydoc, scope);
+  if (!sm) return -1;
+  let idx = -1;
+  ydoc.transact(() => {
+    const arr = sm.get(pageId);
+    if (arr) {
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr.get(i)?.id === sheetId) { idx = i; arr.delete(i, 1); }
+      }
+    }
+  }, DOC_ORIGIN);
+  return idx;
+}
+// Re-insert a detached sheet at its old index (content fragment is untouched).
+export function reattachPageSheet(ydoc, pageId, sheetId, index, scope) {
+  const sm = pageSheetsMap(ydoc, scope);
+  if (!sm) return;
+  ydoc.transact(() => {
+    let arr = sm.get(pageId);
+    if (!arr) { arr = new Y.Array(); sm.set(pageId, arr); }
+    const at = Math.max(0, Math.min(index < 0 ? arr.length : index, arr.length));
+    arr.insert(at, [{ id: sheetId }]);
+  }, DOC_ORIGIN);
+}
+// Permanently drop a detached sheet's orphaned content (after the undo window).
+export function purgeSheetContent(ydoc, sheetId, scope) {
+  const sc = sheetContentMap(ydoc, scope);
+  if (sc && sc.has(sheetId)) ydoc.transact(() => { sc.delete(sheetId); }, DOC_ORIGIN);
+}
+
 function nextPageId() {
   return 'p_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 }
