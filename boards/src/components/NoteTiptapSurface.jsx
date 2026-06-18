@@ -24,6 +24,7 @@ import {
   ensureNoteFragment,
   seedNoteFragmentFromHtml,
   noteFragmentToHtml,
+  setNoteCacheFields,
 } from '../lib/noteDocState.js';
 import { linkifyNoteHtml } from '../lib/noteLinkify.js';
 import { cardHeightForBody } from '../lib/noteMeasure.js';
@@ -42,8 +43,6 @@ export function NoteTiptapSurface({
   awareness = null,
   manuallyResized = false,
   autoFocus = false,
-  onChangeHTML,
-  onAutoSize,
   onExitEdit,
 }) {
   const { workspaceId } = useEntityTrie();
@@ -61,12 +60,16 @@ export function NoteTiptapSurface({
   const editorRef = useRef(null);
   const manualRef = useRef(manuallyResized);
   manualRef.current = manuallyResized;
-  const onChangeRef = useRef(onChangeHTML);
-  onChangeRef.current = onChangeHTML;
-  const onAutoSizeRef = useRef(onAutoSize);
-  onAutoSizeRef.current = onAutoSize;
   const onExitRef = useRef(onExitEdit);
   onExitRef.current = onExitEdit;
+
+  // Write the derived html + auto-size height onto the card map under
+  // NOTE_ORIGIN (off the board undo stack; persisted + synced). Readers
+  // (canvas display, thumbnails, card_index) pick it up via the normal
+  // ydoc → readCards path.
+  const writeCache = (patch) => {
+    if (ydoc && cardYMap) setNoteCacheFields(ydoc, cardYMap, patch);
+  };
 
   // @-mention picker state, driven by the suggestion plugin.
   const [mention, setMention] = useState(null); // { range, query, clientRect } | null
@@ -147,12 +150,12 @@ export function NoteTiptapSurface({
       writeRaf.current = 0;
       if (!fragment) return;
       try {
-        onChangeRef.current?.(linkifyNoteHtml(noteFragmentToHtml(fragment)));
+        writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null });
       } catch (_) { /* noop */ }
       if (!manualRef.current && editor?.view?.dom) {
         try {
           const h = Math.min(NOTE_AUTOSIZE_MAX, cardHeightForBody(editor.view.dom));
-          onAutoSizeRef.current?.(h);
+          writeCache({ h: Math.round(h) });
         } catch (_) { /* noop */ }
       }
     };
@@ -183,7 +186,7 @@ export function NoteTiptapSurface({
       if (mentionOpenRef.current) return;
       if (writeRaf.current) { cancelAnimationFrame(writeRaf.current); writeRaf.current = 0; }
       if (fragment) {
-        try { onChangeRef.current?.(linkifyNoteHtml(noteFragmentToHtml(fragment))); } catch (_) {}
+        try { writeCache({ html: linkifyNoteHtml(noteFragmentToHtml(fragment)), body: null }); } catch (_) {}
       }
       onExitRef.current?.();
     };

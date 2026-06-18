@@ -724,8 +724,6 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
             ydoc={ydoc} cardYMap={cardYMap} html={html}
             cardId={cardId} boardId={boardId} awareness={awareness}
             manuallyResized={manuallyResized} autoFocus={autoFocus}
-            onChangeHTML={(h) => onUpdate({ html: h, body: null })}
-            onAutoSize={(h) => onUpdate({ h: Math.round(h) })}
             onExitEdit={() => setEditing(false)}
           />
         </Suspense>
@@ -747,14 +745,16 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     box.setAttribute('aria-checked', checked ? 'true' : 'false');
     const bodyEl = ref.current.querySelector('.note-body');
     const newHtml = bodyEl ? bodyEl.innerHTML : html;
-    onUpdate({ html: newHtml, body: null });
-    // Keep the fragment (source of truth) in step with the toggle so it isn't
-    // lost on next edit. Lazy import keeps the heavy serializer off the canvas
-    // chunk until a checklist is actually toggled.
+    // Write the html cache + keep the fragment (source of truth) in step with
+    // the toggle, both under NOTE_ORIGIN (off the board undo stack). Lazy import
+    // keeps the heavy serializer off the canvas chunk until a box is toggled.
     if (ydoc && cardYMap) {
-      import('../lib/noteDocState.js')
-        .then(m => m.applyHtmlToNoteFragment(ydoc, cardYMap, newHtml))
-        .catch(() => {});
+      import('../lib/noteDocState.js').then((m) => {
+        m.setNoteCacheFields(ydoc, cardYMap, { html: newHtml, body: null });
+        m.applyHtmlToNoteFragment(ydoc, cardYMap, newHtml);
+      }).catch(() => {});
+    } else {
+      onUpdate({ html: newHtml, body: null });
     }
   };
   const onPointerUp = (e) => {

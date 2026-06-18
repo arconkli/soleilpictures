@@ -124,6 +124,17 @@ export function seedNoteFragmentFromHtml(ydoc, cardYMap, html) {
   return frag;
 }
 
+// Write derived cache fields (html / h) onto the card map under NOTE_ORIGIN, so
+// they persist + sync but stay OFF the board Y.UndoManager (which tracks
+// 'local'). That keeps canvas ⌘Z from reverting the html cache out of step with
+// the fragment — per-keystroke note undo belongs to Tiptap's own y-undo.
+export function setNoteCacheFields(ydoc, cardYMap, patch) {
+  if (!ydoc || !cardYMap || !patch) return;
+  ydoc.transact(() => {
+    for (const [k, v] of Object.entries(patch)) cardYMap.set(k, v);
+  }, NOTE_ORIGIN);
+}
+
 // Diff-update a note's fragment to match an external html change made WITHOUT a
 // mounted editor — e.g. toggling a checklist item on the read-only display.
 // prosemirrorJSONToYXmlFragment (updateYFragment) does a structural diff, so

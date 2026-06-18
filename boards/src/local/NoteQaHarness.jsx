@@ -82,6 +82,18 @@ function ClientCard({ label, ydoc, cardYMap, awareness }) {
     manuallyResized: false,
   }));
   const onUpdate = (patch) => setCard((c) => ({ ...c, ...patch }));
+  // Mirror the real app: the write-through sets html/h on the card map under
+  // NOTE_ORIGIN; pick them up via a Y.Map observer (this is what readCards does
+  // on the canvas).
+  useEffect(() => {
+    const update = () => setCard((c) => ({
+      ...c,
+      html: cardYMap.get('html') ?? c.html,
+      h: cardYMap.get('h') ?? c.h,
+    }));
+    cardYMap.observe(update);
+    return () => cardYMap.unobserve(update);
+  }, [cardYMap]);
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ font: '11px monospace', opacity: 0.6, marginBottom: 6 }}>{label}</div>

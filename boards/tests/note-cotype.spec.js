@@ -229,3 +229,33 @@ test('presence: editing broadcasts a note-local caret that pipes to the peer', a
     return !!c && c.cardId === 'noteqa-card';
   })).toBe(true);
 });
+
+test('note edits stay OFF a board-style UndoManager (not local origin)', async ({ page }) => {
+  await editorReady(page);
+  // Install a board-style UndoManager (tracks origin 'local' over the cards
+  // map) and sanity-check it DOES capture a real 'local' change.
+  const sanity = await page.evaluate(() => {
+    const t = window.__soleilNoteTest;
+    const cards = t.docA.getMap('cards');
+    const um = new t.Y.UndoManager(cards, { trackedOrigins: new Set(['local']) });
+    window.__noteUM = um;
+    t.docA.transact(() => cards.get('noteqa-card').set('probe', 1), 'local');
+    const captured = um.undoStack.length;
+    um.clear();
+    return captured;
+  });
+  expect(sanity).toBeGreaterThan(0);
+
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await page.locator(A_EDIT).click();
+  await page.keyboard.type('undo origin check');
+
+  // Wait for the (rAF-debounced) write-through to settle, proving edits happened…
+  await expect.poll(() => page.evaluate(() =>
+    window.__soleilNoteTest.docA.getMap('cards').get('noteqa-card').get('html') || ''
+  )).toContain('undo origin check');
+  // …yet none of it (fragment edits OR html cache) landed on the board undo stack.
+  const undoSteps = await page.evaluate(() => window.__noteUM.undoStack.length);
+  expect(undoSteps).toBe(0);
+});
