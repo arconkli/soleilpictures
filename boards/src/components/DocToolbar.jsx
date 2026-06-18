@@ -13,7 +13,7 @@ import { addRecentFont } from '../lib/customFonts.js';
 import {
   List, ListOrdered, ListChecks, Quote,
   AlignLeft, AlignCenter, AlignRight,
-  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle,
+  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard,
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 import { ELEMENTS as SP_ELEMENTS, ELEMENT_LABELS as SP_LABELS } from './docExtensions/screenplay/screenplayFlow.js';
@@ -129,6 +129,11 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
   const setColor = (c) => editor?.chain().focus().setColor(c).run();
   const clearColor = () => editor?.chain().focus().unsetColor().run();
 
+  // In screenplay mode the layout is element-driven; the prose formatting
+  // controls (font/size/color/align/inline-marks/lists) are hidden because
+  // they'd leak formatting that the Fountain/FDX/PDF exporters don't carry.
+  const isScreenplay = docMode === 'screenplay';
+
   return (
     <div className="doc-tb" role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
       {/* Visible doorway into the slash menu — typing "/" is invisible to
@@ -139,11 +144,15 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
               aria-label="Insert a block"
               onClick={() => editor?.chain().focus().insertContent('/').run()}>+</button>
       {onToggleScreenplay && (
-        <button className={`doc-tb-btn doc-tb-screenplay-toggle${docMode === 'screenplay' ? ' is-active' : ''}`}
-                title={docMode === 'screenplay' ? 'Screenplay mode on — click for a normal document' : 'Switch to screenplay mode'}
-                aria-pressed={docMode === 'screenplay'}
+        <button type="button"
+                className={`doc-tb-pill doc-tb-screenplay-toggle${isScreenplay ? ' is-active' : ''}`}
+                title={isScreenplay ? 'Screenplay mode on — click for a normal document' : 'Switch to screenplay mode'}
+                aria-pressed={isScreenplay}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => onToggleScreenplay()}>Screenplay</button>
+                onClick={() => onToggleScreenplay()}>
+          <Glyph as={Clapperboard} size={14} />
+          <span className="doc-tb-pill-label">Screenplay</span>
+        </button>
       )}
       {docMode === 'screenplay' ? (
         <select className="doc-tb-select" value={screenplayElement || 'action'} disabled={disabled || !editor?.isActive('screenplayBlock')}
@@ -160,68 +169,70 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
         </select>
       )}
 
-      <FontPickerDropdown
-        currentLabel={currentFontLabel}
-        recentFonts={recentFonts}
-        allFonts={allFonts}
-        onPreview={previewFont}
-        onCommit={commitFont}
-        onCancel={cancelPreview}
-        onManage={() => setFontsModalOpen(true)}
-        disabled={disabled}
-      />
+      {!isScreenplay && (<>
+        <FontPickerDropdown
+          currentLabel={currentFontLabel}
+          recentFonts={recentFonts}
+          allFonts={allFonts}
+          onPreview={previewFont}
+          onCommit={commitFont}
+          onCancel={cancelPreview}
+          onManage={() => setFontsModalOpen(true)}
+          disabled={disabled}
+        />
 
-      <SizeInput
-        value={(() => {
-          const fs = editor?.getAttributes('textStyle')?.fontSize;
-          const px = fs ? parseInt(fs, 10) : NaN;
-          return Number.isFinite(px) ? px : null;
-        })()}
-        presets={SIZES}
-        className="doc-tb-size-combo"
-        disabled={disabled}
-        onCommit={(px) => setSize(px)}
-      />
+        <SizeInput
+          value={(() => {
+            const fs = editor?.getAttributes('textStyle')?.fontSize;
+            const px = fs ? parseInt(fs, 10) : NaN;
+            return Number.isFinite(px) ? px : null;
+          })()}
+          presets={SIZES}
+          className="doc-tb-size-combo"
+          disabled={disabled}
+          onCommit={(px) => setSize(px)}
+        />
 
-      <span className="doc-tb-sep" aria-hidden="true" />
+        <span className="doc-tb-sep" aria-hidden="true" />
 
-      <Btn title="Bold (⌘B)" active={isActive('bold')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></Btn>
-      <Btn title="Italic (⌘I)" active={isActive('italic')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></Btn>
-      <Btn title="Underline (⌘U)" active={isActive('underline')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></Btn>
-      <Btn title="Strike" active={isActive('strike')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleStrike().run()}><s>S</s></Btn>
-      <Btn title="Inline code" active={isActive('code')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleCode().run()}><code style={{ fontSize: 11 }}>{'<>'}</code></Btn>
-      <Btn title="Highlight (⌘⇧H)" active={isActive('highlight')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleHighlight().run()}><mark style={{ background: '#fff09a', color: '#222', padding: '0 3px', borderRadius: 2, fontSize: 11 }}>H</mark></Btn>
+        <Btn title="Bold (⌘B)" active={isActive('bold')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></Btn>
+        <Btn title="Italic (⌘I)" active={isActive('italic')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></Btn>
+        <Btn title="Underline (⌘U)" active={isActive('underline')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></Btn>
+        <Btn title="Strike" active={isActive('strike')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleStrike().run()}><s>S</s></Btn>
+        <Btn title="Inline code" active={isActive('code')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleCode().run()}><code style={{ fontSize: 11 }}>{'<>'}</code></Btn>
+        <Btn title="Highlight (⌘⇧H)" active={isActive('highlight')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleHighlight().run()}><mark style={{ background: '#fff09a', color: '#222', padding: '0 3px', borderRadius: 2, fontSize: 11 }}>H</mark></Btn>
 
-      <span className="doc-tb-sep" aria-hidden="true" />
+        <span className="doc-tb-sep" aria-hidden="true" />
 
-      <ColorBtn title="Text color" disabled={disabled}
-                onPick={setColor} onClear={clearColor} />
+        <ColorBtn title="Text color" disabled={disabled}
+                  onPick={setColor} onClear={clearColor} />
 
-      <span className="doc-tb-sep" aria-hidden="true" />
+        <span className="doc-tb-sep" aria-hidden="true" />
 
-      <Btn title="Bulleted list (⌘⇧8)" active={isActive('bulletList')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleBulletList().run()}><Glyph as={List} size={14} /></Btn>
-      <Btn title="Numbered list (⌘⇧7)" active={isActive('orderedList')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleOrderedList().run()}><Glyph as={ListOrdered} size={14} /></Btn>
-      <Btn title="Task list (⌘⇧9)" active={isActive('taskList')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleTaskList().run()}><Glyph as={ListChecks} size={14} /></Btn>
-      <Btn title="Quote" active={isActive('blockquote')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleBlockquote().run()}><Glyph as={Quote} size={14} /></Btn>
+        <Btn title="Bulleted list (⌘⇧8)" active={isActive('bulletList')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleBulletList().run()}><Glyph as={List} size={14} /></Btn>
+        <Btn title="Numbered list (⌘⇧7)" active={isActive('orderedList')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleOrderedList().run()}><Glyph as={ListOrdered} size={14} /></Btn>
+        <Btn title="Task list (⌘⇧9)" active={isActive('taskList')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleTaskList().run()}><Glyph as={ListChecks} size={14} /></Btn>
+        <Btn title="Quote" active={isActive('blockquote')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleBlockquote().run()}><Glyph as={Quote} size={14} /></Btn>
 
-      <span className="doc-tb-sep" aria-hidden="true" />
+        <span className="doc-tb-sep" aria-hidden="true" />
 
-      <Btn title="Align left" active={isActive({ textAlign: 'left' }) || (!isActive({ textAlign: 'center' }) && !isActive({ textAlign: 'right' }) && !isActive({ textAlign: 'justify' }))} disabled={disabled}
-           onClick={() => editor.chain().focus().setTextAlign('left').run()}><Glyph as={AlignLeft} size={14} /></Btn>
-      <Btn title="Align center" active={isActive({ textAlign: 'center' })} disabled={disabled}
-           onClick={() => editor.chain().focus().setTextAlign('center').run()}><Glyph as={AlignCenter} size={14} /></Btn>
-      <Btn title="Align right" active={isActive({ textAlign: 'right' })} disabled={disabled}
-           onClick={() => editor.chain().focus().setTextAlign('right').run()}><Glyph as={AlignRight} size={14} /></Btn>
+        <Btn title="Align left" active={isActive({ textAlign: 'left' }) || (!isActive({ textAlign: 'center' }) && !isActive({ textAlign: 'right' }) && !isActive({ textAlign: 'justify' }))} disabled={disabled}
+             onClick={() => editor.chain().focus().setTextAlign('left').run()}><Glyph as={AlignLeft} size={14} /></Btn>
+        <Btn title="Align center" active={isActive({ textAlign: 'center' })} disabled={disabled}
+             onClick={() => editor.chain().focus().setTextAlign('center').run()}><Glyph as={AlignCenter} size={14} /></Btn>
+        <Btn title="Align right" active={isActive({ textAlign: 'right' })} disabled={disabled}
+             onClick={() => editor.chain().focus().setTextAlign('right').run()}><Glyph as={AlignRight} size={14} /></Btn>
+      </>)}
 
       <span className="doc-tb-sep" aria-hidden="true" />
 

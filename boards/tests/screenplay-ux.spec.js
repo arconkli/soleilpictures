@@ -34,6 +34,39 @@ test('toggling screenplay mode seeds a Scene Heading + Courier layout', async ({
   expect(mode).toBe('screenplay');
 });
 
+test('the Screenplay toggle is a labeled pill that does not overlap its toolbar neighbors', async ({ page }) => {
+  await openDoc(page);
+  // The toggle exists in both modes; check it in prose mode (where the `+`
+  // button and the heading <select> flank it) and again in screenplay mode.
+  const toggle = page.locator('.doc-tb-screenplay-toggle');
+  await expect(toggle).toBeVisible();
+  // It's rendered as a real-width pill (icon + word), not the 28px square.
+  await expect(toggle).toHaveClass(/doc-tb-pill/);
+
+  const rects = async () => page.evaluate(() => {
+    const tb = document.querySelector('.doc-tb');
+    const toggle = tb.querySelector('.doc-tb-screenplay-toggle');
+    const plus = tb.querySelector('button[aria-label="Insert a block"]');
+    const select = tb.querySelector('.doc-tb-select');
+    const r = (el) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, width: b.width }; };
+    return { toggle: r(toggle), plus: r(plus), select: r(select) };
+  });
+
+  const before = await rects();
+  // The pill is wider than a 28px icon button — proof the label has room.
+  expect(before.toggle.width).toBeGreaterThan(40);
+  // No horizontal overlap with the `+` button (left) or the <select> (right).
+  expect(before.toggle.left).toBeGreaterThanOrEqual(before.plus.right - 0.5);
+  expect(before.select.left).toBeGreaterThanOrEqual(before.toggle.right - 0.5);
+
+  // Still clean in screenplay mode (where the element <select> sits to its right).
+  await enableScreenplay(page);
+  const after = await rects();
+  expect(after.toggle.width).toBeGreaterThan(40);
+  expect(after.toggle.left).toBeGreaterThanOrEqual(after.plus.right - 0.5);
+  expect(after.select.left).toBeGreaterThanOrEqual(after.toggle.right - 0.5);
+});
+
 test('Tab/Enter cycle elements and scene/character lines auto-uppercase', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);

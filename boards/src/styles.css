@@ -16930,6 +16930,8 @@ button, [role="button"], a {
      bold/italic/list/etc. with a finger without misfires. */
   .doc-tb-btn { width: 40px; height: 40px; }
   .doc-tb-zoom .doc-tb-btn { width: 40px; height: 36px; }
+  /* Labeled pills (font picker, screenplay toggle) grow to match. */
+  .doc-tb-pill { height: 40px; }
 
   /* MessageBubble row action buttons that fade in on hover are
      unreachable on touch. Make the per-row action stack always visible
@@ -17492,8 +17494,17 @@ button, [role="button"], a {
   text-transform: uppercase; text-align: right; margin-top: 1em;
 }
 .doc-paper.is-screenplay [data-screenplay-element="centered"] { text-align: center; margin-top: 1em; }
-/* The screenplay toggle pill in the toolbar. */
-.doc-tb-screenplay-toggle.is-active { background: var(--soleil, #ffa500); color: #1a1205; font-weight: 600; }
+/* The screenplay toggle is a labeled pill (clapperboard icon + word), NOT a
+   square icon button — so it must size to its content. Without these overrides
+   the base .doc-tb-pill's fixed 110px (or, previously, .doc-tb-btn's 28px)
+   clipped/overflowed the word "Screenplay" and overlapped its neighbors. */
+.doc-tb-pill.doc-tb-screenplay-toggle { width: auto; min-width: 0; max-width: none; gap: 5px; }
+.doc-tb-pill.doc-tb-screenplay-toggle.is-active,
+.doc-tb-pill.doc-tb-screenplay-toggle.is-active:hover:not(:disabled) {
+  background: var(--soleil, #ffa500); color: #1a1205; font-weight: 600;
+}
+/* Pane (side-dock) mode tightens; touch mode grows to match the 40px buttons. */
+.doc-card-modal-side .doc-tb-pill.doc-tb-screenplay-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
 .doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line2, rgba(255,255,255,.1)); }
 
 /* On-screen screenplay page-break marker (ScreenplayPagination decoration). */

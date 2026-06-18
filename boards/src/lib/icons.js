@@ -131,6 +131,7 @@ export {
   FilePlus,
   FileArrowDown,
   FilePdf,
+  FilmSlate as Clapperboard,
   Database,
   Function,
   Code as CodeIcon,
