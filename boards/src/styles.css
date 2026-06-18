@@ -17470,30 +17470,62 @@ button, [role="button"], a {
   .pdfv-pageind, .pdfv-zoomind { min-width: 44px; }
 }
 
+/* Self-hosted Courier Prime (OFL) — the screenplay typeface. Bundled so every
+   platform gets identical Courier metrics (Courier New is the metric-equal
+   fallback while it loads / if it 404s). Files in public/fonts. */
+@font-face {
+  font-family: 'Courier Prime'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('/fonts/CourierPrime-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Courier Prime'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('/fonts/CourierPrime-Bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Courier Prime'; font-style: italic; font-weight: 400; font-display: swap;
+  src: url('/fonts/CourierPrime-Italic.woff2') format('woff2');
+}
+
 /* ── Screenplay mode (ScreenplayBlock + .doc-paper.is-screenplay) ─────────── */
-/* Courier 12pt single-spaced grid. Courier New is on every OS; swap in a
-   self-hosted Courier Prime woff2 later for exact print parity. */
+/* Courier 12pt on a fixed monospace grid: 1 char = 1ch = 0.1in (10 cpi), with a
+   fixed vertical rhythm (--sp-line). All element widths/indents below are in
+   `ch` and MUST equal screenplayMetrics.ELEMENT_METRICS so the browser wraps at
+   the exact same column the paginator counts → on-screen pages == exported PDF.
+   --sp-line = 9in text height / 55 lines (== screenplayMetrics.PAGE_LINES).
+   Courier New ships on every OS with Courier's metrics; the bundled Courier
+   Prime @font-face (below) makes it byte-identical cross-platform. */
+.doc-paper.is-screenplay {
+  --sp-line: calc(9in / 55);
+}
+/* The script sheet uses the industry 1.5"/1.0" left/right margins (a 60-char,
+   6.0in text block). The title page keeps symmetric 1in margins so it centers. */
+.doc-paper.is-screenplay .doc-editor-wrap:not(.sp-title-page) {
+  padding: 96px 96px 96px 144px;
+}
 .doc-paper.is-screenplay .ProseMirror {
   font-family: 'Courier Prime', 'Courier New', Courier, monospace;
   font-size: 12pt;
-  line-height: 1;
+  line-height: var(--sp-line);
 }
 .doc-paper.is-screenplay .sp-el { white-space: pre-wrap; margin: 0; }
-/* Industry element geometry (indents measured from the page text column). */
+.doc-paper.is-screenplay [data-screenplay-element] {
+  white-space: pre-wrap; max-width: 60ch; margin-left: 0; margin-right: 0;
+}
+/* Industry element geometry (ch widths/indents from screenplayMetrics). */
 .doc-paper.is-screenplay [data-screenplay-element="scene"] {
-  text-transform: uppercase; font-weight: 700; margin-top: 1.5em;
+  text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line));
 }
-.doc-paper.is-screenplay [data-screenplay-element="action"] { margin-top: 1em; }
-.doc-paper.is-screenplay [data-screenplay-element="shot"] { text-transform: uppercase; margin-top: 1em; }
+.doc-paper.is-screenplay [data-screenplay-element="action"] { margin-top: var(--sp-line); }
+.doc-paper.is-screenplay [data-screenplay-element="shot"] { text-transform: uppercase; margin-top: var(--sp-line); }
 .doc-paper.is-screenplay [data-screenplay-element="character"] {
-  text-transform: uppercase; margin-top: 1em; padding-left: 2in;
+  text-transform: uppercase; margin-top: var(--sp-line); margin-left: 22ch; max-width: 38ch;
 }
-.doc-paper.is-screenplay [data-screenplay-element="parenthetical"] { padding-left: 1.5in; padding-right: 2in; }
-.doc-paper.is-screenplay [data-screenplay-element="dialogue"] { padding-left: 1in; padding-right: 1.5in; }
+.doc-paper.is-screenplay [data-screenplay-element="parenthetical"] { margin-left: 16ch; max-width: 25ch; }
+.doc-paper.is-screenplay [data-screenplay-element="dialogue"] { margin-left: 10ch; max-width: 35ch; }
 .doc-paper.is-screenplay [data-screenplay-element="transition"] {
-  text-transform: uppercase; text-align: right; margin-top: 1em;
+  text-transform: uppercase; text-align: right; margin-top: var(--sp-line); max-width: 60ch;
 }
-.doc-paper.is-screenplay [data-screenplay-element="centered"] { text-align: center; margin-top: 1em; }
+.doc-paper.is-screenplay [data-screenplay-element="centered"] { text-align: center; margin-top: var(--sp-line); }
 /* The screenplay toggle is a labeled pill (clapperboard icon + word), NOT a
    square icon button — so it must size to its content. Without these overrides
    the base .doc-tb-pill's fixed 110px (or, previously, .doc-tb-btn's 28px)

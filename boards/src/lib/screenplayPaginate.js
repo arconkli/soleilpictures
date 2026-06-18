@@ -2,9 +2,10 @@
 // unit-testable and shared by the on-screen decoration plugin AND the PDF/print
 // builder, so on-screen pages == exported pages.
 //
-// Model: Courier 12pt = 6 lines/inch, 10 chars/inch. US Letter, 1" top/bottom
-// margins → ~9" body ≈ 54 text lines/page. Each element has a fixed text width
-// (for word-aware wrapping) and conventional spacing-before (blank lines).
+// Geometry comes from screenplayMetrics.js (the single source of truth shared
+// with the on-screen CSS + print shell): Courier 12pt, 10 cpi, a 60-char text
+// block, PAGE_LINES lines/page. Each element has a fixed wrap width and a
+// conventional spacing-before (blank lines).
 //
 // Break rules implemented:
 //   - never orphan a scene heading at the bottom of a page
@@ -13,41 +14,51 @@
 //     never strand <2 lines on either side
 //   - keep a parenthetical with the dialogue that follows it
 
-export const PAGE_LINES = 54;
+import {
+  PAGE_LINES, MIN_SPLIT, ELEMENT_WIDTH, elementWidth, elementSpacing,
+} from './screenplayMetrics.js';
 
-// Text width in characters per element (Courier, 10 cpi).
-export const ELEMENT_WIDTH = {
-  scene: 60, action: 60, character: 38, parenthetical: 25,
-  dialogue: 35, transition: 60, shot: 60, centered: 60,
-};
-// Blank lines before an element (0 when it's the first line on a page).
-const SPACING = {
-  scene: 2, action: 1, character: 1, parenthetical: 0,
-  dialogue: 0, transition: 1, shot: 1, centered: 1,
-};
-const MIN_SPLIT = 2; // never leave fewer than this many lines on either side
+export { PAGE_LINES, ELEMENT_WIDTH };
 
-// Word-aware wrap to `width` columns. A single word longer than `width` is hard-
-// broken. Returns at least one (possibly empty) line.
-export function wrapText(text, width) {
-  const words = String(text || '').split(/\s+/).filter(Boolean);
-  if (!words.length) return [''];
+// Word-aware wrap to `width` columns, returning line objects with offsets into
+// the ORIGINAL text: [{ text, start, end }]. A single word longer than `width`
+// is hard-broken. Returns at least one (possibly empty) line. Offsets let the
+// paginator slice the ORIGINAL text for each page (preserving the author's
+// spacing) and let the on-screen decoration place a mid-block break at the
+// exact character — no lossy single-space rejoin.
+export function wrapLines(text, width) {
+  const s = String(text || '');
   const lines = [];
-  let cur = '';
-  for (const w of words) {
-    if (w.length > width) {
-      if (cur) { lines.push(cur); cur = ''; }
-      let rest = w;
-      while (rest.length > width) { lines.push(rest.slice(0, width)); rest = rest.slice(width); }
-      cur = rest;
+  const re = /\S+/g;
+  let m;
+  let cur = null; // { start, end }
+  const flush = () => { if (cur) { lines.push({ text: s.slice(cur.start, cur.end), start: cur.start, end: cur.end }); cur = null; } };
+  while ((m = re.exec(s)) !== null) {
+    const word = m[0];
+    const wStart = m.index;
+    const wEnd = wStart + word.length;
+    if (word.length > width) {
+      flush();
+      let off = wStart;
+      let rest = word;
+      while (rest.length > width) { lines.push({ text: rest.slice(0, width), start: off, end: off + width }); rest = rest.slice(width); off += width; }
+      cur = { start: off, end: off + rest.length };
       continue;
     }
-    if (!cur) cur = w;
-    else if ((cur + ' ' + w).length <= width) cur += ' ' + w;
-    else { lines.push(cur); cur = w; }
+    if (!cur) { cur = { start: wStart, end: wEnd }; continue; }
+    // Measure the candidate line from its start to this word's end — this
+    // counts the author's own internal spaces toward the width, matching how
+    // the browser wraps the same slice under white-space: pre-wrap.
+    if ((wEnd - cur.start) <= width) cur.end = wEnd;
+    else { flush(); cur = { start: wStart, end: wEnd }; }
   }
-  if (cur) lines.push(cur);
-  return lines.length ? lines : [''];
+  flush();
+  return lines.length ? lines : [{ text: '', start: 0, end: 0 }];
+}
+
+// Back-compat: plain string lines.
+export function wrapText(text, width) {
+  return wrapLines(text, width).map(l => l.text);
 }
 
 function baseCharacter(text) {
@@ -56,13 +67,15 @@ function baseCharacter(text) {
 
 // blocks: [{ element, text }]. Returns { pages, pageCount } where each page is
 // an array of placed fragments:
-//   { index, element, lines, text, more?, contd? }
-//     index  — source block index (split fragments share it)
-//     lines  — content lines placed on this page
-//     text   — the actual text placed on this page (full block, or the slice
-//              for a split fragment)
-//     more   — a (MORE) marker follows (dialogue split)
-//     contd  — character name → render "NAME (CONT'D)" before this fragment
+//   { index, element, lines, text, srcStart, more?, contd? }
+//     index    — source block index (split fragments share it)
+//     lines    — content lines placed on this page
+//     text     — the actual ORIGINAL text placed on this page (full block, or
+//                the exact slice for a split fragment)
+//     srcStart — char offset into the source block where this fragment begins
+//                (0 for a whole block / first fragment; >0 for a continuation)
+//     more     — a (MORE) marker follows (dialogue split)
+//     contd    — character name → render "NAME (CONT'D)" before this fragment
 export function paginate(blocks, opts = {}) {
   const pageLines = opts.pageLines || PAGE_LINES;
   const pages = [];
@@ -71,7 +84,7 @@ export function paginate(blocks, opts = {}) {
   const pushPage = () => { pages.push(page); page = []; used = 0; };
 
   let i = 0;
-  let carry = null;            // { element, lines:[], index, contd? }
+  let carry = null;            // { element, text, index, contd?, srcStart }
   let lastCharacter = '';
 
   let guard = 0;
@@ -80,11 +93,14 @@ export function paginate(blocks, opts = {}) {
     const element = isCarry ? carry.element : blocks[i].element;
     if (!isCarry && element === 'character') lastCharacter = baseCharacter(blocks[i].text);
 
-    const allLines = isCarry ? carry.lines : wrapText(blocks[i].text, ELEMENT_WIDTH[element] || 60);
-    const cl = allLines.length;
+    const srcText = isCarry ? carry.text : (blocks[i].text || '');
+    const baseOffset = isCarry ? carry.srcStart : 0;
+    const width = elementWidth(element);
+    const lineObjs = wrapLines(srcText, width);
+    const cl = lineObjs.length;
     const idx = isCarry ? carry.index : i;
     const firstOnPage = used === 0;
-    const sb = isCarry ? 0 : (firstOnPage ? 0 : (SPACING[element] ?? 1));
+    const sb = isCarry ? 0 : (firstOnPage ? 0 : elementSpacing(element));
 
     // Look-ahead break rules (only when the page already has content).
     if (!isCarry && used > 0) {
@@ -95,7 +111,7 @@ export function paginate(blocks, opts = {}) {
 
     // Whole block/remainder fits.
     if (used + sb + cl <= pageLines) {
-      page.push({ index: idx, element, lines: cl, text: allLines.join(' '),
+      page.push({ index: idx, element, lines: cl, text: srcText, srcStart: baseOffset,
         ...(isCarry && carry.contd ? { contd: carry.contd } : {}) });
       used += sb + cl;
       if (isCarry) carry = null; else i++;
@@ -109,14 +125,16 @@ export function paginate(blocks, opts = {}) {
       const fit = pageLines - used - sb - reserve;
       const remaining = cl - fit;
       if (fit >= MIN_SPLIT && remaining >= MIN_SPLIT) {
+        const firstText = srcText.slice(0, lineObjs[fit - 1].end);
+        const remRel = lineObjs[fit].start;
         page.push({
-          index: idx, element, lines: fit, text: allLines.slice(0, fit).join(' '),
+          index: idx, element, lines: fit, text: firstText, srcStart: baseOffset,
           ...(element === 'dialogue' ? { more: true } : {}),
           ...(isCarry && carry.contd ? { contd: carry.contd } : {}),
         });
         pushPage();
         carry = {
-          element, lines: allLines.slice(fit), index: idx,
+          element, text: srcText.slice(remRel), index: idx, srcStart: baseOffset + remRel,
           ...(element === 'dialogue' ? { contd: lastCharacter } : {}),
         };
         if (!isCarry) i++;
@@ -128,7 +146,7 @@ export function paginate(blocks, opts = {}) {
     if (used > 0) { pushPage(); continue; }
 
     // Page is empty but the block is taller than a page — place it whole (bleed).
-    page.push({ index: idx, element, lines: cl, text: allLines.join(' '),
+    page.push({ index: idx, element, lines: cl, text: srcText, srcStart: baseOffset,
       ...(isCarry && carry.contd ? { contd: carry.contd } : {}) });
     used += cl;
     if (isCarry) carry = null; else i++;

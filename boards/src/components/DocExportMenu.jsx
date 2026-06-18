@@ -113,14 +113,23 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
       let html;
       if (docMode === 'screenplay') {
         const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
-        html = screenplayPrintHTML(docJSONToBlocks(scriptBlocks()), { title: safeName, titlePage });
+        const fontBaseUrl = typeof location !== 'undefined' ? location.origin : '';
+        html = screenplayPrintHTML(docJSONToBlocks(scriptBlocks()), { title: safeName, titlePage, fontBaseUrl });
       } else {
         html = printableHTML(await fullBodyHtml());
       }
       if (!w) return;
       w.document.write(html);
       w.document.close();
-      setTimeout(() => { try { w.focus(); w.print(); } catch (_) {} }, 300);
+      // Print once fonts are ready so Courier metrics are correct (no FOUT-driven
+      // re-pagination); fall back to a short delay if fonts.ready is unavailable.
+      const doPrint = () => { try { w.focus(); w.print(); } catch (_) {} };
+      const fontsReady = w.document.fonts && w.document.fonts.ready;
+      if (fontsReady && typeof fontsReady.then === 'function') {
+        fontsReady.then(() => setTimeout(doPrint, 50)).catch(() => setTimeout(doPrint, 300));
+      } else {
+        setTimeout(doPrint, 300);
+      }
       setOpen(false);
     } finally { setBusy(false); }
   };

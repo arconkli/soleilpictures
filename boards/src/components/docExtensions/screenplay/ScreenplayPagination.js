@@ -54,13 +54,14 @@ function computeDecorations(doc) {
   if (pages.length < 2) return DecorationSet.empty;
 
   const decos = [];
-  const placedChars = {}; // block index → chars already placed on earlier pages
   pages.forEach((frags, p) => {
     if (p > 0 && frags.length) {
       const f = frags[0];
       const blk = blocks[f.index];
       if (blk) {
-        const off = placedChars[f.index] || 0;
+        // srcStart is the exact character offset into the source block where
+        // this fragment begins (0 = whole block; >0 = a mid-block continuation).
+        const off = f.srcStart || 0;
         const midBlock = off > 0 || !!f.contd;
         // Mid-block: break inside the text (blk.pos + 1 enters block content,
         // + char offset). Otherwise: break before the block.
@@ -71,11 +72,6 @@ function computeDecorations(doc) {
         }));
       }
     }
-    frags.forEach(f => {
-      // Account for placed text length (+1 for the line join) so the next
-      // page's continuation offset lands at the right character.
-      placedChars[f.index] = (placedChars[f.index] || 0) + (f.text ? f.text.length + 1 : 0);
-    });
   });
   return DecorationSet.create(doc, decos);
 }

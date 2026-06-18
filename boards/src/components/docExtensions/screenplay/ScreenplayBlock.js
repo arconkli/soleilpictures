@@ -37,7 +37,11 @@ export const ScreenplayBlock = Node.create({
 
   renderHTML({ node, HTMLAttributes }) {
     const el = node.attrs.element || 'action';
-    return ['div', mergeAttributes({ class: `sp-el sp-${el}` }, HTMLAttributes), 0];
+    // Namespaced `sp-el-<element>` (NOT `sp-<element>`): the bare `sp-action`
+    // class collided with the canvas drawing toolbar's `.sp-action` button,
+    // which boxed action lines in a gray pill. On-screen layout is keyed off
+    // the `data-screenplay-element` attr, not these classes.
+    return ['div', mergeAttributes({ class: `sp-el sp-el-${el}` }, HTMLAttributes), 0];
   },
 
   addCommands() {

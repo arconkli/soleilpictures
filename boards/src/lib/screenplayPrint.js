@@ -37,9 +37,20 @@ function titlePageHTML(tp) {
     + `</section>`;
 }
 
+// @font-face for the print window. The window is about:blank, so the URL must
+// be absolute (pass the app origin); falls back to Courier New if omitted.
+function fontFaceCss(base) {
+  if (!base) return '';
+  return `
+  @font-face { font-family: 'Courier Prime'; font-style: normal; font-weight: 400; src: url('${base}/fonts/CourierPrime-Regular.woff2') format('woff2'); }
+  @font-face { font-family: 'Courier Prime'; font-style: normal; font-weight: 700; src: url('${base}/fonts/CourierPrime-Bold.woff2') format('woff2'); }
+  @font-face { font-family: 'Courier Prime'; font-style: italic; font-weight: 400; src: url('${base}/fonts/CourierPrime-Italic.woff2') format('woff2'); }`;
+}
+
 // blocks: [{ element, text }]. opts.titlePage: { enabled, title, ... }.
+// opts.fontBaseUrl: app origin so the print window can load Courier Prime.
 // Returns a full printable HTML document string.
-export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = null } = {}) {
+export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = null, fontBaseUrl = '' } = {}) {
   const { pages } = paginate(blocks);
   const titleSection = titlePageHTML(titlePage);
   const pageHtml = pages.map((frags, pi) => {
@@ -55,29 +66,35 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
 
   return `<!doctype html>
 <html><head><meta charset="utf-8"><title>${esc(title)}</title>
-<style>
-  @page { size: letter; margin: 1in; }
+<style>${fontFaceCss(fontBaseUrl)}
+  /* Geometry identical to the on-screen editor (styles.css .is-screenplay):
+     a fixed monospace ch-grid + --sp-line vertical rhythm, so the PDF's pages,
+     line breaks and indents match what the writer sees. Keep --sp-line and the
+     ch values in sync with src/lib/screenplayMetrics.js. */
+  :root { --sp-line: calc(9in / 55); }
+  @page { size: letter; margin: 0; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: 'Courier Prime', 'Courier New', Courier, monospace; font-size: 12pt; line-height: 1; color: #000; }
-  /* On screen (the print-preview window) show page frames; in print they're
-     just the flowed sections with forced breaks. */
-  .sp-page { position: relative; width: 8.5in; min-height: 11in; box-sizing: border-box; padding: 1in; margin: 0 auto 24px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.2); break-after: page; }
+  body { font-family: 'Courier Prime', 'Courier New', Courier, monospace; font-size: 12pt; line-height: var(--sp-line); color: #000; }
+  /* Each page is a real 8.5×11 sheet carrying the 1.5"/1.0" left/right margins
+     itself (so screen-preview == print; @page margin is 0). */
+  .sp-page { position: relative; width: 8.5in; min-height: 11in; box-sizing: border-box; padding: 1in 1in 1in 1.5in; margin: 0 auto 24px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.2); break-after: page; }
   .sp-page:last-child { break-after: auto; }
-  @media print { .sp-page { width: auto; min-height: 0; padding: 0; margin: 0; box-shadow: none; } }
+  @media print { .sp-page { margin: 0; box-shadow: none; } }
   .sp-pageno { position: absolute; top: 0.5in; right: 1in; }
-  @media print { .sp-pageno { top: -0.5in; right: 0; } }
-  .sp-scene { text-transform: uppercase; font-weight: 700; margin-top: 1.5em; white-space: pre-wrap; }
-  .sp-action { margin-top: 1em; white-space: pre-wrap; }
-  .sp-shot { text-transform: uppercase; margin-top: 1em; white-space: pre-wrap; }
-  .sp-character { text-transform: uppercase; margin-top: 1em; margin-left: 2in; white-space: pre-wrap; }
-  .sp-parenthetical { margin-left: 1.5in; margin-right: 2in; white-space: pre-wrap; }
-  .sp-dialogue { margin-left: 1in; margin-right: 1.5in; white-space: pre-wrap; }
-  .sp-transition { text-transform: uppercase; text-align: right; margin-top: 1em; white-space: pre-wrap; }
-  .sp-centered { text-align: center; margin-top: 1em; white-space: pre-wrap; }
-  .sp-contd { text-transform: uppercase; margin-left: 1in; }
-  .sp-more { margin-left: 1in; }
-  /* Title page — full-page flex layout matching the on-screen editor. */
-  .sp-title-page { display: flex; flex-direction: column; text-align: center; }
+  .sp-scene { text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line)); white-space: pre-wrap; max-width: 60ch; }
+  .sp-action { margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
+  .sp-shot { text-transform: uppercase; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
+  .sp-character { text-transform: uppercase; margin-top: var(--sp-line); margin-left: 22ch; max-width: 38ch; white-space: pre-wrap; }
+  .sp-parenthetical { margin-left: 16ch; max-width: 25ch; white-space: pre-wrap; }
+  .sp-dialogue { margin-left: 10ch; max-width: 35ch; white-space: pre-wrap; }
+  .sp-transition { text-transform: uppercase; text-align: right; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
+  .sp-centered { text-align: center; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
+  /* (MORE) / (CONT'D) align under the character cue column (22ch). */
+  .sp-contd { text-transform: uppercase; margin-left: 22ch; }
+  .sp-more { margin-left: 22ch; }
+  /* Title page — full-page flex layout matching the on-screen editor. The title
+     page uses symmetric 1in margins so it centers on the sheet. */
+  .sp-title-page { display: flex; flex-direction: column; text-align: center; padding-left: 1in; }
   .sp-title-page .sp-tp-center { margin-top: 2in; }
   .sp-title-page .sp-tp-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
   .sp-title-page .sp-tp-foot-left { text-align: left; }
@@ -86,6 +103,5 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   .sp-tp-source { margin-top: 1.5em; }
   .sp-tp-copyright { margin-top: 1em; }
   .sp-tp-notes { margin-top: 1em; }
-  @media print { .sp-title-page { min-height: 9in; } }
 </style></head><body>${titleSection}${pageHtml}</body></html>`;
 }
