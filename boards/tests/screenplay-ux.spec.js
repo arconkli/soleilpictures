@@ -129,6 +129,36 @@ test('Tab/Enter cycle elements and scene/character lines auto-uppercase', async 
   await expect(page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first()).toHaveText('Hello there.');
 });
 
+test('Scene # menu shows auto numbers in the gutters and can lock them', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. A - DAY' },
+      { element: 'action', text: 'x' },
+      { element: 'scene', text: 'EXT. B - NIGHT' },
+    ]));
+  });
+
+  // Turn auto numbering on.
+  await page.locator('.doc-tb-scenenum-toggle').click();
+  await page.getByRole('menuitemradio', { name: /Auto/ }).click();
+  await expect(page.locator('.doc-paper.show-scene-numbers')).toBeVisible();
+  const nums = await page.$$eval('.doc-paper.is-screenplay [data-scene-number]', els => els.map(e => e.getAttribute('data-scene-number')));
+  expect(nums).toEqual(['1', '2']);
+
+  // Lock — numbers get stamped onto the scene blocks (persisted).
+  await page.locator('.doc-tb-scenenum-toggle').click();
+  await page.getByRole('menuitemradio', { name: /Locked/ }).click();
+  const locked = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = S.docJSONToBlocks(window.__soleilDocTest.editor.getJSON());
+    return blocks.filter(b => b.element === 'scene').map(b => b.sceneNumber || null);
+  });
+  expect(locked).toEqual(['1', '2']);
+});
+
 test('on-screen auto (CONT’D) appears on a resuming character cue', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
@@ -184,7 +214,14 @@ test('character-name autocomplete suggests + completes a known name', async ({ p
   await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('.sp-autocomplete-item', { hasText: 'MARGARET' })).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(page.locator('.doc-card-modal [data-screenplay-element="character"]').last()).toHaveText('MARGARET');
+  // The completed cue STORES "MARGARET" (the resuming cue also renders an auto
+  // "(CONT'D)" widget, so assert the stored text, not the rendered textContent).
+  const lastCue = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const cues = S.docJSONToBlocks(window.__soleilDocTest.editor.getJSON()).filter(b => b.element === 'character');
+    return cues[cues.length - 1].text;
+  });
+  expect(lastCue).toBe('MARGARET');
 });
 
 test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {

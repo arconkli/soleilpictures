@@ -224,6 +224,60 @@ test('smart break: a character cue never strands at the bottom of a page', async
   expect(r.cueOnPage2).toBe(true);
 });
 
+test('scene numbers: auto by order, and locked numbers give inserts A/B suffixes', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    // Auto: number by order.
+    const auto = S.computeSceneNumbers([
+      { element: 'scene' }, { element: 'action' }, { element: 'scene' }, { element: 'scene' },
+    ]);
+    // Locked: scenes 1 and 2 stamped; a scene inserted between them is 1A.
+    const locked = S.computeSceneNumbers([
+      { element: 'scene', sceneNumber: '1' },
+      { element: 'scene' },                       // inserted after #1 → 1A
+      { element: 'scene' },                       // → 1B
+      { element: 'scene', sceneNumber: '2' },
+    ]);
+    return { auto: [...auto.values()], locked: [...locked.values()] };
+  });
+  expect(r.auto).toEqual(['1', '2', '3']); // action ignored
+  expect(r.locked).toEqual(['1', '1A', '1B', '2']);
+});
+
+test('FDX round-trips locked scene numbers via the Number attribute', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [
+      { element: 'scene', text: 'INT. A - DAY', sceneNumber: '1' },
+      { element: 'action', text: 'Stuff.' },
+      { element: 'scene', text: 'EXT. B - NIGHT', sceneNumber: '2A' },
+    ];
+    const xml = S.jsonToFdx(blocks);
+    const back = S.fdxToBlocks(xml);
+    return { hasNum: /Number="2A"/.test(xml), back };
+  });
+  expect(r.hasNum).toBe(true);
+  expect(r.back[0]).toMatchObject({ element: 'scene', sceneNumber: '1' });
+  expect(r.back[2]).toMatchObject({ element: 'scene', sceneNumber: '2A' });
+});
+
+test('print renders scene numbers in the gutters when enabled', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [{ element: 'scene', text: 'INT. A - DAY' }, { element: 'action', text: 'x' }, { element: 'scene', text: 'EXT. B - DAY' }];
+    const on = S.screenplayPrintHTML(blocks, { title: 'T', sceneNumbers: true });
+    const off = S.screenplayPrintHTML(blocks, { title: 'T', sceneNumbers: false });
+    return {
+      onClass: /<body class="sp-show-nums">/.test(on),
+      onNums: (on.match(/data-scene-number="/g) || []).length,
+      offClass: /<body class="">/.test(off),
+    };
+  });
+  expect(r.onClass).toBe(true);
+  expect(r.onNums).toBe(2); // two scene headings
+  expect(r.offClass).toBe(true);
+});
+
 test('Fountain title page round-trips and never bleeds into the body', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;

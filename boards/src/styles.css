@@ -17513,8 +17513,17 @@ button, [role="button"], a {
 }
 /* Industry element geometry (ch widths/indents from screenplayMetrics). */
 .doc-paper.is-screenplay [data-screenplay-element="scene"] {
-  text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line));
+  text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line)); position: relative;
 }
+/* Scene numbers in both gutters — only when .show-scene-numbers is set (the
+   ScreenplayPagination plugin always stamps data-scene-number; CSS gates it). */
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::before,
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::after {
+  content: attr(data-scene-number); position: absolute; top: 0;
+  font-weight: 400; color: var(--ink-2, #555);
+}
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::before { left: -1.4in; }
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::after { right: -0.8in; }
 .doc-paper.is-screenplay [data-screenplay-element="action"] { margin-top: var(--sp-line); }
 .doc-paper.is-screenplay [data-screenplay-element="shot"] { text-transform: uppercase; margin-top: var(--sp-line); }
 .doc-paper.is-screenplay [data-screenplay-element="character"] {
@@ -17531,20 +17540,32 @@ button, [role="button"], a {
    the base .doc-tb-pill's fixed 110px (or, previously, .doc-tb-btn's 28px)
    clipped/overflowed the word "Screenplay" and overlapped its neighbors. */
 .doc-tb-pill.doc-tb-screenplay-toggle,
-.doc-tb-pill.doc-tb-titlepage-toggle { width: auto; min-width: 0; max-width: none; gap: 5px; }
+.doc-tb-pill.doc-tb-titlepage-toggle,
+.doc-tb-pill.doc-tb-scenenum-toggle { width: auto; min-width: 0; max-width: none; gap: 5px; }
 .doc-tb-pill.doc-tb-screenplay-toggle.is-active,
 .doc-tb-pill.doc-tb-screenplay-toggle.is-active:hover:not(:disabled) {
   background: var(--soleil, #ffa500); color: #1a1205; font-weight: 600;
 }
-/* Title-page toggle: a quieter "on" state (outline) so it doesn't compete with
-   the mode toggle's solid fill. */
-.doc-tb-pill.doc-tb-titlepage-toggle.is-active {
+/* Title-page + scene-number toggles: a quieter "on" state (outline) so they
+   don't compete with the mode toggle's solid fill. */
+.doc-tb-pill.doc-tb-titlepage-toggle.is-active,
+.doc-tb-pill.doc-tb-scenenum-toggle.is-active {
   color: var(--soleil, #ffa500);
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--soleil, #ffa500) 55%, transparent);
 }
+/* Scene-number popover (mirrors the color popover). */
+.doc-tb-scenenum-pop { display: flex; flex-direction: column; min-width: 150px; padding: 4px; gap: 2px; }
+.doc-tb-scenenum-item {
+  appearance: none; border: 0; background: transparent; color: var(--ink-1);
+  text-align: left; padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  font: 500 12.5px/1 var(--font-sans);
+}
+.doc-tb-scenenum-item:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-tb-scenenum-item.is-active { color: var(--soleil, #ffa500); }
 /* Pane (side-dock) mode tightens; touch mode grows to match the 40px buttons. */
 .doc-card-modal-side .doc-tb-pill.doc-tb-screenplay-toggle,
-.doc-card-modal-side .doc-tb-pill.doc-tb-titlepage-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
+.doc-card-modal-side .doc-tb-pill.doc-tb-titlepage-toggle,
+.doc-card-modal-side .doc-tb-pill.doc-tb-scenenum-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
 .doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line2, rgba(255,255,255,.1)); }
 
 /* ── Editable on-page screenplay title page (ScreenplayTitlePage) ─────────── */

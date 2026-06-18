@@ -12,7 +12,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { paginate } from '../../../lib/screenplayPaginate.js';
-import { computeAutoContd } from './screenplayFlow.js';
+import { computeAutoContd, computeSceneNumbers } from './screenplayFlow.js';
 
 const key = new PluginKey('screenplayPagination');
 
@@ -51,9 +51,11 @@ function computeDecorations(doc) {
   // Top-level blocks (screenplay or otherwise) with their positions + sizes.
   const blocks = [];
   doc.forEach((node, offset) => {
+    const isSp = node.type.name === 'screenplayBlock';
     blocks.push({
-      element: node.type.name === 'screenplayBlock' ? (node.attrs.element || 'action') : 'action',
+      element: isSp ? (node.attrs.element || 'action') : 'action',
       text: node.textContent,
+      sceneNumber: isSp ? (node.attrs.sceneNumber || null) : null,
       pos: offset,
       size: node.nodeSize,
     });
@@ -62,6 +64,15 @@ function computeDecorations(doc) {
 
   const flat = blocks.map(b => ({ element: b.element, text: b.text }));
   const decos = [];
+
+  // Scene numbers in the left + right gutters (gated to visible by the
+  // `.show-scene-numbers` class on .doc-paper). Auto by order, or locked A/B.
+  const sceneNums = computeSceneNumbers(blocks.map(b => ({ element: b.element, sceneNumber: b.sceneNumber })));
+  sceneNums.forEach((num, idx) => {
+    const blk = blocks[idx];
+    if (!blk) return;
+    decos.push(Decoration.node(blk.pos, blk.pos + blk.size, { 'data-scene-number': num, class: 'sp-scene-numbered' }));
+  });
 
   // Auto (CONT'D) on a character cue resuming the same speaker — render-time
   // suffix, shown even on a single-page script. Never edits the stored text.

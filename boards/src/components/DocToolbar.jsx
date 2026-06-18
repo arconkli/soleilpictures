@@ -13,7 +13,7 @@ import { addRecentFont } from '../lib/customFonts.js';
 import {
   List, ListOrdered, ListChecks, Quote,
   AlignLeft, AlignCenter, AlignRight,
-  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard, FileText,
+  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard, FileText, Hash,
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 import { ELEMENTS as SP_ELEMENTS, ELEMENT_LABELS as SP_LABELS } from './docExtensions/screenplay/screenplayFlow.js';
@@ -41,6 +41,7 @@ const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6'
 export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink, onAddComment,
                                ydoc = null, scope = null, docMode = 'doc', onToggleScreenplay,
                                titlePageEnabled = false, onToggleTitlePage,
+                               sceneNumbersShow = false, onSetSceneNumbersShow,
                                zoom = 1, onZoomIn, onZoomOut, onZoomReset }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
@@ -182,6 +183,15 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
         </button>
       )}
 
+      {isScreenplay && onSetSceneNumbersShow && (
+        <SceneNumberMenu
+          editor={editor}
+          show={sceneNumbersShow}
+          onSetShow={onSetSceneNumbersShow}
+          disabled={disabled}
+        />
+      )}
+
       {!isScreenplay && (<>
         <FontPickerDropdown
           currentLabel={currentFontLabel}
@@ -293,6 +303,52 @@ function Btn({ children, active, disabled, onClick, title }) {
             onClick={onClick}>
       {children}
     </button>
+  );
+}
+
+// Scene-number control: Off / Auto (1,2,3…) / Locked (stamps numbers so later
+// inserts get A/B suffixes). Lock state lives on the scene blocks; visibility in
+// docMeta. Mirrors the ColorBtn popover.
+function SceneNumberMenu({ editor, show, onSetShow, disabled }) {
+  const [open, setOpen] = useState(false);
+  const anyLocked = (() => {
+    if (!editor) return false;
+    let found = false;
+    editor.state.doc.descendants((node) => {
+      if (found) return false;
+      if (node.type.name === 'screenplayBlock' && node.attrs.sceneNumber != null) { found = true; return false; }
+      return undefined;
+    });
+    return found;
+  })();
+  const current = !show ? 'off' : (anyLocked ? 'locked' : 'auto');
+  const choose = (mode) => {
+    if (mode === 'off') { onSetShow(false); }
+    else if (mode === 'auto') { editor?.chain().focus().unlockSceneNumbers().run(); onSetShow(true); }
+    else if (mode === 'locked') { editor?.chain().focus().lockSceneNumbers().run(); onSetShow(true); }
+    setOpen(false);
+  };
+  return (
+    <span className="doc-tb-colorwrap">
+      <button type="button"
+              className={`doc-tb-pill doc-tb-scenenum-toggle${show ? ' is-active' : ''}`}
+              disabled={disabled}
+              title="Scene numbers" aria-haspopup="true" aria-expanded={open}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setOpen(o => !o)}>
+        <Glyph as={Hash} size={14} />
+        <span className="doc-tb-pill-label">Scene #</span>
+      </button>
+      {open && (
+        <div className="doc-tb-colorpop doc-tb-scenenum-pop" role="menu" onMouseDown={(e) => e.preventDefault()}>
+          {[['off', 'Off'], ['auto', 'Auto (1, 2, 3…)'], ['locked', 'Locked (A/B)']].map(([mode, label]) => (
+            <button key={mode} role="menuitemradio" aria-checked={current === mode}
+                    className={`doc-tb-scenenum-item${current === mode ? ' is-active' : ''}`}
+                    onClick={() => choose(mode)}>{current === mode ? '✓ ' : ''}{label}</button>
+          ))}
+        </div>
+      )}
+    </span>
   );
 }
 

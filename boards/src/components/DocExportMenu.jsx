@@ -13,7 +13,7 @@ import {
   parseFountainTitlePage, fdxToTitlePage,
 } from '../lib/screenplayIO.js';
 import { screenplayPrintHTML } from '../lib/screenplayPrint.js';
-import { getTitlePage, setTitlePage } from '../lib/docState.js';
+import { getTitlePage, setTitlePage, getSceneNumbersShow } from '../lib/docState.js';
 
 // Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
@@ -113,8 +113,9 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
       let html;
       if (docMode === 'screenplay') {
         const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+        const sceneNumbers = ydoc ? getSceneNumbersShow(ydoc, scope) : false;
         const fontBaseUrl = typeof location !== 'undefined' ? location.origin : '';
-        html = screenplayPrintHTML(docJSONToBlocks(scriptBlocks()), { title: safeName, titlePage, fontBaseUrl });
+        html = screenplayPrintHTML(docJSONToBlocks(scriptBlocks()), { title: safeName, titlePage, fontBaseUrl, sceneNumbers });
       } else {
         html = printableHTML(await fullBodyHtml());
       }

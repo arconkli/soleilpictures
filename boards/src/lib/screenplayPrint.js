@@ -5,7 +5,7 @@
 // page breaks (it doesn't re-paginate), so the layout is deterministic.
 
 import { paginate } from './screenplayPaginate.js';
-import { computeAutoContd, characterCueDisplay } from '../components/docExtensions/screenplay/screenplayFlow.js';
+import { computeAutoContd, characterCueDisplay, computeSceneNumbers } from '../components/docExtensions/screenplay/screenplayFlow.js';
 
 function esc(s) {
   return String(s || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -51,9 +51,10 @@ function fontFaceCss(base) {
 // blocks: [{ element, text }]. opts.titlePage: { enabled, title, ... }.
 // opts.fontBaseUrl: app origin so the print window can load Courier Prime.
 // Returns a full printable HTML document string.
-export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = null, fontBaseUrl = '' } = {}) {
+export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = null, fontBaseUrl = '', sceneNumbers = false } = {}) {
   const { pages } = paginate(blocks);
   const contdSet = computeAutoContd(blocks);
+  const sceneNums = computeSceneNumbers(blocks);
   const titleSection = titlePageHTML(titlePage);
   const pageHtml = pages.map((frags, pi) => {
     const rows = frags.map((f) => {
@@ -61,7 +62,8 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
       const more = f.more ? `<div class="sp-more">(MORE)</div>` : '';
       // Auto (CONT'D) on a character cue that resumes the same speaker.
       const text = f.element === 'character' ? characterCueDisplay(f.text, contdSet.has(f.index)) : f.text;
-      return `${contd}<div class="sp-${f.element}">${esc(text) || '&nbsp;'}</div>${more}`;
+      const numAttr = (f.element === 'scene' && sceneNums.has(f.index)) ? ` data-scene-number="${esc(sceneNums.get(f.index))}"` : '';
+      return `${contd}<div class="sp-${f.element}"${numAttr}>${esc(text) || '&nbsp;'}</div>${more}`;
     }).join('');
     // Page numbers top-right, omitted on page 1 (industry convention).
     const num = pi > 0 ? `<div class="sp-pageno">${pi + 1}.</div>` : '';
@@ -85,7 +87,12 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   .sp-page:last-child { break-after: auto; }
   @media print { .sp-page { margin: 0; box-shadow: none; } }
   .sp-pageno { position: absolute; top: 0.5in; right: 1in; }
-  .sp-scene { text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line)); white-space: pre-wrap; max-width: 60ch; }
+  .sp-scene { text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line)); white-space: pre-wrap; max-width: 60ch; position: relative; }
+  /* Scene numbers in both gutters (only when enabled). */
+  body.sp-show-nums .sp-scene[data-scene-number]::before,
+  body.sp-show-nums .sp-scene[data-scene-number]::after { content: attr(data-scene-number); position: absolute; top: 0; font-weight: 400; }
+  body.sp-show-nums .sp-scene[data-scene-number]::before { left: -1.4in; }
+  body.sp-show-nums .sp-scene[data-scene-number]::after { right: -0.8in; }
   .sp-action { margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
   .sp-shot { text-transform: uppercase; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
   .sp-character { text-transform: uppercase; margin-top: var(--sp-line); margin-left: 22ch; max-width: 38ch; white-space: pre-wrap; }
@@ -107,5 +114,5 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   .sp-tp-source { margin-top: 1.5em; }
   .sp-tp-copyright { margin-top: 1em; }
   .sp-tp-notes { margin-top: 1em; }
-</style></head><body>${titleSection}${pageHtml}</body></html>`;
+</style></head><body class="${sceneNumbers ? 'sp-show-nums' : ''}">${titleSection}${pageHtml}</body></html>`;
 }

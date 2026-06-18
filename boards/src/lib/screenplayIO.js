@@ -90,7 +90,9 @@ export function docJSONToBlocks(doc) {
     if (!n || typeof n !== 'object') return;
     if (n.type === 'screenplayBlock') {
       const text = (n.content || []).map(c => (c.type === 'text' ? (c.text || '') : '')).join('');
-      out.push({ element: n.attrs?.element || 'action', text });
+      const b = { element: n.attrs?.element || 'action', text };
+      if (n.attrs?.sceneNumber) b.sceneNumber = n.attrs.sceneNumber;
+      out.push(b);
       return;
     }
     (n.content || []).forEach(walk);
@@ -104,7 +106,7 @@ export function blocksToDocJSON(blocks) {
     type: 'doc',
     content: (blocks || []).map(b => ({
       type: 'screenplayBlock',
-      attrs: { element: b.element || 'action' },
+      attrs: { element: b.element || 'action', ...(b.sceneNumber ? { sceneNumber: String(b.sceneNumber) } : {}) },
       content: b.text ? [{ type: 'text', text: b.text }] : [],
     })),
   };
@@ -230,7 +232,9 @@ export function jsonToFdx(docOrBlocks, titlePage = null) {
   const blocks = Array.isArray(docOrBlocks) ? docOrBlocks : docJSONToBlocks(docOrBlocks);
   const paras = blocks.map(b => {
     const type = FDX_TYPE[b.element] || 'Action';
-    return `  <Paragraph Type="${type}"><Text>${escapeXml(blockText(b))}</Text></Paragraph>`;
+    // Locked scene numbers ride along as the Final Draft Number attribute.
+    const num = (b.element === 'scene' && b.sceneNumber) ? ` Number="${escapeXml(b.sceneNumber)}"` : '';
+    return `  <Paragraph Type="${type}"${num}><Text>${escapeXml(blockText(b))}</Text></Paragraph>`;
   }).join('\n');
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <FinalDraft DocumentType="Script" Template="No" Version="5">
@@ -267,7 +271,10 @@ export function fdxToBlocks(xml) {
     let text = '';
     const texts = p.getElementsByTagName('Text');
     for (const t of texts) text += t.textContent || '';
-    out.push({ element, text });
+    const b = { element, text };
+    const num = p.getAttribute('Number');
+    if (element === 'scene' && num) b.sceneNumber = num;
+    out.push(b);
   }
   return out;
 }

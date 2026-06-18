@@ -28,6 +28,14 @@ export const ScreenplayBlock = Node.create({
         },
         renderHTML: (attrs) => ({ 'data-screenplay-element': attrs.element || 'action' }),
       },
+      // A LOCKED scene number (e.g. "5" or "5A"). null = unlocked → numbered
+      // automatically by order at render time. Persisted as data-scene-lock so
+      // locked numbers survive reload + collaborate (attr on a stable node).
+      sceneNumber: {
+        default: null,
+        parseHTML: (el) => el.getAttribute('data-scene-lock') || null,
+        renderHTML: (attrs) => (attrs.sceneNumber ? { 'data-scene-lock': attrs.sceneNumber } : {}),
+      },
     };
   },
 
@@ -53,6 +61,29 @@ export const ScreenplayBlock = Node.create({
       // Convert a screenplayBlock back to a normal paragraph.
       clearScreenplayElement: () => ({ commands }) =>
         commands.setNode('paragraph'),
+      // Lock scene numbers: stamp each scene heading, in order, with its current
+      // auto number so later inserts get A/B suffixes instead of renumbering.
+      lockSceneNumbers: () => ({ state, tr, dispatch }) => {
+        let n = 0;
+        state.doc.descendants((node, pos) => {
+          if (node.type.name === 'screenplayBlock' && node.attrs.element === 'scene') {
+            n += 1;
+            tr.setNodeMarkup(pos, undefined, { ...node.attrs, sceneNumber: String(n) });
+          }
+        });
+        if (dispatch) dispatch(tr);
+        return true;
+      },
+      // Unlock: clear every stored scene number → back to auto numbering.
+      unlockSceneNumbers: () => ({ state, tr, dispatch }) => {
+        state.doc.descendants((node, pos) => {
+          if (node.type.name === 'screenplayBlock' && node.attrs.sceneNumber != null) {
+            tr.setNodeMarkup(pos, undefined, { ...node.attrs, sceneNumber: null });
+          }
+        });
+        if (dispatch) dispatch(tr);
+        return true;
+      },
     };
   },
 });

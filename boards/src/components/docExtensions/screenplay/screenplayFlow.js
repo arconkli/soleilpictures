@@ -114,6 +114,33 @@ export function characterCueDisplay(text, contd) {
   return `${t} (CONT'D)`;
 }
 
+// 1→A, 2→B, … 26→Z, 27→AA — for inserted-scene letter suffixes.
+function letterFor(n) {
+  let s = '';
+  while (n > 0) { n -= 1; s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26); }
+  return s;
+}
+
+// Scene-number display strings. `blocks` is the flat [{ element, sceneNumber }]
+// array. If NO scene carries a locked `sceneNumber`, scenes are numbered 1..N by
+// order. If ANY does (locked mode), locked scenes keep their stamped number and
+// scenes inserted after a locked #N get A/B suffixes (5A, 5B…). Returns a Map of
+// block index → display string for scene blocks only.
+export function computeSceneNumbers(blocks) {
+  const out = new Map();
+  const list = blocks || [];
+  const anyLocked = list.some(b => b && b.element === 'scene' && b.sceneNumber);
+  let auto = 0, lastBase = null, letter = 0;
+  list.forEach((b, i) => {
+    if (!b || b.element !== 'scene') return;
+    if (!anyLocked) { auto += 1; out.set(i, String(auto)); return; }
+    if (b.sceneNumber) { out.set(i, String(b.sceneNumber)); lastBase = String(b.sceneNumber); letter = 0; return; }
+    letter += 1;
+    out.set(i, lastBase != null ? `${lastBase}${letterFor(letter)}` : `${letterFor(letter)}1`);
+  });
+  return out;
+}
+
 // Unique character names already used in the doc (for autocomplete).
 export function collectCharacterNames(doc) {
   const set = new Set();

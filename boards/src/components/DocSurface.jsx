@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
-import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, metaMap } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, metaMap } from '../lib/docState.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { isDocQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
@@ -170,6 +170,19 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     return () => m.unobserveDeep(update);
   }, [ydoc, scope]);
   const commitTitlePage = useCallback((patch) => setTitlePage(ydoc, scope, patch), [ydoc, scope]);
+
+  // Scene-number visibility (lock state lives on the blocks). Observe so a peer's
+  // toggle reflects here; the plugin always stamps numbers, CSS gates display.
+  const [sceneNumbersShow, setSceneNumbersShowState] = useState(() => getSceneNumbersShow(ydoc, scope));
+  useEffect(() => {
+    const m = metaMap(ydoc, scope);
+    setSceneNumbersShowState(getSceneNumbersShow(ydoc, scope));
+    if (!m) return;
+    const update = () => setSceneNumbersShowState(getSceneNumbersShow(ydoc, scope));
+    m.observe(update);
+    return () => m.unobserve(update);
+  }, [ydoc, scope]);
+  const onSetSceneNumbersShow = useCallback((v) => setSceneNumbersShow(ydoc, scope, v), [ydoc, scope]);
   const toggleTitlePage = useCallback(() => {
     const next = !titlePage.enabled;
     commitTitlePage({ enabled: next });
@@ -693,6 +706,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     onToggleScreenplay={toggleScreenplay}
                     titlePageEnabled={titlePage.enabled}
                     onToggleTitlePage={toggleTitlePage}
+                    sceneNumbersShow={sceneNumbersShow}
+                    onSetSceneNumbersShow={onSetSceneNumbersShow}
                     onInsertBookmark={insertBookmarkAtCaret}
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
@@ -706,7 +721,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                         editors={activePageId ? sheetIds.map(sid => editorsRef.current.get(sid)).filter(Boolean) : []}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
-        <div className={`doc-paper${docMode === 'screenplay' ? ' is-screenplay' : ''}`} ref={paperRef}
+        <div className={`doc-paper${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}`} ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': zoom }}>
           {/* Grain texture is painted as a background-image on .doc-paper
               with background-attachment:local so it tiles across the

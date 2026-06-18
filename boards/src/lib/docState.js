@@ -90,6 +90,18 @@ export function setDocMode(ydoc, scope, mode) {
   ydoc.transact(() => { m.set('mode', mode === 'screenplay' ? 'screenplay' : 'doc'); }, DOC_ORIGIN);
 }
 
+// Screenplay scene-number visibility (the lock state itself lives on the scene
+// blocks' sceneNumber attr). 'off' | 'on'.
+export function getSceneNumbersShow(ydoc, scope) {
+  const m = metaMap(ydoc, scope);
+  return !!(m && m.get('sceneNumbersShow'));
+}
+export function setSceneNumbersShow(ydoc, scope, show) {
+  const m = metaMap(ydoc, scope);
+  if (!m) return;
+  ydoc.transact(() => { m.set('sceneNumbersShow', !!show); }, DOC_ORIGIN);
+}
+
 // Screenplay title page. Stored as a nested Y.Map under docMeta so individual
 // fields merge independently across collaborators (per-field last-write-wins)
 // instead of one whole-object clobber. Rendered on-screen (ScreenplayTitlePage),
