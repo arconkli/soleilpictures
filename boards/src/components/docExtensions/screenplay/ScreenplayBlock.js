@@ -36,6 +36,17 @@ export const ScreenplayBlock = Node.create({
         parseHTML: (el) => el.getAttribute('data-scene-lock') || null,
         renderHTML: (attrs) => (attrs.sceneNumber ? { 'data-scene-lock': attrs.sceneNumber } : {}),
       },
+      // Dual dialogue column: 'left' | 'right' | null. The two speakers'
+      // speech blocks carry left/right so they render side by side. An attr on
+      // the stable node (not a structural wrapper) converges under Yjs.
+      dual: {
+        default: null,
+        parseHTML: (el) => {
+          const v = el.getAttribute('data-dual');
+          return (v === 'left' || v === 'right') ? v : null;
+        },
+        renderHTML: (attrs) => (attrs.dual ? { 'data-dual': attrs.dual } : {}),
+      },
     };
   },
 
@@ -81,6 +92,47 @@ export const ScreenplayBlock = Node.create({
             tr.setNodeMarkup(pos, undefined, { ...node.attrs, sceneNumber: null });
           }
         });
+        if (dispatch) dispatch(tr);
+        return true;
+      },
+      // Dual dialogue: pair the speech at the caret with the one before it so
+      // they render side by side (preceding = left, current = right). Toggles
+      // off if the current speech is already dual.
+      toggleDualDialogue: () => ({ state, tr, dispatch }) => {
+        const { doc, selection } = state;
+        const blocks = [];
+        doc.forEach((node, pos) => blocks.push({
+          node, pos,
+          end: pos + node.nodeSize,
+          element: node.type.name === 'screenplayBlock' ? (node.attrs.element || 'action') : null,
+          dual: node.type.name === 'screenplayBlock' ? (node.attrs.dual || null) : null,
+        }));
+        const head = selection.head;
+        let ci = blocks.findIndex(b => head >= b.pos && head <= b.end);
+        if (ci < 0) return false;
+        const isSpeech = (el) => el === 'parenthetical' || el === 'dialogue';
+        // C2 = the character cue starting the speech at the caret.
+        let startC2 = ci;
+        while (startC2 >= 0 && blocks[startC2].element !== 'character') startC2 -= 1;
+        if (startC2 < 0) return false;
+        let endC2 = startC2;
+        while (endC2 + 1 < blocks.length && isSpeech(blocks[endC2 + 1].element)) endC2 += 1;
+        // C1 = the speech immediately before C2.
+        let startC1 = startC2 - 1;
+        while (startC1 >= 0 && blocks[startC1].element !== 'character') startC1 -= 1;
+        if (startC1 < 0) return false;
+        let endC1 = startC1;
+        while (endC1 + 1 < startC2 && isSpeech(blocks[endC1 + 1].element)) endC1 += 1;
+        const already = !!blocks[startC2].dual;
+        const setRange = (from, to, val) => {
+          for (let k = from; k <= to; k += 1) {
+            const b = blocks[k];
+            if (!b.element) continue; // only screenplayBlocks
+            tr.setNodeMarkup(b.pos, undefined, { ...b.node.attrs, dual: val });
+          }
+        };
+        if (already) { setRange(startC1, endC1, null); setRange(startC2, endC2, null); }
+        else { setRange(startC1, endC1, 'left'); setRange(startC2, endC2, 'right'); }
         if (dispatch) dispatch(tr);
         return true;
       },

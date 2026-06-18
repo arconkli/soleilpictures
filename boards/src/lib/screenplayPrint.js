@@ -63,7 +63,8 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
       // Auto (CONT'D) on a character cue that resumes the same speaker.
       const text = f.element === 'character' ? characterCueDisplay(f.text, contdSet.has(f.index)) : f.text;
       const numAttr = (f.element === 'scene' && sceneNums.has(f.index)) ? ` data-scene-number="${esc(sceneNums.get(f.index))}"` : '';
-      return `${contd}<div class="sp-${f.element}"${numAttr}>${esc(text) || '&nbsp;'}</div>${more}`;
+      const dualAttr = f.dual ? ` data-dual="${f.dual}"` : '';
+      return `${contd}<div class="sp-${f.element}"${numAttr}${dualAttr}>${esc(text) || '&nbsp;'}</div>${more}`;
     }).join('');
     // Page numbers top-right, omitted on page 1 (industry convention).
     const num = pi > 0 ? `<div class="sp-pageno">${pi + 1}.</div>` : '';
@@ -103,6 +104,16 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   /* (MORE) / (CONT'D) align under the character cue column (22ch). */
   .sp-contd { text-transform: uppercase; margin-left: 22ch; }
   .sp-more { margin-left: 22ch; }
+  /* Dual dialogue — two side-by-side ~29ch columns. LEFT floats; RIGHT stays
+     in-flow with a left margin so it top-aligns beside the float (a right float
+     would be forced below). Non-dual blocks clear. */
+  .sp-page > div:not([data-dual]) { clear: both; }
+  .sp-page [data-dual] { box-sizing: border-box; width: 29ch; max-width: 29ch; margin-top: var(--sp-line); }
+  .sp-page [data-dual="left"] { float: left; clear: left; margin-left: 0; }
+  .sp-page [data-dual="right"] { float: none; clear: none; margin-left: 31ch; }
+  .sp-page .sp-character[data-dual] { text-align: center; }
+  .sp-page .sp-parenthetical[data-dual="left"] { margin-left: 4ch; max-width: 21ch; }
+  .sp-page .sp-parenthetical[data-dual="right"] { margin-left: 35ch; max-width: 21ch; }
   /* Title page — full-page flex layout matching the on-screen editor. The title
      page uses symmetric 1in margins so it centers on the sheet. */
   .sp-title-page { display: flex; flex-direction: column; text-align: center; padding-left: 1in; }

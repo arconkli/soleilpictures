@@ -159,6 +159,38 @@ test('Scene # menu shows auto numbers in the gutters and can lock them', async (
   expect(locked).toEqual(['1', '2']);
 });
 
+test('Dual button pairs two speeches and renders them side by side', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'action', text: 'They face off.' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Hello there.' },
+      { element: 'character', text: 'MARY' },
+      { element: 'dialogue', text: 'Hi yourself.' },
+    ]));
+    // Put the caret in the second speech (MARY).
+    const ed = window.__soleilDocTest.editor;
+    let pos = null;
+    ed.state.doc.descendants((node, p) => { if (node.attrs?.element === 'character' && node.textContent === 'MARY') pos = p + 1; });
+    if (pos != null) ed.commands.setTextSelection(pos);
+  });
+  await page.locator('button[title^="Dual dialogue"]').click();
+
+  // Both cues now carry left/right and top-align into two columns.
+  const cues = await page.evaluate(() => {
+    const els = [...document.querySelectorAll('.doc-paper.is-screenplay [data-dual][data-screenplay-element="character"]')];
+    return els.map(e => ({ dual: e.getAttribute('data-dual'), top: Math.round(e.getBoundingClientRect().top), left: Math.round(e.getBoundingClientRect().left) }));
+  });
+  expect(cues.length).toBe(2);
+  expect(cues.map(c => c.dual)).toEqual(['left', 'right']);
+  expect(Math.abs(cues[0].top - cues[1].top)).toBeLessThanOrEqual(2); // top-aligned
+  expect(cues[1].left).toBeGreaterThan(cues[0].left);                  // right column
+});
+
 test('on-screen auto (CONT’D) appears on a resuming character cue', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);

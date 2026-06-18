@@ -278,6 +278,57 @@ test('print renders scene numbers in the gutters when enabled', async ({ page })
   expect(r.offClass).toBe(true);
 });
 
+test('dual dialogue round-trips through Fountain via the ^ caret', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'character', text: 'JOHN', dual: 'left' },
+      { element: 'dialogue', text: 'Hello.', dual: 'left' },
+      { element: 'character', text: 'MARY', dual: 'right' },
+      { element: 'dialogue', text: 'Hi.', dual: 'right' },
+    ];
+    const f = S.jsonToFountain(blocks);
+    const back = S.fountainToBlocks(f);
+    return {
+      hasCaret: /MARY \^/.test(f),
+      noCaretOnFirst: !/JOHN \^/.test(f),
+      back: back.map(b => ({ element: b.element, text: b.text, dual: b.dual || null })),
+    };
+  });
+  expect(r.hasCaret).toBe(true);
+  expect(r.noCaretOnFirst).toBe(true);
+  expect(r.back).toEqual([
+    { element: 'scene', text: 'INT. ROOM - DAY', dual: null },
+    { element: 'character', text: 'JOHN', dual: 'left' },
+    { element: 'dialogue', text: 'Hello.', dual: 'left' },
+    { element: 'character', text: 'MARY', dual: 'right' },
+    { element: 'dialogue', text: 'Hi.', dual: 'right' },
+  ]);
+});
+
+test('paginator keeps a dual-dialogue pair together and counts the taller column', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    // Fill near the page bottom, then a dual pair (left 2 lines / right 5 lines).
+    const blocks = [
+      { element: 'action', text: 'A'.repeat(60 * 50) },        // 50 lines
+      { element: 'character', text: 'JOHN', dual: 'left' },
+      { element: 'dialogue', text: ('word ').repeat(35 * 2).trim(), dual: 'left' },
+      { element: 'character', text: 'MARY', dual: 'right' },
+      { element: 'dialogue', text: ('talk ').repeat(35 * 5).trim(), dual: 'right' },
+    ];
+    const res = S.paginate(blocks);
+    // The 4 dual fragments must all land on the SAME page (never split).
+    const pageOf = {};
+    res.pages.forEach((frags, p) => frags.forEach(f => { if (f.dual) pageOf[f.index] = p; }));
+    const dualPages = [pageOf[1], pageOf[2], pageOf[3], pageOf[4]];
+    return { pageCount: res.pageCount, allSamePage: new Set(dualPages).size === 1, dualPages };
+  });
+  expect(r.pageCount).toBeGreaterThanOrEqual(2); // the pair didn't fit after 50 lines → moved
+  expect(r.allSamePage).toBe(true);
+});
+
 test('Fountain title page round-trips and never bleeds into the body', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;

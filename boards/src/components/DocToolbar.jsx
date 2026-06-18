@@ -13,7 +13,7 @@ import { addRecentFont } from '../lib/customFonts.js';
 import {
   List, ListOrdered, ListChecks, Quote,
   AlignLeft, AlignCenter, AlignRight,
-  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard, FileText, Hash,
+  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard, FileText, Hash, Columns2,
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 import { ELEMENTS as SP_ELEMENTS, ELEMENT_LABELS as SP_LABELS } from './docExtensions/screenplay/screenplayFlow.js';
@@ -190,6 +190,15 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
           onSetShow={onSetSceneNumbersShow}
           disabled={disabled}
         />
+      )}
+
+      {isScreenplay && (
+        <Btn title="Dual dialogue — pair this speech with the one above"
+             active={isActive('screenplayBlock') && !!editor?.getAttributes('screenplayBlock')?.dual}
+             disabled={disabled || !editor?.isActive('screenplayBlock')}
+             onClick={() => editor.chain().focus().toggleDualDialogue().run()}>
+          <Glyph as={Columns2} size={14} />
+        </Btn>
       )}
 
       {!isScreenplay && (<>

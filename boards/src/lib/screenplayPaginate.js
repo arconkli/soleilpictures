@@ -90,6 +90,38 @@ export function paginate(blocks, opts = {}) {
   let guard = 0;
   while ((i < blocks.length || carry) && guard++ < 100000) {
     const isCarry = !!carry;
+
+    // Dual dialogue: a run of side-by-side speech blocks is placed as one
+    // unit whose height is the TALLER of the two columns (they print/render
+    // beside each other, not stacked). Never split across a page.
+    if (!isCarry && blocks[i] && blocks[i].dual) {
+      let j = i;
+      while (j < blocks.length && blocks[j].dual) j += 1;
+      const group = blocks.slice(i, j);
+      const colLines = (side) => {
+        let n = 0, first = true;
+        for (const b of group) {
+          if (b.dual !== side) continue;
+          const ls = wrapLines(b.text, elementWidth(b.element)).length;
+          n += (first ? 0 : elementSpacing(b.element)) + ls;
+          first = false;
+        }
+        return n;
+      };
+      const groupLines = Math.max(colLines('left'), colLines('right'));
+      const sb = used === 0 ? 0 : 1;
+      if (used > 0 && used + sb + groupLines > pageLines) { pushPage(); continue; }
+      group.forEach((b, k) => {
+        page.push({
+          index: i + k, element: b.element, dual: b.dual, srcStart: 0,
+          lines: wrapLines(b.text, elementWidth(b.element)).length, text: b.text,
+        });
+      });
+      used += sb + groupLines;
+      i = j;
+      continue;
+    }
+
     const element = isCarry ? carry.element : blocks[i].element;
     if (!isCarry && element === 'character') lastCharacter = baseCharacter(blocks[i].text);
 

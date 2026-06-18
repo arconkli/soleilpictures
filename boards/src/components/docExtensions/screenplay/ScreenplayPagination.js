@@ -56,13 +56,14 @@ function computeDecorations(doc) {
       element: isSp ? (node.attrs.element || 'action') : 'action',
       text: node.textContent,
       sceneNumber: isSp ? (node.attrs.sceneNumber || null) : null,
+      dual: isSp ? (node.attrs.dual || null) : null,
       pos: offset,
       size: node.nodeSize,
     });
   });
   if (blocks.length < 1) return DecorationSet.empty;
 
-  const flat = blocks.map(b => ({ element: b.element, text: b.text }));
+  const flat = blocks.map(b => ({ element: b.element, text: b.text, dual: b.dual }));
   const decos = [];
 
   // Scene numbers in the left + right gutters (gated to visible by the

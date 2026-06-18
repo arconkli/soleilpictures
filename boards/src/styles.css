@@ -17510,6 +17510,8 @@ button, [role="button"], a {
 .doc-paper.is-screenplay .sp-el { white-space: pre-wrap; margin: 0; }
 .doc-paper.is-screenplay [data-screenplay-element] {
   white-space: pre-wrap; max-width: 60ch; margin-left: 0; margin-right: 0;
+  /* Non-dual blocks clear any dual-dialogue floats above them (no wrapper). */
+  clear: both;
 }
 /* Industry element geometry (ch widths/indents from screenplayMetrics). */
 .doc-paper.is-screenplay [data-screenplay-element="scene"] {
@@ -17535,6 +17537,18 @@ button, [role="button"], a {
   text-transform: uppercase; text-align: right; margin-top: var(--sp-line); max-width: 60ch;
 }
 .doc-paper.is-screenplay [data-screenplay-element="centered"] { text-align: center; margin-top: var(--sp-line); }
+/* Dual dialogue — two speeches side by side (two ~29ch columns). Placed AFTER
+   the per-element rules so it overrides their indents/widths. The LEFT column
+   floats; the RIGHT column stays in-flow with a left margin so it TOP-ALIGNS
+   beside the floats (a right float would be forced below the left float per the
+   CSS "no float higher than an earlier float" rule). Flat blocks, no wrapper. */
+.doc-paper.is-screenplay [data-dual] { box-sizing: border-box; width: 29ch; max-width: 29ch; margin-top: var(--sp-line); }
+.doc-paper.is-screenplay [data-dual="left"] { float: left; clear: left; margin-left: 0; }
+.doc-paper.is-screenplay [data-dual="right"] { float: none; clear: none; margin-left: 31ch; }
+.doc-paper.is-screenplay [data-dual][data-screenplay-element="character"] { text-align: center; }
+.doc-paper.is-screenplay [data-dual][data-screenplay-element="dialogue"] { max-width: 29ch; }
+.doc-paper.is-screenplay [data-dual="left"][data-screenplay-element="parenthetical"] { margin-left: 4ch; max-width: 21ch; }
+.doc-paper.is-screenplay [data-dual="right"][data-screenplay-element="parenthetical"] { margin-left: 35ch; max-width: 21ch; }
 /* The screenplay toggle is a labeled pill (clapperboard icon + word), NOT a
    square icon button — so it must size to its content. Without these overrides
    the base .doc-tb-pill's fixed 110px (or, previously, .doc-tb-btn's 28px)

@@ -92,6 +92,7 @@ export function docJSONToBlocks(doc) {
       const text = (n.content || []).map(c => (c.type === 'text' ? (c.text || '') : '')).join('');
       const b = { element: n.attrs?.element || 'action', text };
       if (n.attrs?.sceneNumber) b.sceneNumber = n.attrs.sceneNumber;
+      if (n.attrs?.dual) b.dual = n.attrs.dual;
       out.push(b);
       return;
     }
@@ -106,7 +107,11 @@ export function blocksToDocJSON(blocks) {
     type: 'doc',
     content: (blocks || []).map(b => ({
       type: 'screenplayBlock',
-      attrs: { element: b.element || 'action', ...(b.sceneNumber ? { sceneNumber: String(b.sceneNumber) } : {}) },
+      attrs: {
+        element: b.element || 'action',
+        ...(b.sceneNumber ? { sceneNumber: String(b.sceneNumber) } : {}),
+        ...(b.dual === 'left' || b.dual === 'right' ? { dual: b.dual } : {}),
+      },
       content: b.text ? [{ type: 'text', text: b.text }] : [],
     })),
   };
@@ -133,9 +138,13 @@ export function jsonToFountain(docOrBlocks, titlePage = null) {
         lines.push(force ? '!' + text : text);
         break;
       }
-      case 'character':
-        lines.push(isAllCaps(text) ? text : '@' + text);
+      case 'character': {
+        // Fountain marks the SECOND speaker of a dual-dialogue pair with a
+        // trailing caret.
+        const caret = b.dual === 'right' ? ' ^' : '';
+        lines.push((isAllCaps(text) ? text : '@' + text) + caret);
         break;
+      }
       case 'parenthetical': {
         const t = text.trim();
         lines.push(/^\(.*\)$/.test(t) ? t : `(${t.replace(/^\(|\)$/g, '')})`);
@@ -185,7 +194,12 @@ export function fountainToBlocks(text) {
     // Character cue: blank before + (forced @ OR all-caps) + a non-blank line follows.
     const nextNonBlank = (lines[i + 1] || '').trim() !== '';
     if (prevBlank && (forcedChar || isAllCaps(line)) && nextNonBlank) {
-      blocks.push({ element: 'character', text: (forcedChar ? cue : line).toUpperCase() });
+      // A trailing caret marks the SECOND speaker of a dual-dialogue pair.
+      let cueText = forcedChar ? cue : line;
+      const isDual = /\s*\^\s*$/.test(cueText);
+      if (isDual) cueText = cueText.replace(/\s*\^\s*$/, '');
+      const speechStart = blocks.length;
+      blocks.push({ element: 'character', text: cueText.toUpperCase() });
       i++;
       // Consume the speech block: parentheticals + dialogue until a blank line.
       while (i < lines.length && lines[i].trim() !== '') {
@@ -193,6 +207,12 @@ export function fountainToBlocks(text) {
         if (/^\(.*\)$/.test(dl)) blocks.push({ element: 'parenthetical', text: dl });
         else blocks.push({ element: 'dialogue', text: dl });
         i++;
+      }
+      if (isDual) {
+        for (let k = speechStart; k < blocks.length; k++) blocks[k].dual = 'right';
+        let pc = speechStart - 1;
+        while (pc >= 0 && blocks[pc].element !== 'character') pc--;
+        if (pc >= 0) for (let k = pc; k < speechStart; k++) blocks[k].dual = 'left';
       }
       prevBlank = false;
       continue;
