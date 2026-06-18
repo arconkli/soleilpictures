@@ -17632,6 +17632,20 @@ button, [role="button"], a {
 .sp-autocomplete-item.is-active, .sp-autocomplete-item:hover { background: var(--soleil, #ffa500); color: #1a1205; }
 .doc-foot-status.is-error { color: var(--danger, #ef4444); }
 
+/* Scene navigator (left rail, screenplay mode) — outline of scene headings. */
+.sp-scenenav { padding: 8px 4px; margin-top: 8px; border-top: 1px solid var(--line2, rgba(255,255,255,.08)); overflow-y: auto; }
+.sp-scenenav-head { padding: 2px 8px 6px; color: var(--ink-3); }
+.sp-scenenav-empty { padding: 4px 8px; color: var(--ink-3); font-size: 12px; }
+.sp-scenenav-item {
+  display: flex; gap: 8px; width: 100%; text-align: left; appearance: none; border: 0;
+  background: transparent; color: var(--ink-1); padding: 5px 8px; border-radius: 6px;
+  cursor: pointer; font: 500 12.5px/1.3 var(--font-sans);
+}
+.sp-scenenav-item:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sp-scenenav-num { flex: 0 0 auto; color: var(--ink-3); min-width: 1.6em; }
+.sp-scenenav-text { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.sp-scenenav-title { text-transform: none; color: var(--ink-2); }
+
 /* Phone: page rail becomes a slide-over drawer (desktop rail is display:none
    at <=640px, which stranded multi-page navigation). */
 .doc-mobile-pages-btn { display: none; }

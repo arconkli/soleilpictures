@@ -24,6 +24,7 @@ import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocPresence } from './DocPresence.jsx';
 import { DocToolbar } from './DocToolbar.jsx';
 import { ScreenplayTitlePage } from './ScreenplayTitlePage.jsx';
+import { ScreenplaySceneNav } from './ScreenplaySceneNav.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
@@ -680,6 +681,16 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             onSelectPage={(id) => { setActivePageId(id); setMobileRailOpen(false); }}
             peers={peersOnBoard}
             onJumpToPeer={onJumpToPeer}
+          />
+        )}
+        {rails.left && docMode === 'screenplay' && (
+          <ScreenplaySceneNav
+            editor={editorRef.current}
+            titlePageEnabled={titlePage.enabled}
+            onJumpTitlePage={() => {
+              setMobileRailOpen(false);
+              paperRef.current?.querySelector('.sp-title-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
           />
         )}
       </aside>

@@ -129,6 +129,36 @@ test('Tab/Enter cycle elements and scene/character lines auto-uppercase', async 
   await expect(page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first()).toHaveText('Hello there.');
 });
 
+test('scene navigator lists scene headings and jumps to them', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. COFFEE SHOP - DAY' },
+      { element: 'action', text: 'x' },
+      { element: 'scene', text: 'EXT. PARK - NIGHT' },
+      { element: 'action', text: 'y' },
+    ]));
+  });
+  const nav = page.locator('.sp-scenenav');
+  await expect(nav).toBeVisible();
+  await expect(nav.locator('.sp-scenenav-item')).toHaveCount(2);
+  await expect(nav.locator('.sp-scenenav-item').first()).toContainText('COFFEE SHOP');
+  // Clicking a scene moves the caret into that scene.
+  await nav.locator('.sp-scenenav-item').nth(1).click();
+  const inScene2 = await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    const $from = ed.state.selection.$from;
+    for (let d = $from.depth; d > 0; d--) {
+      const n = $from.node(d);
+      if (n.type.name === 'screenplayBlock') return n.textContent;
+    }
+    return null;
+  });
+  expect(inScene2).toContain('PARK');
+});
+
 test('Scene # menu shows auto numbers in the gutters and can lock them', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
@@ -254,6 +284,61 @@ test('character-name autocomplete suggests + completes a known name', async ({ p
     return cues[cues.length - 1].text;
   });
   expect(lastCue).toBe('MARGARET');
+});
+
+test('character autocomplete offers (V.O.)/(O.S.) extensions after a name', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().setScreenplayElement('character').run());
+  await page.keyboard.type('john '); // name + trailing space → extension stage
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('.sp-autocomplete-item', { hasText: 'V.O.' })).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.doc-card-modal [data-screenplay-element="character"]').first()).toContainText('(V.O.)');
+});
+
+test('scene-heading autocomplete offers an INT./EXT. prefix', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.keyboard.type('ex'); // seeded first block is a Scene Heading
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('.sp-autocomplete-item', { hasText: 'EXT.' })).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.doc-card-modal [data-screenplay-element="scene"]').first()).toContainText('EXT.');
+});
+
+test('transition autocomplete offers common transitions', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().setScreenplayElement('transition').run());
+  await page.keyboard.type('diss');
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('.sp-autocomplete-item', { hasText: 'DISSOLVE TO:' })).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.doc-card-modal [data-screenplay-element="transition"]').first()).toContainText('DISSOLVE TO:');
+});
+
+test('smart quotes apply in screenplay dialogue', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  // Get to a dialogue line: scene → enter (action) → tab (character) → type → enter (dialogue).
+  await page.keyboard.type('int. room - day');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('sam');
+  await page.keyboard.press('Enter');           // → dialogue
+  await page.keyboard.type('"Hello," she said.');
+  const text = await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().textContent();
+  // Typography converted the straight quotes to curly.
+  expect(text).toMatch(/[“”]/);
 });
 
 test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {

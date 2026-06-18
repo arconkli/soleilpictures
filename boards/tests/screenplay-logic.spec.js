@@ -416,6 +416,25 @@ test('print HTML prepends a full title page section when enabled', async ({ page
   expect(r.offHasNone).toBe(true);
 });
 
+test('IO fixes: centered round-trips through FDX, and shots import from Fountain', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    // centered → FDX Alignment="Center" → back to centered
+    const xml = S.jsonToFdx([{ element: 'centered', text: 'THE END' }]);
+    const back = S.fdxToBlocks(xml);
+    // shot heuristic on Fountain import
+    const shots = S.fountainToBlocks('INT. ROOM - DAY\n\nANGLE ON THE DOOR\n\nIt creaks open.\n');
+    return {
+      xmlHasCenter: /Alignment="Center"/.test(xml),
+      back0: back[0],
+      shotEl: (shots.find(b => /ANGLE/.test(b.text)) || {}).element,
+    };
+  });
+  expect(r.xmlHasCenter).toBe(true);
+  expect(r.back0).toEqual({ element: 'centered', text: 'THE END' });
+  expect(r.shotEl).toBe('shot');
+});
+
 test('FDX round-trips with exact Final Draft Type strings', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;

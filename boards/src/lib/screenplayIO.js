@@ -16,6 +16,7 @@ const TYPE_FDX = {
 };
 
 const SCENE_RE = /^(INT\.?\/EXT\.?|INT\.?|EXT\.?|EST\.?|I\/E\.?)[\. ]/i;
+const SHOT_RE = /^(ANGLE|CLOSE|WIDE|POV|INSERT|EXTREME CLOSE|REVERSE|AERIAL|TRACKING|DOLLY|CRANE|HANDHELD|UNDERWATER|SERIES OF SHOTS|MONTAGE|BACK TO)\b/;
 const isAllCaps = (s) => /[A-Z]/.test(s) && !/[a-z]/.test(s);
 const blockText = (b) => (b.text || '');
 
@@ -190,6 +191,9 @@ export function fountainToBlocks(text) {
 
     if (SCENE_RE.test(line)) { blocks.push({ element: 'scene', text: line.toUpperCase() }); prevBlank = false; i++; continue; }
     if (isAllCaps(line) && /TO:$/.test(line)) { blocks.push({ element: 'transition', text: line }); prevBlank = false; i++; continue; }
+    // Shot heuristic: an all-caps line that opens with a camera/shot keyword
+    // (Fountain has no shot type, so this is a best-effort recovery).
+    if (isAllCaps(line) && SHOT_RE.test(line)) { blocks.push({ element: 'shot', text: line }); prevBlank = false; i++; continue; }
 
     // Character cue: blank before + (forced @ OR all-caps) + a non-blank line follows.
     const nextNonBlank = (lines[i + 1] || '').trim() !== '';
@@ -254,7 +258,9 @@ export function jsonToFdx(docOrBlocks, titlePage = null) {
     const type = FDX_TYPE[b.element] || 'Action';
     // Locked scene numbers ride along as the Final Draft Number attribute.
     const num = (b.element === 'scene' && b.sceneNumber) ? ` Number="${escapeXml(b.sceneNumber)}"` : '';
-    return `  <Paragraph Type="${type}"${num}><Text>${escapeXml(blockText(b))}</Text></Paragraph>`;
+    // Centered text has no FDX type — encode it as centered Action (round-trips).
+    const align = b.element === 'centered' ? ' Alignment="Center"' : '';
+    return `  <Paragraph Type="${type}"${num}${align}><Text>${escapeXml(blockText(b))}</Text></Paragraph>`;
   }).join('\n');
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <FinalDraft DocumentType="Script" Template="No" Version="5">
@@ -291,9 +297,12 @@ export function fdxToBlocks(xml) {
     let text = '';
     const texts = p.getElementsByTagName('Text');
     for (const t of texts) text += t.textContent || '';
-    const b = { element, text };
+    let el = element;
+    // Centered Action round-trips back to a centered block.
+    if (el === 'action' && (p.getAttribute('Alignment') || '').toLowerCase() === 'center') el = 'centered';
+    const b = { element: el, text };
     const num = p.getAttribute('Number');
-    if (element === 'scene' && num) b.sceneNumber = num;
+    if (el === 'scene' && num) b.sceneNumber = num;
     out.push(b);
   }
   return out;

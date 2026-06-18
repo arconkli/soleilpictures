@@ -1,28 +1,71 @@
-// Character-name autocomplete for screenplay mode. When the caret is in a
-// `character` line with a partial name, a popup offers names already used in the
-// script (so a screenwriter never re-types a cast member). Self-contained
-// (plain-DOM popup + a single ProseMirror plugin) so it doesn't pull in extra
-// deps; priority 1001 so its handleKeyDown runs before ScreenplayKeymap's
-// Tab/Enter cycling while the popup is open (which also defers via the
-// `.sp-autocomplete.is-open` check).
+// Screenplay autocomplete. Context-aware by element:
+//   character → cast names already used, then character extensions (V.O./O.S./
+//               CONT'D) once a name + space is typed
+//   scene     → INT./EXT. prefixes, then locations already used, then time-of-day
+//   transition→ common transitions (CUT TO:, DISSOLVE TO:, …)
+// Self-contained (plain-DOM popup + one ProseMirror plugin); priority 1001 so
+// its handleKeyDown runs before ScreenplayKeymap's Tab/Enter while the popup is
+// open (the keymap also defers via the `.sp-autocomplete.is-open` check).
 
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
+import {
+  collectCharacterNames, collectLocations, SCENE_PREFIXES, TIMES_OF_DAY,
+} from './screenplayFlow.js';
 
-function baseName(text) {
-  return String(text || '').split('(')[0].trim().toUpperCase();
-}
+const TRANSITIONS = ['CUT TO:', 'DISSOLVE TO:', 'SMASH CUT TO:', 'MATCH CUT TO:', 'FADE TO:', 'FADE OUT.', 'INTERCUT WITH:'];
+const EXTENSIONS = ['(V.O.)', '(O.S.)', "(CONT'D)"];
+const SCENE_PREFIX_RE = /^(INT\.?\/EXT\.?|INT\.?|EXT\.?|EST\.?|I\/E\.?)\s+/i;
+const startsWithCI = (s, q) => s.toUpperCase().startsWith(q.toUpperCase());
 
-function collectNames(doc) {
-  const set = new Set();
-  doc.descendants((node) => {
-    if (node.type.name === 'screenplayBlock' && node.attrs.element === 'character') {
-      const n = baseName(node.textContent);
-      if (n) set.add(n);
+// Returns { items, from } where `from` is the char offset within the line at
+// which a chosen item replaces the rest of the line, or null for no suggestion.
+function suggestForLine(element, text, docJSON) {
+  if (element === 'character') {
+    // Extension stage: typing inside a '(' …
+    const paren = text.lastIndexOf('(');
+    if (paren >= 0 && !/\)/.test(text.slice(paren))) {
+      const typed = text.slice(paren + 1);
+      const items = EXTENSIONS.filter(e => startsWithCI(e.slice(1), typed));
+      return items.length ? { items, from: paren } : null;
     }
-    return true;
-  });
-  return [...set].sort();
+    // … or a name followed by a trailing space → offer to append an extension.
+    if (/\S\s+$/.test(text)) return { items: EXTENSIONS, from: text.length };
+    // Otherwise: cast names.
+    const q = text.trim().toUpperCase();
+    if (!q) return null;
+    const names = collectCharacterNames(docJSON).filter(n => n !== q && n.startsWith(q));
+    return names.length ? { items: names, from: text.length - text.trimStart().length } : null;
+  }
+
+  if (element === 'scene') {
+    const m = text.match(SCENE_PREFIX_RE);
+    if (!m) {
+      // No prefix yet → suggest INT./EXT./…
+      const items = SCENE_PREFIXES.filter(p => startsWithCI(p, text));
+      return items.length ? { items, from: 0 } : null;
+    }
+    const afterPrefix = m[0].length;
+    const dash = text.indexOf(' - ', afterPrefix);
+    if (dash < 0) {
+      // Between prefix and " - " → suggest locations.
+      const partial = text.slice(afterPrefix).toUpperCase();
+      const items = collectLocations(docJSON).filter(l => l.startsWith(partial) && l !== partial);
+      return items.length ? { items, from: afterPrefix } : null;
+    }
+    // After " - " → suggest time of day.
+    const tFrom = dash + 3;
+    const partial = text.slice(tFrom).toUpperCase();
+    const items = TIMES_OF_DAY.filter(t => t.startsWith(partial) && t !== partial);
+    return items.length ? { items, from: tFrom } : null;
+  }
+
+  if (element === 'transition') {
+    const items = TRANSITIONS.filter(t => startsWithCI(t, text) && t.toUpperCase() !== text.toUpperCase());
+    return items.length ? { items, from: 0 } : null;
+  }
+
+  return null;
 }
 
 export const ScreenplaySuggest = Extension.create({
@@ -54,7 +97,6 @@ export const ScreenplaySuggest = Extension.create({
         row.addEventListener('mousedown', (e) => { e.preventDefault(); accept(view, i); });
         el.appendChild(row);
       });
-      // Position under the caret line.
       let coords;
       try { coords = view.coordsAtPos(ctrl.to); } catch (_) { coords = null; }
       if (coords) {
@@ -83,16 +125,16 @@ export const ScreenplaySuggest = Extension.create({
       }
       if (depth == null) return close();
       const node = $from.node(depth);
-      if (node.attrs.element !== 'character') return close();
+      const element = node.attrs.element || 'action';
       const text = node.textContent;
-      const q = text.trim().toUpperCase();
-      if (!q) return close();
-      const names = collectNames(state.doc).filter(n => n !== q && n.startsWith(q));
-      if (!names.length) return close();
-      ctrl.items = names;
-      ctrl.active = Math.min(ctrl.active, names.length - 1);
-      ctrl.from = $from.start(depth);
-      ctrl.to = $from.end(depth);
+      const lineStart = $from.start(depth);
+      const lineEnd = $from.end(depth);
+      const res = suggestForLine(element, text, state.doc.toJSON());
+      if (!res || !res.items.length) return close();
+      ctrl.items = res.items;
+      ctrl.active = Math.min(ctrl.active, res.items.length - 1);
+      ctrl.from = lineStart + res.from;
+      ctrl.to = lineEnd;
       render(view);
     };
 
