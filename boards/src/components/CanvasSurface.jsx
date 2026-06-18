@@ -5560,6 +5560,7 @@ export function CanvasSurface({
                                                 manuallyResized={!!c.manuallyResized}
                                                 awareness={getAwareness?.() || null}
                                                 cardId={c.id} boardId={board.id}
+                                                ydoc={ydoc} cardYMap={ydoc?.getMap('cards')?.get(c.id) || null}
                                                 peerLiveHtml={peerNoteEdits[c.id] ?? null}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
     else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target}

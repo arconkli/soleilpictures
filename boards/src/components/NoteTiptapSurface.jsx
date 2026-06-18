@@ -91,7 +91,10 @@ export function NoteTiptapSurface({
       mentionExt,
       ...(fragment ? [Collaboration.configure({ fragment })] : []),
     ],
-    autofocus: autoFocus ? 'end' : false,
+    // The surface mounts ONLY to edit (double-click / tap / new card), so always
+    // place the caret at the end on mount — matching the legacy editor, which
+    // focused + collapsed-to-end on entry. (autoFocus prop kept for callers.)
+    autofocus: 'end',
     editable: true,
     editorProps: {
       attributes: {

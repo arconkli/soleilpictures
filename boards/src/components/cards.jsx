@@ -680,12 +680,17 @@ function VideoCard({ src, title, onUpdate, autoFocus = false, editTitleAt = 0 })
 }
 
 // Rollout gate for the collaborative (Tiptap + Y.XmlFragment) note editor.
-// ON via ?ttnotes=1 or window.__NOTE_COLLAB while it bakes; will become the
-// default once co-typing + mobile are verified.
+// Default ON (true co-typing). Opt OUT with ?ttnotes=0 or window.__NOTE_COLLAB
+// === false to fall back to the legacy single-writer editor (kept for rollback
+// + no-ydoc contexts like ?local). Only takes effect where a live ydoc +
+// cardYMap exist (the editable canvas) — read-only/public render paths are
+// separate and unchanged.
 function noteCollabOn() {
   try {
-    return /[?&]ttnotes=1/.test(window.location.search) || !!window.__NOTE_COLLAB;
-  } catch (_) { return false; }
+    if (/[?&]ttnotes=0/.test(window.location.search)) return false;
+    if (typeof window !== 'undefined' && window.__NOTE_COLLAB === false) return false;
+    return true;
+  } catch (_) { return true; }
 }
 
 // Collaborative note card. Renders the derived card.html read-only by default
