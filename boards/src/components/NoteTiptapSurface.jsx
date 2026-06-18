@@ -15,6 +15,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { noteExtensions } from './noteExtensions/noteExtensions.js';
 import { NoteMentionExtension } from './noteExtensions/NoteMentionExtension.js';
+import { NotePresence } from './NotePresence.jsx';
 import { EntityPicker } from './EntityPicker.jsx';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
@@ -38,6 +39,7 @@ export function NoteTiptapSurface({
   html,
   cardId = null,
   boardId = null,
+  awareness = null,
   manuallyResized = false,
   autoFocus = false,
   onChangeHTML,
@@ -240,6 +242,9 @@ export function NoteTiptapSurface({
           onCommit={commitMention}
           onCancel={() => setMention(null)}
         />
+      )}
+      {awareness && (
+        <NotePresence editor={editor} awareness={awareness} boardId={boardId} cardId={cardId} />
       )}
     </>
   );

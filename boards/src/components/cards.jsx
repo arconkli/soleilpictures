@@ -698,7 +698,7 @@ function noteCollabOn() {
 export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fontSize,
                           onUpdate, onEditingChange, autoFocus = false,
                           manuallyResized = false, ydoc = null, cardYMap = null,
-                          cardId = null, boardId = null }) {
+                          cardId = null, boardId = null, awareness = null }) {
   const [editing, setEditing] = useState(autoFocus);
   useEffect(() => { onEditingChange?.(editing); }, [editing]);
 
@@ -722,7 +722,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
         <Suspense fallback={<div className="note-body" />}>
           <NoteTiptapSurface
             ydoc={ydoc} cardYMap={cardYMap} html={html}
-            cardId={cardId} boardId={boardId}
+            cardId={cardId} boardId={boardId} awareness={awareness}
             manuallyResized={manuallyResized} autoFocus={autoFocus}
             onChangeHTML={(h) => onUpdate({ html: h, body: null })}
             onAutoSize={(h) => onUpdate({ h: Math.round(h) })}
@@ -821,7 +821,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
         onUpdate={onUpdate} onEditingChange={onEditingChange}
         autoFocus={autoFocus} manuallyResized={manuallyResized}
         ydoc={ydoc} cardYMap={cardYMap}
-        cardId={cardId} boardId={boardId}
+        cardId={cardId} boardId={boardId} awareness={awareness}
       />
     );
   }

@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import * as Y from 'yjs';
+import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from 'y-protocols/awareness';
 import * as noteDocState from '../lib/noteDocState.js';
 import { getActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { NoteCardCollab } from '../components/cards.jsx';
@@ -55,10 +56,26 @@ function createTwoClientStore(initialHtml) {
     Y.applyUpdate(docB, Y.encodeStateAsUpdate(docA), 'remote-a');
     Y.applyUpdate(docA, Y.encodeStateAsUpdate(docB), 'remote-b');
   };
-  return { docA, cardA, docB, cardB, sync };
+
+  // Two awareness instances (one per client), piped, so NotePresence has a real
+  // peer channel for caret/selection broadcast.
+  const awA = new Awareness(docA);
+  awA.setLocalStateField('user', { id: 'user-A', name: 'Alice', color: '#d98c2b' });
+  const awB = new Awareness(docB);
+  awB.setLocalStateField('user', { id: 'user-B', name: 'Bob', color: '#3b82f6' });
+  awA.on('update', ({ added, updated, removed }, origin) => {
+    if (origin === 'remote' || !sync.on) return;
+    applyAwarenessUpdate(awB, encodeAwarenessUpdate(awA, added.concat(updated, removed)), 'remote');
+  });
+  awB.on('update', ({ added, updated, removed }, origin) => {
+    if (origin === 'remote' || !sync.on) return;
+    applyAwarenessUpdate(awA, encodeAwarenessUpdate(awB, added.concat(updated, removed)), 'remote');
+  });
+
+  return { docA, cardA, docB, cardB, sync, awA, awB };
 }
 
-function ClientCard({ label, ydoc, cardYMap }) {
+function ClientCard({ label, ydoc, cardYMap, awareness }) {
   const [card, setCard] = useState(() => ({
     html: noteDocState.noteFragmentToHtml(noteDocState.getNoteFragment(cardYMap)) || '',
     h: 120,
@@ -83,6 +100,9 @@ function ClientCard({ label, ydoc, cardYMap }) {
           onEditingChange={() => {}}
           ydoc={ydoc}
           cardYMap={cardYMap}
+          cardId="noteqa-card"
+          boardId="noteqa-board"
+          awareness={awareness}
         />
       </div>
     </div>
@@ -90,7 +110,7 @@ function ClientCard({ label, ydoc, cardYMap }) {
 }
 
 export function NoteQaHarness() {
-  const [{ docA, cardA, docB, cardB, sync }] = useState(() => createTwoClientStore(''));
+  const [{ docA, cardA, docB, cardB, sync, awA, awB }] = useState(() => createTwoClientStore(''));
 
   useEffect(() => {
     const fragHtml = (cardYMap) =>
@@ -107,20 +127,29 @@ export function NoteQaHarness() {
       getTextB: () => noteDocState.noteFragmentToText(noteDocState.getNoteFragment(cardB)),
       setSync: (on) => { sync.on = on; if (on) sync.resync(); },
       getActiveEditor: () => getActiveNoteEditor(),
+      // Awareness inspectors for presence tests.
+      getLocalCaretA: () => awA.getLocalState()?.noteCaret || null,
+      getLocalCaretB: () => awB.getLocalState()?.noteCaret || null,
+      // What client B's awareness sees as A's caret (proves the broadcast piped).
+      getPeerCaretSeenByB: () => {
+        let found = null;
+        awB.getStates().forEach((s) => { if (s?.user?.id === 'user-A' && s.noteCaret) found = s.noteCaret; });
+        return found;
+      },
       ready: true,
     };
     const el = document.getElementById('noteqa-ready');
     if (el) el.textContent = 'noteqa ready';
     return undefined;
-  }, [docA, cardA, docB, cardB, sync]);
+  }, [docA, cardA, docB, cardB, sync, awA, awB]);
 
   return (
     <div style={{ padding: 24, color: '#eee', background: '#0a0a0c', minHeight: '100vh' }}>
       <h3 style={{ font: '13px monospace' }}>noteqa — two-client co-typing harness</h3>
       <div id="noteqa-ready" style={{ font: '11px monospace', opacity: 0.5 }} />
       <div style={{ display: 'flex', gap: 32, marginTop: 16 }}>
-        <ClientCard label="A" ydoc={docA} cardYMap={cardA} />
-        <ClientCard label="B" ydoc={docB} cardYMap={cardB} />
+        <ClientCard label="A" ydoc={docA} cardYMap={cardA} awareness={awA} />
+        <ClientCard label="B" ydoc={docB} cardYMap={cardB} awareness={awB} />
       </div>
     </div>
   );

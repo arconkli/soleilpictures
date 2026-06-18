@@ -209,3 +209,23 @@ test('toolbar command layer: marks/color/font/size/lists/align apply + report ac
   expect(lists.ul).toMatch(/<ul>(?!.*note-checklist)/);
   expect(lists.ol).toContain('<ol>');
 });
+
+test('presence: editing broadcasts a note-local caret that pipes to the peer', async ({ page }) => {
+  await editorReady(page);
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await page.locator(A_EDIT).click();
+  await page.keyboard.type('hello world');
+
+  // A's awareness carries a noteCaret for THIS card with finite local coords.
+  await expect.poll(() => page.evaluate(() => {
+    const c = window.__soleilNoteTest.getLocalCaretA();
+    return c && c.cardId === 'noteqa-card' && Number.isFinite(c.x) && Number.isFinite(c.y);
+  })).toBe(true);
+
+  // …and it piped over the awareness channel to client B.
+  await expect.poll(() => page.evaluate(() => {
+    const c = window.__soleilNoteTest.getPeerCaretSeenByB();
+    return !!c && c.cardId === 'noteqa-card';
+  })).toBe(true);
+});
