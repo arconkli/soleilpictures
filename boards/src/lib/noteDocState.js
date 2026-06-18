@@ -123,3 +123,22 @@ export function seedNoteFragmentFromHtml(ydoc, cardYMap, html) {
   }, NOTE_ORIGIN);
   return frag;
 }
+
+// Diff-update a note's fragment to match an external html change made WITHOUT a
+// mounted editor — e.g. toggling a checklist item on the read-only display.
+// prosemirrorJSONToYXmlFragment (updateYFragment) does a structural diff, so
+// unchanged nodes keep their CRDT identity and only the real change syncs. Keeps
+// the fragment (source of truth) consistent with the derived card.html so the
+// change isn't lost the next time the note is opened for editing.
+export function applyHtmlToNoteFragment(ydoc, cardYMap, html) {
+  if (!ydoc || !cardYMap) return;
+  const frag = ensureNoteFragment(ydoc, cardYMap);
+  if (!frag) return;
+  const clean = stripNoteChromeForSeed(html);
+  if (!clean || !clean.replace(/<[^>]+>/g, '').trim()) return; // never blank the fragment
+  ydoc.transact(() => {
+    const json = generateJSON(clean, noteExtensions);
+    prosemirrorJSONToYXmlFragment(noteSchema(), json, frag);
+    cardYMap.set(NOTE_SEEDED_KEY, true);
+  }, NOTE_ORIGIN);
+}

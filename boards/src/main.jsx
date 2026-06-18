@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -250,6 +250,18 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
         <AppErrorBoundary>
           <FeedbackProvider>
             <DocQaHarness />
+          </FeedbackProvider>
+        </AppErrorBoundary>
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isNoteQaMode()) {
+  import('./local/NoteQaHarness.jsx').then(({ NoteQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <AppErrorBoundary>
+          <FeedbackProvider>
+            <NoteQaHarness />
           </FeedbackProvider>
         </AppErrorBoundary>
       </StrictMode>

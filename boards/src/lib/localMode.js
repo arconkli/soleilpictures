@@ -23,6 +23,16 @@ export function isDocQaMode() {
   return new URLSearchParams(window.location.search).get('docqa') === '1';
 }
 
+// Dev-only collaborative-note QA harness. Active ONLY in a DEV build with
+// ?noteqa=1 (same trust boundary as isDocQaMode). Mounts the real NoteCard
+// against a fresh in-memory Y.Doc + note card Y.Map so Playwright can drive
+// genuine co-typing / write-through / seed behaviour without a backend.
+// See ../local/NoteQaHarness.jsx.
+export function isNoteQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('noteqa') === '1';
+}
+
 // Dev-only board-thumbnail QA harness. Active ONLY in a DEV build with
 // ?thumbqa=1 (same trust boundary as isDocQaMode). Renders fixture boards
 // through the real renderThumbnailBlob at tile + OG sizes so the thumbnail
