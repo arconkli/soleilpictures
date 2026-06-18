@@ -252,20 +252,38 @@ function fdxTitlePageXml(tp) {
   return `\n <TitlePage>\n  <Content>\n${parts.join('\n')}\n  </Content>\n </TitlePage>`;
 }
 
+// One <Paragraph> for a body block (indented `pad` spaces).
+function fdxParagraph(b, pad = '  ') {
+  const type = FDX_TYPE[b.element] || 'Action';
+  // Locked scene numbers ride along as the Final Draft Number attribute.
+  const num = (b.element === 'scene' && b.sceneNumber) ? ` Number="${escapeXml(b.sceneNumber)}"` : '';
+  // Centered text has no FDX type — encode it as centered Action (round-trips).
+  const align = b.element === 'centered' ? ' Alignment="Center"' : '';
+  return `${pad}<Paragraph Type="${type}"${num}${align}><Text>${escapeXml(blockText(b))}</Text></Paragraph>`;
+}
+
 export function jsonToFdx(docOrBlocks, titlePage = null) {
   const blocks = Array.isArray(docOrBlocks) ? docOrBlocks : docJSONToBlocks(docOrBlocks);
-  const paras = blocks.map(b => {
-    const type = FDX_TYPE[b.element] || 'Action';
-    // Locked scene numbers ride along as the Final Draft Number attribute.
-    const num = (b.element === 'scene' && b.sceneNumber) ? ` Number="${escapeXml(b.sceneNumber)}"` : '';
-    // Centered text has no FDX type — encode it as centered Action (round-trips).
-    const align = b.element === 'centered' ? ' Alignment="Center"' : '';
-    return `  <Paragraph Type="${type}"${num}${align}><Text>${escapeXml(blockText(b))}</Text></Paragraph>`;
-  }).join('\n');
+  const parts = [];
+  let i = 0;
+  while (i < blocks.length) {
+    if (blocks[i].dual) {
+      // Final Draft wraps a dual-dialogue pair in <Paragraph><DualDialogue>…,
+      // holding both speakers' paragraphs in document order (left then right).
+      let j = i;
+      while (j < blocks.length && blocks[j].dual) j += 1;
+      const inner = blocks.slice(i, j).map(b => fdxParagraph(b, '    ')).join('\n');
+      parts.push(`  <Paragraph>\n   <DualDialogue>\n${inner}\n   </DualDialogue>\n  </Paragraph>`);
+      i = j;
+    } else {
+      parts.push(fdxParagraph(blocks[i]));
+      i += 1;
+    }
+  }
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <FinalDraft DocumentType="Script" Template="No" Version="5">
  <Content>
-${paras}
+${parts.join('\n')}
  </Content>${fdxTitlePageXml(titlePage)}
 </FinalDraft>
 `;
@@ -284,26 +302,48 @@ function directChild(parent, tag) {
 // Parse an .fdx string into body blocks. Needs a DOM (browser/jsdom).
 // Scopes to the script's own <Content> so <TitlePage> paragraphs are NOT
 // folded into the body (use fdxToTitlePage for those).
+const tagOf = (n) => n.tagName || n.localName;
+const elementChildren = (n) => [...(n.childNodes || [])].filter(k => k.nodeType === 1);
+
+function fdxParaToBlock(p, dual) {
+  const type = p.getAttribute('Type') || 'Action';
+  let el = TYPE_FDX[type] || 'action';
+  let text = '';
+  for (const t of p.getElementsByTagName('Text')) text += t.textContent || '';
+  // Centered Action round-trips back to a centered block.
+  if (el === 'action' && (p.getAttribute('Alignment') || '').toLowerCase() === 'center') el = 'centered';
+  const b = { element: el, text };
+  const num = p.getAttribute('Number');
+  if (el === 'scene' && num) b.sceneNumber = num;
+  if (dual) b.dual = dual;
+  return b;
+}
+
 export function fdxToBlocks(xml) {
   if (typeof DOMParser === 'undefined') throw new Error('fdxToBlocks requires a DOM (DOMParser)');
   const doc = new DOMParser().parseFromString(String(xml || ''), 'application/xml');
   const root = doc.getElementsByTagName('FinalDraft')[0] || doc;
   const content = directChild(root, 'Content') || root;
   const out = [];
-  const paras = content.getElementsByTagName('Paragraph');
-  for (const p of paras) {
-    const type = p.getAttribute('Type') || 'Action';
-    const element = TYPE_FDX[type] || 'action';
-    let text = '';
-    const texts = p.getElementsByTagName('Text');
-    for (const t of texts) text += t.textContent || '';
-    let el = element;
-    // Centered Action round-trips back to a centered block.
-    if (el === 'action' && (p.getAttribute('Alignment') || '').toLowerCase() === 'center') el = 'centered';
-    const b = { element: el, text };
-    const num = p.getAttribute('Number');
-    if (el === 'scene' && num) b.sceneNumber = num;
-    out.push(b);
+  // A <DualDialogue> holds both speakers in sequence; everything up to the
+  // SECOND Character is the left column, the rest is the right column.
+  const handleDual = (dd) => {
+    let seenChar = 0;
+    for (const p of elementChildren(dd)) {
+      if (tagOf(p) !== 'Paragraph') continue;
+      if ((p.getAttribute('Type') || '') === 'Character') seenChar += 1;
+      out.push(fdxParaToBlock(p, seenChar >= 2 ? 'right' : 'left'));
+    }
+  };
+  // Walk DIRECT children of Content (not recursive — so DualDialogue's inner
+  // paragraphs aren't double-counted).
+  for (const node of elementChildren(content)) {
+    const tag = tagOf(node);
+    if (tag === 'DualDialogue') { handleDual(node); continue; }      // bare (some files)
+    if (tag !== 'Paragraph') continue;
+    const dd = directChild(node, 'DualDialogue');                    // FD wraps it in a Paragraph
+    if (dd) { handleDual(dd); continue; }
+    out.push(fdxParaToBlock(node, null));
   }
   return out;
 }

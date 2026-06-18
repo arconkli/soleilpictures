@@ -307,6 +307,71 @@ test('dual dialogue round-trips through Fountain via the ^ caret', async ({ page
   ]);
 });
 
+test('dual dialogue round-trips through FDX with the <DualDialogue> wrapper', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'character', text: 'JOHN', dual: 'left' },
+      { element: 'parenthetical', text: '(angry)', dual: 'left' },
+      { element: 'dialogue', text: 'Hello.', dual: 'left' },
+      { element: 'character', text: 'MARY', dual: 'right' },
+      { element: 'dialogue', text: 'Hi.', dual: 'right' },
+      { element: 'transition', text: 'CUT TO:' },
+    ];
+    const xml = S.jsonToFdx(blocks);
+    const back = S.fdxToBlocks(xml);
+    return {
+      // Wrapped exactly like a real Final Draft file.
+      hasWrapper: /<Paragraph>\s*<DualDialogue>/.test(xml),
+      closes: /<\/DualDialogue>\s*<\/Paragraph>/.test(xml),
+      back: back.map(b => ({ element: b.element, text: b.text, dual: b.dual || null })),
+    };
+  });
+  expect(r.hasWrapper).toBe(true);
+  expect(r.closes).toBe(true);
+  expect(r.back).toEqual([
+    { element: 'scene', text: 'INT. ROOM - DAY', dual: null },
+    { element: 'character', text: 'JOHN', dual: 'left' },
+    { element: 'parenthetical', text: '(angry)', dual: 'left' },
+    { element: 'dialogue', text: 'Hello.', dual: 'left' },
+    { element: 'character', text: 'MARY', dual: 'right' },
+    { element: 'dialogue', text: 'Hi.', dual: 'right' },
+    { element: 'transition', text: 'CUT TO:', dual: null },
+  ]);
+});
+
+test('imports dual dialogue from a real Final Draft <DualDialogue> block', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    // The Brick & Steel sample shape: a wrapping <Paragraph> around DualDialogue.
+    const xml = `<?xml version="1.0"?>
+<FinalDraft DocumentType="Script" Version="5">
+ <Content>
+  <Paragraph Type="Action"><Text>The men look at each other.</Text></Paragraph>
+  <Paragraph>
+   <DualDialogue>
+    <Paragraph Type="Character"><Text>STEEL</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>Screw retirement.</Text></Paragraph>
+    <Paragraph Type="Character"><Text>BRICK</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>Screw retirement.</Text></Paragraph>
+   </DualDialogue>
+  </Paragraph>
+  <Paragraph Type="Transition"><Text>SMASH CUT TO:</Text></Paragraph>
+ </Content>
+</FinalDraft>`;
+    return S.fdxToBlocks(xml).map(b => ({ element: b.element, text: b.text, dual: b.dual || null }));
+  });
+  expect(r).toEqual([
+    { element: 'action', text: 'The men look at each other.', dual: null },
+    { element: 'character', text: 'STEEL', dual: 'left' },
+    { element: 'dialogue', text: 'Screw retirement.', dual: 'left' },
+    { element: 'character', text: 'BRICK', dual: 'right' },
+    { element: 'dialogue', text: 'Screw retirement.', dual: 'right' },
+    { element: 'transition', text: 'SMASH CUT TO:', dual: null },
+  ]);
+});
+
 test('paginator keeps a dual-dialogue pair together and counts the taller column', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;
