@@ -467,8 +467,8 @@ export function LocalBoardsApp({ user, signOut }) {
 
   const addPalette = (clickPos = null) => {
     const id = createId('pal');
-    const w = 280;
-    const h = 130;
+    const w = 300;
+    const h = 180;
     addCard({
       id,
       kind: 'palette',

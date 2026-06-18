@@ -1177,7 +1177,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const addPalette = (clickPos = null) => {
       const d = defaultsRef.current?.palette || {};
-      const w = d.w || 280, h = d.h || 130;
+      const w = d.w || 300, h = d.h || 180;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `pal-${Date.now()}`;

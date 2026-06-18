@@ -59,7 +59,7 @@ export const HARDCODED_FALLBACKS = Object.freeze({
       { name: 'Color', hex: '#3b82f6' },
       { name: 'Color', hex: '#10b981' },
     ],
-    w: 280, h: 130,
+    w: 300, h: 180,
   },
   ui: {
     theme: null,                // null => leave whatever data-theme is set

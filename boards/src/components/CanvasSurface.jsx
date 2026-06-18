@@ -4070,12 +4070,9 @@ export function CanvasSurface({
         items.push({ id: 'open', label: 'Open linked board', run: () => boards[c.target] && onOpenBoard(c.target) });
       } else if (c.kind === 'palette') {
         items.push({ id: 'palette-edit', label: 'Edit', submenu: [
-          { id: 'pc-hide-hex',
-            label: c.hideHex ? 'Show hex codes' : 'Hide hex codes',
-            run: () => mutators.updateCard?.(c.id, { hideHex: !c.hideHex }) },
-          { id: 'pc-hide-labels',
-            label: c.hideLabels ? 'Show palette labels' : 'Hide palette labels',
-            run: () => mutators.updateCard?.(c.id, { hideLabels: !c.hideLabels }) },
+          { id: 'pc-pure',
+            label: c.chipsOnly ? 'Show labels' : 'Hide labels (pure color)',
+            run: () => mutators.updateCard?.(c.id, { chipsOnly: !c.chipsOnly }) },
           { divider: true },
           { id: 'pc-eyedrop', label: 'Eyedrop color (anywhere on screen)…', run: async () => {
             // Browser EyeDropper API. Falls back to a friendly toast where
@@ -5569,7 +5566,7 @@ export function CanvasSurface({
                                                        isSelected={isSelected}
                                                        onUpdate={onUpdate} autoFocus={af}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} w={Math.round(w)} h={Math.round(h)} onUpdate={onUpdate} autoFocus={af}
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} title={c.title} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;

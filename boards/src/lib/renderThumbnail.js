@@ -24,11 +24,12 @@ import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowHeadStyle,
 } from './arrowGeometry.js';
+import { paletteLayout, readableInk, hasCustomName } from './paletteLayout.js';
 
 // Bump when the rendered output changes materially. Stored thumbnails carry
 // this in boards.thumb_version; tiles re-render stale versions in the
 // background (useThumbnailBackfill) so the new look rolls out lazily.
-export const RENDER_VERSION = 2;
+export const RENDER_VERSION = 3;
 
 // Output frame: 16:9 ≈ both the grid tile cover and OG's 1.91:1. Fixed
 // supersample (NOT device DPR) so the stored artifact is deterministic
@@ -101,10 +102,12 @@ export function quickVisualHash(cards, strokes, arrows, extra = '') {
     h += `a${i}:${JSON.stringify(a.from)},${JSON.stringify(a.to)},${a.color || ''},`
        + `${a.customStroke || ''},${a.thickness || ''},${a.straight ? 1 : 0},${a.head || ''},${a.label || ''}|`;
   }
-  // Note bodies/colors aren't in quickHashCards (it only samples title/src);
-  // fold them in so an edited note re-renders.
+  // Note bodies/colors and palette swatches/flags aren't in quickHashCards
+  // (it only samples title/src); fold them in so an edited note or recolored
+  // palette re-renders instead of serving a stale thumbnail.
   for (const c of (cards || [])) {
     if (c?.kind === 'note') h += `n${c.id}:${(c.html || c.body || '').length},${c.bgColor || ''},${c.textColor || ''},${c.fontSize || ''}|`;
+    else if (c?.kind === 'palette') h += `p${c.id}:${(c.swatches || []).map((s) => `${s?.hex || s?.color || s || ''}${s?.name || ''}`).join('~')},${c.chipsOnly ? 1 : 0},${c.hideHex ? 1 : 0},${c.hideLabels ? 1 : 0}|`;
   }
   return h;
 }
@@ -624,47 +627,104 @@ function drawBoardInterior(ctx, c, x, y, w, h, boards) {
 }
 
 function drawPaletteInterior(ctx, c, x, y, w, h) {
-  const pad = 12;
-  const swatches = Array.isArray(c.swatches) ? c.swatches : [];
-  let cy = y + pad;
+  const swatches = (Array.isArray(c.swatches) ? c.swatches : [])
+    .map((s) => (typeof s === 'string' ? { hex: s } : (s || {})))
+    .map((s) => ({ hex: s.hex || s.color, name: s.name }))
+    .filter((s) => !!s.hex);
+  const n = swatches.length;
+  if (!n) return;
+
+  // Mode/orientation come from the card's REAL (board-unit) size — via the
+  // SAME paletteLayout the live card uses — so the thumbnail shows the same
+  // bands-vs-chips look, just scaled into this rect. Labels are gated on the
+  // drawn slot size so we never paint unreadable micro-text.
+  const pureColor = !!c.chipsOnly || (!!c.hideHex && !!c.hideLabels);
+  const L = paletteLayout(c.w || w, c.h || h, n, { pureColor });
+  const vert = L.orient === 'vert';
+  const isBands = L.mode === 'bands';
+  const headerShown = L.showHead && !c.hideLabels && h >= 64;
+  const wantHex = L.showHex && !c.hideHex;
+  const wantName = wantHex && L.showName;
+
   ctx.save();
-  ctx.textBaseline = 'top';
-  if (!c.chipsOnly) {
+
+  // Header strip (title only).
+  let top = y, areaH = h;
+  if (headerShown) {
+    const headPadX = isBands ? 11 : 14;
     ctx.font = `600 13px ${FONT_SANS}`;
     ctx.fillStyle = T.ink0;
-    ctx.fillText(truncateToWidth(ctx, c.title || 'Palette', w - pad * 2 - 70), x + pad, cy);
-    ctx.font = `500 9.5px ${FONT_MONO}`;
-    ctx.fillStyle = T.ink3;
-    ctx.textAlign = 'right';
-    ctx.fillText(`${swatches.length} COLORS`, x + w - pad, cy + 3);
     ctx.textAlign = 'left';
-    cy += 24;
+    ctx.textBaseline = 'top';
+    ctx.fillText(truncateToWidth(ctx, c.title || 'Palette', w - headPadX * 2), x + headPadX, y + 7);
+    top = y + 24;
+    areaH = h - 24;
   }
-  // Wrapping chip strip.
-  const chipW = 64, chipH = 48, gap = 8;
-  const labelH = (c.hideHex || c.chipsOnly) ? 0 : 16;
-  let cx = x + pad;
-  for (const s of swatches) {
-    const hex = s?.hex || s?.color || (typeof s === 'string' ? s : null);
-    if (!hex) continue;
-    if (cx + chipW > x + w - pad + 1) { cx = x + pad; cy += chipH + labelH + gap; }
-    if (cy + chipH > y + h - pad / 2) break;
-    ctx.fillStyle = hex;
-    roundRectPath(ctx, cx, cy, chipW, chipH, 6);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,.18)';
-    ctx.lineWidth = 1;
-    roundRectPath(ctx, cx + 0.5, cy + 0.5, chipW - 1, chipH - 1, 5.5);
-    ctx.stroke();
-    if (labelH) {
-      ctx.font = `400 9.5px ${FONT_MONO}`;
-      ctx.fillStyle = T.ink2;
-      ctx.textAlign = 'center';
-      ctx.fillText(String(hex).toUpperCase(), cx + chipW / 2, cy + chipH + 5);
-      ctx.textAlign = 'left';
+
+  // Swatch area. Chips (non-pure) keep card padding + gaps; bands/pure bleed.
+  const pad = (!isBands && !pureColor) ? 12 : 0;
+  const gap = isBands ? 0 : 6;
+  const ax = x + pad;
+  const ay = top + (headerShown ? 0 : pad);
+  const aw = w - pad * 2;
+  const ah = areaH - (headerShown ? 0 : pad) - pad;
+  if (aw <= 0 || ah <= 0) { ctx.restore(); return; }
+
+  const mainLen = vert ? aw : ah;
+  const slot = (mainLen - gap * (n - 1)) / n;
+  const radius = isBands ? 0 : Math.min(7, slot / 2);
+
+  for (let i = 0; i < n; i++) {
+    const s = swatches[i];
+    const off = i * (slot + gap);
+    const cw = vert ? slot : aw;
+    const ch = vert ? ah : slot;
+    const cx = vert ? ax + off : ax;
+    const cy = vert ? ay : ay + off;
+    if (cw <= 0.5 || ch <= 0.5) continue;
+
+    ctx.fillStyle = s.hex;
+    if (radius > 0) { roundRectPath(ctx, cx, cy, cw, ch, radius); ctx.fill(); }
+    else ctx.fillRect(cx, cy, cw, ch);
+    if (!isBands) {
+      ctx.strokeStyle = 'rgba(0,0,0,.18)';
+      ctx.lineWidth = 1;
+      roundRectPath(ctx, cx + 0.5, cy + 0.5, cw - 1, ch - 1, Math.max(0, radius - 0.5));
+      ctx.stroke();
     }
-    cx += chipW + gap;
+
+    // Overlaid labels — only when the slot is big enough to read.
+    const canFitText = cw >= 26 && ch >= 13;
+    if (!canFitText || (!wantHex && !wantName)) continue;
+    const named = wantName && hasCustomName(s.name);
+    const ink = readableInk(s.hex);
+    ctx.save();
+    ctx.fillStyle = ink;
+    ctx.textAlign = 'center';
+    ctx.shadowColor = ink === '#f5f5f7' ? 'rgba(0,0,0,.45)' : 'rgba(255,255,255,.55)';
+    ctx.shadowBlur = 2; ctx.shadowOffsetY = 1;
+    const midX = cx + cw / 2;
+    const midY = cy + ch / 2;
+    if (named && wantHex && ch >= 26) {
+      ctx.font = `600 11px ${FONT_SANS}`;
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(truncateToWidth(ctx, s.name, cw - 6), midX, midY - 1);
+      ctx.font = `400 10px ${FONT_MONO}`;
+      ctx.textBaseline = 'top';
+      ctx.fillText(truncateToWidth(ctx, String(s.hex).toUpperCase(), cw - 6), midX, midY + 1);
+    } else if (named) {
+      ctx.font = `600 11px ${FONT_SANS}`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(truncateToWidth(ctx, s.name, cw - 6), midX, midY);
+    } else if (wantHex) {
+      ctx.font = `400 10px ${FONT_MONO}`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(truncateToWidth(ctx, String(s.hex).toUpperCase(), cw - 6), midX, midY);
+    }
+    ctx.restore();
   }
+
+  ctx.textAlign = 'left';
   ctx.restore();
 }
 

@@ -4405,8 +4405,15 @@ body {
   flex: 0 0 auto;
 }
 
-/* Palette */
+/* Palette ────────────────────────────────────────────────────────────────
+   Two layout modes (decided in lib/paletteLayout.js, mirrored in
+   renderThumbnail.js), both FILL the card and never scroll:
+     .pc-bands  seamless edge-to-edge color, square corners, labels overlaid
+     .pc-chips  rounded chips with small gaps (small cards)
+   Orientation .pc-vert (columns) / .pc-horiz (rows) follows aspect ratio.
+   .pc-pure (the "hide labels" toggle) drops every label for a full bleed. */
 .pc {
+  position: relative;
   width: 100%; height: 100%;
   background: var(--bg-3);
   border: 1px solid var(--line-2);
@@ -4415,46 +4422,38 @@ body {
   display: flex; flex-direction: column; gap: 10px;
   overflow: hidden;
 }
+/* Bands + pure-color bleed colors to the rounded card edge; the header strip,
+   when present, carries its own padding. */
+.pc.pc-bands, .pc.pc-pure { padding: 0; gap: 0; }
+
 .pc-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 10px;
+  display: flex; align-items: baseline; gap: 10px;
+  flex: 0 0 auto; min-width: 0;
 }
+.pc.pc-bands .pc-head { padding: 7px 11px 5px; }
 .pc-title { font-size: 13px; font-weight: 600; color: var(--ink-0); letter-spacing: -0.005em; flex: 1; min-width: 0; }
-.pc-count {
-  font-family: var(--font-mono); font-size: 9.5px;
-  letter-spacing: .14em; text-transform: uppercase;
-  color: var(--ink-3);
-  flex-shrink: 0;
-}
 
-/* Eye toggle that hides the title + per-swatch hex labels, leaving just
-   the color strip. Lives in the head when the head is visible; floats
-   in the top-right corner when chipsOnly is on so the user can flip
-   back. Quiet by default — fades up to ink-1 on hover. */
-.pc-eye-btn {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  padding: 2px;
-  width: 18px; height: 18px;
+/* The single "hide labels" toggle. ALWAYS floats top-right so it stays
+   reachable at any card size — including a tiny card or a full-bleed palette
+   with no header. Quiet by default; fades in on hover over a blur scrim that
+   keeps it legible on top of any swatch color. */
+.pc-eye-float {
+  position: absolute; top: 6px; right: 6px; z-index: 3;
+  appearance: none; border: 0; margin: 0; padding: 0;
+  width: 22px; height: 22px;
   display: inline-flex; align-items: center; justify-content: center;
-  color: var(--ink-3);
-  cursor: pointer;
+  color: #f5f5f7;
+  background: rgba(10,10,12,.5);
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
   border-radius: var(--radius);
-  flex-shrink: 0;
-  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
-}
-.pc-eye-btn:hover { color: var(--ink-1); background: var(--bg-hov); }
-.pc-eye-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
-
-.pc.pc-chips-only > .pc-eye-btn {
-  position: absolute;
-  top: 6px; right: 6px;
+  cursor: pointer;
   opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.pc.pc-chips-only { position: relative; padding: 8px; }
-.pc.pc-chips-only:hover > .pc-eye-btn,
-.pc.pc-chips-only > .pc-eye-btn:focus-visible { opacity: 1; }
+.pc-eye-float:hover { color: #fff; background: rgba(10,10,12,.7); }
+.pc:hover > .pc-eye-float,
+.pc-eye-float:focus-visible { opacity: 1; }
+.pc-eye-float:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 
 /* Doc */
 .doc {
@@ -8904,104 +8903,123 @@ html, body { overscroll-behavior: none; }
 }
 [data-theme='light'] .cp-done { background: #0a0a0c; color: #fff; }
 
-/* Palette swatch strip — works for both editable and read-only */
+/* Palette swatch strip — one non-wrapping flex line that fills the card in
+   both modes; orientation set by .pc-vert / .pc-horiz. Never scrolls. */
 .pc-strip {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-content: flex-start;
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: thin;
+  flex: 1 1 auto;
+  min-width: 0; min-height: 0;
+  align-items: stretch;
 }
+.pc-strip.pc-vert { flex-direction: row; }
+.pc-strip.pc-horiz { flex-direction: column; }
+.pc-chips .pc-strip { gap: 6px; }
+
 .pc-cell {
   position: relative;
-  width: 64px;
-  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  flex: 1 1 0;
+  min-width: 0; min-height: 0;
+  display: flex;
   cursor: grab;
-  transition: transform .12s, opacity .12s;
+  transition: transform .12s, opacity .12s, box-shadow .12s;
 }
 .pc-cell:active { cursor: grabbing; }
 .pc-cell-dragging { opacity: 0.4; }
-.pc-cell-drop-target {
-  transform: translateX(4px);
-  box-shadow: -3px 0 0 0 var(--accent, #3b82f6);
-}
+.pc-bands .pc-cell-drop-target { box-shadow: inset 0 0 0 2px var(--accent, #3b82f6); }
+.pc-chips .pc-cell-drop-target { transform: translateY(-2px); box-shadow: 0 0 0 2px var(--accent, #3b82f6); }
+
 .pc-chip {
   appearance: none;
-  width: 64px; height: 48px;
-  border-radius: 6px;
+  flex: 1 1 auto;
+  width: 100%; height: 100%;
+  min-width: 0; min-height: 0;
+  display: block;
+  padding: 0; margin: 0;
+  cursor: pointer;
+}
+/* bands: seamless edge-to-edge */
+.pc-bands .pc-chip { border: 0; border-radius: 0; box-shadow: none; }
+/* chips: rounded tiles */
+.pc-chips .pc-chip {
+  border-radius: 7px;
   border: 1px solid rgba(0,0,0,.18);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.18);
-  cursor: pointer;
-  padding: 0;
   transition: transform .12s, box-shadow .12s;
 }
-button.pc-chip:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 6px 14px rgba(0,0,0,.28); }
+.pc-chips button.pc-chip:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 6px 14px rgba(0,0,0,.28); }
+
+/* Overlaid labels — custom name above hex, centered on the swatch. Ink color
+   + shadow are set inline (lib/paletteLayout readableInk) for contrast against
+   any color. The wrapper is click-through; only the hex captures (to copy). */
+.pc-cell-label {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1px; padding: 3px;
+  pointer-events: none; overflow: hidden; text-align: center;
+}
+.pc-name {
+  max-width: 100%;
+  font-size: 11px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .pc-hex {
-  font-family: var(--font-mono); font-size: 9.5px;
-  letter-spacing: .08em;
-  color: var(--ink-2);
-  text-align: center;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .06em; line-height: 1.2; text-transform: uppercase;
 }
 button.pc-hex-btn {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: var(--ink-2);
-  cursor: pointer;
-  padding: 2px 0;
-  border-radius: var(--radius);
-  font: inherit;
-  text-transform: uppercase;
+  pointer-events: auto;
+  appearance: none; background: transparent; border: 0;
+  padding: 1px 5px; border-radius: var(--radius);
+  font: inherit; cursor: pointer;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  transition: background .12s;
 }
-button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
+button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
+
+/* Remove (×) — just inside the swatch top-right, hover-revealed. */
 .pc-cell-x {
   position: absolute;
-  top: -6px; right: -6px;
+  top: 3px; right: 3px;
   width: 18px; height: 18px;
   border-radius: 50%;
   border: 1px solid var(--line-2);
   background: var(--bg-1);
   color: var(--ink-2);
-  font-size: 11px;
-  line-height: 1;
+  font-size: 11px; line-height: 1;
   cursor: pointer;
   display: grid; place-items: center;
   padding: 0;
   opacity: 0;
+  z-index: 2;
   transition: opacity .12s, color .12s, background .12s;
   box-shadow: 0 4px 10px rgba(0,0,0,.22);
 }
 .pc-cell:hover .pc-cell-x { opacity: 1; }
 .pc-cell-x:hover { color: #ef4444; border-color: #ef4444; }
 
+/* Add — a dashed sliver (bands) / tile (chips) at the end of the strip. */
 .pc-add {
   appearance: none;
-  min-width: 64px;
-  height: 48px;
-  padding: 0 10px;
-  border-radius: 6px;
+  flex: 0 0 34px;
+  align-self: stretch;
+  min-width: 0;
+  padding: 0;
+  border-radius: 7px;
   border: 1.5px dashed var(--accent, var(--ink-3));
   background: transparent;
   color: var(--accent, var(--ink-1));
   cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  align-self: flex-start;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  transition: background .12s, color .12s, border-color .12s, transform .12s;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .12s, color .12s, border-color .12s;
 }
 .pc-add:hover {
   background: color-mix(in srgb, var(--accent, #3b82f6) 12%, transparent);
   color: var(--ink-0);
   border-color: var(--accent, var(--ink-2));
-  transform: translateY(-1px);
 }
-.pc-add-label { font: inherit; }
-.pc-chips-only .pc-add { min-width: 40px; padding: 0; }
-.pc-chips-only .pc-add-label { display: none; }
+.pc-bands .pc-add { flex-basis: 18px; border-radius: 0; }
+.pc-add-label { display: none; }
 
 
 .tob-sw-custom {
@@ -16950,6 +16968,7 @@ button, [role="button"], a {
   .doc-tree-add,
   .doc-bookmark-x,
   .pc-cell-x,
+  .pc-eye-float,
   .ic-add-caption {
     opacity: 1 !important;
   }
