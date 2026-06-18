@@ -34,7 +34,11 @@ export const NoteChecklist = Node.create({
 
 export const NoteChecklistItem = Node.create({
   name: 'noteChecklistItem',
-  content: 'inline*',
+  // Block content (a paragraph) so the standard Tiptap list commands —
+  // toggleList / splitListItem / liftListItem — operate on it. The paragraph
+  // renders inside .ck-text and is margin-reset in CSS so it reads as one line,
+  // matching the legacy inline checklist look.
+  content: 'paragraph+',
   defining: true,
 
   addAttributes() {
@@ -58,7 +62,7 @@ export const NoteChecklistItem = Node.create({
   },
 
   parseHTML() {
-    // Content comes from the .ck-text span; the .ck-box is chrome.
+    // Content comes from the .ck-text element; the .ck-box is chrome.
     return [{ tag: 'li.ck', contentElement: '.ck-text', priority: 200 }];
   },
 
@@ -72,7 +76,16 @@ export const NoteChecklistItem = Node.create({
         role: 'checkbox',
         'aria-checked': checked ? 'true' : 'false',
       }],
-      ['span', { class: 'ck-text' }, 0],
+      ['div', { class: 'ck-text' }, 0],
     ];
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      // Enter splits into a new item (empty item → exits the list, matching the
+      // legacy checklist behaviour). Shift-Tab lifts an item back to a paragraph.
+      Enter: () => this.editor.commands.splitListItem('noteChecklistItem'),
+      'Shift-Tab': () => this.editor.commands.liftListItem('noteChecklistItem'),
+    };
   },
 });

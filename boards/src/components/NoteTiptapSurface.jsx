@@ -9,11 +9,16 @@
 // on every edit. So the fragment is the collaborative source of truth and
 // card.html is its cache.
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { noteExtensions } from './noteExtensions/noteExtensions.js';
+import { NoteMentionExtension } from './noteExtensions/NoteMentionExtension.js';
+import { EntityPicker } from './EntityPicker.jsx';
+import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
+import { recordEntityLinks } from '../lib/recordEntityLinks.js';
+import { coerceRef } from '../lib/entityRef.js';
 import {
   ensureNoteFragment,
   seedNoteFragmentFromHtml,
@@ -22,6 +27,7 @@ import {
 import { linkifyNoteHtml } from '../lib/noteLinkify.js';
 import { cardHeightForBody } from '../lib/noteMeasure.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
+import { setActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import './noteTiptap.css';
 
 const NOTE_AUTOSIZE_MAX = 480;
@@ -30,23 +36,27 @@ export function NoteTiptapSurface({
   ydoc,
   cardYMap,
   html,
+  cardId = null,
+  boardId = null,
   manuallyResized = false,
   autoFocus = false,
   onChangeHTML,
   onAutoSize,
   onExitEdit,
 }) {
+  const { workspaceId } = useEntityTrie();
+
   // Resolve (and lazily seed) the fragment ONCE for this editing session.
   const fragment = useMemo(() => {
     if (!ydoc || !cardYMap) return null;
     ensureNoteFragment(ydoc, cardYMap);
-    // Seed from legacy html on first-ever edit (idempotent, guarded).
     seedNoteFragmentFromHtml(ydoc, cardYMap, html);
     return ensureNoteFragment(ydoc, cardYMap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ydoc, cardYMap]);
 
   const writeRaf = useRef(0);
+  const editorRef = useRef(null);
   const manualRef = useRef(manuallyResized);
   manualRef.current = manuallyResized;
   const onChangeRef = useRef(onChangeHTML);
@@ -56,29 +66,77 @@ export function NoteTiptapSurface({
   const onExitRef = useRef(onExitEdit);
   onExitRef.current = onExitEdit;
 
+  // @-mention picker state, driven by the suggestion plugin.
+  const [mention, setMention] = useState(null); // { range, query, clientRect } | null
+  const mentionExt = useMemo(() => NoteMentionExtension({
+    onStart: (props) => {
+      setMention({ range: props.range, query: props.query, clientRect: props.clientRect?.() || null });
+      return () => setMention(null);
+    },
+    onUpdate: (props) => {
+      setMention({ range: props.range, query: props.query, clientRect: props.clientRect?.() || null });
+    },
+    onKeyDown: () => false, // the picker handles its own arrow/enter/escape
+  }), []);
+
   const editor = useEditor({
     extensions: [
       ...noteExtensions,
       Placeholder.configure({ placeholder: 'Write a note…', showOnlyWhenEditable: true }),
+      mentionExt,
       ...(fragment ? [Collaboration.configure({ fragment })] : []),
     ],
     autofocus: autoFocus ? 'end' : false,
     editable: true,
     editorProps: {
       attributes: {
-        // The measurer (createNoteMeasurer / cardHeightForBody) and the note
-        // CSS both key off .note-body — Tiptap must render INTO it.
+        // The measurer (cardHeightForBody) and the note CSS both key off
+        // .note-body — Tiptap must render INTO it.
         class: 'note-body',
-        // Tiptap/ProseMirror manages its own selection and is immune to the
-        // Grammarly overlay that breaks a raw contenteditable's drag-select,
-        // so (unlike the legacy note) we can leave Grammarly on, matching docs.
+        // ProseMirror manages its own selection and is immune to the Grammarly
+        // overlay that breaks a raw contenteditable's drag-select, so (unlike
+        // the legacy note) we can leave Grammarly on, matching docs.
         'data-gramm': 'true',
         spellcheck: 'true',
+      },
+      // Toggle a checklist item by clicking its box, even mid-edit.
+      handleClickOn: (view, pos, _node, _nodePos, event) => {
+        if (!event.target?.closest?.('.ck-box')) return false;
+        const $pos = view.state.doc.resolve(Math.min(pos, view.state.doc.content.size));
+        for (let d = $pos.depth; d > 0; d--) {
+          const n = $pos.node(d);
+          if (n.type.name === 'noteChecklistItem') {
+            const itemPos = $pos.before(d);
+            view.dispatch(view.state.tr.setNodeMarkup(itemPos, undefined, { ...n.attrs, checked: !n.attrs.checked }));
+            event.preventDefault();
+            return true;
+          }
+        }
+        return false;
+      },
+      // Tab inserts two spaces (legacy note behaviour); Shift-Tab falls through
+      // to the checklist lift keymap.
+      handleKeyDown: (view, event) => {
+        if (event.key === 'Tab' && !event.shiftKey) {
+          event.preventDefault();
+          view.dispatch(view.state.tr.insertText('  '));
+          return true;
+        }
+        return false;
       },
     },
     // Create once for this editing session; the fragment is stable per card.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fragment]);
+
+  editorRef.current = editor;
+
+  // Register as the active note editor so the bottom toolbar drives it.
+  useEffect(() => {
+    if (!editor) return undefined;
+    setActiveNoteEditor(editor);
+    return () => setActiveNoteEditor(null);
+  }, [editor]);
 
   // Write-through card.html + auto-size on every edit (rAF-coalesced).
   useEffect(() => {
@@ -87,10 +145,8 @@ export function NoteTiptapSurface({
       writeRaf.current = 0;
       if (!fragment) return;
       try {
-        const cached = linkifyNoteHtml(noteFragmentToHtml(fragment));
-        onChangeRef.current?.(cached);
+        onChangeRef.current?.(linkifyNoteHtml(noteFragmentToHtml(fragment)));
       } catch (_) { /* noop */ }
-      // Auto-size to content unless the user pinned a height.
       if (!manualRef.current && editor?.view?.dom) {
         try {
           const h = Math.min(NOTE_AUTOSIZE_MAX, cardHeightForBody(editor.view.dom));
@@ -103,10 +159,8 @@ export function NoteTiptapSurface({
       writeRaf.current = requestAnimationFrame(flush);
     };
     editor.on('update', onUpdate);
-    // Inject any Google-catalog fonts referenced by the seeded content.
     try { ensureFontsFromHtml(editor.getHTML()); } catch (_) { /* noop */ }
-    // One measure on open so a seeded note sizes correctly.
-    onUpdate();
+    onUpdate(); // one measure on open so a seeded note sizes correctly
     return () => {
       editor.off('update', onUpdate);
       if (writeRaf.current) cancelAnimationFrame(writeRaf.current);
@@ -114,15 +168,17 @@ export function NoteTiptapSurface({
   }, [editor, fragment]);
 
   // Exit edit on blur — unless focus is moving into the formatting toolbar /
-  // a popover (mirrors the legacy commit's relatedTarget guard).
+  // a popover, or the @-mention picker is open (clicking a row blurs the editor).
+  const mentionOpenRef = useRef(false);
+  mentionOpenRef.current = !!mention;
   useEffect(() => {
     if (!editor) return undefined;
     const onBlur = ({ event }) => {
       const next = event?.relatedTarget;
-      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu'))) {
+      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.entity-picker'))) {
         return;
       }
-      // Force a final synchronous write-through before exiting.
+      if (mentionOpenRef.current) return;
       if (writeRaf.current) { cancelAnimationFrame(writeRaf.current); writeRaf.current = 0; }
       if (fragment) {
         try { onChangeRef.current?.(linkifyNoteHtml(noteFragmentToHtml(fragment))); } catch (_) {}
@@ -136,22 +192,55 @@ export function NoteTiptapSurface({
   // Escape exits edit mode (collaborative edits are already shared — there is
   // no "revert" like the legacy note had).
   const onKeyDown = (e) => {
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && !mention) {
       e.preventDefault();
       editor?.commands.blur();
     }
   };
 
+  const commitMention = (targets) => {
+    const ed = editorRef.current;
+    const t = targets?.[0];
+    if (!ed || !t || !mention) { setMention(null); return; }
+    const ref = coerceRef(t);
+    if (!ref) { setMention(null); return; }
+    const label = t.title || t.name || ref.kind || 'mention';
+    ed.chain().focus()
+      .deleteRange(mention.range)
+      .insertContent([
+        { type: 'noteMention', attrs: { entityRef: ref, label } },
+        { type: 'text', text: ' ' },
+      ])
+      .run();
+    if (cardId && workspaceId) {
+      recordEntityLinks({
+        source: { kind: 'note', id: cardId, workspace: workspaceId, boardId },
+        refs: [{ ref }],
+      }).catch(() => {});
+    }
+    setMention(null);
+  };
+
   if (!editor) return <div className="note-body" />;
   return (
-    <EditorContent
-      editor={editor}
-      className="note-edit-wrap"
-      onKeyDown={onKeyDown}
-      // Stop canvas drag/marquee from starting on a pointerdown inside the note.
-      onPointerDown={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
-    />
+    <>
+      <EditorContent
+        editor={editor}
+        className="note-edit-wrap"
+        onKeyDown={onKeyDown}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      />
+      {mention && workspaceId && (
+        <EntityPicker
+          workspaceId={workspaceId}
+          anchor={mention.clientRect}
+          initialQuery={mention.query}
+          onCommit={commitMention}
+          onCancel={() => setMention(null)}
+        />
+      )}
+    </>
   );
 }

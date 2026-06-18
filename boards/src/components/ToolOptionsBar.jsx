@@ -20,6 +20,18 @@ import { FontPickerDropdown } from './FontPickerDropdown.jsx';
 import { SizeInput } from './SizeInput.jsx';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
+import { getActiveNoteEditor, subscribeActiveNoteEditor } from '../lib/noteEditorRegistry.js';
+
+// Subscribe to the active collaborative-note Tiptap editor (set by
+// NoteTiptapSurface while a note is being edited). When present, the note
+// toolbar drives it with Tiptap commands instead of execCommand; when null,
+// the legacy contenteditable note editor is active and the execCommand paths
+// below run unchanged.
+function useActiveNoteEditor() {
+  const [editor, setEditor] = useState(() => getActiveNoteEditor());
+  useEffect(() => subscribeActiveNoteEditor(setEditor), []);
+  return editor;
+}
 
 const STROKE_COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 const FILL_COLORS  = ['transparent', '#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#0a0a0c'];
@@ -66,6 +78,13 @@ const FMT_EVT = 'soleil-note-format-applied';
 const notifyFormatChanged = () => { try { document.dispatchEvent(new Event(FMT_EVT)); } catch (_) {} };
 
 function execCmd(cmd, val = null) {
+  const editor = getActiveNoteEditor();
+  if (editor) {
+    const align = { justifyLeft: 'left', justifyCenter: 'center', justifyRight: 'right' }[cmd];
+    if (align) editor.chain().focus().setTextAlign(align).run();
+    notifyFormatChanged();
+    return;
+  }
   withSelection(() => {
     try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
     document.execCommand(cmd, false, val);
@@ -80,6 +99,13 @@ function execCmd(cmd, val = null) {
 // the user's intent (the inverse of the lit state) and re-run once if the
 // post-state disagrees — idempotent in both directions.
 function execToggle(cmd, wantOn) {
+  const editor = getActiveNoteEditor();
+  if (editor) {
+    const fn = { bold: 'toggleBold', italic: 'toggleItalic', underline: 'toggleUnderline', strikeThrough: 'toggleStrike' }[cmd];
+    if (fn) editor.chain().focus()[fn]().run();
+    notifyFormatChanged();
+    return;
+  }
   withSelection(() => {
     try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
     document.execCommand(cmd);
@@ -90,7 +116,39 @@ function execToggle(cmd, wantOn) {
   notifyFormatChanged();
 }
 
+// Apply an inline style object ({ color | fontFamily | fontSize }) to the
+// active note Tiptap editor's selection via the matching mark command.
+function applyEditorStyle(editor, style) {
+  const chain = editor.chain().focus();
+  if (style.color) chain.setColor(style.color);
+  if (style.fontFamily) chain.setFontFamily(style.fontFamily);
+  if (style.fontSize) chain.setFontSize(style.fontSize);
+  chain.run();
+}
+
+// Toggle a list on the active editor (Tiptap) or the legacy contenteditable.
+function applyToggleList(type) {
+  const editor = getActiveNoteEditor();
+  if (editor) {
+    const c = editor.chain().focus();
+    if (type === 'ul') c.toggleBulletList();
+    else if (type === 'ol') c.toggleOrderedList();
+    else if (type === 'task') c.toggleList('noteChecklist', 'noteChecklistItem');
+    c.run();
+    notifyFormatChanged();
+    return;
+  }
+  withSelection(() => toggleList(type));
+  notifyFormatChanged();
+}
+
 function applyStyle(style) {
+  const editor = getActiveNoteEditor();
+  if (editor) {
+    applyEditorStyle(editor, style);
+    notifyFormatChanged();
+    return;
+  }
   withSelection(() => wrapSelectionStyle(style));
   notifyFormatChanged();
 }
@@ -103,6 +161,15 @@ function applyStyle(style) {
 // spans — predictable contract: "selection styles selection; no selection
 // sets the note's base".
 function applyStyleOrNoteDefault(style, applyNoteDefault) {
+  const editor = getActiveNoteEditor();
+  if (editor) {
+    // Selection → style the selection (inline mark); collapsed caret → set the
+    // whole-note base via the card-level prop. Same contract as the legacy path.
+    if (!editor.state.selection.empty) applyEditorStyle(editor, style);
+    else applyNoteDefault?.();
+    notifyFormatChanged();
+    return;
+  }
   let styledSelection = false;
   const restored = withSelection(() => {
     const sel = window.getSelection?.();
@@ -146,8 +213,22 @@ function styleNodeAtRangeStart(range) {
 
 function useNoteForeColor(active) {
   const [color, setColor] = useState('#f5f5f6');
+  const editor = useActiveNoteEditor();
   useEffect(() => {
-    if (!active) return;
+    if (!active) return undefined;
+    // Collaborative editor: read the inline color mark at the caret.
+    if (editor) {
+      const update = () => {
+        const c = editor.getAttributes('textStyle')?.color;
+        const hex = c ? (rgbToHex(c) || c) : null;
+        if (hex) setColor(prev => (prev === hex ? prev : hex));
+      };
+      update();
+      editor.on('selectionUpdate', update);
+      editor.on('transaction', update);
+      return () => { editor.off('selectionUpdate', update); editor.off('transaction', update); };
+    }
+    // Legacy contenteditable: read the computed color at the caret.
     let raf = null;
     const update = () => {
       if (raf) cancelAnimationFrame(raf);
@@ -171,7 +252,7 @@ function useNoteForeColor(active) {
       document.removeEventListener(FMT_EVT, update);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [active]);
+  }, [active, editor]);
   return color;
 }
 
@@ -183,8 +264,39 @@ function useNoteForeColor(active) {
 const EMPTY_FMT = { bold: false, italic: false, underline: false, strike: false, listType: null, fontSize: null, fontFamily: null, align: null };
 function useNoteFormatState(active) {
   const [state, setState] = useState(EMPTY_FMT);
+  const editor = useActiveNoteEditor();
   useEffect(() => {
-    if (!active) { setState(EMPTY_FMT); return; }
+    if (!active) { setState(EMPTY_FMT); return undefined; }
+    // Collaborative editor: derive the active state from Tiptap.
+    if (editor) {
+      const update = () => {
+        const ts = editor.getAttributes('textStyle') || {};
+        const align = ['left', 'center', 'right'].find(a => editor.isActive({ textAlign: a })) || null;
+        let listType = null;
+        if (editor.isActive('noteChecklist')) listType = 'task';
+        else if (editor.isActive('bulletList')) listType = 'ul';
+        else if (editor.isActive('orderedList')) listType = 'ol';
+        const fontSize = ts.fontSize ? Math.round(parseFloat(ts.fontSize)) || null : null;
+        const fontFamily = ts.fontFamily
+          ? ts.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '') : null;
+        const next = {
+          bold: editor.isActive('bold'),
+          italic: editor.isActive('italic'),
+          underline: editor.isActive('underline'),
+          strike: editor.isActive('strike'),
+          listType, fontSize, fontFamily, align,
+        };
+        setState(prev => (
+          prev.bold === next.bold && prev.italic === next.italic && prev.underline === next.underline &&
+          prev.strike === next.strike && prev.listType === next.listType && prev.fontSize === next.fontSize &&
+          prev.fontFamily === next.fontFamily && prev.align === next.align ? prev : next
+        ));
+      };
+      update();
+      editor.on('selectionUpdate', update);
+      editor.on('transaction', update);
+      return () => { editor.off('selectionUpdate', update); editor.off('transaction', update); };
+    }
     let raf = null;
     const update = () => {
       if (raf) cancelAnimationFrame(raf);
@@ -240,7 +352,7 @@ function useNoteFormatState(active) {
       document.removeEventListener(FMT_EVT, update);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [active]);
+  }, [active, editor]);
   return state;
 }
 
@@ -748,7 +860,7 @@ function ListBtn({ label, title, type, active = false }) {
             aria-pressed={active}
             onMouseDown={(e) => e.preventDefault()}
             onPointerDown={(e) => e.preventDefault()}
-            onClick={() => { withSelection(() => toggleList(type)); notifyFormatChanged(); }}>
+            onClick={() => applyToggleList(type)}>
       {label}
     </button>
   );
@@ -812,6 +924,10 @@ function FontPicker({ currentLabel = 'Font', onApplyFont = null }) {
     return false;
   }
   const handlePreview = (css) => {
+    // The hover-preview uses a contenteditable innerHTML snapshot, which a
+    // ProseMirror-managed note editor can't take. Skip live preview when the
+    // collaborative editor is active (commit still applies the font).
+    if (getActiveNoteEditor()) return;
     if (css == null) { restoreSnapshot(); return; }
     if (snapshotRef.current == null) takeSnapshot();
     else resetToSnapshotAndSelection();

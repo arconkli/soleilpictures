@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as Y from 'yjs';
 import * as noteDocState from '../lib/noteDocState.js';
+import { getActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { NoteCardCollab } from '../components/cards.jsx';
 
 const CARD_ID = 'noteqa-card';
@@ -105,6 +106,7 @@ export function NoteQaHarness() {
       getTextA: () => noteDocState.noteFragmentToText(noteDocState.getNoteFragment(cardA)),
       getTextB: () => noteDocState.noteFragmentToText(noteDocState.getNoteFragment(cardB)),
       setSync: (on) => { sync.on = on; if (on) sync.resync(); },
+      getActiveEditor: () => getActiveNoteEditor(),
       ready: true,
     };
     const el = document.getElementById('noteqa-ready');
