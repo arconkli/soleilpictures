@@ -67,6 +67,40 @@ test('the Screenplay toggle is a labeled pill that does not overlap its toolbar 
   expect(after.select.left).toBeGreaterThanOrEqual(after.toggle.right - 0.5);
 });
 
+test('Title Page toggle adds an editable on-page title page that persists', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+
+  // The toolbar exposes a screenplay-only Title Page pill.
+  const tpToggle = page.locator('.doc-tb-titlepage-toggle');
+  await expect(tpToggle).toBeVisible();
+  await tpToggle.click();
+
+  // A real on-page title page appears as the first sheet.
+  const titlePage = page.locator('.doc-card-modal .sp-title-page');
+  await expect(titlePage).toBeVisible();
+
+  // Type directly on the title field.
+  const titleField = titlePage.locator('.sp-tp-title');
+  await titleField.click();
+  await titleField.fill('MY GREAT SCRIPT');
+  // Blur to flush the commit.
+  await titlePage.locator('.sp-tp-authors').click();
+  await titlePage.locator('.sp-tp-authors').fill('Andrew Conklin');
+  await page.locator('.doc-paper').click({ position: { x: 5, y: 5 } });
+
+  // Persisted into docMeta.
+  const tp = await page.evaluate(() =>
+    window.__soleilDocTest.getTitlePage(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope()));
+  expect(tp.enabled).toBe(true);
+  expect(tp.title).toBe('MY GREAT SCRIPT');
+  expect(tp.authors).toBe('Andrew Conklin');
+
+  // Toggling it off removes the page.
+  await tpToggle.click();
+  await expect(titlePage).toHaveCount(0);
+});
+
 test('Tab/Enter cycle elements and scene/character lines auto-uppercase', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);

@@ -17498,14 +17498,44 @@ button, [role="button"], a {
    square icon button — so it must size to its content. Without these overrides
    the base .doc-tb-pill's fixed 110px (or, previously, .doc-tb-btn's 28px)
    clipped/overflowed the word "Screenplay" and overlapped its neighbors. */
-.doc-tb-pill.doc-tb-screenplay-toggle { width: auto; min-width: 0; max-width: none; gap: 5px; }
+.doc-tb-pill.doc-tb-screenplay-toggle,
+.doc-tb-pill.doc-tb-titlepage-toggle { width: auto; min-width: 0; max-width: none; gap: 5px; }
 .doc-tb-pill.doc-tb-screenplay-toggle.is-active,
 .doc-tb-pill.doc-tb-screenplay-toggle.is-active:hover:not(:disabled) {
   background: var(--soleil, #ffa500); color: #1a1205; font-weight: 600;
 }
+/* Title-page toggle: a quieter "on" state (outline) so it doesn't compete with
+   the mode toggle's solid fill. */
+.doc-tb-pill.doc-tb-titlepage-toggle.is-active {
+  color: var(--soleil, #ffa500);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--soleil, #ffa500) 55%, transparent);
+}
 /* Pane (side-dock) mode tightens; touch mode grows to match the 40px buttons. */
-.doc-card-modal-side .doc-tb-pill.doc-tb-screenplay-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
+.doc-card-modal-side .doc-tb-pill.doc-tb-screenplay-toggle,
+.doc-card-modal-side .doc-tb-pill.doc-tb-titlepage-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
 .doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line2, rgba(255,255,255,.1)); }
+
+/* ── Editable on-page screenplay title page (ScreenplayTitlePage) ─────────── */
+/* Reuses .doc-editor-wrap for the 8.5×11 sheet + zoom; lays out the fields. */
+.sp-title-page { display: flex; flex-direction: column; }
+.sp-title-page .sp-tp-center { margin-top: 2.5in; text-align: center; }
+.sp-title-page .sp-tp-foot {
+  margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px;
+}
+.sp-title-page .sp-tp-foot-left { text-align: left; flex: 1 1 auto; min-width: 0; }
+.sp-title-page .sp-tp-foot-right { text-align: right; flex: 0 1 auto; min-width: 0; }
+.sp-tp-field {
+  display: block; width: 100%; margin: 0; padding: 0; border: 0; outline: 0;
+  background: transparent; color: inherit; resize: none; overflow: hidden;
+  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+  font-size: 12pt; line-height: 1.5; text-align: inherit;
+}
+.sp-tp-field::placeholder { color: var(--ink-3, #888); opacity: .5; }
+.sp-tp-static { white-space: pre-wrap; }
+.sp-title-page .sp-tp-credit { margin-top: 1.5em; }
+.sp-title-page .sp-tp-source { margin-top: 1.5em; }
+.sp-title-page .sp-tp-copyright { margin-top: 1em; }
+.sp-title-page .sp-tp-notes { margin-top: 1em; }
 
 /* On-screen screenplay page-break marker (ScreenplayPagination decoration). */
 .doc-paper.is-screenplay .sp-page-break { display: block; margin: 1.5em 0; user-select: none; }

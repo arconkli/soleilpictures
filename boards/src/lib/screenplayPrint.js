@@ -9,10 +9,39 @@ import { paginate } from './screenplayPaginate.js';
 function esc(s) {
   return String(s || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
+// Escape + preserve the field's own line breaks.
+function escML(s) { return esc(s).replace(/\n/g, '<br>'); }
 
-// blocks: [{ element, text }]. Returns a full printable HTML document string.
-export function screenplayPrintHTML(blocks, { title = 'Screenplay' } = {}) {
+// A full-page title page section (industry convention: unnumbered, first page).
+// Mirrors the on-screen ScreenplayTitlePage layout.
+function titlePageHTML(tp) {
+  if (!tp || !tp.enabled) return '';
+  const center = [
+    tp.title ? `<div class="sp-tp-title">${escML(tp.title)}</div>` : '',
+    tp.credit ? `<div class="sp-tp-credit">${escML(tp.credit)}</div>` : '',
+    tp.authors ? `<div class="sp-tp-authors">${escML(tp.authors)}</div>` : '',
+    tp.source ? `<div class="sp-tp-source">${escML(tp.source)}</div>` : '',
+  ].join('');
+  const left = [
+    tp.contact ? `<div class="sp-tp-contact">${escML(tp.contact)}</div>` : '',
+    tp.copyright ? `<div class="sp-tp-copyright">${escML(tp.copyright)}</div>` : '',
+  ].join('');
+  const right = [
+    tp.draftDate ? `<div class="sp-tp-draft">${escML(tp.draftDate)}</div>` : '',
+    tp.notes ? `<div class="sp-tp-notes">${escML(tp.notes)}</div>` : '',
+  ].join('');
+  if (!center && !left && !right) return '';
+  return `<section class="sp-page sp-title-page">`
+    + `<div class="sp-tp-center">${center}</div>`
+    + `<div class="sp-tp-foot"><div class="sp-tp-foot-left">${left}</div><div class="sp-tp-foot-right">${right}</div></div>`
+    + `</section>`;
+}
+
+// blocks: [{ element, text }]. opts.titlePage: { enabled, title, ... }.
+// Returns a full printable HTML document string.
+export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = null } = {}) {
   const { pages } = paginate(blocks);
+  const titleSection = titlePageHTML(titlePage);
   const pageHtml = pages.map((frags, pi) => {
     const rows = frags.map((f) => {
       const contd = f.contd ? `<div class="sp-contd">${esc(f.contd)} (CONT'D)</div>` : '';
@@ -47,5 +76,16 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay' } = {}) {
   .sp-centered { text-align: center; margin-top: 1em; white-space: pre-wrap; }
   .sp-contd { text-transform: uppercase; margin-left: 1in; }
   .sp-more { margin-left: 1in; }
-</style></head><body>${pageHtml}</body></html>`;
+  /* Title page — full-page flex layout matching the on-screen editor. */
+  .sp-title-page { display: flex; flex-direction: column; text-align: center; }
+  .sp-title-page .sp-tp-center { margin-top: 2in; }
+  .sp-title-page .sp-tp-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+  .sp-title-page .sp-tp-foot-left { text-align: left; }
+  .sp-title-page .sp-tp-foot-right { text-align: right; }
+  .sp-tp-credit { margin-top: 1.5em; }
+  .sp-tp-source { margin-top: 1.5em; }
+  .sp-tp-copyright { margin-top: 1em; }
+  .sp-tp-notes { margin-top: 1em; }
+  @media print { .sp-title-page { min-height: 9in; } }
+</style></head><body>${titleSection}${pageHtml}</body></html>`;
 }

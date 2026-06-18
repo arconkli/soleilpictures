@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
-import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, metaMap } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, metaMap } from '../lib/docState.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { isDocQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
@@ -23,6 +23,7 @@ import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocPresence } from './DocPresence.jsx';
 import { DocToolbar } from './DocToolbar.jsx';
+import { ScreenplayTitlePage } from './ScreenplayTitlePage.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
@@ -154,6 +155,33 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const toggleScreenplay = useCallback(() => {
     setDocMode(ydoc, scope, docMode === 'screenplay' ? 'doc' : 'screenplay');
   }, [ydoc, scope, docMode]);
+
+  // Screenplay title page (docMeta-backed). observeDeep so a peer's field edit
+  // (nested Y.Map) reflects here, not just enable/disable. Single source of
+  // truth: this state + commitTitlePage feed both the toolbar toggle and the
+  // on-page ScreenplayTitlePage editor.
+  const [titlePage, setTitlePageState] = useState(() => getTitlePage(ydoc, scope));
+  useEffect(() => {
+    const m = metaMap(ydoc, scope);
+    setTitlePageState(getTitlePage(ydoc, scope));
+    if (!m) return;
+    const update = () => setTitlePageState(getTitlePage(ydoc, scope));
+    m.observeDeep(update);
+    return () => m.unobserveDeep(update);
+  }, [ydoc, scope]);
+  const commitTitlePage = useCallback((patch) => setTitlePage(ydoc, scope, patch), [ydoc, scope]);
+  const toggleTitlePage = useCallback(() => {
+    const next = !titlePage.enabled;
+    commitTitlePage({ enabled: next });
+    // Enabling: make sure screenplay mode is on, then scroll the new page into
+    // view on the next frame.
+    if (next) {
+      if (docMode !== 'screenplay') setDocMode(ydoc, scope, 'screenplay');
+      requestAnimationFrame(() => {
+        paperRef.current?.querySelector('.sp-title-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, [titlePage.enabled, commitTitlePage, docMode, ydoc, scope]);
 
   // Ref to .doc-paper — declared early because the zoom/pinch effect
   // below needs it. The DocPresence overlay also uses it later (cursor/
@@ -663,6 +691,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     scope={scope}
                     docMode={docMode}
                     onToggleScreenplay={toggleScreenplay}
+                    titlePageEnabled={titlePage.enabled}
+                    onToggleTitlePage={toggleTitlePage}
                     onInsertBookmark={insertBookmarkAtCaret}
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
@@ -685,6 +715,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             <DocPresence getAwareness={getAwareness} boardId={board.id} pageId={activePageId}
                          paperRef={paperRef} editor={editorRef.current}
                          currentUser={currentUser} />
+          )}
+          {/* Screenplay title page — a real first page, before the script body. */}
+          {docMode === 'screenplay' && titlePage.enabled && (
+            <ScreenplayTitlePage
+              titlePage={titlePage}
+              onCommit={commitTitlePage}
+              editable={canEdit && !isPublic}
+            />
           )}
           {activePageId ? (
             sheetIds.map(sid => (

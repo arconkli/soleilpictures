@@ -158,6 +158,93 @@ test('Courier print HTML renders paginated pages with numbers + MORE/CONT’D', 
   expect(r.hasContd).toBe(true);
 });
 
+test('Fountain title page round-trips and never bleeds into the body', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const tp = {
+      enabled: true,
+      title: 'THE TITLE',
+      credit: 'Written by',
+      authors: 'Andrew Conklin',
+      draftDate: 'First Draft 6/17/26',
+      contact: 'arconkli@gmail.com\n123 Main St',
+    };
+    const blocks = [
+      { element: 'scene', text: 'INT. KITCHEN - DAY' },
+      { element: 'action', text: 'John pours coffee.' },
+    ];
+    const text = S.jsonToFountain(blocks, tp);
+    const parsed = S.parseFountainTitlePage(text);
+    const body = S.fountainToBlocks(parsed.body);
+    return { text, tp: parsed.titlePage, body };
+  });
+  // The title block is emitted before the body and parses back into fields.
+  expect(r.text.startsWith('Title: THE TITLE')).toBe(true);
+  expect(r.tp).toMatchObject({
+    enabled: true, title: 'THE TITLE', credit: 'Written by', authors: 'Andrew Conklin',
+    draftDate: 'First Draft 6/17/26', contact: 'arconkli@gmail.com\n123 Main St',
+  });
+  // Body is exactly the script — no title-page lines leaked in as action.
+  expect(r.body).toEqual([
+    { element: 'scene', text: 'INT. KITCHEN - DAY' },
+    { element: 'action', text: 'John pours coffee.' },
+  ]);
+});
+
+test('a screenplay starting with a colon line is NOT mistaken for a title page', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const parsed = S.parseFountainTitlePage('FADE IN:\n\nINT. HOUSE - DAY\n');
+    return parsed;
+  });
+  expect(r.titlePage).toBe(null);
+  expect(r.body).toContain('FADE IN:');
+});
+
+test('FDX <TitlePage> exports + imports and does NOT fold into the body (regression)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const tp = { enabled: true, title: 'THE TITLE', credit: 'Written by', authors: 'Andrew Conklin', draftDate: '6/17/26', contact: 'me@example.com' };
+    const blocks = [
+      { element: 'scene', text: 'INT. KITCHEN - DAY' },
+      { element: 'action', text: 'John pours coffee.' },
+    ];
+    const xml = S.jsonToFdx(blocks, tp);
+    const back = S.fdxToBlocks(xml);
+    const tpBack = S.fdxToTitlePage(xml);
+    return { xml, back, tpBack };
+  });
+  expect(r.xml).toContain('<TitlePage>');
+  // The body has exactly the 2 script paragraphs — title-page paragraphs are
+  // scoped out (this was the folding bug).
+  expect(r.back).toEqual([
+    { element: 'scene', text: 'INT. KITCHEN - DAY' },
+    { element: 'action', text: 'John pours coffee.' },
+  ]);
+  expect(r.tpBack).toMatchObject({ enabled: true, title: 'THE TITLE', credit: 'Written by', authors: 'Andrew Conklin' });
+});
+
+test('print HTML prepends a full title page section when enabled', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [{ element: 'scene', text: 'INT. KITCHEN - DAY' }, { element: 'action', text: 'Hi.' }];
+    const html = S.screenplayPrintHTML(blocks, { title: 'Test', titlePage: { enabled: true, title: 'THE TITLE', credit: 'Written by', authors: 'A. C.' } });
+    const off = S.screenplayPrintHTML(blocks, { title: 'Test', titlePage: { enabled: false, title: 'x' } });
+    const SECTION = '<section class="sp-page sp-title-page">';
+    return {
+      hasTitlePage: html.includes(SECTION),
+      titleText: /THE TITLE/.test(html),
+      // The title page section comes before the first script page.
+      tpBeforeBody: html.indexOf(SECTION) < html.indexOf('INT. KITCHEN'),
+      offHasNone: !off.includes(SECTION),
+    };
+  });
+  expect(r.hasTitlePage).toBe(true);
+  expect(r.titleText).toBe(true);
+  expect(r.tpBeforeBody).toBe(true);
+  expect(r.offHasNone).toBe(true);
+});
+
 test('FDX round-trips with exact Final Draft Type strings', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;

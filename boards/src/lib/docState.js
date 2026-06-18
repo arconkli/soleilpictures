@@ -90,6 +90,52 @@ export function setDocMode(ydoc, scope, mode) {
   ydoc.transact(() => { m.set('mode', mode === 'screenplay' ? 'screenplay' : 'doc'); }, DOC_ORIGIN);
 }
 
+// Screenplay title page. Stored as a nested Y.Map under docMeta so individual
+// fields merge independently across collaborators (per-field last-write-wins)
+// instead of one whole-object clobber. Rendered on-screen (ScreenplayTitlePage),
+// in the print/PDF shell, and round-tripped through Fountain/FDX.
+export const TITLE_PAGE_FIELDS = ['title', 'credit', 'authors', 'source', 'draftDate', 'contact', 'copyright', 'notes'];
+const TITLE_PAGE_DEFAULTS = {
+  enabled: false,
+  title: '',
+  credit: 'Written by',
+  authors: '',
+  source: '',
+  draftDate: '',
+  contact: '',
+  copyright: '',
+  notes: '',
+};
+export function getTitlePage(ydoc, scope) {
+  const m = metaMap(ydoc, scope);
+  const out = { ...TITLE_PAGE_DEFAULTS };
+  const tp = m && m.get('titlePage');
+  if (tp && typeof tp.get === 'function') {            // nested Y.Map (current)
+    if (tp.get('enabled') !== undefined) out.enabled = !!tp.get('enabled');
+    for (const k of TITLE_PAGE_FIELDS) { const v = tp.get(k); if (v !== undefined) out[k] = v; }
+  } else if (tp && typeof tp === 'object') {           // plain-object (legacy/forward-compat)
+    Object.assign(out, tp);
+  }
+  return out;
+}
+// patch is a partial of { enabled, ...TITLE_PAGE_FIELDS }.
+export function setTitlePage(ydoc, scope, patch) {
+  const m = metaMap(ydoc, scope);
+  if (!m || !patch) return;
+  ydoc.transact(() => {
+    let tp = m.get('titlePage');
+    if (!tp || typeof tp.get !== 'function') {
+      const seed = (tp && typeof tp === 'object') ? tp : {};
+      tp = new Y.Map();
+      m.set('titlePage', tp);
+      if (seed.enabled !== undefined) tp.set('enabled', !!seed.enabled);
+      for (const k of TITLE_PAGE_FIELDS) { if (seed[k] !== undefined) tp.set(k, seed[k]); }
+    }
+    if (patch.enabled !== undefined) tp.set('enabled', !!patch.enabled);
+    for (const k of TITLE_PAGE_FIELDS) { if (patch[k] !== undefined) tp.set(k, patch[k]); }
+  }, DOC_ORIGIN);
+}
+
 export function readPages(ydoc, scope) {
   const arr = pagesArray(ydoc, scope);
   if (!arr) return [];

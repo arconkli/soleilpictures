@@ -13,7 +13,7 @@ import { addRecentFont } from '../lib/customFonts.js';
 import {
   List, ListOrdered, ListChecks, Quote,
   AlignLeft, AlignCenter, AlignRight,
-  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard,
+  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard, FileText,
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 import { ELEMENTS as SP_ELEMENTS, ELEMENT_LABELS as SP_LABELS } from './docExtensions/screenplay/screenplayFlow.js';
@@ -40,6 +40,7 @@ const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6'
 
 export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink, onAddComment,
                                ydoc = null, scope = null, docMode = 'doc', onToggleScreenplay,
+                               titlePageEnabled = false, onToggleTitlePage,
                                zoom = 1, onZoomIn, onZoomOut, onZoomReset }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
@@ -167,6 +168,18 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
           <option value="" disabled hidden>—</option>
           {HEADING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+      )}
+
+      {isScreenplay && onToggleTitlePage && (
+        <button type="button"
+                className={`doc-tb-pill doc-tb-titlepage-toggle${titlePageEnabled ? ' is-active' : ''}`}
+                title={titlePageEnabled ? 'Title page on — click to remove it' : 'Add a title page'}
+                aria-pressed={titlePageEnabled}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onToggleTitlePage()}>
+          <Glyph as={FileText} size={14} />
+          <span className="doc-tb-pill-label">Title Page</span>
+        </button>
       )}
 
       {!isScreenplay && (<>

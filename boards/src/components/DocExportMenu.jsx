@@ -10,8 +10,10 @@ import { useEffect, useRef, useState } from 'react';
 import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown, collectFullDocJSON } from '../lib/docFullExport.js';
 import {
   jsonToFountain, fountainToBlocks, jsonToFdx, fdxToBlocks, blocksToDocJSON, docJSONToBlocks,
+  parseFountainTitlePage, fdxToTitlePage,
 } from '../lib/screenplayIO.js';
 import { screenplayPrintHTML } from '../lib/screenplayPrint.js';
+import { getTitlePage, setTitlePage } from '../lib/docState.js';
 
 // Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
@@ -110,7 +112,8 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
       // margins, page numbers, MORE/CONT'D) so the PDF matches on-screen pages.
       let html;
       if (docMode === 'screenplay') {
-        html = screenplayPrintHTML(docJSONToBlocks(scriptBlocks()), { title: safeName });
+        const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+        html = screenplayPrintHTML(docJSONToBlocks(scriptBlocks()), { title: safeName, titlePage });
       } else {
         html = printableHTML(await fullBodyHtml());
       }
@@ -127,11 +130,13 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
     return editor ? editor.getJSON() : { type: 'doc', content: [] };
   };
   const exportFountain = () => {
-    downloadBlob(new Blob([jsonToFountain(scriptBlocks())], { type: 'text/plain' }), 'fountain');
+    const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+    downloadBlob(new Blob([jsonToFountain(scriptBlocks(), titlePage)], { type: 'text/plain' }), 'fountain');
     setOpen(false);
   };
   const exportFdx = () => {
-    downloadBlob(new Blob([jsonToFdx(scriptBlocks())], { type: 'application/xml' }), 'fdx');
+    const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+    downloadBlob(new Blob([jsonToFdx(scriptBlocks(), titlePage)], { type: 'application/xml' }), 'fdx');
     setOpen(false);
   };
   const importScript = () => {
@@ -143,14 +148,24 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
       try {
         const text = await f.text();
         const isFdx = /\.fdx$/i.test(f.name) || /<FinalDraft/i.test(text);
-        const blocks = isFdx ? fdxToBlocks(text) : fountainToBlocks(text);
-        if (!blocks.length) return;
+        let blocks, titlePage = null;
+        if (isFdx) {
+          blocks = fdxToBlocks(text);
+          titlePage = fdxToTitlePage(text);
+        } else {
+          const parsed = parseFountainTitlePage(text);
+          titlePage = parsed.titlePage;
+          blocks = fountainToBlocks(parsed.body);
+        }
+        if (!blocks.length && !titlePage) return;
         if (editor) {
           // Replace the focused sheet's content. Undoable via ⌘Z; confirm only
           // when there's existing content to clobber.
           if (!editor.isEmpty && !window.confirm('Replace this document with the imported screenplay?')) return;
           editor.chain().focus().setContent(blocksToDocJSON(blocks)).run();
         }
+        // Import the title page (enable it) — it lives in docMeta, not the editor.
+        if (titlePage && ydoc) setTitlePage(ydoc, scope, { enabled: true, ...titlePage });
       } catch (_) { /* malformed file — no-op */ }
     };
     input.click();
