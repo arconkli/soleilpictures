@@ -102,11 +102,19 @@ export function paginate(blocks, opts = {}) {
     const firstOnPage = used === 0;
     const sb = isCarry ? 0 : (firstOnPage ? 0 : elementSpacing(element));
 
-    // Look-ahead break rules (only when the page already has content).
+    // Look-ahead "keep together" break rules (only when the page has content):
+    // a lead-in element (scene heading, character cue, parenthetical) must not
+    // be stranded at the bottom of a page, away from what follows it. Each
+    // requires room for itself PLUS the first MIN_SPLIT lines of the next block.
     if (!isCarry && used > 0) {
-      if (element === 'scene' && used + sb + cl + 1 > pageLines) { pushPage(); continue; }
-      if (element === 'parenthetical' && blocks[i + 1]?.element === 'dialogue'
-          && used + sb + cl + 1 > pageLines) { pushPage(); continue; }
+      const next = blocks[i + 1];
+      const nextLead = next
+        ? elementSpacing(next.element) + Math.min(MIN_SPLIT, wrapLines(next.text, elementWidth(next.element)).length)
+        : 1;
+      if ((element === 'scene' || element === 'character')
+          && used + sb + cl + nextLead > pageLines) { pushPage(); continue; }
+      if (element === 'parenthetical' && next?.element === 'dialogue'
+          && used + sb + cl + nextLead > pageLines) { pushPage(); continue; }
     }
 
     // Whole block/remainder fits.

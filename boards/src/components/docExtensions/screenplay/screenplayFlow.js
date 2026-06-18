@@ -80,8 +80,38 @@ function walkScreenplayBlocks(doc, visit) {
 }
 
 // Strip a character-cue extension like "(CONT'D)" / "(V.O.)" to the base name.
-function baseCharacterName(text) {
+export function baseCharacterName(text) {
   return String(text || '').split('(')[0].trim().toUpperCase();
+}
+
+const CONTD_RE = /\(\s*CONT['’]?D\s*\)/i;
+
+// Auto (CONT'D): a character cue that resumes after the SAME character already
+// spoke earlier in the scene (with only action/other in between, no other
+// speaker) should display "(CONT'D)". Pure + render-time — `blocks` is the flat
+// [{ element, text }] array; returns a Set of block indices whose cue should
+// show (CONT'D). The stored text is never modified; callers append for display.
+export function computeAutoContd(blocks) {
+  const out = new Set();
+  let lastSpeaker = null;
+  (blocks || []).forEach((b, i) => {
+    const el = b.element || 'action';
+    if (el === 'scene') { lastSpeaker = null; return; }
+    if (el !== 'character') return;
+    const name = baseCharacterName(b.text);
+    if (!name) return;
+    if (name === lastSpeaker && !CONTD_RE.test(String(b.text || ''))) out.add(i);
+    lastSpeaker = name;
+  });
+  return out;
+}
+
+// Display string for a character cue, applying auto (CONT'D) when `contd` and it
+// isn't already present.
+export function characterCueDisplay(text, contd) {
+  const t = String(text || '');
+  if (!contd || CONTD_RE.test(t)) return t;
+  return `${t} (CONT'D)`;
 }
 
 // Unique character names already used in the doc (for autocomplete).

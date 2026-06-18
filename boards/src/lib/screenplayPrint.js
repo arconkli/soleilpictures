@@ -5,6 +5,7 @@
 // page breaks (it doesn't re-paginate), so the layout is deterministic.
 
 import { paginate } from './screenplayPaginate.js';
+import { computeAutoContd, characterCueDisplay } from '../components/docExtensions/screenplay/screenplayFlow.js';
 
 function esc(s) {
   return String(s || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -52,12 +53,15 @@ function fontFaceCss(base) {
 // Returns a full printable HTML document string.
 export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = null, fontBaseUrl = '' } = {}) {
   const { pages } = paginate(blocks);
+  const contdSet = computeAutoContd(blocks);
   const titleSection = titlePageHTML(titlePage);
   const pageHtml = pages.map((frags, pi) => {
     const rows = frags.map((f) => {
       const contd = f.contd ? `<div class="sp-contd">${esc(f.contd)} (CONT'D)</div>` : '';
       const more = f.more ? `<div class="sp-more">(MORE)</div>` : '';
-      return `${contd}<div class="sp-${f.element}">${esc(f.text) || '&nbsp;'}</div>${more}`;
+      // Auto (CONT'D) on a character cue that resumes the same speaker.
+      const text = f.element === 'character' ? characterCueDisplay(f.text, contdSet.has(f.index)) : f.text;
+      return `${contd}<div class="sp-${f.element}">${esc(text) || '&nbsp;'}</div>${more}`;
     }).join('');
     // Page numbers top-right, omitted on page 1 (industry convention).
     const num = pi > 0 ? `<div class="sp-pageno">${pi + 1}.</div>` : '';

@@ -12,8 +12,17 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { paginate } from '../../../lib/screenplayPaginate.js';
+import { computeAutoContd } from './screenplayFlow.js';
 
 const key = new PluginKey('screenplayPagination');
+
+function makeContdEl() {
+  const s = document.createElement('span');
+  s.className = 'sp-auto-contd';
+  s.contentEditable = 'false';
+  s.textContent = " (CONT'D)";
+  return s;
+}
 
 function makeBreakEl(pageNum, more, contd) {
   const el = document.createElement('div');
@@ -39,40 +48,54 @@ function makeBreakEl(pageNum, more, contd) {
 }
 
 function computeDecorations(doc) {
-  // Top-level blocks (screenplay or otherwise) with their positions.
+  // Top-level blocks (screenplay or otherwise) with their positions + sizes.
   const blocks = [];
   doc.forEach((node, offset) => {
     blocks.push({
       element: node.type.name === 'screenplayBlock' ? (node.attrs.element || 'action') : 'action',
       text: node.textContent,
       pos: offset,
+      size: node.nodeSize,
     });
   });
   if (blocks.length < 1) return DecorationSet.empty;
 
-  const { pages } = paginate(blocks.map(b => ({ element: b.element, text: b.text })));
-  if (pages.length < 2) return DecorationSet.empty;
-
+  const flat = blocks.map(b => ({ element: b.element, text: b.text }));
   const decos = [];
-  pages.forEach((frags, p) => {
-    if (p > 0 && frags.length) {
-      const f = frags[0];
-      const blk = blocks[f.index];
-      if (blk) {
-        // srcStart is the exact character offset into the source block where
-        // this fragment begins (0 = whole block; >0 = a mid-block continuation).
-        const off = f.srcStart || 0;
-        const midBlock = off > 0 || !!f.contd;
-        // Mid-block: break inside the text (blk.pos + 1 enters block content,
-        // + char offset). Otherwise: break before the block.
-        const breakPos = midBlock ? (blk.pos + 1 + off) : blk.pos;
-        const safePos = Math.max(0, Math.min(breakPos, doc.content.size));
-        decos.push(Decoration.widget(safePos, () => makeBreakEl(p + 1, midBlock, f.contd || null), {
-          side: -1, key: `sp-pb-${p}`,
-        }));
-      }
-    }
+
+  // Auto (CONT'D) on a character cue resuming the same speaker — render-time
+  // suffix, shown even on a single-page script. Never edits the stored text.
+  const contdSet = computeAutoContd(flat);
+  contdSet.forEach((idx) => {
+    const blk = blocks[idx];
+    if (!blk) return;
+    const endPos = Math.max(0, Math.min(blk.pos + blk.size - 1, doc.content.size));
+    decos.push(Decoration.widget(endPos, makeContdEl, { side: 1, key: `sp-contd-${idx}` }));
   });
+
+  // Page-break markers (only when there's more than one page).
+  const { pages } = paginate(flat);
+  if (pages.length >= 2) {
+    pages.forEach((frags, p) => {
+      if (p > 0 && frags.length) {
+        const f = frags[0];
+        const blk = blocks[f.index];
+        if (blk) {
+          // srcStart is the exact character offset into the source block where
+          // this fragment begins (0 = whole block; >0 = a mid-block continuation).
+          const off = f.srcStart || 0;
+          const midBlock = off > 0 || !!f.contd;
+          // Mid-block: break inside the text (blk.pos + 1 enters block content,
+          // + char offset). Otherwise: break before the block.
+          const breakPos = midBlock ? (blk.pos + 1 + off) : blk.pos;
+          const safePos = Math.max(0, Math.min(breakPos, doc.content.size));
+          decos.push(Decoration.widget(safePos, () => makeBreakEl(p + 1, midBlock, f.contd || null), {
+            side: -1, key: `sp-pb-${p}`,
+          }));
+        }
+      }
+    });
+  }
   return DecorationSet.create(doc, decos);
 }
 

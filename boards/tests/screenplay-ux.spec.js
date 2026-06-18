@@ -129,6 +129,24 @@ test('Tab/Enter cycle elements and scene/character lines auto-uppercase', async 
   await expect(page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first()).toHaveText('Hello there.');
 });
 
+test('on-screen auto (CONT’D) appears on a resuming character cue', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Hello.' },
+      { element: 'action', text: 'A beat.' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Still here.' },
+    ]));
+  });
+  const contd = page.locator('.doc-paper.is-screenplay .sp-auto-contd');
+  await expect(contd).toHaveCount(1);
+  await expect(contd).toContainText("(CONT'D)");
+});
+
 test('a long screenplay shows on-screen page-break markers', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);

@@ -17571,8 +17571,11 @@ button, [role="button"], a {
 
 /* On-screen screenplay page-break marker (ScreenplayPagination decoration). */
 .doc-paper.is-screenplay .sp-page-break { display: block; margin: 1.5em 0; user-select: none; }
-.doc-paper.is-screenplay .sp-page-break-more { padding-left: 2in; font-family: inherit; }
-.doc-paper.is-screenplay .sp-page-break-contd { padding-left: 2in; text-transform: uppercase; font-weight: 700; }
+/* (MORE)/(CONT'D) align under the 22ch character-cue column (matches print). */
+.doc-paper.is-screenplay .sp-page-break-more { padding-left: 22ch; font-family: inherit; }
+.doc-paper.is-screenplay .sp-page-break-contd { padding-left: 22ch; text-transform: uppercase; font-weight: 700; }
+/* Auto (CONT'D) suffix appended to a resuming character cue. */
+.doc-paper.is-screenplay .sp-auto-contd { user-select: none; pointer-events: none; opacity: .85; }
 .doc-paper.is-screenplay .sp-page-break-rule {
   position: relative; height: 0; border-top: 1px dashed var(--line2, #9994); margin: .6em 0;
 }

@@ -158,6 +158,72 @@ test('Courier print HTML renders paginated pages with numbers + MORE/CONT’D', 
   expect(r.hasContd).toBe(true);
 });
 
+test('auto (CONT’D): same speaker resuming after action is marked, a new speaker resets it', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const blocks = [
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'character', text: 'JOHN' },          // 1
+      { element: 'dialogue', text: 'Hello.' },
+      { element: 'action', text: 'He pauses.' },
+      { element: 'character', text: 'JOHN' },          // 4 → CONT'D (same speaker after action)
+      { element: 'dialogue', text: 'Still here.' },
+      { element: 'character', text: 'MARY' },          // 6 → not contd
+      { element: 'dialogue', text: 'Hi.' },
+      { element: 'character', text: 'JOHN' },          // 8 → not contd (MARY spoke between)
+      { element: 'scene', text: 'EXT. PARK - NIGHT' },
+      { element: 'character', text: 'JOHN' },          // 10 → not contd (scene reset)
+    ];
+    const set = [...S.computeAutoContd(blocks)];
+    return {
+      set,
+      display4: S.characterCueDisplay('JOHN', true),
+      displayNone: S.characterCueDisplay('JOHN', false),
+      displayExisting: S.characterCueDisplay("JOHN (CONT'D)", true),
+    };
+  });
+  expect(r.set).toEqual([4]);
+  expect(r.display4).toBe("JOHN (CONT'D)");
+  expect(r.displayNone).toBe('JOHN');
+  expect(r.displayExisting).toBe("JOHN (CONT'D)"); // not doubled
+});
+
+test('print marks a resuming character cue with (CONT’D)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    const html = S.screenplayPrintHTML([
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Hello.' },
+      { element: 'action', text: 'A beat.' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Still talking.' },
+    ], { title: 'T' });
+    // The apostrophe is HTML-escaped in the print output.
+    return { count: (html.match(/JOHN \(CONT(?:&#39;|')D\)/g) || []).length };
+  });
+  expect(r.count).toBe(1); // only the resuming cue
+});
+
+test('smart break: a character cue never strands at the bottom of a page', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    // Fill the page so only ~1 line is left, then a cue + multi-line dialogue.
+    const blocks = [
+      { element: 'action', text: 'A'.repeat(60 * 54) }, // ~54 of 55 lines
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: ('word ').repeat(35 * 4).trim() }, // 4 lines
+    ];
+    const res = S.paginate(blocks);
+    const page1 = res.pages[0];
+    const last = page1[page1.length - 1];
+    const page2 = res.pages[1] || [];
+    return { pageCount: res.pageCount, lastEl: last.element, cueOnPage2: page2.some(f => f.element === 'character') };
+  });
+  expect(r.pageCount).toBeGreaterThanOrEqual(2);
+  expect(r.lastEl).not.toBe('character'); // cue moved to page 2 with its dialogue
+  expect(r.cueOnPage2).toBe(true);
+});
+
 test('Fountain title page round-trips and never bleeds into the body', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;
