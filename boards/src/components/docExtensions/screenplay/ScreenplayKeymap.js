@@ -10,7 +10,10 @@
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { TextSelection } from '@tiptap/pm/state';
-import { nextOnEnter, nextOnTab, prevOnTab, shouldUppercase } from './screenplayFlow.js';
+import {
+  nextOnEnter, nextOnTab, prevOnTab, shouldUppercase,
+  detectElementFromText, enterStartsNewScene,
+} from './screenplayFlow.js';
 
 // A slash (.doc-slash) or @-mention (.entity-picker) popup is open — let it own
 // Enter/Tab.
@@ -32,6 +35,18 @@ function blockIsEmpty(state) {
     if ($from.node(d).type.name === 'screenplayBlock') return $from.node(d).textContent.trim().length === 0;
   }
   return false;
+}
+// The element of the screenplayBlock immediately BEFORE the caret's block (null
+// if there's no screenplayBlock there). Used for the double-Enter → new scene.
+function prevScreenplayElement(state) {
+  const { $from } = state.selection;
+  for (let d = $from.depth; d > 0; d--) {
+    if ($from.node(d).type.name === 'screenplayBlock') {
+      const prev = state.doc.resolve($from.before(d)).nodeBefore;
+      return prev && prev.type.name === 'screenplayBlock' ? (prev.attrs.element || 'action') : null;
+    }
+  }
+  return null;
 }
 function inListOrTable(state) {
   const { $from } = state.selection;
@@ -78,6 +93,11 @@ export const ScreenplayKeymap = Extension.create({
         if (cur == null || inListOrTable(state)) return false;
         if (!state.selection.empty) return false;
         const empty = blockIsEmpty(state);
+        // FD-style: a second Enter on the empty action line that follows a
+        // speech starts a fresh Scene Heading (rather than another blank action).
+        if (enterStartsNewScene(prevScreenplayElement(state), cur, empty)) {
+          return ed.chain().focus().updateAttributes('screenplayBlock', { element: 'scene' }).run();
+        }
         const nextEl = nextOnEnter(cur, empty);
         // Enter on an empty cue/transition just retypes the current line as the
         // bail element (action) — no extra blank line.
@@ -101,21 +121,47 @@ export const ScreenplayKeymap = Extension.create({
     return [
       new Plugin({
         props: {
-          // Uppercase typed characters in scene/character/transition lines.
-          // handleTextInput fires only for LOCAL keystroke input (never for
-          // remote Yjs updates) and not during IME composition — so this is
-          // collaboration- and IME-safe, and insertText preserves stored marks.
+          // Auto-uppercase scene/character/transition lines AND auto-format an
+          // action line into a Scene Heading / Transition the moment its text
+          // says so. handleTextInput fires only for LOCAL keystroke input (never
+          // for remote Yjs updates) and not during IME composition — so this is
+          // collaboration- and IME-safe.
           handleTextInput(view, from, to, text) {
             const { state } = view;
             const $from = state.doc.resolve(from);
-            let element = null;
+            let depth = null;
             for (let d = $from.depth; d > 0; d--) {
-              if ($from.node(d).type.name === 'screenplayBlock') { element = $from.node(d).attrs.element; break; }
+              if ($from.node(d).type.name === 'screenplayBlock') { depth = d; break; }
             }
-            if (!element || !shouldUppercase(element)) return false;
-            const upper = text.toUpperCase();
-            if (upper === text) return false;
-            view.dispatch(state.tr.insertText(upper, from, to));
+            if (depth == null) return false;
+            const node = $from.node(depth);
+            const element = node.attrs.element || 'action';
+
+            // Uppercase the just-typed char on uppercase elements.
+            const insert = shouldUppercase(element) ? text.toUpperCase() : text;
+
+            // Would this keystroke turn an ACTION line into a slugline/transition?
+            const blockStart = $from.start(depth);
+            const blockEnd = $from.end(depth);
+            const content = node.textContent;
+            const head = content.slice(0, from - blockStart) + insert;
+            const resultText = head + content.slice(to - blockStart);
+            const detected = detectElementFromText(element, resultText);
+            if (detected) {
+              // Promote the block + uppercase the whole line (scene/transition
+              // are uppercase) in ONE transaction → one undo step.
+              const finalText = shouldUppercase(detected) ? resultText.toUpperCase() : resultText;
+              const caret = blockStart + (shouldUppercase(detected) ? head.toUpperCase().length : head.length);
+              const tr = state.tr
+                .insertText(finalText, blockStart, blockEnd)
+                .setNodeMarkup($from.before(depth), undefined, { ...node.attrs, element: detected });
+              tr.setSelection(TextSelection.create(tr.doc, caret));
+              view.dispatch(tr);
+              return true;
+            }
+
+            if (insert === text) return false; // nothing to change
+            view.dispatch(state.tr.insertText(insert, from, to));
             return true;
           },
         },

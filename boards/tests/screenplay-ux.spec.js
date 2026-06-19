@@ -341,6 +341,94 @@ test('smart quotes apply in screenplay dialogue', async ({ page }) => {
   expect(text).toMatch(/[“”]/);
 });
 
+test('typing a slugline on an action line auto-formats it into a Scene Heading', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  // The seeded first block is a Scene Heading; give it a location, then Enter
+  // drops to an Action line.
+  await page.keyboard.type('int. office - day');
+  await page.keyboard.press('Enter');           // → action
+  // On this ACTION line, typing another slugline auto-promotes it to a Scene
+  // Heading (and uppercases), and scene autocomplete surfaces the known location.
+  await page.keyboard.type('ext. ');
+  await expect(page.locator('.doc-card-modal [data-screenplay-element="scene"]')).toHaveCount(2);
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('.sp-autocomplete-item', { hasText: 'OFFICE' })).toBeVisible();
+  await page.keyboard.type('street');
+  const scenes = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    return S.docJSONToBlocks(window.__soleilDocTest.editor.getJSON())
+      .filter(b => b.element === 'scene').map(b => b.text);
+  });
+  expect(scenes).toEqual(['INT. OFFICE - DAY', 'EXT. STREET']);
+});
+
+test('Enter twice after a line of dialogue starts a fresh Scene Heading', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Goodbye.' },
+    ]));
+  });
+  // Click the dialogue line to focus the editor, caret to end of the line.
+  await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');  // dialogue → empty action line
+  await page.keyboard.press('Enter');  // empty action after a speech → scene
+  const cur = await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    const $from = ed.state.selection.$from;
+    for (let d = $from.depth; d > 0; d--) {
+      if ($from.node(d).type.name === 'screenplayBlock') return $from.node(d).attrs.element;
+    }
+    return null;
+  });
+  expect(cur).toBe('scene');
+});
+
+test('the slash menu offers screenplay elements in screenplay mode', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.keyboard.press('Enter');  // seeded scene → action line
+  await page.keyboard.type('/');
+  await expect(page.locator('.doc-slash')).toBeVisible();
+  await expect(page.locator('.doc-slash-item-title', { hasText: 'Scene Heading' })).toBeVisible();
+  await expect(page.locator('.doc-slash-item-title', { hasText: 'Dialogue' })).toBeVisible();
+  // No prose blocks leak in.
+  await expect(page.locator('.doc-slash-item-title', { hasText: 'Heading 1' })).toHaveCount(0);
+  // Filter + pick Character → the current line becomes a character cue.
+  await page.keyboard.type('char');
+  await expect(page.locator('.doc-slash-item-title', { hasText: 'Character' })).toBeVisible();
+  await page.keyboard.press('Enter');
+  const cur = await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    const $from = ed.state.selection.$from;
+    for (let d = $from.depth; d > 0; d--) {
+      if ($from.node(d).type.name === 'screenplayBlock') return $from.node(d).attrs.element;
+    }
+    return null;
+  });
+  expect(cur).toBe('character');
+});
+
+test('the slash menu still offers prose blocks outside screenplay mode (no regression)', async ({ page }) => {
+  await openDoc(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.keyboard.type('/');
+  await expect(page.locator('.doc-slash')).toBeVisible();
+  await expect(page.locator('.doc-slash-item-title', { hasText: 'Heading 1' })).toBeVisible();
+  await expect(page.locator('.doc-slash-item-title', { hasText: 'Scene Heading' })).toHaveCount(0);
+});
+
 test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);

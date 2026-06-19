@@ -794,6 +794,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         onInsertImage: pickImageFromDisk,
         onInsertBookmark: insertBookmarkInline,
         onInsertBoardEmbed: pickBoardEmbed,
+        // In screenplay mode `/` offers script elements, not prose blocks. The
+        // editor is keyed `sid:docMode` so it rebuilds when the mode flips.
+        docMode,
       }),
       FindHighlightExtension,
       // BlockHandleExtension removed — per-block drag handles felt

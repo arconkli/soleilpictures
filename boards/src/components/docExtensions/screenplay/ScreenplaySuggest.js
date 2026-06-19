@@ -10,11 +10,10 @@
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import {
-  collectCharacterNames, collectLocations, SCENE_PREFIXES, TIMES_OF_DAY,
+  collectCharacterNames, collectLocations,
+  SCENE_PREFIXES, TIMES_OF_DAY, TRANSITIONS, EXTENSIONS,
 } from './screenplayFlow.js';
 
-const TRANSITIONS = ['CUT TO:', 'DISSOLVE TO:', 'SMASH CUT TO:', 'MATCH CUT TO:', 'FADE TO:', 'FADE OUT.', 'INTERCUT WITH:'];
-const EXTENSIONS = ['(V.O.)', '(O.S.)', "(CONT'D)"];
 const SCENE_PREFIX_RE = /^(INT\.?\/EXT\.?|INT\.?|EXT\.?|EST\.?|I\/E\.?)\s+/i;
 const startsWithCI = (s, q) => s.toUpperCase().startsWith(q.toUpperCase());
 
@@ -31,10 +30,12 @@ function suggestForLine(element, text, docJSON) {
     }
     // … or a name followed by a trailing space → offer to append an extension.
     if (/\S\s+$/.test(text)) return { items: EXTENSIONS, from: text.length };
-    // Otherwise: cast names.
+    // Otherwise: cast names. On an EMPTY cue, proactively offer the whole cast
+    // (the "bring me along" guidance); once typing, prefix-match it.
     const q = text.trim().toUpperCase();
-    if (!q) return null;
-    const names = collectCharacterNames(docJSON).filter(n => n !== q && n.startsWith(q));
+    const all = collectCharacterNames(docJSON);
+    if (!q) return all.length ? { items: all, from: 0 } : null;
+    const names = all.filter(n => n !== q && n.startsWith(q));
     return names.length ? { items: names, from: text.length - text.trimStart().length } : null;
   }
 

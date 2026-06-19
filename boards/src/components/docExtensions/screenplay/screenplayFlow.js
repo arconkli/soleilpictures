@@ -177,3 +177,38 @@ export function collectLocations(doc) {
 // Common scene-heading prefixes + times of day for autocomplete seeding.
 export const SCENE_PREFIXES = ['INT. ', 'EXT. ', 'INT./EXT. ', 'EST. '];
 export const TIMES_OF_DAY = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'CONTINUOUS', 'LATER', 'DAWN', 'DUSK'];
+
+// Common transitions + character-cue extensions. Shared by the autocomplete
+// (ScreenplaySuggest) AND the auto-detector below so there's ONE list.
+export const TRANSITIONS = ['CUT TO:', 'DISSOLVE TO:', 'SMASH CUT TO:', 'MATCH CUT TO:', 'FADE TO:', 'FADE OUT.', 'INTERCUT WITH:'];
+export const EXTENSIONS = ['(V.O.)', '(O.S.)', "(CONT'D)"];
+
+// A scene-heading slugline starts with one of these prefixes FOLLOWED BY a
+// space — so "INT. " / "EXT " / "I/E " trigger but "Interior" / "Inter" don't.
+const SCENE_DETECT_RE = /^(?:INT\.?\/EXT\.?|INT\.?|EXT\.?|EST\.?|I\/E\.?)\s/i;
+
+// Auto-format: as the writer types on an ACTION line, promote it to the element
+// its text clearly implies — a slugline → Scene Heading, a "… TO:" line → a
+// Transition. Returns the new element, or null to leave it as-is. ONLY ever
+// promotes FROM action (never overrides a deliberately-chosen element), so it
+// can run on every keystroke without fighting the writer. Pure + caller applies
+// the change locally (collab-safe, single-undo).
+export function detectElementFromText(currentElement, text) {
+  if (currentElement !== 'action') return null;
+  const t = String(text || '');
+  if (SCENE_DETECT_RE.test(t)) return 'scene';
+  const trimmed = t.trim().toUpperCase();
+  // A known transition verbatim, or any line ending in "… TO:" (CUT TO:, etc.).
+  if (trimmed && (TRANSITIONS.includes(trimmed) || /\sTO:$/.test(trimmed))) return 'transition';
+  return null;
+}
+
+// Final-Draft-style flow: after a line of dialogue (or its parenthetical),
+// pressing Enter once gives the usual empty Action line; pressing Enter AGAIN on
+// that still-empty Action line starts a fresh Scene Heading. Scoped to "the
+// block before the empty action is a speech" so ordinary action paragraphing
+// (action → Enter → empty action → Enter) is untouched.
+export function enterStartsNewScene(prevElement, curElement, curEmpty) {
+  return curElement === 'action' && !!curEmpty
+    && (prevElement === 'dialogue' || prevElement === 'parenthetical');
+}

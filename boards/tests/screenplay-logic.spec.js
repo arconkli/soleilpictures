@@ -528,3 +528,60 @@ test('FDX round-trips with exact Final Draft Type strings', async ({ page }) => 
     { element: 'shot', text: 'ANGLE ON THE DOOR' },
   ]);
 });
+
+test('detectElementFromText promotes an action line to a scene heading or transition', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    return {
+      intLower: S.detectElementFromText('action', 'int. '),
+      ext: S.detectElementFromText('action', 'EXT. STREET'),
+      intExt: S.detectElementFromText('action', 'int./ext. car - day'),
+      ie: S.detectElementFromText('action', 'i/e car - day'),
+      cutLower: S.detectElementFromText('action', 'cut to:'),
+      dissolve: S.detectElementFromText('action', 'DISSOLVE TO:'),
+      plainAction: S.detectElementFromText('action', 'He walks to the door.'),
+      interior: S.detectElementFromText('action', 'Interior thoughts race.'),
+      notFromScene: S.detectElementFromText('scene', 'int. '),
+      notFromChar: S.detectElementFromText('character', 'CUT TO:'),
+    };
+  });
+  expect(r.intLower).toBe('scene');
+  expect(r.ext).toBe('scene');
+  expect(r.intExt).toBe('scene');
+  expect(r.ie).toBe('scene');
+  expect(r.cutLower).toBe('transition');
+  expect(r.dissolve).toBe('transition');
+  expect(r.plainAction).toBe(null);
+  expect(r.interior).toBe(null);     // "Interior…" must NOT be mistaken for INT.
+  expect(r.notFromScene).toBe(null); // only promotes FROM action
+  expect(r.notFromChar).toBe(null);
+});
+
+test('enterStartsNewScene fires only on an empty action line following a speech', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    return {
+      afterDialogue: S.enterStartsNewScene('dialogue', 'action', true),
+      afterParen: S.enterStartsNewScene('parenthetical', 'action', true),
+      afterAction: S.enterStartsNewScene('action', 'action', true),
+      afterScene: S.enterStartsNewScene('scene', 'action', true),
+      notEmpty: S.enterStartsNewScene('dialogue', 'action', false),
+      notAction: S.enterStartsNewScene('dialogue', 'character', true),
+    };
+  });
+  expect(r.afterDialogue).toBe(true);
+  expect(r.afterParen).toBe(true);
+  expect(r.afterAction).toBe(false);  // normal action paragraphing untouched
+  expect(r.afterScene).toBe(false);
+  expect(r.notEmpty).toBe(false);
+  expect(r.notAction).toBe(false);
+});
+
+test('EXTENSIONS + TRANSITIONS are shared from screenplayFlow (one source)', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    return { ext: S.EXTENSIONS, trans: S.TRANSITIONS };
+  });
+  expect(r.ext).toEqual(expect.arrayContaining(['(V.O.)', '(O.S.)', "(CONT'D)"]));
+  expect(r.trans).toEqual(expect.arrayContaining(['CUT TO:', 'DISSOLVE TO:']));
+});

@@ -17733,8 +17733,10 @@ button, [role="button"], a {
 /* (MORE)/(CONT'D) align under the 22ch character-cue column (matches print). */
 .doc-paper.is-screenplay .sp-page-break-more { padding-left: 22ch; font-family: inherit; }
 .doc-paper.is-screenplay .sp-page-break-contd { padding-left: 22ch; text-transform: uppercase; font-weight: 700; }
-/* Auto (CONT'D) suffix appended to a resuming character cue. */
-.doc-paper.is-screenplay .sp-auto-contd { user-select: none; pointer-events: none; opacity: .85; }
+/* Auto (CONT'D) suffix appended to a resuming character cue. Rendered at full
+   cue strength (not dimmed) so "same person talking again" reads clearly; it's
+   a non-editable render-time widget, never part of the stored text. */
+.doc-paper.is-screenplay .sp-auto-contd { user-select: none; pointer-events: none; }
 .doc-paper.is-screenplay .sp-page-break-rule {
   position: relative; height: 0; border-top: 1px dashed var(--line2, #9994); margin: .6em 0;
 }
