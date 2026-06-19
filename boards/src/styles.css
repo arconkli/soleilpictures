@@ -4149,6 +4149,28 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+/* Blank lines: a user who presses Enter on an empty line creates an empty
+   paragraph. The live editor shows it as a blank line (ProseMirror gives empty
+   <p> a trailing <br>), but the serialized static HTML is just <p></p>, which
+   collapses to zero height in display — so the spacing the user typed vanishes
+   when they stop editing. Give empty note paragraphs a line box so display
+   matches the editor (what you type is what you get). The \00a0 lives in a
+   ::before pseudo-element, so it never becomes selectable/copyable text. */
+.note-body p:empty::before {
+  content: "\00a0";
+}
+/* "Balance" — center a note's text vertically (the toolbar button also centers
+   it horizontally via text-align). Size the body to its content and let auto
+   margins absorb the slack equally top/bottom, so a one-line note used as a
+   header sits with even space around it. When the text is taller than the note,
+   the margins collapse to 0 and the body scrolls normally (avoids the
+   flexbox+overflow "can't scroll to the top" trap). Display-only: while editing,
+   the body is nested under .note-edit-wrap, so live vertical centering can't
+   shift the caret line — it snaps in on blur. */
+.note.is-balanced:not(.is-editing) .note-body {
+  flex: 0 1 auto;
+  margin-block: auto;
+}
 /* Clipped-text cue: when a note is pinned shorter than its text, fade the
    bottom edge instead of hiding the rest behind an invisible scroll, and
    surface a one-click "Show all" chip that fits the height back to the
@@ -4353,8 +4375,12 @@ body {
   overflow: hidden;
 }
 .lc-embed-frame iframe {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
+  /* Embeds render at their provider NATURAL pixel size and are CSS-scaled to
+     contain the frame (inline width/height/transform set by LinkCard), so the
+     player never shows its own scrollbars and is never clipped at any size. */
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: top left;
   border: 0; display: block;
 }
 .lc-embed-meta {

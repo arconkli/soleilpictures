@@ -92,6 +92,20 @@ function execCmd(cmd, val = null) {
   notifyFormatChanged();
 }
 
+// Set horizontal alignment on EVERY block of the note (not just the caret's
+// block), then restore the caret — used by the one-click "balance" button so a
+// multi-paragraph note centers as a whole.
+function setAlignAllBlocks(align) {
+  const editor = getActiveNoteEditor();
+  if (editor) {
+    const caret = editor.state.selection.to;
+    editor.chain().focus().selectAll().setTextAlign(align).setTextSelection(caret).run();
+    notifyFormatChanged();
+    return;
+  }
+  execCmd(align === 'center' ? 'justifyCenter' : 'justifyLeft');
+}
+
 // Deterministic B/I/U/S toggles. execCommand picks the toggle DIRECTION from
 // the browser's own reading of the selection, which on a MIXED selection is
 // sampled at the range start — it can disagree with the lit button the user
@@ -718,6 +732,35 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
       <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft"   active={fmt.align === 'left'} />
       <FormatBtn label="≡" title="Align center" cmd="justifyCenter" active={fmt.align === 'center'} />
       <FormatBtn label="⇥" title="Align right"  cmd="justifyRight"  active={fmt.align === 'right'} />
+      {(() => {
+        // One-click "balance": center the text on BOTH axes so a one-line note
+        // reads as a tidy header with even space around it. Toggles back to
+        // left + top. Vertical centering (vAlign) is a flat card field written
+        // through the same undo-aware path as bgColor.
+        const balanced = fmt.align === 'center' && editingNoteCard?.vAlign === 'center';
+        return (
+          <button type="button"
+            className={`tob-btn ${balanced ? 'is-active' : ''}`.trim()}
+            title="Balance — center text vertically & horizontally"
+            aria-pressed={balanced}
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (balanced) {
+                setAlignAllBlocks('left');
+                onUpdateEditingNote && onUpdateEditingNote({ vAlign: null });
+              } else {
+                setAlignAllBlocks('center');
+                onUpdateEditingNote && onUpdateEditingNote({ vAlign: 'center' });
+              }
+            }}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.1" />
+              <line x1="4" y1="7" x2="10" y2="7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          </button>
+        );
+      })()}
       <span className="tob-sep" />
       <ColorBtn title="Text color" glyph="A" defaultColor={currentFore}
                 swatches={TEXT_COLORS}

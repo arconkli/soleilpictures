@@ -3503,8 +3503,15 @@ export function CanvasSurface({
     // unintended cropping. Hold Cmd/Ctrl during the drag to bypass and
     // resize freely (which then makes object-fit:cover crop the image).
     const aspectLockKinds = new Set(['image', 'video', 'pdf']);
-    const lockAspect = aspectLockKinds.has(c.kind) && c.w > 0 && c.h > 0;
-    const startAspect = lockAspect ? c.w / c.h : null;
+    // Embeds (kind 'link' carrying an embed payload) lock to their PROVIDER
+    // ratio, not their current possibly-distorted w/h, so resize always yields
+    // a clean scaled player with no letterbox bands.
+    const embedLock = c.kind === 'link' && c.embed && c.embed.embedUrl
+      && c.embed.defaultW > 0 && c.embed.defaultH > 0;
+    const lockAspect = (aspectLockKinds.has(c.kind) || embedLock) && c.w > 0 && c.h > 0;
+    const startAspect = embedLock
+      ? (c.embed.defaultW / c.embed.defaultH)   // provider ratio (w/h)
+      : (lockAspect ? c.w / c.h : null);
 
     // Project a raw (dw, dh) onto the locked aspect, following the
     // axis the user is pushing more aggressively (proportionally).
@@ -5553,7 +5560,7 @@ export function CanvasSurface({
                                                      uploadProgress={uploadProgressById[c.id] ?? null}
                                                      onExpand={() => setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '' })}
                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
-    else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} vAlign={c.vAlign} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
                                                 awareness={getAwareness?.() || null}
                                                 cardId={c.id} boardId={board.id}

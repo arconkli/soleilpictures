@@ -73,6 +73,7 @@ export function RichNoteEditor({
   onAutoSize, // (height) => void  — fires while editing if not manually resized
   onFitHeight = null, // (height) => void — "Show all" chip on clipped notes
   manuallyResized = false,
+  vAlign = null,      // 'center' = "balance" (vertical centering via .is-balanced)
   autoFocus = false,
   // Live-collab plumbing (optional). When provided, while the user is
   // editing this note we broadcast the current html/selection to the
@@ -610,7 +611,7 @@ export function RichNoteEditor({
   // editing-state tints.
   if (bg) noteStyle['--has-bg-color'] = bg;
   return (
-    <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''}`}
+    <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`}
          style={noteStyle}
          onPointerUp={!editing ? onNotePointerUp : undefined}
          onDoubleClick={onOuterDouble}>

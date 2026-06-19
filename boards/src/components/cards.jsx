@@ -701,6 +701,7 @@ function noteCollabOn() {
 // Exported so the ?noteqa harness can mount it directly against an in-memory
 // Y.Doc (the canvas wires it via NoteCard's gate).
 export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fontSize,
+                          vAlign = null,
                           onUpdate, onEditingChange, autoFocus = false,
                           manuallyResized = false, ydoc = null, cardYMap = null,
                           cardId = null, boardId = null, awareness = null }) {
@@ -719,7 +720,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   const isLightBg = hasBg && /^#?(f|e|d|c)/i.test(String(bgColor).replace('#', ''));
   const noteStyle = { background: bgColor || undefined, color: textColor || undefined, ...fontStyle };
   if (bgColor) noteStyle['--has-bg-color'] = bgColor;
-  const cls = `note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''}`;
+  const cls = `note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`;
 
   if (editing) {
     return (
@@ -791,6 +792,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
 }
 
 function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
+                           vAlign = null,
                            onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
                            awareness = null, cardId = null, boardId = null, peerLiveHtml = null,
@@ -810,7 +812,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
     const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
     const hasBg = !!bgColor && bgColor !== 'transparent';
     return <div ref={roNoteRef}
-                className={`note ${hasBg ? 'has-bg' : ''} ${bgColor === 'transparent' ? 'is-transparent' : ''} ${roOverflowing ? 'is-overflowing' : ''}`}
+                className={`note ${hasBg ? 'has-bg' : ''} ${bgColor === 'transparent' ? 'is-transparent' : ''} ${roOverflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`}
                 style={{ background: bgColor || undefined, color: textColor || undefined, ...fontStyle }}>
       <NoteAutoLinkBody html={display} />
     </div>;
@@ -823,6 +825,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
         html={html} body={body}
         bgColor={bgColor} textColor={textColor}
         fontFamily={fontFamily} fontSize={fontSize}
+        vAlign={vAlign}
         onUpdate={onUpdate} onEditingChange={onEditingChange}
         autoFocus={autoFocus} manuallyResized={manuallyResized}
         ydoc={ydoc} cardYMap={cardYMap}
@@ -835,6 +838,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
       html={html} body={body}
       bgColor={bgColor} textColor={textColor}
       fontFamily={fontFamily} fontSize={fontSize}
+      vAlign={vAlign}
       onChangeHTML={(h) => onUpdate({ html: h, body: null })}
       onChangeBg={(c) => onUpdate({ bgColor: c })}
       onChangeColor={(c) => onUpdate({ textColor: c })}
@@ -876,6 +880,33 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
     e.stopPropagation();
     setEditingTitle(true);
   };
+
+  // Embed scale-to-fit: render the iframe at its provider NATURAL pixel size and
+  // CSS-scale it to *contain* the frame (centered), so the player never shows its
+  // own scrollbars and is never clipped at any card size. Aspect-locked resize
+  // (CanvasSurface) keeps the frame on the provider ratio, so the common
+  // title-less case fills exactly with no bands; a title bar shortens the frame,
+  // where contain leaves a minimal centered margin instead of clipping. A
+  // ResizeObserver on the frame tracks live drag-resize. Inert for non-embeds
+  // (natW===0 → early return), so it's safe to declare unconditionally here.
+  const embedFrameRef = useRef(null);
+  const [embedFit, setEmbedFit] = useState({ s: 1, tx: 0, ty: 0 });
+  const natW = embed?.defaultW || 0;
+  const natH = embed?.defaultH || 0;
+  useEffect(() => {
+    const el = embedFrameRef.current;
+    if (!el || !natW || !natH) return;
+    const measure = () => {
+      const fw = el.clientWidth, fh = el.clientHeight;
+      if (!fw || !fh) return;
+      const s = Math.min(fw / natW, fh / natH);
+      setEmbedFit({ s, tx: (fw - natW * s) / 2, ty: (fh - natH * s) / 2 });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [natW, natH]);
 
   // Polymorphic target: when `target` is an EntityRef the card behaves
   // like a chip pointing at any board / card / doc / message / user
@@ -921,6 +952,7 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
       <div className={`lc lc-embed ${embedActive ? 'is-embed-active' : ''}`} data-provider={embed.provider} onDoubleClick={onBodyDouble}>
         <div
           className="lc-embed-frame"
+          ref={embedFrameRef}
           onPointerDown={(e) => { if (embedActive) e.stopPropagation(); }}
         >
           <iframe
@@ -929,9 +961,15 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
             allow={embed.allow || 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture'}
             allowFullScreen
             loading="lazy"
+            scrolling="no"
             referrerPolicy="strict-origin-when-cross-origin"
             sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms"
-            style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
+            className="lc-embed-iframe"
+            style={{
+              width: natW || '100%',
+              height: natH || '100%',
+              transform: natW ? `translate(${embedFit.tx}px, ${embedFit.ty}px) scale(${embedFit.s})` : undefined,
+            }}
           />
           {!embedActive && (
             <div
