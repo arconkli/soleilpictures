@@ -43,8 +43,8 @@ export function RevenueView() {
     const [cr, eb, td, tp, fn] = await Promise.allSettled([
       supabase.rpc('admin_checkout_reliability', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_event_breakdown',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_top_users',            { p_tier: 'demo', p_limit: 20, p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_top_users',            { p_tier: 'paid', p_limit: 20, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_top_users',            { p_tier: 'demo', p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_top_users',            { p_tier: 'paid', p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_signup_funnel',        { p_days: f.days, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
@@ -57,7 +57,7 @@ export function RevenueView() {
       reliability: val(cr), eventBreakdown: val(eb) || [],
       topDemo: val(td) || [], topPaid: val(tp) || [], steps: val(fn) || [],
     };
-  }, [f.days, f.excludeInternal]);
+  }, [f.days, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 

@@ -26,9 +26,18 @@ const CONTACTED = [
   { value: 'no',  label: 'Not contacted' },
   { value: 'yes', label: 'Contacted' },
 ];
+const VERIFICATION = [
+  { value: 'verified',   label: 'Verified' },
+  { value: 'unverified', label: 'Unverified' },
+  { value: 'all',        label: 'All users' },
+];
 
 function UserListRow({ row, selected, isSelf, onSelect }) {
   const ghost = row.tier === 'waitlist' && !row.joined_waitlist;
+  // Unverified = email not confirmed OR never signed in. email_confirmed is the
+  // new column from admin_list_users; last_sign_in_at was already returned.
+  const unverified = row.email_confirmed === false || !row.last_sign_in_at;
+  const unverifiedReason = row.email_confirmed === false ? 'Email not confirmed' : 'Never signed in';
   const name = row.display_name || (row.email || '').split('@')[0] || row.email;
   return (
     <li
@@ -55,6 +64,7 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
           </span>
         )}
         {row.banned && <span className="admin-badge-banned" title="Account suspended">banned</span>}
+        {unverified && <span className="admin-badge-ghost" title={unverifiedReason}>unverified</span>}
         {ghost && <span className="admin-badge-ghost" title="Signed up but never joined the waitlist">ghost</span>}
       </div>
       <div className="admin-user-meta">
@@ -73,6 +83,7 @@ export function AdminUserList({
   query, onQueryChange,
   tierFilter, onTierFilterChange,
   contacted, onContactedChange,
+  verification, onVerificationChange,
   sort, onSortChange,
   onPrevPage, onNextPage, onRefresh,
   selectedUserId, onSelect, currentUserId, isFiltered,
@@ -119,6 +130,15 @@ export function AdminUserList({
           >
             <option value="">All tiers</option>
             {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select
+            className="auth-input admin-filter-select"
+            value={verification}
+            onChange={(e) => onVerificationChange(e.target.value)}
+            aria-label="Filter by verification status"
+            title="Verified = email confirmed + signed in at least once"
+          >
+            {VERIFICATION.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
           </select>
           <select
             className="auth-input admin-filter-select"

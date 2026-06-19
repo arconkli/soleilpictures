@@ -94,7 +94,7 @@ function KpiCard({ label, value, sub, delta, flagN, muted, spark, accent }) {
   );
 }
 
-export function AdminKpiStrip({ kpi, history = [], stats, perDay = [], days = 30, excludeInternal = true }) {
+export function AdminKpiStrip({ kpi, history = [], stats, perDay = [], days = 30, excludeInternal = true, verifiedOnly = true }) {
   const hasAny = !!kpi || !!stats || history.length > 0;
   if (!hasAny) return null;
 
@@ -175,6 +175,7 @@ export function AdminKpiStrip({ kpi, history = [], stats, perDay = [], days = 30
       <div className="admin-section-sub">
         Headline metrics for the selected window, with change vs the prior {days} days.
         {excludeInternal ? ' Internal/admin traffic excluded.' : ' Including internal/admin traffic.'}
+        {verifiedOnly ? ' Verified users only (email confirmed + signed in).' : ' Including unverified signups.'}
       </div>
       <div className="admin-stat-grid">
         {cards.map((c) => <KpiCard key={c.label} {...c} />)}

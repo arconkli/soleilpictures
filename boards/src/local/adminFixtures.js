@@ -49,6 +49,10 @@ const listUsers = NAMES.map((name, i) => {
   const tier = TIERS[i % TIERS.length];
   const paid = tier === 'paid';
   const contacted = i % 5 === 0;   // sprinkle a few "reached out" users for the preview
+  // A couple of unverified examples so the badge + dropdown have something to show:
+  // i===4 confirmed email but never signed in; i===11 email never confirmed.
+  const neverSignedIn = i === 4;
+  const emailUnconfirmed = i === 11;
   return {
     user_id: `u-${i}`,
     email: `${name}@${['studio.co', 'gmail.com', 'acme.io', 'proton.me'][i % 4]}`,
@@ -56,7 +60,8 @@ const listUsers = NAMES.map((name, i) => {
     card_count: Math.max(0, wave(i, 70, 60)),
     seconds_in_app: Math.max(0, wave(i, 9000, 8000)) * 6,
     created_at: tsISO((i + 1) * 1440 * 3),
-    last_sign_in_at: tsISO((i % 5) * 120 + 15),
+    last_sign_in_at: neverSignedIn ? null : tsISO((i % 5) * 120 + 15),
+    email_confirmed: !emailUnconfirmed,
     subscription_plan: paid ? (i % 2 ? 'annual' : 'monthly') : null,
     subscription_status: paid ? 'active' : null,
     current_period_end: paid ? tsISO(-1440 * 20) : null,

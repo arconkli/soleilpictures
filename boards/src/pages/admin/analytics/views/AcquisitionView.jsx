@@ -15,7 +15,7 @@ export function AcquisitionView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
     const [ab, fn, fb, dv] = await Promise.allSettled([
-      supabase.rpc('admin_acquisition_breakdown', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_acquisition_breakdown', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_signup_funnel',         { p_days: f.days, p_source: f.source || null, p_campaign: f.campaign || null, p_content: f.content || null, p_exclude_internal: f.excludeInternal }),
       // The FB/IG segment is its OWN funnel shape (admin_fb_funnel) — fbclid ad
       // traffic skips the waitlist for instant demo, so it models the actual
@@ -30,7 +30,7 @@ export function AcquisitionView() {
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     if (fn.status !== 'fulfilled' || fn.value.error) throw errOf(fn) || new Error('Failed to load funnel');
     return { acquisition: val(ab) || [], steps: val(fn) || [], fbSteps: val(fb) || [], device: val(dv) || null };
-  }, [f.days, f.source, f.campaign, f.content, f.excludeInternal]);
+  }, [f.days, f.source, f.campaign, f.content, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 

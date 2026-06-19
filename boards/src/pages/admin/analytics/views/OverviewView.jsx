@@ -18,7 +18,7 @@ export function OverviewView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
     const [ks, mh, pd, fn] = await Promise.allSettled([
-      supabase.rpc('admin_kpi_summary',     { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_kpi_summary',     { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_metrics_history', { p_days: 90 }),
       supabase.rpc('admin_cards_per_day',   { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_signup_funnel',   { p_days: f.days, p_source: f.source || null, p_campaign: f.campaign || null, p_content: f.content || null, p_exclude_internal: f.excludeInternal }),
@@ -27,7 +27,7 @@ export function OverviewView() {
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     if (fn.status !== 'fulfilled' || fn.value.error) throw errOf(fn) || new Error('Failed to load funnel');
     return { kpi: val(ks), history: val(mh) || [], perDay: val(pd) || [], steps: val(fn) || [] };
-  }, [f.days, f.source, f.campaign, f.content, f.excludeInternal]);
+  }, [f.days, f.source, f.campaign, f.content, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
@@ -36,7 +36,8 @@ export function OverviewView() {
       skeleton={<><AdminSkeleton variant="cards" rows={8} /><div style={{ height: 16 }} /><AdminSkeleton variant="chart" /></>}>
       <div className={q.refreshing ? 'is-refreshing' : ''}>
         <AdminKpiStrip kpi={q.data?.kpi} history={q.data?.history || []} stats={f.stats}
-                       perDay={q.data?.perDay || []} days={f.days} excludeInternal={f.excludeInternal} />
+                       perDay={q.data?.perDay || []} days={f.days} excludeInternal={f.excludeInternal}
+                       verifiedOnly={f.verifiedOnly} />
 
         <h2 className="admin-section-title">Signup funnel</h2>
         <div className="admin-section-sub">

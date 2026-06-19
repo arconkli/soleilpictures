@@ -26,19 +26,19 @@ export function EngagementView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
     const [af, rc, ls, ch, cs, pd, tc, rr, rs, dm, ec, tt, fc, oe] = await Promise.allSettled([
-      supabase.rpc('admin_activation_funnel',   { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_activation_funnel',   { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // Retention graphs — degrade gracefully via val(); never gate the view.
-      supabase.rpc('admin_retention_curve',     { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_user_lifespan',       { p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_retention_cohorts',   { p_window_days: Math.max(f.days, 60), p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_retention_curve',     { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_user_lifespan',       { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_retention_cohorts',   { p_window_days: Math.max(f.days, 60), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_card_stats',          { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_cards_per_day',       { p_days: f.days, p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_tier_usage_compare',  { p_days: 36500, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_tier_usage_compare',  { p_days: 36500, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // New retention/measurement RPCs (migration 0120) — all graceful via val().
-      supabase.rpc('admin_return_rate',         { p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_retention_by_source', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_user_dormancy',       { p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_event_coverage',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_return_rate',         { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_retention_by_source', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_user_dormancy',       { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_event_coverage',      { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // First-card friction RPCs (migration 0139) — return zeros until the
       // client emits the friction events; widgets show "still collecting".
       supabase.rpc('admin_time_to_first_card',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
@@ -66,7 +66,7 @@ export function EngagementView() {
       throw errOf(core.find(errOf)) || new Error('Failed to load engagement');
     }
     return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], experimentRetention, experimentActivation };
-  }, [f.days, f.excludeInternal]);
+  }, [f.days, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
