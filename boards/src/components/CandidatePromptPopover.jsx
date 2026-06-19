@@ -7,8 +7,9 @@
 //
 //   ┌───────────────────────────────┐
 //   │ Enoch                      5×  │
-//   │ Make “Enoch” a…                │
-//   │  [ 👤 Character ] [ 📍 Setting ]│
+//   │ Make this a…                   │
+//   │  [👤 Character] [📍 Setting]    │
+//   │  [#  Topic    ] [⬡  Thing  ]    │
 //   │ “…then Enoch turned to the…”   │
 //   │ Not a name                     │
 //   └───────────────────────────────┘

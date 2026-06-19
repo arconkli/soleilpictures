@@ -14418,42 +14418,48 @@ button.msg-panel-name:hover { color: var(--soleil); }
   padding-top: 6px;
   padding-bottom: 4px;
 }
-.ent-pop-tag-row {
-  appearance: none;
-  display: flex; align-items: center; gap: 10px;
-  width: calc(100% - 16px);
-  margin: 4px 8px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), transform var(--dur-quick) var(--ease);
-}
-.ent-pop-tag-row:hover {
-  background: var(--bg-0);
-  border-color: var(--line-2);
-}
-.ent-pop-tag-row:active { transform: translateY(1px); }
-.ent-pop-tag-dot {
-  flex: 0 0 auto;
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--bg-1);
-}
-.ent-pop-tag-name {
-  flex: 1 1 auto;
-  font: 600 13.5px/1.2 var(--font-sans);
-  color: var(--ink-0);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* The featured tag card inside the @mention hover popover. A cohesive,
+   tag-tinted mini-panel so its header + image/palette/list sections read
+   as ONE entity (not a boxed header stacked on borrowed sections). It
+   reuses the .tag-pop-* header + section classes for parity with the doc
+   tag popover; only the wrapper differs. */
+.ent-pop-tag-card {
+  margin: 4px 8px 6px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 7%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--tag-color, var(--soleil)) 24%, var(--line-1));
 }
 .ent-pop-tag-arrow {
   font: 500 14px/1 var(--font-sans);
   color: var(--ink-3);
   flex-shrink: 0;
 }
-.ent-pop-tag-row:hover .ent-pop-tag-arrow { color: var(--ink-1); }
+.tag-pop-header:hover .ent-pop-tag-arrow { color: var(--ink-1); }
+/* Loading skeleton — a 2×3 grid of shimmering placeholder squares that
+   matches the image grid's footprint, so the card has a stable height and
+   never pops/reflows when fetchTagVisuals resolves. */
+.tag-pop-skeleton {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 6px 10px 8px;
+  border-top: 1px solid color-mix(in oklab, var(--line-1) 70%, transparent);
+}
+.tag-pop-skeleton > span {
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  background: linear-gradient(100deg,
+    var(--bg-2) 30%,
+    color-mix(in oklab, var(--bg-2) 55%, var(--ink-3)) 50%,
+    var(--bg-2) 70%);
+  background-size: 220% 100%;
+  animation: tag-pop-shimmer 1.1s var(--ease) infinite;
+}
+@keyframes tag-pop-shimmer {
+  from { background-position: 220% 0; }
+  to   { background-position: -120% 0; }
+}
 
 .ent-pop-section-head {
   display: flex; align-items: baseline; gap: 6px;
@@ -15776,17 +15782,16 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
      gutters, find-replace bars, etc. */
   z-index: 2147483647;
   border-radius: 14px;
-  /* Tag-color-tinted glow underneath a translucent panel — gives the
-     popover a quiet visual link to the tag without a heavy stripe.
-     The 1px inset ring keeps the edge crisp on busy backgrounds. */
-  background: color-mix(in oklab, var(--bg-1) 84%, transparent);
-  -webkit-backdrop-filter: saturate(140%) blur(14px);
-          backdrop-filter: saturate(140%) blur(14px);
+  /* Same frosted glass as .surface-frosted (the @mention hover popover)
+     so the two read as ONE material; .tag-pop adds only the tag-color
+     glow on top of the shared drop shadow. */
+  background: rgba(20, 18, 15, 0.72);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+          backdrop-filter: blur(12px) saturate(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
-    0 1px 0 rgba(255,255,255,.04) inset,
-    0 0 0 1px var(--line-1),
-    0 18px 50px -20px color-mix(in oklab, var(--tag-color, var(--soleil)) 55%, transparent),
-    0 24px 48px -16px rgba(0,0,0,.45);
+    var(--shadow-3),
+    0 18px 50px -20px color-mix(in oklab, var(--tag-color, var(--soleil)) 55%, transparent);
   overflow: hidden;
   font-family: var(--font-sans);
   color: var(--ink-0);
@@ -15794,6 +15799,10 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
      .tag-pop-from-{right,left} classes pick the starting offset. */
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) cubic-bezier(.22,.61,.36,1);
+}
+[data-theme='light'] .tag-pop {
+  background: rgba(255, 252, 246, 0.78);
+  border-color: rgba(10, 9, 8, 0.06);
 }
 .tag-pop-from-right { transform: translateX(-4px); }
 .tag-pop-from-left  { transform: translateX( 4px); }
@@ -15840,13 +15849,14 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
    Tag-color-tinted so it reads as part of the tag without shouting. */
 .tag-pop-type {
   flex-shrink: 0;
-  font: 700 9px/1 var(--font-display, var(--font-sans));
-  letter-spacing: 0.1em;
+  font: 700 10px/1 var(--font-display, var(--font-sans));
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: color-mix(in oklab, var(--tag-color, var(--soleil)) 70%, var(--ink-2));
-  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 14%, transparent);
-  padding: 2px 5px;
-  border-radius: 4px;
+  color: color-mix(in oklab, var(--tag-color, var(--soleil)) 72%, var(--ink-1));
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 16%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--tag-color, var(--soleil)) 30%, transparent);
+  padding: 2px 6px;
+  border-radius: 5px;
 }
 .tag-pop-empty {
   padding: 8px 14px 12px;
@@ -15872,7 +15882,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   text-align: left;
   font: 500 12.5px/1.3 var(--font-sans);
   color: var(--ink-1);
-  transition: background-color 90ms var(--ease), color 90ms var(--ease);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .tag-pop-row:hover {
   background: color-mix(in oklab, var(--tag-color, var(--soleil)) 12%, transparent);
@@ -15921,7 +15931,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   width: 18px; height: 18px;
   display: flex; align-items: center; justify-content: center;
   color: var(--ink-3);
-  transition: color 90ms var(--ease);
+  transition: color var(--dur-fast) var(--ease);
 }
 .tag-pop-row:hover .tag-pop-row-icon { color: var(--ink-1); }
 .tag-pop-row-title {
@@ -15958,11 +15968,10 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  padding: 0 10px 8px;
+  padding: 0 12px 8px;
 }
 .cand-pop-btn {
   appearance: none;
-  flex: 1 1 0;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 8px 6px;
   border: 1px solid var(--line-1);
@@ -15972,15 +15981,17 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   font: 600 12px/1 var(--font-sans);
   cursor: pointer;
   transition:
-    background-color 90ms var(--ease),
-    color 90ms var(--ease),
-    border-color 90ms var(--ease);
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-quick) var(--ease);
 }
 .cand-pop-btn:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--soleil) 16%, transparent);
-  border-color: color-mix(in oklab, var(--soleil) 45%, var(--line-1));
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 16%, transparent);
+  border-color: color-mix(in oklab, var(--tag-color, var(--soleil)) 45%, var(--line-1));
   color: var(--ink-0);
 }
+.cand-pop-btn:active:not(:disabled) { transform: translateY(1px); }
 .cand-pop-btn:disabled { opacity: .5; cursor: default; }
 .cand-pop-sample {
   padding: 0 12px 8px;
@@ -16000,12 +16011,13 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   font: 500 11px/1 var(--font-sans);
   color: var(--ink-3);
   cursor: pointer;
-  transition: color 90ms var(--ease), background-color 90ms var(--ease);
+  transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease), transform var(--dur-quick) var(--ease);
 }
 .cand-pop-dismiss:hover:not(:disabled) {
   color: var(--ink-1);
   background: color-mix(in oklab, var(--ink-3) 8%, transparent);
 }
+.cand-pop-dismiss:active:not(:disabled) { transform: translateY(1px); }
 .cand-pop-dismiss:disabled { opacity: .5; cursor: default; }
 
 /* Image grid — 3 columns of square thumbs. Scrollable so a tag with
@@ -16079,7 +16091,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: background-color 90ms var(--ease);
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .tag-pop-palette:hover {
   background: color-mix(in oklab, var(--tag-color, var(--soleil)) 12%, transparent);

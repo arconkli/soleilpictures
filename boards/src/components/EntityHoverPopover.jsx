@@ -24,6 +24,7 @@ import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { getEntityMentions } from '../lib/entityMentionsCache.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { R2Image } from './R2Image.jsx';
+import { ImageLightbox } from './ImageLightbox.jsx';
 import { fetchTagVisuals } from '../lib/tagVisuals.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { entityTypeLabel } from '../lib/entityTypes.js';
@@ -181,7 +182,12 @@ export function EntityHoverPopover({
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
     const onDown = (e) => {
-      if (popRef.current && !popRef.current.contains(e.target)) onClose?.();
+      if (!popRef.current) return;
+      if (popRef.current.contains(e.target)) return;
+      // A thumb lightbox is a sibling portal — clicks inside it (incl. its
+      // backdrop) must not close the popover behind it.
+      if (e.target.closest?.('.lightbox')) return;
+      onClose?.();
     };
     document.addEventListener('keydown', onKey);
     // pointerdown (capture) too so a tap-away closes it on touch.
@@ -392,7 +398,12 @@ export function EntityHoverPopover({
 // doc popover uses, so this stays in lockstep and the cache is shared.
 function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
   const color = row?.meta?.color || tagFallbackColor(row.title || row.id);
-  const [vis, setVis] = useState(null); // null = loading
+  const [vis, setVis] = useState(null); // null = still loading
+  // Clicking a thumb opens a fullscreen lightbox that pages through the
+  // whole tag's image set (←/→) instead of navigating away — matching the
+  // doc tag popover. A capturing key handler owns Escape/arrows while it's
+  // open so they don't also close the hover popover behind it.
+  const [lightboxIdx, setLightboxIdx] = useState(null);
   useEffect(() => {
     let cancelled = false;
     fetchTagVisuals({ tagId: row.id, workspaceId }).then(res => {
@@ -405,31 +416,53 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
     return () => { cancelled = true; };
   }, [row.id, workspaceId]);
 
-  const thumbs = vis?.images?.slice(0, 9) || [];
+  const allImages = vis?.images || [];
+  useEffect(() => {
+    if (lightboxIdx == null) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); setLightboxIdx(null); return; }
+      if (!allImages.length) return;
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); e.stopPropagation(); setLightboxIdx(i => (i - 1 + allImages.length) % allImages.length); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setLightboxIdx(i => (i + 1) % allImages.length); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [lightboxIdx, allImages.length]);
+
+  const thumbs = allImages.slice(0, 9);
   const palettes = vis?.palettes?.slice(0, 2) || [];
-  // The non-visual payoff — docs/notes/boards/cards. For a concept/topic
-  // tag (e.g. "Pricing") this IS the content; for a character it's extra.
+  // Non-visual payoff — docs/notes/boards/cards. For a concept/Topic tag
+  // (e.g. "Pricing") this IS the content; for a character it's extra.
   const others = vis?.other || [];
   const typeLabel = entityTypeLabel(vis?.entityType);
+  const hasAny = thumbs.length || palettes.length || others.length;
 
   return (
     <div className="ent-pop-tag-card" style={{ '--tag-color': color }}>
-      <button className="ent-pop-tag-row" onClick={onOpenTag} title={`Open ${row.title || 'tag'}`}>
-        <span className="ent-pop-tag-dot" style={{ background: color }} />
-        <span className="ent-pop-tag-name">{row.title || 'Untitled'}</span>
+      <button className="tag-pop-header" onClick={onOpenTag} title={`Open ${row.title || 'tag'}`}>
+        <span className="tag-pop-stamp" aria-hidden="true" />
+        <span className="tag-pop-name">{row.title || 'Untitled'}</span>
         {typeLabel && <span className="tag-pop-type">{typeLabel}</span>}
         {vis?.total > 0 && (
-          <span style={{ marginLeft: 'auto', font: '600 10px/1 var(--font-sans)', color: 'var(--ink-3)' }}>
-            {vis.total}
-          </span>
+          <span className="tag-pop-count">{vis.total} {vis.total === 1 ? 'item' : 'items'}</span>
         )}
-        <span className="ent-pop-tag-arrow">→</span>
+        <span className="ent-pop-tag-arrow" aria-hidden="true">→</span>
       </button>
+
+      {!vis && (
+        <div className="tag-pop-skeleton" aria-hidden="true">
+          {Array.from({ length: 6 }).map((_, i) => <span key={i} />)}
+        </div>
+      )}
+      {vis && !hasAny && (
+        <div className="tag-pop-empty">No other items tagged.</div>
+      )}
+
       {thumbs.length > 0 && (
         <div className="tag-pop-images">
           {thumbs.map((im, i) => (
             <button key={i} className="tag-pop-thumb" title={im.title || 'Image'}
-                    onClick={() => onNavigate?.(im.navTarget)}>
+                    onClick={() => setLightboxIdx(i)}>
               <R2Image src={im.src} alt="" />
             </button>
           ))}
@@ -466,6 +499,15 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
             );
           })}
         </div>
+      )}
+
+      {lightboxIdx != null && allImages[lightboxIdx] && (
+        <ImageLightbox
+          src={allImages[lightboxIdx].src}
+          title={allImages[lightboxIdx].title || ''}
+          alt={allImages[lightboxIdx].title || ''}
+          onClose={() => setLightboxIdx(null)}
+        />
       )}
     </div>
   );
