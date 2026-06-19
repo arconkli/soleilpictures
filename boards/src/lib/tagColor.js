@@ -19,3 +19,11 @@ export function tagFallbackColor(slugOrName) {
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
   return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
 }
+
+// Resolve a tag's display color: explicit `color`, else a deterministic
+// fallback from its slug (preferred) / name / id. Use this everywhere a
+// tag is rendered so the color key is consistent across surfaces.
+export function resolveTagColor(tag) {
+  if (!tag) return tagFallbackColor('');
+  return tag.color || tagFallbackColor(tag.slug || tag.name || tag.id);
+}

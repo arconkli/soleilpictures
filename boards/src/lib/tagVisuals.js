@@ -86,6 +86,7 @@ export async function fetchTagVisuals({ tagId, workspaceId } = {}) {
     // Dedup images by their card identity — the same image card might be
     // reachable directly AND via its tagged group; show it once.
     const seenImageCards = new Set();
+    const seenPaletteCards = new Set();
     const images = [];
     const palettes = [];
     const other = [];
@@ -140,34 +141,56 @@ export async function fetchTagVisuals({ tagId, workspaceId } = {}) {
       }
       if (hit2.kind === 'palette' && Array.isArray(meta?.swatches) && meta.swatches.length) {
         if (palettes.length < MAX_PALETTES) {
+          seenPaletteCards.add(`${hit2.board_id || r.source_board_id}:${hit2.card_id || r.source_id}`);
           palettes.push({ swatches: meta.swatches, title, navTarget });
         }
         continue;
       }
       if (!title) continue;
       if (other.length < MAX_OTHER) {
-        other.push({ kind: hit2.kind || r.source_kind, title, navTarget });
+        // A short preview line for text-y "other" rows (docs/notes/cards) —
+        // for a Topic tag this list IS the payoff, so a snippet beats a bare
+        // title. Only when there's a real title (else `title` is already a
+        // body slice and the snippet would just duplicate it).
+        const snippet = (hit2.title || '').trim()
+          ? (hit2.body || '').trim().slice(0, 90)
+          : '';
+        other.push({ kind: hit2.kind || r.source_kind, title, navTarget, snippet });
       }
     }
 
-    // Transitive pass: tagged groups/boards pull in their image cards.
+    // Transitive pass: tagged groups/boards pull in their image AND palette
+    // cards. Direct tags on individual cards are rare, so the container is
+    // the realistic path for BOTH — palettes previously had no recovery, so
+    // the strip was almost always empty even when the tagged group/board was
+    // full of palettes.
     if (taggedGroups.length || taggedBoards.length) {
-      const groupQueries = taggedGroups.map(g => supabase.from('card_index')
-        .select('board_id, card_id, title, meta')
-        .eq('workspace_id', workspaceId)
-        .eq('board_id', g.boardId)
-        .eq('kind', 'image')
-        .filter('meta->>groupId', 'eq', g.groupId)
-        .limit(IMAGES_PER_CONTAINER));
-      const boardQueries = taggedBoards.map(b => supabase.from('card_index')
-        .select('board_id, card_id, title, meta')
-        .eq('workspace_id', workspaceId)
-        .eq('board_id', b)
-        .eq('kind', 'image')
-        .limit(IMAGES_PER_CONTAINER));
-      const responses = await Promise.all([...groupQueries, ...boardQueries]);
+      const imgQueries = [
+        ...taggedGroups.map(g => supabase.from('card_index')
+          .select('board_id, card_id, title, meta')
+          .eq('workspace_id', workspaceId).eq('board_id', g.boardId).eq('kind', 'image')
+          .filter('meta->>groupId', 'eq', g.groupId).limit(IMAGES_PER_CONTAINER)),
+        ...taggedBoards.map(b => supabase.from('card_index')
+          .select('board_id, card_id, title, meta')
+          .eq('workspace_id', workspaceId).eq('board_id', b).eq('kind', 'image')
+          .limit(IMAGES_PER_CONTAINER)),
+      ];
+      const needPalettes = palettes.length < MAX_PALETTES;
+      const palQueries = !needPalettes ? [] : [
+        ...taggedGroups.map(g => supabase.from('card_index')
+          .select('board_id, card_id, title, meta')
+          .eq('workspace_id', workspaceId).eq('board_id', g.boardId).eq('kind', 'palette')
+          .filter('meta->>groupId', 'eq', g.groupId).limit(IMAGES_PER_CONTAINER)),
+        ...taggedBoards.map(b => supabase.from('card_index')
+          .select('board_id, card_id, title, meta')
+          .eq('workspace_id', workspaceId).eq('board_id', b).eq('kind', 'palette')
+          .limit(IMAGES_PER_CONTAINER)),
+      ];
+      const all = await Promise.all([...imgQueries, ...palQueries]);
+      const imgResponses = all.slice(0, imgQueries.length);
+      const palResponses = all.slice(imgQueries.length);
       const candidates = [];
-      for (const resp of responses) {
+      for (const resp of imgResponses) {
         for (const c of (resp.data || [])) candidates.push(c);
       }
       // Recover any missing meta.src in one batched lookup so the popover
@@ -205,6 +228,22 @@ export async function fetchTagVisuals({ tagId, workspaceId } = {}) {
           title: c.title || '',
           navTarget: { kind: 'image', boardId: c.board_id, cardId: c.card_id },
         });
+      }
+
+      // Palette recovery from the same containers — same idea as images.
+      for (const resp of palResponses) {
+        for (const c of (resp.data || [])) {
+          if (palettes.length >= MAX_PALETTES) break;
+          if (!Array.isArray(c.meta?.swatches) || !c.meta.swatches.length) continue;
+          const pcardKey = `${c.board_id}:${c.card_id}`;
+          if (seenPaletteCards.has(pcardKey)) continue;
+          seenPaletteCards.add(pcardKey);
+          palettes.push({
+            swatches: c.meta.swatches,
+            title: c.title || '',
+            navTarget: { kind: 'palette', boardId: c.board_id, cardId: c.card_id },
+          });
+        }
       }
     }
 

@@ -144,9 +144,10 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
             {appliedTags.map(t => (
               <button key={t.id}
                       className="ctx-tag-chip"
+                      style={{ '--tag-c': t.color }}
                       title={`Open tag "${t.name}"${t.source && t.source !== 'user' ? ' · ' + t.source : ''}`}
                       onClick={() => openTag(t.id)}>
-                <span className="ctx-tag-dot" style={{ background: t.color }} />
+                <span className="ctx-tag-dot" aria-hidden="true" />
                 <span className="ctx-tag-name">{t.name}</span>
               </button>
             ))}

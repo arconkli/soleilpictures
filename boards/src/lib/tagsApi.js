@@ -19,7 +19,7 @@ export async function listWorkspaceTags(workspaceId) {
   if (!workspaceId) return [];
   const { data, error } = await supabase
     .from('tags')
-    .select('id, workspace_id, name, slug, color, kind, description, created_by, created_at')
+    .select('id, workspace_id, name, slug, color, kind, entity_type, description, created_by, created_at')
     .eq('workspace_id', workspaceId)
     .order('name', { ascending: true });
   if (error) throw error;

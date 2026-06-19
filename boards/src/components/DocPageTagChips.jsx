@@ -119,6 +119,7 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
           <button key={c.id}
                   className="doc-page-tag-chip"
                   role="listitem"
+                  style={{ '--tag-c': c.color }}
                   title={`Open tag "${c.name}" — right-click to remove`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -129,7 +130,7 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
                     e.stopPropagation();
                     setMenuFor({ tagId: c.id, name: c.name, x: e.clientX, y: e.clientY });
                   }}>
-            <span className="doc-page-tag-dot" style={{ background: c.color }} />
+            <span className="doc-page-tag-dot" aria-hidden="true" />
             <span className="doc-page-tag-name">{c.name}</span>
           </button>
         ))}

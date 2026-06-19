@@ -23,7 +23,7 @@ import { setTagDescription } from '../lib/tagsApi.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
-import { relativeTimeShort } from '../lib/relativeTime.js';
+import { entityTypeLabel } from '../lib/entityTypes.js';
 import {
   untagCard, untagBoard, untagGroup,
   confirmAppliedTag, dismissAutotagSuggestion,
@@ -793,9 +793,12 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   return (
     <div className="tag-detail">
       <div className="grain-surface" aria-hidden="true" />
-      <div className="tag-detail-head">
+      <div className="tag-detail-head" style={{ '--tag-color': dot }}>
         <span className="tag-detail-dot" style={{ background: dot }} />
         <h1 className="tag-detail-name">{tag.name}</h1>
+        {entityTypeLabel(tag.entity_type) && (
+          <span className="tag-pop-type">{entityTypeLabel(tag.entity_type)}</span>
+        )}
         <span className="tag-detail-count">
           {sourceFilter === 'suggested'
             ? `${suggestions.length} ${suggestions.length === 1 ? 'suggestion' : 'suggestions'}`

@@ -494,7 +494,10 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
               <button key={i} className="tag-pop-row" title={o.title}
                       onClick={() => onNavigate?.(o.navTarget)}>
                 <span className="tag-pop-row-icon"><Icon as={IcnCmp} size={12} /></span>
-                <span className="tag-pop-row-title">{o.title}</span>
+                <span className="tag-pop-row-main">
+                  <span className="tag-pop-row-title">{o.title}</span>
+                  {o.snippet && <span className="tag-pop-row-snip">{o.snippet}</span>}
+                </span>
               </button>
             );
           })}

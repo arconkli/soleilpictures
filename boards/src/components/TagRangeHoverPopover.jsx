@@ -242,7 +242,10 @@ export function TagRangeHoverPopover({
               <button key={i} className="tag-pop-row"
                       onClick={() => go(p.navTarget)} title={p.title}>
                 <span className="tag-pop-row-icon"><Icon as={Icn} size={12} /></span>
-                <span className="tag-pop-row-title">{p.title}</span>
+                <span className="tag-pop-row-main">
+                  <span className="tag-pop-row-title">{p.title}</span>
+                  {p.snippet && <span className="tag-pop-row-snip">{p.snippet}</span>}
+                </span>
               </button>
             );
           })}

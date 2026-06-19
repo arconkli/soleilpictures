@@ -191,11 +191,8 @@ export function EntityPicker({
                 onDragStart={(e) => onPickerRowDragStart(e, row)}
               >
                 {kind === 'tag' ? (
-                  <span aria-hidden="true" style={{
-                    display: 'inline-block', width: 9, height: 9, borderRadius: 999, flexShrink: 0,
-                    background: row.meta?.color || tagFallbackColor(row.title || row.id),
-                    boxShadow: '0 0 0 1.5px var(--bg-1)',
-                  }} />
+                  <span className="tag-dot" aria-hidden="true"
+                        style={{ '--tag-c': row.meta?.color || tagFallbackColor(row.title || row.id) }} />
                 ) : (
                   <Icon as={KIND_ICON[kind] || LayoutGrid} size={14} />
                 )}

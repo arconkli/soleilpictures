@@ -406,12 +406,6 @@ export function SidebarTags({
               value={tagFilter}
               onChange={(e) => setTagFilter(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setTagFilter(''); e.currentTarget.blur(); } }}
-              style={{
-                width: '100%', boxSizing: 'border-box', margin: '0 0 4px',
-                padding: '4px 8px', borderRadius: 6,
-                border: '1px solid var(--line-1)', background: 'var(--bg-2)',
-                color: 'var(--ink-1)', font: '400 12px/1.3 var(--font-sans)', outline: 'none',
-              }}
             />
           )}
 

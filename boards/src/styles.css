@@ -7729,22 +7729,23 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   appearance: none;
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 8px 3px 6px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--tag-c, #4f8df8) 26%, transparent);
   border-radius: 999px;
   cursor: pointer;
   font: 500 11px/1.2 var(--font-sans);
   color: var(--ink-1);
-  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .ctx-tag-chip:hover {
-  background: var(--bg-0);
-  border-color: var(--line-2);
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 22%, transparent);
+  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 42%, transparent);
   color: var(--ink-0);
 }
 .ctx-tag-dot {
-  width: 6px; height: 6px;
+  width: 7px; height: 7px;
   border-radius: 50%;
+  background: var(--tag-c, #4f8df8);
   flex: 0 0 auto;
 }
 .ctx-tag-name {
@@ -9274,11 +9275,13 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   z-index: 2;
 }
 .card-tag-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  background: rgba(20,20,24,.86);
+  display: inline-flex; align-items: center; gap: 5px;
+  /* Tinted in the tag's own color over an opaque surface base so it stays
+     legible over any card/image while reading as a colorful entity. */
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 18%, var(--bg-1));
   color: var(--ink-1);
-  border: 1px solid rgba(255,255,255,.06);
-  padding: 1px 6px;
+  border: 1px solid color-mix(in oklab, var(--tag-c, #4f8df8) 32%, transparent);
+  padding: 1px 7px;
   border-radius: 999px;
   font: 600 9.5px/1.3 var(--font-sans);
   letter-spacing: 0;
@@ -9288,18 +9291,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-[data-theme='light'] .card-tag-chip {
-  background: rgba(252,251,247,.92);
-  border-color: rgba(0,0,0,.06);
-}
 .card-tag-chip-dot {
-  width: 6px; height: 6px; border-radius: 50%;
+  width: 7px; height: 7px; border-radius: 50%;
   background: var(--tag-c, #4f8df8);
   flex-shrink: 0;
 }
 .card-tag-chip.is-auto, .card-tag-chip.is-ai {
   border-style: dashed;
-  opacity: .82;
+  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
 }
 
 /* Board-level tag strip — sits at the top-left of the canvas
@@ -9434,6 +9433,33 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   opacity: .6;
 }
 .tag-chip-x:hover { opacity: 1; }
+
+/* Shared tag color-dot for list rows (EntityPicker, etc.). Carries the
+   tag color via --tag-c so the value lives in CSS, not inline styles. */
+.tag-dot {
+  width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0;
+  background: var(--tag-c, #4f8df8);
+  box-shadow: 0 0 0 1.5px var(--bg-1);
+}
+
+/* Sidebar "Filter tags…" input — matches the create/merge/picker inputs
+   (was a one-off inline style block). */
+.sb-tag-filter-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-2);
+  color: var(--ink-1);
+  font: 400 12px/1.3 var(--font-sans);
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.sb-tag-filter-input:focus {
+  border-color: color-mix(in oklab, var(--soleil) 55%, var(--line-2));
+}
 
 .tag-disambig {
   display: inline-flex; align-items: center; gap: 8px;
@@ -14366,22 +14392,23 @@ button.msg-panel-name:hover { color: var(--soleil); }
   appearance: none;
   display: inline-flex; align-items: center; gap: 6px;
   padding: 3px 9px 3px 7px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--tag-c, #4f8df8) 26%, transparent);
   border-radius: 999px;
   cursor: pointer;
   font: 500 11.5px/1.2 var(--font-sans);
   color: var(--ink-1);
-  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-page-tag-chip:hover {
-  background: var(--bg-0);
-  border-color: var(--line-2);
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 22%, transparent);
+  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 42%, transparent);
   color: var(--ink-0);
 }
 .doc-page-tag-dot {
   width: 7px; height: 7px;
   border-radius: 50%;
+  background: var(--tag-c, #4f8df8);
   flex: 0 0 auto;
 }
 .doc-page-tag-name {
@@ -15936,6 +15963,22 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .tag-pop-row:hover .tag-pop-row-icon { color: var(--ink-1); }
 .tag-pop-row-title {
   flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tag-pop-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+/* Preview line under a text "other" row — for a Topic tag the list of
+   docs/notes IS the payoff, so a snippet beats a bare title. */
+.tag-pop-row-snip {
+  font: 400 11px/1.35 var(--font-sans);
+  color: var(--ink-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
