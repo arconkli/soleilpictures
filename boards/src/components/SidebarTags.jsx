@@ -74,6 +74,7 @@ export function SidebarTags({
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [counts, setCounts] = useState(new Map());
+  const [tagFilter, setTagFilter] = useState(''); // filter the main tag list when there are many
   const [menuFor, setMenuFor] = useState(null);  // { tag, x, y }
   // Merge picker — { fromTag, query } when user picks "Merge into…"
   const [mergePicker, setMergePicker] = useState(null);
@@ -317,6 +318,14 @@ export function SidebarTags({
     if (ca !== cb) return cb - ca;
     return (a.name || '').localeCompare(b.name || '');
   });
+  // Filter the visible list once a workspace has enough tags to be worth
+  // searching — "find by tag" straight from the always-visible sidebar.
+  const tagQuery = tagFilter.trim().toLowerCase();
+  const filtered = tagQuery
+    ? sorted.filter(t =>
+        (t.name || '').toLowerCase().includes(tagQuery) ||
+        (t.slug || '').toLowerCase().includes(tagQuery))
+    : sorted;
 
   return (
     <div className="sb-tags">
@@ -390,13 +399,33 @@ export function SidebarTags({
             );
           })()}
 
+          {!creating && sorted.length >= 8 && (
+            <input
+              className="sb-tag-filter-input"
+              placeholder="Filter tags…"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setTagFilter(''); e.currentTarget.blur(); } }}
+              style={{
+                width: '100%', boxSizing: 'border-box', margin: '0 0 4px',
+                padding: '4px 8px', borderRadius: 6,
+                border: '1px solid var(--line-1)', background: 'var(--bg-2)',
+                color: 'var(--ink-1)', font: '400 12px/1.3 var(--font-sans)', outline: 'none',
+              }}
+            />
+          )}
+
           {sorted.length === 0 && !creating && (
             <div className="sb-tags-empty">
               No tags yet — anything you tag will appear here.
             </div>
           )}
 
-          {sorted.map(tag => {
+          {filtered.length === 0 && tagQuery && (
+            <div className="sb-tags-empty">No tags match “{tagFilter.trim()}”.</div>
+          )}
+
+          {filtered.map(tag => {
             const c = counts.get(tag.id) || 0;
             const isActive = tag.id === activeTagId;
             const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
