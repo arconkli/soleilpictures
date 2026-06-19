@@ -193,6 +193,7 @@ const RPCS = {
 
   admin_stats: {
     total_users: 1284, new_users_7d: 96,
+    total_seconds_in_app: 4200 * 3600,   // ~4,200 user-hours
     tier_counts: { admin: 3, paid: 142, demo: 806, waitlist: 333 },
     sub_counts: { active: 138, trialing: 4, canceled: 18 },
     mrr_cents: 312400, comped_paid: 6, discounted_subs: 21,

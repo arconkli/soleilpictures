@@ -16525,6 +16525,11 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
    very short windows. */
 .cc-pie .cc-panel-body { min-height: 132px; }
 
+/* Big scalar stat (e.g. Time in app) centered in a rail panel — replaces a chart. */
+.cc-bignum .cc-panel-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
+.cc-bignum-value { font: 700 40px/1 var(--font-display, var(--font-sans)); color: var(--soleil); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.cc-bignum-note { font: 500 11px/1.2 var(--font-sans); color: var(--ink-3); }
+
 /* Bottom strip — live universe totals + leaderboard */
 .cc-bottom { grid-area: bottom; pointer-events: auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
 .cc-uni { border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-around; gap: 8px; }

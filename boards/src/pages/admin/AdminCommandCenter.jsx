@@ -23,8 +23,9 @@ import {
 } from 'recharts';
 import { supabase } from '../../lib/supabase.js';
 import {
-  formatMoney, formatCount, formatCompact, shortDate, relativeTime, TIER_COLORS,
+  formatMoney, formatCount, formatCompact, shortDate, relativeTime,
 } from '../../lib/adminFormat.js';
+import { formatDuration } from '../../lib/formatDuration.js';
 import { Icon } from '../../components/Icon.jsx';
 import { Maximize2, ArrowsClockwise } from '../../lib/icons.js';
 import { useAdminData } from './useAdminData.js';
@@ -116,10 +117,6 @@ export function AdminCommandCenter() {
     { stage: 'First share', value: act.first_share || 0 },
     { stage: 'Paid',        value: act.first_paid  || 0 },
   ];
-
-  const pieData = ['admin', 'paid', 'demo', 'waitlist']
-    .map((t) => ({ name: t, value: tiers[t] || 0 }))
-    .filter((d) => d.value > 0);
 
   const { items: placements } = useCardPlacements();
   // Pad a short feed up to ≥6 before doubling so the seamless -50% scroll never
@@ -244,18 +241,10 @@ export function AdminCommandCenter() {
             </ResponsiveContainer>
           </CcPanel>
 
-          <CcPanel title="Tier mix" className="cc-pie" sub={`${pieData.reduce((a, b) => a + b.value, 0)} accounts`}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={28} outerRadius={44}
-                     paddingAngle={2} stroke="var(--bg-1)">
-                  {pieData.map((d) => <Cell key={d.name} fill={TIER_COLORS[d.name] || '#888'} />)}
-                </Pie>
-                <Tooltip {...TIP} itemStyle={{ color: 'var(--ink-0)' }} />
-                <Legend verticalAlign="bottom" align="center" layout="horizontal" iconSize={9}
-                        iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)', lineHeight: '14px' }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <CcPanel title="Time in app" className="cc-bignum"
+                   sub={`${formatCount(stats?.total_users ?? 0)} users`}>
+            <div className="cc-bignum-value">{formatDuration(stats?.total_seconds_in_app ?? 0)}</div>
+            <div className="cc-bignum-note">summed across everyone</div>
           </CcPanel>
 
           <CcPanel title="Content mix" className="cc-pie" sub={`${formatCount(contentTotal)} cards`}>
