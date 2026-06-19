@@ -243,7 +243,8 @@ export function AdminCommandCenter() {
 
           <CcPanel title="Time in app" className="cc-bignum"
                    sub={`${formatCount(stats?.total_users ?? 0)} users`}>
-            <CountUpDuration value={stats?.total_seconds_in_app ?? 0} />
+            <CountUpDuration value={stats?.total_seconds_in_app ?? 0}
+                             ratePerSec={Math.max(Number(data?.activeNow) || 0, 1)} />
             <div className="cc-bignum-note">summed across everyone</div>
           </CcPanel>
 
@@ -365,29 +366,39 @@ export function AdminCommandCenter() {
   );
 }
 
-// Big "always going up" duration: RAF-animates the seconds toward each new
-// value (count-up only, since total time is monotonic) and renders the full
-// multi-unit breakdown (years → seconds) so it never collapses to one token.
-function CountUpDuration({ value }) {
-  const [shown, setShown] = useState(Number(value) || 0);
-  const fromRef = useRef(Number(value) || 0);
+// Big "always going up" duration. Rather than only animating when the polled
+// value changes (which looks frozen during quiet periods), this CONTINUOUSLY
+// ticks the seconds upward on its own at `ratePerSec` (≈ users active right now,
+// floor 1 so it always climbs while you watch), and re-syncs UP to the real
+// server total on each poll. Monotonic — it only ever counts up, never resets.
+function CountUpDuration({ value, ratePerSec }) {
+  const [shown, setShown] = useState(() => Number(value) || 0);
+  const ref = useRef({ base: Number(value) || 0, at: performance.now(), rate: 0 });
+
+  // Each poll: snap the running total up to server truth (never down) + adopt
+  // the new tick rate.
   useEffect(() => {
-    const target = Number(value) || 0;
-    const from = fromRef.current;
-    if (target === from) return undefined;
-    const start = performance.now();
-    const dur = 800;
+    ref.current.base = Math.max(ref.current.base, Number(value) || 0);
+    ref.current.rate = Math.max(0, Number(ratePerSec) || 0);
+  }, [value, ratePerSec]);
+
+  // Integrate the rate over real time and repaint ~4×/s. dt is capped so a tab
+  // that was hidden (rAF paused) doesn't surge on return.
+  useEffect(() => {
     let raf = 0;
-    const step = (now) => {
-      const t = Math.min(1, (now - start) / dur);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setShown(from + (target - from) * eased);
-      if (t < 1) raf = requestAnimationFrame(step);
-      else { fromRef.current = target; setShown(target); }
+    let lastPaint = 0;
+    const loop = (t) => {
+      const st = ref.current;
+      const dt = Math.min((t - st.at) / 1000, 1.5);
+      st.base += st.rate * dt;
+      st.at = t;
+      if (t - lastPaint >= 250) { lastPaint = t; setShown(st.base); }
+      raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(step);
+    raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [value]);
+  }, []);
+
   return (
     <div className="cc-dur">
       {formatDurationParts(shown).map((p) => (
