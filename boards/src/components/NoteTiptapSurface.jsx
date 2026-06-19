@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { noteExtensions } from './noteExtensions/noteExtensions.js';
@@ -20,6 +21,11 @@ import { EntityPicker } from './EntityPicker.jsx';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
+import { makeCandidateNamePlugin } from './docExtensions/CandidateNamePlugin.js';
+import { useCandidateTagging } from '../hooks/useCandidateTagging.js';
+import { CandidatePromptPopover } from './CandidatePromptPopover.jsx';
+import { tagCard } from '../lib/tagsApi.js';
+import { useFeedback } from './AppFeedback.jsx';
 import {
   ensureNoteFragment,
   seedNoteFragmentFromHtml,
@@ -46,6 +52,7 @@ export function NoteTiptapSurface({
   onExitEdit,
 }) {
   const { workspaceId } = useEntityTrie();
+  const feedback = useFeedback();
 
   // Resolve (and lazily seed) the fragment ONCE for this editing session.
   const fragment = useMemo(() => {
@@ -62,6 +69,42 @@ export function NoteTiptapSurface({
   manualRef.current = manuallyResized;
   const onExitRef = useRef(onExitEdit);
   onExitRef.current = onExitEdit;
+
+  // In-context candidate-name discovery (shared with the doc editor). Notes
+  // have no range-underline infra, so a promote tags the whole note card
+  // (it joins the tag's cross-board collection) rather than pinning a span.
+  const {
+    candidateIndexRef,
+    candidatePrompt, setCandidatePrompt,
+    candidateBusy, promoteCandidate, dismissCandidate,
+  } = useCandidateTagging({
+    editorRef, workspaceId,
+    notify: (t) => feedback.toast(t),
+    applyPromotedTag: async (tag) => {
+      if (!tag?.id || !cardId || !boardId) return false;
+      await tagCard({ workspaceId, boardId, cardId, tagId: tag.id, source: 'user' });
+      return true;
+    },
+  });
+  const candidateExt = useMemo(() => Extension.create({
+    name: 'soleilNoteCandidateNames',
+    addProseMirrorPlugins: () => [makeCandidateNamePlugin({
+      getIndex: () => candidateIndexRef.current,
+    })],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []);
+
+  const onCandidateClick = (e) => {
+    const candEl = e.target?.closest?.('.tt-candidate[data-name]');
+    if (!candEl) return;
+    setCandidatePrompt({
+      anchor: candEl.getBoundingClientRect(),
+      name: candEl.dataset.name || (candEl.textContent || '').trim(),
+      count: Number(candEl.dataset.count) || 0,
+      sample: candEl.dataset.sample || '',
+      el: candEl,
+    });
+  };
 
   // Write the derived html + auto-size height onto the card map under
   // NOTE_ORIGIN (off the board undo stack; persisted + synced). Readers
@@ -89,6 +132,7 @@ export function NoteTiptapSurface({
       ...noteExtensions,
       Placeholder.configure({ placeholder: 'Write a note…', showOnlyWhenEditable: true }),
       mentionExt,
+      candidateExt,
       ...(fragment ? [Collaboration.configure({ fragment })] : []),
     ],
     // The surface mounts ONLY to edit (double-click / tap / new card), so always
@@ -183,7 +227,7 @@ export function NoteTiptapSurface({
     if (!editor) return undefined;
     const onBlur = ({ event }) => {
       const next = event?.relatedTarget;
-      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.entity-picker'))) {
+      if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.entity-picker') || next.closest?.('.cand-pop'))) {
         return;
       }
       if (mentionOpenRef.current) return;
@@ -236,10 +280,23 @@ export function NoteTiptapSurface({
         editor={editor}
         className="note-edit-wrap"
         onKeyDown={onKeyDown}
+        onClick={onCandidateClick}
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
       />
+      {candidatePrompt && (
+        <CandidatePromptPopover
+          anchor={candidatePrompt.anchor}
+          name={candidatePrompt.name}
+          count={candidatePrompt.count}
+          sample={candidatePrompt.sample}
+          busy={candidateBusy}
+          onPromote={promoteCandidate}
+          onDismiss={dismissCandidate}
+          onClose={() => setCandidatePrompt(null)}
+        />
+      )}
       {mention && workspaceId && (
         <EntityPicker
           workspaceId={workspaceId}

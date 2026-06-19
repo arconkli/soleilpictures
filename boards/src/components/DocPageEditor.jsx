@@ -18,7 +18,7 @@ import { encodeAnchor } from '../lib/bookmarkRelPos.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
-import { untagDocRange, ensureTag, tagDocRange } from '../lib/tagsApi.js';
+import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
 import { extractParagraphTags } from '../lib/extractParagraphTags.js';
@@ -34,11 +34,9 @@ import { DocTagGutter } from './DocTagGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { makeCandidateNamePlugin, CANDIDATE_NAME_KEY } from './docExtensions/CandidateNamePlugin.js';
-import { useCandidateNames } from '../hooks/useCandidateNames.js';
+import { useCandidateTagging } from '../hooks/useCandidateTagging.js';
 import { CandidatePromptPopover } from './CandidatePromptPopover.jsx';
 import { contentHash } from '../lib/clusterMath.js';
-import { logEvent } from '../lib/analytics.js';
-import { EV } from '../lib/analyticsEvents.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { ScreenplayKeymap } from './docExtensions/screenplay/ScreenplayKeymap.js';
 import { ScreenplayPagination } from './docExtensions/screenplay/ScreenplayPagination.js';
@@ -210,25 +208,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
 
   // Candidate names — recurring proper nouns not yet tagged. Painted as a
   // faint dotted underline by CandidateNamePlugin; tap → promote/dismiss.
-  // Kept in a ref so the plugin reads it via a stable closure; when the
-  // index identity changes (async load, or after a promote/dismiss) we
-  // force the plugin to repaint with an empty meta transaction.
-  const { index: candidateIndex } = useCandidateNames(workspaceId);
-  const candidateIndexRef = useRef(candidateIndex);
-  useEffect(() => {
-    candidateIndexRef.current = candidateIndex;
-    const ed = editorRef.current;
-    if (ed?.view) {
-      ed.view.dispatch(ed.state.tr.setMeta(CANDIDATE_NAME_KEY, { changed: true }));
-    }
-  }, [candidateIndex]);
-
-  // The in-context candidate prompt: tap a dotted name → decide what it is.
-  const [candidatePrompt, setCandidatePrompt] = useState(null); // { anchor, name, count, sample, el }
-  const [candidateBusy, setCandidateBusy] = useState(false);
-
-  // Build a { pHash, startOffset, length } anchor for the tapped span so a
-  // freshly-promoted tag paints its colored underline right there at once
+  // The shared useCandidateTagging hook owns the index + prompt + promote /
+  // dismiss (same as notes); the doc-specific bit is pinning the tapped span
+  // so a freshly promoted tag converts to a colored underline immediately.
+  //
+  // Build a { pHash, startOffset, length } anchor for the tapped span
   // (TagRangePlugin re-locates ranges by paragraph content-hash). Best
   // effort: null for short paragraphs the range plugin skips, or if the
   // DOM→PM mapping fails — the tag still exists workspace-wide regardless.
@@ -256,69 +240,28 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     }
   };
 
-  const promoteCandidate = async (entityType) => {
-    const c = candidatePrompt;
-    if (!c || !workspaceId) return;
-    setCandidateBusy(true);
-    let anchored = false;
-    try {
-      const tag = await ensureTag({ workspaceId, name: c.name, kind: 'user', createdBy: userId || null });
-      if (tag?.id && entityType) {
-        try { await supabase.from('tags').update({ entity_type: entityType }).eq('id', tag.id); } catch (_) {}
-      }
-      // Pin the tapped span so it converts to a colored tag underline now.
+  const {
+    candidateIndexRef,
+    candidatePrompt, setCandidatePrompt,
+    candidateBusy, promoteCandidate, dismissCandidate,
+  } = useCandidateTagging({
+    editorRef, workspaceId, userId,
+    notify: (t) => feedback.toast(t),
+    applyPromotedTag: async (tag, c) => {
       const docCardId = scope?.docCardId || null;
-      if (tag?.id && docCardId && pageId) {
-        const anchor = candidateAnchorFromEl(c.el);
-        if (anchor) {
-          try {
-            await tagDocRange({
-              workspaceId, docCardId, pageId,
-              boardId: scope?.boardId || null,
-              tagId: tag.id, source: 'user',
-              sourceAnchor: anchor,
-              contextText: c.sample || null,
-            });
-            anchored = true;
-          } catch (_) {}
-        }
-      }
-      try { logEvent(EV.TAG_CANDIDATE_PROMOTE, { entity_type: entityType, count: c.count || 0, anchored }); } catch (_) {}
-      feedback.toast({ type: 'success', message: `“${c.name}” is now a ${entityType}` });
-    } catch (err) {
-      feedback.toast({ type: 'error', message: 'Could not create tag: ' + (err?.message || err) });
-    } finally {
-      setCandidateBusy(false);
-      setCandidatePrompt(null);
-      // It's no longer a candidate — refresh this pane (and any others).
-      document.dispatchEvent(new CustomEvent('soleil-candidates-changed'));
-    }
-  };
-
-  const dismissCandidate = async () => {
-    const c = candidatePrompt;
-    if (!c || !workspaceId) return;
-    setCandidateBusy(true);
-    try {
-      await supabase.from('entity_ignore_terms').insert({
-        workspace_id: workspaceId,
-        scope: 'workspace',
-        scope_id: null,
-        term: c.name,
-        created_by: userId || null,
+      if (!tag?.id || !docCardId || !pageId) return false;
+      const anchor = candidateAnchorFromEl(c.el);
+      if (!anchor) return false;
+      await tagDocRange({
+        workspaceId, docCardId, pageId,
+        boardId: scope?.boardId || null,
+        tagId: tag.id, source: 'user',
+        sourceAnchor: anchor,
+        contextText: c.sample || null,
       });
-    } catch (err) {
-      // Unique violation (already dismissed) is fine; surface anything else.
-      if (err?.code && err.code !== '23505') {
-        feedback.toast({ type: 'error', message: 'Could not dismiss: ' + (err?.message || err) });
-      }
-    } finally {
-      try { logEvent(EV.TAG_CANDIDATE_DISMISS, { count: c.count || 0 }); } catch (_) {}
-      setCandidateBusy(false);
-      setCandidatePrompt(null);
-      document.dispatchEvent(new CustomEvent('soleil-candidates-changed'));
-    }
-  };
+      return true;
+    },
+  });
 
   // Applied tag ranges for the active page — painted as tag-color
   // underlines by TagRangePlugin. Refs let the plugins read fresh
