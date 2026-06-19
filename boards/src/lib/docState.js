@@ -91,10 +91,12 @@ export function setDocMode(ydoc, scope, mode) {
 }
 
 // Screenplay scene-number visibility (the lock state itself lives on the scene
-// blocks' sceneNumber attr). 'off' | 'on'.
+// blocks' sceneNumber attr). Defaults ON — a real script shows scene numbers at
+// each heading; the "Scene #" toolbar pill can turn them Off (which persists).
 export function getSceneNumbersShow(ydoc, scope) {
   const m = metaMap(ydoc, scope);
-  return !!(m && m.get('sceneNumbersShow'));
+  const v = m && m.get('sceneNumbersShow');
+  return v === undefined ? true : !!v;
 }
 export function setSceneNumbersShow(ydoc, scope, show) {
   const m = metaMap(ydoc, scope);

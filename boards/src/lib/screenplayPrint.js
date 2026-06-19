@@ -92,8 +92,8 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   /* Scene numbers in both gutters (only when enabled). */
   body.sp-show-nums .sp-scene[data-scene-number]::before,
   body.sp-show-nums .sp-scene[data-scene-number]::after { content: attr(data-scene-number); position: absolute; top: 0; font-weight: 400; }
-  body.sp-show-nums .sp-scene[data-scene-number]::before { left: -1.4in; }
-  body.sp-show-nums .sp-scene[data-scene-number]::after { right: -0.8in; }
+  body.sp-show-nums .sp-scene[data-scene-number]::before { left: -0.5in; }
+  body.sp-show-nums .sp-scene[data-scene-number]::after { right: -0.5in; }
   .sp-action { margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
   .sp-shot { text-transform: uppercase; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
   .sp-character { text-transform: uppercase; margin-top: var(--sp-line); margin-left: 22ch; max-width: 38ch; white-space: pre-wrap; }

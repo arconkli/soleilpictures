@@ -17663,11 +17663,15 @@ button, [role="button"], a {
    ScreenplayPagination plugin always stamps data-scene-number; CSS gates it). */
 .doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::before,
 .doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::after {
+  /* Industry placement: same line as the slugline, in the margins, in the same
+     ink as the heading (not a muted gray) — matches the exported PDF. */
   content: attr(data-scene-number); position: absolute; top: 0;
-  font-weight: 400; color: var(--ink-2, #555);
+  font-weight: 400; color: inherit;
 }
-.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::before { left: -1.4in; }
-.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::after { right: -0.8in; }
+/* Left number sits ~1.0in from the page edge (0.5in left of the 1.5in slugline
+   margin); right number ~0.5in from the right page edge. */
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::before { left: -0.5in; }
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::after { right: -0.5in; }
 .doc-paper.is-screenplay [data-screenplay-element="action"] { margin-top: var(--sp-line); }
 .doc-paper.is-screenplay [data-screenplay-element="shot"] { text-transform: uppercase; margin-top: var(--sp-line); }
 .doc-paper.is-screenplay [data-screenplay-element="character"] {

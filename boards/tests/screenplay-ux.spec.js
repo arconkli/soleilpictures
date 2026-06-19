@@ -189,6 +189,33 @@ test('Scene # menu shows auto numbers in the gutters and can lock them', async (
   expect(locked).toEqual(['1', '2']);
 });
 
+test('scene numbers show by default at each scene heading, placed in the margin', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. A - DAY' },
+      { element: 'action', text: 'x' },
+      { element: 'scene', text: 'EXT. B - NIGHT' },
+    ]));
+  });
+  // No toolbar interaction — numbers are ON by default.
+  await expect(page.locator('.doc-paper.show-scene-numbers')).toBeVisible();
+  const nums = await page.$$eval('.doc-paper.is-screenplay [data-scene-number]',
+    els => els.map(e => e.getAttribute('data-scene-number')));
+  expect(nums).toEqual(['1', '2']);
+  // The left gutter number sits IN the margin, not jammed at the page edge: its
+  // ::before `left` is negative but within ~1in of the slugline (-0.5in ≈ -48px;
+  // the old -1.4in ≈ -134px would fail this).
+  const beforeLeftPx = await page.evaluate(() => {
+    const el = document.querySelector('.doc-paper.is-screenplay [data-scene-number]');
+    return parseFloat(getComputedStyle(el, '::before').left);
+  });
+  expect(beforeLeftPx).toBeLessThan(0);
+  expect(beforeLeftPx).toBeGreaterThan(-96);
+});
+
 test('Dual button pairs two speeches and renders them side by side', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
@@ -268,8 +295,9 @@ test('character-name autocomplete suggests + completes a known name', async ({ p
   await page.keyboard.type('margaret');
   await page.keyboard.press('Enter');           // → dialogue
   await page.keyboard.type('Hello.');
-  await page.keyboard.press('Enter');           // → action
-  await page.keyboard.press('Tab');             // → character
+  await page.keyboard.press('Enter');           // dialogue → continue dialogue (empty)
+  await page.keyboard.press('Enter');           // empty dialogue → action
+  await page.keyboard.press('Tab');             // action → character
   await page.keyboard.type('mar');
 
   // Popup offers MARGARET; Enter accepts it.
@@ -365,7 +393,19 @@ test('typing a slugline on an action line auto-formats it into a Scene Heading',
   expect(scenes).toEqual(['INT. OFFICE - DAY', 'EXT. STREET']);
 });
 
-test('Enter twice after a line of dialogue starts a fresh Scene Heading', async ({ page }) => {
+// Read the screenplay element of the block at the caret.
+async function caretElement(page) {
+  return page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    const $from = ed.state.selection.$from;
+    for (let d = $from.depth; d > 0; d--) {
+      if ($from.node(d).type.name === 'screenplayBlock') return $from.node(d).attrs.element;
+    }
+    return null;
+  });
+}
+
+test('Enter progression from dialogue: continue dialogue → action → new scene', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
   await page.evaluate(() => {
@@ -379,17 +419,12 @@ test('Enter twice after a line of dialogue starts a fresh Scene Heading', async 
   // Click the dialogue line to focus the editor, caret to end of the line.
   await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().click();
   await page.keyboard.press('End');
-  await page.keyboard.press('Enter');  // dialogue → empty action line
-  await page.keyboard.press('Enter');  // empty action after a speech → scene
-  const cur = await page.evaluate(() => {
-    const ed = window.__soleilDocTest.editor;
-    const $from = ed.state.selection.$from;
-    for (let d = $from.depth; d > 0; d--) {
-      if ($from.node(d).type.name === 'screenplayBlock') return $from.node(d).attrs.element;
-    }
-    return null;
-  });
-  expect(cur).toBe('scene');
+  await page.keyboard.press('Enter');   // continue dialogue (new dialogue paragraph)
+  expect(await caretElement(page)).toBe('dialogue');
+  await page.keyboard.press('Enter');   // empty dialogue → action
+  expect(await caretElement(page)).toBe('action');
+  await page.keyboard.press('Enter');   // empty action after a speech → new scene
+  expect(await caretElement(page)).toBe('scene');
 });
 
 test('the slash menu offers screenplay elements in screenplay mode', async ({ page }) => {

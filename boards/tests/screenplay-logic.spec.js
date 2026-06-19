@@ -16,6 +16,7 @@ test('Enter flow advances elements the way screenwriters expect', async ({ page 
       scene: S.nextOnEnter('scene'),
       character: S.nextOnEnter('character'),
       dialogue: S.nextOnEnter('dialogue'),
+      emptyDialogue: S.nextOnEnter('dialogue', true),
       parenthetical: S.nextOnEnter('parenthetical'),
       transition: S.nextOnEnter('transition'),
       emptyCharacter: S.nextOnEnter('character', true),
@@ -23,7 +24,8 @@ test('Enter flow advances elements the way screenwriters expect', async ({ page 
   });
   expect(r.scene).toBe('action');
   expect(r.character).toBe('dialogue');
-  expect(r.dialogue).toBe('action');
+  expect(r.dialogue).toBe('dialogue');       // non-empty dialogue continues
+  expect(r.emptyDialogue).toBe('action');    // empty dialogue bails to action
   expect(r.parenthetical).toBe('dialogue');
   expect(r.transition).toBe('scene');
   expect(r.emptyCharacter).toBe('action'); // empty cue bails to action

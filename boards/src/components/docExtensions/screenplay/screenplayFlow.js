@@ -31,15 +31,21 @@ export const ELEMENT_LABELS = {
 // line has no text (so e.g. an empty Character line resets to Action).
 export function nextOnEnter(element, isEmpty = false) {
   if (isEmpty) {
-    // Pressing Enter on an empty cue/transition/parenthetical bails to action.
-    if (element === 'character' || element === 'transition' || element === 'parenthetical') return 'action';
+    // Enter on an empty cue/transition/parenthetical/dialogue bails to action.
+    // (An empty dialogue line means "I'm done speaking" → drop to Action; a
+    // second Enter on that empty Action then starts a new Scene — see
+    // enterStartsNewScene.)
+    if (element === 'character' || element === 'transition'
+        || element === 'parenthetical' || element === 'dialogue') return 'action';
   }
   switch (element) {
     case 'scene': return 'action';
     case 'action': return 'action';
     case 'character': return 'dialogue';
     case 'parenthetical': return 'dialogue';
-    case 'dialogue': return 'action';
+    // Enter on a NON-empty dialogue line continues the speech as a new dialogue
+    // paragraph (Final-Draft flow). Empty → action (handled above).
+    case 'dialogue': return 'dialogue';
     case 'transition': return 'scene';
     case 'shot': return 'action';
     case 'centered': return 'action';
