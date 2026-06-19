@@ -1970,6 +1970,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }));
       }, 250);
     },
+    tag: (ref) => {
+      // A tag is a full-pane surface (TagDetailView). Route through the
+      // existing `soleil-open-tag` document listener, which resolves the id
+      // to the full tag row and opens it — so this needs no extra memo deps.
+      // Fixes the prior no-op: coerceRef already understood tag refs, but
+      // navHandlers had no `tag` key, so navigate({kind:'tag'}) (e.g. from
+      // DocPageTagChips / EntityHoverPopover) silently warned and did nothing.
+      if (ref?.id) {
+        document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: ref.id } }));
+      }
+    },
   }), [boards, recents, openMessageThread, openDmWith, setTweak]);
 
   // Surface "X shared a board with you" notifications as toasts on

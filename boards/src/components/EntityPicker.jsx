@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { Search, X, Check, LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar, Link as LinkIcon, User, Tag as TagIcon } from '../lib/icons.js';
 import { searchEntities } from '../lib/entitySearch.js';
+import { tagFallbackColor } from '../lib/tagColor.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -189,7 +190,15 @@ export function EntityPicker({
                 draggable
                 onDragStart={(e) => onPickerRowDragStart(e, row)}
               >
-                <Icon as={KIND_ICON[kind] || LayoutGrid} size={14} />
+                {kind === 'tag' ? (
+                  <span aria-hidden="true" style={{
+                    display: 'inline-block', width: 9, height: 9, borderRadius: 999, flexShrink: 0,
+                    background: row.meta?.color || tagFallbackColor(row.title || row.id),
+                    boxShadow: '0 0 0 1.5px var(--bg-1)',
+                  }} />
+                ) : (
+                  <Icon as={KIND_ICON[kind] || LayoutGrid} size={14} />
+                )}
                 <span className="entity-picker-row-name">{row.title || 'Untitled'}</span>
                 {multi && isSelected(row) && <Icon as={Check} size={14} />}
               </button>
