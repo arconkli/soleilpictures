@@ -12,7 +12,7 @@ import { LiveCursor } from './primitives.jsx';
 //   localState.canvasCursor    = { boardId, x, y }     // canvas-space coords
 //   localState.canvasSelection = { boardId, cardIds, strokeIds, arrowIds }
 //   localState.liveDrag        = { boardId, cards: [{id,x,y}] } during drag
-export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
+export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId, getCardById }) {
   const [peers, setPeers] = useState([]);
   // Lerped cursor positions keyed by clientId. Carries user meta inline
   // so the cursor can render even when the peer briefly drops out of the
@@ -191,6 +191,32 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
                  borderRadius: 2,
                }} />
         ))}
+      </div>
+      {/* Name tags on cards a peer has selected — so you can tell WHO grabbed
+          what, not just that "someone" did. Screen-space (not canvas-scaled)
+          so the pill stays a constant, readable size at any zoom — same
+          approach as the cursor flags. Pairs with the peer-colored ring that
+          PeerSelectionStyles injects on the card itself. */}
+      <div className="peer-sel-layer">
+        {peers.flatMap(p => {
+          if (!getCardById) return [];
+          const color = p.user.color || '#5b8def';
+          const name = (p.user.name || '?').split(' ')[0];
+          return (p.cardIds || []).map(id => {
+            const c = getCardById(id);
+            if (!c) return null;
+            const sx = pan.x + c.x * zoom;
+            const sy = pan.y + c.y * zoom;
+            if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
+            return (
+              <div key={p.clientId + ':' + id}
+                   className="peer-sel-pill"
+                   style={{ left: sx, top: sy, background: color }}>
+                {name}
+              </div>
+            );
+          }).filter(Boolean);
+        })}
       </div>
       <div className="cursors-layer">
         {Object.entries(cursorDisplay).map(([clientId, c]) => {

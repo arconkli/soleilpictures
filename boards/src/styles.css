@@ -66,6 +66,11 @@
   --soleil-soft:   rgba(255,165,0,.14);
   --soleil-glow:   0 0 24px rgba(255,165,0,.18);
 
+  /* Selection accent — single knob for the whole selected-card system
+     (ring, halo, handles, multi-select box). Brand gold by choice. */
+  --select:        var(--soleil);
+  --select-soft:   var(--soleil-soft);
+
   --ink-error: #e08b8b;       /* desaturated rose for dark errors */
 
   --accent:  var(--soleil);
@@ -7266,11 +7271,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .canvas-wrap.tool-link .canvas,
 .canvas-wrap.tool-arrow .canvas { cursor: crosshair; }
 
-.card.is-selected > :first-child {
-  outline: none;
-  box-shadow: 0 0 0 1px var(--soleil), 0 0 0 4px var(--soleil-soft), var(--shadow-2);
-  border-radius: var(--radius-md);
-}
+/* The selected-card ring lives in ONE place — see ".card.is-selected >
+   :first-child" further down (Selection system). This selector used to be
+   duplicated here and overridden, which rendered a muddy gray ring. */
 .card.is-arrow-source > :first-child {
   outline: 2px dashed var(--soleil);
   outline-offset: 2px;
@@ -7415,7 +7418,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   width: 12px; height: 12px;
   margin-left: -6px;
   border-radius: 50%;
-  background: #4f8df8;
+  background: var(--select);
   border: 2px solid var(--bg-0);
   cursor: grab;
   z-index: 6;
@@ -7427,7 +7430,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   left: 50%; top: 100%;
   width: 1px; height: 14px;
   margin-left: -.5px;
-  background: #4f8df8;
+  background: var(--select);
 }
 .card.is-dragging .card-rotate { opacity: 0; }
 
@@ -7442,8 +7445,8 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   align-items: center; justify-content: center;
   padding: 0;
   font-size: 20px; line-height: 1;
-  color: #fff;
-  background: #4f8df8;
+  color: rgba(0,0,0,.78);            /* dark glyph for contrast on gold */
+  background: var(--select);
   border: 2px solid var(--bg-0);
   border-radius: 50%;
   box-shadow: 0 2px 6px rgba(0,0,0,.35);
@@ -7458,7 +7461,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
    rotated cards wouldn't scale. Shadow + accent ring read as "in hand". */
 .card.is-lifted {
   box-shadow: 0 16px 36px rgba(0,0,0,.42);
-  outline: 2px solid #4f8df8;
+  outline: 2px solid var(--select);
   outline-offset: 2px;
   transition: box-shadow var(--dur-fast) var(--ease);
   z-index: 5;
@@ -8679,12 +8682,56 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .card.is-dragging.card-kind-shape { box-shadow: none; }
 .card.is-dragging .card-resize { opacity: 0; }
 
-/* Selected card outline animation (subtle) */
+/* ── Selection system ──────────────────────────────────────────────────
+   The single source of truth for what a SELECTED card looks like: a crisp
+   brand-gold ring + a soft gold halo so it clearly out-reads hover (which
+   has no ring). Lives on > :first-child (the inner card body) because that
+   selector renders outside the wrapper's clip in practice. */
 .card.is-selected > :first-child {
-  outline: 2px solid var(--ink-1);
+  outline: 2px solid var(--select);
   outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--select-soft), var(--shadow-2);
   border-radius: var(--radius-lg);
-  transition: outline-color .15s;
+  transition: outline-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+/* In a 2+ multi-selection the unifying .sel-bbox frames the group, so the
+   per-card rings step down to a thin line (no halo) to avoid a wall of gold. */
+.canvas-wrap.is-multi-sel .card.is-selected > :first-child {
+  outline-width: 1.5px;
+  box-shadow: none;
+}
+
+/* Unifying bounding box drawn around a multi-selection so the group reads
+   as one thing. Non-interactive; the corner resize handle sits above it. */
+.sel-bbox {
+  position: absolute;
+  border: 1.5px solid var(--select);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 3px var(--select-soft);   /* faint outer glow, no inner fill to muddy content */
+  pointer-events: none;
+  z-index: 999995;
+}
+
+/* Name tag on a card another collaborator has selected — their color, with
+   the cursor-flag's tucked-corner shape. Constant size at any zoom (its
+   layer is screen-space, not canvas-scaled). Background set inline. */
+.peer-sel-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999991;
+}
+.peer-sel-pill {
+  position: absolute;
+  transform: translateY(-100%);
+  font: 600 11px var(--font-sans);
+  line-height: 1;
+  color: #fff;
+  padding: 3px 7px;
+  border-radius: var(--radius) var(--radius) var(--radius) 0;
+  white-space: nowrap;
+  box-shadow: var(--shadow-1);
 }
 
 /* Tool buttons hover scale */
@@ -12054,14 +12101,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   box-shadow: 0 4px 16px rgba(0,0,0,.25);
 }
 .tt-img-wrap.is-selected .tt-img {
-  box-shadow: 0 0 0 2px #4f8df8, 0 4px 16px rgba(0,0,0,.35);
+  box-shadow: 0 0 0 2px var(--select), 0 4px 16px rgba(0,0,0,.35);
 }
 .tt-img-resize {
   position: absolute;
   right: 4px; bottom: 4px;
   width: 14px; height: 14px;
   border-radius: var(--radius);
-  background: #4f8df8;
+  background: var(--select);
   border: 2px solid var(--bg-0);
   cursor: nwse-resize;
   opacity: 0;

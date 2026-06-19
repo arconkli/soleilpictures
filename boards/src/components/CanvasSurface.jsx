@@ -221,10 +221,12 @@ function readImageDims(file) {
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
-// Per-user presence color, drawn from the warm cover palette. Stable per
+// Per-user presence color, drawn from a muted cover palette. Stable per
 // user id so the same person always shows up in the same color across
-// sessions. Falls back to soleil for unknown ids.
-const PRESENCE_COLORS = ['#ffa500', '#6b8090', '#9a6b88', '#c9a577', '#6b9088', '#b88958'];
+// sessions. Brand gold (#ffa500) is intentionally excluded — it's reserved
+// for YOUR OWN selection ring so a peer's selection never reads as yours.
+// Keep in lockstep with lib/presenceColor.js.
+const PRESENCE_COLORS = ['#5b8def', '#6b8090', '#9a6b88', '#c9a577', '#6b9088', '#b88958'];
 function pickPresenceColor(id) {
   if (!id) return PRESENCE_COLORS[0];
   let h = 0; for (let i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0;
@@ -6522,7 +6524,7 @@ export function CanvasSurface({
   };
 
   return (
-    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''}`}
+    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''}`}
          data-eyedrop={eyedropFor ? '1' : undefined}
          ref={wrapRef}
          style={wrapStyle}
@@ -6568,6 +6570,7 @@ export function CanvasSurface({
         pan={pan}
         zoom={zoom}
         selfId={currentUser?.id}
+        getCardById={(id) => cardByIdRef.current[id]}
       />
       <div ref={canvasRef}
            className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
@@ -6615,13 +6618,14 @@ export function CanvasSurface({
           }).map(renderCard);
         })()}</div>
 
-        {/* Multi-selection resize — a single bottom-right corner handle
-            matching the per-card resize affordance, but operating on
-            the bounding box of every selected card. Drag to uniformly
-            scale the whole selection (Shift to free-stretch). */}
+        {/* Multi-selection chrome — a unifying bounding box around every
+            selected card so the group reads as ONE selection, plus a single
+            bottom-right corner handle to uniformly scale it (Shift to free-
+            stretch). Both derive from the same live bounds so they track an
+            in-progress resize together. */}
         {canEdit && selectedTool === 'select' && multiSelectionBounds && (() => {
           // While dragging, derive bounds from multiResize.live so the
-          // handle tracks the live (in-progress) rect.
+          // box + handle track the live (in-progress) rect.
           let bounds = multiSelectionBounds;
           if (multiResize?.live) {
             const liveItems = [];
@@ -6631,18 +6635,29 @@ export function CanvasSurface({
           }
           const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
           const startBounds = multiResize?.startBounds || multiSelectionBounds;
+          // A little breathing room so the frame sits just outside the cards.
+          const PAD = 6;
           return (
-            <div className="card-resize multi-resize"
-                 onPointerDown={(e) => onMultiResizePointerDown(e, 'br', items, startBounds)}
-                 style={{
-                   position: 'absolute',
-                   left: bounds.x + bounds.w - RESIZE_HANDLE_PX / 2,
-                   top:  bounds.y + bounds.h - RESIZE_HANDLE_PX / 2,
-                   width: RESIZE_HANDLE_PX,
-                   height: RESIZE_HANDLE_PX,
-                   zIndex: 999996,
-                   pointerEvents: 'auto',
-                 }} />
+            <>
+              <div className="sel-bbox"
+                   style={{
+                     left: bounds.x - PAD,
+                     top:  bounds.y - PAD,
+                     width:  bounds.w + PAD * 2,
+                     height: bounds.h + PAD * 2,
+                   }} />
+              <div className="card-resize multi-resize"
+                   onPointerDown={(e) => onMultiResizePointerDown(e, 'br', items, startBounds)}
+                   style={{
+                     position: 'absolute',
+                     left: bounds.x + bounds.w - RESIZE_HANDLE_PX / 2,
+                     top:  bounds.y + bounds.h - RESIZE_HANDLE_PX / 2,
+                     width: RESIZE_HANDLE_PX,
+                     height: RESIZE_HANDLE_PX,
+                     zIndex: 999996,
+                     pointerEvents: 'auto',
+                   }} />
+            </>
           );
         })()}
 
