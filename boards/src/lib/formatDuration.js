@@ -23,3 +23,25 @@ export function formatDuration(seconds) {
 export function formatDurationLong(seconds) {
   return formatDuration(seconds);
 }
+
+// Full multi-unit breakdown for a big "always going up" counter: returns the
+// units from the largest NON-ZERO unit down to seconds, e.g.
+//   563525  -> [{d,6},{h,12},{m,32},{s,5}]
+//   ~1 year -> [{y,1},{mo,3},{d,12},{h,6},{m,42},{s,18}]
+// Leading zero units are dropped (no "0y 0mo …"); seconds are always present so
+// the value visibly ticks. Months=30d / years=365d, matching the constants above
+// — glanceable, not calendar-exact.
+const DURATION_UNITS = [
+  ['y', YEAR], ['mo', MONTH], ['d', DAY], ['h', HOUR], ['m', MIN], ['s', 1],
+];
+export function formatDurationParts(seconds) {
+  let s = Math.max(0, Math.floor(Number(seconds) || 0));
+  const out = DURATION_UNITS.map(([unit, size]) => {
+    const value = Math.floor(s / size);
+    s -= value * size;
+    return { unit, value };
+  });
+  let i = 0;
+  while (i < out.length - 1 && out[i].value === 0) i++; // trim leading zeros, keep ≥1
+  return out.slice(i);
+}

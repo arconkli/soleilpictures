@@ -16540,8 +16540,12 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .cc-pie .cc-panel-body { min-height: 132px; }
 
 /* Big scalar stat (e.g. Time in app) centered in a rail panel — replaces a chart. */
-.cc-bignum .cc-panel-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
-.cc-bignum-value { font: 700 40px/1 var(--font-display, var(--font-sans)); color: var(--soleil); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.cc-bignum .cc-panel-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+/* Multi-unit "always going up" duration: big values + small unit labels, wraps. */
+.cc-dur { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 10px; }
+.cc-dur-seg { display: inline-flex; align-items: baseline; gap: 2px; }
+.cc-dur-val { font: 700 32px/1 var(--font-display, var(--font-sans)); color: var(--soleil); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.cc-dur-unit { font: 600 13px/1 var(--font-sans); color: var(--ink-3); }
 .cc-bignum-note { font: 500 11px/1.2 var(--font-sans); color: var(--ink-3); }
 
 /* Bottom strip — live universe totals + leaderboard */

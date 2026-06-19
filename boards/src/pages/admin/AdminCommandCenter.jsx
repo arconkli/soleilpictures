@@ -25,7 +25,7 @@ import { supabase } from '../../lib/supabase.js';
 import {
   formatMoney, formatCount, formatCompact, shortDate, relativeTime,
 } from '../../lib/adminFormat.js';
-import { formatDuration } from '../../lib/formatDuration.js';
+import { formatDurationParts } from '../../lib/formatDuration.js';
 import { Icon } from '../../components/Icon.jsx';
 import { Maximize2, ArrowsClockwise } from '../../lib/icons.js';
 import { useAdminData } from './useAdminData.js';
@@ -243,7 +243,7 @@ export function AdminCommandCenter() {
 
           <CcPanel title="Time in app" className="cc-bignum"
                    sub={`${formatCount(stats?.total_users ?? 0)} users`}>
-            <div className="cc-bignum-value">{formatDuration(stats?.total_seconds_in_app ?? 0)}</div>
+            <CountUpDuration value={stats?.total_seconds_in_app ?? 0} />
             <div className="cc-bignum-note">summed across everyone</div>
           </CcPanel>
 
@@ -361,6 +361,41 @@ export function AdminCommandCenter() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Big "always going up" duration: RAF-animates the seconds toward each new
+// value (count-up only, since total time is monotonic) and renders the full
+// multi-unit breakdown (years → seconds) so it never collapses to one token.
+function CountUpDuration({ value }) {
+  const [shown, setShown] = useState(Number(value) || 0);
+  const fromRef = useRef(Number(value) || 0);
+  useEffect(() => {
+    const target = Number(value) || 0;
+    const from = fromRef.current;
+    if (target === from) return undefined;
+    const start = performance.now();
+    const dur = 800;
+    let raf = 0;
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setShown(from + (target - from) * eased);
+      if (t < 1) raf = requestAnimationFrame(step);
+      else { fromRef.current = target; setShown(target); }
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return (
+    <div className="cc-dur">
+      {formatDurationParts(shown).map((p) => (
+        <span className="cc-dur-seg" key={p.unit}>
+          <span className="cc-dur-val">{p.value}</span>
+          <span className="cc-dur-unit">{p.unit}</span>
+        </span>
+      ))}
     </div>
   );
 }
