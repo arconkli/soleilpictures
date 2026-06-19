@@ -26,6 +26,7 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import { R2Image } from './R2Image.jsx';
 import { fetchTagVisuals } from '../lib/tagVisuals.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
+import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 
@@ -406,12 +407,17 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
 
   const thumbs = vis?.images?.slice(0, 9) || [];
   const palettes = vis?.palettes?.slice(0, 2) || [];
+  // The non-visual payoff — docs/notes/boards/cards. For a concept/topic
+  // tag (e.g. "Pricing") this IS the content; for a character it's extra.
+  const others = vis?.other || [];
+  const typeLabel = entityTypeLabel(vis?.entityType);
 
   return (
     <div className="ent-pop-tag-card" style={{ '--tag-color': color }}>
       <button className="ent-pop-tag-row" onClick={onOpenTag} title={`Open ${row.title || 'tag'}`}>
         <span className="ent-pop-tag-dot" style={{ background: color }} />
         <span className="ent-pop-tag-name">{row.title || 'Untitled'}</span>
+        {typeLabel && <span className="tag-pop-type">{typeLabel}</span>}
         {vis?.total > 0 && (
           <span style={{ marginLeft: 'auto', font: '600 10px/1 var(--font-sans)', color: 'var(--ink-3)' }}>
             {vis.total}
@@ -442,6 +448,20 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
                   {colors.map((c, j) => <span key={j} style={{ background: c }} />)}
                 </span>
                 {p.title && <span className="tag-pop-palette-title">{p.title}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {others.length > 0 && (
+        <div className="tag-pop-list">
+          {others.map((o, i) => {
+            const IcnCmp = getKind(o.kind)?.icon || StickyNote;
+            return (
+              <button key={i} className="tag-pop-row" title={o.title}
+                      onClick={() => onNavigate?.(o.navTarget)}>
+                <span className="tag-pop-row-icon"><Icon as={IcnCmp} size={12} /></span>
+                <span className="tag-pop-row-title">{o.title}</span>
               </button>
             );
           })}

@@ -35,6 +35,7 @@ import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { fetchTagVisuals } from '../lib/tagVisuals.js';
+import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 
@@ -181,6 +182,9 @@ export function TagRangeHoverPopover({
       <button className="tag-pop-header" onClick={openTag} title="Open tag detail">
         <span className="tag-pop-stamp" aria-hidden="true" />
         <span className="tag-pop-name">{tagName || 'Tag'}</span>
+        {entityTypeLabel(data.entityType) && (
+          <span className="tag-pop-type">{entityTypeLabel(data.entityType)}</span>
+        )}
         {total > 0 && (
           <span className="tag-pop-count">{total} {total === 1 ? 'item' : 'items'}</span>
         )}

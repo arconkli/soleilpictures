@@ -16,14 +16,17 @@ import { supabase } from './supabase.js';
 
 const MAX_IMAGES = 120;
 const MAX_PALETTES = 3;
-const MAX_OTHER = 4;
+// A concept/topic tag (e.g. "Pricing") has no images/palettes — its payoff
+// IS the list of docs/notes/boards/cards. Keep this generous so the hover
+// actually shows "all the stuff," not a truncated handful.
+const MAX_OTHER = 12;
 const FETCH_LIMIT = 80;
 const IMAGES_PER_CONTAINER = 60;
 
 const CACHE_TTL_MS = 30_000;
 const cache = new Map(); // `${workspaceId}:${tagId}` → { at, data }
 
-const EMPTY = { images: [], palettes: [], other: [], total: 0 };
+const EMPTY = { images: [], palettes: [], other: [], total: 0, entityType: null };
 
 export function invalidateTagVisuals(tagId, workspaceId) {
   if (tagId && workspaceId) cache.delete(`${workspaceId}:${tagId}`);
@@ -59,7 +62,7 @@ export async function fetchTagVisuals({ tagId, workspaceId } = {}) {
       }
     }
 
-    const [esResp, pageResp] = await Promise.all([
+    const [esResp, pageResp, tagResp] = await Promise.all([
       esIds.length
         ? supabase.from('entity_search')
             .select('id, kind, title, body, meta, board_id, card_id')
@@ -71,9 +74,13 @@ export async function fetchTagVisuals({ tagId, workspaceId } = {}) {
             .select('doc_card_id, page_id, page_title')
             .in('page_id', pageIds)
         : Promise.resolve({ data: [] }),
+      // The tag's semantic type (character/setting/concept/thing) so the
+      // hover header can label it ("Topic", "Character", …).
+      supabase.from('tags').select('entity_type').eq('id', tagId).maybeSingle(),
     ]);
     const byEs = new Map((esResp.data || []).map(r => [r.id, r]));
     const byPage = new Map((pageResp.data || []).map(r => [r.page_id, r]));
+    const entityType = tagResp?.data?.entity_type || null;
 
     const seenKeys = new Set();
     // Dedup images by their card identity — the same image card might be
@@ -201,7 +208,7 @@ export async function fetchTagVisuals({ tagId, workspaceId } = {}) {
       }
     }
 
-    const data = { images, palettes, other, total: count ?? rows.length };
+    const data = { images, palettes, other, total: count ?? rows.length, entityType };
     cache.set(cacheKey, { at: performance.now(), data });
     return data;
   } catch (_) {

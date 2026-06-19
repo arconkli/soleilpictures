@@ -15810,6 +15810,18 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+/* Small semantic-type pill in a tag hover header ("Topic", "Character"…).
+   Tag-color-tinted so it reads as part of the tag without shouting. */
+.tag-pop-type {
+  flex-shrink: 0;
+  font: 700 9px/1 var(--font-display, var(--font-sans));
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--tag-color, var(--soleil)) 70%, var(--ink-2));
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 14%, transparent);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
 .tag-pop-empty {
   padding: 8px 14px 12px;
   font: 400 12px/1.4 var(--font-sans);
@@ -15917,7 +15929,9 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   color: var(--ink-3);
 }
 .cand-pop-actions {
-  display: flex; gap: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
   padding: 0 10px 8px;
 }
 .cand-pop-btn {

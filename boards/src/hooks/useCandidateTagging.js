@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useCandidateNames } from './useCandidateNames.js';
 import { ensureTag } from '../lib/tagsApi.js';
+import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { CANDIDATE_NAME_KEY } from '../components/docExtensions/CandidateNamePlugin.js';
@@ -58,7 +59,7 @@ export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromo
         try { applied = !!(await applyPromotedTag(tag, c)); } catch (_) {}
       }
       try { logEvent(EV.TAG_CANDIDATE_PROMOTE, { entity_type: entityType, count: c.count || 0, applied }); } catch (_) {}
-      notify?.({ type: 'success', message: `“${c.name}” is now a ${entityType}` });
+      notify?.({ type: 'success', message: `“${c.name}” is now a ${(entityTypeLabel(entityType) || 'tag').toLowerCase()}` });
     } catch (err) {
       notify?.({ type: 'error', message: 'Could not create tag: ' + (err?.message || err) });
     } finally {

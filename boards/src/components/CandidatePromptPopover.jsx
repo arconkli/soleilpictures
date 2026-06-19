@@ -21,7 +21,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { User, Pin } from '../lib/icons.js';
+import { ENTITY_TYPES } from '../lib/entityTypes.js';
 
 const PAD = 8;
 const W = 264;
@@ -88,14 +88,12 @@ export function CandidatePromptPopover({ anchor, name, count, sample, busy, onPr
       </div>
       <div className="cand-pop-q">Make this a…</div>
       <div className="cand-pop-actions">
-        <button className="cand-pop-btn" disabled={busy}
-                onClick={() => onPromote?.('character')}>
-          <Icon as={User} size={14} /> Character
-        </button>
-        <button className="cand-pop-btn" disabled={busy}
-                onClick={() => onPromote?.('setting')}>
-          <Icon as={Pin} size={14} /> Setting
-        </button>
+        {ENTITY_TYPES.map((t) => (
+          <button key={t.value} className="cand-pop-btn" disabled={busy}
+                  onClick={() => onPromote?.(t.value)}>
+            <Icon as={t.Icon} size={14} /> {t.label}
+          </button>
+        ))}
       </div>
       {sample && <div className="cand-pop-sample">“…{sample}…”</div>}
       <button className="cand-pop-dismiss" disabled={busy} onClick={() => onDismiss?.()}>
