@@ -504,13 +504,17 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
         </div>
       )}
 
-      {lightboxIdx != null && allImages[lightboxIdx] && (
+      {lightboxIdx != null && allImages[lightboxIdx] && createPortal(
+        // Portal to body: ImageLightbox is position:fixed inset:0, but the
+        // popover's overflow:hidden + .surface-frosted backdrop-filter would
+        // otherwise clip/trap it inside the ~380px card.
         <ImageLightbox
           src={allImages[lightboxIdx].src}
           title={allImages[lightboxIdx].title || ''}
           alt={allImages[lightboxIdx].title || ''}
           onClose={() => setLightboxIdx(null)}
-        />
+        />,
+        document.body,
       )}
     </div>
   );

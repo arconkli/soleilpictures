@@ -7748,6 +7748,10 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   background: var(--tag-c, #4f8df8);
   flex: 0 0 auto;
 }
+.ctx-tag-chip.is-auto, .ctx-tag-chip.is-ai {
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
+}
 .ctx-tag-name {
   white-space: nowrap;
   max-width: 140px;
@@ -9420,8 +9424,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: var(--tag-c, #4f8df8);
 }
 .tag-chip.is-auto, .tag-chip.is-ai {
-  border: 1px dashed color-mix(in oklab, var(--tag-c, #4f8df8) 50%, transparent);
-  background: transparent;
+  /* Keep the tinted fill (the canonical look) and signal auto/ai with a
+     dashed border — same recipe as .card-tag-chip / .ctx-tag-chip. */
+  border: 1px dashed color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
 }
 .tag-chip-x {
   background: transparent; border: 0;
@@ -14486,6 +14491,11 @@ button.msg-panel-name:hover { color: var(--soleil); }
 @keyframes tag-pop-shimmer {
   from { background-position: 220% 0; }
   to   { background-position: -120% 0; }
+}
+/* The global reduced-motion guard only clamps animation-duration (so an
+   infinite shimmer would just loop ~9x faster) — stop it outright. */
+@media (prefers-reduced-motion: reduce) {
+  .tag-pop-skeleton > span { animation: none; }
 }
 
 .ent-pop-section-head {

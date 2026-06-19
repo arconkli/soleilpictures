@@ -25,5 +25,8 @@ export function tagFallbackColor(slugOrName) {
 // tag is rendered so the color key is consistent across surfaces.
 export function resolveTagColor(tag) {
   if (!tag) return tagFallbackColor('');
-  return tag.color || tagFallbackColor(tag.slug || tag.name || tag.id);
+  // Hash by NAME first to match the deterministic hue the other tag
+  // surfaces (chips, popovers, context menu, doc) already use, so the same
+  // uncolored tag looks identical everywhere (slug/name hash differently).
+  return tag.color || tagFallbackColor(tag.name || tag.slug || tag.id);
 }

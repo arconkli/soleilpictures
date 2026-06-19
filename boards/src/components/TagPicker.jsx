@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
-import { tagFallbackColor } from '../lib/tagColor.js';
+import { tagFallbackColor, resolveTagColor } from '../lib/tagColor.js';
 
 const POP_W = 280;
 
@@ -71,7 +71,7 @@ export function TagPicker({
                     className={`tag-picker-row ${applied ? 'is-applied' : ''} ${i === hover ? 'is-hover' : ''}`}
                     onMouseEnter={() => setHover(i)}
                     onClick={() => { onToggle?.(t); }}>
-              <span className="tag-picker-dot" style={{ background: t.color || tagFallbackColor(t.slug || t.name) }} />
+              <span className="tag-picker-dot" style={{ background: resolveTagColor(t) }} />
               <span className="tag-picker-name">{t.name}</span>
               {t.kind !== 'user' && <span className={`tag-picker-kind tag-picker-kind-${t.kind}`}>{t.kind}</span>}
               {applied && <span className="tag-picker-check">✓</span>}
