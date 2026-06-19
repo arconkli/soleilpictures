@@ -11,8 +11,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { TextSelection } from '@tiptap/pm/state';
 import {
-  nextOnEnter, nextOnTab, prevOnTab, shouldUppercase,
-  detectElementFromText, enterStartsNewScene,
+  nextOnEnter, nextOnTab, prevOnTab, shouldUppercase, detectElementFromText,
 } from './screenplayFlow.js';
 
 // A slash (.doc-slash) or @-mention (.entity-picker) popup is open — let it own
@@ -35,18 +34,6 @@ function blockIsEmpty(state) {
     if ($from.node(d).type.name === 'screenplayBlock') return $from.node(d).textContent.trim().length === 0;
   }
   return false;
-}
-// The element of the screenplayBlock immediately BEFORE the caret's block (null
-// if there's no screenplayBlock there). Used for the double-Enter → new scene.
-function prevScreenplayElement(state) {
-  const { $from } = state.selection;
-  for (let d = $from.depth; d > 0; d--) {
-    if ($from.node(d).type.name === 'screenplayBlock') {
-      const prev = state.doc.resolve($from.before(d)).nodeBefore;
-      return prev && prev.type.name === 'screenplayBlock' ? (prev.attrs.element || 'action') : null;
-    }
-  }
-  return null;
 }
 function inListOrTable(state) {
   const { $from } = state.selection;
@@ -93,20 +80,15 @@ export const ScreenplayKeymap = Extension.create({
         if (cur == null || inListOrTable(state)) return false;
         if (!state.selection.empty) return false;
         const empty = blockIsEmpty(state);
-        // FD-style: a second Enter on the empty action line that follows a
-        // speech starts a fresh Scene Heading (rather than another blank action).
-        if (enterStartsNewScene(prevScreenplayElement(state), cur, empty)) {
-          return ed.chain().focus().updateAttributes('screenplayBlock', { element: 'scene' }).run();
-        }
         const nextEl = nextOnEnter(cur, empty);
-        // Enter on an empty cue/transition just retypes the current line as the
-        // bail element (action) — no extra blank line.
-        if (empty && nextEl !== cur && cur !== 'action') {
+        // On an EMPTY line, escalate the line IN PLACE (no extra blank block):
+        // empty character → action, empty action → scene, etc.
+        if (empty && nextEl !== cur) {
           return ed.chain().focus().updateAttributes('screenplayBlock', { element: nextEl }).run();
         }
         // Otherwise split and make the NEW block a screenplayBlock carrying the
-        // next element. splitBlock on a `defining` node yields a default
-        // paragraph, so we setNode (convert) rather than updateAttributes.
+        // next element (dialogue → character, character → dialogue, …). splitBlock
+        // on a `defining` node yields a default paragraph, so setNode (convert).
         return ed.chain().focus()
           .splitBlock()
           .setNode('screenplayBlock', { element: nextEl })

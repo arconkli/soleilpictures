@@ -10,7 +10,7 @@
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import {
-  collectCharacterNames, collectLocations,
+  collectCharacterNamesByFrequency, collectLocations,
   SCENE_PREFIXES, TIMES_OF_DAY, TRANSITIONS, EXTENSIONS,
 } from './screenplayFlow.js';
 
@@ -21,19 +21,22 @@ const startsWithCI = (s, q) => s.toUpperCase().startsWith(q.toUpperCase());
 // which a chosen item replaces the rest of the line, or null for no suggestion.
 function suggestForLine(element, text, docJSON) {
   if (element === 'character') {
-    // Extension stage: typing inside a '(' …
+    // Extensions already on the cue — never offer one twice ("(V.O.) (V.O.)").
+    const present = new Set((text.match(/\([^)]*\)/g) || []).map(s => s.toUpperCase()));
+    // Extension stage: typing inside an unclosed '(' → offer the not-yet-present ones.
     const paren = text.lastIndexOf('(');
     if (paren >= 0 && !/\)/.test(text.slice(paren))) {
       const typed = text.slice(paren + 1);
-      const items = EXTENSIONS.filter(e => startsWithCI(e.slice(1), typed));
+      const items = EXTENSIONS.filter(e => startsWithCI(e.slice(1), typed) && !present.has(e.toUpperCase()));
       return items.length ? { items, from: paren } : null;
     }
-    // … or a name followed by a trailing space → offer to append an extension.
-    if (/\S\s+$/.test(text)) return { items: EXTENSIONS, from: text.length };
-    // Otherwise: cast names. On an EMPTY cue, proactively offer the whole cast
-    // (the "bring me along" guidance); once typing, prefix-match it.
+    // … or a name + trailing space → offer an extension, but ONLY if the cue
+    // doesn't already carry one (no reason to add a second).
+    if (!present.size && /\S\s+$/.test(text)) return { items: EXTENSIONS, from: text.length };
+    // Otherwise: cast names, MOST-USED first. On an EMPTY cue, proactively offer
+    // the whole cast (pick the next speaker); once typing, prefix-match it.
     const q = text.trim().toUpperCase();
-    const all = collectCharacterNames(docJSON);
+    const all = collectCharacterNamesByFrequency(docJSON);
     if (!q) return all.length ? { items: all, from: 0 } : null;
     const names = all.filter(n => n !== q && n.startsWith(q));
     return names.length ? { items: names, from: text.length - text.trimStart().length } : null;
@@ -74,7 +77,10 @@ export const ScreenplaySuggest = Extension.create({
   priority: 1001,
 
   addProseMirrorPlugins() {
-    const ctrl = { open: false, items: [], active: 0, from: 0, to: 0, el: null };
+    // `browse` = the line is empty so the popup is just a hint (Enter should
+    // run the element flow, not accept). `navigated` = the user arrowed to a
+    // choice (so Enter then DOES accept even in browse mode).
+    const ctrl = { open: false, items: [], active: 0, from: 0, to: 0, el: null, browse: false, navigated: false };
 
     const ensureEl = () => {
       if (ctrl.el) return ctrl.el;
@@ -98,8 +104,10 @@ export const ScreenplaySuggest = Extension.create({
         row.addEventListener('mousedown', (e) => { e.preventDefault(); accept(view, i); });
         el.appendChild(row);
       });
+      // Anchor at the START of the token being completed so the popup lines up
+      // under the cue / element column rather than drifting to the line end.
       let coords;
-      try { coords = view.coordsAtPos(ctrl.to); } catch (_) { coords = null; }
+      try { coords = view.coordsAtPos(ctrl.from); } catch (_) { coords = null; }
       if (coords) {
         el.style.left = `${Math.round(coords.left)}px`;
         el.style.top = `${Math.round(coords.bottom + 4)}px`;
@@ -136,6 +144,8 @@ export const ScreenplaySuggest = Extension.create({
       ctrl.active = Math.min(ctrl.active, res.items.length - 1);
       ctrl.from = lineStart + res.from;
       ctrl.to = lineEnd;
+      ctrl.browse = !text.trim();   // empty line → hint mode; Enter escalates
+      ctrl.navigated = false;        // reset until the user arrows to a choice
       render(view);
     };
 
@@ -150,9 +160,18 @@ export const ScreenplaySuggest = Extension.create({
         props: {
           handleKeyDown(view, event) {
             if (!ctrl.open) return false;
-            if (event.key === 'ArrowDown') { ctrl.active = (ctrl.active + 1) % ctrl.items.length; render(view); return true; }
-            if (event.key === 'ArrowUp') { ctrl.active = (ctrl.active - 1 + ctrl.items.length) % ctrl.items.length; render(view); return true; }
-            if (event.key === 'Enter' || event.key === 'Tab') { accept(view, ctrl.active); return true; }
+            if (event.key === 'ArrowDown') { ctrl.navigated = true; ctrl.active = (ctrl.active + 1) % ctrl.items.length; render(view); return true; }
+            if (event.key === 'ArrowUp') { ctrl.navigated = true; ctrl.active = (ctrl.active - 1 + ctrl.items.length) % ctrl.items.length; render(view); return true; }
+            // Tab always picks the highlighted item. Enter picks it too, EXCEPT
+            // on an empty "browse" line the user hasn't navigated — there Enter
+            // runs the element flow (dialogue→character→action→scene): close the
+            // popup and return false so ScreenplayKeymap's Enter handler fires
+            // (its `.sp-autocomplete.is-open` guard now sees the popup closed).
+            if (event.key === 'Tab') { accept(view, ctrl.active); return true; }
+            if (event.key === 'Enter') {
+              if (ctrl.browse && !ctrl.navigated) { close(); return false; }
+              accept(view, ctrl.active); return true;
+            }
             if (event.key === 'Escape') { close(); return true; }
             return false;
           },

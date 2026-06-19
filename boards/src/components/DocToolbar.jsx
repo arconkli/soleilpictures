@@ -184,8 +184,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
       )}
 
       {isScreenplay && onSetSceneNumbersShow && (
-        <SceneNumberMenu
-          editor={editor}
+        <SceneNumberToggle
           show={sceneNumbersShow}
           onSetShow={onSetSceneNumbersShow}
           disabled={disabled}
@@ -315,49 +314,22 @@ function Btn({ children, active, disabled, onClick, title }) {
   );
 }
 
-// Scene-number control: Off / Auto (1,2,3…) / Locked (stamps numbers so later
-// inserts get A/B suffixes). Lock state lives on the scene blocks; visibility in
-// docMeta. Mirrors the ColorBtn popover.
-function SceneNumberMenu({ editor, show, onSetShow, disabled }) {
-  const [open, setOpen] = useState(false);
-  const anyLocked = (() => {
-    if (!editor) return false;
-    let found = false;
-    editor.state.doc.descendants((node) => {
-      if (found) return false;
-      if (node.type.name === 'screenplayBlock' && node.attrs.sceneNumber != null) { found = true; return false; }
-      return undefined;
-    });
-    return found;
-  })();
-  const current = !show ? 'off' : (anyLocked ? 'locked' : 'auto');
-  const choose = (mode) => {
-    if (mode === 'off') { onSetShow(false); }
-    else if (mode === 'auto') { editor?.chain().focus().unlockSceneNumbers().run(); onSetShow(true); }
-    else if (mode === 'locked') { editor?.chain().focus().lockSceneNumbers().run(); onSetShow(true); }
-    setOpen(false);
-  };
+// Scene-number control: a plain on/off toggle. Numbers auto-number (1, 2, 3…)
+// at each scene heading when shown; visibility lives in docMeta. (Revision
+// A/B locking still rides on the scene blocks' sceneNumber attr — kept for FDX
+// import — but is no longer a toolbar menu, which read as broken.)
+function SceneNumberToggle({ show, onSetShow, disabled }) {
   return (
-    <span className="doc-tb-colorwrap">
-      <button type="button"
-              className={`doc-tb-pill doc-tb-scenenum-toggle${show ? ' is-active' : ''}`}
-              disabled={disabled}
-              title="Scene numbers" aria-haspopup="true" aria-expanded={open}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setOpen(o => !o)}>
-        <Glyph as={Hash} size={14} />
-        <span className="doc-tb-pill-label">Scene #</span>
-      </button>
-      {open && (
-        <div className="doc-tb-colorpop doc-tb-scenenum-pop" role="menu" onMouseDown={(e) => e.preventDefault()}>
-          {[['off', 'Off'], ['auto', 'Auto (1, 2, 3…)'], ['locked', 'Locked (A/B)']].map(([mode, label]) => (
-            <button key={mode} role="menuitemradio" aria-checked={current === mode}
-                    className={`doc-tb-scenenum-item${current === mode ? ' is-active' : ''}`}
-                    onClick={() => choose(mode)}>{current === mode ? '✓ ' : ''}{label}</button>
-          ))}
-        </div>
-      )}
-    </span>
+    <button type="button"
+            className={`doc-tb-pill doc-tb-scenenum-toggle${show ? ' is-active' : ''}`}
+            disabled={disabled}
+            title={show ? 'Scene numbers — on' : 'Scene numbers — off'}
+            aria-pressed={show}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onSetShow(!show)}>
+      <Glyph as={Hash} size={14} />
+      <span className="doc-tb-pill-label">Scene #</span>
+    </button>
   );
 }
 

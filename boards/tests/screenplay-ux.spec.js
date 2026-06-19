@@ -159,7 +159,7 @@ test('scene navigator lists scene headings and jumps to them', async ({ page }) 
   expect(inScene2).toContain('PARK');
 });
 
-test('Scene # menu shows auto numbers in the gutters and can lock them', async ({ page }) => {
+test('the Scene # pill toggles scene numbers off and on', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
   await page.evaluate(() => {
@@ -170,23 +170,19 @@ test('Scene # menu shows auto numbers in the gutters and can lock them', async (
       { element: 'scene', text: 'EXT. B - NIGHT' },
     ]));
   });
-
-  // Turn auto numbering on.
-  await page.locator('.doc-tb-scenenum-toggle').click();
-  await page.getByRole('menuitemradio', { name: /Auto/ }).click();
+  const pill = page.locator('.doc-tb-scenenum-toggle');
+  // On by default → pill active, gutters numbered 1, 2.
+  await expect(pill).toHaveClass(/is-active/);
   await expect(page.locator('.doc-paper.show-scene-numbers')).toBeVisible();
   const nums = await page.$$eval('.doc-paper.is-screenplay [data-scene-number]', els => els.map(e => e.getAttribute('data-scene-number')));
   expect(nums).toEqual(['1', '2']);
-
-  // Lock — numbers get stamped onto the scene blocks (persisted).
-  await page.locator('.doc-tb-scenenum-toggle').click();
-  await page.getByRole('menuitemradio', { name: /Locked/ }).click();
-  const locked = await page.evaluate(() => {
-    const S = window.__soleilDocTest.screenplay;
-    const blocks = S.docJSONToBlocks(window.__soleilDocTest.editor.getJSON());
-    return blocks.filter(b => b.element === 'scene').map(b => b.sceneNumber || null);
-  });
-  expect(locked).toEqual(['1', '2']);
+  // One click hides them.
+  await pill.click();
+  await expect(pill).not.toHaveClass(/is-active/);
+  await expect(page.locator('.doc-paper.show-scene-numbers')).toHaveCount(0);
+  // Click again shows them.
+  await pill.click();
+  await expect(page.locator('.doc-paper.show-scene-numbers')).toBeVisible();
 });
 
 test('scene numbers show by default at each scene heading, placed in the margin', async ({ page }) => {
@@ -295,9 +291,7 @@ test('character-name autocomplete suggests + completes a known name', async ({ p
   await page.keyboard.type('margaret');
   await page.keyboard.press('Enter');           // → dialogue
   await page.keyboard.type('Hello.');
-  await page.keyboard.press('Enter');           // dialogue → continue dialogue (empty)
-  await page.keyboard.press('Enter');           // empty dialogue → action
-  await page.keyboard.press('Tab');             // action → character
+  await page.keyboard.press('Enter');           // dialogue → new character cue
   await page.keyboard.type('mar');
 
   // Popup offers MARGARET; Enter accepts it.
@@ -325,6 +319,33 @@ test('character autocomplete offers (V.O.)/(O.S.) extensions after a name', asyn
   await expect(page.locator('.sp-autocomplete-item', { hasText: 'V.O.' })).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.locator('.doc-card-modal [data-screenplay-element="character"]').first()).toContainText('(V.O.)');
+  // Dedup: with an extension already on the cue, a trailing space must NOT
+  // re-offer one (no "(V.O.) (V.O.)") — the popup stays closed.
+  await page.keyboard.type(' ');
+  await expect(page.locator('.sp-autocomplete.is-open')).toHaveCount(0);
+});
+
+test('a new character cue suggests most-used characters first', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'character', text: 'JOHN' }, { element: 'dialogue', text: 'a' },
+      { element: 'character', text: 'MARY' }, { element: 'dialogue', text: 'b' },
+      { element: 'character', text: 'JOHN' }, { element: 'dialogue', text: 'c' },
+      { element: 'character', text: 'JOHN' }, { element: 'dialogue', text: 'last' },
+    ]));
+  });
+  // Dialogue + Enter → a new character cue; the cast popup lists most-used first.
+  await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').last().click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  const items = await page.$$eval('.sp-autocomplete-item', els => els.map(e => e.textContent));
+  expect(items[0]).toBe('JOHN');     // JOHN×3 ranks above MARY×1
+  expect(items).toContain('MARY');
 });
 
 test('scene-heading autocomplete offers an INT./EXT. prefix', async ({ page }) => {
@@ -405,7 +426,7 @@ async function caretElement(page) {
   });
 }
 
-test('Enter progression from dialogue: continue dialogue → action → new scene', async ({ page }) => {
+test('Enter progression from dialogue: new character → action → scene', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
   await page.evaluate(() => {
@@ -419,11 +440,14 @@ test('Enter progression from dialogue: continue dialogue → action → new scen
   // Click the dialogue line to focus the editor, caret to end of the line.
   await page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first().click();
   await page.keyboard.press('End');
-  await page.keyboard.press('Enter');   // continue dialogue (new dialogue paragraph)
-  expect(await caretElement(page)).toBe('dialogue');
-  await page.keyboard.press('Enter');   // empty dialogue → action
+  await page.keyboard.press('Enter');   // dialogue → new character cue
+  expect(await caretElement(page)).toBe('character');
+  // The cast popup opens on the empty cue (JOHN). The NEXT Enter must ESCALATE
+  // to Action (browse mode), NOT accept "JOHN" — this is the key interaction.
+  await expect(page.locator('.sp-autocomplete.is-open')).toBeVisible({ timeout: 5000 });
+  await page.keyboard.press('Enter');   // empty character → action
   expect(await caretElement(page)).toBe('action');
-  await page.keyboard.press('Enter');   // empty action after a speech → new scene
+  await page.keyboard.press('Enter');   // empty action → new scene heading
   expect(await caretElement(page)).toBe('scene');
 });
 

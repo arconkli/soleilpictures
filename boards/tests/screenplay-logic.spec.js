@@ -16,19 +16,19 @@ test('Enter flow advances elements the way screenwriters expect', async ({ page 
       scene: S.nextOnEnter('scene'),
       character: S.nextOnEnter('character'),
       dialogue: S.nextOnEnter('dialogue'),
-      emptyDialogue: S.nextOnEnter('dialogue', true),
+      emptyCharacter: S.nextOnEnter('character', true),
+      emptyAction: S.nextOnEnter('action', true),
       parenthetical: S.nextOnEnter('parenthetical'),
       transition: S.nextOnEnter('transition'),
-      emptyCharacter: S.nextOnEnter('character', true),
     };
   });
   expect(r.scene).toBe('action');
   expect(r.character).toBe('dialogue');
-  expect(r.dialogue).toBe('dialogue');       // non-empty dialogue continues
-  expect(r.emptyDialogue).toBe('action');    // empty dialogue bails to action
+  expect(r.dialogue).toBe('character');      // dialogue → a new character cue
+  expect(r.emptyCharacter).toBe('action');   // empty cue → action
+  expect(r.emptyAction).toBe('scene');       // empty action → new scene heading
   expect(r.parenthetical).toBe('dialogue');
   expect(r.transition).toBe('scene');
-  expect(r.emptyCharacter).toBe('action'); // empty cue bails to action
 });
 
 test('Tab cycles the element ring forward and back', async ({ page }) => {
@@ -559,24 +559,27 @@ test('detectElementFromText promotes an action line to a scene heading or transi
   expect(r.notFromChar).toBe(null);
 });
 
-test('enterStartsNewScene fires only on an empty action line following a speech', async ({ page }) => {
+test('collectCharacterNamesByFrequency orders the cast by how often they speak', async ({ page }) => {
   const r = await page.evaluate(() => {
     const S = window.__soleilDocTest.screenplay;
+    const doc = S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'a' },
+      { element: 'character', text: 'MARY' },
+      { element: 'dialogue', text: 'b' },
+      { element: 'character', text: "JOHN (V.O.)" },   // folds into JOHN
+      { element: 'dialogue', text: 'c' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'd' },
+    ]);
     return {
-      afterDialogue: S.enterStartsNewScene('dialogue', 'action', true),
-      afterParen: S.enterStartsNewScene('parenthetical', 'action', true),
-      afterAction: S.enterStartsNewScene('action', 'action', true),
-      afterScene: S.enterStartsNewScene('scene', 'action', true),
-      notEmpty: S.enterStartsNewScene('dialogue', 'action', false),
-      notAction: S.enterStartsNewScene('dialogue', 'character', true),
+      byFreq: S.collectCharacterNamesByFrequency(doc),
+      alpha: S.collectCharacterNames(doc),
     };
   });
-  expect(r.afterDialogue).toBe(true);
-  expect(r.afterParen).toBe(true);
-  expect(r.afterAction).toBe(false);  // normal action paragraphing untouched
-  expect(r.afterScene).toBe(false);
-  expect(r.notEmpty).toBe(false);
-  expect(r.notAction).toBe(false);
+  expect(r.byFreq).toEqual(['JOHN', 'MARY']);  // JOHN×3 before MARY×1
+  expect(r.alpha).toEqual(['JOHN', 'MARY']);   // alphabetical collector still sorted
 });
 
 test('EXTENSIONS + TRANSITIONS are shared from screenplayFlow (one source)', async ({ page }) => {

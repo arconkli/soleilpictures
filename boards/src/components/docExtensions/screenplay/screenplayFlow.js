@@ -27,25 +27,26 @@ export const ELEMENT_LABELS = {
 };
 
 // What pressing Enter at the end of a line of the given element produces for the
-// NEW line. Mirrors the Final Draft / Highland flow. `isEmpty` = the current
-// line has no text (so e.g. an empty Character line resets to Action).
+// NEW line. `isEmpty` = the current line has no text. The empty-line cases drive
+// the "keep pressing Enter to escalate" flow the user asked for:
+//   dialogue(text) → Enter → CHARACTER (new speaker; cast is suggested)
+//   empty character → Enter → ACTION
+//   empty action   → Enter → SCENE HEADING
 export function nextOnEnter(element, isEmpty = false) {
   if (isEmpty) {
-    // Enter on an empty cue/transition/parenthetical/dialogue bails to action.
-    // (An empty dialogue line means "I'm done speaking" → drop to Action; a
-    // second Enter on that empty Action then starts a new Scene — see
-    // enterStartsNewScene.)
-    if (element === 'character' || element === 'transition'
-        || element === 'parenthetical' || element === 'dialogue') return 'action';
+    // An empty Action line escalates to a new Scene Heading; every other empty
+    // element drops to Action. (So: char→action→scene as you keep hitting Enter.)
+    return element === 'action' ? 'scene' : 'action';
   }
   switch (element) {
     case 'scene': return 'action';
     case 'action': return 'action';
     case 'character': return 'dialogue';
     case 'parenthetical': return 'dialogue';
-    // Enter on a NON-empty dialogue line continues the speech as a new dialogue
-    // paragraph (Final-Draft flow). Empty → action (handled above).
-    case 'dialogue': return 'dialogue';
+    // Enter at the end of a line of dialogue starts a NEW character cue — most
+    // scenes alternate speakers, and the cast autocomplete pops up so you pick
+    // the next one fast.
+    case 'dialogue': return 'character';
     case 'transition': return 'scene';
     case 'shot': return 'action';
     case 'centered': return 'action';
@@ -147,7 +148,7 @@ export function computeSceneNumbers(blocks) {
   return out;
 }
 
-// Unique character names already used in the doc (for autocomplete).
+// Unique character names already used in the doc, sorted alphabetically.
 export function collectCharacterNames(doc) {
   const set = new Set();
   walkScreenplayBlocks(doc, (el, text) => {
@@ -156,6 +157,21 @@ export function collectCharacterNames(doc) {
     if (name) set.add(name);
   });
   return [...set].sort();
+}
+
+// Character names ordered by how OFTEN they speak (most-used first, ties broken
+// alphabetically) — so a fresh character cue suggests your main characters at
+// the top. baseCharacterName folds JOHN / JOHN (V.O.) / JOHN (CONT'D) into one.
+export function collectCharacterNamesByFrequency(doc) {
+  const counts = new Map();
+  walkScreenplayBlocks(doc, (el, text) => {
+    if (el !== 'character') return;
+    const name = baseCharacterName(text);
+    if (name) counts.set(name, (counts.get(name) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))
+    .map(([name]) => name);
 }
 
 // Parse a scene-heading location from "INT./EXT. LOCATION - TIME". Returns the
@@ -207,14 +223,4 @@ export function detectElementFromText(currentElement, text) {
   // A known transition verbatim, or any line ending in "… TO:" (CUT TO:, etc.).
   if (trimmed && (TRANSITIONS.includes(trimmed) || /\sTO:$/.test(trimmed))) return 'transition';
   return null;
-}
-
-// Final-Draft-style flow: after a line of dialogue (or its parenthetical),
-// pressing Enter once gives the usual empty Action line; pressing Enter AGAIN on
-// that still-empty Action line starts a fresh Scene Heading. Scoped to "the
-// block before the empty action is a speech" so ordinary action paragraphing
-// (action → Enter → empty action → Enter) is untouched.
-export function enterStartsNewScene(prevElement, curElement, curEmpty) {
-  return curElement === 'action' && !!curEmpty
-    && (prevElement === 'dialogue' || prevElement === 'parenthetical');
 }
