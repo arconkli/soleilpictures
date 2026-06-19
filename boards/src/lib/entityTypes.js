@@ -25,3 +25,11 @@ export function entityTypeLabel(value) {
 export function entityTypeIcon(value) {
   return BY_VALUE.get(value)?.Icon || null;
 }
+
+// Client mirror of the SQL guess_entity_type (migration 0153): a single
+// Capitalized token reads as a proper-name character (Yahweh, Enoch); anything
+// multi-word or lowercase reads as a Topic (concept). Used when adopting a
+// discovered name so it lands already typed; the one-tap switch fixes the rest.
+export function guessEntityType(name) {
+  return /^[A-Z][A-Za-z'\-]*$/.test((name || '').trim()) ? 'character' : 'concept';
+}

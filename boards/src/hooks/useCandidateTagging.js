@@ -24,7 +24,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useCandidateNames } from './useCandidateNames.js';
-import { ensureTag } from '../lib/tagsApi.js';
+import { ensureTag, setTagEntityType } from '../lib/tagsApi.js';
 import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -53,7 +53,7 @@ export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromo
     try {
       const tag = await ensureTag({ workspaceId, name: c.name, kind: 'user', createdBy: userId || null });
       if (tag?.id && entityType) {
-        try { await supabase.from('tags').update({ entity_type: entityType }).eq('id', tag.id); } catch (_) {}
+        try { await setTagEntityType(tag.id, entityType); } catch (_) {}
       }
       if (tag?.id && applyPromotedTag) {
         try { applied = !!(await applyPromotedTag(tag, c)); } catch (_) {}

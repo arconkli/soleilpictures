@@ -136,6 +136,7 @@ export const EV = Object.freeze({
   TAG_AUTO_PROMOTE:        'tag_auto_promote',            // a recurring term was auto-promoted to a real tag {tag_id,items,boards} (Phase 4)
   TAG_CANDIDATE_PROMOTE:   'tag_candidate_promote',       // promoted a discovered prose name to a real tag {entity_type,count,anchored}
   TAG_CANDIDATE_DISMISS:   'tag_candidate_dismiss',       // dismissed a discovered prose name (workspace ignore) {count}
+  TAG_SET_TYPE:            'tag_set_type',                // one-tap set/changed an entity's type {tag_id,entity_type}
 });
 
 // Map an auth/network error to a stable machine code for *_error events.

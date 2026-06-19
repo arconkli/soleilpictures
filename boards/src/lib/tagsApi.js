@@ -100,6 +100,19 @@ export async function renameTag(tagId, name) {
   if (error) throw error;
 }
 
+// Set a tag's semantic type (character/setting/concept/thing, or null) — the
+// one-tap type switch on entity rows/profiles. Goes through the RLS-gated
+// set_tag_entity_type RPC (migration 0153, workspace-member write), which is
+// the single, validated writer of entity_type.
+export async function setTagEntityType(tagId, entityType) {
+  if (!tagId) throw new Error('setTagEntityType: tagId required');
+  const { error } = await supabase.rpc('set_tag_entity_type', {
+    p_tag_id: tagId,
+    p_entity_type: entityType || null,
+  });
+  if (error) throw error;
+}
+
 // Atomic merge: rewrite every entity_links row targeting `fromTagId`
 // to target `intoTagId` instead, then drop the from-tag. RPC handles
 // collision (a source that already has the survivor tag) by dropping
