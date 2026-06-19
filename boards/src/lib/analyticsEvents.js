@@ -134,6 +134,8 @@ export const EV = Object.freeze({
   TAG_DISMISS:             'tag_dismiss',                 // dismissed an auto/borderline suggestion {tag_id,target_kind}
   TAG_MERGE:               'tag_merge',                   // merged one tag into another {from_tag_id,into_tag_id}
   TAG_AUTO_PROMOTE:        'tag_auto_promote',            // a recurring term was auto-promoted to a real tag {tag_id,items,boards} (Phase 4)
+  TAG_CANDIDATE_PROMOTE:   'tag_candidate_promote',       // promoted a discovered prose name to a real tag {entity_type,count,anchored}
+  TAG_CANDIDATE_DISMISS:   'tag_candidate_dismiss',       // dismissed a discovered prose name (workspace ignore) {count}
 });
 
 // Map an auth/network error to a stable machine code for *_error events.
