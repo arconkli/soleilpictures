@@ -102,6 +102,25 @@ export const ScreenplayKeymap = Extension.create({
   addProseMirrorPlugins() {
     return [
       new Plugin({
+        // Keep at least one screenplayBlock in the doc. Deleting all content
+        // leaves ProseMirror's default empty `paragraph` (not a screenplayBlock),
+        // which grays out the element selector and makes Enter/Tab inert (their
+        // gates require a screenplayBlock). Restore a Scene Heading in the SAME
+        // dispatch so the writer is never stranded after clearing the page.
+        appendTransaction(transactions, _oldState, newState) {
+          if (!transactions.some((tr) => tr.docChanged)) return null;
+          const { doc, schema } = newState;
+          const spType = schema.nodes.screenplayBlock;
+          if (!spType) return null;
+          if (doc.childCount === 1) {
+            const only = doc.firstChild;
+            if (only.type.name === 'paragraph' && only.content.size === 0) {
+              const tr = newState.tr.setNodeMarkup(0, spType, { element: 'scene' });
+              return tr.setSelection(TextSelection.create(tr.doc, 1));
+            }
+          }
+          return null;
+        },
         props: {
           // Auto-uppercase scene/character/transition lines AND auto-format an
           // action line into a Scene Heading / Transition the moment its text

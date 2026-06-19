@@ -129,6 +129,46 @@ test('Tab/Enter cycle elements and scene/character lines auto-uppercase', async 
   await expect(page.locator('.doc-card-modal [data-screenplay-element="dialogue"]').first()).toHaveText('Hello there.');
 });
 
+test('deleting everything leaves an editable Scene Heading (not a dead paragraph)', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },
+      { element: 'action', text: 'Some action.' },
+      { element: 'character', text: 'JOHN' },
+      { element: 'dialogue', text: 'Hi.' },
+    ]));
+    // Select-all + delete — the user's "deleted everything".
+    window.__soleilDocTest.editor.chain().focus().selectAll().deleteSelection().run();
+  });
+  // The doc must NOT collapse to a plain paragraph: it's restored to one empty
+  // Scene Heading so the toolbar + Enter keep working.
+  const state = await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    const json = ed.getJSON();
+    const first = json.content && json.content[0];
+    return {
+      count: (json.content || []).length,
+      firstType: first?.type,
+      firstEl: first?.attrs?.element,
+      activeSp: ed.isActive('screenplayBlock'),
+    };
+  });
+  expect(state.count).toBe(1);
+  expect(state.firstType).toBe('screenplayBlock');
+  expect(state.firstEl).toBe('scene');
+  expect(state.activeSp).toBe(true);
+  // The element selector is live again (not grayed out).
+  await expect(page.locator('.doc-card-modal .doc-tb-select')).toBeEnabled();
+  // And typing/auto-format works — a slugline forms inside a screenplayBlock.
+  await page.locator('.doc-card-modal .tt-editor').first().click();
+  await page.keyboard.type('ext. street - night');
+  await expect(page.locator('.doc-card-modal [data-screenplay-element="scene"]').first())
+    .toHaveText('EXT. STREET - NIGHT');
+});
+
 test('scene navigator lists scene headings and jumps to them', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
