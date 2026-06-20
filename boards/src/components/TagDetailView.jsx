@@ -19,7 +19,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { setTagDescription, setTagEntityType } from '../lib/tagsApi.js';
+import { setTagEntityType } from '../lib/tagsApi.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
@@ -84,61 +84,6 @@ function itemExcerpt(it) {
   const body = (it.body || it.card_body || '').trim();
   if (body) return body.length > 100 ? body.slice(0, 97) + '…' : body;
   return null;
-}
-
-// Inline editor for a tag's description. The AI tagger reads this when
-// deciding whether the tag applies — gives workspaces a way to disambiguate
-// tags whose names are too generic (e.g. "Cast" the film term vs "cast"
-// the verb) without retraining anything.
-function TagDescriptionRow({ tag }) {
-  const [value, setValue] = useState(tag?.description || '');
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(0);
-  const [editing, setEditing] = useState(false);
-  useEffect(() => { setValue(tag?.description || ''); }, [tag?.id, tag?.description]);
-  if (!tag?.id) return null;
-  const commit = async () => {
-    setEditing(false);
-    if ((value || '').trim() === (tag.description || '').trim()) return;
-    setSaving(true);
-    try {
-      await setTagDescription(tag.id, value);
-      setSavedAt(Date.now());
-    } catch (e) {
-      console.warn('[tag] description save failed', e);
-    } finally {
-      setSaving(false);
-    }
-  };
-  const placeholder = 'Describe what this tag means — the AI uses this to decide when to apply it.';
-  return (
-    <div className="tag-detail-description">
-      {editing ? (
-        <textarea
-          autoFocus
-          className="tag-detail-description-input"
-          value={value}
-          maxLength={500}
-          placeholder={placeholder}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') { setValue(tag?.description || ''); setEditing(false); }
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
-          }}
-        />
-      ) : (
-        <button className={`tag-detail-description-display ${value ? '' : 'is-empty'}`}
-                onClick={() => setEditing(true)}
-                title="Click to edit (the AI reads this)">
-          {value || placeholder}
-        </button>
-      )}
-      <div className="tag-detail-description-meta">
-        {saving ? 'Saving…' : (savedAt && Date.now() - savedAt < 2000 ? 'Saved' : `${value.length}/500`)}
-      </div>
-    </div>
-  );
 }
 
 export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose }) {
@@ -692,9 +637,15 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           <div className="tag-detail-card-grid">
             {cards.map(renderCardPreview)}
           </div>
-        ) : (
-          <div className="tag-detail-block-empty">No cards in this group yet.</div>
-        )}
+        ) : g.member_count > 0 ? (
+          // Has members but none synced to card_index (board never opened) —
+          // show the real count + a way in, not a dead "no cards" line.
+          <button className="tag-detail-block-peek"
+                  onClick={() => navigate(navTarget)}
+                  title="Open the board to view its cards">
+            {g.member_count} {g.member_count === 1 ? 'item' : 'items'} · open the board to view
+          </button>
+        ) : null /* genuinely-empty name-match auto-tag → just its title row */}
       </div>
     );
   };
@@ -836,9 +787,17 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       <div className="tag-detail-head" style={{ '--tag-color': dot }}>
         <span className="tag-detail-dot" style={{ background: dot }} />
         <h1 className="tag-detail-name">{tag.name}</h1>
-        {entityTypeLabel(entityType) && (
-          <span className="tag-pop-type">{entityTypeLabel(entityType)}</span>
-        )}
+        <div className="tag-profile-typeswitch" role="group" aria-label="Entity type">
+          {ENTITY_TYPES.map(t => (
+            <button key={t.value}
+                    className={`tag-profile-type-chip ${entityType === t.value ? 'is-on' : ''}`}
+                    onClick={() => changeType(t.value)}
+                    title={entityType === t.value ? `Clear ${t.label}` : `Mark as ${t.label}`}>
+              <Icon as={t.Icon} size={12} />
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </div>
         <span className="tag-detail-count">
           {filteredRows.length} {filteredRows.length === 1 ? 'item' : 'items'}
         </span>
@@ -856,20 +815,10 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
         )}
       </div>
 
-      {/* Identity hero — what this entity IS + what it looks like, cross-board. */}
-      <div className="tag-profile-hero" style={{ '--tag-color': dot }}>
-        <div className="tag-profile-typeswitch" role="group" aria-label="Entity type">
-          {ENTITY_TYPES.map(t => (
-            <button key={t.value}
-                    className={`tag-profile-type-chip ${entityType === t.value ? 'is-on' : ''}`}
-                    onClick={() => changeType(t.value)}
-                    title={entityType === t.value ? `Clear ${t.label}` : `Mark as ${t.label}`}>
-              <Icon as={t.Icon} size={12} />
-              <span>{t.label}</span>
-            </button>
-          ))}
-        </div>
-        {vis && ((vis.images?.length || 0) > 0 || (vis.palettes?.length || 0) > 0) && (
+      {/* Identity hero — what this entity LOOKS like, cross-board. Only renders
+          when there are visuals (a concept tag has none → no empty band). */}
+      {vis && ((vis.images?.length || 0) > 0 || (vis.palettes?.length || 0) > 0) && (
+        <div className="tag-profile-hero" style={{ '--tag-color': dot }}>
           <div className="tag-profile-identity">
             {(vis.images?.length || 0) > 0 && (
               <div className="tag-profile-images">
@@ -901,14 +850,13 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Manage — the demoted curation chrome (description, source filter,
-          pending suggestions). Off the default view; opened on demand. */}
+      {/* Manage — the demoted curation chrome (source filter + pending
+          suggestions). Off the default view; opened on demand. */}
       {manageOpen && (
         <div className="tag-profile-manage">
-          <TagDescriptionRow tag={tag} />
           {rows.length > 0 && (
             <div className="tag-detail-filter">
               <button className={`tag-detail-filter-pill ${sourceFilter === 'all' ? 'is-on' : ''}`}
@@ -963,6 +911,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
                 })}
               </div>
             </div>
+          )}
+          {rows.length === 0 && suggestions.length === 0 && (
+            <div className="tag-profile-manage-empty">Nothing to manage.</div>
           )}
         </div>
       )}
