@@ -11,7 +11,8 @@ import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import { useScrollEdges } from './hooks/useScrollEdges.js';
 import * as userProfiles from './lib/userProfiles.js';
-import { useBoardPermission } from './hooks/useBoardPermission.js';
+import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
+import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
@@ -1660,6 +1661,101 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
+  // ── Sidebar board context-menu actions ──────────────────────────────────
+  // Create a brand-new empty board nested inside an arbitrary parent. Unlike
+  // addNewBoard (which targets the currently-open board and seeds a canvas
+  // card), this targets the passed parent and adds no card — the reconcile-
+  // drift effect adds the kind:'board' mirror when that parent is opened.
+  const createBoardInside = async (parentId) => {
+    const parent = boards[parentId];
+    if (!parent) return;
+    const d = defaultsRef.current?.board || {};
+    const view = d.view || 'canvas';
+    try {
+      await createBoard({
+        workspaceId: parent.workspace_id,
+        parentBoardId: parentId,
+        name: view === 'list' ? 'Untitled list' : 'Untitled board',
+        view, userId: user.id,
+        cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
+      });
+      await refreshBoards();
+    } catch (e) {
+      console.error('createBoardInside failed', e);
+      feedback.toast({ type: 'error', message: 'Could not create board: ' + (e.message || e) });
+    }
+  };
+
+  // Target-id variant of setBoardBgColor (the in-factory one closes over the
+  // current boardId). Used by the sidebar "Custom…" color picker.
+  const setBoardBgColorById = async (targetId, color) => {
+    try {
+      await updateBoardMeta(targetId, { bg_color: color || null });
+      await refreshBoards();
+    } catch (e) {
+      console.error('setBoardBgColorById failed', e);
+      feedback.toast({ type: 'error', message: 'Could not set background: ' + (e.message || e) });
+    }
+  };
+
+  // Copy a board to the in-memory board clipboard (metadata only; the Y.Doc
+  // snapshot is re-read at paste time so the copy reflects the latest state).
+  const copyBoard = (board) => {
+    if (!board) return;
+    setBoardClipboard({
+      boardId: board.id, name: board.name, view: board.view,
+      cover: board.cover, meta: board.meta,
+    });
+    feedback.toast({ type: 'info', message: `Copied "${board.name || 'board'}".`, ttl: 2500 });
+  };
+
+  // Paste the clipboard board as a child of targetId — a SHALLOW duplicate
+  // (the board + its own canvas contents, not nested sub-boards). Mirrors the
+  // create+snapshot-copy in cloneBoardToPersonal, then strips board/boardlink
+  // mirror cards so the copy doesn't point at the original's children.
+  const pasteBoardInto = async (targetId) => {
+    const clip = getBoardClipboard();
+    if (!clip) return;
+    const target = boards[targetId];
+    if (!target) return;
+    const source = boards[clip.boardId];
+    if (source && source.workspace_id !== target.workspace_id) {
+      feedback.toast({ type: 'error', message: 'Can only paste within the same workspace.' });
+      return;
+    }
+    try {
+      const newBoard = await createBoard({
+        workspaceId: target.workspace_id,
+        parentBoardId: targetId,
+        name: (clip.name || 'Board') + ' (copy)',
+        view: clip.view, cover: clip.cover, meta: clip.meta,
+        userId: user.id,
+      });
+      const snap = await loadBoardSnapshot(clip.boardId);
+      if (snap) {
+        const tmp = new Y.Doc();
+        Y.applyUpdate(tmp, b64ToBytes(snap));
+        // Shallow copy: drop child-board mirror cards (and boardlinks) so the
+        // duplicate's canvas doesn't reference the original's nested boards.
+        const m = tmp.getMap('cards');
+        tmp.transact(() => {
+          [...m.keys()].forEach((k) => {
+            const v = m.get(k);
+            const kind = v?.get ? v.get('kind') : v?.kind;
+            if (kind === 'board' || kind === 'boardlink') m.delete(k);
+          });
+        }, 'local');
+        await saveBoardSnapshot(newBoard.id, tmp);
+        tmp.destroy();
+      }
+      await refreshBoards();
+      feedback.toast({ type: 'success', message: 'Pasted board.' });
+    } catch (e) {
+      console.error('pasteBoardInto failed', e);
+      feedback.toast({ type: 'error', message: 'Paste failed: ' + (e.message || e) });
+    }
+  };
+
   // ── Workspace sharing ─────────────────────────────────────────────────────
   const inviteToWorkspace = async () => {
     const email = await feedback.prompt({
@@ -2136,13 +2232,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { expCfg = (await supabase.rpc('get_experiment_config')).data; } catch (_) {}
       const enrolled = {};
       for (const key of getActiveExperiments()) {
-        const c = expCfg?.[key];
-        if (expCfg && c && c.enabled === false) continue;     // operator paused it at runtime
-        const arm = c?.weights ? drawArm(key, c.weights) : assignArm(key, user.id);
-        if (!arm) continue;
-        enrolled[`exp_${key}`] = arm;
-        supabase.rpc('set_experiment_arm', { p_key: key, p_arm: arm }).catch(() => {});
-        logEvent(EV.EXPERIMENT_ENROLLED, { key, arm });
+        // Hardened: a throw here (bad weights, a thenable without .catch, a
+        // throwing logEvent) must NEVER escape and abort the rest of the seed —
+        // that blanked the board for every new user. See the .then(undefined,…)
+        // note below.
+        try {
+          const c = expCfg?.[key];
+          if (expCfg && c && c.enabled === false) continue;   // operator paused it at runtime
+          const arm = c?.weights ? drawArm(key, c.weights) : assignArm(key, user.id);
+          if (!arm) continue;
+          enrolled[`exp_${key}`] = arm;
+          // supabase.rpc(...) returns a PostgREST builder — a *thenable* with NO
+          // `.catch` method. `.catch(...)` throws "catch is not a function"
+          // synchronously, which previously aborted the whole onboarding seed.
+          // Use the two-arg `.then` (the thenable's only rejection hook) instead.
+          supabase.rpc('set_experiment_arm', { p_key: key, p_arm: arm }).then(undefined, () => {});
+          logEvent(EV.EXPERIMENT_ENROLLED, { key, arm });
+        } catch (_) { /* one experiment failing must not block the seed */ }
       }
       if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled);
 
@@ -2406,6 +2512,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+  // Per-row write check for the sidebar board context menu. Uses the same
+  // pure decider as currentBoardPerm, callable per-board (a hook can't be).
+  const canEditBoard = React.useCallback((boardId) => {
+    const board = boards[boardId];
+    if (!board) return false;
+    return computeBoardPermission({
+      board, boards, workspace, workspaceMembers, sharedBoards,
+      userId: user.id, tier: myTier.tier,
+    }).canEdit;
+  }, [boards, workspace, workspaceMembers, sharedBoards, user.id, myTier.tier]);
   // Pre-compute a sync set of board ids the user can read — used by the
   // canvas to render the "🔒 No access" placeholder for boardlinks /
   // embedded boards that point outside the user's reach.
@@ -3436,6 +3552,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
             onRenameBoard={renameBoardById}
             onCreateBoard={canEditCurrent ? () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } : null}
+            onCreateBoardInside={createBoardInside}
+            onSetBoardCover={mainMutators.setBoardCover}
+            onSetBoardBgColor={setBoardBgColorById}
+            onCopyBoard={copyBoard}
+            onPasteBoardInto={pasteBoardInto}
+            onDeleteBoard={(id) => deleteBoardsById([id])}
+            canEditBoard={canEditBoard}
             onOpenPicker={() => setPickerOpen(true)}
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}

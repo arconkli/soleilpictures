@@ -11,6 +11,9 @@ import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import { BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
+import { CardContextMenu } from './CardContextMenu.jsx';
+import { ColorPicker } from './ColorPicker.jsx';
+import { boardClipboardSize } from '../lib/boardClipboard.js';
 
 const HOVER_PREFETCH_MS = 80;
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
@@ -34,6 +37,13 @@ export function SidebarBoardTree({
   onOpenBoard,
   onRenameBoard,           // (boardId, newName) => Promise — called on commit
   onCreateBoard = null,    // () => void — empty-state "create first board" CTA
+  onCreateBoardInside,     // (parentBoardId) => void — context-menu "New board inside"
+  onSetBoardCover,         // (boardId, coverKey|null) => void
+  onSetBoardBgColor,       // (boardId, hex|null) => void
+  onCopyBoard,             // (board) => void
+  onPasteBoardInto,        // (targetBoardId) => void
+  onDeleteBoard,           // (boardId) => void
+  canEditBoard,            // (boardId) => boolean
   peersHereByBoard,
   peersBelowByBoard,
   onJumpToPeer,
@@ -54,6 +64,11 @@ export function SidebarBoardTree({
   const dragGestureRef = useRef({ dragged: false });
   // Row currently highlighted as a reparent drop target.
   const [dropTargetId, setDropTargetId] = useState(null);
+  // Right-click context menu: { open, x, y, board }.
+  const [menu, setMenu] = useState({ open: false, x: 0, y: 0, board: null });
+  const closeMenu = () => setMenu(m => ({ ...m, open: false }));
+  // "Custom…" full color picker for bg_color: { boardId, value, x, y } | null.
+  const [picker, setPicker] = useState(null);
   // Multi-select set for dragging several boards at once (cmd/shift-click).
   const [selectedTreeBoards, setSelectedTreeBoards] = useState(() => new Set());
   // Live boards map for the touch DnD listener (its effect deps are []).
@@ -92,6 +107,74 @@ export function SidebarBoardTree({
     try { await onRenameBoard?.(boardId, trimmed); } catch {}
   };
   const cancelRename = () => setRenaming(null);
+
+  // Expand a board's branch so a freshly-created/pasted child becomes visible.
+  const expandBoard = (boardId) => {
+    setExpanded(prev => {
+      if (prev.has(boardId)) return prev;
+      const next = new Set(prev);
+      next.add(boardId);
+      saveExpanded(workspaceId, next);
+      return next;
+    });
+  };
+
+  // Build the right-click context-menu items for a board row. Mutating items
+  // are gated behind canEditBoard; Open + Copy are always available.
+  const buildRowMenu = (board) => {
+    const canEdit = canEditBoard ? canEditBoard(board.id) : false;
+    const currentCover = board.cover || 'neutral';
+    const items = [];
+
+    items.push({ id: 'open', label: 'Open', run: () => onOpenBoard?.(board.id) });
+
+    if (canEdit) {
+      items.push({ id: 'rename', label: 'Rename', run: () => beginRename(board) });
+      items.push({ divider: true });
+      items.push({
+        id: 'new-inside', label: 'New board inside',
+        run: () => { expandBoard(board.id); onCreateBoardInside?.(board.id); },
+      });
+      items.push({
+        id: 'color', label: 'Change color',
+        submenu: [
+          ...Object.keys(COVER_TINTS).map(k => ({
+            id: `cover-${k}`,
+            swatch: COVER_TINTS[k],
+            label: k.charAt(0).toUpperCase() + k.slice(1),
+            checked: currentCover === k,
+            run: () => onSetBoardCover?.(board.id, k === 'neutral' ? null : k),
+          })),
+          { divider: true },
+          {
+            id: 'cover-custom', label: 'Custom…',
+            run: () => setPicker({
+              boardId: board.id,
+              value: board.bg_color || '#1c1c1f',
+              x: menu.x, y: menu.y,
+            }),
+          },
+        ],
+      });
+      items.push({ divider: true });
+    }
+
+    items.push({ id: 'copy', label: 'Copy', run: () => onCopyBoard?.(board) });
+    if (canEdit) {
+      items.push({
+        id: 'paste', label: 'Paste into this board',
+        disabled: boardClipboardSize() === 0,
+        run: () => onPasteBoardInto?.(board.id),
+      });
+      items.push({ divider: true });
+      items.push({
+        id: 'delete', label: 'Delete', danger: true,
+        run: () => onDeleteBoard?.(board.id),
+      });
+    }
+
+    return items;
+  };
 
   // Reset expansion state when switching workspaces — we keep per-workspace
   // sets in localStorage so each workspace remembers its own open branches.
@@ -279,6 +362,17 @@ export function SidebarBoardTree({
              }}
              onMouseEnter={() => hoverEnter(board.id)}
              onMouseLeave={hoverLeave}
+             onContextMenu={(e) => {
+               // Right-click acts on THIS board only (not the multi-select set),
+               // mirroring file-tree convention. preventDefault suppresses the
+               // native menu; the contextmenu event is distinct from click so
+               // it won't open the board or fight the drag/double-click paths.
+               e.preventDefault();
+               e.stopPropagation();
+               setSelectedTreeBoards(new Set([board.id]));
+               lastClickedRef.current = board.id;
+               setMenu({ open: true, x: e.clientX, y: e.clientY, board });
+             }}
              onClick={(e) => onRowClick(e, board)}
              onDoubleClick={(e) => {
                // Double-click anywhere on the row enters rename mode.
@@ -447,6 +541,25 @@ export function SidebarBoardTree({
   return (
     <div className="sb-tree" ref={treeRef}>
       {roots.map(b => renderRow(b, 0))}
+      <CardContextMenu
+        open={menu.open}
+        x={menu.x}
+        y={menu.y}
+        items={menu.board ? buildRowMenu(menu.board) : []}
+        onClose={closeMenu}
+        workspaceId={workspaceId}
+        boardId={menu.board?.id}
+        card={null}
+      />
+      {picker && (
+        <ColorPicker
+          value={picker.value}
+          onChange={(c) => onSetBoardBgColor?.(picker.boardId, c)}
+          onClose={() => setPicker(null)}
+          position={{ x: picker.x, y: picker.y }}
+          allowTransparent
+        />
+      )}
     </div>
   );
 }

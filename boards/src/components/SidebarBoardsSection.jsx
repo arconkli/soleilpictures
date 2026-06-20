@@ -29,6 +29,13 @@ export function SidebarBoardsSection({
   onOpenBoard,
   onRenameBoard,
   onCreateBoard = null,     // () => void — also used as the header "+" when present
+  onCreateBoardInside,      // (parentBoardId) => void — context-menu "New board inside"
+  onSetBoardCover,          // (boardId, coverKey|null) => void
+  onSetBoardBgColor,        // (boardId, hex|null) => void
+  onCopyBoard,              // (board) => void
+  onPasteBoardInto,         // (targetBoardId) => void
+  onDeleteBoard,            // (boardId) => void
+  canEditBoard,             // (boardId) => boolean
   onOpenPicker,             // () => void — the "All boards" row opens the picker
   peersHereByBoard,
   peersBelowByBoard,
@@ -67,6 +74,13 @@ export function SidebarBoardsSection({
             onOpenBoard={onOpenBoard}
             onRenameBoard={onRenameBoard}
             onCreateBoard={onCreateBoard}
+            onCreateBoardInside={onCreateBoardInside}
+            onSetBoardCover={onSetBoardCover}
+            onSetBoardBgColor={onSetBoardBgColor}
+            onCopyBoard={onCopyBoard}
+            onPasteBoardInto={onPasteBoardInto}
+            onDeleteBoard={onDeleteBoard}
+            canEditBoard={canEditBoard}
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={onJumpToPeer}
