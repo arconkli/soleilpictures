@@ -16,6 +16,7 @@ import { setMetaLocal } from './imageMeta.js';
 import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
 import * as perf from './perf.js';
+import { planParts } from './multipartPlan.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
@@ -728,5 +729,246 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
     width: meta.w,
     height: meta.h,
     duration: meta.duration,
+  };
+}
+
+// ── Multipart upload (any file type, up to the account storage quota) ─────────
+//
+// uploadFile() moves arbitrary files (zip/psd/large media/…) to R2 via the
+// upload party's /mpu/* routes. The browser only PUTs part bytes directly to R2
+// (CORS allows PUT); the party does the S3 Create/Complete/Abort POSTs. The
+// gate (paid owner + within storage quota) runs server-side at /mpu/create and
+// surfaces as a typed error (err.code 402 = over quota, 403 = not a paid owner)
+// so the caller can roll back the optimistic card + show an upgrade prompt.
+//
+// Resumable: a per-file session (key + uploadId + completed part ETags) is
+// persisted to localStorage, so re-dropping the same file after a refresh skips
+// already-uploaded parts.
+
+const MPU_CONCURRENCY = 4;                       // parts uploading at once
+const MPU_SIGN_BATCH = 64;                       // part URLs presigned per round-trip
+const MPU_RESUME_TTL_MS = 24 * 60 * 60 * 1000;  // localStorage session lifetime
+
+// planParts (pure part-planning math) lives in ./multipartPlan.js so it
+// unit-tests without pulling in browser deps; re-export for existing importers.
+export { planParts };
+
+// POST to an /mpu/<path> party route. Non-2xx throws a typed error carrying the
+// HTTP status (err.code) + the server's reason/used/quota for quota/paywall UX.
+async function mpuPost(path, workspaceId, payload) {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not signed in');
+  const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(workspaceId)}/mpu/${path}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let info = null;
+    try { info = await res.json(); } catch (_) { /* non-JSON body */ }
+    const err = new Error(info?.error || `mpu/${path} failed: ${res.status}`);
+    err.code = res.status;
+    err.reason = info?.reason || null;
+    err.used = info?.used ?? null;
+    err.quota = info?.quota ?? null;
+    throw err;
+  }
+  return res.json();
+}
+
+// XHR PUT of one part. Resolves with the part's ETag (needed for Complete). No
+// Content-Type header: the presigned part URL signs only `host`, so an unsigned
+// CT is ignored by R2 — sending one risks nothing, omitting it is cleanest.
+function putPartWithProgress(url, blob, { onProgress, signal } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url, true);
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable && onProgress) onProgress(ev.loaded);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const etag = xhr.getResponseHeader('ETag');
+        if (!etag) {
+          // R2 must expose ETag via CORS (it does today). Without it we can't
+          // complete the upload — surface a clear cause rather than a cryptic 502.
+          reject(new Error('Missing ETag on part response (R2 CORS ExposeHeaders)'));
+          return;
+        }
+        resolve(etag);
+      } else reject(new Error(`Part upload failed: ${xhr.status} ${xhr.statusText}`));
+    };
+    xhr.onerror = () => reject(new Error('Part upload network error'));
+    xhr.onabort = () => reject(new Error('aborted'));
+    if (signal) {
+      if (signal.aborted) { try { xhr.abort(); } catch (_) {} }
+      else signal.addEventListener('abort', () => { try { xhr.abort(); } catch (_) {} }, { once: true });
+    }
+    xhr.send(blob);
+  });
+}
+
+// Retry a part PUT on network/5xx; never retry an abort or a 4xx (expired URL /
+// auth won't fix themselves on retry).
+async function putPartWithRetry(url, blob, { onProgress, signal } = {}, tries = 4) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    if (signal?.aborted) throw new Error('aborted');
+    try { return await putPartWithProgress(url, blob, { onProgress, signal }); }
+    catch (err) {
+      if (signal?.aborted || String(err?.message) === 'aborted') throw err;
+      const m = String(err?.message || '').match(/\b(\d{3})\b/);
+      const status = m ? parseInt(m[1], 10) : 0;       // 0 = network/no status
+      lastErr = err;
+      if (!(status === 0 || status >= 500) || i === tries - 1) throw err;
+      await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+    }
+  }
+  throw lastErr;
+}
+
+// Run `worker` over items with bounded concurrency; reject on first failure.
+async function runPool(items, concurrency, worker) {
+  let idx = 0; let failed = null;
+  const n = Math.min(Math.max(1, concurrency), items.length);
+  const runners = [];
+  for (let k = 0; k < n; k++) {
+    runners.push((async () => {
+      while (idx < items.length && !failed) {
+        const item = items[idx++];
+        try { await worker(item); }
+        catch (e) { failed = e; throw e; }
+      }
+    })());
+  }
+  await Promise.all(runners);
+  if (failed) throw failed;
+}
+
+function mpuFingerprint(file, workspaceId, boardId) {
+  return `soleil.mpu.${workspaceId}:${boardId}:${file.name}:${file.size}:${file.lastModified}`;
+}
+function loadMpuState(fp) {
+  try {
+    const st = JSON.parse(localStorage.getItem(fp) || 'null');
+    if (!st || (Date.now() - (st.createdAt || 0)) > MPU_RESUME_TTL_MS) { localStorage.removeItem(fp); return null; }
+    return st;
+  } catch (_) { return null; }
+}
+function saveMpuState(fp, st) { try { localStorage.setItem(fp, JSON.stringify(st)); } catch (_) {} }
+function clearMpuState(fp) { try { localStorage.removeItem(fp); } catch (_) {} }
+
+// Insert the images row that authorizes /sign-reads for this key. The bytes are
+// already in R2, so retry hard — a missing row means a permanently unreadable
+// file (and, unlike a single-PUT orphan, a completed multipart object the sweep
+// can't see).
+async function insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId }) {
+  let lastErr;
+  for (let i = 0; i < 3; i++) {
+    const { error } = await supabase.from('images').insert({
+      workspace_id: workspaceId,
+      board_id: boardId || null,
+      card_id: cardId || null,
+      storage_path: key,
+      width: null,
+      height: null,
+      size_bytes: file.size || null,
+      uploaded_by: userId,
+    });
+    if (!error) return;
+    lastErr = error;
+    await new Promise(r => setTimeout(r, 400 * (i + 1)));
+  }
+  console.warn('[uploads] file images row insert failed', lastErr);
+  throw new Error('Could not finish saving the file — please try again.');
+}
+
+// Upload any File to R2 via multipart. Returns
+// { src:'r2:<key>', key, storagePath, sizeBytes, mime, ext, fileName }.
+// onProgress(p) fires 0..1. Pass an AbortSignal to support cancel.
+export async function uploadFile({ file, workspaceId, boardId, cardId = null, userId,
+                                   onProgress = null, signal = null }) {
+  if (!workspaceId) throw new Error('workspaceId required');
+  if (!boardId) throw new Error('boardId required');
+  const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin';
+  const fp = mpuFingerprint(file, workspaceId, boardId);
+
+  // Resume an alive session for this exact file, else open a new one. A 402/403
+  // here (over quota / not a paid owner) throws straight out — no session exists
+  // to clean up — for the caller to roll back + upsell.
+  let session = loadMpuState(fp);
+  if (!session) {
+    const created = await mpuPost('create', workspaceId, {
+      boardId, fileExt: ext, contentType: file.type || 'application/octet-stream', totalBytes: file.size,
+    });
+    session = { key: created.key, uploadId: created.uploadId, partSize: created.partSize, completed: {}, createdAt: Date.now() };
+    saveMpuState(fp, session);
+  }
+
+  const { key, uploadId, partSize } = session;
+  const parts = planParts(file.size, partSize);
+  const completed = session.completed || {};   // { partNumber: etag }
+  const loadedByPart = {};                      // bytes uploaded for in-flight parts
+
+  const emit = () => {
+    if (!onProgress) return;
+    let loaded = 0;
+    for (const p of parts) {
+      loaded += completed[p.partNumber] != null ? (p.end - p.start) : (loadedByPart[p.partNumber] || 0);
+    }
+    onProgress(Math.min(1, loaded / Math.max(1, file.size)));
+  };
+  emit();
+
+  const todo = parts.filter(p => completed[p.partNumber] == null);
+
+  try {
+    for (let i = 0; i < todo.length; i += MPU_SIGN_BATCH) {
+      if (signal?.aborted) throw new Error('aborted');
+      const batch = todo.slice(i, i + MPU_SIGN_BATCH);
+      const { urls } = await mpuPost('sign-parts', workspaceId, {
+        boardId, key, uploadId, partNumbers: batch.map(p => p.partNumber),
+      });
+      await runPool(batch, MPU_CONCURRENCY, async (p) => {
+        const url = urls[p.partNumber];
+        if (!url) throw new Error(`Missing signed URL for part ${p.partNumber}`);
+        const etag = await putPartWithRetry(url, file.slice(p.start, p.end), {
+          signal,
+          onProgress: (loaded) => { loadedByPart[p.partNumber] = loaded; emit(); },
+        });
+        completed[p.partNumber] = etag;
+        loadedByPart[p.partNumber] = (p.end - p.start);
+        session.completed = completed; saveMpuState(fp, session);
+        emit();
+      });
+    }
+
+    await mpuPost('complete', workspaceId, {
+      boardId, key, uploadId,
+      parts: parts.map(p => ({ partNumber: p.partNumber, etag: completed[p.partNumber] })),
+    });
+    clearMpuState(fp);
+  } catch (err) {
+    // Terminal (auth/quota/abort) → discard the server session + local state.
+    // Transient (network) → keep local state so a re-drop resumes. Always
+    // re-throw so the caller rolls back the optimistic card.
+    if (err?.code === 402 || err?.code === 403 || String(err?.message) === 'aborted') {
+      await mpuPost('abort', workspaceId, { boardId, key, uploadId }).catch(() => {});
+      clearMpuState(fp);
+    }
+    throw err;
+  }
+
+  await insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId });
+
+  return {
+    src: `r2:${key}`,
+    storagePath: key,
+    key,
+    sizeBytes: file.size,
+    mime: file.type || 'application/octet-stream',
+    ext,
+    fileName: file.name,
   };
 }

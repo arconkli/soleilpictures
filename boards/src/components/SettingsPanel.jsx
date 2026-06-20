@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase.js';
 import { uploadImage } from '../lib/uploads.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
+import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { PricingModal } from './PricingModal.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { R2Image } from './R2Image.jsx';
@@ -749,6 +750,39 @@ function BillingTab({ user }) {
 // Billing tab and by the standalone /settings/billing page (the Stripe
 // Customer Portal return target). Callers own data fetching, error UI,
 // and the upgrade modal so each surface can keep its own framing.
+function fmtBytes(b) {
+  if (b == null) return '—';
+  const gb = b / (1024 ** 3);
+  if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
+  const mb = b / (1024 ** 2);
+  if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
+  return `${Math.round(b / 1024)} KB`;
+}
+
+// "X / 100 GB" usage meter for paid accounts (storage is a paid feature).
+function StorageMeter() {
+  const usage = useStorageUsage({ enabled: true });
+  const pct = usage.quota ? Math.min(100, (usage.used / usage.quota) * 100) : 0;
+  const near = pct >= 90;
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+        <span className="settings-billing-label">Storage</span>
+        <span className="settings-billing-value" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {usage.loading ? '…' : `${fmtBytes(usage.used)} / ${usage.quota != null ? fmtBytes(usage.quota) : '—'}`}
+        </span>
+      </div>
+      <div style={{ height: 6, borderRadius: 999, background: 'var(--line-1, rgba(255,255,255,.12))', overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', width: `${pct}%`, borderRadius: 999,
+          background: near ? '#ef4444' : 'var(--soleil, #ffa500)',
+          transition: 'width .3s ease',
+        }} />
+      </div>
+    </div>
+  );
+}
+
 export function BillingSummary({
   tier, sub, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
   grantActive, grantExpiresAt, demoCardCount,
@@ -800,6 +834,8 @@ export function BillingSummary({
           </>
         )}
       </div>
+
+      {tier === 'paid' && <StorageMeter />}
 
       {grantLine && (
         <p className="settings-section-hint" style={{ marginTop: 8 }}>

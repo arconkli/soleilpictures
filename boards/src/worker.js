@@ -38,7 +38,7 @@ const ROUTE_META = {
   '/pricing': {
     title: 'Pricing — Soleil Clusters',
     description:
-      'Soleil Clusters pricing — start free with the Demo, or unlock unlimited boards, files, and Edit Mode with Creator. Simple monthly or annual plans.',
+      'Soleil Clusters pricing — start free with the Demo, or go Creator ($25/mo) for unlimited boards, 100GB storage, any file type, and Edit Mode. Simple monthly or annual plans.',
   },
   '/legal/privacy': {
     title: 'Privacy Policy — Soleil Clusters',

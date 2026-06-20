@@ -43,9 +43,10 @@ export function planBilling(plan) {
 // EVERY Creator surface. `**text**` marks bold spans (rendered by FeatureList).
 export const CREATOR_FEATURES = [
   'Unlimited visitors with **Edit Mode**',
-  'Unlimited workspaces, boards, video, and audio files',
+  'Unlimited workspaces, boards & files',
   'All Creative Tools available',
   'Access to all Virtual + Social events',
+  '**100GB** storage — upload **any file type**, no size limit',
 ];
 
 // Demo is intentionally minimal: it's a 100-card sandbox, and visitors only

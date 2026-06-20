@@ -6,7 +6,7 @@ import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard,
+  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard,
 } from './cards.jsx';
 import { RichDocCard } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
@@ -34,7 +34,7 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
-import { uploadImage, uploadVideo, uploadAudio, uploadPdf } from '../lib/uploads.js';
+import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta } from '../lib/uploads.js';
 import { resolveSrc } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
@@ -79,6 +79,11 @@ import { ArrowPopover } from './ArrowPopover.jsx';
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
+// Mobile press-and-hold to pick up a card. On touch a one-finger drag PANS
+// the board (looking around); a card only becomes movable after holding it
+// still this long. Mirrors the existing useLongPress timing (480ms / 10px).
+const TOUCH_LIFT_MS = 480;
+const TOUCH_LIFT_TOLERANCE = 10;
 // GPU-promotion of the .canvas layer is GREAT for smooth pan/zoom — but it
 // FORCES every overlapping descendant (all mounted cards + the virtual-canvas
 // SVG layers) to be composited into its own GPU layer ("Overlap" compositing).
@@ -261,7 +266,10 @@ export function CanvasSurface({
                            // and gray the toolbar (RLS is the real defense)
   boardPermission = null,  // { role, canEdit, source } from useBoardPermission;
                            // drives the ReadOnlyBanner + upgrade-CTA copy
-  onRequestUpgrade = null, // () => void — opens App's UpgradeModal
+  onRequestUpgrade = null, // () => void — opens App's UpgradeModal (shared-edit copy)
+  onRequestStorageUpgrade = null, // () => void — opens the storage/files upgrade prompt
+  isPaidPlan = false,      // current user on a paid/admin plan (best-effort client gate)
+  ownsWorkspace = false,   // current user owns the active workspace (created_by)
   autotagSuggest,          // (content, target) => Promise<[{tagId,score,reason}]>
   autotagReady = false,    // worker hydration finished
   sessionId = null,        // per-tab session id for board_versions grouping
@@ -571,6 +579,9 @@ export function CanvasSurface({
   const exportSvgRef = useRef(null);
   const [exportSvgMounted, setExportSvgMounted] = useState(false);
   const [drag, setDrag] = useState(null);
+  // Touch only: the card currently "lifted" by a press-and-hold (picked up,
+  // ready to drag). Drives the .is-lifted visual cue. Cleared on drop/cancel.
+  const [liftedCardId, setLiftedCardId] = useState(null);
   // While dragging, computeSnap fills this with the matched alignment lines
   // so the canvas can render thin gold guides at those coords.
   // { xs: [{ x, y0, y1 }], ys: [{ y, x0, x1 }] } — both in canvas-space.
@@ -1683,12 +1694,113 @@ export function CanvasSurface({
     }
   }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas]);
 
+  // Roll back an optimistic card on upload failure. 402 (over quota) / 403 (not
+  // a paid owner) open the upgrade prompt; anything else is a plain error toast.
+  const handleUploadReject = useCallback((err, id, dropBoardId) => {
+    if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+    const upsell = onRequestStorageUpgrade || onRequestUpgrade;
+    if (err?.code === 402) {
+      upsell?.();
+      feedback.toast({ type: 'warning', message: "You're out of storage. Upgrade for more space." });
+    } else if (err?.code === 403) {
+      upsell?.();
+      feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
+    } else if (String(err?.message) !== 'aborted') {
+      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+    }
+  }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback]);
+
+  // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
+  const placeDropRect = useCallback((cx, cy, w, h) => {
+    let bounds = null;
+    const wrap = wrapRef.current;
+    if (wrap) {
+      const r = wrap.getBoundingClientRect();
+      const tl = clientToCanvas(r.left, r.top);
+      const br = clientToCanvas(r.right, r.bottom);
+      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
+    }
+    return clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+  }, [clientToCanvas]);
+
+  // Any file type → a generic, downloadable file card. Uploads via multipart
+  // (boards/src/lib/uploads.js uploadFile), which gates on paid-owner + storage
+  // quota server-side. Mirrors optimisticDropPdf's optimistic add → update → roll
+  // back on failure.
+  const optimisticDropFile = useCallback(async (file, cx, cy) => {
+    if (!file) return;
+    const dropBoardId = board?.id;
+    const id = `file-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const w = 240, h = 150;
+    const placed = placeDropRect(cx, cy, w, h);
+    const ext = (file.name?.split('.').pop() || '').toLowerCase();
+
+    if (useLocalImages) {
+      // Local QA — no backend. resolveSrc passes a non-r2: blob URL through.
+      let blobUrl = null; try { blobUrl = URL.createObjectURL(file); } catch (_) {}
+      mutators.addCard?.({ id, kind: 'file', fileSrc: blobUrl, fileName: file.name,
+                           mime: file.type, sizeBytes: file.size, ext, x: placed.x, y: placed.y, w, h });
+      return;
+    }
+
+    mutators.addCard?.({ id, kind: 'file', fileName: file.name, mime: file.type,
+                         sizeBytes: file.size, ext, x: placed.x, y: placed.y, w, h, pending: true });
+    try {
+      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      if (boardIdRef.current === dropBoardId) {
+        mutators.updateCard?.(id, {
+          fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false,
+        });
+      }
+    } catch (err) {
+      console.error('file upload failed', err);
+      handleUploadReject(err, id, dropBoardId);
+    } finally {
+      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    }
+  }, [useLocalImages, workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject]);
+
+  // Over-cap video/audio (paid only) → still an inline media card, but uploaded
+  // via multipart so big files upload reliably + count against the quota.
+  const dropLargeMedia = useCallback(async (file, kind, cx, cy) => {
+    if (!file) return;
+    const dropBoardId = board?.id;
+    let w, h, extra = {};
+    if (kind === 'video') {
+      const meta = await readVideoMeta(file);
+      w = Math.max(240, Math.min(560, meta.w || 360));
+      const aspect = meta.h && meta.w ? (meta.h / meta.w) : 9 / 16;
+      h = Math.max(160, Math.round(w * aspect));
+    } else {
+      const meta = await readAudioMeta(file);
+      w = 380; h = 130; extra = { title: file.name || 'Audio', duration: meta.duration || null };
+    }
+    const id = `${kind === 'video' ? 'vid' : 'aud'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const placed = placeDropRect(cx, cy, w, h);
+    mutators.addCard?.({ id, kind, x: placed.x, y: placed.y, w, h, pending: true, ...extra });
+    try {
+      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      if (boardIdRef.current === dropBoardId) mutators.updateCard?.(id, { src: up.src, pending: false });
+    } catch (err) {
+      console.error('large media upload failed', err);
+      handleUploadReject(err, id, dropBoardId);
+    } finally {
+      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    }
+  }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject]);
+
   // Upload a video file and place a video card centered on (cx, cy).
   // Validates duration via uploadVideo (default cap 60s, 30 MB). Toast
   // surfaces upload errors.
-  const dropVideoFile = useCallback(async (file, cx, cy) => {
+  const dropVideoFile = useCallback(async (file, cx, cy, allowLong = false) => {
     if (!workspaceId) throw new Error('workspaceId required');
-    const up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId });
+    // Paid uploads (allowLong) drop the free-tier 60s clip cap; the byte cap is
+    // moot here (this path only handles ≤ the free byte cap — larger goes
+    // through dropLargeMedia/multipart).
+    const up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId,
+                                   ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
     const w = Math.max(240, Math.min(560, up.width || 360));
     const aspect = up.height && up.width ? (up.height / up.width) : 9 / 16;
     const h = Math.max(160, Math.round(w * aspect));
@@ -1720,6 +1832,84 @@ export function CanvasSurface({
       w, h,
     });
   }, [workspaceId, board?.id, userId, mutators]);
+
+  // Route a FileList onto the canvas, centered at (cx, cy). Shared by drag-drop,
+  // the right-click "Add → File" entry, and the toolbar "+" menu so all three
+  // dispatch identically: images / within-cap media use the free single-PUT
+  // path; over-cap media + any other file type are the paid "upload anything"
+  // feature (multipart, server-gated on paid-owner + storage quota). The client
+  // pre-check only hard-blocks the unambiguous case (you own this workspace and
+  // you're not paid); shared workspaces attempt optimistically and let the
+  // server's 402/403 decide.
+  const ingestFiles = useCallback(async (fileList, cx, cy) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const FREE_VIDEO_CAP = 30 * 1024 * 1024;
+    const FREE_AUDIO_CAP = 50 * 1024 * 1024;
+    const FREE_PDF_CAP   = 50 * 1024 * 1024;
+    const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
+    const blockedForUpgrade = [];
+    let offsetX = 0;
+    for (const f of files) {
+      const isImage = f.type.startsWith('image/');
+      const isVideo = f.type.startsWith('video/');
+      const isAudio = f.type.startsWith('audio/');
+      // Some browsers report an empty type for .pdf picks/drops — match the extension too.
+      const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+      try {
+        if (isImage) {
+          // Optimistic — adds the card and uploads in the background so
+          // multi-file drops aren't blocked one at a time.
+          optimisticDropImage(f, cx + offsetX, cy); offsetX += 260;
+        } else if (isVideo && f.size <= FREE_VIDEO_CAP) {
+          await dropVideoFile(f, cx + offsetX, cy, canAttemptFiles); offsetX += 320;
+        } else if (isAudio && f.size <= FREE_AUDIO_CAP) {
+          await dropAudioFile(f, cx + offsetX, cy); offsetX += 380;
+        } else if (isPdf && f.size <= FREE_PDF_CAP) {
+          optimisticDropPdf(f, cx + offsetX, cy); offsetX += 320;
+        } else if (!canAttemptFiles) {
+          blockedForUpgrade.push(f);
+        } else if (isVideo || isAudio) {
+          // Over-cap clip — still an inline media card, uploaded via multipart.
+          dropLargeMedia(f, isVideo ? 'video' : 'audio', cx + offsetX, cy);
+          offsetX += isVideo ? 320 : 380;
+        } else {
+          // PDFs over the inline cap + every other type → downloadable file card.
+          optimisticDropFile(f, cx + offsetX, cy); offsetX += 260;
+        }
+      } catch (err) {
+        console.error(err);
+        feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
+      }
+    }
+    if (blockedForUpgrade.length) {
+      (onRequestStorageUpgrade || onRequestUpgrade)?.();
+      feedback.toast({
+        type: 'warning',
+        message: `Uploading ${blockedForUpgrade.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
+        duration: 6000,
+      });
+    }
+  }, [ownsWorkspace, isPaidPlan, optimisticDropImage, dropVideoFile, dropAudioFile,
+      optimisticDropPdf, dropLargeMedia, optimisticDropFile, onRequestStorageUpgrade,
+      onRequestUpgrade, feedback]);
+
+  // Unified "Add → File" picker: opens a native file chooser with NO accept
+  // filter (any type) and routes the chosen file(s) through ingestFiles — the
+  // same dispatch as drag-drop, so a picked PDF still becomes a PDF card, an
+  // image an image card, a clip a media card, anything else a generic file
+  // card. `pos` is a canvas coordinate (from the click point / viewport center).
+  const openFilePicker = useCallback((pos) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.onchange = () => {
+      if (input.files && input.files.length) {
+        ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200);
+      }
+    };
+    input.click();
+  }, [ingestFiles]);
 
   // Right-click "Set cover image" → upload an image file and stamp it
   // onto the audio card's `cover` field. Also widens the card so the
@@ -1977,6 +2167,11 @@ export function CanvasSurface({
         const id = cardEl.getAttribute('data-card-id');
         const c = id ? cardById[id] : null;
         if (!c) return;
+        // On editable boards with the select tool, a long-press on a card now
+        // LIFTS it for dragging (handled per-gesture in onCardPointerDown) —
+        // the card's "⋯" button opens the menu instead. View-only boards (no
+        // lift, no ⋯ button) keep the long-press context menu.
+        if (canEdit && selectedTool === 'select') return;
         if (!selected.has(c.id)) setSelected(new Set([c.id]));
         setBgCtx(b => ({ ...b, open: false }));
         setCtx({ open: true, x, y, cardId: c.id });
@@ -2334,6 +2529,22 @@ export function CanvasSurface({
             }
             return;
           }
+          // Any other file type pasted from the OS clipboard (zip, etc.) → file card.
+          if (item.kind === 'file') {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              if (ownsWorkspace && !isPaidPlan) {
+                (onRequestStorageUpgrade || onRequestUpgrade)?.();
+                feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
+              } else {
+                const { pos, clamped } = resolvePastePos();
+                notePasteCreate(clamped);
+                optimisticDropFile(file, pos.x, pos.y);
+              }
+              return;
+            }
+          }
         }
       }
 
@@ -2380,7 +2591,8 @@ export function CanvasSurface({
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [feedback, optimisticDropImage, optimisticDropPdf, doPaste, mutators]);
+  }, [feedback, optimisticDropImage, optimisticDropPdf, optimisticDropFile, doPaste, mutators,
+      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -2748,6 +2960,7 @@ export function CanvasSurface({
     if (selectedTool !== 'select') return;
     if (e.target.closest?.('.card-resize')) return;
     if (e.target.closest?.('.card-rotate')) return;
+    if (e.target.closest?.('.card-menu-btn')) return;
 
     e.stopPropagation();
     // NOTE: deliberately NOT calling setPointerCapture. Capturing the pointer
@@ -2759,6 +2972,13 @@ export function CanvasSurface({
     const openOnClick = (c.kind === 'board' && e.target.closest?.('.bc-cover')) ||
       (c.kind === 'boardlink' && boards[c.target]);
 
+    // Mobile press-and-hold: on touch, a one-finger drag PANS the board (the
+    // user is looking around) and only LIFTS a card after a deliberate hold —
+    // so selection must NOT change until the gesture commits to being a tap or
+    // a lift. `touchHold` gates every mobile-specific branch below; for mouse /
+    // pen it stays false and the original synchronous path runs verbatim.
+    const touchHold = e.pointerType === 'touch' && e.isPrimary;
+
     let nextSelected;
     if (e.shiftKey) {
       nextSelected = new Set(selected);
@@ -2769,14 +2989,18 @@ export function CanvasSurface({
     } else {
       nextSelected = new Set([c.id]);
     }
-    setSelected(nextSelected);
-    // Only a fresh (non-additive) selection clears stroke/arrow selection.
-    // Shift+Click is building a mixed selection, so leave them intact —
-    // matching onStrokeClick / onArrowClick, which only clear when !shift.
-    if (!e.shiftKey) {
-      setSelectedStrokes(new Set());
-      setSelectedArrows(new Set());
-    }
+    // Apply the selection (+ clear stroke/arrow selection on a fresh, non-
+    // additive press). Shift+Click builds a mixed selection so it leaves
+    // stroke/arrow intact — matching onStrokeClick / onArrowClick. Deferred on
+    // touch until onLift / the tap branch of onUp (see touchHold above).
+    const applyCardSelection = () => {
+      setSelected(nextSelected);
+      if (!e.shiftKey) {
+        setSelectedStrokes(new Set());
+        setSelectedArrows(new Set());
+      }
+    };
+    if (!touchHold) applyCardSelection();
     if (e.shiftKey) return;
 
     // Expand the drag set to cover every groupmate of every selected
@@ -2784,7 +3008,9 @@ export function CanvasSurface({
     const expanded = expandWithGroupmates(nextSelected);
     const dragIds = [...expanded];
     const dragSet = new Set(dragIds);
-    markRecentDrag(dragIds);
+    // Deferred on touch: a pan or tap that starts on a card must not register
+    // as a "recent drag". onLift calls this once the press becomes a real move.
+    if (!touchHold) markRecentDrag(dragIds);
     // For touch-friendly drop detection: the grabbed card (primary) + every
     // board/boardlink we could nest into, captured once (cards don't change
     // mid-drag). Used by the overlap fallback in flushMove when the finger
@@ -3016,6 +3242,46 @@ export function CanvasSurface({
     // silently never fired. use-gesture's accidental mouse pointer-capture
     // used to retarget pointerup back to the pressed element and mask all
     // of this — see the drag config note near useGesture.
+    // ── Mobile press-and-hold to pick up ─────────────────────────────────
+    // Until a card is "lifted" (held still ~480ms), a touch drag mirrors
+    // startPan's single-finger pan; the lift then hands off to the normal
+    // card-drag arm below. Mouse/pen: lifted starts true → these are no-ops.
+    const initialPointerId = e.pointerId;
+    const startPanXY = { x: panRef.current.x, y: panRef.current.y };
+    let lifted = !touchHold;
+    let panned = false;
+    let aborted = false;
+    // Re-baselined to the arm point on a touch lift so the card doesn't jump
+    // by the finger's pre-lift drift. Null on mouse → deltas use startClient.
+    let dragOriginClient = null;
+    let liftTimer = null;
+    const cancelLift = () => { if (liftTimer) { clearTimeout(liftTimer); liftTimer = null; } };
+    const onSecondTouch = (ev) => {
+      // A second finger → use-gesture owns the pinch; abort our pan/lift so we
+      // never fight its panRef writes or commit a stray move (cf. startPan).
+      if (ev.pointerType !== 'touch' || ev.pointerId === initialPointerId) return;
+      aborted = true;
+      cleanupTouchHold();
+    };
+    function cleanupTouchHold() {
+      cancelLift();
+      window.removeEventListener('pointerdown', onSecondTouch, true);
+      setLiftedCardId(null);
+    }
+    const onLift = () => {
+      liftTimer = null;
+      if (panned || aborted) return;
+      lifted = true;
+      applyCardSelection();
+      markRecentDrag(dragIds);
+      setLiftedCardId(c.id);
+      try { navigator.vibrate?.(8); } catch (_) {}
+    };
+    if (touchHold) {
+      liftTimer = setTimeout(onLift, TOUCH_LIFT_MS);
+      window.addEventListener('pointerdown', onSecondTouch, true);
+    }
+
     let dragArmed = false;
 
     // rAF-coalesced liveDrag broadcast. pointermove can fire ~120/sec;
@@ -3046,17 +3312,40 @@ export function CanvasSurface({
       const ev = pendingMoveEv;
       pendingMoveEv = null;
       if (!ev) return;
+      // Touch, not yet lifted: this gesture is a PAN (looking around), not a
+      // card move. Mirror startPan.onMove. Movement past the tolerance cancels
+      // the pending lift (it's a pan, not a hold). Never arms the card-drag.
+      if (touchHold && !lifted) {
+        if (aborted || ev.pointerId !== initialPointerId) return;
+        const moved = Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y);
+        if (!panned && moved > TOUCH_LIFT_TOLERANCE) { panned = true; cancelLift(); }
+        if (panned) {
+          panRef.current = {
+            x: startPanXY.x + (ev.clientX - startClient.x),
+            y: startPanXY.y + (ev.clientY - startClient.y),
+          };
+          gestureUntilRef.current = performance.now() + 200;
+          markGestureActiveUntil(gestureUntilRef.current);
+          applyCanvasTransform();
+          scheduleVisibleRecompute();
+        }
+        return;
+      }
       // Click-vs-drag: same 4px screen-space distance onUp's wasClick check
       // uses, so a gesture can never commit a move without having armed.
       // Until the threshold is crossed the gesture stays a potential click
       // and the card must NOT enter .is-dragging (see dragArmed above).
       if (!dragArmed &&
           Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) <= 4) return;
+      // A touch lift re-baselines the drag origin to the arm point so the card
+      // doesn't jump by the finger's pre-lift drift. Mouse keeps startClient.
+      if (!dragArmed && touchHold) dragOriginClient = { x: ev.clientX, y: ev.clientY };
       dragArmed = true;
       perf.bump('drag.flush');
       const _t0 = perf.isEnabled() ? performance.now() : 0;
-      const rawDx = (ev.clientX - startClient.x) / zoom;
-      const rawDy = (ev.clientY - startClient.y) / zoom;
+      const _origin = dragOriginClient || startClient;
+      const rawDx = (ev.clientX - _origin.x) / zoom;
+      const rawDy = (ev.clientY - _origin.y) / zoom;
       // Hold Alt/Option to bypass snap.
       const skip = ev.altKey;
       const snap = skip ? { dx: rawDx, dy: rawDy, hints: null } : computeSnap(rawDx, rawDy);
@@ -3134,14 +3423,40 @@ export function CanvasSurface({
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
       pointerOpAbortRef.current = null;
       // Cancel any queued mid-drag pointermove that's about to flush —
       // we're about to commit final positions, so a trailing flush would
       // re-render the dragged cards once at a stale delta before settling.
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
       pendingMoveEv = null;
-      const rawDx = (ev.clientX - startClient.x) / zoom;
-      const rawDy = (ev.clientY - startClient.y) / zoom;
+      cleanupTouchHold();
+      // Touch gesture that never lifted → it was a PAN or a TAP, not a card
+      // move. Finalize like startPan / a click and skip all the drag-commit
+      // machinery below (drop-into-board, cross-pane, snap commit).
+      if (touchHold && !lifted) {
+        if (panned && !aborted) {
+          gestureUntilRef.current = 0;
+          setPan({ x: panRef.current.x, y: panRef.current.y });
+          scheduleVisibleRecompute();
+          emitCanvasSettle();
+        } else if (!panned && !aborted) {
+          // Tap: boards still open on tap (as before); other cards select.
+          if (openOnClick) {
+            if (c.kind === 'board') onOpenBoard(c.id);
+            else if (c.kind === 'boardlink') onOpenBoard(c.target);
+          } else {
+            applyCardSelection();
+          }
+        }
+        setDrag(null);
+        return;
+      }
+      // Same origin flushMove used (lift point on touch, else startClient) so
+      // the committed position matches the live drag — no jump on release.
+      const _origin = dragOriginClient || startClient;
+      const rawDx = (ev.clientX - _origin.x) / zoom;
+      const rawDy = (ev.clientY - _origin.y) / zoom;
       const skip = ev.altKey;
       const snapEnd = skip ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
       const { dx, dy } = snapEnd;
@@ -3374,7 +3689,9 @@ export function CanvasSurface({
           }
         }));
         mutators.updateCards?.(updates);
-      } else if (openOnClick) {
+      } else if (openOnClick && !touchHold) {
+        // Touch board-open happens on tap (onUp tap branch) / double-tap, not
+        // here — a deliberate lift released in place must not open the board.
         if (c.kind === 'board') onOpenBoard(c.id);
         if (c.kind === 'boardlink') onOpenBoard(c.target);
       }
@@ -3386,6 +3703,8 @@ export function CanvasSurface({
     pointerOpAbortRef.current = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      cleanupTouchHold();
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
       if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
       pendingMoveEv = null;
@@ -3396,8 +3715,28 @@ export function CanvasSurface({
       setSnapHints(null);
       setDrag(null);
     };
+    // pointercancel fires (not pointerup) when the OS steals the touch — palm
+    // rejection, a system gesture, or use-gesture converting to a pinch. Tear
+    // down WITHOUT committing a move or opening a board, and clear the lift
+    // timer / .is-lifted visual so they can't leak after the finger is gone.
+    const onCancel = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      pointerOpAbortRef.current = null;
+      if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
+      if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
+      pendingMoveEv = null;
+      pendingLiveDrag = null;
+      try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
+      cleanupTouchHold();
+      updateBoardDropTarget(null);
+      setSnapHints(null);
+      setDrag(null);
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
   };
 
   const onResizePointerDown = (e, c) => {
@@ -4024,6 +4363,27 @@ export function CanvasSurface({
             setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
           } catch (_) {
             const url = await resolveSrc(c.pdfSrc).catch(() => null);
+            if (url) window.open(url, '_blank', 'noopener,noreferrer');
+          }
+        }});
+      } else if (c.kind === 'file') {
+        items.push({ id: 'file-title', label: c.title ? 'Edit title' : 'Add title',
+          run: () => triggerInlineEdit(c.id, 'title') });
+        items.push({ id: 'file-download', label: 'Download', run: async () => {
+          if (!c.fileSrc) return;
+          let url = null;
+          try {
+            url = await resolveSrc(c.fileSrc);
+            if (!url) return;
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const objUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objUrl;
+            a.download = c.fileName || (c.title || 'file').toString().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
+          } catch (_) {
             if (url) window.open(url, '_blank', 'noopener,noreferrer');
           }
         }});
@@ -4884,7 +5244,7 @@ export function CanvasSurface({
       { id: 'add', label: 'Add', submenu: [
         { id: 'board', label: 'Board',  run: () => { noteCreateIntent('context_menu'); mutators.addNewBoard?.(pos); } },
         { id: 'image', label: 'Image',  run: () => { noteCreateIntent('context_menu'); mutators.addImageAt?.(pos); } },
-        { id: 'pdf',   label: 'PDF',    run: () => { noteCreateIntent('context_menu'); mutators.addPdfAt?.(pos); } },
+        { id: 'file',  label: 'File',   run: () => { noteCreateIntent('context_menu'); openFilePicker(pos); } },
         { id: 'note',  label: 'Text note', run: () => { noteCreateIntent('context_menu'); mutators.addNote?.(pos); } },
         { id: 'doc',   label: 'Doc',    run: () => { noteCreateIntent('context_menu'); mutators.addDocCard?.(pos); } },
         { id: 'shape', label: 'Shape',  run: () => { noteCreateIntent('context_menu'); mutators.addShape?.(pos, shapeOptions); } },
@@ -5481,7 +5841,7 @@ export function CanvasSurface({
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onPointerUp: (e) => onCardPointerUp(e, c),
@@ -5620,6 +5980,14 @@ export function CanvasSurface({
                                                         label={c.label} onUpdate={onUpdate}
                                                         editLabelAt={editFieldSignal.id === c.id && editFieldSignal.field === 'shapeLabel' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'art')       inner = <ArtCanvasCard bg={c.bg || '#ffffff'} />;
+    else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}
+                                                       sizeBytes={c.sizeBytes} ext={c.ext} title={c.title}
+                                                       onUpdate={onUpdate} autoFocus={af}
+                                                       cardId={c.id}
+                                                       editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
+                                                       pending={!!c.pending}
+                                                       uploadProgress={uploadProgressById[c.id] ?? null}
+                                                       onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
     // Tag chips along the card's bottom edge so the user actually sees
@@ -5673,6 +6041,21 @@ export function CanvasSurface({
         )}
         {canEdit && selectedTool === 'select' && isSelected && canRotate && (
           <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title="Drag to rotate (shift = 15° steps)" />
+        )}
+        {/* Touch-only "⋯" — the card context menu's new home now that a
+            long-press lifts the card for dragging instead of opening it.
+            CSS hides it except on coarse pointers (desktop keeps right-click). */}
+        {canEdit && selectedTool === 'select' && isSelected
+          && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
+          <button type="button" className="card-menu-btn" aria-label="Card options"
+            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const r = e.currentTarget.getBoundingClientRect();
+              setBgCtx(b => ({ ...b, open: false }));
+              if (!selected.has(c.id)) setSelected(new Set([c.id]));
+              setCtx({ open: true, x: r.left, y: r.bottom, cardId: c.id });
+            }}>⋯</button>
         )}
       </div>
     );
@@ -6024,59 +6407,12 @@ export function CanvasSurface({
       return;
     }
 
-    // Files (images / videos / audio dragged from Finder).
+    // Files (images / videos / audio / anything dragged from Finder). Shares
+    // the same routing as the "Add → File" menu picker.
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       e.preventDefault();
-      const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-      const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
-      const audioFiles = Array.from(files).filter(f => f.type.startsWith('audio/'));
-      // Some browsers report an empty type for .pdf drops — match the extension too.
-      const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''));
-      // Anything we can't place becomes a card-less silent loss otherwise —
-      // collect the skipped names so we can tell the user instead.
-      const handled = new Set([...imageFiles, ...videoFiles, ...audioFiles, ...pdfFiles]);
-      const skipped = Array.from(files).filter(f => !handled.has(f));
-      let offsetX = 0;
-      for (const f of imageFiles) {
-        // Optimistic — adds the card and uploads in the background so
-        // multi-file drops aren't blocked one at a time.
-        optimisticDropImage(f, cx + offsetX, cy);
-        offsetX += 260;
-      }
-      for (const f of videoFiles) {
-        try {
-          await dropVideoFile(f, cx + offsetX, cy);
-          offsetX += 320;
-        } catch (err) {
-          console.error(err);
-          feedback.toast({ type: 'error', message: 'Video upload failed: ' + (err.message || err) });
-        }
-      }
-      for (const f of audioFiles) {
-        try {
-          await dropAudioFile(f, cx + offsetX, cy);
-          offsetX += 380;
-        } catch (err) {
-          console.error(err);
-          feedback.toast({ type: 'error', message: 'Audio upload failed: ' + (err.message || err) });
-        }
-      }
-      for (const f of pdfFiles) {
-        // Optimistic — adds the card and uploads/renders in the background.
-        optimisticDropPdf(f, cx + offsetX, cy);
-        offsetX += 320;
-      }
-      if (skipped.length) {
-        const exts = [...new Set(skipped.map(f => (f.name?.split('.').pop() || f.type || 'file').toLowerCase()))].slice(0, 4);
-        feedback.toast({
-          type: 'warning',
-          message: skipped.length === files.length
-            ? `Can't add ${skipped.length === 1 ? 'that file' : 'those files'} (${exts.join(', ')}) — images, PDFs, video and audio only.`
-            : `Added ${handled.size}; skipped ${skipped.length} unsupported (${exts.join(', ')}).`,
-          duration: 6000,
-        });
-      }
+      await ingestFiles(files, cx, cy);
       return;
     }
 
@@ -6293,7 +6629,7 @@ export function CanvasSurface({
     // Add-note tool — so neither is repeated here. 'Shape' moved off the toolbar
     // (boards took its slot) and lives here now.
     { label: 'Doc', action: () => { noteCreateIntent('add_menu'); mutators.addDocCard?.(); } },
-    { label: 'PDF', action: () => { noteCreateIntent('add_menu'); mutators.addPdfAt?.(); } },
+    { label: 'File', action: () => { noteCreateIntent('add_menu'); openFilePicker(resolvePastePos().pos); } },
     { label: 'Shape', action: () => setSelectedTool('shape') },
     { label: 'Palette', action: () => setSelectedTool('palette') },
     { label: 'Linked board', action: () => onOpenPicker() },

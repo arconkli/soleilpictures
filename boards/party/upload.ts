@@ -1,6 +1,19 @@
 // Upload party — generates short-lived presigned R2 PUT/GET URLs.
 //
-// HTTP-only PartyKit party (no Y state, no WebSocket). Two routes:
+// Multipart routes (the "upload any file type" feature, ~1GB+ files):
+//   POST /parties/upload/<workspaceId>/mpu/create
+//     Body: { boardId, fileExt, contentType, totalBytes }
+//     Auth: can_write_board(boardId) AND authorize_upload (owner is paid +
+//           within the account's storage quota). 402 = over quota, 403 = not
+//           a paid owner / not a writer.
+//     Returns: { key, uploadId, partSize, partCount }
+//   POST .../mpu/sign-parts  Body {boardId,key,uploadId,partNumbers[]} → {urls:{n:url}}
+//   POST .../mpu/complete    Body {boardId,key,uploadId,parts:[{partNumber,etag}]} → {key}
+//   POST .../mpu/abort       Body {boardId,key,uploadId} → {ok}
+//   The browser PUTs part bytes directly to R2 (CORS allows PUT); the party
+//   does the S3 Create/Complete/Abort POSTs server-side (CORS forbids POST).
+//
+// HTTP-only PartyKit party (no Y state, no WebSocket). Base routes:
 //
 //   POST /parties/upload/<workspaceId>
 //     Body: { fileExt, contentType, boardId? }
@@ -45,6 +58,33 @@ const READ_URL_TTL_SECONDS = 7 * 24 * 60 * 60;  // 604800 (SigV4 max)
 // originals/previews; per-board thumbs overwritten in place), so `immutable`
 // is safe — a new image is a new key, never a mutated one.
 const READ_RESPONSE_CACHE_CONTROL = "public, max-age=604800, immutable";
+
+// Multipart upload (the "upload any file type" feature). The browser only ever
+// PUTs part bytes (R2 bucket CORS allows PUT); the party does the S3 POST/DELETE
+// calls (Create/Complete/Abort) server-side with its R2 creds, because R2 CORS
+// forbids POST. Part PUT URLs are presigned with a generous TTL (a multi-GB
+// upload's later parts can be signed an hour after the session opened).
+const PART_URL_TTL_SECONDS = 60 * 60;            // 1h — long enough for big files
+const MPU_MIN_PART = 8 * 1024 * 1024;            // R2/S3 floor is 5 MiB; 8 keeps part count sane
+const MPU_MAX_PARTS_TARGET = 9000;               // < 10000 hard cap, leaves headroom
+
+// part size grows with file size so part count stays under the 10000 cap; floored
+// at 8 MiB and rounded up to a whole MiB so client + server agree byte-for-byte.
+// MUST stay in sync with src/lib/multipartPlan.js computePartSize().
+function computePartSize(totalBytes: number): number {
+  const MiB = 1024 * 1024;
+  const raw = Math.max(MPU_MIN_PART, Math.ceil((totalBytes || 0) / MPU_MAX_PARTS_TARGET));
+  return Math.ceil(raw / MiB) * MiB;
+}
+
+// A multipart key the client hands back at sign-parts/complete/abort must be a
+// fresh original this workspace owns — `<workspaceId>/<uuid>.<ext>`. Rejects
+// other prefixes (thumbs/, previews/) and any path traversal.
+function isValidUploadKey(key: string, workspaceId: string): boolean {
+  const prefix = `${workspaceId}/`;
+  if (typeof key !== "string" || key.length > 256 || !key.startsWith(prefix)) return false;
+  return /^[a-z0-9-]+\.[a-z0-9]{1,8}$/i.test(key.slice(prefix.length));
+}
 
 interface R2Env {
   accountId: string;
@@ -189,6 +229,13 @@ export default class UploadParty implements Party.Server {
     if (!claims?.sub) {
       return new Response("Invalid token", { status: 401, headers: corsHeaders(origin) });
     }
+
+    // Multipart routes (large/arbitrary file uploads). All require the same
+    // JWT auth above; each re-checks can_write_board for the specific board.
+    if (url.pathname.endsWith("/mpu/create"))     return this.handleMpuCreate(req, accessToken, env, origin);
+    if (url.pathname.endsWith("/mpu/sign-parts")) return this.handleMpuSignParts(req, accessToken, env, origin);
+    if (url.pathname.endsWith("/mpu/complete"))   return this.handleMpuComplete(req, accessToken, env, origin);
+    if (url.pathname.endsWith("/mpu/abort"))      return this.handleMpuAbort(req, accessToken, env, origin);
 
     const isSignReads = url.pathname.endsWith("/sign-reads");
     return isSignReads
@@ -429,6 +476,184 @@ export default class UploadParty implements Party.Server {
       { urls: out, ttl: READ_URL_TTL_SECONDS },
       { headers: corsHeaders(origin) },
     );
+  }
+
+  // ── Multipart upload (browser PUTs parts; party does the S3 POSTs) ──────
+
+  mkR2Client(env: R2Env): AwsClient {
+    return new AwsClient({
+      accessKeyId: env.accessKeyId,
+      secretAccessKey: env.secretAccessKey,
+      service: "s3",
+      region: "auto",
+    });
+  }
+
+  r2ObjectUrl(env: R2Env, key: string): string {
+    return `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
+  }
+
+  // S3 CreateMultipartUpload (server-side POST). The object's final Content-Type
+  // is fixed here. Returns the uploadId or null on failure.
+  async createMultipart(r2: AwsClient, env: R2Env, key: string, contentType: string): Promise<string | null> {
+    const res = await r2.fetch(`${this.r2ObjectUrl(env, key)}?uploads`, {
+      method: "POST",
+      headers: { "Content-Type": contentType },
+    });
+    if (!res.ok) return null;
+    const xml = await res.text().catch(() => "");
+    const m = xml.match(/<UploadId>([^<]+)<\/UploadId>/);
+    return m ? m[1] : null;
+  }
+
+  // Presign a single part PUT (signQuery → only `host` is signed, so the browser
+  // can send the raw byte slice with any/no Content-Type; R2 ignores unsigned
+  // headers). partNumber + uploadId are signed query params.
+  async signPartUrl(r2: AwsClient, env: R2Env, key: string, uploadId: string, partNumber: number): Promise<string> {
+    const url = `${this.r2ObjectUrl(env, key)}?partNumber=${partNumber}`
+      + `&uploadId=${encodeURIComponent(uploadId)}&X-Amz-Expires=${PART_URL_TTL_SECONDS}`;
+    const signed = await r2.sign(new Request(url, { method: "PUT" }), { aws: { signQuery: true } });
+    return signed.url;
+  }
+
+  // S3 CompleteMultipartUpload (server-side POST). Parts must be sorted ascending
+  // with their exact (re-quoted) ETags. Guards against S3's "200 with <Error> in
+  // body" pattern.
+  async completeMultipart(
+    r2: AwsClient, env: R2Env, key: string, uploadId: string,
+    parts: Array<{ partNumber: number; etag: string }>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const sorted = [...parts].sort((a, b) => a.partNumber - b.partNumber);
+    const body = `<CompleteMultipartUpload>${sorted.map((p) => {
+      const et = String(p.etag || "").replace(/^"+|"+$/g, "");
+      return `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>"${et}"</ETag></Part>`;
+    }).join("")}</CompleteMultipartUpload>`;
+    const url = `${this.r2ObjectUrl(env, key)}?uploadId=${encodeURIComponent(uploadId)}`;
+    const res = await r2.fetch(url, { method: "POST", body, headers: { "Content-Type": "application/xml" } });
+    const text = await res.text().catch(() => "");
+    if (!res.ok || /<Error>/.test(text)) return { ok: false, error: text.slice(0, 500) };
+    return { ok: true };
+  }
+
+  // S3 AbortMultipartUpload (server-side DELETE). Best-effort.
+  async abortMultipart(r2: AwsClient, env: R2Env, key: string, uploadId: string): Promise<void> {
+    try {
+      await r2.fetch(`${this.r2ObjectUrl(env, key)}?uploadId=${encodeURIComponent(uploadId)}`, { method: "DELETE" });
+    } catch (_) { /* already gone / network — caller doesn't care */ }
+  }
+
+  // POST /mpu/create — gate (can_write_board + authorize_upload) then open an
+  // S3 multipart session. Body: { boardId, fileExt, contentType, totalBytes }.
+  // 402 over quota, 403 not-paid-owner / not-writer.
+  async handleMpuCreate(
+    req: Party.Request, accessToken: string, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const workspaceId = this.room.id;
+    let body: any = {};
+    try { body = await req.json(); } catch (_) {}
+    const boardId = (body.boardId || "").trim();
+    const totalBytes = Number(body.totalBytes) || 0;
+    if (!boardId) return new Response("Missing boardId", { status: 400, headers: corsHeaders(origin) });
+    if (!(totalBytes > 0)) return new Response("Missing totalBytes", { status: 400, headers: corsHeaders(origin) });
+
+    const canWrite = await supabaseRpc("can_write_board", { p_board_id: boardId }, accessToken);
+    if (canWrite !== true) {
+      return Response.json({ error: "Not allowed to upload to this board", reason: "not_writer" },
+        { status: 403, headers: corsHeaders(origin) });
+    }
+    const authRows = await supabaseRpc("authorize_upload", { p_workspace_id: workspaceId, p_bytes: totalBytes }, accessToken);
+    const auth = Array.isArray(authRows) ? authRows[0] : authRows;
+    if (!auth || auth.allow !== true) {
+      const reason = auth?.reason || "denied";
+      const status = reason === "over_quota" ? 402 : 403;
+      return Response.json(
+        { error: reason, reason, used: auth?.used ?? null, quota: auth?.quota ?? null, remaining: auth?.remaining ?? null },
+        { status, headers: corsHeaders(origin) },
+      );
+    }
+
+    const ext = (body.fileExt || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
+    const contentType = body.contentType || "application/octet-stream";
+    const key = `${workspaceId}/${crypto.randomUUID()}.${ext}`;
+    const r2 = this.mkR2Client(env);
+    const uploadId = await this.createMultipart(r2, env, key, contentType);
+    if (!uploadId) return new Response("Failed to start upload", { status: 502, headers: corsHeaders(origin) });
+    const partSize = computePartSize(totalBytes);
+    const partCount = Math.max(1, Math.ceil(totalBytes / partSize));
+    return Response.json({ key, uploadId, partSize, partCount }, { headers: corsHeaders(origin) });
+  }
+
+  // POST /mpu/sign-parts — re-gate writer + key shape, then presign a batch of
+  // part PUT URLs. Body: { boardId, key, uploadId, partNumbers:number[] }.
+  async handleMpuSignParts(
+    req: Party.Request, accessToken: string, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const workspaceId = this.room.id;
+    let body: any = {};
+    try { body = await req.json(); } catch (_) {}
+    const boardId = (body.boardId || "").trim();
+    const key = (body.key || "").trim();
+    const uploadId = (body.uploadId || "").trim();
+    const partNumbers: number[] = Array.isArray(body.partNumbers)
+      ? body.partNumbers.filter((n: any) => Number.isInteger(n) && n >= 1 && n <= 10000).slice(0, 1000)
+      : [];
+    if (!boardId || !key || !uploadId || partNumbers.length === 0)
+      return new Response("Bad request", { status: 400, headers: corsHeaders(origin) });
+    if (!isValidUploadKey(key, workspaceId))
+      return new Response("Bad key", { status: 400, headers: corsHeaders(origin) });
+    const canWrite = await supabaseRpc("can_write_board", { p_board_id: boardId }, accessToken);
+    if (canWrite !== true) return new Response("Not allowed", { status: 403, headers: corsHeaders(origin) });
+
+    const r2 = this.mkR2Client(env);
+    const urls: Record<number, string> = {};
+    await Promise.all(partNumbers.map(async (n) => { urls[n] = await this.signPartUrl(r2, env, key, uploadId, n); }));
+    return Response.json({ urls }, { headers: corsHeaders(origin) });
+  }
+
+  // POST /mpu/complete — finalize the object. Body: { boardId, key, uploadId,
+  // parts:[{partNumber,etag}] }. The client inserts the images row after this.
+  async handleMpuComplete(
+    req: Party.Request, accessToken: string, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const workspaceId = this.room.id;
+    let body: any = {};
+    try { body = await req.json(); } catch (_) {}
+    const boardId = (body.boardId || "").trim();
+    const key = (body.key || "").trim();
+    const uploadId = (body.uploadId || "").trim();
+    const parts = Array.isArray(body.parts) ? body.parts : [];
+    if (!boardId || !key || !uploadId || parts.length === 0)
+      return new Response("Bad request", { status: 400, headers: corsHeaders(origin) });
+    if (!isValidUploadKey(key, workspaceId))
+      return new Response("Bad key", { status: 400, headers: corsHeaders(origin) });
+    const canWrite = await supabaseRpc("can_write_board", { p_board_id: boardId }, accessToken);
+    if (canWrite !== true) return new Response("Not allowed", { status: 403, headers: corsHeaders(origin) });
+
+    const r2 = this.mkR2Client(env);
+    const result = await this.completeMultipart(r2, env, key, uploadId, parts);
+    if (!result.ok)
+      return new Response(`Complete failed: ${result.error || ""}`, { status: 502, headers: corsHeaders(origin) });
+    return Response.json({ key }, { headers: corsHeaders(origin) });
+  }
+
+  // POST /mpu/abort — discard an in-flight session (user cancel / error).
+  async handleMpuAbort(
+    req: Party.Request, accessToken: string, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const workspaceId = this.room.id;
+    let body: any = {};
+    try { body = await req.json(); } catch (_) {}
+    const boardId = (body.boardId || "").trim();
+    const key = (body.key || "").trim();
+    const uploadId = (body.uploadId || "").trim();
+    if (!boardId || !key || !uploadId) return new Response("Bad request", { status: 400, headers: corsHeaders(origin) });
+    if (!isValidUploadKey(key, workspaceId)) return new Response("Bad key", { status: 400, headers: corsHeaders(origin) });
+    const canWrite = await supabaseRpc("can_write_board", { p_board_id: boardId }, accessToken);
+    if (canWrite !== true) return new Response("Not allowed", { status: 403, headers: corsHeaders(origin) });
+
+    const r2 = this.mkR2Client(env);
+    await this.abortMultipart(r2, env, key, uploadId);
+    return Response.json({ ok: true }, { headers: corsHeaders(origin) });
   }
 
   r2Env(): R2Env | string {

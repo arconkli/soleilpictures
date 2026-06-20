@@ -27,10 +27,11 @@ import { EntityLink } from './EntityLink.jsx';
 import {
   Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
   Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
-  Circle as CirclePh, FilePdf,
+  Circle as CirclePh, FilePdf, Paperclip,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { PdfCard } from './cards/PdfCard.jsx';
+import { FileCard } from './cards/FileCard.jsx';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -61,6 +62,7 @@ const KIND_DOTS = {
   audio:    '#ffa500',
   video:    '#ef4444',
   pdf:      '#e2574c',
+  file:     '#64748b',
 };
 function htmlToText(html, max = 80) {
   if (!html) return '';
@@ -83,6 +85,7 @@ function KindIcon({ kind }) {
   if (kind === 'schedule') return <Icon as={CalendarPh} size={22} />;
   if (kind === 'shape')    return <Icon as={SquarePh} size={22} />;
   if (kind === 'pdf')      return <Icon as={FilePdf} size={22} />;
+  if (kind === 'file')     return <Icon as={Paperclip} size={22} />;
   return <Icon as={CirclePh} size={22} />;
 }
 
@@ -230,6 +233,10 @@ function describeListItem(card, boards = {}) {
              meta: (Number.isFinite(card.pageCount) && card.pageCount > 0)
                ? `${card.pageCount} ${card.pageCount === 1 ? 'page' : 'pages'}`
                : 'pdf' };
+  }
+  if (card.kind === 'file') {
+    return { ...base, name: card.fileName || card.title || 'File',
+             meta: card.ext ? card.ext.toUpperCase() : 'file' };
   }
   // shape / unknown — skip from the list
   return null;
@@ -652,14 +659,28 @@ function VideoCard({ src, title, onUpdate, autoFocus = false, editTitleAt = 0 })
   const [editingTitle, setEditingTitle] = useState(false);
   // Canvas context menu "Edit title" remote-trigger (same as Image/Link).
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
+  // Resolve an r2:<key> src → signed read URL (mirrors AudioCard). The signed
+  // GET supports HTTP Range, so large videos stream + seek inline. No
+  // crossOrigin — that breaks playback against R2's CORS.
+  const [resolvedUrl, setResolvedUrl] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!src) { setResolvedUrl(null); return; }
+    if (!src.startsWith('r2:')) { setResolvedUrl(src); return; }  // external https / blob (local QA)
+    resolveSrc(src).then(u => {
+      if (cancelled) return;
+      setResolvedUrl(u);
+      if (!u) console.warn('[VideoCard] no signed URL for', src);
+    });
+    return () => { cancelled = true; };
+  }, [src]);
   const showTitle = !!title || editingTitle;
   const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
   return (
     <div className="vc">
       <div className="vc-vidwrap" onDoubleClick={onDbl}>
-        {src
-          ? <video className="vc-video" src={src.startsWith('r2:') ? '' : src}
-                   data-r2={src.startsWith('r2:') ? src.slice(3) : undefined}
+        {resolvedUrl
+          ? <video className="vc-video" src={resolvedUrl}
                    controls preload="metadata" playsInline />
           : <ImagePlaceholder label="VIDEO" tone="neutral" />}
       </div>
@@ -1787,6 +1808,7 @@ const MemoScheduleCard   = memo(ScheduleCard,   shallowEqualIgnoreFns);
 const MemoShapeCard      = memo(ShapeCard,      shallowEqualIgnoreFns);
 const MemoAudioCard      = memo(AudioCard,      shallowEqualIgnoreFns);
 const MemoPdfCard        = memo(PdfCard,        shallowEqualIgnoreFns);
+const MemoFileCard       = memo(FileCard,       shallowEqualIgnoreFns);
 
 export {
   MemoBoardCard     as BoardCard,
@@ -1801,4 +1823,5 @@ export {
   MemoShapeCard     as ShapeCard,
   MemoAudioCard     as AudioCard,
   MemoPdfCard       as PdfCard,
+  MemoFileCard      as FileCard,
 };

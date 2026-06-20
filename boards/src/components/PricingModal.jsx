@@ -96,13 +96,19 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
             <>
               <div className="upgrade-eyebrow t-eyebrow">YOU'RE OFF THE GROUND</div>
               <h2 className="upgrade-title">Love it? Keep building.</h2>
-              <p className="upgrade-sub t-body">You've made your first board. Upgrade to Creator for unlimited cards, boards, video/audio, and full edit access.</p>
+              <p className="upgrade-sub t-body">You've made your first board. Upgrade to Creator for unlimited cards, boards, any file type, and full edit access.</p>
+            </>
+          ) : header === 'storage' ? (
+            <>
+              <div className="upgrade-eyebrow t-eyebrow">UPLOAD ANYTHING</div>
+              <h2 className="upgrade-title">Store any file, up to 100GB.</h2>
+              <p className="upgrade-sub t-body">Upgrade to Creator to drop any file type — large video, zips, design files, docs — straight onto your boards, with 100GB of storage.</p>
             </>
           ) : (
             <>
               <div className="upgrade-eyebrow t-eyebrow">GO CREATOR</div>
               <h2 className="upgrade-title">Unlock everything.</h2>
-              <p className="upgrade-sub t-body">Unlimited cards, boards, video/audio, and full edit access.</p>
+              <p className="upgrade-sub t-body">Unlimited cards, boards, any file type with 100GB storage, and full edit access.</p>
             </>
           )}
         </div>
