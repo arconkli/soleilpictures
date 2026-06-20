@@ -604,6 +604,13 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     );
   };
 
+  // A group is worth showing only if it actually has content: synced member
+  // cards, or an unsynced member_count (the board was never opened). A pure
+  // name-match auto-tag on a 0-member group is noise — hide it.
+  const groupKey = (g) => `${g.board_id}::${g.group_id || g.id}`;
+  const groupHasContent = (g) =>
+    (groupCards.get(groupKey(g))?.length || 0) > 0 || (g.member_count || 0) > 0;
+
   const renderGroupBlock = (g, opts = {}) => {
     const key = `${g.board_id}::${g.group_id || g.id}`;
     const cards = groupCards.get(key) || [];
@@ -653,7 +660,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   const renderBoardBlock = (b) => {
     const id = b.board_id || b.id;
     const allCards = boardCards.get(id) || [];
-    const groupedHere = direct.groups.filter(g => g.board_id === id);
+    const groupedHere = direct.groups.filter(g => g.board_id === id && groupHasContent(g));
     const groupedHereKeys = new Set(groupedHere.map(g => `${g.board_id}::${g.group_id || g.id}`));
     const groupedCardKeys = new Set();
     for (const k of groupedHereKeys) {
@@ -688,7 +695,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     );
   };
 
-  const orphanGroups = direct.groups.filter(g => !direct.boards.some(b => (b.board_id || b.id) === g.board_id));
+  const orphanGroups = direct.groups.filter(g => groupHasContent(g) && !direct.boards.some(b => (b.board_id || b.id) === g.board_id));
   const taggedBoardIds = new Set(direct.boards.map(b => b.board_id || b.id));
   const orphanCards = direct.cards.filter(c => !taggedBoardIds.has(c.board_id));
 
@@ -730,6 +737,19 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     () => allCardsFlat.filter(c => c.kind === 'image' && c.meta?.src),
     [allCardsFlat],
   );
+
+  // Header "N items" should reflect actual CONTENT (incl. a tagged group's
+  // member cards), not the container rows. Synced cards are already in
+  // allCardsFlat; add the member_count of unsynced groups (board never opened,
+  // so their cards aren't in card_index yet).
+  const shownItemCount = useMemo(() => {
+    let n = allCardsFlat.length;
+    for (const g of direct.groups) {
+      const synced = (groupCards.get(`${g.board_id}::${g.group_id || g.id}`) || []).length;
+      if (synced === 0 && (g.member_count || 0) > 0) n += g.member_count;
+    }
+    return n;
+  }, [allCardsFlat, direct.groups, groupCards]);
 
   // Capture-phase keyboard handler scoped to when the lightbox is
   // open. Escape closes it; ←/→ wrap-around through the image set.
@@ -799,7 +819,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           ))}
         </div>
         <span className="tag-detail-count">
-          {filteredRows.length} {filteredRows.length === 1 ? 'item' : 'items'}
+          {shownItemCount} {shownItemCount === 1 ? 'item' : 'items'}
         </span>
         <span className="tag-detail-spacer" />
         <button className={`tag-detail-manage-btn ${manageOpen ? 'is-on' : ''}`}
