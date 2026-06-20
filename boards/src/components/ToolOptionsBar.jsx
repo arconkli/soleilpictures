@@ -696,7 +696,13 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
     const vv = typeof window !== 'undefined' ? window.visualViewport : null;
     const el = barRef.current;
     if (!vv || !el) return;
-    if (!window.matchMedia('(max-width: 640px)').matches) return;
+    // Lift on any touch device, not just phone width — an iPad in landscape is
+    // wider than 640px but still raises a soft keyboard that would cover the
+    // bar. The coarse+min-width:641px CSS block makes .tob position:fixed there
+    // so this bottom math is viewport-relative (phone is already fixed ≤640px).
+    const narrow = window.matchMedia('(max-width: 640px)').matches;
+    const touch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    if (!narrow && !touch) return;
     const apply = () => {
       const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       el.style.bottom = `calc(${Math.round(kb)}px + 8px)`;

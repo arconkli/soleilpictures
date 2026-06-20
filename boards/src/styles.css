@@ -8878,6 +8878,14 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   .tob-sep { flex: 0 0 auto; }
 }
 
+/* iPad-landscape (touch but wider than a phone): the note toolbar stays the
+   centred floating pill, but switch it to position:fixed so the visualViewport
+   keyboard-lift in ToolOptionsBar (now armed on any touch device) raises it
+   above the soft keyboard. bottom stays 14px → no visual change at rest. */
+@media (hover: none) and (pointer: coarse) and (min-width: 641px) {
+  .tob { position: fixed; }
+}
+
 /* ──────────────────────────── Phase 4.9: erase, strokes-on-top, polish ─── */
 
 /* Strokes always above cards */
@@ -17352,9 +17360,23 @@ button, [role="button"], a {
   }
 
   /* Canvas tool strip (.cnv-tools) — desktop 30px buttons are below the
-     44px tap minimum. Bump to 40px on phone and add a little more
-     horizontal margin so the strip floats clear of the edge. */
-  .cnv-tools { left: 8px; padding: 6px; gap: 4px; }
+     44px tap minimum. Bump to 40px on phone. Also top-anchor it (instead of
+     vertically centred) and cap its height so on a short / landscape phone the
+     ~8 enlarged buttons can't collide with the topbar or the bottom nav — the
+     strip scrolls internally instead. The left-strip "+" stays: it opens the
+     secondary-type menu (Doc/File/Shape/Palette/Linked board), which the
+     note-only bottom-nav "+" does not cover. */
+  .cnv-tools {
+    left: max(8px, env(safe-area-inset-left, 0px));
+    top: calc(48px + var(--safe-top, 0px) + 8px);
+    transform: none;
+    max-height: calc(100dvh - (48px + var(--safe-top, 0px)) - (56px + var(--safe-bottom, 0px)) - 16px);
+    overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 6px; gap: 4px;
+  }
+  .cnv-tools::-webkit-scrollbar { display: none; }
   .cnv-tool { width: 40px; height: 40px; }
   .cnv-tool-sep { margin: 4px 6px; }
 
@@ -17593,6 +17615,20 @@ button, [role="button"], a {
   /* The card "⋯" options button is touch-only: on a real mouse the card
      context menu opens via right-click, so it stays hidden there. */
   .card.is-selected > .card-menu-btn { display: flex; }
+
+  /* Resize (14px) + rotate (12px) handles were the ONLY card affordances not
+     bumped for touch — a finger essentially couldn't resize or rotate. Enlarge
+     both and give each an invisible expanded hit area. The inset is capped (~38
+     / ~40px, not 44) so a corner press doesn't swallow the centre press-and-hold
+     lift: corners = resize/rotate, centre = lift. The card pointerdown handler
+     already skips targets inside .card-resize/.card-rotate (closest()), so the
+     expanded hit areas correctly win over the lift/drag path. !important beats
+     the inline width/height (RESIZE_HANDLE_PX) on the resize handle. */
+  .card-resize { width: 22px !important; height: 22px !important; opacity: 0.85; }
+  .card.is-selected .card-resize { opacity: 0.9; }
+  .card-resize::before { content: ''; position: absolute; inset: -8px; }
+  .card-rotate { width: 18px; height: 18px; margin-left: -9px; }
+  .card-rotate::after { content: ''; position: absolute; inset: -11px; }
 }
 
 /* -------------------------------------------------------------------------
