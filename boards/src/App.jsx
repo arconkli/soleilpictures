@@ -2062,13 +2062,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { expCfg = (await supabase.rpc('get_experiment_config')).data; } catch (_) {}
       const enrolled = {};
       for (const key of getActiveExperiments()) {
-        const c = expCfg?.[key];
-        if (expCfg && c && c.enabled === false) continue;     // operator paused it at runtime
-        const arm = c?.weights ? drawArm(key, c.weights) : assignArm(key, user.id);
-        if (!arm) continue;
-        enrolled[`exp_${key}`] = arm;
-        supabase.rpc('set_experiment_arm', { p_key: key, p_arm: arm }).catch(() => {});
-        logEvent(EV.EXPERIMENT_ENROLLED, { key, arm });
+        // Hardened: a throw here (bad weights, a thenable without .catch, a
+        // throwing logEvent) must NEVER escape and abort the rest of the seed —
+        // that blanked the board for every new user. See the .then(undefined,…)
+        // note below.
+        try {
+          const c = expCfg?.[key];
+          if (expCfg && c && c.enabled === false) continue;   // operator paused it at runtime
+          const arm = c?.weights ? drawArm(key, c.weights) : assignArm(key, user.id);
+          if (!arm) continue;
+          enrolled[`exp_${key}`] = arm;
+          // supabase.rpc(...) returns a PostgREST builder — a *thenable* with NO
+          // `.catch` method. `.catch(...)` throws "catch is not a function"
+          // synchronously, which previously aborted the whole onboarding seed.
+          // Use the two-arg `.then` (the thenable's only rejection hook) instead.
+          supabase.rpc('set_experiment_arm', { p_key: key, p_arm: arm }).then(undefined, () => {});
+          logEvent(EV.EXPERIMENT_ENROLLED, { key, arm });
+        } catch (_) { /* one experiment failing must not block the seed */ }
       }
       if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled);
 
