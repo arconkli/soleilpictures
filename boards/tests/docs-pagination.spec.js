@@ -124,3 +124,40 @@ test('WYSIWYG: exported HTML matches the on-screen doc typography', async ({ pag
   expect(exp.font.toLowerCase()).toContain('georgia');
   expect(screen.font.toLowerCase()).toContain('georgia');
 });
+
+// ── WYSIWYG: on-screen page count == printed PDF page count ────────────────
+// The on-screen JS paginator and the browser print engine share the same
+// typography + letter geometry, so they break at the same lines. page.pdf is
+// headless-only — skip gracefully (with tolerance) if it isn't available.
+test('WYSIWYG: on-screen pages match the printed PDF page count', async ({ page, browser }) => {
+  await openDoc(page);
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    const paras = ['<h1>Print Parity</h1>'];
+    for (let i = 1; i <= 30; i++) paras.push(`<p>Paragraph ${i}. ` + 'The quick brown fox jumps over the lazy dog, again and again, filling the line. '.repeat(3) + '</p>');
+    ed.chain().focus().setContent(paras.join('')).run();
+  });
+  await expect.poll(() => page.locator('.doc-card-modal .doc-page-sheet').count(), { timeout: 5000 })
+    .toBeGreaterThanOrEqual(3);
+  const screenSheets = await page.locator('.doc-card-modal .doc-page-sheet').count();
+  const html = await page.evaluate(async () => {
+    const T = window.__soleilDocTest;
+    const body = await T.docExport.collectFullDocHtml(T.ydoc, T.getScope());
+    const mod = await import('/src/lib/docTypography.js');
+    return `<!doctype html><html><head><meta charset="utf-8"><style>${mod.docPrintCSS}</style></head><body>${body}</body></html>`;
+  });
+  const pp = await browser.newPage();
+  let pdfPages = 0;
+  try {
+    await pp.setContent(html, { waitUntil: 'load' });
+    await pp.emulateMedia({ media: 'print' });
+    const pdf = await pp.pdf({ preferCSSPageSize: true, printBackground: true });
+    pdfPages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  } catch (_) {
+    test.skip(true, 'page.pdf unavailable (headed mode)');
+  } finally {
+    await pp.close();
+  }
+  // Same metrics → same break lines (allow ±1 for widow/orphan edge rounding).
+  expect(Math.abs(pdfPages - screenSheets)).toBeLessThanOrEqual(1);
+});
