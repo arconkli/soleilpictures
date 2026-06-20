@@ -467,6 +467,11 @@ body {
 .app {
   display: grid;
   grid-template-columns: 240px 1fr;
+  /* Pin the single row to exactly the viewport (max 1fr = available height,
+     min 0). Without this the implicit auto row grows to its tallest item's
+     content, so a long surface (e.g. the tag profile) pushes .main past 100vh
+     and #root's overflow:hidden clips the bottom — i.e. it won't scroll. */
+  grid-template-rows: minmax(0, 1fr);
   height: 100vh;
   /* Transparent so the body's grain texture shows through. The
      body already paints bg-0; repeating it here hid the grain. */
@@ -3039,7 +3044,7 @@ body {
 
 /* ──────────────────────────── Main ──────────────────────────────────────── */
 
-.main { display: flex; flex-direction: column; min-width: 0; }
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
 /* ─────────────────────────────── Topbar ─────────────────────────────────── */
 
