@@ -6,6 +6,7 @@ import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 import { ActivationFunnel } from '../widgets/ActivationFunnel.jsx';
+import { ActivationByDevice } from '../widgets/ActivationByDevice.jsx';
 import { RetentionCurve } from '../widgets/RetentionCurve.jsx';
 import { LifespanDistribution } from '../widgets/LifespanDistribution.jsx';
 import { RetentionCohorts } from '../widgets/RetentionCohorts.jsx';
@@ -61,11 +62,20 @@ export function EngagementView() {
     const experimentRetention = activeExps.map((k, i) => ({ key: k, rows: val(expResults[i]) || [] }));
     const experimentState = val(expResults[2 * nE]) || {};
     const experimentActivation = activeExps.map((k, i) => ({ key: k, rows: val(expResults[nE + i]) || [], state: experimentState?.[k] || null }));
+    // Activation funnel split by device (admin_activation_funnel(...,p_device),
+    // migration 0156) — the headline mobile-vs-desktop activation readout. One
+    // call per device; graceful via val(), so a missing overload just hides it.
+    const DEVICES = ['mobile', 'desktop', 'tablet', 'unknown'];
+    const devResults = await Promise.allSettled(
+      DEVICES.map((d) => supabase.rpc('admin_activation_funnel',
+        { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly, p_device: d })),
+    );
+    const activationByDevice = DEVICES.map((d, i) => ({ device: d, data: val(devResults[i]) })).filter((x) => x.data);
     const core = [cs, pd];
     if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
       throw errOf(core.find(errOf)) || new Error('Failed to load engagement');
     }
-    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], experimentRetention, experimentActivation };
+    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], experimentRetention, experimentActivation, activationByDevice };
   }, [f.days, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
@@ -77,6 +87,7 @@ export function EngagementView() {
         <h2 className="admin-section-title">Activation &amp; retention</h2>
         <div className="admin-section-sub">How signed-up users progress, and whether cohorts keep coming back.</div>
         {q.data?.activation && <ActivationFunnel data={q.data.activation} days={f.days} />}
+        <ActivationByDevice rows={q.data?.activationByDevice || []} days={f.days} />
         <RetentionCurve rows={q.data?.retention || []} />
         <LifespanDistribution data={q.data?.lifespan} />
         <RetentionCohorts rows={q.data?.cohorts || []} />
