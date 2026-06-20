@@ -6127,6 +6127,39 @@ export function CanvasSurface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board.id, mutators, ydoc, sessionId, userId]);
 
+  // Select + center a card when navigated to from elsewhere (e.g. clicking a
+  // card inside a tag/entity collection). App dispatches soleil-flash-card
+  // after the board mounts; retry briefly while the board's cards stream in,
+  // then select that one card and pan it to the viewport center (current zoom).
+  useEffect(() => {
+    const onFlash = (e) => {
+      const { boardId, cardId } = e.detail || {};
+      if (boardId !== board.id || !cardId) return;
+      let tries = 0;
+      const tick = () => {
+        const card = (cardByIdRef.current || {})[cardId];
+        if (card) {
+          setSelected(new Set([cardId]));
+          const r = wrapRef.current?.getBoundingClientRect();
+          if (r && r.width > 50) {
+            const z = zoomRef.current;
+            enableSmoothTransform();
+            setPan({
+              x: r.width / 2 - (card.x + card.w / 2) * z,
+              y: r.height / 2 - (card.y + card.h / 2) * z,
+            });
+          }
+          return;
+        }
+        if (tries++ < 40) setTimeout(tick, 50); // wait up to ~2s for cards to load
+      };
+      tick();
+    };
+    document.addEventListener('soleil-flash-card', onFlash);
+    return () => document.removeEventListener('soleil-flash-card', onFlash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id, enableSmoothTransform]);
+
   // Touch sibling of the HTML5 onDrop(BOARD_REF_MIME) flow. Fired from
   // SidebarBoardTree when the user touch-drags a board row over a
   // canvas-wrap and releases. We mirror the same addCard call the

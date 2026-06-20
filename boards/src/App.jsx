@@ -3651,6 +3651,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 setStack([item.id]);
               } else if (item.board_id) {
                 setStack([item.board_id]);
+                // Select + center the clicked card once its board mounts.
+                if (item.card_id) {
+                  setTimeout(() => {
+                    document.dispatchEvent(new CustomEvent('soleil-flash-card', {
+                      detail: { boardId: item.board_id, cardId: item.card_id },
+                    }));
+                  }, 200);
+                }
               }
             }}
           />
