@@ -11510,11 +11510,76 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
     0 4px 12px rgba(0, 0, 0, 0.04);
 }
 @media (max-width: 900px) {
-  .doc-editor-wrap { padding: 72px 56px; }
+  .doc-editor-wrap:not(.doc-flow) { padding: 72px 56px; }
 }
 @media (max-width: 640px) {
-  .doc-editor-wrap { padding: 48px 28px; min-height: 800px; }
+  .doc-editor-wrap:not(.doc-flow) { padding: 48px 28px; min-height: 800px; }
 }
+
+/* ── Prose reflow pages (DocPagination) ────────────────────────────────────
+   Flow model: the wrap is a TRANSPARENT page-width column; .doc-pages-bg paints
+   the white 8.5×11 sheets behind the text, and the plugin's .doc-page-gap
+   spacers push content so each page's worth lands on a sheet (true reflow —
+   paragraphs split line-level across boundaries). Geometry MUST match
+   src/components/docExtensions/DocPagination.js (816×1056, 1in margins, 28px
+   gutter). Screenplay keeps the single-sheet look (.doc-editor-wrap base). */
+.doc-editor-wrap.doc-flow {
+  width: 816px; max-width: 816px;
+  background: transparent;
+  border: 0; border-radius: 0; box-shadow: none;
+  padding: 0;
+  animation: none;
+}
+.doc-editor-wrap.doc-flow .tt-editor {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  /* 1in side margins + 1in first-page top margin; content flows past the top. */
+  padding: 96px 96px 0;
+  min-height: 864px;
+}
+.doc-pages-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.doc-page-sheet {
+  position: absolute;
+  left: 0;
+  width: 816px;
+  height: 1056px;
+  background: var(--bg-1);
+  border: 1px solid color-mix(in oklab, var(--ink-3) 14%, transparent);
+  border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.10), 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+[data-theme='light'] .doc-page-sheet {
+  background: var(--bg-3);
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+.doc-page-num {
+  position: absolute;
+  right: 18px; bottom: 14px;
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-3);
+  user-select: none;
+}
+/* Transparent spacer that breaks the inline flow at a page boundary — the dark
+   .doc-paper surface shows through the gutter between sheets. */
+.doc-page-gap {
+  display: block;
+  width: 100%;
+  user-select: none;
+  pointer-events: none;
+}
+@media (max-width: 880px) {
+  .doc-editor-wrap.doc-flow { width: 100%; max-width: 100%; }
+  .doc-page-sheet { width: 100%; }
+  .doc-editor-wrap.doc-flow .tt-editor { padding: 56px 24px 0; }
+}
+
 /* Suppress any browser-injected focus ring on the contenteditable —
    the Tiptap editor already has outline: none, but Chrome can still
    draw a 2px blue outline on the .ProseMirror node when first

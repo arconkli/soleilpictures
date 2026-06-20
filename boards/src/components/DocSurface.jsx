@@ -369,76 +369,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     setTimeout(() => { if (!undone) purgeSheetContent(ydoc, sheetId, scope); }, 6500);
   }, [activePageId, ydoc, scope, feedback]);
 
-  // Auto-add a sheet when the last sheet in the current page fills up. Fires
-  // at most once per sheet — once a sheet has triggered, even further growth
-  // won't fire again until the user navigates to a new last-sheet.
-  // Keyed by sheetId (globally unique), so the latch PERSISTS across page
-  // switches — revisiting a near-full page no longer re-fires and stacks a
-  // phantom empty sheet. (A sheet auto-appends at most once ever; trimming then
-  // re-growing it won't re-paginate, which is an acceptable trade for not
-  // spawning blank pages on every revisit.)
-  const autoFiredRef = useRef(new Set());
-  useEffect(() => {
-    if (!ready || !activePageId) return;
-    // Screenplay docs paginate via the on-screen ScreenplayPagination overlay
-    // (line-accurate, matches the PDF) within a single continuous sheet — the
-    // height-fill sheet auto-append must not also fire.
-    if (docMode === 'screenplay') return;
-    const paper = paperRef.current;
-    if (!paper) return;
-    const wraps = paper.querySelectorAll('.doc-editor-wrap');
-    if (!wraps.length) return;
-    // Only observe the LAST sheet — that's where the user is adding content
-    // when they "reach the end."
-    const lastWrap = wraps[wraps.length - 1];
-    const lastSheetId = sheetIds[sheetIds.length - 1];
-    if (!lastSheetId) return;
-    const checkAndFire = () => {
-      if (autoFiredRef.current.has(lastSheetId)) return;
-      // Tiptap's editable root carries both classes ("tt-editor ProseMirror").
-      // Query it fresh each tick — it may mount a frame after this effect runs.
-      // Its scrollHeight is the INTRINSIC content height — NOT inflated by the
-      // wrap's 1056px min-height box, which is what made empty sheets misfire.
-      const inner = lastWrap.querySelector('.ProseMirror');
-      if (!inner) return;
-      // Printable area = the wrap's min-height minus its vertical padding.
-      // Read live so it's correct for the normal (1056/96) and small-screen
-      // (800/48) cases. Zoom uses CSS `zoom` on the wrap, which scales both
-      // min-height and the descendant scrollHeight equally, so the ratio is
-      // zoom-independent without extra math.
-      const cs = getComputedStyle(lastWrap);
-      const minH = parseFloat(cs.minHeight) || 0;
-      const padTop = parseFloat(cs.paddingTop) || 0;
-      const padBot = parseFloat(cs.paddingBottom) || 0;
-      const printable = minH - padTop - padBot;
-      if (printable <= 0) return;
-      if (inner.scrollHeight < printable * AUTO_NEW_PAGE_FILL_RATIO) return;
-      autoFiredRef.current.add(lastSheetId);
-      addPageSheet(ydoc, activePageId, scope);
-    };
-    // Debounce so a burst of ResizeObserver / mutation ticks (typing, paste,
-    // reflow) collapses into a single measurement. We never call checkAndFire
-    // synchronously here — the RO's initial callback drives the first check
-    // after layout, and on a fresh empty sheet the measured content height is
-    // well below the threshold, so the runaway cascade is structurally
-    // impossible. We observe the WRAP (always present): its subtree
-    // MutationObserver catches typing/paste AND the editor node mounting,
-    // while the ResizeObserver catches the wrap growing past one page.
-    let timer = null;
-    const schedule = () => {
-      if (timer) return;
-      timer = setTimeout(() => { timer = null; checkAndFire(); }, 120);
-    };
-    const ro = new ResizeObserver(schedule);
-    ro.observe(lastWrap);
-    const mo = new MutationObserver(schedule);
-    mo.observe(lastWrap, { childList: true, characterData: true, subtree: true });
-    return () => {
-      ro.disconnect();
-      mo.disconnect();
-      if (timer) clearTimeout(timer);
-    };
-  }, [activePageId, ready, ydoc, scope, sheetIds, docMode]);
+  // Prose pagination is now handled inside the editor by the DocPagination
+  // plugin (true reflow: content flows + splits line-level across real pages,
+  // drawn as white sheets behind the text). The old cosmetic "fill 92% → append
+  // an empty sheet" effect — which never moved content and stranded the caret —
+  // is gone. Screenplay still uses its own line-accurate ScreenplayPagination.
 
   // Honor a "jump to this bookmark on open" request that came in via a
   // soleil:// link from another doc. Switch to its page first; the editor
@@ -759,6 +694,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 ydoc={ydoc}
                 scope={scope}
                 docMode={docMode}
+                zoom={zoom}
                 pageId={activePageId}
                 sheetId={sid}
                 activePageId={activePageId}
@@ -787,14 +723,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               <div className="doc-state-sub">Pick a page on the left, or create your first one.</div>
             </div>
           )}
-          {activePageId && canEdit && (
-            <button className="doc-add-page-below"
-                    type="button"
-                    onClick={addSheetBelow}
-                    title="Add a new page below">
-              + New page
-            </button>
-          )}
+          {/* Pages are now created automatically as content flows (DocPagination).
+              The manual "+ New page" sheet button is obsolete in the reflow model. */}
         </div>
         <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={board.id} />
       </section>

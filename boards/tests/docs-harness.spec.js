@@ -46,20 +46,27 @@ test('a fresh doc opens with exactly one page and one sheet (no seeding/paginati
   await expect(page.locator('.doc-card-modal .doc-tree-name')).toHaveCount(1);
 });
 
-test('filling a page auto-adds exactly ONE sheet, with no runaway', async ({ page }) => {
+test('filling a page paginates into multiple page sheets (reflow), no runaway', async ({ page }) => {
   await openDoc(page);
   await expect(wraps(page)).toHaveCount(1);
-  // Insert enough content to overflow one printed page (~795px of content).
+  // Reflow model: there is always exactly ONE editor (single fragment). Insert
+  // enough content to overflow one printed page.
   await page.evaluate(() => {
     const ed = window.__soleilDocTest.editor;
     const para = '<p>The quick brown fox jumps over the lazy dog, again and again.</p>';
     ed.chain().focus().insertContent(para.repeat(45)).run();
   });
-  // Exactly one new sheet appears…
-  await expect(wraps(page)).toHaveCount(2, { timeout: 5000 });
-  // …and it stays at two — no cascade. (The bug produced an endless stack.)
+  // The content now spans >= 2 page sheets drawn behind the text…
+  await expect.poll(() => page.locator('.doc-card-modal .doc-page-sheet').count(), { timeout: 5000 })
+    .toBeGreaterThanOrEqual(2);
+  // …still ONE editor wrap (no separate sheet editors any more)…
+  await expect(wraps(page)).toHaveCount(1);
+  // …and the page count converges — no runaway recompute. (A gap widget marks
+  // the reflow boundary.)
+  expect(await page.locator('.doc-card-modal .doc-page-gap').count()).toBeGreaterThanOrEqual(1);
+  const n1 = await page.locator('.doc-card-modal .doc-page-sheet').count();
   await page.waitForTimeout(700);
-  expect(await wraps(page).count()).toBe(2);
+  expect(await page.locator('.doc-card-modal .doc-page-sheet').count()).toBe(n1);
 });
 
 test('renaming a page persists and is not interrupted by editor autofocus', async ({ page }) => {
@@ -108,27 +115,34 @@ test('the bookmark button opens the in-app dialog (not a native prompt) and save
   expect(bookmarks.find(b => b.name === 'My bookmark').relAnchor).toBeTruthy();
 });
 
-test('a bookmark on a non-primary sheet records that sheet id (multi-sheet jump)', async ({ page }) => {
+test('a bookmark deep in a long paginated doc stores a durable anchor', async ({ page }) => {
   await openDoc(page);
-  await page.locator('.doc-card-modal .doc-add-page-below').click();
-  await expect(page.locator('.doc-card-modal .doc-editor-wrap')).toHaveCount(2);
-  const sheet2 = await page.evaluate(() => {
-    const T = window.__soleilDocTest;
-    const pid = T.readPages(T.ydoc, T.getScope())[0].id;
-    return T.getPageSheetIds(T.ydoc, pid, T.getScope())[1];
+  // Reflow model: one fragment, many pages. Drop a caret deep in the doc (on a
+  // later page) and bookmark it — the durable relative anchor must be recorded
+  // and the bookmark pins to the page's single fragment (sheetId === pageId).
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    ed.chain().focus().insertContent(
+      '<p>top of the document</p>'
+      + '<p>The quick brown fox jumps over the lazy dog.</p>'.repeat(45)
+      + '<p>ANCHOR DEEP</p>'
+    ).run();
+    ed.chain().focus('end').run();
   });
-  await page.locator('.doc-card-modal .tt-editor').nth(1).click();
-  await page.keyboard.type('Anchor on sheet two');
+  const pid = await page.evaluate(() =>
+    window.__soleilDocTest.readPages(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope())[0].id);
   await page.locator('.doc-card-modal').getByRole('button', { name: 'Bookmark this spot' }).click();
   const dialog = page.locator('.feedback-dialog');
   await expect(dialog).toBeVisible();
-  await dialog.locator('.feedback-field input').fill('Sheet2 mark');
+  await dialog.locator('.feedback-field input').fill('Deep mark');
   await dialog.getByRole('button', { name: 'Add' }).click();
   await expect(dialog).toHaveCount(0);
   const bm = await page.evaluate(() =>
     window.__soleilDocTest.readBookmarks(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope())
-      .find(b => b.name === 'Sheet2 mark'));
-  expect(bm.sheetId).toBe(sheet2);
+      .find(b => b.name === 'Deep mark'));
+  expect(bm).toBeTruthy();
+  expect(bm.relAnchor).toBeTruthy();
+  expect(bm.sheetId).toBe(pid);
 });
 
 test('the link button opens the in-app link picker (not a native prompt)', async ({ page }) => {

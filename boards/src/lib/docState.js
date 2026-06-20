@@ -66,6 +66,89 @@ export function initCardDocStore(ydoc, cardYMap) {
     if (!cardYMap.get('docSheetContent'))  cardYMap.set('docSheetContent', new Y.Map());
     if (!cardYMap.get('docMeta'))          cardYMap.set('docMeta', new Y.Map());
   }, DOC_ORIGIN);
+  // Collapse any legacy stacked sheets into the single content fragment so the
+  // continuous-reflow paginator (DocPagination) has one fragment per page.
+  // Idempotent (gated by docMeta.contentModel) and a no-op for fresh cards.
+  try { migrateSheetsToSingleFragment(ydoc, cardScope(cardYMap)); } catch (_) {}
+}
+
+// Deep-clone a Y.Xml node (XmlElement / XmlText) into a BRAND-NEW node so it
+// can be inserted into a different fragment — Yjs types can't be re-parented.
+// XmlText carries its inline marks via the delta; XmlElement recurses over its
+// attributes + children. Inline leaf nodes (hardBreak, mentions) are stored by
+// y-prosemirror as sibling XmlElements, so the recursion covers them.
+function cloneYXml(src) {
+  if (src && typeof src.toDelta === 'function' && typeof src.toArray !== 'function') {
+    const t = new Y.XmlText();
+    try { t.applyDelta(src.toDelta()); } catch (_) {}
+    return t;
+  }
+  if (src && typeof src.toArray === 'function' && src.nodeName) {
+    const el = new Y.XmlElement(src.nodeName);
+    try {
+      const attrs = src.getAttributes ? src.getAttributes() : {};
+      for (const k of Object.keys(attrs || {})) el.setAttribute(k, attrs[k]);
+    } catch (_) {}
+    const kids = [];
+    for (const c of src.toArray()) { const cl = cloneYXml(c); if (cl) kids.push(cl); }
+    if (kids.length) el.insert(0, kids);
+    return el;
+  }
+  return null;
+}
+
+// One-time, idempotent migration: collapse a page's stacked SHEETS into the
+// single primary content fragment. Sheets are now a pure PRESENTATION concept —
+// the DocPagination plugin paginates one continuous fragment, so a paragraph
+// can flow (and split) across page boundaries. Appends each extra sheet's
+// blocks, in order, to the end of the primary fragment, then drops the sheet
+// maps. Gated by docMeta.contentModel='flow' so it runs once per doc.
+//
+// Collab notes: the primary fragment KEEPS its identity (bookmarks anchored in
+// it still resolve); only bookmarks pinned to an extra sheet lose their exact
+// spot (their sheetId is cleared so they fall back to the single fragment) —
+// rare, since you'd have to bookmark text on page 2+. The single known edge is
+// two clients migrating the SAME multi-sheet doc while BOTH are offline
+// pre-migration (double-append) — vanishingly rare; most docs are single-sheet.
+export function migrateSheetsToSingleFragment(ydoc, scope) {
+  const meta = metaMap(ydoc, scope);
+  if (!meta) return false;
+  if (meta.get('contentModel') === 'flow') return false; // already migrated
+  const content = pageContentMap(ydoc, scope);
+  const sheets = pageSheetsMap(ydoc, scope);
+  const sContent = sheetContentMap(ydoc, scope);
+  if (!content) return false;
+  let changed = false;
+  ydoc.transact(() => {
+    const pages = readPages(ydoc, scope);
+    for (const p of pages) {
+      const extra = sheets?.get(p.id);
+      const extraIds = (extra && typeof extra.toArray === 'function')
+        ? extra.toArray().map(s => s?.id).filter(Boolean) : [];
+      if (extraIds.length) {
+        const primary = content.get(p.id);
+        if (primary && typeof primary.insert === 'function') {
+          for (const sid of extraIds) {
+            const frag = sContent?.get(sid);
+            if (frag && typeof frag.toArray === 'function') {
+              const clones = frag.toArray().map(cloneYXml).filter(Boolean);
+              if (clones.length) primary.insert(primary.length, clones);
+            }
+            sContent?.delete(sid);
+          }
+          changed = true;
+        }
+      }
+      if (sheets?.has(p.id)) sheets.delete(p.id);
+    }
+    // Drop sheetId pins → bookmarks resolve against the single page fragment.
+    const bm = bookmarksMap(ydoc, scope);
+    bm?.forEach((v, k) => {
+      if (v && v.sheetId && v.sheetId !== v.pageId) bm.set(k, { ...v, sheetId: null });
+    });
+    meta.set('contentModel', 'flow');
+  }, DOC_ORIGIN);
+  return changed;
 }
 
 const S = (ydoc, scope) => scope || rootScope(ydoc);

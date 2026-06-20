@@ -40,6 +40,7 @@ import { contentHash } from '../lib/clusterMath.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { ScreenplayKeymap } from './docExtensions/screenplay/ScreenplayKeymap.js';
 import { ScreenplayPagination } from './docExtensions/screenplay/ScreenplayPagination.js';
+import { DocPagination, PAGE_STRIDE, PAGE_H } from './docExtensions/DocPagination.js';
 import { ScreenplaySuggest } from './docExtensions/screenplay/ScreenplaySuggest.js';
 import { MentionExtension } from './docExtensions/MentionExtension.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
@@ -164,7 +165,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', zoom = 1, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -690,6 +691,13 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, relAnchor, scope });
   };
 
+  // Prose pagination (DocPagination) reports how many 8.5×11 pages the content
+  // currently spans; we draw that many white sheets behind the text. zoomRef
+  // lets the plugin read the live zoom without re-creating the editor.
+  const [pageCount, setPageCount] = useState(1);
+  const zoomRef = useRef(zoom);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
   const editor = useEditor({
     extensions: [
       ...baseDocExtensions,
@@ -805,7 +813,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // Screenplay Tab/Enter cycling + auto-caps (priority:1000 so it wins
       // over ExtraShortcuts/AutoDetect/mention; gated to screenplayBlock) +
       // the on-screen line-accurate pagination overlay.
-      ...(docMode === 'screenplay' ? [ScreenplaySuggest, ScreenplayKeymap, ScreenplayPagination] : []),
+      ...(docMode === 'screenplay'
+        ? [ScreenplaySuggest, ScreenplayKeymap, ScreenplayPagination]
+        // Prose: measurement-based reflow pagination (real pages, line-level
+        // splitting). Reports page count so we can draw the page sheets.
+        : [DocPagination.configure({ getZoom: () => zoomRef.current, onPages: setPageCount })]),
       mentionExt,
     ],
     // Don't steal focus from an active text field (e.g. the page-rename
@@ -1220,8 +1232,26 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
 
   if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
 
+  // Prose flow model: the wrap is a transparent column; we paint `pageCount`
+  // white 8.5×11 sheets behind the text, and the DocPagination gap widgets push
+  // content so it lands on each sheet. (Screenplay keeps the single-sheet look.)
+  const isFlow = docMode !== 'screenplay';
+  const wrapStyle = isFlow
+    ? { minHeight: ((pageCount - 1) * PAGE_STRIDE + PAGE_H) + 'px' }
+    : undefined;
+
   return (
-    <div className="doc-editor-wrap" onClick={handleEditorClick} onMouseOver={handleLinkHoverEnter} onMouseOut={handleLinkHoverLeave} onPointerUp={handleChipPointerUp}>
+    <div className={`doc-editor-wrap${isFlow ? ' doc-flow' : ''}`} style={wrapStyle}
+         onClick={handleEditorClick} onMouseOver={handleLinkHoverEnter} onMouseOut={handleLinkHoverLeave} onPointerUp={handleChipPointerUp}>
+      {isFlow && (
+        <div className="doc-pages-bg" aria-hidden="true">
+          {Array.from({ length: Math.max(1, pageCount) }).map((_, i) => (
+            <div className="doc-page-sheet" key={i} style={{ top: (i * PAGE_STRIDE) + 'px' }}>
+              <span className="doc-page-num">{i + 1}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {onDeleteSheet && (
         <button className="doc-sheet-delete"
                 type="button"
