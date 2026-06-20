@@ -12,10 +12,10 @@
 // vertical rhythm via the `--sp-line` custom property. Because all three read
 // from here, wrapping and page breaks can't drift apart.
 //
-// IMPORTANT: PAGE_LINES below and the `--sp-line: calc(9in / 55)` rule in
+// IMPORTANT: PAGE_LINES below and the `--sp-line: calc(9in / 54)` rule in
 // styles.css + screenplayPrint.js must stay in sync (9in text height / lines).
 
-export const PAGE_LINES = 55;          // text lines per page (9in @ ~6.1 lpi)
+export const PAGE_LINES = 54;          // text lines per page — 9in @ 6 lpi (12pt Courier single-spaced)
 export const TEXT_HEIGHT_IN = 9;       // 11in - 1in top - 1in bottom
 export const TEXT_WIDTH_CH = 60;       // 6.0in text block @ 10 cpi
 export const LINE_HEIGHT_IN = TEXT_HEIGHT_IN / PAGE_LINES; // height of one line
@@ -35,7 +35,7 @@ export const ELEMENT_METRICS = {
   parenthetical: { indent: 16, width: 25, spacing: 0 },
   dialogue:      { indent: 10, width: 35, spacing: 0 },
   transition:    { indent: 0,  width: 60, spacing: 1 }, // right-aligned via CSS
-  shot:          { indent: 0,  width: 60, spacing: 1 },
+  shot:          { indent: 0,  width: 60, spacing: 2 }, // 2 blank lines, like a scene heading
   centered:      { indent: 0,  width: 60, spacing: 1 },
 };
 

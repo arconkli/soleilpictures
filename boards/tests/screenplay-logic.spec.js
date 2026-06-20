@@ -211,7 +211,7 @@ test('smart break: a character cue never strands at the bottom of a page', async
     const S = window.__soleilDocTest.screenplay;
     // Fill the page so only ~1 line is left, then a cue + multi-line dialogue.
     const blocks = [
-      { element: 'action', text: 'A'.repeat(60 * 54) }, // ~54 of 55 lines
+      { element: 'action', text: 'A'.repeat(60 * 54) }, // fills the page (54 lines)
       { element: 'character', text: 'JOHN' },
       { element: 'dialogue', text: ('word ').repeat(35 * 4).trim() }, // 4 lines
     ];

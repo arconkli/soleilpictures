@@ -17945,11 +17945,12 @@ button, [role="button"], a {
    fixed vertical rhythm (--sp-line). All element widths/indents below are in
    `ch` and MUST equal screenplayMetrics.ELEMENT_METRICS so the browser wraps at
    the exact same column the paginator counts → on-screen pages == exported PDF.
-   --sp-line = 9in text height / 55 lines (== screenplayMetrics.PAGE_LINES).
+   --sp-line = 9in text height / 54 lines = exactly 1/6in = 12pt = 6 lines per
+   inch — true single-spacing for 12pt Courier (== screenplayMetrics.PAGE_LINES).
    Courier New ships on every OS with Courier's metrics; the bundled Courier
    Prime @font-face (below) makes it byte-identical cross-platform. */
 .doc-paper.is-screenplay {
-  --sp-line: calc(9in / 55);
+  --sp-line: calc(9in / 54);
 }
 /* The script sheet uses the industry 1.5"/1.0" left/right margins (a 60-char,
    6.0in text block). The title page keeps symmetric 1in margins so it centers. */
@@ -17967,6 +17968,9 @@ button, [role="button"], a {
   /* Non-dual blocks clear any dual-dialogue floats above them (no wrapper). */
   clear: both;
 }
+/* The first line sits exactly at the 1in top margin — no leading blank lines
+   (mirrors the paginator zeroing space-before for the first block on a page). */
+.doc-paper.is-screenplay .ProseMirror > [data-screenplay-element]:first-child { margin-top: 0; }
 /* Industry element geometry (ch widths/indents from screenplayMetrics). */
 .doc-paper.is-screenplay [data-screenplay-element="scene"] {
   text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line)); position: relative;
@@ -17985,7 +17989,8 @@ button, [role="button"], a {
 .doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::before { left: -0.5in; }
 .doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::after { right: -0.5in; }
 .doc-paper.is-screenplay [data-screenplay-element="action"] { margin-top: var(--sp-line); }
-.doc-paper.is-screenplay [data-screenplay-element="shot"] { text-transform: uppercase; margin-top: var(--sp-line); }
+/* Shots get 2 blank lines above, like a scene heading (Final Draft default). */
+.doc-paper.is-screenplay [data-screenplay-element="shot"] { text-transform: uppercase; margin-top: calc(2 * var(--sp-line)); }
 .doc-paper.is-screenplay [data-screenplay-element="character"] {
   text-transform: uppercase; margin-top: var(--sp-line); margin-left: 22ch; max-width: 38ch;
 }

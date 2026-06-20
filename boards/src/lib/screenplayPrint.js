@@ -57,14 +57,17 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   const sceneNums = computeSceneNumbers(blocks);
   const titleSection = titlePageHTML(titlePage);
   const pageHtml = pages.map((frags, pi) => {
-    const rows = frags.map((f) => {
+    const rows = frags.map((f, fi) => {
       const contd = f.contd ? `<div class="sp-contd">${esc(f.contd)} (CONT'D)</div>` : '';
       const more = f.more ? `<div class="sp-more">(MORE)</div>` : '';
       // Auto (CONT'D) on a character cue that resumes the same speaker.
       const text = f.element === 'character' ? characterCueDisplay(f.text, contdSet.has(f.index)) : f.text;
       const numAttr = (f.element === 'scene' && sceneNums.has(f.index)) ? ` data-scene-number="${esc(sceneNums.get(f.index))}"` : '';
       const dualAttr = f.dual ? ` data-dual="${f.dual}"` : '';
-      return `${contd}<div class="sp-${f.element}"${numAttr}${dualAttr}>${esc(text) || '&nbsp;'}</div>${more}`;
+      // The first element on each page sits at the 1in top margin (no space-before)
+      // — matches the paginator zeroing space-before for the first block on a page.
+      const firstCls = fi === 0 ? ' sp-page-first' : '';
+      return `${contd}<div class="sp-${f.element}${firstCls}"${numAttr}${dualAttr}>${esc(text) || '&nbsp;'}</div>${more}`;
     }).join('');
     // Page numbers top-right, omitted on page 1 (industry convention).
     const num = pi > 0 ? `<div class="sp-pageno">${pi + 1}.</div>` : '';
@@ -78,7 +81,7 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
      a fixed monospace ch-grid + --sp-line vertical rhythm, so the PDF's pages,
      line breaks and indents match what the writer sees. Keep --sp-line and the
      ch values in sync with src/lib/screenplayMetrics.js. */
-  :root { --sp-line: calc(9in / 55); }
+  :root { --sp-line: calc(9in / 54); } /* 1/6in = 12pt = 6 lines per inch (true single-spacing) */
   @page { size: letter; margin: 0; }
   html, body { margin: 0; padding: 0; }
   body { font-family: 'Courier Prime', 'Courier New', Courier, monospace; font-size: 12pt; line-height: var(--sp-line); color: #000; }
@@ -95,12 +98,14 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   body.sp-show-nums .sp-scene[data-scene-number]::before { left: -0.5in; }
   body.sp-show-nums .sp-scene[data-scene-number]::after { right: -0.5in; }
   .sp-action { margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
-  .sp-shot { text-transform: uppercase; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
+  .sp-shot { text-transform: uppercase; margin-top: calc(2 * var(--sp-line)); white-space: pre-wrap; max-width: 60ch; }
   .sp-character { text-transform: uppercase; margin-top: var(--sp-line); margin-left: 22ch; max-width: 38ch; white-space: pre-wrap; }
   .sp-parenthetical { margin-left: 16ch; max-width: 25ch; white-space: pre-wrap; }
   .sp-dialogue { margin-left: 10ch; max-width: 35ch; white-space: pre-wrap; }
   .sp-transition { text-transform: uppercase; text-align: right; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
   .sp-centered { text-align: center; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
+  /* First element on a page starts at the 1in top margin (no leading blank lines). */
+  .sp-page-first { margin-top: 0; }
   /* (MORE) / (CONT'D) align under the character cue column (22ch). */
   .sp-contd { text-transform: uppercase; margin-left: 22ch; }
   .sp-more { margin-left: 22ch; }
@@ -117,7 +122,7 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   /* Title page — full-page flex layout matching the on-screen editor. The title
      page uses symmetric 1in margins so it centers on the sheet. */
   .sp-title-page { display: flex; flex-direction: column; text-align: center; padding-left: 1in; }
-  .sp-title-page .sp-tp-center { margin-top: 2in; }
+  .sp-title-page .sp-tp-center { margin-top: 2.5in; } /* matches the on-screen title page */
   .sp-title-page .sp-tp-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
   .sp-title-page .sp-tp-foot-left { text-align: left; }
   .sp-title-page .sp-tp-foot-right { text-align: right; }

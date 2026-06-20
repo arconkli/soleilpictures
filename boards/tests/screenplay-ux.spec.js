@@ -536,3 +536,42 @@ test('screenplay export menu offers Fountain + Final Draft import/export', async
   await expect(page.getByRole('menuitem', { name: /Export Final Draft/ })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: /Import Fountain/ })).toBeVisible();
 });
+
+test('line spacing matches industry standard (true 6 lines/inch, shot=2 blank lines, first line at top margin)', async ({ page }) => {
+  await openDoc(page);
+  await enableScreenplay(page);
+  await page.evaluate(() => {
+    const S = window.__soleilDocTest.screenplay;
+    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
+      { element: 'scene', text: 'INT. ROOM - DAY' },     // first block → top margin
+      { element: 'action', text: 'She walks in.' },       // 1 blank line before
+      { element: 'shot', text: 'CLOSE ON HER FACE' },      // 2 blank lines before
+      { element: 'character', text: 'JANE' },
+      { element: 'dialogue', text: 'Hello there.' },
+    ]));
+  });
+  const m = await page.evaluate(() => {
+    const px = (el, prop) => parseFloat(getComputedStyle(el).getPropertyValue(prop));
+    const q = (sel) => document.querySelector(`.doc-paper.is-screenplay ${sel}`);
+    const pm = q('.ProseMirror');
+    const dlg = q('[data-screenplay-element="dialogue"]');
+    return {
+      lineHeight: px(dlg, 'line-height'),
+      fontSize: px(pm, 'font-size'),
+      firstTop: px(q('[data-screenplay-element="scene"]'), 'margin-top'),
+      actionTop: px(q('[data-screenplay-element="action"]'), 'margin-top'),
+      shotTop: px(q('[data-screenplay-element="shot"]'), 'margin-top'),
+    };
+  });
+  // 12pt Courier @96dpi = 16px; line spacing is exactly 1/6in = 16px (true 6 lpi),
+  // and crucially NOT smaller than the glyph (the old 9in/55 ≈ 15.7px was cramped).
+  expect(m.fontSize).toBeCloseTo(16, 0);
+  expect(m.lineHeight).toBeCloseTo(16, 0);
+  expect(m.lineHeight).toBeGreaterThanOrEqual(m.fontSize - 0.01);
+  // The very first line sits exactly at the 1in top margin (no leading blank lines).
+  expect(m.firstTop).toBe(0);
+  // Action = 1 blank line (one --sp-line); Shot = 2 blank lines, like a scene heading.
+  expect(m.actionTop).toBeCloseTo(16, 0);
+  expect(m.shotTop).toBeCloseTo(32, 0);
+  expect(m.shotTop).toBeCloseTo(m.actionTop * 2, 0);
+});
