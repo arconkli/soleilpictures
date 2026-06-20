@@ -1426,6 +1426,15 @@ body {
   border-color: color-mix(in oklab, var(--soleil) 45%, var(--line-2));
   background: color-mix(in oklab, var(--soleil) 12%, transparent);
 }
+.tag-detail-manage-badge {
+  margin-left: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 999px;
+  background: var(--soleil);
+  color: var(--bg-0);
+  font: 700 9.5px/1 var(--font-sans);
+}
 
 /* Identity hero — the visual "what this entity is + looks like" band. */
 .tag-profile-hero {

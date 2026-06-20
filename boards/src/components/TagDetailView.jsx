@@ -152,10 +152,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   // the source board. The index points into imageCardsFlat (derived
   // below) so arrow keys can flip through the tag's whole image set.
   const [lightboxIdx, setLightboxIdx] = useState(null);
-  // Filter: 'all' | 'auto' | 'user' | 'suggested'. Stored in localStorage
-  // so the user's choice persists across reloads / tab switches.
-  // 'suggested' shows the per-tag inbox of middle-band cosine matches
-  // pending accept/dismiss — see boards/supabase/migrations/0043.
+  // Source filter: 'all' | 'auto' | 'user'. Persisted in localStorage so the
+  // choice survives reloads. (Pending suggestions moved to the Manage panel,
+  // so there's no longer a 'suggested' filter value.)
   const [sourceFilter, setSourceFilter] = useState(() => {
     if (typeof localStorage === 'undefined') return 'all';
     try {
@@ -848,6 +847,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
                 onClick={() => setManageOpen(o => !o)}
                 title="Description, source filter, pending suggestions">
           Manage
+          {suggestions.length > 0 && (
+            <span className="tag-detail-manage-badge">{suggestions.length}</span>
+          )}
         </button>
         {onClose && (
           <button className="tag-detail-close" onClick={onClose} aria-label="Close">×</button>

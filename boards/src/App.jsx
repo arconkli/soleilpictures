@@ -1740,6 +1740,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // list down so the count badges + sort ordering line up with the
   // canvas chip surfaces.
   const wsTagsForSidebar = useWorkspaceTags({ workspaceId: workspace.id, boardId: null });
+  // Keep an open tag/entity profile in sync with the realtime-backed workspace
+  // tag list: activeTag is a snapshot taken at open time, so a type/rename/
+  // recolor change made from the sidebar row menu (or by a peer) would leave
+  // the profile hero stale. Re-derive it by id when a real field changes.
+  useEffect(() => {
+    if (currentSurface !== 'tag' || !activeTag?.id) return;
+    const fresh = (wsTagsForSidebar.tags || []).find(t => t.id === activeTag.id);
+    if (fresh && (fresh.entity_type !== activeTag.entity_type
+                  || fresh.name !== activeTag.name
+                  || fresh.color !== activeTag.color)) {
+      setActiveTag(fresh);
+    }
+  }, [wsTagsForSidebar.tags, currentSurface, activeTag]);
 
   // Tag suggester. AI engine on by default; legacy TF-IDF stays available
   // as a fallback if anyone explicitly opts out (`localStorage.soleil.ai_tagger = '0'`).

@@ -105,8 +105,10 @@ export function SidebarTags({
     try {
       const tag = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
       if (tag?.id) {
-        try { await setTagEntityType(tag.id, guessEntityType(name)); } catch (_) {}
-        try { logEvent(EV.TAG_CANDIDATE_PROMOTE, { entity_type: guessEntityType(name), via: 'sidebar' }); } catch (_) {}
+        // Only type a genuinely-untyped tag — ensureTag returns the existing
+        // row when a matching slug exists, so don't clobber its real type.
+        if (!tag.entity_type) { try { await setTagEntityType(tag.id, guessEntityType(name)); } catch (_) {} }
+        try { logEvent(EV.TAG_CANDIDATE_PROMOTE, { entity_type: tag.entity_type || guessEntityType(name), via: 'sidebar' }); } catch (_) {}
       }
       onWorkspaceTagsChanged?.();
     } catch (err) {
