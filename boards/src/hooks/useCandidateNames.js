@@ -43,12 +43,16 @@ function buildIndex(rows) {
 
 export function useCandidateNames(workspaceId) {
   const [index, setIndex] = useState(() => createNameIndex());
+  // The raw {name,n,sample} rows too — the sidebar's "Emerging" lane lists
+  // them (the trie is for editor matching). Shares the cache + change-event.
+  const [names, setNames] = useState([]);
 
   const load = useCallback(async (force = false) => {
-    if (!supabase || !workspaceId) { setIndex(createNameIndex()); return; }
+    if (!supabase || !workspaceId) { setIndex(createNameIndex()); setNames([]); return; }
     const cached = CACHE.get(workspaceId);
     if (!force && cached && (Date.now() - cached.ts) < TTL_MS) {
       setIndex(buildIndex(cached.rows));
+      setNames(cached.rows);
       return;
     }
     try {
@@ -58,6 +62,7 @@ export function useCandidateNames(workspaceId) {
       if (error) throw error;
       CACHE.set(workspaceId, { rows: data || [], ts: Date.now() });
       setIndex(buildIndex(data || []));
+      setNames(data || []);
     } catch (_) {
       // Non-fatal — candidates are an enhancement; keep the prior index.
     }
@@ -72,5 +77,5 @@ export function useCandidateNames(workspaceId) {
     return () => document.removeEventListener('soleil-candidates-changed', onChanged);
   }, [load, workspaceId]);
 
-  return { index, refresh: () => load(true) };
+  return { index, names, refresh: () => load(true) };
 }

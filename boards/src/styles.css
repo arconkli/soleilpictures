@@ -1231,6 +1231,45 @@ body {
 .sb-tag-menu-item:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sb-tag-menu-item.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
 
+/* Entity-type switch inside the row menu (one-tap re-type / un-Untyped). */
+.sb-tag-menu-types {
+  display: flex; gap: 3px;
+  padding: 5px 8px 6px;
+  margin-top: 2px;
+  border-top: 1px solid var(--line-1);
+}
+.sb-tag-menu-type {
+  flex: 1 1 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 26px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.sb-tag-menu-type:hover { color: var(--ink-1); border-color: var(--line-2); background: var(--bg-hov); }
+.sb-tag-menu-type.is-on {
+  color: var(--ink-0);
+  border-color: color-mix(in oklab, var(--soleil) 45%, var(--line-2));
+  background: color-mix(in oklab, var(--soleil) 14%, transparent);
+}
+
+/* Entity index — grouped-by-type sections in the sidebar. */
+.sb-tags-group { margin-bottom: 2px; }
+.sb-tags-group-head {
+  font: 700 9.5px/1.3 var(--font-sans);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 7px 10px 3px;
+}
+/* An "emerging" (not-yet-adopted) candidate reads as a hollow ring. */
+.sb-dot.is-emerging {
+  box-shadow: inset 0 0 0 2px var(--bg-2), 0 0 0 1.5px var(--bg-1);
+}
+
 /* Merge picker — modal overlay for "merge tag X into Y." */
 .merge-picker-bg {
   position: fixed; inset: 0;
