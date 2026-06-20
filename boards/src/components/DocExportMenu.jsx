@@ -13,6 +13,7 @@ import {
   parseFountainTitlePage, fdxToTitlePage,
 } from '../lib/screenplayIO.js';
 import { screenplayPrintHTML } from '../lib/screenplayPrint.js';
+import { docPrintCSS } from '../lib/docTypography.js';
 import { getTitlePage, setTitlePage, getSceneNumbersShow } from '../lib/docState.js';
 
 // Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
@@ -46,32 +47,13 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  // WYSIWYG: the exported HTML / printed PDF uses the SAME typography as the
+  // on-screen editor (docPrintCSS is the white-paper twin of the .tt-editor
+  // rules in styles.css). User-applied font/size/colour/highlight/alignment
+  // marks render as inline styles from generateHTML and sit on top of this.
   const printableHTML = (bodyHTML) => `<!doctype html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(safeName)}</title>
-<style>
-  @page { margin: 0.75in; }
-  [style*="break-after:page"] { break-after: page; page-break-after: always; }
-  body { font-family: ui-serif, Georgia, "Iowan Old Style", serif; font-size: 12pt; line-height: 1.6; color: #111; max-width: 720px; margin: 40px auto; padding: 0 20px; }
-  h1 { font-size: 28pt; margin: 1.2em 0 .3em; }
-  h2 { font-size: 20pt; margin: 1.2em 0 .3em; }
-  h3 { font-size: 15pt; margin: 1em 0 .3em; }
-  h4, h5, h6 { margin: 1em 0 .3em; }
-  p { margin: .5em 0; }
-  ul, ol { padding-left: 24px; }
-  blockquote { border-left: 3px solid #ccc; padding: .2em 12px; color: #444; font-style: italic; }
-  code { background: #f4f4f5; border-radius: 3px; padding: 1px 4px; font-family: ui-monospace, monospace; }
-  pre { background: #f4f4f5; border-radius: 6px; padding: 12px; overflow: auto; }
-  pre code { background: transparent; padding: 0; }
-  hr { border: 0; border-top: 1px solid #ddd; margin: 1.6em 0; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #ddd; padding: 6px 9px; text-align: left; }
-  th { background: #f4f4f5; }
-  img { max-width: 100%; height: auto; border-radius: 4px; }
-  a { color: #2563eb; }
-  mark { background: #fff7a8; }
-  ul[data-type="taskList"] { list-style: none; padding-left: 4px; }
-  ul[data-type="taskList"] li { display: flex; gap: 8px; align-items: flex-start; }
-</style></head><body>${bodyHTML}</body></html>`;
+<style>${docPrintCSS}</style></head><body>${bodyHTML}</body></html>`;
 
   // Whole-doc body HTML (all pages × sheets, assets resolved). Falls back to
   // the focused editor only when doc state isn't available.

@@ -362,7 +362,7 @@ function DocCardOverlay({
       {mode === 'full' && (
         <div className="doc-card-modal-backdrop"
              onPointerDown={(e) => e.stopPropagation()}
-             onClick={close} />
+             onClick={onClose} />
       )}
       <div className={`doc-card-modal doc-card-modal-${mode}`}
            // Position via inline style. IMPORTANT: declare `inset` FIRST,
