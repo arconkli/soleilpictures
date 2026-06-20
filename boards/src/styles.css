@@ -7419,9 +7419,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .canvas-wrap.tool-link .canvas,
 .canvas-wrap.tool-arrow .canvas { cursor: crosshair; }
 
-/* The selected-card ring lives in ONE place — see ".card.is-selected >
-   :first-child" further down (Selection system). This selector used to be
-   duplicated here and overridden, which rendered a muddy gray ring. */
+/* The selected-card ring lives in ONE place — see ".card.is-selected" (on
+   the card root) further down (Selection system). The transient "action"
+   rings below stay on > :first-child. */
 .card.is-arrow-source > :first-child {
   outline: 2px dashed var(--soleil);
   outline-offset: 2px;
@@ -8831,23 +8831,40 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .card.is-dragging .card-resize { opacity: 0; }
 
 /* ── Selection system ──────────────────────────────────────────────────
-   The single source of truth for what a SELECTED card looks like: a crisp
-   brand-gold ring + a soft gold halo so it clearly out-reads hover (which
-   has no ring). Lives on > :first-child (the inner card body) because that
-   selector renders outside the wrapper's clip in practice. */
-.card.is-selected > :first-child {
-  outline: 2px solid var(--select);
+   The single source of truth for what a SELECTED card looks like: a bold
+   brand-gold ring + gold glow. Lives on the CARD ROOT (not > :first-child)
+   on purpose — the card has overflow:hidden + contain:paint, which CLIPS a
+   child's box-shadow/outline (so notes and edge-to-edge images showed only a
+   faint hairline). The element's OWN outline + box-shadow on the root paint
+   outside that clip, so the ring + glow are always fully visible regardless
+   of card kind or content. The glow uses real gold (not the .14 soft token)
+   so it reads on dark notes AND busy photos. */
+.card.is-selected {
+  outline: 2.5px solid var(--select);
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px var(--select-soft), var(--shadow-2);
-  border-radius: var(--radius-lg);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--select) 22%, transparent),
+    0 0 22px 2px color-mix(in srgb, var(--select) 42%, transparent),
+    var(--shadow-2);
   transition: outline-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+/* Shapes strip their rectangular box-shadow at rest; restore the glow when
+   one is selected so the gold reads (shape cards are non-rectangular SVGs,
+   but a rectangular selection frame matches every other kind). */
+.card.card-kind-shape.is-selected {
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--select) 22%, transparent),
+    0 0 22px 2px color-mix(in srgb, var(--select) 42%, transparent);
 }
 
 /* In a 2+ multi-selection the unifying .sel-bbox frames the group, so the
-   per-card rings step down to a thin line (no halo) to avoid a wall of gold. */
-.canvas-wrap.is-multi-sel .card.is-selected > :first-child {
+   per-card rings step down (thinner ring, lighter glow) to avoid a wall of
+   gold while still showing exactly which cards are in the set. */
+.canvas-wrap.is-multi-sel .card.is-selected {
   outline-width: 1.5px;
-  box-shadow: none;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--select) 16%, transparent),
+    var(--shadow-2);
 }
 
 /* Unifying bounding box drawn around a multi-selection so the group reads
