@@ -19,11 +19,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { setTagDescription } from '../lib/tagsApi.js';
+import { setTagDescription, setTagEntityType } from '../lib/tagsApi.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
-import { entityTypeLabel } from '../lib/entityTypes.js';
+import { ENTITY_TYPES, entityTypeLabel } from '../lib/entityTypes.js';
 import {
   untagCard, untagBoard, untagGroup,
   confirmAppliedTag, dismissAutotagSuggestion,
@@ -32,6 +32,10 @@ import {
 import { useFeedback } from './AppFeedback.jsx';
 import { getKind } from '../lib/entityKinds.js';
 import { ImageLightbox } from './ImageLightbox.jsx';
+import { R2Image } from './R2Image.jsx';
+import { fetchTagVisuals } from '../lib/tagVisuals.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 
 // Patch missing meta.src on image-kind card_index rows by looking up
 // `images.storage_path` via card_id. card_index.meta.src is populated
@@ -155,7 +159,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     if (typeof localStorage === 'undefined') return 'all';
     try {
       const v = localStorage.getItem('soleil.tags.detail.filter');
-      return (v === 'auto' || v === 'user' || v === 'suggested') ? v : 'all';
+      return (v === 'auto' || v === 'user') ? v : 'all';
     } catch (_) { return 'all'; }
   });
   const setFilter = (v) => {
@@ -195,6 +199,34 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       window.removeEventListener('keydown', onKey);
     };
   }, [menu]);
+
+  // ── Entity identity (hero) ────────────────────────────────────────────
+  // The visual payoff (cross-board images + palettes) that makes a tag read
+  // as an ENTITY, not a filtered list. Shares fetchTagVisuals with the hover
+  // popover so they stay in lockstep. `entityType` is local+optimistic so the
+  // one-tap type switch feels instant before the workspace tags refresh.
+  const [vis, setVis] = useState(null);
+  const [entityType, setEntityType] = useState(tag?.entity_type || null);
+  const [manageOpen, setManageOpen] = useState(false);
+  useEffect(() => { setEntityType(tag?.entity_type || null); }, [tag?.id, tag?.entity_type]);
+  useEffect(() => {
+    if (!tag?.id || !workspaceId) { setVis(null); return; }
+    let cancelled = false;
+    fetchTagVisuals({ tagId: tag.id, workspaceId }).then(r => { if (!cancelled) setVis(r); });
+    return () => { cancelled = true; };
+  }, [tag?.id, workspaceId]);
+  const changeType = async (val) => {
+    const prev = entityType;
+    const next = val === entityType ? null : val; // tap the active type to clear it
+    setEntityType(next);
+    try {
+      await setTagEntityType(tag.id, next);
+      try { logEvent(EV.TAG_SET_TYPE, { tag_id: tag.id, entity_type: next }); } catch (_) {}
+    } catch (err) {
+      setEntityType(prev);
+      feedback?.toast?.({ type: 'error', message: 'Could not set type' });
+    }
+  };
 
   useEffect(() => {
     if (!tag?.id) { setRows([]); setLoading(false); return; }
@@ -791,51 +823,141 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   };
 
   return (
-    <div className="tag-detail">
+    <div className="tag-detail tag-profile">
       <div className="grain-surface" aria-hidden="true" />
       <div className="tag-detail-head" style={{ '--tag-color': dot }}>
         <span className="tag-detail-dot" style={{ background: dot }} />
         <h1 className="tag-detail-name">{tag.name}</h1>
-        {entityTypeLabel(tag.entity_type) && (
-          <span className="tag-pop-type">{entityTypeLabel(tag.entity_type)}</span>
+        {entityTypeLabel(entityType) && (
+          <span className="tag-pop-type">{entityTypeLabel(entityType)}</span>
         )}
         <span className="tag-detail-count">
-          {sourceFilter === 'suggested'
-            ? `${suggestions.length} ${suggestions.length === 1 ? 'suggestion' : 'suggestions'}`
-            : `${filteredRows.length} ${filteredRows.length === 1 ? 'item' : 'items'}`}
+          {filteredRows.length} {filteredRows.length === 1 ? 'item' : 'items'}
         </span>
         <span className="tag-detail-spacer" />
+        <button className={`tag-detail-manage-btn ${manageOpen ? 'is-on' : ''}`}
+                onClick={() => setManageOpen(o => !o)}
+                title="Description, source filter, pending suggestions">
+          Manage
+        </button>
         {onClose && (
           <button className="tag-detail-close" onClick={onClose} aria-label="Close">×</button>
         )}
       </div>
 
-      <TagDescriptionRow tag={tag} />
-
-      {(rows.length > 0 || suggestions.length > 0) && (
-        <div className="tag-detail-filter">
-          <button className={`tag-detail-filter-pill ${sourceFilter === 'all' ? 'is-on' : ''}`}
-                  onClick={() => setFilter('all')}>
-            All <span className="tag-detail-filter-count">{counts.all}</span>
-          </button>
-          <button className={`tag-detail-filter-pill ${sourceFilter === 'user' ? 'is-on' : ''}`}
-                  onClick={() => setFilter('user')}>
-            Manual <span className="tag-detail-filter-count">{counts.user}</span>
-          </button>
-          <button className={`tag-detail-filter-pill ${sourceFilter === 'auto' ? 'is-on' : ''}`}
-                  onClick={() => setFilter('auto')}>
-            Auto <span className="tag-detail-filter-count">{counts.auto}</span>
-          </button>
-          {suggestions.length > 0 && (
-            <button className={`tag-detail-filter-pill ${sourceFilter === 'suggested' ? 'is-on' : ''}`}
-                    onClick={() => setFilter('suggested')}>
-              Suggested <span className="tag-detail-filter-count">{suggestions.length}</span>
+      {/* Identity hero — what this entity IS + what it looks like, cross-board. */}
+      <div className="tag-profile-hero" style={{ '--tag-color': dot }}>
+        <div className="tag-profile-typeswitch" role="group" aria-label="Entity type">
+          {ENTITY_TYPES.map(t => (
+            <button key={t.value}
+                    className={`tag-profile-type-chip ${entityType === t.value ? 'is-on' : ''}`}
+                    onClick={() => changeType(t.value)}
+                    title={entityType === t.value ? `Clear ${t.label}` : `Mark as ${t.label}`}>
+              <Icon as={t.Icon} size={12} />
+              <span>{t.label}</span>
             </button>
+          ))}
+        </div>
+        {vis && ((vis.images?.length || 0) > 0 || (vis.palettes?.length || 0) > 0) && (
+          <div className="tag-profile-identity">
+            {(vis.images?.length || 0) > 0 && (
+              <div className="tag-profile-images">
+                {vis.images.slice(0, 8).map((im, i) => (
+                  <button key={i} className="tag-profile-thumb"
+                          title={im.title || 'Image'}
+                          onClick={() => navigate({
+                            kind: 'image',
+                            id: `${im.navTarget?.boardId}:${im.navTarget?.cardId}`,
+                            board_id: im.navTarget?.boardId, card_id: im.navTarget?.cardId,
+                          })}>
+                    <R2Image src={im.src} alt="" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {(vis.palettes?.length || 0) > 0 && (
+              <div className="tag-profile-palettes">
+                {vis.palettes.slice(0, 3).map((p, i) => {
+                  const colors = (p.swatches || [])
+                    .map(c => (typeof c === 'string' ? c : c?.hex))
+                    .filter(Boolean).slice(0, 12);
+                  return (
+                    <span key={i} className="tag-profile-palette" title={p.title || 'Palette'}>
+                      {colors.map((c, j) => <span key={j} style={{ background: c }} />)}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Manage — the demoted curation chrome (description, source filter,
+          pending suggestions). Off the default view; opened on demand. */}
+      {manageOpen && (
+        <div className="tag-profile-manage">
+          <TagDescriptionRow tag={tag} />
+          {rows.length > 0 && (
+            <div className="tag-detail-filter">
+              <button className={`tag-detail-filter-pill ${sourceFilter === 'all' ? 'is-on' : ''}`}
+                      onClick={() => setFilter('all')}>
+                All <span className="tag-detail-filter-count">{counts.all}</span>
+              </button>
+              <button className={`tag-detail-filter-pill ${sourceFilter === 'user' ? 'is-on' : ''}`}
+                      onClick={() => setFilter('user')}>
+                Manual <span className="tag-detail-filter-count">{counts.user}</span>
+              </button>
+              <button className={`tag-detail-filter-pill ${sourceFilter === 'auto' ? 'is-on' : ''}`}
+                      onClick={() => setFilter('auto')}>
+                Auto <span className="tag-detail-filter-count">{counts.auto}</span>
+              </button>
+            </div>
+          )}
+          {suggestions.length > 0 && (
+            <div className="tag-profile-suggest">
+              <div className="tag-detail-block-head">
+                <Icon as={FileText} size={12} />
+                <span className="tag-detail-block-title">Pending suggestions</span>
+                <span className="tag-detail-block-attr is-count">{suggestions.length}</span>
+              </div>
+              <div className="tag-detail-suggestions">
+                {suggestions.map(s => {
+                  const kind = s.card_kind || s.source_kind;
+                  const Icn = kindIcon(kind);
+                  const titleText = (s.title || '').trim()
+                    || ((s.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80))
+                    || `${s.source_kind} ${String(s.source_id).slice(0, 8)}`;
+                  const distPct = Math.max(0, Math.min(100, Math.round((1 - s.distance) * 100)));
+                  const navTarget = s.source_kind === 'card' && s.board_id
+                    ? { kind, id: `${s.board_id}:${s.source_id}`, board_id: s.board_id, card_id: s.source_id }
+                    : null;
+                  return (
+                    <div key={`sug:${s.source_kind}:${s.source_id}`} className="tag-detail-suggestion-row">
+                      <button className="tag-detail-suggestion-preview"
+                              title={navTarget ? 'Click to open' : ''}
+                              onClick={navTarget ? () => navigate(navTarget) : undefined}>
+                        <Icon as={Icn} size={12} />
+                        <span className="tag-detail-suggestion-title">{titleText}</span>
+                        <span className="tag-detail-suggestion-score">{distPct}% match</span>
+                      </button>
+                      <div className="tag-detail-suggestion-actions">
+                        <button className="tag-detail-suggestion-accept"
+                                onClick={() => acceptSuggestion(s)} title="Apply this tag">Accept</button>
+                        <button className="tag-detail-suggestion-dismiss"
+                                onClick={() => dismissSuggestion(s)} title="Don't suggest this again">Dismiss</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       )}
 
-      {sourceFilter !== 'suggested' && allCardsFlat.length > 0 && (
+      {/* Type filter — exploration ("show me all the images / palettes"). */}
+      {allCardsFlat.length > 0 && (
         <div className="tag-detail-filter tag-detail-filter-type">
           <button className={`tag-detail-filter-pill ${typeFilter === 'all' ? 'is-on' : ''}`}
                   onClick={() => setTypeFilterPersist('all')}>
@@ -858,61 +980,10 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       )}
 
       <div className="tag-detail-body">
-        {sourceFilter === 'suggested' ? (
-          suggestions.length === 0 ? (
-            <div className="tag-detail-empty">
-              No pending suggestions for <strong>{tag.name}</strong>.
-              <div className="tag-detail-empty-hint">
-                Suggestions appear here as you edit cards that look like they
-                belong under this tag — its name and description drive the
-                matching. Accept the good ones, dismiss the rest.
-              </div>
-            </div>
-          ) : (
-            <div className="tag-detail-suggestions">
-              {suggestions.map(s => {
-                const kind = s.card_kind || s.source_kind;
-                const Icn = kindIcon(kind);
-                const titleText = (s.title || '').trim()
-                  || ((s.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80))
-                  || `${s.source_kind} ${String(s.source_id).slice(0, 8)}`;
-                const distPct = Math.max(0, Math.min(100, Math.round((1 - s.distance) * 100)));
-                const navTarget = s.source_kind === 'card' && s.board_id
-                  ? { kind, id: `${s.board_id}:${s.source_id}`, board_id: s.board_id, card_id: s.source_id }
-                  : null;
-                return (
-                  <div key={`sug:${s.source_kind}:${s.source_id}`}
-                       className="tag-detail-suggestion-row">
-                    <button className="tag-detail-suggestion-preview"
-                            title={navTarget ? 'Click to open' : ''}
-                            onClick={navTarget ? () => navigate(navTarget) : undefined}>
-                      <Icon as={Icn} size={12} />
-                      <span className="tag-detail-suggestion-title">{titleText}</span>
-                      <span className="tag-detail-suggestion-score">{distPct}% match</span>
-                    </button>
-                    <div className="tag-detail-suggestion-actions">
-                      <button className="tag-detail-suggestion-accept"
-                              onClick={() => acceptSuggestion(s)}
-                              title="Apply this tag">
-                        Accept
-                      </button>
-                      <button className="tag-detail-suggestion-dismiss"
-                              onClick={() => dismissSuggestion(s)}
-                              title="Don't suggest this again">
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )
-        ) : (
-          <>
-        {loading && <div className="tag-detail-empty">Loading…</div>}
+        {loading && <div className="tag-detail-empty">Looking up…</div>}
         {!loading && rows.length === 0 && (
           <div className="tag-detail-empty">
-            Nothing tagged with <strong>{tag.name}</strong> yet.
+            Nothing connected to <strong>{tag.name}</strong> yet.
             <div className="tag-detail-empty-hint">
               Right-click a card and choose Tag…, or drag this tag onto something.
             </div>
@@ -922,6 +993,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           <div className="tag-detail-empty">
             No {sourceFilter === 'auto' ? 'auto-applied' : 'manually applied'} items.
           </div>
+        )}
+        {!loading && filteredRows.length > 0 && (
+          <div className="tag-profile-section-head">Everything connected</div>
         )}
 
         {typeFilter === 'all' ? (
@@ -973,11 +1047,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
 
         {mentions.length > 0 && (
           <div className="tag-detail-mentions">
-            <div className="tag-detail-block-head">
-              <Icon as={FileText} size={12} />
-              <span className="tag-detail-block-title">Mentioned in</span>
-              <span className="tag-detail-block-attr is-count">{mentions.length}</span>
-            </div>
+            <div className="tag-profile-section-head">Appears in</div>
             <div className="tag-detail-mention-list">
               {mentions.map(m => {
                 const navTarget = m.kind === 'doc'
@@ -1005,8 +1075,8 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             </div>
           </div>
         )}
-          </>
-        )}
+
+        {/* Related entities — wired in Phase 4 (board-level co-occurrence). */}
       </div>
 
       {menu && (
