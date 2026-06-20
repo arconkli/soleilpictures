@@ -638,6 +638,50 @@ body {
   background: transparent;
   min-height: 0;
 }
+
+/* ── Three zones inside .sb-mid ──────────────────────────────────────────
+   .sb-top (workspace + Home/Messages) and .sb-foot (settings + avatar) stay
+   pinned (flex-shrink:0); only .sb-list (the board/tag list) scrolls, so a
+   long board tree can never crush the nav or push the footer off-screen.
+   .sb-mid keeps its own overflow-y:auto as a fallback for extreme heights.
+   NB: the scroller is .sb-list, NOT .sb-scroll — SignInBackdrop owns a global
+   `.sb-scroll { position:absolute; scrollbar-width:none }` (signin-backdrop.css)
+   that lingers after sign-in and would otherwise break this layout.          */
+.sb-mid .sb-top {
+  display: flex; flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.sb-mid .sb-list {
+  display: flex; flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* A hair of bottom room so the last row never sits flush on the footer
+     border. Inherits the global auto-hiding scrollbar (* rule) — no custom
+     scrollbar styling here. */
+  padding-bottom: 2px;
+}
+.sb-mid > .sb-foot { flex-shrink: 0; margin-top: 0; }
+
+/* Scroll-edge fade — masks the top/bottom edge of the list ONLY when there's
+   hidden content that way (classes toggled by useScrollEdges). Mask reveals
+   the transparent sidebar background, so the grain shows through cleanly. */
+.sb-mid .sb-list.fade-top.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+.sb-mid .sb-list.fade-top:not(.fade-bottom) {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+}
+.sb-mid .sb-list.fade-bottom:not(.fade-top) {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
+}
+
 .sb-mid-head {
   position: relative; /* anchor for the workspace popover */
   display: flex; align-items: center; justify-content: space-between;
@@ -925,29 +969,39 @@ body {
 /* Mirrors .sb-shared visually so the section reads as a sibling of
    "shared with me" and "boards." Each tag row has the same height as
    .sb-row so vertical rhythm with the rest of the sidebar is preserved. */
-.sb-tags { display: flex; flex-direction: column; }
-.sb-tags-head {
+/* BOARDS section header shares the TAGS header treatment so the collapsible
+   sections read identically (chevron + label + count + "+"). */
+.sb-tags,
+.sb-boards { display: flex; flex-direction: column; }
+.sb-tags-head,
+.sb-boards-head {
   display: flex; align-items: center; gap: 6px;
   padding: 10px 12px 4px;
   cursor: pointer;
   user-select: none;
 }
-.sb-tags-head:hover { color: var(--ink-1); }
-.sb-tags-chev {
+.sb-tags-head:hover,
+.sb-boards-head:hover { color: var(--ink-1); }
+.sb-tags-chev,
+.sb-boards-chev {
   display: inline-flex; align-items: center; justify-content: center;
   width: 11px; height: 11px;
   color: var(--ink-3);
   transition: transform var(--dur-fast) var(--ease);
 }
-.sb-tags-chev.is-open { transform: rotate(90deg); }
-.sb-tags-head-label { letter-spacing: 0.18em; }
-.sb-tags-head-count {
+.sb-tags-chev.is-open,
+.sb-boards-chev.is-open { transform: rotate(90deg); }
+.sb-tags-head-label,
+.sb-boards-head-label { letter-spacing: 0.18em; }
+.sb-tags-head-count,
+.sb-boards-count {
   font: 500 10px/1 var(--font-mono);
   color: var(--ink-3);
   letter-spacing: 0;
   margin-left: 4px;
 }
-.sb-tags-add {
+.sb-tags-add,
+.sb-boards-add {
   margin-left: auto;
   width: 18px; height: 18px;
   display: grid; place-items: center;
@@ -955,7 +1009,8 @@ body {
   color: var(--ink-3); cursor: pointer;
   border-radius: var(--radius);
 }
-.sb-tags-add:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sb-tags-add:hover,
+.sb-boards-add:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sb-tags-body {
   display: flex; flex-direction: column;
   padding: 0 0 4px;
@@ -2931,6 +2986,7 @@ body {
   align-items: center;
   gap: 10px;
   height: 30px;
+  flex-shrink: 0;       /* never compress rows — the list scrolls instead */
   padding: 0 12px;
   border-radius: var(--radius);
   color: var(--ink-1);

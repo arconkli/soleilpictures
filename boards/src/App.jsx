@@ -9,6 +9,7 @@ import * as perf from './lib/perf.js';
 import { isEditableTarget } from './lib/isEditableTarget.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
+import { useScrollEdges } from './hooks/useScrollEdges.js';
 import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission } from './hooks/useBoardPermission.js';
 import { useMyTier } from './hooks/useMyTier.js';
@@ -36,7 +37,7 @@ import { refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
 // Side-effect import: registers the v1 entity kinds so any surface
 // that resolves a kind sees the same registry.
 import './lib/entityKinds.js';
-import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
+import { SidebarBoardsSection } from './components/SidebarBoardsSection.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { SidebarTags } from './components/SidebarTags.jsx';
 import { TagDetailView } from './components/TagDetailView.jsx';
@@ -54,7 +55,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon, ChevronLeft, ChevronRight } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, Link as LinkIcon, ChevronLeft, ChevronRight } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
@@ -335,6 +336,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [stack, setStack] = useState(() => [rootBoard.id]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Sidebar scroll region (the board/tag list between the pinned nav and
+  // footer). useScrollEdges toggles fade-top/fade-bottom on it so the edges
+  // fade only when there's hidden content above/below.
+  const sidebarScrollRef = useRef(null);
+  useScrollEdges(sidebarScrollRef);
   // Mobile shell state. isPhone keys all phone-only UI; mobileNavOpen
   // controls the slide-out sidebar (which uses the existing .sidebar
   // markup repositioned as a drawer at phone width).
@@ -2048,7 +2054,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the demo-cap on addCard, and the tier-aware viewer fallback in
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
-  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'shared-edit' | 'manual' | null
+  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'shared-edit' | 'storage' | 'manual' | null
 
   // Funnel: app_open fires once per mount with the caller's tier so we
   // can correlate retention (app opens / unique user / week).
@@ -3228,6 +3234,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          canEdit={isMain ? canEditCurrent : true}
                          boardPermission={isMain ? currentBoardPerm : null}
                          onRequestUpgrade={() => setUpgradeReason('shared-edit')}
+                         onRequestStorageUpgrade={() => setUpgradeReason('storage')}
+                         isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
+                         ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
                          onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                          onOpenPicker={() => setPickerOpen(true)}
@@ -3304,6 +3313,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
         <div className="sb-mid">
+          {/* Pinned top zone — workspace switcher, search, Home, Messages.
+              Held in place (flex-shrink:0) while the list below scrolls. */}
+          <div className="sb-top">
           <div className="sb-mid-head">
             <button className="sb-ws-trigger"
                     onClick={() => setWsMenuOpen(o => !o)}
@@ -3404,29 +3416,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
             )}
           </div>
+          </div>{/* /.sb-top */}
 
+          {/* Scrollable middle — the ONLY scroll region: shared boards, the
+              BOARDS tree, and tags. Pinned nav above, pinned footer below.
+              Class is .sb-list (NOT .sb-scroll) — SignInBackdrop's global
+              .sb-scroll rule would otherwise hijack this element's layout. */}
+          <div className="sb-list" ref={sidebarScrollRef}>
           <SidebarSharedBoards
             shared={sharedBoards}
             activeBoardId={currentSurface === 'board' ? currentId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
           />
 
-          <div className="sb-eyebrow">BOARDS</div>
-          <SidebarBoardTree
+          <SidebarBoardsSection
             boards={boards}
             workspaceId={workspace.id}
             activeBoardId={currentSurface === 'board' ? currentId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
             onRenameBoard={renameBoardById}
             onCreateBoard={canEditCurrent ? () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } : null}
+            onOpenPicker={() => setPickerOpen(true)}
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={jumpToPeer}
           />
-          <div className="sb-row sb-row-all" onClick={() => setPickerOpen(true)}>
-            <Icon as={MoreHorizontal} size={14} />
-            <span className="sb-row-label">All boards</span>
-          </div>
 
           <SidebarTags
             workspaceId={workspace.id}
@@ -3436,6 +3450,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onOpenTag={openTagSurface}
             onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
           />
+          </div>{/* /.sb-list */}
 
           {/* Footer — settings cog + avatar. Cog opens workspace
               settings (defaults, theme, display). Avatar opens identity
