@@ -358,12 +358,19 @@ export function SignInBackdrop({ children, exploreHref }) {
       chrome.style.opacity = clamp((p - 0.74) / 0.16, 0, 1);
       // keep the scroll cue visible through the first nudge so it can't be missed
       hint.style.opacity = 1 - clamp(p / 0.10, 0, 1);
-      // the "explore a live board" link is the payoff — it only surfaces once
-      // the visitor reaches the very end of the scroll (the resolved live board)
+      // the "explore a live board" link is the payoff. On desktop it surfaces
+      // only at the end of the scroll (the resolved live board). On touch the
+      // bouncing-at-the-gate cohort never scrolls that far, so show it from the
+      // first frame — it's the lowest-commitment alternative to signing up.
       if (exploreRef.current) {
-        const endVis = clamp((p - 0.9) / 0.08, 0, 1);
-        exploreRef.current.style.opacity = endVis;
-        exploreRef.current.style.pointerEvents = endVis > 0.5 ? 'auto' : 'none';
+        if (coarse) {
+          exploreRef.current.style.opacity = 1;
+          exploreRef.current.style.pointerEvents = 'auto';
+        } else {
+          const endVis = clamp((p - 0.9) / 0.08, 0, 1);
+          exploreRef.current.style.opacity = endVis;
+          exploreRef.current.style.pointerEvents = endVis > 0.5 ? 'auto' : 'none';
+        }
       }
 
       CARDS.forEach((c, i) => {

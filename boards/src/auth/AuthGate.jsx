@@ -403,6 +403,12 @@ function SignIn() {
             <input
               className="auth-input"
               type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
               autoFocus={AUTOFOCUS_EMAIL}
               required
               aria-label="Email address"
@@ -434,6 +440,10 @@ function SignIn() {
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="done"
               pattern="[0-9]*"
               maxLength={6}
               required
