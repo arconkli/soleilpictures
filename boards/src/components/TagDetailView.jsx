@@ -28,6 +28,7 @@ import {
   untagCard, untagBoard, untagGroup,
   confirmAppliedTag, dismissAutotagSuggestion,
   tagCard, tagGroup, tagBoard, tagDocPage,
+  getRelatedEntities,
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { getKind } from '../lib/entityKinds.js';
@@ -208,6 +209,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   const [vis, setVis] = useState(null);
   const [entityType, setEntityType] = useState(tag?.entity_type || null);
   const [manageOpen, setManageOpen] = useState(false);
+  const [related, setRelated] = useState([]);
   useEffect(() => { setEntityType(tag?.entity_type || null); }, [tag?.id, tag?.entity_type]);
   useEffect(() => {
     if (!tag?.id || !workspaceId) { setVis(null); return; }
@@ -215,6 +217,13 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     fetchTagVisuals({ tagId: tag.id, workspaceId }).then(r => { if (!cancelled) setVis(r); });
     return () => { cancelled = true; };
   }, [tag?.id, workspaceId]);
+  // Related entities — sibling tags that co-occur (share boards). The web feel.
+  useEffect(() => {
+    if (!tag?.id) { setRelated([]); return; }
+    let cancelled = false;
+    getRelatedEntities(tag.id).then(r => { if (!cancelled) setRelated(r); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [tag?.id]);
   const changeType = async (val) => {
     const prev = entityType;
     const next = val === entityType ? null : val; // tap the active type to clear it
@@ -1076,7 +1085,33 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           </div>
         )}
 
-        {/* Related entities — wired in Phase 4 (board-level co-occurrence). */}
+        {related.length > 0 && (
+          <div className="tag-detail-related">
+            <div className="tag-profile-section-head">Related</div>
+            <div className="tag-profile-related-list">
+              {related.map(r => {
+                const rdot = r.color || tagFallbackColor(r.slug || r.name);
+                return (
+                  <button key={r.tag_id}
+                          className="tag-profile-related-row"
+                          style={{ '--tag-color': rdot }}
+                          title={`Open ${r.name}`}
+                          onClick={() => document.dispatchEvent(
+                            new CustomEvent('soleil-open-tag', { detail: { tagId: r.tag_id } }))}>
+                    <span className="tag-profile-related-dot" style={{ background: rdot }} />
+                    <span className="tag-profile-related-name">{r.name}</span>
+                    {entityTypeLabel(r.entity_type) && (
+                      <span className="tag-pop-type">{entityTypeLabel(r.entity_type)}</span>
+                    )}
+                    <span className="tag-profile-related-shared">
+                      {r.shared} {r.shared === 1 ? 'board' : 'boards'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {menu && (

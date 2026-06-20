@@ -77,6 +77,18 @@ export async function ensureTag({ workspaceId, name, color = null, kind = 'user'
   return data;
 }
 
+// Sibling entities that co-occur with this one (share boards). RLS-gated
+// (workspace-member only) RPC; returns
+// [{ tag_id, name, slug, color, entity_type, shared }] ordered by shared desc.
+export async function getRelatedEntities(tagId, limit = 8) {
+  if (!tagId) return [];
+  const { data, error } = await supabase.rpc('get_related_entities', {
+    p_tag_id: tagId, p_limit: limit,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function deleteTag(tagId) {
   // Cascading delete: drop the tag definition AND every application
   // (entity_links rows). The tag's `id` cascades through entity_links
