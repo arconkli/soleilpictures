@@ -30,7 +30,7 @@ test('hamburger opens sidebar drawer, backdrop closes it', async ({ page }, test
   await expect(sidebar).not.toHaveClass(/is-mobile-open/);
 });
 
-test('bottom nav has four tabs and Home is active by default', async ({ page }, testInfo) => {
+test('bottom nav has four tabs; no tab is lit while viewing a board', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'desktop-chrome' || testInfo.project.name === 'tablet',
     'phone-width only (≤640px)');
   const tabs = page.locator('.mb-nav-tab');
@@ -39,7 +39,12 @@ test('bottom nav has four tabs and Home is active by default', async ({ page }, 
   await expect(tabs.nth(1)).toContainText('Search');
   await expect(tabs.nth(2)).toContainText('Messages');
   await expect(tabs.nth(3)).toContainText('Settings');
-  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
+  // The default surface is a BOARD, not the Home graph. None of the four tabs
+  // is the current destination, so none is selected (the old code wrongly lit
+  // Home via a fall-through). The centre "+" is the active affordance instead.
+  await expect(page.locator('.mb-nav-tab.is-active')).toHaveCount(0);
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'false');
+  await expect(page.locator('.mb-nav-create')).toBeVisible();
 });
 
 test('Search tab opens the BoardPicker', async ({ page }, testInfo) => {

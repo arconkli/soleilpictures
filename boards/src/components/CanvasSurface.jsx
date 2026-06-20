@@ -1537,6 +1537,31 @@ export function CanvasSurface({
     return () => window.removeEventListener('pointermove', onMove);
   }, [selectedTool, arrowFrom, clientToCanvas]);
 
+  // Mobile create: the phone bottom-nav "+" dispatches this document event
+  // (it can't reach the canvas mutators directly). We create a note at the
+  // viewport centre and auto-focus it — the lowest-friction first card, and
+  // the genuine first-card gesture (so it counts as real activation).
+  // BOTH gates are load-bearing: the nav hides the "+" on read-only boards,
+  // but addNote → addCard has NO internal permission check, and a CustomEvent
+  // can be dispatched by anything, so the canEdit guard here is the actual
+  // enforcement. The boardId match keeps a split-pane dispatch from landing
+  // a note on the wrong pane.
+  useEffect(() => {
+    const onAdd = (e) => {
+      if (e.detail?.boardId !== board.id) return;
+      if (!canEdit) return;
+      noteCreateIntent('mobile_nav');
+      const rect = wrapRef.current?.getBoundingClientRect();
+      const pos = rect
+        ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
+        : { x: 200, y: 200 };
+      mutators.addNote?.(pos);
+    };
+    document.addEventListener('soleil-mobile-add-card', onAdd);
+    return () => document.removeEventListener('soleil-mobile-add-card', onAdd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id, canEdit]);
+
   // Inverse of clientToCanvas — returns viewport-relative pixel coords for
   // a canvas-space point. Used by the comments layer to anchor floating
   // bubbles correctly under live pan/zoom.

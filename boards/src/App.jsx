@@ -3899,10 +3899,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={getEnrolledArm('coachmark_copy')} />
       )}
 
-      {isPhone && (
+      {isPhone && (() => {
+        // The "+" appears only when a board canvas is the active surface and
+        // it's editable — that's the only place a card can be created. When it
+        // shows, no tab is "selected" (the user is on a board, not Home), so
+        // pass active={null} rather than the old fall-through to 'home' which
+        // wrongly lit Home next to the create puck.
+        const onBoard = currentSurface === 'board'
+          && !tweak.showMessages && !settingsOpen && !pickerOpen && !mobileNavOpen;
+        const showCreate = onBoard && canEditCurrent;
+        return (
         <MobileBottomNav
+          showCreate={showCreate}
+          createIcon={<Icon as={Plus} size={26} />}
+          onCreate={() => {
+            setMobileNavOpen(false);
+            document.dispatchEvent(new CustomEvent('soleil-mobile-add-card', {
+              detail: { boardId: currentBoard?.id },
+            }));
+          }}
           active={
-            currentSurface === 'home' ? 'home'
+            onBoard ? null
+            : currentSurface === 'home' ? 'home'
             : tweak.showMessages ? 'messages'
             : settingsOpen ? 'settings'
             : pickerOpen ? 'search'
@@ -3924,7 +3942,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             if (k === 'settings') { setSettingsOpen(true); setPickerOpen(false); setTweak('showMessages', false); }
           }}
         />
-      )}
+        );
+      })()}
 
     </div>
     </AppTrieProvider>

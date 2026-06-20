@@ -17698,6 +17698,30 @@ button, [role="button"], a {
   font: 700 10px/16px var(--font-sans);
   text-align: center;
 }
+/* Elevated centre "+" puck — the primary phone create action. Fixed width so
+   the four real tabs keep equal flex widths; the puck overhangs the bar top
+   (.mb-nav has no overflow:hidden). */
+.mb-nav-create {
+  flex: 0 0 auto; width: 64px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mb-nav-create-fab {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px;
+  margin-top: -18px;
+  border-radius: 999px;
+  background: var(--soleil);
+  color: #0a0a0c;
+  box-shadow: var(--shadow-2), var(--soleil-glow);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.mb-nav-create:active .mb-nav-create-fab { transform: scale(0.92); }
+.mb-nav-create:focus-visible { outline: 0; }
+.mb-nav-create:focus-visible .mb-nav-create-fab {
+  outline: 2px solid var(--ink-0); outline-offset: 2px;
+}
 
 /* MobileDrawer ---------------------------------------------------------- */
 .md-drawer-root {

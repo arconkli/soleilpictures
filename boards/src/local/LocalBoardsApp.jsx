@@ -822,10 +822,22 @@ export function LocalBoardsApp({ user, signOut }) {
         <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} />
       )}
 
-      {isPhone && (
+      {isPhone && (() => {
+        const onBoard = currentSurface === 'board' && view === 'canvas'
+          && !tweak.showMessages && !pickerOpen && !mobileNavOpen;
+        return (
         <MobileBottomNav
+          showCreate={onBoard}
+          createIcon={<Icon as={Plus} size={26} />}
+          onCreate={() => {
+            setMobileNavOpen(false);
+            document.dispatchEvent(new CustomEvent('soleil-mobile-add-card', {
+              detail: { boardId: currentBoard?.id },
+            }));
+          }}
           active={
-            currentSurface === 'home' ? 'home'
+            onBoard ? null
+            : currentSurface === 'home' ? 'home'
             : tweak.showMessages ? 'messages'
             : pickerOpen ? 'search'
             : 'home'
@@ -848,7 +860,8 @@ export function LocalBoardsApp({ user, signOut }) {
             }
           }}
         />
-      )}
+        );
+      })()}
     </div>
   );
 }
