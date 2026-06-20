@@ -7,6 +7,7 @@
 // across canvas → list rows → sidebar tree.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import { BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds } from '../lib/dragMimes.js';
@@ -541,16 +542,24 @@ export function SidebarBoardTree({
   return (
     <div className="sb-tree" ref={treeRef}>
       {roots.map(b => renderRow(b, 0))}
-      <CardContextMenu
-        open={menu.open}
-        x={menu.x}
-        y={menu.y}
-        items={menu.board ? buildRowMenu(menu.board) : []}
-        onClose={closeMenu}
-        workspaceId={workspaceId}
-        boardId={menu.board?.id}
-        card={null}
-      />
+      {/* Portal to <body>: the sidebar list (.sb-list) has a scroll-edge
+          mask-image + overflow-x:hidden that would otherwise CLIP this
+          fixed-positioned menu to the sidebar's width — cutting off its right
+          half and leaving the body-portaled submenu stranded far to the
+          right. Rendering in <body> escapes the mask entirely. */}
+      {createPortal(
+        <CardContextMenu
+          open={menu.open}
+          x={menu.x}
+          y={menu.y}
+          items={menu.board ? buildRowMenu(menu.board) : []}
+          onClose={closeMenu}
+          workspaceId={workspaceId}
+          boardId={menu.board?.id}
+          card={null}
+        />,
+        document.body
+      )}
       {picker && (
         <ColorPicker
           value={picker.value}
