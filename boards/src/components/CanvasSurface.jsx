@@ -84,6 +84,18 @@ const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
 // still this long. Mirrors the existing useLongPress timing (480ms / 10px).
 const TOUCH_LIFT_MS = 480;
 const TOUCH_LIFT_TOLERANCE = 10;
+// First-run discoverability for press-and-hold-to-lift: the first time a touch
+// user's drag-from-a-card resolves to a pan (so the card DIDN'T move), we show
+// a one-time toast explaining the hold. Device-local (localStorage) is the
+// right scope for a touch hint and sidesteps any onboarding-settings write — a
+// default of "seen" on any read failure means we err toward NOT nagging.
+const LIFT_HINT_KEY = 'soleil.liftHintSeen';
+function liftHintSeen() {
+  try { return localStorage.getItem(LIFT_HINT_KEY) === '1'; } catch (_) { return true; }
+}
+function markLiftHintSeen() {
+  try { localStorage.setItem(LIFT_HINT_KEY, '1'); } catch (_) {}
+}
 // GPU-promotion of the .canvas layer is GREAT for smooth pan/zoom — but it
 // FORCES every overlapping descendant (all mounted cards + the virtual-canvas
 // SVG layers) to be composited into its own GPU layer ("Overlap" compositing).
@@ -3343,7 +3355,17 @@ export function CanvasSurface({
       if (touchHold && !lifted) {
         if (aborted || ev.pointerId !== initialPointerId) return;
         const moved = Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y);
-        if (!panned && moved > TOUCH_LIFT_TOLERANCE) { panned = true; cancelLift(); }
+        if (!panned && moved > TOUCH_LIFT_TOLERANCE) {
+          panned = true; cancelLift();
+          // The user dragged from a card and it panned instead of moving — the
+          // moment they learn the hold. Show the hint once (set the flag first,
+          // synchronously, so a fast repeat can't double-toast).
+          if (canEdit && !liftHintSeen()) {
+            markLiftHintSeen();
+            feedback.toast({ type: 'info', message: 'Press and hold a card to pick it up and move it.', ttl: 5000 });
+            try { logEvent(EV.MOBILE_LIFT_HINT_SHOWN, { board_id: board?.id }); } catch (_) {}
+          }
+        }
         if (panned) {
           panRef.current = {
             x: startPanXY.x + (ev.clientX - startClient.x),
