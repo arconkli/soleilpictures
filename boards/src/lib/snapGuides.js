@@ -31,6 +31,11 @@ export const SNAP_TUNING = Object.freeze({
   LINGER_MS: 90,              // fade-out linger after guides clear (was 160)
   FAST_MOVE_PX: 50,           // per-frame move (screen px) above which guides
                               //   clear instantly (no fading trail on a sweep)
+  MOVE_SPEED_PX_MS: 0.3,      // above this smoothed pointer speed (screen px/ms)
+                              //   the card is "being moved" → glide free, no guides;
+                              //   below it the user is placing → snap + guides engage
+  SETTLE_MS: 90,              // after motion stops, delay before guides + snap
+                              //   resolve in (covers an abrupt fast-stop)
   SIZE_GUIDE: 'caliper',      // resize same-size indicator: dual caliper on both
                               //   cards ('underline' = legacy single-card mark)
 });
@@ -86,6 +91,21 @@ function nearestGap(rects, bbox) {
   let best = Infinity;
   for (const r of rects) best = Math.min(best, rectCenterDist(r, bbox));
   return best;
+}
+
+// Perpendicular extent of a target's guide line, limited to the contributing
+// cards that are NEAR the dragged bbox, so the line only reaches the nearby
+// aligned card(s) instead of spanning edge-to-edge across the board. axis 'x' →
+// a vertical guide, so measure the y range; axis 'y' → measure the x range.
+function spanOf(target, bbox, proxWorld, axis) {
+  let lo = Infinity, hi = -Infinity;
+  for (const r of target.rects) {
+    if (isFinite(proxWorld) && rectGap(r, bbox) > proxWorld) continue;
+    if (axis === 'x') { lo = Math.min(lo, r.y); hi = Math.max(hi, r.y + r.h); }
+    else { lo = Math.min(lo, r.x); hi = Math.max(hi, r.x + r.w); }
+  }
+  if (lo === Infinity) { lo = target.lo; hi = target.hi; } // fallback (shouldn't hit)
+  return { lo, hi };
 }
 
 // Collapse targets whose coordinate is within `epsWorld`, unioning their
@@ -249,10 +269,12 @@ export function computeSnap(rawDx, rawDy, { targets, dragBBoxStart, zoom, tuning
   const ys = [];
   const spacings = [];
   if (bestXTarget) {
-    xs.push({ x: bestXTarget.coord, y0: Math.min(bestXTarget.lo, newBBox.y0), y1: Math.max(bestXTarget.hi, newBBox.y1) });
+    const sp = spanOf(bestXTarget, bbox, prox, 'x');
+    xs.push({ x: bestXTarget.coord, y0: Math.min(sp.lo, newBBox.y0), y1: Math.max(sp.hi, newBBox.y1) });
   }
   if (bestYTarget) {
-    ys.push({ y: bestYTarget.coord, x0: Math.min(bestYTarget.lo, newBBox.x0), x1: Math.max(bestYTarget.hi, newBBox.x1) });
+    const sp = spanOf(bestYTarget, bbox, prox, 'y');
+    ys.push({ y: bestYTarget.coord, x0: Math.min(sp.lo, newBBox.x0), x1: Math.max(sp.hi, newBBox.x1) });
   }
   if (bestSpaceXMeta && bestSpaceXDist < thresh + 0.001) {
     spacings.push({ axis: 'x', a: bestSpaceXMeta.paired.a, b: bestSpaceXMeta.paired.b, cross: bestSpaceXMeta.paired.cross, gap: Math.round(bestSpaceXMeta.gap) });

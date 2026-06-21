@@ -28,6 +28,7 @@ export function seedSnapLayout() {
       card('A',    0,    0,    120, 80),
       card('B',    0,    200,  120, 80),
       card('Bd',   0.4,  440,  120, 80),
+      card('FARCOL', 0,  5000, 120, 80),   // shares x=0 with A/B but far → span-trim
       card('LONE', -500, 3000, 120, 80),
       card('FAR',  6000, 4000, 120, 80),
       card('P1',   300,  1000, 120, 80),

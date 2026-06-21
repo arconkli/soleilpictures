@@ -3205,7 +3205,25 @@ export function CanvasSurface({
     // updates on a 60Hz display.
     let pendingMoveEv = null;
     let moveRafId = 0;
-    let prevRaw = null; // last frame's raw (world) delta, for the fast-sweep clear
+    // Settle gate: guides + snapping engage only when the user SLOWS DOWN to
+    // place the card. While moving the card around quickly it glides freely with
+    // no guides, so a busy board isn't flooded with flashing lines. `emaSpeed`
+    // is a smoothed pointer screen-speed (px/ms); below MOVE_SPEED_PX_MS the
+    // user is "placing" → snap + guides. A settle timer covers an abrupt stop
+    // (no more pointermove events) by resolving the snap a beat after motion ends.
+    let lastSample = null;                                   // { x, y, t }
+    let emaSpeed = SNAP_TUNING.MOVE_SPEED_PX_MS * 2;         // start "moving" (no flash at grab)
+    let lastRaw = { dx: 0, dy: 0 };
+    let movedSettled = false;                               // last frame's settled state (for onUp)
+    let settleTimer = 0;
+    const onSettle = () => {
+      settleTimer = 0;
+      if (!dragArmed || aborted) return;
+      const snap = computeSnap(lastRaw.dx, lastRaw.dy);
+      setDrag({ ids: dragIds, dx: snap.dx, dy: snap.dy, startPositions });
+      setSnapHints(snap.hints);
+      movedSettled = true;
+    };
     const flushMove = () => {
       moveRafId = 0;
       const ev = pendingMoveEv;
@@ -3257,17 +3275,28 @@ export function CanvasSurface({
       const rawDy = (ev.clientY - _origin.y) / zoom;
       // Hold Alt/Option to bypass snap.
       const skip = ev.altKey;
-      const snap = skip ? { dx: rawDx, dy: rawDy, hints: null } : computeSnap(rawDx, rawDy);
+      // Smooth the pointer speed and decide whether the user is placing (slow)
+      // or just moving (fast). Only when placing do snapping + guides engage.
+      const nowT = ev.timeStamp || performance.now();
+      if (lastSample) {
+        const dist = Math.hypot(ev.clientX - lastSample.x, ev.clientY - lastSample.y);
+        const dt = Math.max(1, nowT - lastSample.t);
+        emaSpeed = emaSpeed * 0.6 + (dist / dt) * 0.4;
+      }
+      lastSample = { x: ev.clientX, y: ev.clientY, t: nowT };
+      const settled = !skip && emaSpeed < SNAP_TUNING.MOVE_SPEED_PX_MS;
+      const snap = settled ? computeSnap(rawDx, rawDy) : { dx: rawDx, dy: rawDy, hints: null };
       const { dx, dy, hints } = snap;
       setDrag({ ids: dragIds, dx, dy, startPositions });
-      // Fast sweep across the board: if the card jumped more than FAST_MOVE_PX
-      // (screen) since last frame, drop any lingering guide immediately so old
-      // matches don't pile up as a fading trail behind the moving card.
-      if (!hints && prevRaw && Math.hypot(rawDx - prevRaw.dx, rawDy - prevRaw.dy) * zoom > SNAP_TUNING.FAST_MOVE_PX) {
-        setDisplayedHints(null);
-      }
-      prevRaw = { dx: rawDx, dy: rawDy };
+      // Moving: drop any lingering guide immediately (no fading trail). Placing:
+      // show the matched guides. Either way (re)arm the settle timer so an abrupt
+      // stop still resolves the snap a beat later.
+      if (!settled) setDisplayedHints(null);
       setSnapHints(hints);
+      lastRaw = { dx: rawDx, dy: rawDy };
+      movedSettled = settled;
+      if (settleTimer) clearTimeout(settleTimer);
+      if (!skip) settleTimer = setTimeout(onSettle, SNAP_TUNING.SETTLE_MS);
       // Same-canvas board-drop hover detection. The dragged cards
       // themselves sit under the cursor, so elementFromPoint would
       // return them; use elementsFromPoint and walk the stack to find
@@ -3345,6 +3374,7 @@ export function CanvasSurface({
       // we're about to commit final positions, so a trailing flush would
       // re-render the dragged cards once at a stale delta before settling.
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
+      if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       pendingMoveEv = null;
       cleanupTouchHold();
       // Touch gesture that never lifted → it was a PAN or a TAP, not a card
@@ -3374,7 +3404,9 @@ export function CanvasSurface({
       const rawDx = (ev.clientX - _origin.x) / zoom;
       const rawDy = (ev.clientY - _origin.y) / zoom;
       const skip = ev.altKey;
-      const snapEnd = skip ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
+      // Snap on commit only if released while placing (slowed); a release mid-fling
+      // (fast, guides were hidden) lands free so a toss isn't yanked into alignment.
+      const snapEnd = (skip || !movedSettled) ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
       const { dx, dy } = snapEnd;
       setSnapHints(null);
       // Cancel any queued mid-drag broadcast so a stale rAF can't fire
@@ -3622,6 +3654,7 @@ export function CanvasSurface({
       window.removeEventListener('pointercancel', onCancel);
       cleanupTouchHold();
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
+      if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
       pendingMoveEv = null;
       pendingLiveDrag = null;
@@ -3641,6 +3674,7 @@ export function CanvasSurface({
       window.removeEventListener('pointercancel', onCancel);
       pointerOpAbortRef.current = null;
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
+      if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
       pendingMoveEv = null;
       pendingLiveDrag = null;

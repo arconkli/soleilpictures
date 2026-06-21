@@ -84,6 +84,20 @@ test.describe('snap alignment guides', () => {
     expect(r.dx).toBe(0);
   });
 
+  test('a far collinear card does not stretch the guide line (span trim)', async ({ page }) => {
+    const r = await page.evaluate((cfg) => {
+      const T = window.__soleilAlignTest;
+      const { cards } = T.seedSnapLayout();
+      // Drag B (x=0) 3px off A's x=0. A/Bd are near; FARCOL shares x=0 but sits
+      // ~5000px away. The guide line must reach the NEAR cards, not FARCOL.
+      const snap = T.moveSnap(cards, 'B', 3, 0, cfg.BIG_VP, 1, T.tuning(cfg.REAL));
+      const g = snap.hints?.xs?.[0];
+      return { x: g?.x, y0: g?.y0, y1: g?.y1 };
+    }, { REAL, BIG_VP });
+    expect(r.x).toBe(0);
+    expect(r.y1).toBeLessThan(2000); // trimmed — does NOT extend down to FARCOL (~5080)
+  });
+
   test('dragging into an existing 24px rhythm shows a spacing marker', async ({ page }) => {
     const r = await page.evaluate((cfg) => {
       const T = window.__soleilAlignTest;
