@@ -75,6 +75,10 @@ import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
 } from '../lib/arrowGeometry.js';
+import {
+  SNAP_TUNING, worldViewportRect, buildSnapTargets, buildResizeTargets,
+  computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
+} from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
@@ -3074,98 +3078,17 @@ export function CanvasSurface({
     });
     const startClient = { x: e.clientX, y: e.clientY };
 
-    // Snap targets: every non-dragged card's edges & centers, captured once
-    // at drag start so we don't recompute on every mousemove.
-    const SNAP_PX = 6;
-    const targetsX = []; // edges to align/abut on the X axis
-    const targetsY = [];
-    // Per-target metadata so we can also draw a guide line that spans
-    // from min-y to max-y across all target cards sharing that x (and
-    // same for the y axis).
-    const targetXBounds = new Map(); // x → { y0, y1 }
-    const targetYBounds = new Map();
-    const extendBound = (m, key, lo, hi) => {
-      const cur = m.get(key);
-      if (!cur) m.set(key, { y0: lo, y1: hi });
-      else { cur.y0 = Math.min(cur.y0, lo); cur.y1 = Math.max(cur.y1, hi); }
-    };
-    cards.forEach(card => {
-      if (dragSet.has(card.id)) return;
-      const xs = [card.x, card.x + card.w, card.x + card.w / 2];
-      const ys = [card.y, card.y + card.h, card.y + card.h / 2];
-      xs.forEach(x => {
-        targetsX.push(x);
-        extendBound(targetXBounds, x, card.y, card.y + card.h);
-      });
-      ys.forEach(y => {
-        targetsY.push(y);
-        extendBound(targetYBounds, y, card.x, card.x + card.w);
-      });
+    // Snap targets, captured once at drag start (see lib/snapGuides.js). The
+    // viewport gate keeps far-off-board cards out of the candidate pool — the
+    // core fix for the "swarm of guides when dragging across the board". Live
+    // pan/zoom refs (not lagged state) so the world rect matches what's drawn.
+    const _wrapRect = wrapRef.current?.getBoundingClientRect();
+    const _snapViewport = worldViewportRect(
+      { width: _wrapRect?.width || 0, height: _wrapRect?.height || 0 },
+      panRef.current, zoomRef.current, SNAP_TUNING.VIEWPORT_MARGIN_PX);
+    const snapTargets = buildSnapTargets({
+      cards, dragSet, viewport: _snapViewport, zoom: zoomRef.current, tuning: SNAP_TUNING,
     });
-
-    // Equal-spacing snap targets — for any pair of non-dragged cards
-    // that share a row (vertical overlap) or column (horizontal
-    // overlap) with a positive gap between them, propose extending
-    // the gap on either side. Drags that match an existing rhythm
-    // ("each card 24px apart") snap cleanly. Works in both axes
-    // independently so a + / cross arrangement falls into place.
-    const otherCards = cards.filter(c => !dragSet.has(c.id));
-    const SPACING_MIN = 4;
-    const SPACING_MAX = 1500;
-    const OVERLAP_MIN = 8;
-    const xSpacingCands = []; // { targetX, edgeIs, gap, paired:{a,b,cross} }
-    const ySpacingCands = [];
-    for (let i = 0; i < otherCards.length; i++) {
-      for (let j = i + 1; j < otherCards.length; j++) {
-        const a = otherCards[i], b = otherCards[j];
-        // Row neighbours on the X axis — vertical overlap, gap > 0
-        const yOverlap = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-        if (yOverlap > OVERLAP_MIN) {
-          const left  = a.x + a.w < b.x ? a : (b.x + b.w < a.x ? b : null);
-          const right = left === a ? b : (left === b ? a : null);
-          if (left && right) {
-            const gap = right.x - (left.x + left.w);
-            if (gap >= SPACING_MIN && gap <= SPACING_MAX) {
-              const cross = (Math.max(left.y, right.y) + Math.min(left.y + left.h, right.y + right.h)) / 2;
-              // Extend the row to the right of `right`
-              xSpacingCands.push({
-                targetX: right.x + right.w + gap,
-                edgeIs: 'left', gap,
-                paired: { a: right.x + right.w, b: right.x + right.w + gap, cross },
-              });
-              // Extend the row to the left of `left`
-              xSpacingCands.push({
-                targetX: left.x - gap,
-                edgeIs: 'right', gap,
-                paired: { a: left.x - gap, b: left.x, cross },
-              });
-            }
-          }
-        }
-        // Column neighbours on the Y axis — horizontal overlap
-        const xOverlap = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-        if (xOverlap > OVERLAP_MIN) {
-          const top    = a.y + a.h < b.y ? a : (b.y + b.h < a.y ? b : null);
-          const bottom = top === a ? b : (top === b ? a : null);
-          if (top && bottom) {
-            const gap = bottom.y - (top.y + top.h);
-            if (gap >= SPACING_MIN && gap <= SPACING_MAX) {
-              const cross = (Math.max(top.x, bottom.x) + Math.min(top.x + top.w, bottom.x + bottom.w)) / 2;
-              ySpacingCands.push({
-                targetY: bottom.y + bottom.h + gap,
-                edgeIs: 'top', gap,
-                paired: { a: bottom.y + bottom.h, b: bottom.y + bottom.h + gap, cross },
-              });
-              ySpacingCands.push({
-                targetY: top.y - gap,
-                edgeIs: 'bottom', gap,
-                paired: { a: top.y - gap, b: top.y, cross },
-              });
-            }
-          }
-        }
-      }
-    }
     // Bounding box of dragged group at start (for snapping the group as one).
     const dragBBoxStart = (() => {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -3178,105 +3101,9 @@ export function CanvasSurface({
       });
       return { minX, minY, maxX, maxY };
     })();
-    const computeSnap = (rawDx, rawDy) => {
-      // Snap thresholds scale with zoom so they FEEL like ~SNAP_PX on screen
-      // regardless of zoom level.
-      const thresh = SNAP_PX / zoom;
-      const left   = dragBBoxStart.minX + rawDx;
-      const right  = dragBBoxStart.maxX + rawDx;
-      const top    = dragBBoxStart.minY + rawDy;
-      const bottom = dragBBoxStart.maxY + rawDy;
-      const cx     = (left + right) / 2;
-      const cy     = (top + bottom) / 2;
-      let bestX = null, bestXDist = thresh + 0.001, bestXTarget = null;
-      let bestY = null, bestYDist = thresh + 0.001, bestYTarget = null;
-      // X-axis: try to align left/right/center to any target X.
-      for (const tx of targetsX) {
-        for (const [edge, adjust] of [[left, tx - left], [right, tx - right], [cx, tx - cx]]) {
-          const d = Math.abs(adjust);
-          if (d < bestXDist) { bestXDist = d; bestX = adjust; bestXTarget = tx; }
-        }
-      }
-      for (const ty of targetsY) {
-        for (const [edge, adjust] of [[top, ty - top], [bottom, ty - bottom], [cy, ty - cy]]) {
-          const d = Math.abs(adjust);
-          if (d < bestYDist) { bestYDist = d; bestY = adjust; bestYTarget = ty; }
-        }
-      }
-      // Equal-spacing candidates — try them after edge alignment. If a
-      // spacing match is closer than the edge match (or no edge match
-      // fired), use the spacing snap. Whether or not the snap delta
-      // comes from spacing, we record matched gap markers so the user
-      // sees "these cards are 24px apart, just like that pair over there."
-      let bestSpaceX = null, bestSpaceXDist = thresh + 0.001, bestSpaceXMeta = null;
-      for (const cand of xSpacingCands) {
-        const adjust = cand.targetX - (cand.edgeIs === 'left' ? left : right);
-        const d = Math.abs(adjust);
-        if (d < bestSpaceXDist) { bestSpaceXDist = d; bestSpaceX = adjust; bestSpaceXMeta = cand; }
-      }
-      let bestSpaceY = null, bestSpaceYDist = thresh + 0.001, bestSpaceYMeta = null;
-      for (const cand of ySpacingCands) {
-        const adjust = cand.targetY - (cand.edgeIs === 'top' ? top : bottom);
-        const d = Math.abs(adjust);
-        if (d < bestSpaceYDist) { bestSpaceYDist = d; bestSpaceY = adjust; bestSpaceYMeta = cand; }
-      }
-      // Pick the tighter of edge vs spacing per axis.
-      if (bestSpaceX !== null && bestSpaceXDist < bestXDist) {
-        bestX = bestSpaceX; bestXTarget = null;          // suppress edge guide
-      }
-      if (bestSpaceY !== null && bestSpaceYDist < bestYDist) {
-        bestY = bestSpaceY; bestYTarget = null;
-      }
-      // Compose visible guide hints out of the matched target lines plus
-      // the dragged group's bbox along the same axis (so the line spans
-      // both the source card and the aligned target).
-      const newDragBBox = {
-        x0: left + (bestX ?? 0), x1: right + (bestX ?? 0),
-        y0: top  + (bestY ?? 0), y1: bottom + (bestY ?? 0),
-      };
-      const xs = [];
-      const ys = [];
-      const spacings = [];
-      if (bestXTarget !== null) {
-        const b = targetXBounds.get(bestXTarget) || { y0: newDragBBox.y0, y1: newDragBBox.y1 };
-        xs.push({
-          x: bestXTarget,
-          y0: Math.min(b.y0, newDragBBox.y0),
-          y1: Math.max(b.y1, newDragBBox.y1),
-        });
-      }
-      if (bestYTarget !== null) {
-        const b = targetYBounds.get(bestYTarget) || { y0: newDragBBox.x0, y1: newDragBBox.x1 };
-        ys.push({
-          y: bestYTarget,
-          x0: Math.min(b.y0, newDragBBox.x0),
-          x1: Math.max(b.y1, newDragBBox.x1),
-        });
-      }
-      if (bestSpaceXMeta && bestSpaceXDist < thresh + 0.001) {
-        spacings.push({
-          axis: 'x',
-          a: bestSpaceXMeta.paired.a,
-          b: bestSpaceXMeta.paired.b,
-          cross: bestSpaceXMeta.paired.cross,
-          gap: Math.round(bestSpaceXMeta.gap),
-        });
-      }
-      if (bestSpaceYMeta && bestSpaceYDist < thresh + 0.001) {
-        spacings.push({
-          axis: 'y',
-          a: bestSpaceYMeta.paired.a,
-          b: bestSpaceYMeta.paired.b,
-          cross: bestSpaceYMeta.paired.cross,
-          gap: Math.round(bestSpaceYMeta.gap),
-        });
-      }
-      return {
-        dx: rawDx + (bestX ?? 0),
-        dy: rawDy + (bestY ?? 0),
-        hints: (xs.length || ys.length || spacings.length) ? { xs, ys, spacings } : null,
-      };
-    };
+    const computeSnap = (rawDx, rawDy) => computeSnapPure(rawDx, rawDy, {
+      targets: snapTargets, dragBBoxStart, zoom: zoomRef.current, tuning: SNAP_TUNING,
+    });
     // Drag state is NOT armed here on pointerdown — only once movement
     // crosses the 4px click threshold (in flushMove below). Arming on
     // pointerdown put the card in .is-dragging for the duration of a plain
@@ -3808,92 +3635,20 @@ export function CanvasSurface({
     const startClient = { x: e.clientX, y: e.clientY };
     setResize({ id: c.id, dw: 0, dh: 0 });
 
-    // Snap targets, captured once at drag start. Two flavours per axis:
-    //   - numeric match: dragged width / height equals another card's
-    //     width / height (the primary "match the size of that card" use case).
-    //   - edge alignment: dragged card's right / bottom edge lands on
-    //     another card's left / right / top / bottom edge — same idea
-    //     position-drag uses, applied to the bottom-right resize corner.
-    const SNAP_PX = 6;
-    const wCands = []; // { value, owner }
-    const hCands = [];
-    const rightEdgeXs   = []; // { x, y0, y1 }  — where dragged right edge can land
-    const bottomEdgeYs  = []; // { y, x0, x1 }
-    cards.forEach(other => {
-      if (other.id === c.id) return;
-      wCands.push({ value: other.w, owner: other });
-      hCands.push({ value: other.h, owner: other });
-      rightEdgeXs.push({ x: other.x,             y0: other.y, y1: other.y + other.h });
-      rightEdgeXs.push({ x: other.x + other.w,   y0: other.y, y1: other.y + other.h });
-      bottomEdgeYs.push({ y: other.y,            x0: other.x, x1: other.x + other.w });
-      bottomEdgeYs.push({ y: other.y + other.h,  x0: other.x, x1: other.x + other.w });
+    // Snap targets, captured once at drag start (see lib/snapGuides.js). Two
+    // flavours per axis: a numeric match (dragged w/h equals another card's w/h
+    // — the "same size as that card" case) and an edge landing for the
+    // bottom-right corner. Viewport-gated so far-off cards never match.
+    const _rsWrapRect = wrapRef.current?.getBoundingClientRect();
+    const _rsViewport = worldViewportRect(
+      { width: _rsWrapRect?.width || 0, height: _rsWrapRect?.height || 0 },
+      panRef.current, zoomRef.current, SNAP_TUNING.VIEWPORT_MARGIN_PX);
+    const resizeTargets = buildResizeTargets({
+      cards, selfId: c.id, viewport: _rsViewport, zoom: zoomRef.current, tuning: SNAP_TUNING,
     });
-
-    const computeResizeSnap = (rawDw, rawDh, skip, skipH) => {
-      if (skip) return { dw: rawDw, dh: rawDh, hints: null };
-      const thresh = SNAP_PX / zoom;
-      const candW       = c.w + rawDw;
-      const candH       = c.h + rawDh;
-      const candRight   = c.x + c.w + rawDw;
-      const candBottom  = c.y + c.h + rawDh;
-      let bestDwAdj = null, bestDwDist = thresh + 0.001, bestWMatch = null;
-      let bestDhAdj = null, bestDhDist = thresh + 0.001, bestHMatch = null;
-      for (const wc of wCands) {
-        const adjust = wc.value - candW;
-        const d = Math.abs(adjust);
-        if (d < bestDwDist) { bestDwDist = d; bestDwAdj = adjust; bestWMatch = { kind: 'numeric', owner: wc.owner }; }
-      }
-      for (const re of rightEdgeXs) {
-        const adjust = re.x - candRight;
-        const d = Math.abs(adjust);
-        if (d < bestDwDist) { bestDwDist = d; bestDwAdj = adjust; bestWMatch = { kind: 'edge', target: re }; }
-      }
-      // skipH: note-reflow resizes own the height (it follows the text),
-      // so height snap candidates would fight the fitted height.
-      for (const hc of (skipH ? [] : hCands)) {
-        const adjust = hc.value - candH;
-        const d = Math.abs(adjust);
-        if (d < bestDhDist) { bestDhDist = d; bestDhAdj = adjust; bestHMatch = { kind: 'numeric', owner: hc.owner }; }
-      }
-      for (const be of (skipH ? [] : bottomEdgeYs)) {
-        const adjust = be.y - candBottom;
-        const d = Math.abs(adjust);
-        if (d < bestDhDist) { bestDhDist = d; bestDhAdj = adjust; bestHMatch = { kind: 'edge', target: be }; }
-      }
-      const dw = rawDw + (bestDwAdj ?? 0);
-      const dh = rawDh + (bestDhAdj ?? 0);
-      // Build guide hints using the same shape consumed by the existing
-      // <svg className="snap-guides"> renderer further down in render.
-      const xs = [];
-      const ys = [];
-      if (bestWMatch?.kind === 'edge') {
-        const t = bestWMatch.target;
-        xs.push({
-          x: t.x,
-          y0: Math.min(t.y0, c.y),
-          y1: Math.max(t.y1, c.y + c.h + dh),
-        });
-      } else if (bestWMatch?.kind === 'numeric') {
-        // Underline the matched card so the user can see WHO they're
-        // matching, with the matched dimension floating just under it.
-        const o = bestWMatch.owner;
-        ys.push({ y: o.y + o.h + 6 / zoom, x0: o.x, x1: o.x + o.w, label: String(o.w) });
-      }
-      if (bestHMatch?.kind === 'edge') {
-        const t = bestHMatch.target;
-        ys.push({
-          y: t.y,
-          x0: Math.min(t.x0, c.x),
-          x1: Math.max(t.x1, c.x + c.w + dw),
-        });
-      } else if (bestHMatch?.kind === 'numeric') {
-        // Side-bar to the right of the matched card, labeled with its height.
-        const o = bestHMatch.owner;
-        xs.push({ x: o.x + o.w + 6 / zoom, y0: o.y, y1: o.y + o.h, label: String(o.h) });
-      }
-      const hints = (xs.length || ys.length) ? { xs, ys, spacings: [] } : null;
-      return { dw, dh, hints };
-    };
+    const computeResizeSnap = (rawDw, rawDh, skip, skipH) => computeResizeSnapPure(rawDw, rawDh, {
+      card: c, targets: resizeTargets, skip, skipH, zoom: zoomRef.current, tuning: SNAP_TUNING,
+    });
 
     // Image and video cards lock their aspect ratio on resize so the
     // user always sees the whole image without letterboxing or
