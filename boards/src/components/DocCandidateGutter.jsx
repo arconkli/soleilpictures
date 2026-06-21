@@ -51,6 +51,7 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
           name,
           count: Number(el.getAttribute('data-count')) || 0,
           sample: el.getAttribute('data-sample') || '',
+          entityType: el.getAttribute('data-type') || null,
           top: rect.top - wrapRect.top,
         });
       }
@@ -83,7 +84,7 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
   if (!editable) return null;
 
   const candFor = (it) => ({
-    name: it.name, count: it.count, sample: it.sample,
+    name: it.name, count: it.count, sample: it.sample, entityType: it.entityType,
     el: elsRef.current.get(it.key) || null,
   });
   // Highlight the matching word while hovering its control, so it's obvious

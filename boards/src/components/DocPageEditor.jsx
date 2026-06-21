@@ -540,6 +540,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         name: candEl.dataset.name || (candEl.textContent || '').trim(),
         count: Number(candEl.dataset.count) || 0,
         sample: candEl.dataset.sample || '',
+        entityType: candEl.dataset.type || null,
         el: candEl,
       });
       return;
@@ -1361,6 +1362,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             name: cand.name,
             count: cand.count,
             sample: cand.sample,
+            entityType: cand.entityType || null,
             el: cand.el,
           });
         }}
@@ -1418,6 +1420,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           name={candidatePrompt.name}
           count={candidatePrompt.count}
           sample={candidatePrompt.sample}
+          suggestedType={candidatePrompt.entityType}
           busy={candidateBusy}
           onPromote={promoteCandidate}
           onDismiss={dismissCandidate}

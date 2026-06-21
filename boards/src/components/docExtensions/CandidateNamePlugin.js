@@ -63,6 +63,7 @@ export function makeCandidateNamePlugin({ getIndex, getAppliedRangeSet, getMenti
               'data-name': rec.name || text.slice(m.start, m.end),
               'data-count': String(rec.n ?? ''),
               'data-sample': rec.sample || '',
+              'data-type': rec.entityType || '',
             }));
           }
           return true;

@@ -69,6 +69,7 @@ export {
   Smiley as Smile,
   Paperclip,
   UserPlus,
+  UsersThree as Users,
   PushPin as Pin,
   Eye,
   EyeSlash as EyeOff,

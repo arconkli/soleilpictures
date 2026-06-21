@@ -27,7 +27,7 @@ import { ENTITY_TYPES } from '../lib/entityTypes.js';
 const PAD = 8;
 const W = 264;
 
-export function CandidatePromptPopover({ anchor, name, count, sample, busy, onPromote, onDismiss, onClose }) {
+export function CandidatePromptPopover({ anchor, name, count, sample, suggestedType, busy, onPromote, onDismiss, onClose }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0, w: W });
   const [enter, setEnter] = useState(false);
@@ -90,7 +90,10 @@ export function CandidatePromptPopover({ anchor, name, count, sample, busy, onPr
       <div className="cand-pop-q">Make this a…</div>
       <div className="cand-pop-actions">
         {ENTITY_TYPES.map((t) => (
-          <button key={t.value} className="cand-pop-btn" disabled={busy}
+          <button key={t.value}
+                  className={`cand-pop-btn ${t.value === suggestedType ? 'is-suggested' : ''}`}
+                  disabled={busy}
+                  title={t.value === suggestedType ? `${t.label} (suggested)` : t.label}
                   onClick={() => onPromote?.(t.value)}>
             <Icon as={t.Icon} size={14} /> {t.label}
           </button>

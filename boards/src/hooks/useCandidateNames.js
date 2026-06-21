@@ -36,6 +36,10 @@ function buildIndex(rows) {
       name: row.name,
       n: Number(row.n) || 0,
       sample: row.sample || '',
+      // Deterministic type guess from get_candidate_names (character /
+      // setting / organization / concept) so the promote prompt can
+      // pre-highlight the likely type.
+      entityType: row.entity_type || null,
     });
   }
   return idx;

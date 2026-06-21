@@ -16675,6 +16675,13 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 }
 .cand-pop-btn:active:not(:disabled) { transform: translateY(1px); }
 .cand-pop-btn:disabled { opacity: .5; cursor: default; }
+/* The deterministically-guessed type (from get_candidate_names) — pre-
+   highlighted so the likely choice is one obvious tap. */
+.cand-pop-btn.is-suggested {
+  background: color-mix(in oklab, var(--soleil) 18%, transparent);
+  border-color: color-mix(in oklab, var(--soleil) 55%, var(--line-1));
+  color: var(--ink-0);
+}
 .cand-pop-sample {
   padding: 0 12px 8px;
   font: italic 400 11px/1.4 var(--font-sans);

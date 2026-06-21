@@ -103,6 +103,7 @@ export function NoteTiptapSurface({
       name: candEl.dataset.name || (candEl.textContent || '').trim(),
       count: Number(candEl.dataset.count) || 0,
       sample: candEl.dataset.sample || '',
+      entityType: candEl.dataset.type || null,
       el: candEl,
     });
   };
@@ -301,6 +302,7 @@ export function NoteTiptapSurface({
           name={candidatePrompt.name}
           count={candidatePrompt.count}
           sample={candidatePrompt.sample}
+          suggestedType={candidatePrompt.entityType}
           busy={candidateBusy}
           onPromote={promoteCandidate}
           onDismiss={dismissCandidate}
