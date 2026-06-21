@@ -56,7 +56,18 @@ export function RichDocCard({
   // Augment cardScope with the card's id under both `cardId` and
   // `docCardId` so downstream callers (DocSurface header, link/page-
   // index sync) can identify which card this scope belongs to.
-  const scope = cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id } : null;
+  //
+  // MUST be memoized: cardScope() returns a fresh object literal, and an
+  // unstable `scope` identity makes every downstream effect that deps on it
+  // re-run each render. That silently broke the doc_page_index sync — its 2s
+  // debounce was cleared on every re-render before it could ever fire, so
+  // NO doc ever got indexed (which also starved candidate-name detection,
+  // "Appears in docs", and doc tag-search). cardYMap (= a stable Yjs map
+  // child) + card.id are stable, and cardScope only reads stable Y-type refs.
+  const scope = useMemo(
+    () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id } : null),
+    [cardYMap, card.id],
+  );
   // New docs no longer auto-open their full editor — autoFocus now means
   // "focus the title for renaming," letting the user rename + place the
   // card on the canvas first. The full editor opens on double-click,
