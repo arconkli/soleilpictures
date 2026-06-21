@@ -1253,8 +1253,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // workspace-wide default in Settings → Defaults → Notes.
       const d = defaultsRef.current?.note || {};
       const w = d.w || 200, h = d.h || 200;
+      // Horizontally centered on the click, but anchor the TOP edge to the
+      // click (not the vertical center): a note auto-sizes its height down to
+      // fit content right after creation, so centering on h would leave it
+      // floating well above the cursor. Top-anchoring keeps it where you
+      // clicked as it grows downward.
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
-      const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
+      const y = clickPos ? Math.round(clickPos.y)       : 60;
       const id = `note-${Date.now()}`;
       addCard({
         id, kind: 'note', html: '',

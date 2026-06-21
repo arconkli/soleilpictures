@@ -443,8 +443,11 @@ export function LocalBoardsApp({ user, signOut }) {
       id,
       kind: 'note',
       html: '',
+      // Horizontally centered on the click; TOP edge at the click (notes
+      // auto-size their height down after creation, so centering on h would
+      // leave them floating above the cursor). Mirrors App.jsx addNote.
       x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
-      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      y: Math.max(8, Math.round(clickPos?.y ?? (180 - h / 2))),
       w,
       h,
     });

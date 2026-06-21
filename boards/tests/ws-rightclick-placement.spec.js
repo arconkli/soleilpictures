@@ -12,11 +12,11 @@ import { expect, test } from '@playwright/test';
 // and compare it to the created card's measured center, also in canvas space.
 
 const TOL = 2; // canvas px (mutators Math.round + sub-pixel rounding)
-// Local-mode addNote creation size (LocalBoardsApp.jsx addNote). We assert the
-// card's TOP-LEFT against (cursor − half creation size): top-left is fixed at
-// creation, so it stays correct even though an empty note auto-resizes its
-// HEIGHT shortly after mount (which would skew a center-based check).
-const NOTE_W = 240, NOTE_H = 160;
+// Local-mode addNote creation width (LocalBoardsApp.jsx addNote). A new note is
+// HORIZONTALLY centered on the cursor but TOP-anchored to it (top edge at the
+// click), because the note auto-sizes its height down after mount — so we
+// assert top-left = (cursor.x − NOTE_W/2, cursor.y).
+const NOTE_W = 240;
 
 // Open the background context menu via a synthetic contextmenu event, picking
 // an empty point inside the canvas. Optionally fire a wheel-pan burst FIRST, in
@@ -91,8 +91,8 @@ async function runScenario(page, { wheel } = {}) {
   await expect.poll(async () => (await cardIds(page)).length).toBeGreaterThan(before.length);
   const card = await newCardTopLeft(page, before);
   expect(card, 'new card should exist').not.toBeNull();
-  // Expected top-left if the card is centered on the cursor at creation size.
-  const expLeft = exp.x - NOTE_W / 2, expTop = exp.y - NOTE_H / 2;
+  // Expected top-left: horizontally centered on the cursor, top edge AT the cursor.
+  const expLeft = exp.x - NOTE_W / 2, expTop = exp.y;
   const out = {
     zoom: Number(exp.zoom.toFixed(3)),
     expTopLeft: { x: Math.round(expLeft), y: Math.round(expTop) },
@@ -182,6 +182,6 @@ test.describe('right-click Add drops the card centered on the cursor', () => {
     const card = await newCardTopLeft(page, before);
     expect(card, 'new card should exist').not.toBeNull();
     expect(Math.abs(card.left - (exp.x - NOTE_W / 2))).toBeLessThanOrEqual(TOL);
-    expect(Math.abs(card.top - (exp.y - NOTE_H / 2))).toBeLessThanOrEqual(TOL);
+    expect(Math.abs(card.top - exp.y)).toBeLessThanOrEqual(TOL);
   });
 });
