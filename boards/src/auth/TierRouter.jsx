@@ -12,11 +12,20 @@
 //
 // Anyone signed in can hit /pricing (e.g. demo upgrading).
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { logEvent, logEventNow } from '../lib/analytics.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
+import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
+import { setJourneySink, beginJourney, setJourneyState, journey } from '../lib/journey.js';
+
+// Wire the post-signup journey's emitter at module load (journey.js can't import
+// analytics.js statically — it must stay node-importable for its unit test). This
+// module is the earliest journey user, so wiring here guarantees the sink is set
+// before any journey() call. Idempotent with the matching wire in App.jsx.
+setJourneySink({ logEvent, logEventNow });
 import { WelcomePage } from './WelcomePage.jsx';
 import { AdWelcome } from './AdWelcome.jsx';
 import { WaitlistConfirm } from './WaitlistConfirm.jsx';
@@ -30,9 +39,56 @@ import { SoleilMark } from '../components/primitives.jsx';
 
 export function TierRouter({ children }) {
   const { user, signOut } = useAuth();
-  const { tier, loading, banned, adOfferPending, refetch } = useMyTier({ userId: user?.id });
+  const { tier, loading, banned, adOfferPending, refetch, onboarding } = useMyTier({ userId: user?.id });
   const [hasEntry, setHasEntry] = useState(null);
   const path = window.location.pathname;
+
+  // ── Post-signup journey: open + tier-gate instrumentation ──────────────────
+  // The tier gate is the FIRST dark spot after signup: while get_my_tier loads we
+  // render <Splash/> with no event, and a slow/failed fetch strands the user
+  // silently. We open the journey (lib/journey.js) the moment tier resolves for a
+  // genuinely-new user (onboarding not done), which also covers the AdWelcome /
+  // waitlist branches where App never mounts. beginJourney is idempotent (App also
+  // calls it), and emits the PS_SIGNUP anchor once per uid.
+  const tierLoadStartRef = useRef(Date.now());
+  const tierStallRef = useRef(null);
+  // Stall watcher: get_my_tier still loading past 4s = the dark splash stall. This
+  // fires BEFORE the journey can open (newness unknown while loading), so it goes
+  // out as a plain event — session_id stitches it to the journey in analysis.
+  useEffect(() => {
+    if (!loading) {
+      if (tierStallRef.current) { clearTimeout(tierStallRef.current); tierStallRef.current = null; }
+      return undefined;
+    }
+    if (!tierStallRef.current) {
+      tierStallRef.current = setTimeout(() => {
+        try { logEvent(EV.PS_TIER_STALL, { waited_ms: Date.now() - tierLoadStartRef.current }); } catch (_) {}
+      }, 4000);
+    }
+    return () => { if (tierStallRef.current) { clearTimeout(tierStallRef.current); tierStallRef.current = null; } };
+  }, [loading]);
+  // Resolve: open the journey for new users + stamp the tier-gate outcome.
+  useEffect(() => {
+    if (loading || !user?.id) return;
+    const isNew = onboarding?.done !== true;
+    if (!isNew) return;
+    beginJourney(user.id, { isNew, tier });   // idempotent; emits PS_SIGNUP once
+    setJourneyState({
+      phase: JOURNEY_PHASE.TIER_GATE, tier, ad_pending: !!adOfferPending,
+      onb_seeded: onboarding?.seeded === true, onb_done: onboarding?.done === true,
+      route: window.location.pathname,
+    });
+    journey(EV.PS_TIER_RESOLVED, { tier, dur_ms: Math.max(0, Date.now() - tierLoadStartRef.current), ad_pending: !!adOfferPending });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, tier, adOfferPending, user?.id]);
+  // Advance the phase as the resolved branch renders (no new events — the branch's
+  // own surfaces already log; the heartbeat/trace carry the live phase).
+  useEffect(() => {
+    if (loading) return;
+    if (tier === 'waitlist') setJourneyState({ phase: JOURNEY_PHASE.WAITLIST, route: window.location.pathname });
+    else if (tier === 'demo' && adOfferPending) setJourneyState({ phase: JOURNEY_PHASE.AD_WELCOME, route: window.location.pathname });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, tier, adOfferPending]);
 
   // For tier='waitlist' users, peek at their waitlist_entries row so we know
   // whether to send them to /welcome (decide) vs /waitlist/status (waiting).

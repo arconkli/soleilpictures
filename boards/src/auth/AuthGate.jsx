@@ -385,6 +385,10 @@ function SignIn() {
       });
       if (error) throw error;
       logEvent('otp_verify');
+      // Stamp the verify time so the post-signup journey (lib/journey.js) can
+      // measure ms_since_otp on its PS_SIGNUP anchor. Fires for new AND returning
+      // users (newness isn't known until tier resolves); harmless either way.
+      try { localStorage.setItem('soleil_ps_otp_at', String(Date.now())); } catch (_) {}
       // onAuthStateChange will fire SIGNED_IN; AuthGate re-renders to children.
     } catch (e) {
       logEvent(EV.OTP_VERIFY_ERROR, { reason: classifyAuthError(e) });

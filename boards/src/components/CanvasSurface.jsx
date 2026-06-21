@@ -42,7 +42,8 @@ import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent } from '../lib/analytics.js';
-import { EV } from '../lib/analyticsEvents.js';
+import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
+import { setJourneyState } from '../lib/journey.js';
 import { ShowcaseBanner } from './ShowcaseBanner.jsx';
 import { isShowcaseCard } from '../lib/onboardingStarter.js';
 import { recordIntent } from '../lib/frictionSignal.js';
@@ -1039,10 +1040,12 @@ export function CanvasSurface({
   // visible. See analyticsEvents.js for the pinned method/reason enums.
   const noteCreateIntent = (method) => {
     try { logEvent(EV.CARD_CREATE_INTENT, { method, board_id: board?.id }); } catch (_) {}
+    try { setJourneyState({ phase: JOURNEY_PHASE.FIRST_INTENT }); } catch (_) {}
     try { recordIntent(method); } catch (_) {}
   };
   const noteCreateBlocked = (reason, method) => {
     try { logEvent(EV.CARD_CREATE_BLOCKED, { reason, method, board_id: board?.id }); } catch (_) {}
+    try { setJourneyState({ phase: JOURNEY_PHASE.BLOCKED }); } catch (_) {}
   };
   // Resolve a sane paste position. lastMouseCanvasRef tracks the cursor over the
   // canvas, but after a pan/zoom with no mousemove since it can point far
@@ -7709,7 +7712,7 @@ export function CanvasSurface({
           the canvas; the onb-drag note + Ideas board survive for a clean handoff,
           and the cards vanishing self-hides the banner (no extra flag). */}
       {showcaseArm === 'B' && canEdit && cards.some(isShowcaseCard) && (
-        <ShowcaseBanner onClear={async () => {
+        <ShowcaseBanner boardId={board?.id} onClear={async () => {
           const ids = cards.filter(isShowcaseCard).map((c) => c.id);
           if (!ids.length) return;
           mutators.breakUndo?.();                 // collapse to one undo step

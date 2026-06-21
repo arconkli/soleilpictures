@@ -65,6 +65,27 @@ export const EV = Object.freeze({
   AD_OFFER_VIEW:           'ad_offer_view',               // price-first screen shown to ad-sourced demo user
   AD_OFFER_ENTER:          'ad_offer_enter',              // chose "continue into workspace" (skipped buying) {plan}
   AD_OFFER_DWELL:          'ad_offer_dwell',              // {ms}
+  AD_OFFER_ABANDON:        'ad_offer_abandon',            // hid the AdWelcome offer without buying OR continuing {ms} (the silent bounce; beacon)
+
+  // ── Post-signup journey (the high-resolution, AI-analyzable first-session trace —
+  //    see lib/journey.js + migration 0161 admin_journey_* RPCs). Every ps_* event
+  //    carries the journey ENVELOPE in props: {jid,seq,t_ms,phase,from_phase,tier,
+  //    onb_seeded,onb_done,ad_pending,boards,gcards,route} so a single ORDER BY
+  //    (props->>'seq')::bigint reconstructs each new user's exact path + timings.
+  //    Opened (once per new uid) the moment tier resolves; closed at activation.
+  //    Dense by design — NOT human-curated; query it with SQL. ──
+  PS_SIGNUP:               'ps_signup',                   // first authenticated entry for a genuinely-new user (journey anchor) {is_new,ms_since_otp,tier} — emitted once per uid by beginJourney
+  PS_APP_ENTER:            'ps_app_enter',                // the App workspace actually mounted {tier}
+  PS_TIER_STALL:           'ps_tier_stall',               // get_my_tier still loading past 4s — the dark <Splash> stall (plain event, session-stitched, may precede journey open) {waited_ms}
+  PS_TIER_RESOLVED:        'ps_tier_resolved',            // tier gate resolved + routing decision made {tier,dur_ms,ad_pending} — dur_ms = how long the splash took
+  PS_SEED_START:           'ps_seed_start',               // onboarding seed effect began composing cards {board_id,showcase}
+  PS_SEED_SKIP:            'ps_seed_skip',                // seed effect bailed at a gate (was SILENT) {gate} — gate:'loading'|'already_seeded'|'doc_not_ready'|'not_personal_root'|'canvas_not_empty'
+  PS_SEED_DONE:            'ps_seed_done',                // seed effect finished placing starter cards {n,board_id,tutorial_board_id,showcase}
+  PS_HEARTBEAT:            'ps_heartbeat',                // ~12s liveness beat while the journey is open + tab visible (capped) {idle_ms,visible,beat} — the stall locator
+  PS_PAUSE:                'ps_pause',                    // tab hidden mid-journey — the LAST event before a bounce pins the fall-off phase + stall {idle_ms,beat} (beacon)
+  PS_TRACE:                'ps_trace',                    // COALESCED micro-interaction batch {from_t,to_t,n,ev:[{t,k,tgt,...}]} — k:'click'|'scroll'|'focus'|'input'|'key'|'route'|'hide'|'show'; never captures input values or typed characters
+  PS_END:                  'ps_end',                      // journey closed {reason} — reason:'activated'|'session_end'|'signed_out' (beacon); no further ps_* for this uid
+  ONBOARDING_SHOWCASE_ABANDON: 'onboarding_showcase_abandon', // hid the arm-B showcase without clearing it {board_id,ms} (beacon)
 
   // ── Onboarding (first-run) ──
   ONBOARDING_VIEW:         'onboarding_view',             // first-card coachmark shown {board_id}
@@ -139,6 +160,34 @@ export const EV = Object.freeze({
   TAG_CANDIDATE_DISMISS:   'tag_candidate_dismiss',       // dismissed a discovered prose name (workspace ignore) {count}
   TAG_SET_TYPE:            'tag_set_type',                // one-tap set/changed an entity's type {tag_id,entity_type}
 });
+
+// Canonical, ORDERED phases of the post-signup journey (lib/journey.js stamps the
+// current one onto every ps_* event as props.phase). The order is the happy path;
+// 'blocked'/'stuck' are off-path side-states (a user can be blocked then still
+// reach first_card), so the drop-off RPC treats them as terminal-if-last, not as
+// strict funnel steps. JOURNEY_PHASE_ORDER drives the admin drop-off ordinal.
+export const JOURNEY_PHASE = Object.freeze({
+  SIGNUP:       'signup',        // first authenticated entry (anchor)
+  BOOT:         'boot',          // AppShell chunk + get_my_tier loading (the <Splash>)
+  TIER_GATE:    'tier_gate',     // tier resolved, routing decision made
+  WAITLIST:     'waitlist',      // routed to the waitlist /welcome branch
+  AD_WELCOME:   'ad_welcome',    // the one-time AdWelcome price-first offer
+  APP_ENTER:    'app_enter',     // the App workspace mounted
+  SEED:         'seed',          // onboarding seed effect running
+  COACHMARK:    'coachmark',     // first-card coachmark visible
+  FIRST_INTENT: 'first_intent',  // first card-create gesture seen
+  BLOCKED:      'blocked',       // a card-create attempt produced nothing
+  STUCK:        'stuck',         // frictionSignal fired (rage/timeout)
+  FIRST_CARD:   'first_card',    // first GENUINE card (activation north-star)
+  NEST:         'nest',          // first nest-the-note AHA
+  POPULATED:    'populated',     // a board crossed the 3-genuine-card bar
+});
+
+export const JOURNEY_PHASE_ORDER = Object.freeze([
+  'signup', 'boot', 'tier_gate', 'waitlist', 'ad_welcome', 'app_enter',
+  'seed', 'coachmark', 'first_intent', 'blocked', 'stuck',
+  'first_card', 'nest', 'populated',
+]);
 
 // Map an auth/network error to a stable machine code for *_error events.
 // Mirrors the substring logic of humanError() in AuthGate but returns a code,

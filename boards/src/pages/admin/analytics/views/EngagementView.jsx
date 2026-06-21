@@ -16,6 +16,7 @@ import { UserDormancy } from '../widgets/UserDormancy.jsx';
 import { EventCoverage } from '../widgets/EventCoverage.jsx';
 import { TimeToFirstCard } from '../widgets/TimeToFirstCard.jsx';
 import { FirstCardFriction } from '../widgets/FirstCardFriction.jsx';
+import { PostSignupDropoff } from '../widgets/PostSignupDropoff.jsx';
 import { OnboardingErrorCoverage } from '../widgets/OnboardingErrorCoverage.jsx';
 import { RetentionByExperiment } from '../widgets/RetentionByExperiment.jsx';
 import { ActivationByExperiment } from '../widgets/ActivationByExperiment.jsx';
@@ -26,7 +27,7 @@ import { AdminTierCompareTable } from '../../AdminTierCompareTable.jsx';
 export function EngagementView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
-    const [af, rc, ls, ch, cs, pd, tc, rr, rs, dm, ec, tt, fc, oe] = await Promise.allSettled([
+    const [af, rc, ls, ch, cs, pd, tc, rr, rs, dm, ec, tt, fc, oe, jd] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel',   { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // Retention graphs — degrade gracefully via val(); never gate the view.
       supabase.rpc('admin_retention_curve',     { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
@@ -45,6 +46,9 @@ export function EngagementView() {
       supabase.rpc('admin_time_to_first_card',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_first_card_friction',     { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_onboarding_error_coverage', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      // Post-signup journey drop-off (migration 0162) — returns zeros until ps_*
+      // events accrue; widget shows "still collecting".
+      supabase.rpc('admin_journey_dropoff', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
@@ -75,7 +79,7 @@ export function EngagementView() {
     if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
       throw errOf(core.find(errOf)) || new Error('Failed to load engagement');
     }
-    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], experimentRetention, experimentActivation, activationByDevice };
+    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], journeyDropoff: val(jd), experimentRetention, experimentActivation, activationByDevice };
   }, [f.days, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
@@ -98,6 +102,7 @@ export function EngagementView() {
 
         <h2 className="admin-section-title">First-card friction</h2>
         <div className="admin-section-sub">Where new users get stuck before placing their first card — attempts, failures, and how long it takes.</div>
+        <PostSignupDropoff data={q.data?.journeyDropoff} />
         <TimeToFirstCard data={q.data?.timeToCard} />
         <FirstCardFriction data={q.data?.friction} />
         <OnboardingErrorCoverage rows={q.data?.onboardingErrors || []} />

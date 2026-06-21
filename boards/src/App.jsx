@@ -23,8 +23,13 @@ import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigge
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm } from './lib/analytics.js';
-import { EV } from './lib/analyticsEvents.js';
+import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
+import { setJourneySink, beginJourney, endJourney, setJourneyState, journey } from './lib/journey.js';
 import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
+
+// Post-signup journey emitter wiring (see TierRouter for the rationale — journey.js
+// stays node-importable so it can't import analytics.js itself). Idempotent.
+setJourneySink({ logEvent, logEventNow });
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
@@ -2157,6 +2162,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     if (!myTier.tier) return;
     logEvent(EV.APP_OPEN, { tier: myTier.tier });
+    // Post-signup journey: open it (idempotent — TierRouter also opens it for the
+    // AdWelcome/waitlist branches) and mark that the App workspace actually
+    // mounted. Only for genuinely-new users (onboarding not done). Child effects
+    // run before the parent TierRouter effect on the initial commit, so whichever
+    // fires first opens the journey; PS_SIGNUP is uid-stamped to fire exactly once.
+    if (user?.id && myTier.onboarding?.done !== true) {
+      try {
+        beginJourney(user.id, { isNew: true, tier: myTier.tier });
+        setJourneyState({
+          phase: JOURNEY_PHASE.APP_ENTER, tier: myTier.tier,
+          onb_seeded: myTier.onboarding?.seeded === true, onb_done: myTier.onboarding?.done === true,
+          ad_pending: !!myTier.adOfferPending, route: window.location.pathname,
+        });
+        journey(EV.PS_APP_ENTER, { tier: myTier.tier });
+      } catch (_) {}
+    }
     // Return-session: app_open on a later calendar day than we last saw this
     // browser — the literal re-engagement signal (complements server-side
     // user_active_day, and survives even if the heartbeat misses).
@@ -2179,6 +2200,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // profiles.settings.onboarding {seeded,done} via merge_profile_settings, and
   // is read back through get_my_tier()/useMyTier.
   const seedAttemptedRef = useRef(false);
+  // Post-signup journey: name WHICH gate silently bailed the onboarding seed (the
+  // previously-invisible "landed on a blank, un-seeded canvas" case). Deduped per
+  // gate per page-load; journey() no-ops for returning users (journey not open),
+  // so an already-onboarded user's legitimate 'already_seeded' skip never emits.
+  const seedSkipLoggedRef = useRef(new Set());
+  const noteSeedSkip = (gate) => {
+    if (seedSkipLoggedRef.current.has(gate)) return;
+    seedSkipLoggedRef.current.add(gate);
+    try { setJourneyState({ phase: JOURNEY_PHASE.SEED }); journey(EV.PS_SEED_SKIP, { gate }); } catch (_) {}
+  };
   const [onboardingUiActive, setOnboardingUiActive] = useState(false);
   // Passive escalation: true once a brand-new user trips the stuck signal
   // (frictionSignal.js) — brightens the empty-board hint + coachmark. Cleared the
@@ -2209,11 +2240,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the organize-by-dragging AHA (see the nest-detection in the onDrop handler).
   useEffect(() => {
     if (seedAttemptedRef.current) return;
-    if (myTier.loading) return;                                     // wait for tier/onboarding
-    if (myTier.onboarding?.seeded === true || myTier.onboarding?.done === true) return;
-    if (!currentYDoc || !yb.ready) return;                         // doc hydrated
-    if (currentId !== rootBoard.id) return;                        // personal root only
-    if (yb.cards.length !== 0) return;                             // empty canvas only
+    if (myTier.loading) { noteSeedSkip('loading'); return; }                                 // wait for tier/onboarding
+    if (myTier.onboarding?.seeded === true || myTier.onboarding?.done === true) { noteSeedSkip('already_seeded'); return; }
+    if (!currentYDoc || !yb.ready) { noteSeedSkip('doc_not_ready'); return; }                // doc hydrated
+    if (currentId !== rootBoard.id) { noteSeedSkip('not_personal_root'); return; }           // personal root only
+    if (yb.cards.length !== 0) { noteSeedSkip('canvas_not_empty'); return; }                 // empty canvas only
     // Set the guard SYNCHRONOUSLY, before any await, so a StrictMode double-mount
     // (dev) or a re-render mid-await can never enter again and create TWO "Ideas"
     // boards. The ref covers this mount's lifetime; the durable `seeded` flag +
@@ -2303,12 +2334,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           ? [...getStarterCards(), getStarterTutorialCard(tutorialBoardId)]
           : [...getStarterCards()];
       }
+      try { setJourneyState({ phase: JOURNEY_PHASE.SEED }); journey(EV.PS_SEED_START, { board_id: rootBoard.id, showcase }); } catch (_) {}
       try {
         mainMutators.addCards?.(cardsToSeed);
       } catch (e) {
         try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'add_cards', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
       }
       logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId, showcase });
+      try { journey(EV.PS_SEED_DONE, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId, showcase }); } catch (_) {}
       setOnboardingUiActive(true);
       // Make the new child board visible in the boards map so its card renders as
       // a real board (not an orphan tile). After addCards so reconcile sees it.
@@ -2434,6 +2467,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!fcDone) {
         localStorage.setItem(fcKey, '1');
         logEventOnce('first_card', EV.ONBOARDING_FIRST_CARD, { board_id: currentId });
+        try { setJourneyState({ phase: JOURNEY_PHASE.FIRST_CARD }); } catch (_) {}
         if (META_REG_BAR === 'first_card') fireMetaReg();
         // A small confirming beat on the very first genuine card — once per account
         // (the fcKey stamp guards it, so a reload never re-fires it).
@@ -2445,6 +2479,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (genuine.length >= POP_BOARD_THRESHOLD && !popDone) {
         localStorage.setItem(popKey, '1');
         logEventOnce('activated', EV.ACTIVATED, { board_id: currentId, n: genuine.length });
+        // Activation reached — close the post-signup journey (stamps done so it
+        // never reopens for this uid). Beacons a final PS_END.
+        try { setJourneyState({ phase: JOURNEY_PHASE.POPULATED }); endJourney('activated'); } catch (_) {}
         if (META_REG_BAR === 'populated') fireMetaReg();
       }
     } catch { /* localStorage unavailable — logEventOnce still de-dupes per page load */ }
@@ -2489,16 +2526,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       getCards: () => ybCardsRef.current,
       onStuck: (payload) => {
         setFrictionStuck(true);
+        try { setJourneyState({ phase: JOURNEY_PHASE.STUCK }); } catch (_) {}
         try { logEventOnce('card_create_stuck', EV.CARD_CREATE_STUCK, payload); } catch (_) {}
       },
     });
     return () => stopFriction();
   }, [frictionEligible]);
 
+  // Post-signup journey: keep the live snapshot's board/genuine-card counts + route
+  // fresh so every enveloped event (heartbeat, trace, gate skips) is self-describing.
+  useEffect(() => {
+    try {
+      setJourneyState({
+        boards: Object.keys(boards || {}).length,
+        gcards: genuineCards(yb.cards).length,
+        route: window.location.pathname,
+      });
+    } catch (_) {}
+  }, [boards, yb.cards]);
+
   // Suppress the coachmark while the welcome-showcase flair is still on the root
   // (the ShowcaseBanner is the guide then); it resumes once the demo is cleared.
   const showCoachmark = onboardingUiActive && currentId === rootBoard.id
     && !(yb.cards || []).some(isShowcaseCard);
+  // Journey phase: coachmark visible → new user is at the first-card prompt.
+  useEffect(() => { if (showCoachmark) { try { setJourneyState({ phase: JOURNEY_PHASE.COACHMARK }); } catch (_) {} } }, [showCoachmark]);
 
   // Permission for the currently-active board — drives VIEW ONLY pill
   // in the topbar + canvas/doc readonly states.
@@ -2757,6 +2809,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (ob.done !== true && ob.tutorialBoardId && targetBoardId === ob.tutorialBoardId
             && movedCards.some((c) => isSeedCard(c))) {
           logEvent(EV.ONBOARDING_NEST, { board_id: targetBoardId, source_board_id: sourceBoardId, n: movedCards.length });
+          try { setJourneyState({ phase: JOURNEY_PHASE.NEST }); } catch (_) {}
           feedback.toast({ type: 'success', message: 'Nice — that’s how you organize ✨' });
           dismissOnboarding('nested'); // sets onboarding.done:true + logs ONBOARDING_DISMISS
         }
