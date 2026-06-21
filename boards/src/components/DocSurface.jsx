@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
-import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, metaMap } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap } from '../lib/docState.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { isDocQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
@@ -184,6 +184,20 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     return () => m.unobserve(update);
   }, [ydoc, scope]);
   const onSetSceneNumbersShow = useCallback((v) => setSceneNumbersShow(ydoc, scope, v), [ydoc, scope]);
+
+  // Prose page layout: pageless (default, continuous) vs paged. docMeta-backed
+  // + collaborative — observe so a peer's toggle reflects here. Drives both the
+  // toolbar pill and whether DocPageEditor mounts the paginator + page sheets.
+  const [pageless, setPagelessState] = useState(() => getPageless(ydoc, scope));
+  useEffect(() => {
+    const m = metaMap(ydoc, scope);
+    setPagelessState(getPageless(ydoc, scope));
+    if (!m) return;
+    const update = () => setPagelessState(getPageless(ydoc, scope));
+    m.observe(update);
+    return () => m.unobserve(update);
+  }, [ydoc, scope]);
+  const onTogglePageless = useCallback(() => setPageless(ydoc, scope, !pageless), [ydoc, scope, pageless]);
   const toggleTitlePage = useCallback(() => {
     const next = !titlePage.enabled;
     commitTitlePage({ enabled: next });
@@ -654,6 +668,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     onToggleTitlePage={toggleTitlePage}
                     sceneNumbersShow={sceneNumbersShow}
                     onSetSceneNumbersShow={onSetSceneNumbersShow}
+                    pageless={pageless}
+                    onTogglePageless={onTogglePageless}
                     onInsertBookmark={insertBookmarkAtCaret}
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
@@ -667,7 +683,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                         editors={activePageId ? sheetIds.map(sid => editorsRef.current.get(sid)).filter(Boolean) : []}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
-        <div className={`doc-paper${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}`} ref={paperRef}
+        <div className={`doc-paper${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && pageless ? ' is-pageless' : ''}`} ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': zoom }}>
           {/* Grain texture is painted as a background-image on .doc-paper
               with background-attachment:local so it tiles across the
@@ -690,10 +706,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               // key forces a fresh editor instance per sheet — Tiptap's
               // Collaboration extension can't re-bind to a different fragment.
               <DocPageEditor
-                key={`${sid}:${docMode}`}
+                key={`${sid}:${docMode}:${pageless ? 'pl' : 'pg'}`}
                 ydoc={ydoc}
                 scope={scope}
                 docMode={docMode}
+                pageless={pageless}
                 zoom={zoom}
                 pageId={activePageId}
                 sheetId={sid}

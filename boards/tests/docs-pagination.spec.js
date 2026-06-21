@@ -8,6 +8,12 @@ async function openDoc(page) {
   await page.evaluate(() => window.__soleilDocTest.openCard());
   await expect(page.locator('.doc-card-modal')).toBeVisible();
   await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
+  // Pages are now opt-in (pageless is the default). These specs exercise the
+  // paginator, so switch the doc into paged mode and wait for the flow model to
+  // remount the editor + page sheets.
+  await page.evaluate(() => { const T = window.__soleilDocTest; T.setPageless(T.ydoc, T.getScope(), false); });
+  await page.locator('.doc-card-modal .doc-pages-bg').waitFor({ timeout: 8000 });
+  await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
 }
 
 // ── Migration (pure logic) ────────────────────────────────────────────────

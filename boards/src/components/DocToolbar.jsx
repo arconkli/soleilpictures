@@ -13,7 +13,7 @@ import { addRecentFont } from '../lib/customFonts.js';
 import {
   List, ListOrdered, ListChecks, Quote,
   AlignLeft, AlignCenter, AlignRight,
-  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard, FileText, Hash, Columns2,
+  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard, FileText, Files, Hash, Columns2,
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 import { ELEMENTS as SP_ELEMENTS, ELEMENT_LABELS as SP_LABELS } from './docExtensions/screenplay/screenplayFlow.js';
@@ -42,6 +42,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
                                ydoc = null, scope = null, docMode = 'doc', onToggleScreenplay,
                                titlePageEnabled = false, onToggleTitlePage,
                                sceneNumbersShow = false, onSetSceneNumbersShow,
+                               pageless = true, onTogglePageless,
                                zoom = 1, onZoomIn, onZoomOut, onZoomReset }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
@@ -169,6 +170,18 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
           <option value="" disabled hidden>—</option>
           {HEADING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+      )}
+
+      {!isScreenplay && onTogglePageless && (
+        <button type="button"
+                className={`doc-tb-pill doc-tb-pages-toggle${!pageless ? ' is-active' : ''}`}
+                title={pageless ? 'Pageless — one continuous sheet. Click to switch to pages.' : 'Pages — real 8.5×11 pages. Click for a continuous (pageless) layout.'}
+                aria-pressed={!pageless}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onTogglePageless()}>
+          <Glyph as={Files} size={14} />
+          <span className="doc-tb-pill-label">Pages</span>
+        </button>
       )}
 
       {isScreenplay && onToggleTitlePage && (

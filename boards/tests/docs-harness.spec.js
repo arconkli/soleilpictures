@@ -48,6 +48,11 @@ test('a fresh doc opens with exactly one page and one sheet (no seeding/paginati
 
 test('filling a page paginates into multiple page sheets (reflow), no runaway', async ({ page }) => {
   await openDoc(page);
+  // Pages are opt-in now (pageless is the default) — switch this doc into paged
+  // mode so the reflow paginator + page sheets mount.
+  await page.evaluate(() => { const T = window.__soleilDocTest; T.setPageless(T.ydoc, T.getScope(), false); });
+  await page.locator('.doc-card-modal .doc-pages-bg').waitFor({ timeout: 8000 });
+  await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
   await expect(wraps(page)).toHaveCount(1);
   // Reflow model: there is always exactly ONE editor (single fragment). Insert
   // enough content to overflow one printed page.

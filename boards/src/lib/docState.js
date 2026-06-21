@@ -187,6 +187,23 @@ export function setSceneNumbersShow(ydoc, scope, show) {
   ydoc.transact(() => { m.set('sceneNumbersShow', !!show); }, DOC_ORIGIN);
 }
 
+// Prose page layout: pageless (one continuous sheet) vs paged (real 8.5×11
+// pages with breaks). Collaborative — stored in docMeta like the mode, so every
+// collaborator sees the same layout. Defaults to PAGELESS: most writing reads
+// better as a continuous flow, and a doc with no stored preference (incl. all
+// existing docs) opens pageless. The "Pages" toolbar pill opts a doc into real
+// pages. Screenplay mode ignores this (it has its own page model).
+export function getPageless(ydoc, scope) {
+  const m = metaMap(ydoc, scope);
+  const v = m && m.get('pageless');
+  return v === undefined ? true : !!v;
+}
+export function setPageless(ydoc, scope, on) {
+  const m = metaMap(ydoc, scope);
+  if (!m) return;
+  ydoc.transact(() => { m.set('pageless', !!on); }, DOC_ORIGIN);
+}
+
 // Screenplay title page. Stored as a nested Y.Map under docMeta so individual
 // fields merge independently across collaborators (per-field last-write-wins)
 // instead of one whole-object clobber. Rendered on-screen (ScreenplayTitlePage),

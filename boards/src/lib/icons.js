@@ -55,6 +55,7 @@ export {
   Folder,
   FolderOpen,
   FileText,
+  Files,
   DotsThree as MoreHorizontal,
   Sun,
   Moon,

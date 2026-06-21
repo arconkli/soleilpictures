@@ -40,6 +40,30 @@ const EPS = 1;                      // tolerance so a line that *just* fits stay
 // Blocks we split line-by-line. Everything else is moved whole (kept-together).
 const SPLITTABLE = new Set(['paragraph', 'heading']);
 
+// Block containers we descend INTO so their leaf paragraphs/headings paginate
+// line-level. Without this a bullet/numbered list (one top-level node) is a
+// single giant atomic block that flows straight across every page gutter — the
+// reported "text in the spaces between pages" bug. Tables are deliberately NOT
+// descended (ATOMIC_CONTAINERS) — splitting cells across a page desyncs columns.
+const ATOMIC_CONTAINERS = new Set(['table']);
+
+// Snap a page break to a clean block boundary: before the enclosing list item
+// (so its marker + content travel together — never a bullet stranded above the
+// gutter while its text jumps to the next page), otherwise right before the
+// block itself (the original prose behavior, and correct for blockquote
+// paragraphs that break independently). Used for the FIRST line of a block;
+// later lines keep their own position so a single tall block still splits.
+function outerBreakPos(doc, blockPos) {
+  try {
+    const $p = doc.resolve(Math.max(0, Math.min(blockPos + 1, doc.content.size)));
+    for (let d = $p.depth; d >= 1; d--) {
+      const n = $p.node(d);
+      if (n.type.name === 'listItem' || n.type.name === 'taskItem') return $p.before(d);
+    }
+  } catch (_) { /* fall through */ }
+  return blockPos;
+}
+
 function makeGapEl(gapPx) {
   const el = document.createElement('div');
   el.className = 'doc-page-gap';
@@ -92,32 +116,47 @@ function computeBreaks(view, zoom) {
   // Natural offset (layout px, gap-independent) of a client-space top.
   const natural = (clientTop) => (clientTop - rootTop) / z - gapAbove(clientTop);
 
-  // Build the ordered list of break "items" (a line, or a whole atomic block).
-  const items = []; // { pos, top, bottom }  (natural layout px)
-  doc.forEach((node, offset) => {
-    const dom = view.nodeDOM(offset);
-    if (!dom || dom.nodeType !== 1) return;
-    if (SPLITTABLE.has(node.type.name) && node.content.size > 0) {
+  // Build the ordered list of break "items" (a line, or a whole atomic block),
+  // descending INTO block containers (lists, list items, blockquotes) so their
+  // paragraphs paginate line-level too. `breakPos` is where the page-gap widget
+  // goes (snapped to the enclosing list item for a clean break); `pos`/top/bottom
+  // drive the fit math.
+  const items = []; // { pos, breakPos, top, bottom }  (natural layout px)
+  doc.descendants((node, pos) => {
+    if (!node.isBlock) return false;                       // ignore inline content
+    const name = node.type.name;
+    const isContainer = !node.isTextblock && !node.isLeaf
+                        && node.content.size > 0 && !ATOMIC_CONTAINERS.has(name);
+    const dom = view.nodeDOM(pos);
+    if (!dom || dom.nodeType !== 1) return isContainer;    // can't measure; descend if container
+    if (SPLITTABLE.has(name) && node.content.size > 0) {
       const rects = lineRects(dom);
       if (!rects.length) {
         const r = dom.getBoundingClientRect();
-        items.push({ pos: offset, top: natural(r.top), bottom: natural(r.top) + r.height / z });
-        return;
+        const top = natural(r.top);
+        items.push({ pos, breakPos: outerBreakPos(doc, pos), top, bottom: top + r.height / z });
+        return false;
       }
-      for (const ln of rects) {
+      const snap = outerBreakPos(doc, pos);                 // before enclosing li / the block
+      rects.forEach((ln, i) => {
         const top = natural(ln.top);
-        let pos = offset; // fallback: before the block
+        let linePos = pos; // fallback: before the block
         try {
           const at = view.posAtCoords({ left: ln.left + 2, top: ln.top + ln.height / 2 });
-          if (at && typeof at.pos === 'number') pos = at.pos;
+          if (at && typeof at.pos === 'number') linePos = at.pos;
         } catch (_) {}
-        items.push({ pos, top, bottom: top + ln.height / z });
-      }
-    } else {
-      const r = dom.getBoundingClientRect();
-      const top = natural(r.top);
-      items.push({ pos: offset, top, bottom: top + r.height / z });
+        // First line snaps to the block / list-item boundary so the whole item
+        // moves together; later lines break mid-block (a tall block splits).
+        items.push({ pos: linePos, breakPos: i === 0 ? snap : linePos, top, bottom: top + ln.height / z });
+      });
+      return false;                                         // don't descend into inline
     }
+    if (isContainer) return true;                           // descend into block children
+    // Atomic / leaf / non-splittable block (image, hr, table, code) — kept whole.
+    const r = dom.getBoundingClientRect();
+    const top = natural(r.top);
+    items.push({ pos, breakPos: outerBreakPos(doc, pos), top, bottom: top + r.height / z });
+    return false;
   });
   if (!items.length) return { breaks: [], pages: 1 };
 
@@ -132,7 +171,7 @@ function computeBreaks(view, zoom) {
     const isFirstOnPage = it.top <= pageStart + EPS;
     if (!isFirstOnPage && it.bottom > pageStart + CONTENT_H + EPS) {
       const used = Math.max(0, it.top - pageStart);
-      breaks.push({ pos: it.pos, gap: Math.max(PAGE_GUTTER, PAGE_STRIDE - used) });
+      breaks.push({ pos: it.breakPos, gap: Math.max(PAGE_GUTTER, PAGE_STRIDE - used) });
       pageStart = it.top;
       pages++;
     }

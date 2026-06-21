@@ -167,7 +167,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', zoom = 1, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -818,8 +818,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       ...(docMode === 'screenplay'
         ? [ScreenplaySuggest, ScreenplayKeymap, ScreenplayPagination]
         // Prose: measurement-based reflow pagination (real pages, line-level
-        // splitting). Reports page count so we can draw the page sheets.
-        : [DocPagination.configure({ getZoom: () => zoomRef.current, onPages: setPageCount })]),
+        // splitting). Reports page count so we can draw the page sheets. Only in
+        // PAGED mode — pageless docs (the default) are one continuous sheet with
+        // no page breaks, so the paginator isn't mounted at all.
+        : pageless
+          ? []
+          : [DocPagination.configure({ getZoom: () => zoomRef.current, onPages: setPageCount })]),
       // Keep user-chosen text colors readable on the page sheet in both themes
       // (scoped stylesheet override; never mutates content).
       ReadableColors,
@@ -918,9 +922,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         editor.chain().setScreenplayElement('scene').run();
       }
     },
-    // Force a fresh editor when the bound page or doc mode changes. (Editor
-    // identity is ALSO keyed on the parent's key={sid:docMode} — see DocSurface.)
-  }, [pageId, docMode]);
+    // Force a fresh editor when the bound page, doc mode, or page layout
+    // changes. Flipping pageless adds/removes the DocPagination plugin, so the
+    // editor must rebuild. (Editor identity is ALSO keyed on the parent's
+    // key={sid:docMode:pageless} — see DocSurface.)
+  }, [pageId, docMode, pageless]);
 
   // Register this sheet's editor with the parent (toolbar wiring + the
   // sheet-editor registry for cross-sheet find/replace) on setup, and
@@ -1237,10 +1243,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
 
   if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
 
-  // Prose flow model: the wrap is a transparent column; we paint `pageCount`
-  // white 8.5×11 sheets behind the text, and the DocPagination gap widgets push
-  // content so it lands on each sheet. (Screenplay keeps the single-sheet look.)
-  const isFlow = docMode !== 'screenplay';
+  // Prose PAGED flow model: the wrap is a transparent column; we paint
+  // `pageCount` white 8.5×11 sheets behind the text, and the DocPagination gap
+  // widgets push content so it lands on each sheet. Pageless prose (the default)
+  // and screenplay both keep the single continuous-sheet look (base wrap).
+  const isFlow = docMode !== 'screenplay' && !pageless;
   const wrapStyle = isFlow
     ? { minHeight: ((pageCount - 1) * PAGE_STRIDE + PAGE_H) + 'px' }
     : undefined;
