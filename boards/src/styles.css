@@ -15198,6 +15198,22 @@ button.msg-panel-name:hover { color: var(--soleil); }
   height: 100%;
   display: block;
 }
+/* Palette ENTITY rows in the hover popover (e.g. hovering a name that maps
+   to a palette card like "Church") should read the same as a TAG's palette
+   strip (.tag-pop-palette-swatches): contiguous bands + a hairline, full
+   width — not gappy little blocks. */
+.ent-pop-row-preview .ent-prev-palette {
+  gap: 0;
+  height: 18px;
+  width: 100%;
+  max-width: 220px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--line-1);
+}
+.ent-pop-row-preview .ent-prev-swatch {
+  flex: 1 1 0;
+  min-width: 0;
+}
 .ent-prev-palette-full {
   height: 28px;
   gap: 3px;
@@ -16249,8 +16265,8 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .doc-candidate-gutter {
   position: absolute;
   top: 0; bottom: 0;
-  left: -88px;
-  width: 48px;
+  left: -196px;
+  width: 160px;
   pointer-events: none;
   z-index: 5;
 }
@@ -16259,18 +16275,27 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   right: 0;
   display: inline-flex;
   align-items: center;
-  gap: 1px;
-  padding: 2px;
+  gap: 2px;
+  padding: 2px 3px 2px 9px;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--bg-2) 70%, transparent);
+  background: color-mix(in oklab, var(--bg-2) 72%, transparent);
   border: 1px solid var(--line-1);
   box-shadow: 0 1px 5px rgba(0,0,0,.14);
   backdrop-filter: blur(8px) saturate(1.2);
   -webkit-backdrop-filter: blur(8px) saturate(1.2);
-  opacity: .5;
+  opacity: .82;
   transition: opacity var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 .doc-cand-ctl:hover { opacity: 1; box-shadow: 0 2px 9px rgba(0,0,0,.2); }
+/* The suggested word's name, so it's obvious which word the ✓/✗ acts on. */
+.doc-cand-name {
+  max-width: 100px;
+  font: 600 11px/1.2 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .doc-cand-yes, .doc-cand-no {
   appearance: none;
   border: 0;
@@ -16291,7 +16316,9 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .doc-cand-yes:hover { background: color-mix(in oklab, var(--soleil) 20%, transparent); color: var(--soleil); }
 .doc-cand-no:hover { background: color-mix(in oklab, var(--danger, #ef4444) 18%, transparent); color: var(--danger, #ef4444); }
 .doc-cand-yes:active, .doc-cand-no:active { transform: scale(.88); }
-@media (max-width: 1000px) {
+/* The labeled control needs real room left of the centered page; below this
+   width there's none — fall back to tapping the dotted word. */
+@media (max-width: 1260px) {
   .doc-candidate-gutter { display: none; }
 }
 

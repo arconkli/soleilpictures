@@ -57,6 +57,11 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
       elsRef.current = els;
       // Self-clean: drop acted names whose decoration is gone (handled).
       for (const a of [...actedRef.current]) if (!seen.has(a)) actedRef.current.delete(a);
+      // De-overlap: stack controls that would collide on/near the same line
+      // so two suggestions sharing a line don't render on top of each other.
+      out.sort((a, b) => a.top - b.top);
+      let floor = -Infinity;
+      for (const it of out) { if (it.top < floor) it.top = floor; floor = it.top + 24; }
       setItems(out);
     };
     const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(recompute); };
@@ -94,6 +99,7 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
         <div key={it.key} className="doc-cand-ctl" style={{ top: it.top + 'px' }}
              onMouseEnter={() => hot(it.key, true)}
              onMouseLeave={() => hot(it.key, false)}>
+          <span className="doc-cand-name" title={it.name}>{it.name}</span>
           <button className="doc-cand-yes" title={`Make “${it.name}” a tag`}
                   onClick={(e) => onConfirm?.(candFor(it), e.currentTarget.getBoundingClientRect())}>
             ✓
