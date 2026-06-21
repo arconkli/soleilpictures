@@ -6503,6 +6503,24 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .admin-src-badge.src-referral .admin-src-dot { color: var(--soleil); }
 .admin-src-badge.src-direct   { color: var(--ink-3); border-color: var(--line-2); }
 .admin-src-badge.src-direct   .admin-src-dot { box-shadow: none; opacity: .5; }
+.admin-src-badge.src-google    { color: rgb(150,180,240); border-color: rgba(66,133,244,.30); }
+.admin-src-badge.src-google    .admin-src-glyph { background: #4285f4; color: #fff; }
+.admin-src-badge.src-bing      { color: rgb(110,205,190); border-color: rgba(0,150,137,.30); }
+.admin-src-badge.src-bing      .admin-src-glyph { background: #008373; color: #fff; }
+.admin-src-badge.src-tiktok    { color: rgb(120,225,220); border-color: rgba(37,244,238,.28); }
+.admin-src-badge.src-tiktok    .admin-src-glyph { background: #010101; color: #25f4ee; }
+.admin-src-badge.src-linkedin  { color: rgb(120,170,225); border-color: rgba(10,102,194,.30); }
+.admin-src-badge.src-linkedin  .admin-src-glyph { background: #0a66c2; color: #fff; font-size: 6px; letter-spacing: -.02em; }
+.admin-src-badge.src-pinterest { color: rgb(235,130,140); border-color: rgba(230,0,35,.30); }
+.admin-src-badge.src-pinterest .admin-src-glyph { background: #e60023; color: #fff; }
+.admin-src-badge.src-snapchat  { color: rgb(210,195,90); border-color: rgba(220,215,0,.34); }
+.admin-src-badge.src-snapchat  .admin-src-glyph { background: #fffc00; color: #111; }
+.admin-src-badge.src-youtube   { color: rgb(240,140,140); border-color: rgba(255,0,0,.30); }
+.admin-src-badge.src-youtube   .admin-src-glyph { background: #ff0000; color: #fff; }
+.admin-src-badge.src-share     { color: rgb(150,200,255); border-color: rgba(90,160,255,.30); }
+.admin-src-badge.src-share     .admin-src-dot { color: rgb(120,180,255); }
+.admin-src-badge.src-public    { color: rgb(175,160,235); border-color: rgba(150,130,235,.30); }
+.admin-src-badge.src-public    .admin-src-dot { color: rgb(170,150,235); }
 
 /* ── Detail header ── */
 .admin-detail-header {
@@ -6582,6 +6600,10 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .admin-detail-kv dd .is-strong, .admin-detail-kv dd.is-strong { color: var(--ink-0); font-weight: 600; }
 .admin-detail-kv dd .is-muted, .admin-detail-kv dd.is-muted { color: var(--ink-3); }
 .admin-detail-note { font: 500 13px/1.45 var(--font-sans); color: var(--ink-3); }
+.admin-detail-subhead {
+  margin: 10px 0 4px; color: var(--ink-3);
+  font: 700 9.5px/1.4 var(--font-sans); letter-spacing: .06em; text-transform: uppercase;
+}
 .admin-detail-refresh-error {
   display: block; width: 100%; text-align: left; cursor: pointer;
   margin: 0; padding: 8px 22px;

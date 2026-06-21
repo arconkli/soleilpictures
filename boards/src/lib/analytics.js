@@ -18,16 +18,67 @@ import { supabase } from './supabase.js';
 import { setErrorUser } from './errorReporting.js';
 import { getDeviceInfo } from './device.js';
 
-const SESSION_KEY  = 'soleil_session_id';
-const SOURCE_KEY   = 'soleil_first_source';   // sessionStorage — first-touch acquisition
+const SESSION_KEY     = 'soleil_session_id';
+const SOURCE_KEY      = 'soleil_first_source';   // sessionStorage — first-touch acquisition
+const LAST_SOURCE_KEY = 'soleil_last_source';    // localStorage  — last-touch (latest click)
 
-// First-touch acquisition: read UTM params + referrer once on the
-// very first call this session, stash in sessionStorage, then merge
-// into every event's props for the lifetime of the session. Stashed
-// in SESSION storage (not localStorage) so it doesn't follow the
-// user forever — first-touch resets when they open a new browser.
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+
+// Paid/ad click identifiers, one per ad network. Captured alongside utm_* so the
+// SQL channel normalizer (public.derive_acquisition_channel) can brand each
+// signup by the network that referred it. KEEP IN SYNC with that function's
+// precedence ladder — adding a key here without teaching the SQL means the signal
+// is stored but never branded.
+const CLICK_ID_KEYS = [
+  'gclid', 'wbraid', 'gbraid',   // Google Ads (incl. iOS privacy variants)
+  'msclkid',                     // Microsoft / Bing Ads
+  'ttclid',                      // TikTok
+  'rdt_cid', 'rdt_uuid',         // Reddit
+  'twclid',                      // X / Twitter
+  'li_fat_id',                   // LinkedIn
+  'epik',                        // Pinterest
+  'sccid',                       // Snapchat
+];
+
+// Pull the campaign signals present in a URL's query string: utm_* + every ad
+// click-id we recognize, plus the share/public deep-link params the public-page
+// CTAs append (so a "open in new tab" still attributes — sessionStorage can't
+// survive that, the URL can). Shared by first-touch capture + last-touch refresh.
+function readUrlCampaignSignals(params) {
+  const out = {};
+  for (const k of UTM_KEYS)      { const v = params.get(k); if (v) out[k] = v.slice(0, 120); }
+  for (const k of CLICK_ID_KEYS) { const v = params.get(k); if (v) out[k] = v.slice(0, 200); }
+  const shareToken = params.get('share_token');
+  if (shareToken) out.share_token = shareToken.slice(0, 40);
+  const publicSlug = params.get('public_slug');
+  if (publicSlug) out.public_slug = publicSlug.slice(0, 80);
+  return out;
+}
+
+// External referrer as host + path (query/hash dropped to bound length + PII)
+// plus the bare host for cheap brand-matching in SQL. Returns {} for internal or
+// missing referrers — internal navigation is not an acquisition channel.
+function readReferrer() {
+  const out = {};
+  try {
+    if (!document?.referrer) return out;
+    const ref = new URL(document.referrer);
+    if (ref.hostname && ref.hostname !== window.location.hostname) {
+      out.referrer      = (ref.hostname + ref.pathname).slice(0, 200);
+      out.referrer_host = ref.hostname.slice(0, 120);
+    }
+  } catch (_) {}
+  return out;
+}
+
+// First-touch acquisition: read UTM params + click-ids + referrer once on the
+// very first call this session, stash in sessionStorage, then merge into every
+// event's props for the lifetime of the session. Stashed in SESSION storage (not
+// localStorage) so it doesn't follow the user forever — first-touch resets when
+// they open a new browser. The server backstop (signup-trigger) covers the
+// cross-device magic-link case where sessionStorage can't follow them.
 let cachedSource = null;
-function getFirstSource() {
+export function getFirstSource() {
   if (cachedSource !== null) return cachedSource;
   if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') {
     cachedSource = {};
@@ -37,24 +88,36 @@ function getFirstSource() {
     const cached = sessionStorage.getItem(SOURCE_KEY);
     if (cached) { cachedSource = JSON.parse(cached); return cachedSource; }
     const params = new URLSearchParams(window.location.search);
-    const source = {};
-    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
-      const v = params.get(k);
-      if (v) source[k] = v.slice(0, 120);  // trim absurdly long values
-    }
-    if (document?.referrer) {
-      try {
-        const ref = new URL(document.referrer);
-        // Only capture external referrers — internal navigation is noise.
-        if (ref.hostname && ref.hostname !== window.location.hostname) {
-          source.referrer = ref.hostname;
-        }
-      } catch (_) {}
-    }
-    // Facebook/Instagram ad-click id. Stays in the URL on the landing page; if
-    // it's already been consumed, fall back to the persisted _fbc the Meta layer
-    // saved ('fb.1.<ms>.<fbclid>'). Lets the admin slice the ad cohort apart from
-    // the rest of first_source (referrer/utm).
+    const source = { ...readUrlCampaignSignals(params), ...readReferrer() };
+    // First-touch fbclid: ONLY one actually present in the landing URL. The
+    // persisted _fbc fallback is LAST-touch (latest ad click) and would
+    // contaminate first-touch, so it's routed to the last-source bag instead.
+    const fbclid = params.get('fbclid');
+    if (fbclid) source.fbclid = String(fbclid).slice(0, 200);
+    // Entry path — useful context even with no external referrer, so same-host /
+    // in-app arrivals carry where they landed instead of vanishing into 'direct'.
+    try { source.landing_path = window.location.pathname.slice(0, 200); } catch (_) {}
+    sessionStorage.setItem(SOURCE_KEY, JSON.stringify(source));
+    cachedSource = source;
+  } catch (_) { cachedSource = {}; }
+  return cachedSource;
+}
+
+// Last-touch acquisition: unlike first-touch (sessionStorage, set once), this is
+// REFRESHED on every page-load that carries a campaign/referral signal, and
+// persisted in localStorage so it survives across sessions. Rides every event as
+// lt_* (below) and feeds the per-user "Latest click" detail next to first-touch.
+let cachedLastSource = null;
+function getLastSource() {
+  if (cachedLastSource !== null) return cachedLastSource;
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    cachedLastSource = {};
+    return cachedLastSource;
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fresh = { ...readUrlCampaignSignals(params), ...readReferrer() };
+    // Last-touch fbclid: URL first, else the freshest persisted _fbc.
     let fbclid = params.get('fbclid');
     if (!fbclid) {
       try {
@@ -62,11 +125,18 @@ function getFirstSource() {
         if (fbc) { const parts = fbc.split('.'); if (parts.length >= 4) fbclid = parts.slice(3).join('.'); }
       } catch (_) {}
     }
-    if (fbclid) source.fbclid = String(fbclid).slice(0, 200);
-    sessionStorage.setItem(SOURCE_KEY, JSON.stringify(source));
-    cachedSource = source;
-  } catch (_) { cachedSource = {}; }
-  return cachedSource;
+    if (fbclid) fresh.fbclid = String(fbclid).slice(0, 200);
+    if (Object.keys(fresh).length > 0) {
+      fresh.last_touch_at = new Date().toISOString();
+      try { localStorage.setItem(LAST_SOURCE_KEY, JSON.stringify(fresh)); } catch (_) {}
+      cachedLastSource = fresh;
+    } else {
+      // No fresh signal this load — keep the previously stored last-touch.
+      try { const raw = localStorage.getItem(LAST_SOURCE_KEY); cachedLastSource = raw ? JSON.parse(raw) : {}; }
+      catch (_) { cachedLastSource = {}; }
+    }
+  } catch (_) { cachedLastSource = {}; }
+  return cachedLastSource;
 }
 
 // Merge share-link first-touch fields into the session source. Called by the
@@ -105,23 +175,40 @@ export function seedPublicBoardFirstSource(slug) {
   cachedSource = src;
 }
 
-// Stamp the caller's profile.first_source the first time they
-// authenticate (server-side first-touch wins). One-shot per
-// auth-state-change → 'SIGNED_IN'.
-let firstSourceStamped = false;
+// Stamp the caller's profile.first_source the first time they authenticate
+// (server-side first-touch wins). DURABLE: the "done" flag is a per-user
+// localStorage key set ONLY after the RPC confirms. A failed stamp (network
+// blip) leaves it unset, so the next page-load's SIGNED_IN retries instead of
+// silently leaving the user 'direct'/'organic' forever — the historical bug.
+// Per-user keying means account-switching on a shared browser still stamps each
+// user. The server signup-trigger backstop covers the case where this never runs
+// at all (cross-device magic link). One in-session retry on transient failure.
+const STAMP_DONE_PREFIX = 'soleil_first_source_stamped:';
+let firstSourceStamping = false;
+function stampDone(key) { try { return localStorage.getItem(key) === '1'; } catch (_) { return false; } }
 async function stampFirstSourceIfNeeded() {
-  if (firstSourceStamped || !supabase) return;
+  if (firstSourceStamping || !supabase) return;
   const src = getFirstSource();
-  if (!src || Object.keys(src).length === 0) { firstSourceStamped = true; return; }
+  if (!src || Object.keys(src).length === 0) return;
   const { data } = await supabase.auth.getSession();
-  if (!data?.session?.user?.id) return;
-  // A failed stamp leaves profiles.first_source empty → all by-source retention
-  // attribution silently breaks for this user. Record it (kept here because
-  // SOURCE_KEY/cachedSource are private to this module). Uses the EV string
-  // literal to avoid an import cycle with analyticsEvents.
-  try { await supabase.rpc('set_first_source', { p_source: src }); }
-  catch (e) { try { logEvent('onboarding_first_source_failed', { reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {} }
-  firstSourceStamped = true;
+  const uid = data?.session?.user?.id;
+  if (!uid) return;                                  // no session yet — retry on next SIGNED_IN
+  const doneKey = STAMP_DONE_PREFIX + uid;
+  if (stampDone(doneKey)) return;
+  firstSourceStamping = true;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await supabase.rpc('set_first_source', { p_source: src });
+      try { localStorage.setItem(doneKey, '1'); } catch (_) {}   // mark done only on confirmed success
+      firstSourceStamping = false;
+      return;
+    } catch (e) {
+      if (attempt === 0) { await new Promise((r) => setTimeout(r, 1500)); continue; }
+      // Final failure: record it; leave the done-flag UNSET so a later page-load retries.
+      try { logEvent('onboarding_first_source_failed', { reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
+    }
+  }
+  firstSourceStamping = false;
 }
 
 // Experiment arms ride every event as exp_<key>, exactly like first_source. The
@@ -214,6 +301,10 @@ if (supabase) {
   } catch (_) {}
 }
 
+// Refresh last-touch acquisition on every page-load (persists to localStorage),
+// independent of auth so anon landings still record their latest click.
+if (typeof window !== 'undefined') { try { getLastSource(); } catch (_) {} }
+
 // ── Batched, redirect-safe delivery ────────────────────────────────────
 // Maximal instrumentation means many small events (scroll/field/dwell), and
 // some fire microseconds before a navigation. One insert-per-event would flood
@@ -240,6 +331,10 @@ function buildRow(name, props) {
   // First-touch source merged into every event so funnel queries are trivial
   // ("what % of pricing_view came from utm_source=reddit").
   for (const k in source) if (merged[k] === undefined) merged[k] = source[k];
+  // Last-touch source (latest click), namespaced lt_* so it never collides with
+  // the first-touch keys — lets the per-user detail show first vs latest click.
+  const last = getLastSource();
+  for (const k in last) { const lk = 'lt_' + k; if (merged[lk] === undefined) merged[lk] = last[k]; }
   // Device class (type/os/browser) merged into every event so the admin device
   // breakdown + per-user device read straight from props. Categories only —
   // never the raw user-agent.

@@ -78,10 +78,16 @@ function viewerUrl(ctx, boardId, rootId) {
 // FALLBACK: the primary mechanism (seed*FirstSource → sessionStorage) only
 // survives same-tab navigation, so cmd-click / "open in new tab" still
 // attributes the signup. Public marketing boards → public_board/<slug>; share
-// links → share_link/<token>.
+// links → share_link/<token>. The raw share_token / public_slug ride along too
+// (getFirstSource reads them off the URL) so the structured id survives the
+// new-tab hop, not just the utm approximation.
 function ctaHref(ctx, surface) {
   const src = ctx.slug ? 'public_board' : 'share_link';
-  return `/?utm_source=${src}&utm_medium=${surface}&utm_campaign=${ctx.slug || ctx.token}`;
+  const campaign = encodeURIComponent(ctx.slug || ctx.token || '');
+  const idParam = ctx.slug
+    ? `&public_slug=${encodeURIComponent(ctx.slug)}`
+    : (ctx.token ? `&share_token=${encodeURIComponent(ctx.token)}` : '');
+  return `/?utm_source=${src}&utm_medium=${encodeURIComponent(surface)}&utm_campaign=${campaign}${idParam}`;
 }
 
 // Branded top bar — rendered in every viewer state (loading / invalid / ok)

@@ -11,7 +11,7 @@ import { Icon } from '../../components/Icon.jsx';
 import { ArrowsClockwise, User as UsersIcon } from '../../lib/icons.js';
 import { relativeTime } from '../../lib/adminFormat.js';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
-import { Avatar, SourceBadge, PresenceDot } from './AdminUserDetailParts.jsx';
+import { Avatar, SourceBadge, PresenceDot, channelLabel } from './AdminUserDetailParts.jsx';
 
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
 const SORTS = [
@@ -84,6 +84,7 @@ export function AdminUserList({
   tierFilter, onTierFilterChange,
   contacted, onContactedChange,
   verification, onVerificationChange,
+  sourceFilter, onSourceFilterChange, sourceOptions = [],
   sort, onSortChange,
   onPrevPage, onNextPage, onRefresh,
   selectedUserId, onSelect, currentUserId, isFiltered,
@@ -139,6 +140,20 @@ export function AdminUserList({
             title="Verified = email confirmed + signed in at least once"
           >
             {VERIFICATION.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+          </select>
+          <select
+            className="auth-input admin-filter-select"
+            value={sourceFilter || ''}
+            onChange={(e) => onSourceFilterChange(e.target.value)}
+            aria-label="Filter by acquisition channel"
+            title="Where the user came from"
+          >
+            <option value="">All sources</option>
+            {sourceOptions.map((o) => (
+              <option key={o.channel} value={o.channel}>
+                {channelLabel(o.channel)}{o.n != null ? ` (${o.n})` : ''}
+              </option>
+            ))}
           </select>
           <select
             className="auth-input admin-filter-select"

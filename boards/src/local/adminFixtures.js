@@ -45,6 +45,11 @@ const metricsHistory = series(60, (back) => {
 const TIERS = ['paid', 'demo', 'demo', 'waitlist', 'demo', 'paid', 'demo', 'waitlist'];
 const NAMES = ['mara', 'devon', 'priya', 'liang', 'sofia', 'theo', 'amina', 'jonas', 'kira', 'ravi',
   'noa', 'elias', 'yuki', 'omar', 'greta', 'sam', 'ines', 'paolo', 'lena', 'cyrus'];
+// Unified acquisition-channel tokens (see public.derive_acquisition_channel) so
+// the source badges + filter dropdown have the full spread to render locally.
+const CHANNELS = ['google_ads', 'meta_paid', 'reddit', 'google', 'x_ads', 'share_link',
+  'tiktok_ads', 'direct', 'producthunt', 'linkedin', 'meta_organic', 'bing_ads',
+  'public_board', 'youtube', 'pinterest_ads', 'reddit_ads', 'snapchat', 'x', 'google', 'direct'];
 const listUsers = NAMES.map((name, i) => {
   const tier = TIERS[i % TIERS.length];
   const paid = tier === 'paid';
@@ -69,10 +74,17 @@ const listUsers = NAMES.map((name, i) => {
     subscription_discounted: paid && i % 3 === 0,
     banned: i === 13,
     joined_waitlist: tier === 'waitlist' || i % 4 === 0,
+    acquisition_source: CHANNELS[i % CHANNELS.length],
     outreach_count: contacted ? 1 + (i % 2) : 0,
     last_reached_out_at: contacted ? tsISO((i % 4) * 1440 + 60) : null,
   };
 });
+
+// Distinct channels present (with counts) for the source-filter dropdown —
+// derived from the rows above so the dropdown and the list stay in lockstep.
+const acqChannels = Object.entries(
+  listUsers.reduce((m, u) => { m[u.acquisition_source] = (m[u.acquisition_source] || 0) + 1; return m; }, {}),
+).map(([channel, n]) => ({ channel, n })).sort((a, b) => b.n - a.n);
 
 const topUsers = (tier) => listUsers
   .filter((u) => (tier ? u.tier === tier : true))
@@ -287,6 +299,7 @@ const RPCS = {
   })).map((r) => ({ ...r, total_bytes: r.r2_bytes + r.db_bytes })),
   admin_list_users: listUsers,
   admin_user_count: 1284,
+  admin_acquisition_channels: acqChannels,
   admin_paid_grants_count: 9,
   admin_list_paid_grants: Array.from({ length: 9 }, (_, i) => ({
     email: `${NAMES[i]}@studio.co`, user_id: i % 3 === 2 ? null : `u-${i}`,
