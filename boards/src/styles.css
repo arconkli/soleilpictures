@@ -11645,6 +11645,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
      long. */
   max-width: 816px;
   min-height: 1056px;
+  /* .doc-paper is a flex column, so an explicit min-height lets flex-shrink
+     pin the sheet at one page while its content (the .tt-editor) overflows past
+     the white edge into the dark gutter. flex-shrink:0 lets the sheet grow with
+     its content (min-height stays the floor) — required for pageless prose AND
+     long screenplays to flow forever instead of running off the page. The
+     paged flow wrap (.doc-flow) carries an inline min-height = full page stack,
+     so it's unaffected. */
+  flex-shrink: 0;
   background: var(--bg-1);
   color: var(--ink-0);
   border: 1px solid color-mix(in oklab, var(--ink-3) 14%, transparent);

@@ -37,6 +37,25 @@ test('prose docs are pageless by default — no page sheets or gutters', async (
   await expect(pill).not.toHaveClass(/is-active/);
 });
 
+test('pageless: the sheet grows with content — text never spills off the page', async ({ page }) => {
+  await openDoc(page);
+  // Content far taller than one 1056px page.
+  await page.evaluate(() => {
+    const ps = Array.from({ length: 80 }, (_, i) => `<p>Paragraph ${i + 1}. The quick brown fox jumps over the lazy dog.</p>`).join('');
+    window.__soleilDocTest.editor.chain().setContent(ps).run();
+  });
+  await page.waitForTimeout(400);
+  const r = await page.evaluate(() => {
+    const wrap = document.querySelector('.doc-card-modal .doc-editor-wrap');
+    const ed = document.querySelector('.doc-card-modal .tt-editor');
+    return { wrapH: wrap.getBoundingClientRect().height, edBottom: ed.getBoundingClientRect().bottom, wrapBottom: wrap.getBoundingClientRect().bottom };
+  });
+  // The white sheet is taller than a single page (it grew)…
+  expect(r.wrapH).toBeGreaterThan(1056 + 200);
+  // …and the editor's text bottom sits INSIDE the sheet (no abyss overflow).
+  expect(r.edBottom).toBeLessThanOrEqual(r.wrapBottom + 1);
+});
+
 test('the Pages pill switches to a paged layout and persists in docMeta', async ({ page }) => {
   await openDoc(page);
   const pill = page.locator(pillSel);
