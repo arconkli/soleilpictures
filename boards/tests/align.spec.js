@@ -134,9 +134,9 @@ test.describe('snap alignment guides', () => {
     expect(r.inertHasMatch).toBe(true); // without the gate, the far card matches
   });
 
-  // Flips green once the shipped SNAP_TUNING enables culling (the follow-up
-  // commit). Until then the shipped knobs are intentionally inert.
-  test.fixme('shipped SNAP_TUNING enables culling + caliper (flip guard)', async ({ page }) => {
+  // Guards that the SHIPPED SNAP_TUNING actually enables culling + the caliper
+  // (the inert extraction values were a transitional state, now flipped).
+  test('shipped SNAP_TUNING enables culling + caliper (flip guard)', async ({ page }) => {
     const t = await page.evaluate(() => window.__soleilAlignTest.SNAP_TUNING);
     expect(Number.isFinite(t.VIEWPORT_MARGIN_PX)).toBe(true);
     expect(Number.isFinite(t.PROXIMITY_PX)).toBe(true);

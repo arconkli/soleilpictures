@@ -628,7 +628,7 @@ export function CanvasSurface({
       snapHintsTimerRef.current = setTimeout(() => {
         setDisplayedHints(null);
         snapHintsTimerRef.current = null;
-      }, 160);
+      }, SNAP_TUNING.LINGER_MS);
     }
     return () => {
       if (snapHintsTimerRef.current) {
@@ -3180,6 +3180,7 @@ export function CanvasSurface({
     // updates on a 60Hz display.
     let pendingMoveEv = null;
     let moveRafId = 0;
+    let prevRaw = null; // last frame's raw (world) delta, for the fast-sweep clear
     const flushMove = () => {
       moveRafId = 0;
       const ev = pendingMoveEv;
@@ -3234,6 +3235,13 @@ export function CanvasSurface({
       const snap = skip ? { dx: rawDx, dy: rawDy, hints: null } : computeSnap(rawDx, rawDy);
       const { dx, dy, hints } = snap;
       setDrag({ ids: dragIds, dx, dy, startPositions });
+      // Fast sweep across the board: if the card jumped more than FAST_MOVE_PX
+      // (screen) since last frame, drop any lingering guide immediately so old
+      // matches don't pile up as a fading trail behind the moving card.
+      if (!hints && prevRaw && Math.hypot(rawDx - prevRaw.dx, rawDy - prevRaw.dy) * zoom > SNAP_TUNING.FAST_MOVE_PX) {
+        setDisplayedHints(null);
+      }
+      prevRaw = { dx: rawDx, dy: rawDy };
       setSnapHints(hints);
       // Same-canvas board-drop hover detection. The dragged cards
       // themselves sit under the cursor, so elementFromPoint would
@@ -3712,6 +3720,7 @@ export function CanvasSurface({
       return { dh, hints };
     };
 
+    let prevResizeRaw = null; // last frame's raw (world) delta, for the fast clear
     const onMove = (ev) => {
       const rawDwRaw = (ev.clientX - startClient.x) / zoom;
       const rawDhRaw = (ev.clientY - startClient.y) / zoom;
@@ -3723,6 +3732,12 @@ export function CanvasSurface({
       const snap = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey, !!noteMeasurer && !noteHeightMode);
       const { dh, hints } = applyNoteReflow(snap.dw, snap.dh, snap.hints);
       setResize({ id: c.id, dw: snap.dw, dh });
+      // Fast resize jump: drop a lingering size/edge guide immediately rather
+      // than leaving a fading trail (mirrors the move path).
+      if (!hints && prevResizeRaw && Math.hypot(rawDw - prevResizeRaw.dw, rawDh - prevResizeRaw.dh) * zoom > SNAP_TUNING.FAST_MOVE_PX) {
+        setDisplayedHints(null);
+      }
+      prevResizeRaw = { dw: rawDw, dh: rawDh };
       setSnapHints(hints);
     };
     const onUp = (ev) => {
@@ -6874,7 +6889,7 @@ export function CanvasSurface({
             `snapHints`) so the SVG can fade out for ~140ms after the
             drag releases instead of vanishing instantly. The
             `is-visible` class is keyed off live `snapHints`. */}
-        {displayedHints && (displayedHints.xs?.length || displayedHints.ys?.length || displayedHints.spacings?.length) && (
+        {displayedHints && (displayedHints.xs?.length || displayedHints.ys?.length || displayedHints.spacings?.length || displayedHints.sizes?.length) && (
           <svg className={`snap-guides ${snapHints ? 'is-visible' : ''}`}
                width={SVG_ANCHOR_PX} height={SVG_ANCHOR_PX}
                style={{ position: 'absolute', left: 0, top: 0,
@@ -6885,7 +6900,7 @@ export function CanvasSurface({
                 so the line reads as a relationship, not a ruler. The
                 stroke extends a soft 4px past the dots for breathing
                 room. Optional `label` floats just outside the cap. */}
-            {(displayedHints.xs || []).map((g, i) => {
+            {(displayedHints.xs || []).slice(0, 1).map((g, i) => {
               const overshoot = 4 / zoom;
               const dotR = 2 / zoom;
               return (
@@ -6912,7 +6927,7 @@ export function CanvasSurface({
                 </Fragment>
               );
             })}
-            {(displayedHints.ys || []).map((g, i) => {
+            {(displayedHints.ys || []).slice(0, 1).map((g, i) => {
               const overshoot = 4 / zoom;
               const dotR = 2 / zoom;
               return (
@@ -6942,7 +6957,7 @@ export function CanvasSurface({
             {/* Equal-spacing markers — drawn between paired neighbours
                 with tiny end caps + a label so the user sees "I matched
                 a 24px gap that already existed". */}
-            {(displayedHints.spacings || []).map((s, i) => {
+            {(displayedHints.spacings || []).slice(0, 2).map((s, i) => {
               const isX = s.axis === 'x';
               const labelX = isX ? (s.a + s.b) / 2 : s.cross;
               const labelY = isX ? s.cross : (s.a + s.b) / 2;
@@ -6988,6 +7003,60 @@ export function CanvasSurface({
                         style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
                     {s.gap}
                   </text>
+                </Fragment>
+              );
+            })}
+            {/* Equal-SIZE markers (resize) — a matching caliper bar drawn on BOTH
+                the resized card and the card it matches, with end ticks + an
+                "= N" label, so "these two are the same size" reads at a glance. */}
+            {(displayedHints.sizes || []).slice(0, 2).map((sz, i) => {
+              const isW = sz.axis === 'w';
+              const tick = 4 / zoom;
+              return (
+                <Fragment key={`gz-${i}`}>
+                  {(sz.bars || []).map((bar, bi) => (
+                    <Fragment key={`gz-${i}-${bi}`}>
+                      {isW ? (
+                        <>
+                          <line x1={bar.a} x2={bar.b} y1={bar.cross} y2={bar.cross}
+                                stroke="var(--soleil)" strokeOpacity="0.7"
+                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                          <line x1={bar.a} x2={bar.a} y1={bar.cross - tick} y2={bar.cross + tick}
+                                stroke="var(--soleil)" strokeOpacity="0.7"
+                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                          <line x1={bar.b} x2={bar.b} y1={bar.cross - tick} y2={bar.cross + tick}
+                                stroke="var(--soleil)" strokeOpacity="0.7"
+                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                          <text x={(bar.a + bar.b) / 2} y={bar.cross + 12 / zoom}
+                                fill="var(--soleil)" fontSize={10 / zoom}
+                                fontFamily="ui-monospace, monospace"
+                                textAnchor="middle" dominantBaseline="hanging" opacity="0.9"
+                                style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
+                            {`= ${sz.value}`}
+                          </text>
+                        </>
+                      ) : (
+                        <>
+                          <line x1={bar.cross} x2={bar.cross} y1={bar.a} y2={bar.b}
+                                stroke="var(--soleil)" strokeOpacity="0.7"
+                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                          <line x1={bar.cross - tick} x2={bar.cross + tick} y1={bar.a} y2={bar.a}
+                                stroke="var(--soleil)" strokeOpacity="0.7"
+                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                          <line x1={bar.cross - tick} x2={bar.cross + tick} y1={bar.b} y2={bar.b}
+                                stroke="var(--soleil)" strokeOpacity="0.7"
+                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                          <text x={bar.cross + 8 / zoom} y={(bar.a + bar.b) / 2}
+                                fill="var(--soleil)" fontSize={10 / zoom}
+                                fontFamily="ui-monospace, monospace"
+                                textAnchor="start" dominantBaseline="middle" opacity="0.9"
+                                style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
+                            {`= ${sz.value}`}
+                          </text>
+                        </>
+                      )}
+                    </Fragment>
+                  ))}
                 </Fragment>
               );
             })}

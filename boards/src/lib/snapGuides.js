@@ -17,22 +17,22 @@
 // near-collinear dedup, and a nearest-card tie-break.
 
 export const SNAP_TUNING = Object.freeze({
-  SNAP_PX: 6,                  // edge/center/size catch radius (÷zoom → world px)
-  // NOTE: the four knobs below ship INERT in this commit (extraction must be
-  // behavior-identical); a follow-up flips them to the live values in comments.
-  VIEWPORT_MARGIN_PX: Infinity, // → 200. Expand the viewport rect by this (screen
-                                //   px) to form the candidate pool at drag start.
-  PROXIMITY_PX: Infinity,       // → 400. Per-frame: drop candidates whose card is
-                                //   farther than this from the LIVE dragged bbox.
-  COLLINEAR_EPS_PX: 0,          // → 1. Merge targets whose coord differs by < this
-                                //   so near-identical lines don't flicker/jump.
-  TIE_EPS_PX: 0,                // → 0.5. Snap-distance ties → prefer nearest card.
-  OVERLAP_MIN: 8,              // min cross-axis overlap for an equal-spacing pair
+  SNAP_PX: 6,                 // edge/center/size catch radius (÷zoom → world px)
+  VIEWPORT_MARGIN_PX: 200,    // expand the viewport rect by this (screen px) to
+                              //   form the candidate pool at drag start
+  PROXIMITY_PX: 400,          // per-frame: drop candidates whose card is farther
+                              //   than this from the LIVE dragged/resized bbox
+  COLLINEAR_EPS_PX: 1,        // merge targets whose coord differs by < this so
+                              //   near-identical lines don't flicker / jump
+  TIE_EPS_PX: 0.5,            // snap-distance ties → prefer the nearest card
+  OVERLAP_MIN: 8,             // min cross-axis overlap for an equal-spacing pair
   SPACING_MIN: 4,             // min gap for an equal-spacing candidate
   SPACING_MAX: 1500,          // max gap for an equal-spacing candidate
-  LINGER_MS: 160,             // → 90. Fade-out linger after guides clear.
-  FAST_MOVE_PX: Infinity,     // → 50. Per-frame move above which guides clear now.
-  SIZE_GUIDE: 'underline',    // → 'caliper'. Resize same-size indicator style.
+  LINGER_MS: 90,              // fade-out linger after guides clear (was 160)
+  FAST_MOVE_PX: 50,           // per-frame move (screen px) above which guides
+                              //   clear instantly (no fading trail on a sweep)
+  SIZE_GUIDE: 'caliper',      // resize same-size indicator: dual caliper on both
+                              //   cards ('underline' = legacy single-card mark)
 });
 
 const SNAP_PX = SNAP_TUNING.SNAP_PX;
