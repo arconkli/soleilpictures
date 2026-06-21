@@ -20,20 +20,38 @@
 
 import { Component } from 'react';
 import { logClientError } from '../lib/errorReporting.js';
+import { looksLikeStaleChunk, reloadIfStaleChunk } from '../lib/lazyWithReload.js';
 
 const MAX_AUTO_REMOUNTS = 3;
 
 export class SurfaceErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, remounts: 0, error: null };
+    this.state = { hasError: false, remounts: 0, error: null, recovering: false };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    // Pre-mark stale-deploy lazy-chunk failures (message-only check — no
+    // componentStack here) so render() shows a neutral "Updating…" instead of
+    // flashing the glitch panel for a frame before the one-shot reload lands.
+    return { hasError: true, error, recovering: looksLikeStaleChunk(error) };
   }
 
   componentDidCatch(error, info) {
+    // Stale-deploy recovery: a content-hashed chunk under this surface 404'd
+    // (e.g. lazyWithReload's 10s guard already fired once, so the failure
+    // rethrew into here instead of self-healing). Reload ONCE (guarded, shared
+    // key with lazyWithReload) rather than remounting into the same dead chunk
+    // and stranding the user on the "display glitch" panel.
+    if (looksLikeStaleChunk(error)) {
+      const reloading = reloadIfStaleChunk(error, info?.componentStack);
+      logClientError(error, { kind: 'chunk-recover', componentStack: info?.componentStack });
+      // Reloading → keep the neutral "Updating…" up. Guard says we already
+      // reloaded and it's STILL failing → fall through to the in-pane fallback.
+      this.setState(reloading ? { hasError: true, recovering: true } : { hasError: true, recovering: false });
+      return;
+    }
+
     console.error('[SurfaceErrorBoundary] caught (canvas kept alive)', error);
     console.error('[SurfaceErrorBoundary] componentStack:', info?.componentStack);
     logClientError(error, { kind: 'surface', componentStack: info?.componentStack });
@@ -49,6 +67,16 @@ export class SurfaceErrorBoundary extends Component {
   }
 
   render() {
+    // Stale-deploy chunk failure: a one-shot reload is already in flight (or
+    // about to be). Show a neutral, pane-scoped "Updating…" instead of the
+    // alarming glitch panel for the brief moment before the page reloads.
+    if (this.state.recovering) {
+      return (
+        <div className="surface-error" role="status" aria-live="polite">
+          <div className="surface-error-text">Updating… a new version is loading.</div>
+        </div>
+      );
+    }
     if (this.state.hasError) {
       // Exhausted auto-remounts — show a quiet, in-place recovery prompt
       // scoped to this pane (Workspace + the other pane stay alive).
@@ -57,7 +85,7 @@ export class SurfaceErrorBoundary extends Component {
           <div className="surface-error-text">This board view hit a display glitch.</div>
           <button
             className="surface-error-btn"
-            onClick={() => this.setState({ hasError: false, remounts: 0, error: null })}
+            onClick={() => window.location.reload()}
           >
             Reload this view
           </button>

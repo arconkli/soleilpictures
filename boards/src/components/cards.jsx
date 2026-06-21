@@ -1,6 +1,7 @@
 // All card kinds. Most accept onUpdate(patch) so they can self-edit inline.
 
-import { memo, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
 import { Spinner } from './Spinner.jsx';
@@ -12,7 +13,9 @@ import { tapIsDouble } from '../lib/doubleTap.js';
 import './noteChecklist.css';
 // Lazy so Tiptap + y-prosemirror stay out of the canvas chunk and only load
 // when a note is actually opened for editing (mirrors how docs lazy-load).
-const NoteTiptapSurface = lazy(() =>
+// lazyWithReload (not bare lazy) so a 404'd chunk after a deploy triggers the
+// shared one-shot reload instead of stranding the note on the SurfaceErrorBoundary.
+const NoteTiptapSurface = lazyWithReload(() =>
   import('./NoteTiptapSurface.jsx').then(m => ({ default: m.NoteTiptapSurface })));
 import { ColorPicker } from './ColorPicker.jsx';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
