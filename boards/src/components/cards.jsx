@@ -19,7 +19,9 @@ import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
 import { useThumbnailBackfill } from '../hooks/useThumbnailBackfill.js';
 import { RENDER_VERSION as THUMB_RENDER_VERSION } from '../lib/renderThumbnail.js';
-import { paletteLayout, readableInk, hasCustomName } from '../lib/paletteLayout.js';
+import { paletteLayout, readableInk, hasCustomName, surfaceTone } from '../lib/paletteLayout.js';
+import { readableOn, remapHtmlColors } from '../lib/readableColor.js';
+import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { renderHtmlWithAutoLinks } from '../lib/renderHtmlWithAutoLinks.jsx';
@@ -732,16 +734,29 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   const ref = useRef(null);
   const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontFamily, editing, manuallyResized]);
   const lastTapRef = useRef({});
+  const theme = useThemeAttr();
 
   const fontStyle = {};
   if (fontFamily) fontStyle.fontFamily = fontFamily;
   if (fontSize) fontStyle.fontSize = `${fontSize}px`;
   const hasBg = !!bgColor && bgColor !== 'transparent';
   const isTransparent = bgColor === 'transparent';
-  const isLightBg = hasBg && /^#?(f|e|d|c)/i.test(String(bgColor).replace('#', ''));
-  const noteStyle = { background: bgColor || undefined, color: textColor || undefined, ...fontStyle };
+  // Luminance-based surface tone (theme-independent for an explicitly painted
+  // note); unpainted notes follow the app theme via CSS. effBg is the surface
+  // the text sits on, used to make the user's colors readable.
+  const tone = surfaceTone(bgColor);
+  const isLightBg = tone === 'light';
+  const isDarkBg = tone === 'dark';
+  const effBg = hasBg ? bgColor : (theme === 'light' ? '#f5f5f7' : '#0a0a0c');
+  const noteStyle = { background: bgColor || undefined, color: textColor ? readableOn(textColor, effBg) : undefined, ...fontStyle };
   if (bgColor) noteStyle['--has-bg-color'] = bgColor;
-  const cls = `note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`;
+  const cls = `note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${isDarkBg ? 'is-dark-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`;
+
+  // Read-only display html with every run made readable on this note's surface
+  // (per-span colors + highlights). Memoized so it only recomputes on edits or
+  // a theme flip. The live editing surface uses the ReadableColors plugin.
+  const display = html || (body ? `<div>${body}</div>` : '');
+  const safeDisplay = useMemo(() => remapHtmlColors(display, effBg), [display, effBg]);
 
   if (editing) {
     return (
@@ -759,8 +774,8 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   }
 
   // Read-only display + edit affordances (double-click / touch double-tap to
-  // edit; checklist toggle without entering edit).
-  const display = html || (body ? `<div>${body}</div>` : '');
+  // edit; checklist toggle without entering edit). `safeDisplay` (computed
+  // above) is `display` with colors made readable on this surface.
   const startEdit = (e) => { e?.stopPropagation?.(); setEditing(true); };
   const onBodyClick = (e) => {
     const box = e.target.closest?.('.ck-box');
@@ -793,7 +808,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   return (
     <div ref={ref} className={cls} style={noteStyle}
          onDoubleClick={startEdit} onPointerUp={onPointerUp} onClick={onBodyClick}>
-      <NoteAutoLinkBody html={display} />
+      <NoteAutoLinkBody html={safeDisplay} />
       {overflowing && (
         <button type="button" className="note-more-chip"
                 title="Show all text — fit the note to its content"
@@ -829,13 +844,19 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   // editable path so the hook is inert there.
   const roNoteRef = useRef(null);
   const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontFamily, manuallyResized]);
+  const roTheme = useThemeAttr();
+  const roHasBg = !!bgColor && bgColor !== 'transparent';
+  const roTone = surfaceTone(bgColor);
+  const roEffBg = roHasBg ? bgColor : (roTheme === 'light' ? '#f5f5f7' : '#0a0a0c');
+  const roDisplay = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
+  const roSafeDisplay = useMemo(() => remapHtmlColors(roDisplay, roEffBg), [roDisplay, roEffBg]);
   if (!onUpdate) {
-    const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
-    const hasBg = !!bgColor && bgColor !== 'transparent';
+    // Same surface-tone + readable-color treatment as the editable paths, so
+    // the read-only render (share, list, off-screen) matches what editing shows.
     return <div ref={roNoteRef}
-                className={`note ${hasBg ? 'has-bg' : ''} ${bgColor === 'transparent' ? 'is-transparent' : ''} ${roOverflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`}
-                style={{ background: bgColor || undefined, color: textColor || undefined, ...fontStyle }}>
-      <NoteAutoLinkBody html={display} />
+                className={`note ${roTone === 'light' ? 'is-light-bg' : ''} ${roTone === 'dark' ? 'is-dark-bg' : ''} ${roHasBg ? 'has-bg' : ''} ${bgColor === 'transparent' ? 'is-transparent' : ''} ${roOverflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`}
+                style={{ background: bgColor || undefined, color: textColor ? readableOn(textColor, roEffBg) : undefined, ...fontStyle }}>
+      <NoteAutoLinkBody html={roSafeDisplay} />
     </div>;
   }
   // Collaborative (Tiptap + Y.XmlFragment) path — gated during rollout. Needs

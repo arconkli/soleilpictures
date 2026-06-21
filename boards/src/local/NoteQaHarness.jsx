@@ -15,7 +15,7 @@ import * as Y from 'yjs';
 import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from 'y-protocols/awareness';
 import * as noteDocState from '../lib/noteDocState.js';
 import { getActiveNoteEditor } from '../lib/noteEditorRegistry.js';
-import { NoteCardCollab } from '../components/cards.jsx';
+import { NoteCardCollab, NoteCard } from '../components/cards.jsx';
 
 const CARD_ID = 'noteqa-card';
 
@@ -121,8 +121,23 @@ function ClientCard({ label, ydoc, cardYMap, awareness }) {
   );
 }
 
+// A standalone READ-ONLY note (the canvas/share/list render path: NoteCard with
+// no onUpdate). Driven by the test via __soleilNoteTest.setRo so contrast can be
+// checked across bgColor / textColor / themes without a live editor.
+function ReadOnlyCard({ ro }) {
+  return (
+    <div
+      data-ro-note
+      style={{ position: 'relative', width: 320, height: 160, border: '1px solid #333' }}
+    >
+      <NoteCard html={ro.html} bgColor={ro.bgColor} textColor={ro.textColor} />
+    </div>
+  );
+}
+
 export function NoteQaHarness() {
   const [{ docA, cardA, docB, cardB, sync, awA, awB }] = useState(() => createTwoClientStore(''));
+  const [ro, setRo] = useState({ bgColor: null, textColor: null, html: '' });
 
   useEffect(() => {
     const fragHtml = (cardYMap) =>
@@ -138,6 +153,8 @@ export function NoteQaHarness() {
       getTextA: () => noteDocState.noteFragmentToText(noteDocState.getNoteFragment(cardA)),
       getTextB: () => noteDocState.noteFragmentToText(noteDocState.getNoteFragment(cardB)),
       setSync: (on) => { sync.on = on; if (on) sync.resync(); },
+      // Drive the read-only NoteCard (canvas/share render path) for contrast tests.
+      setRo: (next) => setRo((c) => ({ ...c, ...next })),
       getActiveEditor: () => getActiveNoteEditor(),
       // Awareness inspectors for presence tests.
       getLocalCaretA: () => awA.getLocalState()?.noteCaret || null,
@@ -162,6 +179,10 @@ export function NoteQaHarness() {
       <div style={{ display: 'flex', gap: 32, marginTop: 16 }}>
         <ClientCard label="A" ydoc={docA} cardYMap={cardA} awareness={awA} />
         <ClientCard label="B" ydoc={docB} cardYMap={cardB} awareness={awB} />
+      </div>
+      <div style={{ marginTop: 24 }}>
+        <div style={{ font: '11px monospace', opacity: 0.6, marginBottom: 6 }}>read-only</div>
+        <ReadOnlyCard ro={ro} />
       </div>
     </div>
   );

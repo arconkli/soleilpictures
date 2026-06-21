@@ -14,6 +14,9 @@ import { coerceRef } from '../lib/entityRef.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import { cardHeightForBody } from '../lib/noteMeasure.js';
+import { surfaceTone } from '../lib/paletteLayout.js';
+import { readableOn } from '../lib/readableColor.js';
+import { useThemeAttr } from '../lib/useThemeAttr.js';
 
 // Tags kept when pasting rich content into a note. Everything else is unwrapped
 // (children preserved) and every attribute is stripped except a safe href on
@@ -86,6 +89,7 @@ export function RichNoteEditor({
 }) {
   const ref = useRef(null);
   const [editing, setEditing] = useState(autoFocus);
+  const theme = useThemeAttr();
   const initialRef = useRef('');
   // Coords of the most recent pointerdown in the contenteditable. Used by
   // onBodyClick's checkbox-toggle branch to tell a tap (small movement →
@@ -478,7 +482,10 @@ export function RichNoteEditor({
   const bg = bgColor || undefined;
   const hasBg = !!bg && bg !== 'transparent';
   const isTransparent = bg === 'transparent';
-  const isLightBg = hasBg && /^#?(f|e|d|c)/i.test(bg.replace('#', ''));
+  const tone = surfaceTone(bgColor);
+  const isLightBg = tone === 'light';
+  const isDarkBg = tone === 'dark';
+  const effBg = hasBg ? bg : (theme === 'light' ? '#f5f5f7' : '#0a0a0c');
 
   // Outer-container double-click also enters edit mode so a click on the
   // padding/border area (not inside .note-body) still re-opens the editor.
@@ -603,7 +610,7 @@ export function RichNoteEditor({
     setMention(null);
   };
 
-  const noteStyle = { background: bg, color: textColor || undefined };
+  const noteStyle = { background: bg, color: textColor ? readableOn(textColor, effBg) : undefined };
   if (fontFamily) noteStyle.fontFamily = fontFamily;
   if (fontSize) noteStyle.fontSize = `${fontSize}px`;
   // Expose the bg color to CSS so .has-bg rules can keep their material
@@ -611,7 +618,7 @@ export function RichNoteEditor({
   // editing-state tints.
   if (bg) noteStyle['--has-bg-color'] = bg;
   return (
-    <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`}
+    <div className={`note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${isDarkBg ? 'is-dark-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`}
          style={noteStyle}
          onPointerUp={!editing ? onNotePointerUp : undefined}
          onDoubleClick={onOuterDouble}>

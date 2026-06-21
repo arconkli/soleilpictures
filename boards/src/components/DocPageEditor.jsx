@@ -41,6 +41,7 @@ import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { ScreenplayKeymap } from './docExtensions/screenplay/ScreenplayKeymap.js';
 import { ScreenplayPagination } from './docExtensions/screenplay/ScreenplayPagination.js';
 import { DocPagination, PAGE_STRIDE, PAGE_H } from './docExtensions/DocPagination.js';
+import { ReadableColors } from './docExtensions/ReadableColors.js';
 import { ScreenplaySuggest } from './docExtensions/screenplay/ScreenplaySuggest.js';
 import { MentionExtension } from './docExtensions/MentionExtension.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
@@ -818,6 +819,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         // Prose: measurement-based reflow pagination (real pages, line-level
         // splitting). Reports page count so we can draw the page sheets.
         : [DocPagination.configure({ getZoom: () => zoomRef.current, onPages: setPageCount })]),
+      // Keep user-chosen text colors readable on the page sheet in both themes
+      // (scoped stylesheet override; never mutates content).
+      ReadableColors,
       mentionExt,
     ],
     // Don't steal focus from an active text field (e.g. the page-rename

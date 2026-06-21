@@ -29,6 +29,16 @@ export function readableInk(hex) {
   return relLuminance(hex) > 0.6 ? '#0a0a0c' : '#f5f5f7';
 }
 
+// Whether an explicit surface color reads as a 'light' or 'dark' surface — so
+// the text on it can be made readable regardless of the app theme (a yellow
+// note is a light surface in BOTH themes). Returns null when there's no
+// explicit color (transparent / unset), in which case the surface follows the
+// app theme via CSS variables. Same 0.6 luminance cut as readableInk.
+export function surfaceTone(bgColor) {
+  if (!bgColor || bgColor === 'transparent') return null;
+  return relLuminance(bgColor) > 0.6 ? 'light' : 'dark';
+}
+
 // New swatches default to the literal name 'Color'; only surface names the
 // user actually chose.
 export function hasCustomName(name) {

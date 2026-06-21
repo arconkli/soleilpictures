@@ -22,6 +22,7 @@ import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { makeCandidateNamePlugin } from './docExtensions/CandidateNamePlugin.js';
+import { ReadableColors } from './docExtensions/ReadableColors.js';
 import { useCandidateTagging } from '../hooks/useCandidateTagging.js';
 import { CandidatePromptPopover } from './CandidatePromptPopover.jsx';
 import { tagCard } from '../lib/tagsApi.js';
@@ -133,6 +134,9 @@ export function NoteTiptapSurface({
       Placeholder.configure({ placeholder: 'Write a note…', showOnlyWhenEditable: true }),
       mentionExt,
       candidateExt,
+      // Keep per-span colors readable on this note's surface in both themes
+      // (scoped stylesheet override; never mutates content).
+      ReadableColors,
       ...(fragment ? [Collaboration.configure({ fragment })] : []),
     ],
     // The surface mounts ONLY to edit (double-click / tap / new card), so always

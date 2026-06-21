@@ -4335,6 +4335,11 @@ body {
 .note {
   width: 100%; height: 100%;
   background: var(--bg-0);
+  /* The note is the cascade root for body ink: .note-body inherits this, so
+     precedence is inline readable textColor (set in JS) > surface-tone class
+     (.is-light-bg / .is-dark-bg, for explicitly painted notes) > this theme
+     default. Keeps painted-note text readable in BOTH themes. */
+  color: var(--ink-0);
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 14px;
@@ -4388,7 +4393,9 @@ body {
      tight (1.5, down from 1.62) so the text box hugs the glyphs — a taller
      line-box pushes the Grammarly spell-check underline visibly above the
      word inside the zoom-transformed canvas. */
-  font-size: 15px; line-height: 1.5; color: var(--ink-0);
+  /* Inherit the note's resolved ink (see .note) so painted-note + theme
+     contrast is handled in one place; per-span colors still override inline. */
+  font-size: 15px; line-height: 1.5; color: inherit;
   letter-spacing: -0.002em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -8350,7 +8357,14 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .note.is-editing { box-shadow: 0 0 0 2px var(--ink-1); }
 .note .note-body { flex: 1; min-height: 0; outline: none; overflow: auto; max-width: 100%; }
 .note .note-body[contenteditable="true"] { user-select: text; cursor: text; }
-.note.is-light-bg .note-body, .note.is-light-bg .note-body * { color: #0a0a0c !important; }
+/* Surface-tone default ink for explicitly painted notes — bidirectional and
+   theme-independent (a light sticky reads dark text in BOTH themes, a dark one
+   light text). Set on .note so .note-body inherits it; an explicit per-card
+   textColor (inline, made readable in JS) still wins, and per-span colors keep
+   their own inline color (made readable by remapHtmlColors / ReadableColors).
+   NOT a `*` wildcard — that used to nuke every accent color. */
+.note.is-light-bg { color: #0a0a0c; }
+.note.is-dark-bg { color: #f5f5f7; }
 
 .note-toolbar {
   display: flex; align-items: center; gap: 4px;
