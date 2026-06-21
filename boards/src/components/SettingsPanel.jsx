@@ -12,7 +12,10 @@ import {
   getOwnProfile, saveOwnProfile,
   updateWorkspaceSettings,
   updateOwnSettings,
+  getOrCreateMyReferralCode, getMyReferralStats,
 } from '../lib/boardsApi.js';
+import { logEvent, logEventNow } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import { supabase } from '../lib/supabase.js';
 import { uploadImage } from '../lib/uploads.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -29,6 +32,7 @@ import { startPortal } from '../lib/checkout.js';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
+  { id: 'invite',        label: 'Invite & earn' },
   { id: 'billing',       label: 'Billing' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'defaults',      label: 'Defaults' },
@@ -193,9 +197,9 @@ export function SettingsPanel({
   //   workspace = cog-style settings (Defaults/Theme/Display)
   //   full      = every tab
   const visibleTabs = mode === 'account'
-    ? TABS.filter(t => t.id === 'profile' || t.id === 'billing' || t.id === 'notifications')
+    ? TABS.filter(t => t.id === 'profile' || t.id === 'invite' || t.id === 'billing' || t.id === 'notifications')
     : mode === 'workspace'
-      ? TABS.filter(t => t.id !== 'profile' && t.id !== 'billing' && t.id !== 'notifications')
+      ? TABS.filter(t => t.id !== 'profile' && t.id !== 'invite' && t.id !== 'billing' && t.id !== 'notifications')
       : TABS;
   const [tab, setTab] = useState(visibleTabs[0]?.id || 'profile');
   // If the user reopens the panel in a different mode, the previously
@@ -260,6 +264,9 @@ export function SettingsPanel({
           <div className="settings-pane">
             {tab === 'profile' && (
               <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved} />
+            )}
+            {tab === 'invite' && (
+              <InviteTab user={user} />
             )}
             {tab === 'billing' && (
               <BillingTab user={user} />
@@ -686,6 +693,124 @@ function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings
 //   paid      → plan + status + next renewal, "Manage billing →" (Stripe Portal)
 //   demo      → card count + "Upgrade to Creator" button (opens PricingModal)
 //   waitlist  → defensive note (this surface shouldn't be reachable)
+// ── Invite & earn tab — the permanent home for the referral link + stats ──
+// Two-sided: the friend starts with +25 bonus cards; the referrer earns +25
+// when that friend creates their first genuine card (granted server-side).
+function ReferralStat({ label, value, highlight }) {
+  return (
+    <div>
+      <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.1,
+                    color: highlight ? 'var(--soleil, #ffa500)' : 'var(--text-1, inherit)',
+                    fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div className="settings-billing-label" style={{ marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+function InviteTab({ user }) {
+  const feedback = useFeedback();
+  const [code, setCode] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([getOrCreateMyReferralCode(), getMyReferralStats()])
+      .then(([c, s]) => {
+        if (cancelled) return;
+        const resolved = c || s?.code || null;
+        setCode(resolved);
+        setStats(s || null);
+        setLoading(false);
+        try { logEvent(EV.REFERRAL_TAB_VIEW, { has_code: !!resolved }); } catch (_) {}
+      })
+      .catch(() => { if (!cancelled) { setErr(true); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // window.location.origin so the link is correct wherever the app runs
+  // (clusters.soleilpictures.com in prod). ?ref flows into signup metadata.
+  const link = code ? `${window.location.origin}/?ref=${code}` : '';
+  const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
+
+  const copy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      feedback.toast({ type: 'success', message: 'Invite link copied — share it anywhere.' });
+    } catch (_) {
+      feedback.toast({ type: 'info', message: link });
+    }
+    try { logEvent(EV.REFERRAL_LINK_COPIED, { surface: 'account_tab' }); } catch (_) {}
+  };
+
+  const share = async () => {
+    if (!link) return;
+    try { logEventNow(EV.REFERRAL_LINK_SHARED, { surface: 'account_tab' }); } catch (_) {}
+    try {
+      await navigator.share({
+        title: 'Clusters',
+        text: 'I’m using Clusters to organize ideas on an infinite canvas — here are 25 free cards to start.',
+        url: link,
+      });
+    } catch (_) { /* user cancelled the share sheet, or it’s unsupported */ }
+  };
+
+  if (loading) {
+    return <div className="settings-section"><div className="settings-empty">Loading…</div></div>;
+  }
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">Invite &amp; earn</h3>
+      <p className="settings-section-hint">
+        Share Clusters and you <b>both</b> get free cards. Your friend starts with
+        {' '}<b>25 bonus cards</b>; the moment they place their first card, <b>you earn 25 too</b>.
+        {' '}No limit — keep inviting, keep earning.
+      </p>
+
+      {err || !code ? (
+        <div className="settings-empty">Couldn’t load your invite link. Reopen this tab to try again.</div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              readOnly
+              value={link}
+              onFocus={(e) => e.target.select()}
+              aria-label="Your invite link"
+              style={{
+                flex: '1 1 240px', minWidth: 0, padding: '9px 12px', borderRadius: 10,
+                border: '1px solid var(--line-1, rgba(255,255,255,.14))',
+                background: 'var(--surface-2, rgba(255,255,255,.04))',
+                color: 'var(--text-1, inherit)', fontSize: 13,
+              }}
+            />
+            <button type="button" className="settings-btn settings-btn-primary" onClick={copy}>Copy link</button>
+            {canNativeShare && (
+              <button type="button" className="settings-btn" onClick={share}>Share…</button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 22, marginTop: 18, flexWrap: 'wrap' }}>
+            <ReferralStat label="Friends joined" value={stats?.friendsJoined ?? 0} />
+            <ReferralStat label="Got started"    value={stats?.friendsActivated ?? 0} />
+            <ReferralStat label="Cards earned"   value={stats?.cardsEarned ?? 0} highlight />
+          </div>
+          {stats?.pending > 0 && (
+            <p className="settings-section-hint" style={{ marginTop: 12 }}>
+              {stats.pending} {stats.pending === 1 ? 'friend has' : 'friends have'} joined but
+              {' '}haven’t placed their first card yet — you’ll earn 25 cards each when they do.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function BillingTab({ user }) {
   const feedback = useFeedback();
   const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,

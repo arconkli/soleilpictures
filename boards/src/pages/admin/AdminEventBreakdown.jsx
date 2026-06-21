@@ -28,6 +28,16 @@ const LABELS = {
   checkout_verify_retry:   'Verify retry',
   checkout_missing_session:'Missing session',
   checkout_support_click:  'Support click',
+  referral_open:           'Invite surface opened',
+  referral_tab_view:       'Invite tab viewed',
+  referral_link_copied:    'Invite link copied',
+  referral_link_shared:    'Invite link shared',
+  referral_nudge_view:     'Invite nudge shown',
+  referral_nudge_cta:      'Invite nudge clicked',
+  referral_nudge_dismiss:  'Invite nudge dismissed',
+  referral_signup:         'Referred friend signed up',
+  referral_activated:      'Referred friend activated',
+  referral_reward_granted: 'Referral reward granted',
 };
 
 export function AdminEventBreakdown({ rows = [], reliability, days = 30 }) {

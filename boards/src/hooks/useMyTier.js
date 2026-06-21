@@ -2,7 +2,8 @@
 //
 // Returned shape:
 //   { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
-//     grantActive, grantExpiresAt, banned, loading, error, refetch }
+//     grantActive, grantExpiresAt, banned, bonusCardCredits, effectiveCardLimit,
+//     loading, error, refetch }
 //
 // grantActive/grantExpiresAt describe an admin-issued complimentary paid grant
 // (expiry null = no end date); banned is true for a suspended account.
@@ -33,6 +34,11 @@ export function useMyTier({ userId } = {}) {
     banned: false,
     adOfferPending: false,
     onboarding: {},
+    // Referral bonus: extra demo cards earned by inviting friends. The server
+    // returns effective_card_limit = 100 + bonus_card_credits; the cap gates
+    // and the Upgrade pill read it (falling back to DEMO_CARD_LIMIT).
+    bonusCardCredits: 0,
+    effectiveCardLimit: 100,
   });
   const [loading, setLoading] = useState(!override);
   const [error, setError] = useState(null);
@@ -57,6 +63,8 @@ export function useMyTier({ userId } = {}) {
         // First-run onboarding state { seeded, done } — drives the starter-card
         // seed + first-card coachmark in App.jsx. {} for users predating the flag.
         onboarding:         row?.onboarding || {},
+        bonusCardCredits:   Number(row?.bonus_card_credits ?? 0),
+        effectiveCardLimit: Number(row?.effective_card_limit ?? 100),
       });
       setError(null);
     } catch (e) {

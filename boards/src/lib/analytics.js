@@ -52,6 +52,11 @@ function readUrlCampaignSignals(params) {
   if (shareToken) out.share_token = shareToken.slice(0, 40);
   const publicSlug = params.get('public_slug');
   if (publicSlug) out.public_slug = publicSlug.slice(0, 80);
+  // Referral code (?ref=<code>): a friend's personal invite link. Normalized to
+  // the mint alphabet so it round-trips cleanly into signup metadata, where the
+  // signup trigger resolves it to the referrer and grants both sides bonus cards.
+  const ref = params.get('ref');
+  if (ref) { const c = ref.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16).toUpperCase(); if (c) out.ref = c; }
   return out;
 }
 

@@ -13,17 +13,21 @@
 
 export const DEMO_CARD_LIMIT = 100;
 
-// evaluateDemoCap({ tier, demoCardCount, requested }) -> { accepted, capHit, remaining }
+// evaluateDemoCap({ tier, demoCardCount, requested, limit }) -> { accepted, capHit, remaining }
 //   accepted  — how many of `requested` may be created (0..requested)
 //   capHit    — true when at least one requested card was refused (caller opens
 //               the cap-hit modal). false for non-demo tiers and for requests
 //               that fit. requested:0 -> { accepted:0, capHit:false } so an
 //               empty/no-op request never spuriously triggers the modal.
 //   remaining — room left before the cap (Infinity for non-demo tiers)
-export function evaluateDemoCap({ tier, demoCardCount, requested }) {
+//   limit     — the effective cap (default DEMO_CARD_LIMIT). Referral bonus cards
+//               raise it: the server returns 100 + bonus_card_credits via
+//               get_my_tier().effective_card_limit; callers thread that through.
+export function evaluateDemoCap({ tier, demoCardCount, requested, limit = DEMO_CARD_LIMIT }) {
   const req = Math.max(0, requested | 0);
   if (tier !== 'demo') return { accepted: req, capHit: false, remaining: Infinity };
-  const remaining = Math.max(0, DEMO_CARD_LIMIT - (demoCardCount || 0));
+  const cap = Number.isFinite(limit) && limit > 0 ? (limit | 0) : DEMO_CARD_LIMIT;
+  const remaining = Math.max(0, cap - (demoCardCount || 0));
   if (req > remaining) return { accepted: remaining, capHit: true, remaining };
   return { accepted: req, capHit: false, remaining };
 }

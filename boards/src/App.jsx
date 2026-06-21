@@ -17,6 +17,7 @@ import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
+import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards } from './lib/showcaseClone.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
@@ -90,7 +91,7 @@ import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
-import { evaluateDemoCap } from './lib/demoCardCap.js';
+import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore } from './lib/docState.js';
 import { uploadImage, uploadPdf } from './lib/uploads.js';
@@ -368,6 +369,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // When the account panel is deep-linked to a specific tab (e.g. Billing after
   // returning from the Stripe portal), this holds it; cleared on close (one-shot).
   const [accountInitialTab, setAccountInitialTab] = useState(null);
+
+  // Open the account panel straight on the "Invite & earn" referral tab. Used by
+  // the cap toasts, the cap-hit modal, and the post-activation nudge — every
+  // surface that pushes sharing routes here so we can attribute the open.
+  const openInviteFriends = React.useCallback((surface) => {
+    try { logEvent(EV.REFERRAL_OPEN, { surface }); } catch (_) {}
+    setAccountInitialTab('invite');
+    setAccountOpen(true);
+  }, []);
+  // Deep, decoupled surfaces (e.g. the "earn free cards" link inside PricingModal)
+  // ask to open the invite tab via a window event so they don't have to thread a
+  // callback through the whole render tree.
+  useEffect(() => {
+    const onOpenInvite = (e) => openInviteFriends(e?.detail?.surface || 'event');
+    window.addEventListener('soleil:open-invite', onOpenInvite);
+    return () => window.removeEventListener('soleil:open-invite', onOpenInvite);
+  }, [openInviteFriends]);
 
   const currentId = stack[stack.length - 1];
   const currentBoard = boards[currentId] || rootBoard;
@@ -745,17 +763,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // own boards). The trigger on card_index keeps demo_card_count in
       // sync server-side; the chip and this check read the cached value.
       if (myTier.tier === 'demo') {
-        const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1 });
+        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
+        const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1, limit });
         if (capHit) {
           if (!isSeedCard(card)) noteBlocked('demo_cap');   // modal already opens below
           setUpgradeReason('cap-hit');
           return;
         }
-        if (myTier.demoCardCount === 90) {
+        if (myTier.demoCardCount === limit - 10) {
           feedback.toast({
             type: 'warning',
-            message: "You're at 90/100 cards in your demo workspace. Upgrade for unlimited.",
-            action: { label: 'Upgrade', onClick: () => setUpgradeReason('cap-hit') },
+            message: `You're at ${myTier.demoCardCount}/${limit} cards in your demo workspace. Invite friends or upgrade for more.`,
+            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
           });
         }
       }
@@ -784,16 +803,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return; }
       if (isDemoBlockedOnThisBoard()) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_blocked'); return; }
       if (myTier.tier === 'demo') {
-        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: cardsToAdd.length });
+        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
+        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: cardsToAdd.length, limit });
         if (capHit && accepted === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return; }
         if (capHit) {
           cardsToAdd = cardsToAdd.slice(0, accepted);
           setUpgradeReason('cap-hit');
-        } else if (myTier.demoCardCount + cardsToAdd.length >= 90 && myTier.demoCardCount < 90) {
+        } else if (myTier.demoCardCount + cardsToAdd.length >= limit - 10 && myTier.demoCardCount < limit - 10) {
           feedback.toast({
             type: 'warning',
-            message: "You're approaching the 100-card demo limit. Upgrade for unlimited.",
-            action: { label: 'Upgrade', onClick: () => setUpgradeReason('cap-hit') },
+            message: `You're approaching the ${limit}-card demo limit. Invite friends or upgrade for more.`,
+            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
           });
         }
       }
@@ -936,16 +956,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Demo-tier cap: same gate as addCard/addCards — block at the limit, slice
       // an over-cap batch to what fits, warn when crossing the 90 threshold.
       if (myTier.tier === 'demo') {
-        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: sources.length });
+        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
+        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: sources.length, limit });
         if (capHit && accepted === 0) { if (sources.length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return []; }
         if (capHit) {
           sources = sources.slice(0, accepted);
           setUpgradeReason('cap-hit');
-        } else if (myTier.demoCardCount + sources.length >= 90 && myTier.demoCardCount < 90) {
+        } else if (myTier.demoCardCount + sources.length >= limit - 10 && myTier.demoCardCount < limit - 10) {
           feedback.toast({
             type: 'warning',
-            message: "You're approaching the 100-card demo limit. Upgrade for unlimited.",
-            action: { label: 'Upgrade', onClick: () => setUpgradeReason('cap-hit') },
+            message: `You're approaching the ${limit}-card demo limit. Invite friends or upgrade for more.`,
+            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
           });
         }
       }
@@ -2161,6 +2182,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const myTier = useMyTier({ userId: user.id });
   const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'shared-edit' | 'storage' | 'manual' | null
 
+  // Celebrate referral rewards: when bonus_card_credits grows (a friend you
+  // invited just activated — granted server-side, picked up on the next
+  // focus refetch), confirm it. The first known value sets a silent baseline
+  // so we never toast on load or for the referee's own signup head-start.
+  const prevBonusRef = useRef(null);
+  useEffect(() => {
+    if (myTier.loading) return;
+    const cur = Number(myTier.bonusCardCredits || 0);
+    const prev = prevBonusRef.current;
+    prevBonusRef.current = cur;
+    if (prev != null && cur > prev) {
+      const delta = cur - prev;
+      try {
+        feedback.toast({
+          type: 'success',
+          message: `You earned ${delta} free card${delta === 1 ? '' : 's'}! A friend you invited just got started 🎉`,
+          ttl: 7000,
+        });
+      } catch (_) {}
+    }
+  }, [myTier.bonusCardCredits, myTier.loading]);
+
   // Funnel: app_open fires once per mount with the caller's tier so we
   // can correlate retention (app opens / unique user / week).
   useEffect(() => {
@@ -2504,6 +2547,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       };
       if (genuine.length >= 2) dispatchFirstValue();                          // 2nd genuine card → now
       else if (!firstValueTimerRef.current) firstValueTimerRef.current = setTimeout(dispatchFirstValue, 15000); // 1st → ~15s beat
+    }
+
+    // Post-activation referral nudge (demo only): once they've clearly gotten
+    // value (≥5 genuine cards), invite them to share. A higher bar than the
+    // first-value upgrade banner (2 cards) so the two soft banners never stack.
+    // ReferralNudge owns the demo-gate + once-per-account guard; repeated
+    // dispatches as the count grows are harmless (it de-dupes).
+    if (myTier.tier === 'demo' && genuine.length >= 5) {
+      window.dispatchEvent(new CustomEvent('soleil:referral-nudge'));
     }
 
     // Close the coachmark when a genuine card lands while it's showing (UI only;
@@ -3955,6 +4007,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {showCoachmark && (
         <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={getEnrolledArm('coachmark_copy')} />
       )}
+
+      <ReferralNudge tier={myTier.tier} onInvite={openInviteFriends} />
 
       {isPhone && (() => {
         // The "+" appears only when a board canvas is the active surface and

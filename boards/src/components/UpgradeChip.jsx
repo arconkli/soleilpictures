@@ -23,7 +23,8 @@ import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
 
 export function UpgradeChip() {
   const { user } = useAuth();
-  const { tier, demoCardCount } = useMyTier({ userId: user?.id });
+  const { tier, demoCardCount, effectiveCardLimit } = useMyTier({ userId: user?.id });
+  const cardLimit = effectiveCardLimit || DEMO_CARD_LIMIT;
   const [open, setOpen] = useState(false);       // chip-opened modal
   const [fvBanner, setFvBanner] = useState(false); // first-value banner
   const [fvModal, setFvModal] = useState(false);   // first-value modal
@@ -62,7 +63,7 @@ export function UpgradeChip() {
 
   if (tier !== 'demo') return null;
 
-  const near = demoCardCount >= 90;
+  const near = demoCardCount >= cardLimit - 10;
   const onSeeCreator = () => {
     logEventNow(EV.FIRST_VALUE_UPGRADE_CTA, {}); // must-land: a redirect may follow from the modal
     setFvBanner(false);
@@ -83,7 +84,7 @@ export function UpgradeChip() {
       >
         <span className="upgrade-chip-label">Upgrade</span>
         <span className="upgrade-chip-sep">·</span>
-        <span className="upgrade-chip-count">{demoCardCount}/{DEMO_CARD_LIMIT}</span>
+        <span className="upgrade-chip-count">{demoCardCount}/{cardLimit}</span>
       </button>
       {open && <PricingModal onClose={() => setOpen(false)} header={null} />}
       {fvBanner && <FirstValueUpgradeBanner onSeeCreator={onSeeCreator} onDismiss={onDismiss} />}

@@ -344,9 +344,22 @@ function SignIn() {
           if (json.length <= 2000) firstSourceMeta = json;
         }
       } catch (_) {}
+      // A referral code (?ref=<code>) rides along explicitly so the signup
+      // trigger can credit the referrer + grant the new friend a +25-card
+      // head-start — even on a cross-device magic link where sessionStorage
+      // can't follow. Pulled from the first-touch bag (captured on landing)
+      // with a current-URL fallback; normalized to the mint alphabet.
+      let referralCode = null;
+      try {
+        const fromBag = getFirstSource()?.ref;
+        const fromUrl = new URLSearchParams(window.location.search).get('ref');
+        const c = String(fromBag || fromUrl || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16).toUpperCase();
+        if (c) referralCode = c;
+      } catch (_) {}
       const signupData = {
         ...(fbc ? { ad_fbc: fbc } : {}),
         ...(firstSourceMeta ? { first_source: firstSourceMeta } : {}),
+        ...(referralCode ? { referral_code: referralCode } : {}),
       };
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim().toLowerCase(),

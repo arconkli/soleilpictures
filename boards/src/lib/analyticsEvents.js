@@ -142,6 +142,20 @@ export const EV = Object.freeze({
   SHARE_PROMPT_VIEW:       'share_prompt_view',           // engagement prompt shown {trigger:'dwell'|'subboard'}
   SHARE_PROMPT_DISMISS:    'share_prompt_dismiss',        // prompt dismissed {trigger,visible_ms}
 
+  // ── Referral / "Invite friends, earn free cards" (migration 0163) ──
+  // Client-fired; the three conversion events (signup/activated/reward_granted)
+  // are fired SERVER-side from the signup + first-card triggers into analytics_events.
+  REFERRAL_OPEN:           'referral_open',               // opened the invite surface {surface:'cap_toast'|'nudge'|'cap_modal'|'menu'}
+  REFERRAL_TAB_VIEW:       'referral_tab_view',           // Invite & earn account tab mounted {has_code}
+  REFERRAL_LINK_COPIED:    'referral_link_copied',        // copied the ?ref= link {surface}
+  REFERRAL_LINK_SHARED:    'referral_link_shared',        // native-shared the link {surface}
+  REFERRAL_NUDGE_VIEW:     'referral_nudge_view',         // post-activation invite nudge shown
+  REFERRAL_NUDGE_CTA:      'referral_nudge_cta',          // nudge "Invite friends" clicked → opens tab (must-land)
+  REFERRAL_NUDGE_DISMISS:  'referral_nudge_dismiss',      // nudge dismissed
+  REFERRAL_SIGNUP:         'referral_signup',             // SERVER: friend signed up via a referral {source,code}
+  REFERRAL_ACTIVATED:      'referral_activated',          // SERVER: referee created first genuine card
+  REFERRAL_REWARD_GRANTED: 'referral_reward_granted',     // SERVER: referrer credited {referee,amount}
+
   // ── Public marketing boards (/c/<slug> + /explore, migration 0136) ──
   EXPLORE_VIEW:            'explore_view',                // /explore index mounted {count}
 
