@@ -60,6 +60,9 @@ import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportB
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { CanvasCommentLayer, CommentArchivePopover } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
+import { CanvasVoteLayer } from './CanvasVoteCard.jsx';
+import { useVoteCards } from '../hooks/useVoteCards.js';
+import { addVoteCard } from '../lib/voteCardsApi.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.js';
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
@@ -410,6 +413,12 @@ export function CanvasSurface({
       el.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`;
       if (el.style.willChange !== 'auto') el.style.willChange = 'auto';
     }
+    // Publish the live zoom so the ACTIVELY-EDITED note can neutralize this
+    // transform scale (which paints native spellcheck underlines in screen
+    // space → misaligned at zoom ≠ 1). The editing note counter-scales by
+    // 1/--cz and re-grows via CSS `zoom` (squiggle-safe); see
+    // `.note.is-editing` in styles.css. Zero React churn — read via var().
+    el.style.setProperty('--cz', z);
   };
   // ── Viewport culling state (D1) ──────────────────────────────────────────
   // visibleIds = Set of mounted card ids: everything inside the ADD band
@@ -4568,6 +4577,8 @@ export function CanvasSurface({
     if (!multi) {
       items.push({ id: 'comment', label: 'Add comment',
         run: () => promptComment({ kind: 'card', id: c.id }) });
+      items.push({ id: 'vote', label: 'Add vote to card',
+        run: () => addVoteCardAt({ kind: 'card', id: c.id }) });
       items.push({ id: 'tag', label: 'Tag…',
         run: () => {
           // Open the picker anchored near the right-click coord. The
@@ -5286,7 +5297,16 @@ export function CanvasSurface({
         { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
       ];
     }
-    const pos = bgCtx.canvasPos || lastMouseCanvasRef.current;
+    // Resolve the placement point. Prefer recomputing from the stored SCREEN
+    // coords (bgCtx.x/y = the raw clientX/clientY of the right-click) against
+    // the LIVE transform at the moment the menu item runs — so if the camera
+    // settled between right-click and pick (e.g. the 220ms is-smooth zoom
+    // transition, or a peer/auto-fit nudge), the item still lands under the
+    // cursor. Falls back to the snapshot taken at open, then the last mouse
+    // position. Identical to bgCtx.canvasPos when nothing moved.
+    const pos = (bgCtx.open && Number.isFinite(bgCtx.x) && Number.isFinite(bgCtx.y))
+      ? clientToCanvas(bgCtx.x, bgCtx.y)
+      : (bgCtx.canvasPos || lastMouseCanvasRef.current);
     return [
       { id: 'add', label: 'Add', submenu: [
         { id: 'board', label: 'Board',  run: () => { noteCreateIntent('context_menu'); mutators.addNewBoard?.(pos); } },
@@ -5298,6 +5318,7 @@ export function CanvasSurface({
         { id: 'palette', label: 'Color palette', run: () => { noteCreateIntent('context_menu'); mutators.addPalette?.(pos); } },
       ]},
       { id: 'comment', label: 'Add comment', run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
+      { id: 'vote', label: 'Add vote', run: () => addVoteCardAt({ kind: 'point', x: pos.x, y: pos.y }) },
       { id: 'addurl', label: 'Add link…', run: async () => {
         const v = await feedback.prompt({
           title: 'Add a link card',
@@ -5597,6 +5618,10 @@ export function CanvasSurface({
   // input (no popup) at the click position.
   const { comments, removeLocally: removeCommentLocally, removeByAnchorIds: removeCommentsByAnchorIds,
           viewsByRootId: commentViewsByRootId, markViewed: markCommentViewed } = useCanvasComments(board?.id);
+  // Live vote cards — a separate annotation type sharing the comment
+  // anchoring/drag/hide machinery. They hide with the comments eye toggle
+  // (CanvasVoteLayer gets layerVisible={commentsVisible}).
+  const { voteCards, removeLocally: removeVoteLocally } = useVoteCards(board?.id);
   // Inline-draft state. When the user picks "Add comment" from a
   // right-click menu, we set commentDraft to the anchor + viewport
   // position; CanvasCommentLayer renders an inline draft input there.
@@ -5637,6 +5662,17 @@ export function CanvasSurface({
   // anchor's canvas coords so the draft input sits exactly where the
   // resulting comment bubble will appear. No popup modal — type
   // directly on the canvas, Enter to post, Escape to cancel.
+  // Drop a vote card immediately at the given anchor (no draft — a vote's
+  // question label is optional and editable on the card afterward). Same
+  // anchor descriptor shape as promptComment.
+  const addVoteCardAt = async (anchor) => {
+    if (!workspaceId || !board?.id || !userId) return;
+    try {
+      await addVoteCard({ workspaceId, boardId: board.id, author: userId, anchor, label: null });
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Add vote failed: ' + (err.message || err) });
+    }
+  };
   const promptComment = (anchor) => {
     if (!workspaceId || !board?.id || !userId) return;
     let cx, cy;
@@ -7629,6 +7665,20 @@ export function CanvasSurface({
           layerVisible={commentsVisible}
           viewsByRootId={commentViewsByRootId}
           onMarkViewed={markCommentViewed}
+        />
+
+        {/* Vote cards — same canvas-transform layer + the SAME visibility
+            toggle as comments (layerVisible={commentsVisible}), so they
+            hide when you hide comments. */}
+        <CanvasVoteLayer
+          voteCards={voteCards}
+          userId={userId}
+          currentUser={currentUser}
+          zoom={zoom}
+          resolveCardBBox={resolveCardBBox}
+          resolveGroupBBox={resolveGroupBBox}
+          onLocallyRemoved={removeVoteLocally}
+          layerVisible={commentsVisible}
         />
 
       </div>
