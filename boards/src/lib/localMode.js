@@ -62,6 +62,16 @@ export function isArrowQaMode() {
   return new URLSearchParams(window.location.search).get('arrowqa') === '1';
 }
 
+// Dev-only snap/alignment-guide QA bridge. Active ONLY in a DEV build with
+// ?alignqa=1 (same trust boundary as isArrowQaMode). Publishes the PURE snap
+// helpers (target build, computeSnap, computeResizeSnap) + a seeded layout on
+// window.__soleilAlignTest so Playwright can verify guide culling / dedup /
+// equal-size resize without a backend. See ../local/AlignQaHarness.jsx.
+export function isAlignQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('alignqa') === '1';
+}
+
 // Dev-only override for the public-share engagement prompt's dwell trigger.
 // Active ONLY in a DEV build with ?shareqa=1 (same trust boundary as
 // qaTierOverride), so the 30s threshold can never be shortened in production.

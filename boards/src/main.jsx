@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -229,6 +229,17 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <ArrowQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isAlignQaMode()) {
+  // Snap/alignment-guide QA (?alignqa=1). Pure logic bridge — installs
+  // window.__soleilAlignTest + a ready flag the spec waits on. DEV guard drops
+  // it (and its fixtures) from production builds.
+  import('./local/AlignQaHarness.jsx').then(({ AlignQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <AlignQaHarness />
       </StrictMode>
     );
   });
