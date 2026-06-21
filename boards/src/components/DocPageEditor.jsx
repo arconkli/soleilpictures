@@ -31,6 +31,7 @@ import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
 import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
 import { DocTagGutter } from './DocTagGutter.jsx';
+import { DocCandidateGutter } from './DocCandidateGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
 import { makeCandidateNamePlugin, CANDIDATE_NAME_KEY } from './docExtensions/CandidateNamePlugin.js';
@@ -1337,6 +1338,26 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             },
           });
         }}
+      />
+      <DocCandidateGutter
+        editor={editor}
+        editable={editable}
+        onConfirm={(cand, anchor) => {
+          // ✓ — open the type picker right at the gutter button. Picking a
+          // type runs promoteCandidate (reads candidatePrompt) → tagDocRange
+          // pins the exact span via cand.el, same as tapping the word.
+          cancelHoverTimers();
+          setLinkHover(null);
+          setTagHover(null);
+          setCandidatePrompt({
+            anchor,
+            name: cand.name,
+            count: cand.count,
+            sample: cand.sample,
+            el: cand.el,
+          });
+        }}
+        onDismiss={(cand) => dismissCandidate(cand)}
       />
       {addComment.node}
       {linkHover && (

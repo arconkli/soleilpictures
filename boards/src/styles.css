@@ -14730,6 +14730,17 @@ button.msg-panel-name:hover { color: var(--soleil); }
   padding: 0 2px;
   margin: 0 -2px;
 }
+/* Hovering a candidate's left-margin ✓/✗ control highlights its word in
+   the text, so it's obvious which suggestion you're acting on. */
+.tt-candidate-hot {
+  text-decoration-color: color-mix(in oklab, var(--soleil) 70%, var(--ink-3));
+  background: color-mix(in oklab, var(--soleil) 12%, transparent);
+  border-radius: var(--radius);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
 
 /* Tag indicator — dashed box around the trigger word in the tag's
    color. Painted by TagRangePlugin on sentence/word-tier applies.
@@ -16227,6 +16238,61 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
 .doc-tag-gutter-dot:hover {
   transform: scale(1.4);
   box-shadow: 0 0 0 2px rgba(255,255,255,.15), 0 1px 4px rgba(0,0,0,.25);
+}
+
+/* ── Candidate-name suggestion gutter (DocCandidateGutter) ────────
+   One-tap ✓/✗ in the left margin to confirm a discovered name as a tag
+   or dismiss it. Its own lane, OUTSIDE the applied-tag dot lane
+   (.doc-tag-gutter), so the two never collide. Hidden on narrow
+   viewports where the centered page leaves no left margin — the
+   dotted-word tap still works there. */
+.doc-candidate-gutter {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -88px;
+  width: 48px;
+  pointer-events: none;
+  z-index: 5;
+}
+.doc-cand-ctl {
+  position: absolute;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-2) 70%, transparent);
+  border: 1px solid var(--line-1);
+  box-shadow: 0 1px 5px rgba(0,0,0,.14);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  opacity: .5;
+  transition: opacity var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.doc-cand-ctl:hover { opacity: 1; box-shadow: 0 2px 9px rgba(0,0,0,.2); }
+.doc-cand-yes, .doc-cand-no {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: 19px; height: 19px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+  font-size: 11px; line-height: 1;
+  color: var(--ink-3);
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-quick) var(--ease);
+}
+.doc-cand-yes { color: color-mix(in oklab, var(--soleil) 65%, var(--ink-1)); }
+.doc-cand-yes:hover { background: color-mix(in oklab, var(--soleil) 20%, transparent); color: var(--soleil); }
+.doc-cand-no:hover { background: color-mix(in oklab, var(--danger, #ef4444) 18%, transparent); color: var(--danger, #ef4444); }
+.doc-cand-yes:active, .doc-cand-no:active { transform: scale(.88); }
+@media (max-width: 1000px) {
+  .doc-candidate-gutter { display: none; }
 }
 
 /* ─────────────────── Tag popover (TagRangeHoverPopover) ────────── */

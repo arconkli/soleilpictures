@@ -20,6 +20,13 @@
 //
 // Returns { candidateIndexRef, candidatePrompt, setCandidatePrompt,
 //           candidateBusy, promoteCandidate, dismissCandidate }.
+//
+// promoteCandidate / dismissCandidate default to the open `candidatePrompt`
+// (the tap-the-word flow), but also accept an explicit candidate override so
+// a caller that doesn't open the popover first — e.g. the left-margin
+// ✓/✗ gutter — can act on a candidate directly (setState is async, so it
+// can't set then immediately read `candidatePrompt`). The override shape is
+// the same { anchor, name, count, sample, el }.
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
@@ -45,8 +52,8 @@ export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromo
   const [candidatePrompt, setCandidatePrompt] = useState(null);
   const [candidateBusy, setCandidateBusy] = useState(false);
 
-  const promoteCandidate = async (entityType) => {
-    const c = candidatePrompt;
+  const promoteCandidate = async (entityType, candidateOverride) => {
+    const c = candidateOverride || candidatePrompt;
     if (!c || !workspaceId) return;
     setCandidateBusy(true);
     let applied = false;
@@ -70,8 +77,8 @@ export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromo
     }
   };
 
-  const dismissCandidate = async () => {
-    const c = candidatePrompt;
+  const dismissCandidate = async (candidateOverride) => {
+    const c = candidateOverride || candidatePrompt;
     if (!c || !workspaceId) return;
     setCandidateBusy(true);
     try {
