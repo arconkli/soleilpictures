@@ -9609,10 +9609,33 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .snap-guides {
   pointer-events: none;
   opacity: 0;
-  transition: opacity var(--dur-fast) ease-out;
+  transition: opacity var(--dur-fast) var(--ease);
+  /* Soft gold halo so the hairlines read as lit, not flat (app SVG-glow idiom). */
+  filter: drop-shadow(0 0 3px rgba(255, 165, 0, .30));
 }
 .snap-guides.is-visible {
   opacity: 1;
+}
+/* Each guide line / dot / label "pops" in once the frame it first mounts —
+   i.e. the moment a snap engages — then holds steady while the snap persists
+   (React reuses the keyed element, so the animation doesn't replay per frame).
+   A uniform center-scale grows the line from its own midpoint; non-scaling-stroke
+   keeps the hairline crisp. */
+@keyframes guide-pop {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.snap-guides .guide-line,
+.snap-guides .guide-mark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: guide-pop var(--dur-fast) var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No pop for reduced-motion — the layer opacity fade alone reveals the
+     guides at their settled end-state (the global rule already drops transforms). */
+  .snap-guides .guide-line,
+  .snap-guides .guide-mark { animation: none; }
 }
 
 /* Group label chip — most styling is set inline because the colors

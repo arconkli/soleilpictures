@@ -264,6 +264,34 @@ const cmdKey = isMac ? '⌘' : 'Ctrl';
 // this file's keyboard / paste / pointer guards.
 const isEditorTarget = isEditableTarget;
 
+// A snap-guide measurement readout (gap / equal-size) rendered as a small rounded
+// "pill" inside the guide SVG layer — gold mono numerals on a dark chip with a
+// soft gold border — so the readout matches the app's chip vocabulary instead of
+// looking like bare ruler text. Sized from the monospace string length; every
+// dimension is /zoom so it stays screen-constant. `guide-mark` opts it into the
+// one-shot pop-in (see styles.css .snap-guides .guide-mark).
+function GuideLabel({ cx, cy, text, zoom }) {
+  const fs = 10 / zoom;
+  const charW = 6.0 / zoom;            // monospace advance ≈ 0.6em
+  const padX = 6 / zoom, padY = 3.5 / zoom;
+  const w = String(text).length * charW + padX * 2;
+  const h = fs + padY * 2;
+  return (
+    <g className="guide-mark">
+      <rect x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx={4 / zoom}
+            fill="var(--bg-1)"
+            stroke="color-mix(in srgb, var(--soleil) 42%, transparent)"
+            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+      <text x={cx} y={cy} fill="var(--soleil)"
+            fontSize={fs} fontFamily="var(--font-mono, ui-monospace, monospace)"
+            fontWeight="600" textAnchor="middle" dominantBaseline="central"
+            style={{ fontVariantNumeric: 'tabular-nums' }}>
+        {text}
+      </text>
+    </g>
+  );
+}
+
 export function CanvasSurface({
   board, boards, boardsReady = true, cards, arrows, strokes, groups = [],
   ydoc, // raw Y.Doc — needed by doc cards to access their per-card YMap
@@ -6899,55 +6927,35 @@ export function CanvasSurface({
                 room. Optional `label` floats just outside the cap. */}
             {(displayedHints.xs || []).slice(0, 1).map((g, i) => {
               const overshoot = 4 / zoom;
-              const dotR = 2 / zoom;
+              const dotR = 1.5 / zoom;
               return (
                 <Fragment key={`gx-${i}`}>
-                  <line x1={g.x} x2={g.x} y1={g.y0 - overshoot} y2={g.y1 + overshoot}
+                  <line className="guide-line" x1={g.x} x2={g.x} y1={g.y0 - overshoot} y2={g.y1 + overshoot}
                         stroke="var(--soleil)"
-                        strokeOpacity="0.55"
+                        strokeOpacity="0.7"
                         strokeWidth={1 / zoom}
+                        strokeLinecap="round"
                         vectorEffect="non-scaling-stroke" />
-                  <circle cx={g.x} cy={g.y0} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
-                  <circle cx={g.x} cy={g.y1} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
-                  {g.label && (
-                    <text x={g.x + 8 / zoom} y={(g.y0 + g.y1) / 2}
-                          fill="var(--soleil)"
-                          fontSize={10 / zoom}
-                          fontFamily="ui-monospace, monospace"
-                          textAnchor="start"
-                          dominantBaseline="middle"
-                          opacity="0.85"
-                          style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
-                      {g.label}
-                    </text>
-                  )}
+                  <circle className="guide-mark" cx={g.x} cy={g.y0} r={dotR} fill="var(--soleil)" fillOpacity="0.6" />
+                  <circle className="guide-mark" cx={g.x} cy={g.y1} r={dotR} fill="var(--soleil)" fillOpacity="0.6" />
+                  {g.label && <GuideLabel cx={g.x + 14 / zoom} cy={(g.y0 + g.y1) / 2} text={g.label} zoom={zoom} />}
                 </Fragment>
               );
             })}
             {(displayedHints.ys || []).slice(0, 1).map((g, i) => {
               const overshoot = 4 / zoom;
-              const dotR = 2 / zoom;
+              const dotR = 1.5 / zoom;
               return (
                 <Fragment key={`gy-${i}`}>
-                  <line y1={g.y} y2={g.y} x1={g.x0 - overshoot} x2={g.x1 + overshoot}
+                  <line className="guide-line" y1={g.y} y2={g.y} x1={g.x0 - overshoot} x2={g.x1 + overshoot}
                         stroke="var(--soleil)"
-                        strokeOpacity="0.55"
+                        strokeOpacity="0.7"
                         strokeWidth={1 / zoom}
+                        strokeLinecap="round"
                         vectorEffect="non-scaling-stroke" />
-                  <circle cx={g.x0} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
-                  <circle cx={g.x1} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
-                  {g.label && (
-                    <text x={(g.x0 + g.x1) / 2} y={g.y + 12 / zoom}
-                          fill="var(--soleil)"
-                          fontSize={10 / zoom}
-                          fontFamily="ui-monospace, monospace"
-                          textAnchor="middle"
-                          dominantBaseline="hanging"
-                          opacity="0.85"
-                          style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
-                      {g.label}
-                    </text>
-                  )}
+                  <circle className="guide-mark" cx={g.x0} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.6" />
+                  <circle className="guide-mark" cx={g.x1} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.6" />
+                  {g.label && <GuideLabel cx={(g.x0 + g.x1) / 2} cy={g.y + 13 / zoom} text={g.label} zoom={zoom} />}
                 </Fragment>
               );
             })}
@@ -6956,50 +6964,40 @@ export function CanvasSurface({
                 a 24px gap that already existed". */}
             {(displayedHints.spacings || []).slice(0, 2).map((s, i) => {
               const isX = s.axis === 'x';
-              const labelX = isX ? (s.a + s.b) / 2 : s.cross;
-              const labelY = isX ? s.cross : (s.a + s.b) / 2;
+              const lcx = isX ? (s.a + s.b) / 2 : s.cross + 13 / zoom;
+              const lcy = isX ? s.cross - 9 / zoom : (s.a + s.b) / 2;
               return (
                 <Fragment key={`gs-${i}`}>
                   {isX ? (
                     <>
-                      <line x1={s.a} x2={s.b} y1={s.cross} y2={s.cross}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom}
+                      <line className="guide-line" x1={s.a} x2={s.b} y1={s.cross} y2={s.cross}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round"
                             strokeDasharray={`${4 / zoom} ${3 / zoom}`}
                             vectorEffect="non-scaling-stroke" />
-                      <line x1={s.a} x2={s.a} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                      <line x1={s.b} x2={s.b} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                      <line className="guide-line" x1={s.a} x2={s.a} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                      <line className="guide-line" x1={s.b} x2={s.b} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                     </>
                   ) : (
                     <>
-                      <line x1={s.cross} x2={s.cross} y1={s.a} y2={s.b}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom}
+                      <line className="guide-line" x1={s.cross} x2={s.cross} y1={s.a} y2={s.b}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round"
                             strokeDasharray={`${4 / zoom} ${3 / zoom}`}
                             vectorEffect="non-scaling-stroke" />
-                      <line x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.a} y2={s.a}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                      <line x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.b} y2={s.b}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                      <line className="guide-line" x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.a} y2={s.a}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                      <line className="guide-line" x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.b} y2={s.b}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                     </>
                   )}
-                  <text x={labelX} y={labelY}
-                        fill="var(--soleil)"
-                        fontSize={10 / zoom}
-                        fontFamily="ui-monospace, monospace"
-                        textAnchor="middle"
-                        dy={isX ? -6 / zoom : 0}
-                        dx={isX ? 0 : 8 / zoom}
-                        opacity="0.85"
-                        style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
-                    {s.gap}
-                  </text>
+                  <GuideLabel cx={lcx} cy={lcy} text={s.gap} zoom={zoom} />
                 </Fragment>
               );
             })}
@@ -7015,41 +7013,29 @@ export function CanvasSurface({
                     <Fragment key={`gz-${i}-${bi}`}>
                       {isW ? (
                         <>
-                          <line x1={bar.a} x2={bar.b} y1={bar.cross} y2={bar.cross}
-                                stroke="var(--soleil)" strokeOpacity="0.7"
-                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                          <line x1={bar.a} x2={bar.a} y1={bar.cross - tick} y2={bar.cross + tick}
-                                stroke="var(--soleil)" strokeOpacity="0.7"
-                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                          <line x1={bar.b} x2={bar.b} y1={bar.cross - tick} y2={bar.cross + tick}
-                                stroke="var(--soleil)" strokeOpacity="0.7"
-                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                          <text x={(bar.a + bar.b) / 2} y={bar.cross + 12 / zoom}
-                                fill="var(--soleil)" fontSize={10 / zoom}
-                                fontFamily="ui-monospace, monospace"
-                                textAnchor="middle" dominantBaseline="hanging" opacity="0.9"
-                                style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
-                            {`= ${sz.value}`}
-                          </text>
+                          <line className="guide-line" x1={bar.a} x2={bar.b} y1={bar.cross} y2={bar.cross}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <line className="guide-line" x1={bar.a} x2={bar.a} y1={bar.cross - tick} y2={bar.cross + tick}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <line className="guide-line" x1={bar.b} x2={bar.b} y1={bar.cross - tick} y2={bar.cross + tick}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <GuideLabel cx={(bar.a + bar.b) / 2} cy={bar.cross + 13 / zoom} text={`= ${sz.value}`} zoom={zoom} />
                         </>
                       ) : (
                         <>
-                          <line x1={bar.cross} x2={bar.cross} y1={bar.a} y2={bar.b}
-                                stroke="var(--soleil)" strokeOpacity="0.7"
-                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                          <line x1={bar.cross - tick} x2={bar.cross + tick} y1={bar.a} y2={bar.a}
-                                stroke="var(--soleil)" strokeOpacity="0.7"
-                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                          <line x1={bar.cross - tick} x2={bar.cross + tick} y1={bar.b} y2={bar.b}
-                                stroke="var(--soleil)" strokeOpacity="0.7"
-                                strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                          <text x={bar.cross + 8 / zoom} y={(bar.a + bar.b) / 2}
-                                fill="var(--soleil)" fontSize={10 / zoom}
-                                fontFamily="ui-monospace, monospace"
-                                textAnchor="start" dominantBaseline="middle" opacity="0.9"
-                                style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
-                            {`= ${sz.value}`}
-                          </text>
+                          <line className="guide-line" x1={bar.cross} x2={bar.cross} y1={bar.a} y2={bar.b}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <line className="guide-line" x1={bar.cross - tick} x2={bar.cross + tick} y1={bar.a} y2={bar.a}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <line className="guide-line" x1={bar.cross - tick} x2={bar.cross + tick} y1={bar.b} y2={bar.b}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <GuideLabel cx={bar.cross + 16 / zoom} cy={(bar.a + bar.b) / 2} text={`= ${sz.value}`} zoom={zoom} />
                         </>
                       )}
                     </Fragment>
