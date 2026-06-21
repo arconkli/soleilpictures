@@ -72,6 +72,17 @@ export function isAlignQaMode() {
   return new URLSearchParams(window.location.search).get('alignqa') === '1';
 }
 
+// Dev-only presence/collaboration QA harness. Active ONLY in a DEV build with
+// ?presenceqa=1 (same trust boundary as isAlignQaMode). Mounts the real
+// <CanvasPresence> against a fake awareness (lib/presenceQa.js) so Playwright
+// can inject hundreds of synthetic peers and assert the at-scale caps:
+// cursor cull/cap, selection-rule cap, and the no-render-storm guarantee.
+// See ../local/PresenceQaHarness.jsx.
+export function isPresenceQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('presenceqa') === '1';
+}
+
 // Dev-only override for the public-share engagement prompt's dwell trigger.
 // Active ONLY in a DEV build with ?shareqa=1 (same trust boundary as
 // qaTierOverride), so the 30s threshold can never be shortened in production.

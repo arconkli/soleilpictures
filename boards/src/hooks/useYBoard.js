@@ -4,6 +4,8 @@ import { readCards, readArrows, readStrokes, readGroups } from '../lib/yhelpers.
 import { watchBoardRestores } from '../lib/restoreSignal.js';
 import { primeImageMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
 import * as perf from '../lib/perf.js';
+import { spreadDelayMs } from '../lib/reconnectBackoff.js';
+import { PRESENCE_TUNING } from '../lib/presenceTuning.js';
 
 // Fires whenever bulletproofRestore completes for a board. Listeners
 // (useYBoard instances bound to that board) destroy their current
@@ -51,15 +53,27 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
   // 600ms dedupe so a single restore that fires via all three doesn't
   // remount three times.
   const lastResetAtRef = useRef(0);
+  const resetTimerRef = useRef(0);
   const triggerReset = (reason) => {
     const now = Date.now();
     if (now - lastResetAtRef.current < 600) return;
-    lastResetAtRef.current = now;
-    setResetEpoch(n => n + 1);
-    if (reason && typeof console !== 'undefined') {
-      console.info(`[useYBoard] reset triggered via ${reason}`);
-    }
+    lastResetAtRef.current = now;   // dedupe NOW so the 3 sources still coalesce
+    // Jitter the actual remount. A server /reset (or a restore that fans out to
+    // every viewer) fires this on all clients at once; without spreading, every
+    // client tears down + re-attaches its Y.Doc + PartyKit socket in lockstep —
+    // a synchronized reconnect stampede. The delay is capped under the board
+    // reconnector's 2s reset sit-out so the old socket doesn't reconnect mid-wait.
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    const delay = spreadDelayMs({ minMs: 0, maxMs: PRESENCE_TUNING.RESET_REMOUNT_JITTER_MAX_MS });
+    resetTimerRef.current = setTimeout(() => {
+      resetTimerRef.current = 0;
+      setResetEpoch(n => n + 1);
+      if (reason && typeof console !== 'undefined') {
+        console.info(`[useYBoard] reset triggered via ${reason} (+${delay}ms jitter)`);
+      }
+    }, delay);
   };
+  useEffect(() => () => { if (resetTimerRef.current) clearTimeout(resetTimerRef.current); }, []);
 
   useEffect(() => {
     if (!boardId) return;

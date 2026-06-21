@@ -19,6 +19,7 @@ const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
 const ShapePreview = ShapeCard;
 import { LiveCursor, COVER_TINTS } from './primitives.jsx';
 import { CanvasPresence } from './CanvasPresence.jsx';
+import { PresenceStack } from './PresenceStack.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { SketchPadOverlay } from './SketchPadOverlay.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
@@ -81,6 +82,7 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
+import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
 
@@ -785,10 +787,13 @@ export function CanvasSurface({
     });
   }, [getAwareness, currentUser?.id, currentUser?.name, currentUser?.color]);
 
-  // Cursor broadcast — write to awareness on a fixed interval rather than
-  // every pointermove/rAF so we don't blow past Supabase Realtime's per-
-  // tenant rate limit. ~120ms feels live-enough for collab cursors and
-  // sits well below the broadcast cap.
+  // Cursor broadcast — write to awareness on a throttled interval rather than
+  // every pointermove/rAF. The interval SCALES with the live peer count
+  // (cursorIntervalForPeerCount): exactly the historical 16ms (one write per
+  // frame) in a small room, widening toward ~120ms as the room fills. Cursor
+  // fan-out is O(N^2) — every person's every move reaches everyone — so a
+  // fixed cadence is the cliff at scale; widening it keeps a crowded board
+  // smooth while staying live-enough below the small-room threshold.
   useEffect(() => {
     const aw = getAwareness?.();
     const wrap = wrapRef.current;
@@ -796,9 +801,27 @@ export function CanvasSurface({
     let pending = null;
     let last = { x: null, y: null };
     let timer = null;
+    // getStates() returns the live awareness Map (incl. self) — peers = size-1.
+    const peerCount = () => Math.max(0, aw.getStates().size - 1);
+    // Spectator-mode hysteresis state: in a very crowded room we stop
+    // broadcasting our OWN cursor (we still SEE everyone), which removes one
+    // sender from the O(N^2) cursor traffic per person who goes quiet.
+    let broadcasting = true;
     const flush = () => {
       timer = null;
       if (!pending) return;
+      const wasBroadcasting = broadcasting;
+      broadcasting = shouldBroadcastOwnCursor(peerCount(), broadcasting);
+      if (!broadcasting) {
+        pending = null;
+        // On the transition INTO spectator mode, clear our cursor once so peers
+        // don't see it frozen in place; staying silent thereafter.
+        if (wasBroadcasting) {
+          last = { x: null, y: null };
+          try { aw.setLocalStateField('canvasCursor', null); } catch (_) {}
+        }
+        return;
+      }
       // Skip a write if the cursor hasn't actually moved (rounded).
       if (Math.round(pending.x) === last.x && Math.round(pending.y) === last.y) {
         pending = null;
@@ -824,7 +847,7 @@ export function CanvasSurface({
         x: (e.clientX - r.left - p.x) / z,
         y: (e.clientY - r.top  - p.y) / z,
       };
-      if (!timer) timer = setTimeout(flush, 16);
+      if (!timer) timer = setTimeout(flush, cursorIntervalForPeerCount(peerCount()));
     };
     const onLeave = () => {
       if (timer) { clearTimeout(timer); timer = null; }
@@ -6853,6 +6876,11 @@ export function CanvasSurface({
         selfId={currentUser?.id}
         getCardById={(id) => cardByIdRef.current[id]}
       />
+      {/* Who's-here facepile + hover roster. The authoritative presence list at
+          scale (canvas cursors are culled/capped); floats top-right. */}
+      <div className="canvas-presence-roster">
+        <PresenceStack getAwareness={getAwareness} />
+      </div>
       <div ref={canvasRef}
            className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
            style={{

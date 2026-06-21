@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isPresenceQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -240,6 +240,17 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <AlignQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isPresenceQaMode()) {
+  // Presence/collaboration QA (?presenceqa=1). Mounts the real <CanvasPresence>
+  // against a fake awareness + installs window.__soleilPresenceTest for the
+  // at-scale cap/cull/no-storm assertions. DEV guard drops it from production.
+  import('./local/PresenceQaHarness.jsx').then(({ PresenceQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <PresenceQaHarness />
       </StrictMode>
     );
   });
