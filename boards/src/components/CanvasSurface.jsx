@@ -417,12 +417,6 @@ export function CanvasSurface({
       el.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`;
       if (el.style.willChange !== 'auto') el.style.willChange = 'auto';
     }
-    // Publish the live zoom so the ACTIVELY-EDITED note can neutralize this
-    // transform scale (which paints native spellcheck underlines in screen
-    // space → misaligned at zoom ≠ 1). The editing note counter-scales by
-    // 1/--cz and re-grows via CSS `zoom` (squiggle-safe); see
-    // `.note.is-editing` in styles.css. Zero React churn — read via var().
-    el.style.setProperty('--cz', z);
   };
   // ── Viewport culling state (D1) ──────────────────────────────────────────
   // visibleIds = Set of mounted card ids: everything inside the ADD band

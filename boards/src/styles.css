@@ -4355,19 +4355,6 @@ body {
 [data-theme='light'] .note:hover { border-color: rgba(0,0,0,.06); }
 .note.is-editing {
   border-color: rgba(255,255,255,.10);
-  /* Spellcheck-alignment fix. The canvas zooms via `transform: scale(z)`
-     on .canvas (transform-origin 0 0, see styles.css further down); the
-     browser paints native spellcheck underlines in SCREEN space, so under
-     a transform-scale they drift from the glyphs at any zoom ≠ 1. While
-     editing, neutralize that scale on THIS element — `transform: scale(1/z)`
-     cancels the ancestor scale (net transform scale = 1 → underlines align),
-     and CSS `zoom: z` re-grows the note to its on-screen size (zoom scales
-     the LAYOUT box, which keeps underlines aligned — unlike transform). --cz
-     is published live by applyCanvasTransform(). Keep both on the SAME
-     element so .card/.note overflow:hidden doesn't clip the zoom-inflated box. */
-  zoom: var(--cz, 1);
-  transform: scale(calc(1 / var(--cz, 1)));
-  transform-origin: 0 0;
 }
 [data-theme='light'] .note.is-editing {
   border-color: rgba(0,0,0,.08);

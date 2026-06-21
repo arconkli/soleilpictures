@@ -149,10 +149,16 @@ export function NoteTiptapSurface({
         // The measurer (cardHeightForBody) and the note CSS both key off
         // .note-body — Tiptap must render INTO it.
         class: 'note-body',
-        // ProseMirror manages its own selection and is immune to the Grammarly
-        // overlay that breaks a raw contenteditable's drag-select, so (unlike
-        // the legacy note) we can leave Grammarly on, matching docs.
-        'data-gramm': 'true',
+        // Grammarly OFF on notes. Grammarly paints its underlines via its own
+        // absolutely-positioned overlay, which does NOT follow the canvas's
+        // `transform: scale(zoom)` — so at any zoom ≠ 100% its squiggles drift
+        // left of the words (the "spellcheck misalignment" bug). Native
+        // spellcheck underlines are painted INTO the text layer, so they scale
+        // with the canvas and stay aligned. (The legacy RichNoteEditor already
+        // turns Grammarly off; we now match it here.)
+        'data-gramm': 'false',
+        'data-gramm_editor': 'false',
+        'data-enable-grammarly': 'false',
         spellcheck: 'true',
       },
       // Toggle a checklist item by clicking its box, even mid-edit.
