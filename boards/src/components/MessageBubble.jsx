@@ -24,6 +24,7 @@ import { useOpenDm } from '../hooks/useOpenDm.js';
 //   onDelete, onEdit, onReact, onReply, onPin, onCopyLink — wired by parent
 export function MessageBubble({
   msg, selfId, highlight, replyMeta, parent, onJumpToMessage, isFocused,
+  isContinuation = false, // consecutive message from the same sender — drop the header
   onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
   onAttachmentDragStart,
   onRetrySend, onDiscardSend, // optimistic-send bubbles only
@@ -73,7 +74,7 @@ export function MessageBubble({
   const parentExcerpt = parent ? (parent.body || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
 
   return (
-    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''} ${sendState ? 'msg-bubble--pending' : ''}`}
+    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${isContinuation ? 'is-continuation' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''} ${sendState ? 'msg-bubble--pending' : ''}`}
          data-msg-id={msg.id}
          id={`msg-${msg.id}`}
          onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
@@ -93,30 +94,40 @@ export function MessageBubble({
         </div>
       )}
       <div className="msg-bubble-head">
-        {!isMine && openDm ? (
-          <button
-            type="button"
-            className="msg-bubble-avatar is-clickable"
-            style={{ background: senderColor }}
-            onClick={() => openDm(msg.sender_id)}
-            title={`Message ${senderName}`}
-          >
-            {senderName.charAt(0).toUpperCase()}
-          </button>
-        ) : (
-          <span className="msg-bubble-avatar"
-                aria-hidden="true"
-                style={{ background: senderColor }}>
-            {senderName.charAt(0).toUpperCase()}
-          </span>
-        )}
-        <span className="msg-bubble-author">{senderName}</span>
-        {sendState ? (
-          <span className="msg-bubble-time">{sendState === 'sending' ? 'Sending…' : ''}</span>
-        ) : (
-          <time className="msg-bubble-time" dateTime={msg.created_at} title={fullTime}>
-            {time}{msg.edited_at ? ' · edited' : ''}
+        {isContinuation ? (
+          // Continuation row: no avatar/name; a faint clock appears in the
+          // reserved avatar gutter on hover so the time is still reachable.
+          <time className="msg-bubble-gutter-time" dateTime={msg.created_at} title={fullTime}>
+            {shortClock(msg.created_at)}
           </time>
+        ) : (
+          <>
+            {!isMine && openDm ? (
+              <button
+                type="button"
+                className="msg-bubble-avatar is-clickable"
+                style={{ background: senderColor }}
+                onClick={() => openDm(msg.sender_id)}
+                title={`Message ${senderName}`}
+              >
+                {senderName.charAt(0).toUpperCase()}
+              </button>
+            ) : (
+              <span className="msg-bubble-avatar"
+                    aria-hidden="true"
+                    style={{ background: senderColor }}>
+                {senderName.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <span className="msg-bubble-author">{senderName}</span>
+            {sendState ? (
+              <span className="msg-bubble-time">{sendState === 'sending' ? 'Sending…' : ''}</span>
+            ) : (
+              <time className="msg-bubble-time" dateTime={msg.created_at} title={fullTime}>
+                {time}{msg.edited_at ? ' · edited' : ''}
+              </time>
+            )}
+          </>
         )}
         <span className={`msg-bubble-actions ${hover && !editing && !sendState ? 'is-visible' : ''}`}>
           {onReply && <button title="Reply in thread" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
@@ -241,6 +252,13 @@ function publicUrl(path) {
   const base = import.meta.env.VITE_SUPABASE_URL;
   if (!base) return '';
   return `${base}/storage/v1/object/public/message-attachments/${path}`;
+}
+
+// Bare wall-clock (e.g. "2:14 PM") shown in the gutter on grouped
+// continuation rows, where the full "x ago" header is suppressed.
+function shortClock(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 function formatRelTime(iso) {

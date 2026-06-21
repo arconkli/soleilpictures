@@ -248,18 +248,36 @@ export function MessageThread({
     return m;
   }, [messages]);
 
-  // ── Day-divider grouping ─────────────────────────────────────────────
+  // ── Day-divider + consecutive-sender grouping ───────────────────────
+  // A message is a "continuation" of the one above it when it's from the
+  // same sender, within 5 minutes, on the same day, and is neither a reply
+  // nor pinned. Continuations drop their avatar/name/time header (see
+  // MessageBubble's isContinuation) so a burst reads as one block instead
+  // of repeating the author on every line.
   const groupedMessages = useMemo(() => {
     const groups = [];
     let lastKey = null;
+    let prevMsg = null; // previous *message* row actually rendered (not a divider/system)
     const list = replyParent ? [] : (messages || []);
     for (const m of list) {
       const k = dayKey(m.created_at);
+      let brokeDay = false;
       if (k !== lastKey) {
         groups.push({ kind: 'divider', key: 'd-' + k, label: dayLabel(m.created_at) });
-        lastKey = k;
+        lastKey = k; brokeDay = true; prevMsg = null;
       }
-      groups.push({ kind: 'msg', key: m.id, msg: m });
+      if (m.kind === 'system') {
+        groups.push({ kind: 'msg', key: m.id, msg: m });
+        prevMsg = null; // a system row always breaks the run
+        continue;
+      }
+      const within5 = prevMsg && m.created_at && prevMsg.created_at
+        && (new Date(m.created_at) - new Date(prevMsg.created_at)) < 5 * 60 * 1000;
+      const isContinuation = !brokeDay && !!prevMsg
+        && prevMsg.sender_id === m.sender_id
+        && !m.parent_id && !m.is_pinned && within5;
+      groups.push({ kind: 'msg', key: m.id, msg: m, isContinuation });
+      prevMsg = m;
     }
     return groups;
   }, [messages, replyParent]);
@@ -626,6 +644,7 @@ export function MessageThread({
             ) : (
               <MessageBubble
                 key={g.key} msg={g.msg} selfId={userId}
+                isContinuation={g.isContinuation}
                 replyMeta={replyCounts.get(g.msg.id) || null}
                 parent={g.msg.parent_id ? messagesById.get(g.msg.parent_id) : null}
                 onJumpToMessage={flashMessage}

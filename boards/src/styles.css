@@ -66,6 +66,19 @@
   --soleil-soft:   rgba(255,165,0,.14);
   --soleil-glow:   0 0 24px rgba(255,165,0,.18);
 
+  /* ── Unified "message language" — shared by the chat drawer, toasts,
+     and on-canvas comment/vote bubbles so all three read as one family.
+     (Drives the .msg-, .toast, and .canvas-comment / .canvas-vote rules.) */
+  --msg-surface:        rgba(18,18,22,.86);
+  --msg-surface-canvas: rgba(18,18,22,.92);   /* canvas bubbles sit over arbitrary content → higher opacity */
+  --msg-border:         rgba(255,255,255,.06);
+  --msg-blur:           blur(12px) saturate(1.05);
+  --msg-avatar:         24px;
+  --msg-avatar-sm:      18px;
+  --msg-ok:             #2faf78;
+  --msg-err:            var(--ink-error);
+  --msg-info:           #8ab4f8;
+
   /* Selection accent — single knob for the whole selected-card system
      (ring, halo, handles, multi-select box). Brand gold by choice. */
   --select:        var(--soleil);
@@ -127,6 +140,13 @@
   --soleil-soft: rgba(255,165,0,.10);
 
   --ink-error: #b04a4a;
+
+  /* Message-language tokens — light overrides (dark defaults in :root). */
+  --msg-surface:        rgba(250,250,252,.86);
+  --msg-surface-canvas: rgba(252,251,247,.94);
+  --msg-border:         rgba(10,10,12,.06);
+  --msg-ok:             #1c9e6e;
+  --msg-info:           #3b6fd4;   /* --msg-err rides --ink-error; --msg-blur/-avatar inherit from :root */
 
   --grid-line: rgba(10,10,12,.04);
   --grid-dot:  rgba(10,10,12,.07);
@@ -10045,20 +10065,18 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .canvas-vote-card {
   position: relative;
   display: flex; align-items: center; gap: 6px;
-  background: rgba(20,20,24,.94);
+  background: var(--msg-surface-canvas);
   color: var(--ink-0);
-  border: 1px solid rgba(255,255,255,.08);
+  border: 1px solid var(--msg-border);
   border-radius: var(--radius-md);
   padding: 5px 8px;
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
   box-shadow: 0 6px 14px rgba(0,0,0,.28);
   transition: border-color var(--dur-fast) var(--ease),
               box-shadow var(--dur-fast) var(--ease);
 }
 [data-theme='light'] .canvas-vote-card {
-  background: rgba(252,251,247,.96);
-  border-color: rgba(0,0,0,.08);
   color: #1a1a1f;
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
 }
@@ -10113,7 +10131,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
               color var(--dur-fast) var(--ease);
 }
 [data-theme='light'] .canvas-vote-btn { border-color: rgba(0,0,0,.12); }
-.canvas-vote-btn:hover { border-color: var(--soleil); }
+.canvas-vote-btn:hover { border-color: var(--line-3); }
 .canvas-vote-btn.up.is-active {
   color: #16a34a; border-color: #16a34a;
   background: color-mix(in oklab, #16a34a 18%, transparent);
@@ -10191,14 +10209,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   display: flex; flex-direction: column; gap: 4px;
   width: 100%;
   text-align: left;
-  background: rgba(20,20,24,.94);
+  background: var(--msg-surface-canvas);
   color: var(--ink-0);
-  border: 1px solid rgba(255,255,255,.08);
+  border: 1px solid var(--msg-border);
   border-radius: var(--radius-md);
   padding: 8px 10px;
   cursor: pointer;
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
   box-shadow: 0 6px 14px rgba(0,0,0,.28);
   transition: transform var(--dur-fast) var(--ease),
               box-shadow var(--dur-fast) var(--ease),
@@ -10222,18 +10240,16 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   box-shadow: 0 0 0 2px rgba(252,251,247,.96), 0 1px 3px rgba(0,0,0,.25);
 }
 [data-theme='light'] .canvas-comment-card {
-  background: rgba(252,251,247,.96);
-  border-color: rgba(0,0,0,.08);
   color: #1a1a1f;
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
 }
 .canvas-comment-card:hover {
-  border-color: var(--soleil);
+  border-color: var(--line-3);
   transform: translateY(-1px);
   box-shadow: 0 10px 24px rgba(0,0,0,.34);
 }
 .canvas-comment.is-open .canvas-comment-card {
-  border-color: var(--soleil);
+  border-color: color-mix(in oklab, var(--soleil) 45%, var(--line-2));
 }
 
 .canvas-comment-card-head {
@@ -10242,11 +10258,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   color: var(--ink-3);
 }
 .canvas-comment-avatar {
-  width: 18px; height: 18px;
-  border-radius: 50%;
+  width: var(--msg-avatar-sm); height: var(--msg-avatar-sm);
+  border-radius: 6px;
   display: grid; place-items: center;
   flex-shrink: 0;
-  color: #fff;
+  color: var(--bg-0);
   font: 700 10px/1 var(--font-sans);
   letter-spacing: 0;
   text-transform: uppercase;
@@ -10264,23 +10280,20 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .canvas-comment-when {
   flex: 1 1 auto;
-  font: 400 10px/1.2 var(--font-mono);
+  font: 500 11.5px/1.2 var(--font-sans);
   color: var(--ink-3);
-  letter-spacing: .04em;
   white-space: nowrap;
 }
 .canvas-comment-tag {
-  font: 700 9px/1 var(--font-display);
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--soleil);
-  background: var(--soleil-soft);
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-2);
+  background: var(--bg-act);
   padding: 2px 5px;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 .canvas-comment-body {
-  font: 400 13px/1.4 var(--font-sans);
+  font: 400 14px/1.5 var(--font-sans);
   color: var(--ink-1);
   letter-spacing: -0.005em;
   word-break: break-word;
@@ -10307,18 +10320,16 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .canvas-comment-thread {
   margin-top: 8px;
   padding: 10px 12px;
-  background: rgba(20,20,24,.94);
+  background: var(--msg-surface-canvas);
   color: var(--ink-0);
-  border: 1px solid rgba(255,255,255,.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  backdrop-filter: blur(10px) saturate(1.05);
+  border: 1px solid var(--msg-border);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 24px rgba(0,0,0,.34);
   font-family: var(--font-sans);
 }
 [data-theme='light'] .canvas-comment-thread {
-  background: rgba(252,251,247,.96);
-  border-color: rgba(0,0,0,.08);
   color: #1a1a1f;
 }
 
@@ -10341,9 +10352,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .canvas-comment-line-when {
   flex: 1 1 auto;
-  font: 400 10px/1.2 var(--font-mono);
+  font: 500 11.5px/1.2 var(--font-sans);
   color: var(--ink-3);
-  letter-spacing: .04em;
 }
 .canvas-comment-line-x {
   background: transparent; border: 0;
@@ -10354,7 +10364,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .canvas-comment-line-x:hover { color: #ef4444; }
 .canvas-comment-line-body {
-  font: 400 13px/1.45 var(--font-sans);
+  font: 400 14px/1.5 var(--font-sans);
   color: var(--ink-1);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -10365,26 +10375,21 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .canvas-comment-reply-input {
   flex: 1 1 auto;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.08);
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
   color: var(--ink-0);
   border-radius: var(--radius);
   padding: 6px 8px;
-  font: 400 12.5px/1.3 var(--font-sans);
+  font: 400 13px/1.3 var(--font-sans);
 }
-[data-theme='light'] .canvas-comment-reply-input {
-  background: rgba(0,0,0,.04);
-  border-color: rgba(0,0,0,.10);
-}
-.canvas-comment-reply-input:focus { outline: 0; border-color: var(--soleil); }
+.canvas-comment-reply-input:focus { outline: 0; border-color: var(--line-3); box-shadow: 0 0 0 2px var(--soleil-soft); }
 .canvas-comment-reply-send {
   background: var(--soleil);
-  color: #1a1300;
+  color: var(--bg-0);
   border: 0;
   border-radius: var(--radius);
   padding: 0 12px;
   font: 600 11px/1 var(--font-sans);
-  letter-spacing: .04em;
   cursor: pointer;
 }
 .canvas-comment-reply-send:disabled { opacity: .5; cursor: not-allowed; }
@@ -10397,16 +10402,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .canvas-comment-actions button {
   background: transparent; border: 0;
-  color: var(--ink-3);
-  font: 600 10px/1 var(--font-display);
-  letter-spacing: .14em;
-  text-transform: uppercase;
+  color: var(--ink-2);
+  font: 500 12px/1 var(--font-sans);
   cursor: pointer;
   padding: 4px 8px;
   border-radius: var(--radius);
 }
-.canvas-comment-actions button:hover { background: var(--bg-hov); color: var(--ink-0); }
-.canvas-comment-actions button.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
+.canvas-comment-actions button:hover { background: var(--bg-act); color: var(--ink-0); }
+.canvas-comment-actions button.danger:hover { background: color-mix(in oklab, var(--msg-err) 14%, transparent); color: var(--msg-err); }
 
 /* Anchor dot — small filled circle on a card/group's border (or at a
    point) that surfaces "there's a comment here" when the master eye
@@ -10431,7 +10434,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: transparent;
   border: 0;
   color: var(--ink-0);
-  font: 400 13px/1.45 var(--font-sans);
+  font: 400 14px/1.5 var(--font-sans);
   letter-spacing: -0.005em;
   resize: none;
   outline: 0;
@@ -10448,28 +10451,25 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .canvas-comment-draft-hint {
   flex: 1 1 auto;
-  font: 500 10px/1 var(--font-mono);
+  font: 500 11px/1 var(--font-sans);
   color: var(--ink-3);
-  letter-spacing: .04em;
 }
 .canvas-comment-draft-cancel {
   background: transparent; border: 0;
-  color: var(--ink-3);
-  font: 600 10px/1 var(--font-display);
-  letter-spacing: .14em;
-  text-transform: uppercase;
+  color: var(--ink-2);
+  font: 500 12px/1 var(--font-sans);
   cursor: pointer;
   padding: 4px 6px;
+  border-radius: var(--radius);
 }
-.canvas-comment-draft-cancel:hover { color: var(--ink-0); }
+.canvas-comment-draft-cancel:hover { color: var(--ink-0); background: var(--bg-act); }
 .canvas-comment-draft-post {
   background: var(--soleil);
-  color: #1a1300;
+  color: var(--bg-0);
   border: 0;
   border-radius: var(--radius);
   padding: 5px 12px;
   font: 600 11px/1 var(--font-sans);
-  letter-spacing: .04em;
   cursor: pointer;
 }
 .canvas-comment-draft-post:disabled { opacity: .5; cursor: not-allowed; }
@@ -10714,17 +10714,16 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 .feedback-dialog {
   width: min(420px, calc(100vw - 32px));
-  background: rgba(16,16,20,.78);
+  background: var(--msg-surface);
   color: var(--ink-1);
-  border: 1px solid rgba(255,255,255,.06);
+  border: 1px solid var(--msg-border);
   border-radius: var(--radius-lg);
-  -webkit-backdrop-filter: blur(12px) saturate(1.05);
-  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
   box-shadow: var(--shadow-3);
   padding: 18px;
   animation: modalRise var(--dur-slow) var(--ease);
 }
-[data-theme='light'] .feedback-dialog { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
 
 .feedback-hd {
   display: flex;
@@ -10769,7 +10768,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 .feedback-field input:focus {
   border-color: transparent;
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 0 0 2px var(--soleil-soft);
 }
 
 .feedback-actions {
@@ -10830,14 +10829,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 
 .toast {
-  max-width: 360px;
-  padding: 9px 11px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius);
-  background: var(--bg-1);
+  max-width: 380px;
+  padding: 11px 13px;
+  border: 1px solid var(--msg-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-2); /* solid — toasts must read instantly over a busy canvas */
   color: var(--ink-1);
   box-shadow: var(--shadow-2);
-  font-size: 12.5px;
+  font-size: 13px;
   display: flex; align-items: center; gap: 10px;
   pointer-events: auto;
   animation: toastIn var(--dur-base) var(--ease);
@@ -10847,10 +10846,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(12px); } }
 
 .toast-icon { display: inline-flex; flex: 0 0 auto; }
-.toast-success .toast-icon { color: #10b981; }
-.toast-error   .toast-icon { color: #ef4444; }
-.toast-info    .toast-icon { color: #8ab4f8; }
-[data-theme='light'] .toast-info .toast-icon { color: #3b82f6; }
+.toast-success .toast-icon { color: var(--msg-ok); }
+.toast-error   .toast-icon { color: var(--msg-err); }
+.toast-info    .toast-icon { color: var(--msg-info); }
 
 .toast-dismiss {
   flex: 0 0 auto;
@@ -10864,18 +10862,18 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .toast-msg { flex: 1 1 auto; }
 .toast-action {
   background: transparent;
-  border: 1px solid var(--soleil);
+  border: 0;
   color: var(--soleil);
   font: 600 11.5px/1 var(--font-sans);
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: var(--radius);
   cursor: pointer;
   flex-shrink: 0;
 }
 .toast-action:hover { background: var(--soleil-soft); }
 
-.toast-success { border-color: rgba(16,185,129,.45); box-shadow: var(--shadow-2), inset 3px 0 0 #10b981; }
-.toast-error   { border-color: rgba(239,68,68,.5);  box-shadow: var(--shadow-2), inset 3px 0 0 #ef4444; }
+.toast-success { box-shadow: var(--shadow-2), inset 2px 0 0 var(--msg-ok); }
+.toast-error   { box-shadow: var(--shadow-2), inset 2px 0 0 var(--msg-err); }
 
 
 /* ──────────────────────────── Phase 4.14: thumbnails + list-mode ───────── */
@@ -13782,19 +13780,18 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .msg-panel {
   position: absolute;
   right: 16px; top: 16px; bottom: 16px;
-  width: 320px;
+  width: 360px;
   z-index: 30;
-  background: rgba(16,16,20,.85);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  backdrop-filter: blur(10px) saturate(1.05);
-  border: 1px solid rgba(255,255,255,.06);
+  background: var(--msg-surface);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
+  border: 1px solid var(--msg-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
   display: flex; flex-direction: column;
   overflow: hidden;
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
-[data-theme='light'] .msg-panel { background: rgba(250,250,252,.85); border-color: rgba(10,10,12,.06); }
 
 .msg-panel-head {
   display: flex; align-items: center; gap: 8px;
@@ -13903,13 +13900,13 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .msg-row:hover { background: var(--bg-hov); color: var(--ink-0); }
 .msg-row.is-unread { color: var(--ink-0); }
-.msg-row.is-unread .msg-row-name { font-weight: 700; }
+.msg-row.is-unread .msg-row-name { font-weight: 600; }
 .msg-row.msg-row-pinned { color: var(--ink-2); font-style: italic; }
 .msg-row-avatar {
-  width: 28px; height: 28px;
-  border-radius: 8px;
+  width: var(--msg-avatar); height: var(--msg-avatar);
+  border-radius: 6px;
   display: grid; place-items: center;
-  font: 700 12px/1 var(--font-sans);
+  font: 700 11px/1 var(--font-sans);
   color: var(--bg-0);
   flex-shrink: 0;
 }
@@ -13928,14 +13925,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .msg-row-preview {
-  font: 400 11.5px/1.3 var(--font-sans);
-  color: var(--ink-3);
+  font: 400 12px/1.3 var(--font-sans);
+  color: var(--ink-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .msg-row-time {
   color: var(--ink-3);
   flex-shrink: 0;
-  font: 500 10.5px/1.2 var(--font-sans);
+  font: 500 12px/1.2 var(--font-sans);
 }
 .msg-row-dot {
   position: absolute;
@@ -13994,7 +13991,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   overflow-y: auto;
   padding: 12px;
   display: flex; flex-direction: column;
-  gap: 14px;
+  gap: 0; /* sender-grouping owns the vertical rhythm via per-bubble margins */
   position: relative;
 }
 
@@ -14002,12 +13999,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .msg-day-divider {
   display: flex; align-items: center;
   gap: 8px;
-  margin: 4px 0;
+  margin: 8px 0;
   color: var(--ink-3);
-  font: 600 9.5px/1 var(--font-sans);
-  letter-spacing: 0.18em;
+  font: 700 10.5px/1 var(--font-sans);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
+/* The day's first message hugs its divider (the divider already separates groups). */
+.msg-day-divider + .msg-bubble { margin-top: 2px; }
 .msg-day-divider::before, .msg-day-divider::after {
   content: '';
   flex: 1; height: 1px;
@@ -14016,12 +14015,30 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 .msg-bubble {
   display: flex; flex-direction: column; gap: 4px;
-  padding: 6px 8px;
+  padding: 1px 8px;
+  margin-top: 14px; /* space between sender groups */
   border-radius: var(--radius);
   position: relative;
   transition: background var(--dur-fast) var(--ease);
 }
+/* A continuation row hugs the message above it — tight stacking within a burst. */
+.msg-bubble.is-continuation { margin-top: 2px; }
+.msg-bubble.is-continuation .msg-bubble-head { min-height: 0; }
 .msg-bubble:hover { background: var(--bg-hov); }
+/* Bare clock revealed in the reserved avatar gutter when hovering a
+   continuation row (its full header is suppressed by grouping). */
+.msg-bubble-gutter-time {
+  position: absolute;
+  left: 0; top: 3px;
+  width: 32px;
+  text-align: center;
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.msg-bubble.is-continuation:hover .msg-bubble-gutter-time { opacity: 1; }
 /* Optimistic sends: dimmed until the server confirms; failed sends show
    an inline retry row instead of silently vanishing. */
 .msg-bubble--pending { opacity: .62; }
@@ -14029,7 +14046,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .msg-bubble-failed {
   display: flex; align-items: center; gap: 8px;
   font: 500 11.5px/1.4 var(--font-sans);
-  color: #ef4444;
+  color: var(--msg-err);
 }
 .msg-bubble-failed button {
   appearance: none; background: transparent;
@@ -14041,40 +14058,42 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.msg-bubble-failed button:hover { color: var(--ink-0); border-color: var(--soleil); }
-.msg-bubble--mine::before {
-  content: '';
-  position: absolute;
-  left: -2px; top: 8px; bottom: 8px;
-  width: 2px;
-  background: var(--soleil);
-  border-radius: 1px;
-  opacity: 0.5;
-}
+.msg-bubble-failed button:hover { color: var(--ink-0); border-color: var(--line-3); }
+/* "Mine vs theirs" is carried by the author name + grouping; no rail needed. */
 .msg-bubble.is-flashed { background: var(--soleil-soft); transition: background 1.5s ease-out; }
 .msg-bubble-head { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: nowrap; }
 .msg-bubble-avatar {
-  width: 22px; height: 22px;
+  width: var(--msg-avatar); height: var(--msg-avatar);
   border-radius: 6px;
   display: grid; place-items: center;
-  font: 700 10px/1 var(--font-sans);
+  font: 700 11px/1 var(--font-sans);
   color: var(--bg-0);
   flex-shrink: 0;
 }
 .msg-bubble-author {
-  font: 600 12.5px/1.2 var(--font-sans); color: var(--ink-0);
+  font: 600 13px/1.3 var(--font-sans); color: var(--ink-0);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   min-width: 0;
 }
 .msg-bubble-time {
   color: var(--ink-3);
-  font: 500 10.5px/1.2 var(--font-sans);
+  font: 500 12px/1.3 var(--font-sans);
   white-space: nowrap;
   flex-shrink: 0;
 }
+/* Action toolbar — a floating chip pinned to the bubble's top-right, so it
+   works even on grouped continuation rows whose header is suppressed, and
+   stops crowding the author row. */
 .msg-bubble-actions {
-  margin-left: auto;
-  display: inline-flex; gap: 2px;
+  position: absolute;
+  top: 2px; right: 6px;
+  z-index: 2;
+  display: inline-flex; gap: 1px;
+  padding: 1px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease);
 }
@@ -14082,23 +14101,24 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .msg-bubble-actions.is-visible { opacity: 1; }
 .msg-bubble-actions button {
   background: transparent; border: 0; color: var(--ink-3);
-  width: 22px; height: 22px;
+  width: 24px; height: 24px;
   border-radius: var(--radius);
   display: grid; place-items: center;
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.msg-bubble-actions button:hover { color: var(--soleil); background: var(--soleil-soft); }
+.msg-bubble-actions button:hover { color: var(--ink-0); background: var(--bg-act); }
+.msg-bubble-actions button.is-active { color: var(--soleil); } /* pinned toggle stays warm */
 .msg-bubble-body {
-  font: 400 13.5px/1.55 var(--font-sans);
+  font: 400 14px/1.55 var(--font-sans);
   color: var(--ink-1);
   white-space: pre-wrap;
-  padding-left: 30px;  /* align under the author name (avatar 22 + gap 8) */
+  padding-left: 32px;  /* align under the author name (avatar 24 + gap 8) */
   word-break: break-word;
 }
 .msg-bubble-mark {
   background: var(--soleil-soft);
-  color: var(--soleil);
+  color: var(--ink-0);
   border-radius: 2px;
   padding: 0 1px;
 }
@@ -14111,15 +14131,16 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 /* Pinned-message styling — soft gold tint on the bubble itself, plus
    a small "Pinned" tag at the very top of the row. */
-.msg-bubble--pinned { background: rgba(255,165,0,.06); }
+.msg-bubble--pinned { background: var(--bg-2); }
 .msg-bubble-pinned-tag {
   display: inline-flex; align-items: center; gap: 4px;
-  font: 700 9px/1 var(--font-sans);
-  letter-spacing: 0.16em;
-  color: var(--soleil);
+  font: 700 10px/1 var(--font-sans);
+  letter-spacing: 0.14em;
+  color: var(--ink-2);
   margin-bottom: 2px;
-  padding-left: 30px;
+  padding-left: 32px;
 }
+.msg-bubble-pinned-tag svg { color: var(--soleil); } /* keep just the pin glyph warm */
 
 /* iMessage-style parent preview shown above a reply in the main feed.
    Sender's color rail on the left, name in the same color, body excerpt
@@ -14128,7 +14149,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   appearance: none; background: transparent; border: 0;
   align-self: flex-start;
   display: inline-flex; align-items: center; gap: 6px;
-  margin-left: 30px; /* aligns under the avatar column */
+  margin-left: 32px; /* aligns under the avatar column */
   margin-bottom: 2px;
   padding: 3px 8px 3px 6px;
   border-left: 2px solid var(--line-2);
@@ -14163,18 +14184,20 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 /* Replies-count badge — appears under a parent message that has
    replies. Click → opens thread mode.                                */
 .msg-bubble-replies {
-  appearance: none; border: 0;
+  appearance: none;
   display: inline-flex; align-items: center; gap: 6px;
-  margin-left: 30px; margin-top: 2px;
+  margin-left: 32px; margin-top: 2px;
   padding: 4px 8px;
-  background: var(--soleil-soft);
-  color: var(--soleil);
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-1);
   border-radius: var(--radius);
   cursor: pointer;
-  font: 600 11px/1 var(--font-sans);
-  transition: background var(--dur-fast) var(--ease);
+  font: 600 11.5px/1 var(--font-sans);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.msg-bubble-replies:hover { background: rgba(255,165,0,.22); }
+.msg-bubble-replies:hover { background: var(--bg-hov); border-color: var(--line-3); }
+.msg-bubble-replies svg { color: var(--ink-2); }
 .msg-bubble-replies-time {
   color: var(--ink-3);
   font-weight: 500;
@@ -14216,14 +14239,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .msg-bubble-body .msg-list li { margin: 2px 0; }
 .msg-bubble-body .msg-link {
-  color: var(--soleil);
+  color: var(--ink-0);
   text-decoration: underline;
-  text-decoration-color: var(--soleil-soft);
+  text-decoration-color: var(--line-3);
   text-underline-offset: 2px;
   word-break: break-all;
 }
 .msg-bubble-body .msg-link:hover {
-  text-decoration-color: var(--soleil);
+  text-decoration-color: var(--ink-0);
 }
 
 /* Pinned strip at top of thread. */
@@ -14237,10 +14260,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   width: 100%;
   padding: 8px 12px;
   background: transparent; border: 0;
-  color: var(--soleil);
+  color: var(--ink-1);
   cursor: pointer;
   text-align: left;
 }
+.msg-pinned-head svg { color: var(--soleil); } /* keep just the pin glyph warm */
 .msg-pinned-head:hover { background: var(--bg-hov); }
 .msg-pinned-chev { margin-left: auto; color: var(--ink-3); font-size: 9px; }
 .msg-pinned-list {
@@ -14278,24 +14302,29 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   flex-shrink: 0;
 }
 
-/* Stacked avatars for group-chat rows. */
-.msg-row-avatar.is-stack {
-  position: relative;
-  background: transparent;
-  width: 32px; height: 28px;
-}
+/* Avatar chips. Single-peer rows render one chip that fills the 24px box;
+   group rows (.is-stack) render 2–3 chips that overlap in normal flow via
+   negative margins — no absolute-position math. */
 .msg-row-avatar-chip {
-  position: absolute;
-  width: 20px; height: 20px;
+  width: var(--msg-avatar); height: var(--msg-avatar);
   border-radius: 6px;
   display: grid; place-items: center;
-  font: 700 10px/1 var(--font-sans);
+  font: 700 11px/1 var(--font-sans);
   color: var(--bg-0);
-  border: 2px solid var(--bg-1);
 }
-.msg-row-avatar.is-stack .msg-row-avatar-chip:nth-child(1) { left: 0;  top: 0; }
-.msg-row-avatar.is-stack .msg-row-avatar-chip:nth-child(2) { left: 8px; top: 4px; }
-.msg-row-avatar.is-stack .msg-row-avatar-chip:nth-child(3) { left: 16px; top: 8px; }
+.msg-row-avatar.is-stack {
+  width: auto; height: var(--msg-avatar);
+  background: transparent;
+  display: inline-flex; align-items: center;
+}
+.msg-row-avatar.is-stack .msg-row-avatar-chip {
+  width: var(--msg-avatar-sm); height: var(--msg-avatar-sm);
+  border-radius: 5px;
+  font: 700 9px/1 var(--font-sans);
+  border: 1.5px solid var(--bg-1);
+  margin-left: -6px;
+}
+.msg-row-avatar.is-stack .msg-row-avatar-chip:first-child { margin-left: 0; }
 
 /* Inline editable rename input in the thread title bar. */
 .msg-panel-name-input {
@@ -14308,7 +14337,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   min-width: 0;
   outline: none;
 }
-.msg-panel-name-input:focus { border-color: var(--soleil); }
+.msg-panel-name-input:focus { border-color: var(--line-3); box-shadow: 0 0 0 2px var(--soleil-soft); }
 
 /* Make the panel name clickable to rename (group chats only). */
 button.msg-panel-name {
@@ -14317,7 +14346,7 @@ button.msg-panel-name {
   padding: 0;
   text-align: left;
 }
-button.msg-panel-name:hover { color: var(--soleil); }
+button.msg-panel-name:hover { color: var(--ink-0); }
 
 /* Clickable message-bubble avatar (DM opener). */
 .msg-bubble-avatar.is-clickable {
@@ -14491,11 +14520,11 @@ button.msg-panel-name:hover { color: var(--soleil); }
   background: var(--bg-3); border: 1px solid var(--line-2);
   color: var(--ink-1);
   padding: 2px 6px;
-  border-radius: 999px;
-  font: 500 11px/1 var(--font-sans);
+  border-radius: var(--radius);
+  font: 500 11.5px/1 var(--font-sans);
   cursor: pointer;
 }
-.msg-reaction.own { background: var(--soleil-soft); border-color: var(--soleil); }
+.msg-reaction.own { background: var(--bg-act); border-color: var(--line-3); color: var(--ink-0); }
 .msg-reaction-count { color: var(--ink-3); }
 
 /* Animated typing-indicator dots — three dots that pulse in sequence. */
@@ -14563,8 +14592,8 @@ button.msg-panel-name:hover { color: var(--soleil); }
    files or a URL over the composer. The overlay covers the whole
    composer so the textarea/buttons don't fight the drop event. */
 .msg-composer.is-drop-target {
-  background: var(--soleil-soft);
-  outline: 2px dashed var(--soleil);
+  background: var(--bg-hov);
+  outline: 2px dashed var(--line-3);
   outline-offset: -2px;
 }
 .msg-composer-drop {
@@ -14604,7 +14633,7 @@ button.msg-panel-name:hover { color: var(--soleil); }
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.msg-composer-btn:hover { color: var(--soleil); background: var(--soleil-soft); }
+.msg-composer-btn:hover { color: var(--ink-0); background: var(--bg-act); }
 .msg-composer-btn.is-active { color: var(--soleil); background: var(--soleil-soft); }
 
 /* Inline URL prompt above the textarea, shown when the link button is
@@ -14623,8 +14652,8 @@ button.msg-panel-name:hover { color: var(--soleil); }
 }
 .msg-composer-link-input:focus {
   outline: none;
-  border-color: var(--soleil);
-  box-shadow: var(--shadow-glow);
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--soleil-soft);
 }
 .msg-composer-link .msg-composer-btn {
   width: auto; padding: 0 10px;
@@ -14646,7 +14675,8 @@ button.msg-panel-name:hover { color: var(--soleil); }
   transition: filter var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
 }
 .msg-composer-send:hover:not(:disabled) { filter: brightness(1.08); }
-.msg-composer-send:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Neutral until there's something to send — gold only appears when armed. */
+.msg-composer-send:disabled { background: var(--bg-3); color: var(--ink-3); opacity: 1; cursor: not-allowed; }
 .msg-composer-attachments {
   display: flex; gap: 6px; flex-wrap: wrap;
 }
@@ -14662,13 +14692,13 @@ button.msg-panel-name:hover { color: var(--soleil); }
 
 .msg-pill {
   display: inline-block;
-  background: var(--soleil-soft);
-  color: var(--soleil);
+  background: var(--bg-act);
+  color: var(--ink-1);
   padding: 0 4px;
   border-radius: var(--radius);
   font-weight: 600;
 }
-.msg-pill-user { background: rgba(255,165,0,.18); }
+.msg-pill-user { background: var(--bg-act); color: var(--ink-0); }
 
 .msg-bubble-edit-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
 .msg-bubble-edit-actions button {

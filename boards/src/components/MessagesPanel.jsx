@@ -232,14 +232,11 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
     >
       {isUnread && <span className="msg-row-dot" />}
       <span className={`msg-row-avatar ${avatarPeers.length > 1 ? 'is-stack' : ''}`}>
-        {avatarPeers.length === 0 ? '·' : avatarPeers.map((p, i) => (
+        {avatarPeers.length === 0 ? '·' : avatarPeers.map((p) => (
           <span
             key={p.id}
             className="msg-row-avatar-chip"
-            style={{
-              background: p.color,
-              zIndex: avatarPeers.length - i,
-            }}
+            style={{ background: p.color }}
           >
             {(p.name || 'M').charAt(0).toUpperCase()}
           </span>
