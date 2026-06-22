@@ -4,13 +4,14 @@
 // later phases):
 //
 //   POST /api/tags/embed         — OpenAI text-embedding-3-small in batch
-//   POST /api/tags/apply         — gpt-4o-mini tier verdicts, batched
-//   POST /api/tags/cluster-name  — gpt-4o-mini names emergent clusters
+//   POST /api/tags/apply         — Workers AI (llama) word verdicts, batched
+//   POST /api/tags/cluster-name  — Workers AI (llama) names emergent clusters
 //
-// Single provider (OpenAI) for both embeddings and completions — gpt-4o-mini
-// with structured outputs is ~5× cheaper than Anthropic Haiku 4.5 for this
-// task and OpenAI has a first-party embeddings API. Anthropic doesn't, so
-// going single-provider also collapses two API keys into one.
+// Completions (apply + cluster-name) run on FREE Cloudflare Workers AI via
+// env.AI — no per-token bill. (The old gpt-4o apply path blew the budget when
+// it fired per-card on every keystroke; this keeps the same prompts on a free
+// model.) Embeddings stay on OpenAI because the pgvector corpus/index is
+// 1536-dim and that path is cheap + content-hash-cached.
 //
 // Auth: every request must carry a valid Supabase user JWT in the
 // Authorization header. We verify by calling the project's /auth/v1/user
@@ -22,16 +23,21 @@
 // the normal Supabase client, respecting RLS.
 //
 // Required secrets / vars (set via `wrangler secret put` or CF dashboard):
-//   OPENAI_API_KEY     — both embeddings and completions
+//   OPENAI_API_KEY     — embeddings only (completions moved to free env.AI)
 //   SUPABASE_URL       — used to validate user JWTs (already known publicly)
 //   SUPABASE_ANON_KEY  — required by Supabase /auth/v1/user as the apikey hdr
 
-// Tagger quality. gpt-4o-mini is fast and cheap but misses subtler
-// associations ("startup launch" → "marketing"). gpt-4o gets these
-// right at ~5× cost. Cluster naming can stay on mini since the cards
-// pre-filter via embedding similarity.
-const APPLY_MODEL = 'gpt-4o';
-const CLUSTER_NAME_MODEL = 'gpt-4o-mini';
+import { parseJsonLoose, runWorkersAiChat } from './worker-llm.js';
+
+// Models. Doc-page word verdicts + cluster naming now run on FREE Cloudflare
+// Workers AI (env.AI) with the SAME prompts — no per-token OpenAI bill. The
+// cascade already distrusts the model's char offsets (it regex-relocates each
+// claimed word) and drops "low" verdicts, so a smaller model's looser
+// precision is a non-issue; only verdict quality matters. Embeddings stay on
+// OpenAI (text-embedding-3-small) because the corpus + pgvector index are
+// 1536-dim and that path is cheap + content-hash-cached.
+const APPLY_MODEL = '@cf/meta/llama-3.1-8b-instruct';        // /api/tags/apply
+const CLUSTER_NAME_MODEL = '@cf/meta/llama-3.2-3b-instruct'; // /api/tags/cluster-name
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIM = 1536;
 
@@ -163,7 +169,7 @@ async function handleEmbed(request, env) {
 // for embedding-prefiltering candidate_tags down to the middle band
 // (cosine 0.20–0.55) before calling — we don't second-guess that here.
 async function handleApply(request, env) {
-  if (!env.OPENAI_API_KEY) return json({ error: 'openai key not configured' }, 500);
+  if (!env.AI) return json({ error: 'env.AI (Workers AI) binding not configured' }, 500);
   const body = await request.json().catch(() => null);
   if (!Array.isArray(body?.cards)) return json({ error: 'cards array required' }, 400);
   if (body.cards.length === 0) return json({ verdicts: [] }, 200);
@@ -183,41 +189,21 @@ async function handleApply(request, env) {
     })),
   };
 
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'authorization': `Bearer ${env.OPENAI_API_KEY}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: APPLY_MODEL,
-      temperature: 0.1,
-      messages: [
-        { role: 'system', content: APPLY_SYSTEM_PROMPT },
-        { role: 'user', content: JSON.stringify(userPayload) },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'tag_verdicts',
-          strict: true,
-          schema: APPLY_RESPONSE_SCHEMA,
-        },
-      },
-    }),
-    signal: AbortSignal.timeout(60_000),
-  });
-  if (!r.ok) {
-    const err = await r.text();
-    return json({ error: `openai ${r.status}`, detail: err.slice(0, 500) }, 502);
+  // Workers AI doesn't support OpenAI strict json_schema, so we ask for the
+  // shape in the prompt and parse it tolerantly. APPLY_RESPONSE_SCHEMA below
+  // still documents the contract the client (aiParagraphCascade.js) expects.
+  let resp;
+  try {
+    resp = await runWorkersAiChat(env, APPLY_MODEL, APPLY_SYSTEM_PROMPT,
+      JSON.stringify(userPayload)
+      + '\n\nReturn ONLY a JSON object of this shape (no markdown, no prose):\n'
+      + '{"verdicts":[{"card_id": string, "tags":[{"tag_id": string, "confidence":"high"|"medium"|"low", "words":[{"text": string, "start_offset": number, "length": number}], "evidence_sentence": string|null}]}]}',
+      { max_tokens: 2000, temperature: 0.1 });
+  } catch (e) {
+    return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, 502);
   }
-  const data = await r.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (!text) return json({ error: 'no content in response' }, 502);
-  let parsed;
-  try { parsed = JSON.parse(text); } catch (_) {
-    return json({ error: 'malformed json from model', detail: text.slice(0, 500) }, 502);
-  }
+  const parsed = parseJsonLoose(resp);
+  if (!parsed) return json({ error: 'malformed json from model', detail: String(resp).slice(0, 500) }, 502);
   // Trust the model + the client-side embedding pre-filter. An earlier
   // version of this code also stripped any verdict whose evidence
   // sentence didn't contain a tag-name token, but that killed
@@ -227,8 +213,8 @@ async function handleApply(request, env) {
   // context supports the tag). The embedding pre-filter keeps unrelated
   // tags from reaching the model in the first place; the prompt rules
   // above tell the model when context-continuity is enough.
-  const verdicts = parsed.verdicts || [];
-  return json({ verdicts, usage: data.usage || null }, 200);
+  const verdicts = Array.isArray(parsed.verdicts) ? parsed.verdicts : [];
+  return json({ verdicts, usage: null }, 200);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -241,7 +227,7 @@ async function handleApply(request, env) {
 //   name === null → cards don't share a coherent theme OR the only honest
 //   name would duplicate an existing one. Either way: cluster gets rejected.
 async function handleClusterName(request, env) {
-  if (!env.OPENAI_API_KEY) return json({ error: 'openai key not configured' }, 500);
+  if (!env.AI) return json({ error: 'env.AI (Workers AI) binding not configured' }, 500);
   const body = await request.json().catch(() => null);
   if (!Array.isArray(body?.member_cards) || body.member_cards.length < 3) {
     return json({ error: 'need ≥3 member_cards' }, 400);
@@ -254,40 +240,19 @@ async function handleClusterName(request, env) {
     ? body.existing_names.slice(0, 100).map(n => String(n || '').slice(0, 80)).filter(Boolean)
     : [];
 
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'authorization': `Bearer ${env.OPENAI_API_KEY}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: CLUSTER_NAME_MODEL,
-      messages: [
-        { role: 'system', content: CLUSTER_NAME_SYSTEM_PROMPT },
-        { role: 'user', content: JSON.stringify({ cards: members, existing_names: existingNames }) },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'cluster_name',
-          strict: true,
-          schema: CLUSTER_NAME_RESPONSE_SCHEMA,
-        },
-      },
-    }),
-    signal: AbortSignal.timeout(60_000),
-  });
-  if (!r.ok) {
-    const err = await r.text();
-    return json({ error: `openai ${r.status}`, detail: err.slice(0, 500) }, 502);
+  let resp;
+  try {
+    resp = await runWorkersAiChat(env, CLUSTER_NAME_MODEL, CLUSTER_NAME_SYSTEM_PROMPT,
+      JSON.stringify({ cards: members, existing_names: existingNames })
+      + '\n\nReturn ONLY a JSON object: {"name": string|null, "description": string|null}. No markdown, no prose.',
+      { max_tokens: 300, temperature: 0.3 });
+  } catch (e) {
+    return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, 502);
   }
-  const data = await r.json();
-  const text = data?.choices?.[0]?.message?.content;
-  let parsed = null;
-  try { parsed = text ? JSON.parse(text) : null; } catch (_) {}
+  const parsed = parseJsonLoose(resp);
   if (!parsed) return json({ error: 'malformed json from model' }, 502);
   return json(
-    { name: parsed.name ?? null, description: parsed.description ?? null, usage: data.usage || null },
+    { name: parsed.name ?? null, description: parsed.description ?? null, usage: null },
     200,
   );
 }

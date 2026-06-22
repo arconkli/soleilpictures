@@ -103,12 +103,17 @@ export function SidebarTags({
     if (!workspaceId || !name || adopting) return;
     setAdopting(name);
     try {
+      // Prefer the (AI-derived) type carried on the candidate row over the
+      // local regex guess — the free Workers AI pass types these far better
+      // (e.g. organization/setting/thing the regex can't reach).
+      const cand = (candidateNames || []).find(c => String(c.name).toLowerCase() === String(name).toLowerCase());
+      const suggestedType = cand?.entity_type || guessEntityType(name);
       const tag = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
       if (tag?.id) {
         // Only type a genuinely-untyped tag — ensureTag returns the existing
         // row when a matching slug exists, so don't clobber its real type.
-        if (!tag.entity_type) { try { await setTagEntityType(tag.id, guessEntityType(name)); } catch (_) {} }
-        try { logEvent(EV.TAG_CANDIDATE_PROMOTE, { entity_type: tag.entity_type || guessEntityType(name), via: 'sidebar' }); } catch (_) {}
+        if (!tag.entity_type) { try { await setTagEntityType(tag.id, suggestedType); } catch (_) {} }
+        try { logEvent(EV.TAG_CANDIDATE_PROMOTE, { entity_type: tag.entity_type || suggestedType, via: 'sidebar' }); } catch (_) {}
       }
       onWorkspaceTagsChanged?.();
     } catch (err) {

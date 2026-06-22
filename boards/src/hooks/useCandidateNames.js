@@ -19,12 +19,30 @@
 //             each reload so consumers can force a decoration repaint.
 //   refresh — () => void, force-refetches get_candidate_names.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { createNameIndex } from '../lib/entityNameTrie.js';
+import { classifyCandidates } from '../lib/candidatesAiClient.js';
 
-const CACHE = new Map(); // workspaceId → { rows, ts }
+const CACHE = new Map(); // workspaceId → { rows, ts, enriched }
 const TTL_MS = 60_000;
+
+// Merge the free Workers AI "type + confirm" verdicts into the deterministic
+// rows: drop names the model rates as non-entities (keep=false), and adopt
+// the AI's entity type. Returns a NEW rows array; never throws.
+function mergeVerdicts(rows, verdicts) {
+  if (!Array.isArray(verdicts) || verdicts.length === 0) return rows;
+  const byName = new Map(verdicts.map((v) => [String(v.name || '').toLowerCase(), v]));
+  const out = [];
+  for (const row of (rows || [])) {
+    const v = byName.get(String(row.name || '').toLowerCase());
+    if (v && v.keep === false) continue; // AI says not a real entity → drop
+    out.push(v
+      ? { ...row, entity_type: v.type || row.entity_type, ai_confidence: v.confidence ?? null }
+      : row);
+  }
+  return out;
+}
 
 function buildIndex(rows) {
   const idx = createNameIndex();
@@ -50,13 +68,37 @@ export function useCandidateNames(workspaceId) {
   // The raw {name,n,sample} rows too — the sidebar's "Emerging" lane lists
   // them (the trie is for editor matching). Shares the cache + change-event.
   const [names, setNames] = useState([]);
+  // Monotonic request id so a slow AI enrichment from a previous workspace /
+  // load can't clobber the current view.
+  const reqRef = useRef(0);
+
+  const apply = useCallback((rows) => {
+    setIndex(buildIndex(rows || []));
+    setNames(rows || []);
+  }, []);
+
+  // Fire the free Workers AI "type + confirm" pass, then merge + repaint.
+  // The Worker only calls the model for never-seen names (per-candidate
+  // cache), so this is ~free at steady state. Purely additive: null verdicts
+  // leave the deterministic rows untouched.
+  const enrich = useCallback(async (wsId, rows, reqId) => {
+    if (!rows || rows.length === 0) return;
+    const verdicts = await classifyCandidates(wsId, rows);
+    if (!verdicts || reqRef.current !== reqId) return;
+    const merged = mergeVerdicts(rows, verdicts);
+    CACHE.set(wsId, { rows: merged, ts: Date.now(), enriched: true });
+    if (reqRef.current === reqId) apply(merged);
+  }, [apply]);
 
   const load = useCallback(async (force = false) => {
-    if (!supabase || !workspaceId) { setIndex(createNameIndex()); setNames([]); return; }
+    if (!supabase || !workspaceId) { apply([]); return; }
+    const reqId = ++reqRef.current;
     const cached = CACHE.get(workspaceId);
     if (!force && cached && (Date.now() - cached.ts) < TTL_MS) {
-      setIndex(buildIndex(cached.rows));
-      setNames(cached.rows);
+      apply(cached.rows);
+      // If the cached rows were never AI-enriched (e.g. AI was down on the
+      // first load), try once now — still cheap (mostly server cache hits).
+      if (!cached.enriched) enrich(workspaceId, cached.rows, reqId);
       return;
     }
     try {
@@ -64,13 +106,14 @@ export function useCandidateNames(workspaceId) {
         p_workspace_id: workspaceId,
       });
       if (error) throw error;
-      CACHE.set(workspaceId, { rows: data || [], ts: Date.now() });
-      setIndex(buildIndex(data || []));
-      setNames(data || []);
+      const rows = data || [];
+      CACHE.set(workspaceId, { rows, ts: Date.now(), enriched: false });
+      if (reqRef.current === reqId) apply(rows); // paint deterministic immediately
+      enrich(workspaceId, rows, reqId);           // then enrich in the background
     } catch (_) {
       // Non-fatal — candidates are an enhancement; keep the prior index.
     }
-  }, [workspaceId]);
+  }, [workspaceId, apply, enrich]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -14,6 +14,7 @@
 
 import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY } from './worker-seo.js';
+import { handleAiRoute } from './worker-ai.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 
 const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
@@ -241,6 +242,7 @@ export default {
       if (url.pathname === '/api/og') return await handleOg(url, request);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
+      if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
