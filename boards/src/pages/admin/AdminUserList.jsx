@@ -9,7 +9,7 @@
 import { useEffect, useRef } from 'react';
 import { Icon } from '../../components/Icon.jsx';
 import { ArrowsClockwise, User as UsersIcon } from '../../lib/icons.js';
-import { relativeTime } from '../../lib/adminFormat.js';
+import { relativeTime, formatBytes, formatCount } from '../../lib/adminFormat.js';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { Avatar, SourceBadge, PresenceDot, channelLabel } from './AdminUserDetailParts.jsx';
 
@@ -39,6 +39,11 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
   const unverified = row.email_confirmed === false || !row.last_sign_in_at;
   const unverifiedReason = row.email_confirmed === false ? 'Email not confirmed' : 'Never signed in';
   const name = row.display_name || (row.email || '').split('@')[0] || row.email;
+  // Usage at a glance: paid/admin live on storage; free tiers live on the
+  // card cap. Show whichever matters for the tier.
+  const paid = row.tier === 'paid' || row.tier === 'admin';
+  const usageText = paid ? formatBytes(row.storage_bytes || 0) : `${formatCount(row.card_count || 0)} cards`;
+  const usageTitle = paid ? 'Storage used' : 'Cards created';
   return (
     <li
       id={`admin-user-${row.user_id}`}
@@ -68,6 +73,9 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
         {ghost && <span className="admin-badge-ghost" title="Signed up but never joined the waitlist">ghost</span>}
       </div>
       <div className="admin-user-meta">
+        <span className="admin-muted" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }} title={usageTitle}>
+          {usageText}
+        </span>
         <span className={`admin-user-tierdot tier-${TIERS.includes(row.tier) ? row.tier : 'demo'}`} title={`Tier: ${row.tier}`}>
           {row.tier}
         </span>

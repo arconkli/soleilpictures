@@ -17,7 +17,7 @@ import {
 } from '../../lib/icons.js';
 import { formatDuration } from '../../lib/formatDuration.js';
 import {
-  formatCount, formatMoney, formatExpires, fmtDate, relativeTime,
+  formatCount, formatMoney, formatExpires, fmtDate, relativeTime, formatBytes,
 } from '../../lib/adminFormat.js';
 import { StatusPill } from './AdminPills.jsx';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
@@ -99,7 +99,19 @@ function EngagementSection({ eng, tier, lastSignInAt, device }) {
         <Row label="Last active"><PresenceDot lastSeenAt={eng.last_seen_at} /></Row>
         {lastSignInAt && <Row label="Last sign-in">{relativeTime(lastSignInAt)}</Row>}
         {tier === 'demo' && (
-          <Row label="Demo cards">{formatCount(eng.demo_card_count)} / {eng.demo_card_cap || 100}</Row>
+          <Row label="Demo cards">
+            {formatCount(eng.demo_card_count)} / {eng.effective_card_limit || eng.demo_card_cap || 100}
+            {eng.bonus_card_credits > 0 && (
+              <span className="is-muted" style={{ marginLeft: 6 }}>(+{formatCount(eng.bonus_card_credits)} from referrals)</span>
+            )}
+          </Row>
+        )}
+        {(tier === 'paid' || tier === 'admin') && eng.storage && (
+          <Row label="Storage">
+            <span className="is-strong">{formatBytes(eng.storage.used_bytes)}</span>
+            {eng.storage.quota_bytes ? <span className="is-muted"> / {formatBytes(eng.storage.quota_bytes)}</span> : null}
+            {eng.storage.image_count > 0 && <span className="is-muted"> · {formatCount(eng.storage.image_count)} files</span>}
+          </Row>
         )}
         <Row label="Device">
           {last?.device_type ? (

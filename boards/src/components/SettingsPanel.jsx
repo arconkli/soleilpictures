@@ -302,6 +302,9 @@ export function SettingsPanel({
 // ── Profile tab (today's AccountSettings, lifted in) ────────────────────
 function ProfileTab({ user, workspaceId, onSaved }) {
   const feedback = useFeedback();
+  // Storage is a paid feature; surface the gauge here (the default account
+  // view) so paid users see it without digging into the Billing tab.
+  const { tier } = useMyTier({ userId: user?.id });
   const [name, setName] = useState('');
   const [color, setColor] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -430,6 +433,7 @@ function ProfileTab({ user, workspaceId, onSaved }) {
       <Field label="Email">
         <div className="settings-readonly">{user?.email || '—'}</div>
       </Field>
+      {tier === 'paid' && <StorageMeter />}
       <div className="settings-row-actions">
         <span style={{ flex: 1 }} />
         <button type="button" className="settings-btn settings-btn-primary"
@@ -885,10 +889,15 @@ function fmtBytes(b) {
 }
 
 // "X / 100 GB" usage meter for paid accounts (storage is a paid feature).
+// Shows used / quota, the live fill bar, and a remaining + percent sub-line so
+// it reads as a real usage gauge wherever it's mounted (Billing + Profile).
 function StorageMeter() {
   const usage = useStorageUsage({ enabled: true });
   const pct = usage.quota ? Math.min(100, (usage.used / usage.quota) * 100) : 0;
   const near = pct >= 90;
+  const remaining = usage.remaining != null
+    ? usage.remaining
+    : (usage.quota != null ? Math.max(0, usage.quota - usage.used) : null);
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
@@ -904,6 +913,13 @@ function StorageMeter() {
           transition: 'width .3s ease',
         }} />
       </div>
+      {!usage.loading && usage.quota != null && (
+        <div className="t-meta" style={{ marginTop: 6, fontVariantNumeric: 'tabular-nums', color: near ? '#ef4444' : 'var(--ink-3, #9aa0aa)' }}>
+          {remaining != null ? `${fmtBytes(remaining)} free` : ''}
+          {remaining != null ? ' · ' : ''}
+          {Math.round(pct)}% used
+        </div>
+      )}
     </div>
   );
 }
