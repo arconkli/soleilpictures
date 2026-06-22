@@ -29,8 +29,11 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
+  Paperclip, FileText, Square, Palette, Link, ListChecks,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { Sheet } from './shell/Sheet.jsx';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
@@ -1059,6 +1062,10 @@ export function CanvasSurface({
     useWorkspacePalettes(workspaceId);
   useEffect(() => { if (picker) ensureWorkspacePalettes(); }, [picker, ensureWorkspacePalettes]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
+  // captured when the sheet opens (viewport centre); null = closed.
+  const [mobileAdd, setMobileAdd] = useState(null);
+  const { isPhone } = useBreakpoint();
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   const feedback = useFeedback();
@@ -1611,24 +1618,24 @@ export function CanvasSurface({
   }, [selectedTool, arrowFrom, clientToCanvas]);
 
   // Mobile create: the phone bottom-nav "+" dispatches this document event
-  // (it can't reach the canvas mutators directly). We create a note at the
-  // viewport centre and auto-focus it — the lowest-friction first card, and
-  // the genuine first-card gesture (so it counts as real activation).
+  // (it can't reach the canvas mutators directly). We open the full add sheet
+  // anchored at the viewport centre; each picked action creates its card there
+  // and stamps noteCreateIntent('mobile_nav') so first-card activation still
+  // counts for whatever type the user chooses.
   // BOTH gates are load-bearing: the nav hides the "+" on read-only boards,
-  // but addNote → addCard has NO internal permission check, and a CustomEvent
+  // but the add mutators have NO internal permission check, and a CustomEvent
   // can be dispatched by anything, so the canEdit guard here is the actual
-  // enforcement. The boardId match keeps a split-pane dispatch from landing
-  // a note on the wrong pane.
+  // enforcement. The boardId match keeps a split-pane dispatch from opening
+  // the sheet on the wrong pane.
   useEffect(() => {
     const onAdd = (e) => {
       if (e.detail?.boardId !== board.id) return;
       if (!canEdit) return;
-      noteCreateIntent('mobile_nav');
       const rect = wrapRef.current?.getBoundingClientRect();
       const pos = rect
         ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
         : { x: 200, y: 200 };
-      mutators.addNote?.(pos);
+      setMobileAdd({ pos });
     };
     document.addEventListener('soleil-mobile-add-card', onAdd);
     return () => document.removeEventListener('soleil-mobile-add-card', onAdd);
@@ -5057,6 +5064,65 @@ export function CanvasSurface({
   };
   const closeBgMenu = () => setBgCtx(b => ({ ...b, open: false }));
 
+  // Single source of truth for the "add to board" actions, shared by the
+  // desktop right-click menu (buildBgMenu) and the phone bottom-nav "+" sheet.
+  // pos = canvas-space drop point; method = analytics label passed to
+  // noteCreateIntent ('context_menu' | 'mobile_nav'). `group` lets callers
+  // partition card-creating actions from annotations; `icon` is consumed by
+  // the mobile sheet and ignored by the context-menu renderer.
+  const buildAddActions = (pos, method) => [
+    { id: 'board',   group: 'card', label: 'Board',   icon: LayoutGrid,    run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
+    { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); mutators.addImageAt?.(pos); } },
+    { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
+    { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method); mutators.addNote?.(pos); } },
+    { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method); mutators.addDocCard?.(pos); } },
+    { id: 'shape',   group: 'card', label: 'Shape',   icon: Square,        run: () => { noteCreateIntent(method); mutators.addShape?.(pos, shapeOptions); } },
+    { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method); mutators.addPalette?.(pos); } },
+    { id: 'addurl',  group: 'card', label: 'Link', icon: Link, run: async () => {
+      const v = await feedback.prompt({
+        title: 'Add a link card',
+        label: 'URL',
+        placeholder: 'https://…',
+        confirmLabel: 'Add',
+      });
+      if (!v) return;
+      const url = v.trim();
+      if (!url) return;
+      const embed = detectEmbed(url);
+      let title = url;
+      try { title = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
+      const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const w = embed ? embed.defaultW : 280;
+      const h = embed ? embed.defaultH : 110;
+      const card = {
+        id: newId,
+        kind: 'link', source: url, link: url, title,
+        x: Math.max(8, Math.round(pos.x - w / 2)),
+        y: Math.max(8, Math.round(pos.y - h / 2)),
+        w, h,
+      };
+      if (embed) card.embed = embed;
+      mutators.addCard?.(card);
+      // Fire-and-forget OG fetch — when it resolves, patch the card
+      // with the preview fields and grow it to fit the image. Skip
+      // OG enrichment for embeds since the iframe is the preview.
+      if (!embed) {
+        fetchLinkPreview(url).then(p => {
+          if (!p) return;
+          const patch = {};
+          if (p.title) patch.title = p.title;
+          if (p.image) patch.image = p.image;
+          if (p.description) patch.description = p.description;
+          if (p.favicon) patch.favicon = p.favicon;
+          if (p.image) { patch.w = 280; patch.h = 290; }
+          if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
+        });
+      }
+    }},
+    { id: 'comment', group: 'note', label: 'Comment', icon: MessageCircle, run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
+    { id: 'vote',    group: 'note', label: 'Vote',    icon: ListChecks,    run: () => addVoteCardAt({ kind: 'point', x: pos.x, y: pos.y }) },
+  ];
+
   const buildBgMenu = () => {
     // Group context menu — opened by right-clicking a group label.
     // First so it short-circuits before the arrow + bg branches.
@@ -5159,59 +5225,18 @@ export function CanvasSurface({
     const pos = (bgCtx.open && Number.isFinite(bgCtx.x) && Number.isFinite(bgCtx.y))
       ? clientToCanvas(bgCtx.x, bgCtx.y)
       : (bgCtx.canvasPos || lastMouseCanvasRef.current);
+    // Shared add actions (see buildAddActions). The desktop menu keeps its
+    // own labels/structure: the 7 card types nest under an "Add" submenu,
+    // while Comment/Vote/Link stay top-level with their longer labels.
+    const addActions = buildAddActions(pos, 'context_menu');
+    const byId = (id) => addActions.find(a => a.id === id);
     return [
-      { id: 'add', label: 'Add', submenu: [
-        { id: 'board', label: 'Board',  run: () => { noteCreateIntent('context_menu'); mutators.addNewBoard?.(pos); } },
-        { id: 'image', label: 'Image',  run: () => { noteCreateIntent('context_menu'); mutators.addImageAt?.(pos); } },
-        { id: 'file',  label: 'File',   run: () => { noteCreateIntent('context_menu'); openFilePicker(pos); } },
-        { id: 'note',  label: 'Text note', run: () => { noteCreateIntent('context_menu'); mutators.addNote?.(pos); } },
-        { id: 'doc',   label: 'Doc',    run: () => { noteCreateIntent('context_menu'); mutators.addDocCard?.(pos); } },
-        { id: 'shape', label: 'Shape',  run: () => { noteCreateIntent('context_menu'); mutators.addShape?.(pos, shapeOptions); } },
-        { id: 'palette', label: 'Color palette', run: () => { noteCreateIntent('context_menu'); mutators.addPalette?.(pos); } },
-      ]},
-      { id: 'comment', label: 'Add comment', run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
-      { id: 'vote', label: 'Add vote', run: () => addVoteCardAt({ kind: 'point', x: pos.x, y: pos.y }) },
-      { id: 'addurl', label: 'Add link…', run: async () => {
-        const v = await feedback.prompt({
-          title: 'Add a link card',
-          label: 'URL',
-          placeholder: 'https://…',
-          confirmLabel: 'Add',
-        });
-        if (!v) return;
-        const url = v.trim();
-        if (!url) return;
-        const embed = detectEmbed(url);
-        let title = url;
-        try { title = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
-        const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-        const w = embed ? embed.defaultW : 280;
-        const h = embed ? embed.defaultH : 110;
-        const card = {
-          id: newId,
-          kind: 'link', source: url, link: url, title,
-          x: Math.max(8, Math.round(pos.x - w / 2)),
-          y: Math.max(8, Math.round(pos.y - h / 2)),
-          w, h,
-        };
-        if (embed) card.embed = embed;
-        mutators.addCard?.(card);
-        // Fire-and-forget OG fetch — when it resolves, patch the card
-        // with the preview fields and grow it to fit the image. Skip
-        // OG enrichment for embeds since the iframe is the preview.
-        if (!embed) {
-          fetchLinkPreview(url).then(p => {
-            if (!p) return;
-            const patch = {};
-            if (p.title) patch.title = p.title;
-            if (p.image) patch.image = p.image;
-            if (p.description) patch.description = p.description;
-            if (p.favicon) patch.favicon = p.favicon;
-            if (p.image) { patch.w = 280; patch.h = 290; }
-            if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
-          });
-        }
-      }},
+      { id: 'add', label: 'Add', submenu: addActions
+        .filter(a => a.group === 'card' && a.id !== 'addurl')
+        .map(a => ({ id: a.id, label: a.label, run: a.run })) },
+      { id: 'comment', label: 'Add comment', run: byId('comment').run },
+      { id: 'vote', label: 'Add vote', run: byId('vote').run },
+      { id: 'addurl', label: 'Add link…', run: byId('addurl').run },
       { divider: true },
       { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
         shortcut: `${cmdKey}V`, disabled: clipboardSize() === 0,
@@ -7883,6 +7908,28 @@ export function CanvasSurface({
         boardId={board?.id}
         boardName={board?.name}
       />
+
+      {/* Phone bottom-nav "+" → full add sheet. The action set mirrors the
+          desktop right-click Add menu (shared via buildAddActions). Close the
+          sheet before running so card auto-focus/editors aren't fighting the
+          sheet teardown. */}
+      {isPhone && mobileAdd && (
+        <Sheet open onClose={() => setMobileAdd(null)} title="Add to board" snap="half">
+          <div className="mobile-add-grid">
+            {buildAddActions(mobileAdd.pos, 'mobile_nav').map(a => (
+              <button
+                key={a.id}
+                type="button"
+                className="mobile-add-tile"
+                onClick={() => { setMobileAdd(null); a.run(); }}
+              >
+                <span className="mobile-add-ico" aria-hidden="true"><Icon as={a.icon} size={24} /></span>
+                <span className="mobile-add-lbl">{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </Sheet>
+      )}
 
       {/* Anchor the tool-options bar to the active selection when a
           single card is selected — easier to find ("hovers next to what
