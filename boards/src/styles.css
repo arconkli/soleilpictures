@@ -3084,6 +3084,11 @@ body {
   gap: 12px;
 }
 .tb-left, .tb-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* Reserve room at the topbar's right edge for the fixed demo UpgradeChip
+   (position:fixed; top:12px; right:14px) so it never overlaps Share/theme/split.
+   UpgradeChip publishes its own measured width to --upgrade-chip-gutter; the
+   property is 0 when no demo chip is mounted, so non-demo users reserve nothing. */
+.tb-right { padding-right: var(--upgrade-chip-gutter, 0px); }
 /* position:relative anchors the read-only banner directly under the
    view-pill; z-index lifts that banner (an abs-positioned child that
    overflows below the topbar) above the surface content below. */
@@ -17797,6 +17802,9 @@ button, [role="button"], a {
   }
   .topbar .tb-left,
   .topbar .tb-right { gap: 4px; }
+  /* On phone the UpgradeChip is repositioned below the topbar, so the desktop
+     right-edge gutter reservation is not wanted here — reclaim the full width. */
+  .topbar .tb-right { padding-right: 0; }
   .topbar .crumbs { max-width: 40vw; }
   .topbar {
     padding-left: max(8px, env(safe-area-inset-left));
