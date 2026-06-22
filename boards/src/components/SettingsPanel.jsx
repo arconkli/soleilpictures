@@ -16,6 +16,7 @@ import {
 } from '../lib/boardsApi.js';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { logClientError } from '../lib/errorReporting.js';
 import { supabase } from '../lib/supabase.js';
 import { uploadImage } from '../lib/uploads.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -721,16 +722,34 @@ function InviteTab({ user }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    Promise.all([getOrCreateMyReferralCode(), getMyReferralStats()])
-      .then(([c, s]) => {
+    setErr(false);
+    // allSettled, not all: a failure of ONE of these RPCs must not blank the
+    // whole tab. And log genuine failures — this surface used to swallow them
+    // silently, which hid a server-side referral-mint outage for a day.
+    Promise.allSettled([getOrCreateMyReferralCode(), getMyReferralStats()])
+      .then(([codeRes, statsRes]) => {
         if (cancelled) return;
+        if (codeRes.status === 'rejected') {
+          try { logClientError(codeRes.reason instanceof Error ? codeRes.reason : new Error(String(codeRes.reason)), { kind: 'referral', op: 'get_or_create_my_referral_code' }); } catch (_) {}
+        }
+        if (statsRes.status === 'rejected') {
+          try { logClientError(statsRes.reason instanceof Error ? statsRes.reason : new Error(String(statsRes.reason)), { kind: 'referral', op: 'get_my_referral_stats' }); } catch (_) {}
+        }
+        const c = codeRes.status === 'fulfilled' ? codeRes.value : null;
+        const s = statsRes.status === 'fulfilled' ? statsRes.value : null;
         const resolved = c || s?.code || null;
         setCode(resolved);
         setStats(s || null);
+        setErr(!resolved);   // only "couldn't load" when we have no link at all
         setLoading(false);
         try { logEvent(EV.REFERRAL_TAB_VIEW, { has_code: !!resolved }); } catch (_) {}
       })
-      .catch(() => { if (!cancelled) { setErr(true); setLoading(false); } });
+      .catch((e) => {
+        if (cancelled) return;
+        try { logClientError(e instanceof Error ? e : new Error(String(e)), { kind: 'referral', op: 'invite_tab_load' }); } catch (_) {}
+        setErr(true);
+        setLoading(false);
+      });
     return () => { cancelled = true; };
   }, [user?.id]);
 
