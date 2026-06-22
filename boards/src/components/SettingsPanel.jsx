@@ -12,11 +12,15 @@ import {
   getOwnProfile, saveOwnProfile,
   updateWorkspaceSettings,
   updateOwnSettings,
+  getOrCreateMyReferralCode, getMyReferralStats,
 } from '../lib/boardsApi.js';
+import { logEvent, logEventNow } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import { supabase } from '../lib/supabase.js';
 import { uploadImage } from '../lib/uploads.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
+import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { PricingModal } from './PricingModal.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { R2Image } from './R2Image.jsx';
@@ -28,6 +32,7 @@ import { startPortal } from '../lib/checkout.js';
 
 const TABS = [
   { id: 'profile',       label: 'Profile' },
+  { id: 'invite',        label: 'Invite & earn' },
   { id: 'billing',       label: 'Billing' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'defaults',      label: 'Defaults' },
@@ -192,9 +197,9 @@ export function SettingsPanel({
   //   workspace = cog-style settings (Defaults/Theme/Display)
   //   full      = every tab
   const visibleTabs = mode === 'account'
-    ? TABS.filter(t => t.id === 'profile' || t.id === 'billing' || t.id === 'notifications')
+    ? TABS.filter(t => t.id === 'profile' || t.id === 'invite' || t.id === 'billing' || t.id === 'notifications')
     : mode === 'workspace'
-      ? TABS.filter(t => t.id !== 'profile' && t.id !== 'billing' && t.id !== 'notifications')
+      ? TABS.filter(t => t.id !== 'profile' && t.id !== 'invite' && t.id !== 'billing' && t.id !== 'notifications')
       : TABS;
   const [tab, setTab] = useState(visibleTabs[0]?.id || 'profile');
   // If the user reopens the panel in a different mode, the previously
@@ -260,6 +265,9 @@ export function SettingsPanel({
             {tab === 'profile' && (
               <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved} />
             )}
+            {tab === 'invite' && (
+              <InviteTab user={user} />
+            )}
             {tab === 'billing' && (
               <BillingTab user={user} />
             )}
@@ -294,6 +302,9 @@ export function SettingsPanel({
 // ── Profile tab (today's AccountSettings, lifted in) ────────────────────
 function ProfileTab({ user, workspaceId, onSaved }) {
   const feedback = useFeedback();
+  // Storage is a paid feature; surface the gauge here (the default account
+  // view) so paid users see it without digging into the Billing tab.
+  const { tier } = useMyTier({ userId: user?.id });
   const [name, setName] = useState('');
   const [color, setColor] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -422,6 +433,7 @@ function ProfileTab({ user, workspaceId, onSaved }) {
       <Field label="Email">
         <div className="settings-readonly">{user?.email || '—'}</div>
       </Field>
+      {tier === 'paid' && <StorageMeter />}
       <div className="settings-row-actions">
         <span style={{ flex: 1 }} />
         <button type="button" className="settings-btn settings-btn-primary"
@@ -685,6 +697,124 @@ function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings
 //   paid      → plan + status + next renewal, "Manage billing →" (Stripe Portal)
 //   demo      → card count + "Upgrade to Creator" button (opens PricingModal)
 //   waitlist  → defensive note (this surface shouldn't be reachable)
+// ── Invite & earn tab — the permanent home for the referral link + stats ──
+// Two-sided: the friend starts with +25 bonus cards; the referrer earns +25
+// when that friend creates their first genuine card (granted server-side).
+function ReferralStat({ label, value, highlight }) {
+  return (
+    <div>
+      <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.1,
+                    color: highlight ? 'var(--soleil, #ffa500)' : 'var(--text-1, inherit)',
+                    fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div className="settings-billing-label" style={{ marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+function InviteTab({ user }) {
+  const feedback = useFeedback();
+  const [code, setCode] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([getOrCreateMyReferralCode(), getMyReferralStats()])
+      .then(([c, s]) => {
+        if (cancelled) return;
+        const resolved = c || s?.code || null;
+        setCode(resolved);
+        setStats(s || null);
+        setLoading(false);
+        try { logEvent(EV.REFERRAL_TAB_VIEW, { has_code: !!resolved }); } catch (_) {}
+      })
+      .catch(() => { if (!cancelled) { setErr(true); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // window.location.origin so the link is correct wherever the app runs
+  // (clusters.soleilpictures.com in prod). ?ref flows into signup metadata.
+  const link = code ? `${window.location.origin}/?ref=${code}` : '';
+  const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
+
+  const copy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      feedback.toast({ type: 'success', message: 'Invite link copied — share it anywhere.' });
+    } catch (_) {
+      feedback.toast({ type: 'info', message: link });
+    }
+    try { logEvent(EV.REFERRAL_LINK_COPIED, { surface: 'account_tab' }); } catch (_) {}
+  };
+
+  const share = async () => {
+    if (!link) return;
+    try { logEventNow(EV.REFERRAL_LINK_SHARED, { surface: 'account_tab' }); } catch (_) {}
+    try {
+      await navigator.share({
+        title: 'Clusters',
+        text: 'I’m using Clusters to organize ideas on an infinite canvas — here are 25 free cards to start.',
+        url: link,
+      });
+    } catch (_) { /* user cancelled the share sheet, or it’s unsupported */ }
+  };
+
+  if (loading) {
+    return <div className="settings-section"><div className="settings-empty">Loading…</div></div>;
+  }
+
+  return (
+    <div className="settings-section">
+      <h3 className="settings-section-title">Invite &amp; earn</h3>
+      <p className="settings-section-hint">
+        Share Clusters and you <b>both</b> get free cards. Your friend starts with
+        {' '}<b>25 bonus cards</b>; the moment they place their first card, <b>you earn 25 too</b>.
+        {' '}No limit — keep inviting, keep earning.
+      </p>
+
+      {err || !code ? (
+        <div className="settings-empty">Couldn’t load your invite link. Reopen this tab to try again.</div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              readOnly
+              value={link}
+              onFocus={(e) => e.target.select()}
+              aria-label="Your invite link"
+              style={{
+                flex: '1 1 240px', minWidth: 0, padding: '9px 12px', borderRadius: 10,
+                border: '1px solid var(--line-1, rgba(255,255,255,.14))',
+                background: 'var(--surface-2, rgba(255,255,255,.04))',
+                color: 'var(--text-1, inherit)', fontSize: 13,
+              }}
+            />
+            <button type="button" className="settings-btn settings-btn-primary" onClick={copy}>Copy link</button>
+            {canNativeShare && (
+              <button type="button" className="settings-btn" onClick={share}>Share…</button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 22, marginTop: 18, flexWrap: 'wrap' }}>
+            <ReferralStat label="Friends joined" value={stats?.friendsJoined ?? 0} />
+            <ReferralStat label="Got started"    value={stats?.friendsActivated ?? 0} />
+            <ReferralStat label="Cards earned"   value={stats?.cardsEarned ?? 0} highlight />
+          </div>
+          {stats?.pending > 0 && (
+            <p className="settings-section-hint" style={{ marginTop: 12 }}>
+              {stats.pending} {stats.pending === 1 ? 'friend has' : 'friends have'} joined but
+              {' '}haven’t placed their first card yet — you’ll earn 25 cards each when they do.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function BillingTab({ user }) {
   const feedback = useFeedback();
   const { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
@@ -749,6 +879,51 @@ function BillingTab({ user }) {
 // Billing tab and by the standalone /settings/billing page (the Stripe
 // Customer Portal return target). Callers own data fetching, error UI,
 // and the upgrade modal so each surface can keep its own framing.
+function fmtBytes(b) {
+  if (b == null) return '—';
+  const gb = b / (1024 ** 3);
+  if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
+  const mb = b / (1024 ** 2);
+  if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
+  return `${Math.round(b / 1024)} KB`;
+}
+
+// "X / 100 GB" usage meter for paid accounts (storage is a paid feature).
+// Shows used / quota, the live fill bar, and a remaining + percent sub-line so
+// it reads as a real usage gauge wherever it's mounted (Billing + Profile).
+function StorageMeter() {
+  const usage = useStorageUsage({ enabled: true });
+  const pct = usage.quota ? Math.min(100, (usage.used / usage.quota) * 100) : 0;
+  const near = pct >= 90;
+  const remaining = usage.remaining != null
+    ? usage.remaining
+    : (usage.quota != null ? Math.max(0, usage.quota - usage.used) : null);
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+        <span className="settings-billing-label">Storage</span>
+        <span className="settings-billing-value" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {usage.loading ? '…' : `${fmtBytes(usage.used)} / ${usage.quota != null ? fmtBytes(usage.quota) : '—'}`}
+        </span>
+      </div>
+      <div style={{ height: 6, borderRadius: 999, background: 'var(--line-1, rgba(255,255,255,.12))', overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', width: `${pct}%`, borderRadius: 999,
+          background: near ? '#ef4444' : 'var(--soleil, #ffa500)',
+          transition: 'width .3s ease',
+        }} />
+      </div>
+      {!usage.loading && usage.quota != null && (
+        <div className="t-meta" style={{ marginTop: 6, fontVariantNumeric: 'tabular-nums', color: near ? '#ef4444' : 'var(--ink-3, #9aa0aa)' }}>
+          {remaining != null ? `${fmtBytes(remaining)} free` : ''}
+          {remaining != null ? ' · ' : ''}
+          {Math.round(pct)}% used
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BillingSummary({
   tier, sub, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
   grantActive, grantExpiresAt, demoCardCount,
@@ -800,6 +975,8 @@ export function BillingSummary({
           </>
         )}
       </div>
+
+      {tier === 'paid' && <StorageMeter />}
 
       {grantLine && (
         <p className="settings-section-hint" style={{ marginTop: 8 }}>

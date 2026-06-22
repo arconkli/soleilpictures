@@ -8,14 +8,15 @@ import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 import { SignupFunnelPanel } from '../widgets/SignupFunnelPanel.jsx';
 import { AcquisitionBreakdown } from '../widgets/AcquisitionBreakdown.jsx';
+import { AdminReferralsSection } from '../widgets/AdminReferralsSection.jsx';
 import { DeviceBreakdown } from '../widgets/DeviceBreakdown.jsx';
 import { CloudflareAnalyticsLink } from '../widgets/CloudflareAnalyticsLink.jsx';
 
 export function AcquisitionView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
-    const [ab, fn, fb, dv] = await Promise.allSettled([
-      supabase.rpc('admin_acquisition_breakdown', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+    const [ab, fn, fb, dv, rf] = await Promise.allSettled([
+      supabase.rpc('admin_acquisition_breakdown', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_signup_funnel',         { p_days: f.days, p_source: f.source || null, p_campaign: f.campaign || null, p_content: f.content || null, p_exclude_internal: f.excludeInternal }),
       // The FB/IG segment is its OWN funnel shape (admin_fb_funnel) — fbclid ad
       // traffic skips the waitlist for instant demo, so it models the actual
@@ -25,12 +26,15 @@ export function AcquisitionView() {
       supabase.rpc('admin_fb_funnel',             { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       // Device mix (type/os/browser) — graceful via val(); never blocks the funnel.
       supabase.rpc('admin_device_breakdown',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      // Referral growth loop (invite → join → activate → cards). Graceful via
+      // val() — a failure renders the referral panel empty, never the funnel.
+      supabase.rpc('admin_referral_stats',        { p_days: f.days, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
     if (fn.status !== 'fulfilled' || fn.value.error) throw errOf(fn) || new Error('Failed to load funnel');
-    return { acquisition: val(ab) || [], steps: val(fn) || [], fbSteps: val(fb) || [], device: val(dv) || null };
-  }, [f.days, f.source, f.campaign, f.content, f.excludeInternal]);
+    return { acquisition: val(ab) || [], steps: val(fn) || [], fbSteps: val(fb) || [], device: val(dv) || null, referrals: val(rf) || null };
+  }, [f.days, f.source, f.campaign, f.content, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
@@ -40,6 +44,7 @@ export function AcquisitionView() {
         <h2 className="admin-section-title">Acquisition</h2>
         <div className="admin-section-sub">First-touch source attribution and the segment-filtered signup funnel.</div>
         <AcquisitionBreakdown rows={q.data?.acquisition || []} days={f.days} />
+        <AdminReferralsSection data={q.data?.referrals} days={f.days} />
         <DeviceBreakdown data={q.data?.device} days={f.days} />
         <SignupFunnelPanel steps={q.data?.steps || []} days={f.days}
           title="Funnel for this segment" sub="filtered by the source / campaign / creative selectors above" />

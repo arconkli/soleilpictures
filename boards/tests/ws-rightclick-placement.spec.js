@@ -12,11 +12,11 @@ import { expect, test } from '@playwright/test';
 // and compare it to the created card's measured center, also in canvas space.
 
 const TOL = 2; // canvas px (mutators Math.round + sub-pixel rounding)
-// Local-mode addNote creation size (LocalBoardsApp.jsx addNote). We assert the
-// card's TOP-LEFT against (cursor − half creation size): top-left is fixed at
-// creation, so it stays correct even though an empty note auto-resizes its
-// HEIGHT shortly after mount (which would skew a center-based check).
-const NOTE_W = 240, NOTE_H = 160;
+// Local-mode addNote creation width (LocalBoardsApp.jsx addNote). A new note is
+// HORIZONTALLY centered on the cursor but TOP-anchored to it (top edge at the
+// click), because the note auto-sizes its height down after mount — so we
+// assert top-left = (cursor.x − NOTE_W/2, cursor.y).
+const NOTE_W = 240;
 
 // Open the background context menu via a synthetic contextmenu event, picking
 // an empty point inside the canvas. Optionally fire a wheel-pan burst FIRST, in
@@ -91,8 +91,8 @@ async function runScenario(page, { wheel } = {}) {
   await expect.poll(async () => (await cardIds(page)).length).toBeGreaterThan(before.length);
   const card = await newCardTopLeft(page, before);
   expect(card, 'new card should exist').not.toBeNull();
-  // Expected top-left if the card is centered on the cursor at creation size.
-  const expLeft = exp.x - NOTE_W / 2, expTop = exp.y - NOTE_H / 2;
+  // Expected top-left: horizontally centered on the cursor, top edge AT the cursor.
+  const expLeft = exp.x - NOTE_W / 2, expTop = exp.y;
   const out = {
     zoom: Number(exp.zoom.toFixed(3)),
     expTopLeft: { x: Math.round(expLeft), y: Math.round(expTop) },
@@ -146,5 +146,42 @@ test.describe('right-click Add drops the card centered on the cursor', () => {
     const { dx, dy } = await runScenario(page, { wheel: { dx: 160, dy: 120 } });
     expect(dx).toBeLessThanOrEqual(TOL);
     expect(dy).toBeLessThanOrEqual(TOL);
+  });
+
+  // Touch parity: long-press (the mobile "right-click") opens the same
+  // background menu and must place at the touch point. Drives the
+  // useLongPress path (CanvasSurface.jsx onLongPress → clientToCanvas).
+  test('touch long-press Add drops the card centered on the touch point', async ({ page }) => {
+    await page.goto('/?local=1&reset=1');
+    await expect(page.locator('.canvas-wrap')).toBeVisible();
+    const before = await cardIds(page);
+    const exp = await page.evaluate(() => {
+      const wrap = document.querySelector('.canvas-wrap');
+      const r = wrap.getBoundingClientRect();
+      let cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5, found = false;
+      for (let fy = 0.25; fy <= 0.75 && !found; fy += 0.07) {
+        for (let fx = 0.25; fx <= 0.75 && !found; fx += 0.07) {
+          const x = r.left + r.width * fx, y = r.top + r.height * fy;
+          const el = document.elementFromPoint(x, y);
+          if (el && el.closest('.canvas-wrap') && !el.closest('.card')) { cx = x; cy = y; found = true; }
+        }
+      }
+      // Primary touch pointerdown, held in place — the long-press timer
+      // (480ms) fires onLongPress(clientX, clientY) which opens the menu.
+      wrap.dispatchEvent(new PointerEvent('pointerdown', {
+        clientX: cx, clientY: cy, pointerType: 'touch', isPrimary: true,
+        button: 0, bubbles: true, cancelable: true,
+      }));
+      const m = new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.canvas')).transform);
+      return { cx, cy, x: (cx - r.left - m.e) / m.a, y: (cy - r.top - m.f) / m.a };
+    });
+    // Wait out the 480ms long-press timer, then place via the menu.
+    await expect(page.locator('.ctx-menu')).toBeVisible({ timeout: 2000 });
+    await addTextNoteViaMenu(page);
+    await expect.poll(async () => (await cardIds(page)).length).toBeGreaterThan(before.length);
+    const card = await newCardTopLeft(page, before);
+    expect(card, 'new card should exist').not.toBeNull();
+    expect(Math.abs(card.left - (exp.x - NOTE_W / 2))).toBeLessThanOrEqual(TOL);
+    expect(Math.abs(card.top - exp.y)).toBeLessThanOrEqual(TOL);
   });
 });

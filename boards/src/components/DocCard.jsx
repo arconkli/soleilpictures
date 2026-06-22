@@ -56,7 +56,18 @@ export function RichDocCard({
   // Augment cardScope with the card's id under both `cardId` and
   // `docCardId` so downstream callers (DocSurface header, link/page-
   // index sync) can identify which card this scope belongs to.
-  const scope = cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id } : null;
+  //
+  // MUST be memoized: cardScope() returns a fresh object literal, and an
+  // unstable `scope` identity makes every downstream effect that deps on it
+  // re-run each render. That silently broke the doc_page_index sync — its 2s
+  // debounce was cleared on every re-render before it could ever fire, so
+  // NO doc ever got indexed (which also starved candidate-name detection,
+  // "Appears in docs", and doc tag-search). cardYMap (= a stable Yjs map
+  // child) + card.id are stable, and cardScope only reads stable Y-type refs.
+  const scope = useMemo(
+    () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id } : null),
+    [cardYMap, card.id],
+  );
   // New docs no longer auto-open their full editor — autoFocus now means
   // "focus the title for renaming," letting the user rename + place the
   // card on the canvas first. The full editor opens on double-click,
@@ -81,6 +92,27 @@ export function RichDocCard({
   // ≈ a paragraph-and-a-half of body copy at the preview's font size.
   const summary = (ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : { pages: [], firstText: '', firstPageName: '' };
   const pageCount = summary.pages.length;
+
+  // Keep the closed-card preview fresh on content edits. This used to ride on
+  // readCards re-hashing the whole doc every board keystroke (a perf cliff now
+  // removed in yhelpers.cardHash) — observe THIS card's own doc store instead,
+  // rAF-coalesced so a burst of edits triggers one refresh.
+  useEffect(() => {
+    if (!ydoc || !cardYMap) return;
+    const sc = cardScope(cardYMap);
+    const targets = [sc.content, sc.pages, sc.sheetContent].filter(Boolean);
+    if (!targets.length) return;
+    let raf = 0;
+    const bump = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; setPreviewKey((n) => n + 1); });
+    };
+    targets.forEach((t) => t.observeDeep(bump));
+    return () => {
+      targets.forEach((t) => t.unobserveDeep(bump));
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [ydoc, cardYMap]);
 
   // Public viewers can open docs too — read-only, and always FULLSCREEN
   // (side mode's dock layout assumes the workspace topbar, and the dock
@@ -112,6 +144,11 @@ export function RichDocCard({
     window.addEventListener('pointercancel', onCancel);
   };
   const close = () => {
+    // Flush the last ~250ms of typing synchronously on the close ACTION (App's
+    // soleil-doccard-unmount handler calls yboard.flushNow) rather than relying
+    // solely on the overlay's later unmount-effect — so closing then
+    // immediately leaving the tab can't drop the tail of an edit.
+    try { document.dispatchEvent(new CustomEvent('soleil-doccard-unmount', { detail: { cardId: card.id } })); } catch (_) {}
     setMode('closed');
     setPreviewKey((n) => n + 1);
   };
@@ -329,6 +366,14 @@ function DocCardOverlay({
         <div className="doc-card-side-divider"
              style={{ right: widthPct, top: 42 }}
              onPointerDown={onDividerDown} />
+      )}
+      {/* Full mode: a scrim behind the inset modal so the 24px frame isn't a
+          live canvas hit-zone (a pointerdown there used to start a pan/marquee
+          behind the "fullscreen" doc). Click to close. */}
+      {mode === 'full' && (
+        <div className="doc-card-modal-backdrop"
+             onPointerDown={(e) => e.stopPropagation()}
+             onClick={onClose} />
       )}
       <div className={`doc-card-modal doc-card-modal-${mode}`}
            // Position via inline style. IMPORTANT: declare `inset` FIRST,

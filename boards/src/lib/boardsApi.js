@@ -170,6 +170,31 @@ export async function getOwnProfile() {
   return data || null;
 }
 
+// Referral: mint (or fetch) the caller's personal invite code. The code is a
+// short, URL-safe handle that goes in the shareable ?ref=<code> link. The RPC
+// is idempotent — first call mints, later calls return the same code.
+export async function getOrCreateMyReferralCode() {
+  const { data, error } = await supabase.rpc('get_or_create_my_referral_code');
+  if (error) throw error;
+  return data || null;
+}
+
+// Referral: the caller's invite stats for the "Invite & earn" tab —
+// { code, friends_joined, friends_activated, pending, cards_earned }. Always
+// returns one row (zeros when no referrals yet).
+export async function getMyReferralStats() {
+  const { data, error } = await supabase.rpc('get_my_referral_stats');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    code:              row?.code || null,
+    friendsJoined:     Number(row?.friends_joined ?? 0),
+    friendsActivated:  Number(row?.friends_activated ?? 0),
+    pending:           Number(row?.pending ?? 0),
+    cardsEarned:       Number(row?.cards_earned ?? 0),
+  };
+}
+
 // Atomic merge-patch into the caller's profile.settings. The RPC
 // upserts the row if needed, then merges top-level keys.
 export async function updateOwnSettings(patch) {
@@ -1515,4 +1540,20 @@ export async function updateBacklinks({ workspaceId, docCardId, pageId, links })
     console.warn('entity_links insert failed', ins2.error);
   }
   return { ok: true, count: legacyRows.length };
+}
+
+// Delete the derived-index rows a doc card authored (its page text + outgoing
+// backlinks/entity-links) when the doc card itself is deleted — otherwise the
+// universal "Appears in" hover, backlinks, and home graph keep surfacing a doc
+// that no longer exists. Source rows only (undo-safe: reopening a restored doc
+// re-syncs them via syncDocPageIndex/updateBacklinks). Fire-and-forget.
+export async function cleanupDocCards(docCardIds) {
+  if (!supabase || !docCardIds?.length) return;
+  for (const id of docCardIds) {
+    try {
+      await supabase.from('doc_page_index').delete().eq('doc_card_id', id);
+      await supabase.from('doc_backlinks').delete().eq('source_doc_card_id', id);
+      await supabase.from('entity_links').delete().eq('source_kind', 'doc').eq('source_id', id);
+    } catch (e) { console.warn('cleanupDocCards failed for', id, e); }
+  }
 }

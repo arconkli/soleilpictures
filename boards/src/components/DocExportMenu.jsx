@@ -7,9 +7,22 @@
 // in the system dialog.
 
 import { useEffect, useRef, useState } from 'react';
+import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown, collectFullDocJSON } from '../lib/docFullExport.js';
+import {
+  jsonToFountain, fountainToBlocks, jsonToFdx, fdxToBlocks, blocksToDocJSON, docJSONToBlocks,
+  parseFountainTitlePage, fdxToTitlePage,
+} from '../lib/screenplayIO.js';
+import { screenplayPrintHTML } from '../lib/screenplayPrint.js';
+import { docPrintCSS } from '../lib/docTypography.js';
+import { getTitlePage, setTitlePage, getSceneNumbersShow } from '../lib/docState.js';
 
-export function DocExportMenu({ editor, docName }) {
+// Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
+// EVERY sheet (the single-focused-sheet path was silent data loss); the bare
+// `editor` is only a fallback for the rare caller without doc state.
+// Screenplay docs additionally get Fountain/FDX export + import.
+export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc' }) {
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -34,54 +47,120 @@ export function DocExportMenu({ editor, docName }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  // WYSIWYG: the exported HTML / printed PDF uses the SAME typography as the
+  // on-screen editor (docPrintCSS is the white-paper twin of the .tt-editor
+  // rules in styles.css). User-applied font/size/colour/highlight/alignment
+  // marks render as inline styles from generateHTML and sit on top of this.
   const printableHTML = (bodyHTML) => `<!doctype html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(safeName)}</title>
-<style>
-  body { font-family: ui-serif, Georgia, "Iowan Old Style", serif; font-size: 12pt; line-height: 1.6; color: #111; max-width: 720px; margin: 40px auto; padding: 0 20px; }
-  h1 { font-size: 28pt; margin: 1.2em 0 .3em; }
-  h2 { font-size: 20pt; margin: 1.2em 0 .3em; }
-  h3 { font-size: 15pt; margin: 1em 0 .3em; }
-  h4, h5, h6 { margin: 1em 0 .3em; }
-  p { margin: .5em 0; }
-  ul, ol { padding-left: 24px; }
-  blockquote { border-left: 3px solid #ccc; padding: .2em 12px; color: #444; font-style: italic; }
-  code { background: #f4f4f5; border-radius: 3px; padding: 1px 4px; font-family: ui-monospace, monospace; }
-  pre { background: #f4f4f5; border-radius: 6px; padding: 12px; overflow: auto; }
-  pre code { background: transparent; padding: 0; }
-  hr { border: 0; border-top: 1px solid #ddd; margin: 1.6em 0; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #ddd; padding: 6px 9px; text-align: left; }
-  th { background: #f4f4f5; }
-  img { max-width: 100%; height: auto; border-radius: 4px; }
-  a { color: #2563eb; }
-  mark { background: #fff7a8; }
-  ul[data-type="taskList"] { list-style: none; padding-left: 4px; }
-  ul[data-type="taskList"] li { display: flex; gap: 8px; align-items: flex-start; }
-</style></head><body>${bodyHTML}</body></html>`;
+<style>${docPrintCSS}</style></head><body>${bodyHTML}</body></html>`;
 
-  const exportHTML = () => {
-    if (!editor) return;
-    const bodyHTML = editor.getHTML();
-    downloadBlob(new Blob([printableHTML(bodyHTML)], { type: 'text/html' }), 'html');
-    setOpen(false);
+  // Whole-doc body HTML (all pages × sheets, assets resolved). Falls back to
+  // the focused editor only when doc state isn't available.
+  const fullBodyHtml = async () => {
+    if (ydoc) return collectFullDocHtml(ydoc, scope);
+    return editor ? editor.getHTML() : '';
   };
 
-  const exportMarkdown = () => {
-    if (!editor) return;
-    const md = jsonToMarkdown(editor.getJSON());
-    downloadBlob(new Blob([md], { type: 'text/markdown' }), 'md');
-    setOpen(false);
+  const exportHTML = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const bodyHTML = await fullBodyHtml();
+      downloadBlob(new Blob([printableHTML(bodyHTML)], { type: 'text/html' }), 'html');
+      setOpen(false);
+    } finally { setBusy(false); }
   };
 
-  const exportPDF = () => {
-    if (!editor) return;
-    const bodyHTML = editor.getHTML();
+  const exportMarkdown = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const md = ydoc ? await collectFullDocMarkdown(ydoc, scope)
+                      : (editor ? jsonToMarkdown(editor.getJSON()) : '');
+      downloadBlob(new Blob([md], { type: 'text/markdown' }), 'md');
+      setOpen(false);
+    } finally { setBusy(false); }
+  };
+
+  const exportPDF = async () => {
+    if (busy) return;
+    setBusy(true);
+    // Open the print window synchronously (popup-blockers require it be tied to
+    // the click) and fill it once the async body resolves.
     const w = window.open('', '_blank', 'noopener');
-    if (!w) return;
-    w.document.write(printableHTML(bodyHTML));
-    w.document.close();
-    // Trigger the system print dialog — user chooses "Save as PDF".
-    setTimeout(() => { try { w.focus(); w.print(); } catch (_) {} }, 300);
+    try {
+      // Screenplay docs print from the line-accurate paginator (Courier, 1"
+      // margins, page numbers, MORE/CONT'D) so the PDF matches on-screen pages.
+      let html;
+      if (docMode === 'screenplay') {
+        const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+        const sceneNumbers = ydoc ? getSceneNumbersShow(ydoc, scope) : false;
+        const fontBaseUrl = typeof location !== 'undefined' ? location.origin : '';
+        html = screenplayPrintHTML(docJSONToBlocks(scriptBlocks()), { title: safeName, titlePage, fontBaseUrl, sceneNumbers });
+      } else {
+        html = printableHTML(await fullBodyHtml());
+      }
+      if (!w) return;
+      w.document.write(html);
+      w.document.close();
+      // Print once fonts are ready so Courier metrics are correct (no FOUT-driven
+      // re-pagination); fall back to a short delay if fonts.ready is unavailable.
+      const doPrint = () => { try { w.focus(); w.print(); } catch (_) {} };
+      const fontsReady = w.document.fonts && w.document.fonts.ready;
+      if (fontsReady && typeof fontsReady.then === 'function') {
+        fontsReady.then(() => setTimeout(doPrint, 50)).catch(() => setTimeout(doPrint, 300));
+      } else {
+        setTimeout(doPrint, 300);
+      }
+      setOpen(false);
+    } finally { setBusy(false); }
+  };
+
+  const scriptBlocks = () => {
+    if (ydoc) return collectFullDocJSON(ydoc, scope);
+    return editor ? editor.getJSON() : { type: 'doc', content: [] };
+  };
+  const exportFountain = () => {
+    const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+    downloadBlob(new Blob([jsonToFountain(scriptBlocks(), titlePage)], { type: 'text/plain' }), 'fountain');
+    setOpen(false);
+  };
+  const exportFdx = () => {
+    const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+    downloadBlob(new Blob([jsonToFdx(scriptBlocks(), titlePage)], { type: 'application/xml' }), 'fdx');
+    setOpen(false);
+  };
+  const importScript = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.fountain,.txt,.fdx,application/xml,text/plain';
+    input.onchange = async () => {
+      const f = input.files?.[0]; if (!f) return;
+      try {
+        const text = await f.text();
+        const isFdx = /\.fdx$/i.test(f.name) || /<FinalDraft/i.test(text);
+        let blocks, titlePage = null;
+        if (isFdx) {
+          blocks = fdxToBlocks(text);
+          titlePage = fdxToTitlePage(text);
+        } else {
+          const parsed = parseFountainTitlePage(text);
+          titlePage = parsed.titlePage;
+          blocks = fountainToBlocks(parsed.body);
+        }
+        if (!blocks.length && !titlePage) return;
+        if (editor) {
+          // Replace the focused sheet's content. Undoable via ⌘Z; confirm only
+          // when there's existing content to clobber.
+          if (!editor.isEmpty && !window.confirm('Replace this document with the imported screenplay?')) return;
+          editor.chain().focus().setContent(blocksToDocJSON(blocks)).run();
+        }
+        // Import the title page (enable it) — it lives in docMeta, not the editor.
+        if (titlePage && ydoc) setTitlePage(ydoc, scope, { enabled: true, ...titlePage });
+      } catch (_) { /* malformed file — no-op */ }
+    };
+    input.click();
     setOpen(false);
   };
 
@@ -99,9 +178,17 @@ export function DocExportMenu({ editor, docName }) {
       </button>
       {open && (
         <div className="doc-export-menu" role="menu">
-          <button onClick={exportHTML}>Export HTML</button>
-          <button onClick={exportMarkdown}>Export Markdown</button>
-          <button onClick={exportPDF}>Print / Save as PDF</button>
+          {docMode === 'screenplay' && (
+            <>
+              <button role="menuitem" onClick={exportFountain}>Export Fountain (.fountain)</button>
+              <button role="menuitem" onClick={exportFdx}>Export Final Draft (.fdx)</button>
+              <button role="menuitem" onClick={importScript}>Import Fountain / Final Draft…</button>
+              <div className="doc-export-sep" role="separator" />
+            </>
+          )}
+          <button role="menuitem" onClick={exportHTML}>Export HTML</button>
+          <button role="menuitem" onClick={exportMarkdown}>Export Markdown</button>
+          <button role="menuitem" onClick={exportPDF}>Print / Save as PDF</button>
         </div>
       )}
     </span>
@@ -110,99 +197,4 @@ export function DocExportMenu({ editor, docName }) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
-}
-
-// Tiptap JSON → GFM-flavored Markdown. Covers the blocks our editor produces:
-// paragraph, heading, bulletList/orderedList/taskList, listItem, taskItem,
-// blockquote, codeBlock, code (inline), bold, italic, strike, underline (HTML),
-// link, image, hardBreak, horizontalRule, table.
-function jsonToMarkdown(doc) {
-  const out = [];
-  const renderInline = (nodes = []) => nodes.map(renderInlineNode).join('');
-  const renderInlineNode = (n) => {
-    if (n.type === 'text') return wrapMarks(n.text || '', n.marks || []);
-    if (n.type === 'hardBreak') return '  \n';
-    if (n.type === 'image') return `![${n.attrs?.alt || ''}](${n.attrs?.src || ''})`;
-    return '';
-  };
-  const wrapMarks = (text, marks) => {
-    let s = text;
-    for (const m of marks) {
-      if (m.type === 'bold') s = `**${s}**`;
-      else if (m.type === 'italic') s = `*${s}*`;
-      else if (m.type === 'strike') s = `~~${s}~~`;
-      else if (m.type === 'code') s = `\`${s}\``;
-      else if (m.type === 'underline') s = `<u>${s}</u>`;
-      else if (m.type === 'link') s = `[${s}](${m.attrs?.href || ''})`;
-      else if (m.type === 'highlight') s = `==${s}==`;
-    }
-    return s;
-  };
-  const renderBlock = (node, depth = 0) => {
-    if (!node) return;
-    switch (node.type) {
-      case 'doc': (node.content || []).forEach(c => renderBlock(c, depth)); break;
-      case 'paragraph': out.push(renderInline(node.content)); out.push(''); break;
-      case 'heading': {
-        const lvl = node.attrs?.level || 1;
-        out.push('#'.repeat(Math.min(6, lvl)) + ' ' + renderInline(node.content));
-        out.push('');
-        break;
-      }
-      case 'bulletList': (node.content || []).forEach((li, i) => renderListItem(li, '-', depth)); out.push(''); break;
-      case 'orderedList': (node.content || []).forEach((li, i) => renderListItem(li, `${i + 1}.`, depth)); out.push(''); break;
-      case 'taskList': (node.content || []).forEach(li => renderTaskItem(li, depth)); out.push(''); break;
-      case 'blockquote': (node.content || []).forEach(c => {
-        const before = out.length;
-        renderBlock(c, depth);
-        for (let i = before; i < out.length; i++) out[i] = '> ' + out[i];
-      }); out.push(''); break;
-      case 'codeBlock': {
-        const lang = node.attrs?.language || '';
-        const text = (node.content || []).map(c => c.text || '').join('');
-        out.push('```' + lang); out.push(text); out.push('```'); out.push('');
-        break;
-      }
-      case 'horizontalRule': out.push('---'); out.push(''); break;
-      case 'image': out.push(`![${node.attrs?.alt || ''}](${node.attrs?.src || ''})`); out.push(''); break;
-      case 'table': renderTable(node); out.push(''); break;
-      default: if (node.content) (node.content).forEach(c => renderBlock(c, depth));
-    }
-  };
-  const renderListItem = (li, marker, depth) => {
-    const indent = '  '.repeat(depth);
-    const inner = [];
-    (li.content || []).forEach((child) => {
-      if (child.type === 'paragraph') inner.push(renderInline(child.content));
-      else {
-        const buf = []; const save = out.length;
-        renderBlock(child, depth + 1);
-        const lines = out.splice(save).filter(Boolean);
-        inner.push(lines.join('\n'));
-      }
-    });
-    out.push(indent + marker + ' ' + (inner[0] || ''));
-    for (let i = 1; i < inner.length; i++) out.push(indent + '  ' + inner[i]);
-  };
-  const renderTaskItem = (li, depth) => {
-    const indent = '  '.repeat(depth);
-    const checked = li.attrs?.checked ? '[x]' : '[ ]';
-    const text = (li.content || [])
-      .filter(c => c.type === 'paragraph')
-      .map(c => renderInline(c.content)).join(' ');
-    out.push(indent + '- ' + checked + ' ' + text);
-  };
-  const renderTable = (table) => {
-    const rows = (table.content || []).map(row =>
-      (row.content || []).map(cell =>
-        (cell.content || []).map(c => renderInline(c.content || [])).join(' ')
-      )
-    );
-    if (!rows.length) return;
-    out.push('| ' + rows[0].join(' | ') + ' |');
-    out.push('|' + rows[0].map(() => '---').join('|') + '|');
-    for (let i = 1; i < rows.length; i++) out.push('| ' + rows[i].join(' | ') + ' |');
-  };
-  renderBlock(doc);
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }

@@ -82,9 +82,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
         <div className="upgrade-intro">
           {header === 'cap-hit' ? (
             <>
-              <div className="upgrade-eyebrow t-eyebrow">100-CARD DEMO LIMIT</div>
+              <div className="upgrade-eyebrow t-eyebrow">DEMO LIMIT REACHED</div>
               <h2 className="upgrade-title">You've filled up your demo workspace.</h2>
-              <p className="upgrade-sub t-body">Upgrade to Creator for unlimited cards, boards, and edits on other people's boards.</p>
+              <p className="upgrade-sub t-body">Upgrade to Creator for unlimited cards, boards, and edits on other people's boards — or invite friends to earn more free cards.</p>
             </>
           ) : header === 'shared-edit' ? (
             <>
@@ -96,13 +96,19 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
             <>
               <div className="upgrade-eyebrow t-eyebrow">YOU'RE OFF THE GROUND</div>
               <h2 className="upgrade-title">Love it? Keep building.</h2>
-              <p className="upgrade-sub t-body">You've made your first board. Upgrade to Creator for unlimited cards, boards, video/audio, and full edit access.</p>
+              <p className="upgrade-sub t-body">You've made your first board. Upgrade to Creator for unlimited cards, boards, any file type, and full edit access.</p>
+            </>
+          ) : header === 'storage' ? (
+            <>
+              <div className="upgrade-eyebrow t-eyebrow">UPLOAD ANYTHING</div>
+              <h2 className="upgrade-title">Store any file, up to 100GB.</h2>
+              <p className="upgrade-sub t-body">Upgrade to Creator to drop any file type — large video, zips, design files, docs — straight onto your boards, with 100GB of storage.</p>
             </>
           ) : (
             <>
               <div className="upgrade-eyebrow t-eyebrow">GO CREATOR</div>
               <h2 className="upgrade-title">Unlock everything.</h2>
-              <p className="upgrade-sub t-body">Unlimited cards, boards, video/audio, and full edit access.</p>
+              <p className="upgrade-sub t-body">Unlimited cards, boards, any file type with 100GB storage, and full edit access.</p>
             </>
           )}
         </div>
@@ -126,6 +132,28 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
               : (alreadyPaid ? CTA.manageBilling : CTA.getCreator)}
           </button>
         </article>
+
+        {/* Card-count contexts only: bonus cards from inviting friends unlock the
+            SAME thing the cap-hit/first-value paywall is about. Not shown for
+            shared-edit / storage, which are genuinely paid-only. Decoupled via a
+            window event so it works from every PricingModal mount. */}
+        {!alreadyPaid && tier === 'demo' && (header === 'cap-hit' || header === 'first-value' || header === null) && (
+          <button
+            type="button"
+            className="upgrade-invite-alt"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', marginTop: 2,
+              color: 'var(--soleil, #ffa500)', fontSize: 13, fontWeight: 600,
+              textDecoration: 'underline', textUnderlineOffset: 3,
+            }}
+            onClick={() => {
+              try { window.dispatchEvent(new CustomEvent('soleil:open-invite', { detail: { surface: 'cap_modal' } })); } catch (_) {}
+              onClose?.();
+            }}
+          >
+            Or invite friends to earn more free cards →
+          </button>
+        )}
 
         <button className="upgrade-later" onClick={handleClose}>Maybe later</button>
       </div>

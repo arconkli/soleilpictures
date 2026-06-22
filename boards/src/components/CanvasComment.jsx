@@ -13,6 +13,7 @@
 
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { addComment, updateComment, deleteComment } from '../lib/commentsApi.js';
+import { bubbleLayout, clamp, BUBBLE_W, BUBBLE_H_DEFAULT } from '../lib/bubbleLayout.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import * as userProfiles from '../lib/userProfiles.js';
@@ -210,90 +211,8 @@ function anchorPointFromBase(comment, resolveCardBBox, resolveGroupBBox, base) {
   return bubbleLayout(comment, resolveCardBBox, resolveGroupBBox, base).bubble;
 }
 
-const BUBBLE_W = 240;
-const BUBBLE_H_DEFAULT = 76;  // initial estimate — replaced by ResizeObserver measurement
-
-// Compute the bubble's position AND its anchor dot for a given comment.
-// Card / group anchors snap the bubble flush to one of the four sides
-// of the anchored bbox — the user's offset just determines WHICH side
-// (and where along it) the bubble attaches. The dot sits exactly where
-// the bubble meets the card, so it visually reads as the seam between
-// the two. Point / board anchors fall back to free placement (no card
-// to attach to).
-//
-// `dim = { w, h }` — actual rendered bubble dimensions if known. The
-// height varies (one-line comments ~50px, two-line + reply-count
-// ~80px); using a fixed estimate left a visible gap on the TOP side
-// when the bubble was shorter. Callers measure via ResizeObserver and
-// pass the live value here.
-function bubbleLayout(comment, resolveCardBBox, resolveGroupBBox, base, dim) {
-  const { ox, oy, ax, ay } = base;
-  const W = dim?.w ?? BUBBLE_W;
-  const H = dim?.h ?? BUBBLE_H_DEFAULT;
-  let bbox = null;
-  if (comment.anchor_kind === 'card')  bbox = resolveCardBBox?.(comment.anchor_id);
-  if (comment.anchor_kind === 'group') bbox = resolveGroupBBox?.(comment.anchor_id);
-  if (bbox) {
-    return snapBubbleToBox(bbox, ox, oy, W, H);
-  }
-  if (comment.anchor_kind === 'point') {
-    const x = ax + ox;
-    const y = ay + oy;
-    return { bubble: { x, y }, dot: { x: ax, y: ay }, side: null };
-  }
-  return { bubble: { x: 100 + ox, y: 100 + oy }, dot: null, side: null };
-}
-
-function snapBubbleToBox(box, ox, oy, W, H) {
-  // The user's intended bubble center, treating the offsets as a
-  // "preferred direction" off the card's natural top-right corner.
-  const targetCx = box.x + box.w + 8 + ox + W / 2;
-  const targetCy = box.y - 8 + oy + H / 2;
-  const cardCx = box.x + box.w / 2;
-  const cardCy = box.y + box.h / 2;
-  const dx = targetCx - cardCx;
-  const dy = targetCy - cardCy;
-  // Aspect-ratio-aware side selection.
-  const ax = Math.abs(dx) / Math.max(1, box.w / 2);
-  const ay = Math.abs(dy) / Math.max(1, box.h / 2);
-  let bx, by, side, dotX, dotY;
-  if (ax >= ay) {
-    if (dx >= 0) {                               // right side
-      bx = box.x + box.w;
-      by = clamp(targetCy - H / 2, box.y - 18, box.y + box.h - H + 18);
-      side = 'right';
-      dotX = box.x + box.w;
-      dotY = by + H / 2;
-    } else {                                     // left side
-      bx = box.x - W;
-      by = clamp(targetCy - H / 2, box.y - 18, box.y + box.h - H + 18);
-      side = 'left';
-      dotX = box.x;
-      dotY = by + H / 2;
-    }
-  } else {
-    if (dy >= 0) {                               // bottom side
-      by = box.y + box.h;
-      bx = clamp(targetCx - W / 2, box.x - 18, box.x + box.w - W + 18);
-      side = 'bottom';
-      dotX = bx + W / 2;
-      dotY = box.y + box.h;
-    } else {                                     // top side — bubble's
-      // BOTTOM should sit on box.y, so top = box.y - H. H must be the
-      // bubble's actual rendered height; otherwise a fixed estimate
-      // leaves a visible gap.
-      by = box.y - H;
-      bx = clamp(targetCx - W / 2, box.x - 18, box.x + box.w - W + 18);
-      side = 'top';
-      dotX = bx + W / 2;
-      dotY = box.y;
-    }
-  }
-  return { bubble: { x: bx, y: by }, dot: { x: dotX, y: dotY }, side };
-}
-
-// Clamp helper.
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+// bubbleLayout / snapBubbleToBox / clamp / BUBBLE_W / BUBBLE_H_DEFAULT now
+// live in ../lib/bubbleLayout.js (shared with the vote-card layer).
 
 // Resolve a name/color for any author id. The local user always
 // resolves to currentUser (their saved profile) so they stay

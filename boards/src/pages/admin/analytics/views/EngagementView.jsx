@@ -6,6 +6,7 @@ import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { useAnalyticsFilters, useRegisterViewRuntime } from '../AnalyticsFiltersContext.jsx';
 import { ActivationFunnel } from '../widgets/ActivationFunnel.jsx';
+import { ActivationByDevice } from '../widgets/ActivationByDevice.jsx';
 import { RetentionCurve } from '../widgets/RetentionCurve.jsx';
 import { LifespanDistribution } from '../widgets/LifespanDistribution.jsx';
 import { RetentionCohorts } from '../widgets/RetentionCohorts.jsx';
@@ -15,6 +16,7 @@ import { UserDormancy } from '../widgets/UserDormancy.jsx';
 import { EventCoverage } from '../widgets/EventCoverage.jsx';
 import { TimeToFirstCard } from '../widgets/TimeToFirstCard.jsx';
 import { FirstCardFriction } from '../widgets/FirstCardFriction.jsx';
+import { PostSignupDropoff } from '../widgets/PostSignupDropoff.jsx';
 import { OnboardingErrorCoverage } from '../widgets/OnboardingErrorCoverage.jsx';
 import { RetentionByExperiment } from '../widgets/RetentionByExperiment.jsx';
 import { ActivationByExperiment } from '../widgets/ActivationByExperiment.jsx';
@@ -25,25 +27,28 @@ import { AdminTierCompareTable } from '../../AdminTierCompareTable.jsx';
 export function EngagementView() {
   const f = useAnalyticsFilters();
   const q = useAdminData(async () => {
-    const [af, rc, ls, ch, cs, pd, tc, rr, rs, dm, ec, tt, fc, oe] = await Promise.allSettled([
-      supabase.rpc('admin_activation_funnel',   { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+    const [af, rc, ls, ch, cs, pd, tc, rr, rs, dm, ec, tt, fc, oe, jd] = await Promise.allSettled([
+      supabase.rpc('admin_activation_funnel',   { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // Retention graphs — degrade gracefully via val(); never gate the view.
-      supabase.rpc('admin_retention_curve',     { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_user_lifespan',       { p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_retention_cohorts',   { p_window_days: Math.max(f.days, 60), p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_retention_curve',     { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_user_lifespan',       { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_retention_cohorts',   { p_window_days: Math.max(f.days, 60), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_card_stats',          { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_cards_per_day',       { p_days: f.days, p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_tier_usage_compare',  { p_days: 36500, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_tier_usage_compare',  { p_days: 36500, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // New retention/measurement RPCs (migration 0120) — all graceful via val().
-      supabase.rpc('admin_return_rate',         { p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_retention_by_source', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_user_dormancy',       { p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_event_coverage',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_return_rate',         { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_retention_by_source', { p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_user_dormancy',       { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_event_coverage',      { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // First-card friction RPCs (migration 0139) — return zeros until the
       // client emits the friction events; widgets show "still collecting".
       supabase.rpc('admin_time_to_first_card',      { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_first_card_friction',     { p_days: f.days, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_onboarding_error_coverage', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
+      // Post-signup journey drop-off (migration 0162) — returns zeros until ps_*
+      // events accrue; widget shows "still collecting".
+      supabase.rpc('admin_journey_dropoff', { p_days: f.days, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
@@ -61,12 +66,21 @@ export function EngagementView() {
     const experimentRetention = activeExps.map((k, i) => ({ key: k, rows: val(expResults[i]) || [] }));
     const experimentState = val(expResults[2 * nE]) || {};
     const experimentActivation = activeExps.map((k, i) => ({ key: k, rows: val(expResults[nE + i]) || [], state: experimentState?.[k] || null }));
+    // Activation funnel split by device (admin_activation_funnel(...,p_device),
+    // migration 0156) — the headline mobile-vs-desktop activation readout. One
+    // call per device; graceful via val(), so a missing overload just hides it.
+    const DEVICES = ['mobile', 'desktop', 'tablet', 'unknown'];
+    const devResults = await Promise.allSettled(
+      DEVICES.map((d) => supabase.rpc('admin_activation_funnel',
+        { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly, p_device: d })),
+    );
+    const activationByDevice = DEVICES.map((d, i) => ({ device: d, data: val(devResults[i]) })).filter((x) => x.data);
     const core = [cs, pd];
     if (!core.some((r) => r.status === 'fulfilled' && !r.value.error)) {
       throw errOf(core.find(errOf)) || new Error('Failed to load engagement');
     }
-    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], experimentRetention, experimentActivation };
-  }, [f.days, f.excludeInternal]);
+    return { activation: val(af), retention: val(rc) || [], lifespan: val(ls), cohorts: val(ch) || [], cardStats: val(cs), perDay: val(pd) || [], tierCompare: val(tc) || [], returnRate: val(rr) || [], bySource: val(rs) || [], dormancy: val(dm) || [], coverage: val(ec) || [], timeToCard: val(tt), friction: val(fc), onboardingErrors: val(oe) || [], journeyDropoff: val(jd), experimentRetention, experimentActivation, activationByDevice };
+  }, [f.days, f.excludeInternal, f.verifiedOnly]);
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
@@ -77,6 +91,7 @@ export function EngagementView() {
         <h2 className="admin-section-title">Activation &amp; retention</h2>
         <div className="admin-section-sub">How signed-up users progress, and whether cohorts keep coming back.</div>
         {q.data?.activation && <ActivationFunnel data={q.data.activation} days={f.days} />}
+        <ActivationByDevice rows={q.data?.activationByDevice || []} days={f.days} />
         <RetentionCurve rows={q.data?.retention || []} />
         <LifespanDistribution data={q.data?.lifespan} />
         <RetentionCohorts rows={q.data?.cohorts || []} />
@@ -87,6 +102,7 @@ export function EngagementView() {
 
         <h2 className="admin-section-title">First-card friction</h2>
         <div className="admin-section-sub">Where new users get stuck before placing their first card — attempts, failures, and how long it takes.</div>
+        <PostSignupDropoff data={q.data?.journeyDropoff} />
         <TimeToFirstCard data={q.data?.timeToCard} />
         <FirstCardFriction data={q.data?.friction} />
         <OnboardingErrorCoverage rows={q.data?.onboardingErrors || []} />

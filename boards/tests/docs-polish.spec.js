@@ -72,3 +72,14 @@ test('enriched empty-page-tree affordance classes exist', async ({ page }) => {
     expect(selectors).toContain(cls);
   }
 });
+
+test('always-readable note ink: bidirectional surface-tone rules, no wildcard sledgehammer', async ({ page }) => {
+  const { selectors } = await collectCss(page);
+  // Both surface tones drive default ink now (was light-only).
+  expect(selectors).toContain('.note.is-light-bg');
+  expect(selectors).toContain('.note.is-dark-bg');
+  // The old `.note.is-light-bg .note-body *` wildcard (which nuked every accent
+  // color with !important) must be gone — accents are preserved + made readable
+  // per-run instead.
+  expect(selectors.some((s) => s.includes('.note-body *'))).toBeFalsy();
+});

@@ -9,9 +9,9 @@
 import { useEffect, useRef } from 'react';
 import { Icon } from '../../components/Icon.jsx';
 import { ArrowsClockwise, User as UsersIcon } from '../../lib/icons.js';
-import { relativeTime } from '../../lib/adminFormat.js';
+import { relativeTime, formatBytes, formatCount } from '../../lib/adminFormat.js';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
-import { Avatar, SourceBadge, PresenceDot } from './AdminUserDetailParts.jsx';
+import { Avatar, SourceBadge, PresenceDot, channelLabel } from './AdminUserDetailParts.jsx';
 
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
 const SORTS = [
@@ -26,10 +26,24 @@ const CONTACTED = [
   { value: 'no',  label: 'Not contacted' },
   { value: 'yes', label: 'Contacted' },
 ];
+const VERIFICATION = [
+  { value: 'verified',   label: 'Verified' },
+  { value: 'unverified', label: 'Unverified' },
+  { value: 'all',        label: 'All users' },
+];
 
 function UserListRow({ row, selected, isSelf, onSelect }) {
   const ghost = row.tier === 'waitlist' && !row.joined_waitlist;
+  // Unverified = email not confirmed OR never signed in. email_confirmed is the
+  // new column from admin_list_users; last_sign_in_at was already returned.
+  const unverified = row.email_confirmed === false || !row.last_sign_in_at;
+  const unverifiedReason = row.email_confirmed === false ? 'Email not confirmed' : 'Never signed in';
   const name = row.display_name || (row.email || '').split('@')[0] || row.email;
+  // Usage at a glance: paid/admin live on storage; free tiers live on the
+  // card cap. Show whichever matters for the tier.
+  const paid = row.tier === 'paid' || row.tier === 'admin';
+  const usageText = paid ? formatBytes(row.storage_bytes || 0) : `${formatCount(row.card_count || 0)} cards`;
+  const usageTitle = paid ? 'Storage used' : 'Cards created';
   return (
     <li
       id={`admin-user-${row.user_id}`}
@@ -55,9 +69,13 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
           </span>
         )}
         {row.banned && <span className="admin-badge-banned" title="Account suspended">banned</span>}
+        {unverified && <span className="admin-badge-ghost" title={unverifiedReason}>unverified</span>}
         {ghost && <span className="admin-badge-ghost" title="Signed up but never joined the waitlist">ghost</span>}
       </div>
       <div className="admin-user-meta">
+        <span className="admin-muted" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11 }} title={usageTitle}>
+          {usageText}
+        </span>
         <span className={`admin-user-tierdot tier-${TIERS.includes(row.tier) ? row.tier : 'demo'}`} title={`Tier: ${row.tier}`}>
           {row.tier}
         </span>
@@ -73,6 +91,8 @@ export function AdminUserList({
   query, onQueryChange,
   tierFilter, onTierFilterChange,
   contacted, onContactedChange,
+  verification, onVerificationChange,
+  sourceFilter, onSourceFilterChange, sourceOptions = [],
   sort, onSortChange,
   onPrevPage, onNextPage, onRefresh,
   selectedUserId, onSelect, currentUserId, isFiltered,
@@ -119,6 +139,29 @@ export function AdminUserList({
           >
             <option value="">All tiers</option>
             {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select
+            className="auth-input admin-filter-select"
+            value={verification}
+            onChange={(e) => onVerificationChange(e.target.value)}
+            aria-label="Filter by verification status"
+            title="Verified = email confirmed + signed in at least once"
+          >
+            {VERIFICATION.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+          </select>
+          <select
+            className="auth-input admin-filter-select"
+            value={sourceFilter || ''}
+            onChange={(e) => onSourceFilterChange(e.target.value)}
+            aria-label="Filter by acquisition channel"
+            title="Where the user came from"
+          >
+            <option value="">All sources</option>
+            {sourceOptions.map((o) => (
+              <option key={o.channel} value={o.channel}>
+                {channelLabel(o.channel)}{o.n != null ? ` (${o.n})` : ''}
+              </option>
+            ))}
           </select>
           <select
             className="auth-input admin-filter-select"

@@ -13,6 +13,17 @@
 
 import * as Y from 'yjs';
 
+// Origin for doc STRUCTURAL ops (add/rename/delete page·sheet·bookmark·comment,
+// mode). Deliberately NOT 'local' so the board-level Y.UndoManager (which
+// tracks origin 'local' over the cards/doc maps) does NOT capture them — that
+// caused a split-brain ⌘Z where undoing in the doc could revert an unrelated
+// canvas card (and vice-versa). Still broadcast to peers (ySupabase only skips
+// 'remote') and still persisted (yboard persists every non-snapshot origin).
+// When called inside a canvas 'local' transaction (e.g. addCard's afterInsert
+// running initCardDocStore), Yjs transact is reentrant so the OUTER 'local'
+// origin wins and the doc-store init stays part of that one canvas undo step.
+const DOC_ORIGIN = 'doc-struct';
+
 // ── Scope plumbing ───────────────────────────────────────────────────────────
 // A "scope" is just a bag of Y types — pages / content / bookmarks / comments.
 // Helpers read from / write to the scope without caring whether it's rooted on
@@ -29,6 +40,7 @@ export function rootScope(ydoc) {
     // live in these new maps and are referenced by their own sheet ID.
     pageSheets: ydoc.getMap('docPageSheets'),       // pageId → Y.Array<{ id }>
     sheetContent: ydoc.getMap('docSheetContent'),   // sheetId → Y.XmlFragment
+    meta: ydoc.getMap('docMeta'),                   // doc-level settings (e.g. mode)
   };
 }
 export function cardScope(cardYMap) {
@@ -39,6 +51,7 @@ export function cardScope(cardYMap) {
     comments: cardYMap.get('docComments'),
     pageSheets: cardYMap.get('docPageSheets'),
     sheetContent: cardYMap.get('docSheetContent'),
+    meta: cardYMap.get('docMeta'),
   };
 }
 // Initialize the Y types on a fresh card YMap so cardScope(...) returns
@@ -51,7 +64,91 @@ export function initCardDocStore(ydoc, cardYMap) {
     if (!cardYMap.get('docComments'))      cardYMap.set('docComments', new Y.Map());
     if (!cardYMap.get('docPageSheets'))    cardYMap.set('docPageSheets', new Y.Map());
     if (!cardYMap.get('docSheetContent'))  cardYMap.set('docSheetContent', new Y.Map());
-  }, 'local');
+    if (!cardYMap.get('docMeta'))          cardYMap.set('docMeta', new Y.Map());
+  }, DOC_ORIGIN);
+  // Collapse any legacy stacked sheets into the single content fragment so the
+  // continuous-reflow paginator (DocPagination) has one fragment per page.
+  // Idempotent (gated by docMeta.contentModel) and a no-op for fresh cards.
+  try { migrateSheetsToSingleFragment(ydoc, cardScope(cardYMap)); } catch (_) {}
+}
+
+// Deep-clone a Y.Xml node (XmlElement / XmlText) into a BRAND-NEW node so it
+// can be inserted into a different fragment — Yjs types can't be re-parented.
+// XmlText carries its inline marks via the delta; XmlElement recurses over its
+// attributes + children. Inline leaf nodes (hardBreak, mentions) are stored by
+// y-prosemirror as sibling XmlElements, so the recursion covers them.
+function cloneYXml(src) {
+  if (src && typeof src.toDelta === 'function' && typeof src.toArray !== 'function') {
+    const t = new Y.XmlText();
+    try { t.applyDelta(src.toDelta()); } catch (_) {}
+    return t;
+  }
+  if (src && typeof src.toArray === 'function' && src.nodeName) {
+    const el = new Y.XmlElement(src.nodeName);
+    try {
+      const attrs = src.getAttributes ? src.getAttributes() : {};
+      for (const k of Object.keys(attrs || {})) el.setAttribute(k, attrs[k]);
+    } catch (_) {}
+    const kids = [];
+    for (const c of src.toArray()) { const cl = cloneYXml(c); if (cl) kids.push(cl); }
+    if (kids.length) el.insert(0, kids);
+    return el;
+  }
+  return null;
+}
+
+// One-time, idempotent migration: collapse a page's stacked SHEETS into the
+// single primary content fragment. Sheets are now a pure PRESENTATION concept —
+// the DocPagination plugin paginates one continuous fragment, so a paragraph
+// can flow (and split) across page boundaries. Appends each extra sheet's
+// blocks, in order, to the end of the primary fragment, then drops the sheet
+// maps. Gated by docMeta.contentModel='flow' so it runs once per doc.
+//
+// Collab notes: the primary fragment KEEPS its identity (bookmarks anchored in
+// it still resolve); only bookmarks pinned to an extra sheet lose their exact
+// spot (their sheetId is cleared so they fall back to the single fragment) —
+// rare, since you'd have to bookmark text on page 2+. The single known edge is
+// two clients migrating the SAME multi-sheet doc while BOTH are offline
+// pre-migration (double-append) — vanishingly rare; most docs are single-sheet.
+export function migrateSheetsToSingleFragment(ydoc, scope) {
+  const meta = metaMap(ydoc, scope);
+  if (!meta) return false;
+  if (meta.get('contentModel') === 'flow') return false; // already migrated
+  const content = pageContentMap(ydoc, scope);
+  const sheets = pageSheetsMap(ydoc, scope);
+  const sContent = sheetContentMap(ydoc, scope);
+  if (!content) return false;
+  let changed = false;
+  ydoc.transact(() => {
+    const pages = readPages(ydoc, scope);
+    for (const p of pages) {
+      const extra = sheets?.get(p.id);
+      const extraIds = (extra && typeof extra.toArray === 'function')
+        ? extra.toArray().map(s => s?.id).filter(Boolean) : [];
+      if (extraIds.length) {
+        const primary = content.get(p.id);
+        if (primary && typeof primary.insert === 'function') {
+          for (const sid of extraIds) {
+            const frag = sContent?.get(sid);
+            if (frag && typeof frag.toArray === 'function') {
+              const clones = frag.toArray().map(cloneYXml).filter(Boolean);
+              if (clones.length) primary.insert(primary.length, clones);
+            }
+            sContent?.delete(sid);
+          }
+          changed = true;
+        }
+      }
+      if (sheets?.has(p.id)) sheets.delete(p.id);
+    }
+    // Drop sheetId pins → bookmarks resolve against the single page fragment.
+    const bm = bookmarksMap(ydoc, scope);
+    bm?.forEach((v, k) => {
+      if (v && v.sheetId && v.sheetId !== v.pageId) bm.set(k, { ...v, sheetId: null });
+    });
+    meta.set('contentModel', 'flow');
+  }, DOC_ORIGIN);
+  return changed;
 }
 
 const S = (ydoc, scope) => scope || rootScope(ydoc);
@@ -62,6 +159,96 @@ export function bookmarksMap(ydoc, scope)      { return S(ydoc, scope).bookmarks
 export function commentsMap(ydoc, scope)       { return S(ydoc, scope).comments; }
 export function pageSheetsMap(ydoc, scope)     { return S(ydoc, scope).pageSheets; }
 export function sheetContentMap(ydoc, scope)   { return S(ydoc, scope).sheetContent; }
+export function metaMap(ydoc, scope)           { return S(ydoc, scope).meta; }
+
+// Doc-level mode: 'doc' (default) | 'screenplay'. Stored in the per-scope
+// docMeta map so it persists with the board snapshot + collaborates.
+export function getDocMode(ydoc, scope) {
+  const m = metaMap(ydoc, scope);
+  return (m && m.get('mode')) || 'doc';
+}
+export function setDocMode(ydoc, scope, mode) {
+  const m = metaMap(ydoc, scope);
+  if (!m) return;
+  ydoc.transact(() => { m.set('mode', mode === 'screenplay' ? 'screenplay' : 'doc'); }, DOC_ORIGIN);
+}
+
+// Screenplay scene-number visibility (the lock state itself lives on the scene
+// blocks' sceneNumber attr). Defaults ON — a real script shows scene numbers at
+// each heading; the "Scene #" toolbar pill can turn them Off (which persists).
+export function getSceneNumbersShow(ydoc, scope) {
+  const m = metaMap(ydoc, scope);
+  const v = m && m.get('sceneNumbersShow');
+  return v === undefined ? true : !!v;
+}
+export function setSceneNumbersShow(ydoc, scope, show) {
+  const m = metaMap(ydoc, scope);
+  if (!m) return;
+  ydoc.transact(() => { m.set('sceneNumbersShow', !!show); }, DOC_ORIGIN);
+}
+
+// Prose page layout: pageless (one continuous sheet) vs paged (real 8.5×11
+// pages with breaks). Collaborative — stored in docMeta like the mode, so every
+// collaborator sees the same layout. Defaults to PAGELESS: most writing reads
+// better as a continuous flow, and a doc with no stored preference (incl. all
+// existing docs) opens pageless. The "Pages" toolbar pill opts a doc into real
+// pages. Screenplay mode ignores this (it has its own page model).
+export function getPageless(ydoc, scope) {
+  const m = metaMap(ydoc, scope);
+  const v = m && m.get('pageless');
+  return v === undefined ? true : !!v;
+}
+export function setPageless(ydoc, scope, on) {
+  const m = metaMap(ydoc, scope);
+  if (!m) return;
+  ydoc.transact(() => { m.set('pageless', !!on); }, DOC_ORIGIN);
+}
+
+// Screenplay title page. Stored as a nested Y.Map under docMeta so individual
+// fields merge independently across collaborators (per-field last-write-wins)
+// instead of one whole-object clobber. Rendered on-screen (ScreenplayTitlePage),
+// in the print/PDF shell, and round-tripped through Fountain/FDX.
+export const TITLE_PAGE_FIELDS = ['title', 'credit', 'authors', 'source', 'draftDate', 'contact', 'copyright', 'notes'];
+const TITLE_PAGE_DEFAULTS = {
+  enabled: false,
+  title: '',
+  credit: 'Written by',
+  authors: '',
+  source: '',
+  draftDate: '',
+  contact: '',
+  copyright: '',
+  notes: '',
+};
+export function getTitlePage(ydoc, scope) {
+  const m = metaMap(ydoc, scope);
+  const out = { ...TITLE_PAGE_DEFAULTS };
+  const tp = m && m.get('titlePage');
+  if (tp && typeof tp.get === 'function') {            // nested Y.Map (current)
+    if (tp.get('enabled') !== undefined) out.enabled = !!tp.get('enabled');
+    for (const k of TITLE_PAGE_FIELDS) { const v = tp.get(k); if (v !== undefined) out[k] = v; }
+  } else if (tp && typeof tp === 'object') {           // plain-object (legacy/forward-compat)
+    Object.assign(out, tp);
+  }
+  return out;
+}
+// patch is a partial of { enabled, ...TITLE_PAGE_FIELDS }.
+export function setTitlePage(ydoc, scope, patch) {
+  const m = metaMap(ydoc, scope);
+  if (!m || !patch) return;
+  ydoc.transact(() => {
+    let tp = m.get('titlePage');
+    if (!tp || typeof tp.get !== 'function') {
+      const seed = (tp && typeof tp === 'object') ? tp : {};
+      tp = new Y.Map();
+      m.set('titlePage', tp);
+      if (seed.enabled !== undefined) tp.set('enabled', !!seed.enabled);
+      for (const k of TITLE_PAGE_FIELDS) { if (seed[k] !== undefined) tp.set(k, seed[k]); }
+    }
+    if (patch.enabled !== undefined) tp.set('enabled', !!patch.enabled);
+    for (const k of TITLE_PAGE_FIELDS) { if (patch[k] !== undefined) tp.set(k, patch[k]); }
+  }, DOC_ORIGIN);
+}
 
 export function readPages(ydoc, scope) {
   const arr = pagesArray(ydoc, scope);
@@ -126,7 +313,7 @@ export function getOrCreatePageContent(ydoc, pageId, scope) {
   let frag = map.get(pageId);
   if (!frag) {
     frag = new Y.XmlFragment();
-    ydoc.transact(() => { map.set(pageId, frag); }, 'local');
+    ydoc.transact(() => { map.set(pageId, frag); }, DOC_ORIGIN);
   }
   return frag;
 }
@@ -169,7 +356,7 @@ export function getOrCreateSheetContent(ydoc, pageId, sheetId, scope) {
   let frag = map.get(sheetId);
   if (!frag) {
     frag = new Y.XmlFragment();
-    ydoc.transact(() => { map.set(sheetId, frag); }, 'local');
+    ydoc.transact(() => { map.set(sheetId, frag); }, DOC_ORIGIN);
   }
   return frag;
 }
@@ -204,7 +391,7 @@ export function addPageSheet(ydoc, pageId, scope, opts = {}) {
     }
     arr.insert(insertIdx, [{ id }]);
     sc.set(id, new Y.XmlFragment());
-  }, 'local');
+  }, DOC_ORIGIN);
   return id;
 }
 
@@ -223,7 +410,42 @@ export function deletePageSheet(ydoc, pageId, sheetId, scope) {
       }
     }
     sc.delete(sheetId);
-  }, 'local');
+  }, DOC_ORIGIN);
+}
+
+// Detach a sheet from a page's array but KEEP its content fragment — so a
+// delete→Undo toast can restore the exact sheet (same id + content). Returns
+// the array index it was at (for reattach), or -1.
+export function detachPageSheet(ydoc, pageId, sheetId, scope) {
+  if (!pageId || !sheetId || sheetId === pageId) return -1;
+  const sm = pageSheetsMap(ydoc, scope);
+  if (!sm) return -1;
+  let idx = -1;
+  ydoc.transact(() => {
+    const arr = sm.get(pageId);
+    if (arr) {
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr.get(i)?.id === sheetId) { idx = i; arr.delete(i, 1); }
+      }
+    }
+  }, DOC_ORIGIN);
+  return idx;
+}
+// Re-insert a detached sheet at its old index (content fragment is untouched).
+export function reattachPageSheet(ydoc, pageId, sheetId, index, scope) {
+  const sm = pageSheetsMap(ydoc, scope);
+  if (!sm) return;
+  ydoc.transact(() => {
+    let arr = sm.get(pageId);
+    if (!arr) { arr = new Y.Array(); sm.set(pageId, arr); }
+    const at = Math.max(0, Math.min(index < 0 ? arr.length : index, arr.length));
+    arr.insert(at, [{ id: sheetId }]);
+  }, DOC_ORIGIN);
+}
+// Permanently drop a detached sheet's orphaned content (after the undo window).
+export function purgeSheetContent(ydoc, sheetId, scope) {
+  const sc = sheetContentMap(ydoc, scope);
+  if (sc && sc.has(sheetId)) ydoc.transact(() => { sc.delete(sheetId); }, DOC_ORIGIN);
 }
 
 function nextPageId() {
@@ -243,7 +465,7 @@ export function addPage(ydoc, opts = {}) {
       : 0;
     arr.push([{ id, name, parent_id, order, expanded: true }]);
     content.set(id, new Y.XmlFragment());
-  }, 'local');
+  }, DOC_ORIGIN);
   return id;
 }
 
@@ -254,7 +476,7 @@ export function renamePage(ydoc, id, name, scope) {
       const p = arr.get(i);
       if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, name }]); return; }
     }
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 export function setPageExpanded(ydoc, id, expanded, scope) {
@@ -264,7 +486,7 @@ export function setPageExpanded(ydoc, id, expanded, scope) {
       const p = arr.get(i);
       if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, expanded }]); return; }
     }
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 export function deletePage(ydoc, id, scope) {
@@ -299,7 +521,7 @@ export function deletePage(ydoc, id, scope) {
     bookmarks.forEach((v, k) => { if (toRemove.has(v.pageId)) bookmarks.delete(k); });
     // Drop comment threads anchored to removed pages so they don't orphan.
     comments?.forEach((v, k) => { if (toRemove.has(v.pageId)) comments.delete(k); });
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 export function movePage(ydoc, id, newParentId, newIndex, scope) {
@@ -326,7 +548,7 @@ export function movePage(ydoc, id, newParentId, newIndex, scope) {
       if (changedIds.has(arr.get(i).id)) arr.delete(i, 1);
     }
     renumbered.forEach(p => arr.push([p]));
-  }, 'local');
+  }, DOC_ORIGIN);
 }
 
 // Comments ──────────────────────────────────────────────────────────────────
@@ -342,7 +564,7 @@ export function addCommentThread(ydoc, opts) {
       body: String(body || '').slice(0, 4000),
       replies: [], resolved: false,
     });
-  }, 'local');
+  }, DOC_ORIGIN);
   return id;
 }
 
@@ -357,41 +579,44 @@ export function addCommentReply(ydoc, id, opts) {
     authorColor: authorColor || '#4f8df8',
     body: String(body || '').slice(0, 4000),
   };
-  ydoc.transact(() => { map.set(id, { ...cur, replies: [...(cur.replies || []), reply] }); }, 'local');
+  ydoc.transact(() => { map.set(id, { ...cur, replies: [...(cur.replies || []), reply] }); }, DOC_ORIGIN);
 }
 
 export function resolveComment(ydoc, id, resolved = true, scope) {
   const map = commentsMap(ydoc, scope);
   const cur = map?.get(id); if (!cur) return;
-  ydoc.transact(() => { map.set(id, { ...cur, resolved }); }, 'local');
+  ydoc.transact(() => { map.set(id, { ...cur, resolved }); }, DOC_ORIGIN);
 }
 
 export function deleteCommentThread(ydoc, id, scope) {
   const map = commentsMap(ydoc, scope); if (!map) return;
-  ydoc.transact(() => { map.delete(id); }, 'local');
+  ydoc.transact(() => { map.delete(id); }, DOC_ORIGIN);
 }
 
 // Bookmarks ─────────────────────────────────────────────────────────────────
 export function addBookmark(ydoc, opts) {
-  const { name, pageId, anchor, relAnchor = null, scope } = opts;
+  const { name, pageId, sheetId = null, anchor, relAnchor = null, scope } = opts;
   const id = 'bm_' + Math.random().toString(36).slice(2, 10);
   const map = bookmarksMap(ydoc, scope); if (!map) return id;
   // `anchor` is the legacy raw int position (kept as a fallback). `relAnchor`
   // is a durable Yjs relative position (base64) that survives edits — see
   // bookmarkRelPos.js. Resolution prefers relAnchor and falls back to anchor.
-  ydoc.transact(() => { map.set(id, { name, pageId, anchor, relAnchor }); }, 'local');
+  // sheetId pins the bookmark to the exact sheet it was made in — the relAnchor
+  // resolves against ONE Y.XmlFragment, so a multi-sheet page must resolve it
+  // against that sheet's editor (not whichever is focused).
+  ydoc.transact(() => { map.set(id, { name, pageId, sheetId, anchor, relAnchor }); }, DOC_ORIGIN);
   return id;
 }
 
 export function deleteBookmark(ydoc, id, scope) {
   const map = bookmarksMap(ydoc, scope); if (!map) return;
-  ydoc.transact(() => { map.delete(id); }, 'local');
+  ydoc.transact(() => { map.delete(id); }, DOC_ORIGIN);
 }
 
 export function renameBookmark(ydoc, id, name, scope) {
   const map = bookmarksMap(ydoc, scope);
   const cur = map?.get(id); if (!cur) return;
-  ydoc.transact(() => { map.set(id, { ...cur, name }); }, 'local');
+  ydoc.transact(() => { map.set(id, { ...cur, name }); }, DOC_ORIGIN);
 }
 
 // Walk a Y.XmlFragment / Y.XmlElement tree and pull out plain text. Used for
@@ -430,7 +655,7 @@ export function pageFragmentToText(fragment, max = 240) {
         if (out.length >= max) break;
       }
       const tag = node.nodeName;
-      if (tag && /^(paragraph|heading|listItem|blockquote|codeBlock|hardBreak)$/i.test(tag)) {
+      if (tag && /^(paragraph|heading|listItem|blockquote|codeBlock|hardBreak|screenplayBlock)$/i.test(tag)) {
         if (!out.endsWith(' ') && !out.endsWith('\n')) out += ' ';
       }
     } else if (typeof node.forEach === 'function') {

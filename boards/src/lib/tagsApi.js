@@ -19,7 +19,7 @@ export async function listWorkspaceTags(workspaceId) {
   if (!workspaceId) return [];
   const { data, error } = await supabase
     .from('tags')
-    .select('id, workspace_id, name, slug, color, kind, description, created_by, created_at')
+    .select('id, workspace_id, name, slug, color, kind, entity_type, description, created_by, created_at')
     .eq('workspace_id', workspaceId)
     .order('name', { ascending: true });
   if (error) throw error;
@@ -77,6 +77,18 @@ export async function ensureTag({ workspaceId, name, color = null, kind = 'user'
   return data;
 }
 
+// Sibling entities that co-occur with this one (share boards). RLS-gated
+// (workspace-member only) RPC; returns
+// [{ tag_id, name, slug, color, entity_type, shared }] ordered by shared desc.
+export async function getRelatedEntities(tagId, limit = 8) {
+  if (!tagId) return [];
+  const { data, error } = await supabase.rpc('get_related_entities', {
+    p_tag_id: tagId, p_limit: limit,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function deleteTag(tagId) {
   // Cascading delete: drop the tag definition AND every application
   // (entity_links rows). The tag's `id` cascades through entity_links
@@ -97,6 +109,19 @@ export async function renameTag(tagId, name) {
   const trimmed = (name || '').trim();
   if (!trimmed) throw new Error('Tag name required');
   const { error } = await supabase.from('tags').update({ name: trimmed }).eq('id', tagId);
+  if (error) throw error;
+}
+
+// Set a tag's semantic type (character/setting/concept/thing, or null) — the
+// one-tap type switch on entity rows/profiles. Goes through the RLS-gated
+// set_tag_entity_type RPC (migration 0153, workspace-member write), which is
+// the single, validated writer of entity_type.
+export async function setTagEntityType(tagId, entityType) {
+  if (!tagId) throw new Error('setTagEntityType: tagId required');
+  const { error } = await supabase.rpc('set_tag_entity_type', {
+    p_tag_id: tagId,
+    p_entity_type: entityType || null,
+  });
   if (error) throw error;
 }
 

@@ -13,9 +13,10 @@ import { addRecentFont } from '../lib/customFonts.js';
 import {
   List, ListOrdered, ListChecks, Quote,
   AlignLeft, AlignCenter, AlignRight,
-  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle,
+  Link as LinkPh, Bookmark, Search, Undo, Redo, MessageCircle, Clapperboard, FileText, Files, Hash, Columns2,
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
+import { ELEMENTS as SP_ELEMENTS, ELEMENT_LABELS as SP_LABELS } from './docExtensions/screenplay/screenplayFlow.js';
 
 const HEADING_OPTIONS = [
   { value: 'p', label: 'Body' },
@@ -38,6 +39,10 @@ const SIZES = [12, 14, 16, 18, 22, 28, 36];
 const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink, onAddComment,
+                               ydoc = null, scope = null, docMode = 'doc', onToggleScreenplay,
+                               titlePageEnabled = false, onToggleTitlePage,
+                               sceneNumbersShow = false, onSetSceneNumbersShow,
+                               pageless = true, onTogglePageless,
                                zoom = 1, onZoomIn, onZoomOut, onZoomReset }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);
@@ -61,6 +66,10 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
 
   const headingValue = (() => {
     for (let l = 1; l <= 6; l++) if (isActive('heading', { level: l })) return 'h' + l;
+    // Don't claim "Body" when the caret is in a block this control can't
+    // represent (code/quote/lists) — show a neutral placeholder instead.
+    if (isActive('codeBlock') || isActive('blockquote')
+        || isActive('bulletList') || isActive('orderedList') || isActive('taskList')) return '';
     return 'p';
   })();
   const setHeading = (val) => {
@@ -113,12 +122,23 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
     const hit = all.find(f => f.css === currentFontCss);
     return hit?.label || hit?.name || 'Font';
   })();
+  // Screenplay element <select> (replaces the block-style picker in script mode).
+  const screenplayElement = editor?.isActive('screenplayBlock')
+    ? (editor.getAttributes('screenplayBlock')?.element || 'action')
+    : '';
+  const setScreenplayElement = (el) => editor?.chain().focus().setScreenplayElement(el).run();
+
   const setSize = (px) => editor?.chain().focus().setFontSize(`${px}px`).run();
   const setColor = (c) => editor?.chain().focus().setColor(c).run();
   const clearColor = () => editor?.chain().focus().unsetColor().run();
 
+  // In screenplay mode the layout is element-driven; the prose formatting
+  // controls (font/size/color/align/inline-marks/lists) are hidden because
+  // they'd leak formatting that the Fountain/FDX/PDF exporters don't carry.
+  const isScreenplay = docMode === 'screenplay';
+
   return (
-    <div className="doc-tb">
+    <div className="doc-tb" role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
       {/* Visible doorway into the slash menu — typing "/" is invisible to
           anyone who hasn't read the placeholder. Inserting the trigger char
           at the caret opens the same suggestion menu. */}
@@ -126,76 +146,139 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
               title="Insert a block — or type / anywhere in the text"
               aria-label="Insert a block"
               onClick={() => editor?.chain().focus().insertContent('/').run()}>+</button>
-      <select className="doc-tb-select" value={headingValue} disabled={disabled}
-              onChange={(e) => setHeading(e.target.value)}
-              title="Block style" aria-label="Block style">
-        {HEADING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      {onToggleScreenplay && (
+        <button type="button"
+                className={`doc-tb-pill doc-tb-screenplay-toggle${isScreenplay ? ' is-active' : ''}`}
+                title={isScreenplay ? 'Screenplay mode on — click for a normal document' : 'Switch to screenplay mode'}
+                aria-pressed={isScreenplay}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onToggleScreenplay()}>
+          <Glyph as={Clapperboard} size={14} />
+          <span className="doc-tb-pill-label">Screenplay</span>
+        </button>
+      )}
+      {docMode === 'screenplay' ? (
+        <select className="doc-tb-select" value={screenplayElement || 'action'} disabled={disabled || !editor?.isActive('screenplayBlock')}
+                onChange={(e) => setScreenplayElement(e.target.value)}
+                title="Screenplay element" aria-label="Screenplay element">
+          {SP_ELEMENTS.map(el => <option key={el} value={el}>{SP_LABELS[el] || el}</option>)}
+        </select>
+      ) : (
+        <select className="doc-tb-select" value={headingValue} disabled={disabled}
+                onChange={(e) => setHeading(e.target.value)}
+                title="Paragraph style" aria-label="Paragraph style">
+          <option value="" disabled hidden>—</option>
+          {HEADING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      )}
 
-      <FontPickerDropdown
-        currentLabel={currentFontLabel}
-        recentFonts={recentFonts}
-        allFonts={allFonts}
-        onPreview={previewFont}
-        onCommit={commitFont}
-        onCancel={cancelPreview}
-        onManage={() => setFontsModalOpen(true)}
-        disabled={disabled}
-      />
+      {!isScreenplay && onTogglePageless && (
+        <button type="button"
+                className={`doc-tb-pill doc-tb-pages-toggle${!pageless ? ' is-active' : ''}`}
+                title={pageless ? 'Pageless — one continuous sheet. Click to switch to pages.' : 'Pages — real 8.5×11 pages. Click for a continuous (pageless) layout.'}
+                aria-pressed={!pageless}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onTogglePageless()}>
+          <Glyph as={Files} size={14} />
+          <span className="doc-tb-pill-label">Pages</span>
+        </button>
+      )}
 
-      <SizeInput
-        value={(() => {
-          const fs = editor?.getAttributes('textStyle')?.fontSize;
-          const px = fs ? parseInt(fs, 10) : NaN;
-          return Number.isFinite(px) ? px : null;
-        })()}
-        presets={SIZES}
-        className="doc-tb-size-combo"
-        disabled={disabled}
-        onCommit={(px) => setSize(px)}
-      />
+      {isScreenplay && onToggleTitlePage && (
+        <button type="button"
+                className={`doc-tb-pill doc-tb-titlepage-toggle${titlePageEnabled ? ' is-active' : ''}`}
+                title={titlePageEnabled ? 'Title page on — click to remove it' : 'Add a title page'}
+                aria-pressed={titlePageEnabled}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onToggleTitlePage()}>
+          <Glyph as={FileText} size={14} />
+          <span className="doc-tb-pill-label">Title Page</span>
+        </button>
+      )}
 
-      <span className="doc-tb-sep" />
+      {isScreenplay && onSetSceneNumbersShow && (
+        <SceneNumberToggle
+          show={sceneNumbersShow}
+          onSetShow={onSetSceneNumbersShow}
+          disabled={disabled}
+        />
+      )}
 
-      <Btn title="Bold (⌘B)" active={isActive('bold')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></Btn>
-      <Btn title="Italic (⌘I)" active={isActive('italic')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></Btn>
-      <Btn title="Underline (⌘U)" active={isActive('underline')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></Btn>
-      <Btn title="Strike" active={isActive('strike')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleStrike().run()}><s>S</s></Btn>
-      <Btn title="Inline code" active={isActive('code')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleCode().run()}><code style={{ fontSize: 11 }}>{'<>'}</code></Btn>
-      <Btn title="Highlight (⌘⇧H)" active={isActive('highlight')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleHighlight().run()}><mark style={{ background: '#fff09a', color: '#222', padding: '0 3px', borderRadius: 2, fontSize: 11 }}>H</mark></Btn>
+      {isScreenplay && (
+        <Btn title="Dual dialogue — pair this speech with the one above"
+             active={isActive('screenplayBlock') && !!editor?.getAttributes('screenplayBlock')?.dual}
+             disabled={disabled || !editor?.isActive('screenplayBlock')}
+             onClick={() => editor.chain().focus().toggleDualDialogue().run()}>
+          <Glyph as={Columns2} size={14} />
+        </Btn>
+      )}
 
-      <span className="doc-tb-sep" />
+      {!isScreenplay && (<>
+        <FontPickerDropdown
+          currentLabel={currentFontLabel}
+          recentFonts={recentFonts}
+          allFonts={allFonts}
+          onPreview={previewFont}
+          onCommit={commitFont}
+          onCancel={cancelPreview}
+          onManage={() => setFontsModalOpen(true)}
+          disabled={disabled}
+        />
 
-      <ColorBtn title="Text color" disabled={disabled}
-                onPick={setColor} onClear={clearColor} />
+        <SizeInput
+          value={(() => {
+            const fs = editor?.getAttributes('textStyle')?.fontSize;
+            const px = fs ? parseInt(fs, 10) : NaN;
+            return Number.isFinite(px) ? px : null;
+          })()}
+          presets={SIZES}
+          className="doc-tb-size-combo"
+          disabled={disabled}
+          onCommit={(px) => setSize(px)}
+        />
 
-      <span className="doc-tb-sep" />
+        <span className="doc-tb-sep" aria-hidden="true" />
 
-      <Btn title="Bulleted list (⌘⇧8)" active={isActive('bulletList')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleBulletList().run()}><Glyph as={List} size={14} /></Btn>
-      <Btn title="Numbered list (⌘⇧7)" active={isActive('orderedList')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleOrderedList().run()}><Glyph as={ListOrdered} size={14} /></Btn>
-      <Btn title="Task list (⌘⇧9)" active={isActive('taskList')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleTaskList().run()}><Glyph as={ListChecks} size={14} /></Btn>
-      <Btn title="Quote" active={isActive('blockquote')} disabled={disabled}
-           onClick={() => editor.chain().focus().toggleBlockquote().run()}><Glyph as={Quote} size={14} /></Btn>
+        <Btn title="Bold (⌘B)" active={isActive('bold')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></Btn>
+        <Btn title="Italic (⌘I)" active={isActive('italic')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></Btn>
+        <Btn title="Underline (⌘U)" active={isActive('underline')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></Btn>
+        <Btn title="Strike" active={isActive('strike')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleStrike().run()}><s>S</s></Btn>
+        <Btn title="Inline code" active={isActive('code')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleCode().run()}><code style={{ fontSize: 11 }}>{'<>'}</code></Btn>
+        <Btn title="Highlight (⌘⇧H)" active={isActive('highlight')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleHighlight().run()}><mark style={{ background: '#fff09a', color: '#222', padding: '0 3px', borderRadius: 2, fontSize: 11 }}>H</mark></Btn>
 
-      <span className="doc-tb-sep" />
+        <span className="doc-tb-sep" aria-hidden="true" />
 
-      <Btn title="Align left" active={isActive({ textAlign: 'left' }) || (!isActive({ textAlign: 'center' }) && !isActive({ textAlign: 'right' }) && !isActive({ textAlign: 'justify' }))} disabled={disabled}
-           onClick={() => editor.chain().focus().setTextAlign('left').run()}><Glyph as={AlignLeft} size={14} /></Btn>
-      <Btn title="Align center" active={isActive({ textAlign: 'center' })} disabled={disabled}
-           onClick={() => editor.chain().focus().setTextAlign('center').run()}><Glyph as={AlignCenter} size={14} /></Btn>
-      <Btn title="Align right" active={isActive({ textAlign: 'right' })} disabled={disabled}
-           onClick={() => editor.chain().focus().setTextAlign('right').run()}><Glyph as={AlignRight} size={14} /></Btn>
+        <ColorBtn title="Text color" disabled={disabled}
+                  onPick={setColor} onClear={clearColor} />
 
-      <span className="doc-tb-sep" />
+        <span className="doc-tb-sep" aria-hidden="true" />
+
+        <Btn title="Bulleted list (⌘⇧8)" active={isActive('bulletList')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleBulletList().run()}><Glyph as={List} size={14} /></Btn>
+        <Btn title="Numbered list (⌘⇧7)" active={isActive('orderedList')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleOrderedList().run()}><Glyph as={ListOrdered} size={14} /></Btn>
+        <Btn title="Task list (⌘⇧9)" active={isActive('taskList')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleTaskList().run()}><Glyph as={ListChecks} size={14} /></Btn>
+        <Btn title="Quote" active={isActive('blockquote')} disabled={disabled}
+             onClick={() => editor.chain().focus().toggleBlockquote().run()}><Glyph as={Quote} size={14} /></Btn>
+
+        <span className="doc-tb-sep" aria-hidden="true" />
+
+        <Btn title="Align left" active={isActive({ textAlign: 'left' }) || (!isActive({ textAlign: 'center' }) && !isActive({ textAlign: 'right' }) && !isActive({ textAlign: 'justify' }))} disabled={disabled}
+             onClick={() => editor.chain().focus().setTextAlign('left').run()}><Glyph as={AlignLeft} size={14} /></Btn>
+        <Btn title="Align center" active={isActive({ textAlign: 'center' })} disabled={disabled}
+             onClick={() => editor.chain().focus().setTextAlign('center').run()}><Glyph as={AlignCenter} size={14} /></Btn>
+        <Btn title="Align right" active={isActive({ textAlign: 'right' })} disabled={disabled}
+             onClick={() => editor.chain().focus().setTextAlign('right').run()}><Glyph as={AlignRight} size={14} /></Btn>
+      </>)}
+
+      <span className="doc-tb-sep" aria-hidden="true" />
 
       <Btn title="Add link (⌘K)" disabled={disabled}
            onClick={() => onOpenLink?.(editor)}><Glyph as={LinkPh} size={14} /></Btn>
@@ -206,7 +289,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
            onClick={() => onAddComment?.()}><Glyph as={MessageCircle} size={14} /></Btn>
       <Btn title="Find (⌘F)" disabled={disabled}
            onClick={() => onOpenFind?.()}><Glyph as={Search} size={14} /></Btn>
-      <DocExportMenu editor={editor} docName={docName} />
+      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} />
 
       <span className="doc-tb-spacer" />
 
@@ -240,6 +323,25 @@ function Btn({ children, active, disabled, onClick, title }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={onClick}>
       {children}
+    </button>
+  );
+}
+
+// Scene-number control: a plain on/off toggle. Numbers auto-number (1, 2, 3…)
+// at each scene heading when shown; visibility lives in docMeta. (Revision
+// A/B locking still rides on the scene blocks' sceneNumber attr — kept for FDX
+// import — but is no longer a toolbar menu, which read as broken.)
+function SceneNumberToggle({ show, onSetShow, disabled }) {
+  return (
+    <button type="button"
+            className={`doc-tb-pill doc-tb-scenenum-toggle${show ? ' is-active' : ''}`}
+            disabled={disabled}
+            title={show ? 'Scene numbers — on' : 'Scene numbers — off'}
+            aria-pressed={show}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onSetShow(!show)}>
+      <Glyph as={Hash} size={14} />
+      <span className="doc-tb-pill-label">Scene #</span>
     </button>
   );
 }

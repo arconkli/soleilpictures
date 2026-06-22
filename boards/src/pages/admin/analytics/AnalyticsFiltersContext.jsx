@@ -19,6 +19,7 @@ import { useAdminData } from '../useAdminData.js';
 
 const LS_RANGE    = 'admin.analytics.range';
 const LS_INTERNAL = 'admin.analytics.excludeInternal';
+const LS_VERIFIED = 'admin.analytics.verifiedOnly';
 
 const Ctx = createContext(null);
 
@@ -68,6 +69,15 @@ function initExcludeInternal() {
   if (s === '1') return true;
   return true;  // honest by default — founder/test traffic excluded
 }
+function initVerifiedOnly() {
+  const u = getParam('verified');
+  if (u === '0') return false;
+  if (u === '1') return true;
+  const s = getStored(LS_VERIFIED);
+  if (s === '0') return false;
+  if (s === '1') return true;
+  return true;  // honest by default — only email-confirmed + logged-in users count
+}
 
 export function AnalyticsFiltersProvider({ children }) {
   const [days, setDaysState]                       = useState(initDays);
@@ -75,12 +85,14 @@ export function AnalyticsFiltersProvider({ children }) {
   const [campaign, setCampaignState]               = useState(() => getParam('camp') || '');
   const [content, setContentState]                 = useState(() => getParam('creative') || '');
   const [excludeInternal, setExcludeInternalState] = useState(initExcludeInternal);
+  const [verifiedOnly, setVerifiedOnlyState]       = useState(initVerifiedOnly);
 
   const setDays            = useCallback((d) => { setDaysState(d); setParam('range', String(d)); setStored(LS_RANGE, String(d)); }, []);
   const setSource          = useCallback((v) => { setSourceState(v); setParam('src', v); }, []);
   const setCampaign        = useCallback((v) => { setCampaignState(v); setParam('camp', v); }, []);
   const setContent         = useCallback((v) => { setContentState(v); setParam('creative', v); }, []);
   const setExcludeInternal = useCallback((b) => { setExcludeInternalState(b); setParam('internal', b ? '1' : '0'); setStored(LS_INTERNAL, b ? '1' : '0'); }, []);
+  const setVerifiedOnly    = useCallback((b) => { setVerifiedOnlyState(b); setParam('verified', b ? '1' : '0'); setStored(LS_VERIFIED, b ? '1' : '0'); }, []);
 
   // Shell-level shared fetch: segment options (for the dropdowns) + live stats
   // (MRR/ARPU + tier/sub counts, reused by Overview & Revenue). Cheap and
@@ -88,11 +100,11 @@ export function AnalyticsFiltersProvider({ children }) {
   const shell = useAdminData(async () => {
     const [sg, st] = await Promise.allSettled([
       supabase.rpc('admin_funnel_segments', { p_days: days, p_exclude_internal: excludeInternal }),
-      supabase.rpc('admin_stats'),
+      supabase.rpc('admin_stats', { p_verified_only: verifiedOnly }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     return { segments: val(sg) || [], stats: val(st) };
-  }, [days, excludeInternal]);
+  }, [days, excludeInternal, verifiedOnly]);
 
   const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false });
   const registerRuntime = useCallback((r) => setRuntime(r), []);
@@ -101,12 +113,14 @@ export function AnalyticsFiltersProvider({ children }) {
     days, setDays,
     source, setSource, campaign, setCampaign, content, setContent,
     excludeInternal, setExcludeInternal,
+    verifiedOnly, setVerifiedOnly,
     segments: shell.data?.segments || [],
     stats: shell.data?.stats || null,
     refreshShell: shell.refresh,
     runtime, registerRuntime,
   }), [days, setDays, source, setSource, campaign, setCampaign, content, setContent,
-       excludeInternal, setExcludeInternal, shell.data, shell.refresh, runtime, registerRuntime]);
+       excludeInternal, setExcludeInternal, verifiedOnly, setVerifiedOnly,
+       shell.data, shell.refresh, runtime, registerRuntime]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

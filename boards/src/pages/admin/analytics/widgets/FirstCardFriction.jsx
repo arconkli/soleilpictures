@@ -32,8 +32,12 @@ const METHOD_LABELS = {
   tool_place: 'Toolbar tool',
   drag_in: 'Drag in',
   paste: 'Paste',
+  empty_cta: 'Empty-board CTA',
+  mobile_nav: 'Mobile + button',
   unknown: 'Uncategorized',
 };
+// Mirrors DeviceBreakdown.jsx (not exported there — re-declared per convention).
+const DEVICE_COLORS = { desktop: '#5b8def', mobile: '#ffa500', tablet: '#43c59e', unknown: '#6b7280' };
 
 function Tile({ label, value, sub, danger }) {
   return (
@@ -54,6 +58,7 @@ export function FirstCardFriction({ data }) {
     name: REASON_LABELS[r.reason] || r.reason, sessions: Number(r.sessions) || 0,
   })).sort((a, b) => b.sessions - a.sessions);
   const methods = (data.intents_by_method || []).filter((m) => (Number(m.sessions) || 0) > 0);
+  const devices = (data.by_device || []).filter((d) => (Number(d.intent_sessions) || 0) > 0);
 
   // Nothing emitted yet → friction events haven't shipped / no new-user traffic.
   if (intents === 0 && blocked.length === 0 && stuck === 0) {
@@ -111,6 +116,36 @@ export function FirstCardFriction({ data }) {
                 {METHOD_LABELS[m.method] || m.method} <strong style={{ color: 'var(--ink-1)' }}>{formatCount(m.sessions)}</strong>
               </span>
             ))}
+          </div>
+        )}
+
+        {devices.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <div className="t-meta" style={{ color: 'var(--ink-3)', marginBottom: 6 }}>
+              Intent → card by device — the headline mobile-vs-desktop activation read
+            </div>
+            <table className="admin-table">
+              <thead>
+                <tr><th>Device</th><th className="num">Tried</th><th className="num">→ Card</th><th className="num">Rate</th></tr>
+              </thead>
+              <tbody>
+                {devices.map((d) => {
+                  const dr = safeRate(d.converted_sessions, d.intent_sessions);
+                  return (
+                    <tr key={d.device}>
+                      <td style={{ textTransform: 'capitalize' }}>
+                        <span aria-hidden="true" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2,
+                          background: DEVICE_COLORS[d.device] || DEVICE_COLORS.unknown, marginRight: 6 }} />
+                        {d.device}
+                      </td>
+                      <td className="num">{formatCount(d.intent_sessions)}</td>
+                      <td className="num">{formatCount(d.converted_sessions)}</td>
+                      <td className="num">{dr.hide ? '—' : `${formatPct(dr.rate)}${dr.flag ? ' ⚠' : ''}`}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 

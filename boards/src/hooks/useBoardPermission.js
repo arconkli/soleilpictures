@@ -21,7 +21,10 @@
 
 import { useMemo } from 'react';
 
-export function useBoardPermission({
+// Pure permission decision — same logic as the hook, but callable outside a
+// React render (e.g. per-row in a loop, where calling a hook would be illegal).
+// See useBoardPermission below for the param/return contract.
+export function computeBoardPermission({
   board,            // board object (must have id, workspace_id, parent_board_id)
   boards,           // map of boardId → board (for ancestor lookup)
   workspace,        // current workspace object (for created_by check)
@@ -30,59 +33,66 @@ export function useBoardPermission({
   userId,
   tier,             // 'admin' | 'paid' | 'demo' | 'waitlist' | null (optional)
 }) {
-  return useMemo(() => {
-    if (!board || !userId) {
-      return { role: 'none', canEdit: false, source: null };
-    }
-
-    // Workspace owner trumps everything — applies to all tiers (demo users
-    // can edit their own workspace just fine, subject to the 100-card cap
-    // enforced in addCard).
-    if (workspace?.created_by === userId && board.workspace_id === workspace?.id) {
-      return { role: 'owner', canEdit: true, source: 'workspace' };
-    }
-
-    // tier='waitlist' — defensive block. Shouldn't reach here in practice
-    // because TierRouter sends waitlist users to /welcome before the app
-    // mounts, but a stale session could leak through.
-    if (tier === 'waitlist') {
-      return { role: 'none', canEdit: false, source: 'tier-blocked' };
-    }
-
-    // tier='demo' — viewer-only on any board they don't own. Editing
-    // others' boards is a paid feature; the server-side can_write_board
-    // RPC enforces the same rule, this is the client-side mirror.
-    if (tier === 'demo') {
-      return { role: 'viewer', canEdit: false, source: 'tier-demoted' };
-    }
-
-    // Workspace member of THE BOARD'S workspace (not necessarily the
-    // currently active one — board could be from a different workspace
-    // when navigating via shared links).
-    const isWsMember = (workspaceMembers || []).some(m => m.user_id === userId)
-      && board.workspace_id === workspace?.id;
-    if (isWsMember) {
-      return { role: 'editor', canEdit: true, source: 'workspace' };
-    }
-
-    // Per-board share — walk up parent chain, take the strongest role
-    // we find (editor beats viewer).
-    const sharedById = new Map((sharedBoards || []).map(s => [s.board_id, s]));
-    let cur = board;
-    let bestRole = null;
-    let safety = 64;
-    while (cur && safety-- > 0) {
-      const hit = sharedById.get(cur.id);
-      if (hit) {
-        if (hit.role === 'editor') { bestRole = 'editor'; break; }
-        if (!bestRole) bestRole = 'viewer';
-      }
-      cur = cur.parent_board_id ? boards?.[cur.parent_board_id] : null;
-    }
-    if (bestRole) {
-      return { role: bestRole, canEdit: bestRole === 'editor', source: 'share' };
-    }
-
+  if (!board || !userId) {
     return { role: 'none', canEdit: false, source: null };
-  }, [board, boards, workspace, workspaceMembers, sharedBoards, userId, tier]);
+  }
+
+  // Workspace owner trumps everything — applies to all tiers (demo users
+  // can edit their own workspace just fine, subject to the 100-card cap
+  // enforced in addCard).
+  if (workspace?.created_by === userId && board.workspace_id === workspace?.id) {
+    return { role: 'owner', canEdit: true, source: 'workspace' };
+  }
+
+  // tier='waitlist' — defensive block. Shouldn't reach here in practice
+  // because TierRouter sends waitlist users to /welcome before the app
+  // mounts, but a stale session could leak through.
+  if (tier === 'waitlist') {
+    return { role: 'none', canEdit: false, source: 'tier-blocked' };
+  }
+
+  // tier='demo' — viewer-only on any board they don't own. Editing
+  // others' boards is a paid feature; the server-side can_write_board
+  // RPC enforces the same rule, this is the client-side mirror.
+  if (tier === 'demo') {
+    return { role: 'viewer', canEdit: false, source: 'tier-demoted' };
+  }
+
+  // Workspace member of THE BOARD'S workspace (not necessarily the
+  // currently active one — board could be from a different workspace
+  // when navigating via shared links).
+  const isWsMember = (workspaceMembers || []).some(m => m.user_id === userId)
+    && board.workspace_id === workspace?.id;
+  if (isWsMember) {
+    return { role: 'editor', canEdit: true, source: 'workspace' };
+  }
+
+  // Per-board share — walk up parent chain, take the strongest role
+  // we find (editor beats viewer).
+  const sharedById = new Map((sharedBoards || []).map(s => [s.board_id, s]));
+  let cur = board;
+  let bestRole = null;
+  let safety = 64;
+  while (cur && safety-- > 0) {
+    const hit = sharedById.get(cur.id);
+    if (hit) {
+      if (hit.role === 'editor') { bestRole = 'editor'; break; }
+      if (!bestRole) bestRole = 'viewer';
+    }
+    cur = cur.parent_board_id ? boards?.[cur.parent_board_id] : null;
+  }
+  if (bestRole) {
+    return { role: bestRole, canEdit: bestRole === 'editor', source: 'share' };
+  }
+
+  return { role: 'none', canEdit: false, source: null };
+}
+
+export function useBoardPermission(args) {
+  const { board, boards, workspace, workspaceMembers, sharedBoards, userId, tier } = args;
+  return useMemo(
+    () => computeBoardPermission(args),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [board, boards, workspace, workspaceMembers, sharedBoards, userId, tier]
+  );
 }

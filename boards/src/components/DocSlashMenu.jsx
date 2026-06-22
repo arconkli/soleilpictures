@@ -46,6 +46,27 @@ function buildItems({ onInsertBookmark, onInsertImage, onInsertBoardEmbed }) {
   ];
 }
 
+// In screenplay mode the prose blocks above are meaningless (and converting a
+// screenplay line into a heading/list breaks it), so `/` offers the script
+// elements instead — each just retypes the current line's element via the
+// always-available setScreenplayElement command.
+function buildScreenplayItems() {
+  const el = (id, title, subtitle, keywords, element) => ({
+    id, title, subtitle, keywords,
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).setScreenplayElement(element).run(),
+  });
+  return [
+    el('sp-scene', 'Scene Heading', 'INT./EXT. location — time', ['scene', 'heading', 'slug', 'slugline', 'int', 'ext'], 'scene'),
+    el('sp-action', 'Action', 'Describe what happens', ['action', 'description'], 'action'),
+    el('sp-character', 'Character', 'Who is speaking', ['character', 'cue', 'name', 'who'], 'character'),
+    el('sp-dialogue', 'Dialogue', 'The spoken lines', ['dialogue', 'speech', 'line', 'say'], 'dialogue'),
+    el('sp-paren', 'Parenthetical', 'Acting direction (wryly)', ['parenthetical', 'paren', 'wryly'], 'parenthetical'),
+    el('sp-transition', 'Transition', 'CUT TO:, DISSOLVE TO:', ['transition', 'cut', 'dissolve', 'fade', 'smash'], 'transition'),
+    el('sp-shot', 'Shot', 'A camera shot / angle', ['shot', 'angle', 'camera', 'pov'], 'shot'),
+    el('sp-centered', 'Centered', 'Centered text (THE END)', ['centered', 'center', 'middle'], 'centered'),
+  ];
+}
+
 const SlashList = forwardRef(function SlashList({ items, command }, ref) {
   const [active, setActive] = useState(0);
   useEffect(() => { setActive(0); }, [items]);
@@ -53,7 +74,10 @@ const SlashList = forwardRef(function SlashList({ items, command }, ref) {
     onKeyDown: ({ event }) => {
       if (event.key === 'ArrowDown') { setActive(i => (i + 1) % items.length); return true; }
       if (event.key === 'ArrowUp')   { setActive(i => (i - 1 + items.length) % items.length); return true; }
-      if (event.key === 'Enter')     { items[active] && command(items[active]); return true; }
+      // Tab selects like Enter (Notion/Linear convention) — without this Tab
+      // fell through to the editor's Tab keymap and inserted spaces/indented
+      // a list while the menu sat open.
+      if (event.key === 'Enter' || event.key === 'Tab') { items[active] && command(items[active]); return true; }
       return false;
     },
   }), [items, active, command]);
@@ -77,8 +101,10 @@ const SlashList = forwardRef(function SlashList({ items, command }, ref) {
   );
 });
 
-export function makeSlashExtension({ onInsertBookmark, onInsertImage, onInsertBoardEmbed } = {}) {
-  const all = buildItems({ onInsertBookmark, onInsertImage, onInsertBoardEmbed });
+export function makeSlashExtension({ onInsertBookmark, onInsertImage, onInsertBoardEmbed, docMode } = {}) {
+  const all = docMode === 'screenplay'
+    ? buildScreenplayItems()
+    : buildItems({ onInsertBookmark, onInsertImage, onInsertBoardEmbed });
   return Extension.create({
     name: 'slashCommand',
     addOptions() {

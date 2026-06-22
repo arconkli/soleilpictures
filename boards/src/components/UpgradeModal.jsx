@@ -4,6 +4,7 @@
 //   'cap-hit'     → 100-card demo cap copy
 //   'shared-edit' → "Editing shared boards is a Creator feature" copy
 //   'first-value' → warm "you're off the ground" copy (the first-value nudge)
+//   'storage'     → "Store any file, up to 100GB" copy (the file-upload paywall)
 //   'manual' / null → generic "Unlock everything" copy
 //
 // The first-value path also tags checkout with surface='first_value' so the
@@ -16,6 +17,7 @@ export function UpgradeModal({ onClose, reason = null }) {
   const header = reason === 'cap-hit' ? 'cap-hit'
                : reason === 'shared-edit' ? 'shared-edit'
                : reason === 'first-value' ? 'first-value'
+               : reason === 'storage' ? 'storage'
                : null;
   const surface = reason === 'first-value' ? 'first_value' : 'modal';
   return <PricingModal onClose={onClose} header={header} surface={surface} />;

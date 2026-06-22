@@ -9,16 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { untagDocPage } from '../lib/tagsApi.js';
-
-const TAG_PALETTE = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
-  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
-];
-function fallbackColor(s) {
-  const str = (s || '').toString();
-  let h = 0; for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
-}
+import { tagFallbackColor } from '../lib/tagColor.js';
 
 export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
   const navigate = useEntityNavigate();
@@ -85,7 +76,7 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
       return {
         id,
         name: t?.name || '',
-        color: t?.color || fallbackColor(t?.name || id),
+        color: t?.color || tagFallbackColor(t?.name || id),
       };
     }).filter(c => c.name);
   }, [tagIds, tagsById]);
@@ -128,6 +119,7 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
           <button key={c.id}
                   className="doc-page-tag-chip"
                   role="listitem"
+                  style={{ '--tag-c': c.color }}
                   title={`Open tag "${c.name}" — right-click to remove`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -138,7 +130,7 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
                     e.stopPropagation();
                     setMenuFor({ tagId: c.id, name: c.name, x: e.clientX, y: e.clientY });
                   }}>
-            <span className="doc-page-tag-dot" style={{ background: c.color }} />
+            <span className="doc-page-tag-dot" aria-hidden="true" />
             <span className="doc-page-tag-name">{c.name}</span>
           </button>
         ))}

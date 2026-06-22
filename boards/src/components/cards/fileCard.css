@@ -1,0 +1,47 @@
+/* Generic file card (components/cards/FileCard.jsx). Mirrors .pdfc so any-file
+   cards sit consistently next to image/pdf cards. Kept in its own file (imported
+   by FileCard.jsx) to avoid touching the shared styles.css. */
+
+.filec { display: flex; flex-direction: column; height: 100%; }
+
+.filec-body {
+  position: relative;
+  flex: 1 1 auto; min-height: 0; overflow: hidden;
+  background: var(--bg3, #1a1a1f);
+}
+
+/* Centered type glyph when there's no preview. */
+.filec-glyph {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-3, #8b8b94);
+  background: var(--bg3, #1a1a1f);
+}
+
+/* Inline text/code preview. Leaves room for the bottom info strip. */
+.filec-preview {
+  margin: 0;
+  width: 100%; height: 100%;
+  padding: 10px 12px 30px;
+  overflow: hidden;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10.5px; line-height: 1.45;
+  color: var(--ink-1, #c8c8d0);
+  white-space: pre-wrap; word-break: break-word;
+  background: var(--bg3, #1a1a1f);
+}
+.filec-preview.is-code { white-space: pre; word-break: normal; }
+
+/* Filename + size strip across the bottom (matches .pdfc-info). */
+.filec-info {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px;
+  background: linear-gradient(to top, rgba(8,8,10,.86), rgba(8,8,10,0));
+  color: #fff;
+  font-size: 11px; line-height: 1.2;
+  pointer-events: none;
+}
+.filec-info-icon { flex: 0 0 auto; display: inline-flex; color: #cbd5e1; }
+.filec-info-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filec-info-size { flex: 0 0 auto; opacity: .8; font-variant-numeric: tabular-nums; }

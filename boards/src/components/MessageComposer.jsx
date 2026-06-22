@@ -4,6 +4,7 @@ import { Paperclip, Smile, Link as LinkIcon } from '../lib/icons.js';
 import { uploadMessageFile } from '../lib/messageAttachments.js';
 import { caretRect } from '../lib/caretRect.js';
 import { EntityPicker } from './EntityPicker.jsx';
+import { EmojiPalette } from './EmojiPalette.jsx';
 import { useDraft } from '../hooks/useDraft.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { coerceRef } from '../lib/entityRef.js';
@@ -21,6 +22,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
   const [pendingEntityRefs, setPendingEntityRefs] = useState([]); // entity targets
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkDraft, setLinkDraft] = useState('');
+  const [emojiAnchor, setEmojiAnchor] = useState(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const lastTypingRef = useRef(0);
@@ -149,6 +151,22 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
   };
   const cancelLink = () => { setLinkOpen(false); setLinkDraft(''); inputRef.current?.focus(); };
 
+  // Insert a picked emoji at the caret (or end), then restore focus + caret.
+  // Reads el.value directly so rapid picks don't fight a stale `body` closure.
+  const insertEmoji = (emoji) => {
+    if (!emoji) return;
+    const el = inputRef.current;
+    if (!el) { setBody((b) => (b || '') + emoji); return; }
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    setBody(el.value.slice(0, start) + emoji + el.value.slice(end));
+    const pos = start + emoji.length;
+    requestAnimationFrame(() => {
+      el.focus();
+      try { el.setSelectionRange(pos, pos); } catch (_) {}
+    });
+  };
+
   return (
     <form className={`msg-composer ${dragOver ? 'is-drop-target' : ''}`}
           onSubmit={(e) => { e.preventDefault(); send(); }}
@@ -221,7 +239,12 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
                 onClick={() => { setLinkOpen(o => !o); setLinkDraft(''); }}>
           <Icon as={LinkIcon} size={14} />
         </button>
-        <button type="button" className="msg-composer-btn" title="Emoji"><Icon as={Smile} size={14} /></button>
+        <button type="button"
+                className={`msg-composer-btn ${emojiAnchor ? 'is-active' : ''}`}
+                title="Emoji"
+                onClick={(e) => setEmojiAnchor(emojiAnchor ? null : e.currentTarget.getBoundingClientRect())}>
+          <Icon as={Smile} size={14} />
+        </button>
         <button type="submit" className="msg-composer-send" disabled={isBusy || (!body.trim() && attachments.length === 0)}>
           {uploading ? 'Uploading…' : 'Send'}
         </button>
@@ -245,6 +268,14 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
             setMention(null);
           }}
           onCancel={() => setMention(null)}
+        />
+      )}
+
+      {emojiAnchor && (
+        <EmojiPalette
+          anchor={emojiAnchor}
+          onPick={(emoji) => { insertEmoji(emoji); setEmojiAnchor(null); }}
+          onClose={() => setEmojiAnchor(null)}
         />
       )}
     </form>

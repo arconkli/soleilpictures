@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, renamePage } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap } from '../lib/docState.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { isDocQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
@@ -23,6 +23,8 @@ import { DocPageTree } from './DocPageTree.jsx';
 import { DocPageEditor } from './DocPageEditor.jsx';
 import { DocPresence } from './DocPresence.jsx';
 import { DocToolbar } from './DocToolbar.jsx';
+import { ScreenplayTitlePage } from './ScreenplayTitlePage.jsx';
+import { ScreenplaySceneNav } from './ScreenplaySceneNav.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
@@ -136,6 +138,78 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => { onActivePageChange?.(activePageId || null); }, [activePageId, onActivePageChange]);
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
+  // On phone the rail is a slide-over drawer (the desktop rail + its only
+  // toggle are display:none at <=640px, which stranded multi-page navigation).
+  const [mobileRailOpen, setMobileRailOpen] = useState(false);
+
+  // Doc mode ('doc' | 'screenplay'). Lives in the per-scope docMeta map so it
+  // persists + collaborates; observe it so a peer's toggle reflects here.
+  const [docMode, setDocModeState] = useState(() => getDocMode(ydoc, scope));
+  useEffect(() => {
+    const m = metaMap(ydoc, scope);
+    setDocModeState(getDocMode(ydoc, scope));
+    if (!m) return;
+    const update = () => setDocModeState(getDocMode(ydoc, scope));
+    m.observe(update);
+    return () => m.unobserve(update);
+  }, [ydoc, scope]);
+  const toggleScreenplay = useCallback(() => {
+    setDocMode(ydoc, scope, docMode === 'screenplay' ? 'doc' : 'screenplay');
+  }, [ydoc, scope, docMode]);
+
+  // Screenplay title page (docMeta-backed). observeDeep so a peer's field edit
+  // (nested Y.Map) reflects here, not just enable/disable. Single source of
+  // truth: this state + commitTitlePage feed both the toolbar toggle and the
+  // on-page ScreenplayTitlePage editor.
+  const [titlePage, setTitlePageState] = useState(() => getTitlePage(ydoc, scope));
+  useEffect(() => {
+    const m = metaMap(ydoc, scope);
+    setTitlePageState(getTitlePage(ydoc, scope));
+    if (!m) return;
+    const update = () => setTitlePageState(getTitlePage(ydoc, scope));
+    m.observeDeep(update);
+    return () => m.unobserveDeep(update);
+  }, [ydoc, scope]);
+  const commitTitlePage = useCallback((patch) => setTitlePage(ydoc, scope, patch), [ydoc, scope]);
+
+  // Scene-number visibility (lock state lives on the blocks). Observe so a peer's
+  // toggle reflects here; the plugin always stamps numbers, CSS gates display.
+  const [sceneNumbersShow, setSceneNumbersShowState] = useState(() => getSceneNumbersShow(ydoc, scope));
+  useEffect(() => {
+    const m = metaMap(ydoc, scope);
+    setSceneNumbersShowState(getSceneNumbersShow(ydoc, scope));
+    if (!m) return;
+    const update = () => setSceneNumbersShowState(getSceneNumbersShow(ydoc, scope));
+    m.observe(update);
+    return () => m.unobserve(update);
+  }, [ydoc, scope]);
+  const onSetSceneNumbersShow = useCallback((v) => setSceneNumbersShow(ydoc, scope, v), [ydoc, scope]);
+
+  // Prose page layout: pageless (default, continuous) vs paged. docMeta-backed
+  // + collaborative — observe so a peer's toggle reflects here. Drives both the
+  // toolbar pill and whether DocPageEditor mounts the paginator + page sheets.
+  const [pageless, setPagelessState] = useState(() => getPageless(ydoc, scope));
+  useEffect(() => {
+    const m = metaMap(ydoc, scope);
+    setPagelessState(getPageless(ydoc, scope));
+    if (!m) return;
+    const update = () => setPagelessState(getPageless(ydoc, scope));
+    m.observe(update);
+    return () => m.unobserve(update);
+  }, [ydoc, scope]);
+  const onTogglePageless = useCallback(() => setPageless(ydoc, scope, !pageless), [ydoc, scope, pageless]);
+  const toggleTitlePage = useCallback(() => {
+    const next = !titlePage.enabled;
+    commitTitlePage({ enabled: next });
+    // Enabling: make sure screenplay mode is on, then scroll the new page into
+    // view on the next frame.
+    if (next) {
+      if (docMode !== 'screenplay') setDocMode(ydoc, scope, 'screenplay');
+      requestAnimationFrame(() => {
+        paperRef.current?.querySelector('.sp-title-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, [titlePage.enabled, commitTitlePage, docMode, ydoc, scope]);
 
   // Ref to .doc-paper — declared early because the zoom/pinch effect
   // below needs it. The DocPresence overlay also uses it later (cursor/
@@ -289,81 +363,31 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // (sheetId === pageId) is protected — to remove that, the user deletes
   // the whole page from the tree.
   const feedback = useFeedback();
-  const deleteSheet = useCallback(async (sheetId) => {
+  const deleteSheet = useCallback((sheetId) => {
     if (!activePageId || !sheetId || sheetId === activePageId) return;
-    const ok = await feedback.confirm({
-      title: 'Delete this page?',
-      message: 'The page and its contents will be removed.',
-      confirmLabel: 'Delete',
-      danger: true,
+    // Detach (keep content) + offer Undo, matching the app's delete→Undo-toast
+    // convention. Doc-structural ops are DOC_ORIGIN (untracked by the canvas
+    // UndoManager), so restore is explicit. Purge the orphaned content only if
+    // the user doesn't undo within the toast window.
+    const idx = detachPageSheet(ydoc, activePageId, sheetId, scope);
+    let undone = false;
+    feedback.toast({
+      type: 'info',
+      message: 'Page deleted',
+      duration: 6000,
+      action: {
+        label: 'Undo',
+        onClick: () => { undone = true; reattachPageSheet(ydoc, activePageId, sheetId, idx, scope); },
+      },
     });
-    if (!ok) return;
-    deletePageSheet(ydoc, activePageId, sheetId, scope);
+    setTimeout(() => { if (!undone) purgeSheetContent(ydoc, sheetId, scope); }, 6500);
   }, [activePageId, ydoc, scope, feedback]);
 
-  // Auto-add a sheet when the last sheet in the current page fills up. Fires
-  // at most once per sheet — once a sheet has triggered, even further growth
-  // won't fire again until the user navigates to a new last-sheet.
-  const autoFiredRef = useRef(new Set());
-  // Clear the fired set on page switch so the new page starts fresh.
-  useEffect(() => { autoFiredRef.current = new Set(); }, [activePageId]);
-  useEffect(() => {
-    if (!ready || !activePageId) return;
-    const paper = paperRef.current;
-    if (!paper) return;
-    const wraps = paper.querySelectorAll('.doc-editor-wrap');
-    if (!wraps.length) return;
-    // Only observe the LAST sheet — that's where the user is adding content
-    // when they "reach the end."
-    const lastWrap = wraps[wraps.length - 1];
-    const lastSheetId = sheetIds[sheetIds.length - 1];
-    if (!lastSheetId) return;
-    const checkAndFire = () => {
-      if (autoFiredRef.current.has(lastSheetId)) return;
-      // Tiptap's editable root carries both classes ("tt-editor ProseMirror").
-      // Query it fresh each tick — it may mount a frame after this effect runs.
-      // Its scrollHeight is the INTRINSIC content height — NOT inflated by the
-      // wrap's 1056px min-height box, which is what made empty sheets misfire.
-      const inner = lastWrap.querySelector('.ProseMirror');
-      if (!inner) return;
-      // Printable area = the wrap's min-height minus its vertical padding.
-      // Read live so it's correct for the normal (1056/96) and small-screen
-      // (800/48) cases. Zoom uses CSS `zoom` on the wrap, which scales both
-      // min-height and the descendant scrollHeight equally, so the ratio is
-      // zoom-independent without extra math.
-      const cs = getComputedStyle(lastWrap);
-      const minH = parseFloat(cs.minHeight) || 0;
-      const padTop = parseFloat(cs.paddingTop) || 0;
-      const padBot = parseFloat(cs.paddingBottom) || 0;
-      const printable = minH - padTop - padBot;
-      if (printable <= 0) return;
-      if (inner.scrollHeight < printable * AUTO_NEW_PAGE_FILL_RATIO) return;
-      autoFiredRef.current.add(lastSheetId);
-      addPageSheet(ydoc, activePageId, scope);
-    };
-    // Debounce so a burst of ResizeObserver / mutation ticks (typing, paste,
-    // reflow) collapses into a single measurement. We never call checkAndFire
-    // synchronously here — the RO's initial callback drives the first check
-    // after layout, and on a fresh empty sheet the measured content height is
-    // well below the threshold, so the runaway cascade is structurally
-    // impossible. We observe the WRAP (always present): its subtree
-    // MutationObserver catches typing/paste AND the editor node mounting,
-    // while the ResizeObserver catches the wrap growing past one page.
-    let timer = null;
-    const schedule = () => {
-      if (timer) return;
-      timer = setTimeout(() => { timer = null; checkAndFire(); }, 120);
-    };
-    const ro = new ResizeObserver(schedule);
-    ro.observe(lastWrap);
-    const mo = new MutationObserver(schedule);
-    mo.observe(lastWrap, { childList: true, characterData: true, subtree: true });
-    return () => {
-      ro.disconnect();
-      mo.disconnect();
-      if (timer) clearTimeout(timer);
-    };
-  }, [activePageId, ready, ydoc, scope, sheetIds]);
+  // Prose pagination is now handled inside the editor by the DocPagination
+  // plugin (true reflow: content flows + splits line-level across real pages,
+  // drawn as white sheets behind the text). The old cosmetic "fill 92% → append
+  // an empty sheet" effect — which never moved content and stranded the caret —
+  // is gone. Screenplay still uses its own line-accurate ScreenplayPagination.
 
   // Honor a "jump to this bookmark on open" request that came in via a
   // soleil:// link from another doc. Switch to its page first; the editor
@@ -375,7 +399,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     setActivePageId(target.pageId);
     let tries = 0;
     const tick = () => {
-      const ed = editorRef.current;
+      // A sheet-scoped bookmark must resolve against THAT sheet's editor (its
+      // relAnchor is tied to one fragment). Wait for that editor specifically;
+      // legacy bookmarks (no sheetId) fall back to the focused editor.
+      const sheetEd = target.sheetId ? editorsRef.current.get(target.sheetId) : null;
+      if (target.sheetId && !sheetEd) { if (tries++ < 30) setTimeout(tick, 40); return; }
+      const ed = sheetEd || editorRef.current;
       if (!ed) { if (tries++ < 30) setTimeout(tick, 40); return; }
       const docSize = ed.state.doc.content.size;
       // Prefer the durable relative anchor (rides along with edits); fall back
@@ -415,6 +444,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // first loads); onEditorFocus fires every time the user clicks into a
   // particular sheet and re-points editorRef at that editor.
   const editorRef = useRef(null);
+  // Registry of ALL live sheet editors (sheetId → editor) so find/replace can
+  // span every sheet of the active page, not just the focused one.
+  const editorsRef = useRef(new Map());
   const docEditLoggedRef = useRef(false); // doc_edit: once per doc surface mount
   const [, force] = useState(0);
   // Dev-only: surface the active editor to the doc QA harness bridge so
@@ -427,13 +459,26 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       (window.__soleilDocTest || (window.__soleilDocTest = {})).editor = ed;
     }
   };
-  const onEditorReady = (ed) => {
-    if (!editorRef.current) {
-      editorRef.current = ed;
-      force(n => n + 1);
-    }
+  // Stable identities (useCallback) so DocPageEditor's register/deregister
+  // effect doesn't churn on every parent render — and so it can pair
+  // register-on-setup with deregister-on-cleanup in ONE effect (which is what
+  // makes it survive React StrictMode's dev mount→unmount→mount cycle).
+  const onEditorReady = useCallback((ed, sheetId) => {
+    if (sheetId) editorsRef.current.set(sheetId, ed);
+    if (!editorRef.current) editorRef.current = ed;
+    force(n => n + 1);
     exposeEditor(ed);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const onEditorDestroy = useCallback((sheetId) => {
+    if (!sheetId || !editorsRef.current.has(sheetId)) return;
+    const ed = editorsRef.current.get(sheetId);
+    editorsRef.current.delete(sheetId);
+    if (editorRef.current === ed) {
+      editorRef.current = editorsRef.current.values().next().value || null;
+    }
+    force(n => n + 1);
+  }, []);
   const onEditorFocus = (ed) => {
     if (editorRef.current !== ed) {
       editorRef.current = ed;
@@ -447,6 +492,29 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     }
     exposeEditor(ed);
   };
+
+  // Mobile soft-keyboard: the layout viewport doesn't shrink when the iOS/
+  // Android keyboard opens, so the caret + footer can hide behind it. Pad the
+  // bottom of .doc-paper by the occluded height (so the last lines can scroll
+  // clear) and keep the caret in view.
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    const paper = paperRef.current;
+    if (!vv || !paper) return;
+    const onVV = () => {
+      const occluded = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const open = occluded > 80;
+      paper.style.paddingBottom = open ? `${occluded}px` : '';
+      if (open) { try { editorRef.current?.commands?.scrollIntoView(); } catch (_) {} }
+    };
+    vv.addEventListener('resize', onVV);
+    vv.addEventListener('scroll', onVV);
+    return () => {
+      vv.removeEventListener('resize', onVV);
+      vv.removeEventListener('scroll', onVV);
+      if (paper) paper.style.paddingBottom = '';
+    };
+  }, []);
 
   // Broadcast scrollTop on the doc-paper so workspace presence can carry
   // it for click-to-jump. Throttle to 200ms — peer scroll-sync only needs
@@ -516,9 +584,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       confirmLabel: 'Add',
     });
     if (name == null) return; // cancelled
-    // Store a durable relative anchor (survives edits) alongside the raw int.
+    // Store a durable relative anchor (survives edits) alongside the raw int,
+    // plus the sheetId this editor is bound to (so a multi-sheet page resolves
+    // the anchor against the right sheet on jump).
     const relAnchor = encodeAnchor(editor, anchor);
-    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, relAnchor, scope });
+    let sheetId = activePageId;
+    for (const [sid, ed] of editorsRef.current.entries()) { if (ed === editor) { sheetId = sid; break; } }
+    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, sheetId, anchor, relAnchor, scope });
   };
 
   if (!ready) {
@@ -534,7 +606,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   }
 
   return (
-    <div className={`doc-surface no-right-rail ${rails.left ? '' : 'rail-left-collapsed'}`}>
+    <div className={`doc-surface no-right-rail ${rails.left ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}`}>
+      {/* Phone-only backdrop that closes the page drawer. */}
+      {mobileRailOpen && <div className="doc-rail-backdrop" onClick={() => setMobileRailOpen(false)} />}
       {/* Left rail — page tree */}
       <aside className="doc-rail doc-rail-left">
         <button className="doc-rail-toggle"
@@ -553,9 +627,19 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             boardId={board.id}
             pages={pages}
             activePageId={activePageId}
-            onSelectPage={setActivePageId}
+            onSelectPage={(id) => { setActivePageId(id); setMobileRailOpen(false); }}
             peers={peersOnBoard}
             onJumpToPeer={onJumpToPeer}
+          />
+        )}
+        {rails.left && docMode === 'screenplay' && (
+          <ScreenplaySceneNav
+            editor={editorRef.current}
+            titlePageEnabled={titlePage.enabled}
+            onJumpTitlePage={() => {
+              setMobileRailOpen(false);
+              paperRef.current?.querySelector('.sp-title-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
           />
         )}
       </aside>
@@ -563,9 +647,29 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       {/* Center — toolbar + editor. The toolbar is an editing surface —
           hidden for anonymous public viewers (view-only members keep it). */}
       <section className="doc-center">
+        {/* Phone-only entry point to the page list (the desktop rail is hidden
+            at <=640px). Opens the rail as a slide-over drawer. */}
+        <button className="doc-mobile-pages-btn"
+                aria-label="Pages" aria-expanded={mobileRailOpen}
+                onClick={() => { setRails(r => ({ ...r, left: true })); setMobileRailOpen(o => !o); }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 3 H12 M2 7 H12 M2 11 H12" />
+          </svg>
+          Pages
+        </button>
         {!isPublic && (
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
+                    ydoc={ydoc}
+                    scope={scope}
+                    docMode={docMode}
+                    onToggleScreenplay={toggleScreenplay}
+                    titlePageEnabled={titlePage.enabled}
+                    onToggleTitlePage={toggleTitlePage}
+                    sceneNumbersShow={sceneNumbersShow}
+                    onSetSceneNumbersShow={onSetSceneNumbersShow}
+                    pageless={pageless}
+                    onTogglePageless={onTogglePageless}
                     onInsertBookmark={insertBookmarkAtCaret}
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
@@ -576,9 +680,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     onZoomReset={() => setZoom(1)} />
         )}
         <DocFindReplace editor={editorRef.current}
+                        editors={activePageId ? sheetIds.map(sid => editorsRef.current.get(sid)).filter(Boolean) : []}
                         open={findOpen}
                         onClose={() => setFindOpen(false)} />
-        <div className="doc-paper" ref={paperRef}
+        <div className={`doc-paper${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && pageless ? ' is-pageless' : ''}`} ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': zoom }}>
           {/* Grain texture is painted as a background-image on .doc-paper
               with background-attachment:local so it tiles across the
@@ -588,14 +693,25 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                          paperRef={paperRef} editor={editorRef.current}
                          currentUser={currentUser} />
           )}
+          {/* Screenplay title page — a real first page, before the script body. */}
+          {docMode === 'screenplay' && titlePage.enabled && (
+            <ScreenplayTitlePage
+              titlePage={titlePage}
+              onCommit={commitTitlePage}
+              editable={canEdit && !isPublic}
+            />
+          )}
           {activePageId ? (
             sheetIds.map(sid => (
               // key forces a fresh editor instance per sheet — Tiptap's
               // Collaboration extension can't re-bind to a different fragment.
               <DocPageEditor
-                key={sid}
+                key={`${sid}:${docMode}:${pageless ? 'pl' : 'pg'}`}
                 ydoc={ydoc}
                 scope={scope}
+                docMode={docMode}
+                pageless={pageless}
+                zoom={zoom}
                 pageId={activePageId}
                 sheetId={sid}
                 activePageId={activePageId}
@@ -603,6 +719,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 userId={userId}
                 currentUser={currentUser}
                 onEditorReady={onEditorReady}
+                onEditorDestroy={onEditorDestroy}
                 onEditorFocus={onEditorFocus}
                 onRequestBoardEmbed={requestBoardEmbed}
                 onRequestLink={requestLink}
@@ -623,16 +740,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               <div className="doc-state-sub">Pick a page on the left, or create your first one.</div>
             </div>
           )}
-          {activePageId && canEdit && (
-            <button className="doc-add-page-below"
-                    type="button"
-                    onClick={addSheetBelow}
-                    title="Add a new page below">
-              + New page
-            </button>
-          )}
+          {/* Pages are now created automatically as content flows (DocPagination).
+              The manual "+ New page" sheet button is obsolete in the reflow model. */}
         </div>
-        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} />
+        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={board.id} />
       </section>
 
       {embedPickerOpen && (

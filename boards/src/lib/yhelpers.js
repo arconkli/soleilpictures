@@ -45,6 +45,14 @@ export function yMapToCard(ym) {
 // even though the surrounding array is rebuilt.
 const readCardsCache = new WeakMap(); // ydoc → Map<id, { hash, card }>
 
+// A live Yjs type (Y.Map/Y.Array/Y.XmlFragment/…). Duck-typed (constructor
+// names are mangled by the bundler) on toJSON + an observe method.
+function isYType(v) {
+  return v !== null && typeof v === 'object'
+    && typeof v.toJSON === 'function'
+    && (typeof v.observe === 'function' || typeof v.observeDeep === 'function' || v._item !== undefined);
+}
+
 function cardHash(card) {
   // Sort keys so iteration-order quirks don't cause false negatives.
   const keys = Object.keys(card).sort();
@@ -53,6 +61,12 @@ function cardHash(card) {
     const k = keys[i];
     const v = card[k];
     s += k + '=';
+    // NEVER JSON.stringify a nested Y type. Doc cards carry their whole
+    // doc store (docPageContent/docPages/…) as Y types; serializing them
+    // here re-encoded EVERY doc on the board on EVERY keystroke (readCards
+    // runs per ydoc update). RichDocCard observes its own content for the
+    // preview, so the card object identity doesn't need to change on edits.
+    if (isYType(v)) { s += 'Y|'; continue; }
     s += (v !== null && typeof v === 'object') ? JSON.stringify(v) : String(v);
     s += '|';
   }

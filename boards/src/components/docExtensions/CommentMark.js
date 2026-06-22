@@ -28,6 +28,23 @@ export const CommentMark = Mark.create({
     return {
       setComment: (id) => ({ chain }) => chain().setMark('comment', { id }).run(),
       unsetComment: () => ({ chain }) => chain().unsetMark('comment').run(),
+      // Remove the comment mark with a specific id wherever it appears in the
+      // doc. Used when a thread is deleted so its highlight doesn't linger as a
+      // dead underline with no thread behind it. (removeMark doesn't shift
+      // positions, so iterating original positions is safe.)
+      removeCommentById: (id) => ({ state, dispatch }) => {
+        const markType = state.schema.marks.comment;
+        if (!markType || id == null) return false;
+        const tr = state.tr;
+        let found = false;
+        state.doc.descendants((node, pos) => {
+          if (!node.isText) return;
+          const m = node.marks.find(mk => mk.type === markType && mk.attrs.id === id);
+          if (m) { tr.removeMark(pos, pos + node.nodeSize, m); found = true; }
+        });
+        if (found && dispatch) dispatch(tr);
+        return found;
+      },
     };
   },
 });

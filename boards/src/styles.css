@@ -66,6 +66,24 @@
   --soleil-soft:   rgba(255,165,0,.14);
   --soleil-glow:   0 0 24px rgba(255,165,0,.18);
 
+  /* ── Unified "message language" — shared by the chat drawer, toasts,
+     and on-canvas comment/vote bubbles so all three read as one family.
+     (Drives the .msg-, .toast, and .canvas-comment / .canvas-vote rules.) */
+  --msg-surface:        rgba(18,18,22,.86);
+  --msg-surface-canvas: rgba(18,18,22,.92);   /* canvas bubbles sit over arbitrary content → higher opacity */
+  --msg-border:         rgba(255,255,255,.06);
+  --msg-blur:           blur(12px) saturate(1.05);
+  --msg-avatar:         24px;
+  --msg-avatar-sm:      18px;
+  --msg-ok:             #2faf78;
+  --msg-err:            var(--ink-error);
+  --msg-info:           #8ab4f8;
+
+  /* Selection accent — single knob for the whole selected-card system
+     (ring, halo, handles, multi-select box). Brand gold by choice. */
+  --select:        var(--soleil);
+  --select-soft:   var(--soleil-soft);
+
   --ink-error: #e08b8b;       /* desaturated rose for dark errors */
 
   --accent:  var(--soleil);
@@ -122,6 +140,13 @@
   --soleil-soft: rgba(255,165,0,.10);
 
   --ink-error: #b04a4a;
+
+  /* Message-language tokens — light overrides (dark defaults in :root). */
+  --msg-surface:        rgba(250,250,252,.86);
+  --msg-surface-canvas: rgba(252,251,247,.94);
+  --msg-border:         rgba(10,10,12,.06);
+  --msg-ok:             #1c9e6e;
+  --msg-info:           #3b6fd4;   /* --msg-err rides --ink-error; --msg-blur/-avatar inherit from :root */
 
   --grid-line: rgba(10,10,12,.04);
   --grid-dot:  rgba(10,10,12,.07);
@@ -462,6 +487,11 @@ body {
 .app {
   display: grid;
   grid-template-columns: 240px 1fr;
+  /* Pin the single row to exactly the viewport (max 1fr = available height,
+     min 0). Without this the implicit auto row grows to its tallest item's
+     content, so a long surface (e.g. the tag profile) pushes .main past 100vh
+     and #root's overflow:hidden clips the bottom — i.e. it won't scroll. */
+  grid-template-rows: minmax(0, 1fr);
   height: 100vh;
   /* Transparent so the body's grain texture shows through. The
      body already paints bg-0; repeating it here hid the grain. */
@@ -633,6 +663,50 @@ body {
   background: transparent;
   min-height: 0;
 }
+
+/* ── Three zones inside .sb-mid ──────────────────────────────────────────
+   .sb-top (workspace + Home/Messages) and .sb-foot (settings + avatar) stay
+   pinned (flex-shrink:0); only .sb-list (the board/tag list) scrolls, so a
+   long board tree can never crush the nav or push the footer off-screen.
+   .sb-mid keeps its own overflow-y:auto as a fallback for extreme heights.
+   NB: the scroller is .sb-list, NOT .sb-scroll — SignInBackdrop owns a global
+   `.sb-scroll { position:absolute; scrollbar-width:none }` (signin-backdrop.css)
+   that lingers after sign-in and would otherwise break this layout.          */
+.sb-mid .sb-top {
+  display: flex; flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.sb-mid .sb-list {
+  display: flex; flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* A hair of bottom room so the last row never sits flush on the footer
+     border. Inherits the global auto-hiding scrollbar (* rule) — no custom
+     scrollbar styling here. */
+  padding-bottom: 2px;
+}
+.sb-mid > .sb-foot { flex-shrink: 0; margin-top: 0; }
+
+/* Scroll-edge fade — masks the top/bottom edge of the list ONLY when there's
+   hidden content that way (classes toggled by useScrollEdges). Mask reveals
+   the transparent sidebar background, so the grain shows through cleanly. */
+.sb-mid .sb-list.fade-top.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+.sb-mid .sb-list.fade-top:not(.fade-bottom) {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+}
+.sb-mid .sb-list.fade-bottom:not(.fade-top) {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
+}
+
 .sb-mid-head {
   position: relative; /* anchor for the workspace popover */
   display: flex; align-items: center; justify-content: space-between;
@@ -920,29 +994,39 @@ body {
 /* Mirrors .sb-shared visually so the section reads as a sibling of
    "shared with me" and "boards." Each tag row has the same height as
    .sb-row so vertical rhythm with the rest of the sidebar is preserved. */
-.sb-tags { display: flex; flex-direction: column; }
-.sb-tags-head {
+/* BOARDS section header shares the TAGS header treatment so the collapsible
+   sections read identically (chevron + label + count + "+"). */
+.sb-tags,
+.sb-boards { display: flex; flex-direction: column; }
+.sb-tags-head,
+.sb-boards-head {
   display: flex; align-items: center; gap: 6px;
   padding: 10px 12px 4px;
   cursor: pointer;
   user-select: none;
 }
-.sb-tags-head:hover { color: var(--ink-1); }
-.sb-tags-chev {
+.sb-tags-head:hover,
+.sb-boards-head:hover { color: var(--ink-1); }
+.sb-tags-chev,
+.sb-boards-chev {
   display: inline-flex; align-items: center; justify-content: center;
   width: 11px; height: 11px;
   color: var(--ink-3);
   transition: transform var(--dur-fast) var(--ease);
 }
-.sb-tags-chev.is-open { transform: rotate(90deg); }
-.sb-tags-head-label { letter-spacing: 0.18em; }
-.sb-tags-head-count {
+.sb-tags-chev.is-open,
+.sb-boards-chev.is-open { transform: rotate(90deg); }
+.sb-tags-head-label,
+.sb-boards-head-label { letter-spacing: 0.18em; }
+.sb-tags-head-count,
+.sb-boards-count {
   font: 500 10px/1 var(--font-mono);
   color: var(--ink-3);
   letter-spacing: 0;
   margin-left: 4px;
 }
-.sb-tags-add {
+.sb-tags-add,
+.sb-boards-add {
   margin-left: auto;
   width: 18px; height: 18px;
   display: grid; place-items: center;
@@ -950,7 +1034,8 @@ body {
   color: var(--ink-3); cursor: pointer;
   border-radius: var(--radius);
 }
-.sb-tags-add:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sb-tags-add:hover,
+.sb-boards-add:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sb-tags-body {
   display: flex; flex-direction: column;
   padding: 0 0 4px;
@@ -1226,6 +1311,45 @@ body {
 .sb-tag-menu-item:hover { background: var(--bg-hov); color: var(--ink-0); }
 .sb-tag-menu-item.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
 
+/* Entity-type switch inside the row menu (one-tap re-type / un-Untyped). */
+.sb-tag-menu-types {
+  display: flex; gap: 3px;
+  padding: 5px 8px 6px;
+  margin-top: 2px;
+  border-top: 1px solid var(--line-1);
+}
+.sb-tag-menu-type {
+  flex: 1 1 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 26px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.sb-tag-menu-type:hover { color: var(--ink-1); border-color: var(--line-2); background: var(--bg-hov); }
+.sb-tag-menu-type.is-on {
+  color: var(--ink-0);
+  border-color: color-mix(in oklab, var(--soleil) 45%, var(--line-2));
+  background: color-mix(in oklab, var(--soleil) 14%, transparent);
+}
+
+/* Entity index — grouped-by-type sections in the sidebar. */
+.sb-tags-group { margin-bottom: 2px; }
+.sb-tags-group-head {
+  font: 700 9.5px/1.3 var(--font-sans);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 7px 10px 3px;
+}
+/* An "emerging" (not-yet-adopted) candidate reads as a hollow ring. */
+.sb-dot.is-emerging {
+  box-shadow: inset 0 0 0 2px var(--bg-2), 0 0 0 1.5px var(--bg-1);
+}
+
 /* Merge picker — modal overlay for "merge tag X into Y." */
 .merge-picker-bg {
   position: fixed; inset: 0;
@@ -1326,7 +1450,11 @@ body {
 
 /* ─── Tag detail view ──────────────────────────────────────────────── */
 .tag-detail {
-  width: 100%; height: 100%;
+  width: 100%;
+  /* Fill the remaining .main column UNDER the 48px topbar (a flex sibling).
+     height:100% used to equal the whole column height incl. the topbar, so the
+     surface overflowed and its scrollable bottom was clipped below the fold. */
+  flex: 1 1 auto; min-height: 0;
   display: flex; flex-direction: column;
   background: var(--bg-0);
   color: var(--ink-0);
@@ -1349,6 +1477,32 @@ body {
   letter-spacing: -0.02em;
   color: var(--ink-0);
   margin: 0;
+  flex: 0 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The type switch lives in the header now (next to the name): compact, no shrink. */
+.tag-detail-head .tag-profile-typeswitch { flex: 0 0 auto; gap: 4px; }
+.tag-detail-head .tag-profile-type-chip { padding: 4px 9px; font: 600 11px/1 var(--font-sans); }
+/* Compact "open the board to view" peek for a tagged group whose members
+   aren't synced into card_index yet (the board has never been opened). */
+.tag-detail-block-peek {
+  appearance: none;
+  display: inline-flex; align-items: center;
+  margin: 2px 0 0;
+  padding: 5px 10px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-3);
+  font: 500 11.5px/1.3 var(--font-sans);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.tag-detail-block-peek:hover { color: var(--ink-1); border-color: var(--line-3); background: var(--bg-hov); }
+.tag-profile-manage-empty {
+  padding: 4px 2px;
+  color: var(--ink-3);
+  font: 400 12px/1.4 var(--font-sans);
 }
 .tag-detail-count {
   font: 500 12px/1 var(--font-mono);
@@ -1363,6 +1517,124 @@ body {
   padding: 4px 8px; border-radius: var(--radius);
 }
 .tag-detail-close:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+/* ── Tag → entity PROFILE (tags-as-entities rework) ─────────────────────── */
+.tag-detail-manage-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line-1);
+  border-radius: 999px;
+  color: var(--ink-3);
+  font: 600 11px/1 var(--font-sans);
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.tag-detail-manage-btn:hover { color: var(--ink-1); border-color: var(--line-2); background: var(--bg-hov); }
+.tag-detail-manage-btn.is-on {
+  color: var(--ink-0);
+  border-color: color-mix(in oklab, var(--soleil) 45%, var(--line-2));
+  background: color-mix(in oklab, var(--soleil) 12%, transparent);
+}
+.tag-detail-manage-badge {
+  margin-left: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 999px;
+  background: var(--soleil);
+  color: var(--bg-0);
+  font: 700 9.5px/1 var(--font-sans);
+}
+
+/* Identity hero — the visual "what this entity is + looks like" band. */
+.tag-profile-hero {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px 24px 18px;
+  border-bottom: 1px solid var(--line-1);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--tag-color, var(--soleil)) 7%, transparent), transparent 72%);
+}
+.tag-profile-typeswitch { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-profile-type-chip {
+  appearance: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px 5px 9px;
+  border: 1px solid var(--line-1);
+  border-radius: 999px;
+  background: var(--bg-1);
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), transform var(--dur-quick) var(--ease);
+}
+.tag-profile-type-chip:hover { color: var(--ink-0); border-color: var(--line-2); }
+.tag-profile-type-chip:active { transform: translateY(1px); }
+.tag-profile-type-chip.is-on {
+  color: var(--ink-0);
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 18%, var(--bg-1));
+  border-color: color-mix(in oklab, var(--tag-color, var(--soleil)) 42%, transparent);
+}
+.tag-profile-identity { display: flex; flex-direction: column; gap: 10px; }
+.tag-profile-images { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-profile-thumb {
+  appearance: none; padding: 0; border: 0; cursor: pointer;
+  width: 72px; height: 72px; border-radius: 10px; overflow: hidden;
+  background: var(--bg-2);
+  box-shadow: 0 0 0 1px var(--line-1);
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.tag-profile-thumb:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--tag-color, var(--soleil)) 60%, transparent),
+              0 8px 20px -10px color-mix(in oklab, var(--tag-color, var(--soleil)) 60%, transparent);
+}
+.tag-profile-thumb img, .tag-profile-thumb .r2-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tag-profile-palettes { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag-profile-palette {
+  display: inline-flex; height: 18px; border-radius: 5px; overflow: hidden;
+  box-shadow: 0 0 0 1px var(--line-1); min-width: 96px;
+}
+.tag-profile-palette > span { flex: 1 1 0; min-width: 8px; }
+
+/* Manage — the demoted curation chrome. */
+.tag-profile-manage {
+  padding: 12px 24px 14px;
+  border-bottom: 1px solid var(--line-1);
+  background: color-mix(in oklab, var(--bg-2) 40%, transparent);
+}
+.tag-profile-manage .tag-detail-description { border-bottom: 0; padding: 0 0 10px; }
+.tag-profile-manage .tag-detail-filter { padding-left: 0; padding-right: 0; }
+.tag-profile-suggest { margin-top: 6px; }
+
+.tag-profile-section-head {
+  font: 700 11px/1.3 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 16px 24px 8px;
+}
+
+/* Related entities — tinted pills that jump to a sibling's profile. */
+.tag-profile-related-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 24px 8px; }
+.tag-profile-related-row {
+  appearance: none;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in oklab, var(--tag-color, var(--soleil)) 26%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 12%, transparent);
+  color: var(--ink-1);
+  font: 600 12.5px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-quick) var(--ease);
+}
+.tag-profile-related-row:hover {
+  color: var(--ink-0);
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 20%, transparent);
+  border-color: color-mix(in oklab, var(--tag-color, var(--soleil)) 42%, transparent);
+}
+.tag-profile-related-row:active { transform: translateY(1px); }
+.tag-profile-related-dot { width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0; }
+.tag-profile-related-shared { font: 500 10.5px/1 var(--font-mono); color: var(--ink-3); letter-spacing: 0.02em; }
 
 .tag-detail-description {
   display: flex; align-items: flex-start; gap: 12px;
@@ -2739,6 +3011,7 @@ body {
   align-items: center;
   gap: 10px;
   height: 30px;
+  flex-shrink: 0;       /* never compress rows — the list scrolls instead */
   padding: 0 12px;
   border-radius: var(--radius);
   color: var(--ink-1);
@@ -2791,7 +3064,7 @@ body {
 
 /* ──────────────────────────── Main ──────────────────────────────────────── */
 
-.main { display: flex; flex-direction: column; min-width: 0; }
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
 /* ─────────────────────────────── Topbar ─────────────────────────────────── */
 
@@ -3066,7 +3339,7 @@ body {
   letter-spacing: .02em;
   paint-order: stroke fill;
   stroke: var(--canvas-bg, var(--bg-1));
-  stroke-width: 3px;
+  stroke-width: 3.5px;
   stroke-linejoin: round;
 }
 /* Arrow color tokens — referenced from arrowGeometry.js. */
@@ -3130,9 +3403,9 @@ body {
 .ap-thick-line {
   display: block; width: 14px; background: currentColor; border-radius: 1px;
 }
-.ap-thick-line.ap-thick-thin   { height: 1.2px; }
-.ap-thick-line.ap-thick-medium { height: 2px; }
-.ap-thick-line.ap-thick-thick  { height: 3px; }
+.ap-thick-line.ap-thick-thin   { height: 1.3px; }
+.ap-thick-line.ap-thick-medium { height: 2.1px; }
+.ap-thick-line.ap-thick-thick  { height: 2.9px; }
 
 .ap-head {
   width: 26px; height: 22px;
@@ -4082,6 +4355,11 @@ body {
 .note {
   width: 100%; height: 100%;
   background: var(--bg-0);
+  /* The note is the cascade root for body ink: .note-body inherits this, so
+     precedence is inline readable textColor (set in JS) > surface-tone class
+     (.is-light-bg / .is-dark-bg, for explicitly painted notes) > this theme
+     default. Keeps painted-note text readable in BOTH themes. */
+  color: var(--ink-0);
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 14px;
@@ -4135,7 +4413,9 @@ body {
      tight (1.5, down from 1.62) so the text box hugs the glyphs — a taller
      line-box pushes the Grammarly spell-check underline visibly above the
      word inside the zoom-transformed canvas. */
-  font-size: 15px; line-height: 1.5; color: var(--ink-0);
+  /* Inherit the note's resolved ink (see .note) so painted-note + theme
+     contrast is handled in one place; per-span colors still override inline. */
+  font-size: 15px; line-height: 1.5; color: inherit;
   letter-spacing: -0.002em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -4148,6 +4428,28 @@ body {
   scrollbar-width: thin;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+/* Blank lines: a user who presses Enter on an empty line creates an empty
+   paragraph. The live editor shows it as a blank line (ProseMirror gives empty
+   <p> a trailing <br>), but the serialized static HTML is just <p></p>, which
+   collapses to zero height in display — so the spacing the user typed vanishes
+   when they stop editing. Give empty note paragraphs a line box so display
+   matches the editor (what you type is what you get). The \00a0 lives in a
+   ::before pseudo-element, so it never becomes selectable/copyable text. */
+.note-body p:empty::before {
+  content: "\00a0";
+}
+/* "Balance" — center a note's text vertically (the toolbar button also centers
+   it horizontally via text-align). Size the body to its content and let auto
+   margins absorb the slack equally top/bottom, so a one-line note used as a
+   header sits with even space around it. When the text is taller than the note,
+   the margins collapse to 0 and the body scrolls normally (avoids the
+   flexbox+overflow "can't scroll to the top" trap). Display-only: while editing,
+   the body is nested under .note-edit-wrap, so live vertical centering can't
+   shift the caret line — it snaps in on blur. */
+.note.is-balanced:not(.is-editing) .note-body {
+  flex: 0 1 auto;
+  margin-block: auto;
 }
 /* Clipped-text cue: when a note is pinned shorter than its text, fade the
    bottom edge instead of hiding the rest behind an invisible scroll, and
@@ -4353,8 +4655,12 @@ body {
   overflow: hidden;
 }
 .lc-embed-frame iframe {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
+  /* Embeds render at their provider NATURAL pixel size and are CSS-scaled to
+     contain the frame (inline width/height/transform set by LinkCard), so the
+     player never shows its own scrollbars and is never clipped at any size. */
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: top left;
   border: 0; display: block;
 }
 .lc-embed-meta {
@@ -4405,8 +4711,15 @@ body {
   flex: 0 0 auto;
 }
 
-/* Palette */
+/* Palette ────────────────────────────────────────────────────────────────
+   Two layout modes (decided in lib/paletteLayout.js, mirrored in
+   renderThumbnail.js), both FILL the card and never scroll:
+     .pc-bands  seamless edge-to-edge color, square corners, labels overlaid
+     .pc-chips  rounded chips with small gaps (small cards)
+   Orientation .pc-vert (columns) / .pc-horiz (rows) follows aspect ratio.
+   .pc-pure (the "hide labels" toggle) drops every label for a full bleed. */
 .pc {
+  position: relative;
   width: 100%; height: 100%;
   background: var(--bg-3);
   border: 1px solid var(--line-2);
@@ -4415,46 +4728,38 @@ body {
   display: flex; flex-direction: column; gap: 10px;
   overflow: hidden;
 }
+/* Bands + pure-color bleed colors to the rounded card edge; the header strip,
+   when present, carries its own padding. */
+.pc.pc-bands, .pc.pc-pure { padding: 0; gap: 0; }
+
 .pc-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 10px;
+  display: flex; align-items: baseline; gap: 10px;
+  flex: 0 0 auto; min-width: 0;
 }
+.pc.pc-bands .pc-head { padding: 7px 11px 5px; }
 .pc-title { font-size: 13px; font-weight: 600; color: var(--ink-0); letter-spacing: -0.005em; flex: 1; min-width: 0; }
-.pc-count {
-  font-family: var(--font-mono); font-size: 9.5px;
-  letter-spacing: .14em; text-transform: uppercase;
-  color: var(--ink-3);
-  flex-shrink: 0;
-}
 
-/* Eye toggle that hides the title + per-swatch hex labels, leaving just
-   the color strip. Lives in the head when the head is visible; floats
-   in the top-right corner when chipsOnly is on so the user can flip
-   back. Quiet by default — fades up to ink-1 on hover. */
-.pc-eye-btn {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  padding: 2px;
-  width: 18px; height: 18px;
+/* The single "hide labels" toggle. ALWAYS floats top-right so it stays
+   reachable at any card size — including a tiny card or a full-bleed palette
+   with no header. Quiet by default; fades in on hover over a blur scrim that
+   keeps it legible on top of any swatch color. */
+.pc-eye-float {
+  position: absolute; top: 6px; right: 6px; z-index: 3;
+  appearance: none; border: 0; margin: 0; padding: 0;
+  width: 22px; height: 22px;
   display: inline-flex; align-items: center; justify-content: center;
-  color: var(--ink-3);
-  cursor: pointer;
+  color: #f5f5f7;
+  background: rgba(10,10,12,.5);
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
   border-radius: var(--radius);
-  flex-shrink: 0;
-  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
-}
-.pc-eye-btn:hover { color: var(--ink-1); background: var(--bg-hov); }
-.pc-eye-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
-
-.pc.pc-chips-only > .pc-eye-btn {
-  position: absolute;
-  top: 6px; right: 6px;
+  cursor: pointer;
   opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.pc.pc-chips-only { position: relative; padding: 8px; }
-.pc.pc-chips-only:hover > .pc-eye-btn,
-.pc.pc-chips-only > .pc-eye-btn:focus-visible { opacity: 1; }
+.pc-eye-float:hover { color: #fff; background: rgba(10,10,12,.7); }
+.pc:hover > .pc-eye-float,
+.pc-eye-float:focus-visible { opacity: 1; }
+.pc-eye-float:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 
 /* Doc */
 .doc {
@@ -6225,6 +6530,24 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .admin-src-badge.src-referral .admin-src-dot { color: var(--soleil); }
 .admin-src-badge.src-direct   { color: var(--ink-3); border-color: var(--line-2); }
 .admin-src-badge.src-direct   .admin-src-dot { box-shadow: none; opacity: .5; }
+.admin-src-badge.src-google    { color: rgb(150,180,240); border-color: rgba(66,133,244,.30); }
+.admin-src-badge.src-google    .admin-src-glyph { background: #4285f4; color: #fff; }
+.admin-src-badge.src-bing      { color: rgb(110,205,190); border-color: rgba(0,150,137,.30); }
+.admin-src-badge.src-bing      .admin-src-glyph { background: #008373; color: #fff; }
+.admin-src-badge.src-tiktok    { color: rgb(120,225,220); border-color: rgba(37,244,238,.28); }
+.admin-src-badge.src-tiktok    .admin-src-glyph { background: #010101; color: #25f4ee; }
+.admin-src-badge.src-linkedin  { color: rgb(120,170,225); border-color: rgba(10,102,194,.30); }
+.admin-src-badge.src-linkedin  .admin-src-glyph { background: #0a66c2; color: #fff; font-size: 6px; letter-spacing: -.02em; }
+.admin-src-badge.src-pinterest { color: rgb(235,130,140); border-color: rgba(230,0,35,.30); }
+.admin-src-badge.src-pinterest .admin-src-glyph { background: #e60023; color: #fff; }
+.admin-src-badge.src-snapchat  { color: rgb(210,195,90); border-color: rgba(220,215,0,.34); }
+.admin-src-badge.src-snapchat  .admin-src-glyph { background: #fffc00; color: #111; }
+.admin-src-badge.src-youtube   { color: rgb(240,140,140); border-color: rgba(255,0,0,.30); }
+.admin-src-badge.src-youtube   .admin-src-glyph { background: #ff0000; color: #fff; }
+.admin-src-badge.src-share     { color: rgb(150,200,255); border-color: rgba(90,160,255,.30); }
+.admin-src-badge.src-share     .admin-src-dot { color: rgb(120,180,255); }
+.admin-src-badge.src-public    { color: rgb(175,160,235); border-color: rgba(150,130,235,.30); }
+.admin-src-badge.src-public    .admin-src-dot { color: rgb(170,150,235); }
 
 /* ── Detail header ── */
 .admin-detail-header {
@@ -6304,6 +6627,10 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .admin-detail-kv dd .is-strong, .admin-detail-kv dd.is-strong { color: var(--ink-0); font-weight: 600; }
 .admin-detail-kv dd .is-muted, .admin-detail-kv dd.is-muted { color: var(--ink-3); }
 .admin-detail-note { font: 500 13px/1.45 var(--font-sans); color: var(--ink-3); }
+.admin-detail-subhead {
+  margin: 10px 0 4px; color: var(--ink-3);
+  font: 700 9.5px/1.4 var(--font-sans); letter-spacing: .06em; text-transform: uppercase;
+}
 .admin-detail-refresh-error {
   display: block; width: 100%; text-align: left; cursor: pointer;
   margin: 0; padding: 8px 22px;
@@ -7241,14 +7568,20 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .canvas-wrap.tool-link .canvas,
 .canvas-wrap.tool-arrow .canvas { cursor: crosshair; }
 
-.card.is-selected > :first-child {
-  outline: none;
-  box-shadow: 0 0 0 1px var(--soleil), 0 0 0 4px var(--soleil-soft), var(--shadow-2);
-  border-radius: var(--radius-md);
-}
+/* The selected-card ring lives in ONE place — see ".card.is-selected" (on
+   the card root) further down (Selection system). The transient "action"
+   rings below stay on > :first-child. */
 .card.is-arrow-source > :first-child {
   outline: 2px dashed var(--soleil);
   outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+/* Candidate connect target while drawing an arrow — solid ring + soft glow so
+   it's obvious which card the next click will connect to. */
+.card.is-arrow-target > :first-child {
+  outline: 2px solid var(--soleil);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--soleil-soft);
   border-radius: var(--radius-md);
 }
 /* Drop-into-board target — fires while the user drags one or more
@@ -7382,7 +7715,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   width: 12px; height: 12px;
   margin-left: -6px;
   border-radius: 50%;
-  background: #4f8df8;
+  background: var(--select);
   border: 2px solid var(--bg-0);
   cursor: grab;
   z-index: 6;
@@ -7394,9 +7727,42 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   left: 50%; top: 100%;
   width: 1px; height: 14px;
   margin-left: -.5px;
-  background: #4f8df8;
+  background: var(--select);
 }
 .card.is-dragging .card-rotate { opacity: 0; }
+
+/* "⋯" card-options button — touch-only home for the card context menu now
+   that a long-press lifts the card to drag. Hidden by default; the coarse-
+   pointer block reveals it on selected cards. Desktop keeps right-click. */
+.card-menu-btn {
+  display: none;
+  position: absolute;
+  top: -14px; right: -10px;
+  width: 36px; height: 36px;
+  align-items: center; justify-content: center;
+  padding: 0;
+  font-size: 20px; line-height: 1;
+  color: rgba(0,0,0,.78);            /* dark glyph for contrast on gold */
+  background: var(--select);
+  border: 2px solid var(--bg-0);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  cursor: pointer;
+  z-index: 12;
+  touch-action: manipulation;
+}
+.card-menu-btn:active { filter: brightness(.92); }
+
+/* Card "picked up" by a press-and-hold (touch). Deliberate lift cue that does
+   NOT use transform — the wrapper's inline rotate() would override it and
+   rotated cards wouldn't scale. Shadow + accent ring read as "in hand". */
+.card.is-lifted {
+  box-shadow: 0 16px 36px rgba(0,0,0,.42);
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
+  transition: box-shadow var(--dur-fast) var(--ease);
+  z-index: 5;
+}
 
 /* Tool button active state */
 .cnv-tool.active {
@@ -7663,23 +8029,28 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   appearance: none;
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 8px 3px 6px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--tag-c, #4f8df8) 26%, transparent);
   border-radius: 999px;
   cursor: pointer;
   font: 500 11px/1.2 var(--font-sans);
   color: var(--ink-1);
-  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .ctx-tag-chip:hover {
-  background: var(--bg-0);
-  border-color: var(--line-2);
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 22%, transparent);
+  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 42%, transparent);
   color: var(--ink-0);
 }
 .ctx-tag-dot {
-  width: 6px; height: 6px;
+  width: 7px; height: 7px;
   border-radius: 50%;
+  background: var(--tag-c, #4f8df8);
   flex: 0 0 auto;
+}
+.ctx-tag-chip.is-auto, .ctx-tag-chip.is-ai {
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
 }
 .ctx-tag-name {
   white-space: nowrap;
@@ -8006,7 +8377,14 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .note.is-editing { box-shadow: 0 0 0 2px var(--ink-1); }
 .note .note-body { flex: 1; min-height: 0; outline: none; overflow: auto; max-width: 100%; }
 .note .note-body[contenteditable="true"] { user-select: text; cursor: text; }
-.note.is-light-bg .note-body, .note.is-light-bg .note-body * { color: #0a0a0c !important; }
+/* Surface-tone default ink for explicitly painted notes — bidirectional and
+   theme-independent (a light sticky reads dark text in BOTH themes, a dark one
+   light text). Set on .note so .note-body inherits it; an explicit per-card
+   textColor (inline, made readable in JS) still wins, and per-span colors keep
+   their own inline color (made readable by remapHtmlColors / ReadableColors).
+   NOT a `*` wildcard — that used to nuke every accent color. */
+.note.is-light-bg { color: #0a0a0c; }
+.note.is-dark-bg { color: #f5f5f7; }
 
 .note-toolbar {
   display: flex; align-items: center; gap: 4px;
@@ -8556,6 +8934,14 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   .tob-sep { flex: 0 0 auto; }
 }
 
+/* iPad-landscape (touch but wider than a phone): the note toolbar stays the
+   centred floating pill, but switch it to position:fixed so the visualViewport
+   keyboard-lift in ToolOptionsBar (now armed on any touch device) raises it
+   above the soft keyboard. bottom stays 14px → no visual change at rest. */
+@media (hover: none) and (pointer: coarse) and (min-width: 641px) {
+  .tob { position: fixed; }
+}
+
 /* ──────────────────────────── Phase 4.9: erase, strokes-on-top, polish ─── */
 
 /* Strokes always above cards */
@@ -8608,12 +8994,73 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .card.is-dragging.card-kind-shape { box-shadow: none; }
 .card.is-dragging .card-resize { opacity: 0; }
 
-/* Selected card outline animation (subtle) */
-.card.is-selected > :first-child {
-  outline: 2px solid var(--ink-1);
+/* ── Selection system ──────────────────────────────────────────────────
+   The single source of truth for what a SELECTED card looks like: a bold
+   brand-gold ring + gold glow. Lives on the CARD ROOT (not > :first-child)
+   on purpose — the card has overflow:hidden + contain:paint, which CLIPS a
+   child's box-shadow/outline (so notes and edge-to-edge images showed only a
+   faint hairline). The element's OWN outline + box-shadow on the root paint
+   outside that clip, so the ring + glow are always fully visible regardless
+   of card kind or content. The glow uses real gold (not the .14 soft token)
+   so it reads on dark notes AND busy photos. */
+.card.is-selected {
+  outline: 2.5px solid var(--select);
   outline-offset: 2px;
-  border-radius: var(--radius-lg);
-  transition: outline-color .15s;
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--select) 22%, transparent),
+    0 0 22px 2px color-mix(in srgb, var(--select) 42%, transparent),
+    var(--shadow-2);
+  transition: outline-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+/* Shapes strip their rectangular box-shadow at rest; restore the glow when
+   one is selected so the gold reads (shape cards are non-rectangular SVGs,
+   but a rectangular selection frame matches every other kind). */
+.card.card-kind-shape.is-selected {
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--select) 22%, transparent),
+    0 0 22px 2px color-mix(in srgb, var(--select) 42%, transparent);
+}
+
+/* In a 2+ multi-selection the unifying .sel-bbox frames the group, so the
+   per-card rings step down (thinner ring, lighter glow) to avoid a wall of
+   gold while still showing exactly which cards are in the set. */
+.canvas-wrap.is-multi-sel .card.is-selected {
+  outline-width: 1.5px;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--select) 16%, transparent),
+    var(--shadow-2);
+}
+
+/* Unifying bounding box drawn around a multi-selection so the group reads
+   as one thing. Non-interactive; the corner resize handle sits above it. */
+.sel-bbox {
+  position: absolute;
+  border: 1.5px solid var(--select);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 3px var(--select-soft);   /* faint outer glow, no inner fill to muddy content */
+  pointer-events: none;
+  z-index: 999995;
+}
+
+/* Name tag on a card another collaborator has selected — their color, with
+   the cursor-flag's tucked-corner shape. Constant size at any zoom (its
+   layer is screen-space, not canvas-scaled). Background set inline. */
+.peer-sel-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999991;
+}
+.peer-sel-pill {
+  position: absolute;
+  transform: translateY(-100%);
+  font: 600 11px var(--font-sans);
+  line-height: 1;
+  color: #fff;
+  padding: 3px 7px;
+  border-radius: var(--radius) var(--radius) var(--radius) 0;
+  white-space: nowrap;
+  box-shadow: var(--shadow-1);
 }
 
 /* Tool buttons hover scale */
@@ -8863,104 +9310,123 @@ html, body { overscroll-behavior: none; }
 }
 [data-theme='light'] .cp-done { background: #0a0a0c; color: #fff; }
 
-/* Palette swatch strip — works for both editable and read-only */
+/* Palette swatch strip — one non-wrapping flex line that fills the card in
+   both modes; orientation set by .pc-vert / .pc-horiz. Never scrolls. */
 .pc-strip {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-content: flex-start;
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: thin;
+  flex: 1 1 auto;
+  min-width: 0; min-height: 0;
+  align-items: stretch;
 }
+.pc-strip.pc-vert { flex-direction: row; }
+.pc-strip.pc-horiz { flex-direction: column; }
+.pc-chips .pc-strip { gap: 6px; }
+
 .pc-cell {
   position: relative;
-  width: 64px;
-  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  flex: 1 1 0;
+  min-width: 0; min-height: 0;
+  display: flex;
   cursor: grab;
-  transition: transform .12s, opacity .12s;
+  transition: transform .12s, opacity .12s, box-shadow .12s;
 }
 .pc-cell:active { cursor: grabbing; }
 .pc-cell-dragging { opacity: 0.4; }
-.pc-cell-drop-target {
-  transform: translateX(4px);
-  box-shadow: -3px 0 0 0 var(--accent, #3b82f6);
-}
+.pc-bands .pc-cell-drop-target { box-shadow: inset 0 0 0 2px var(--accent, #3b82f6); }
+.pc-chips .pc-cell-drop-target { transform: translateY(-2px); box-shadow: 0 0 0 2px var(--accent, #3b82f6); }
+
 .pc-chip {
   appearance: none;
-  width: 64px; height: 48px;
-  border-radius: 6px;
+  flex: 1 1 auto;
+  width: 100%; height: 100%;
+  min-width: 0; min-height: 0;
+  display: block;
+  padding: 0; margin: 0;
+  cursor: pointer;
+}
+/* bands: seamless edge-to-edge */
+.pc-bands .pc-chip { border: 0; border-radius: 0; box-shadow: none; }
+/* chips: rounded tiles */
+.pc-chips .pc-chip {
+  border-radius: 7px;
   border: 1px solid rgba(0,0,0,.18);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.18);
-  cursor: pointer;
-  padding: 0;
   transition: transform .12s, box-shadow .12s;
 }
-button.pc-chip:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 6px 14px rgba(0,0,0,.28); }
+.pc-chips button.pc-chip:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 6px 14px rgba(0,0,0,.28); }
+
+/* Overlaid labels — custom name above hex, centered on the swatch. Ink color
+   + shadow are set inline (lib/paletteLayout readableInk) for contrast against
+   any color. The wrapper is click-through; only the hex captures (to copy). */
+.pc-cell-label {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1px; padding: 3px;
+  pointer-events: none; overflow: hidden; text-align: center;
+}
+.pc-name {
+  max-width: 100%;
+  font-size: 11px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .pc-hex {
-  font-family: var(--font-mono); font-size: 9.5px;
-  letter-spacing: .08em;
-  color: var(--ink-2);
-  text-align: center;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .06em; line-height: 1.2; text-transform: uppercase;
 }
 button.pc-hex-btn {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: var(--ink-2);
-  cursor: pointer;
-  padding: 2px 0;
-  border-radius: var(--radius);
-  font: inherit;
-  text-transform: uppercase;
+  pointer-events: auto;
+  appearance: none; background: transparent; border: 0;
+  padding: 1px 5px; border-radius: var(--radius);
+  font: inherit; cursor: pointer;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  transition: background .12s;
 }
-button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
+button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
+
+/* Remove (×) — just inside the swatch top-right, hover-revealed. */
 .pc-cell-x {
   position: absolute;
-  top: -6px; right: -6px;
+  top: 3px; right: 3px;
   width: 18px; height: 18px;
   border-radius: 50%;
   border: 1px solid var(--line-2);
   background: var(--bg-1);
   color: var(--ink-2);
-  font-size: 11px;
-  line-height: 1;
+  font-size: 11px; line-height: 1;
   cursor: pointer;
   display: grid; place-items: center;
   padding: 0;
   opacity: 0;
+  z-index: 2;
   transition: opacity .12s, color .12s, background .12s;
   box-shadow: 0 4px 10px rgba(0,0,0,.22);
 }
 .pc-cell:hover .pc-cell-x { opacity: 1; }
 .pc-cell-x:hover { color: #ef4444; border-color: #ef4444; }
 
+/* Add — a dashed sliver (bands) / tile (chips) at the end of the strip. */
 .pc-add {
   appearance: none;
-  min-width: 64px;
-  height: 48px;
-  padding: 0 10px;
-  border-radius: 6px;
+  flex: 0 0 34px;
+  align-self: stretch;
+  min-width: 0;
+  padding: 0;
+  border-radius: 7px;
   border: 1.5px dashed var(--accent, var(--ink-3));
   background: transparent;
   color: var(--accent, var(--ink-1));
   cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  align-self: flex-start;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  transition: background .12s, color .12s, border-color .12s, transform .12s;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background .12s, color .12s, border-color .12s;
 }
 .pc-add:hover {
   background: color-mix(in srgb, var(--accent, #3b82f6) 12%, transparent);
   color: var(--ink-0);
   border-color: var(--accent, var(--ink-2));
-  transform: translateY(-1px);
 }
-.pc-add-label { font: inherit; }
-.pc-chips-only .pc-add { min-width: 40px; padding: 0; }
-.pc-chips-only .pc-add-label { display: none; }
+.pc-bands .pc-add { flex-basis: 18px; border-radius: 0; }
+.pc-add-label { display: none; }
 
 
 .tob-sw-custom {
@@ -9163,10 +9629,33 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .snap-guides {
   pointer-events: none;
   opacity: 0;
-  transition: opacity var(--dur-fast) ease-out;
+  transition: opacity var(--dur-fast) var(--ease);
+  /* Soft gold halo so the hairlines read as lit, not flat (app SVG-glow idiom). */
+  filter: drop-shadow(0 0 3px rgba(255, 165, 0, .30));
 }
 .snap-guides.is-visible {
   opacity: 1;
+}
+/* Each guide line / dot / label "pops" in once the frame it first mounts —
+   i.e. the moment a snap engages — then holds steady while the snap persists
+   (React reuses the keyed element, so the animation doesn't replay per frame).
+   A uniform center-scale grows the line from its own midpoint; non-scaling-stroke
+   keeps the hairline crisp. */
+@keyframes guide-pop {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.snap-guides .guide-line,
+.snap-guides .guide-mark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: guide-pop var(--dur-fast) var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No pop for reduced-motion — the layer opacity fade alone reveals the
+     guides at their settled end-state (the global rule already drops transforms). */
+  .snap-guides .guide-line,
+  .snap-guides .guide-mark { animation: none; }
 }
 
 /* Group label chip — most styling is set inline because the colors
@@ -9189,11 +9678,13 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   z-index: 2;
 }
 .card-tag-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  background: rgba(20,20,24,.86);
+  display: inline-flex; align-items: center; gap: 5px;
+  /* Tinted in the tag's own color over an opaque surface base so it stays
+     legible over any card/image while reading as a colorful entity. */
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 18%, var(--bg-1));
   color: var(--ink-1);
-  border: 1px solid rgba(255,255,255,.06);
-  padding: 1px 6px;
+  border: 1px solid color-mix(in oklab, var(--tag-c, #4f8df8) 32%, transparent);
+  padding: 1px 7px;
   border-radius: 999px;
   font: 600 9.5px/1.3 var(--font-sans);
   letter-spacing: 0;
@@ -9203,18 +9694,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-[data-theme='light'] .card-tag-chip {
-  background: rgba(252,251,247,.92);
-  border-color: rgba(0,0,0,.06);
-}
 .card-tag-chip-dot {
-  width: 6px; height: 6px; border-radius: 50%;
+  width: 7px; height: 7px; border-radius: 50%;
   background: var(--tag-c, #4f8df8);
   flex-shrink: 0;
 }
 .card-tag-chip.is-auto, .card-tag-chip.is-ai {
   border-style: dashed;
-  opacity: .82;
+  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
 }
 
 /* Board-level tag strip — sits at the top-left of the canvas
@@ -9336,8 +9823,9 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background: var(--tag-c, #4f8df8);
 }
 .tag-chip.is-auto, .tag-chip.is-ai {
-  border: 1px dashed color-mix(in oklab, var(--tag-c, #4f8df8) 50%, transparent);
-  background: transparent;
+  /* Keep the tinted fill (the canonical look) and signal auto/ai with a
+     dashed border — same recipe as .card-tag-chip / .ctx-tag-chip. */
+  border: 1px dashed color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
 }
 .tag-chip-x {
   background: transparent; border: 0;
@@ -9349,6 +9837,33 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   opacity: .6;
 }
 .tag-chip-x:hover { opacity: 1; }
+
+/* Shared tag color-dot for list rows (EntityPicker, etc.). Carries the
+   tag color via --tag-c so the value lives in CSS, not inline styles. */
+.tag-dot {
+  width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0;
+  background: var(--tag-c, #4f8df8);
+  box-shadow: 0 0 0 1.5px var(--bg-1);
+}
+
+/* Sidebar "Filter tags…" input — matches the create/merge/picker inputs
+   (was a one-off inline style block). */
+.sb-tag-filter-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-2);
+  color: var(--ink-1);
+  font: 400 12px/1.3 var(--font-sans);
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.sb-tag-filter-input:focus {
+  border-color: color-mix(in oklab, var(--soleil) 55%, var(--line-2));
+}
 
 .tag-disambig {
   display: inline-flex; align-items: center; gap: 8px;
@@ -9535,6 +10050,114 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 /* ──────────────────────────── Canvas comments ──────────────────────────── */
 
+/* ── Vote cards ──────────────────────────────────────────────────────
+   A little up/down poll that anchors like a comment (same layer model,
+   same eye toggle). ✓ + up-count and ✗ + down-count; the author gets a
+   drag grip, an optional question label, and a delete button. */
+.canvas-vote-layer { z-index: 999989; }
+.canvas-vote {
+  position: absolute;
+  pointer-events: auto;
+  font-family: var(--font-sans);
+  z-index: 1;
+}
+.canvas-vote.is-dragging { z-index: 10; }
+.canvas-vote-card {
+  position: relative;
+  display: flex; align-items: center; gap: 6px;
+  background: var(--msg-surface-canvas);
+  color: var(--ink-0);
+  border: 1px solid var(--msg-border);
+  border-radius: var(--radius-md);
+  padding: 5px 8px;
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
+  box-shadow: 0 6px 14px rgba(0,0,0,.28);
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
+}
+[data-theme='light'] .canvas-vote-card {
+  color: #1a1a1f;
+  box-shadow: 0 6px 14px rgba(0,0,0,.10);
+}
+.canvas-vote.is-dragging .canvas-vote-card {
+  border-color: var(--soleil);
+  box-shadow: 0 12px 28px rgba(0,0,0,.4),
+              0 0 0 2px color-mix(in oklab, var(--soleil) 30%, transparent);
+}
+.canvas-vote-grip {
+  cursor: grab;
+  color: var(--ink-3);
+  font-size: 12px; line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+}
+.canvas-vote.is-dragging .canvas-vote-grip { cursor: grabbing; }
+.canvas-vote-label {
+  font: 500 11px/1.25 var(--font-sans);
+  color: var(--ink-2);
+  max-width: 160px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.canvas-vote-label.is-editable { cursor: text; }
+.canvas-vote-label-add {
+  font: 500 11px/1.2 var(--font-sans);
+  color: var(--ink-3);
+  background: transparent; border: 0; padding: 0 2px; cursor: pointer;
+}
+.canvas-vote-label-add:hover { color: var(--ink-1); }
+.canvas-vote-label-input {
+  font: 500 11px/1.2 var(--font-sans);
+  color: var(--ink-0);
+  background: var(--bg-0);
+  border: 1px solid var(--border-1, rgba(255,255,255,.14));
+  border-radius: var(--radius-sm, 6px);
+  padding: 2px 6px;
+  width: 150px;
+  outline: none;
+}
+.canvas-vote-buttons { display: flex; gap: 4px; }
+.canvas-vote-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: transparent;
+  color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+[data-theme='light'] .canvas-vote-btn { border-color: rgba(0,0,0,.12); }
+.canvas-vote-btn:hover { border-color: var(--line-3); }
+.canvas-vote-btn.up.is-active {
+  color: #16a34a; border-color: #16a34a;
+  background: color-mix(in oklab, #16a34a 18%, transparent);
+}
+.canvas-vote-btn.down.is-active {
+  color: #dc2626; border-color: #dc2626;
+  background: color-mix(in oklab, #dc2626 18%, transparent);
+}
+.canvas-vote-mark { font-size: 12px; line-height: 1; }
+.canvas-vote-count { font-variant-numeric: tabular-nums; min-width: 8px; text-align: center; }
+.canvas-vote-del {
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 14px; line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.canvas-vote:hover .canvas-vote-del,
+.canvas-vote.is-mine .canvas-vote-del:focus-visible { opacity: 1; }
+.canvas-vote-del:hover { color: #fff; background: #dc2626; }
+
 .canvas-comment-layer { z-index: 999990; }
 .canvas-comment {
   position: absolute;
@@ -9586,14 +10209,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   display: flex; flex-direction: column; gap: 4px;
   width: 100%;
   text-align: left;
-  background: rgba(20,20,24,.94);
+  background: var(--msg-surface-canvas);
   color: var(--ink-0);
-  border: 1px solid rgba(255,255,255,.08);
+  border: 1px solid var(--msg-border);
   border-radius: var(--radius-md);
   padding: 8px 10px;
   cursor: pointer;
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
   box-shadow: 0 6px 14px rgba(0,0,0,.28);
   transition: transform var(--dur-fast) var(--ease),
               box-shadow var(--dur-fast) var(--ease),
@@ -9617,18 +10240,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   box-shadow: 0 0 0 2px rgba(252,251,247,.96), 0 1px 3px rgba(0,0,0,.25);
 }
 [data-theme='light'] .canvas-comment-card {
-  background: rgba(252,251,247,.96);
-  border-color: rgba(0,0,0,.08);
   color: #1a1a1f;
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
 }
 .canvas-comment-card:hover {
-  border-color: var(--soleil);
+  border-color: var(--line-3);
   transform: translateY(-1px);
   box-shadow: 0 10px 24px rgba(0,0,0,.34);
 }
 .canvas-comment.is-open .canvas-comment-card {
-  border-color: var(--soleil);
+  border-color: color-mix(in oklab, var(--soleil) 45%, var(--line-2));
 }
 
 .canvas-comment-card-head {
@@ -9637,11 +10258,11 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   color: var(--ink-3);
 }
 .canvas-comment-avatar {
-  width: 18px; height: 18px;
-  border-radius: 50%;
+  width: var(--msg-avatar-sm); height: var(--msg-avatar-sm);
+  border-radius: 6px;
   display: grid; place-items: center;
   flex-shrink: 0;
-  color: #fff;
+  color: var(--bg-0);
   font: 700 10px/1 var(--font-sans);
   letter-spacing: 0;
   text-transform: uppercase;
@@ -9659,23 +10280,20 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .canvas-comment-when {
   flex: 1 1 auto;
-  font: 400 10px/1.2 var(--font-mono);
+  font: 500 11.5px/1.2 var(--font-sans);
   color: var(--ink-3);
-  letter-spacing: .04em;
   white-space: nowrap;
 }
 .canvas-comment-tag {
-  font: 700 9px/1 var(--font-display);
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--soleil);
-  background: var(--soleil-soft);
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-2);
+  background: var(--bg-act);
   padding: 2px 5px;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 .canvas-comment-body {
-  font: 400 13px/1.4 var(--font-sans);
+  font: 400 14px/1.5 var(--font-sans);
   color: var(--ink-1);
   letter-spacing: -0.005em;
   word-break: break-word;
@@ -9702,18 +10320,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .canvas-comment-thread {
   margin-top: 8px;
   padding: 10px 12px;
-  background: rgba(20,20,24,.94);
+  background: var(--msg-surface-canvas);
   color: var(--ink-0);
-  border: 1px solid rgba(255,255,255,.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  backdrop-filter: blur(10px) saturate(1.05);
+  border: 1px solid var(--msg-border);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 24px rgba(0,0,0,.34);
   font-family: var(--font-sans);
 }
 [data-theme='light'] .canvas-comment-thread {
-  background: rgba(252,251,247,.96);
-  border-color: rgba(0,0,0,.08);
   color: #1a1a1f;
 }
 
@@ -9736,9 +10352,8 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .canvas-comment-line-when {
   flex: 1 1 auto;
-  font: 400 10px/1.2 var(--font-mono);
+  font: 500 11.5px/1.2 var(--font-sans);
   color: var(--ink-3);
-  letter-spacing: .04em;
 }
 .canvas-comment-line-x {
   background: transparent; border: 0;
@@ -9749,7 +10364,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .canvas-comment-line-x:hover { color: #ef4444; }
 .canvas-comment-line-body {
-  font: 400 13px/1.45 var(--font-sans);
+  font: 400 14px/1.5 var(--font-sans);
   color: var(--ink-1);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -9760,26 +10375,21 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .canvas-comment-reply-input {
   flex: 1 1 auto;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.08);
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
   color: var(--ink-0);
   border-radius: var(--radius);
   padding: 6px 8px;
-  font: 400 12.5px/1.3 var(--font-sans);
+  font: 400 13px/1.3 var(--font-sans);
 }
-[data-theme='light'] .canvas-comment-reply-input {
-  background: rgba(0,0,0,.04);
-  border-color: rgba(0,0,0,.10);
-}
-.canvas-comment-reply-input:focus { outline: 0; border-color: var(--soleil); }
+.canvas-comment-reply-input:focus { outline: 0; border-color: var(--line-3); box-shadow: 0 0 0 2px var(--soleil-soft); }
 .canvas-comment-reply-send {
   background: var(--soleil);
-  color: #1a1300;
+  color: var(--bg-0);
   border: 0;
   border-radius: var(--radius);
   padding: 0 12px;
   font: 600 11px/1 var(--font-sans);
-  letter-spacing: .04em;
   cursor: pointer;
 }
 .canvas-comment-reply-send:disabled { opacity: .5; cursor: not-allowed; }
@@ -9792,16 +10402,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .canvas-comment-actions button {
   background: transparent; border: 0;
-  color: var(--ink-3);
-  font: 600 10px/1 var(--font-display);
-  letter-spacing: .14em;
-  text-transform: uppercase;
+  color: var(--ink-2);
+  font: 500 12px/1 var(--font-sans);
   cursor: pointer;
   padding: 4px 8px;
   border-radius: var(--radius);
 }
-.canvas-comment-actions button:hover { background: var(--bg-hov); color: var(--ink-0); }
-.canvas-comment-actions button.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
+.canvas-comment-actions button:hover { background: var(--bg-act); color: var(--ink-0); }
+.canvas-comment-actions button.danger:hover { background: color-mix(in oklab, var(--msg-err) 14%, transparent); color: var(--msg-err); }
 
 /* Anchor dot — small filled circle on a card/group's border (or at a
    point) that surfaces "there's a comment here" when the master eye
@@ -9826,7 +10434,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background: transparent;
   border: 0;
   color: var(--ink-0);
-  font: 400 13px/1.45 var(--font-sans);
+  font: 400 14px/1.5 var(--font-sans);
   letter-spacing: -0.005em;
   resize: none;
   outline: 0;
@@ -9843,28 +10451,25 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .canvas-comment-draft-hint {
   flex: 1 1 auto;
-  font: 500 10px/1 var(--font-mono);
+  font: 500 11px/1 var(--font-sans);
   color: var(--ink-3);
-  letter-spacing: .04em;
 }
 .canvas-comment-draft-cancel {
   background: transparent; border: 0;
-  color: var(--ink-3);
-  font: 600 10px/1 var(--font-display);
-  letter-spacing: .14em;
-  text-transform: uppercase;
+  color: var(--ink-2);
+  font: 500 12px/1 var(--font-sans);
   cursor: pointer;
   padding: 4px 6px;
+  border-radius: var(--radius);
 }
-.canvas-comment-draft-cancel:hover { color: var(--ink-0); }
+.canvas-comment-draft-cancel:hover { color: var(--ink-0); background: var(--bg-act); }
 .canvas-comment-draft-post {
   background: var(--soleil);
-  color: #1a1300;
+  color: var(--bg-0);
   border: 0;
   border-radius: var(--radius);
   padding: 5px 12px;
   font: 600 11px/1 var(--font-sans);
-  letter-spacing: .04em;
   cursor: pointer;
 }
 .canvas-comment-draft-post:disabled { opacity: .5; cursor: not-allowed; }
@@ -10109,17 +10714,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 .feedback-dialog {
   width: min(420px, calc(100vw - 32px));
-  background: rgba(16,16,20,.78);
+  background: var(--msg-surface);
   color: var(--ink-1);
-  border: 1px solid rgba(255,255,255,.06);
+  border: 1px solid var(--msg-border);
   border-radius: var(--radius-lg);
-  -webkit-backdrop-filter: blur(12px) saturate(1.05);
-  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
   box-shadow: var(--shadow-3);
   padding: 18px;
   animation: modalRise var(--dur-slow) var(--ease);
 }
-[data-theme='light'] .feedback-dialog { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
 
 .feedback-hd {
   display: flex;
@@ -10164,7 +10768,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 .feedback-field input:focus {
   border-color: transparent;
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 0 0 2px var(--soleil-soft);
 }
 
 .feedback-actions {
@@ -10225,14 +10829,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 
 .toast {
-  max-width: 360px;
-  padding: 9px 11px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius);
-  background: var(--bg-1);
+  max-width: 380px;
+  padding: 11px 13px;
+  border: 1px solid var(--msg-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-2); /* solid — toasts must read instantly over a busy canvas */
   color: var(--ink-1);
   box-shadow: var(--shadow-2);
-  font-size: 12.5px;
+  font-size: 13px;
   display: flex; align-items: center; gap: 10px;
   pointer-events: auto;
   animation: toastIn var(--dur-base) var(--ease);
@@ -10242,10 +10846,9 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(12px); } }
 
 .toast-icon { display: inline-flex; flex: 0 0 auto; }
-.toast-success .toast-icon { color: #10b981; }
-.toast-error   .toast-icon { color: #ef4444; }
-.toast-info    .toast-icon { color: #8ab4f8; }
-[data-theme='light'] .toast-info .toast-icon { color: #3b82f6; }
+.toast-success .toast-icon { color: var(--msg-ok); }
+.toast-error   .toast-icon { color: var(--msg-err); }
+.toast-info    .toast-icon { color: var(--msg-info); }
 
 .toast-dismiss {
   flex: 0 0 auto;
@@ -10259,18 +10862,18 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .toast-msg { flex: 1 1 auto; }
 .toast-action {
   background: transparent;
-  border: 1px solid var(--soleil);
+  border: 0;
   color: var(--soleil);
   font: 600 11.5px/1 var(--font-sans);
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: var(--radius);
   cursor: pointer;
   flex-shrink: 0;
 }
 .toast-action:hover { background: var(--soleil-soft); }
 
-.toast-success { border-color: rgba(16,185,129,.45); box-shadow: var(--shadow-2), inset 3px 0 0 #10b981; }
-.toast-error   { border-color: rgba(239,68,68,.5);  box-shadow: var(--shadow-2), inset 3px 0 0 #ef4444; }
+.toast-success { box-shadow: var(--shadow-2), inset 2px 0 0 var(--msg-ok); }
+.toast-error   { box-shadow: var(--shadow-2), inset 2px 0 0 var(--msg-err); }
 
 
 /* ──────────────────────────── Phase 4.14: thumbnails + list-mode ───────── */
@@ -11015,7 +11618,9 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   appearance: none;
   display: block;
   width: 100%;
-  max-width: 816px;
+  /* Match the zoomed sheet width so the dashed button stays aligned with the
+     page column at any zoom (.doc-editor-wrap applies zoom: var(--doc-zoom)). */
+  max-width: calc(816px * var(--doc-zoom, 1));
   margin: 18px auto 0;
   padding: 12px 16px;
   background: transparent;
@@ -11048,6 +11653,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
      long. */
   max-width: 816px;
   min-height: 1056px;
+  /* .doc-paper is a flex column, so an explicit min-height lets flex-shrink
+     pin the sheet at one page while its content (the .tt-editor) overflows past
+     the white edge into the dark gutter. flex-shrink:0 lets the sheet grow with
+     its content (min-height stays the floor) — required for pageless prose AND
+     long screenplays to flow forever instead of running off the page. The
+     paged flow wrap (.doc-flow) carries an inline min-height = full page stack,
+     so it's unaffected. */
+  flex-shrink: 0;
   background: var(--bg-1);
   color: var(--ink-0);
   border: 1px solid color-mix(in oklab, var(--ink-3) 14%, transparent);
@@ -11080,11 +11693,76 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
     0 4px 12px rgba(0, 0, 0, 0.04);
 }
 @media (max-width: 900px) {
-  .doc-editor-wrap { padding: 72px 56px; }
+  .doc-editor-wrap:not(.doc-flow) { padding: 72px 56px; }
 }
 @media (max-width: 640px) {
-  .doc-editor-wrap { padding: 48px 28px; min-height: 800px; }
+  .doc-editor-wrap:not(.doc-flow) { padding: 48px 28px; min-height: 800px; }
 }
+
+/* ── Prose reflow pages (DocPagination) ────────────────────────────────────
+   Flow model: the wrap is a TRANSPARENT page-width column; .doc-pages-bg paints
+   the white 8.5×11 sheets behind the text, and the plugin's .doc-page-gap
+   spacers push content so each page's worth lands on a sheet (true reflow —
+   paragraphs split line-level across boundaries). Geometry MUST match
+   src/components/docExtensions/DocPagination.js (816×1056, 1in margins, 28px
+   gutter). Screenplay keeps the single-sheet look (.doc-editor-wrap base). */
+.doc-editor-wrap.doc-flow {
+  width: 816px; max-width: 816px;
+  background: transparent;
+  border: 0; border-radius: 0; box-shadow: none;
+  padding: 0;
+  animation: none;
+}
+.doc-editor-wrap.doc-flow .tt-editor {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  /* 1in side margins + 1in first-page top margin; content flows past the top. */
+  padding: 96px 96px 0;
+  min-height: 864px;
+}
+.doc-pages-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.doc-page-sheet {
+  position: absolute;
+  left: 0;
+  width: 816px;
+  height: 1056px;
+  background: var(--bg-1);
+  border: 1px solid color-mix(in oklab, var(--ink-3) 14%, transparent);
+  border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.10), 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+[data-theme='light'] .doc-page-sheet {
+  background: var(--bg-3);
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+.doc-page-num {
+  position: absolute;
+  right: 18px; bottom: 14px;
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-3);
+  user-select: none;
+}
+/* Transparent spacer that breaks the inline flow at a page boundary — the dark
+   .doc-paper surface shows through the gutter between sheets. */
+.doc-page-gap {
+  display: block;
+  width: 100%;
+  user-select: none;
+  pointer-events: none;
+}
+@media (max-width: 880px) {
+  .doc-editor-wrap.doc-flow { width: 100%; max-width: 100%; }
+  .doc-page-sheet { width: 100%; }
+  .doc-editor-wrap.doc-flow .tt-editor { padding: 56px 24px 0; }
+}
+
 /* Suppress any browser-injected focus ring on the contenteditable —
    the Tiptap editor already has outline: none, but Chrome can still
    draw a 2px blue outline on the .ProseMirror node when first
@@ -11117,11 +11795,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
    measure, calm colors. */
 .tt-editor {
   outline: none;
-  font-family: aileron, -apple-system, system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 1.72;
+  /* Document identity: refined serif body + the app sans for headings — reads
+     like a real manuscript and matches the exported PDF exactly (WYSIWYG).
+     Keep in lockstep with src/lib/docTypography.js (the print twin). To go
+     all-sans, set --doc-body-font to the heading stack in one place. */
+  --doc-body-font: Georgia, 'Iowan Old Style', 'Times New Roman', ui-serif, serif;
+  font-family: var(--doc-body-font);
+  font-size: 16px;
+  line-height: 1.6;
   color: #d8d8dc;
-  letter-spacing: -0.003em;
+  letter-spacing: 0;
   caret-color: var(--soleil);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -11148,10 +11831,9 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 [data-theme='light'] .tt-editor h1, [data-theme='light'] .tt-editor h2,
 [data-theme='light'] .tt-editor h3, [data-theme='light'] .tt-editor h4,
 [data-theme='light'] .tt-editor h5, [data-theme='light'] .tt-editor h6 { color: #0a0a0c; }
-.tt-editor a { color: var(--soleil); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
-.tt-editor a:hover { color: #f5c075; }
-[data-theme='light'] .tt-editor a { color: #8a6020; }
-[data-theme='light'] .tt-editor a:hover { color: #5a3e10; }
+/* (Pasted <a> styling is defined once, below, near .tt-img — a single
+   inherit-colour dotted underline. The earlier soleil duplicate here was
+   fully overridden, so it was removed.) */
 
 /* Phase 3: per-kind tt-link colors removed — the universal hairline
    defined further down (.tt-link / .tt-link-manual / .tt-link-auto)
@@ -11220,50 +11902,43 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .link-popover-tile-title { font: 600 12px/1.3 var(--font-sans); color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .link-popover-tile-sub { color: var(--ink-3); }
 
-/* Doc headings — editorial polish. H1 sets the page; gets extra top/bottom
-   air and a hairline rule so it actually feels like a section opener.
-   H2 is the workhorse for sub-sections. H3 is dense, almost intra-section.
-   H4/H5 are caps eyebrows for callouts and short labels. H6 is a quiet
-   italic tag for asides. The hierarchy is meant to *read* like a real
-   document, not just look like one. */
+/* Doc headings — a clean, monotonic scale where every level reads as a real
+   heading: all >= body size, decreasing weight/scale down the hierarchy. No
+   mid-document rule (an H1 can appear anywhere, not just the page top), no
+   tiny all-caps "eyebrows" that fell below body size. Sans family + tighter
+   tracking come from the shared .tt-editor h1..h6 base block above. Keep this
+   scale in lockstep with src/lib/docTypography.js (the print twin). */
 .tt-editor h1 {
-  font-size: 36px; font-weight: 700;
-  letter-spacing: -0.03em; line-height: 1.08;
-  margin: 1.9em 0 .55em;
-  padding-bottom: .28em;
-  border-bottom: 1px solid color-mix(in oklab, var(--ink-3) 16%, transparent);
+  font-size: 32px; font-weight: 700;
+  letter-spacing: -0.03em; line-height: 1.1;
+  margin: 1.6em 0 .4em;
 }
 .tt-editor > h1:first-child { margin-top: 0; }
 .tt-editor h2 {
-  font-size: 26px; font-weight: 700;
+  font-size: 24px; font-weight: 700;
   letter-spacing: -0.022em; line-height: 1.18;
-  margin: 1.7em 0 .45em;
+  margin: 1.5em 0 .4em;
 }
 .tt-editor h3 {
-  font-size: 19px; font-weight: 600;
+  font-size: 20px; font-weight: 600;
   letter-spacing: -0.014em; line-height: 1.3;
   margin: 1.4em 0 .35em;
 }
 .tt-editor h4 {
-  font-size: 12px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .1em;
-  color: var(--ink-1);
-  margin: 1.3em 0 .45em;
+  font-size: 18px; font-weight: 600;
+  line-height: 1.35;
+  margin: 1.3em 0 .35em;
 }
 .tt-editor h5 {
-  font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .08em;
-  color: var(--ink-2);
-  margin: 1.2em 0 .35em;
+  font-size: 16px; font-weight: 700;
+  line-height: 1.4;
+  margin: 1.2em 0 .3em;
 }
 .tt-editor h6 {
-  font-size: 13px; font-weight: 500;
-  font-style: italic;
+  font-size: 16px; font-weight: 600;
+  line-height: 1.4;
   color: var(--ink-2);
-  margin: 1.0em 0 .3em;
-}
-[data-theme='light'] .tt-editor h1 {
-  border-bottom-color: rgba(0,0,0,.10);
+  margin: 1.1em 0 .3em;
 }
 .tt-editor p { margin: .55em 0; }
 .tt-editor ul, .tt-editor ol { margin: .55em 0; padding-left: 26px; }
@@ -11936,14 +12611,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   box-shadow: 0 4px 16px rgba(0,0,0,.25);
 }
 .tt-img-wrap.is-selected .tt-img {
-  box-shadow: 0 0 0 2px #4f8df8, 0 4px 16px rgba(0,0,0,.35);
+  box-shadow: 0 0 0 2px var(--select), 0 4px 16px rgba(0,0,0,.35);
 }
 .tt-img-resize {
   position: absolute;
   right: 4px; bottom: 4px;
   width: 14px; height: 14px;
   border-radius: var(--radius);
-  background: #4f8df8;
+  background: var(--select);
   border: 2px solid var(--bg-0);
   cursor: nwse-resize;
   opacity: 0;
@@ -12343,6 +13018,41 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   background: var(--bg-3);
   color: var(--ink-1);
   border-color: var(--soleil);
+}
+
+/* Per-board presence facepile + hover roster (PresenceStack). Floats in the
+   top-right of the canvas; the roster names exactly who's here — the
+   authoritative list at scale where on-canvas cursors get culled/capped. */
+.canvas-presence-roster {
+  position: absolute; top: 12px; right: 12px;
+  z-index: 999992; pointer-events: auto;
+}
+.presence-stack-wrap { position: relative; display: inline-flex; }
+.presence-roster {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 180px; max-width: 260px; max-height: 320px; overflow-y: auto;
+  padding: 8px; border-radius: var(--radius-md, 10px);
+  background: var(--bg-1); border: 1px solid var(--line-2);
+  box-shadow: 0 8px 28px rgba(0,0,0,.32);
+  animation: presence-roster-in var(--dur-fast, 120ms) var(--ease, ease) both;
+}
+@keyframes presence-roster-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.presence-roster-head {
+  font: 600 11px/1.2 var(--font-sans); color: var(--ink-2);
+  padding: 2px 4px 6px; text-transform: none;
+}
+.presence-roster-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px; border-radius: 8px;
+}
+.presence-roster-row:hover { background: var(--bg-2); }
+.presence-roster-dot { width: 22px; height: 22px; margin: 0 !important; }
+.presence-roster-name {
+  font: 500 13px/1.2 var(--font-sans); color: var(--ink-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* ─────── Doc card on canvas (rich, openable) ─────── */
@@ -13070,19 +13780,18 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .msg-panel {
   position: absolute;
   right: 16px; top: 16px; bottom: 16px;
-  width: 320px;
+  width: 360px;
   z-index: 30;
-  background: rgba(16,16,20,.85);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  backdrop-filter: blur(10px) saturate(1.05);
-  border: 1px solid rgba(255,255,255,.06);
+  background: var(--msg-surface);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
+  border: 1px solid var(--msg-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-3);
   display: flex; flex-direction: column;
   overflow: hidden;
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
-[data-theme='light'] .msg-panel { background: rgba(250,250,252,.85); border-color: rgba(10,10,12,.06); }
 
 .msg-panel-head {
   display: flex; align-items: center; gap: 8px;
@@ -13191,13 +13900,13 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .msg-row:hover { background: var(--bg-hov); color: var(--ink-0); }
 .msg-row.is-unread { color: var(--ink-0); }
-.msg-row.is-unread .msg-row-name { font-weight: 700; }
+.msg-row.is-unread .msg-row-name { font-weight: 600; }
 .msg-row.msg-row-pinned { color: var(--ink-2); font-style: italic; }
 .msg-row-avatar {
-  width: 28px; height: 28px;
-  border-radius: 8px;
+  width: var(--msg-avatar); height: var(--msg-avatar);
+  border-radius: 6px;
   display: grid; place-items: center;
-  font: 700 12px/1 var(--font-sans);
+  font: 700 11px/1 var(--font-sans);
   color: var(--bg-0);
   flex-shrink: 0;
 }
@@ -13216,14 +13925,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .msg-row-preview {
-  font: 400 11.5px/1.3 var(--font-sans);
-  color: var(--ink-3);
+  font: 400 12px/1.3 var(--font-sans);
+  color: var(--ink-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .msg-row-time {
   color: var(--ink-3);
   flex-shrink: 0;
-  font: 500 10.5px/1.2 var(--font-sans);
+  font: 500 12px/1.2 var(--font-sans);
 }
 .msg-row-dot {
   position: absolute;
@@ -13282,7 +13991,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   overflow-y: auto;
   padding: 12px;
   display: flex; flex-direction: column;
-  gap: 14px;
+  gap: 0; /* sender-grouping owns the vertical rhythm via per-bubble margins */
   position: relative;
 }
 
@@ -13290,12 +13999,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .msg-day-divider {
   display: flex; align-items: center;
   gap: 8px;
-  margin: 4px 0;
+  margin: 8px 0;
   color: var(--ink-3);
-  font: 600 9.5px/1 var(--font-sans);
-  letter-spacing: 0.18em;
+  font: 700 10.5px/1 var(--font-sans);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
+/* The day's first message hugs its divider (the divider already separates groups). */
+.msg-day-divider + .msg-bubble { margin-top: 2px; }
 .msg-day-divider::before, .msg-day-divider::after {
   content: '';
   flex: 1; height: 1px;
@@ -13304,12 +14015,30 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 .msg-bubble {
   display: flex; flex-direction: column; gap: 4px;
-  padding: 6px 8px;
+  padding: 1px 8px;
+  margin-top: 14px; /* space between sender groups */
   border-radius: var(--radius);
   position: relative;
   transition: background var(--dur-fast) var(--ease);
 }
+/* A continuation row hugs the message above it — tight stacking within a burst. */
+.msg-bubble.is-continuation { margin-top: 2px; }
+.msg-bubble.is-continuation .msg-bubble-head { min-height: 0; }
 .msg-bubble:hover { background: var(--bg-hov); }
+/* Bare clock revealed in the reserved avatar gutter when hovering a
+   continuation row (its full header is suppressed by grouping). */
+.msg-bubble-gutter-time {
+  position: absolute;
+  left: 0; top: 3px;
+  width: 32px;
+  text-align: center;
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.msg-bubble.is-continuation:hover .msg-bubble-gutter-time { opacity: 1; }
 /* Optimistic sends: dimmed until the server confirms; failed sends show
    an inline retry row instead of silently vanishing. */
 .msg-bubble--pending { opacity: .62; }
@@ -13317,7 +14046,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .msg-bubble-failed {
   display: flex; align-items: center; gap: 8px;
   font: 500 11.5px/1.4 var(--font-sans);
-  color: #ef4444;
+  color: var(--msg-err);
 }
 .msg-bubble-failed button {
   appearance: none; background: transparent;
@@ -13329,40 +14058,42 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.msg-bubble-failed button:hover { color: var(--ink-0); border-color: var(--soleil); }
-.msg-bubble--mine::before {
-  content: '';
-  position: absolute;
-  left: -2px; top: 8px; bottom: 8px;
-  width: 2px;
-  background: var(--soleil);
-  border-radius: 1px;
-  opacity: 0.5;
-}
+.msg-bubble-failed button:hover { color: var(--ink-0); border-color: var(--line-3); }
+/* "Mine vs theirs" is carried by the author name + grouping; no rail needed. */
 .msg-bubble.is-flashed { background: var(--soleil-soft); transition: background 1.5s ease-out; }
 .msg-bubble-head { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: nowrap; }
 .msg-bubble-avatar {
-  width: 22px; height: 22px;
+  width: var(--msg-avatar); height: var(--msg-avatar);
   border-radius: 6px;
   display: grid; place-items: center;
-  font: 700 10px/1 var(--font-sans);
+  font: 700 11px/1 var(--font-sans);
   color: var(--bg-0);
   flex-shrink: 0;
 }
 .msg-bubble-author {
-  font: 600 12.5px/1.2 var(--font-sans); color: var(--ink-0);
+  font: 600 13px/1.3 var(--font-sans); color: var(--ink-0);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   min-width: 0;
 }
 .msg-bubble-time {
   color: var(--ink-3);
-  font: 500 10.5px/1.2 var(--font-sans);
+  font: 500 12px/1.3 var(--font-sans);
   white-space: nowrap;
   flex-shrink: 0;
 }
+/* Action toolbar — a floating chip pinned to the bubble's top-right, so it
+   works even on grouped continuation rows whose header is suppressed, and
+   stops crowding the author row. */
 .msg-bubble-actions {
-  margin-left: auto;
-  display: inline-flex; gap: 2px;
+  position: absolute;
+  top: 2px; right: 6px;
+  z-index: 2;
+  display: inline-flex; gap: 1px;
+  padding: 1px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease);
 }
@@ -13370,23 +14101,24 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .msg-bubble-actions.is-visible { opacity: 1; }
 .msg-bubble-actions button {
   background: transparent; border: 0; color: var(--ink-3);
-  width: 22px; height: 22px;
+  width: 24px; height: 24px;
   border-radius: var(--radius);
   display: grid; place-items: center;
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.msg-bubble-actions button:hover { color: var(--soleil); background: var(--soleil-soft); }
+.msg-bubble-actions button:hover { color: var(--ink-0); background: var(--bg-act); }
+.msg-bubble-actions button.is-active { color: var(--soleil); } /* pinned toggle stays warm */
 .msg-bubble-body {
-  font: 400 13.5px/1.55 var(--font-sans);
+  font: 400 14px/1.55 var(--font-sans);
   color: var(--ink-1);
   white-space: pre-wrap;
-  padding-left: 30px;  /* align under the author name (avatar 22 + gap 8) */
+  padding-left: 32px;  /* align under the author name (avatar 24 + gap 8) */
   word-break: break-word;
 }
 .msg-bubble-mark {
   background: var(--soleil-soft);
-  color: var(--soleil);
+  color: var(--ink-0);
   border-radius: 2px;
   padding: 0 1px;
 }
@@ -13399,15 +14131,16 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 
 /* Pinned-message styling — soft gold tint on the bubble itself, plus
    a small "Pinned" tag at the very top of the row. */
-.msg-bubble--pinned { background: rgba(255,165,0,.06); }
+.msg-bubble--pinned { background: var(--bg-2); }
 .msg-bubble-pinned-tag {
   display: inline-flex; align-items: center; gap: 4px;
-  font: 700 9px/1 var(--font-sans);
-  letter-spacing: 0.16em;
-  color: var(--soleil);
+  font: 700 10px/1 var(--font-sans);
+  letter-spacing: 0.14em;
+  color: var(--ink-2);
   margin-bottom: 2px;
-  padding-left: 30px;
+  padding-left: 32px;
 }
+.msg-bubble-pinned-tag svg { color: var(--soleil); } /* keep just the pin glyph warm */
 
 /* iMessage-style parent preview shown above a reply in the main feed.
    Sender's color rail on the left, name in the same color, body excerpt
@@ -13416,7 +14149,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   appearance: none; background: transparent; border: 0;
   align-self: flex-start;
   display: inline-flex; align-items: center; gap: 6px;
-  margin-left: 30px; /* aligns under the avatar column */
+  margin-left: 32px; /* aligns under the avatar column */
   margin-bottom: 2px;
   padding: 3px 8px 3px 6px;
   border-left: 2px solid var(--line-2);
@@ -13451,18 +14184,20 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 /* Replies-count badge — appears under a parent message that has
    replies. Click → opens thread mode.                                */
 .msg-bubble-replies {
-  appearance: none; border: 0;
+  appearance: none;
   display: inline-flex; align-items: center; gap: 6px;
-  margin-left: 30px; margin-top: 2px;
+  margin-left: 32px; margin-top: 2px;
   padding: 4px 8px;
-  background: var(--soleil-soft);
-  color: var(--soleil);
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-1);
   border-radius: var(--radius);
   cursor: pointer;
-  font: 600 11px/1 var(--font-sans);
-  transition: background var(--dur-fast) var(--ease);
+  font: 600 11.5px/1 var(--font-sans);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.msg-bubble-replies:hover { background: rgba(255,165,0,.22); }
+.msg-bubble-replies:hover { background: var(--bg-hov); border-color: var(--line-3); }
+.msg-bubble-replies svg { color: var(--ink-2); }
 .msg-bubble-replies-time {
   color: var(--ink-3);
   font-weight: 500;
@@ -13504,14 +14239,14 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 }
 .msg-bubble-body .msg-list li { margin: 2px 0; }
 .msg-bubble-body .msg-link {
-  color: var(--soleil);
+  color: var(--ink-0);
   text-decoration: underline;
-  text-decoration-color: var(--soleil-soft);
+  text-decoration-color: var(--line-3);
   text-underline-offset: 2px;
   word-break: break-all;
 }
 .msg-bubble-body .msg-link:hover {
-  text-decoration-color: var(--soleil);
+  text-decoration-color: var(--ink-0);
 }
 
 /* Pinned strip at top of thread. */
@@ -13525,10 +14260,11 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   width: 100%;
   padding: 8px 12px;
   background: transparent; border: 0;
-  color: var(--soleil);
+  color: var(--ink-1);
   cursor: pointer;
   text-align: left;
 }
+.msg-pinned-head svg { color: var(--soleil); } /* keep just the pin glyph warm */
 .msg-pinned-head:hover { background: var(--bg-hov); }
 .msg-pinned-chev { margin-left: auto; color: var(--ink-3); font-size: 9px; }
 .msg-pinned-list {
@@ -13566,24 +14302,29 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   flex-shrink: 0;
 }
 
-/* Stacked avatars for group-chat rows. */
-.msg-row-avatar.is-stack {
-  position: relative;
-  background: transparent;
-  width: 32px; height: 28px;
-}
+/* Avatar chips. Single-peer rows render one chip that fills the 24px box;
+   group rows (.is-stack) render 2–3 chips that overlap in normal flow via
+   negative margins — no absolute-position math. */
 .msg-row-avatar-chip {
-  position: absolute;
-  width: 20px; height: 20px;
+  width: var(--msg-avatar); height: var(--msg-avatar);
   border-radius: 6px;
   display: grid; place-items: center;
-  font: 700 10px/1 var(--font-sans);
+  font: 700 11px/1 var(--font-sans);
   color: var(--bg-0);
-  border: 2px solid var(--bg-1);
 }
-.msg-row-avatar.is-stack .msg-row-avatar-chip:nth-child(1) { left: 0;  top: 0; }
-.msg-row-avatar.is-stack .msg-row-avatar-chip:nth-child(2) { left: 8px; top: 4px; }
-.msg-row-avatar.is-stack .msg-row-avatar-chip:nth-child(3) { left: 16px; top: 8px; }
+.msg-row-avatar.is-stack {
+  width: auto; height: var(--msg-avatar);
+  background: transparent;
+  display: inline-flex; align-items: center;
+}
+.msg-row-avatar.is-stack .msg-row-avatar-chip {
+  width: var(--msg-avatar-sm); height: var(--msg-avatar-sm);
+  border-radius: 5px;
+  font: 700 9px/1 var(--font-sans);
+  border: 1.5px solid var(--bg-1);
+  margin-left: -6px;
+}
+.msg-row-avatar.is-stack .msg-row-avatar-chip:first-child { margin-left: 0; }
 
 /* Inline editable rename input in the thread title bar. */
 .msg-panel-name-input {
@@ -13596,7 +14337,7 @@ button.pc-hex-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
   min-width: 0;
   outline: none;
 }
-.msg-panel-name-input:focus { border-color: var(--soleil); }
+.msg-panel-name-input:focus { border-color: var(--line-3); box-shadow: 0 0 0 2px var(--soleil-soft); }
 
 /* Make the panel name clickable to rename (group chats only). */
 button.msg-panel-name {
@@ -13605,7 +14346,7 @@ button.msg-panel-name {
   padding: 0;
   text-align: left;
 }
-button.msg-panel-name:hover { color: var(--soleil); }
+button.msg-panel-name:hover { color: var(--ink-0); }
 
 /* Clickable message-bubble avatar (DM opener). */
 .msg-bubble-avatar.is-clickable {
@@ -13779,11 +14520,11 @@ button.msg-panel-name:hover { color: var(--soleil); }
   background: var(--bg-3); border: 1px solid var(--line-2);
   color: var(--ink-1);
   padding: 2px 6px;
-  border-radius: 999px;
-  font: 500 11px/1 var(--font-sans);
+  border-radius: var(--radius);
+  font: 500 11.5px/1 var(--font-sans);
   cursor: pointer;
 }
-.msg-reaction.own { background: var(--soleil-soft); border-color: var(--soleil); }
+.msg-reaction.own { background: var(--bg-act); border-color: var(--line-3); color: var(--ink-0); }
 .msg-reaction-count { color: var(--ink-3); }
 
 /* Animated typing-indicator dots — three dots that pulse in sequence. */
@@ -13851,8 +14592,8 @@ button.msg-panel-name:hover { color: var(--soleil); }
    files or a URL over the composer. The overlay covers the whole
    composer so the textarea/buttons don't fight the drop event. */
 .msg-composer.is-drop-target {
-  background: var(--soleil-soft);
-  outline: 2px dashed var(--soleil);
+  background: var(--bg-hov);
+  outline: 2px dashed var(--line-3);
   outline-offset: -2px;
 }
 .msg-composer-drop {
@@ -13892,7 +14633,7 @@ button.msg-panel-name:hover { color: var(--soleil); }
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.msg-composer-btn:hover { color: var(--soleil); background: var(--soleil-soft); }
+.msg-composer-btn:hover { color: var(--ink-0); background: var(--bg-act); }
 .msg-composer-btn.is-active { color: var(--soleil); background: var(--soleil-soft); }
 
 /* Inline URL prompt above the textarea, shown when the link button is
@@ -13911,8 +14652,8 @@ button.msg-panel-name:hover { color: var(--soleil); }
 }
 .msg-composer-link-input:focus {
   outline: none;
-  border-color: var(--soleil);
-  box-shadow: var(--shadow-glow);
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--soleil-soft);
 }
 .msg-composer-link .msg-composer-btn {
   width: auto; padding: 0 10px;
@@ -13934,7 +14675,8 @@ button.msg-panel-name:hover { color: var(--soleil); }
   transition: filter var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
 }
 .msg-composer-send:hover:not(:disabled) { filter: brightness(1.08); }
-.msg-composer-send:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Neutral until there's something to send — gold only appears when armed. */
+.msg-composer-send:disabled { background: var(--bg-3); color: var(--ink-3); opacity: 1; cursor: not-allowed; }
 .msg-composer-attachments {
   display: flex; gap: 6px; flex-wrap: wrap;
 }
@@ -13950,13 +14692,13 @@ button.msg-panel-name:hover { color: var(--soleil); }
 
 .msg-pill {
   display: inline-block;
-  background: var(--soleil-soft);
-  color: var(--soleil);
+  background: var(--bg-act);
+  color: var(--ink-1);
   padding: 0 4px;
   border-radius: var(--radius);
   font-weight: 600;
 }
-.msg-pill-user { background: rgba(255,165,0,.18); }
+.msg-pill-user { background: var(--bg-act); color: var(--ink-0); }
 
 .msg-bubble-edit-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
 .msg-bubble-edit-actions button {
@@ -14170,6 +14912,42 @@ button.msg-panel-name:hover { color: var(--soleil); }
 .tt-link[draggable="true"] { cursor: pointer; }
 .tt-link-manual.tt-link-auto { /* manual wins */ }
 
+/* Candidate name — a recurring proper noun the system noticed but hasn't
+   been told what it is yet (see CandidateNamePlugin / get_candidate_names).
+   Quieter than a real link/tag: a faint dotted underline, no color shift
+   at rest. A tap opens the "make character/setting?" prompt. */
+.tt-candidate {
+  cursor: pointer;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in oklab, var(--ink-3) 50%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition:
+    text-decoration-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+.tt-candidate:hover {
+  text-decoration-color: color-mix(in oklab, var(--soleil) 60%, var(--ink-3));
+  background: color-mix(in oklab, var(--soleil) 8%, transparent);
+  border-radius: var(--radius);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+/* Hovering a candidate's left-margin ✓/✗ control highlights its word in
+   the text, so it's obvious which suggestion you're acting on. */
+.tt-candidate-hot {
+  text-decoration-color: color-mix(in oklab, var(--soleil) 70%, var(--ink-3));
+  background: color-mix(in oklab, var(--soleil) 12%, transparent);
+  border-radius: var(--radius);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+
 /* Tag indicator — dashed box around the trigger word in the tag's
    color. Painted by TagRangePlugin on sentence/word-tier applies.
    Paragraph-tier applies leave the body unmarked; the margin dot in
@@ -14254,22 +15032,23 @@ button.msg-panel-name:hover { color: var(--soleil); }
   appearance: none;
   display: inline-flex; align-items: center; gap: 6px;
   padding: 3px 9px 3px 7px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--tag-c, #4f8df8) 26%, transparent);
   border-radius: 999px;
   cursor: pointer;
   font: 500 11.5px/1.2 var(--font-sans);
   color: var(--ink-1);
-  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-page-tag-chip:hover {
-  background: var(--bg-0);
-  border-color: var(--line-2);
+  background: color-mix(in oklab, var(--tag-c, #4f8df8) 22%, transparent);
+  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 42%, transparent);
   color: var(--ink-0);
 }
 .doc-page-tag-dot {
   width: 7px; height: 7px;
   border-radius: 50%;
+  background: var(--tag-c, #4f8df8);
   flex: 0 0 auto;
 }
 .doc-page-tag-name {
@@ -14306,42 +15085,53 @@ button.msg-panel-name:hover { color: var(--soleil); }
   padding-top: 6px;
   padding-bottom: 4px;
 }
-.ent-pop-tag-row {
-  appearance: none;
-  display: flex; align-items: center; gap: 10px;
-  width: calc(100% - 16px);
-  margin: 4px 8px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-1);
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), transform var(--dur-quick) var(--ease);
-}
-.ent-pop-tag-row:hover {
-  background: var(--bg-0);
-  border-color: var(--line-2);
-}
-.ent-pop-tag-row:active { transform: translateY(1px); }
-.ent-pop-tag-dot {
-  flex: 0 0 auto;
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--bg-1);
-}
-.ent-pop-tag-name {
-  flex: 1 1 auto;
-  font: 600 13.5px/1.2 var(--font-sans);
-  color: var(--ink-0);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* The featured tag card inside the @mention hover popover. A cohesive,
+   tag-tinted mini-panel so its header + image/palette/list sections read
+   as ONE entity (not a boxed header stacked on borrowed sections). It
+   reuses the .tag-pop-* header + section classes for parity with the doc
+   tag popover; only the wrapper differs. */
+.ent-pop-tag-card {
+  margin: 4px 8px 6px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 7%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--tag-color, var(--soleil)) 24%, var(--line-1));
 }
 .ent-pop-tag-arrow {
   font: 500 14px/1 var(--font-sans);
   color: var(--ink-3);
   flex-shrink: 0;
 }
-.ent-pop-tag-row:hover .ent-pop-tag-arrow { color: var(--ink-1); }
+.tag-pop-header:hover .ent-pop-tag-arrow { color: var(--ink-1); }
+/* Loading skeleton — a 2×3 grid of shimmering placeholder squares that
+   matches the image grid's footprint, so the card has a stable height and
+   never pops/reflows when fetchTagVisuals resolves. */
+.tag-pop-skeleton {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 6px 10px 8px;
+  border-top: 1px solid color-mix(in oklab, var(--line-1) 70%, transparent);
+}
+.tag-pop-skeleton > span {
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  background: linear-gradient(100deg,
+    var(--bg-2) 30%,
+    color-mix(in oklab, var(--bg-2) 55%, var(--ink-3)) 50%,
+    var(--bg-2) 70%);
+  background-size: 220% 100%;
+  animation: tag-pop-shimmer 1.1s var(--ease) infinite;
+}
+@keyframes tag-pop-shimmer {
+  from { background-position: 220% 0; }
+  to   { background-position: -120% 0; }
+}
+/* The global reduced-motion guard only clamps animation-duration (so an
+   infinite shimmer would just loop ~9x faster) — stop it outright. */
+@media (prefers-reduced-motion: reduce) {
+  .tag-pop-skeleton > span { animation: none; }
+}
 
 .ent-pop-section-head {
   display: flex; align-items: baseline; gap: 6px;
@@ -14613,6 +15403,22 @@ button.msg-panel-name:hover { color: var(--soleil); }
   min-width: 8px;
   height: 100%;
   display: block;
+}
+/* Palette ENTITY rows in the hover popover (e.g. hovering a name that maps
+   to a palette card like "Church") should read the same as a TAG's palette
+   strip (.tag-pop-palette-swatches): contiguous bands + a hairline, full
+   width — not gappy little blocks. */
+.ent-pop-row-preview .ent-prev-palette {
+  gap: 0;
+  height: 18px;
+  width: 100%;
+  max-width: 220px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--line-1);
+}
+.ent-pop-row-preview .ent-prev-swatch {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .ent-prev-palette-full {
   height: 28px;
@@ -15656,6 +16462,72 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   box-shadow: 0 0 0 2px rgba(255,255,255,.15), 0 1px 4px rgba(0,0,0,.25);
 }
 
+/* ── Candidate-name suggestion gutter (DocCandidateGutter) ────────
+   One-tap ✓/✗ in the left margin to confirm a discovered name as a tag
+   or dismiss it. Its own lane, OUTSIDE the applied-tag dot lane
+   (.doc-tag-gutter), so the two never collide. Hidden on narrow
+   viewports where the centered page leaves no left margin — the
+   dotted-word tap still works there. */
+.doc-candidate-gutter {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -196px;
+  width: 160px;
+  pointer-events: none;
+  z-index: 5;
+}
+.doc-cand-ctl {
+  position: absolute;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 3px 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-2) 72%, transparent);
+  border: 1px solid var(--line-1);
+  box-shadow: 0 1px 5px rgba(0,0,0,.14);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  opacity: .82;
+  transition: opacity var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.doc-cand-ctl:hover { opacity: 1; box-shadow: 0 2px 9px rgba(0,0,0,.2); }
+/* The suggested word's name, so it's obvious which word the ✓/✗ acts on. */
+.doc-cand-name {
+  max-width: 100px;
+  font: 600 11px/1.2 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.doc-cand-yes, .doc-cand-no {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: 19px; height: 19px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+  font-size: 11px; line-height: 1;
+  color: var(--ink-3);
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-quick) var(--ease);
+}
+.doc-cand-yes { color: color-mix(in oklab, var(--soleil) 65%, var(--ink-1)); }
+.doc-cand-yes:hover { background: color-mix(in oklab, var(--soleil) 20%, transparent); color: var(--soleil); }
+.doc-cand-no:hover { background: color-mix(in oklab, var(--danger, #ef4444) 18%, transparent); color: var(--danger, #ef4444); }
+.doc-cand-yes:active, .doc-cand-no:active { transform: scale(.88); }
+/* The labeled control needs real room left of the centered page; below this
+   width there's none — fall back to tapping the dotted word. */
+@media (max-width: 1260px) {
+  .doc-candidate-gutter { display: none; }
+}
+
 /* ─────────────────── Tag popover (TagRangeHoverPopover) ────────── */
 .tag-pop {
   position: fixed;
@@ -15664,17 +16536,16 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
      gutters, find-replace bars, etc. */
   z-index: 2147483647;
   border-radius: 14px;
-  /* Tag-color-tinted glow underneath a translucent panel — gives the
-     popover a quiet visual link to the tag without a heavy stripe.
-     The 1px inset ring keeps the edge crisp on busy backgrounds. */
-  background: color-mix(in oklab, var(--bg-1) 84%, transparent);
-  -webkit-backdrop-filter: saturate(140%) blur(14px);
-          backdrop-filter: saturate(140%) blur(14px);
+  /* Same frosted glass as .surface-frosted (the @mention hover popover)
+     so the two read as ONE material; .tag-pop adds only the tag-color
+     glow on top of the shared drop shadow. */
+  background: rgba(20, 18, 15, 0.72);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+          backdrop-filter: blur(12px) saturate(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
-    0 1px 0 rgba(255,255,255,.04) inset,
-    0 0 0 1px var(--line-1),
-    0 18px 50px -20px color-mix(in oklab, var(--tag-color, var(--soleil)) 55%, transparent),
-    0 24px 48px -16px rgba(0,0,0,.45);
+    var(--shadow-3),
+    0 18px 50px -20px color-mix(in oklab, var(--tag-color, var(--soleil)) 55%, transparent);
   overflow: hidden;
   font-family: var(--font-sans);
   color: var(--ink-0);
@@ -15682,6 +16553,10 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
      .tag-pop-from-{right,left} classes pick the starting offset. */
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) cubic-bezier(.22,.61,.36,1);
+}
+[data-theme='light'] .tag-pop {
+  background: rgba(255, 252, 246, 0.78);
+  border-color: rgba(10, 9, 8, 0.06);
 }
 .tag-pop-from-right { transform: translateX(-4px); }
 .tag-pop-from-left  { transform: translateX( 4px); }
@@ -15724,6 +16599,19 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+/* Small semantic-type pill in a tag hover header ("Topic", "Character"…).
+   Tag-color-tinted so it reads as part of the tag without shouting. */
+.tag-pop-type {
+  flex-shrink: 0;
+  font: 700 10px/1 var(--font-display, var(--font-sans));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--tag-color, var(--soleil)) 72%, var(--ink-1));
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 16%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--tag-color, var(--soleil)) 30%, transparent);
+  padding: 2px 6px;
+  border-radius: 5px;
+}
 .tag-pop-empty {
   padding: 8px 14px 12px;
   font: 400 12px/1.4 var(--font-sans);
@@ -15748,7 +16636,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   text-align: left;
   font: 500 12.5px/1.3 var(--font-sans);
   color: var(--ink-1);
-  transition: background-color 90ms var(--ease), color 90ms var(--ease);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .tag-pop-row:hover {
   background: color-mix(in oklab, var(--tag-color, var(--soleil)) 12%, transparent);
@@ -15797,7 +16685,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   width: 18px; height: 18px;
   display: flex; align-items: center; justify-content: center;
   color: var(--ink-3);
-  transition: color 90ms var(--ease);
+  transition: color var(--dur-fast) var(--ease);
 }
 .tag-pop-row:hover .tag-pop-row-icon { color: var(--ink-1); }
 .tag-pop-row-title {
@@ -15806,6 +16694,108 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.tag-pop-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+/* Preview line under a text "other" row — for a Topic tag the list of
+   docs/notes IS the payoff, so a snippet beats a bare title. */
+.tag-pop-row-snip {
+  font: 400 11px/1.35 var(--font-sans);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Candidate-name decision popover — reuses the .tag-pop framing (fixed,
+   blurred panel, slide-in). No tag color exists yet, so the glow falls
+   back to soleil gold via --tag-color. Compact: name, the question, two
+   type buttons, a sample snippet, and a quiet dismiss. */
+.cand-pop {
+  --tag-color: var(--soleil);
+}
+.cand-pop-head {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 10px 12px 4px;
+}
+.cand-pop-name {
+  flex: 1 1 auto;
+  font: 600 13.5px/1.2 var(--font-sans);
+  color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  letter-spacing: -0.005em;
+}
+.cand-pop-q {
+  padding: 0 12px 8px;
+  font: 400 11.5px/1.3 var(--font-sans);
+  color: var(--ink-3);
+}
+.cand-pop-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 12px 8px;
+}
+.cand-pop-btn {
+  appearance: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 6px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--bg-2) 55%, transparent);
+  color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-quick) var(--ease);
+}
+.cand-pop-btn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--tag-color, var(--soleil)) 16%, transparent);
+  border-color: color-mix(in oklab, var(--tag-color, var(--soleil)) 45%, var(--line-1));
+  color: var(--ink-0);
+}
+.cand-pop-btn:active:not(:disabled) { transform: translateY(1px); }
+.cand-pop-btn:disabled { opacity: .5; cursor: default; }
+/* The deterministically-guessed type (from get_candidate_names) — pre-
+   highlighted so the likely choice is one obvious tap. */
+.cand-pop-btn.is-suggested {
+  background: color-mix(in oklab, var(--soleil) 18%, transparent);
+  border-color: color-mix(in oklab, var(--soleil) 55%, var(--line-1));
+  color: var(--ink-0);
+}
+.cand-pop-sample {
+  padding: 0 12px 8px;
+  font: italic 400 11px/1.4 var(--font-sans);
+  color: var(--ink-3);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cand-pop-dismiss {
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid color-mix(in oklab, var(--line-1) 70%, transparent);
+  padding: 8px 12px;
+  text-align: center;
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease), transform var(--dur-quick) var(--ease);
+}
+.cand-pop-dismiss:hover:not(:disabled) {
+  color: var(--ink-1);
+  background: color-mix(in oklab, var(--ink-3) 8%, transparent);
+}
+.cand-pop-dismiss:active:not(:disabled) { transform: translateY(1px); }
+.cand-pop-dismiss:disabled { opacity: .5; cursor: default; }
 
 /* Image grid — 3 columns of square thumbs. Scrollable so a tag with
    dozens of looks/refs (mainly inherited from a tagged group) can be
@@ -15878,7 +16868,7 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: background-color 90ms var(--ease);
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .tag-pop-palette:hover {
   background: color-mix(in oklab, var(--tag-color, var(--soleil)) 12%, transparent);
@@ -16364,6 +17354,15 @@ body:not([data-clean-mode='1']) .clean-mode-exit { display: none; }
    very short windows. */
 .cc-pie .cc-panel-body { min-height: 132px; }
 
+/* Big scalar stat (e.g. Time in app) centered in a rail panel — replaces a chart. */
+.cc-bignum .cc-panel-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+/* Multi-unit "always going up" duration: big values + small unit labels, wraps. */
+.cc-dur { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 10px; }
+.cc-dur-seg { display: inline-flex; align-items: baseline; gap: 2px; }
+.cc-dur-val { font: 700 32px/1 var(--font-display, var(--font-sans)); color: var(--soleil); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.cc-dur-unit { font: 600 13px/1 var(--font-sans); color: var(--ink-3); }
+.cc-bignum-note { font: 500 11px/1.2 var(--font-sans); color: var(--ink-3); }
+
 /* Bottom strip — live universe totals + leaderboard */
 .cc-bottom { grid-area: bottom; pointer-events: auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
 .cc-uni { border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-around; gap: 8px; }
@@ -16703,9 +17702,23 @@ button, [role="button"], a {
   }
 
   /* Canvas tool strip (.cnv-tools) — desktop 30px buttons are below the
-     44px tap minimum. Bump to 40px on phone and add a little more
-     horizontal margin so the strip floats clear of the edge. */
-  .cnv-tools { left: 8px; padding: 6px; gap: 4px; }
+     44px tap minimum. Bump to 40px on phone. Also top-anchor it (instead of
+     vertically centred) and cap its height so on a short / landscape phone the
+     ~8 enlarged buttons can't collide with the topbar or the bottom nav — the
+     strip scrolls internally instead. The left-strip "+" stays: it opens the
+     secondary-type menu (Doc/File/Shape/Palette/Linked board), which the
+     note-only bottom-nav "+" does not cover. */
+  .cnv-tools {
+    left: max(8px, env(safe-area-inset-left, 0px));
+    top: calc(48px + var(--safe-top, 0px) + 8px);
+    transform: none;
+    max-height: calc(100dvh - (48px + var(--safe-top, 0px)) - (56px + var(--safe-bottom, 0px)) - 16px);
+    overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 6px; gap: 4px;
+  }
+  .cnv-tools::-webkit-scrollbar { display: none; }
   .cnv-tool { width: 40px; height: 40px; }
   .cnv-tool-sep { margin: 4px 6px; }
 
@@ -16887,6 +17900,8 @@ button, [role="button"], a {
      bold/italic/list/etc. with a finger without misfires. */
   .doc-tb-btn { width: 40px; height: 40px; }
   .doc-tb-zoom .doc-tb-btn { width: 40px; height: 36px; }
+  /* Labeled pills (font picker, screenplay toggle) grow to match. */
+  .doc-tb-pill { height: 40px; }
 
   /* MessageBubble row action buttons that fade in on hover are
      unreachable on touch. Make the per-row action stack always visible
@@ -16905,6 +17920,7 @@ button, [role="button"], a {
   .doc-tree-add,
   .doc-bookmark-x,
   .pc-cell-x,
+  .pc-eye-float,
   .ic-add-caption {
     opacity: 1 !important;
   }
@@ -16937,6 +17953,24 @@ button, [role="button"], a {
      fat-fingered. */
   .ctx-item { min-height: 40px; }
   .ent-pop-foot-btn { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+
+  /* The card "⋯" options button is touch-only: on a real mouse the card
+     context menu opens via right-click, so it stays hidden there. */
+  .card.is-selected > .card-menu-btn { display: flex; }
+
+  /* Resize (14px) + rotate (12px) handles were the ONLY card affordances not
+     bumped for touch — a finger essentially couldn't resize or rotate. Enlarge
+     both and give each an invisible expanded hit area. The inset is capped (~38
+     / ~40px, not 44) so a corner press doesn't swallow the centre press-and-hold
+     lift: corners = resize/rotate, centre = lift. The card pointerdown handler
+     already skips targets inside .card-resize/.card-rotate (closest()), so the
+     expanded hit areas correctly win over the lift/drag path. !important beats
+     the inline width/height (RESIZE_HANDLE_PX) on the resize handle. */
+  .card-resize { width: 22px !important; height: 22px !important; opacity: 0.85; }
+  .card.is-selected .card-resize { opacity: 0.9; }
+  .card-resize::before { content: ''; position: absolute; inset: -8px; }
+  .card-rotate { width: 18px; height: 18px; margin-left: -9px; }
+  .card-rotate::after { content: ''; position: absolute; inset: -11px; }
 }
 
 /* -------------------------------------------------------------------------
@@ -16998,6 +18032,42 @@ button, [role="button"], a {
 @keyframes sheet-up   { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }
 
+/* Mobile add sheet — the phone bottom-nav "+" opens this grid of add actions
+   (board / image / file / note / doc / shape / palette / link / comment / vote)
+   inside a Sheet. Tiles are icon-over-label, ≥44px tap targets. */
+.mobile-add-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.mobile-add-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px;
+  min-height: 84px;
+  padding: 14px 8px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  background: var(--bg-2);
+  color: var(--ink-0);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.mobile-add-tile:active { transform: scale(0.96); background: var(--bg-3); }
+.mobile-add-tile:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.mobile-add-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 999px;
+  background: var(--bg-1);
+  color: var(--soleil);
+}
+.mobile-add-lbl {
+  font: 600 12px/1.2 var(--font-sans);
+  color: var(--ink-1);
+  text-align: center;
+}
+
 
 /* MobileBottomNav -------------------------------------------------------- */
 .mb-nav {
@@ -17041,6 +18111,30 @@ button, [role="button"], a {
   color: #0a0a0c;
   font: 700 10px/16px var(--font-sans);
   text-align: center;
+}
+/* Elevated centre "+" puck — the primary phone create action. Fixed width so
+   the four real tabs keep equal flex widths; the puck overhangs the bar top
+   (.mb-nav has no overflow:hidden). */
+.mb-nav-create {
+  flex: 0 0 auto; width: 64px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mb-nav-create-fab {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px;
+  margin-top: -18px;
+  border-radius: 999px;
+  background: var(--soleil);
+  color: #0a0a0c;
+  box-shadow: var(--shadow-2), var(--soleil-glow);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.mb-nav-create:active .mb-nav-create-fab { transform: scale(0.92); }
+.mb-nav-create:focus-visible { outline: 0; }
+.mb-nav-create:focus-visible .mb-nav-create-fab {
+  outline: 2px solid var(--ink-0); outline-offset: 2px;
 }
 
 /* MobileDrawer ---------------------------------------------------------- */
@@ -17341,3 +18435,321 @@ button, [role="button"], a {
 }
 
 
+
+/* ── PDF cards + in-app viewer (PdfCard.jsx / PdfViewer.jsx) ───────────────── */
+.pdfc { display: flex; flex-direction: column; height: 100%; }
+.pdfc-thumbwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: var(--bg3, #1a1a1f); }
+.pdfc .pdfc-thumb { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: -webkit-optimize-contrast; }
+.pdfc-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-3, #8b8b94);
+  background: var(--bg3, #1a1a1f);
+}
+/* Filename + page count strip across the bottom of the thumbnail. */
+.pdfc-info {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px;
+  background: linear-gradient(to top, rgba(8,8,10,.82), rgba(8,8,10,0));
+  color: #fff;
+  font-size: 11px; line-height: 1.2;
+  pointer-events: none;
+}
+.pdfc-info-icon { flex: 0 0 auto; display: inline-flex; color: #ff6b5e; }
+.pdfc-info-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdfc-info-pages { flex: 0 0 auto; opacity: .8; }
+
+/* Fullscreen viewer — mirrors .lightbox layering. */
+.pdfv {
+  position: fixed; inset: 0;
+  z-index: 2147483647;
+  background: rgba(8,8,10,.92);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  display: flex; flex-direction: column;
+  animation: lightbox-in var(--dur-fast, .14s) ease-out;
+}
+.pdfv-loading { align-items: center; justify-content: center; }
+.pdfv-bar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  padding-top: calc(8px + env(safe-area-inset-top));
+  color: #fff;
+  background: rgba(0,0,0,.4);
+}
+.pdfv-title { font-size: 13px; font-weight: 600; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdfv-spacer { flex: 1 1 auto; }
+.pdfv-nav, .pdfv-zoom { display: inline-flex; align-items: center; gap: 6px; }
+.pdfv-pageind, .pdfv-zoomind { font-size: 12px; opacity: .9; min-width: 56px; text-align: center; }
+.pdfv-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 30px; padding: 0 8px;
+  border: 1px solid rgba(255,255,255,.18); border-radius: 8px;
+  background: rgba(255,255,255,.06); color: #fff;
+  font-size: 15px; line-height: 1; cursor: pointer;
+}
+.pdfv-btn:hover:not(:disabled) { background: rgba(255,255,255,.14); }
+.pdfv-btn:disabled { opacity: .35; cursor: default; }
+.pdfv-x { font-size: 20px; }
+.pdfv-scroll {
+  flex: 1 1 auto; min-height: 0; overflow: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+.pdfv-page {
+  position: relative; flex: 0 0 auto;
+  background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,.5);
+}
+.pdfv-page-canvas { width: 100%; height: 100%; }
+.pdfv-state { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 14px; color: #fff; }
+.pdfv-error-msg { font-size: 14px; opacity: .9; }
+.pdfv-retry {
+  padding: 8px 16px; border-radius: 8px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.08); color: #fff;
+}
+.pdfv-retry:hover { background: rgba(255,255,255,.16); }
+@media (max-width: 640px) {
+  .pdfv-title { max-width: 30vw; }
+  .pdfv-pageind, .pdfv-zoomind { min-width: 44px; }
+}
+
+/* Self-hosted Courier Prime (OFL) — the screenplay typeface. Bundled so every
+   platform gets identical Courier metrics (Courier New is the metric-equal
+   fallback while it loads / if it 404s). Files in public/fonts. */
+@font-face {
+  font-family: 'Courier Prime'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('/fonts/CourierPrime-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Courier Prime'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('/fonts/CourierPrime-Bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Courier Prime'; font-style: italic; font-weight: 400; font-display: swap;
+  src: url('/fonts/CourierPrime-Italic.woff2') format('woff2');
+}
+
+/* ── Screenplay mode (ScreenplayBlock + .doc-paper.is-screenplay) ─────────── */
+/* Courier 12pt on a fixed monospace grid: 1 char = 1ch = 0.1in (10 cpi), with a
+   fixed vertical rhythm (--sp-line). All element widths/indents below are in
+   `ch` and MUST equal screenplayMetrics.ELEMENT_METRICS so the browser wraps at
+   the exact same column the paginator counts → on-screen pages == exported PDF.
+   --sp-line = 9in text height / 54 lines = exactly 1/6in = 12pt = 6 lines per
+   inch — true single-spacing for 12pt Courier (== screenplayMetrics.PAGE_LINES).
+   Courier New ships on every OS with Courier's metrics; the bundled Courier
+   Prime @font-face (below) makes it byte-identical cross-platform. */
+.doc-paper.is-screenplay {
+  --sp-line: calc(9in / 54);
+}
+/* The script sheet uses the industry 1.5"/1.0" left/right margins (a 60-char,
+   6.0in text block). The title page keeps symmetric 1in margins so it centers. */
+.doc-paper.is-screenplay .doc-editor-wrap:not(.sp-title-page) {
+  padding: 96px 96px 96px 144px;
+}
+.doc-paper.is-screenplay .ProseMirror {
+  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+  font-size: 12pt;
+  line-height: var(--sp-line);
+}
+.doc-paper.is-screenplay .sp-el { white-space: pre-wrap; margin: 0; }
+.doc-paper.is-screenplay [data-screenplay-element] {
+  white-space: pre-wrap; max-width: 60ch; margin-left: 0; margin-right: 0;
+  /* Non-dual blocks clear any dual-dialogue floats above them (no wrapper). */
+  clear: both;
+}
+/* The first line sits exactly at the 1in top margin — no leading blank lines
+   (mirrors the paginator zeroing space-before for the first block on a page). */
+.doc-paper.is-screenplay .ProseMirror > [data-screenplay-element]:first-child { margin-top: 0; }
+/* Industry element geometry (ch widths/indents from screenplayMetrics). */
+.doc-paper.is-screenplay [data-screenplay-element="scene"] {
+  text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line)); position: relative;
+}
+/* Scene numbers in both gutters — only when .show-scene-numbers is set (the
+   ScreenplayPagination plugin always stamps data-scene-number; CSS gates it). */
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::before,
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::after {
+  /* Industry placement: same line as the slugline, in the margins, in the same
+     ink as the heading (not a muted gray) — matches the exported PDF. */
+  content: attr(data-scene-number); position: absolute; top: 0;
+  font-weight: 400; color: inherit;
+}
+/* Left number sits ~1.0in from the page edge (0.5in left of the 1.5in slugline
+   margin); right number ~0.5in from the right page edge. */
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::before { left: -0.5in; }
+.doc-paper.is-screenplay.show-scene-numbers [data-scene-number]::after { right: -0.5in; }
+.doc-paper.is-screenplay [data-screenplay-element="action"] { margin-top: var(--sp-line); }
+/* Shots get 2 blank lines above, like a scene heading (Final Draft default). */
+.doc-paper.is-screenplay [data-screenplay-element="shot"] { text-transform: uppercase; margin-top: calc(2 * var(--sp-line)); }
+.doc-paper.is-screenplay [data-screenplay-element="character"] {
+  text-transform: uppercase; margin-top: var(--sp-line); margin-left: 22ch; max-width: 38ch;
+}
+.doc-paper.is-screenplay [data-screenplay-element="parenthetical"] { margin-left: 16ch; max-width: 25ch; }
+.doc-paper.is-screenplay [data-screenplay-element="dialogue"] { margin-left: 10ch; max-width: 35ch; }
+.doc-paper.is-screenplay [data-screenplay-element="transition"] {
+  text-transform: uppercase; text-align: right; margin-top: var(--sp-line); max-width: 60ch;
+}
+.doc-paper.is-screenplay [data-screenplay-element="centered"] { text-align: center; margin-top: var(--sp-line); }
+/* Dual dialogue — two speeches side by side (two ~29ch columns). Placed AFTER
+   the per-element rules so it overrides their indents/widths. The LEFT column
+   floats; the RIGHT column stays in-flow with a left margin so it TOP-ALIGNS
+   beside the floats (a right float would be forced below the left float per the
+   CSS "no float higher than an earlier float" rule). Flat blocks, no wrapper. */
+.doc-paper.is-screenplay [data-dual] { box-sizing: border-box; width: 29ch; max-width: 29ch; margin-top: var(--sp-line); }
+.doc-paper.is-screenplay [data-dual="left"] { float: left; clear: left; margin-left: 0; }
+.doc-paper.is-screenplay [data-dual="right"] { float: none; clear: none; margin-left: 31ch; }
+.doc-paper.is-screenplay [data-dual][data-screenplay-element="character"] { text-align: center; }
+.doc-paper.is-screenplay [data-dual][data-screenplay-element="dialogue"] { max-width: 29ch; }
+.doc-paper.is-screenplay [data-dual="left"][data-screenplay-element="parenthetical"] { margin-left: 4ch; max-width: 21ch; }
+.doc-paper.is-screenplay [data-dual="right"][data-screenplay-element="parenthetical"] { margin-left: 35ch; max-width: 21ch; }
+/* The screenplay toggle is a labeled pill (clapperboard icon + word), NOT a
+   square icon button — so it must size to its content. Without these overrides
+   the base .doc-tb-pill's fixed 110px (or, previously, .doc-tb-btn's 28px)
+   clipped/overflowed the word "Screenplay" and overlapped its neighbors. */
+.doc-tb-pill.doc-tb-screenplay-toggle,
+.doc-tb-pill.doc-tb-titlepage-toggle,
+.doc-tb-pill.doc-tb-scenenum-toggle { width: auto; min-width: 0; max-width: none; gap: 5px; }
+.doc-tb-pill.doc-tb-screenplay-toggle.is-active,
+.doc-tb-pill.doc-tb-screenplay-toggle.is-active:hover:not(:disabled) {
+  background: var(--soleil, #ffa500); color: #1a1205; font-weight: 600;
+}
+/* Title-page + scene-number toggles: a quieter "on" state (outline) so they
+   don't compete with the mode toggle's solid fill. */
+.doc-tb-pill.doc-tb-titlepage-toggle.is-active,
+.doc-tb-pill.doc-tb-scenenum-toggle.is-active {
+  color: var(--soleil, #ffa500);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--soleil, #ffa500) 55%, transparent);
+}
+/* Scene-number popover (mirrors the color popover). */
+.doc-tb-scenenum-pop { display: flex; flex-direction: column; min-width: 150px; padding: 4px; gap: 2px; }
+.doc-tb-scenenum-item {
+  appearance: none; border: 0; background: transparent; color: var(--ink-1);
+  text-align: left; padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  font: 500 12.5px/1 var(--font-sans);
+}
+.doc-tb-scenenum-item:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-tb-scenenum-item.is-active { color: var(--soleil, #ffa500); }
+/* Pane (side-dock) mode tightens; touch mode grows to match the 40px buttons. */
+.doc-card-modal-side .doc-tb-pill.doc-tb-screenplay-toggle,
+.doc-card-modal-side .doc-tb-pill.doc-tb-titlepage-toggle,
+.doc-card-modal-side .doc-tb-pill.doc-tb-scenenum-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
+.doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line2, rgba(255,255,255,.1)); }
+
+/* ── Editable on-page screenplay title page (ScreenplayTitlePage) ─────────── */
+/* Reuses .doc-editor-wrap for the 8.5×11 sheet + zoom; lays out the fields. */
+.sp-title-page { display: flex; flex-direction: column; }
+.sp-title-page .sp-tp-center { margin-top: 2.5in; text-align: center; }
+.sp-title-page .sp-tp-foot {
+  margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px;
+}
+.sp-title-page .sp-tp-foot-left { text-align: left; flex: 1 1 auto; min-width: 0; }
+.sp-title-page .sp-tp-foot-right { text-align: right; flex: 0 1 auto; min-width: 0; }
+.sp-tp-field {
+  display: block; width: 100%; margin: 0; padding: 0; border: 0; outline: 0;
+  background: transparent; color: inherit; resize: none; overflow: hidden;
+  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+  font-size: 12pt; line-height: 1.5; text-align: inherit;
+}
+.sp-tp-field::placeholder { color: var(--ink-3, #888); opacity: .5; }
+.sp-tp-static { white-space: pre-wrap; }
+.sp-title-page .sp-tp-credit { margin-top: 1.5em; }
+.sp-title-page .sp-tp-source { margin-top: 1.5em; }
+.sp-title-page .sp-tp-copyright { margin-top: 1em; }
+.sp-title-page .sp-tp-notes { margin-top: 1em; }
+
+/* On-screen screenplay page-break marker (ScreenplayPagination decoration). */
+.doc-paper.is-screenplay .sp-page-break { display: block; margin: 1.5em 0; user-select: none; }
+/* (MORE)/(CONT'D) align under the 22ch character-cue column (matches print). */
+.doc-paper.is-screenplay .sp-page-break-more { padding-left: 22ch; font-family: inherit; }
+.doc-paper.is-screenplay .sp-page-break-contd { padding-left: 22ch; text-transform: uppercase; font-weight: 700; }
+/* Auto (CONT'D) suffix appended to a resuming character cue. Rendered at full
+   cue strength (not dimmed) so "same person talking again" reads clearly; it's
+   a non-editable render-time widget, never part of the stored text. */
+.doc-paper.is-screenplay .sp-auto-contd { user-select: none; pointer-events: none; }
+.doc-paper.is-screenplay .sp-page-break-rule {
+  position: relative; height: 0; border-top: 1px dashed var(--line2, #9994); margin: .6em 0;
+}
+.doc-paper.is-screenplay .sp-page-break-rule::after {
+  content: 'Page ' attr(data-page); position: absolute; right: 0; top: -0.9em;
+  font: 600 9px var(--font-display, sans-serif); letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-3, #888); background: var(--bg0, #fff); padding: 0 6px;
+}
+
+/* Screenplay character-name autocomplete popup (ScreenplaySuggest). */
+.sp-autocomplete {
+  position: fixed; z-index: 2147483646; display: none;
+  min-width: 160px; max-height: 240px; overflow-y: auto;
+  background: var(--bg0, #1a1a1f); border: 1px solid var(--line2, #3a3a42);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); padding: 4px;
+  font-family: var(--font-display, sans-serif); font-size: 13px;
+}
+.sp-autocomplete-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-1, #e8e8ea); text-transform: uppercase; }
+.sp-autocomplete-item.is-active, .sp-autocomplete-item:hover { background: var(--soleil, #ffa500); color: #1a1205; }
+.doc-foot-status.is-error { color: var(--danger, #ef4444); }
+
+/* Scene navigator (left rail, screenplay mode) — outline of scene headings. */
+.sp-scenenav { padding: 8px 4px; margin-top: 8px; border-top: 1px solid var(--line2, rgba(255,255,255,.08)); overflow-y: auto; }
+.sp-scenenav-head { padding: 2px 8px 6px; color: var(--ink-3); }
+.sp-scenenav-empty { padding: 4px 8px; color: var(--ink-3); font-size: 12px; }
+.sp-scenenav-item {
+  display: flex; gap: 8px; width: 100%; text-align: left; appearance: none; border: 0;
+  background: transparent; color: var(--ink-1); padding: 5px 8px; border-radius: 6px;
+  cursor: pointer; font: 500 12.5px/1.3 var(--font-sans);
+}
+.sp-scenenav-item:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sp-scenenav-num { flex: 0 0 auto; color: var(--ink-3); min-width: 1.6em; }
+.sp-scenenav-text { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.sp-scenenav-title { text-transform: none; color: var(--ink-2); }
+
+/* Phone: page rail becomes a slide-over drawer (desktop rail is display:none
+   at <=640px, which stranded multi-page navigation). */
+.doc-mobile-pages-btn { display: none; }
+@media (max-width: 640px) {
+  .doc-mobile-pages-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin: 6px 8px; padding: 6px 12px; min-height: 36px;
+    border: 1px solid var(--line2, #3a3a42); border-radius: 8px;
+    background: var(--bg1, #1a1a1f); color: var(--ink-1, #e8e8ea);
+    font: 600 12px var(--font-display, sans-serif); cursor: pointer;
+  }
+  .doc-surface.mobile-rail-open .doc-rail.doc-rail-left {
+    display: block; position: absolute; left: 0; top: 0; bottom: 0;
+    width: min(82%, 300px); z-index: 30; overflow-y: auto;
+    background: var(--bg0, #14141a); border-right: 1px solid var(--line2, #3a3a42);
+    box-shadow: 6px 0 28px rgba(0,0,0,.45);
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .doc-surface.mobile-rail-open .doc-rail-toggle { display: none; }
+  .doc-rail-backdrop { position: absolute; inset: 0; z-index: 29; background: rgba(0,0,0,.45); }
+}
+
+/* Full-mode doc overlay scrim (so the 24px inset frame isn't a live canvas
+   hit-zone) + phone edge-to-edge with safe-area insets. */
+.doc-card-modal-backdrop {
+  position: fixed; inset: 0; z-index: 2147483599;
+  background: rgba(8,8,10,.5); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+@media (max-width: 640px) {
+  .doc-card-modal-full {
+    inset: 0; border-radius: 0;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+/* Compose the focus ring with the active-state underline so a focused active
+   format button keeps showing it's on. */
+.doc-tb-btn.is-active:focus-visible { box-shadow: var(--shadow-glow), inset 0 -2px 0 0 var(--soleil); }
+
+/* Touch-only selection bubble menu in docs (DocPageEditor BubbleMenu). */
+.doc-bubble {
+  display: flex; gap: 2px; padding: 4px;
+  background: var(--bg0, #1a1a1f); border: 1px solid var(--line2, #3a3a42);
+  border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+}
+.doc-bubble button {
+  min-width: 36px; height: 36px; padding: 0 8px;
+  border: 0; border-radius: 7px; background: transparent;
+  color: var(--ink-1, #e8e8ea); font-size: 15px; cursor: pointer;
+}
+.doc-bubble button.is-active { background: var(--soleil, #ffa500); color: #1a1205; }
+.doc-bubble button:active { background: var(--bg2, #2a2a33); }

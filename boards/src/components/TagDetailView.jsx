@@ -19,18 +19,24 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { setTagDescription } from '../lib/tagsApi.js';
+import { setTagEntityType } from '../lib/tagsApi.js';
+import { tagFallbackColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
-import { relativeTimeShort } from '../lib/relativeTime.js';
+import { ENTITY_TYPES, entityTypeLabel } from '../lib/entityTypes.js';
 import {
   untagCard, untagBoard, untagGroup,
   confirmAppliedTag, dismissAutotagSuggestion,
   tagCard, tagGroup, tagBoard, tagDocPage,
+  getRelatedEntities,
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { getKind } from '../lib/entityKinds.js';
 import { ImageLightbox } from './ImageLightbox.jsx';
+import { R2Image } from './R2Image.jsx';
+import { fetchTagVisuals } from '../lib/tagVisuals.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 
 // Patch missing meta.src on image-kind card_index rows by looking up
 // `images.storage_path` via card_id. card_index.meta.src is populated
@@ -80,71 +86,6 @@ function itemExcerpt(it) {
   return null;
 }
 
-const TAG_PALETTE = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
-  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
-];
-// Inline editor for a tag's description. The AI tagger reads this when
-// deciding whether the tag applies — gives workspaces a way to disambiguate
-// tags whose names are too generic (e.g. "Cast" the film term vs "cast"
-// the verb) without retraining anything.
-function TagDescriptionRow({ tag }) {
-  const [value, setValue] = useState(tag?.description || '');
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(0);
-  const [editing, setEditing] = useState(false);
-  useEffect(() => { setValue(tag?.description || ''); }, [tag?.id, tag?.description]);
-  if (!tag?.id) return null;
-  const commit = async () => {
-    setEditing(false);
-    if ((value || '').trim() === (tag.description || '').trim()) return;
-    setSaving(true);
-    try {
-      await setTagDescription(tag.id, value);
-      setSavedAt(Date.now());
-    } catch (e) {
-      console.warn('[tag] description save failed', e);
-    } finally {
-      setSaving(false);
-    }
-  };
-  const placeholder = 'Describe what this tag means — the AI uses this to decide when to apply it.';
-  return (
-    <div className="tag-detail-description">
-      {editing ? (
-        <textarea
-          autoFocus
-          className="tag-detail-description-input"
-          value={value}
-          maxLength={500}
-          placeholder={placeholder}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') { setValue(tag?.description || ''); setEditing(false); }
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
-          }}
-        />
-      ) : (
-        <button className={`tag-detail-description-display ${value ? '' : 'is-empty'}`}
-                onClick={() => setEditing(true)}
-                title="Click to edit (the AI reads this)">
-          {value || placeholder}
-        </button>
-      )}
-      <div className="tag-detail-description-meta">
-        {saving ? 'Saving…' : (savedAt && Date.now() - savedAt < 2000 ? 'Saved' : `${value.length}/500`)}
-      </div>
-    </div>
-  );
-}
-
-function fallbackColor(slugOrName) {
-  const s = (slugOrName || '').toString();
-  let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
-}
-
 export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose }) {
   const feedback = useFeedback();
   const [rows, setRows] = useState([]);
@@ -156,15 +97,14 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   // the source board. The index points into imageCardsFlat (derived
   // below) so arrow keys can flip through the tag's whole image set.
   const [lightboxIdx, setLightboxIdx] = useState(null);
-  // Filter: 'all' | 'auto' | 'user' | 'suggested'. Stored in localStorage
-  // so the user's choice persists across reloads / tab switches.
-  // 'suggested' shows the per-tag inbox of middle-band cosine matches
-  // pending accept/dismiss — see boards/supabase/migrations/0043.
+  // Source filter: 'all' | 'auto' | 'user'. Persisted in localStorage so the
+  // choice survives reloads. (Pending suggestions moved to the Manage panel,
+  // so there's no longer a 'suggested' filter value.)
   const [sourceFilter, setSourceFilter] = useState(() => {
     if (typeof localStorage === 'undefined') return 'all';
     try {
       const v = localStorage.getItem('soleil.tags.detail.filter');
-      return (v === 'auto' || v === 'user' || v === 'suggested') ? v : 'all';
+      return (v === 'auto' || v === 'user') ? v : 'all';
     } catch (_) { return 'all'; }
   });
   const setFilter = (v) => {
@@ -204,6 +144,42 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       window.removeEventListener('keydown', onKey);
     };
   }, [menu]);
+
+  // ── Entity identity (hero) ────────────────────────────────────────────
+  // The visual payoff (cross-board images + palettes) that makes a tag read
+  // as an ENTITY, not a filtered list. Shares fetchTagVisuals with the hover
+  // popover so they stay in lockstep. `entityType` is local+optimistic so the
+  // one-tap type switch feels instant before the workspace tags refresh.
+  const [vis, setVis] = useState(null);
+  const [entityType, setEntityType] = useState(tag?.entity_type || null);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [related, setRelated] = useState([]);
+  useEffect(() => { setEntityType(tag?.entity_type || null); }, [tag?.id, tag?.entity_type]);
+  useEffect(() => {
+    if (!tag?.id || !workspaceId) { setVis(null); return; }
+    let cancelled = false;
+    fetchTagVisuals({ tagId: tag.id, workspaceId }).then(r => { if (!cancelled) setVis(r); });
+    return () => { cancelled = true; };
+  }, [tag?.id, workspaceId]);
+  // Related entities — sibling tags that co-occur (share boards). The web feel.
+  useEffect(() => {
+    if (!tag?.id) { setRelated([]); return; }
+    let cancelled = false;
+    getRelatedEntities(tag.id).then(r => { if (!cancelled) setRelated(r); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [tag?.id]);
+  const changeType = async (val) => {
+    const prev = entityType;
+    const next = val === entityType ? null : val; // tap the active type to clear it
+    setEntityType(next);
+    try {
+      await setTagEntityType(tag.id, next);
+      try { logEvent(EV.TAG_SET_TYPE, { tag_id: tag.id, entity_type: next }); } catch (_) {}
+    } catch (err) {
+      setEntityType(prev);
+      feedback?.toast?.({ type: 'error', message: 'Could not set type' });
+    }
+  };
 
   useEffect(() => {
     if (!tag?.id) { setRows([]); setLoading(false); return; }
@@ -446,7 +422,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   }, [allGroups, workspaceId]);
 
   if (!tag) return null;
-  const dot = tag.color || fallbackColor(tag.slug || tag.name);
+  const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
 
   // Index for "is this card directly tagged" lookup — controls
   // whether the right-click menu offers Remove vs nothing.
@@ -628,6 +604,13 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     );
   };
 
+  // A group is worth showing only if it actually has content: synced member
+  // cards, or an unsynced member_count (the board was never opened). A pure
+  // name-match auto-tag on a 0-member group is noise — hide it.
+  const groupKey = (g) => `${g.board_id}::${g.group_id || g.id}`;
+  const groupHasContent = (g) =>
+    (groupCards.get(groupKey(g))?.length || 0) > 0 || (g.member_count || 0) > 0;
+
   const renderGroupBlock = (g, opts = {}) => {
     const key = `${g.board_id}::${g.group_id || g.id}`;
     const cards = groupCards.get(key) || [];
@@ -661,9 +644,15 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           <div className="tag-detail-card-grid">
             {cards.map(renderCardPreview)}
           </div>
-        ) : (
-          <div className="tag-detail-block-empty">No cards in this group yet.</div>
-        )}
+        ) : g.member_count > 0 ? (
+          // Has members but none synced to card_index (board never opened) —
+          // show the real count + a way in, not a dead "no cards" line.
+          <button className="tag-detail-block-peek"
+                  onClick={() => navigate(navTarget)}
+                  title="Open the board to view its cards">
+            {g.member_count} {g.member_count === 1 ? 'item' : 'items'} · open the board to view
+          </button>
+        ) : null /* genuinely-empty name-match auto-tag → just its title row */}
       </div>
     );
   };
@@ -671,7 +660,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   const renderBoardBlock = (b) => {
     const id = b.board_id || b.id;
     const allCards = boardCards.get(id) || [];
-    const groupedHere = direct.groups.filter(g => g.board_id === id);
+    const groupedHere = direct.groups.filter(g => g.board_id === id && groupHasContent(g));
     const groupedHereKeys = new Set(groupedHere.map(g => `${g.board_id}::${g.group_id || g.id}`));
     const groupedCardKeys = new Set();
     for (const k of groupedHereKeys) {
@@ -706,7 +695,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     );
   };
 
-  const orphanGroups = direct.groups.filter(g => !direct.boards.some(b => (b.board_id || b.id) === g.board_id));
+  const orphanGroups = direct.groups.filter(g => groupHasContent(g) && !direct.boards.some(b => (b.board_id || b.id) === g.board_id));
   const taggedBoardIds = new Set(direct.boards.map(b => b.board_id || b.id));
   const orphanCards = direct.cards.filter(c => !taggedBoardIds.has(c.board_id));
 
@@ -748,6 +737,19 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
     () => allCardsFlat.filter(c => c.kind === 'image' && c.meta?.src),
     [allCardsFlat],
   );
+
+  // Header "N items" should reflect actual CONTENT (incl. a tagged group's
+  // member cards), not the container rows. Synced cards are already in
+  // allCardsFlat; add the member_count of unsynced groups (board never opened,
+  // so their cards aren't in card_index yet).
+  const shownItemCount = useMemo(() => {
+    let n = allCardsFlat.length;
+    for (const g of direct.groups) {
+      const synced = (groupCards.get(`${g.board_id}::${g.group_id || g.id}`) || []).length;
+      if (synced === 0 && (g.member_count || 0) > 0) n += g.member_count;
+    }
+    return n;
+  }, [allCardsFlat, direct.groups, groupCards]);
 
   // Capture-phase keyboard handler scoped to when the lightbox is
   // open. Escape closes it; ←/→ wrap-around through the image set.
@@ -800,48 +802,144 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
   };
 
   return (
-    <div className="tag-detail">
+    <div className="tag-detail tag-profile">
       <div className="grain-surface" aria-hidden="true" />
-      <div className="tag-detail-head">
+      <div className="tag-detail-head" style={{ '--tag-color': dot }}>
         <span className="tag-detail-dot" style={{ background: dot }} />
         <h1 className="tag-detail-name">{tag.name}</h1>
+        <div className="tag-profile-typeswitch" role="group" aria-label="Entity type">
+          {ENTITY_TYPES.map(t => (
+            <button key={t.value}
+                    className={`tag-profile-type-chip ${entityType === t.value ? 'is-on' : ''}`}
+                    onClick={() => changeType(t.value)}
+                    title={entityType === t.value ? `Clear ${t.label}` : `Mark as ${t.label}`}>
+              <Icon as={t.Icon} size={12} />
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </div>
         <span className="tag-detail-count">
-          {sourceFilter === 'suggested'
-            ? `${suggestions.length} ${suggestions.length === 1 ? 'suggestion' : 'suggestions'}`
-            : `${filteredRows.length} ${filteredRows.length === 1 ? 'item' : 'items'}`}
+          {shownItemCount} {shownItemCount === 1 ? 'item' : 'items'}
         </span>
         <span className="tag-detail-spacer" />
+        <button className={`tag-detail-manage-btn ${manageOpen ? 'is-on' : ''}`}
+                onClick={() => setManageOpen(o => !o)}
+                title="Description, source filter, pending suggestions">
+          Manage
+          {suggestions.length > 0 && (
+            <span className="tag-detail-manage-badge">{suggestions.length}</span>
+          )}
+        </button>
         {onClose && (
           <button className="tag-detail-close" onClick={onClose} aria-label="Close">×</button>
         )}
       </div>
 
-      <TagDescriptionRow tag={tag} />
+      {/* Identity hero — what this entity LOOKS like, cross-board. Only renders
+          when there are visuals (a concept tag has none → no empty band). */}
+      {vis && ((vis.images?.length || 0) > 0 || (vis.palettes?.length || 0) > 0) && (
+        <div className="tag-profile-hero" style={{ '--tag-color': dot }}>
+          <div className="tag-profile-identity">
+            {(vis.images?.length || 0) > 0 && (
+              <div className="tag-profile-images">
+                {vis.images.slice(0, 8).map((im, i) => (
+                  <button key={i} className="tag-profile-thumb"
+                          title={im.title || 'Image'}
+                          onClick={() => navigate({
+                            kind: 'image',
+                            id: `${im.navTarget?.boardId}:${im.navTarget?.cardId}`,
+                            board_id: im.navTarget?.boardId, card_id: im.navTarget?.cardId,
+                          })}>
+                    <R2Image src={im.src} alt="" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {(vis.palettes?.length || 0) > 0 && (
+              <div className="tag-profile-palettes">
+                {vis.palettes.slice(0, 3).map((p, i) => {
+                  const colors = (p.swatches || [])
+                    .map(c => (typeof c === 'string' ? c : c?.hex))
+                    .filter(Boolean).slice(0, 12);
+                  return (
+                    <span key={i} className="tag-profile-palette" title={p.title || 'Palette'}>
+                      {colors.map((c, j) => <span key={j} style={{ background: c }} />)}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-      {(rows.length > 0 || suggestions.length > 0) && (
-        <div className="tag-detail-filter">
-          <button className={`tag-detail-filter-pill ${sourceFilter === 'all' ? 'is-on' : ''}`}
-                  onClick={() => setFilter('all')}>
-            All <span className="tag-detail-filter-count">{counts.all}</span>
-          </button>
-          <button className={`tag-detail-filter-pill ${sourceFilter === 'user' ? 'is-on' : ''}`}
-                  onClick={() => setFilter('user')}>
-            Manual <span className="tag-detail-filter-count">{counts.user}</span>
-          </button>
-          <button className={`tag-detail-filter-pill ${sourceFilter === 'auto' ? 'is-on' : ''}`}
-                  onClick={() => setFilter('auto')}>
-            Auto <span className="tag-detail-filter-count">{counts.auto}</span>
-          </button>
+      {/* Manage — the demoted curation chrome (source filter + pending
+          suggestions). Off the default view; opened on demand. */}
+      {manageOpen && (
+        <div className="tag-profile-manage">
+          {rows.length > 0 && (
+            <div className="tag-detail-filter">
+              <button className={`tag-detail-filter-pill ${sourceFilter === 'all' ? 'is-on' : ''}`}
+                      onClick={() => setFilter('all')}>
+                All <span className="tag-detail-filter-count">{counts.all}</span>
+              </button>
+              <button className={`tag-detail-filter-pill ${sourceFilter === 'user' ? 'is-on' : ''}`}
+                      onClick={() => setFilter('user')}>
+                Manual <span className="tag-detail-filter-count">{counts.user}</span>
+              </button>
+              <button className={`tag-detail-filter-pill ${sourceFilter === 'auto' ? 'is-on' : ''}`}
+                      onClick={() => setFilter('auto')}>
+                Auto <span className="tag-detail-filter-count">{counts.auto}</span>
+              </button>
+            </div>
+          )}
           {suggestions.length > 0 && (
-            <button className={`tag-detail-filter-pill ${sourceFilter === 'suggested' ? 'is-on' : ''}`}
-                    onClick={() => setFilter('suggested')}>
-              Suggested <span className="tag-detail-filter-count">{suggestions.length}</span>
-            </button>
+            <div className="tag-profile-suggest">
+              <div className="tag-detail-block-head">
+                <Icon as={FileText} size={12} />
+                <span className="tag-detail-block-title">Pending suggestions</span>
+                <span className="tag-detail-block-attr is-count">{suggestions.length}</span>
+              </div>
+              <div className="tag-detail-suggestions">
+                {suggestions.map(s => {
+                  const kind = s.card_kind || s.source_kind;
+                  const Icn = kindIcon(kind);
+                  const titleText = (s.title || '').trim()
+                    || ((s.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80))
+                    || `${s.source_kind} ${String(s.source_id).slice(0, 8)}`;
+                  const distPct = Math.max(0, Math.min(100, Math.round((1 - s.distance) * 100)));
+                  const navTarget = s.source_kind === 'card' && s.board_id
+                    ? { kind, id: `${s.board_id}:${s.source_id}`, board_id: s.board_id, card_id: s.source_id }
+                    : null;
+                  return (
+                    <div key={`sug:${s.source_kind}:${s.source_id}`} className="tag-detail-suggestion-row">
+                      <button className="tag-detail-suggestion-preview"
+                              title={navTarget ? 'Click to open' : ''}
+                              onClick={navTarget ? () => navigate(navTarget) : undefined}>
+                        <Icon as={Icn} size={12} />
+                        <span className="tag-detail-suggestion-title">{titleText}</span>
+                        <span className="tag-detail-suggestion-score">{distPct}% match</span>
+                      </button>
+                      <div className="tag-detail-suggestion-actions">
+                        <button className="tag-detail-suggestion-accept"
+                                onClick={() => acceptSuggestion(s)} title="Apply this tag">Accept</button>
+                        <button className="tag-detail-suggestion-dismiss"
+                                onClick={() => dismissSuggestion(s)} title="Don't suggest this again">Dismiss</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {rows.length === 0 && suggestions.length === 0 && (
+            <div className="tag-profile-manage-empty">Nothing to manage.</div>
           )}
         </div>
       )}
 
-      {sourceFilter !== 'suggested' && allCardsFlat.length > 0 && (
+      {/* Type filter — exploration ("show me all the images / palettes"). */}
+      {allCardsFlat.length > 0 && (
         <div className="tag-detail-filter tag-detail-filter-type">
           <button className={`tag-detail-filter-pill ${typeFilter === 'all' ? 'is-on' : ''}`}
                   onClick={() => setTypeFilterPersist('all')}>
@@ -864,61 +962,10 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
       )}
 
       <div className="tag-detail-body">
-        {sourceFilter === 'suggested' ? (
-          suggestions.length === 0 ? (
-            <div className="tag-detail-empty">
-              No pending suggestions for <strong>{tag.name}</strong>.
-              <div className="tag-detail-empty-hint">
-                Suggestions appear here as you edit cards that look like they
-                belong under this tag — its name and description drive the
-                matching. Accept the good ones, dismiss the rest.
-              </div>
-            </div>
-          ) : (
-            <div className="tag-detail-suggestions">
-              {suggestions.map(s => {
-                const kind = s.card_kind || s.source_kind;
-                const Icn = kindIcon(kind);
-                const titleText = (s.title || '').trim()
-                  || ((s.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80))
-                  || `${s.source_kind} ${String(s.source_id).slice(0, 8)}`;
-                const distPct = Math.max(0, Math.min(100, Math.round((1 - s.distance) * 100)));
-                const navTarget = s.source_kind === 'card' && s.board_id
-                  ? { kind, id: `${s.board_id}:${s.source_id}`, board_id: s.board_id, card_id: s.source_id }
-                  : null;
-                return (
-                  <div key={`sug:${s.source_kind}:${s.source_id}`}
-                       className="tag-detail-suggestion-row">
-                    <button className="tag-detail-suggestion-preview"
-                            title={navTarget ? 'Click to open' : ''}
-                            onClick={navTarget ? () => navigate(navTarget) : undefined}>
-                      <Icon as={Icn} size={12} />
-                      <span className="tag-detail-suggestion-title">{titleText}</span>
-                      <span className="tag-detail-suggestion-score">{distPct}% match</span>
-                    </button>
-                    <div className="tag-detail-suggestion-actions">
-                      <button className="tag-detail-suggestion-accept"
-                              onClick={() => acceptSuggestion(s)}
-                              title="Apply this tag">
-                        Accept
-                      </button>
-                      <button className="tag-detail-suggestion-dismiss"
-                              onClick={() => dismissSuggestion(s)}
-                              title="Don't suggest this again">
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )
-        ) : (
-          <>
-        {loading && <div className="tag-detail-empty">Loading…</div>}
+        {loading && <div className="tag-detail-empty">Looking up…</div>}
         {!loading && rows.length === 0 && (
           <div className="tag-detail-empty">
-            Nothing tagged with <strong>{tag.name}</strong> yet.
+            Nothing connected to <strong>{tag.name}</strong> yet.
             <div className="tag-detail-empty-hint">
               Right-click a card and choose Tag…, or drag this tag onto something.
             </div>
@@ -928,6 +975,9 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           <div className="tag-detail-empty">
             No {sourceFilter === 'auto' ? 'auto-applied' : 'manually applied'} items.
           </div>
+        )}
+        {!loading && filteredRows.length > 0 && (
+          <div className="tag-profile-section-head">Everything connected</div>
         )}
 
         {typeFilter === 'all' ? (
@@ -979,11 +1029,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
 
         {mentions.length > 0 && (
           <div className="tag-detail-mentions">
-            <div className="tag-detail-block-head">
-              <Icon as={FileText} size={12} />
-              <span className="tag-detail-block-title">Mentioned in</span>
-              <span className="tag-detail-block-attr is-count">{mentions.length}</span>
-            </div>
+            <div className="tag-profile-section-head">Appears in</div>
             <div className="tag-detail-mention-list">
               {mentions.map(m => {
                 const navTarget = m.kind === 'doc'
@@ -1011,7 +1057,33 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
             </div>
           </div>
         )}
-          </>
+
+        {related.length > 0 && (
+          <div className="tag-detail-related">
+            <div className="tag-profile-section-head">Related</div>
+            <div className="tag-profile-related-list">
+              {related.map(r => {
+                const rdot = r.color || tagFallbackColor(r.slug || r.name);
+                return (
+                  <button key={r.tag_id}
+                          className="tag-profile-related-row"
+                          style={{ '--tag-color': rdot }}
+                          title={`Open ${r.name}`}
+                          onClick={() => document.dispatchEvent(
+                            new CustomEvent('soleil-open-tag', { detail: { tagId: r.tag_id } }))}>
+                    <span className="tag-profile-related-dot" style={{ background: rdot }} />
+                    <span className="tag-profile-related-name">{r.name}</span>
+                    {entityTypeLabel(r.entity_type) && (
+                      <span className="tag-pop-type">{entityTypeLabel(r.entity_type)}</span>
+                    )}
+                    <span className="tag-profile-related-shared">
+                      {r.shared} {r.shared === 1 ? 'board' : 'boards'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 

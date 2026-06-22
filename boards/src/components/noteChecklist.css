@@ -1,0 +1,9 @@
+/* Collaborative note checklists hold a paragraph inside .ck-text (block content
+   so the standard Tiptap list commands work). Reset that paragraph's margins so
+   a checklist line reads as a single line — matching the legacy inline look — in
+   BOTH the live editor (.note-body.ProseMirror) and the read-only display
+   (.note-body). Imported by cards.jsx so it's always present on the canvas, not
+   only once the editor has mounted. */
+.ck-text > p {
+  margin: 0;
+}

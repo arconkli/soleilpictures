@@ -18,7 +18,7 @@
 import { useEffect, useRef, useState, createContext, useContext } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
-import { logEvent, logEventOnce } from '../lib/analytics.js';
+import { logEvent, logEventOnce, getFirstSource } from '../lib/analytics.js';
 import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { peekPendingInviteEmail, claimPendingInvite } from '../lib/inviteApi.js';
@@ -331,6 +331,36 @@ function SignIn() {
       // server trigger can fast-track ad traffic to instant demo while the
       // campaign flag is on. No-op for organic/direct visitors (no _fbc).
       const { fbc } = getFbCookies();
+      // First-touch acquisition (utm/click-ids/referrer) also rides along so the
+      // server trigger can stamp profiles.first_source even if the client
+      // set_first_source RPC never fires — e.g. a magic link opened on a DIFFERENT
+      // device, where sessionStorage can't follow. First-touch-wins server-side,
+      // so it never fights the client RPC. Untrusted input → capped to bound it.
+      let firstSourceMeta = null;
+      try {
+        const src = getFirstSource();
+        if (src && Object.keys(src).length > 0) {
+          const json = JSON.stringify(src);
+          if (json.length <= 2000) firstSourceMeta = json;
+        }
+      } catch (_) {}
+      // A referral code (?ref=<code>) rides along explicitly so the signup
+      // trigger can credit the referrer + grant the new friend a +25-card
+      // head-start — even on a cross-device magic link where sessionStorage
+      // can't follow. Pulled from the first-touch bag (captured on landing)
+      // with a current-URL fallback; normalized to the mint alphabet.
+      let referralCode = null;
+      try {
+        const fromBag = getFirstSource()?.ref;
+        const fromUrl = new URLSearchParams(window.location.search).get('ref');
+        const c = String(fromBag || fromUrl || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16).toUpperCase();
+        if (c) referralCode = c;
+      } catch (_) {}
+      const signupData = {
+        ...(fbc ? { ad_fbc: fbc } : {}),
+        ...(firstSourceMeta ? { first_source: firstSourceMeta } : {}),
+        ...(referralCode ? { referral_code: referralCode } : {}),
+      };
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim().toLowerCase(),
         options: {
@@ -338,7 +368,7 @@ function SignIn() {
           // at verify time. tier defaults to 'waitlist' (server trigger);
           // ad_fbc may bump it to 'demo' while the campaign flag is on.
           emailRedirectTo: window.location.origin,
-          ...(fbc ? { data: { ad_fbc: fbc } } : {}),
+          ...(Object.keys(signupData).length ? { data: signupData } : {}),
         },
       });
       if (error) throw error;
@@ -368,6 +398,10 @@ function SignIn() {
       });
       if (error) throw error;
       logEvent('otp_verify');
+      // Stamp the verify time so the post-signup journey (lib/journey.js) can
+      // measure ms_since_otp on its PS_SIGNUP anchor. Fires for new AND returning
+      // users (newness isn't known until tier resolves); harmless either way.
+      try { localStorage.setItem('soleil_ps_otp_at', String(Date.now())); } catch (_) {}
       // onAuthStateChange will fire SIGNED_IN; AuthGate re-renders to children.
     } catch (e) {
       logEvent(EV.OTP_VERIFY_ERROR, { reason: classifyAuthError(e) });
@@ -403,6 +437,12 @@ function SignIn() {
             <input
               className="auth-input"
               type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
               autoFocus={AUTOFOCUS_EMAIL}
               required
               aria-label="Email address"
@@ -434,6 +474,10 @@ function SignIn() {
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="done"
               pattern="[0-9]*"
               maxLength={6}
               required

@@ -17,8 +17,8 @@ import { getOrCreatePageContent, getOrCreateSheetContent, addBookmark, readPages
 import { encodeAnchor } from '../lib/bookmarkRelPos.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
-import { migrateBookmarksToLinks, getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
-import { untagDocRange } from '../lib/tagsApi.js';
+import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
+import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
 import { extractParagraphTags } from '../lib/extractParagraphTags.js';
@@ -31,9 +31,19 @@ import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
 import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
 import { DocTagGutter } from './DocTagGutter.jsx';
+import { DocCandidateGutter } from './DocCandidateGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin } from './docExtensions/AutoDetectPlugin.js';
+import { makeCandidateNamePlugin, CANDIDATE_NAME_KEY } from './docExtensions/CandidateNamePlugin.js';
+import { useCandidateTagging } from '../hooks/useCandidateTagging.js';
+import { CandidatePromptPopover } from './CandidatePromptPopover.jsx';
+import { contentHash } from '../lib/clusterMath.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
+import { ScreenplayKeymap } from './docExtensions/screenplay/ScreenplayKeymap.js';
+import { ScreenplayPagination } from './docExtensions/screenplay/ScreenplayPagination.js';
+import { DocPagination, PAGE_STRIDE, PAGE_H } from './docExtensions/DocPagination.js';
+import { ReadableColors } from './docExtensions/ReadableColors.js';
+import { ScreenplaySuggest } from './docExtensions/screenplay/ScreenplaySuggest.js';
 import { MentionExtension } from './docExtensions/MentionExtension.js';
 import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
@@ -79,6 +89,17 @@ import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 // (pageId, tagId, snippetHash). Typing in a doc only re-fires the API
 // when the surrounding-snippet content actually changes.
 const verdictCache = new Map();
+// Bound the module-global cache so a long multi-doc session can't grow it
+// without limit (every distinct snippet/tag pair the AI tagger evaluates used
+// to stay forever). FIFO-evict the oldest entry past the cap.
+const VERDICT_CACHE_MAX = 2000;
+function verdictSet(key, val) {
+  if (verdictCache.size >= VERDICT_CACHE_MAX) {
+    const oldest = verdictCache.keys().next().value;
+    if (oldest !== undefined) verdictCache.delete(oldest);
+  }
+  verdictCache.set(key, val);
+}
 function verdictKey(pageId, tagId, snippetHash) {
   return `${pageId}::${tagId}::${snippetHash}`;
 }
@@ -117,9 +138,9 @@ const ExtraShortcuts = Extension.create({
       'Mod-Shift-e': () => this.editor.chain().focus().setTextAlign('center').run(),
       'Mod-Shift-r': () => this.editor.chain().focus().setTextAlign('right').run(),
       'Mod-Shift-j': () => this.editor.chain().focus().setTextAlign('justify').run(),
-      // Subscript/superscript: ⌘. / ⌘,
-      'Mod-.': () => this.editor.chain().focus().toggleSuperscript().run(),
-      'Mod-,': () => this.editor.chain().focus().toggleSubscript().run(),
+      // (Subscript/superscript ⌘./⌘, are the @tiptap/extension defaults — no
+      // need to re-bind them here, and ⌘. is also the app's global clean-mode
+      // toggle, so leave that key to the extension + global guard.)
       // Tab in lists: indent / outdent. Outside a list, fall back to a
       // 2-space tab so Tab still does something instead of yanking focus.
       Tab: () => {
@@ -146,7 +167,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorReady, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -188,6 +209,63 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
   const nameIndexRef = useRef(createNameIndex());
   useEffect(() => { nameIndexRef.current = workspaceTrie; }, [workspaceTrie]);
 
+  // Candidate names — recurring proper nouns not yet tagged. Painted as a
+  // faint dotted underline by CandidateNamePlugin; tap → promote/dismiss.
+  // The shared useCandidateTagging hook owns the index + prompt + promote /
+  // dismiss (same as notes); the doc-specific bit is pinning the tapped span
+  // so a freshly promoted tag converts to a colored underline immediately.
+  //
+  // Build a { pHash, startOffset, length } anchor for the tapped span
+  // (TagRangePlugin re-locates ranges by paragraph content-hash). Best
+  // effort: null for short paragraphs the range plugin skips, or if the
+  // DOM→PM mapping fails — the tag still exists workspace-wide regardless.
+  const candidateAnchorFromEl = (el) => {
+    const ed = editorRef.current;
+    if (!ed?.view || !el) return null;
+    try {
+      const from = ed.view.posAtDOM(el.firstChild || el, 0);
+      const length = (el.textContent || '').length;
+      if (!(length > 0)) return null;
+      const $from = ed.state.doc.resolve(from);
+      let depth = $from.depth;
+      while (depth > 0 && $from.node(depth).type.name !== 'paragraph') depth--;
+      if (depth === 0) return null;
+      const paraStart = $from.start(depth);
+      const raw = $from.node(depth).textContent || '';
+      const trimmed = raw.trim();
+      if (trimmed.length < 20) return null; // TagRangePlugin skips short paras
+      const leading = raw.length - raw.replace(/^\s+/, '').length;
+      const startOffset = (from - paraStart) - leading;
+      if (startOffset < 0 || startOffset + length > trimmed.length) return null;
+      return { pHash: contentHash(trimmed), startOffset, length };
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const {
+    candidateIndexRef,
+    candidatePrompt, setCandidatePrompt,
+    candidateBusy, promoteCandidate, dismissCandidate,
+  } = useCandidateTagging({
+    editorRef, workspaceId, userId,
+    notify: (t) => feedback.toast(t),
+    applyPromotedTag: async (tag, c) => {
+      const docCardId = scope?.docCardId || null;
+      if (!tag?.id || !docCardId || !pageId) return false;
+      const anchor = candidateAnchorFromEl(c.el);
+      if (!anchor) return false;
+      await tagDocRange({
+        workspaceId, docCardId, pageId,
+        boardId: scope?.boardId || null,
+        tagId: tag.id, source: 'user',
+        sourceAnchor: anchor,
+        contextText: c.sample || null,
+      });
+      return true;
+    },
+  });
+
   // Applied tag ranges for the active page — painted as tag-color
   // underlines by TagRangePlugin. Refs let the plugins read fresh
   // values without re-mounting the editor.
@@ -209,7 +287,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
     // changed (e.g. a new entity_links row just landed).
     const ed = editorRef.current;
     if (ed?.view) {
-      const tr = ed.state.tr.setMeta(TAG_RANGE_KEY, { changed: true });
+      // Recompute the tag-range underlines AND the candidate underlines
+      // (so a newly-applied range suppresses any candidate it now covers).
+      const tr = ed.state.tr
+        .setMeta(TAG_RANGE_KEY, { changed: true })
+        .setMeta(CANDIDATE_NAME_KEY, { changed: true });
       ed.view.dispatch(tr);
     }
   }, [appliedTagRanges]);
@@ -446,6 +528,23 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
       });
       return;
     }
+    // Candidate names (dotted underline from CandidateNamePlugin) — a tap
+    // opens the "make character/setting?" prompt right where you're reading.
+    const candEl = e.target.closest?.('.tt-candidate[data-name]');
+    if (candEl) {
+      e.preventDefault();
+      setLinkHover(null);
+      setTagHover(null);
+      setCandidatePrompt({
+        anchor: candEl.getBoundingClientRect(),
+        name: candEl.dataset.name || (candEl.textContent || '').trim(),
+        count: Number(candEl.dataset.count) || 0,
+        sample: candEl.dataset.sample || '',
+        entityType: candEl.dataset.type || null,
+        el: candEl,
+      });
+      return;
+    }
   };
 
   // Hover-preview state machine: 250ms enter delay, 200ms grace on leave so
@@ -595,6 +694,13 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
     addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, relAnchor, scope });
   };
 
+  // Prose pagination (DocPagination) reports how many 8.5×11 pages the content
+  // currently spans; we draw that many white sheets behind the text. zoomRef
+  // lets the plugin read the live zoom without re-creating the editor.
+  const [pageCount, setPageCount] = useState(1);
+  const zoomRef = useRef(zoom);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
   const editor = useEditor({
     extensions: [
       ...baseDocExtensions,
@@ -628,6 +734,18 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
           getAppliedRangeSet: () => appliedRangeBoxesRef.current || [],
         })],
       }),
+      // Discover recurring proper nouns that aren't tags yet and mark them
+      // with a fainter dotted underline; a tap promotes them to a
+      // character/setting tag. Suppressed under applied tag ranges and
+      // real mentions so it never double-paints.
+      Extension.create({
+        name: 'soleilCandidateNames',
+        addProseMirrorPlugins: () => [makeCandidateNamePlugin({
+          getIndex:           () => candidateIndexRef.current,
+          getAppliedRangeSet: () => appliedRangeBoxesRef.current || [],
+          getMentionIndex:    () => nameIndexRef.current,
+        })],
+      }),
       // Paint tag-color underlines over applied tag ranges (paragraph,
       // sentence, or word+context spans persisted by the AI tagger).
       Extension.create({
@@ -650,7 +768,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
             // Find the DOM node at the caret. If it's inside a candidate span,
             // open the picker.
             const dom = editor.view.domAtPos(sel.from);
-            const el = (dom?.node?.nodeType === 3 ? dom.node.parentElement : dom?.node)?.closest?.('.tt-autolink-candidate');
+            const el = (dom?.node?.nodeType === 3 ? dom.node.parentElement : dom?.node)?.closest?.('.tt-link-auto[data-records]');
             if (!el) return false;
             let records = [];
             try { records = JSON.parse(el.dataset.records || '[]'); } catch {}
@@ -687,11 +805,29 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
         onInsertImage: pickImageFromDisk,
         onInsertBookmark: insertBookmarkInline,
         onInsertBoardEmbed: pickBoardEmbed,
+        // In screenplay mode `/` offers script elements, not prose blocks. The
+        // editor is keyed `sid:docMode` so it rebuilds when the mode flips.
+        docMode,
       }),
       FindHighlightExtension,
       // BlockHandleExtension removed — per-block drag handles felt
       // too Notion-y; Google-Docs-style flowing prose works better.
       ExtraShortcuts,
+      // Screenplay Tab/Enter cycling + auto-caps (priority:1000 so it wins
+      // over ExtraShortcuts/AutoDetect/mention; gated to screenplayBlock) +
+      // the on-screen line-accurate pagination overlay.
+      ...(docMode === 'screenplay'
+        ? [ScreenplaySuggest, ScreenplayKeymap, ScreenplayPagination]
+        // Prose: measurement-based reflow pagination (real pages, line-level
+        // splitting). Reports page count so we can draw the page sheets. Only in
+        // PAGED mode — pageless docs (the default) are one continuous sheet with
+        // no page breaks, so the paginator isn't mounted at all.
+        : pageless
+          ? []
+          : [DocPagination.configure({ getZoom: () => zoomRef.current, onPages: setPageCount })]),
+      // Keep user-chosen text colors readable on the page sheet in both themes
+      // (scoped stylesheet override; never mutates content).
+      ReadableColors,
       mentionExt,
     ],
     // Don't steal focus from an active text field (e.g. the page-rename
@@ -779,23 +915,70 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
         return false;
       },
     },
-    // Force a fresh editor when the bound page changes.
-    // (Editor identity is keyed on the parent's `key={pageId}` — see DocSurface.)
-  }, [pageId]);
+    // Seed a brand-new screenplay sheet's first block as a Scene Heading so
+    // the writer starts in the right element. Gated on isEmpty so it never
+    // clobbers loaded content.
+    onCreate: ({ editor }) => {
+      if (docMode === 'screenplay' && editor.isEmpty) {
+        editor.chain().setScreenplayElement('scene').run();
+      }
+    },
+    // Force a fresh editor when the bound page, doc mode, or page layout
+    // changes. Flipping pageless adds/removes the DocPagination plugin, so the
+    // editor must rebuild. (Editor identity is ALSO keyed on the parent's
+    // key={sid:docMode:pageless} — see DocSurface.)
+  }, [pageId, docMode, pageless]);
 
-  // Notify parent so it can wire the toolbar to the live editor instance.
-  const lastNotified = useRef(null);
+  // Register this sheet's editor with the parent (toolbar wiring + the
+  // sheet-editor registry for cross-sheet find/replace) on setup, and
+  // de-register on cleanup. Pairing them in ONE effect with STABLE callbacks
+  // is what survives React StrictMode's dev mount→unmount→mount cycle (a
+  // separate cleanup-only effect would delete the entry the register effect
+  // just added).
   useEffect(() => {
     editorRef.current = editor;
-    if (editor && lastNotified.current !== editor) {
-      lastNotified.current = editor;
-      onEditorReady?.(editor);
-      // Inject Google-catalog font stylesheets referenced by the loaded
-      // content. Without this, doc text saved with `font-family:'Inter',…`
-      // renders in the fallback after a cold reload.
-      try { ensureFontsFromHtml(editor.getHTML()); } catch (_) {}
-    }
-  }, [editor, onEditorReady]);
+    if (!editor) return undefined;
+    onEditorReady?.(editor, sheetId);
+    // Inject Google-catalog font stylesheets referenced by the loaded content.
+    try { ensureFontsFromHtml(editor.getHTML()); } catch (_) {}
+    return () => { onEditorDestroy?.(sheetId); };
+  }, [editor, sheetId, onEditorReady, onEditorDestroy]);
+
+  // Touch-only selection bubble: on a phone/tablet the format toolbar scrolls
+  // off-screen and tapping it can drop the selection, so a non-empty selection
+  // shows an in-place bubble for the core inline formats. Implemented as a
+  // plain fixed-position React element (NOT Tiptap's <BubbleMenu>, whose plugin
+  // fought EditorContent's DOM and threw insertBefore on editor remount).
+  const [bubble, setBubble] = useState(null); // { top, left } | null
+  useEffect(() => {
+    if (!editor) return undefined;
+    const coarse = typeof window !== 'undefined' && window.matchMedia
+      && window.matchMedia('(pointer: coarse)').matches;
+    if (!coarse) return undefined; // desktop keeps the top toolbar
+    const update = () => {
+      const sel = editor.state.selection;
+      if (sel.empty || !editor.isEditable || !editor.isFocused) { setBubble(null); return; }
+      try { const c = editor.view.coordsAtPos(sel.from); setBubble({ top: c.top, left: c.left }); }
+      catch (_) { setBubble(null); }
+    };
+    const hide = () => setBubble(null);
+    editor.on('selectionUpdate', update);
+    editor.on('focus', update);
+    editor.on('blur', hide);
+    return () => { editor.off('selectionUpdate', update); editor.off('focus', update); editor.off('blur', hide); };
+  }, [editor]);
+
+  // When a comment thread is deleted, strip its now-orphaned highlight mark
+  // from this editor's text (no-op if the mark isn't in this sheet).
+  useEffect(() => {
+    if (!editor) return;
+    const onRemove = (e) => {
+      const id = e.detail?.id;
+      if (id != null) { try { editor.commands.removeCommentById(id); } catch (_) {} }
+    };
+    window.addEventListener('soleil-remove-comment-mark', onRemove);
+    return () => window.removeEventListener('soleil-remove-comment-mark', onRemove);
+  }, [editor]);
 
   // With stacked sheets, DocSurface needs to know which editor the user is
   // currently editing so the toolbar / find / link picker target the right
@@ -876,19 +1059,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
       editor.off('update', onUpdate);
     };
   }, [editor, workspaceId, scopeDocCardId, scopeBoardId, activePageId]);
-
-  // One-time idempotent migration: legacy bookmarks → kind='docPos' Links.
-  // Runs whenever ydoc binds (or changes), safe to call repeatedly.
-  useEffect(() => {
-    if (!ydoc) return;
-    const docCardId = (scope && scope.docCardId) || null;
-    try {
-      const n = migrateBookmarksToLinks(ydoc, { docCardId });
-      if (n > 0) console.info(`Migrated ${n} bookmarks → links in ${docCardId || 'root doc'}`);
-    } catch (e) {
-      console.warn('Bookmark migration failed', e);
-    }
-  }, [ydoc, scope]);
 
   // Observe links Y.Map and debounce-call updateBacklinks (2s inactivity).
   // Skipped for root doc — those have no docCardId to anchor backlinks.
@@ -985,12 +1155,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
                 if (!key) continue;
                 // worker returns tags[]; first entry is the only candidate we sent.
                 const c = (v.tags || [])[0]?.confidence || 'low';
-                verdictCache.set(key, c);
+                verdictSet(key, c);
               }
               // Any cards the model didn't return a verdict for → 'low' so
               // we don't keep refetching.
               for (const s of slice) {
-                if (!verdictCache.has(s._key)) verdictCache.set(s._key, 'low');
+                if (!verdictCache.has(s._key)) verdictSet(s._key, 'low');
               }
             } catch (e) {
               console.warn('tag-apply verdict', e?.message || e);
@@ -1074,8 +1244,27 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
 
   if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
 
+  // Prose PAGED flow model: the wrap is a transparent column; we paint
+  // `pageCount` white 8.5×11 sheets behind the text, and the DocPagination gap
+  // widgets push content so it lands on each sheet. Pageless prose (the default)
+  // and screenplay both keep the single continuous-sheet look (base wrap).
+  const isFlow = docMode !== 'screenplay' && !pageless;
+  const wrapStyle = isFlow
+    ? { minHeight: ((pageCount - 1) * PAGE_STRIDE + PAGE_H) + 'px' }
+    : undefined;
+
   return (
-    <div className="doc-editor-wrap" onClick={handleEditorClick} onMouseOver={handleLinkHoverEnter} onMouseOut={handleLinkHoverLeave} onPointerUp={handleChipPointerUp}>
+    <div className={`doc-editor-wrap${isFlow ? ' doc-flow' : ''}`} style={wrapStyle}
+         onClick={handleEditorClick} onMouseOver={handleLinkHoverEnter} onMouseOut={handleLinkHoverLeave} onPointerUp={handleChipPointerUp}>
+      {isFlow && (
+        <div className="doc-pages-bg" aria-hidden="true">
+          {Array.from({ length: Math.max(1, pageCount) }).map((_, i) => (
+            <div className="doc-page-sheet" key={i} style={{ top: (i * PAGE_STRIDE) + 'px' }}>
+              <span className="doc-page-num">{i + 1}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {onDeleteSheet && (
         <button className="doc-sheet-delete"
                 type="button"
@@ -1111,6 +1300,28 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
       {/* Page-level applied-tag chip strip removed — margin dots are
           the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
+      {!isPublic && editable && bubble && (
+        <div className="doc-bubble" role="toolbar" aria-label="Selection formatting"
+             style={{ position: 'fixed', top: Math.max(8, bubble.top - 46),
+                      left: Math.max(8, Math.min(bubble.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
+                      zIndex: 2147483647 }}>
+          <button className={editor.isActive('bold') ? 'is-active' : ''} aria-label="Bold"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></button>
+          <button className={editor.isActive('italic') ? 'is-active' : ''} aria-label="Italic"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></button>
+          <button className={editor.isActive('underline') ? 'is-active' : ''} aria-label="Underline"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></button>
+          <button className={editor.isActive('highlight') ? 'is-active' : ''} aria-label="Highlight"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => editor.chain().focus().toggleHighlight().run()}>H</button>
+          <button aria-label="Link"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => openLinkPicker(editor)}>🔗</button>
+        </div>
+      )}
       <DocTagGutter
         editor={editor}
         ranges={appliedTagRanges}
@@ -1135,6 +1346,27 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
             },
           });
         }}
+      />
+      <DocCandidateGutter
+        editor={editor}
+        editable={editable}
+        onConfirm={(cand, anchor) => {
+          // ✓ — open the type picker right at the gutter button. Picking a
+          // type runs promoteCandidate (reads candidatePrompt) → tagDocRange
+          // pins the exact span via cand.el, same as tapping the word.
+          cancelHoverTimers();
+          setLinkHover(null);
+          setTagHover(null);
+          setCandidatePrompt({
+            anchor,
+            name: cand.name,
+            count: cand.count,
+            sample: cand.sample,
+            entityType: cand.entityType || null,
+            el: cand.el,
+          });
+        }}
+        onDismiss={(cand) => dismissCandidate(cand)}
       />
       {addComment.node}
       {linkHover && (
@@ -1180,6 +1412,19 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, onEditorRea
           onMouseEnter={cancelHoverTimers}
           onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setTagHover(null), 200); }}
           onClose={() => setTagHover(null)}
+        />
+      )}
+      {candidatePrompt && editable && (
+        <CandidatePromptPopover
+          anchor={candidatePrompt.anchor}
+          name={candidatePrompt.name}
+          count={candidatePrompt.count}
+          sample={candidatePrompt.sample}
+          suggestedType={candidatePrompt.entityType}
+          busy={candidateBusy}
+          onPromote={promoteCandidate}
+          onDismiss={dismissCandidate}
+          onClose={() => setCandidatePrompt(null)}
         />
       )}
       {backlinksRef && (

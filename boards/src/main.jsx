@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isPresenceQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -220,6 +220,40 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     const el = document.getElementById('root');
     if (el) el.textContent = 'dndqa ready';
   });
+} else if (import.meta.env.DEV && isArrowQaMode()) {
+  // Arrow-geometry QA (?arrowqa=1). Renders the deterministic crowded layout
+  // with the real routing so smart-blend can be screenshotted, and installs
+  // window.__soleilArrowTest for the Playwright assertions. DEV guard drops it
+  // (and its fixtures) from production builds.
+  import('./local/ArrowQaHarness.jsx').then(({ ArrowQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <ArrowQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isAlignQaMode()) {
+  // Snap/alignment-guide QA (?alignqa=1). Pure logic bridge — installs
+  // window.__soleilAlignTest + a ready flag the spec waits on. DEV guard drops
+  // it (and its fixtures) from production builds.
+  import('./local/AlignQaHarness.jsx').then(({ AlignQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <AlignQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isPresenceQaMode()) {
+  // Presence/collaboration QA (?presenceqa=1). Mounts the real <CanvasPresence>
+  // against a fake awareness + installs window.__soleilPresenceTest for the
+  // at-scale cap/cull/no-storm assertions. DEV guard drops it from production.
+  import('./local/PresenceQaHarness.jsx').then(({ PresenceQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <PresenceQaHarness />
+      </StrictMode>
+    );
+  });
 } else if (import.meta.env.DEV && isThumbQaMode()) {
   // Board-thumbnail visual QA (?thumbqa=1) — fixture boards rendered through
   // the real renderThumbnailBlob at OG + tile sizes. Dropped from production
@@ -238,6 +272,18 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
         <AppErrorBoundary>
           <FeedbackProvider>
             <DocQaHarness />
+          </FeedbackProvider>
+        </AppErrorBoundary>
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isNoteQaMode()) {
+  import('./local/NoteQaHarness.jsx').then(({ NoteQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <AppErrorBoundary>
+          <FeedbackProvider>
+            <NoteQaHarness />
           </FeedbackProvider>
         </AppErrorBoundary>
       </StrictMode>

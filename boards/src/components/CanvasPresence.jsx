@@ -1,5 +1,27 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { LiveCursor } from './primitives.jsx';
+import { PRESENCE_TUNING } from '../lib/presenceTuning.js';
+import * as perf from '../lib/perf.js';
+
+// Identity-only fingerprint of a peer — everything the render below actually
+// draws (user, selections, marquee) but NOT cursor position or awareness
+// timestamps. Cursors move continuously, so if the `peers` array rebuilt on
+// every cursor tick React would re-render the whole presence layer dozens of
+// times a second per peer (an O(N) storm at scale). Cursor motion is carried
+// separately through the rAF-lerped cursorDisplay; gating setPeers on THIS
+// fingerprint means a peer merely moving their mouse triggers zero setPeers.
+// Mirrors useWorkspacePresence.js peerKey/peersFingerprint.
+function peerFingerprint(p) {
+  const u = p.user || {};
+  const sel = [...(p.cardIds || [])].sort().join(',');
+  const str = [...(p.strokeIds || [])].sort().join(',');
+  const arr = [...(p.arrowIds || [])].sort().join(',');
+  const mq = p.marquee ? `${p.marquee.x0},${p.marquee.y0},${p.marquee.x1},${p.marquee.y1}` : '';
+  return `${p.clientId}|${u.id || ''}|${u.name || ''}|${u.color || ''}|${sel}|${str}|${arr}|${mq}`;
+}
+function peersFingerprint(peers) {
+  return peers.map(peerFingerprint).sort().join('||');
+}
 
 // Render layer for remote-user presence on a canvas board.
 //   - Live cursor per peer (transformed by current pan/zoom)
@@ -12,7 +34,7 @@ import { LiveCursor } from './primitives.jsx';
 //   localState.canvasCursor    = { boardId, x, y }     // canvas-space coords
 //   localState.canvasSelection = { boardId, cardIds, strokeIds, arrowIds }
 //   localState.liveDrag        = { boardId, cards: [{id,x,y}] } during drag
-export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
+export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId, getCardById }) {
   const [peers, setPeers] = useState([]);
   // Lerped cursor positions keyed by clientId. Carries user meta inline
   // so the cursor can render even when the peer briefly drops out of the
@@ -30,6 +52,12 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
   // the DOM. Keeping these as refs means peer state outlives effect deps.
   const cursorTargetsRef = useRef({});
   const cursorStateRef = useRef({});
+  // Gated + rAF-coalesced `peers` commits (see peersFingerprint above). The
+  // fingerprint of the last committed array; a pending array + its rAF id so a
+  // burst of awareness changes (e.g. a marquee drag) collapses into one commit.
+  const peersFpRef = useRef('');
+  const pendingPeersRef = useRef(null);
+  const peersRafRef = useRef(0);
 
   useEffect(() => {
     const aw = getAwareness?.();
@@ -126,7 +154,25 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
           userByClientId[clientId] = state.user;
         }
       });
-      setPeers([...newest.values()]);
+      // Commit `peers` ONLY when the identity fingerprint actually changes
+      // (selection / marquee / who's-here) — never on a bare cursor move — and
+      // coalesce a burst into one rAF so a marquee drag doesn't thrash React.
+      const nextPeers = [...newest.values()];
+      const fp = peersFingerprint(nextPeers);
+      if (fp !== peersFpRef.current) {
+        peersFpRef.current = fp;
+        pendingPeersRef.current = nextPeers;
+        if (!peersRafRef.current) {
+          peersRafRef.current = requestAnimationFrame(() => {
+            peersRafRef.current = 0;
+            if (pendingPeersRef.current) {
+              setPeers(pendingPeersRef.current);
+              pendingPeersRef.current = null;
+              perf.bump('presence.setPeers');
+            }
+          });
+        }
+      }
       cursorTargets.current = nextCursorTargets;
       // Snap newcomers to their first reported position; refresh user meta
       // and lastSeen on every active broadcast.
@@ -161,8 +207,32 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
       aw.off('change', refresh);
       if (rafId) cancelAnimationFrame(rafId);
       if (cleanupId) clearInterval(cleanupId);
+      if (peersRafRef.current) { cancelAnimationFrame(peersRafRef.current); peersRafRef.current = 0; }
     };
   }, [getAwareness, boardId, selfId]);
+
+  // Viewport-cull + hard-cap the rendered cursors so a crowded board can't
+  // mount hundreds of cursor DOM nodes (the dominant cost at scale). Cursors
+  // off-screen (plus a margin) are dropped; if more than the cap remain
+  // on-screen we keep the most-recently-active ones. The overflow still shows
+  // in the who's-here roster (PresenceStack) — it's just not drawn on canvas.
+  const { CURSOR_RENDER_CAP, CURSOR_CULL_MARGIN_PX, SELECTION_PEER_CAP } = PRESENCE_TUNING;
+  const vw = (typeof window !== 'undefined' && window.innerWidth) || 1280;
+  const vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
+  const visibleCursors = Object.entries(cursorDisplay)
+    .map(([clientId, c]) => ({ clientId, c, sx: pan.x + (c?.x ?? NaN) * zoom, sy: pan.y + (c?.y ?? NaN) * zoom }))
+    .filter(({ c, sx, sy }) =>
+      c?.user && Number.isFinite(sx) && Number.isFinite(sy) &&
+      sx >= -CURSOR_CULL_MARGIN_PX && sx <= vw + CURSOR_CULL_MARGIN_PX &&
+      sy >= -CURSOR_CULL_MARGIN_PX && sy <= vh + CURSOR_CULL_MARGIN_PX)
+    .sort((a, b) => (b.c.lastSeen || 0) - (a.c.lastSeen || 0))
+    .slice(0, CURSOR_RENDER_CAP);
+  // Selection rings/pills draw for at most the first N peers — same graceful
+  // cap so a flood of selections can't blow up the pill layer / stylesheet.
+  // Memoized on `peers` so its identity is stable across the ~60/s cursor-only
+  // re-renders; otherwise PeerSelectionStyles' [peers] effect would rebuild the
+  // injected stylesheet every frame (it only changes when selections change).
+  const selectionPeers = useMemo(() => peers.slice(0, SELECTION_PEER_CAP), [peers, SELECTION_PEER_CAP]);
 
   // Cursors get rendered in canvas-space, then transformed by the same
   // pan/zoom the canvas itself uses, so a peer's screen-space cursor
@@ -192,24 +262,44 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId }) {
                }} />
         ))}
       </div>
-      <div className="cursors-layer">
-        {Object.entries(cursorDisplay).map(([clientId, c]) => {
-          if (!c?.user) return null;
-          const sx = pan.x + c.x * zoom;
-          const sy = pan.y + c.y * zoom;
-          if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
-          return (
-            <LiveCursor
-              key={clientId}
-              x={sx}
-              y={sy}
-              name={(c.user.name || '?').split(' ')[0]}
-              color={c.user.color || 'var(--soleil)'}
-            />
-          );
+      {/* Name tags on cards a peer has selected — so you can tell WHO grabbed
+          what, not just that "someone" did. Screen-space (not canvas-scaled)
+          so the pill stays a constant, readable size at any zoom — same
+          approach as the cursor flags. Pairs with the peer-colored ring that
+          PeerSelectionStyles injects on the card itself. */}
+      <div className="peer-sel-layer">
+        {selectionPeers.flatMap(p => {
+          if (!getCardById) return [];
+          const color = p.user.color || '#5b8def';
+          const name = (p.user.name || '?').split(' ')[0];
+          return (p.cardIds || []).map(id => {
+            const c = getCardById(id);
+            if (!c) return null;
+            const sx = pan.x + c.x * zoom;
+            const sy = pan.y + c.y * zoom;
+            if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
+            return (
+              <div key={p.clientId + ':' + id}
+                   className="peer-sel-pill"
+                   style={{ left: sx, top: sy, background: color }}>
+                {name}
+              </div>
+            );
+          }).filter(Boolean);
         })}
       </div>
-      <PeerSelectionStyles peers={peers} />
+      <div className="cursors-layer">
+        {visibleCursors.map(({ clientId, c, sx, sy }) => (
+          <LiveCursor
+            key={clientId}
+            x={sx}
+            y={sy}
+            name={(c.user.name || '?').split(' ')[0]}
+            color={c.user.color || 'var(--soleil)'}
+          />
+        ))}
+      </div>
+      <PeerSelectionStyles peers={selectionPeers} />
     </>
   );
 }
@@ -232,9 +322,14 @@ function PeerSelectionStyles({ peers }) {
       styleRef.current = el;
     }
     const rules = [];
+    // Hard ceiling on injected rules — a peer (or a buggy client) with a huge
+    // selection can't balloon the stylesheet and stall style recalc.
+    const { SELECTION_RULE_CAP } = PRESENCE_TUNING;
     for (const p of peers) {
+      if (rules.length >= SELECTION_RULE_CAP) break;
       const color = p.user.color || '#ffa500';
       for (const id of p.cardIds) {
+        if (rules.length >= SELECTION_RULE_CAP) break;
         const safe = id.replace(/"/g, '\\"');
         // Single clean ring in the peer's color. Outline (not box-shadow)
         // because contain:paint on the card root clips outer shadows but
@@ -251,6 +346,7 @@ function PeerSelectionStyles({ peers }) {
       // shuffle the array (delete a stroke), the rule glitches for one
       // frame, then reconciles.
       for (const idx of (p.strokeIds || [])) {
+        if (rules.length >= SELECTION_RULE_CAP) break;
         rules.push(
           `g[data-stroke-idx="${idx}"] path[data-stroke-line] {`
           + ` stroke: ${color} !important;`
@@ -258,6 +354,7 @@ function PeerSelectionStyles({ peers }) {
         );
       }
       for (const idx of (p.arrowIds || [])) {
+        if (rules.length >= SELECTION_RULE_CAP) break;
         rules.push(
           `g[data-arrow-idx="${idx}"] path[data-arrow-line] {`
           + ` stroke: ${color} !important;`

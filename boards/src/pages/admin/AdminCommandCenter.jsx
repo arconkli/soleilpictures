@@ -23,8 +23,9 @@ import {
 } from 'recharts';
 import { supabase } from '../../lib/supabase.js';
 import {
-  formatMoney, formatCount, formatCompact, shortDate, relativeTime, TIER_COLORS,
+  formatMoney, formatCount, formatCompact, shortDate, relativeTime,
 } from '../../lib/adminFormat.js';
+import { formatDurationParts } from '../../lib/formatDuration.js';
 import { Icon } from '../../components/Icon.jsx';
 import { Maximize2, ArrowsClockwise } from '../../lib/icons.js';
 import { useAdminData } from './useAdminData.js';
@@ -116,10 +117,6 @@ export function AdminCommandCenter() {
     { stage: 'First share', value: act.first_share || 0 },
     { stage: 'Paid',        value: act.first_paid  || 0 },
   ];
-
-  const pieData = ['admin', 'paid', 'demo', 'waitlist']
-    .map((t) => ({ name: t, value: tiers[t] || 0 }))
-    .filter((d) => d.value > 0);
 
   const { items: placements } = useCardPlacements();
   // Pad a short feed up to ≥6 before doubling so the seamless -50% scroll never
@@ -244,18 +241,11 @@ export function AdminCommandCenter() {
             </ResponsiveContainer>
           </CcPanel>
 
-          <CcPanel title="Tier mix" className="cc-pie" sub={`${pieData.reduce((a, b) => a + b.value, 0)} accounts`}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={28} outerRadius={44}
-                     paddingAngle={2} stroke="var(--bg-1)">
-                  {pieData.map((d) => <Cell key={d.name} fill={TIER_COLORS[d.name] || '#888'} />)}
-                </Pie>
-                <Tooltip {...TIP} itemStyle={{ color: 'var(--ink-0)' }} />
-                <Legend verticalAlign="bottom" align="center" layout="horizontal" iconSize={9}
-                        iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--ink-2)', lineHeight: '14px' }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <CcPanel title="Time in app" className="cc-bignum"
+                   sub={`${formatCount(stats?.total_users ?? 0)} users`}>
+            <CountUpDuration value={stats?.total_seconds_in_app ?? 0}
+                             ratePerSec={Math.max(Number(data?.activeNow) || 0, 1)} />
+            <div className="cc-bignum-note">summed across everyone</div>
           </CcPanel>
 
           <CcPanel title="Content mix" className="cc-pie" sub={`${formatCount(contentTotal)} cards`}>
@@ -372,6 +362,51 @@ export function AdminCommandCenter() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Big "always going up" duration. Rather than only animating when the polled
+// value changes (which looks frozen during quiet periods), this CONTINUOUSLY
+// ticks the seconds upward on its own at `ratePerSec` (≈ users active right now,
+// floor 1 so it always climbs while you watch), and re-syncs UP to the real
+// server total on each poll. Monotonic — it only ever counts up, never resets.
+function CountUpDuration({ value, ratePerSec }) {
+  const [shown, setShown] = useState(() => Number(value) || 0);
+  const ref = useRef({ base: Number(value) || 0, at: performance.now(), rate: 0 });
+
+  // Each poll: snap the running total up to server truth (never down) + adopt
+  // the new tick rate.
+  useEffect(() => {
+    ref.current.base = Math.max(ref.current.base, Number(value) || 0);
+    ref.current.rate = Math.max(0, Number(ratePerSec) || 0);
+  }, [value, ratePerSec]);
+
+  // Integrate the rate over real time and repaint ~4×/s. dt is capped so a tab
+  // that was hidden (rAF paused) doesn't surge on return.
+  useEffect(() => {
+    let raf = 0;
+    let lastPaint = 0;
+    const loop = (t) => {
+      const st = ref.current;
+      const dt = Math.min((t - st.at) / 1000, 1.5);
+      st.base += st.rate * dt;
+      st.at = t;
+      if (t - lastPaint >= 250) { lastPaint = t; setShown(st.base); }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <div className="cc-dur">
+      {formatDurationParts(shown).map((p) => (
+        <span className="cc-dur-seg" key={p.unit}>
+          <span className="cc-dur-val">{p.value}</span>
+          <span className="cc-dur-unit">{p.unit}</span>
+        </span>
+      ))}
     </div>
   );
 }

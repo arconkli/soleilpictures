@@ -64,5 +64,24 @@ assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 50, requested: 0 }),
 assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 50, requested: -4 }),
   { accepted: 0, capHit: false, remaining: 50 }, 'demo negative requested: clamped to 0');
 
+// Referral bonus raises the cap via the `limit` param (effective_card_limit).
+// 100 base + 25 bonus = 125: room opens back up past the old 100 wall.
+assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 110, requested: 1, limit: 125 }),
+  { accepted: 1, capHit: false, remaining: 15 }, 'demo with +25 bonus: allowed past 100');
+assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 100, requested: 5, limit: 125 }),
+  { accepted: 5, capHit: false, remaining: 25 }, 'demo with +25 bonus: batch fits over 100');
+assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 125, requested: 1, limit: 125 }),
+  { accepted: 0, capHit: true, remaining: 0 }, 'demo at raised cap: blocked at 125');
+assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 123, requested: 5, limit: 125 }),
+  { accepted: 2, capHit: true, remaining: 2 }, 'demo near raised cap: sliced to remaining');
+// Bonus is irrelevant to non-demo tiers (always passthrough).
+assertEq(evaluateDemoCap({ tier: 'paid', demoCardCount: 0, requested: 9, limit: 125 }),
+  { accepted: 9, capHit: false, remaining: Infinity }, 'paid with limit: still passthrough');
+// Garbage/zero limit falls back to the documented 100.
+assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 95, requested: 10, limit: 0 }),
+  { accepted: 5, capHit: true, remaining: 5 }, 'limit 0: falls back to 100');
+assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 95, requested: 10, limit: undefined }),
+  { accepted: 5, capHit: true, remaining: 5 }, 'limit undefined: defaults to 100');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

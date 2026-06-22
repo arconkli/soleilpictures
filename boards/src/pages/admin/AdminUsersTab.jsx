@@ -44,6 +44,9 @@ export function AdminUsersTab() {
   const [debounced, setDebounced] = useState('');
   const [tierFilter, setTierFilter] = useState('');   // '' = all tiers
   const [contacted, setContacted] = useState('');     // '' = all · 'yes' · 'no'
+  const [verification, setVerification] = useState('verified'); // 'verified' · 'unverified' · 'all'
+  const [sourceFilter, setSourceFilter] = useState(''); // '' = all acquisition channels
+  const [channels, setChannels] = useState([]);          // [{channel, n}] for the source dropdown
   const [sort, setSort]        = useState('recent');
   const [page, setPage]        = useState(0);          // 0-indexed
   const [busyId, setBusyId]    = useState(null);
@@ -61,21 +64,33 @@ export function AdminUsersTab() {
   }, [query]);
 
   // Reset page when filters / sort change
-  useEffect(() => { setPage(0); }, [debounced, tierFilter, contacted, sort]);
+  useEffect(() => { setPage(0); }, [debounced, tierFilter, contacted, verification, sourceFilter, sort]);
+
+  // Channel options for the source filter — distinct channels present (with
+  // counts) via the same normalizer the list uses, so the dropdown values match
+  // the column exactly. Scoped to the current verification, refetched when it changes.
+  useEffect(() => {
+    let alive = true;
+    supabase.rpc('admin_acquisition_channels', { p_verification: verification })
+      .then(({ data: d }) => { if (alive && Array.isArray(d)) setChannels(d); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [verification]);
 
   // ── List query (#1) ──
   const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
     const q = debounced || null;
     const t = tierFilter || null;
     const c = contacted || null;
+    const o = sourceFilter || null;
     const [listRes, countRes] = await Promise.all([
-      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t, p_sort: sort, p_status: null, p_source: null, p_contacted: c }),
-      supabase.rpc('admin_user_count', { p_query: q, p_tier: t, p_status: null, p_source: null, p_contacted: c }),
+      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t, p_sort: sort, p_status: null, p_source: o, p_contacted: c, p_verification: verification }),
+      supabase.rpc('admin_user_count', { p_query: q, p_tier: t, p_status: null, p_source: o, p_contacted: c, p_verification: verification }),
     ]);
     if (listRes.error)  throw listRes.error;
     if (countRes.error) throw countRes.error;
     return { rows: listRes.data || [], total: Number(countRes.data) || 0 };
-  }, [page, debounced, tierFilter, contacted, sort]);
+  }, [page, debounced, tierFilter, contacted, verification, sourceFilter, sort]);
 
   const rows  = data?.rows || [];
   const total = data?.total || 0;
@@ -273,7 +288,7 @@ export function AdminUsersTab() {
     }
   };
 
-  const isFiltered = !!(debounced || tierFilter || contacted);
+  const isFiltered = !!(debounced || tierFilter || contacted || sourceFilter || verification !== 'verified');
 
   return (
     <div className="admin-section admin-section-users">
@@ -302,6 +317,11 @@ export function AdminUsersTab() {
           onTierFilterChange={setTierFilter}
           contacted={contacted}
           onContactedChange={setContacted}
+          verification={verification}
+          onVerificationChange={setVerification}
+          sourceFilter={sourceFilter}
+          onSourceFilterChange={setSourceFilter}
+          sourceOptions={channels}
           sort={sort}
           onSortChange={setSort}
           onPrevPage={() => setPage((p) => Math.max(0, p - 1))}

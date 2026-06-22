@@ -68,88 +68,122 @@ function findMatches(doc, query) {
   return ranges;
 }
 
-export function DocFindReplace({ editor, open, onClose }) {
+export function DocFindReplace({ editor, editors = [], open, onClose }) {
   const [q, setQ] = useState('');
   const [r, setR] = useState('');
   const [showReplace, setShowReplace] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [current, setCurrent] = useState(0);
   const inputRef = useRef(null);
   const replaceInputRef = useRef(null);
 
-  // Close and return focus to the editor (otherwise the next keystroke is lost
-  // into the void after the find bar unmounts). Focus on the next frame so it
-  // lands AFTER React removes the find input — focusing synchronously would be
-  // undone when the still-focused input unmounts and blurs to <body>.
-  const close = () => {
-    onClose();
-    requestAnimationFrame(() => { try { editor?.commands?.focus(); } catch (_) {} });
+  // Search/replace span EVERY mounted sheet of the active page (a prose doc
+  // auto-paginates past one page, and find used to see only the focused sheet).
+  const eds = editors.length ? editors : (editor ? [editor] : []);
+  const edsKey = eds.length; // cheap dep: re-run when the sheet count changes
+
+  // All matches across all sheet editors, in sheet then document order.
+  const computeAll = () => {
+    const all = [];
+    eds.forEach((ed, ei) => {
+      for (const [from, to] of findMatches(ed.state.doc, q)) all.push({ ei, from, to });
+    });
+    return all;
   };
-
-  // Recompute matches whenever query / doc changes; push into the plugin.
-  useEffect(() => {
-    if (!editor) return;
-    if (!open) {
-      const tr = editor.state.tr.setMeta(findKey, { ranges: [], current: -1 });
-      editor.view.dispatch(tr);
-      return;
-    }
-    const ranges = findMatches(editor.state.doc, q);
-    const current = ranges.length > 0 ? 0 : -1;
-    const tr = editor.state.tr.setMeta(findKey, { ranges, current });
-    editor.view.dispatch(tr);
-    // Scroll the first match into view.
-    if (current >= 0) {
-      const [from] = ranges[0];
-      try {
-        const dom = editor.view.domAtPos(from)?.node;
-        const el = dom?.nodeType === 3 ? dom.parentElement : dom;
-        el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-      } catch (_) {}
-    }
-  }, [editor, open, q]);
-
-  useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 0);
-  }, [open]);
-
-  if (!open || !editor) return null;
-  const state = findKey.getState(editor.state) || { ranges: [], current: -1 };
-  const { ranges, current } = state;
-  const total = ranges.length;
-
-  const goto = (idx) => {
-    if (!total) return;
-    const next = ((idx % total) + total) % total;
-    const [from] = ranges[next];
-    editor.view.dispatch(editor.state.tr.setMeta(findKey, { ranges, current: next }));
+  const clearAll = () => {
+    eds.forEach((ed) => {
+      try { ed.view.dispatch(ed.state.tr.setMeta(findKey, { ranges: [], current: -1 })); } catch (_) {}
+    });
+  };
+  // Paint highlights in each editor; mark the global-current hit in its owner.
+  const pushHighlights = (all, curIdx) => {
+    const owner = (curIdx >= 0 && all[curIdx]) ? all[curIdx] : null;
+    eds.forEach((ed, ei) => {
+      const mine = all.filter(m => m.ei === ei);
+      const ranges = mine.map(m => [m.from, m.to]);
+      let localCur = -1;
+      if (owner && owner.ei === ei) localCur = mine.findIndex(m => m.from === owner.from && m.to === owner.to);
+      try { ed.view.dispatch(ed.state.tr.setMeta(findKey, { ranges, current: localCur })); } catch (_) {}
+    });
+  };
+  const scrollTo = (m) => {
+    const ed = eds[m.ei]; if (!ed) return;
     try {
-      const dom = editor.view.domAtPos(from)?.node;
+      const dom = ed.view.domAtPos(m.from)?.node;
       const el = dom?.nodeType === 3 ? dom.parentElement : dom;
       el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
     } catch (_) {}
   };
 
+  const close = () => {
+    onClose();
+    requestAnimationFrame(() => { try { (eds[0] || editor)?.commands?.focus(); } catch (_) {} });
+  };
+
+  // Recompute on query / open / sheet-count change; push into every editor.
+  useEffect(() => {
+    if (!eds.length) { setTotal(0); return; }
+    if (!open) { clearAll(); setTotal(0); setCurrent(0); return; }
+    const all = computeAll();
+    setTotal(all.length);
+    setCurrent(0);
+    pushHighlights(all, all.length ? 0 : -1);
+    if (all.length) scrollTo(all[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, q, edsKey]);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 0);
+  }, [open]);
+
+  if (!open || !eds.length) return null;
+
+  const goto = (idx) => {
+    const all = computeAll();
+    if (!all.length) { setTotal(0); return; }
+    const next = ((idx % all.length) + all.length) % all.length;
+    setCurrent(next);
+    setTotal(all.length);
+    pushHighlights(all, next);
+    scrollTo(all[next]);
+  };
+
   const replaceOne = () => {
-    if (!total || current < 0) return;
-    const [from, to] = ranges[current];
-    editor.chain().focus().insertContentAt({ from, to }, r).run();
-    // Recompute matches after the replacement transaction settles. Dispatching
-    // the meta synchronously here re-enters ProseMirror mid-commit and the
-    // replacement gets rolled back — the deferral is load-bearing, not just a
-    // cosmetic debounce.
+    const all = computeAll();
+    if (!all.length) return;
+    const idx = Math.min(current, all.length - 1);
+    const m = all[idx];
+    const ed = eds[m.ei];
+    // Preserve the matched text's OWN marks (read from inside the match, not the
+    // boundary) so bold/link/etc. survive a replace.
+    ed.chain().focus().command(({ tr, state }) => {
+      const marks = tr.doc.resolve(Math.min(m.from + 1, m.to)).marks();
+      if (r) tr.replaceWith(m.from, m.to, state.schema.text(r, marks)); else tr.delete(m.from, m.to);
+      return true;
+    }).run();
+    // Defer: dispatching meta synchronously re-enters ProseMirror mid-commit
+    // and the replacement gets rolled back.
     setTimeout(() => {
-      const next = findMatches(editor.state.doc, q);
-      editor.view.dispatch(editor.state.tr.setMeta(findKey, { ranges: next, current: Math.min(current, next.length - 1) }));
+      const a2 = computeAll();
+      const cur = a2.length ? Math.min(idx, a2.length - 1) : -1;
+      setTotal(a2.length); setCurrent(Math.max(0, cur));
+      pushHighlights(a2, cur);
     }, 0);
   };
   const replaceAll = () => {
-    if (!total) return;
-    // Replace from end to start so positions don't shift mid-loop.
-    const chain = editor.chain().focus();
-    [...ranges].reverse().forEach(([from, to]) => chain.insertContentAt({ from, to }, r));
-    chain.run();
-    setTimeout(() => {
-      editor.view.dispatch(editor.state.tr.setMeta(findKey, { ranges: [], current: -1 }));
-    }, 0);
+    eds.forEach((ed) => {
+      const ranges = findMatches(ed.state.doc, q);
+      if (!ranges.length) return;
+      // End→start so earlier positions don't shift; preserve each match's marks.
+      ed.chain().focus().command(({ tr, state }) => {
+        [...ranges].reverse().forEach(([from, to]) => {
+          const marks = tr.doc.resolve(Math.min(from + 1, to)).marks();
+          if (r) tr.replaceWith(from, to, state.schema.text(r, marks)); else tr.delete(from, to);
+        });
+        return true;
+      }).run();
+    });
+    setTimeout(() => { clearAll(); setTotal(0); setCurrent(0); }, 0);
   };
 
   const onKey = (e) => {
@@ -172,32 +206,34 @@ export function DocFindReplace({ editor, open, onClose }) {
   };
 
   return (
-    <div className="doc-find" onKeyDown={onKey}>
+    <div className="doc-find" onKeyDown={onKey} role="search" aria-label="Find in document">
       <input ref={inputRef}
              className="doc-find-input"
              placeholder="Find"
+             aria-label="Find"
              value={q}
              onChange={(e) => setQ(e.target.value)} />
-      <span className="doc-find-count">
+      <span className="doc-find-count" aria-live="polite">
         {total === 0 ? (q ? '0/0' : '') : `${current + 1}/${total}`}
       </span>
-      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) - 1)} title="Previous (⇧⏎)">↑</button>
-      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) + 1)} title="Next (⏎)">↓</button>
+      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) - 1)} title="Previous (⇧⏎)" aria-label="Previous match">↑</button>
+      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) + 1)} title="Next (⏎)" aria-label="Next match">↓</button>
       <button className={`doc-find-btn ${showReplace ? 'is-active' : ''}`}
-              onClick={() => setShowReplace(s => !s)} title="Replace">⇄</button>
+              onClick={() => setShowReplace(s => !s)} title="Replace" aria-label="Toggle replace" aria-pressed={showReplace}>⇄</button>
       {showReplace && (
         <>
-          <span className="doc-find-sep" />
+          <span className="doc-find-sep" aria-hidden="true" />
           <input ref={replaceInputRef}
                  className="doc-find-input"
                  placeholder="Replace"
+                 aria-label="Replace with"
                  value={r}
                  onChange={(e) => setR(e.target.value)} />
           <button className="doc-find-btn" onClick={replaceOne}>One</button>
           <button className="doc-find-btn" onClick={replaceAll}>All</button>
         </>
       )}
-      <button className="doc-find-x" onClick={close} title="Close (Esc)">×</button>
+      <button className="doc-find-x" onClick={close} title="Close (Esc)" aria-label="Close find">×</button>
     </div>
   );
 }

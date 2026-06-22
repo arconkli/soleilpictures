@@ -17,7 +17,7 @@ import {
 } from '../../lib/icons.js';
 import { formatDuration } from '../../lib/formatDuration.js';
 import {
-  formatCount, formatMoney, formatExpires, fmtDate, relativeTime,
+  formatCount, formatMoney, formatExpires, fmtDate, relativeTime, formatBytes,
 } from '../../lib/adminFormat.js';
 import { StatusPill } from './AdminPills.jsx';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
@@ -31,22 +31,57 @@ function Row({ label, children }) {
   return (<><dt>{label}</dt><dd>{children}</dd></>);
 }
 
+// Long opaque click-ids / tokens are de-emphasized (muted) vs human-meaningful
+// utm/referrer values.
+const ACQ_ID_KEYS = new Set([
+  'fbclid', 'gclid', 'wbraid', 'gbraid', 'msclkid', 'ttclid', 'twclid',
+  'rdt_cid', 'li_fat_id', 'epik', 'sccid', 'share_token',
+]);
+
 function AcquisitionSection({ acq }) {
   if (!acq) return null;
+  // First-touch detail — every signal the capture layer records, shown when present.
   const fields = [
     ['utm_source', acq.utm_source], ['utm_medium', acq.utm_medium],
     ['utm_campaign', acq.utm_campaign], ['utm_content', acq.utm_content],
-    ['utm_term', acq.utm_term], ['referrer', acq.referrer], ['fbclid', acq.fbclid],
+    ['utm_term', acq.utm_term],
+    ['referrer', acq.referrer], ['landing_path', acq.landing_path],
+    ['gclid', acq.gclid], ['wbraid', acq.wbraid], ['gbraid', acq.gbraid],
+    ['msclkid', acq.msclkid], ['ttclid', acq.ttclid], ['twclid', acq.twclid],
+    ['rdt_cid', acq.rdt_cid], ['li_fat_id', acq.li_fat_id], ['epik', acq.epik],
+    ['sccid', acq.sccid], ['fbclid', acq.fbclid],
+    ['share_token', acq.share_token], ['public_slug', acq.public_slug],
   ].filter(([, v]) => v);
+  // "Captured nothing" = nothing beyond the always-present landing_path.
+  const meaningful = fields.filter(([k]) => k !== 'landing_path');
+  // Last-touch (latest click) — only rendered when an lt_* event existed.
+  const lt = acq.last_touch && typeof acq.last_touch === 'object' ? acq.last_touch : null;
+  const ltFields = lt ? [
+    ['utm_source', lt.utm_source], ['utm_medium', lt.utm_medium],
+    ['utm_campaign', lt.utm_campaign], ['referrer', lt.referrer], ['at', lt.at],
+  ].filter(([, v]) => v) : [];
   return (
     <DetailSection title="Acquisition" icon={GlobeIcon}>
       <dl className="admin-detail-kv">
         <Row label="Channel"><SourceBadge source={acq.label} /></Row>
         {fields.map(([k, v]) => (
-          <Row key={k} label={k}><span className={k === 'fbclid' ? 'is-muted' : ''} style={{ overflowWrap: 'anywhere' }}>{v}</span></Row>
+          <Row key={k} label={k}><span className={ACQ_ID_KEYS.has(k) ? 'is-muted' : ''} style={{ overflowWrap: 'anywhere' }}>{v}</span></Row>
         ))}
       </dl>
-      {fields.length === 0 && <div className="admin-detail-note">No campaign or referrer captured — organic / direct.</div>}
+      {meaningful.length === 0 && <div className="admin-detail-note">No campaign or referrer captured — organic / direct.</div>}
+      {lt && (
+        <>
+          <div className="admin-detail-subhead">Latest click</div>
+          <dl className="admin-detail-kv">
+            <Row label="Channel"><SourceBadge source={lt.channel} /></Row>
+            {ltFields.map(([k, v]) => (
+              <Row key={k} label={k}>
+                <span style={{ overflowWrap: 'anywhere' }}>{k === 'at' ? relativeTime(v) : v}</span>
+              </Row>
+            ))}
+          </dl>
+        </>
+      )}
     </DetailSection>
   );
 }
@@ -64,7 +99,19 @@ function EngagementSection({ eng, tier, lastSignInAt, device }) {
         <Row label="Last active"><PresenceDot lastSeenAt={eng.last_seen_at} /></Row>
         {lastSignInAt && <Row label="Last sign-in">{relativeTime(lastSignInAt)}</Row>}
         {tier === 'demo' && (
-          <Row label="Demo cards">{formatCount(eng.demo_card_count)} / {eng.demo_card_cap || 100}</Row>
+          <Row label="Demo cards">
+            {formatCount(eng.demo_card_count)} / {eng.effective_card_limit || eng.demo_card_cap || 100}
+            {eng.bonus_card_credits > 0 && (
+              <span className="is-muted" style={{ marginLeft: 6 }}>(+{formatCount(eng.bonus_card_credits)} from referrals)</span>
+            )}
+          </Row>
+        )}
+        {(tier === 'paid' || tier === 'admin') && eng.storage && (
+          <Row label="Storage">
+            <span className="is-strong">{formatBytes(eng.storage.used_bytes)}</span>
+            {eng.storage.quota_bytes ? <span className="is-muted"> / {formatBytes(eng.storage.quota_bytes)}</span> : null}
+            {eng.storage.image_count > 0 && <span className="is-muted"> · {formatCount(eng.storage.image_count)} files</span>}
+          </Row>
         )}
         <Row label="Device">
           {last?.device_type ? (
@@ -203,6 +250,14 @@ export function AdminUserDetail({
           </div>
           <div className="admin-detail-actions">
             {detail?.flags?.is_internal && <span className="admin-badge-promo" title="Seeded / internal account">internal</span>}
+            {detail?.flags && detail.flags.verified === false && (
+              <span
+                className="admin-badge-ghost"
+                title={detail.flags.email_confirmed === false ? 'Email not confirmed' : 'Never signed in'}
+              >
+                unverified
+              </span>
+            )}
             {row.banned && <span className="admin-detail-banned" title={detail?.identity?.banned_reason || 'Account suspended'}>banned</span>}
             <AdminUserRowMenu
               row={row}

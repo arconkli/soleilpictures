@@ -9,20 +9,28 @@ import * as perf from './lib/perf.js';
 import { isEditableTarget } from './lib/isEditableTarget.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
+import { useScrollEdges } from './hooks/useScrollEdges.js';
 import * as userProfiles from './lib/userProfiles.js';
-import { useBoardPermission } from './hooks/useBoardPermission.js';
+import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
+import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
+import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards } from './lib/showcaseClone.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolledArm } from './lib/analytics.js';
-import { EV } from './lib/analyticsEvents.js';
+import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
+import { setJourneySink, beginJourney, endJourney, setJourneyState, journey } from './lib/journey.js';
 import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
+
+// Post-signup journey emitter wiring (see TierRouter for the rationale — journey.js
+// stays node-importable so it can't import analytics.js itself). Idempotent.
+setJourneySink({ logEvent, logEventNow });
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
 import { R2Image } from './components/R2Image.jsx';
 import { useShareNotifications } from './hooks/useShareNotifications.js';
@@ -36,7 +44,7 @@ import { refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
 // Side-effect import: registers the v1 entity kinds so any surface
 // that resolves a kind sees the same registry.
 import './lib/entityKinds.js';
-import { SidebarBoardTree } from './components/SidebarBoardTree.jsx';
+import { SidebarBoardsSection } from './components/SidebarBoardsSection.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { SidebarTags } from './components/SidebarTags.jsx';
 import { TagDetailView } from './components/TagDetailView.jsx';
@@ -54,9 +62,8 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, MoreHorizontal, Link as LinkIcon, ChevronLeft, ChevronRight } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, Link as LinkIcon, ChevronLeft, ChevronRight } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
-import { PresenceStack } from './components/PresenceStack.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
 import { useWorkspace } from './hooks/useWorkspace.js';
@@ -79,15 +86,15 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards } from './lib/boardsApi.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
-import { evaluateDemoCap } from './lib/demoCardCap.js';
+import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore } from './lib/docState.js';
-import { uploadImage } from './lib/uploads.js';
+import { uploadImage, uploadPdf } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
@@ -335,6 +342,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [stack, setStack] = useState(() => [rootBoard.id]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Sidebar scroll region (the board/tag list between the pinned nav and
+  // footer). useScrollEdges toggles fade-top/fade-bottom on it so the edges
+  // fade only when there's hidden content above/below.
+  const sidebarScrollRef = useRef(null);
+  useScrollEdges(sidebarScrollRef);
   // Mobile shell state. isPhone keys all phone-only UI; mobileNavOpen
   // controls the slide-out sidebar (which uses the existing .sidebar
   // markup repositioned as a drawer at phone width).
@@ -357,6 +369,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // When the account panel is deep-linked to a specific tab (e.g. Billing after
   // returning from the Stripe portal), this holds it; cleared on close (one-shot).
   const [accountInitialTab, setAccountInitialTab] = useState(null);
+
+  // Open the account panel straight on the "Invite & earn" referral tab. Used by
+  // the cap toasts, the cap-hit modal, and the post-activation nudge — every
+  // surface that pushes sharing routes here so we can attribute the open.
+  const openInviteFriends = React.useCallback((surface) => {
+    try { logEvent(EV.REFERRAL_OPEN, { surface }); } catch (_) {}
+    setAccountInitialTab('invite');
+    setAccountOpen(true);
+  }, []);
+  // Deep, decoupled surfaces (e.g. the "earn free cards" link inside PricingModal)
+  // ask to open the invite tab via a window event so they don't have to thread a
+  // callback through the whole render tree.
+  useEffect(() => {
+    const onOpenInvite = (e) => openInviteFriends(e?.detail?.surface || 'event');
+    window.addEventListener('soleil:open-invite', onOpenInvite);
+    return () => window.removeEventListener('soleil:open-invite', onOpenInvite);
+  }, [openInviteFriends]);
 
   const currentId = stack[stack.length - 1];
   const currentBoard = boards[currentId] || rootBoard;
@@ -727,24 +756,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // ONLY (see analyticsEvents.js); the user-facing 'cap-hit' string is not one.
     const noteBlocked = (reason) => { try { logEvent(EV.CARD_CREATE_BLOCKED, { reason, board_id: boardId }); } catch (_) {} };
 
-    const addCard = (card) => {
+    const addCard = (card, { afterInsert = null } = {}) => {
       const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return; }
       if (isDemoBlockedOnThisBoard()) { if (!isSeedCard(card)) noteBlocked('demo_blocked'); return; }
       // Demo-tier cap: hard-block at the limit (cards total across the user's
       // own boards). The trigger on card_index keeps demo_card_count in
       // sync server-side; the chip and this check read the cached value.
       if (myTier.tier === 'demo') {
-        const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1 });
+        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
+        const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1, limit });
         if (capHit) {
           if (!isSeedCard(card)) noteBlocked('demo_cap');   // modal already opens below
           setUpgradeReason('cap-hit');
           return;
         }
-        if (myTier.demoCardCount === 90) {
+        if (myTier.demoCardCount === limit - 10) {
           feedback.toast({
             type: 'warning',
-            message: "You're at 90/100 cards in your demo workspace. Upgrade for unlimited.",
-            action: { label: 'Upgrade', onClick: () => setUpgradeReason('cap-hit') },
+            message: `You're at ${myTier.demoCardCount}/${limit} cards in your demo workspace. Invite friends or upgrade for more.`,
+            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
           });
         }
       }
@@ -752,6 +782,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ydoc.transact(() => {
         const c = stampCreate({ z: nextZ(), ...card });
         m.set(c.id, cardToYMap(c));
+        // Run any per-card initialization (e.g. a doc card's Y store) INSIDE
+        // this transaction so create+init is ONE undo step. Yjs transact is
+        // reentrant, so a nested ydoc.transact inside afterInsert merges here.
+        if (afterInsert) { try { afterInsert(m.get(c.id)); } catch (_) {} }
       }, 'local');
       // Live activity signal → admin Command Center placement ticker. Prompt
       // (beacon) delivery so it shows up ~live, not at the next 5s batch flush.
@@ -769,16 +803,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return; }
       if (isDemoBlockedOnThisBoard()) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_blocked'); return; }
       if (myTier.tier === 'demo') {
-        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: cardsToAdd.length });
+        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
+        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: cardsToAdd.length, limit });
         if (capHit && accepted === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return; }
         if (capHit) {
           cardsToAdd = cardsToAdd.slice(0, accepted);
           setUpgradeReason('cap-hit');
-        } else if (myTier.demoCardCount + cardsToAdd.length >= 90 && myTier.demoCardCount < 90) {
+        } else if (myTier.demoCardCount + cardsToAdd.length >= limit - 10 && myTier.demoCardCount < limit - 10) {
           feedback.toast({
             type: 'warning',
-            message: "You're approaching the 100-card demo limit. Upgrade for unlimited.",
-            action: { label: 'Upgrade', onClick: () => setUpgradeReason('cap-hit') },
+            message: `You're approaching the ${limit}-card demo limit. Invite friends or upgrade for more.`,
+            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
           });
         }
       }
@@ -833,9 +868,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (isDemoBlockedOnThisBoard()) return;
       const idSet = new Set(ids);
       const boardIdsToCascade = [];
+      const docCardIds = [];
       ids.forEach(id => {
         const ym = m.get(id);
         if (ym && ym.get('kind') === 'board') boardIdsToCascade.push(id);
+        if (ym && ym.get('kind') === 'doc') docCardIds.push(id);
       });
       console.log('[delete] deleteCards start', {
         ids,
@@ -896,6 +933,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       console.log('[delete] deleteCards done', {
         ids, cardsBefore, cardsAfter, stillPresent,
       });
+      // Clean up derived-index rows for deleted doc cards so the universal
+      // "Appears in" / backlinks stop surfacing a doc that no longer exists.
+      if (docCardIds.length) cleanupDocCards(docCardIds).catch(() => {});
       // Boards were soft-deleted in Postgres above (deleteBoard). The Yjs
       // UndoManager can't reverse that, so tag this undo step with the board
       // ids; undo()/redo() below restore / re-delete them so the board (not
@@ -916,16 +956,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Demo-tier cap: same gate as addCard/addCards — block at the limit, slice
       // an over-cap batch to what fits, warn when crossing the 90 threshold.
       if (myTier.tier === 'demo') {
-        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: sources.length });
+        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
+        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: sources.length, limit });
         if (capHit && accepted === 0) { if (sources.length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return []; }
         if (capHit) {
           sources = sources.slice(0, accepted);
           setUpgradeReason('cap-hit');
-        } else if (myTier.demoCardCount + sources.length >= 90 && myTier.demoCardCount < 90) {
+        } else if (myTier.demoCardCount + sources.length >= limit - 10 && myTier.demoCardCount < limit - 10) {
           feedback.toast({
             type: 'warning',
-            message: "You're approaching the 100-card demo limit. Upgrade for unlimited.",
-            action: { label: 'Upgrade', onClick: () => setUpgradeReason('cap-hit') },
+            message: `You're approaching the ${limit}-card demo limit. Invite friends or upgrade for more.`,
+            action: { label: 'Invite friends', onClick: () => openInviteFriends('cap_toast') },
           });
         }
       }
@@ -1168,7 +1209,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const addPalette = (clickPos = null) => {
       const d = defaultsRef.current?.palette || {};
-      const w = d.w || 280, h = d.h || 130;
+      const w = d.w || 300, h = d.h || 180;
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `pal-${Date.now()}`;
@@ -1192,11 +1233,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         id, kind: 'doc', title: 'Untitled doc',
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
+      }, {
+        // Initialize the per-card doc store (pages, content, bookmarks,
+        // comments) in the SAME transaction as the insert — so the first ⌘Z
+        // after creating a doc removes the whole card, not just its store
+        // (which used to leave a broken, unopenable shell).
+        afterInsert: (cardYM) => { if (cardYM) initCardDocStore(ydoc, cardYM); },
       });
-      // Initialize the per-card doc store (pages, content, bookmarks, comments).
-      const m = cardsMap();
-      const cardYM = m?.get(id);
-      if (cardYM) initCardDocStore(ydoc, cardYM);
       setAutoFocusId(id); // signals "open the doc editor immediately"
     };
 
@@ -1230,8 +1273,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // workspace-wide default in Settings → Defaults → Notes.
       const d = defaultsRef.current?.note || {};
       const w = d.w || 200, h = d.h || 200;
+      // Horizontally centered on the click, but anchor the TOP edge to the
+      // click (not the vertical center): a note auto-sizes its height down to
+      // fit content right after creation, so centering on h would leave it
+      // floating well above the cursor. Top-anchoring keeps it where you
+      // clicked as it grows downward.
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
-      const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
+      const y = clickPos ? Math.round(clickPos.y)       : 60;
       const id = `note-${Date.now()}`;
       addCard({
         id, kind: 'note', html: '',
@@ -1288,6 +1336,39 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (e) {
           console.error(e);
           feedback.toast({ type: 'error', message: 'Image upload failed: ' + (e.message || e) });
+        }
+      };
+      input.click();
+    };
+
+    const addPdfAt = (clickPos) => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'application/pdf,.pdf';
+      input.onchange = async () => {
+        const f = input.files?.[0]; if (!f) return;
+        // Re-validate by extension too — some OS pickers report empty MIME.
+        if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name || '')) {
+          feedback.toast({ type: 'error', message: 'Please choose a PDF file.' });
+          return;
+        }
+        const cardId = `pdf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        const w = 300, h = 388; // portrait fallback; corrected from page-1 dims
+        // Pending card first so the user sees feedback, then upload + render.
+        addCard({
+          id: cardId, kind: 'pdf', name: f.name || 'PDF', pending: true,
+          x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+          y: Math.max(8, Math.round((clickPos?.y ?? 200) - h / 2)), w, h,
+        });
+        try {
+          const up = await uploadPdf({ file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id });
+          updateCard(cardId, {
+            src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
+            name: up.name, w: up.w, h: up.h, pending: false,
+          });
+        } catch (e) {
+          console.error(e);
+          feedback.toast({ type: 'error', message: 'PDF upload failed: ' + (e.message || e) });
+          deleteCard(cardId);
         }
       };
       input.click();
@@ -1365,7 +1446,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       createGroup, ungroup, renameGroup, setGroupOutline,
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,
-      addNote, addTextLink, addImageAt, addNewBoard, addPalette,
+      addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
       addDocCard,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
@@ -1610,6 +1691,101 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
+  // ── Sidebar board context-menu actions ──────────────────────────────────
+  // Create a brand-new empty board nested inside an arbitrary parent. Unlike
+  // addNewBoard (which targets the currently-open board and seeds a canvas
+  // card), this targets the passed parent and adds no card — the reconcile-
+  // drift effect adds the kind:'board' mirror when that parent is opened.
+  const createBoardInside = async (parentId) => {
+    const parent = boards[parentId];
+    if (!parent) return;
+    const d = defaultsRef.current?.board || {};
+    const view = d.view || 'canvas';
+    try {
+      await createBoard({
+        workspaceId: parent.workspace_id,
+        parentBoardId: parentId,
+        name: view === 'list' ? 'Untitled list' : 'Untitled board',
+        view, userId: user.id,
+        cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
+      });
+      await refreshBoards();
+    } catch (e) {
+      console.error('createBoardInside failed', e);
+      feedback.toast({ type: 'error', message: 'Could not create board: ' + (e.message || e) });
+    }
+  };
+
+  // Target-id variant of setBoardBgColor (the in-factory one closes over the
+  // current boardId). Used by the sidebar "Custom…" color picker.
+  const setBoardBgColorById = async (targetId, color) => {
+    try {
+      await updateBoardMeta(targetId, { bg_color: color || null });
+      await refreshBoards();
+    } catch (e) {
+      console.error('setBoardBgColorById failed', e);
+      feedback.toast({ type: 'error', message: 'Could not set background: ' + (e.message || e) });
+    }
+  };
+
+  // Copy a board to the in-memory board clipboard (metadata only; the Y.Doc
+  // snapshot is re-read at paste time so the copy reflects the latest state).
+  const copyBoard = (board) => {
+    if (!board) return;
+    setBoardClipboard({
+      boardId: board.id, name: board.name, view: board.view,
+      cover: board.cover, meta: board.meta,
+    });
+    feedback.toast({ type: 'info', message: `Copied "${board.name || 'board'}".`, ttl: 2500 });
+  };
+
+  // Paste the clipboard board as a child of targetId — a SHALLOW duplicate
+  // (the board + its own canvas contents, not nested sub-boards). Mirrors the
+  // create+snapshot-copy in cloneBoardToPersonal, then strips board/boardlink
+  // mirror cards so the copy doesn't point at the original's children.
+  const pasteBoardInto = async (targetId) => {
+    const clip = getBoardClipboard();
+    if (!clip) return;
+    const target = boards[targetId];
+    if (!target) return;
+    const source = boards[clip.boardId];
+    if (source && source.workspace_id !== target.workspace_id) {
+      feedback.toast({ type: 'error', message: 'Can only paste within the same workspace.' });
+      return;
+    }
+    try {
+      const newBoard = await createBoard({
+        workspaceId: target.workspace_id,
+        parentBoardId: targetId,
+        name: (clip.name || 'Board') + ' (copy)',
+        view: clip.view, cover: clip.cover, meta: clip.meta,
+        userId: user.id,
+      });
+      const snap = await loadBoardSnapshot(clip.boardId);
+      if (snap) {
+        const tmp = new Y.Doc();
+        Y.applyUpdate(tmp, b64ToBytes(snap));
+        // Shallow copy: drop child-board mirror cards (and boardlinks) so the
+        // duplicate's canvas doesn't reference the original's nested boards.
+        const m = tmp.getMap('cards');
+        tmp.transact(() => {
+          [...m.keys()].forEach((k) => {
+            const v = m.get(k);
+            const kind = v?.get ? v.get('kind') : v?.kind;
+            if (kind === 'board' || kind === 'boardlink') m.delete(k);
+          });
+        }, 'local');
+        await saveBoardSnapshot(newBoard.id, tmp);
+        tmp.destroy();
+      }
+      await refreshBoards();
+      feedback.toast({ type: 'success', message: 'Pasted board.' });
+    } catch (e) {
+      console.error('pasteBoardInto failed', e);
+      feedback.toast({ type: 'error', message: 'Paste failed: ' + (e.message || e) });
+    }
+  };
+
   // ── Workspace sharing ─────────────────────────────────────────────────────
   const inviteToWorkspace = async () => {
     const email = await feedback.prompt({
@@ -1696,6 +1872,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // list down so the count badges + sort ordering line up with the
   // canvas chip surfaces.
   const wsTagsForSidebar = useWorkspaceTags({ workspaceId: workspace.id, boardId: null });
+  // Keep an open tag/entity profile in sync with the realtime-backed workspace
+  // tag list: activeTag is a snapshot taken at open time, so a type/rename/
+  // recolor change made from the sidebar row menu (or by a peer) would leave
+  // the profile hero stale. Re-derive it by id when a real field changes.
+  useEffect(() => {
+    if (currentSurface !== 'tag' || !activeTag?.id) return;
+    const fresh = (wsTagsForSidebar.tags || []).find(t => t.id === activeTag.id);
+    if (fresh && (fresh.entity_type !== activeTag.entity_type
+                  || fresh.name !== activeTag.name
+                  || fresh.color !== activeTag.color)) {
+      setActiveTag(fresh);
+    }
+  }, [wsTagsForSidebar.tags, currentSurface, activeTag]);
 
   // Tag suggester. AI engine on by default; legacy TF-IDF stays available
   // as a fallback if anyone explicitly opts out (`localStorage.soleil.ai_tagger = '0'`).
@@ -1926,6 +2115,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }));
       }, 250);
     },
+    tag: (ref) => {
+      // A tag is a full-pane surface (TagDetailView). Route through the
+      // existing `soleil-open-tag` document listener, which resolves the id
+      // to the full tag row and opens it — so this needs no extra memo deps.
+      // Fixes the prior no-op: coerceRef already understood tag refs, but
+      // navHandlers had no `tag` key, so navigate({kind:'tag'}) (e.g. from
+      // DocPageTagChips / EntityHoverPopover) silently warned and did nothing.
+      if (ref?.id) {
+        document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: ref.id } }));
+      }
+    },
   }), [boards, recents, openMessageThread, openDmWith, setTweak]);
 
   // Surface "X shared a board with you" notifications as toasts on
@@ -1980,13 +2180,51 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the demo-cap on addCard, and the tier-aware viewer fallback in
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
-  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'shared-edit' | 'manual' | null
+  const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'shared-edit' | 'storage' | 'manual' | null
+
+  // Celebrate referral rewards: when bonus_card_credits grows (a friend you
+  // invited just activated — granted server-side, picked up on the next
+  // focus refetch), confirm it. The first known value sets a silent baseline
+  // so we never toast on load or for the referee's own signup head-start.
+  const prevBonusRef = useRef(null);
+  useEffect(() => {
+    if (myTier.loading) return;
+    const cur = Number(myTier.bonusCardCredits || 0);
+    const prev = prevBonusRef.current;
+    prevBonusRef.current = cur;
+    if (prev != null && cur > prev) {
+      const delta = cur - prev;
+      try {
+        feedback.toast({
+          type: 'success',
+          message: `You earned ${delta} free card${delta === 1 ? '' : 's'}! A friend you invited just got started 🎉`,
+          ttl: 7000,
+        });
+      } catch (_) {}
+    }
+  }, [myTier.bonusCardCredits, myTier.loading]);
 
   // Funnel: app_open fires once per mount with the caller's tier so we
   // can correlate retention (app opens / unique user / week).
   useEffect(() => {
     if (!myTier.tier) return;
     logEvent(EV.APP_OPEN, { tier: myTier.tier });
+    // Post-signup journey: open it (idempotent — TierRouter also opens it for the
+    // AdWelcome/waitlist branches) and mark that the App workspace actually
+    // mounted. Only for genuinely-new users (onboarding not done). Child effects
+    // run before the parent TierRouter effect on the initial commit, so whichever
+    // fires first opens the journey; PS_SIGNUP is uid-stamped to fire exactly once.
+    if (user?.id && myTier.onboarding?.done !== true) {
+      try {
+        beginJourney(user.id, { isNew: true, tier: myTier.tier });
+        setJourneyState({
+          phase: JOURNEY_PHASE.APP_ENTER, tier: myTier.tier,
+          onb_seeded: myTier.onboarding?.seeded === true, onb_done: myTier.onboarding?.done === true,
+          ad_pending: !!myTier.adOfferPending, route: window.location.pathname,
+        });
+        journey(EV.PS_APP_ENTER, { tier: myTier.tier });
+      } catch (_) {}
+    }
     // Return-session: app_open on a later calendar day than we last saw this
     // browser — the literal re-engagement signal (complements server-side
     // user_active_day, and survives even if the heartbeat misses).
@@ -2009,6 +2247,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // profiles.settings.onboarding {seeded,done} via merge_profile_settings, and
   // is read back through get_my_tier()/useMyTier.
   const seedAttemptedRef = useRef(false);
+  // Post-signup journey: name WHICH gate silently bailed the onboarding seed (the
+  // previously-invisible "landed on a blank, un-seeded canvas" case). Deduped per
+  // gate per page-load; journey() no-ops for returning users (journey not open),
+  // so an already-onboarded user's legitimate 'already_seeded' skip never emits.
+  const seedSkipLoggedRef = useRef(new Set());
+  const noteSeedSkip = (gate) => {
+    if (seedSkipLoggedRef.current.has(gate)) return;
+    seedSkipLoggedRef.current.add(gate);
+    try { setJourneyState({ phase: JOURNEY_PHASE.SEED }); journey(EV.PS_SEED_SKIP, { gate }); } catch (_) {}
+  };
   const [onboardingUiActive, setOnboardingUiActive] = useState(false);
   // Passive escalation: true once a brand-new user trips the stuck signal
   // (frictionSignal.js) — brightens the empty-board hint + coachmark. Cleared the
@@ -2039,11 +2287,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the organize-by-dragging AHA (see the nest-detection in the onDrop handler).
   useEffect(() => {
     if (seedAttemptedRef.current) return;
-    if (myTier.loading) return;                                     // wait for tier/onboarding
-    if (myTier.onboarding?.seeded === true || myTier.onboarding?.done === true) return;
-    if (!currentYDoc || !yb.ready) return;                         // doc hydrated
-    if (currentId !== rootBoard.id) return;                        // personal root only
-    if (yb.cards.length !== 0) return;                             // empty canvas only
+    if (myTier.loading) { noteSeedSkip('loading'); return; }                                 // wait for tier/onboarding
+    if (myTier.onboarding?.seeded === true || myTier.onboarding?.done === true) { noteSeedSkip('already_seeded'); return; }
+    if (!currentYDoc || !yb.ready) { noteSeedSkip('doc_not_ready'); return; }                // doc hydrated
+    if (currentId !== rootBoard.id) { noteSeedSkip('not_personal_root'); return; }           // personal root only
+    if (yb.cards.length !== 0) { noteSeedSkip('canvas_not_empty'); return; }                 // empty canvas only
     // Set the guard SYNCHRONOUSLY, before any await, so a StrictMode double-mount
     // (dev) or a re-render mid-await can never enter again and create TWO "Ideas"
     // boards. The ref covers this mount's lifetime; the durable `seeded` flag +
@@ -2133,12 +2381,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           ? [...getStarterCards(), getStarterTutorialCard(tutorialBoardId)]
           : [...getStarterCards()];
       }
+      try { setJourneyState({ phase: JOURNEY_PHASE.SEED }); journey(EV.PS_SEED_START, { board_id: rootBoard.id, showcase }); } catch (_) {}
       try {
         mainMutators.addCards?.(cardsToSeed);
       } catch (e) {
         try { logEvent(EV.ONBOARDING_SEED_FAILED, { stage: 'add_cards', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {}
       }
       logEvent(EV.ONBOARDING_SEED, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId, showcase });
+      try { journey(EV.PS_SEED_DONE, { n: cardsToSeed.length, board_id: rootBoard.id, tutorial_board_id: tutorialBoardId, showcase }); } catch (_) {}
       setOnboardingUiActive(true);
       // Make the new child board visible in the boards map so its card renders as
       // a real board (not an orphan tile). After addCards so reconcile sees it.
@@ -2158,6 +2408,60 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTier.loading, myTier.onboarding, currentYDoc, yb.ready, yb.cards.length, currentId, rootBoard.id, mainMutators]);
+
+  // Preview affordance: ?showcasepreview=1 clones the welcome_showcase source board
+  // (the real Clusters Logo board) into a throwaway board in YOUR workspace and
+  // opens it — so the arm-B experience can be seen WITH images on any origin you're
+  // signed in to (incl. production). prepare_showcase grants this new board read on
+  // the source images first, so they render. Delete the board when done. Works for
+  // any signed-in account; harmless + self-scoped (only seeds into your own space).
+  const showcasePreviewRef = useRef(false);
+  // The board the ?showcasepreview clone landed in — forces showcaseArm='B' on it so
+  // the welcome banner renders (a real arm-B user gets it via getEnrolledArm).
+  const [showcasePreviewBoardId, setShowcasePreviewBoardId] = useState(null);
+  useEffect(() => {
+    if (showcasePreviewRef.current || typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('showcasepreview') !== '1') return;
+    if (!workspace?.id || !rootBoard?.id || !user?.id) return;
+    showcasePreviewRef.current = true;
+    (async () => {
+      try {
+        const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Showcase preview', view: 'canvas', userId: user.id });
+        if (!b?.id) { feedback.toast({ type: 'error', message: 'Showcase preview: could not create the board.' }); return; }
+        const res = await supabase.rpc('prepare_showcase', { p_board_id: b.id });
+        if (res.error) { feedback.toast({ type: 'error', message: 'Showcase preview failed: ' + (res.error.message || 'RPC error') }); }
+        const tpl = res.data;
+        if (tpl?.snapshot) {
+          // Stamp the cloned cards seed:true + showcase:true (decodeShowcaseCards) so
+          // the welcome banner renders + "Start fresh" targets them — same as a real
+          // arm-B seed, instead of a verbatim (unflagged) snapshot copy.
+          const cards = decodeShowcaseCards(tpl.snapshot);
+          const ydoc = new Y.Doc();
+          const m = ydoc.getMap('cards');
+          ydoc.transact(() => { for (const c of cards) m.set(c.id, cardToYMap(c)); });
+          await saveBoardSnapshot(b.id, ydoc);
+          ydoc.destroy();
+          setShowcasePreviewBoardId(b.id);   // force showcaseArm='B' on this board → banner shows
+          // CRITICAL: wipe the fresh PartyKit room so it can't re-persist its empty
+          // in-memory doc over the clone we just saved (the bulletproofRestore race).
+          // Without this the board opens EMPTY and recompute_image_refs then strips
+          // the image grant. Best-effort: if the party is unreachable, proceed.
+          try { await forceResetBoardRoom(b.id); } catch (e) { console.warn('[showcasepreview] room reset failed (continuing)', e); }
+        } else {
+          feedback.toast({ type: 'error', message: 'Showcase preview: no content returned (showcase disabled in config?).' });
+        }
+        try { await refreshBoards(); } catch (_) {}
+        setStack([b.id]);
+        if (tpl?.snapshot) feedback.toast({ type: 'success', message: 'Showcase preview ready — delete this board when done.' });
+        // strip the param so a reload doesn't make a second copy
+        try { const u = new URL(window.location.href); u.searchParams.delete('showcasepreview'); window.history.replaceState({}, '', u.toString()); } catch (_) {}
+      } catch (e) {
+        console.error('[showcasepreview] failed', e);
+        feedback.toast({ type: 'error', message: 'Showcase preview failed: ' + (e?.message || e) });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.id, rootBoard?.id, user?.id]);
 
   // Activation detection — DECOUPLED from the onboarding coachmark UI. The old
   // version only fired ONBOARDING_FIRST_CARD while the coachmark was showing AND
@@ -2210,6 +2514,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!fcDone) {
         localStorage.setItem(fcKey, '1');
         logEventOnce('first_card', EV.ONBOARDING_FIRST_CARD, { board_id: currentId });
+        try { setJourneyState({ phase: JOURNEY_PHASE.FIRST_CARD }); } catch (_) {}
         if (META_REG_BAR === 'first_card') fireMetaReg();
         // A small confirming beat on the very first genuine card — once per account
         // (the fcKey stamp guards it, so a reload never re-fires it).
@@ -2221,6 +2526,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (genuine.length >= POP_BOARD_THRESHOLD && !popDone) {
         localStorage.setItem(popKey, '1');
         logEventOnce('activated', EV.ACTIVATED, { board_id: currentId, n: genuine.length });
+        // Activation reached — close the post-signup journey (stamps done so it
+        // never reopens for this uid). Beacons a final PS_END.
+        try { setJourneyState({ phase: JOURNEY_PHASE.POPULATED }); endJourney('activated'); } catch (_) {}
         if (META_REG_BAR === 'populated') fireMetaReg();
       }
     } catch { /* localStorage unavailable — logEventOnce still de-dupes per page load */ }
@@ -2239,6 +2547,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       };
       if (genuine.length >= 2) dispatchFirstValue();                          // 2nd genuine card → now
       else if (!firstValueTimerRef.current) firstValueTimerRef.current = setTimeout(dispatchFirstValue, 15000); // 1st → ~15s beat
+    }
+
+    // Post-activation referral nudge (demo only): once they've clearly gotten
+    // value (≥5 genuine cards), invite them to share. A higher bar than the
+    // first-value upgrade banner (2 cards) so the two soft banners never stack.
+    // ReferralNudge owns the demo-gate + once-per-account guard; repeated
+    // dispatches as the count grows are harmless (it de-dupes).
+    if (myTier.tier === 'demo' && genuine.length >= 5) {
+      window.dispatchEvent(new CustomEvent('soleil:referral-nudge'));
     }
 
     // Close the coachmark when a genuine card lands while it's showing (UI only;
@@ -2265,16 +2582,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       getCards: () => ybCardsRef.current,
       onStuck: (payload) => {
         setFrictionStuck(true);
+        try { setJourneyState({ phase: JOURNEY_PHASE.STUCK }); } catch (_) {}
         try { logEventOnce('card_create_stuck', EV.CARD_CREATE_STUCK, payload); } catch (_) {}
       },
     });
     return () => stopFriction();
   }, [frictionEligible]);
 
+  // Post-signup journey: keep the live snapshot's board/genuine-card counts + route
+  // fresh so every enveloped event (heartbeat, trace, gate skips) is self-describing.
+  useEffect(() => {
+    try {
+      setJourneyState({
+        boards: Object.keys(boards || {}).length,
+        gcards: genuineCards(yb.cards).length,
+        route: window.location.pathname,
+      });
+    } catch (_) {}
+  }, [boards, yb.cards]);
+
   // Suppress the coachmark while the welcome-showcase flair is still on the root
   // (the ShowcaseBanner is the guide then); it resumes once the demo is cleared.
   const showCoachmark = onboardingUiActive && currentId === rootBoard.id
     && !(yb.cards || []).some(isShowcaseCard);
+  // Journey phase: coachmark visible → new user is at the first-card prompt.
+  useEffect(() => { if (showCoachmark) { try { setJourneyState({ phase: JOURNEY_PHASE.COACHMARK }); } catch (_) {} } }, [showCoachmark]);
 
   // Permission for the currently-active board — drives VIEW ONLY pill
   // in the topbar + canvas/doc readonly states.
@@ -2288,6 +2620,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+  // Per-row write check for the sidebar board context menu. Uses the same
+  // pure decider as currentBoardPerm, callable per-board (a hook can't be).
+  const canEditBoard = React.useCallback((boardId) => {
+    const board = boards[boardId];
+    if (!board) return false;
+    return computeBoardPermission({
+      board, boards, workspace, workspaceMembers, sharedBoards,
+      userId: user.id, tier: myTier.tier,
+    }).canEdit;
+  }, [boards, workspace, workspaceMembers, sharedBoards, user.id, myTier.tier]);
   // Pre-compute a sync set of board ids the user can read — used by the
   // canvas to render the "🔒 No access" placeholder for boardlinks /
   // embedded boards that point outside the user's reach.
@@ -2523,6 +2865,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (ob.done !== true && ob.tutorialBoardId && targetBoardId === ob.tutorialBoardId
             && movedCards.some((c) => isSeedCard(c))) {
           logEvent(EV.ONBOARDING_NEST, { board_id: targetBoardId, source_board_id: sourceBoardId, n: movedCards.length });
+          try { setJourneyState({ phase: JOURNEY_PHASE.NEST }); } catch (_) {}
           feedback.toast({ type: 'success', message: 'Nice — that’s how you organize ✨' });
           dismissOnboarding('nested'); // sets onboarding.done:true + logs ONBOARDING_DISMISS
         }
@@ -3116,6 +3459,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          canEdit={isMain ? canEditCurrent : true}
                          boardPermission={isMain ? currentBoardPerm : null}
                          onRequestUpgrade={() => setUpgradeReason('shared-edit')}
+                         onRequestStorageUpgrade={() => setUpgradeReason('storage')}
+                         isPaidPlan={myTier.tier === 'paid' || myTier.tier === 'admin'}
+                         ownsWorkspace={workspace?.created_by === user?.id}
                          currentUser={currentUser}
                          onOpenBoard={openBoard} tweak={tweak} depth={stack.length - 1}
                          onOpenPicker={() => setPickerOpen(true)}
@@ -3130,7 +3476,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          sessionId={yh?.sessionId || null}
                          frictionStuck={isMain ? frictionStuck : false}
                          firstCardArm={isMain ? (getEnrolledArm('first_card_cta') || 'A') : 'A'}
-                         showcaseArm={isMain ? (getEnrolledArm('welcome_showcase') || 'A') : 'A'}
+                         showcaseArm={isMain ? (getEnrolledArm('welcome_showcase') || (board?.id === showcasePreviewBoardId ? 'B' : 'A')) : 'A'}
                          defaults={defaults} />
         </Profiler>
       );
@@ -3192,6 +3538,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
         <div className="sb-mid">
+          {/* Pinned top zone — workspace switcher, search, Home, Messages.
+              Held in place (flex-shrink:0) while the list below scrolls. */}
+          <div className="sb-top">
           <div className="sb-mid-head">
             <button className="sb-ws-trigger"
                     onClick={() => setWsMenuOpen(o => !o)}
@@ -3292,29 +3641,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
             )}
           </div>
+          </div>{/* /.sb-top */}
 
+          {/* Scrollable middle — the ONLY scroll region: shared boards, the
+              BOARDS tree, and tags. Pinned nav above, pinned footer below.
+              Class is .sb-list (NOT .sb-scroll) — SignInBackdrop's global
+              .sb-scroll rule would otherwise hijack this element's layout. */}
+          <div className="sb-list" ref={sidebarScrollRef}>
           <SidebarSharedBoards
             shared={sharedBoards}
             activeBoardId={currentSurface === 'board' ? currentId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
           />
 
-          <div className="sb-eyebrow">BOARDS</div>
-          <SidebarBoardTree
+          <SidebarBoardsSection
             boards={boards}
             workspaceId={workspace.id}
             activeBoardId={currentSurface === 'board' ? currentId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
             onRenameBoard={renameBoardById}
             onCreateBoard={canEditCurrent ? () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } : null}
+            onCreateBoardInside={createBoardInside}
+            onSetBoardCover={mainMutators.setBoardCover}
+            onSetBoardBgColor={setBoardBgColorById}
+            onCopyBoard={copyBoard}
+            onPasteBoardInto={pasteBoardInto}
+            onDeleteBoard={(id) => deleteBoardsById([id])}
+            canEditBoard={canEditBoard}
+            onOpenPicker={() => setPickerOpen(true)}
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={jumpToPeer}
           />
-          <div className="sb-row sb-row-all" onClick={() => setPickerOpen(true)}>
-            <Icon as={MoreHorizontal} size={14} />
-            <span className="sb-row-label">All boards</span>
-          </div>
 
           <SidebarTags
             workspaceId={workspace.id}
@@ -3324,6 +3682,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onOpenTag={openTagSurface}
             onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
           />
+          </div>{/* /.sb-list */}
 
           {/* Footer — settings cog + avatar. Cog opens workspace
               settings (defaults, theme, display). Avatar opens identity
@@ -3524,6 +3883,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 setStack([item.id]);
               } else if (item.board_id) {
                 setStack([item.board_id]);
+                // Select + center the clicked card once its board mounts.
+                if (item.card_id) {
+                  setTimeout(() => {
+                    document.dispatchEvent(new CustomEvent('soleil-flash-card', {
+                      detail: { boardId: item.board_id, cardId: item.card_id },
+                    }));
+                  }, 200);
+                }
               }
             }}
           />
@@ -3619,6 +3986,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           wsPeers={wsPeers}
           selfUserId={user.id}
           tier={myTier.tier}
+          canManage={canEditCurrent}
           onUpgrade={() => setUpgradeReason('manual')}
           onClose={() => setShareOpen(false)}
           onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
@@ -3640,10 +4008,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={getEnrolledArm('coachmark_copy')} />
       )}
 
-      {isPhone && (
+      <ReferralNudge tier={myTier.tier} onInvite={openInviteFriends} />
+
+      {isPhone && (() => {
+        // The "+" appears only when a board canvas is the active surface and
+        // it's editable — that's the only place a card can be created. When it
+        // shows, no tab is "selected" (the user is on a board, not Home), so
+        // pass active={null} rather than the old fall-through to 'home' which
+        // wrongly lit Home next to the create puck.
+        const onBoard = currentSurface === 'board'
+          && !tweak.showMessages && !settingsOpen && !pickerOpen && !mobileNavOpen;
+        const showCreate = onBoard && canEditCurrent;
+        return (
         <MobileBottomNav
+          showCreate={showCreate}
+          createIcon={<Icon as={Plus} size={26} />}
+          onCreate={() => {
+            setMobileNavOpen(false);
+            document.dispatchEvent(new CustomEvent('soleil-mobile-add-card', {
+              detail: { boardId: currentBoard?.id },
+            }));
+          }}
           active={
-            currentSurface === 'home' ? 'home'
+            onBoard ? null
+            : currentSurface === 'home' ? 'home'
             : tweak.showMessages ? 'messages'
             : settingsOpen ? 'settings'
             : pickerOpen ? 'search'
@@ -3665,7 +4053,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             if (k === 'settings') { setSettingsOpen(true); setPickerOpen(false); setTweak('showMessages', false); }
           }}
         />
-      )}
+        );
+      })()}
 
     </div>
     </AppTrieProvider>

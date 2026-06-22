@@ -37,9 +37,21 @@ function trim(s, n) { return typeof s === 'string' ? s.slice(0, n) : null; }
 //    injected by the FB/IG webview, not our code — grows with ad traffic
 //  - browser-extension crashes (chrome-extension:// / moz-extension:// frames)
 //  - benign ResizeObserver loop warnings the browser emits as errors
+// Search-engine / social crawlers execute the SPA and emit fetch failures
+// (Failed to fetch / Load failed) that are environmental, never our bug — and
+// they grow with SEO + public /share traffic. Drop by UA (not by message) so
+// REAL users' fetch failures still log and stay visible/actionable.
+function isBotUA() {
+  try {
+    const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+    return /bot|crawl|spider|slurp|bingpreview|applebot|duckduckbot|yandex|baiduspider|facebookexternalhit|googlebot/i.test(ua);
+  } catch (_) { return false; }
+}
+
 function isNoise(message, stack) {
   const m = message || '';
   const s = stack || '';
+  if (isBotUA()) return true;
   if (m === 'Script error.') return true;
   if (/^ResizeObserver loop/i.test(m)) return true;
   if (/iabjs:\/\/|navigation_performance_logger/i.test(s + m)) return true;

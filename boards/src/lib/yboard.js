@@ -245,7 +245,20 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   let destroyed = false;
   let initialized = false;
   let draftVersion = 0;
+  let pendingLocal = false; // a local edit is awaiting a remote save
   const sessionId = genSessionId();
+
+  // Broadcast the real persistence lifecycle so UI (DocStatusFooter) can show
+  // an honest saving → saved / error state instead of a fixed timer that lies
+  // on failure and flickers on peer edits.
+  const emitSaveState = (state) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.dispatchEvent(new CustomEvent('soleil-board-save-state', {
+        detail: { boardId, state, ts: Date.now() },
+      }));
+    } catch (_) {}
+  };
 
   const persistSoon = () => {
     const version = saveLocalDraft(boardId, ydoc, ++draftVersion);
@@ -256,6 +269,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
       try {
         await saveBoardSnapshot(boardId, ydoc);
         clearLocalDraft(boardId, version);
+        if (pendingLocal) { pendingLocal = false; emitSaveState('saved'); }
         // Round 16: refresh the localStorage preview cache for this
         // board. Pre-Round-16 this ran inline here, blocking the main
         // thread for 100-300ms (readCards + JSON.stringify + setItem),
@@ -283,7 +297,10 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
           perf.bump('persistSoon.lsThrottled');
         }
       }
-      catch (e) { console.error('saveBoardSnapshot failed', e); }
+      catch (e) {
+        console.error('saveBoardSnapshot failed', e);
+        if (pendingLocal) emitSaveState('error');
+      }
     }, SNAP_DEBOUNCE_MS);
   };
 
@@ -324,6 +341,9 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     if (origin === 'snapshot') return;
     if (origin === 'restore') return;
     dirty = true;
+    // Only a LOCAL edit drives the "Saving…" footer (peer edits shouldn't
+    // flip your own save indicator).
+    if (origin === 'local') { pendingLocal = true; emitSaveState('saving'); }
     persistSoon();
     armIdleVersion();
     armPeriodicVersion();

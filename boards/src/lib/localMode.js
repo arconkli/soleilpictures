@@ -23,6 +23,16 @@ export function isDocQaMode() {
   return new URLSearchParams(window.location.search).get('docqa') === '1';
 }
 
+// Dev-only collaborative-note QA harness. Active ONLY in a DEV build with
+// ?noteqa=1 (same trust boundary as isDocQaMode). Mounts the real NoteCard
+// against a fresh in-memory Y.Doc + note card Y.Map so Playwright can drive
+// genuine co-typing / write-through / seed behaviour without a backend.
+// See ../local/NoteQaHarness.jsx.
+export function isNoteQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('noteqa') === '1';
+}
+
 // Dev-only board-thumbnail QA harness. Active ONLY in a DEV build with
 // ?thumbqa=1 (same trust boundary as isDocQaMode). Renders fixture boards
 // through the real renderThumbnailBlob at tile + OG sizes so the thumbnail
@@ -40,6 +50,37 @@ export function isThumbQaMode() {
 export function isDndQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('dndqa') === '1';
+}
+
+// Dev-only arrow-geometry QA bridge. Active ONLY in a DEV build with ?arrowqa=1
+// (same trust boundary as isDndQaMode). Publishes the PURE arrow routing helpers
+// + a seeded crowded layout + a clearance assertion on window.__soleilArrowTest,
+// and mounts the seeded board, so Playwright can verify arrows never cross cards
+// (both the pure geometry and the rendered DOM paths). No backend, no UI chrome.
+export function isArrowQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('arrowqa') === '1';
+}
+
+// Dev-only snap/alignment-guide QA bridge. Active ONLY in a DEV build with
+// ?alignqa=1 (same trust boundary as isArrowQaMode). Publishes the PURE snap
+// helpers (target build, computeSnap, computeResizeSnap) + a seeded layout on
+// window.__soleilAlignTest so Playwright can verify guide culling / dedup /
+// equal-size resize without a backend. See ../local/AlignQaHarness.jsx.
+export function isAlignQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('alignqa') === '1';
+}
+
+// Dev-only presence/collaboration QA harness. Active ONLY in a DEV build with
+// ?presenceqa=1 (same trust boundary as isAlignQaMode). Mounts the real
+// <CanvasPresence> against a fake awareness (lib/presenceQa.js) so Playwright
+// can inject hundreds of synthetic peers and assert the at-scale caps:
+// cursor cull/cap, selection-rule cap, and the no-render-storm guarantee.
+// See ../local/PresenceQaHarness.jsx.
+export function isPresenceQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('presenceqa') === '1';
 }
 
 // Dev-only override for the public-share engagement prompt's dwell trigger.

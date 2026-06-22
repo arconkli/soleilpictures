@@ -15,15 +15,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Plus, Tag as TagIcon } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
-import { ensureTag, renameTag, recolorTag, deleteTag, listTagCounts, mergeTags } from '../lib/tagsApi.js';
+import { ensureTag, renameTag, recolorTag, deleteTag, listTagCounts, mergeTags, setTagEntityType } from '../lib/tagsApi.js';
 import { supabase } from '../lib/supabase.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
-import { useSuggestedTags } from '../hooks/useSuggestedTags.js';
-import { useDiscoveredTags } from '../hooks/useDiscoveredTags.js';
-import { isAiTaggerEnabled } from '../lib/aiTaggerFlag.js';
+import { useCandidateNames } from '../hooks/useCandidateNames.js';
+import { ENTITY_TYPES, entityTypeLabel, guessEntityType } from '../lib/entityTypes.js';
 import { levenshtein } from '../lib/stringSim.js';
 import { ColorPicker } from './ColorPicker.jsx';
+import { tagFallbackColor } from '../lib/tagColor.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 
 const EXPAND_KEY = 'soleil.tags.sb.expanded';
 function loadExpanded(workspaceId) {
@@ -36,16 +38,6 @@ function loadExpanded(workspaceId) {
 function saveExpanded(workspaceId, open) {
   if (typeof localStorage === 'undefined') return;
   try { localStorage.setItem(`${EXPAND_KEY}.${workspaceId}`, open ? '1' : '0'); } catch (_) {}
-}
-
-const TAG_PALETTE = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
-  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
-];
-function fallbackColor(slugOrName) {
-  const s = (slugOrName || '').toString();
-  let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
 }
 
 // Score existing tags as candidates for "did you mean" against draft
@@ -83,6 +75,7 @@ export function SidebarTags({
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [counts, setCounts] = useState(new Map());
+  const [tagFilter, setTagFilter] = useState(''); // filter the main tag list when there are many
   const [menuFor, setMenuFor] = useState(null);  // { tag, x, y }
   // Merge picker — { fromTag, query } when user picks "Merge into…"
   const [mergePicker, setMergePicker] = useState(null);
@@ -90,65 +83,57 @@ export function SidebarTags({
   const [colorPickerFor, setColorPickerFor] = useState(null);
   const inputRef = useRef(null);
 
-  // Suggested tags — frequently-recurring terms in the workspace
-  // that aren't already tags. The user one-clicks to create.
-  const existingSlugs = useMemo(
-    () => (tags || []).map(t => (t.slug || t.name || '').toLowerCase()),
+  // ── Emerging entities ─────────────────────────────────────────────────
+  // Ambient discovery: recurring proper nouns in prose that aren't tags yet
+  // (get_candidate_names). Adopt in one tap → a real, typed entity. Replaces
+  // the old accept/✕ AI "Suggested" inbox.
+  const { names: candidateNames } = useCandidateNames(workspaceId);
+  const existingSlugSet = useMemo(
+    () => new Set((tags || []).map(t => (t.slug || t.name || '').toLowerCase())),
     [tags],
   );
-  // Two suggestion sources:
-  //   - legacy useSuggestedTags: word-frequency over workspace prose
-  //   - useDiscoveredTags: AI-named clusters from pending_clusters
-  // Routed by the shared isAiTaggerEnabled() helper (default on).
-  const aiTaggerEnabled = isAiTaggerEnabled();
-  const legacySuggested = useSuggestedTags({
-    workspaceId: aiTaggerEnabled ? null : workspaceId,
-    existingTagSlugs: existingSlugs,
-  });
-  const discovered = useDiscoveredTags({
-    workspaceId: aiTaggerEnabled ? workspaceId : null,
-    userId,
-    existingTagSlugs: existingSlugs,
-    onWorkspaceTagsChanged,
-  });
-  const suggestions = aiTaggerEnabled ? discovered.suggestions : legacySuggested.suggestions;
-
-  const [dismissedSuggestions, setDismissedSuggestions] = useState(() => {
-    if (typeof localStorage === 'undefined') return new Set();
-    try {
-      const raw = localStorage.getItem(`soleil.tags.suggested.dismissed.${workspaceId}`);
-      return new Set(raw ? JSON.parse(raw) : []);
-    } catch (_) { return new Set(); }
-  });
-  const visibleSuggestions = useMemo(
-    () => (suggestions || []).filter(s => !dismissedSuggestions.has(s.term)),
-    [suggestions, dismissedSuggestions],
+  const emerging = useMemo(
+    () => (candidateNames || [])
+      .filter(c => c?.name && !existingSlugSet.has(String(c.name).toLowerCase()))
+      .slice(0, 6),
+    [candidateNames, existingSlugSet],
   );
-  const dismissSuggestion = (term, clusterIds) => {
-    // AI-discovered: persist dismissal server-side so other sessions don't
-    // keep re-surfacing it. Legacy: localStorage is fine.
-    if (aiTaggerEnabled && Array.isArray(clusterIds) && clusterIds.length > 0) {
-      discovered.dismissCluster(clusterIds);
-      return;
-    }
-    setDismissedSuggestions(prev => {
-      const next = new Set(prev); next.add(term);
-      try { localStorage.setItem(`soleil.tags.suggested.dismissed.${workspaceId}`, JSON.stringify(Array.from(next))); } catch (_) {}
-      return next;
-    });
-  };
-  const acceptSuggestion = async (term, clusterIds) => {
-    if (!workspaceId || !term) return;
+  const [adopting, setAdopting] = useState('');
+  const adoptCandidate = async (name) => {
+    if (!workspaceId || !name || adopting) return;
+    setAdopting(name);
     try {
-      if (aiTaggerEnabled && Array.isArray(clusterIds) && clusterIds.length > 0) {
-        // Promotion creates the tag AND applies it to every cluster member.
-        await discovered.promoteCluster(clusterIds);
-      } else {
-        await ensureTag({ workspaceId, name: term.charAt(0).toUpperCase() + term.slice(1), kind: 'user', createdBy: userId });
-        onWorkspaceTagsChanged?.();
+      // Prefer the (AI-derived) type carried on the candidate row over the
+      // local regex guess — the free Workers AI pass types these far better
+      // (e.g. organization/setting/thing the regex can't reach).
+      const cand = (candidateNames || []).find(c => String(c.name).toLowerCase() === String(name).toLowerCase());
+      const suggestedType = cand?.entity_type || guessEntityType(name);
+      const tag = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
+      if (tag?.id) {
+        // Only type a genuinely-untyped tag — ensureTag returns the existing
+        // row when a matching slug exists, so don't clobber its real type.
+        if (!tag.entity_type) { try { await setTagEntityType(tag.id, suggestedType); } catch (_) {} }
+        try { logEvent(EV.TAG_CANDIDATE_PROMOTE, { entity_type: tag.entity_type || suggestedType, via: 'sidebar' }); } catch (_) {}
       }
+      onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Create tag failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', message: 'Adopt failed: ' + (err.message || err) });
+    } finally {
+      setAdopting('');
+      document.dispatchEvent(new CustomEvent('soleil-candidates-changed'));
+    }
+  };
+  const dismissCandidate = async (name) => {
+    if (!workspaceId || !name) return;
+    try {
+      await supabase.from('entity_ignore_terms').insert({
+        workspace_id: workspaceId, scope: 'workspace', scope_id: null, term: name, created_by: userId || null,
+      });
+    } catch (err) {
+      if (err?.code && err.code !== '23505') feedback.toast({ type: 'error', message: 'Dismiss failed' });
+    } finally {
+      try { logEvent(EV.TAG_CANDIDATE_DISMISS, { via: 'sidebar' }); } catch (_) {}
+      document.dispatchEvent(new CustomEvent('soleil-candidates-changed'));
     }
   };
 
@@ -302,6 +287,20 @@ export function SidebarTags({
     }
   };
 
+  // One-tap entity type from the row menu — drag things out of "Untyped"
+  // or fix a best-guess. Toggling the current type clears it.
+  const setType = async (tag, value) => {
+    setMenuFor(null);
+    const next = value === tag.entity_type ? null : value;
+    try {
+      await setTagEntityType(tag.id, next);
+      try { logEvent(EV.TAG_SET_TYPE, { tag_id: tag.id, entity_type: next }); } catch (_) {}
+      onWorkspaceTagsChanged?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Could not set type' });
+    }
+  };
+
   // Drag a tag row → ENTITY_REF_MIME so existing drop handlers on
   // canvas / docs / messages know it's a tag and apply it. Also
   // exposes the tag's color via window.__soleilTagDrag so canvas
@@ -312,7 +311,7 @@ export function SidebarTags({
     try {
       e.dataTransfer.setData(ENTITY_REF_MIME, JSON.stringify({ kind: 'tag', id: tag.id }));
       e.dataTransfer.effectAllowed = 'copyLink';
-      const dot = tag.color || fallbackColor(tag.slug || tag.name);
+      const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
       window.__soleilTagDrag = { id: tag.id, color: dot, name: tag.name };
     } catch (_) {}
   };
@@ -326,6 +325,33 @@ export function SidebarTags({
     if (ca !== cb) return cb - ca;
     return (a.name || '').localeCompare(b.name || '');
   });
+  // Filter the visible list once a workspace has enough tags to be worth
+  // searching — "find by tag" straight from the always-visible sidebar.
+  const tagQuery = tagFilter.trim().toLowerCase();
+  const filtered = tagQuery
+    ? sorted.filter(t =>
+        (t.name || '').toLowerCase().includes(tagQuery) ||
+        (t.slug || '').toLowerCase().includes(tagQuery))
+    : sorted;
+
+  // Group the index by what each entity IS (Character/Setting/Topic/Thing),
+  // with an Untyped bucket last — an "index of your world", not a flat roster.
+  const TYPE_ORDER = ['character', 'setting', 'concept', 'thing'];
+  const grouped = (() => {
+    const buckets = new Map();
+    for (const t of filtered) {
+      const key = TYPE_ORDER.includes(t.entity_type) ? t.entity_type : '__untyped';
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(t);
+    }
+    const keys = TYPE_ORDER.filter(k => buckets.has(k));
+    if (buckets.has('__untyped')) keys.push('__untyped');
+    return keys.map(k => ({
+      key: k,
+      label: k === '__untyped' ? 'Untyped' : `${entityTypeLabel(k)}s`,
+      rows: buckets.get(k),
+    }));
+  })();
 
   return (
     <div className="sb-tags">
@@ -352,7 +378,7 @@ export function SidebarTags({
               <>
                 <form className="sb-tag-row sb-tag-row-create"
                       onSubmit={(e) => { e.preventDefault(); finishCreate(draftName); }}>
-                  <span className="sb-dot" style={{ background: fallbackColor(draftName) }} />
+                  <span className="sb-dot" style={{ background: tagFallbackColor(draftName) }} />
                   <input ref={inputRef}
                          className="sb-tag-create-input"
                          placeholder="New tag…"
@@ -375,7 +401,7 @@ export function SidebarTags({
                   <div className="sb-tag-suggest-list" role="listbox" aria-label="Did you mean">
                     <div className="sb-tag-suggest-head">Did you mean…</div>
                     {draftSuggestions.map(tag => {
-                      const dot = tag.color || fallbackColor(tag.slug || tag.name);
+                      const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
                       return (
                         <button key={tag.id}
                                 type="button"
@@ -399,58 +425,73 @@ export function SidebarTags({
             );
           })()}
 
+          {!creating && sorted.length >= 8 && (
+            <input
+              className="sb-tag-filter-input"
+              placeholder="Filter tags…"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setTagFilter(''); e.currentTarget.blur(); } }}
+            />
+          )}
+
           {sorted.length === 0 && !creating && (
             <div className="sb-tags-empty">
               No tags yet — anything you tag will appear here.
             </div>
           )}
 
-          {sorted.map(tag => {
-            const c = counts.get(tag.id) || 0;
-            const isActive = tag.id === activeTagId;
-            const dot = tag.color || fallbackColor(tag.slug || tag.name);
-            return (
-              <div key={tag.id}
-                   className={`sb-row sb-tag-row ${isActive ? 'active' : ''}`}
-                   draggable
-                   onDragStart={(e) => onDragStart(e, tag)}
-                   onDragEnd={onDragEnd}
-                   onClick={() => onOpenTag?.(tag)}
-                   onContextMenu={(e) => onContextMenuRow(e, tag)}
-                   title={`${tag.name}${c ? ` · ${c} applied` : ''}`}>
-                <span className="sb-dot" style={{ background: dot }} />
-                <span className="sb-row-label sb-tag-row-label">{tag.name}</span>
-                {c > 0 && <span className="sb-tag-row-count">{c}</span>}
-              </div>
-            );
-          })}
+          {filtered.length === 0 && tagQuery && (
+            <div className="sb-tags-empty">No tags match “{tagFilter.trim()}”.</div>
+          )}
 
-          {visibleSuggestions.length > 0 && (
+          {grouped.map(group => (
+            <div key={group.key} className="sb-tags-group">
+              <div className="sb-tags-group-head">{group.label}</div>
+              {group.rows.map(tag => {
+                const c = counts.get(tag.id) || 0;
+                const isActive = tag.id === activeTagId;
+                const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
+                return (
+                  <div key={tag.id}
+                       className={`sb-row sb-tag-row ${isActive ? 'active' : ''}`}
+                       draggable
+                       onDragStart={(e) => onDragStart(e, tag)}
+                       onDragEnd={onDragEnd}
+                       onClick={() => onOpenTag?.(tag)}
+                       onContextMenu={(e) => onContextMenuRow(e, tag)}
+                       title={`${tag.name}${c ? ` · ${c} applied` : ''} · right-click to manage`}>
+                    <span className="sb-dot" style={{ background: dot }} />
+                    <span className="sb-row-label sb-tag-row-label">{tag.name}</span>
+                    {c > 0 && <span className="sb-tag-row-count">{c}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+
+          {emerging.length > 0 && (
             <div className="sb-tags-suggestions">
               <div className="sb-tags-suggestions-head">
-                <span>Suggested</span>
-                <span className="sb-tags-suggestions-counter">
-                  {Math.min(3, visibleSuggestions.length)}
-                  {visibleSuggestions.length > 3 ? ` of ${visibleSuggestions.length}` : ''}
-                </span>
+                <span>Emerging</span>
+                <span className="sb-tags-suggestions-counter">{emerging.length}</span>
               </div>
-              {visibleSuggestions.slice(0, 3).map(s => (
-                <div key={s.clusterIds?.[0] || s.term}
+              {emerging.map(c => (
+                <div key={c.name}
                      className="sb-tag-suggestion"
-                     title={s.clusterIds?.length
-                       ? `Found in ${s.items} related card${s.items > 1 ? 's' : ''}`
-                       : `Mentioned in ${s.items} item${s.items > 1 ? 's' : ''} across ${s.boards} board${s.boards > 1 ? 's' : ''}`}>
-                  <span className="sb-dot" style={{ background: fallbackColor(s.term) }} />
-                  <span className="sb-tag-suggestion-name">{s.term}</span>
-                  <span className="sb-tag-suggestion-count">{s.items}</span>
+                     title={`“${c.name}” — seen ${c.n}× in your prose. Adopt as an entity.`}>
+                  <span className="sb-dot is-emerging" style={{ background: tagFallbackColor(c.name) }} />
+                  <span className="sb-tag-suggestion-name">{c.name}</span>
+                  <span className="sb-tag-suggestion-count">{c.n}</span>
                   <button className="sb-tag-suggestion-add"
-                          onClick={() => acceptSuggestion(s.term, s.clusterIds)}
-                          title={`Accept "${s.term}" as a tag`}>
+                          disabled={adopting === c.name}
+                          onClick={() => adoptCandidate(c.name)}
+                          title={`Adopt "${c.name}" as an entity`}>
                     <Icon as={Plus} size={11} />
                   </button>
                   <button className="sb-tag-suggestion-x"
-                          onClick={() => dismissSuggestion(s.term, s.clusterIds)}
-                          title="Don't suggest this">
+                          onClick={() => dismissCandidate(c.name)}
+                          title="Not a name — stop suggesting">
                     ×
                   </button>
                 </div>
@@ -467,6 +508,16 @@ export function SidebarTags({
           <button className="sb-tag-menu-item" onClick={() => promptRename(menuFor.tag)}>Rename</button>
           <button className="sb-tag-menu-item" onClick={() => promptRecolor(menuFor.tag)}>Recolor</button>
           <button className="sb-tag-menu-item" onClick={() => startMerge(menuFor.tag)}>Merge into…</button>
+          <div className="sb-tag-menu-types" role="group" aria-label="Entity type">
+            {ENTITY_TYPES.map(t => (
+              <button key={t.value}
+                      className={`sb-tag-menu-type ${menuFor.tag.entity_type === t.value ? 'is-on' : ''}`}
+                      title={`Mark as ${t.label}`}
+                      onClick={() => setType(menuFor.tag, t.value)}>
+                <Icon as={t.Icon} size={11} />
+              </button>
+            ))}
+          </div>
           <button className="sb-tag-menu-item danger" onClick={() => promptDelete(menuFor.tag)}>Delete tag</button>
         </div>
       )}
@@ -483,7 +534,7 @@ export function SidebarTags({
 
       {colorPickerFor && (
         <ColorPicker
-          value={colorPickerFor.tag.color || fallbackColor(colorPickerFor.tag.slug || colorPickerFor.tag.name)}
+          value={colorPickerFor.tag.color || tagFallbackColor(colorPickerFor.tag.slug || colorPickerFor.tag.name)}
           onChange={applyColor}
           onClose={() => setColorPickerFor(null)}
           position={{ x: colorPickerFor.x, y: colorPickerFor.y }}
@@ -522,7 +573,7 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
   const matches = q
     ? tags.filter(t => (t.slug || t.name || '').toLowerCase().includes(q))
     : tags;
-  const fromColor = fromTag.color || fallbackColor(fromTag.slug || fromTag.name);
+  const fromColor = fromTag.color || tagFallbackColor(fromTag.slug || fromTag.name);
   return (
     <div className="merge-picker-bg" onMouseDown={onCancel}>
       <div ref={ref}
@@ -557,7 +608,7 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
           )}
           {matches.map((t, i) => {
             const c = counts.get(t.id) || 0;
-            const dot = t.color || fallbackColor(t.slug || t.name);
+            const dot = t.color || tagFallbackColor(t.slug || t.name);
             return (
               <button key={t.id}
                       className={`merge-picker-row ${i === hover ? 'is-hover' : ''}`}

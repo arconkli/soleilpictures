@@ -13,6 +13,8 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
 import { getStarterCards, getStarterTutorialCard } from '../lib/onboardingStarter.js';
+import { supabase } from '../lib/supabase.js';
+import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
 
 const TWEAK_DEFAULTS = {
@@ -81,6 +83,29 @@ function createInitialState() {
 const ONBOARD_PREVIEW = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('onboard') === '1';
 
+// Dev-only: ?local=1&showcase=1 renders welcome_showcase arm B exactly as a new
+// user gets it — calls the real prepare_showcase RPC (grants this session's images
+// read + returns the Clusters Logo snapshot), decodes it the same way production
+// does (showcaseClone), and shows it on the root with the "Clear & try it yourself"
+// banner. Works for ANY signed-in account (member or demo). You must be signed in
+// ON THIS ORIGIN (the dev server you're viewing) for the images to presign.
+const SHOWCASE_PREVIEW = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).get('showcase') === '1';
+
+function createShowcasePreviewState() {
+  // A clean Studio root; the snapshot loads into it asynchronously (effect below).
+  return {
+    boards: {
+      [ROOT_ID]: {
+        id: ROOT_ID, name: 'Studio', view: 'canvas',
+        workspace_id: 'local-workspace', parent_board_id: null,
+        created_at: new Date(0).toISOString(),
+      },
+    },
+    boardState: { [ROOT_ID]: { cards: [], arrows: [], strokes: [] } },
+  };
+}
+
 function createOnboardingState() {
   // Mirror the real seed (App.jsx): a tutorial "Ideas" child board + its mirror
   // card, so the preview shows the FULL first-run layout (notes + a real board to
@@ -139,9 +164,11 @@ function collectBoardTreeIds(boards, rootIds) {
 }
 
 export function LocalBoardsApp({ user, signOut }) {
-  const [initialSession] = useState(() => (ONBOARD_PREVIEW ? null : loadLocalSession()));
+  const [initialSession] = useState(() => ((ONBOARD_PREVIEW || SHOWCASE_PREVIEW) ? null : loadLocalSession()));
   const [{ boards, boardState }, setLocalState] = useState(() => (
-    ONBOARD_PREVIEW ? createOnboardingState() : (initialSession?.localState || createInitialState())
+    SHOWCASE_PREVIEW ? createShowcasePreviewState()
+      : ONBOARD_PREVIEW ? createOnboardingState()
+      : (initialSession?.localState || createInitialState())
   ));
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
@@ -160,8 +187,41 @@ export function LocalBoardsApp({ user, signOut }) {
     document.documentElement.setAttribute('data-theme', tweak.theme);
   }, [tweak.theme]);
 
+  // Showcase preview: pull the real Clusters Logo board snapshot + decode it the
+  // same way production arm B does, then drop it onto the root. Best-effort — if
+  // you're not signed in / not a member, the source read fails and the board stays
+  // empty (check the console). Throwaway; never persisted.
   useEffect(() => {
-    if (ONBOARD_PREVIEW) return;   // preview is throwaway — never pollute the saved local session
+    if (!SHOWCASE_PREVIEW) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: au } = await supabase.auth.getUser();
+        if (!au?.user?.id) { console.warn('[showcase preview] not signed in on this origin — sign in here first'); return; }
+        // prepare_showcase needs a board you can write as the image-grant anchor;
+        // any board in your workspace works (RLS only returns yours).
+        const { data: mine } = await supabase.from('boards').select('id').is('deleted_at', null).limit(1);
+        const anchor = mine?.[0]?.id;
+        if (!anchor) { console.warn('[showcase preview] no board found to anchor the image grant'); return; }
+        const tpl = (await supabase.rpc('prepare_showcase', { p_board_id: anchor })).data;
+        const cards = decodeShowcaseCards(tpl?.snapshot);
+        if (!cancelled && cards.length) {
+          setLocalState((prev) => ({
+            ...prev,
+            boardState: { ...prev.boardState, [ROOT_ID]: { cards, arrows: [], strokes: [] } },
+          }));
+        } else {
+          console.warn('[showcase preview] no cards returned (showcase disabled in config, or snapshot empty)');
+        }
+      } catch (e) {
+        console.warn('[showcase preview] failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (ONBOARD_PREVIEW || SHOWCASE_PREVIEW) return;   // preview is throwaway — never pollute the saved local session
     try {
       localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({
         localState: { boards, boardState },
@@ -383,8 +443,11 @@ export function LocalBoardsApp({ user, signOut }) {
       id,
       kind: 'note',
       html: '',
+      // Horizontally centered on the click; TOP edge at the click (notes
+      // auto-size their height down after creation, so centering on h would
+      // leave them floating above the cursor). Mirrors App.jsx addNote.
       x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
-      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      y: Math.max(8, Math.round(clickPos?.y ?? (180 - h / 2))),
       w,
       h,
     });
@@ -407,8 +470,8 @@ export function LocalBoardsApp({ user, signOut }) {
 
   const addPalette = (clickPos = null) => {
     const id = createId('pal');
-    const w = 280;
-    const h = 130;
+    const w = 300;
+    const h = 180;
     addCard({
       id,
       kind: 'palette',
@@ -451,6 +514,24 @@ export function LocalBoardsApp({ user, signOut }) {
       kind: 'image',
       tone: 'neutral',
       label: 'LOCAL IMAGE PLACEHOLDER',
+      x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      w,
+      h,
+    });
+  };
+
+  const addPdfAt = (clickPos = null) => {
+    // Local QA — point at the static sample fixture so PdfCard + PdfViewer
+    // can be exercised with no backend (resolveSrc passes plain URLs through).
+    const w = 300, h = 388;
+    addCard({
+      id: createId('pdf'),
+      kind: 'pdf',
+      pdfSrc: '/sample.pdf',
+      src: null,
+      name: 'sample.pdf',
+      pageCount: 3,
       x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
       y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
       w,
@@ -515,6 +596,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addNote,
     addTextLink,
     addImageAt,
+    addPdfAt,
     addNewBoard,
     addPalette,
     addShape,
@@ -702,6 +784,7 @@ export function LocalBoardsApp({ user, signOut }) {
             mutators={mutators}
             autoFocusId={autoFocusId}
             clearAutoFocus={() => setAutoFocusId(null)}
+            showcaseArm={SHOWCASE_PREVIEW && currentId === ROOT_ID ? 'B' : 'A'}
             useLocalImages
           />
         ) : (
@@ -742,10 +825,22 @@ export function LocalBoardsApp({ user, signOut }) {
         <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} />
       )}
 
-      {isPhone && (
+      {isPhone && (() => {
+        const onBoard = currentSurface === 'board' && view === 'canvas'
+          && !tweak.showMessages && !pickerOpen && !mobileNavOpen;
+        return (
         <MobileBottomNav
+          showCreate={onBoard}
+          createIcon={<Icon as={Plus} size={26} />}
+          onCreate={() => {
+            setMobileNavOpen(false);
+            document.dispatchEvent(new CustomEvent('soleil-mobile-add-card', {
+              detail: { boardId: currentBoard?.id },
+            }));
+          }}
           active={
-            currentSurface === 'home' ? 'home'
+            onBoard ? null
+            : currentSurface === 'home' ? 'home'
             : tweak.showMessages ? 'messages'
             : pickerOpen ? 'search'
             : 'home'
@@ -768,7 +863,8 @@ export function LocalBoardsApp({ user, signOut }) {
             }
           }}
         />
-      )}
+        );
+      })()}
     </div>
   );
 }

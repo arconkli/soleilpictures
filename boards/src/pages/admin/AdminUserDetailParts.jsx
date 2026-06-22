@@ -33,42 +33,69 @@ export function Avatar({ email, name, color, size, className = '' }) {
 }
 
 // ── Source badge ─────────────────────────────────────────────────────
-// Maps the derived acquisition_source label → a quiet pill variant.
-//   'facebook'/'instagram'  → Meta (fbclid)
-//   utm/host containing google|bing|duckduckgo|search → Search
-//   'twitter'/x.com/t.co    → Twitter
-//   'direct'                → Direct
-//   anything else (host / utm_source) → Referral, showing the raw label
+// Renders the unified acquisition channel token (from the SQL
+// public.derive_acquisition_channel) as a quiet, brand-tinted pill. The token
+// space is fixed — paid networks (*_ads / meta_paid), organic social, search,
+// share links, public boards, direct — plus a verbatim pass-through for any
+// unknown utm_source / referrer word, shown as a generic Referral pill. The row
+// badge AND the detail "Channel" row both use this, so they always agree.
 const titleCase = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
+// token → { variant (CSS color class) · display · glyph|dot }. The `· paid`
+// suffix marks ad-click / paid-utm channels so the admin can tell paid from
+// organic at a glance.
+const CHANNEL_META = {
+  google_ads:    { variant: 'google',    display: 'Google · paid', glyph: 'G' },
+  google:        { variant: 'search',    display: 'Google',        dot: true },
+  bing_ads:      { variant: 'bing',      display: 'Bing · paid',   glyph: 'b' },
+  bing:          { variant: 'search',    display: 'Bing',          dot: true },
+  duckduckgo:    { variant: 'search',    display: 'DuckDuckGo',    dot: true },
+  yahoo:         { variant: 'search',    display: 'Yahoo',         dot: true },
+  search:        { variant: 'search',    display: 'Search',        dot: true },
+  meta_paid:     { variant: 'facebook',  display: 'Meta · paid',   glyph: 'f' },
+  meta_organic:  { variant: 'facebook',  display: 'Meta',          glyph: 'f' },
+  tiktok_ads:    { variant: 'tiktok',    display: 'TikTok · paid', glyph: '♪' },
+  tiktok:        { variant: 'tiktok',    display: 'TikTok',        glyph: '♪' },
+  x_ads:         { variant: 'twitter',   display: 'X · paid',      glyph: 'X' },
+  x:             { variant: 'twitter',   display: 'X',             glyph: 'X' },
+  reddit_ads:    { variant: 'reddit',    display: 'Reddit · paid', glyph: 'r' },
+  reddit:        { variant: 'reddit',    display: 'Reddit',        glyph: 'r' },
+  linkedin_ads:  { variant: 'linkedin',  display: 'LinkedIn · paid', glyph: 'in' },
+  linkedin:      { variant: 'linkedin',  display: 'LinkedIn',      glyph: 'in' },
+  pinterest_ads: { variant: 'pinterest', display: 'Pinterest · paid', glyph: 'P' },
+  pinterest:     { variant: 'pinterest', display: 'Pinterest',     glyph: 'P' },
+  snapchat_ads:  { variant: 'snapchat',  display: 'Snapchat · paid', glyph: 'S' },
+  snapchat:      { variant: 'snapchat',  display: 'Snapchat',      glyph: 'S' },
+  youtube:       { variant: 'youtube',   display: 'YouTube',       glyph: '▶' },
+  share_link:    { variant: 'share',     display: 'Share link',    dot: true },
+  public_board:  { variant: 'public',    display: 'Public board',  dot: true },
+  direct:        { variant: 'direct',    display: 'Direct',        dot: true },
+};
+
 function sourceVariant(label) {
-  const raw = String(label || 'direct').toLowerCase().trim();
-  if (!raw || raw === 'direct') return { variant: 'direct', display: 'Direct', dot: true };
-  // Reduce a referrer host to its domain word (reddit.com → reddit,
-  // old.reddit.com → reddit, t.co → t) before brand-matching; plain utm_source
-  // words pass through unchanged. Matching whole tokens — not loose substrings —
-  // avoids false hits like "reddit.com" containing "t.co", or hosts containing "ig".
-  let token = raw;
-  if (raw.includes('.')) {
-    const parts = raw.split('/')[0].split('.').filter(Boolean);
-    token = parts.length >= 2 ? parts[parts.length - 2] : (parts[0] || raw);
-  }
-  if (['facebook', 'instagram', 'meta', 'fb', 'ig'].includes(token)) return { variant: 'facebook', display: 'FB / IG', glyph: 'f' };
-  if (['twitter', 'x'].includes(token) || raw === 't.co')            return { variant: 'twitter',  display: 'Twitter', glyph: 'X' };
-  if (token === 'reddit')                                            return { variant: 'reddit',   display: 'Reddit', glyph: 'r' };
-  if (['google', 'bing', 'duckduckgo', 'yahoo', 'ecosia', 'baidu', 'search'].includes(token))
-    return { variant: 'search', display: token === 'search' ? 'Search' : titleCase(token), dot: true };
-  return { variant: 'referral', display: label, dot: true };
+  const token = String(label || 'direct').toLowerCase().trim();
+  if (CHANNEL_META[token]) return CHANNEL_META[token];
+  if (!token || token === 'direct') return CHANNEL_META.direct;
+  // Unknown but explicitly-tagged source (an off-list utm_source, or a referrer
+  // domain word like 'producthunt'): show it verbatim so granularity isn't lost.
+  return { variant: 'referral', display: titleCase(token), dot: true };
 }
 
 export function SourceBadge({ source, title }) {
   const { variant, display, glyph, dot } = sourceVariant(source);
   return (
-    <span className={`admin-src-badge src-${variant}`} title={title || `Acquisition source: ${source || 'direct'}`}>
+    <span className={`admin-src-badge src-${variant}`} title={title || `Acquisition channel: ${source || 'direct'}`}>
       {glyph ? <span className="admin-src-glyph">{glyph}</span> : <span className="admin-src-dot" />}
       <span className="admin-src-label">{display}</span>
     </span>
   );
+}
+
+// Pretty label for a channel token — used by the Users-list source dropdown so
+// its option text matches the badge wording. Unknown tokens title-case verbatim.
+export function channelLabel(token) {
+  const t = String(token || '').toLowerCase().trim();
+  return CHANNEL_META[t]?.display || (t ? titleCase(t) : 'Direct');
 }
 
 // ── Presence dot ─────────────────────────────────────────────────────

@@ -1,0 +1,48 @@
+/* Layout + reset for the collaborative note editing surface (NoteTiptapSurface).
+   EditorContent inserts a wrapper div around the contenteditable, so the wrapper
+   must carry the flex:1 that .note-body relied on as a direct child of .note. */
+
+.note-edit-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+.note-edit-wrap > .note-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ProseMirror defaults that would diverge from the legacy contenteditable. */
+.note-body.ProseMirror {
+  outline: none;
+  /* Match the static display (.note-body / NoteAutoLinkBody) typography so text
+     does NOT re-wrap when entering/leaving edit mode. prosemirror-view's
+     stylesheet sets white-space:break-spaces, disables ligatures, and uses
+     overflow-wrap:break-word on .ProseMirror; the display uses pre-wrap,
+     ligatures on, and overflow-wrap:anywhere — which made words wrap at
+     different points (ligatures-off renders them wider), so text visibly
+     shifted on blur. Re-align the editor to the display (WYSIWYG). */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-variant-ligatures: normal;
+  font-feature-settings: normal;
+}
+.note-body.ProseMirror:focus,
+.note-body.ProseMirror:focus-visible {
+  outline: none;
+}
+/* Legacy notes used <div> lines with no inter-line margin — match that so the
+   auto-size height + on-screen spacing stay identical after the Tiptap swap. */
+.note-body.ProseMirror p {
+  margin: 0;
+}
+
+/* Placeholder (Tiptap Placeholder extension adds is-editor-empty + the
+   data-placeholder attribute on the first empty block). */
+.note-body.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--ink-2, rgba(255, 255, 255, 0.35));
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

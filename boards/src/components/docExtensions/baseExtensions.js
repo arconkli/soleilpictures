@@ -22,6 +22,7 @@ import { ImageResizable } from './ImageResizable.js';
 import { FontSize } from './FontSize.js';
 import { BoardEmbed } from './BoardEmbed.js';
 import { CommentMark } from './CommentMark.js';
+import { ScreenplayBlock } from './screenplay/ScreenplayBlock.js';
 
 export const baseDocExtensions = [
   StarterKit.configure({
@@ -43,4 +44,7 @@ export const baseDocExtensions = [
   TaskItem.configure({ nested: true }),
   BoardEmbed,
   CommentMark,
+  // Always in the schema so parse/serialize works everywhere; harmless for
+  // prose docs (never instantiated unless screenplay mode is on).
+  ScreenplayBlock,
 ];

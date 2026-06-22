@@ -1,6 +1,7 @@
 // All card kinds. Most accept onUpdate(patch) so they can self-edit inline.
 
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
 import { Spinner } from './Spinner.jsx';
@@ -8,11 +9,22 @@ import { resolveSrc } from '../lib/r2.js';
 import * as audioBus from '../lib/audioBus.js';
 import { EditableText } from './EditableText.jsx';
 import { RichNoteEditor, useNoteOverflow } from './RichNoteEditor.jsx';
+import { tapIsDouble } from '../lib/doubleTap.js';
+import './noteChecklist.css';
+// Lazy so Tiptap + y-prosemirror stay out of the canvas chunk and only load
+// when a note is actually opened for editing (mirrors how docs lazy-load).
+// lazyWithReload (not bare lazy) so a 404'd chunk after a deploy triggers the
+// shared one-shot reload instead of stranding the note on the SurfaceErrorBoundary.
+const NoteTiptapSurface = lazyWithReload(() =>
+  import('./NoteTiptapSurface.jsx').then(m => ({ default: m.NoteTiptapSurface })));
 import { ColorPicker } from './ColorPicker.jsx';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
 import { useThumbnailBackfill } from '../hooks/useThumbnailBackfill.js';
 import { RENDER_VERSION as THUMB_RENDER_VERSION } from '../lib/renderThumbnail.js';
+import { paletteLayout, readableInk, hasCustomName, surfaceTone } from '../lib/paletteLayout.js';
+import { readableOn, remapHtmlColors } from '../lib/readableColor.js';
+import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { renderHtmlWithAutoLinks } from '../lib/renderHtmlWithAutoLinks.jsx';
@@ -20,9 +32,11 @@ import { EntityLink } from './EntityLink.jsx';
 import {
   Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
   Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
-  Circle as CirclePh,
+  Circle as CirclePh, FilePdf, Paperclip,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { PdfCard } from './cards/PdfCard.jsx';
+import { FileCard } from './cards/FileCard.jsx';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -52,6 +66,8 @@ const KIND_DOTS = {
   boardlink:'#6b6b75',
   audio:    '#ffa500',
   video:    '#ef4444',
+  pdf:      '#e2574c',
+  file:     '#64748b',
 };
 function htmlToText(html, max = 80) {
   if (!html) return '';
@@ -73,6 +89,8 @@ function KindIcon({ kind }) {
   if (kind === 'doc')      return <Icon as={FileText} size={22} />;
   if (kind === 'schedule') return <Icon as={CalendarPh} size={22} />;
   if (kind === 'shape')    return <Icon as={SquarePh} size={22} />;
+  if (kind === 'pdf')      return <Icon as={FilePdf} size={22} />;
+  if (kind === 'file')     return <Icon as={Paperclip} size={22} />;
   return <Icon as={CirclePh} size={22} />;
 }
 
@@ -213,6 +231,17 @@ function describeListItem(card, boards = {}) {
   }
   if (card.kind === 'video') {
     return { ...base, name: card.title || 'Video', meta: 'video' };
+  }
+  if (card.kind === 'pdf') {
+    return { ...base, src: card.src || null,
+             name: card.name || card.title || 'PDF',
+             meta: (Number.isFinite(card.pageCount) && card.pageCount > 0)
+               ? `${card.pageCount} ${card.pageCount === 1 ? 'page' : 'pages'}`
+               : 'pdf' };
+  }
+  if (card.kind === 'file') {
+    return { ...base, name: card.fileName || card.title || 'File',
+             meta: card.ext ? card.ext.toUpperCase() : 'file' };
   }
   // shape / unknown — skip from the list
   return null;
@@ -635,14 +664,28 @@ function VideoCard({ src, title, onUpdate, autoFocus = false, editTitleAt = 0 })
   const [editingTitle, setEditingTitle] = useState(false);
   // Canvas context menu "Edit title" remote-trigger (same as Image/Link).
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
+  // Resolve an r2:<key> src → signed read URL (mirrors AudioCard). The signed
+  // GET supports HTTP Range, so large videos stream + seek inline. No
+  // crossOrigin — that breaks playback against R2's CORS.
+  const [resolvedUrl, setResolvedUrl] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!src) { setResolvedUrl(null); return; }
+    if (!src.startsWith('r2:')) { setResolvedUrl(src); return; }  // external https / blob (local QA)
+    resolveSrc(src).then(u => {
+      if (cancelled) return;
+      setResolvedUrl(u);
+      if (!u) console.warn('[VideoCard] no signed URL for', src);
+    });
+    return () => { cancelled = true; };
+  }, [src]);
   const showTitle = !!title || editingTitle;
   const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
   return (
     <div className="vc">
       <div className="vc-vidwrap" onDoubleClick={onDbl}>
-        {src
-          ? <video className="vc-video" src={src.startsWith('r2:') ? '' : src}
-                   data-r2={src.startsWith('r2:') ? src.slice(3) : undefined}
+        {resolvedUrl
+          ? <video className="vc-video" src={resolvedUrl}
                    controls preload="metadata" playsInline />
           : <ImagePlaceholder label="VIDEO" tone="neutral" />}
       </div>
@@ -662,10 +705,137 @@ function VideoCard({ src, title, onUpdate, autoFocus = false, editTitleAt = 0 })
   );
 }
 
+// Rollout gate for the collaborative (Tiptap + Y.XmlFragment) note editor.
+// Default ON (true co-typing). Opt OUT with ?ttnotes=0 or window.__NOTE_COLLAB
+// === false to fall back to the legacy single-writer editor (kept for rollback
+// + no-ydoc contexts like ?local). Only takes effect where a live ydoc +
+// cardYMap exist (the editable canvas) — read-only/public render paths are
+// separate and unchanged.
+function noteCollabOn() {
+  try {
+    if (/[?&]ttnotes=0/.test(window.location.search)) return false;
+    if (typeof window !== 'undefined' && window.__NOTE_COLLAB === false) return false;
+    return true;
+  } catch (_) { return true; }
+}
+
+// Collaborative note card. Renders the derived card.html read-only by default
+// and mounts the live Tiptap editing surface only when THIS note is being
+// edited (one at a time on the canvas), so there is never a Tiptap instance per
+// note. The fragment is the collaborative source of truth; card.html is its
+// write-through cache feeding every read-only consumer.
+// Exported so the ?noteqa harness can mount it directly against an in-memory
+// Y.Doc (the canvas wires it via NoteCard's gate).
+export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fontSize,
+                          vAlign = null,
+                          onUpdate, onEditingChange, autoFocus = false,
+                          manuallyResized = false, ydoc = null, cardYMap = null,
+                          cardId = null, boardId = null, awareness = null }) {
+  const [editing, setEditing] = useState(autoFocus);
+  useEffect(() => { onEditingChange?.(editing); }, [editing]);
+
+  const ref = useRef(null);
+  const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontFamily, editing, manuallyResized]);
+  const lastTapRef = useRef({});
+  const theme = useThemeAttr();
+
+  const fontStyle = {};
+  if (fontFamily) fontStyle.fontFamily = fontFamily;
+  if (fontSize) fontStyle.fontSize = `${fontSize}px`;
+  const hasBg = !!bgColor && bgColor !== 'transparent';
+  const isTransparent = bgColor === 'transparent';
+  // Luminance-based surface tone (theme-independent for an explicitly painted
+  // note); unpainted notes follow the app theme via CSS. effBg is the surface
+  // the text sits on, used to make the user's colors readable.
+  const tone = surfaceTone(bgColor);
+  const isLightBg = tone === 'light';
+  const isDarkBg = tone === 'dark';
+  const effBg = hasBg ? bgColor : (theme === 'light' ? '#f5f5f7' : '#0a0a0c');
+  const noteStyle = { background: bgColor || undefined, color: textColor ? readableOn(textColor, effBg) : undefined, ...fontStyle };
+  if (bgColor) noteStyle['--has-bg-color'] = bgColor;
+  const cls = `note ${editing ? 'is-editing' : ''} ${isLightBg ? 'is-light-bg' : ''} ${isDarkBg ? 'is-dark-bg' : ''} ${hasBg ? 'has-bg' : ''} ${isTransparent ? 'is-transparent' : ''} ${overflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`;
+
+  // Read-only display html with every run made readable on this note's surface
+  // (per-span colors + highlights). Memoized so it only recomputes on edits or
+  // a theme flip. The live editing surface uses the ReadableColors plugin.
+  const display = html || (body ? `<div>${body}</div>` : '');
+  const safeDisplay = useMemo(() => remapHtmlColors(display, effBg), [display, effBg]);
+
+  if (editing) {
+    return (
+      <div ref={ref} className={cls} style={noteStyle}>
+        <Suspense fallback={<div className="note-body" />}>
+          <NoteTiptapSurface
+            ydoc={ydoc} cardYMap={cardYMap} html={html}
+            cardId={cardId} boardId={boardId} awareness={awareness}
+            manuallyResized={manuallyResized} autoFocus={autoFocus}
+            onExitEdit={() => setEditing(false)}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
+  // Read-only display + edit affordances (double-click / touch double-tap to
+  // edit; checklist toggle without entering edit). `safeDisplay` (computed
+  // above) is `display` with colors made readable on this surface.
+  const startEdit = (e) => { e?.stopPropagation?.(); setEditing(true); };
+  const onBodyClick = (e) => {
+    const box = e.target.closest?.('.ck-box');
+    if (!box || !ref.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const checked = !box.classList.contains('is-checked');
+    box.classList.toggle('is-checked', checked);
+    box.setAttribute('aria-checked', checked ? 'true' : 'false');
+    const bodyEl = ref.current.querySelector('.note-body');
+    const newHtml = bodyEl ? bodyEl.innerHTML : html;
+    // Write the html cache + keep the fragment (source of truth) in step with
+    // the toggle, both under NOTE_ORIGIN (off the board undo stack). Lazy import
+    // keeps the heavy serializer off the canvas chunk until a box is toggled.
+    if (ydoc && cardYMap) {
+      import('../lib/noteDocState.js').then((m) => {
+        m.setNoteCacheFields(ydoc, cardYMap, { html: newHtml, body: null });
+        m.applyHtmlToNoteFragment(ydoc, cardYMap, newHtml);
+      }).catch(() => {});
+    } else {
+      onUpdate({ html: newHtml, body: null });
+    }
+  };
+  const onPointerUp = (e) => {
+    if (e.pointerType !== 'touch') return;
+    if (e.target.closest?.('a, .note-preview-remove, .ck-box')) return;
+    if (!tapIsDouble(lastTapRef, e)) return;
+    setEditing(true);
+  };
+  return (
+    <div ref={ref} className={cls} style={noteStyle}
+         onDoubleClick={startEdit} onPointerUp={onPointerUp} onClick={onBodyClick}>
+      <NoteAutoLinkBody html={safeDisplay} />
+      {overflowing && (
+        <button type="button" className="note-more-chip"
+                title="Show all text — fit the note to its content"
+                aria-label="Fit note height to its text"
+                onPointerDown={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const bodyEl = ref.current?.querySelector('.note-body');
+                  if (bodyEl) onUpdate({ h: Math.round(Math.min(1600, bodyEl.scrollHeight + 30)), manuallyResized: false });
+                }}>
+          Show all
+        </button>
+      )}
+    </div>
+  );
+}
+
 function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
+                           vAlign = null,
                            onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
-                           awareness = null, cardId = null, boardId = null, peerLiveHtml = null }) {
+                           awareness = null, cardId = null, boardId = null, peerLiveHtml = null,
+                           ydoc = null, cardYMap = null }) {
   // Workspace defaults can pin a fontFamily/fontSize at create time —
   // pass them through as inline styles so existing notes that didn't
   // capture them keep falling back to the page default.
@@ -676,21 +846,44 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize,
   // can't resize). Hooks run unconditionally; the ref stays null on the
   // editable path so the hook is inert there.
   const roNoteRef = useRef(null);
-  const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontFamily]);
+  const roOverflowing = useNoteOverflow(roNoteRef, [html, body, peerLiveHtml, fontSize, fontFamily, manuallyResized]);
+  const roTheme = useThemeAttr();
+  const roHasBg = !!bgColor && bgColor !== 'transparent';
+  const roTone = surfaceTone(bgColor);
+  const roEffBg = roHasBg ? bgColor : (roTheme === 'light' ? '#f5f5f7' : '#0a0a0c');
+  const roDisplay = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
+  const roSafeDisplay = useMemo(() => remapHtmlColors(roDisplay, roEffBg), [roDisplay, roEffBg]);
   if (!onUpdate) {
-    const display = peerLiveHtml ?? (html || (body ? `<div>${body}</div>` : ''));
-    const hasBg = !!bgColor && bgColor !== 'transparent';
+    // Same surface-tone + readable-color treatment as the editable paths, so
+    // the read-only render (share, list, off-screen) matches what editing shows.
     return <div ref={roNoteRef}
-                className={`note ${hasBg ? 'has-bg' : ''} ${bgColor === 'transparent' ? 'is-transparent' : ''} ${roOverflowing ? 'is-overflowing' : ''}`}
-                style={{ background: bgColor || undefined, color: textColor || undefined, ...fontStyle }}>
-      <NoteAutoLinkBody html={display} />
+                className={`note ${roTone === 'light' ? 'is-light-bg' : ''} ${roTone === 'dark' ? 'is-dark-bg' : ''} ${roHasBg ? 'has-bg' : ''} ${bgColor === 'transparent' ? 'is-transparent' : ''} ${roOverflowing ? 'is-overflowing' : ''} ${vAlign === 'center' ? 'is-balanced' : ''}`}
+                style={{ background: bgColor || undefined, color: textColor ? readableOn(textColor, roEffBg) : undefined, ...fontStyle }}>
+      <NoteAutoLinkBody html={roSafeDisplay} />
     </div>;
+  }
+  // Collaborative (Tiptap + Y.XmlFragment) path — gated during rollout. Needs
+  // the live ydoc + this card's Y.Map to bind the editor to the note fragment.
+  if (noteCollabOn() && ydoc && cardYMap) {
+    return (
+      <NoteCardCollab
+        html={html} body={body}
+        bgColor={bgColor} textColor={textColor}
+        fontFamily={fontFamily} fontSize={fontSize}
+        vAlign={vAlign}
+        onUpdate={onUpdate} onEditingChange={onEditingChange}
+        autoFocus={autoFocus} manuallyResized={manuallyResized}
+        ydoc={ydoc} cardYMap={cardYMap}
+        cardId={cardId} boardId={boardId} awareness={awareness}
+      />
+    );
   }
   return (
     <RichNoteEditor
       html={html} body={body}
       bgColor={bgColor} textColor={textColor}
       fontFamily={fontFamily} fontSize={fontSize}
+      vAlign={vAlign}
       onChangeHTML={(h) => onUpdate({ html: h, body: null })}
       onChangeBg={(c) => onUpdate({ bgColor: c })}
       onChangeColor={(c) => onUpdate({ textColor: c })}
@@ -732,6 +925,33 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
     e.stopPropagation();
     setEditingTitle(true);
   };
+
+  // Embed scale-to-fit: render the iframe at its provider NATURAL pixel size and
+  // CSS-scale it to *contain* the frame (centered), so the player never shows its
+  // own scrollbars and is never clipped at any card size. Aspect-locked resize
+  // (CanvasSurface) keeps the frame on the provider ratio, so the common
+  // title-less case fills exactly with no bands; a title bar shortens the frame,
+  // where contain leaves a minimal centered margin instead of clipping. A
+  // ResizeObserver on the frame tracks live drag-resize. Inert for non-embeds
+  // (natW===0 → early return), so it's safe to declare unconditionally here.
+  const embedFrameRef = useRef(null);
+  const [embedFit, setEmbedFit] = useState({ s: 1, tx: 0, ty: 0 });
+  const natW = embed?.defaultW || 0;
+  const natH = embed?.defaultH || 0;
+  useEffect(() => {
+    const el = embedFrameRef.current;
+    if (!el || !natW || !natH) return;
+    const measure = () => {
+      const fw = el.clientWidth, fh = el.clientHeight;
+      if (!fw || !fh) return;
+      const s = Math.min(fw / natW, fh / natH);
+      setEmbedFit({ s, tx: (fw - natW * s) / 2, ty: (fh - natH * s) / 2 });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [natW, natH]);
 
   // Polymorphic target: when `target` is an EntityRef the card behaves
   // like a chip pointing at any board / card / doc / message / user
@@ -777,6 +997,7 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
       <div className={`lc lc-embed ${embedActive ? 'is-embed-active' : ''}`} data-provider={embed.provider} onDoubleClick={onBodyDouble}>
         <div
           className="lc-embed-frame"
+          ref={embedFrameRef}
           onPointerDown={(e) => { if (embedActive) e.stopPropagation(); }}
         >
           <iframe
@@ -785,9 +1006,15 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
             allow={embed.allow || 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture'}
             allowFullScreen
             loading="lazy"
+            scrolling="no"
             referrerPolicy="strict-origin-when-cross-origin"
             sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms"
-            style={{ border: 0, width: '100%', height: '100%', display: 'block' }}
+            className="lc-embed-iframe"
+            style={{
+              width: natW || '100%',
+              height: natH || '100%',
+              transform: natW ? `translate(${embedFit.tx}px, ${embedFit.ty}px) scale(${embedFit.s})` : undefined,
+            }}
           />
           {!embedActive && (
             <div
@@ -897,7 +1124,7 @@ function LinkCard({ title, source, target, image, description, favicon, embed, i
 }
 
 
-function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false, chipsOnly = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false, chipsOnly = false, onUpdate, autoFocus = false, editTitleAt = 0, w = 280, h = 130 }) {
   // Canvas context menu "Edit title" remote-trigger — parity with the
   // other titled card kinds.
   const [editingTitle, setEditingTitle] = useState(autoFocus);
@@ -908,10 +1135,26 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const isEditable = !!onUpdate;
-  // chipsOnly is the user-facing toggle (eye button); hideHex/hideLabels are
-  // legacy props that still drive the same visibility paths.
-  const showHead = !chipsOnly && !hideLabels;
-  const showHex  = !chipsOnly && !hideHex;
+  // One toggle — "pure color" — hides every label (hex, names, title) for a
+  // full-bleed palette. Legacy hideHex/hideLabels are still honored on old
+  // cards so nothing regresses; the eye button writes chipsOnly.
+  const pureColor = chipsOnly || (hideHex && hideLabels);
+  const L = paletteLayout(w, h, swatches.length, { pureColor });
+  const headerShown = L.showHead && !hideLabels;
+  const hexShown = L.showHex && !hideHex;
+  const nameShown = hexShown && L.showName;
+
+  // Black/white ink + a tone-matched shadow so overlaid labels stay legible
+  // on any swatch color, including borderline mid-tones.
+  const labelStyle = (hex) => {
+    const ink = readableInk(hex);
+    return {
+      color: ink,
+      textShadow: ink === '#f5f5f7'
+        ? '0 1px 3px rgba(0,0,0,.45)'
+        : '0 1px 2px rgba(255,255,255,.55)',
+    };
+  };
 
   const updateSwatch = (i, patch) => {
     const next = swatches.map((s, idx) => idx === i ? { ...s, ...patch } : s);
@@ -969,37 +1212,42 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
     setDragOverIdx(null);
   };
 
-  const count = swatches.length;
-  const countLabel = `${count} ${count === 1 ? 'color' : 'colors'}`;
-
   if (!isEditable) {
     return (
-      <div className={`pc ${!showHex ? 'pc-no-hex' : ''} ${!showHead ? 'pc-no-labels' : ''}`}>
-        {showHead && (
+      <div className={`pc pc-${L.mode}${pureColor ? ' pc-pure' : ''}`}>
+        {headerShown && (
           <div className="pc-head">
             <div className="pc-title">{title || 'Palette'}</div>
-            <div className="pc-count">{countLabel}</div>
           </div>
         )}
-        <div className="pc-strip">
-          {swatches.map((s, i) => (
-            <div key={i} className="pc-cell" title={`${s.hex}`}>
-              <div className="pc-chip" style={{ background: s.hex }} />
-              {showHex && <div className="pc-hex">{(s.hex || '').toUpperCase()}</div>}
-            </div>
-          ))}
+        <div className={`pc-strip pc-${L.orient}`}>
+          {swatches.map((s, i) => {
+            const named = nameShown && hasCustomName(s.name);
+            const hx = (s.hex || '').toUpperCase();
+            return (
+              <div key={i} className="pc-cell" title={hx}>
+                <div className="pc-chip" style={{ background: s.hex }} />
+                {(named || hexShown) && (
+                  <div className="pc-cell-label">
+                    {named && <div className="pc-name" style={labelStyle(s.hex)}>{s.name}</div>}
+                    {hexShown && <div className="pc-hex" style={labelStyle(s.hex)}>{hx}</div>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   }
 
   const eyeBtn = (
-    <button className="pc-eye-btn"
-            title={chipsOnly ? 'Show labels' : 'Hide labels'}
-            aria-pressed={chipsOnly}
+    <button className="pc-eye-float"
+            title={pureColor ? 'Show labels' : 'Hide labels'}
+            aria-pressed={pureColor}
             onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); onUpdate({ chipsOnly: !chipsOnly }); }}>
-      {chipsOnly ? (
+            onClick={(e) => { e.stopPropagation(); onUpdate({ chipsOnly: !pureColor }); }}>
+      {pureColor ? (
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M2 2 L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           <path d="M2 8 C4 4.5 5.7 3 8 3 C10.3 3 12 4.5 14 8 C12 11.5 10.3 13 8 13 C5.7 13 4 11.5 2 8 Z"
@@ -1017,53 +1265,62 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
   );
 
   return (
-    <div className={`pc pc-editable ${chipsOnly ? 'pc-chips-only' : ''}`}>
-      {showHead && (
+    <div className={`pc pc-editable pc-${L.mode}${pureColor ? ' pc-pure' : ''}`}>
+      {eyeBtn}
+      {headerShown && (
         <div className="pc-head">
           <EditableText className="pc-title" value={title || ''} placeholder="Palette"
                         onChange={(v) => onUpdate({ title: v })}
                         editing={editingTitle}
                         setEditing={setEditingTitle}
                         selectAllOnFocus={autoFocus} />
-          <div className="pc-count">{countLabel}</div>
-          {eyeBtn}
         </div>
       )}
-      {!showHead && eyeBtn}
-      <div className="pc-strip">
-        {swatches.map((s, i) => (
-          <div key={i}
-               className={`pc-cell ${dragIdx === i ? 'pc-cell-dragging' : ''} ${dragOverIdx === i && dragIdx !== null && dragIdx !== i ? 'pc-cell-drop-target' : ''}`}
-               draggable={isEditable}
-               onDragStart={(e) => onCellDragStart(i, e)}
-               onDragOver={(e) => onCellDragOver(i, e)}
-               onDrop={(e) => onCellDrop(i, e)}
-               onDragEnd={onCellDragEnd}>
-            <button className="pc-chip" style={{ background: s.hex }}
-                    title={showHex ? 'Click to edit · drag to reorder' : `${(s.hex || '').toUpperCase()} — click to edit · drag to reorder`}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => openPicker(i, e)} />
-            {showHex && (
-              <button className="pc-hex pc-hex-btn"
-                      title="Click to copy"
+      <div className={`pc-strip pc-${L.orient}`}>
+        {swatches.map((s, i) => {
+          const named = nameShown && hasCustomName(s.name);
+          const hx = (s.hex || '').toUpperCase();
+          return (
+            <div key={i}
+                 className={`pc-cell ${dragIdx === i ? 'pc-cell-dragging' : ''} ${dragOverIdx === i && dragIdx !== null && dragIdx !== i ? 'pc-cell-drop-target' : ''}`}
+                 draggable={isEditable}
+                 onDragStart={(e) => onCellDragStart(i, e)}
+                 onDragOver={(e) => onCellDragOver(i, e)}
+                 onDrop={(e) => onCellDrop(i, e)}
+                 onDragEnd={onCellDragEnd}>
+              <button className="pc-chip" style={{ background: s.hex }}
+                      title={`${hx} — click to edit · drag to reorder`}
                       onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => copyHex(i, (s.hex || '').toUpperCase(), e)}>
-                {copiedIdx === i ? 'COPIED' : (s.hex || '').toUpperCase()}
-              </button>
-            )}
-            <button className="pc-cell-x" title="Remove"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => removeSwatch(i, e)}>×</button>
-          </div>
-        ))}
-        <button className="pc-add" title="Add color"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={addSwatch}>
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <path d="M9 3 V15 M3 9 H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          <span className="pc-add-label">Add</span>
-        </button>
+                      onClick={(e) => openPicker(i, e)} />
+              {(named || hexShown) && (
+                <div className="pc-cell-label">
+                  {named && <div className="pc-name" style={labelStyle(s.hex)}>{s.name}</div>}
+                  {hexShown && (
+                    <button className="pc-hex pc-hex-btn" style={labelStyle(s.hex)}
+                            title="Click to copy"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => copyHex(i, hx, e)}>
+                      {copiedIdx === i ? 'COPIED' : hx}
+                    </button>
+                  )}
+                </div>
+              )}
+              <button className="pc-cell-x" title="Remove"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => removeSwatch(i, e)}>×</button>
+            </div>
+          );
+        })}
+        {!pureColor && (
+          <button className="pc-add" title="Add color"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={addSwatch}>
+            <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M9 3 V15 M3 9 H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+            <span className="pc-add-label">Add</span>
+          </button>
+        )}
       </div>
       {pickerIdx != null && (
         <ColorPicker
@@ -1574,6 +1831,8 @@ const MemoDocCard        = memo(DocCard,        shallowEqualIgnoreFns);
 const MemoScheduleCard   = memo(ScheduleCard,   shallowEqualIgnoreFns);
 const MemoShapeCard      = memo(ShapeCard,      shallowEqualIgnoreFns);
 const MemoAudioCard      = memo(AudioCard,      shallowEqualIgnoreFns);
+const MemoPdfCard        = memo(PdfCard,        shallowEqualIgnoreFns);
+const MemoFileCard       = memo(FileCard,       shallowEqualIgnoreFns);
 
 export {
   MemoBoardCard     as BoardCard,
@@ -1587,4 +1846,6 @@ export {
   MemoScheduleCard  as ScheduleCard,
   MemoShapeCard     as ShapeCard,
   MemoAudioCard     as AudioCard,
+  MemoPdfCard       as PdfCard,
+  MemoFileCard      as FileCard,
 };

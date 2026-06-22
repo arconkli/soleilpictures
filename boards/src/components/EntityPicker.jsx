@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { Search, X, Check, LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar, Link as LinkIcon, User } from '../lib/icons.js';
+import { Search, X, Check, LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar, Link as LinkIcon, User, Tag as TagIcon } from '../lib/icons.js';
 import { searchEntities } from '../lib/entitySearch.js';
+import { tagFallbackColor } from '../lib/tagColor.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -19,6 +20,7 @@ const KIND_ICON = {
   schedule: Calendar,
   url: LinkIcon,
   user: User,
+  tag: TagIcon,
 };
 
 const KIND_LABEL = {
@@ -30,6 +32,7 @@ const KIND_LABEL = {
   schedule: 'SCHEDULES',
   url: 'URLS',
   user: 'PEOPLE',
+  tag: 'TAGS',
 };
 
 // Universal "what do you want to link?" picker.
@@ -187,7 +190,12 @@ export function EntityPicker({
                 draggable
                 onDragStart={(e) => onPickerRowDragStart(e, row)}
               >
-                <Icon as={KIND_ICON[kind] || LayoutGrid} size={14} />
+                {kind === 'tag' ? (
+                  <span className="tag-dot" aria-hidden="true"
+                        style={{ '--tag-c': row.meta?.color || tagFallbackColor(row.title || row.id) }} />
+                ) : (
+                  <Icon as={KIND_ICON[kind] || LayoutGrid} size={14} />
+                )}
                 <span className="entity-picker-row-name">{row.title || 'Untitled'}</span>
                 {multi && isSelected(row) && <Icon as={Check} size={14} />}
               </button>
@@ -219,6 +227,7 @@ function rowToTarget(row) {
   if (row.kind === 'board') return { kind: 'board', id: row.board_id };
   if (row.kind === 'doc')   return { kind: 'doc', docCardId: row.card_id };
   if (row.kind === 'user')  return { kind: 'user', id: row.id, title: row.title };
+  if (row.kind === 'tag')   return { kind: 'tag', id: row.id, title: row.title };
   return { kind: 'card', boardId: row.board_id, cardId: row.card_id };
 }
 
@@ -241,6 +250,7 @@ function sameTarget(a, b) {
   if (a.kind === 'doc')   return a.docCardId === b.docCardId && a.pageId === b.pageId;
   if (a.kind === 'card')  return a.boardId === b.boardId && a.cardId === b.cardId;
   if (a.kind === 'user')  return a.id === b.id;
+  if (a.kind === 'tag')   return a.id === b.id;
   if (a.kind === 'url')   return a.href === b.href;
   if (a.kind === 'docPos') return a.docCardId === b.docCardId && a.pageId === b.pageId && a.anchor === b.anchor;
   return false;

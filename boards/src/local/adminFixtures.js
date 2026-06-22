@@ -45,10 +45,19 @@ const metricsHistory = series(60, (back) => {
 const TIERS = ['paid', 'demo', 'demo', 'waitlist', 'demo', 'paid', 'demo', 'waitlist'];
 const NAMES = ['mara', 'devon', 'priya', 'liang', 'sofia', 'theo', 'amina', 'jonas', 'kira', 'ravi',
   'noa', 'elias', 'yuki', 'omar', 'greta', 'sam', 'ines', 'paolo', 'lena', 'cyrus'];
+// Unified acquisition-channel tokens (see public.derive_acquisition_channel) so
+// the source badges + filter dropdown have the full spread to render locally.
+const CHANNELS = ['google_ads', 'meta_paid', 'reddit', 'google', 'x_ads', 'share_link',
+  'tiktok_ads', 'direct', 'producthunt', 'linkedin', 'meta_organic', 'bing_ads',
+  'public_board', 'youtube', 'pinterest_ads', 'reddit_ads', 'snapchat', 'x', 'google', 'direct'];
 const listUsers = NAMES.map((name, i) => {
   const tier = TIERS[i % TIERS.length];
   const paid = tier === 'paid';
   const contacted = i % 5 === 0;   // sprinkle a few "reached out" users for the preview
+  // A couple of unverified examples so the badge + dropdown have something to show:
+  // i===4 confirmed email but never signed in; i===11 email never confirmed.
+  const neverSignedIn = i === 4;
+  const emailUnconfirmed = i === 11;
   return {
     user_id: `u-${i}`,
     email: `${name}@${['studio.co', 'gmail.com', 'acme.io', 'proton.me'][i % 4]}`,
@@ -56,7 +65,8 @@ const listUsers = NAMES.map((name, i) => {
     card_count: Math.max(0, wave(i, 70, 60)),
     seconds_in_app: Math.max(0, wave(i, 9000, 8000)) * 6,
     created_at: tsISO((i + 1) * 1440 * 3),
-    last_sign_in_at: tsISO((i % 5) * 120 + 15),
+    last_sign_in_at: neverSignedIn ? null : tsISO((i % 5) * 120 + 15),
+    email_confirmed: !emailUnconfirmed,
     subscription_plan: paid ? (i % 2 ? 'annual' : 'monthly') : null,
     subscription_status: paid ? 'active' : null,
     current_period_end: paid ? tsISO(-1440 * 20) : null,
@@ -64,10 +74,17 @@ const listUsers = NAMES.map((name, i) => {
     subscription_discounted: paid && i % 3 === 0,
     banned: i === 13,
     joined_waitlist: tier === 'waitlist' || i % 4 === 0,
+    acquisition_source: CHANNELS[i % CHANNELS.length],
     outreach_count: contacted ? 1 + (i % 2) : 0,
     last_reached_out_at: contacted ? tsISO((i % 4) * 1440 + 60) : null,
   };
 });
+
+// Distinct channels present (with counts) for the source-filter dropdown —
+// derived from the rows above so the dropdown and the list stay in lockstep.
+const acqChannels = Object.entries(
+  listUsers.reduce((m, u) => { m[u.acquisition_source] = (m[u.acquisition_source] || 0) + 1; return m; }, {}),
+).map(([channel, n]) => ({ channel, n })).sort((a, b) => b.n - a.n);
 
 const topUsers = (tier) => listUsers
   .filter((u) => (tier ? u.tier === tier : true))
@@ -188,6 +205,7 @@ const RPCS = {
 
   admin_stats: {
     total_users: 1284, new_users_7d: 96,
+    total_seconds_in_app: 40_000_000,    // ~1.3 yr — exercises the y/mo/d/h/m/s breakdown
     tier_counts: { admin: 3, paid: 142, demo: 806, waitlist: 333 },
     sub_counts: { active: 138, trialing: 4, canceled: 18 },
     mrr_cents: 312400, comped_paid: 6, discounted_subs: 21,
@@ -281,6 +299,7 @@ const RPCS = {
   })).map((r) => ({ ...r, total_bytes: r.r2_bytes + r.db_bytes })),
   admin_list_users: listUsers,
   admin_user_count: 1284,
+  admin_acquisition_channels: acqChannels,
   admin_paid_grants_count: 9,
   admin_list_paid_grants: Array.from({ length: 9 }, (_, i) => ({
     email: `${NAMES[i]}@studio.co`, user_id: i % 3 === 2 ? null : `u-${i}`,

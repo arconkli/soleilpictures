@@ -4,6 +4,8 @@
 // The data shape arrives from entity_search:
 //   { id, kind:'tag', title:<name>, meta:{ color, createdKind } }
 
+import { tagFallbackColor } from '../../lib/tagColor.js';
+
 export function previewMini(row) {
   const meta = row?.meta || {};
   const color = meta.color || tagFallbackColor(row?.title || row?.id);
@@ -34,16 +36,3 @@ export function previewMini(row) {
 }
 
 export const previewFull = previewMini;
-
-// Same deterministic palette TagPicker uses, kept in sync. If a tag
-// has no explicit color, hash the slug to one of these so the
-// preview matches what the chip looks like elsewhere.
-const TAG_PALETTE = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
-  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
-];
-function tagFallbackColor(slug) {
-  const s = (slug || 'tag').toString();
-  let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
-}

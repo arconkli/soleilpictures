@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react';
+import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment, Suspense } from 'react';
 import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
@@ -6,14 +6,20 @@ import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard,
+  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard,
 } from './cards.jsx';
 import { RichDocCard } from './DocCard.jsx';
+import { Spinner } from './Spinner.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
+
+// Fullscreen PDF viewer — lazy so pdfjs-dist never enters the main bundle.
+const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
 
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
 import { LiveCursor, COVER_TINTS } from './primitives.jsx';
 import { CanvasPresence } from './CanvasPresence.jsx';
+import { PresenceStack } from './PresenceStack.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { SketchPadOverlay } from './SketchPadOverlay.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
@@ -23,20 +29,25 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
+  Paperclip, FileText, Square, Palette, Link, ListChecks,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { Sheet } from './shell/Sheet.jsx';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
-import { uploadImage, uploadVideo, uploadAudio } from '../lib/uploads.js';
+import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta } from '../lib/uploads.js';
+import { resolveSrc } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent } from '../lib/analytics.js';
-import { EV } from '../lib/analyticsEvents.js';
+import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
+import { setJourneyState } from '../lib/journey.js';
 import { ShowcaseBanner } from './ShowcaseBanner.jsx';
 import { isShowcaseCard } from '../lib/onboardingStarter.js';
 import { recordIntent } from '../lib/frictionSignal.js';
@@ -54,6 +65,9 @@ import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportB
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { CanvasCommentLayer, CommentArchivePopover } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
+import { CanvasVoteLayer } from './CanvasVoteCard.jsx';
+import { useVoteCards } from '../hooks/useVoteCards.js';
+import { addVoteCard } from '../lib/voteCardsApi.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.js';
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
@@ -66,13 +80,35 @@ import {
   computeArrowAttachments, buildArrowPath, arrowHeadPolygon,
   arrowStrokeWidth, arrowHeadSize, arrowColor, arrowHeadStyle, arrowRefEquals,
 } from '../lib/arrowGeometry.js';
+import {
+  SNAP_TUNING, worldViewportRect, buildSnapTargets, buildResizeTargets,
+  computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
+} from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
+import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
+// Mobile press-and-hold to pick up a card. On touch a one-finger drag PANS
+// the board (looking around); a card only becomes movable after holding it
+// still this long. Mirrors the existing useLongPress timing (480ms / 10px).
+const TOUCH_LIFT_MS = 480;
+const TOUCH_LIFT_TOLERANCE = 10;
+// First-run discoverability for press-and-hold-to-lift: the first time a touch
+// user's drag-from-a-card resolves to a pan (so the card DIDN'T move), we show
+// a one-time toast explaining the hold. Device-local (localStorage) is the
+// right scope for a touch hint and sidesteps any onboarding-settings write — a
+// default of "seen" on any read failure means we err toward NOT nagging.
+const LIFT_HINT_KEY = 'soleil.liftHintSeen';
+function liftHintSeen() {
+  try { return localStorage.getItem(LIFT_HINT_KEY) === '1'; } catch (_) { return true; }
+}
+function markLiftHintSeen() {
+  try { localStorage.setItem(LIFT_HINT_KEY, '1'); } catch (_) {}
+}
 // GPU-promotion of the .canvas layer is GREAT for smooth pan/zoom — but it
 // FORCES every overlapping descendant (all mounted cards + the virtual-canvas
 // SVG layers) to be composited into its own GPU layer ("Overlap" compositing).
@@ -215,10 +251,12 @@ function readImageDims(file) {
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
-// Per-user presence color, drawn from the warm cover palette. Stable per
+// Per-user presence color, drawn from a muted cover palette. Stable per
 // user id so the same person always shows up in the same color across
-// sessions. Falls back to soleil for unknown ids.
-const PRESENCE_COLORS = ['#ffa500', '#6b8090', '#9a6b88', '#c9a577', '#6b9088', '#b88958'];
+// sessions. Brand gold (#ffa500) is intentionally excluded — it's reserved
+// for YOUR OWN selection ring so a peer's selection never reads as yours.
+// Keep in lockstep with lib/presenceColor.js.
+const PRESENCE_COLORS = ['#5b8def', '#6b8090', '#9a6b88', '#c9a577', '#6b9088', '#b88958'];
 function pickPresenceColor(id) {
   if (!id) return PRESENCE_COLORS[0];
   let h = 0; for (let i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0;
@@ -230,6 +268,34 @@ const cmdKey = isMac ? '⌘' : 'Ctrl';
 // lib/isEditableTarget.js). Aliased to the historical name used throughout
 // this file's keyboard / paste / pointer guards.
 const isEditorTarget = isEditableTarget;
+
+// A snap-guide measurement readout (gap / equal-size) rendered as a small rounded
+// "pill" inside the guide SVG layer — gold mono numerals on a dark chip with a
+// soft gold border — so the readout matches the app's chip vocabulary instead of
+// looking like bare ruler text. Sized from the monospace string length; every
+// dimension is /zoom so it stays screen-constant. `guide-mark` opts it into the
+// one-shot pop-in (see styles.css .snap-guides .guide-mark).
+function GuideLabel({ cx, cy, text, zoom }) {
+  const fs = 10 / zoom;
+  const charW = 6.0 / zoom;            // monospace advance ≈ 0.6em
+  const padX = 6 / zoom, padY = 3.5 / zoom;
+  const w = String(text).length * charW + padX * 2;
+  const h = fs + padY * 2;
+  return (
+    <g className="guide-mark">
+      <rect x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx={4 / zoom}
+            fill="var(--bg-1)"
+            stroke="color-mix(in srgb, var(--soleil) 42%, transparent)"
+            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+      <text x={cx} y={cy} fill="var(--soleil)"
+            fontSize={fs} fontFamily="var(--font-mono, ui-monospace, monospace)"
+            fontWeight="600" textAnchor="middle" dominantBaseline="central"
+            style={{ fontVariantNumeric: 'tabular-nums' }}>
+        {text}
+      </text>
+    </g>
+  );
+}
 
 export function CanvasSurface({
   board, boards, boardsReady = true, cards, arrows, strokes, groups = [],
@@ -253,7 +319,10 @@ export function CanvasSurface({
                            // and gray the toolbar (RLS is the real defense)
   boardPermission = null,  // { role, canEdit, source } from useBoardPermission;
                            // drives the ReadOnlyBanner + upgrade-CTA copy
-  onRequestUpgrade = null, // () => void — opens App's UpgradeModal
+  onRequestUpgrade = null, // () => void — opens App's UpgradeModal (shared-edit copy)
+  onRequestStorageUpgrade = null, // () => void — opens the storage/files upgrade prompt
+  isPaidPlan = false,      // current user on a paid/admin plan (best-effort client gate)
+  ownsWorkspace = false,   // current user owns the active workspace (created_by)
   autotagSuggest,          // (content, target) => Promise<[{tagId,score,reason}]>
   autotagReady = false,    // worker hydration finished
   sessionId = null,        // per-tab session id for board_versions grouping
@@ -563,6 +632,9 @@ export function CanvasSurface({
   const exportSvgRef = useRef(null);
   const [exportSvgMounted, setExportSvgMounted] = useState(false);
   const [drag, setDrag] = useState(null);
+  // Touch only: the card currently "lifted" by a press-and-hold (picked up,
+  // ready to drag). Drives the .is-lifted visual cue. Cleared on drop/cancel.
+  const [liftedCardId, setLiftedCardId] = useState(null);
   // While dragging, computeSnap fills this with the matched alignment lines
   // so the canvas can render thin gold guides at those coords.
   // { xs: [{ x, y0, y1 }], ys: [{ y, x0, x1 }] } — both in canvas-space.
@@ -584,7 +656,7 @@ export function CanvasSurface({
       snapHintsTimerRef.current = setTimeout(() => {
         setDisplayedHints(null);
         snapHintsTimerRef.current = null;
-      }, 160);
+      }, SNAP_TUNING.LINGER_MS);
     }
     return () => {
       if (snapHintsTimerRef.current) {
@@ -611,6 +683,11 @@ export function CanvasSurface({
   // armed after Escape and still commit the gesture on release.
   const pointerOpAbortRef = useRef(null);
   const [arrowFrom, setArrowFrom] = useState(null);
+  // While the arrow tool has a source picked, the card the cursor is over
+  // (highlighted as the connect target) and the live cursor position (for the
+  // rubber-band preview). Cleared whenever the tool/source resets.
+  const [arrowHoverCardId, setArrowHoverCardId] = useState(null);
+  const [arrowCursor, setArrowCursor] = useState(null); // canvas-space {x,y}
   const [activeStroke, setActiveStroke] = useState(null);
   const [activeFreeArrow, setActiveFreeArrow] = useState(null); // { from:{x,y}, to:{x,y} }
   // Per-card upload progress (cardId → 0..1). Threaded into ImageCard so
@@ -713,10 +790,13 @@ export function CanvasSurface({
     });
   }, [getAwareness, currentUser?.id, currentUser?.name, currentUser?.color]);
 
-  // Cursor broadcast — write to awareness on a fixed interval rather than
-  // every pointermove/rAF so we don't blow past Supabase Realtime's per-
-  // tenant rate limit. ~120ms feels live-enough for collab cursors and
-  // sits well below the broadcast cap.
+  // Cursor broadcast — write to awareness on a throttled interval rather than
+  // every pointermove/rAF. The interval SCALES with the live peer count
+  // (cursorIntervalForPeerCount): exactly the historical 16ms (one write per
+  // frame) in a small room, widening toward ~120ms as the room fills. Cursor
+  // fan-out is O(N^2) — every person's every move reaches everyone — so a
+  // fixed cadence is the cliff at scale; widening it keeps a crowded board
+  // smooth while staying live-enough below the small-room threshold.
   useEffect(() => {
     const aw = getAwareness?.();
     const wrap = wrapRef.current;
@@ -724,9 +804,27 @@ export function CanvasSurface({
     let pending = null;
     let last = { x: null, y: null };
     let timer = null;
+    // getStates() returns the live awareness Map (incl. self) — peers = size-1.
+    const peerCount = () => Math.max(0, aw.getStates().size - 1);
+    // Spectator-mode hysteresis state: in a very crowded room we stop
+    // broadcasting our OWN cursor (we still SEE everyone), which removes one
+    // sender from the O(N^2) cursor traffic per person who goes quiet.
+    let broadcasting = true;
     const flush = () => {
       timer = null;
       if (!pending) return;
+      const wasBroadcasting = broadcasting;
+      broadcasting = shouldBroadcastOwnCursor(peerCount(), broadcasting);
+      if (!broadcasting) {
+        pending = null;
+        // On the transition INTO spectator mode, clear our cursor once so peers
+        // don't see it frozen in place; staying silent thereafter.
+        if (wasBroadcasting) {
+          last = { x: null, y: null };
+          try { aw.setLocalStateField('canvasCursor', null); } catch (_) {}
+        }
+        return;
+      }
       // Skip a write if the cursor hasn't actually moved (rounded).
       if (Math.round(pending.x) === last.x && Math.round(pending.y) === last.y) {
         pending = null;
@@ -752,7 +850,7 @@ export function CanvasSurface({
         x: (e.clientX - r.left - p.x) / z,
         y: (e.clientY - r.top  - p.y) / z,
       };
-      if (!timer) timer = setTimeout(flush, 16);
+      if (!timer) timer = setTimeout(flush, cursorIntervalForPeerCount(peerCount()));
     };
     const onLeave = () => {
       if (timer) { clearTimeout(timer); timer = null; }
@@ -925,6 +1023,7 @@ export function CanvasSurface({
   // row, or the expand button on a canvas image card). Null when closed.
   // Esc handling + close-on-backdrop-click live inside ImageLightbox.
   const [lightbox, setLightbox] = useState(null);
+  const [pdfViewer, setPdfViewer] = useState(null); // { src: 'r2:<pdfKey>', name }
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
     color: DRAW_DEFAULT_COLOR,
@@ -963,6 +1062,10 @@ export function CanvasSurface({
     useWorkspacePalettes(workspaceId);
   useEffect(() => { if (picker) ensureWorkspacePalettes(); }, [picker, ensureWorkspacePalettes]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
+  // captured when the sheet opens (viewport centre); null = closed.
+  const [mobileAdd, setMobileAdd] = useState(null);
+  const { isPhone } = useBreakpoint();
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   const feedback = useFeedback();
@@ -995,10 +1098,12 @@ export function CanvasSurface({
   // visible. See analyticsEvents.js for the pinned method/reason enums.
   const noteCreateIntent = (method) => {
     try { logEvent(EV.CARD_CREATE_INTENT, { method, board_id: board?.id }); } catch (_) {}
+    try { setJourneyState({ phase: JOURNEY_PHASE.FIRST_INTENT }); } catch (_) {}
     try { recordIntent(method); } catch (_) {}
   };
   const noteCreateBlocked = (reason, method) => {
     try { logEvent(EV.CARD_CREATE_BLOCKED, { reason, method, board_id: board?.id }); } catch (_) {}
+    try { setJourneyState({ phase: JOURNEY_PHASE.BLOCKED }); } catch (_) {}
   };
   // Resolve a sane paste position. lastMouseCanvasRef tracks the cursor over the
   // canvas, but after a pan/zoom with no mousemove since it can point far
@@ -1214,7 +1319,7 @@ export function CanvasSurface({
     mutators.createGroup?.({ name: 'Group', cardIds: [...selected] });
   }, [selected, mutators]);
 
-  useEffect(() => { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
+  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
   useEffect(() => {
     setSelected(new Set());
     setSelectedStrokes(new Set());
@@ -1430,16 +1535,34 @@ export function CanvasSurface({
   // (in addition to arrows + arrowCtx) so endpoint moves re-fire the
   // computation — cardById has stable identity now and won't trigger by
   // itself.
+  // Remembers each arrow's resolved attachment side (keyed by stable arrow key)
+  // across renders so a small card nudge can't flip the side / reshuffle fan-out
+  // every frame — see the hysteresis in computeArrowAttachments.
+  const arrowSidesRef = useRef(null);
   const arrowAttachments = useMemo(
     () => {
       const _t0 = perf.isEnabled() ? performance.now() : 0;
-      const out = computeArrowAttachments(arrows || [], arrowCtx);
+      const out = computeArrowAttachments(arrows || [], arrowCtx, arrowSidesRef.current);
+      // Feed the resolved sides back next render. Idempotent (stable keys), so
+      // assigning the ref from inside the memo is safe under double-invoke.
+      if (out && out.sides) arrowSidesRef.current = out.sides;
       perf.bump('arrows.runs');
       if (_t0) perf.mark('arrows.ms', performance.now() - _t0);
       return out;
     },
     [arrows, arrowCtx, cards]
   );
+
+  // The source endpoint's rect (card or group bbox) while drawing an arrow —
+  // used as the rubber-band's start so the preview leaves the card edge.
+  const arrowFromRect = useMemo(() => {
+    const ref = arrowFrom;
+    if (!ref) return null;
+    if (typeof ref === 'string') { const c = cardById[ref]; return c ? { x: c.x, y: c.y, w: c.w, h: c.h } : null; }
+    if (ref.type === 'card' && ref.id) { const c = cardById[ref.id]; return c ? { x: c.x, y: c.y, w: c.w, h: c.h } : null; }
+    if (ref.type === 'group' && ref.id) { const g = groupBoundsById[ref.id]; return g ? { x: g.x, y: g.y, w: g.w, h: g.h } : null; }
+    return null;
+  }, [arrowFrom, cardById, groupBoundsById]);
 
   // Rect list used as obstacles when shaping each arrow's bezier. Includes
   // every card; per-arrow we then drop its own endpoints (and any group
@@ -1482,6 +1605,42 @@ export function CanvasSurface({
       y: (clientY - rect.top  - py) / z,
     };
   }, []);
+
+  // Track the cursor (in canvas space) while an arrow source is chosen so we can
+  // draw a live rubber-band from the source to the pointer until the second
+  // click lands. Only armed in arrow-tool + source-picked state. Defined after
+  // clientToCanvas so its dependency isn't referenced in the TDZ.
+  useEffect(() => {
+    if (selectedTool !== 'arrow' || !arrowFrom) { setArrowCursor(null); return; }
+    const onMove = (ev) => setArrowCursor(clientToCanvas(ev.clientX, ev.clientY));
+    window.addEventListener('pointermove', onMove);
+    return () => window.removeEventListener('pointermove', onMove);
+  }, [selectedTool, arrowFrom, clientToCanvas]);
+
+  // Mobile create: the phone bottom-nav "+" dispatches this document event
+  // (it can't reach the canvas mutators directly). We open the full add sheet
+  // anchored at the viewport centre; each picked action creates its card there
+  // and stamps noteCreateIntent('mobile_nav') so first-card activation still
+  // counts for whatever type the user chooses.
+  // BOTH gates are load-bearing: the nav hides the "+" on read-only boards,
+  // but the add mutators have NO internal permission check, and a CustomEvent
+  // can be dispatched by anything, so the canEdit guard here is the actual
+  // enforcement. The boardId match keeps a split-pane dispatch from opening
+  // the sheet on the wrong pane.
+  useEffect(() => {
+    const onAdd = (e) => {
+      if (e.detail?.boardId !== board.id) return;
+      if (!canEdit) return;
+      const rect = wrapRef.current?.getBoundingClientRect();
+      const pos = rect
+        ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
+        : { x: 200, y: 200 };
+      setMobileAdd({ pos });
+    };
+    document.addEventListener('soleil-mobile-add-card', onAdd);
+    return () => document.removeEventListener('soleil-mobile-add-card', onAdd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id, canEdit]);
 
   // Inverse of clientToCanvas — returns viewport-relative pixel coords for
   // a canvas-space point. Used by the comments layer to anchor floating
@@ -1591,12 +1750,162 @@ export function CanvasSurface({
     }
   }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage]);
 
+  // Drop a PDF: add a pending card immediately, then upload + render the
+  // page-1 thumbnail in the background (same optimistic pattern as images).
+  // Distinct `pdf-` id prefix so card_index's `img-` src-recovery heuristics
+  // don't mistake it for an image.
+  const optimisticDropPdf = useCallback(async (file, cx, cy) => {
+    if (!file) return;
+    const dropBoardId = board?.id;
+    const id = `pdf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    let w = 300, h = 388; // portrait fallback; corrected from real page-1 dims
+    let bounds = null;
+    const wrap = wrapRef.current;
+    if (wrap) {
+      const r = wrap.getBoundingClientRect();
+      const tl = clientToCanvas(r.left, r.top);
+      const br = clientToCanvas(r.right, r.bottom);
+      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
+    }
+    const placed = clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+
+    if (useLocalImages) {
+      // Local QA — no backend. Point the viewer straight at a blob URL
+      // (resolveSrc passes non-r2: through unchanged; pdf.js loads blob URLs).
+      let blobUrl = null;
+      try { blobUrl = URL.createObjectURL(file); } catch (_) {}
+      mutators.addCard?.({ id, kind: 'pdf', pdfSrc: blobUrl, src: null, name: file.name || 'PDF',
+                           x: placed.x, y: placed.y, w, h });
+      return;
+    }
+
+    mutators.addCard?.({ id, kind: 'pdf', name: file.name || 'PDF',
+                         x: placed.x, y: placed.y, w, h, pending: true });
+    try {
+      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      if (boardIdRef.current === dropBoardId) {
+        mutators.updateCard?.(id, {
+          src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
+          name: up.name, w: up.w, h: up.h, pending: false,
+        });
+      }
+    } catch (err) {
+      console.error('pdf upload failed', err);
+      feedback.toast({ type: 'error', message: 'PDF upload failed: ' + (err.message || err) });
+      if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+    } finally {
+      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    }
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas]);
+
+  // Roll back an optimistic card on upload failure. 402 (over quota) / 403 (not
+  // a paid owner) open the upgrade prompt; anything else is a plain error toast.
+  const handleUploadReject = useCallback((err, id, dropBoardId) => {
+    if (boardIdRef.current === dropBoardId) mutators.deleteCard?.(id);
+    const upsell = onRequestStorageUpgrade || onRequestUpgrade;
+    if (err?.code === 402) {
+      upsell?.();
+      feedback.toast({ type: 'warning', message: "You're out of storage. Upgrade for more space." });
+    } else if (err?.code === 403) {
+      upsell?.();
+      feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
+    } else if (String(err?.message) !== 'aborted') {
+      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+    }
+  }, [mutators, onRequestUpgrade, onRequestStorageUpgrade, feedback]);
+
+  // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
+  const placeDropRect = useCallback((cx, cy, w, h) => {
+    let bounds = null;
+    const wrap = wrapRef.current;
+    if (wrap) {
+      const r = wrap.getBoundingClientRect();
+      const tl = clientToCanvas(r.left, r.top);
+      const br = clientToCanvas(r.right, r.bottom);
+      bounds = { minX: tl.x + 8, minY: tl.y + 8, maxX: br.x - 8, maxY: br.y - 8 };
+    }
+    return clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
+  }, [clientToCanvas]);
+
+  // Any file type → a generic, downloadable file card. Uploads via multipart
+  // (boards/src/lib/uploads.js uploadFile), which gates on paid-owner + storage
+  // quota server-side. Mirrors optimisticDropPdf's optimistic add → update → roll
+  // back on failure.
+  const optimisticDropFile = useCallback(async (file, cx, cy) => {
+    if (!file) return;
+    const dropBoardId = board?.id;
+    const id = `file-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const w = 240, h = 150;
+    const placed = placeDropRect(cx, cy, w, h);
+    const ext = (file.name?.split('.').pop() || '').toLowerCase();
+
+    if (useLocalImages) {
+      // Local QA — no backend. resolveSrc passes a non-r2: blob URL through.
+      let blobUrl = null; try { blobUrl = URL.createObjectURL(file); } catch (_) {}
+      mutators.addCard?.({ id, kind: 'file', fileSrc: blobUrl, fileName: file.name,
+                           mime: file.type, sizeBytes: file.size, ext, x: placed.x, y: placed.y, w, h });
+      return;
+    }
+
+    mutators.addCard?.({ id, kind: 'file', fileName: file.name, mime: file.type,
+                         sizeBytes: file.size, ext, x: placed.x, y: placed.y, w, h, pending: true });
+    try {
+      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      if (boardIdRef.current === dropBoardId) {
+        mutators.updateCard?.(id, {
+          fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false,
+        });
+      }
+    } catch (err) {
+      console.error('file upload failed', err);
+      handleUploadReject(err, id, dropBoardId);
+    } finally {
+      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    }
+  }, [useLocalImages, workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject]);
+
+  // Over-cap video/audio (paid only) → still an inline media card, but uploaded
+  // via multipart so big files upload reliably + count against the quota.
+  const dropLargeMedia = useCallback(async (file, kind, cx, cy) => {
+    if (!file) return;
+    const dropBoardId = board?.id;
+    let w, h, extra = {};
+    if (kind === 'video') {
+      const meta = await readVideoMeta(file);
+      w = Math.max(240, Math.min(560, meta.w || 360));
+      const aspect = meta.h && meta.w ? (meta.h / meta.w) : 9 / 16;
+      h = Math.max(160, Math.round(w * aspect));
+    } else {
+      const meta = await readAudioMeta(file);
+      w = 380; h = 130; extra = { title: file.name || 'Audio', duration: meta.duration || null };
+    }
+    const id = `${kind === 'video' ? 'vid' : 'aud'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const placed = placeDropRect(cx, cy, w, h);
+    mutators.addCard?.({ id, kind, x: placed.x, y: placed.y, w, h, pending: true, ...extra });
+    try {
+      const onProgress = (frac) => setUploadProgressById(prev => ({ ...prev, [id]: frac }));
+      const up = await uploadFile({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress });
+      if (boardIdRef.current === dropBoardId) mutators.updateCard?.(id, { src: up.src, pending: false });
+    } catch (err) {
+      console.error('large media upload failed', err);
+      handleUploadReject(err, id, dropBoardId);
+    } finally {
+      setUploadProgressById(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    }
+  }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject]);
+
   // Upload a video file and place a video card centered on (cx, cy).
   // Validates duration via uploadVideo (default cap 60s, 30 MB). Toast
   // surfaces upload errors.
-  const dropVideoFile = useCallback(async (file, cx, cy) => {
+  const dropVideoFile = useCallback(async (file, cx, cy, allowLong = false) => {
     if (!workspaceId) throw new Error('workspaceId required');
-    const up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId });
+    // Paid uploads (allowLong) drop the free-tier 60s clip cap; the byte cap is
+    // moot here (this path only handles ≤ the free byte cap — larger goes
+    // through dropLargeMedia/multipart).
+    const up = await uploadVideo({ file, workspaceId, boardId: board?.id, userId,
+                                   ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
     const w = Math.max(240, Math.min(560, up.width || 360));
     const aspect = up.height && up.width ? (up.height / up.width) : 9 / 16;
     const h = Math.max(160, Math.round(w * aspect));
@@ -1628,6 +1937,84 @@ export function CanvasSurface({
       w, h,
     });
   }, [workspaceId, board?.id, userId, mutators]);
+
+  // Route a FileList onto the canvas, centered at (cx, cy). Shared by drag-drop,
+  // the right-click "Add → File" entry, and the toolbar "+" menu so all three
+  // dispatch identically: images / within-cap media use the free single-PUT
+  // path; over-cap media + any other file type are the paid "upload anything"
+  // feature (multipart, server-gated on paid-owner + storage quota). The client
+  // pre-check only hard-blocks the unambiguous case (you own this workspace and
+  // you're not paid); shared workspaces attempt optimistically and let the
+  // server's 402/403 decide.
+  const ingestFiles = useCallback(async (fileList, cx, cy) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const FREE_VIDEO_CAP = 30 * 1024 * 1024;
+    const FREE_AUDIO_CAP = 50 * 1024 * 1024;
+    const FREE_PDF_CAP   = 50 * 1024 * 1024;
+    const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
+    const blockedForUpgrade = [];
+    let offsetX = 0;
+    for (const f of files) {
+      const isImage = f.type.startsWith('image/');
+      const isVideo = f.type.startsWith('video/');
+      const isAudio = f.type.startsWith('audio/');
+      // Some browsers report an empty type for .pdf picks/drops — match the extension too.
+      const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+      try {
+        if (isImage) {
+          // Optimistic — adds the card and uploads in the background so
+          // multi-file drops aren't blocked one at a time.
+          optimisticDropImage(f, cx + offsetX, cy); offsetX += 260;
+        } else if (isVideo && f.size <= FREE_VIDEO_CAP) {
+          await dropVideoFile(f, cx + offsetX, cy, canAttemptFiles); offsetX += 320;
+        } else if (isAudio && f.size <= FREE_AUDIO_CAP) {
+          await dropAudioFile(f, cx + offsetX, cy); offsetX += 380;
+        } else if (isPdf && f.size <= FREE_PDF_CAP) {
+          optimisticDropPdf(f, cx + offsetX, cy); offsetX += 320;
+        } else if (!canAttemptFiles) {
+          blockedForUpgrade.push(f);
+        } else if (isVideo || isAudio) {
+          // Over-cap clip — still an inline media card, uploaded via multipart.
+          dropLargeMedia(f, isVideo ? 'video' : 'audio', cx + offsetX, cy);
+          offsetX += isVideo ? 320 : 380;
+        } else {
+          // PDFs over the inline cap + every other type → downloadable file card.
+          optimisticDropFile(f, cx + offsetX, cy); offsetX += 260;
+        }
+      } catch (err) {
+        console.error(err);
+        feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
+      }
+    }
+    if (blockedForUpgrade.length) {
+      (onRequestStorageUpgrade || onRequestUpgrade)?.();
+      feedback.toast({
+        type: 'warning',
+        message: `Uploading ${blockedForUpgrade.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
+        duration: 6000,
+      });
+    }
+  }, [ownsWorkspace, isPaidPlan, optimisticDropImage, dropVideoFile, dropAudioFile,
+      optimisticDropPdf, dropLargeMedia, optimisticDropFile, onRequestStorageUpgrade,
+      onRequestUpgrade, feedback]);
+
+  // Unified "Add → File" picker: opens a native file chooser with NO accept
+  // filter (any type) and routes the chosen file(s) through ingestFiles — the
+  // same dispatch as drag-drop, so a picked PDF still becomes a PDF card, an
+  // image an image card, a clip a media card, anything else a generic file
+  // card. `pos` is a canvas coordinate (from the click point / viewport center).
+  const openFilePicker = useCallback((pos) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.onchange = () => {
+      if (input.files && input.files.length) {
+        ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200);
+      }
+    };
+    input.click();
+  }, [ingestFiles]);
 
   // Right-click "Set cover image" → upload an image file and stamp it
   // onto the audio card's `cover` field. Also widens the card so the
@@ -1885,6 +2272,11 @@ export function CanvasSurface({
         const id = cardEl.getAttribute('data-card-id');
         const c = id ? cardById[id] : null;
         if (!c) return;
+        // On editable boards with the select tool, a long-press on a card now
+        // LIFTS it for dragging (handled per-gesture in onCardPointerDown) —
+        // the card's "⋯" button opens the menu instead. View-only boards (no
+        // lift, no ⋯ button) keep the long-press context menu.
+        if (canEdit && selectedTool === 'select') return;
         if (!selected.has(c.id)) setSelected(new Set([c.id]));
         setBgCtx(b => ({ ...b, open: false }));
         setCtx({ open: true, x, y, cardId: c.id });
@@ -2222,6 +2614,16 @@ export function CanvasSurface({
       const items = e.clipboardData?.items;
       if (items) {
         for (const item of items) {
+          if (item.type === 'application/pdf') {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) {
+              const { pos, clamped } = resolvePastePos();
+              notePasteCreate(clamped);
+              optimisticDropPdf(file, pos.x, pos.y);
+            }
+            return;
+          }
           if (item.type.startsWith('image/')) {
             e.preventDefault();
             const file = item.getAsFile();
@@ -2231,6 +2633,22 @@ export function CanvasSurface({
               optimisticDropImage(file, pos.x, pos.y);
             }
             return;
+          }
+          // Any other file type pasted from the OS clipboard (zip, etc.) → file card.
+          if (item.kind === 'file') {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              if (ownsWorkspace && !isPaidPlan) {
+                (onRequestStorageUpgrade || onRequestUpgrade)?.();
+                feedback.toast({ type: 'warning', message: 'Uploading files needs a paid plan — upgrade to add any file type.' });
+              } else {
+                const { pos, clamped } = resolvePastePos();
+                notePasteCreate(clamped);
+                optimisticDropFile(file, pos.x, pos.y);
+              }
+              return;
+            }
           }
         }
       }
@@ -2278,7 +2696,8 @@ export function CanvasSurface({
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [feedback, optimisticDropImage, doPaste, mutators]);
+  }, [feedback, optimisticDropImage, optimisticDropPdf, optimisticDropFile, doPaste, mutators,
+      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -2646,6 +3065,7 @@ export function CanvasSurface({
     if (selectedTool !== 'select') return;
     if (e.target.closest?.('.card-resize')) return;
     if (e.target.closest?.('.card-rotate')) return;
+    if (e.target.closest?.('.card-menu-btn')) return;
 
     e.stopPropagation();
     // NOTE: deliberately NOT calling setPointerCapture. Capturing the pointer
@@ -2657,6 +3077,13 @@ export function CanvasSurface({
     const openOnClick = (c.kind === 'board' && e.target.closest?.('.bc-cover')) ||
       (c.kind === 'boardlink' && boards[c.target]);
 
+    // Mobile press-and-hold: on touch, a one-finger drag PANS the board (the
+    // user is looking around) and only LIFTS a card after a deliberate hold —
+    // so selection must NOT change until the gesture commits to being a tap or
+    // a lift. `touchHold` gates every mobile-specific branch below; for mouse /
+    // pen it stays false and the original synchronous path runs verbatim.
+    const touchHold = e.pointerType === 'touch' && e.isPrimary;
+
     let nextSelected;
     if (e.shiftKey) {
       nextSelected = new Set(selected);
@@ -2667,14 +3094,18 @@ export function CanvasSurface({
     } else {
       nextSelected = new Set([c.id]);
     }
-    setSelected(nextSelected);
-    // Only a fresh (non-additive) selection clears stroke/arrow selection.
-    // Shift+Click is building a mixed selection, so leave them intact —
-    // matching onStrokeClick / onArrowClick, which only clear when !shift.
-    if (!e.shiftKey) {
-      setSelectedStrokes(new Set());
-      setSelectedArrows(new Set());
-    }
+    // Apply the selection (+ clear stroke/arrow selection on a fresh, non-
+    // additive press). Shift+Click builds a mixed selection so it leaves
+    // stroke/arrow intact — matching onStrokeClick / onArrowClick. Deferred on
+    // touch until onLift / the tap branch of onUp (see touchHold above).
+    const applyCardSelection = () => {
+      setSelected(nextSelected);
+      if (!e.shiftKey) {
+        setSelectedStrokes(new Set());
+        setSelectedArrows(new Set());
+      }
+    };
+    if (!touchHold) applyCardSelection();
     if (e.shiftKey) return;
 
     // Expand the drag set to cover every groupmate of every selected
@@ -2682,7 +3113,9 @@ export function CanvasSurface({
     const expanded = expandWithGroupmates(nextSelected);
     const dragIds = [...expanded];
     const dragSet = new Set(dragIds);
-    markRecentDrag(dragIds);
+    // Deferred on touch: a pan or tap that starts on a card must not register
+    // as a "recent drag". onLift calls this once the press becomes a real move.
+    if (!touchHold) markRecentDrag(dragIds);
     // For touch-friendly drop detection: the grabbed card (primary) + every
     // board/boardlink we could nest into, captured once (cards don't change
     // mid-drag). Used by the overlap fallback in flushMove when the finger
@@ -2700,98 +3133,17 @@ export function CanvasSurface({
     });
     const startClient = { x: e.clientX, y: e.clientY };
 
-    // Snap targets: every non-dragged card's edges & centers, captured once
-    // at drag start so we don't recompute on every mousemove.
-    const SNAP_PX = 6;
-    const targetsX = []; // edges to align/abut on the X axis
-    const targetsY = [];
-    // Per-target metadata so we can also draw a guide line that spans
-    // from min-y to max-y across all target cards sharing that x (and
-    // same for the y axis).
-    const targetXBounds = new Map(); // x → { y0, y1 }
-    const targetYBounds = new Map();
-    const extendBound = (m, key, lo, hi) => {
-      const cur = m.get(key);
-      if (!cur) m.set(key, { y0: lo, y1: hi });
-      else { cur.y0 = Math.min(cur.y0, lo); cur.y1 = Math.max(cur.y1, hi); }
-    };
-    cards.forEach(card => {
-      if (dragSet.has(card.id)) return;
-      const xs = [card.x, card.x + card.w, card.x + card.w / 2];
-      const ys = [card.y, card.y + card.h, card.y + card.h / 2];
-      xs.forEach(x => {
-        targetsX.push(x);
-        extendBound(targetXBounds, x, card.y, card.y + card.h);
-      });
-      ys.forEach(y => {
-        targetsY.push(y);
-        extendBound(targetYBounds, y, card.x, card.x + card.w);
-      });
+    // Snap targets, captured once at drag start (see lib/snapGuides.js). The
+    // viewport gate keeps far-off-board cards out of the candidate pool — the
+    // core fix for the "swarm of guides when dragging across the board". Live
+    // pan/zoom refs (not lagged state) so the world rect matches what's drawn.
+    const _wrapRect = wrapRef.current?.getBoundingClientRect();
+    const _snapViewport = worldViewportRect(
+      { width: _wrapRect?.width || 0, height: _wrapRect?.height || 0 },
+      panRef.current, zoomRef.current, SNAP_TUNING.VIEWPORT_MARGIN_PX);
+    const snapTargets = buildSnapTargets({
+      cards, dragSet, viewport: _snapViewport, zoom: zoomRef.current, tuning: SNAP_TUNING,
     });
-
-    // Equal-spacing snap targets — for any pair of non-dragged cards
-    // that share a row (vertical overlap) or column (horizontal
-    // overlap) with a positive gap between them, propose extending
-    // the gap on either side. Drags that match an existing rhythm
-    // ("each card 24px apart") snap cleanly. Works in both axes
-    // independently so a + / cross arrangement falls into place.
-    const otherCards = cards.filter(c => !dragSet.has(c.id));
-    const SPACING_MIN = 4;
-    const SPACING_MAX = 1500;
-    const OVERLAP_MIN = 8;
-    const xSpacingCands = []; // { targetX, edgeIs, gap, paired:{a,b,cross} }
-    const ySpacingCands = [];
-    for (let i = 0; i < otherCards.length; i++) {
-      for (let j = i + 1; j < otherCards.length; j++) {
-        const a = otherCards[i], b = otherCards[j];
-        // Row neighbours on the X axis — vertical overlap, gap > 0
-        const yOverlap = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-        if (yOverlap > OVERLAP_MIN) {
-          const left  = a.x + a.w < b.x ? a : (b.x + b.w < a.x ? b : null);
-          const right = left === a ? b : (left === b ? a : null);
-          if (left && right) {
-            const gap = right.x - (left.x + left.w);
-            if (gap >= SPACING_MIN && gap <= SPACING_MAX) {
-              const cross = (Math.max(left.y, right.y) + Math.min(left.y + left.h, right.y + right.h)) / 2;
-              // Extend the row to the right of `right`
-              xSpacingCands.push({
-                targetX: right.x + right.w + gap,
-                edgeIs: 'left', gap,
-                paired: { a: right.x + right.w, b: right.x + right.w + gap, cross },
-              });
-              // Extend the row to the left of `left`
-              xSpacingCands.push({
-                targetX: left.x - gap,
-                edgeIs: 'right', gap,
-                paired: { a: left.x - gap, b: left.x, cross },
-              });
-            }
-          }
-        }
-        // Column neighbours on the Y axis — horizontal overlap
-        const xOverlap = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-        if (xOverlap > OVERLAP_MIN) {
-          const top    = a.y + a.h < b.y ? a : (b.y + b.h < a.y ? b : null);
-          const bottom = top === a ? b : (top === b ? a : null);
-          if (top && bottom) {
-            const gap = bottom.y - (top.y + top.h);
-            if (gap >= SPACING_MIN && gap <= SPACING_MAX) {
-              const cross = (Math.max(top.x, bottom.x) + Math.min(top.x + top.w, bottom.x + bottom.w)) / 2;
-              ySpacingCands.push({
-                targetY: bottom.y + bottom.h + gap,
-                edgeIs: 'top', gap,
-                paired: { a: bottom.y + bottom.h, b: bottom.y + bottom.h + gap, cross },
-              });
-              ySpacingCands.push({
-                targetY: top.y - gap,
-                edgeIs: 'bottom', gap,
-                paired: { a: top.y - gap, b: top.y, cross },
-              });
-            }
-          }
-        }
-      }
-    }
     // Bounding box of dragged group at start (for snapping the group as one).
     const dragBBoxStart = (() => {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -2804,105 +3156,9 @@ export function CanvasSurface({
       });
       return { minX, minY, maxX, maxY };
     })();
-    const computeSnap = (rawDx, rawDy) => {
-      // Snap thresholds scale with zoom so they FEEL like ~SNAP_PX on screen
-      // regardless of zoom level.
-      const thresh = SNAP_PX / zoom;
-      const left   = dragBBoxStart.minX + rawDx;
-      const right  = dragBBoxStart.maxX + rawDx;
-      const top    = dragBBoxStart.minY + rawDy;
-      const bottom = dragBBoxStart.maxY + rawDy;
-      const cx     = (left + right) / 2;
-      const cy     = (top + bottom) / 2;
-      let bestX = null, bestXDist = thresh + 0.001, bestXTarget = null;
-      let bestY = null, bestYDist = thresh + 0.001, bestYTarget = null;
-      // X-axis: try to align left/right/center to any target X.
-      for (const tx of targetsX) {
-        for (const [edge, adjust] of [[left, tx - left], [right, tx - right], [cx, tx - cx]]) {
-          const d = Math.abs(adjust);
-          if (d < bestXDist) { bestXDist = d; bestX = adjust; bestXTarget = tx; }
-        }
-      }
-      for (const ty of targetsY) {
-        for (const [edge, adjust] of [[top, ty - top], [bottom, ty - bottom], [cy, ty - cy]]) {
-          const d = Math.abs(adjust);
-          if (d < bestYDist) { bestYDist = d; bestY = adjust; bestYTarget = ty; }
-        }
-      }
-      // Equal-spacing candidates — try them after edge alignment. If a
-      // spacing match is closer than the edge match (or no edge match
-      // fired), use the spacing snap. Whether or not the snap delta
-      // comes from spacing, we record matched gap markers so the user
-      // sees "these cards are 24px apart, just like that pair over there."
-      let bestSpaceX = null, bestSpaceXDist = thresh + 0.001, bestSpaceXMeta = null;
-      for (const cand of xSpacingCands) {
-        const adjust = cand.targetX - (cand.edgeIs === 'left' ? left : right);
-        const d = Math.abs(adjust);
-        if (d < bestSpaceXDist) { bestSpaceXDist = d; bestSpaceX = adjust; bestSpaceXMeta = cand; }
-      }
-      let bestSpaceY = null, bestSpaceYDist = thresh + 0.001, bestSpaceYMeta = null;
-      for (const cand of ySpacingCands) {
-        const adjust = cand.targetY - (cand.edgeIs === 'top' ? top : bottom);
-        const d = Math.abs(adjust);
-        if (d < bestSpaceYDist) { bestSpaceYDist = d; bestSpaceY = adjust; bestSpaceYMeta = cand; }
-      }
-      // Pick the tighter of edge vs spacing per axis.
-      if (bestSpaceX !== null && bestSpaceXDist < bestXDist) {
-        bestX = bestSpaceX; bestXTarget = null;          // suppress edge guide
-      }
-      if (bestSpaceY !== null && bestSpaceYDist < bestYDist) {
-        bestY = bestSpaceY; bestYTarget = null;
-      }
-      // Compose visible guide hints out of the matched target lines plus
-      // the dragged group's bbox along the same axis (so the line spans
-      // both the source card and the aligned target).
-      const newDragBBox = {
-        x0: left + (bestX ?? 0), x1: right + (bestX ?? 0),
-        y0: top  + (bestY ?? 0), y1: bottom + (bestY ?? 0),
-      };
-      const xs = [];
-      const ys = [];
-      const spacings = [];
-      if (bestXTarget !== null) {
-        const b = targetXBounds.get(bestXTarget) || { y0: newDragBBox.y0, y1: newDragBBox.y1 };
-        xs.push({
-          x: bestXTarget,
-          y0: Math.min(b.y0, newDragBBox.y0),
-          y1: Math.max(b.y1, newDragBBox.y1),
-        });
-      }
-      if (bestYTarget !== null) {
-        const b = targetYBounds.get(bestYTarget) || { y0: newDragBBox.x0, y1: newDragBBox.x1 };
-        ys.push({
-          y: bestYTarget,
-          x0: Math.min(b.y0, newDragBBox.x0),
-          x1: Math.max(b.y1, newDragBBox.x1),
-        });
-      }
-      if (bestSpaceXMeta && bestSpaceXDist < thresh + 0.001) {
-        spacings.push({
-          axis: 'x',
-          a: bestSpaceXMeta.paired.a,
-          b: bestSpaceXMeta.paired.b,
-          cross: bestSpaceXMeta.paired.cross,
-          gap: Math.round(bestSpaceXMeta.gap),
-        });
-      }
-      if (bestSpaceYMeta && bestSpaceYDist < thresh + 0.001) {
-        spacings.push({
-          axis: 'y',
-          a: bestSpaceYMeta.paired.a,
-          b: bestSpaceYMeta.paired.b,
-          cross: bestSpaceYMeta.paired.cross,
-          gap: Math.round(bestSpaceYMeta.gap),
-        });
-      }
-      return {
-        dx: rawDx + (bestX ?? 0),
-        dy: rawDy + (bestY ?? 0),
-        hints: (xs.length || ys.length || spacings.length) ? { xs, ys, spacings } : null,
-      };
-    };
+    const computeSnap = (rawDx, rawDy) => computeSnapPure(rawDx, rawDy, {
+      targets: snapTargets, dragBBoxStart, zoom: zoomRef.current, tuning: SNAP_TUNING,
+    });
     // Drag state is NOT armed here on pointerdown — only once movement
     // crosses the 4px click threshold (in flushMove below). Arming on
     // pointerdown put the card in .is-dragging for the duration of a plain
@@ -2914,6 +3170,46 @@ export function CanvasSurface({
     // silently never fired. use-gesture's accidental mouse pointer-capture
     // used to retarget pointerup back to the pressed element and mask all
     // of this — see the drag config note near useGesture.
+    // ── Mobile press-and-hold to pick up ─────────────────────────────────
+    // Until a card is "lifted" (held still ~480ms), a touch drag mirrors
+    // startPan's single-finger pan; the lift then hands off to the normal
+    // card-drag arm below. Mouse/pen: lifted starts true → these are no-ops.
+    const initialPointerId = e.pointerId;
+    const startPanXY = { x: panRef.current.x, y: panRef.current.y };
+    let lifted = !touchHold;
+    let panned = false;
+    let aborted = false;
+    // Re-baselined to the arm point on a touch lift so the card doesn't jump
+    // by the finger's pre-lift drift. Null on mouse → deltas use startClient.
+    let dragOriginClient = null;
+    let liftTimer = null;
+    const cancelLift = () => { if (liftTimer) { clearTimeout(liftTimer); liftTimer = null; } };
+    const onSecondTouch = (ev) => {
+      // A second finger → use-gesture owns the pinch; abort our pan/lift so we
+      // never fight its panRef writes or commit a stray move (cf. startPan).
+      if (ev.pointerType !== 'touch' || ev.pointerId === initialPointerId) return;
+      aborted = true;
+      cleanupTouchHold();
+    };
+    function cleanupTouchHold() {
+      cancelLift();
+      window.removeEventListener('pointerdown', onSecondTouch, true);
+      setLiftedCardId(null);
+    }
+    const onLift = () => {
+      liftTimer = null;
+      if (panned || aborted) return;
+      lifted = true;
+      applyCardSelection();
+      markRecentDrag(dragIds);
+      setLiftedCardId(c.id);
+      try { navigator.vibrate?.(8); } catch (_) {}
+    };
+    if (touchHold) {
+      liftTimer = setTimeout(onLift, TOUCH_LIFT_MS);
+      window.addEventListener('pointerdown', onSecondTouch, true);
+    }
+
     let dragArmed = false;
 
     // rAF-coalesced liveDrag broadcast. pointermove can fire ~120/sec;
@@ -2939,28 +3235,98 @@ export function CanvasSurface({
     // updates on a 60Hz display.
     let pendingMoveEv = null;
     let moveRafId = 0;
+    // Settle gate: guides + snapping engage only when the user SLOWS DOWN to
+    // place the card. While moving the card around quickly it glides freely with
+    // no guides, so a busy board isn't flooded with flashing lines. `emaSpeed`
+    // is a smoothed pointer screen-speed (px/ms); below MOVE_SPEED_PX_MS the
+    // user is "placing" → snap + guides. A settle timer covers an abrupt stop
+    // (no more pointermove events) by resolving the snap a beat after motion ends.
+    let lastSample = null;                                   // { x, y, t }
+    let emaSpeed = SNAP_TUNING.MOVE_SPEED_PX_MS * 2;         // start "moving" (no flash at grab)
+    let lastRaw = { dx: 0, dy: 0 };
+    let movedSettled = false;                               // last frame's settled state (for onUp)
+    let settleTimer = 0;
+    const onSettle = () => {
+      settleTimer = 0;
+      if (!dragArmed || aborted) return;
+      const snap = computeSnap(lastRaw.dx, lastRaw.dy);
+      setDrag({ ids: dragIds, dx: snap.dx, dy: snap.dy, startPositions });
+      setSnapHints(snap.hints);
+      movedSettled = true;
+    };
     const flushMove = () => {
       moveRafId = 0;
       const ev = pendingMoveEv;
       pendingMoveEv = null;
       if (!ev) return;
+      // Touch, not yet lifted: this gesture is a PAN (looking around), not a
+      // card move. Mirror startPan.onMove. Movement past the tolerance cancels
+      // the pending lift (it's a pan, not a hold). Never arms the card-drag.
+      if (touchHold && !lifted) {
+        if (aborted || ev.pointerId !== initialPointerId) return;
+        const moved = Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y);
+        if (!panned && moved > TOUCH_LIFT_TOLERANCE) {
+          panned = true; cancelLift();
+          // The user dragged from a card and it panned instead of moving — the
+          // moment they learn the hold. Show the hint once (set the flag first,
+          // synchronously, so a fast repeat can't double-toast).
+          if (canEdit && !liftHintSeen()) {
+            markLiftHintSeen();
+            feedback.toast({ type: 'info', message: 'Press and hold a card to pick it up and move it.', ttl: 5000 });
+            try { logEvent(EV.MOBILE_LIFT_HINT_SHOWN, { board_id: board?.id }); } catch (_) {}
+          }
+        }
+        if (panned) {
+          panRef.current = {
+            x: startPanXY.x + (ev.clientX - startClient.x),
+            y: startPanXY.y + (ev.clientY - startClient.y),
+          };
+          gestureUntilRef.current = performance.now() + 200;
+          markGestureActiveUntil(gestureUntilRef.current);
+          applyCanvasTransform();
+          scheduleVisibleRecompute();
+        }
+        return;
+      }
       // Click-vs-drag: same 4px screen-space distance onUp's wasClick check
       // uses, so a gesture can never commit a move without having armed.
       // Until the threshold is crossed the gesture stays a potential click
       // and the card must NOT enter .is-dragging (see dragArmed above).
       if (!dragArmed &&
           Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) <= 4) return;
+      // A touch lift re-baselines the drag origin to the arm point so the card
+      // doesn't jump by the finger's pre-lift drift. Mouse keeps startClient.
+      if (!dragArmed && touchHold) dragOriginClient = { x: ev.clientX, y: ev.clientY };
       dragArmed = true;
       perf.bump('drag.flush');
       const _t0 = perf.isEnabled() ? performance.now() : 0;
-      const rawDx = (ev.clientX - startClient.x) / zoom;
-      const rawDy = (ev.clientY - startClient.y) / zoom;
+      const _origin = dragOriginClient || startClient;
+      const rawDx = (ev.clientX - _origin.x) / zoom;
+      const rawDy = (ev.clientY - _origin.y) / zoom;
       // Hold Alt/Option to bypass snap.
       const skip = ev.altKey;
-      const snap = skip ? { dx: rawDx, dy: rawDy, hints: null } : computeSnap(rawDx, rawDy);
+      // Smooth the pointer speed and decide whether the user is placing (slow)
+      // or just moving (fast). Only when placing do snapping + guides engage.
+      const nowT = ev.timeStamp || performance.now();
+      if (lastSample) {
+        const dist = Math.hypot(ev.clientX - lastSample.x, ev.clientY - lastSample.y);
+        const dt = Math.max(1, nowT - lastSample.t);
+        emaSpeed = emaSpeed * 0.6 + (dist / dt) * 0.4;
+      }
+      lastSample = { x: ev.clientX, y: ev.clientY, t: nowT };
+      const settled = !skip && emaSpeed < SNAP_TUNING.MOVE_SPEED_PX_MS;
+      const snap = settled ? computeSnap(rawDx, rawDy) : { dx: rawDx, dy: rawDy, hints: null };
       const { dx, dy, hints } = snap;
       setDrag({ ids: dragIds, dx, dy, startPositions });
+      // Moving: drop any lingering guide immediately (no fading trail). Placing:
+      // show the matched guides. Either way (re)arm the settle timer so an abrupt
+      // stop still resolves the snap a beat later.
+      if (!settled) setDisplayedHints(null);
       setSnapHints(hints);
+      lastRaw = { dx: rawDx, dy: rawDy };
+      movedSettled = settled;
+      if (settleTimer) clearTimeout(settleTimer);
+      if (!skip) settleTimer = setTimeout(onSettle, SNAP_TUNING.SETTLE_MS);
       // Same-canvas board-drop hover detection. The dragged cards
       // themselves sit under the cursor, so elementFromPoint would
       // return them; use elementsFromPoint and walk the stack to find
@@ -3032,16 +3398,45 @@ export function CanvasSurface({
     const onUp = (ev) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
       pointerOpAbortRef.current = null;
       // Cancel any queued mid-drag pointermove that's about to flush —
       // we're about to commit final positions, so a trailing flush would
       // re-render the dragged cards once at a stale delta before settling.
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
+      if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       pendingMoveEv = null;
-      const rawDx = (ev.clientX - startClient.x) / zoom;
-      const rawDy = (ev.clientY - startClient.y) / zoom;
+      cleanupTouchHold();
+      // Touch gesture that never lifted → it was a PAN or a TAP, not a card
+      // move. Finalize like startPan / a click and skip all the drag-commit
+      // machinery below (drop-into-board, cross-pane, snap commit).
+      if (touchHold && !lifted) {
+        if (panned && !aborted) {
+          gestureUntilRef.current = 0;
+          setPan({ x: panRef.current.x, y: panRef.current.y });
+          scheduleVisibleRecompute();
+          emitCanvasSettle();
+        } else if (!panned && !aborted) {
+          // Tap: boards still open on tap (as before); other cards select.
+          if (openOnClick) {
+            if (c.kind === 'board') onOpenBoard(c.id);
+            else if (c.kind === 'boardlink') onOpenBoard(c.target);
+          } else {
+            applyCardSelection();
+          }
+        }
+        setDrag(null);
+        return;
+      }
+      // Same origin flushMove used (lift point on touch, else startClient) so
+      // the committed position matches the live drag — no jump on release.
+      const _origin = dragOriginClient || startClient;
+      const rawDx = (ev.clientX - _origin.x) / zoom;
+      const rawDy = (ev.clientY - _origin.y) / zoom;
       const skip = ev.altKey;
-      const snapEnd = skip ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
+      // Snap on commit only if released while placing (slowed); a release mid-fling
+      // (fast, guides were hidden) lands free so a toss isn't yanked into alignment.
+      const snapEnd = (skip || !movedSettled) ? { dx: rawDx, dy: rawDy } : computeSnap(rawDx, rawDy);
       const { dx, dy } = snapEnd;
       setSnapHints(null);
       // Cancel any queued mid-drag broadcast so a stale rAF can't fire
@@ -3272,7 +3667,9 @@ export function CanvasSurface({
           }
         }));
         mutators.updateCards?.(updates);
-      } else if (openOnClick) {
+      } else if (openOnClick && !touchHold) {
+        // Touch board-open happens on tap (onUp tap branch) / double-tap, not
+        // here — a deliberate lift released in place must not open the board.
         if (c.kind === 'board') onOpenBoard(c.id);
         if (c.kind === 'boardlink') onOpenBoard(c.target);
       }
@@ -3284,7 +3681,10 @@ export function CanvasSurface({
     pointerOpAbortRef.current = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      cleanupTouchHold();
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
+      if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
       pendingMoveEv = null;
       pendingLiveDrag = null;
@@ -3294,8 +3694,29 @@ export function CanvasSurface({
       setSnapHints(null);
       setDrag(null);
     };
+    // pointercancel fires (not pointerup) when the OS steals the touch — palm
+    // rejection, a system gesture, or use-gesture converting to a pinch. Tear
+    // down WITHOUT committing a move or opening a board, and clear the lift
+    // timer / .is-lifted visual so they can't leak after the finger is gone.
+    const onCancel = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      pointerOpAbortRef.current = null;
+      if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
+      if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
+      if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
+      pendingMoveEv = null;
+      pendingLiveDrag = null;
+      try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
+      cleanupTouchHold();
+      updateBoardDropTarget(null);
+      setSnapHints(null);
+      setDrag(null);
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
   };
 
   const onResizePointerDown = (e, c) => {
@@ -3311,100 +3732,35 @@ export function CanvasSurface({
     const startClient = { x: e.clientX, y: e.clientY };
     setResize({ id: c.id, dw: 0, dh: 0 });
 
-    // Snap targets, captured once at drag start. Two flavours per axis:
-    //   - numeric match: dragged width / height equals another card's
-    //     width / height (the primary "match the size of that card" use case).
-    //   - edge alignment: dragged card's right / bottom edge lands on
-    //     another card's left / right / top / bottom edge — same idea
-    //     position-drag uses, applied to the bottom-right resize corner.
-    const SNAP_PX = 6;
-    const wCands = []; // { value, owner }
-    const hCands = [];
-    const rightEdgeXs   = []; // { x, y0, y1 }  — where dragged right edge can land
-    const bottomEdgeYs  = []; // { y, x0, x1 }
-    cards.forEach(other => {
-      if (other.id === c.id) return;
-      wCands.push({ value: other.w, owner: other });
-      hCands.push({ value: other.h, owner: other });
-      rightEdgeXs.push({ x: other.x,             y0: other.y, y1: other.y + other.h });
-      rightEdgeXs.push({ x: other.x + other.w,   y0: other.y, y1: other.y + other.h });
-      bottomEdgeYs.push({ y: other.y,            x0: other.x, x1: other.x + other.w });
-      bottomEdgeYs.push({ y: other.y + other.h,  x0: other.x, x1: other.x + other.w });
+    // Snap targets, captured once at drag start (see lib/snapGuides.js). Two
+    // flavours per axis: a numeric match (dragged w/h equals another card's w/h
+    // — the "same size as that card" case) and an edge landing for the
+    // bottom-right corner. Viewport-gated so far-off cards never match.
+    const _rsWrapRect = wrapRef.current?.getBoundingClientRect();
+    const _rsViewport = worldViewportRect(
+      { width: _rsWrapRect?.width || 0, height: _rsWrapRect?.height || 0 },
+      panRef.current, zoomRef.current, SNAP_TUNING.VIEWPORT_MARGIN_PX);
+    const resizeTargets = buildResizeTargets({
+      cards, selfId: c.id, viewport: _rsViewport, zoom: zoomRef.current, tuning: SNAP_TUNING,
     });
-
-    const computeResizeSnap = (rawDw, rawDh, skip, skipH) => {
-      if (skip) return { dw: rawDw, dh: rawDh, hints: null };
-      const thresh = SNAP_PX / zoom;
-      const candW       = c.w + rawDw;
-      const candH       = c.h + rawDh;
-      const candRight   = c.x + c.w + rawDw;
-      const candBottom  = c.y + c.h + rawDh;
-      let bestDwAdj = null, bestDwDist = thresh + 0.001, bestWMatch = null;
-      let bestDhAdj = null, bestDhDist = thresh + 0.001, bestHMatch = null;
-      for (const wc of wCands) {
-        const adjust = wc.value - candW;
-        const d = Math.abs(adjust);
-        if (d < bestDwDist) { bestDwDist = d; bestDwAdj = adjust; bestWMatch = { kind: 'numeric', owner: wc.owner }; }
-      }
-      for (const re of rightEdgeXs) {
-        const adjust = re.x - candRight;
-        const d = Math.abs(adjust);
-        if (d < bestDwDist) { bestDwDist = d; bestDwAdj = adjust; bestWMatch = { kind: 'edge', target: re }; }
-      }
-      // skipH: note-reflow resizes own the height (it follows the text),
-      // so height snap candidates would fight the fitted height.
-      for (const hc of (skipH ? [] : hCands)) {
-        const adjust = hc.value - candH;
-        const d = Math.abs(adjust);
-        if (d < bestDhDist) { bestDhDist = d; bestDhAdj = adjust; bestHMatch = { kind: 'numeric', owner: hc.owner }; }
-      }
-      for (const be of (skipH ? [] : bottomEdgeYs)) {
-        const adjust = be.y - candBottom;
-        const d = Math.abs(adjust);
-        if (d < bestDhDist) { bestDhDist = d; bestDhAdj = adjust; bestHMatch = { kind: 'edge', target: be }; }
-      }
-      const dw = rawDw + (bestDwAdj ?? 0);
-      const dh = rawDh + (bestDhAdj ?? 0);
-      // Build guide hints using the same shape consumed by the existing
-      // <svg className="snap-guides"> renderer further down in render.
-      const xs = [];
-      const ys = [];
-      if (bestWMatch?.kind === 'edge') {
-        const t = bestWMatch.target;
-        xs.push({
-          x: t.x,
-          y0: Math.min(t.y0, c.y),
-          y1: Math.max(t.y1, c.y + c.h + dh),
-        });
-      } else if (bestWMatch?.kind === 'numeric') {
-        // Underline the matched card so the user can see WHO they're
-        // matching, with the matched dimension floating just under it.
-        const o = bestWMatch.owner;
-        ys.push({ y: o.y + o.h + 6 / zoom, x0: o.x, x1: o.x + o.w, label: String(o.w) });
-      }
-      if (bestHMatch?.kind === 'edge') {
-        const t = bestHMatch.target;
-        ys.push({
-          y: t.y,
-          x0: Math.min(t.x0, c.x),
-          x1: Math.max(t.x1, c.x + c.w + dw),
-        });
-      } else if (bestHMatch?.kind === 'numeric') {
-        // Side-bar to the right of the matched card, labeled with its height.
-        const o = bestHMatch.owner;
-        xs.push({ x: o.x + o.w + 6 / zoom, y0: o.y, y1: o.y + o.h, label: String(o.h) });
-      }
-      const hints = (xs.length || ys.length) ? { xs, ys, spacings: [] } : null;
-      return { dw, dh, hints };
-    };
+    const computeResizeSnap = (rawDw, rawDh, skip, skipH) => computeResizeSnapPure(rawDw, rawDh, {
+      card: c, targets: resizeTargets, skip, skipH, zoom: zoomRef.current, tuning: SNAP_TUNING,
+    });
 
     // Image and video cards lock their aspect ratio on resize so the
     // user always sees the whole image without letterboxing or
     // unintended cropping. Hold Cmd/Ctrl during the drag to bypass and
     // resize freely (which then makes object-fit:cover crop the image).
-    const aspectLockKinds = new Set(['image', 'video']);
-    const lockAspect = aspectLockKinds.has(c.kind) && c.w > 0 && c.h > 0;
-    const startAspect = lockAspect ? c.w / c.h : null;
+    const aspectLockKinds = new Set(['image', 'video', 'pdf']);
+    // Embeds (kind 'link' carrying an embed payload) lock to their PROVIDER
+    // ratio, not their current possibly-distorted w/h, so resize always yields
+    // a clean scaled player with no letterbox bands.
+    const embedLock = c.kind === 'link' && c.embed && c.embed.embedUrl
+      && c.embed.defaultW > 0 && c.embed.defaultH > 0;
+    const lockAspect = (aspectLockKinds.has(c.kind) || embedLock) && c.w > 0 && c.h > 0;
+    const startAspect = embedLock
+      ? (c.embed.defaultW / c.embed.defaultH)   // provider ratio (w/h)
+      : (lockAspect ? c.w / c.h : null);
 
     // Project a raw (dw, dh) onto the locked aspect, following the
     // axis the user is pushing more aggressively (proportionally).
@@ -3453,6 +3809,7 @@ export function CanvasSurface({
       return { dh, hints };
     };
 
+    let prevResizeRaw = null; // last frame's raw (world) delta, for the fast clear
     const onMove = (ev) => {
       const rawDwRaw = (ev.clientX - startClient.x) / zoom;
       const rawDhRaw = (ev.clientY - startClient.y) / zoom;
@@ -3464,6 +3821,12 @@ export function CanvasSurface({
       const snap = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey, !!noteMeasurer && !noteHeightMode);
       const { dh, hints } = applyNoteReflow(snap.dw, snap.dh, snap.hints);
       setResize({ id: c.id, dw: snap.dw, dh });
+      // Fast resize jump: drop a lingering size/edge guide immediately rather
+      // than leaving a fading trail (mirrors the move path).
+      if (!hints && prevResizeRaw && Math.hypot(rawDw - prevResizeRaw.dw, rawDh - prevResizeRaw.dh) * zoom > SNAP_TUNING.FAST_MOVE_PX) {
+        setDisplayedHints(null);
+      }
+      prevResizeRaw = { dw: rawDw, dh: rawDh };
       setSnapHints(hints);
     };
     const onUp = (ev) => {
@@ -3894,6 +4257,51 @@ export function CanvasSurface({
             input.click();
           }},
         ]});
+      } else if (c.kind === 'pdf') {
+        items.push({ id: 'pdf-open', label: 'Open',
+          run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' }); } });
+        items.push({ id: 'pdf-title', label: c.title ? 'Edit title' : 'Add title',
+          run: () => triggerInlineEdit(c.id, 'title') });
+        items.push({ id: 'pdf-download', label: 'Download', run: async () => {
+          if (!c.pdfSrc) return;
+          try {
+            const url = await resolveSrc(c.pdfSrc);
+            if (!url) return;
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const objUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            let fn = (c.name || c.title || 'document').toString().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
+            if (!/\.pdf$/i.test(fn)) fn += '.pdf';
+            a.href = objUrl; a.download = fn;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+          } catch (_) {
+            const url = await resolveSrc(c.pdfSrc).catch(() => null);
+            if (url) window.open(url, '_blank', 'noopener,noreferrer');
+          }
+        }});
+      } else if (c.kind === 'file') {
+        items.push({ id: 'file-title', label: c.title ? 'Edit title' : 'Add title',
+          run: () => triggerInlineEdit(c.id, 'title') });
+        items.push({ id: 'file-download', label: 'Download', run: async () => {
+          if (!c.fileSrc) return;
+          let url = null;
+          try {
+            url = await resolveSrc(c.fileSrc);
+            if (!url) return;
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const objUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objUrl;
+            a.download = c.fileName || (c.title || 'file').toString().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
+          } catch (_) {
+            if (url) window.open(url, '_blank', 'noopener,noreferrer');
+          }
+        }});
       } else if (c.kind === 'shape') {
         items.push({ id: 'shape-kind', label: 'Shape', submenu: [
           { id: 'sk-rect', label: 'Rectangle', run: () => mutators.updateCard?.(c.id, { shape: 'rect' }) },
@@ -3946,12 +4354,9 @@ export function CanvasSurface({
         items.push({ id: 'open', label: 'Open linked board', run: () => boards[c.target] && onOpenBoard(c.target) });
       } else if (c.kind === 'palette') {
         items.push({ id: 'palette-edit', label: 'Edit', submenu: [
-          { id: 'pc-hide-hex',
-            label: c.hideHex ? 'Show hex codes' : 'Hide hex codes',
-            run: () => mutators.updateCard?.(c.id, { hideHex: !c.hideHex }) },
-          { id: 'pc-hide-labels',
-            label: c.hideLabels ? 'Show palette labels' : 'Hide palette labels',
-            run: () => mutators.updateCard?.(c.id, { hideLabels: !c.hideLabels }) },
+          { id: 'pc-pure',
+            label: c.chipsOnly ? 'Show labels' : 'Hide labels (pure color)',
+            run: () => mutators.updateCard?.(c.id, { chipsOnly: !c.chipsOnly }) },
           { divider: true },
           { id: 'pc-eyedrop', label: 'Eyedrop color (anywhere on screen)…', run: async () => {
             // Browser EyeDropper API. Falls back to a friendly toast where
@@ -4031,6 +4436,8 @@ export function CanvasSurface({
     if (!multi) {
       items.push({ id: 'comment', label: 'Add comment',
         run: () => promptComment({ kind: 'card', id: c.id }) });
+      items.push({ id: 'vote', label: 'Add vote to card',
+        run: () => addVoteCardAt({ kind: 'card', id: c.id }) });
       items.push({ id: 'tag', label: 'Tag…',
         run: () => {
           // Open the picker anchored near the right-click coord. The
@@ -4657,6 +5064,65 @@ export function CanvasSurface({
   };
   const closeBgMenu = () => setBgCtx(b => ({ ...b, open: false }));
 
+  // Single source of truth for the "add to board" actions, shared by the
+  // desktop right-click menu (buildBgMenu) and the phone bottom-nav "+" sheet.
+  // pos = canvas-space drop point; method = analytics label passed to
+  // noteCreateIntent ('context_menu' | 'mobile_nav'). `group` lets callers
+  // partition card-creating actions from annotations; `icon` is consumed by
+  // the mobile sheet and ignored by the context-menu renderer.
+  const buildAddActions = (pos, method) => [
+    { id: 'board',   group: 'card', label: 'Board',   icon: LayoutGrid,    run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
+    { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); mutators.addImageAt?.(pos); } },
+    { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
+    { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method); mutators.addNote?.(pos); } },
+    { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method); mutators.addDocCard?.(pos); } },
+    { id: 'shape',   group: 'card', label: 'Shape',   icon: Square,        run: () => { noteCreateIntent(method); mutators.addShape?.(pos, shapeOptions); } },
+    { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method); mutators.addPalette?.(pos); } },
+    { id: 'addurl',  group: 'card', label: 'Link', icon: Link, run: async () => {
+      const v = await feedback.prompt({
+        title: 'Add a link card',
+        label: 'URL',
+        placeholder: 'https://…',
+        confirmLabel: 'Add',
+      });
+      if (!v) return;
+      const url = v.trim();
+      if (!url) return;
+      const embed = detectEmbed(url);
+      let title = url;
+      try { title = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
+      const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const w = embed ? embed.defaultW : 280;
+      const h = embed ? embed.defaultH : 110;
+      const card = {
+        id: newId,
+        kind: 'link', source: url, link: url, title,
+        x: Math.max(8, Math.round(pos.x - w / 2)),
+        y: Math.max(8, Math.round(pos.y - h / 2)),
+        w, h,
+      };
+      if (embed) card.embed = embed;
+      mutators.addCard?.(card);
+      // Fire-and-forget OG fetch — when it resolves, patch the card
+      // with the preview fields and grow it to fit the image. Skip
+      // OG enrichment for embeds since the iframe is the preview.
+      if (!embed) {
+        fetchLinkPreview(url).then(p => {
+          if (!p) return;
+          const patch = {};
+          if (p.title) patch.title = p.title;
+          if (p.image) patch.image = p.image;
+          if (p.description) patch.description = p.description;
+          if (p.favicon) patch.favicon = p.favicon;
+          if (p.image) { patch.w = 280; patch.h = 290; }
+          if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
+        });
+      }
+    }},
+    { id: 'comment', group: 'note', label: 'Comment', icon: MessageCircle, run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
+    { id: 'vote',    group: 'note', label: 'Vote',    icon: ListChecks,    run: () => addVoteCardAt({ kind: 'point', x: pos.x, y: pos.y }) },
+  ];
+
   const buildBgMenu = () => {
     // Group context menu — opened by right-clicking a group label.
     // First so it short-circuits before the arrow + bg branches.
@@ -4749,58 +5215,28 @@ export function CanvasSurface({
         { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
       ];
     }
-    const pos = bgCtx.canvasPos || lastMouseCanvasRef.current;
+    // Resolve the placement point. Prefer recomputing from the stored SCREEN
+    // coords (bgCtx.x/y = the raw clientX/clientY of the right-click) against
+    // the LIVE transform at the moment the menu item runs — so if the camera
+    // settled between right-click and pick (e.g. the 220ms is-smooth zoom
+    // transition, or a peer/auto-fit nudge), the item still lands under the
+    // cursor. Falls back to the snapshot taken at open, then the last mouse
+    // position. Identical to bgCtx.canvasPos when nothing moved.
+    const pos = (bgCtx.open && Number.isFinite(bgCtx.x) && Number.isFinite(bgCtx.y))
+      ? clientToCanvas(bgCtx.x, bgCtx.y)
+      : (bgCtx.canvasPos || lastMouseCanvasRef.current);
+    // Shared add actions (see buildAddActions). The desktop menu keeps its
+    // own labels/structure: the 7 card types nest under an "Add" submenu,
+    // while Comment/Vote/Link stay top-level with their longer labels.
+    const addActions = buildAddActions(pos, 'context_menu');
+    const byId = (id) => addActions.find(a => a.id === id);
     return [
-      { id: 'add', label: 'Add', submenu: [
-        { id: 'board', label: 'Board',  run: () => { noteCreateIntent('context_menu'); mutators.addNewBoard?.(pos); } },
-        { id: 'image', label: 'Image',  run: () => { noteCreateIntent('context_menu'); mutators.addImageAt?.(pos); } },
-        { id: 'note',  label: 'Text note', run: () => { noteCreateIntent('context_menu'); mutators.addNote?.(pos); } },
-        { id: 'doc',   label: 'Doc',    run: () => { noteCreateIntent('context_menu'); mutators.addDocCard?.(pos); } },
-        { id: 'shape', label: 'Shape',  run: () => { noteCreateIntent('context_menu'); mutators.addShape?.(pos, shapeOptions); } },
-        { id: 'palette', label: 'Color palette', run: () => { noteCreateIntent('context_menu'); mutators.addPalette?.(pos); } },
-      ]},
-      { id: 'comment', label: 'Add comment', run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
-      { id: 'addurl', label: 'Add link…', run: async () => {
-        const v = await feedback.prompt({
-          title: 'Add a link card',
-          label: 'URL',
-          placeholder: 'https://…',
-          confirmLabel: 'Add',
-        });
-        if (!v) return;
-        const url = v.trim();
-        if (!url) return;
-        const embed = detectEmbed(url);
-        let title = url;
-        try { title = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
-        const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-        const w = embed ? embed.defaultW : 280;
-        const h = embed ? embed.defaultH : 110;
-        const card = {
-          id: newId,
-          kind: 'link', source: url, link: url, title,
-          x: Math.max(8, Math.round(pos.x - w / 2)),
-          y: Math.max(8, Math.round(pos.y - h / 2)),
-          w, h,
-        };
-        if (embed) card.embed = embed;
-        mutators.addCard?.(card);
-        // Fire-and-forget OG fetch — when it resolves, patch the card
-        // with the preview fields and grow it to fit the image. Skip
-        // OG enrichment for embeds since the iframe is the preview.
-        if (!embed) {
-          fetchLinkPreview(url).then(p => {
-            if (!p) return;
-            const patch = {};
-            if (p.title) patch.title = p.title;
-            if (p.image) patch.image = p.image;
-            if (p.description) patch.description = p.description;
-            if (p.favicon) patch.favicon = p.favicon;
-            if (p.image) { patch.w = 280; patch.h = 290; }
-            if (Object.keys(patch).length) mutators.updateCard?.(newId, patch);
-          });
-        }
-      }},
+      { id: 'add', label: 'Add', submenu: addActions
+        .filter(a => a.group === 'card' && a.id !== 'addurl')
+        .map(a => ({ id: a.id, label: a.label, run: a.run })) },
+      { id: 'comment', label: 'Add comment', run: byId('comment').run },
+      { id: 'vote', label: 'Add vote', run: byId('vote').run },
+      { id: 'addurl', label: 'Add link…', run: byId('addurl').run },
       { divider: true },
       { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
         shortcut: `${cmdKey}V`, disabled: clipboardSize() === 0,
@@ -5059,6 +5495,10 @@ export function CanvasSurface({
   // input (no popup) at the click position.
   const { comments, removeLocally: removeCommentLocally, removeByAnchorIds: removeCommentsByAnchorIds,
           viewsByRootId: commentViewsByRootId, markViewed: markCommentViewed } = useCanvasComments(board?.id);
+  // Live vote cards — a separate annotation type sharing the comment
+  // anchoring/drag/hide machinery. They hide with the comments eye toggle
+  // (CanvasVoteLayer gets layerVisible={commentsVisible}).
+  const { voteCards, removeLocally: removeVoteLocally } = useVoteCards(board?.id);
   // Inline-draft state. When the user picks "Add comment" from a
   // right-click menu, we set commentDraft to the anchor + viewport
   // position; CanvasCommentLayer renders an inline draft input there.
@@ -5099,6 +5539,17 @@ export function CanvasSurface({
   // anchor's canvas coords so the draft input sits exactly where the
   // resulting comment bubble will appear. No popup modal — type
   // directly on the canvas, Enter to post, Escape to cancel.
+  // Drop a vote card immediately at the given anchor (no draft — a vote's
+  // question label is optional and editable on the card afterward). Same
+  // anchor descriptor shape as promptComment.
+  const addVoteCardAt = async (anchor) => {
+    if (!workspaceId || !board?.id || !userId) return;
+    try {
+      await addVoteCard({ workspaceId, boardId: board.id, author: userId, anchor, label: null });
+    } catch (err) {
+      feedback.toast({ type: 'error', message: 'Add vote failed: ' + (err.message || err) });
+    }
+  };
   const promptComment = (anchor) => {
     if (!workspaceId || !board?.id || !userId) return;
     let cx, cy;
@@ -5236,6 +5687,12 @@ export function CanvasSurface({
       setSketchpadOpen(true);
       return;
     }
+    if (c.kind === 'pdf') {
+      if (!c.pdfSrc) return;
+      e.stopPropagation();
+      setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' });
+      return;
+    }
     // image / note / link / etc — defer to inner editors so dbl-click
     // re-enters edit mode reliably. (Open link via the link-card icon or
     // right-click → Open instead.)
@@ -5296,6 +5753,10 @@ export function CanvasSurface({
     const w = multiLive ? Math.max(MIN_W, multiLive.w) : Math.max(MIN_W, c.w + (resizeDelta?.dw || 0));
     const h = multiLive ? Math.max(MIN_H, multiLive.h) : Math.max(MIN_H, c.h + (resizeDelta?.dh || 0));
     const isArrowSource = arrowRefEquals(arrowFrom, c.id);
+    // Candidate connect target: arrow tool, a source already chosen, cursor over
+    // this (different) card. Highlights what the next click will connect to.
+    const isArrowTarget = selectedTool === 'arrow' && !!arrowFrom
+      && arrowHoverCardId === c.id && !isArrowSource;
     const isSelected = selected.has(c.id)
       || (marqueePreviewIds && marqueePreviewIds.has(c.id))
       || isArrowSource;
@@ -5328,21 +5789,26 @@ export function CanvasSurface({
     // click opens against an already-fetched cache.
     const hoverPrefetchTarget = c.kind === 'board' ? c.id
       : (c.kind === 'boardlink' ? c.target : null);
-    const onCardMouseEnter = hoverPrefetchTarget
-      ? () => scheduleHoverPrefetch(hoverPrefetchTarget)
-      : undefined;
+    const onCardMouseEnter = (e) => {
+      if (selectedTool === 'arrow') setArrowHoverCardId(c.id);
+      if (hoverPrefetchTarget) scheduleHoverPrefetch(hoverPrefetchTarget);
+    };
+    const onCardMouseLeave = (e) => {
+      if (selectedTool === 'arrow') setArrowHoverCardId(prev => (prev === c.id ? null : prev));
+      if (hoverPrefetchTarget) cancelHoverPrefetch();
+    };
     const wrapper = {
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}`,
       'data-card-id': c.id,
       onPointerDown: (e) => onCardPointerDown(e, c),
       onPointerUp: (e) => onCardPointerUp(e, c),
       onContextMenu: (e) => onCardContextMenu(e, c),
       onDoubleClick: (e) => onCardDoubleClick(e, c),
       onMouseEnter: onCardMouseEnter,
-      onMouseLeave: hoverPrefetchTarget ? cancelHoverPrefetch : undefined,
+      onMouseLeave: onCardMouseLeave,
     };
 
     // View-only boards: nulling onUpdate flips every card kind into the
@@ -5416,10 +5882,11 @@ export function CanvasSurface({
                                                      uploadProgress={uploadProgressById[c.id] ?? null}
                                                      onExpand={() => setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '' })}
                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
-    else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} vAlign={c.vAlign} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
                                                 awareness={getAwareness?.() || null}
                                                 cardId={c.id} boardId={board.id}
+                                                ydoc={ydoc} cardYMap={ydoc?.getMap('cards')?.get(c.id) || null}
                                                 peerLiveHtml={peerNoteEdits[c.id] ?? null}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
     else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} target={c.target}
@@ -5428,7 +5895,7 @@ export function CanvasSurface({
                                                        isSelected={isSelected}
                                                        onUpdate={onUpdate} autoFocus={af}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} w={Math.round(w)} h={Math.round(h)} onUpdate={onUpdate} autoFocus={af}
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} title={c.title} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
@@ -5437,6 +5904,15 @@ export function CanvasSurface({
                                                         coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                         onPickCover={(file) => pickAudioCover(c.id, file)} />;
+    else if (c.kind === 'pdf')       inner = <PdfCard src={c.src || null} pdfSrc={c.pdfSrc} name={c.name} pageCount={c.pageCount}
+                                                      title={c.title} w={Math.round(c.w)} h={Math.round(c.h)}
+                                                      onUpdate={onUpdate} autoFocus={af}
+                                                      cardId={c.id} backfillEnabled={canEdit} boardId={board.id}
+                                                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
+                                                      pending={!!c.pending}
+                                                      uploadProgress={uploadProgressById[c.id] ?? null}
+                                                      onExpand={() => c.pdfSrc && setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' })}
+                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'doc') {
       // Rich doc card. Pull the live cardYMap so RichDocCard can read its
       // per-card pages/content/bookmarks/comments via cardScope().
@@ -5464,6 +5940,14 @@ export function CanvasSurface({
                                                         label={c.label} onUpdate={onUpdate}
                                                         editLabelAt={editFieldSignal.id === c.id && editFieldSignal.field === 'shapeLabel' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'art')       inner = <ArtCanvasCard bg={c.bg || '#ffffff'} />;
+    else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}
+                                                       sizeBytes={c.sizeBytes} ext={c.ext} title={c.title}
+                                                       onUpdate={onUpdate} autoFocus={af}
+                                                       cardId={c.id}
+                                                       editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
+                                                       pending={!!c.pending}
+                                                       uploadProgress={uploadProgressById[c.id] ?? null}
+                                                       onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
     // Tag chips along the card's bottom edge so the user actually sees
@@ -5478,9 +5962,19 @@ export function CanvasSurface({
           <div className="card-tags-strip" data-card-id={c.id}>
             {cardTags.slice(0, 4).map(t => (
               <span key={t.id}
-                    className={`card-tag-chip is-${t.source || 'user'}`}
-                    style={{ '--tag-c': t.color || '#4f8df8' }}
-                    title={t.source && t.source !== 'user' ? `${t.name} (${t.source})` : t.name}
+                    role="button"
+                    className={`card-tag-chip is-clickable is-${t.source || 'user'}`}
+                    style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
+                    title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source})` : ''} — click to see everywhere it's used`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      // Click-through to the tag's cross-board collection — the
+                      // payoff. Was a dead-end (right-click only) before.
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: t.id, via: 'card_chip' }); } catch (_) {}
+                      document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: t.id } }));
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -5500,13 +5994,28 @@ export function CanvasSurface({
         )}
         {canEdit && selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
-               title={(c.kind === 'image' || c.kind === 'video')
+               title={(c.kind === 'image' || c.kind === 'video' || c.kind === 'pdf')
                  ? `Drag to resize — hold ${cmdKey} to break the aspect ratio`
                  : undefined}
                style={{ width: RESIZE_HANDLE_PX, height: RESIZE_HANDLE_PX }} />
         )}
         {canEdit && selectedTool === 'select' && isSelected && canRotate && (
           <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title="Drag to rotate (shift = 15° steps)" />
+        )}
+        {/* Touch-only "⋯" — the card context menu's new home now that a
+            long-press lifts the card for dragging instead of opening it.
+            CSS hides it except on coarse pointers (desktop keeps right-click). */}
+        {canEdit && selectedTool === 'select' && isSelected
+          && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
+          <button type="button" className="card-menu-btn" aria-label="Card options"
+            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const r = e.currentTarget.getBoundingClientRect();
+              setBgCtx(b => ({ ...b, open: false }));
+              if (!selected.has(c.id)) setSelected(new Set([c.id]));
+              setCtx({ open: true, x: r.left, y: r.bottom, cardId: c.id });
+            }}>⋯</button>
         )}
       </div>
     );
@@ -5858,52 +6367,12 @@ export function CanvasSurface({
       return;
     }
 
-    // Files (images / videos / audio dragged from Finder).
+    // Files (images / videos / audio / anything dragged from Finder). Shares
+    // the same routing as the "Add → File" menu picker.
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       e.preventDefault();
-      const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-      const videoFiles = Array.from(files).filter(f => f.type.startsWith('video/'));
-      const audioFiles = Array.from(files).filter(f => f.type.startsWith('audio/'));
-      // Anything we can't place becomes a card-less silent loss otherwise —
-      // collect the skipped names so we can tell the user instead.
-      const handled = new Set([...imageFiles, ...videoFiles, ...audioFiles]);
-      const skipped = Array.from(files).filter(f => !handled.has(f));
-      let offsetX = 0;
-      for (const f of imageFiles) {
-        // Optimistic — adds the card and uploads in the background so
-        // multi-file drops aren't blocked one at a time.
-        optimisticDropImage(f, cx + offsetX, cy);
-        offsetX += 260;
-      }
-      for (const f of videoFiles) {
-        try {
-          await dropVideoFile(f, cx + offsetX, cy);
-          offsetX += 320;
-        } catch (err) {
-          console.error(err);
-          feedback.toast({ type: 'error', message: 'Video upload failed: ' + (err.message || err) });
-        }
-      }
-      for (const f of audioFiles) {
-        try {
-          await dropAudioFile(f, cx + offsetX, cy);
-          offsetX += 380;
-        } catch (err) {
-          console.error(err);
-          feedback.toast({ type: 'error', message: 'Audio upload failed: ' + (err.message || err) });
-        }
-      }
-      if (skipped.length) {
-        const exts = [...new Set(skipped.map(f => (f.name?.split('.').pop() || f.type || 'file').toLowerCase()))].slice(0, 4);
-        feedback.toast({
-          type: 'warning',
-          message: skipped.length === files.length
-            ? `Can't add ${skipped.length === 1 ? 'that file' : 'those files'} (${exts.join(', ')}) — images, video and audio only.`
-            : `Added ${handled.size}; skipped ${skipped.length} unsupported (${exts.join(', ')}).`,
-          duration: 6000,
-        });
-      }
+      await ingestFiles(files, cx, cy);
       return;
     }
 
@@ -5953,6 +6422,39 @@ export function CanvasSurface({
     return () => document.removeEventListener('soleil-card-transferred', onTransferred);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board.id, mutators, ydoc, sessionId, userId]);
+
+  // Select + center a card when navigated to from elsewhere (e.g. clicking a
+  // card inside a tag/entity collection). App dispatches soleil-flash-card
+  // after the board mounts; retry briefly while the board's cards stream in,
+  // then select that one card and pan it to the viewport center (current zoom).
+  useEffect(() => {
+    const onFlash = (e) => {
+      const { boardId, cardId } = e.detail || {};
+      if (boardId !== board.id || !cardId) return;
+      let tries = 0;
+      const tick = () => {
+        const card = (cardByIdRef.current || {})[cardId];
+        if (card) {
+          setSelected(new Set([cardId]));
+          const r = wrapRef.current?.getBoundingClientRect();
+          if (r && r.width > 50) {
+            const z = zoomRef.current;
+            enableSmoothTransform();
+            setPan({
+              x: r.width / 2 - (card.x + card.w / 2) * z,
+              y: r.height / 2 - (card.y + card.h / 2) * z,
+            });
+          }
+          return;
+        }
+        if (tries++ < 40) setTimeout(tick, 50); // wait up to ~2s for cards to load
+      };
+      tick();
+    };
+    document.addEventListener('soleil-flash-card', onFlash);
+    return () => document.removeEventListener('soleil-flash-card', onFlash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id, enableSmoothTransform]);
 
   // Touch sibling of the HTML5 onDrop(BOARD_REF_MIME) flow. Fired from
   // SidebarBoardTree when the user touch-drags a board row over a
@@ -6087,6 +6589,7 @@ export function CanvasSurface({
     // Add-note tool — so neither is repeated here. 'Shape' moved off the toolbar
     // (boards took its slot) and lives here now.
     { label: 'Doc', action: () => { noteCreateIntent('add_menu'); mutators.addDocCard?.(); } },
+    { label: 'File', action: () => { noteCreateIntent('add_menu'); openFilePicker(resolvePastePos().pos); } },
     { label: 'Shape', action: () => setSelectedTool('shape') },
     { label: 'Palette', action: () => setSelectedTool('palette') },
     { label: 'Linked board', action: () => onOpenPicker() },
@@ -6350,7 +6853,7 @@ export function CanvasSurface({
   };
 
   return (
-    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''}`}
+    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''}`}
          data-eyedrop={eyedropFor ? '1' : undefined}
          ref={wrapRef}
          style={wrapStyle}
@@ -6368,9 +6871,17 @@ export function CanvasSurface({
         <div className="board-tags-strip" data-board-id={board.id}>
           {(tagsByBoard.get(board.id) || []).slice(0, 6).map(t => (
             <span key={t.id}
-                  className={`card-tag-chip is-${t.source || 'user'}`}
-                  style={{ '--tag-c': t.color || '#4f8df8' }}
-                  title={t.source && t.source !== 'user' ? `${t.name} (${t.source}) — right-click to confirm` : t.name}
+                  role="button"
+                  className={`card-tag-chip is-clickable is-${t.source || 'user'}`}
+                  style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
+                  title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source}) — right-click to confirm` : ''} — click to see everywhere it's used`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: t.id, via: 'board_chip' }); } catch (_) {}
+                    document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: t.id } }));
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -6388,7 +6899,13 @@ export function CanvasSurface({
         pan={pan}
         zoom={zoom}
         selfId={currentUser?.id}
+        getCardById={(id) => cardByIdRef.current[id]}
       />
+      {/* Who's-here facepile + hover roster. The authoritative presence list at
+          scale (canvas cursors are culled/capped); floats top-right. */}
+      <div className="canvas-presence-roster">
+        <PresenceStack getAwareness={getAwareness} />
+      </div>
       <div ref={canvasRef}
            className={`canvas ${smoothXform ? 'is-smooth' : ''}`}
            style={{
@@ -6435,13 +6952,14 @@ export function CanvasSurface({
           }).map(renderCard);
         })()}</div>
 
-        {/* Multi-selection resize — a single bottom-right corner handle
-            matching the per-card resize affordance, but operating on
-            the bounding box of every selected card. Drag to uniformly
-            scale the whole selection (Shift to free-stretch). */}
+        {/* Multi-selection chrome — a unifying bounding box around every
+            selected card so the group reads as ONE selection, plus a single
+            bottom-right corner handle to uniformly scale it (Shift to free-
+            stretch). Both derive from the same live bounds so they track an
+            in-progress resize together. */}
         {canEdit && selectedTool === 'select' && multiSelectionBounds && (() => {
           // While dragging, derive bounds from multiResize.live so the
-          // handle tracks the live (in-progress) rect.
+          // box + handle track the live (in-progress) rect.
           let bounds = multiSelectionBounds;
           if (multiResize?.live) {
             const liveItems = [];
@@ -6451,18 +6969,29 @@ export function CanvasSurface({
           }
           const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
           const startBounds = multiResize?.startBounds || multiSelectionBounds;
+          // A little breathing room so the frame sits just outside the cards.
+          const PAD = 6;
           return (
-            <div className="card-resize multi-resize"
-                 onPointerDown={(e) => onMultiResizePointerDown(e, 'br', items, startBounds)}
-                 style={{
-                   position: 'absolute',
-                   left: bounds.x + bounds.w - RESIZE_HANDLE_PX / 2,
-                   top:  bounds.y + bounds.h - RESIZE_HANDLE_PX / 2,
-                   width: RESIZE_HANDLE_PX,
-                   height: RESIZE_HANDLE_PX,
-                   zIndex: 999996,
-                   pointerEvents: 'auto',
-                 }} />
+            <>
+              <div className="sel-bbox"
+                   style={{
+                     left: bounds.x - PAD,
+                     top:  bounds.y - PAD,
+                     width:  bounds.w + PAD * 2,
+                     height: bounds.h + PAD * 2,
+                   }} />
+              <div className="card-resize multi-resize"
+                   onPointerDown={(e) => onMultiResizePointerDown(e, 'br', items, startBounds)}
+                   style={{
+                     position: 'absolute',
+                     left: bounds.x + bounds.w - RESIZE_HANDLE_PX / 2,
+                     top:  bounds.y + bounds.h - RESIZE_HANDLE_PX / 2,
+                     width: RESIZE_HANDLE_PX,
+                     height: RESIZE_HANDLE_PX,
+                     zIndex: 999996,
+                     pointerEvents: 'auto',
+                   }} />
+            </>
           );
         })()}
 
@@ -6472,7 +7001,7 @@ export function CanvasSurface({
             `snapHints`) so the SVG can fade out for ~140ms after the
             drag releases instead of vanishing instantly. The
             `is-visible` class is keyed off live `snapHints`. */}
-        {displayedHints && (displayedHints.xs?.length || displayedHints.ys?.length || displayedHints.spacings?.length) && (
+        {displayedHints && (displayedHints.xs?.length || displayedHints.ys?.length || displayedHints.spacings?.length || displayedHints.sizes?.length) && (
           <svg className={`snap-guides ${snapHints ? 'is-visible' : ''}`}
                width={SVG_ANCHOR_PX} height={SVG_ANCHOR_PX}
                style={{ position: 'absolute', left: 0, top: 0,
@@ -6483,109 +7012,121 @@ export function CanvasSurface({
                 so the line reads as a relationship, not a ruler. The
                 stroke extends a soft 4px past the dots for breathing
                 room. Optional `label` floats just outside the cap. */}
-            {(displayedHints.xs || []).map((g, i) => {
+            {(displayedHints.xs || []).slice(0, 1).map((g, i) => {
               const overshoot = 4 / zoom;
-              const dotR = 2 / zoom;
+              const dotR = 1.5 / zoom;
               return (
                 <Fragment key={`gx-${i}`}>
-                  <line x1={g.x} x2={g.x} y1={g.y0 - overshoot} y2={g.y1 + overshoot}
+                  <line className="guide-line" x1={g.x} x2={g.x} y1={g.y0 - overshoot} y2={g.y1 + overshoot}
                         stroke="var(--soleil)"
-                        strokeOpacity="0.55"
+                        strokeOpacity="0.7"
                         strokeWidth={1 / zoom}
+                        strokeLinecap="round"
                         vectorEffect="non-scaling-stroke" />
-                  <circle cx={g.x} cy={g.y0} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
-                  <circle cx={g.x} cy={g.y1} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
-                  {g.label && (
-                    <text x={g.x + 8 / zoom} y={(g.y0 + g.y1) / 2}
-                          fill="var(--soleil)"
-                          fontSize={10 / zoom}
-                          fontFamily="ui-monospace, monospace"
-                          textAnchor="start"
-                          dominantBaseline="middle"
-                          opacity="0.85"
-                          style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
-                      {g.label}
-                    </text>
-                  )}
+                  <circle className="guide-mark" cx={g.x} cy={g.y0} r={dotR} fill="var(--soleil)" fillOpacity="0.6" />
+                  <circle className="guide-mark" cx={g.x} cy={g.y1} r={dotR} fill="var(--soleil)" fillOpacity="0.6" />
+                  {g.label && <GuideLabel cx={g.x + 14 / zoom} cy={(g.y0 + g.y1) / 2} text={g.label} zoom={zoom} />}
                 </Fragment>
               );
             })}
-            {(displayedHints.ys || []).map((g, i) => {
+            {(displayedHints.ys || []).slice(0, 1).map((g, i) => {
               const overshoot = 4 / zoom;
-              const dotR = 2 / zoom;
+              const dotR = 1.5 / zoom;
               return (
                 <Fragment key={`gy-${i}`}>
-                  <line y1={g.y} y2={g.y} x1={g.x0 - overshoot} x2={g.x1 + overshoot}
+                  <line className="guide-line" y1={g.y} y2={g.y} x1={g.x0 - overshoot} x2={g.x1 + overshoot}
                         stroke="var(--soleil)"
-                        strokeOpacity="0.55"
+                        strokeOpacity="0.7"
                         strokeWidth={1 / zoom}
+                        strokeLinecap="round"
                         vectorEffect="non-scaling-stroke" />
-                  <circle cx={g.x0} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
-                  <circle cx={g.x1} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.7" />
-                  {g.label && (
-                    <text x={(g.x0 + g.x1) / 2} y={g.y + 12 / zoom}
-                          fill="var(--soleil)"
-                          fontSize={10 / zoom}
-                          fontFamily="ui-monospace, monospace"
-                          textAnchor="middle"
-                          dominantBaseline="hanging"
-                          opacity="0.85"
-                          style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
-                      {g.label}
-                    </text>
-                  )}
+                  <circle className="guide-mark" cx={g.x0} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.6" />
+                  <circle className="guide-mark" cx={g.x1} cy={g.y} r={dotR} fill="var(--soleil)" fillOpacity="0.6" />
+                  {g.label && <GuideLabel cx={(g.x0 + g.x1) / 2} cy={g.y + 13 / zoom} text={g.label} zoom={zoom} />}
                 </Fragment>
               );
             })}
             {/* Equal-spacing markers — drawn between paired neighbours
                 with tiny end caps + a label so the user sees "I matched
                 a 24px gap that already existed". */}
-            {(displayedHints.spacings || []).map((s, i) => {
+            {(displayedHints.spacings || []).slice(0, 2).map((s, i) => {
               const isX = s.axis === 'x';
-              const labelX = isX ? (s.a + s.b) / 2 : s.cross;
-              const labelY = isX ? s.cross : (s.a + s.b) / 2;
+              const lcx = isX ? (s.a + s.b) / 2 : s.cross + 13 / zoom;
+              const lcy = isX ? s.cross - 9 / zoom : (s.a + s.b) / 2;
               return (
                 <Fragment key={`gs-${i}`}>
                   {isX ? (
                     <>
-                      <line x1={s.a} x2={s.b} y1={s.cross} y2={s.cross}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom}
+                      <line className="guide-line" x1={s.a} x2={s.b} y1={s.cross} y2={s.cross}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round"
                             strokeDasharray={`${4 / zoom} ${3 / zoom}`}
                             vectorEffect="non-scaling-stroke" />
-                      <line x1={s.a} x2={s.a} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                      <line x1={s.b} x2={s.b} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                      <line className="guide-line" x1={s.a} x2={s.a} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                      <line className="guide-line" x1={s.b} x2={s.b} y1={s.cross - 5 / zoom} y2={s.cross + 5 / zoom}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                     </>
                   ) : (
                     <>
-                      <line x1={s.cross} x2={s.cross} y1={s.a} y2={s.b}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom}
+                      <line className="guide-line" x1={s.cross} x2={s.cross} y1={s.a} y2={s.b}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round"
                             strokeDasharray={`${4 / zoom} ${3 / zoom}`}
                             vectorEffect="non-scaling-stroke" />
-                      <line x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.a} y2={s.a}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
-                      <line x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.b} y2={s.b}
-                            stroke="var(--soleil)" strokeOpacity="0.6"
-                            strokeWidth={1 / zoom} vectorEffect="non-scaling-stroke" />
+                      <line className="guide-line" x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.a} y2={s.a}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                      <line className="guide-line" x1={s.cross - 5 / zoom} x2={s.cross + 5 / zoom} y1={s.b} y2={s.b}
+                            stroke="var(--soleil)" strokeOpacity="0.65"
+                            strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                     </>
                   )}
-                  <text x={labelX} y={labelY}
-                        fill="var(--soleil)"
-                        fontSize={10 / zoom}
-                        fontFamily="ui-monospace, monospace"
-                        textAnchor="middle"
-                        dy={isX ? -6 / zoom : 0}
-                        dx={isX ? 0 : 8 / zoom}
-                        opacity="0.85"
-                        style={{ paintOrder: 'stroke', stroke: 'var(--bg-0)', strokeWidth: 3 / zoom }}>
-                    {s.gap}
-                  </text>
+                  <GuideLabel cx={lcx} cy={lcy} text={s.gap} zoom={zoom} />
+                </Fragment>
+              );
+            })}
+            {/* Equal-SIZE markers (resize) — a matching caliper bar drawn on BOTH
+                the resized card and the card it matches, with end ticks + an
+                "= N" label, so "these two are the same size" reads at a glance. */}
+            {(displayedHints.sizes || []).slice(0, 2).map((sz, i) => {
+              const isW = sz.axis === 'w';
+              const tick = 4 / zoom;
+              return (
+                <Fragment key={`gz-${i}`}>
+                  {(sz.bars || []).map((bar, bi) => (
+                    <Fragment key={`gz-${i}-${bi}`}>
+                      {isW ? (
+                        <>
+                          <line className="guide-line" x1={bar.a} x2={bar.b} y1={bar.cross} y2={bar.cross}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <line className="guide-line" x1={bar.a} x2={bar.a} y1={bar.cross - tick} y2={bar.cross + tick}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <line className="guide-line" x1={bar.b} x2={bar.b} y1={bar.cross - tick} y2={bar.cross + tick}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <GuideLabel cx={(bar.a + bar.b) / 2} cy={bar.cross + 13 / zoom} text={`= ${sz.value}`} zoom={zoom} />
+                        </>
+                      ) : (
+                        <>
+                          <line className="guide-line" x1={bar.cross} x2={bar.cross} y1={bar.a} y2={bar.b}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <line className="guide-line" x1={bar.cross - tick} x2={bar.cross + tick} y1={bar.a} y2={bar.a}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <line className="guide-line" x1={bar.cross - tick} x2={bar.cross + tick} y1={bar.b} y2={bar.b}
+                                stroke="var(--soleil)" strokeOpacity="0.75"
+                                strokeWidth={1 / zoom} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                          <GuideLabel cx={bar.cross + 16 / zoom} cy={(bar.a + bar.b) / 2} text={`= ${sz.value}`} zoom={zoom} />
+                        </>
+                      )}
+                    </Fragment>
+                  ))}
                 </Fragment>
               );
             })}
@@ -6632,7 +7173,7 @@ export function CanvasSurface({
             pointer events. Only the per-arrow hit-target paths have
             pointer-events:stroke when select/erase is active, so cards
             underneath remain clickable. */}
-        {tweak.showArrows && (arrows?.length || activeFreeArrow) && (
+        {tweak.showArrows && (arrows?.length || activeFreeArrow || arrowFrom) && (
           <svg className="arrows-layer" width={SVG_ANCHOR_PX} height={SVG_ANCHOR_PX}
                style={{ position: 'absolute', left: 0, top: 0,
                         pointerEvents: 'none',
@@ -6666,9 +7207,9 @@ export function CanvasSurface({
               // Dash pattern: customDash from shape-line ('dashed' / 'dotted'),
               // legacy a.dashed boolean, or solid.
               let dashArray = '0';
-              if (a.customDash === 'dashed') dashArray = `${sw * 4} ${sw * 3}`;
+              if (a.customDash === 'dashed') dashArray = `${sw * 5} ${sw * 3.5}`;
               else if (a.customDash === 'dotted') dashArray = `${sw * 1} ${sw * 2}`;
-              else if (a.dashed) dashArray = `${sw * 4} ${sw * 3}`;
+              else if (a.dashed) dashArray = `${sw * 5} ${sw * 3.5}`;
               const pathId = `${arrowPathIdPrefix}${i}`;
               return (
                 <g key={i} data-arrow-idx={i}>
@@ -6678,8 +7219,10 @@ export function CanvasSurface({
                         style={{ cursor: strokesInteractive ? 'move' : 'default' }}
                         onPointerDown={strokesInteractive ? (ev) => onArrowBodyPointerDown(ev, i) : undefined}
                         onContextMenu={strokesInteractive ? (ev) => onArrowContextMenu(ev, i) : undefined} />
+                  {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.18)"
+                                strokeWidth={sw + 8} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />}
                   {sel && <path d={path} fill="none" stroke="rgba(245,158,11,.55)"
-                                strokeWidth={sw + 5} strokeLinecap="round" pointerEvents="none" />}
+                                strokeWidth={sw + 4} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />}
                   <path id={pathId} data-arrow-line d={path} fill="none" stroke={stroke} strokeWidth={sw}
                         strokeDasharray={dashArray}
                         strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
@@ -6698,7 +7241,27 @@ export function CanvasSurface({
             {activeFreeArrow && (() => {
               const s = activeFreeArrow.from, e = activeFreeArrow.to;
               const path = `M${s.x},${s.y} L${e.x},${e.y}`;
-              return <path d={path} stroke="rgba(245,158,11,.8)" strokeWidth="1.5" strokeDasharray="4 3" fill="none" pointerEvents="none" />;
+              return <path d={path} stroke="rgba(245,158,11,.8)" strokeWidth="1.5" strokeDasharray="5 3.5" fill="none" strokeLinecap="round" pointerEvents="none" />;
+            })()}
+            {/* Live rubber-band from the chosen source card to the cursor, so the
+                connection is visible before the second click lands. Starts at the
+                source's edge facing the cursor; hidden while the cursor is over
+                the source card itself. */}
+            {arrowFrom && arrowCursor && arrowFromRect && (() => {
+              const r = arrowFromRect;
+              if (arrowCursor.x > r.x && arrowCursor.x < r.x + r.w &&
+                  arrowCursor.y > r.y && arrowCursor.y < r.y + r.h) return null;
+              const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+              const dx = arrowCursor.x - cx, dy = arrowCursor.y - cy;
+              let sx = cx, sy = cy;
+              if (dx || dy) {
+                const k = Math.min(
+                  dx !== 0 ? (r.w / 2) / Math.abs(dx) : Infinity,
+                  dy !== 0 ? (r.h / 2) / Math.abs(dy) : Infinity);
+                sx = cx + dx * k; sy = cy + dy * k;
+              }
+              const path = `M${sx},${sy} L${arrowCursor.x},${arrowCursor.y}`;
+              return <path d={path} stroke="rgba(245,158,11,.7)" strokeWidth="1.5" strokeDasharray="5 3.5" fill="none" strokeLinecap="round" pointerEvents="none" />;
             })()}
             {/* Endpoint handles for the selected arrow. Only render when
                 exactly one arrow is selected so the handles aren't a mess
@@ -6998,6 +7561,20 @@ export function CanvasSurface({
           onMarkViewed={markCommentViewed}
         />
 
+        {/* Vote cards — same canvas-transform layer + the SAME visibility
+            toggle as comments (layerVisible={commentsVisible}), so they
+            hide when you hide comments. */}
+        <CanvasVoteLayer
+          voteCards={voteCards}
+          userId={userId}
+          currentUser={currentUser}
+          zoom={zoom}
+          resolveCardBBox={resolveCardBBox}
+          resolveGroupBBox={resolveGroupBBox}
+          onLocallyRemoved={removeVoteLocally}
+          layerVisible={commentsVisible}
+        />
+
       </div>
 
       {/* Inline arrow-editor popover — shown when exactly one arrow is
@@ -7208,7 +7785,7 @@ export function CanvasSurface({
           the canvas; the onb-drag note + Ideas board survive for a clean handoff,
           and the cards vanishing self-hides the banner (no extra flag). */}
       {showcaseArm === 'B' && canEdit && cards.some(isShowcaseCard) && (
-        <ShowcaseBanner onClear={async () => {
+        <ShowcaseBanner boardId={board?.id} onClear={async () => {
           const ids = cards.filter(isShowcaseCard).map((c) => c.id);
           if (!ids.length) return;
           mutators.breakUndo?.();                 // collapse to one undo step
@@ -7332,6 +7909,28 @@ export function CanvasSurface({
         boardName={board?.name}
       />
 
+      {/* Phone bottom-nav "+" → full add sheet. The action set mirrors the
+          desktop right-click Add menu (shared via buildAddActions). Close the
+          sheet before running so card auto-focus/editors aren't fighting the
+          sheet teardown. */}
+      {isPhone && mobileAdd && (
+        <Sheet open onClose={() => setMobileAdd(null)} title="Add to board" snap="half">
+          <div className="mobile-add-grid">
+            {buildAddActions(mobileAdd.pos, 'mobile_nav').map(a => (
+              <button
+                key={a.id}
+                type="button"
+                className="mobile-add-tile"
+                onClick={() => { setMobileAdd(null); a.run(); }}
+              >
+                <span className="mobile-add-ico" aria-hidden="true"><Icon as={a.icon} size={24} /></span>
+                <span className="mobile-add-lbl">{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </Sheet>
+      )}
+
       {/* Anchor the tool-options bar to the active selection when a
           single card is selected — easier to find ("hovers next to what
           you're editing"). Falls back to bottom-center default when
@@ -7454,6 +8053,11 @@ export function CanvasSurface({
       {lightbox && (
         <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt}
                        onClose={() => setLightbox(null)} />
+      )}
+      {pdfViewer && (
+        <Suspense fallback={<div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>}>
+          <PdfViewer src={pdfViewer.src} name={pdfViewer.name} onClose={() => setPdfViewer(null)} />
+        </Suspense>
       )}
       {boardDropTarget && boardDropHoverPos && (() => {
         const target = boards?.[boardDropTarget];

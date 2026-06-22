@@ -57,6 +57,23 @@ function InternalToggle() {
   );
 }
 
+function VerifiedToggle() {
+  const f = useAnalyticsFilters();
+  return (
+    <button
+      type="button"
+      className={`admin-toggle ${f.verifiedOnly ? 'is-on' : ''}`}
+      role="switch"
+      aria-checked={f.verifiedOnly}
+      onClick={() => f.setVerifiedOnly(!f.verifiedOnly)}
+      title="Count only verified users (email confirmed + signed in at least once), or everyone including unverified signups"
+    >
+      <span className="admin-toggle-dot" aria-hidden="true" />
+      {f.verifiedOnly ? 'Verified only' : 'All users'}
+    </button>
+  );
+}
+
 function AnalyticsToolbar({ view }) {
   const f = useAnalyticsFilters();
   const showSegments = view === 'overview' || view === 'acquisition';
@@ -77,6 +94,7 @@ function AnalyticsToolbar({ view }) {
         </>
       )}
       <InternalToggle />
+      <VerifiedToggle />
     </AdminToolbar>
   );
 }

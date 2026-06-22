@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
+import { tagFallbackColor, resolveTagColor } from '../lib/tagColor.js';
 
 const POP_W = 280;
 
@@ -70,7 +71,7 @@ export function TagPicker({
                     className={`tag-picker-row ${applied ? 'is-applied' : ''} ${i === hover ? 'is-hover' : ''}`}
                     onMouseEnter={() => setHover(i)}
                     onClick={() => { onToggle?.(t); }}>
-              <span className="tag-picker-dot" style={{ background: t.color || tagFallbackColor(t.slug || t.name) }} />
+              <span className="tag-picker-dot" style={{ background: resolveTagColor(t) }} />
               <span className="tag-picker-name">{t.name}</span>
               {t.kind !== 'user' && <span className={`tag-picker-kind tag-picker-kind-${t.kind}`}>{t.kind}</span>}
               {applied && <span className="tag-picker-check">✓</span>}
@@ -106,18 +107,6 @@ export function TagDisambiguationPrompt({ candidate, onAccept, onDismiss }) {
       <button type="button" className="tag-disambig-no" onClick={onDismiss}>No</button>
     </div>
   );
-}
-
-// Deterministic palette so tags without a color still get a consistent
-// hue across surfaces.
-const TAG_PALETTE = [
-  '#4f8df8', '#22d3ee', '#10b981', '#84cc16', '#f59e0b',
-  '#ef4444', '#ec4899', '#a78bfa', '#6366f1', '#0ea5e9',
-];
-function tagFallbackColor(slug) {
-  const s = (slug || 'tag').toString();
-  let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return TAG_PALETTE[Math.abs(h) % TAG_PALETTE.length];
 }
 
 // Render a single tag chip — used inline on cards and group labels.

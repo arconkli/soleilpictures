@@ -45,7 +45,7 @@ export function StagingBanner() {
   return preview ? (
     <div style={wrap} title="You're previewing the latest, unreleased build">
       <span style={dot} />
-      <span>Latest build (preview)</span>
+      <span>Latest build</span>
       <span style={{ opacity: 0.5 }}>·</span>
       <button style={btn} onClick={exitToStable}>Exit to stable</button>
     </div>

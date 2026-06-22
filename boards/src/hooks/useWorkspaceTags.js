@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { listWorkspaceTags, listCardTags, listBoardTags } from '../lib/tagsApi.js';
+import { resolveTagColor } from '../lib/tagColor.js';
 
 export function useWorkspaceTags({ workspaceId, boardId }) {
   const [tags, setTags] = useState([]);
@@ -79,7 +80,10 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
       const tag = tagById.get(r.tag_id);
       if (!tag) continue;
       if (!m.has(r.card_id)) m.set(r.card_id, []);
-      m.get(r.card_id).push({ ...tag, source: r.source });
+      // Resolve the display color HERE so canvas chips (which render
+      // {tag}.color directly) match the deterministic hue every other
+      // surface uses — uncolored tags were falling back to a hardcoded blue.
+      m.get(r.card_id).push({ ...tag, source: r.source, color: resolveTagColor(tag) });
     }
     return m;
   }, [tags, cardTagRows]);
@@ -91,7 +95,7 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
       const tag = tagById.get(r.tag_id);
       if (!tag) continue;
       if (!m.has(r.board_id)) m.set(r.board_id, []);
-      m.get(r.board_id).push({ ...tag, source: r.source });
+      m.get(r.board_id).push({ ...tag, source: r.source, color: resolveTagColor(tag) });
     }
     return m;
   }, [tags, boardTagRows]);

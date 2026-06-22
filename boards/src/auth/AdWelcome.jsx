@@ -11,10 +11,11 @@
 // is on — carries the flag; organic signups hit the waitlist /welcome flow.)
 // Named AdWelcome for historical reasons — it's now the universal welcome offer.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { logEvent, logEventOnce } from '../lib/analytics.js';
-import { EV } from '../lib/analyticsEvents.js';
+import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
+import { journey, setJourneyState } from '../lib/journey.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { startCheckout } from '../lib/checkout.js';
 import { useAuth } from './AuthGate.jsx';
@@ -31,15 +32,32 @@ export function AdWelcome({ onEnter }) {
   const [busy, setBusy]       = useState(false);      // checkout redirect in flight
   const [entering, setEntering] = useState(false);    // dismiss + enter in flight
   const [error, setError]     = useState(null);
+  const offerStartRef = useRef(Date.now());
+  const resolvedRef = useRef(false);   // true once the user buys OR continues
 
   useEffect(() => {
     logEventOnce('ad_offer_view', EV.AD_OFFER_VIEW);
     // ViewContent — mid-funnel ad-optimization signal. Cards default to annual.
     trackViewContent({ content_name: 'Creator', value: PRICING.annual.billed, currency: 'USD' });
+    // Post-signup journey: mark the phase + capture the silent bounce (hid the
+    // offer without buying or continuing) — mirrors pricing_abandon. Beacon.
+    try { setJourneyState({ phase: JOURNEY_PHASE.AD_WELCOME, route: window.location.pathname }); } catch (_) {}
+    const onHide = () => {
+      if (document.visibilityState !== 'hidden' || resolvedRef.current) return;
+      resolvedRef.current = true;
+      try { journey(EV.AD_OFFER_ABANDON, { ms: Date.now() - offerStartRef.current }, { now: true }); } catch (_) {}
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+    };
   }, []);
   useDwellTime(EV.AD_OFFER_DWELL);
 
   const onBuy = async () => {
+    resolvedRef.current = true;   // chose to buy → not an abandon
     setError(null);
     setBusy(true);
     try {
@@ -52,6 +70,7 @@ export function AdWelcome({ onEnter }) {
 
   const onContinue = async () => {
     if (entering) return;
+    resolvedRef.current = true;   // chose to enter → not an abandon
     setEntering(true);
     logEvent(EV.AD_OFFER_ENTER, { plan });
     // Ad-cohort Meta Lead (the parallel to the waitlist Lead) — fire-and-forget,
