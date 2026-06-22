@@ -10,7 +10,7 @@
 // AND the ?local=1 QA harness, since TierRouter mounts this overlay in both.
 // Hidden entirely for admin / paid / waitlist tiers.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { PricingModal } from './PricingModal.jsx';
@@ -32,6 +32,7 @@ export function UpgradeChip() {
   // undefined while loading, null = never shown, string = shown a prior session.
   const fvShownAtRef = useRef(undefined);
   const firedRef = useRef(false);
+  const chipRef = useRef(null);
 
   // Read the once-flag for demo users (no migration: profiles.settings is jsonb).
   useEffect(() => {
@@ -61,6 +62,29 @@ export function UpgradeChip() {
     return () => window.removeEventListener('soleil:first-value', trigger);
   }, [tier]);
 
+  // Publish the chip's measured width to --upgrade-chip-gutter so the topbar's
+  // right cluster (.tb-right) can reserve exactly enough room and never sit
+  // under this fixed top-right overlay. The property is 0 whenever no demo chip
+  // is mounted, so non-demo users (and topbar-less screens) reserve nothing.
+  // useLayoutEffect runs before paint → no overlap flash; ResizeObserver keeps
+  // the gutter in lockstep as the N/limit count widens or the web font reflows.
+  useLayoutEffect(() => {
+    const el = chipRef.current;
+    const root = document.documentElement;
+    if (tier !== 'demo' || !el) {
+      root.style.setProperty('--upgrade-chip-gutter', '0px');
+      return;
+    }
+    const apply = () => root.style.setProperty('--upgrade-chip-gutter', (el.offsetWidth + 16) + 'px');
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.setProperty('--upgrade-chip-gutter', '0px');
+    };
+  }, [tier]);
+
   if (tier !== 'demo') return null;
 
   const near = demoCardCount >= cardLimit - 10;
@@ -77,6 +101,7 @@ export function UpgradeChip() {
   return (
     <>
       <button
+        ref={chipRef}
         className={`upgrade-chip ${near ? 'upgrade-chip-near' : ''}`}
         onClick={() => setOpen(true)}
         aria-label="Upgrade to Creator"
