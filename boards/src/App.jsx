@@ -62,7 +62,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, Link as LinkIcon, ChevronLeft, ChevronRight } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -3827,11 +3827,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             {!canEditCurrent && (
               <span className="tb-viewonly" title="You have view-only access to this board">VIEW ONLY</span>
             )}
-            <button className="tb-icon tb-icon-link"
-                    onClick={() => setBacklinksRef({ kind: 'board', id: currentBoard.id })}
-                    title="Linked from — every doc, message, and card that mentions this board">
-              <Icon as={LinkIcon} size={16} />
-            </button>
             <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this board">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
             </button>
