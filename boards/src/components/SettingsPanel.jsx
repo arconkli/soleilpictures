@@ -796,6 +796,7 @@ function InviteTab({ user }) {
       <p className="settings-section-hint">
         Share Clusters and you <b>both</b> get free cards. Your friend starts with
         {' '}<b>25 bonus cards</b>; the moment they place their first card, <b>you earn 25 too</b>.
+        {' '}And when a friend <b>upgrades to a paid plan, you get a free month</b>.
         {' '}No limit — keep inviting, keep earning.
       </p>
 
@@ -847,11 +848,20 @@ function InviteTab({ user }) {
             <ReferralStat label="Friends joined" value={stats?.friendsJoined ?? 0} />
             <ReferralStat label="Got started"    value={stats?.friendsActivated ?? 0} />
             <ReferralStat label="Cards earned"   value={stats?.cardsEarned ?? 0} highlight />
+            {(stats?.monthsEarned ?? 0) > 0 && (
+              <ReferralStat label="Free months" value={stats.monthsEarned} highlight />
+            )}
           </div>
           {stats?.pending > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 12 }}>
               {stats.pending} {stats.pending === 1 ? 'friend has' : 'friends have'} joined but
               {' '}haven’t placed their first card yet — you’ll earn 25 cards each when they do.
+            </p>
+          )}
+          {(stats?.friendsPaid ?? 0) > 0 && (
+            <p className="settings-section-hint" style={{ marginTop: 8 }}>
+              🎉 {stats.friendsPaid} {stats.friendsPaid === 1 ? 'friend' : 'friends'} you invited
+              {' '}upgraded to a paid plan — that’s {stats.monthsEarned} free {stats.monthsEarned === 1 ? 'month' : 'months'} for you.
             </p>
           )}
         </>
