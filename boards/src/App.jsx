@@ -2553,12 +2553,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       else if (!firstValueTimerRef.current) firstValueTimerRef.current = setTimeout(dispatchFirstValue, 15000); // 1st → ~15s beat
     }
 
-    // Post-activation referral nudge (demo only): once they've clearly gotten
-    // value (≥5 genuine cards), invite them to share. A higher bar than the
-    // first-value upgrade banner (2 cards) so the two soft banners never stack.
-    // ReferralNudge owns the demo-gate + once-per-account guard; repeated
-    // dispatches as the count grows are harmless (it de-dupes).
-    if (myTier.tier === 'demo' && genuine.length >= 5) {
+    // Post-activation referral nudge: once they've clearly gotten value (≥5
+    // genuine cards), invite them to share. A higher bar than the first-value
+    // upgrade banner (2 cards) so the two soft banners never stack. Fires for
+    // demo AND paid users — paid users are the best advocates and now have a
+    // real reward (a free month when a friend upgrades, migration 0167).
+    // ReferralNudge owns the tier-gate + once-per-account guard (per-tier key);
+    // repeated dispatches as the count grows are harmless (it de-dupes).
+    if ((myTier.tier === 'demo' || myTier.tier === 'paid') && genuine.length >= 5) {
       window.dispatchEvent(new CustomEvent('soleil:referral-nudge'));
     }
 
