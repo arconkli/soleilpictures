@@ -62,7 +62,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -86,7 +86,8 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink } from './lib/boardsApi.js';
+import { forceBoardThumbnail } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
@@ -2198,7 +2199,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({
           type: 'success',
           message: `You earned ${delta} free card${delta === 1 ? '' : 's'}! A friend you invited just got started 🎉`,
-          ttl: 7000,
+          // The highest-intent re-share moment — turn the celebration back into
+          // the loop instead of dead-ending. Longer ttl so the CTA is clickable.
+          action: { label: 'Invite more', onClick: () => openInviteFriends('reward_toast') },
+          ttl: 12000,
         });
       } catch (_) {}
     }
@@ -2620,6 +2624,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+
+  // One-tap share: mint-or-reuse a view-only link for the current board and copy
+  // it instantly, collapsing the ~4-click ShareModal flow to one. Defaults to
+  // include-subboards ON so a shared demo shows depth (server still enforces the
+  // subtree). Eagerly refreshes the OG thumbnail so the pasted link unfurls with
+  // a real preview, not the generic logo. Gated on write access by the caller.
+  const [quickShareBusy, setQuickShareBusy] = useState(false);
+  const quickCopyShareLink = React.useCallback(async () => {
+    if (quickShareBusy) return;
+    setQuickShareBusy(true);
+    try {
+      const { token } = await ensurePublicLink({ boardId: currentBoard.id, includeSubboards: true });
+      const url = `${window.location.origin}/share/${token}`;
+      let copied = false;
+      try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
+      // Fresh unfurl preview for the link we just handed out.
+      try {
+        const yd = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
+        if (yd) forceBoardThumbnail(currentBoard.id, yd, { workspaceId: workspace.id, userId: user.id });
+      } catch (_) {}
+      try { logEvent(EV.SHARE_OPEN, { board_id: currentBoard.id, quick: true }); } catch (_) {}
+      feedback.toast(copied
+        ? { type: 'success', message: 'Share link copied — anyone with it can view this board.',
+            action: { label: 'Manage', onClick: () => setShareOpen(true) }, ttl: 9000 }
+        : { type: 'info', message: url, ttl: 9000 });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not create a share link — try again.' });
+    } finally {
+      setQuickShareBusy(false);
+    }
+  }, [quickShareBusy, currentBoard.id, yb.ready, yb.boardId, yb.ydoc, workspace.id, user.id, feedback]);
+
   // Per-row write check for the sidebar board context menu. Uses the same
   // pure decider as currentBoardPerm, callable per-board (a hook can't be).
   const canEditBoard = React.useCallback((boardId) => {
@@ -3827,6 +3863,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             {!canEditCurrent && (
               <span className="tb-viewonly" title="You have view-only access to this board">VIEW ONLY</span>
             )}
+            {canEditCurrent && (
+              <button className="tb-icon" onClick={quickCopyShareLink} disabled={quickShareBusy}
+                      title="Copy a view-only link to this board">
+                <Icon as={LinkIcon} size={16} />
+              </button>
+            )}
             <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this board">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
             </button>
@@ -3986,6 +4028,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onClose={() => setShareOpen(false)}
           onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
           onSharesChanged={() => { refreshSharedBoards?.(); }}
+          onLinkCreated={() => {
+            try {
+              const yd = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
+              if (yd) forceBoardThumbnail(currentBoard.id, yd, { workspaceId: workspace.id, userId: user.id });
+            } catch (_) {}
+          }}
         />
       )}
       {backlinksRef && (

@@ -405,6 +405,22 @@ export async function listPublicLinks(boardId) {
   return data || [];
 }
 
+// Reuse-before-mint: return the board's existing active same-scope public link
+// or create one. Powers the one-tap "Copy share link" toolbar action (and the
+// ShareModal create button), so a board has at most one interchangeable link
+// per scope instead of accumulating random tokens. Returns { token, reused }.
+export async function ensurePublicLink({ boardId, includeSubboards = false, expiresAt = null }) {
+  if (!boardId) throw new Error('ensurePublicLink: boardId required');
+  const rows = await listPublicLinks(boardId);
+  const active = (rows || []).filter(
+    l => !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())
+  );
+  const existing = active.find(l => !!l.include_subboards === !!includeSubboards);
+  if (existing) return { token: existing.token, reused: true };
+  const token = await createPublicLink({ boardId, expiresAt, includeSubboards });
+  return { token, reused: false };
+}
+
 // ── Public marketing boards (admin-only; migration 0136) ────────────────────
 // Curate which boards are publicly discoverable at /c/<slug> with their own SEO
 // copy. Every RPC is gated on is_admin() server-side; the UI gate is cosmetic.

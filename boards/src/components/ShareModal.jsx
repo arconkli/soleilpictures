@@ -38,6 +38,7 @@ export function ShareModal({
   onClose,
   onMembersChanged,       // refetch trigger after remove-member
   onSharesChanged,        // refetch trigger after share / unshare
+  onLinkCreated,          // a public link was minted — refresh the OG thumbnail
 }) {
   const feedback = useFeedback();
   const isOwner = workspace?.created_by === selfUserId;
@@ -156,6 +157,8 @@ export function ShareModal({
         ? null
         : new Date(Date.now() + (linkExpiry === '7d' ? 7 : 30) * 86400000).toISOString();
       const token = await createPublicLink({ boardId: board.id, expiresAt, includeSubboards: linkIncludeSubboards });
+      // Refresh the board's OG thumbnail so the link unfurls with a real preview.
+      try { onLinkCreated?.(); } catch (_) {}
       const copied = await copyLinkUrl(token);
       // If the clipboard write failed (permissions, non-secure context),
       // say so — the link still appears in the list below with a Copy

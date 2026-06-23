@@ -145,10 +145,10 @@ export const EV = Object.freeze({
   // ── Referral / "Invite friends, earn free cards" (migration 0163) ──
   // Client-fired; the three conversion events (signup/activated/reward_granted)
   // are fired SERVER-side from the signup + first-card triggers into analytics_events.
-  REFERRAL_OPEN:           'referral_open',               // opened the invite surface {surface:'cap_toast'|'nudge'|'cap_modal'|'menu'}
+  REFERRAL_OPEN:           'referral_open',               // opened the invite surface {surface:'cap_toast'|'nudge'|'cap_modal'|'menu'|'reward_toast'|'paid_nudge'}
   REFERRAL_TAB_VIEW:       'referral_tab_view',           // Invite & earn account tab mounted {has_code}
   REFERRAL_LINK_COPIED:    'referral_link_copied',        // copied the ?ref= link {surface}
-  REFERRAL_LINK_SHARED:    'referral_link_shared',        // native-shared the link {surface}
+  REFERRAL_LINK_SHARED:    'referral_link_shared',        // shared the link {surface,channel:'native'|'whatsapp'|'x'|'email'|'sms'}
   REFERRAL_NUDGE_VIEW:     'referral_nudge_view',         // post-activation invite nudge shown
   REFERRAL_NUDGE_CTA:      'referral_nudge_cta',          // nudge "Invite friends" clicked → opens tab (must-land)
   REFERRAL_NUDGE_DISMISS:  'referral_nudge_dismiss',      // nudge dismissed
