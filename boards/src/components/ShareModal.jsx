@@ -22,6 +22,7 @@ import {
 } from '../lib/boardsApi.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import * as userProfiles from '../lib/userProfiles.js';
+import { ExplorePublishSection } from './ExplorePublishSection.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { X as XIcon } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
@@ -765,6 +766,8 @@ export function ShareModal({
             )}
           </div>
         )}
+
+        <ExplorePublishSection board={board} canManage={canInvite} />
 
         {!canInvite && (
           <div className="share-section">

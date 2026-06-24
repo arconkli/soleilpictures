@@ -514,6 +514,45 @@ export async function pingIndexNow(slug) {
   } catch (_) { /* non-fatal */ }
 }
 
+// ── Self-serve "Publish to Explore" + admin approve-queue (migration 0169) ──
+// Any board owner can SUBMIT their board to the public /c/ + /explore SEO
+// surface; it sits in a moderation queue (invisible publicly) until an admin
+// approves. Approval = SEO/brand self-protection, not heavy moderation.
+
+// USER: submit (or re-submit) my board. Returns { status:'pending'|'already_published', slug }.
+export async function submitBoardToExplore({ boardId, slug = null, title = null, description = null, body = null, keyword = null }) {
+  const { data, error } = await supabase.rpc('submit_board_to_explore', {
+    p_board_id: boardId, p_slug: slug, p_title: title,
+    p_description: description, p_body: body, p_keyword: keyword,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// USER: my board's submission status, or null if never submitted.
+// { slug, review_status, published_at, published_by, review_reason }
+export async function getMyExploreSubmission(boardId) {
+  const { data, error } = await supabase.rpc('get_my_explore_submission', { p_board_id: boardId });
+  if (error) throw error;
+  return data || null;
+}
+
+// ADMIN: the review queue (default 'pending'; pass 'approved'/'rejected'/null).
+export async function adminListPublicBoardSubmissions(status = 'pending') {
+  const { data, error } = await supabase.rpc('admin_list_public_board_submissions', { p_status: status });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+// ADMIN: approve (publish) or reject a submission. Returns { status, slug }.
+export async function adminReviewPublicBoard({ boardId, approve, reason = null }) {
+  const { data, error } = await supabase.rpc('admin_review_public_board', {
+    p_board_id: boardId, p_approve: approve, p_reason: reason,
+  });
+  if (error) throw error;
+  return data;
+}
+
 // ── Boards ─────────────────────────────────────────────────────────────────
 
 export async function listBoards(workspaceId) {
