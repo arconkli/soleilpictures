@@ -19,7 +19,8 @@ import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
-import { decodeShowcaseCards } from './lib/showcaseClone.js';
+import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
+import { readRemix, clearRemix } from './lib/remix.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -2462,6 +2463,65 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (e) {
         console.error('[showcasepreview] failed', e);
         feedback.toast({ type: 'error', message: 'Showcase preview failed: ' + (e?.message || e) });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.id, rootBoard?.id, user?.id]);
+
+  // "Make a copy" remix loop: if the user arrived from a /share or /c viewer's
+  // remix CTA (AuthGate stashed the source across signup), clone that PUBLIC
+  // board into a fresh board in their workspace and open it. Mirrors the
+  // showcasepreview clone: create board → prepare_remix grants image read +
+  // returns the source snapshot → decode GENUINE cards → save → reset the fresh
+  // PartyKit room so it can't re-persist an empty doc over the clone → open it.
+  const remixConsumedRef = useRef(false);
+  useEffect(() => {
+    if (remixConsumedRef.current || typeof window === 'undefined') return;
+    if (!workspace?.id || !rootBoard?.id || !user?.id) return;
+    const src = readRemix();
+    if (!src) return;
+    remixConsumedRef.current = true;
+    clearRemix();   // one-shot: never re-clone on reload
+    (async () => {
+      try {
+        const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Remix', view: 'canvas', userId: user.id });
+        if (!b?.id) { feedback.toast({ type: 'error', message: 'Could not start your copy — try again.' }); return; }
+        const res = await supabase.rpc('prepare_remix', {
+          p_token: src.kind === 'token' ? src.value : null,
+          p_slug:  src.kind === 'slug'  ? src.value : null,
+          p_dest_board: b.id,
+        });
+        const tpl = res?.data;
+        if (res?.error || !tpl?.snapshot) {
+          try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'prepare', reason: String(res?.error?.message || 'no_snapshot').slice(0, 120) }); } catch (_) {}
+          feedback.toast({ type: 'error', message: 'That board could not be copied (the link may have expired).' });
+          try { await deleteBoard(b.id); } catch (_) {}
+          return;
+        }
+        const cards = decodeRemixCards(tpl.snapshot);
+        if (!cards.length) {
+          try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'decode', reason: 'empty' }); } catch (_) {}
+          try { await deleteBoard(b.id); } catch (_) {}
+          feedback.toast({ type: 'info', message: 'That board had nothing to copy.' });
+          return;
+        }
+        if (tpl.name) { try { await renameBoard(b.id, `${tpl.name} (remix)`); } catch (_) {} }
+        const ydoc = new Y.Doc();
+        const m = ydoc.getMap('cards');
+        ydoc.transact(() => { for (const c of cards) m.set(c.id, cardToYMap(c)); });
+        await saveBoardSnapshot(b.id, ydoc);
+        ydoc.destroy();
+        // CRITICAL (same as showcasepreview): wipe the fresh room so it can't
+        // re-persist its empty in-memory doc over the clone we just saved.
+        try { await forceResetBoardRoom(b.id); } catch (e) { console.warn('[remix] room reset failed (continuing)', e); }
+        try { await refreshBoards(); } catch (_) {}
+        setStack([b.id]);
+        try { logEvent(EV.REMIX_CLONE, { kind: src.kind, n: cards.length }); } catch (_) {}
+        feedback.toast({ type: 'success', message: 'Copied to your workspace — make it your own.' });
+      } catch (e) {
+        console.error('[remix] consume failed', e);
+        try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'consume', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
+        feedback.toast({ type: 'error', message: 'Could not finish your copy — try again.' });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
