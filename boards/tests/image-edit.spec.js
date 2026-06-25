@@ -1,12 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 // Photo-adjustment logic. Drives the pure helper bridge published under
-// ?imgeditqa=1 (src/lib/imageAdjust.js) — the same buildFilterCss /
-// buildTransform / isAdjusted / buildImgStyle the image card + download bake
-// use — so the load-bearing filter-string math is verified with zero backend.
-// The DOM interaction (pencil → popover → slider → live filter) is covered by
-// manual MCP/devtools verification; computed `filter` strings vary per browser
-// which makes exact-string DOM assertions brittle.
+// ?imgeditqa=1 (src/lib/imageAdjust.js) — the Lightroom-style tone/color engine
+// (normalizeAdjust, buildToneTable, buildColorMatrix, isAdjusted, buildImgStyle/
+// buildFilterRef) that drives both the live SVG filter and the download bake.
 
 test.describe('image photo adjustments (logic bridge)', () => {
   test.beforeEach(async ({ page }) => {
@@ -14,75 +11,115 @@ test.describe('image photo adjustments (logic bridge)', () => {
     await page.waitForFunction(() => !!window.__soleilImgEditTest);
   });
 
-  test('isAdjusted is false for neutral/empty and true for any change', async ({ page }) => {
+  test('isAdjusted is false for neutral and true for any change', async ({ page }) => {
     const r = await page.evaluate(() => {
       const T = window.__soleilImgEditTest;
       return {
-        nullA:       T.isAdjusted(null),
-        empty:       T.isAdjusted({}),
-        neutral:     T.isAdjusted({ brightness: 100, contrast: 100, saturation: 100, warmth: 0, sharpen: 0 }),
-        bright:      T.isAdjusted({ brightness: 120 }),
-        flip:        T.isAdjusted({ flipH: true }),
-        gray:        T.isAdjusted({ grayscale: true }),
-        warmthZero:  T.isAdjusted({ warmth: 0 }),
-        sharpenZero: T.isAdjusted({ sharpen: 0 }),
-        sharpen:     T.isAdjusted({ sharpen: 2 }),
+        nullA:    T.isAdjusted(null),
+        empty:    T.isAdjusted({}),
+        v2neutral:T.isAdjusted({ v: 2 }),
+        exposure: T.isAdjusted({ v: 2, exposure: 30 }),
+        flip:     T.isAdjusted({ flipH: true }),
+        gray:     T.isAdjusted({ grayscale: true }),
+        sharp:    T.isAdjusted({ v: 2, sharpness: 20 }),
       };
     });
     expect(r.nullA).toBe(false);
     expect(r.empty).toBe(false);
-    expect(r.neutral).toBe(false);
-    expect(r.bright).toBe(true);
+    expect(r.v2neutral).toBe(false);
+    expect(r.exposure).toBe(true);
     expect(r.flip).toBe(true);
     expect(r.gray).toBe(true);
-    expect(r.warmthZero).toBe(false);
-    expect(r.sharpenZero).toBe(false);
-    expect(r.sharpen).toBe(true);
+    expect(r.sharp).toBe(true);
   });
 
-  test('buildFilterCss maps the function filters and omits neutral terms', async ({ page }) => {
+  test('normalizeAdjust migrates legacy v1 edits', async ({ page }) => {
     const r = await page.evaluate(() => {
       const T = window.__soleilImgEditTest;
       return {
-        empty:   T.buildFilterCss(null),
-        bright:  T.buildFilterCss({ brightness: 120 }),
-        contrast:T.buildFilterCss({ contrast: 90 }),
-        sat:     T.buildFilterCss({ saturation: 150 }),
-        gray:    T.buildFilterCss({ grayscale: true }),
+        brightUp:   T.normalizeAdjust({ brightness: 200 }).exposure,   // ≈ +67
+        brightDown: T.normalizeAdjust({ brightness: 50 }).exposure,    // ≈ -67
+        warmth:     T.normalizeAdjust({ warmth: 50 }).temperature,     // 50
+        contrast:   T.normalizeAdjust({ contrast: 150 }).contrast,     // +50
+        sat:        T.normalizeAdjust({ saturation: 50 }).saturation,  // -50
+        sharpen:    T.normalizeAdjust({ sharpen: 3 }).sharpness,       // 100
+        gray:       T.normalizeAdjust({ grayscale: true, flipH: true }),
+        v2:         T.normalizeAdjust({ v: 2, exposure: 30 }).exposure,// 30 (passthrough)
       };
     });
-    expect(r.empty).toBe('');
-    expect(r.bright).toBe('brightness(1.2)');
-    expect(r.contrast).toBe('contrast(0.9)');
-    expect(r.sat).toBe('saturate(1.5)');
-    expect(r.gray).toBe('grayscale(1)');
+    expect(r.brightUp).toBeGreaterThan(60);
+    expect(r.brightDown).toBeLessThan(-60);
+    expect(r.warmth).toBe(50);
+    expect(r.contrast).toBe(50);
+    expect(r.sat).toBe(-50);
+    expect(r.sharpen).toBe(100);
+    expect(r.gray.grayscale).toBe(true);
+    expect(r.gray.flipH).toBe(true);
+    expect(r.v2).toBe(30);
   });
 
-  test('buildFilterCss appends sharpen + warmth url() refs in order', async ({ page }) => {
-    const css = await page.evaluate(() => window.__soleilImgEditTest.buildFilterCss({
-      brightness: 120, contrast: 90, saturation: 150, grayscale: true, warmth: 50, sharpen: 2,
-    }));
-    expect(css).toBe('brightness(1.2) contrast(0.9) saturate(1.5) grayscale(1) url(#soleil-warm-5) url(#soleil-sharpen-2)');
+  test('tone table is monotonic and neutral is identity', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilImgEditTest;
+      const parse = (a) => T.buildToneTable(T.normalizeAdjust(a)).split(' ').map(Number);
+      const neutral = parse({ v: 2 });
+      // an extreme, normally-non-monotone combination
+      const extreme = parse({ v: 2, exposure: 60, contrast: 90, highlights: 100, shadows: -100, whites: 80, blacks: -80 });
+      const isMono = (arr) => arr.every((v, i) => i === 0 || v >= arr[i - 1] - 1e-6);
+      const nearIdentity = neutral.every((v, i) => Math.abs(v - i / (neutral.length - 1)) < 0.02);
+      return {
+        neutralMono: isMono(neutral), extremeMono: isMono(extreme), nearIdentity,
+        n0: neutral[0], nLast: neutral[neutral.length - 1], len: neutral.length,
+      };
+    });
+    expect(r.len).toBe(33);
+    expect(r.neutralMono).toBe(true);
+    expect(r.extremeMono).toBe(true);   // running-max guarantees this
+    expect(r.nearIdentity).toBe(true);
+    expect(r.n0).toBeCloseTo(0, 2);
+    expect(r.nLast).toBeCloseTo(1, 2);
   });
 
-  test('warmthLevel snaps the raw -100..100 value to a signed level', async ({ page }) => {
+  test('color matrix: neutral = identity, B&W = luma', async ({ page }) => {
     const r = await page.evaluate(() => {
       const T = window.__soleilImgEditTest;
       return {
-        zero: T.warmthLevel(0),
-        warm: T.warmthLevel(50),
-        cool: T.warmthLevel(-100),
-        max:  T.warmthLevel(100),
-        round1: T.warmthLevel(7),   // round(0.7) = 1
-        round0: T.warmthLevel(4),   // round(0.4) = 0
+        neutral: T.buildColorMatrix(T.normalizeAdjust({ v: 2 })),
+        bw: T.buildColorMatrix(T.normalizeAdjust({ grayscale: true })),
       };
     });
-    expect(r.zero).toBe(0);
-    expect(r.warm).toBe(5);
-    expect(r.cool).toBe(-10);
-    expect(r.max).toBe(10);
-    expect(r.round1).toBe(1);
-    expect(r.round0).toBe(0);
+    // identity 4x5
+    expect(r.neutral[0]).toBeCloseTo(1, 4);
+    expect(r.neutral[1]).toBeCloseTo(0, 4);
+    expect(r.neutral[6]).toBeCloseTo(1, 4);
+    expect(r.neutral[12]).toBeCloseTo(1, 4);
+    // B&W: every row = Rec.709 luma
+    expect(r.bw[0]).toBeCloseTo(0.2126, 3);
+    expect(r.bw[1]).toBeCloseTo(0.7152, 3);
+    expect(r.bw[2]).toBeCloseTo(0.0722, 3);
+    expect(r.bw[5]).toBeCloseTo(0.2126, 3);
+  });
+
+  test('buildImgStyle / buildFilterRef wire the per-card filter id', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilImgEditTest;
+      return {
+        neutral:   T.buildImgStyle({ v: 2 }, 'c1'),
+        exposure:  T.buildImgStyle({ v: 2, exposure: 30 }, 'c1'),
+        flipOnly:  T.buildImgStyle({ flipH: true }, 'c1'),
+        both:      T.buildImgStyle({ v: 2, exposure: 30, flipH: true }, 'c1'),
+        refFlip:   T.buildFilterRef({ flipH: true }, 'c1'),
+        refExp:    T.buildFilterRef({ v: 2, exposure: 30 }, 'c1'),
+        idSanit:   T.adjustFilterId('a b/c'),
+      };
+    });
+    expect(r.neutral).toBeUndefined();
+    expect(r.exposure).toEqual({ filter: 'url(#soleil-adj-c1)' });
+    expect(r.flipOnly).toEqual({ transform: 'scaleX(-1)' });   // flip-only → no filter ref
+    expect(r.both).toEqual({ filter: 'url(#soleil-adj-c1)', transform: 'scaleX(-1)' });
+    expect(r.refFlip).toBe('');
+    expect(r.refExp).toBe('url(#soleil-adj-c1)');
+    expect(r.idSanit).toBe('soleil-adj-a_b_c');
   });
 
   test('buildTransform emits only the flipped axes', async ({ page }) => {
@@ -90,8 +127,8 @@ test.describe('image photo adjustments (logic bridge)', () => {
       const T = window.__soleilImgEditTest;
       return {
         none: T.buildTransform({}),
-        h:    T.buildTransform({ flipH: true }),
-        v:    T.buildTransform({ flipV: true }),
+        h: T.buildTransform({ flipH: true }),
+        v: T.buildTransform({ flipV: true }),
         both: T.buildTransform({ flipH: true, flipV: true }),
       };
     });
@@ -99,34 +136,6 @@ test.describe('image photo adjustments (logic bridge)', () => {
     expect(r.h).toBe('scaleX(-1)');
     expect(r.v).toBe('scaleY(-1)');
     expect(r.both).toBe('scaleX(-1) scaleY(-1)');
-  });
-
-  test('buildImgStyle is undefined when neutral and a minimal object otherwise', async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const T = window.__soleilImgEditTest;
-      return {
-        neutralIsUndefined: T.buildImgStyle(null) === undefined,
-        filterOnly: T.buildImgStyle({ brightness: 120 }),
-        flipOnly:   T.buildImgStyle({ flipH: true }),
-        both:       T.buildImgStyle({ brightness: 120, flipH: true }),
-      };
-    });
-    expect(r.neutralIsUndefined).toBe(true);
-    expect(r.filterOnly).toEqual({ filter: 'brightness(1.2)' });
-    expect(r.flipOnly).toEqual({ transform: 'scaleX(-1)' });
-    expect(r.both).toEqual({ filter: 'brightness(1.2)', transform: 'scaleX(-1)' });
-  });
-
-  test('buildCanvasFilterCss drops url() refs (canvas bake uses manual passes)', async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const T = window.__soleilImgEditTest;
-      return {
-        withUrls: T.buildCanvasFilterCss({ saturation: 150, sharpen: 3, warmth: 40 }),
-        funcs:    T.buildCanvasFilterCss({ brightness: 110, grayscale: true }),
-      };
-    });
-    expect(r.withUrls).toBe('saturate(1.5)');       // sharpen/warmth excluded
-    expect(r.funcs).toBe('brightness(1.1) grayscale(1)');
   });
 });
 
@@ -140,7 +149,14 @@ test.describe('image photo editing (DOM)', () => {
     await page.locator('.ic-img').first().waitFor({ state: 'visible' });
   });
 
-  test('pencil opens the popover and a slider applies a live CSS filter', async ({ page }) => {
+  const pushSlider = (locator, value) => locator.evaluate((el, v) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(el, String(v));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+
+  test('pencil opens the popover and a slider applies the per-card SVG filter', async ({ page }) => {
     const card = page.locator('[data-card-id]').filter({ has: page.locator('.ic-img') }).first();
     await card.hover();
     const pencil = card.locator('.ic-edit');
@@ -150,22 +166,12 @@ test.describe('image photo editing (DOM)', () => {
     const pop = page.locator('.iep-pop');
     await expect(pop).toBeVisible();
 
-    // Drive the brightness slider (first slider) up. Use the native value
-    // setter so React's controlled-input value tracker actually sees the change.
-    const slider = pop.locator('.iap-slider').first();
-    await slider.evaluate((el) => {
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-      setter.call(el, '150');
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await pushSlider(pop.locator('.iap-slider').first(), 60);   // Exposure
 
-    // The displayed image (inside the progressive .r2p wrapper) now carries a
-    // brightness filter. Computed filter strings vary, so assert substring.
     const r2p = page.locator('.ic-img.r2p').first();
     await expect.poll(async () =>
       r2p.evaluate((el) => getComputedStyle(el).filter)
-    ).toContain('brightness');
+    ).toContain('soleil-adj');
   });
 
   test('flip applies a transform and download bakes with no taint error', async ({ page }) => {
@@ -178,52 +184,44 @@ test.describe('image photo editing (DOM)', () => {
     const pop = page.locator('.iep-pop');
     await expect(pop).toBeVisible();
 
-    // Flip horizontal (button's visible text is "Flip H"; match by title).
     await pop.getByTitle('Flip horizontal').click();
     const r2p = page.locator('.ic-img.r2p').first();
     await expect.poll(async () =>
       r2p.evaluate((el) => getComputedStyle(el).transform)
     ).not.toBe('none');
 
-    // Download (baked) — assert it runs without a SecurityError/taint.
-    const download = pop.getByRole('button', { name: /Download/ });
-    await download.click();
+    await pop.getByRole('button', { name: /Download/ }).click();
     await page.waitForTimeout(400);
     const taint = errors.filter((e) => /taint|SecurityError|insecure/i.test(e));
     expect(taint).toEqual([]);
   });
 
-  test('expand opens the full-screen editor', async ({ page }) => {
+  test('expand opens the full-screen editor with grouped sections', async ({ page }) => {
     const card = page.locator('[data-card-id]').filter({ has: page.locator('.ic-img') }).first();
     await card.hover();
     await card.locator('.ic-edit').click();
     await page.locator('.iep-pop').getByRole('button', { name: 'Full screen' }).click();
     await expect(page.locator('.iem')).toBeVisible();
     await expect(page.locator('.iem-img')).toBeVisible();
+    // Light / Color / Detail section eyebrows
+    await expect(page.locator('.iem-rail .iap-group-label')).toHaveCount(3);
   });
-
-  const pushSlider = (locator, value) => locator.evaluate((el, v) => {
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    setter.call(el, String(v));
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  }, value);
 
   test('value readout marks dirty and taps to reset just that control', async ({ page }) => {
     const card = page.locator('[data-card-id]').filter({ has: page.locator('.ic-img') }).first();
     await card.hover();
     await card.locator('.ic-edit').click();
-    const row = page.locator('.iep-pop .iap-row').first();   // Brightness
+    const row = page.locator('.iep-pop .iap-row').first();   // Exposure
     const valBtn = row.locator('.iap-val');
 
     await expect(valBtn).not.toHaveClass(/is-dirty/);
-    await pushSlider(row.locator('.iap-slider'), 150);
+    await pushSlider(row.locator('.iap-slider'), 50);
     await expect(valBtn).toHaveClass(/is-dirty/);
-    await expect(valBtn).toHaveText('150%');
+    await expect(valBtn).toHaveText('+50');
 
-    await valBtn.click();                                     // tap value → reset control
+    await valBtn.click();
     await expect(valBtn).not.toHaveClass(/is-dirty/);
-    await expect(valBtn).toHaveText('100%');
+    await expect(valBtn).toHaveText('0');
   });
 
   test('hold-to-compare strips the filter while held', async ({ page }) => {
@@ -231,15 +229,15 @@ test.describe('image photo editing (DOM)', () => {
     await card.hover();
     await card.locator('.ic-edit').click();
     const pop = page.locator('.iep-pop');
-    await pushSlider(pop.locator('.iap-slider').first(), 150);
+    await pushSlider(pop.locator('.iap-slider').first(), 50);
 
     const r2p = page.locator('.ic-img.r2p').first();
-    await expect.poll(() => r2p.evaluate((el) => getComputedStyle(el).filter)).toContain('brightness');
+    await expect.poll(() => r2p.evaluate((el) => getComputedStyle(el).filter)).toContain('soleil-adj');
 
     const compare = pop.getByTitle('Hold to compare original');
     await compare.dispatchEvent('pointerdown');
     await expect.poll(() => r2p.evaluate((el) => getComputedStyle(el).filter)).toBe('none');
     await compare.dispatchEvent('pointerup');
-    await expect.poll(() => r2p.evaluate((el) => getComputedStyle(el).filter)).toContain('brightness');
+    await expect.poll(() => r2p.evaluate((el) => getComputedStyle(el).filter)).toContain('soleil-adj');
   });
 });

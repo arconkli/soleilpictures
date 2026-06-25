@@ -12,7 +12,7 @@ import { Icon } from './Icon.jsx';
 import { X } from '../lib/icons.js';
 import { buildImgStyle, isAdjusted } from '../lib/imageAdjust.js';
 
-export function ImageEditModal({ src, title, adjust, onChange, onReset, onDownload, onClose }) {
+export function ImageEditModal({ src, title, adjust, cardId, onChange, onReset, onDownload, onClose }) {
   const [comparing, setComparing] = useState(false);
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -21,7 +21,7 @@ export function ImageEditModal({ src, title, adjust, onChange, onReset, onDownlo
   }, [onClose]);
 
   const canCompare = isAdjusted(adjust);
-  const imgStyle = comparing ? undefined : buildImgStyle(adjust);
+  const imgStyle = comparing ? undefined : buildImgStyle(adjust, cardId);
 
   const node = (
     <div className="iem" role="dialog" aria-label="Edit photo"

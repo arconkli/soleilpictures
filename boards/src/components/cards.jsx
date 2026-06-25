@@ -543,7 +543,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
   // Non-destructive photo adjustments → CSS filter/transform on the image.
   // useMemo keyed on the (identity-stable) adjust object so unchanged cards
   // don't rebuild the style object on every pan/zoom tick.
-  const imgStyle = useMemo(() => buildImgStyle(adjust), [adjust]);
+  const imgStyle = useMemo(() => buildImgStyle(adjust, cardId), [adjust, cardId]);
   // Caption + title are hidden until a value exists OR the user opts in to
   // edit. Double-click on the image area focuses the title editor (creating
   // it on the fly). Hover affordance for adding a caption. Right-click in

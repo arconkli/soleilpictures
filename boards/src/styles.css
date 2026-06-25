@@ -11305,6 +11305,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .iap-bw { font-weight: 700; letter-spacing: .04em; }
 
 .iap-sliders { display: flex; flex-direction: column; gap: 13px; }
+.iap-group { display: flex; flex-direction: column; gap: 13px; }
+.iap-group + .iap-group { margin-top: 16px; }
+.iap-group-label { margin-bottom: -2px; }
 .iap-row { display: flex; flex-direction: column; gap: 7px; }
 .iap-rowtop { display: flex; align-items: center; justify-content: space-between; }
 .iap-label { display: flex; align-items: center; gap: 6px; font: 500 11px/1 var(--font-sans); color: var(--ink-2); }
@@ -11347,11 +11350,17 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
     linear-gradient(90deg, transparent var(--lo), var(--accent) var(--lo), var(--accent) var(--hi), transparent var(--hi)),
     var(--line-2);
 }
-.iap-slider--warmth::-webkit-slider-runnable-track {
+.iap-slider--temp::-webkit-slider-runnable-track {
   background: linear-gradient(90deg, rgba(91,140,255,.55), rgba(125,125,135,.32) 50%, rgba(255,179,71,.62));
 }
-.iap-slider--warmth::-moz-range-track {
+.iap-slider--temp::-moz-range-track {
   background: linear-gradient(90deg, rgba(91,140,255,.55), rgba(125,125,135,.32) 50%, rgba(255,179,71,.62));
+}
+.iap-slider--tint::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg, rgba(60,200,90,.5), rgba(125,125,135,.32) 50%, rgba(220,90,200,.55));
+}
+.iap-slider--tint::-moz-range-track {
+  background: linear-gradient(90deg, rgba(60,200,90,.5), rgba(125,125,135,.32) 50%, rgba(220,90,200,.55));
 }
 .iap-slider::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;

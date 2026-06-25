@@ -1,43 +1,46 @@
-// Shared photo-adjustment controls. Pure & presentational — it owns no Yjs or
-// portal knowledge; the host (compact popover or full-screen modal) wires
-// onChange/onReset/onDownload/onExpand/onCompare* to the canvas mutators.
+// Shared photo-adjustment controls (Lightroom-style). Pure & presentational —
+// the host (compact popover or full-screen modal) wires the callbacks to the
+// canvas mutators. Compact mode shows a curated essentials subset + a "Full
+// screen" button; full mode shows all controls grouped into Light/Color/Detail.
 //
-//   <ImageAdjustPanel
-//      adjust={card.adjust}
-//      onChange={(next) => updateCard(id, { adjust: next })}
-//      onReset={() => updateCard(id, { adjust: null })}
-//      onDownload={() => downloadImage({ ... })}
-//      onExpand={() => openFullScreen()}            // compact mode only
-//      onCompareStart={...} onCompareEnd={...}      // hold-to-compare original
-//      mode="compact" | "full" />
+// It operates on the NORMALIZED adjust (so editing a legacy v1 card migrates it)
+// and stamps the v2 schema marker on every write.
 
 import { useState } from 'react';
 import { Icon } from './Icon.jsx';
-import {
-  Download, RotateCcw, Maximize2, X, Eye,
-  FlipHorizontal, FlipVertical, CircleHalf, Sun, Thermometer, Sparkle, Triangle,
-} from '../lib/icons.js';
-import { isAdjusted } from '../lib/imageAdjust.js';
+import { Download, RotateCcw, Maximize2, X, Eye, FlipHorizontal, FlipVertical, CircleHalf } from '../lib/icons.js';
+import { isAdjusted, normalizeAdjust, ADJUST_VERSION } from '../lib/imageAdjust.js';
 
 const SLIDERS = [
-  { key: 'brightness', label: 'Brightness', min: 0,    max: 200, neutral: 100, icon: Sun,         fmt: 'pct' },
-  { key: 'contrast',   label: 'Contrast',   min: 0,    max: 200, neutral: 100, icon: CircleHalf,  fmt: 'pct' },
-  { key: 'saturation', label: 'Saturation', min: 0,    max: 200, neutral: 100, icon: Sparkle,     fmt: 'pct' },
-  { key: 'warmth',     label: 'Warmth',     min: -100, max: 100, neutral: 0,   icon: Thermometer, fmt: 'warmth', warmth: true },
-  { key: 'sharpen',    label: 'Sharpness',  min: 0,    max: 3,   neutral: 0,   icon: Triangle,    fmt: 'sharpen', step: 1 },
+  { key: 'exposure',    label: 'Exposure',    group: 'light' },
+  { key: 'contrast',    label: 'Contrast',    group: 'light' },
+  { key: 'highlights',  label: 'Highlights',  group: 'light' },
+  { key: 'shadows',     label: 'Shadows',     group: 'light' },
+  { key: 'whites',      label: 'Whites',      group: 'light' },
+  { key: 'blacks',      label: 'Blacks',      group: 'light' },
+  { key: 'temperature', label: 'Temperature', group: 'color', track: 'temp' },
+  { key: 'tint',        label: 'Tint',        group: 'color', track: 'tint' },
+  { key: 'vibrance',    label: 'Vibrance',    group: 'color' },
+  { key: 'saturation',  label: 'Saturation',  group: 'color' },
+  { key: 'clarity',     label: 'Clarity',     group: 'detail' },
+  { key: 'sharpness',   label: 'Sharpness',   group: 'detail', min: 0, max: 100, plain: true },
 ];
+const ESSENTIALS = ['exposure', 'contrast', 'highlights', 'shadows', 'temperature', 'vibrance'];
+const GROUPS = [['light', 'Light'], ['color', 'Color'], ['detail', 'Detail']];
 
 const pct = (v, min, max) => ((v - min) / (max - min)) * 100;
 
 export function ImageAdjustPanel({ adjust, onChange, onReset, onDownload, onExpand, onClose,
                                    onCompareStart, onCompareEnd, mode = 'compact' }) {
   const [downloading, setDownloading] = useState(false);
-  const a = adjust || {};
+  const a = normalizeAdjust(adjust) || {};
   const val = (key, neutral) => (a[key] == null ? neutral : Number(a[key]));
-  const dirty = isAdjusted(a);
+  const dirty = isAdjusted(adjust);
 
-  const setField = (key, value) => onChange?.({ ...a, [key]: value });
-  const toggle = (key) => onChange?.({ ...a, [key]: !a[key] });
+  // Stamp the v2 marker so normalizeAdjust reads the new shape; spreading the
+  // normalized `a` migrates a legacy card to v2 on first edit.
+  const setField = (key, value) => onChange?.({ ...a, v: ADJUST_VERSION, [key]: value });
+  const toggle = (key) => onChange?.({ ...a, v: ADJUST_VERSION, [key]: !a[key] });
 
   const doDownload = async () => {
     if (downloading || !onDownload) return;
@@ -45,13 +48,41 @@ export function ImageAdjustPanel({ adjust, onChange, onReset, onDownload, onExpa
     try { await onDownload(); } finally { setDownloading(false); }
   };
 
-  const fmtVal = (s, v) => {
-    if (s.fmt === 'sharpen') return ['Off', 'Low', 'Med', 'High'][v] || String(v);
-    if (s.fmt === 'warmth') return v === 0 ? 'Neutral' : (v > 0 ? `Warm ${v}` : `Cool ${-v}`);
-    return `${v}%`;
-  };
-
   const endCompare = () => onCompareEnd?.();
+
+  const fmtVal = (s, v) => (s.plain ? String(v) : (v === 0 ? '0' : (v > 0 ? `+${v}` : `${v}`)));
+
+  const renderRow = (s) => {
+    const min = s.min ?? -100, max = s.max ?? 100, neutral = s.neutral ?? 0;
+    const v = val(s.key, neutral);
+    const fill = pct(v, min, max);
+    const neutralPct = pct(neutral, min, max);
+    const lo = Math.min(neutralPct, fill), hi = Math.max(neutralPct, fill);
+    const showNotch = neutralPct > 1 && neutralPct < 99;
+    const isDirty = v !== neutral;
+    const trackClass = s.track === 'temp' ? 'iap-slider--temp' : s.track === 'tint' ? 'iap-slider--tint' : '';
+    return (
+      <div key={s.key} className="iap-row">
+        <div className="iap-rowtop">
+          <span className="iap-label">{s.label}</span>
+          <button type="button" className={`iap-val ${isDirty ? 'is-dirty' : ''}`}
+                  title={isDirty ? 'Reset to default' : undefined}
+                  onClick={() => { if (isDirty) setField(s.key, neutral); }}>
+            {fmtVal(s, v)}
+          </button>
+        </div>
+        <div className="iap-control">
+          {showNotch && <span className="iap-notch" aria-hidden="true" />}
+          <input type="range" className={`iap-slider ${trackClass}`}
+                 min={min} max={max} step={1} value={v}
+                 style={{ '--lo': `${lo}%`, '--hi': `${hi}%` }}
+                 aria-label={s.label}
+                 onChange={(e) => setField(s.key, Number(e.target.value))}
+                 onDoubleClick={() => setField(s.key, neutral)} />
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className={`iap iap-${mode}`}>
@@ -87,37 +118,14 @@ export function ImageAdjustPanel({ adjust, onChange, onReset, onDownload, onExpa
       </div>
 
       <div className="iap-sliders">
-        {SLIDERS.map((s) => {
-          const v = val(s.key, s.neutral);
-          const fill = pct(v, s.min, s.max);
-          const neutralPct = pct(s.neutral, s.min, s.max);
-          const lo = Math.min(neutralPct, fill);
-          const hi = Math.max(neutralPct, fill);
-          const showNotch = neutralPct > 1 && neutralPct < 99;
-          const isDirty = v !== s.neutral;
-          return (
-            <div key={s.key} className="iap-row">
-              <div className="iap-rowtop">
-                <span className="iap-label"><Icon as={s.icon} size={13} />{s.label}</span>
-                <button type="button" className={`iap-val ${isDirty ? 'is-dirty' : ''}`}
-                        title={isDirty ? 'Reset to default' : undefined}
-                        onClick={() => { if (isDirty) setField(s.key, s.neutral); }}>
-                  {fmtVal(s, v)}
-                </button>
+        {mode === 'compact'
+          ? SLIDERS.filter((s) => ESSENTIALS.includes(s.key)).map(renderRow)
+          : GROUPS.map(([g, label]) => (
+              <div key={g} className="iap-group">
+                <div className="iap-eyebrow iap-group-label">{label}</div>
+                {SLIDERS.filter((s) => s.group === g).map(renderRow)}
               </div>
-              <div className="iap-control">
-                {showNotch && <span className="iap-notch" aria-hidden="true" />}
-                <input type="range" className={`iap-slider ${s.warmth ? 'iap-slider--warmth' : ''}`}
-                       min={s.min} max={s.max} step={s.step || 1}
-                       value={v}
-                       style={{ '--lo': `${lo}%`, '--hi': `${hi}%` }}
-                       aria-label={s.label}
-                       onChange={(e) => setField(s.key, Number(e.target.value))}
-                       onDoubleClick={() => setField(s.key, s.neutral)} />
-              </div>
-            </div>
-          );
-        })}
+            ))}
       </div>
 
       <div className="iap-foot">

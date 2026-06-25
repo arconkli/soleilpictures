@@ -7,9 +7,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useGesture } from '@use-gesture/react';
 import { R2Image } from './R2Image.jsx';
 import { downloadImage } from '../lib/imageExport.js';
-import { buildFilterCss, buildTransform } from '../lib/imageAdjust.js';
+import { buildFilterRef, buildTransform } from '../lib/imageAdjust.js';
 
-export function ImageLightbox({ src, title, alt, adjust, onClose }) {
+export function ImageLightbox({ src, title, alt, adjust, cardId, onClose }) {
   // 'fit'    → contained inside the viewport (default)
   // 'actual' → natural size, pannable
   // Touch: pinch-zoom interpolates continuously between fit and 4× scale,
@@ -99,7 +99,7 @@ export function ImageLightbox({ src, title, alt, adjust, onClose }) {
   // property from `transform`, so it never collides with the pan/zoom
   // transform; the flip transform is appended to whatever transform the
   // pan/zoom logic produces.
-  const adjFilter = buildFilterCss(adjust);
+  const adjFilter = buildFilterRef(adjust, cardId);
   const adjFlip = buildTransform(adjust);
 
   return (

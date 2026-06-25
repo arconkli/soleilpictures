@@ -47,7 +47,7 @@ import { scheduleBoardPreviewBackfill } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
 import { downloadImage } from '../lib/imageExport.js';
-import { SoleilImageFilters } from './SoleilImageFilters.jsx';
+import { ImageAdjustFilters } from './ImageAdjustFilters.jsx';
 import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
@@ -1041,7 +1041,7 @@ export function CanvasSurface({
   // all three reach the same lightbox.
   const openImageLightbox = useCallback((c) => {
     if (!c?.src) return;
-    setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '', adjust: c.adjust });
+    setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '', adjust: c.adjust, cardId: c.id });
   }, []);
   // Photo editing: compact popover { cardId, anchorRect } and the full-screen
   // editor { cardId }. Both read the live card from `cards` each render so
@@ -8193,11 +8193,12 @@ export function CanvasSurface({
         </div>
       )}
       {lightbox && (
-        <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust}
+        <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust} cardId={lightbox.cardId}
                        onClose={() => setLightbox(null)} />
       )}
-      {/* Photo-adjust SVG filter defs (sharpen/warmth), referenced by id. */}
-      <SoleilImageFilters />
+      {/* Per-card photo-adjustment SVG filter defs, referenced by id. Keyed off
+          adjusted cards so the modal/lightbox resolve even when a card is culled. */}
+      <ImageAdjustFilters cards={cards} />
       {imageEdit && (() => {
         const card = cards.find(x => x.id === imageEdit.cardId);
         if (!card || card.kind !== 'image') return null;
@@ -8220,7 +8221,7 @@ export function CanvasSurface({
         if (!card || card.kind !== 'image') return null;
         return (
           <ImageEditModal
-            src={card.src} title={card.title || card.label || ''} adjust={card.adjust}
+            src={card.src} title={card.title || card.label || ''} adjust={card.adjust} cardId={card.id}
             onChange={(next) => mutators.updateCard?.(card.id, { adjust: next })}
             onReset={() => mutators.updateCard?.(card.id, { adjust: null })}
             onDownload={() => downloadImage({ src: card.src, title: card.title || card.label || '', adjust: card.adjust })}
