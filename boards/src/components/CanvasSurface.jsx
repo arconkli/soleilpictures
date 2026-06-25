@@ -8202,10 +8202,9 @@ export function CanvasSurface({
       {imageEdit && (() => {
         const card = cards.find(x => x.id === imageEdit.cardId);
         if (!card || card.kind !== 'image') return null;
-        const r = imageEdit.anchorRect;
         return (
           <ImageEditPopover
-            position={{ x: (r?.left ?? 0) + (r?.width ?? 0) / 2, y: (r?.bottom ?? 0) }}
+            anchorRect={imageEdit.anchorRect}
             adjust={card.adjust}
             onChange={(next) => mutators.updateCard?.(card.id, { adjust: next })}
             onReset={() => mutators.updateCard?.(card.id, { adjust: null })}

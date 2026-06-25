@@ -637,7 +637,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
             {onEdit && (
               <button type="button" className="ic-act ic-edit" title="Edit photo"
                       onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => { e.stopPropagation(); onEdit(e.currentTarget.getBoundingClientRect()); }}>
+                      onClick={(e) => { e.stopPropagation(); onEdit((e.currentTarget.closest('.ic-imgwrap') || e.currentTarget).getBoundingClientRect()); }}>
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
                      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9.5 2.5 L11.5 4.5 L5 11 L2.5 11.5 L3 9 Z" />

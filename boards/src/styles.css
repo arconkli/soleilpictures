@@ -11409,6 +11409,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   display: flex; align-items: center; justify-content: space-between;
   padding-bottom: 12px; border-bottom: 1px solid var(--line-1);
 }
+/* In the compact popover the header is the drag handle. */
+.iep-pop .iap-head { cursor: grab; touch-action: none; }
+.iep-pop .iap-head:active { cursor: grabbing; }
+.iep-pop .iap-eyebrow, .iep-pop .iap-bw { user-select: none; }
 .iap-eyebrow { font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
 .iap-head-actions { display: flex; gap: 4px; }
 .iap-iconbtn {
