@@ -11230,112 +11230,220 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
    override below makes .ic-expand a normal flex child. */
 .ic-actions {
   position: absolute; top: 6px; right: 6px;
-  display: flex; gap: 6px; align-items: center;
+  display: flex; gap: 4px; align-items: center;
+  padding: 3px; border-radius: 9px;
+  background: rgba(8,8,10,.3);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  backdrop-filter: blur(8px) saturate(1.05);
   opacity: 0; z-index: 5;
   transition: opacity var(--dur-fast) var(--ease);
 }
 .ic:hover .ic-actions { opacity: 1; }
 .ic-actions .ic-act {
   position: static; top: auto; right: auto;
-  width: 22px; height: 22px; min-width: 22px; min-height: 22px;
-  border-radius: 4px;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(8,8,10,.55);
+  width: 24px; height: 24px; min-width: 24px; min-height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(8,8,10,.5);
   color: #fff;
   display: grid; place-items: center;
   cursor: pointer; padding: 0; opacity: 1;
-  transition: background var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
-.ic-actions .ic-act:hover { background: rgba(8,8,10,.82); }
-.ic-imgwrap:has(.ic-actions) .ic-link { right: 86px; } /* clear the cluster */
+.ic-actions .ic-act:hover { background: rgba(8,8,10,.85); border-color: rgba(255,255,255,.26); transform: translateY(-1px); }
+.ic-actions .ic-act:active { transform: translateY(0); }
+.ic-imgwrap:has(.ic-actions) .ic-link { right: 100px; } /* clear the cluster */
 
-/* Compact popover — portaled to body; position set inline (fixed). */
+/* Compact popover — portaled to body; position set inline (fixed).
+   Uses the app-wide frosted-glass popover recipe + film grain (registered in
+   the grain groups) + the canonical ctx-menu-in entrance. */
 .iep-pop {
   z-index: 2147483600;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0,0,0,.28);
-  width: 248px;
+  width: 256px;
+  background: rgba(16,16,20,.78);
+  -webkit-backdrop-filter: var(--msg-blur);
+  backdrop-filter: var(--msg-blur);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3), inset 0 1px 0 rgba(255,255,255,.05);
   overflow: hidden;
+  transform-origin: top center;
+  animation: ctx-menu-in var(--dur-base) var(--ease);
 }
+[data-theme='light'] .iep-pop { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
 
 /* Shared adjust panel (compact popover + full-screen rail). */
-.iap { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
-.iap-full { gap: 14px; padding: 16px; width: 100%; }
-.iap-head { display: flex; align-items: center; justify-content: space-between; }
-.iap-title { font: 600 12px/1 var(--font-sans); letter-spacing: .02em; color: var(--ink-1); }
+.iap { display: flex; flex-direction: column; gap: 14px; padding: 14px; }
+.iap-full { gap: 16px; padding: 18px; width: 100%; }
+.iap-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 12px; border-bottom: 1px solid var(--line-1);
+}
+.iap-eyebrow { font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
 .iap-head-actions { display: flex; gap: 4px; }
 .iap-iconbtn {
-  width: 26px; height: 26px; border-radius: 6px;
+  width: 28px; height: 28px; border-radius: 6px;
   border: 1px solid transparent; background: transparent;
   color: var(--ink-2); display: grid; place-items: center; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.iap-iconbtn:hover { background: var(--bg-3); color: var(--ink-0); }
+.iap-iconbtn:hover { background: var(--bg-hov); color: var(--ink-0); }
 
-.iap-flips { display: flex; gap: 6px; }
+/* Flip / B&W — a cohesive inset grouped toggle bar. */
+.iap-flips { display: flex; gap: 3px; padding: 3px; border-radius: 9px; background: var(--bg-3); }
 .iap-toggle {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
-  height: 30px; border-radius: 7px;
-  border: 1px solid var(--line-2); background: var(--bg-2);
-  color: var(--ink-1); font: 500 11px/1 var(--font-sans); cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  height: 30px; border-radius: 6px;
+  border: none; background: transparent;
+  color: var(--ink-2); font: 500 11px/1 var(--font-sans); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-quick) var(--ease);
 }
-.iap-toggle:hover { background: var(--bg-3); }
-.iap-toggle.is-on { background: var(--bg-3); border-color: var(--accent); color: var(--accent); }
+.iap-toggle:hover { color: var(--ink-0); }
+.iap-toggle.is-on { background: var(--soleil-soft); color: var(--soleil); }
+.iap-toggle:active { transform: translateY(.5px); }
 .iap-toggle span { white-space: nowrap; }
-.iap-bw { font-weight: 700; letter-spacing: .02em; }
+.iap-bw { font-weight: 700; letter-spacing: .04em; }
 
-.iap-sliders { display: flex; flex-direction: column; gap: 9px; }
-.iap-row { display: flex; flex-direction: column; gap: 4px; }
-.iap-rowtop { display: flex; align-items: baseline; justify-content: space-between; }
-.iap-label { font: 500 11px/1 var(--font-sans); color: var(--ink-2); }
-.iap-val { font: 400 10px/1 var(--font-mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.iap-slider { width: 100%; height: 18px; margin: 0; cursor: pointer; accent-color: var(--accent); }
+.iap-sliders { display: flex; flex-direction: column; gap: 13px; }
+.iap-row { display: flex; flex-direction: column; gap: 7px; }
+.iap-rowtop { display: flex; align-items: center; justify-content: space-between; }
+.iap-label { display: flex; align-items: center; gap: 6px; font: 500 11px/1 var(--font-sans); color: var(--ink-2); }
+.iap-label svg { color: var(--ink-3); }
+.iap-val {
+  appearance: none; border: none; background: transparent;
+  font: 500 10px/1 var(--font-mono); color: var(--ink-3); font-variant-numeric: tabular-nums;
+  cursor: default; padding: 2px 5px; margin: -2px -5px; border-radius: 4px;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.iap-val.is-dirty { color: var(--soleil); cursor: pointer; }
+.iap-val.is-dirty:hover { background: var(--soleil-soft); }
 
-.iap-foot { display: flex; gap: 8px; padding-top: 2px; }
+/* Custom range — built on the .cnv-zoom-slider model. The gold fill is drawn
+   on the track via inline --lo/--hi vars (set from the value in JSX): a center
+   "deviation" fill for the 100-neutral sliders, a left fill for sharpness. */
+.iap-control { position: relative; display: flex; align-items: center; }
+.iap-notch {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  width: 2px; height: 9px; border-radius: 1px;
+  background: var(--line-3); pointer-events: none; z-index: 0;
+}
+.iap-slider {
+  -webkit-appearance: none; appearance: none;
+  position: relative; z-index: 1;
+  width: 100%; height: 16px; margin: 0; background: transparent; cursor: pointer;
+  --lo: 50%; --hi: 50%;
+}
+.iap-slider:focus { outline: none; }
+.iap-slider:focus-visible { box-shadow: none; }
+.iap-slider::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent var(--lo), var(--accent) var(--lo), var(--accent) var(--hi), transparent var(--hi)),
+    var(--line-2);
+}
+.iap-slider::-moz-range-track {
+  height: 4px; border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent var(--lo), var(--accent) var(--lo), var(--accent) var(--hi), transparent var(--hi)),
+    var(--line-2);
+}
+.iap-slider--warmth::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg, rgba(91,140,255,.55), rgba(125,125,135,.32) 50%, rgba(255,179,71,.62));
+}
+.iap-slider--warmth::-moz-range-track {
+  background: linear-gradient(90deg, rgba(91,140,255,.55), rgba(125,125,135,.32) 50%, rgba(255,179,71,.62));
+}
+.iap-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; margin-top: -5px;
+  background: var(--ink-0); border: 2px solid var(--bg-1); border-radius: 50%;
+  box-shadow: var(--shadow-1); cursor: grab;
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.iap-slider::-webkit-slider-thumb:hover { transform: scale(1.14); box-shadow: var(--shadow-glow); }
+.iap-slider:active::-webkit-slider-thumb { background: var(--accent); cursor: grabbing; box-shadow: var(--shadow-glow); }
+.iap-slider:focus-visible::-webkit-slider-thumb { box-shadow: var(--shadow-glow); }
+.iap-slider::-moz-range-thumb {
+  width: 14px; height: 14px; background: var(--ink-0); border: 2px solid var(--bg-1);
+  border-radius: 50%; box-shadow: var(--shadow-1); cursor: grab;
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.iap-slider::-moz-range-thumb:hover { transform: scale(1.14); box-shadow: var(--shadow-glow); }
+.iap-slider:active::-moz-range-thumb { background: var(--accent); cursor: grabbing; box-shadow: var(--shadow-glow); }
+.iap-slider:focus-visible::-moz-range-thumb { box-shadow: var(--shadow-glow); }
+
+.iap-foot { display: flex; gap: 8px; padding-top: 4px; }
 .iap-btn {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-  height: 32px; border-radius: 8px;
+  height: 34px; border-radius: 8px;
   border: 1px solid var(--line-2); background: var(--bg-2);
   color: var(--ink-1); font: 500 12px/1 var(--font-sans); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
-.iap-btn:hover:not(:disabled) { background: var(--bg-3); }
-.iap-btn:disabled { opacity: .45; cursor: default; }
+.iap-btn:hover:not(:disabled) { background: var(--bg-3); border-color: var(--line-3); transform: translateY(-1px); box-shadow: var(--shadow-1); }
+.iap-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+.iap-btn:disabled { opacity: var(--disabled-opacity); cursor: default; }
+.iap-btn-icon { flex: 0 0 auto; width: 34px; padding: 0; }
 .iap-btn-primary { background: var(--accent); border-color: transparent; color: var(--bg-0); font-weight: 600; }
-.iap-btn-primary:hover:not(:disabled) { box-shadow: 0 0 0 1px rgba(255,165,0,.5); }
+.iap-btn-primary:hover:not(:disabled) { background: var(--accent); box-shadow: var(--shadow-1), var(--soleil-glow); }
 
 /* Full-screen editor modal. */
 .iem {
   position: fixed; inset: 0; z-index: 2147483601;
-  background: rgba(8,8,10,.84);
-  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  background: radial-gradient(130% 130% at 50% 38%, rgba(8,8,10,.76), rgba(8,8,10,.92));
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   display: flex; align-items: stretch;
+  animation: pickerFade var(--dur-slow) var(--ease);
 }
 .iem-stage {
+  position: relative;
   flex: 1; min-width: 0;
   display: flex; align-items: center; justify-content: center;
-  padding: 40px 32px;
+  padding: 48px 40px;
 }
-.iem-img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.iem-img {
+  max-width: 100%; max-height: 100%; object-fit: contain; display: block;
+  border-radius: 5px; box-shadow: 0 28px 70px rgba(0,0,0,.55);
+  animation: iemImgIn var(--dur-slow) var(--ease);
+}
+.iem-compare-tag {
+  position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+  padding: 5px 13px; border-radius: 999px;
+  background: rgba(8,8,10,.7); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.12);
+  font: 700 9px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase; color: #fff;
+  pointer-events: none;
+}
 .iem-rail {
-  width: 300px; flex: 0 0 300px;
-  background: var(--bg-1);
-  border-left: 1px solid var(--line-2);
+  width: 312px; flex: 0 0 312px;
+  background: rgba(16,16,20,.82);
+  -webkit-backdrop-filter: var(--msg-blur); backdrop-filter: var(--msg-blur);
+  border-left: 1px solid rgba(255,255,255,.06);
   display: flex; align-items: flex-start;
   overflow-y: auto;
+  animation: iemRailIn var(--dur-slow) var(--ease);
 }
+[data-theme='light'] .iem-rail { background: rgba(250,250,252,.86); border-left-color: rgba(10,10,12,.06); }
 .iem-x {
-  position: absolute; top: 14px; left: 16px;
-  width: 36px; height: 36px; border-radius: 8px;
-  border: none; background: rgba(255,255,255,.12); color: #fff;
-  font-size: 22px; line-height: 1; cursor: pointer; z-index: 2;
+  position: absolute; top: 16px; left: 18px;
+  width: 38px; height: 38px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.08); color: #fff;
+  display: grid; place-items: center; cursor: pointer; z-index: 2;
+  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
-.iem-x:hover { background: rgba(255,255,255,.22); }
+.iem-x:hover { background: rgba(255,255,255,.18); transform: translateY(-1px); }
+@keyframes iemRailIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes iemImgIn { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: none; } }
 @media (max-width: 720px) {
   .iem { flex-direction: column; }
   .iem-stage { padding: 16px; }
-  .iem-rail { width: auto; flex: 0 0 auto; border-left: none; border-top: 1px solid var(--line-2); max-height: 52%; }
+  .iem-rail { width: auto; flex: 0 0 auto; border-left: none; border-top: 1px solid rgba(255,255,255,.06); max-height: 52%; animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iep-pop, .iem { animation-duration: var(--dur-fast); }
+  .iem-rail, .iem-img { animation: none; }
+  .iap-slider::-webkit-slider-thumb:hover, .iap-slider::-moz-range-thumb:hover { transform: none; }
 }
 
 
@@ -16183,18 +16291,32 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
    `mobileShell` — so desktop panning never hides anything. */
 @media (max-width: 640px),
        (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
-  .mb-nav, .cnv-tools, .cnv-zoom, .cnv-comments-eye, .upgrade-chip {
+  .mb-nav, .cnv-tools, .cnv-comments-eye, .upgrade-chip {
     transition: opacity 220ms var(--ease), transform 220ms var(--ease);
   }
   body[data-canvas-interacting='1'] .mb-nav,
   body[data-canvas-interacting='1'] .cnv-tools,
-  body[data-canvas-interacting='1'] .cnv-zoom,
   body[data-canvas-interacting='1'] .cnv-comments-eye,
   body[data-canvas-interacting='1'] .upgrade-chip {
     opacity: 0;
     pointer-events: none;
   }
   body[data-canvas-interacting='1'] .mb-nav { transform: translateY(100%); }
+
+  /* Zoom widget: pinch is the obvious gesture on touch, so the −/slider/+
+     control is hidden by default and only appears WHILE actively zooming
+     (CanvasSurface sets body[data-zooming='1'], cleared ~1.1s after the last
+     zoom change). It is NOT revealed by a pure pan — only zoom. Desktop is
+     outside this query, so the widget stays always-visible there. */
+  .cnv-zoom {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms var(--ease);
+  }
+  body[data-zooming='1'] .cnv-zoom {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* Eyedropper mode — when picking a color from a board image, the
@@ -16526,6 +16648,8 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
 .ent-backlinks-panel,
 .feedback-dialog,
 .lightbox,
+.iep-pop,
+.iem-rail,
 .msg-panel {
   position: relative;
   isolation: isolate;
@@ -16582,6 +16706,7 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
 .msg-pinned-strip::after, .presence-stack::after,
 .cfont::after, .doc-ctx::after, .doc-export-menu::after,
 .ent-backlinks-panel::after, .feedback-dialog::after, .lightbox::after,
+.iep-pop::after, .iem-rail::after,
 .msg-panel::after {
   content: "";
   position: absolute;
@@ -17785,6 +17910,15 @@ button, [role="button"], a {
 
   /* Main area clears the fixed bottom nav. 56px nav + safe-area. */
   .main { padding-bottom: calc(56px + var(--safe-bottom)); }
+  /* ...EXCEPT on the board: the canvas should paint full-bleed to the viewport
+     bottom (its --bg-0 fill + dotted grid + cards) BEHIND the floating nav, so
+     when the nav slides away (auto-hide) or is hidden (focus mode) the canvas
+     shows through instead of a dead black strip. Scoped via :has(.canvas-wrap)
+     so only the board loses the reservation — scrollable surfaces (Home/Search/
+     Settings) keep it so their last rows still clear the nav. The bottom-anchored
+     floating controls already offset by 56px+safe(+12) so they stay above the
+     nav once the wrap is full-height. */
+  .main:has(.canvas-wrap) { padding-bottom: 0; }
 
   /* Modals + BoardPicker fill the phone viewport edge-to-edge instead
      of overflowing the desktop 520/560px widths. Backdrops drop their

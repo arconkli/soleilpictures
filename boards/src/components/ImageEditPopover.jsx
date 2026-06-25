@@ -8,10 +8,11 @@ import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { ImageAdjustPanel } from './ImageAdjustPanel.jsx';
 
-const PANEL_W = 248;
+const PANEL_W = 256;
 const PAD = 10;
 
-export function ImageEditPopover({ position, adjust, onChange, onReset, onDownload, onExpand, onClose }) {
+export function ImageEditPopover({ position, adjust, onChange, onReset, onDownload, onExpand,
+                                   onCompareStart, onCompareEnd, onClose }) {
   const ref = useRef(null);
   useDismissOnOutside(ref, true, onClose);
 
@@ -65,7 +66,8 @@ export function ImageEditPopover({ position, adjust, onChange, onReset, onDownlo
          onWheel={(e) => e.stopPropagation()}>
       <ImageAdjustPanel adjust={adjust} mode="compact"
                         onChange={onChange} onReset={onReset}
-                        onDownload={onDownload} onExpand={onExpand} />
+                        onDownload={onDownload} onExpand={onExpand}
+                        onCompareStart={onCompareStart} onCompareEnd={onCompareEnd} />
     </div>
   );
 

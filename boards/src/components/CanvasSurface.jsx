@@ -1048,6 +1048,9 @@ export function CanvasSurface({
   // collaborator edits + undo reflect instantly.
   const [imageEdit, setImageEdit] = useState(null);
   const [imageEditFull, setImageEditFull] = useState(null);
+  // Transient (NOT Yjs) "hold to compare original" — while set, the named card
+  // renders without its adjustments so the user can compare against the source.
+  const [compareCardId, setCompareCardId] = useState(null);
   const [pdfViewer, setPdfViewer] = useState(null); // { src: 'r2:<pdfKey>', name }
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
@@ -2258,6 +2261,7 @@ export function CanvasSurface({
         gestureUntilRef.current = performance.now() + 200; // ADD-only cull while pinching
         markGestureActiveUntil(gestureUntilRef.current);
         markCanvasInteracting();  // immersive look-around (auto-hide chrome)
+        markZooming();            // reveal the zoom widget while pinching
         applyCanvasTransform();
         scheduleVisibleRecompute();
         scheduleTouchPanCommit();
@@ -2893,6 +2897,27 @@ export function CanvasSurface({
   useEffect(() => () => {
     if (interactingClearRef.current) clearTimeout(interactingClearRef.current);
     if (typeof document !== 'undefined') document.body.removeAttribute('data-canvas-interacting');
+  }, []);
+
+  // Reveal the zoom widget only while the user is actively zooming. On touch the
+  // widget is hidden by default (CSS) — pinch is the obvious gesture, so the
+  // always-on −/slider/+ just ate space. Sets body[data-zooming='1'] and clears
+  // it a beat after the last zoom change, so the widget fades in on pinch (and
+  // stays up while the revealed controls are tapped), then fades back out.
+  // Desktop ignores the flag (CSS keeps the widget always-visible there).
+  const zoomingClearRef = useRef(0);
+  const markZooming = useCallback(() => {
+    if (typeof document === 'undefined') return;
+    document.body.setAttribute('data-zooming', '1');
+    if (zoomingClearRef.current) clearTimeout(zoomingClearRef.current);
+    zoomingClearRef.current = setTimeout(() => {
+      document.body.removeAttribute('data-zooming');
+      zoomingClearRef.current = 0;
+    }, 1100);
+  }, []);
+  useEffect(() => () => {
+    if (zoomingClearRef.current) clearTimeout(zoomingClearRef.current);
+    if (typeof document !== 'undefined') document.body.removeAttribute('data-zooming');
   }, []);
 
   const startPan = (e) => {
@@ -5988,7 +6013,7 @@ export function CanvasSurface({
         : <BoardLinkCard targetBoard={target} note={c.note} onOpen={() => target && onOpenBoard(c.target)} />;
     } else if (c.kind === 'image')   inner = <ImageCard src={c.src || localImagePreview[c.id] || null} tone={c.tone} label={c.label} title={c.title} link={c.link} aspect={`${c.w}/${c.h}`} w={Math.round(c.w)} h={Math.round(c.h)} caption={c.caption} onUpdate={onUpdate} autoFocus={af}
                                                      cardId={c.id}
-                                                     adjust={c.adjust}
+                                                     adjust={compareCardId === c.id ? null : c.adjust}
                                                      backfillEnabled={canEdit} boardId={board.id}
                                                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                      editCaptionAt={editFieldSignal.id === c.id && editFieldSignal.field === 'caption' ? editFieldSignal.n : 0}
@@ -7917,7 +7942,7 @@ export function CanvasSurface({
       )}
 
       <div className="cnv-zoom">
-        <button onClick={() => { enableSmoothTransform(); setZoom(z => Math.max(ZOOM_MIN, z / 1.25)); }}>−</button>
+        <button onClick={() => { enableSmoothTransform(); markZooming(); setZoom(z => Math.max(ZOOM_MIN, z / 1.25)); }}>−</button>
         <input
           className="cnv-zoom-slider"
           type="range"
@@ -7925,6 +7950,7 @@ export function CanvasSurface({
           // log scale: 0..1000 → ZOOM_MIN..ZOOM_MAX
           value={Math.round(1000 * Math.log(zoom / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN))}
           onInput={(e) => {
+            markZooming();
             const v = Number(e.target.value) / 1000;
             const z = ZOOM_MIN * Math.pow(ZOOM_MAX / ZOOM_MIN, v);
             const el = wrapRef.current;
@@ -7942,11 +7968,11 @@ export function CanvasSurface({
         />
         <span className="cnv-zoom-val"
               title="Click: 100% · Double-click: Full Board"
-              onClick={() => { enableSmoothTransform(); setZoom(1); setPan({ x: 40, y: 60 }); }}
-              onDoubleClick={() => { enableSmoothTransform(); fitToContent(); }}>
+              onClick={() => { enableSmoothTransform(); markZooming(); setZoom(1); setPan({ x: 40, y: 60 }); }}
+              onDoubleClick={() => { enableSmoothTransform(); markZooming(); fitToContent(); }}>
           {Math.round(zoom * 100)}%
         </span>
-        <button onClick={() => { enableSmoothTransform(); setZoom(z => Math.min(ZOOM_MAX, z * 1.25)); }}>+</button>
+        <button onClick={() => { enableSmoothTransform(); markZooming(); setZoom(z => Math.min(ZOOM_MAX, z * 1.25)); }}>+</button>
       </div>
 
       {/* Master comments-visibility toggle. Always rendered — left-click
@@ -8184,7 +8210,9 @@ export function CanvasSurface({
             onReset={() => mutators.updateCard?.(card.id, { adjust: null })}
             onDownload={() => downloadImage({ src: card.src, title: card.title || card.label || '', adjust: card.adjust })}
             onExpand={() => { setImageEditFull({ cardId: card.id }); setImageEdit(null); }}
-            onClose={() => setImageEdit(null)} />
+            onCompareStart={() => setCompareCardId(card.id)}
+            onCompareEnd={() => setCompareCardId(null)}
+            onClose={() => { setCompareCardId(null); setImageEdit(null); }} />
         );
       })()}
       {imageEditFull && (() => {

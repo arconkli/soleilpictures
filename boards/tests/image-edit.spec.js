@@ -201,4 +201,45 @@ test.describe('image photo editing (DOM)', () => {
     await expect(page.locator('.iem')).toBeVisible();
     await expect(page.locator('.iem-img')).toBeVisible();
   });
+
+  const pushSlider = (locator, value) => locator.evaluate((el, v) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(el, String(v));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+
+  test('value readout marks dirty and taps to reset just that control', async ({ page }) => {
+    const card = page.locator('[data-card-id]').filter({ has: page.locator('.ic-img') }).first();
+    await card.hover();
+    await card.locator('.ic-edit').click();
+    const row = page.locator('.iep-pop .iap-row').first();   // Brightness
+    const valBtn = row.locator('.iap-val');
+
+    await expect(valBtn).not.toHaveClass(/is-dirty/);
+    await pushSlider(row.locator('.iap-slider'), 150);
+    await expect(valBtn).toHaveClass(/is-dirty/);
+    await expect(valBtn).toHaveText('150%');
+
+    await valBtn.click();                                     // tap value → reset control
+    await expect(valBtn).not.toHaveClass(/is-dirty/);
+    await expect(valBtn).toHaveText('100%');
+  });
+
+  test('hold-to-compare strips the filter while held', async ({ page }) => {
+    const card = page.locator('[data-card-id]').filter({ has: page.locator('.ic-img') }).first();
+    await card.hover();
+    await card.locator('.ic-edit').click();
+    const pop = page.locator('.iep-pop');
+    await pushSlider(pop.locator('.iap-slider').first(), 150);
+
+    const r2p = page.locator('.ic-img.r2p').first();
+    await expect.poll(() => r2p.evaluate((el) => getComputedStyle(el).filter)).toContain('brightness');
+
+    const compare = pop.getByTitle('Hold to compare original');
+    await compare.dispatchEvent('pointerdown');
+    await expect.poll(() => r2p.evaluate((el) => getComputedStyle(el).filter)).toBe('none');
+    await compare.dispatchEvent('pointerup');
+    await expect.poll(() => r2p.evaluate((el) => getComputedStyle(el).filter)).toContain('brightness');
+  });
 });
