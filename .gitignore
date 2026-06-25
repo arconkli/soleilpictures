@@ -3,3 +3,8 @@
 node_modules/
 
 dist/
+
+# local caches / session artifacts
+.claude/
+boards/.wrangler/
+supabase/.temp/

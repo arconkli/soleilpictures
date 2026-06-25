@@ -143,4 +143,8 @@ export {
   TextHOne,
   TextHTwo,
   TextHThree,
+  FlipHorizontal,
+  FlipVertical,
+  CircleHalf,
+  Thermometer,
 } from '@phosphor-icons/react';

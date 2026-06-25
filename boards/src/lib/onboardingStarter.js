@@ -67,7 +67,12 @@ function dragHtml(narrow) {
 // Phone: one combined welcome + drag instruction, so the first screen is just this
 // note and the Ideas board below it.
 function phoneIntroHtml() {
-  return '<p><strong>Welcome 👋</strong></p><p>Drag this note down into the “Ideas” board ↓ — it’s how you keep ideas together. Everything saves automatically.</p>';
+  // Tap-first for phones: dragging a note into a board is a hard, discoverable-only
+  // gesture on touch (mobile first-card converts at <half of desktop), so the phone
+  // intro points at the one-tap affordance — the bottom-nav ＋, which drops a card
+  // straight onto an empty board (see CanvasSurface's mobile-add handler) — rather
+  // than the drag. The "Ideas" board still sits below as a ready place to organize.
+  return '<p><strong>Welcome 👋</strong></p><p>Tap the <strong>＋</strong> at the bottom to add your first card. Everything saves automatically.</p>';
 }
 
 function buildCards(layout, narrow, touch) {

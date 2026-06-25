@@ -66,6 +66,7 @@ export const EV = Object.freeze({
   AD_OFFER_ENTER:          'ad_offer_enter',              // chose "continue into workspace" (skipped buying) {plan}
   AD_OFFER_DWELL:          'ad_offer_dwell',              // {ms}
   AD_OFFER_ABANDON:        'ad_offer_abandon',            // hid the AdWelcome offer without buying OR continuing {ms} (the silent bounce; beacon)
+  INSTANT_ENTRY_SKIP:      'instant_entry_skip',          // instant_entry arm B: the pre-app offer gate was SKIPPED — user dropped straight into the seeded board {arm} (symmetric marker to ad_offer_view; offer deferred to first_value_upgrade_*)
 
   // ── Post-signup journey (the high-resolution, AI-analyzable first-session trace —
   //    see lib/journey.js + migration 0161 admin_journey_* RPCs). Every ps_* event

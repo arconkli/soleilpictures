@@ -63,7 +63,7 @@ import { BoardPicker } from './components/BoardPicker.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2 } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -349,15 +349,36 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // fade only when there's hidden content above/below.
   const sidebarScrollRef = useRef(null);
   useScrollEdges(sidebarScrollRef);
-  // Mobile shell state. isPhone keys all phone-only UI; mobileNavOpen
-  // controls the slide-out sidebar (which uses the existing .sidebar
-  // markup repositioned as a drawer at phone width).
-  const { isPhone } = useBreakpoint();
+  // Mobile shell state. mobileShell keys the drawer-sidebar + bottom-nav layout;
+  // mobileNavOpen controls the slide-out sidebar (which uses the existing
+  // .sidebar markup repositioned as a drawer).
+  //
+  // mobileShell covers phones AND touch tablets in portrait/small-landscape
+  // (isTablet caps at 1024px). A touch iPad in wide landscape reads as
+  // isDesktop && isTouch and keeps the desktop sidebar (it has the room) — but
+  // isTouch still drives the focus button, tap-to-view, auto-hide and 44px
+  // targets below, so every iPad gets the touch affordances regardless of
+  // orientation. Plain desktop (mouse, !isTouch) is unaffected.
+  const { isPhone, isTablet, isTouch } = useBreakpoint();
+  const mobileShell = isPhone || (isTablet && isTouch);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Ephemeral immersive "focus" view for touch — hides ALL chrome so the user
+  // can just look at a board/pictures. Distinct from the persisted desktop
+  // clean mode (⌘.) so entering it on a phone never leaves a later desktop
+  // session chromeless. Both share the same CSS hide-rules (see styles.css).
+  const [focusMode, setFocusMode] = useState(false);
   // Close the drawer whenever the user navigates surfaces or boards —
   // otherwise you tap a board in the drawer, the board loads behind, and
   // the drawer stays open obscuring the content.
-  useEffect(() => { if (!isPhone) setMobileNavOpen(false); }, [isPhone]);
+  useEffect(() => { if (!mobileShell) setMobileNavOpen(false); }, [mobileShell]);
+  // Drop focus mode the moment we're back on a non-touch/desktop viewport so a
+  // resized window can't get stuck chromeless with no touch exit affordance.
+  useEffect(() => { if (!isTouch) setFocusMode(false); }, [isTouch]);
+  useEffect(() => {
+    if (focusMode) document.body.setAttribute('data-focus-mode', '1');
+    else document.body.removeAttribute('data-focus-mode');
+    return () => document.body.removeAttribute('data-focus-mode');
+  }, [focusMode]);
   // Workspace switcher popover (in the sidebar header). Click-outside +
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
@@ -1860,10 +1881,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
-  // Phone: any navigation closes the drawer — tapping a board in the
+  // Mobile shell: any navigation closes the drawer — tapping a board in the
   // drawer used to leave it open, hiding the very board it just opened.
   useEffect(() => {
-    if (isPhone) setMobileNavOpen(false);
+    if (mobileShell) setMobileNavOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stack, currentSurface, activeTag]);
   const openTagSurface = (tag) => {
@@ -2315,6 +2336,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { expCfg = (await supabase.rpc('get_experiment_config')).data; } catch (_) {}
       const enrolled = {};
       for (const key of getActiveExperiments()) {
+        // instant_entry is decided + stamped in TierRouter (deterministically, BEFORE
+        // App mounts — see experiments.js). Stamping it here too would double-log the
+        // enrollment and could disagree with TierRouter's render decision, so the seed
+        // loop leaves it alone.
+        if (key === 'instant_entry') continue;
         // Hardened: a throw here (bad weights, a thenable without .catch, a
         // throwing logEvent) must NEVER escape and abort the rest of the seed —
         // that blanked the board for every new user. See the .then(undefined,…)
@@ -3573,7 +3599,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          autotagReady={autotagReady}
                          sessionId={yh?.sessionId || null}
                          frictionStuck={isMain ? frictionStuck : false}
-                         firstCardArm={isMain ? (getEnrolledArm('first_card_cta') || 'A') : 'A'}
+                         /* Bold "＋ Add your first card" CTA is now the DEFAULT
+                            empty-canvas affordance on the main board (was a paused
+                            A/B — ~80% of new users never placed a card under the
+                            faint passive hint). first_card_cta stays retired in
+                            experiments.js; this is a default, not a test. */
+                         firstCardArm={isMain ? 'B' : 'A'}
                          showcaseArm={isMain ? (getEnrolledArm('welcome_showcase') || (board?.id === showcasePreviewBoardId ? 'B' : 'A')) : 'A'}
                          defaults={defaults} />
         </Profiler>
@@ -3614,24 +3645,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <AppTrieProvider workspaceId={workspace.id}>
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
-      {/* Clean-mode exit button — only renders while body[data-clean-mode='1'].
-          CSS hides it otherwise. Click or press ⌘. to leave. */}
+      {/* Exit affordance for BOTH the persisted desktop clean mode and the
+          ephemeral touch focus mode. CSS shows it only while one of the two
+          body attributes is set, and positions it inside the safe-area on
+          touch so it never hides under the notch. */}
       <button className="clean-mode-exit"
               onClick={() => {
-                document.body.removeAttribute('data-clean-mode');
-                updateOwnSettings({ ui: { ...(mySettings.ui || {}), hideChrome: false } })
-                  .then(() => refreshSettings?.())
-                  .catch(() => {});
+                // Drop the ephemeral focus mode first (no persistence)...
+                setFocusMode(false);
+                // ...then the persisted clean mode, if it was the active one.
+                if (mySettings?.ui?.hideChrome) {
+                  document.body.removeAttribute('data-clean-mode');
+                  updateOwnSettings({ ui: { ...(mySettings.ui || {}), hideChrome: false } })
+                    .then(() => refreshSettings?.())
+                    .catch(() => {});
+                }
               }}
-              title="Exit clean mode (⌘.)">
-        Exit clean mode
+              title="Exit focus view">
+        <Icon as={Minimize2} size={14} /> <span className="clean-mode-exit-label">Exit focus</span>
       </button>
-      {isPhone && mobileNavOpen && (
+      {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
              onClick={() => setMobileNavOpen(false)}
              aria-hidden="true" />
       )}
-      <aside className={`sidebar${isPhone && mobileNavOpen ? ' is-mobile-open' : ''}`}>
+      <aside className={`sidebar${mobileShell && mobileNavOpen ? ' is-mobile-open' : ''}`}>
         {/* Single-column sidebar. Workspace switcher is now a popover
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
@@ -3853,11 +3891,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         />
         <div className="topbar">
           <div className="tb-left">
-            {(tweak.compactSidebar || isPhone) && (
-              <button className="tb-icon" title={isPhone ? 'Open menu' : 'Open sidebar (⌘B)'}
-                      aria-label={isPhone ? 'Open menu' : 'Open sidebar'}
+            {(tweak.compactSidebar || mobileShell) && (
+              <button className="tb-icon" title={mobileShell ? 'Open menu' : 'Open sidebar (⌘B)'}
+                      aria-label={mobileShell ? 'Open menu' : 'Open sidebar'}
                       onClick={() => {
-                        if (isPhone) setMobileNavOpen(true);
+                        if (mobileShell) setMobileNavOpen(true);
                         else setTweak('compactSidebar', false);
                       }}>
                 <Icon as={PanelLeftOpen} size={16} />
@@ -3929,6 +3967,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               <button className="tb-icon" onClick={quickCopyShareLink} disabled={quickShareBusy}
                       title="Copy a view-only link to this board">
                 <Icon as={LinkIcon} size={16} />
+              </button>
+            )}
+            {isTouch && (
+              <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
+                      title="Focus view — hide everything but the board"
+                      aria-label="Enter focus view">
+                <Icon as={Maximize2} size={16} />
               </button>
             )}
             <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this board">
@@ -4115,7 +4160,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       <ReferralNudge tier={myTier.tier} onInvite={openInviteFriends} />
 
-      {isPhone && (() => {
+      {mobileShell && (() => {
         // The "+" appears only when a board canvas is the active surface and
         // it's editable — that's the only place a card can be created. When it
         // shows, no tab is "selected" (the user is on a board, not Home), so

@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isPresenceQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isPresenceQaMode, isImageEditQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -219,6 +219,15 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     window.__soleilDndTest = { ...boardTree, ...canvasGeom, ...dragMimes };
     const el = document.getElementById('root');
     if (el) el.textContent = 'dndqa ready';
+  });
+} else if (import.meta.env.DEV && isImageEditQaMode()) {
+  // Pure photo-adjustment logic bridge (?imgeditqa=1) — no component, just
+  // expose the helpers and a ready flag the spec waits on. Dropped from
+  // production by the DEV guard.
+  import('./lib/imageAdjust.js').then((imageAdjust) => {
+    window.__soleilImgEditTest = { ...imageAdjust };
+    const el = document.getElementById('root');
+    if (el) { el.setAttribute('data-imgeditqa-ready', '1'); el.textContent = 'imgeditqa ready'; }
   });
 } else if (import.meta.env.DEV && isArrowQaMode()) {
   // Arrow-geometry QA (?arrowqa=1). Renders the deterministic crowded layout

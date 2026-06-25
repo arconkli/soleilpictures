@@ -51,6 +51,20 @@ export function parseUserAgent(ua, uaData = null, nativePlatform = null, maxTouc
   return { device_type, os, browser };
 }
 
+// True for clients with a hard/limited memory ceiling where simultaneous
+// full-resolution image decode + WebP encode bursts can OOM/freeze the tab:
+// iOS Safari (strict per-tab memory budget) and any device reporting ≤4GB RAM.
+// Used to halve image-processing concurrency (backfillGate + upload ingest).
+// Memoized via getDeviceInfo; navigator.deviceMemory is Chromium-only (absent
+// on Safari) so the iOS check carries the iPad/iPhone case on its own.
+export function lowMemoryDevice() {
+  try {
+    const { os } = getDeviceInfo();
+    const mem = (typeof navigator !== 'undefined' && navigator.deviceMemory) || 0;
+    return os === 'iOS' || (mem > 0 && mem <= 4);
+  } catch (_) { return false; }
+}
+
 export function getDeviceInfo() {
   if (cached) return cached;
   if (typeof navigator === 'undefined') {

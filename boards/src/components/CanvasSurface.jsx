@@ -38,11 +38,18 @@ import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
-import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta } from '../lib/uploads.js';
+import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview } from '../lib/uploads.js';
+import { makeLimiter } from '../lib/asyncPool.js';
+import { lowMemoryDevice } from '../lib/device.js';
+import { trackStroke } from '../lib/pointerStroke.js';
 import { resolveSrc } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
+import { downloadImage } from '../lib/imageExport.js';
+import { SoleilImageFilters } from './SoleilImageFilters.jsx';
+import { ImageEditPopover } from './ImageEditPopover.jsx';
+import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent } from '../lib/analytics.js';
@@ -248,6 +255,12 @@ function readImageDims(file) {
     img.src = url;
   });
 }
+
+// Bound how many optimistic image previews decode at once. Each decode holds a
+// full-resolution bitmap transiently; a multi-file drop of 12MP/HEIC photos
+// decoding all at once froze iOS Safari. 2 on memory-constrained clients, 4
+// elsewhere — mirrors the backfillGate cap for the same reason.
+const imageDecodeLimiter = makeLimiter(lowMemoryDevice() ? 2 : 4);
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
@@ -1023,6 +1036,18 @@ export function CanvasSurface({
   // row, or the expand button on a canvas image card). Null when closed.
   // Esc handling + close-on-backdrop-click live inside ImageLightbox.
   const [lightbox, setLightbox] = useState(null);
+  // Open an image card fullscreen. Shared by the corner Expand button, the
+  // double-click/double-tap-the-image gesture, and focus-view single-tap, so
+  // all three reach the same lightbox.
+  const openImageLightbox = useCallback((c) => {
+    if (!c?.src) return;
+    setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '', adjust: c.adjust });
+  }, []);
+  // Photo editing: compact popover { cardId, anchorRect } and the full-screen
+  // editor { cardId }. Both read the live card from `cards` each render so
+  // collaborator edits + undo reflect instantly.
+  const [imageEdit, setImageEdit] = useState(null);
+  const [imageEditFull, setImageEditFull] = useState(null);
   const [pdfViewer, setPdfViewer] = useState(null); // { src: 'r2:<pdfKey>', name }
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
@@ -1635,6 +1660,16 @@ export function CanvasSurface({
       const pos = rect
         ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
         : { x: 200, y: 200 };
+      // First-card moment (empty board): skip the type-picker sheet and drop a note
+      // immediately — one obvious tap, not a second decision. Mobile first-card
+      // converts at <half of desktop; choice paralysis on the very first action is
+      // the enemy. (cardsRef stays fresh without re-binding this listener.) Non-empty
+      // boards keep the full add sheet so power users still get the type picker.
+      if ((cardsRef.current || []).length === 0) {
+        noteCreateIntent('mobile_nav');
+        mutators.addNote?.(pos);
+        return;
+      }
       setMobileAdd({ pos });
     };
     document.addEventListener('soleil-mobile-add-card', onAdd);
@@ -1683,10 +1718,22 @@ export function CanvasSurface({
       }
       return;
     }
+    // Decode ONCE, bounded + gated: a single downscaled preview blob (the
+    // full-res decode is released immediately) instead of painting the raw
+    // multi-MB original AND a second decode for dims. Concurrency-capped so a
+    // multi-file drop doesn't decode every photo at once and freeze the tab.
     let blobUrl = null;
-    try { blobUrl = URL.createObjectURL(file); } catch (_) {}
     let dims = { width: 0, height: 0 };
-    try { dims = await readImageDims(file); } catch (_) {}
+    try {
+      const prev = await imageDecodeLimiter(() => makeBoundedPreview(file));
+      if (prev) {
+        dims = { width: prev.width, height: prev.height };
+        try { blobUrl = URL.createObjectURL(prev.blob); } catch (_) {}
+      }
+    } catch (_) {}
+    // Last-resort fallback if the bounded decode failed entirely — keep the
+    // original optimistic preview rather than showing a blank card.
+    if (!blobUrl) { try { blobUrl = URL.createObjectURL(file); } catch (_) {} }
     // Preserve natural dimensions AND aspect ratio. Scale down if the
     // source exceeds MAX along either axis; scale UP (proportionally) if
     // either axis is below MIN so very thin/wide images stay clickable
@@ -2210,6 +2257,7 @@ export function CanvasSurface({
         };
         gestureUntilRef.current = performance.now() + 200; // ADD-only cull while pinching
         markGestureActiveUntil(gestureUntilRef.current);
+        markCanvasInteracting();  // immersive look-around (auto-hide chrome)
         applyCanvasTransform();
         scheduleVisibleRecompute();
         scheduleTouchPanCommit();
@@ -2233,6 +2281,7 @@ export function CanvasSurface({
         panRef.current = { x: p.x + dx, y: p.y + dy };
         gestureUntilRef.current = performance.now() + 200; // ADD-only cull while two-finger panning
         markGestureActiveUntil(gestureUntilRef.current);
+        markCanvasInteracting();  // immersive look-around (auto-hide chrome)
         applyCanvasTransform();
         scheduleVisibleRecompute();
         scheduleTouchPanCommit();
@@ -2827,6 +2876,25 @@ export function CanvasSurface({
   // ── Pan helpers ───────────────────────────────────────────────────────────
   // Same ref-driven, direct-DOM-mutation pattern as the wheel handler so a
   // space-drag pan doesn't re-render every card per pointermove.
+  // Auto-hide chrome while looking around (touch): flag a live pan/pinch on the
+  // <body> so CSS can fade the bottom nav + floating canvas controls out, then
+  // clear it ~0.7s after the gesture settles so they slide back. The CSS is
+  // scoped to the mobile shell, so desktop panning never hides anything.
+  const interactingClearRef = useRef(0);
+  const markCanvasInteracting = useCallback(() => {
+    if (typeof document === 'undefined') return;
+    document.body.setAttribute('data-canvas-interacting', '1');
+    if (interactingClearRef.current) clearTimeout(interactingClearRef.current);
+    interactingClearRef.current = setTimeout(() => {
+      document.body.removeAttribute('data-canvas-interacting');
+      interactingClearRef.current = 0;
+    }, 700);
+  }, []);
+  useEffect(() => () => {
+    if (interactingClearRef.current) clearTimeout(interactingClearRef.current);
+    if (typeof document !== 'undefined') document.body.removeAttribute('data-canvas-interacting');
+  }, []);
+
   const startPan = (e) => {
     e.preventDefault();
     const startClient = { x: e.clientX, y: e.clientY };
@@ -2854,6 +2922,7 @@ export function CanvasSurface({
       };
       gestureUntilRef.current = performance.now() + 200; // ADD-only cull while panning
       markGestureActiveUntil(gestureUntilRef.current);
+      if (startedFromTouch) markCanvasInteracting();  // immersive look-around
       applyCanvasTransform();
       scheduleVisibleRecompute();
     };
@@ -2983,6 +3052,28 @@ export function CanvasSurface({
   const onCardPointerDown = (e, c) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
+    // Focus view = "just looking": tap an image to open it fullscreen, drag to
+    // pan (never move or select the card). Works in any tier — browsing intent
+    // overrides edit affordances — and mirrors the read-only clean-tap pattern
+    // below (released within 4px = a tap; anything more is a pan).
+    if (c.kind === 'image' && c.src && document.body.hasAttribute('data-focus-mode')) {
+      e.stopPropagation();
+      const pid = e.pointerId, sx = e.clientX, sy = e.clientY;
+      const cleanup = () => {
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onCancel);
+      };
+      const onUp = (ev) => {
+        if (ev.pointerId !== pid) return;
+        cleanup();
+        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) <= 4) openImageLightbox(c);
+      };
+      const onCancel = (ev) => { if (ev.pointerId === pid) cleanup(); };
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onCancel);
+      startPan(e);
+      return;
+    }
     // View-only board: kill the drag before it starts so the card doesn't
     // visually follow the cursor only to snap back when the mutator no-ops.
     // The one-shot toast covers any first edit attempt (drag, Delete key,
@@ -4249,7 +4340,8 @@ export function CanvasSurface({
               const f = input.files?.[0]; if (!f) return;
               try {
                 const payload = await imageFileToPayload(f, c.x + c.w / 2, c.y + c.h / 2);
-                mutators.updateCard?.(c.id, { src: payload.publicUrl });
+                // Clear any prior adjustments — they belonged to the old image.
+                mutators.updateCard?.(c.id, { src: payload.publicUrl, adjust: null });
               } catch (err) {
                 feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
               }
@@ -4257,6 +4349,14 @@ export function CanvasSurface({
             input.click();
           }},
         ]});
+        if (canEdit && c.src) {
+          items.push({ id: 'image-edit-photo', label: 'Edit photo…',
+            run: () => setImageEditFull({ cardId: c.id }) });
+        }
+        if (c.src) {
+          items.push({ id: 'image-download', label: 'Download',
+            run: () => downloadImage({ src: c.src, title: c.title || c.label || '', adjust: c.adjust }) });
+        }
       } else if (c.kind === 'pdf') {
         items.push({ id: 'pdf-open', label: 'Open',
           run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' }); } });
@@ -4725,79 +4825,92 @@ export function CanvasSurface({
       if (drawOptions.mode === 'eraser') {
         const radius = Math.max(4, (drawOptions.eraserWidth || ERASER_DEFAULT_WIDTH) / 2);
         setActiveStroke({ color: 'rgba(239,68,68,.75)', width: radius * 2, points: [...points], eraser: true });
-        const onMove = (ev) => {
-          const p = clientToCanvas(ev.clientX, ev.clientY);
+        const addPoint = (cx, cy) => {
+          const p = clientToCanvas(cx, cy);
           const last = points[points.length - 1];
           if (Math.hypot(p.x - last[0], p.y - last[1]) < 1.5) return;
           points.push([Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]);
-          setActiveStroke({ color: 'rgba(239,68,68,.75)', width: radius * 2, points: [...points], eraser: true });
         };
-        const onUp = () => {
-          window.removeEventListener('pointermove', onMove);
-          window.removeEventListener('pointerup', onUp);
-          if (points.length > 1) {
-            const targetCard = pickStrokeTarget(points);
-            if (targetCard) {
-              const localEraser = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
-              const next = [];
-              (targetCard.strokes || []).forEach(stroke => {
-                next.push(...splitStrokeByEraser(stroke, localEraser, radius));
-              });
-              mutators.updateCard?.(targetCard.id, { strokes: next });
-            } else {
-              const next = [];
-              (strokes || []).forEach(stroke => {
-                next.push(...splitStrokeByEraser(stroke, points, radius));
-              });
-              mutators.replaceStrokes?.(next);
-              setSelectedStrokes(new Set());
+        // Hardened tracking (pointerId filter + rAF coalesce + pointercancel) —
+        // see lib/pointerStroke.js. Commit on cancel too so an iOS palm-reject
+        // mid-erase doesn't strand the gesture.
+        trackStroke({
+          pointerId: e.pointerId,
+          onSample: (ev) => {
+            for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
+            setActiveStroke({ color: 'rgba(239,68,68,.75)', width: radius * 2, points: [...points], eraser: true });
+          },
+          onEnd: () => {
+            if (points.length > 1) {
+              const targetCard = pickStrokeTarget(points);
+              if (targetCard) {
+                const localEraser = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
+                const next = [];
+                (targetCard.strokes || []).forEach(stroke => {
+                  next.push(...splitStrokeByEraser(stroke, localEraser, radius));
+                });
+                mutators.updateCard?.(targetCard.id, { strokes: next });
+              } else {
+                const next = [];
+                (strokes || []).forEach(stroke => {
+                  next.push(...splitStrokeByEraser(stroke, points, radius));
+                });
+                mutators.replaceStrokes?.(next);
+                setSelectedStrokes(new Set());
+              }
+              // Auto-switch only when finishing on an art canvas — board
+              // free-erasing is iterative like board free-drawing.
+              if (targetCard) setSelectedTool('select');
             }
-            // Auto-switch only when finishing on an art canvas — board
-            // free-erasing is iterative like board free-drawing.
-            if (targetCard) setSelectedTool('select');
-          }
-          setActiveStroke(null);
-        };
-        window.addEventListener('pointermove', onMove);
-        window.addEventListener('pointerup', onUp);
+            setActiveStroke(null);
+          },
+        });
         return;
       }
       const { color, width } = drawOptions;
       setActiveStroke({ color, width, points: [...points] });
-      const onMove = (ev) => {
-        const p = clientToCanvas(ev.clientX, ev.clientY);
+      const addPoint = (cx, cy) => {
+        const p = clientToCanvas(cx, cy);
         const last = points[points.length - 1];
         if (Math.hypot(p.x - last[0], p.y - last[1]) < 1.5) return;
         points.push([Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]);
-        setActiveStroke({ color, width, points: [...points] });
       };
-      const onUp = () => {
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-        if (points.length > 1) {
-          const targetCard = pickStrokeTarget(points);
-          if (targetCard) {
-            // Translate to card-local coords so the stroke stays bounded
-            // to the card and moves/scales with it.
-            const localPoints = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
-            const existing = Array.isArray(targetCard.strokes) ? targetCard.strokes : [];
-            mutators.updateCard?.(targetCard.id, {
-              strokes: [...existing, { color, width, points: localPoints }],
-            });
-          } else {
-            mutators.addStroke?.({ color, width, points });
+      // Hardened tracking — the un-coalesced setActiveStroke-per-event loop here
+      // is what froze a 240Hz Apple Pencil. pointerId filtering rejects a resting
+      // palm; rAF coalescing collapses the stream to one render per frame;
+      // getCoalescedEvents keeps the line smooth; pointercancel guarantees
+      // cleanup (and commits the stroke) on an iOS palm-reject. See
+      // lib/pointerStroke.js.
+      trackStroke({
+        pointerId: e.pointerId,
+        onSample: (ev) => {
+          for (const s of (ev.getCoalescedEvents?.() || [ev])) addPoint(s.clientX, s.clientY);
+          setActiveStroke({ color, width, points: [...points] });
+        },
+        onEnd: () => {
+          if (points.length > 1) {
+            const targetCard = pickStrokeTarget(points);
+            if (targetCard) {
+              // Translate to card-local coords so the stroke stays bounded
+              // to the card and moves/scales with it.
+              const localPoints = points.map(([x, y]) => [x - targetCard.x, y - targetCard.y]);
+              const existing = Array.isArray(targetCard.strokes) ? targetCard.strokes : [];
+              mutators.updateCard?.(targetCard.id, {
+                strokes: [...existing, { color, width, points: localPoints }],
+              });
+            } else {
+              mutators.addStroke?.({ color, width, points });
+            }
+            // Surface the just-used color in recents so the swatch
+            // strip in the draw tool options updates as the user works.
+            addRecentColor(color);
+            // Auto-switch only when finishing on an art canvas. Drawing
+            // on the main board is iterative — that's how people draw.
+            if (targetCard) setSelectedTool('select');
           }
-          // Surface the just-used color in recents so the swatch
-          // strip in the draw tool options updates as the user works.
-          addRecentColor(color);
-          // Auto-switch only when finishing on an art canvas. Drawing
-          // on the main board is iterative — that's how people draw.
-          if (targetCard) setSelectedTool('select');
-        }
-        setActiveStroke(null);
-      };
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
+          setActiveStroke(null);
+        },
+      });
       return;
     }
 
@@ -4805,25 +4918,25 @@ export function CanvasSurface({
     if (selectedTool === 'arrow' && !arrowFrom) {
       const startC = clientToCanvas(e.clientX, e.clientY);
       let moved = false;
+      let lastTo = startC;
       const startClient = { x: e.clientX, y: e.clientY };
-      const onMove = (ev) => {
-        if (!moved && Math.abs(ev.clientX - startClient.x) < 4 && Math.abs(ev.clientY - startClient.y) < 4) return;
-        moved = true;
-        const p = clientToCanvas(ev.clientX, ev.clientY);
-        setActiveFreeArrow({ from: startC, to: p });
-      };
-      const onUp = (ev) => {
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-        if (moved) {
-          const end = clientToCanvas(ev.clientX, ev.clientY);
-          mutators.addFreeArrow?.({ x: startC.x, y: startC.y }, { x: end.x, y: end.y }, arrowOptions);
-          setSelectedTool('select');
-        }
-        setActiveFreeArrow(null);
-      };
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
+      trackStroke({
+        pointerId: e.pointerId,
+        onSample: (ev) => {
+          if (!moved && Math.abs(ev.clientX - startClient.x) < 4 && Math.abs(ev.clientY - startClient.y) < 4) return;
+          moved = true;
+          lastTo = clientToCanvas(ev.clientX, ev.clientY);
+          setActiveFreeArrow({ from: startC, to: lastTo });
+        },
+        onEnd: (ev, { canceled }) => {
+          if (moved && !canceled) {
+            const end = ev ? clientToCanvas(ev.clientX, ev.clientY) : lastTo;
+            mutators.addFreeArrow?.({ x: startC.x, y: startC.y }, { x: end.x, y: end.y }, arrowOptions);
+            setSelectedTool('select');
+          }
+          setActiveFreeArrow(null);
+        },
+      });
       return;
     }
 
@@ -4837,7 +4950,7 @@ export function CanvasSurface({
       let moved = false;
       let lastBounds = null;
       let lastCur = startC; // preserves actual pointer direction for line tool
-      const onMove = (ev) => {
+      const onSample = (ev) => {
         if (!moved && Math.abs(ev.clientX - startClient.x) < 4 && Math.abs(ev.clientY - startClient.y) < 4) return;
         moved = true;
         const cur = clientToCanvas(ev.clientX, ev.clientY);
@@ -4872,9 +4985,10 @@ export function CanvasSurface({
           setActiveShape(lastBounds);
         }
       };
-      const onUp = (ev) => {
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
+      const onEnd = (ev, { canceled }) => {
+        // iOS palm-reject / system gesture mid-shape: drop the preview without
+        // committing a stray shape.
+        if (canceled) { setActiveShape(null); return; }
         // For line/arrow shapes a flat horizontal or vertical drag is the
         // most natural input — accept any drag longer than 12px diagonal.
         // Other shapes need real area in both dimensions.
@@ -4925,8 +5039,7 @@ export function CanvasSurface({
         setActiveShape(null);
         setSelectedTool('select');
       };
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
+      trackStroke({ pointerId: e.pointerId, onSample, onEnd });
       return;
     }
 
@@ -4983,7 +5096,7 @@ export function CanvasSurface({
       setSelectedStrokes(new Set());
       setSelectedArrows(new Set());
     };
-    const onMove = (ev) => {
+    const onSample = (ev) => {
       const dxClient = ev.clientX - startClient.x;
       const dyClient = ev.clientY - startClient.y;
       // 4px matches the card-drag click threshold — the old 3px meant a
@@ -4995,10 +5108,16 @@ export function CanvasSurface({
       const cur = clientToCanvas(ev.clientX, ev.clientY);
       setMarquee(prev => prev ? { ...prev, x1: cur.x, y1: cur.y } : null);
     };
-    const onUp = (ev) => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+    // Restore the pre-marquee selection + drop the box (Escape or iOS cancel).
+    const abortMarquee = () => {
+      setSelected(preSelected);
+      setSelectedStrokes(preStrokes);
+      setSelectedArrows(preArrows);
+      setMarquee(null);
+    };
+    const onEnd = (ev, { canceled }) => {
       pointerOpAbortRef.current = null;
+      if (canceled) { abortMarquee(); return; }
       if (moved) {
         const cur = clientToCanvas(ev.clientX, ev.clientY);
         const minX = Math.min(startCanvas.x, cur.x);
@@ -5041,17 +5160,9 @@ export function CanvasSurface({
       }
       setMarquee(null);
     };
-    // Escape-abort: restore the pre-marquee selection and drop the box.
-    pointerOpAbortRef.current = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      setSelected(preSelected);
-      setSelectedStrokes(preStrokes);
-      setSelectedArrows(preArrows);
-      setMarquee(null);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    const dispose = trackStroke({ pointerId: e.pointerId, onSample, onEnd });
+    // Escape-abort: tear down listeners (no commit) + restore selection.
+    pointerOpAbortRef.current = () => { dispose(); abortMarquee(); };
   };
 
   const onBackgroundContextMenu = (e) => {
@@ -5694,8 +5805,10 @@ export function CanvasSurface({
       return;
     }
     // image / note / link / etc — defer to inner editors so dbl-click
-    // re-enters edit mode reliably. (Open link via the link-card icon or
-    // right-click → Open instead.)
+    // re-enters edit mode reliably. (Images: ImageCard's own .ic-imgwrap
+    // dbl-click handles title edit; fullscreen view is the corner Expand button
+    // + single-tap in focus view. Open a link via the link-card icon or
+    // right-click → Open.)
   };
 
   // Touch: synthesize the double-tap that native dblclick fumbles on mobile so
@@ -5875,12 +5988,15 @@ export function CanvasSurface({
         : <BoardLinkCard targetBoard={target} note={c.note} onOpen={() => target && onOpenBoard(c.target)} />;
     } else if (c.kind === 'image')   inner = <ImageCard src={c.src || localImagePreview[c.id] || null} tone={c.tone} label={c.label} title={c.title} link={c.link} aspect={`${c.w}/${c.h}`} w={Math.round(c.w)} h={Math.round(c.h)} caption={c.caption} onUpdate={onUpdate} autoFocus={af}
                                                      cardId={c.id}
+                                                     adjust={c.adjust}
                                                      backfillEnabled={canEdit} boardId={board.id}
                                                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                      editCaptionAt={editFieldSignal.id === c.id && editFieldSignal.field === 'caption' ? editFieldSignal.n : 0}
                                                      pending={!!c.pending}
                                                      uploadProgress={uploadProgressById[c.id] ?? null}
-                                                     onExpand={() => setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '' })}
+                                                     onExpand={() => openImageLightbox(c)}
+                                                     onEdit={onUpdate && c.src ? (rect) => setImageEdit({ cardId: c.id, anchorRect: rect }) : null}
+                                                     onDownload={c.src ? () => downloadImage({ src: c.src, title: c.title || c.label || '', adjust: c.adjust }) : null}
                                                      onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'note')      inner = <NoteCard body={c.body} html={c.html} bgColor={c.bgColor} textColor={c.textColor} fontFamily={c.fontFamily} fontSize={c.fontSize} vAlign={c.vAlign} onUpdate={onUpdate} autoFocus={af}
                                                 manuallyResized={!!c.manuallyResized}
@@ -8051,9 +8167,38 @@ export function CanvasSurface({
         </div>
       )}
       {lightbox && (
-        <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt}
+        <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust}
                        onClose={() => setLightbox(null)} />
       )}
+      {/* Photo-adjust SVG filter defs (sharpen/warmth), referenced by id. */}
+      <SoleilImageFilters />
+      {imageEdit && (() => {
+        const card = cards.find(x => x.id === imageEdit.cardId);
+        if (!card || card.kind !== 'image') return null;
+        const r = imageEdit.anchorRect;
+        return (
+          <ImageEditPopover
+            position={{ x: (r?.left ?? 0) + (r?.width ?? 0) / 2, y: (r?.bottom ?? 0) }}
+            adjust={card.adjust}
+            onChange={(next) => mutators.updateCard?.(card.id, { adjust: next })}
+            onReset={() => mutators.updateCard?.(card.id, { adjust: null })}
+            onDownload={() => downloadImage({ src: card.src, title: card.title || card.label || '', adjust: card.adjust })}
+            onExpand={() => { setImageEditFull({ cardId: card.id }); setImageEdit(null); }}
+            onClose={() => setImageEdit(null)} />
+        );
+      })()}
+      {imageEditFull && (() => {
+        const card = cards.find(x => x.id === imageEditFull.cardId);
+        if (!card || card.kind !== 'image') return null;
+        return (
+          <ImageEditModal
+            src={card.src} title={card.title || card.label || ''} adjust={card.adjust}
+            onChange={(next) => mutators.updateCard?.(card.id, { adjust: next })}
+            onReset={() => mutators.updateCard?.(card.id, { adjust: null })}
+            onDownload={() => downloadImage({ src: card.src, title: card.title || card.label || '', adjust: card.adjust })}
+            onClose={() => setImageEditFull(null)} />
+        );
+      })()}
       {pdfViewer && (
         <Suspense fallback={<div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>}>
           <PdfViewer src={pdfViewer.src} name={pdfViewer.name} onClose={() => setPdfViewer(null)} />

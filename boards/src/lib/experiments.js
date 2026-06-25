@@ -39,6 +39,27 @@ export const EXPERIMENTS = {
       { id: 'B', weight: 50 }, // variant — the brand showcase + "Clear & try it yourself" banner
     ],
   },
+  // instant_entry — the highest-leverage activation lever: drop a brand-new demo
+  // user STRAIGHT into their seeded board (arm B), or show the price-first AdWelcome
+  // offer gate first (arm A = current behavior)? ~100% of signups hit that gate and
+  // ~35% bounced there before ever seeing a board, with 0 paid conversions anyway.
+  // The decision is made in TierRouter BEFORE App mounts, so it MUST be synchronous +
+  // deterministic (assignArm, never drawArm) — the gate can't wait on a config round-
+  // trip without re-introducing the tier-gate stall. Therefore this experiment is
+  // INTENTIONALLY absent from the app_config 'experiments' bandit row: the nightly
+  // optimizer can't meaningfully tune a deterministic allocation, and
+  // admin_activation_by_experiment('instant_entry') reads the stamped arm from
+  // profiles.settings.experiments (not config), so the payment-weighted readout works
+  // with zero server changes and guards revenue (a false win that lifts first-card but
+  // tanks paid shows up there). Arm B's deferred Creator offer already exists
+  // (FirstValueUpgradeBanner on 'soleil:first-value' + the always-present UpgradeChip).
+  instant_entry: {
+    enabled: true,
+    arms: [
+      { id: 'A', weight: 50 }, // control — current pre-app AdWelcome offer gate
+      { id: 'B', weight: 50 }, // treatment — straight into the seeded board; offer deferred to first_value_upgrade_*
+    ],
+  },
   // PAUSED — its empty-board surface is subsumed by the showcase, and we run one
   // clean lever at current volume (the showcase's own clear-and-start affordance
   // is the "try it yourself" CTA). Flip enabled:true + re-enable its config row

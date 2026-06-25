@@ -174,9 +174,14 @@ export function LocalBoardsApp({ user, signOut }) {
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
-  const { isPhone } = useBreakpoint();
+  // Mirror App.jsx: the mobile shell covers phones AND touch tablets (iPad
+  // portrait, ≤1024). Must match the global shell CSS query in styles.css —
+  // otherwise the sidebar styles as a hidden drawer on a tablet with no
+  // hamburger to open it.
+  const { isPhone, isTablet, isTouch } = useBreakpoint();
+  const mobileShell = isPhone || (isTablet && isTouch);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  useEffect(() => { if (!isPhone) setMobileNavOpen(false); }, [isPhone]);
+  useEffect(() => { if (!mobileShell) setMobileNavOpen(false); }, [mobileShell]);
   const [selectedTool, setSelectedTool] = useState('select');
   const [autoFocusId, setAutoFocusId] = useState(null);
   const [currentSurface, setCurrentSurface] = useState('board');
@@ -513,7 +518,11 @@ export function LocalBoardsApp({ user, signOut }) {
       id: createId('img'),
       kind: 'image',
       tone: 'neutral',
-      label: 'LOCAL IMAGE PLACEHOLDER',
+      // Local QA — point at a static same-origin photo (resolveSrc passes plain
+      // URLs through), so the image card renders a real picture and exercises
+      // the photo-edit affordances + the canvas download bake with no backend.
+      src: '/signin-losttime-still1.webp',
+      label: 'LOCAL IMAGE',
       x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
       y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
       w,
@@ -615,12 +624,12 @@ export function LocalBoardsApp({ user, signOut }) {
   return (
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`} data-screen-label={`Local Board - ${currentBoard.name}`}>
       <ShortcutsHost />
-      {isPhone && mobileNavOpen && (
+      {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
              onClick={() => setMobileNavOpen(false)}
              aria-hidden="true" />
       )}
-      <aside className={`sidebar${isPhone && mobileNavOpen ? ' is-mobile-open' : ''}`}>
+      <aside className={`sidebar${mobileShell && mobileNavOpen ? ' is-mobile-open' : ''}`}>
         {/* Two-tier layout to match real-mode App.jsx — rail (workspaces +
             settings + you) on the left, middle column with nav + boards. */}
         <div className="rail">
@@ -706,7 +715,7 @@ export function LocalBoardsApp({ user, signOut }) {
       <main className="main">
         <div className="topbar">
           <div className="tb-left">
-            {isPhone && (
+            {mobileShell && (
               <button className="tb-icon" title="Open menu" aria-label="Open menu"
                       onClick={() => setMobileNavOpen(true)}>
                 <Icon as={PanelLeftOpen} size={16} />
@@ -825,7 +834,7 @@ export function LocalBoardsApp({ user, signOut }) {
         <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} />
       )}
 
-      {isPhone && (() => {
+      {mobileShell && (() => {
         const onBoard = currentSurface === 'board' && view === 'canvas'
           && !tweak.showMessages && !pickerOpen && !mobileNavOpen;
         return (

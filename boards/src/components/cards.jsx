@@ -6,6 +6,7 @@ import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
 import { Spinner } from './Spinner.jsx';
 import { resolveSrc } from '../lib/r2.js';
+import { buildImgStyle } from '../lib/imageAdjust.js';
 import * as audioBus from '../lib/audioBus.js';
 import { EditableText } from './EditableText.jsx';
 import { RichNoteEditor, useNoteOverflow } from './RichNoteEditor.jsx';
@@ -535,9 +536,14 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
                             w, h,
                             onUpdate, autoFocus = false,
                             editTitleAt = 0, editCaptionAt = 0,
-                            onAfterEdit, onExpand,
+                            onAfterEdit, onExpand, onEdit, onDownload,
+                            adjust = null,
                             pending = false, uploadProgress = null,
                             backfillEnabled = false, boardId = null, cardId = null }) {
+  // Non-destructive photo adjustments → CSS filter/transform on the image.
+  // useMemo keyed on the (identity-stable) adjust object so unchanged cards
+  // don't rebuild the style object on every pan/zoom tick.
+  const imgStyle = useMemo(() => buildImgStyle(adjust), [adjust]);
   // Caption + title are hidden until a value exists OR the user opts in to
   // edit. Double-click on the image area focuses the title editor (creating
   // it on the fly). Hover affordance for adding a caption. Right-click in
@@ -586,6 +592,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
       <div className="ic-imgwrap" onDoubleClick={onImgDblClick}>
         {src
           ? <R2Image src={src} alt={title || label || ''} w={w} h={h} className="ic-img" draggable="false"
+                     style={imgStyle}
                      progressive backfillEnabled={backfillEnabled} boardId={boardId} cardId={cardId} />
           : <ImagePlaceholder label={label} tone={tone} aspect={aspect} />}
         {pending && (
@@ -625,15 +632,39 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
             </svg>
           </a>
         )}
-        {src && onExpand && (
-          <button type="button" className="ic-expand" title="View full size"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => { e.stopPropagation(); onExpand(); }}>
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
-                 stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
-            </svg>
-          </button>
+        {src && (onEdit || onDownload || onExpand) && (
+          <div className="ic-actions">
+            {onEdit && (
+              <button type="button" className="ic-act ic-edit" title="Edit photo"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onEdit(e.currentTarget.getBoundingClientRect()); }}>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
+                     stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.5 2.5 L11.5 4.5 L5 11 L2.5 11.5 L3 9 Z" />
+                </svg>
+              </button>
+            )}
+            {onDownload && (
+              <button type="button" className="ic-act ic-download" title="Download"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onDownload(); }}>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
+                     stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 2 V9 M4 6.5 L7 9.5 L10 6.5 M2.5 11.5 H11.5" />
+                </svg>
+              </button>
+            )}
+            {onExpand && (
+              <button type="button" className="ic-act ic-expand" title="View full size"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onExpand(); }}>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
+                     stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
+                </svg>
+              </button>
+            )}
+          </div>
         )}
       </div>
       {showTitle && onUpdate && (

@@ -41,7 +41,7 @@ export const BOARDS = {
           { name: 'Signal', hex: '#3b82f6' },
           { name: 'Warn',   hex: '#f59e0b' },
         ]},
-      { id: 'home-image', kind: 'image', x: 660, y: 600, w: 240, h: 200, tone: 'neutral', label: 'PINNED · KEY ART REF' },
+      { id: 'home-image', kind: 'image', x: 660, y: 600, w: 240, h: 200, tone: 'neutral', label: 'PINNED · KEY ART REF', src: '/signin-losttime-still1.webp' },
     ],
     arrows: [],
     links: [],

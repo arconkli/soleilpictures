@@ -17,6 +17,7 @@ import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
 import * as perf from './perf.js';
 import { planParts } from './multipartPlan.js';
+import { runGated } from './backfillGate.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
@@ -271,6 +272,30 @@ function drawableToWebpNative({ drawable, w, h }, quality) {
   });
 }
 
+// Decode `file` ONCE at bounded resolution for an optimistic on-canvas preview,
+// returning its natural dimensions + a small preview Blob and releasing the
+// full-resolution decode immediately. Replaces painting the raw multi-MB
+// original as an <img>: iOS Safari had to fully decode AND keep that original
+// resident for every pending card, so a multi-file drop of 12MP/HEIC photos blew
+// past the per-tab memory ceiling and froze the canvas. Returns null on decode
+// failure (caller falls back to a plain object URL of the original).
+export async function makeBoundedPreview(file, maxEdge = PREVIEW_LONGEST_EDGE) {
+  const d = await getDrawable(file);
+  if (!d) return null;
+  try {
+    let blob = null;
+    try {
+      const down = await downscaleDrawableToWebp(d, maxEdge, PREVIEW_QUALITY);
+      if (down?.blob) blob = down.blob;
+    } catch (_) { /* fall through — use the original below */ }
+    // downscale returns null when the source is already ≤maxEdge; the original
+    // is then already small enough to paint directly.
+    return { width: d.w, height: d.h, blob: blob || file };
+  } finally {
+    d.release?.();  // free the full-res ImageBitmap NOW, not at GC's leisure
+  }
+}
+
 // Compute a base64 ThumbHash from a drawable (downscaled to <=100px/side).
 function computeThumbHashBase64({ drawable, w, h }) {
   const maxSide = Math.max(w, h);
@@ -438,8 +463,12 @@ export async function uploadImage({ file, workspaceId, boardId, cardId = null, u
 
   // Generate Tier-0 blur + Tier-1 preview in the background so the card appears
   // immediately. Needs the images row to exist (set_image_variant looks it up).
-  generateAndUploadVariants({ workspaceId, boardId: boardId || null, storagePath: key, imageSource: file })
-    .catch(() => {});
+  // Routed through the shared backfillGate so a multi-image drop can't fire N
+  // full-res decodes + WebP encodes at once — the burst that froze iOS Safari.
+  // runGated is fire-and-forget + swallows errors, matching the prior .catch().
+  runGated(() => generateAndUploadVariants({
+    workspaceId, boardId: boardId || null, storagePath: key, imageSource: file,
+  }));
 
   return {
     id: row?.id || null,
