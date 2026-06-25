@@ -60,10 +60,11 @@ import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { ReadOnlyBanner } from './components/ReadOnlyBanner.jsx';
 import { BoardPicker } from './components/BoardPicker.jsx';
+import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2 } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -344,6 +345,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [stack, setStack] = useState(() => [rootBoard.id]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Global search + ⌘K command palette (distinct from the boards-only
+  // BoardPicker above, which stays the "link a board onto canvas" surface).
+  const [paletteOpen, setPaletteOpen] = useState(false);
   // Sidebar scroll region (the board/tag list between the pinned nav and
   // footer). useScrollEdges toggles fade-top/fade-bottom on it so the edges
   // fade only when there's hidden content above/below.
@@ -3526,6 +3530,59 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => window.removeEventListener('keydown', onKey);
   }, [tweak.compactSidebar, setTweak]);
 
+  // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (isEditableTarget(e)) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen(o => !o);
+      } else if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Command palette actions. Per-shell so each closure captures the right
+  // setters; `available` gates rows that need an editable board / a real board.
+  const appCommands = useMemo(() => [
+    { id: 'new-board', label: 'Create board', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'board'],
+      available: canEditCurrent,
+      run: () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } },
+    { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
+      available: canEditCurrent && view !== 'list' && currentSurface === 'board',
+      run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
+    { id: 'home', label: 'Go to Home', icon: Home, keywords: ['home', 'graph', 'overview'],
+      run: () => setCurrentSurface('home') },
+    { id: 'link-board', label: 'Link a board onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'board'],
+      available: canEditCurrent && currentSurface === 'board',
+      run: () => setPickerOpen(true) },
+    { id: 'split', label: 'Open split view', icon: Columns2, keywords: ['split', 'side by side', 'compare'],
+      run: () => setSplitPickerOpen(true) },
+    { id: 'share', label: 'Share this board', icon: Share2, keywords: ['share', 'invite', 'collaborate', 'public link'],
+      available: currentSurface === 'board', run: () => setShareOpen(true) },
+    { id: 'messages', label: 'Messages', icon: MessageSquare, keywords: ['messages', 'chat', 'dm', 'comments'],
+      run: () => setTweak('showMessages', !tweak.showMessages) },
+    { id: 'theme', label: 'Toggle theme', icon: themeMode === 'dark' ? Sun : Moon, keywords: ['theme', 'dark', 'light', 'mode'],
+      run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
+    { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
+      run: () => setTweak('compactSidebar', !tweak.compactSidebar) },
+    { id: 'trash', label: 'Open trash', icon: Trash2, keywords: ['trash', 'deleted', 'restore', 'bin'],
+      run: () => setTrashOpen(true) },
+    { id: 'settings', label: 'Open settings', icon: Settings, keywords: ['settings', 'preferences', 'workspace', 'display'],
+      run: () => setSettingsOpen(true) },
+    { id: 'account', label: 'Account & billing', icon: User, keywords: ['account', 'profile', 'billing', 'plan'],
+      run: () => setAccountOpen(true) },
+    { id: 'invite', label: 'Invite friends', icon: UserPlus, keywords: ['invite', 'referral', 'friends', 'earn'],
+      run: () => openInviteFriends('palette') },
+    { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
+      run: () => signOut?.() },
+  ], [canEditCurrent, view, currentSurface, themeMode, tweak.showMessages, tweak.compactSidebar,
+      setTheme, setTweak, mainMutators, openInviteFriends, signOut]);
+
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -3780,9 +3837,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             );
           })()}
 
-          <button className="sb-search" onClick={() => setPickerOpen(true)} title="Search boards (⌘K)">
+          <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
             <Icon as={Search} size={13} />
-            <span>Search boards…</span>
+            <span>Search…</span>
             <span className="sb-search-kbd">⌘K</span>
           </button>
 
@@ -4096,6 +4153,32 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onPick={(b) => { setSplitId(b.id); setSplitPickerOpen(false); }}
       />
 
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        workspaceId={workspace.id}
+        boards={boards}
+        rootId={rootBoard.id}
+        recents={recents.recents}
+        commands={appCommands}
+        mobileShell={mobileShell}
+        onOpenBoard={(id) => {
+          setStack([id]);
+          recents.push(id);
+          setCurrentSurface('board');
+        }}
+        onNavigateRef={(ref) => {
+          // Card/doc/group results live on a board — land on it, in canvas view
+          // so the soleil-flash-card listener (canvas-only) can center the card.
+          if (ref.kind === 'card' || ref.kind === 'doc' || ref.kind === 'docPos' || ref.kind === 'group') {
+            setCurrentSurface('board');
+            const bid = ref.boardId;
+            if (bid) setViewOverride(o => (o[bid] === 'canvas' ? o : { ...o, [bid]: 'canvas' }));
+          }
+          navHandlers[ref.kind]?.(ref);
+        }}
+      />
+
       <TrashModal
         open={trashOpen}
         workspaceId={workspace.id}
@@ -4190,7 +4273,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // pass active={null} rather than the old fall-through to 'home' which
         // wrongly lit Home next to the create puck.
         const onBoard = currentSurface === 'board'
-          && !tweak.showMessages && !settingsOpen && !pickerOpen && !mobileNavOpen;
+          && !tweak.showMessages && !settingsOpen && !pickerOpen && !paletteOpen && !mobileNavOpen;
         const showCreate = onBoard && canEditCurrent;
         return (
         <MobileBottomNav
@@ -4207,7 +4290,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             : currentSurface === 'home' ? 'home'
             : tweak.showMessages ? 'messages'
             : settingsOpen ? 'settings'
-            : pickerOpen ? 'search'
+            : (paletteOpen || pickerOpen) ? 'search'
             : 'home'
           }
           tabs={[
@@ -4220,10 +4303,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             // Each tap is a destination; closing the others keeps the
             // surface stack consistent (only one "primary" overlay at a time).
             setMobileNavOpen(false);
-            if (k === 'home')     { setCurrentSurface('home'); setPickerOpen(false); setSettingsOpen(false); setTweak('showMessages', false); }
-            if (k === 'search')   { setPickerOpen(true); setSettingsOpen(false); setTweak('showMessages', false); }
-            if (k === 'messages') { setTweak('showMessages', true); setPickerOpen(false); setSettingsOpen(false); }
-            if (k === 'settings') { setSettingsOpen(true); setPickerOpen(false); setTweak('showMessages', false); }
+            if (k === 'home')     { setCurrentSurface('home'); setPaletteOpen(false); setSettingsOpen(false); setTweak('showMessages', false); }
+            if (k === 'search')   { setPaletteOpen(true); setSettingsOpen(false); setTweak('showMessages', false); }
+            if (k === 'messages') { setTweak('showMessages', true); setPaletteOpen(false); setSettingsOpen(false); }
+            if (k === 'settings') { setSettingsOpen(true); setPaletteOpen(false); setTweak('showMessages', false); }
           }}
         />
         );

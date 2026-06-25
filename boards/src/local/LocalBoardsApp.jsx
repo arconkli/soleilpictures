@@ -2,10 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CanvasSurface } from '../components/CanvasSurface.jsx';
 import { ListSurface } from '../components/ListSurface.jsx';
 import { BoardPicker } from '../components/BoardPicker.jsx';
+import { CommandPalette } from '../components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal } from '../lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
+import { useRecents } from '../hooks/useRecents.js';
+import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -174,6 +177,10 @@ export function LocalBoardsApp({ user, signOut }) {
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Global search + ⌘K command palette (separate from the boards-only
+  // BoardPicker, which stays the "link a board" surface).
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const recents = useRecents('local-workspace');
   // Mirror App.jsx: the mobile shell covers phones AND touch tablets (iPad
   // portrait, ≤1024). Must match the global shell CSS query in styles.css —
   // otherwise the sidebar styles as a hidden drawer on a tablet with no
@@ -585,7 +592,7 @@ export function LocalBoardsApp({ user, signOut }) {
   };
 
   const openBoard = (id) => {
-    if (boards[id]) setStack(prev => [...prev, id]);
+    if (boards[id]) { setStack(prev => [...prev, id]); recents.push(id); }
   };
   const goTo = (index) => setStack(prev => prev.slice(0, index + 1));
 
@@ -620,6 +627,42 @@ export function LocalBoardsApp({ user, signOut }) {
     undo: () => {},
     redo: () => {},
   };
+
+  // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
+  // App.jsx has its own; the local shell had no global keydown handler at all.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (isEditableTarget(e)) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen(o => !o);
+      } else if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Reduced command set — the local QA shell has no Settings/Share/Trash modals.
+  const localCommands = useMemo(() => [
+    { id: 'new-board', label: 'Create board', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'board'],
+      run: () => { setCurrentSurface('board'); addNewBoard(); } },
+    { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
+      available: view !== 'list' && currentSurface === 'board',
+      run: () => { setCurrentSurface('board'); addNote(); } },
+    { id: 'home', label: 'Go to Home', icon: Home, keywords: ['home', 'graph', 'overview'],
+      run: () => setCurrentSurface('home') },
+    { id: 'theme', label: 'Toggle theme', icon: tweak.theme === 'dark' ? Sun : Moon, keywords: ['theme', 'dark', 'light', 'mode'],
+      run: () => setTweak('theme', tweak.theme === 'dark' ? 'light' : 'dark') },
+    { id: 'settings', label: 'Open settings', icon: Settings, keywords: ['settings', 'tweaks', 'preferences'],
+      run: () => document.querySelector('.twk-gear')?.click() },
+    { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
+      run: () => setTweak('compactSidebar', !tweak.compactSidebar) },
+    { id: 'signout', label: 'Exit local QA', icon: LogOut, keywords: ['exit', 'sign out', 'log out', 'logout', 'quit'],
+      run: () => signOut?.() },
+  ], [view, currentSurface, tweak.theme, tweak.compactSidebar, setTweak, signOut]);
 
   return (
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`} data-screen-label={`Local Board - ${currentBoard.name}`}>
@@ -669,9 +712,10 @@ export function LocalBoardsApp({ user, signOut }) {
             </button>
           </div>
 
-          <button className="sb-search" onClick={() => setPickerOpen(true)} title="Search boards">
+          <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
             <Icon as={Search} size={13} />
-            <span>Search boards…</span>
+            <span>Search…</span>
+            <span className="sb-search-kbd">⌘K</span>
           </button>
 
           <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
@@ -819,6 +863,22 @@ export function LocalBoardsApp({ user, signOut }) {
         onPick={addLink}
       />
 
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        workspaceId={null}
+        boards={boards}
+        rootId={ROOT_ID}
+        recents={recents.recents}
+        commands={localCommands}
+        mobileShell={mobileShell}
+        onOpenBoard={(id) => { setStack([id]); recents.push(id); setCurrentSurface('board'); }}
+        onNavigateRef={(ref) => {
+          const bid = ref.kind === 'board' ? ref.id : ref.boardId;
+          if (bid && boards[bid]) { setStack([bid]); recents.push(bid); setCurrentSurface('board'); }
+        }}
+      />
+
       {tweak.showMessages && (
         <div className="msg-panel">
           <div className="msg-panel-head"><span className="t-eyebrow">MESSAGES</span></div>
@@ -836,7 +896,7 @@ export function LocalBoardsApp({ user, signOut }) {
 
       {mobileShell && (() => {
         const onBoard = currentSurface === 'board' && view === 'canvas'
-          && !tweak.showMessages && !pickerOpen && !mobileNavOpen;
+          && !tweak.showMessages && !pickerOpen && !paletteOpen && !mobileNavOpen;
         return (
         <MobileBottomNav
           showCreate={onBoard}
@@ -851,7 +911,7 @@ export function LocalBoardsApp({ user, signOut }) {
             onBoard ? null
             : currentSurface === 'home' ? 'home'
             : tweak.showMessages ? 'messages'
-            : pickerOpen ? 'search'
+            : (paletteOpen || pickerOpen) ? 'search'
             : 'home'
           }
           tabs={[
@@ -862,11 +922,11 @@ export function LocalBoardsApp({ user, signOut }) {
           ]}
           onChange={(k) => {
             setMobileNavOpen(false);
-            if (k === 'home')     { setCurrentSurface('home'); setPickerOpen(false); setTweak('showMessages', false); }
-            if (k === 'search')   { setPickerOpen(true); setTweak('showMessages', false); }
-            if (k === 'messages') { setTweak('showMessages', true); setPickerOpen(false); }
+            if (k === 'home')     { setCurrentSurface('home'); setPaletteOpen(false); setTweak('showMessages', false); }
+            if (k === 'search')   { setPaletteOpen(true); setTweak('showMessages', false); }
+            if (k === 'messages') { setTweak('showMessages', true); setPaletteOpen(false); }
             if (k === 'settings') {
-              setPickerOpen(false);
+              setPaletteOpen(false);
               setTweak('showMessages', false);
               document.querySelector('.twk-gear')?.click();
             }

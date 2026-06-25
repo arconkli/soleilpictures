@@ -392,15 +392,17 @@ test('local QA mode uses in-app dialogs instead of native prompts', async ({ pag
   await expect(page.getByRole('dialog', { name: /Delete/i })).toBeHidden();
 });
 
-test('local QA mode keeps picker and settings simple', async ({ page }) => {
+test('local QA mode keeps search and settings simple', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
 
-  await page.getByText('Search boards').click();
-  await expect(page.getByPlaceholder(/Search in Studio/)).toBeVisible();
-  await page.getByPlaceholder(/Search in Studio/).fill('Sundown');
-  await expect(page.locator('.picker-row-name', { hasText: 'Sundown Highway' })).toBeVisible();
+  // The sidebar "Search…" button now opens the global command palette (.cmdk),
+  // not the boards-only BoardPicker (which stays the "link a board" surface).
+  await page.locator('.sb-search').click();
+  await expect(page.getByPlaceholder(/Search boards, cards/)).toBeVisible();
+  await page.getByPlaceholder(/Search boards, cards/).fill('Sundown');
+  await expect(page.locator('.cmdk-row-name', { hasText: 'Sundown Highway' })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.picker')).toBeHidden();
+  await expect(page.locator('.cmdk')).toBeHidden();
 
   await page.locator('.twk-gear').click();
   await expect(page.locator('.twk-panel')).toBeVisible();

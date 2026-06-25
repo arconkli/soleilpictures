@@ -3770,6 +3770,136 @@ body {
 .picker-ft-pick:hover:not(:disabled) { box-shadow: var(--shadow-1); transform: translateY(-1px); }
 .picker-ft-pick:disabled { opacity: .35; cursor: not-allowed; }
 
+/* ── Command palette / global search (.cmdk) ─────────────────────────────────
+   Spotlight-style overlay: search boards + content + run commands. Distinct
+   from .picker (the boards-only link picker). Frosted surface via
+   .surface-frosted; full-screen on mobile via the @media block far below. */
+.cmdk-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.50);
+  backdrop-filter: blur(2px);
+  z-index: 1200;
+  display: grid; place-items: start center;
+  padding-top: 12vh;
+  animation: pickerFade var(--dur-slow) var(--ease);
+}
+.cmdk {
+  width: min(600px, calc(100vw - 32px));
+  max-height: min(60vh, 560px);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: modalRise var(--dur-slow) var(--ease);
+}
+.cmdk-search {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line-1);
+  color: var(--ink-2);
+  flex: 0 0 auto;
+}
+.cmdk-search-icon { color: var(--ink-3); flex: 0 0 auto; }
+.cmdk-input {
+  flex: 1; min-width: 0;
+  border: 0; background: transparent;
+  color: var(--ink-0);
+  font: 500 15px/1.4 var(--font-sans);
+  outline: none;
+}
+.cmdk-input::placeholder { color: var(--ink-3); }
+.cmdk-clear {
+  appearance: none; -webkit-appearance: none; border: 0; background: transparent;
+  color: var(--ink-3); cursor: pointer;
+  display: grid; place-items: center;
+  width: 24px; height: 24px; border-radius: var(--radius); flex: 0 0 auto;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.cmdk-clear:hover { background: var(--bg-hov); color: var(--ink-1); }
+.cmdk-esc {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--ink-3);
+  padding: 3px 7px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  flex: 0 0 auto;
+}
+.cmdk-close {
+  appearance: none; -webkit-appearance: none; border: 0; background: transparent;
+  color: var(--ink-2); cursor: pointer;
+  display: none; place-items: center;
+  width: 40px; height: 40px; border-radius: var(--radius); flex: 0 0 auto;
+}
+.cmdk-list { flex: 1 1 auto; overflow-y: auto; padding: 6px; }
+.cmdk-empty { padding: 28px 20px; text-align: center; color: var(--ink-3); font: 400 13px/1.5 var(--font-sans); }
+.cmdk-group { padding: 2px 0 4px; }
+.cmdk-group + .cmdk-group { border-top: 1px solid var(--line-1); margin-top: 2px; padding-top: 6px; }
+.cmdk-group-label {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-4);
+  padding: 6px 12px 4px;
+}
+.cmdk-row {
+  width: 100%;
+  appearance: none; -webkit-appearance: none; border: 0; background: transparent;
+  text-align: left; cursor: pointer;
+  display: flex; align-items: center; gap: 11px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  color: var(--ink-1);
+  transition: background var(--dur-fast) var(--ease);
+}
+.cmdk-row:hover { background: var(--bg-hov); }
+.cmdk-row.is-active { background: var(--soleil-soft); }
+.cmdk-row.is-active .cmdk-row-name { color: var(--ink-0); }
+.cmdk-row.is-active .cmdk-row-arrow { color: var(--soleil); }
+.cmdk-row-icon { width: 20px; flex: 0 0 auto; display: grid; place-items: center; color: var(--ink-3); }
+.cmdk-row.is-active .cmdk-row-icon { color: var(--ink-1); }
+.cmdk-tag-dot {
+  width: 10px; height: 10px; flex: 0 0 auto; margin: 0 5px;
+  border-radius: 50%;
+  background: var(--tag-c, var(--ink-3));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tag-c, var(--ink-3)) 22%, transparent);
+}
+.cmdk-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cmdk-row-name {
+  font: 500 13.5px/1.35 var(--font-sans); color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cmdk-row-sub {
+  font: 400 11.5px/1.35 var(--font-sans); color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cmdk-row-badge {
+  font: 600 9.5px/1 var(--font-sans);
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 3px 6px; flex: 0 0 auto;
+}
+.cmdk-row.is-active .cmdk-row-badge { color: var(--soleil); border-color: color-mix(in srgb, var(--soleil) 40%, transparent); }
+.cmdk-row-arrow { color: var(--ink-4); flex: 0 0 auto; transition: color var(--dur-fast) var(--ease); }
+.cmdk-mark { background: var(--soleil-soft); color: inherit; border-radius: 2px; padding: 0 1px; }
+.cmdk-foot {
+  display: flex; align-items: center; gap: 14px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--line-1);
+  background: rgba(0,0,0,.10);
+  flex: 0 0 auto;
+}
+[data-theme='light'] .cmdk-foot { background: rgba(0,0,0,.03); }
+.cmdk-hint { display: inline-flex; align-items: center; gap: 5px; font: 400 11px/1 var(--font-sans); color: var(--ink-3); }
+.cmdk-foot kbd {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--ink-2);
+  min-width: 16px; text-align: center;
+  padding: 2px 5px;
+  border: 1px solid var(--line-2);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.03);
+}
+
 /* Zoom (bottom right) */
 .cnv-zoom {
   position: absolute;
@@ -17934,13 +18064,15 @@ button, [role="button"], a {
      12vh top padding so the picker anchors to the top — keeps the
      close button reachable above the address bar collapse. */
   .modal-bg,
-  .picker-bg {
+  .picker-bg,
+  .cmdk-bg {
     padding-top: var(--safe-top);
     grid-template-rows: 1fr;
     place-items: stretch;
   }
   .modal,
   .picker,
+  .cmdk,
   .share-modal,
   .modal-workspace-recovery {
     width: 100vw;
@@ -17953,13 +18085,19 @@ button, [role="button"], a {
     display: flex;
     flex-direction: column;
   }
+  /* Full-screen palette on phone: show the close button, drop the 600px cap,
+     and give rows ≥44px tap targets. */
+  .cmdk-close { display: grid; }
+  .cmdk-row { padding: 11px 12px; }
+  .cmdk-input { font-size: 16px; } /* ≥16px stops iOS Safari zoom-on-focus */
   /* Internal scroll regions stretch to fill the phone-height modal
      instead of capping at desktop's fixed heights. The .picker-folder
      .picker-list selector at desktop has 360px max-height which would
      otherwise win — override it at the same specificity here. */
   .modal-body,
   .picker-list,
-  .picker-folder .picker-list {
+  .picker-folder .picker-list,
+  .cmdk-list {
     max-height: none;
     flex: 1 1 auto;
     overflow-y: auto;

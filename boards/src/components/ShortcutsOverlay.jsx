@@ -26,6 +26,14 @@ const SECTIONS = [
     ],
   },
   {
+    title: 'Navigate',
+    rows: [
+      [[`${CMD}K`, '/'], 'Search & commands'],
+      [[`${CMD}B`], 'Toggle sidebar'],
+      [[`${CMD}.`], 'Clean mode'],
+    ],
+  },
+  {
     title: 'Edit',
     rows: [
       [[`${CMD}Z`, `${CMD}⇧Z`], 'Undo · redo'],

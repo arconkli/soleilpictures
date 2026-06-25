@@ -77,7 +77,7 @@ test('tapping the backdrop dismisses the sheet without adding a card', async ({ 
 
 test('the "+" is hidden when a non-board surface (Search) is open', async ({ page }) => {
   await expect(page.locator('.mb-nav-create')).toBeVisible();
-  await page.locator('.mb-nav-tab').nth(1).tap(); // Search → BoardPicker
-  await expect(page.locator('.picker')).toBeVisible();
+  await page.locator('.mb-nav-tab').nth(1).tap(); // Search → command palette
+  await expect(page.locator('.cmdk')).toBeVisible();
   await expect(page.locator('.mb-nav-create')).toHaveCount(0);
 });

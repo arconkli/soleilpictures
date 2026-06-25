@@ -47,11 +47,13 @@ test('bottom nav has four tabs; no tab is lit while viewing a board', async ({ p
   await expect(page.locator('.mb-nav-create')).toBeVisible();
 });
 
-test('Search tab opens the BoardPicker', async ({ page }, testInfo) => {
+test('Search tab opens the command palette', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'desktop-chrome' || testInfo.project.name === 'tablet',
     'phone-width only (≤640px)');
   await page.locator('.mb-nav-tab').nth(1).tap();
-  await expect(page.locator('.picker')).toBeVisible();
+  await expect(page.locator('.cmdk')).toBeVisible();
+  // Full-screen on phone: the mobile close button is shown (no Esc key on touch).
+  await expect(page.locator('.cmdk-close')).toBeVisible();
 });
 
 test('Messages tab opens the MessagesPanel', async ({ page }, testInfo) => {
