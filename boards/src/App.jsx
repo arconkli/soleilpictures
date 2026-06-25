@@ -2496,11 +2496,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // "Make a copy" remix loop: if the user arrived from a /share or /c viewer's
   // remix CTA (AuthGate stashed the source across signup), clone that PUBLIC
-  // board into a fresh board in their workspace and open it. Mirrors the
-  // showcasepreview clone: create board → prepare_remix grants image read +
-  // returns the source snapshot → decode GENUINE cards → save → reset the fresh
-  // PartyKit room so it can't re-persist an empty doc over the clone → open it.
+  // board into a fresh board in their workspace and open it. create board →
+  // prepare_remix grants image read + returns the source snapshot → decode
+  // GENUINE cards → open the board → seed via the LIVE mutators (below). We do
+  // NOT saveBoardSnapshot+forceResetBoardRoom: that races the fresh room's empty
+  // doc and the clone gets overwritten (the board opened EMPTY). Seeding through
+  // the live doc (the same path the onboarding seed uses) persists with no race.
   const remixConsumedRef = useRef(false);
+  const pendingRemixRef = useRef(null);   // { boardId, cards, kind } awaiting the live seed below
+  const [, setRemixPendingTick] = useState(0);
   useEffect(() => {
     if (remixConsumedRef.current || typeof window === 'undefined') return;
     if (!workspace?.id || !rootBoard?.id || !user?.id) return;
@@ -2532,18 +2536,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           return;
         }
         if (tpl.name) { try { await renameBoard(b.id, `${tpl.name} (remix)`); } catch (_) {} }
-        const ydoc = new Y.Doc();
-        const m = ydoc.getMap('cards');
-        ydoc.transact(() => { for (const c of cards) m.set(c.id, cardToYMap(c)); });
-        await saveBoardSnapshot(b.id, ydoc);
-        ydoc.destroy();
-        // CRITICAL (same as showcasepreview): wipe the fresh room so it can't
-        // re-persist its empty in-memory doc over the clone we just saved.
-        try { await forceResetBoardRoom(b.id); } catch (e) { console.warn('[remix] room reset failed (continuing)', e); }
+        // Hand the cards to the live-seed effect, then open the board. The effect
+        // fires once the new board's doc is mounted + empty and adds the cards
+        // through the live mutators (no save/reset race).
+        pendingRemixRef.current = { boardId: b.id, cards, kind: src.kind };
+        setRemixPendingTick((t) => t + 1);
         try { await refreshBoards(); } catch (_) {}
         setStack([b.id]);
-        try { logEvent(EV.REMIX_CLONE, { kind: src.kind, n: cards.length }); } catch (_) {}
-        feedback.toast({ type: 'success', message: 'Copied to your workspace — make it your own.' });
       } catch (e) {
         console.error('[remix] consume failed', e);
         try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'consume', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
@@ -2552,6 +2551,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace?.id, rootBoard?.id, user?.id]);
+
+  // Seed remix cards through the LIVE board doc once the new board is open +
+  // ready + empty — the reliable path (mirrors the onboarding seed gate). Adding
+  // through the live mutators propagates to the room + persists with no race,
+  // and the cards are GENUINE (decodeRemixCards strips the seed stamp) so they
+  // count toward the demo cap + stamp activation, which is the remix intent.
+  useEffect(() => {
+    const pend = pendingRemixRef.current;
+    if (!pend) return;
+    if (currentId !== pend.boardId) return;                                  // not on the remix board yet
+    if (!currentYDoc || !yb.ready || yb.boardId !== pend.boardId) return;     // doc not hydrated
+    if (yb.cards.length !== 0) return;                                        // empty canvas only (idempotent)
+    pendingRemixRef.current = null;   // claim before the (sync) add so it can't re-fire
+    try {
+      mainMutators.addCards?.(pend.cards);
+      try { logEvent(EV.REMIX_CLONE, { kind: pend.kind, n: pend.cards.length }); } catch (_) {}
+      feedback.toast({ type: 'success', message: 'Copied to your workspace — make it your own.' });
+    } catch (e) {
+      console.error('[remix] seed failed', e);
+      try { logEvent(EV.REMIX_FAILED, { kind: pend.kind, stage: 'seed', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
+      feedback.toast({ type: 'error', message: 'Could not finish your copy — try again.' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentId, currentYDoc, yb.ready, yb.boardId, yb.cards.length, mainMutators]);
 
   // Activation detection — DECOUPLED from the onboarding coachmark UI. The old
   // version only fired ONBOARDING_FIRST_CARD while the coachmark was showing AND
