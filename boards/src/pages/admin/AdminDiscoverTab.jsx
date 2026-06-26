@@ -17,7 +17,6 @@ import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { adminListPublicBoards, adminSetPublicBoard, adminUnpublishBoard,
   aiDraftBoardSeo, aiGenerateBoardAlts, pingIndexNow,
   adminPublicBoardStats, adminImportGscCsv } from '../../lib/boardsApi.js';
-import { AdminExploreSubmissions } from './AdminExploreSubmissions.jsx';
 
 const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
 // Mirror of the DB CHECK (migration 0136) so the UI flags problems before the
@@ -307,7 +306,6 @@ export function AdminDiscoverTab() {
 
   return (
     <div className="admin-section">
-      <AdminExploreSubmissions onReviewed={refresh} />
       <section className="admin-chart-panel admin-chart-panel-wide">
         <header className="admin-chart-head">
           <h3 className="admin-chart-title">Discoverable boards</h3>

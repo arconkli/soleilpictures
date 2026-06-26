@@ -545,12 +545,30 @@ export async function adminListPublicBoardSubmissions(status = 'pending') {
 }
 
 // ADMIN: approve (publish) or reject a submission. Returns { status, slug }.
+// Also emits a one-shot share_notifications toast to the submitter (migration 0171).
 export async function adminReviewPublicBoard({ boardId, approve, reason = null }) {
   const { data, error } = await supabase.rpc('admin_review_public_board', {
     p_board_id: boardId, p_approve: approve, p_reason: reason,
   });
   if (error) throw error;
   return data;
+}
+
+// ADMIN: pending/approved/rejected counts for the Approvals nav badge (0171).
+export async function adminPublicBoardSubmissionCounts() {
+  const { data, error } = await supabase.rpc('admin_public_board_submission_counts');
+  if (error) throw error;
+  return data || { pending: 0, approved: 0, rejected: 0 };
+}
+
+// ADMIN: preview a (possibly still-pending) board's content before approving —
+// { board_id, cards:[{card_id,kind,title,body,href,media}], subboards, truncated }
+// (0171). Image bytes are streamed by the admin-gated worker route
+// /api/admin/preview-img/<board_id>?i=<index>, indexed into this cards array.
+export async function adminPreviewPublicBoard(boardId) {
+  const { data, error } = await supabase.rpc('admin_public_board_preview', { p_board_id: boardId });
+  if (error) throw error;
+  return data || { board_id: boardId, cards: [], subboards: [], truncated: false };
 }
 
 // ── Boards ─────────────────────────────────────────────────────────────────

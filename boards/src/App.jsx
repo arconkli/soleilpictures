@@ -2187,6 +2187,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     for (const n of (shareNotifs || [])) {
       if (surfacedNotifsRef.current.has(n.id)) continue;
       surfacedNotifsRef.current.add(n.id);
+      // Decision on a "Publish to Explore" request the user submitted (0171).
+      if (n.kind === 'explore_approved') {
+        const slug = n.detail;
+        feedback.toast({
+          type: 'success',
+          message: '🎉 Your board is now public on Explore!',
+          ttl: 8000,
+          ...(slug ? { action: { label: 'View', onClick: () => { try { window.open(`/c/${slug}`, '_blank', 'noopener,noreferrer'); } catch (_) {} } } } : {}),
+        });
+        continue;
+      }
+      if (n.kind === 'explore_rejected') {
+        feedback.toast({
+          type: 'info',
+          ttl: 8000,
+          message: `Your board wasn’t approved for Explore${n.detail ? `: ${n.detail}` : '.'}`,
+        });
+        continue;
+      }
       const board = boards[n.board_id];
       const name = board?.name || 'a board';
       feedback.toast({

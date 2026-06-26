@@ -19368,3 +19368,82 @@ button, [role="button"], a {
 }
 .doc-bubble button.is-active { background: var(--soleil, #ffa500); color: #1a1205; }
 .doc-bubble button:active { background: var(--bg2, #2a2a33); }
+
+/* ── Admin: public-board approvals queue (Approvals tab) ─────────────────── */
+/* Pending-count badge on the Approvals nav pill — visible without opening it. */
+.admin-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--soleil);
+  color: var(--bg-0);
+  font: 700 10px/1 var(--font-sans);
+  vertical-align: middle;
+}
+
+.admin-approvals-list { display: grid; gap: 10px; }
+.admin-approvals-list.is-refreshing { opacity: .6; transition: opacity var(--dur-fast) var(--ease); }
+.admin-approval-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  background: var(--bg-1);
+}
+.admin-approval-main { flex: 1 1 280px; min-width: 0; }
+.admin-approval-titleline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.admin-approval-name { font-weight: 650; color: var(--ink-0); }
+.admin-approval-meta { margin-top: 3px; word-break: break-word; }
+.admin-approval-desc { margin-top: 5px; font-size: 13px; color: var(--ink-1); }
+.admin-approval-reason { margin-top: 5px; color: rgb(220,120,120); }
+.admin-approval-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.admin-approval-actions .admin-action { text-decoration: none; }
+
+/* Reject-dialog canned-reason chips (feedback.prompt suggestions). */
+.feedback-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.feedback-suggestion {
+  border: 1px solid var(--line-2);
+  background: var(--bg-0);
+  color: var(--ink-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: 500 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.feedback-suggestion:hover { border-color: var(--soleil); color: var(--ink-0); }
+
+/* Admin board-preview modal — gallery of a (pending) board's content. */
+.admin-preview-modal { width: min(880px, 94vw); max-height: 88vh; display: flex; flex-direction: column; padding: 20px; }
+.admin-preview-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.admin-preview-title { margin: 0; font: 650 17px/1.2 var(--font-sans); color: var(--ink-0); }
+.admin-preview-note { padding: 24px 0; text-align: center; }
+.admin-preview-body { overflow-y: auto; display: grid; gap: 16px; }
+.admin-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.admin-preview-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--bg-0);
+  border: 1px solid var(--line-1);
+}
+.admin-preview-img-loading { animation: admin-preview-pulse 1.2s ease-in-out infinite; }
+.admin-preview-img-missing {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--ink-3); text-align: center; padding: 6px;
+}
+.admin-preview-texts { display: grid; gap: 10px; }
+.admin-preview-text { border-left: 2px solid var(--line-2); padding: 2px 0 2px 12px; }
+.admin-preview-text-title { font-weight: 650; color: var(--ink-0); }
+.admin-preview-text-body { font-size: 13px; color: var(--ink-1); white-space: pre-wrap; }
+.admin-preview-links { display: grid; gap: 4px; }
+.admin-preview-link { font-size: 13px; color: var(--soleil); word-break: break-all; }
+@keyframes admin-preview-pulse { 0%, 100% { opacity: .5; } 50% { opacity: .9; } }

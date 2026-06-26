@@ -13,7 +13,7 @@
 //                       share token (get_share_meta RPC), no user auth.
 
 import { handleTagsRoute } from './worker-tags.js';
-import { handleSeoRoute, INDEXNOW_KEY } from './worker-seo.js';
+import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 
@@ -261,6 +261,9 @@ export default {
       if (pubThumbMatch) return await handlePublicThumb(env, pubThumbMatch[1], url.searchParams, request);
       const pubImgMatch = url.pathname.match(/^\/api\/public-img\/([a-z0-9][a-z0-9-]{0,79})$/);
       if (pubImgMatch) return await handlePublicImg(env, pubImgMatch[1], url.searchParams, request);
+      // Admin-only preview of a still-pending board's images (Approvals tab).
+      const admPrevMatch = url.pathname.match(/^\/api\/admin\/preview-img\/([0-9a-f-]{36})$/i);
+      if (admPrevMatch) return await handleAdminPreviewImg(env, admPrevMatch[1], url.searchParams, request);
     } catch (e) {
       return json({ error: e?.message || String(e) }, 500);
     }
@@ -842,6 +845,67 @@ async function handlePublicImg(env, slug, searchParams, request) {
   const headers = {
     'content-type': obj.httpMetadata?.contentType || imgContentType(key),
     'cache-control': 'public, max-age=86400',
+    'etag': obj.httpEtag,
+  };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(obj.body, { status: 200, headers });
+}
+
+// rpc() variant that runs AS a specific signed-in user (anon apikey + their JWT)
+// so SECURITY DEFINER functions gated on is_admin()/auth.uid() see that user
+// rather than the service role. Used by the admin preview-image route.
+async function userRpc(env, fn, params, userToken, timeoutMs = 8000) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'apikey': env.SUPABASE_ANON_KEY,
+      'authorization': `Bearer ${userToken}`,
+      'content-type': 'application/json',
+      'accept': 'application/json',
+    },
+    body: JSON.stringify(params || {}),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`rpc ${fn} ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return await res.json();
+}
+
+// Admin-only preview of a still-PENDING board's per-card image (the Approvals
+// tab gallery). A plain <img> can't carry a bearer header and R2 buckets are
+// membership-scoped (0165), so the normal in-app read path rejects an admin who
+// isn't a member of the board. The admin client therefore fetch()es this with
+// its Supabase access token; we re-verify admin at the edge, then call
+// admin_public_board_preview AS that admin (so is_admin() passes) and only serve
+// a key that actually belongs to that board's image cards (no enumeration
+// oracle). Mirrors handlePublicImg, but keyed by board_id + auth-gated.
+async function handleAdminPreviewImg(env, boardId, searchParams, request) {
+  const i = parseInt(searchParams.get('i') || '', 10);
+  if (!Number.isInteger(i) || i < 0) return new Response('Not found', { status: 404 });
+  const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!token) return new Response('Unauthorized', { status: 401 });
+  let tier = null;
+  try { tier = await getTier(env, token); } catch { return new Response('tier check failed', { status: 502 }); }
+  if (tier !== 'admin') return new Response('Forbidden', { status: 403 });
+
+  let content = null;
+  try { content = await userRpc(env, 'admin_public_board_preview', { p_board_id: boardId }, token); }
+  catch { return new Response('Not found', { status: 404 }); }
+  const cards = Array.isArray(content?.cards) ? content.cards : [];
+  const card = cards[i];
+  if (!card || card.kind !== 'image' || !card.media) return new Response('Not found', { status: 404 });
+  const key = String(card.media.preview_key || card.media.src_key || '').replace(/^r2:/, '');
+  if (!key || !env.IMAGES) return new Response('Not found', { status: 404 });
+  const obj = await env.IMAGES.get(key);
+  if (!obj) return new Response('Not found', { status: 404 });
+  const headers = {
+    'content-type': obj.httpMetadata?.contentType || imgContentType(key),
+    // private: it's behind an admin gate — never let a shared cache hold it.
+    'cache-control': 'private, no-store',
     'etag': obj.httpEtag,
   };
   if (request.headers.get('if-none-match') === obj.httpEtag) {

@@ -58,6 +58,8 @@ export function FeedbackProvider({ children }) {
       label: options.label,
       placeholder: options.placeholder,
       defaultValue: options.defaultValue || '',
+      // Optional one-tap quick-fill chips (e.g. canned rejection reasons).
+      suggestions: Array.isArray(options.suggestions) ? options.suggestions : null,
       confirmLabel: options.confirmLabel || 'Save',
       cancelLabel: options.cancelLabel || 'Cancel',
       resolve,
