@@ -31,6 +31,12 @@ test('opens via ⌘K and "/", closes via Esc', async ({ page }) => {
   await expect(page.locator('.cmdk')).toBeHidden();
 });
 
+test('the top-right topbar search icon opens the palette', async ({ page }) => {
+  await page.locator('.tb-right button[aria-label="Search"]').click();
+  await expect(page.locator('.cmdk')).toBeVisible();
+  await expect(page.locator('.cmdk-input')).toBeFocused();
+});
+
 test('board-name search highlights the match and Enter navigates to the board', async ({ page }) => {
   await page.locator('.sb-search').click();
   await page.locator('.cmdk-input').fill('Sundown');

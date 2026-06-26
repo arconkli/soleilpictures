@@ -782,6 +782,10 @@ export function LocalBoardsApp({ user, signOut }) {
           </div>
 
           <div className="tb-right">
+            <button className="tb-icon" title="Search (⌘K)" aria-label="Search"
+                    onClick={() => setPaletteOpen(true)}>
+              <Icon as={Search} size={16} />
+            </button>
             <LocalTopbarAddMenu onAddBoard={() => addNewBoard()} onLinkBoard={() => setPickerOpen(true)} />
             <button
               className="tb-icon"

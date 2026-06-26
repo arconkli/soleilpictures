@@ -4024,6 +4024,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 Admin
               </button>
             )}
+            <button className="tb-icon" title="Search (⌘K)" aria-label="Search"
+                    onClick={() => setPaletteOpen(true)}>
+              <Icon as={Search} size={16} />
+            </button>
             <button className="tb-icon" title="Undo (⌘Z)" disabled={!yb.canUndo} onClick={() => mainMutators.undo?.()}>
               <Icon as={Undo} size={16} />
             </button>
