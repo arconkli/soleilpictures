@@ -19031,8 +19031,10 @@ button, [role="button"], a {
    (mirrors the paginator zeroing space-before for the first block on a page). */
 .doc-paper.is-screenplay .ProseMirror > [data-screenplay-element]:first-child { margin-top: 0; }
 /* Industry element geometry (ch widths/indents from screenplayMetrics). */
+/* Sluglines: UPPERCASE but NOT bold (Final Draft default / strict spec) — kept
+   in lockstep with the print shell + PDF generator. */
 .doc-paper.is-screenplay [data-screenplay-element="scene"] {
-  text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line)); position: relative;
+  text-transform: uppercase; font-weight: 400; margin-top: calc(2 * var(--sp-line)); position: relative;
 }
 /* Scene numbers in both gutters — only when .show-scene-numbers is set (the
    ScreenplayPagination plugin always stamps data-scene-number; CSS gates it). */

@@ -78,7 +78,9 @@ export async function exportBoardAsPng(svg, boardName) {
 export function exportBoardAsPdf(svg, boardName) {
   const xml = svgToString(svg);
   const safe = (boardName || 'board').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80);
-  const w = window.open('', '_blank', 'noopener,noreferrer');
+  // NOTE: do NOT pass 'noopener' — window.open(..., 'noopener') returns null, so
+  // we'd never get the handle to write the SVG into (or fire window.print()).
+  const w = window.open('', '_blank');
   if (!w) { throw new Error('Please allow pop-ups for export.'); }
   w.document.open();
   w.document.write(`<!doctype html>

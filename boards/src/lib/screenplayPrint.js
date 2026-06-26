@@ -91,7 +91,8 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   .sp-page:last-child { break-after: auto; }
   @media print { .sp-page { margin: 0; box-shadow: none; } }
   .sp-pageno { position: absolute; top: 0.5in; right: 1in; }
-  .sp-scene { text-transform: uppercase; font-weight: 700; margin-top: calc(2 * var(--sp-line)); white-space: pre-wrap; max-width: 60ch; position: relative; }
+  /* Sluglines: UPPERCASE but NOT bold (Final Draft default / strict spec). */
+  .sp-scene { text-transform: uppercase; font-weight: 400; margin-top: calc(2 * var(--sp-line)); white-space: pre-wrap; max-width: 60ch; position: relative; }
   /* Scene numbers in both gutters (only when enabled). */
   body.sp-show-nums .sp-scene[data-scene-number]::before,
   body.sp-show-nums .sp-scene[data-scene-number]::after { content: attr(data-scene-number); position: absolute; top: 0; font-weight: 400; }
