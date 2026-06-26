@@ -8010,63 +8010,62 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 20px 22px;
+  gap: 18px;
+  padding: 26px 30px;
   border-radius: var(--radius-lg);
-  background: rgba(16, 16, 20, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px) saturate(1.05);
-  -webkit-backdrop-filter: blur(12px) saturate(1.05);
-  box-shadow: var(--shadow-3);
+  background: rgba(16, 16, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  box-shadow: var(--shadow-2);
   opacity: 0;
   animation: cnvEmptyHintIn var(--dur-base) var(--ease) 500ms forwards;
 }
 [data-theme='light'] .cnv-empty-tiles {
-  background: rgba(250, 250, 252, 0.82);
-  border-color: rgba(0, 0, 0, 0.06);
+  background: rgba(250, 250, 252, 0.78);
+  border-color: rgba(0, 0, 0, 0.05);
 }
-.cnv-empty-tiles.is-escalated { box-shadow: var(--shadow-3), var(--shadow-glow); }
+.cnv-empty-tiles.is-escalated { box-shadow: var(--shadow-2), var(--shadow-glow); }
 .cnv-empty-tiles-head {
-  font: 600 14px/1 var(--font-sans);
-  letter-spacing: 0.02em;
+  font: 600 15px/1 var(--font-sans);
+  letter-spacing: 0.01em;
   color: var(--ink-1);
 }
 .cnv-empty-tiles-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: 6px;
+  justify-items: center;
 }
+/* Clean & minimal tiles: no chip, no box — just a bold gold icon over a label,
+   with a soft hover wash. Airier than the round-1 boxed/chipped version. */
 .cnv-empty-tile {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 88px;
-  min-height: 88px;
-  padding: 14px 8px;
-  border: 1px solid var(--line-1);
+  gap: 11px;
+  width: 96px;
+  padding: 16px 10px;
+  border: 0;
   border-radius: var(--radius-md);
-  background: var(--bg-2);
+  background: transparent;
   color: var(--ink-0);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.cnv-empty-tile:hover { transform: translateY(-1px); background: var(--bg-3); border-color: var(--line-2); }
-.cnv-empty-tile:active { transform: translateY(0); background: var(--bg-3); }
+.cnv-empty-tile:hover { transform: translateY(-2px); background: var(--bg-hov); }
+.cnv-empty-tile:active { transform: translateY(0); background: var(--bg-act); }
 .cnv-empty-tile:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
 .cnv-empty-tile-ico {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px; height: 44px;
-  border-radius: 999px;
-  background: var(--bg-1);
   color: var(--soleil);
 }
 .cnv-empty-tile-lbl {
-  font: 600 12px/1.2 var(--font-sans);
+  font: 600 13px/1.2 var(--font-sans);
   color: var(--ink-1);
 }
 .cnv-empty-tiles-sub {
@@ -8084,6 +8083,51 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 @media (prefers-reduced-motion: reduce) {
   .cnv-empty-tiles { animation: none; opacity: 1; }
+}
+
+/* Cursor add-card menu (double-click bare canvas). Frosted surface mirroring
+   .ctx-menu, but with bold gold icons + labels to match the empty-state tiles. */
+.cnv-quick-add {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  background: rgba(16, 16, 20, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  box-shadow: var(--shadow-3);
+  animation: ctx-menu-in var(--dur-fast) var(--ease);
+}
+[data-theme='light'] .cnv-quick-add {
+  background: rgba(250, 250, 252, 0.86);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+.cnv-quick-add-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-0);
+  font: 600 13px/1 var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-quick) var(--ease);
+}
+.cnv-quick-add-item:hover { background: var(--bg-hov); }
+.cnv-quick-add-item:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.cnv-quick-add-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--soleil);
 }
 
 /* welcome_showcase arm B — the "this is a demo" banner pinned bottom-center while

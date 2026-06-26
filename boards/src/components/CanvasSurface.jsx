@@ -32,6 +32,7 @@ import {
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
@@ -1085,6 +1086,12 @@ export function CanvasSurface({
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [ctx, setCtx] = useState({ open: false, x: 0, y: 0, cardId: null });
   const [bgCtx, setBgCtx] = useState({ open: false, x: 0, y: 0, canvasPos: null });
+  // Cursor add-card menu opened by double-clicking bare canvas (replaces the
+  // old reflexive note-on-double-click). { open, x, y (client px), pos (canvas) }.
+  const [quickAdd, setQuickAdd] = useState({ open: false, x: 0, y: 0, pos: null });
+  const quickAddRef = useRef(null);
+  const closeQuickAdd = useCallback(() => setQuickAdd(q => ({ ...q, open: false })), []);
+  useDismissOnOutside(quickAddRef, quickAdd.open, closeQuickAdd);
   const [picker, setPicker] = useState(null); // { value, onChange, x, y, allowTransparent } | null
   const { palettes: workspacePalettes, ensureLoaded: ensureWorkspacePalettes } =
     useWorkspacePalettes(workspaceId);
@@ -4759,7 +4766,7 @@ export function CanvasSurface({
   const onBackgroundDoubleClick = (e) => {
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -4771,8 +4778,11 @@ export function CanvasSurface({
       noteCreateBlocked('noop_svg', 'dblclick');
       return;
     }
-    noteCreateIntent('dblclick');
-    mutators.addNote?.(clientToCanvas(e.clientX, e.clientY));
+    // Double-click no longer reflexively drops a note — it opens a small
+    // add-card menu at the cursor so you choose what to place (consistent with
+    // the empty-state tiles). noteCreateIntent fires inside each action's run()
+    // (buildAddActions) when the user actually picks, so don't count it here.
+    setQuickAdd({ open: true, x: e.clientX, y: e.clientY, pos: clientToCanvas(e.clientX, e.clientY) });
   };
 
   const onBackgroundPointerDown = (e) => {
@@ -7926,15 +7936,48 @@ export function CanvasSurface({
                         const pos = emptyCenterPos();
                         buildAddActions(pos, 'empty_cta').find((a) => a.id === t.id)?.run();
                       }}>
-                <span className="cnv-empty-tile-ico"><Icon as={t.icon} size={22} /></span>
+                <span className="cnv-empty-tile-ico"><Icon as={t.icon} size={30} weight="bold" /></span>
                 <span className="cnv-empty-tile-lbl">{t.label}</span>
               </button>
             ))}
           </div>
-          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine">or double-click anywhere&ensp;·&ensp;drag in an image</span>
+          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine">or double-click to add&ensp;·&ensp;drag in an image</span>
           <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse">or long-press the canvas&ensp;·&ensp;drag in an image</span>
         </div>
       )}
+
+      {/* Cursor add-card menu — opened by double-clicking bare canvas. A small,
+          icon-led chooser (Image / Note / Upload / Doc) so double-click means
+          "add something here" instead of always dropping a note. Reuses
+          buildAddActions (handlers + analytics); dismissed via useDismissOnOutside. */}
+      {quickAdd.open && (() => {
+        const W = 196;
+        // Same order + labels as the empty-state tiles; pull icon + run from
+        // buildAddActions so behavior + analytics stay identical.
+        const byId = Object.fromEntries(buildAddActions(quickAdd.pos, 'dblclick').map((a) => [a.id, a]));
+        const items = [
+          { id: 'image', label: 'Image', icon: ImageIcon },
+          { id: 'note', label: 'Note', icon: NotePencil },
+          { id: 'file', label: 'Upload', icon: Upload },
+          { id: 'doc', label: 'Doc', icon: FileText },
+        ].map((t) => ({ ...byId[t.id], ...t })).filter((t) => t.run);
+        const hEst = items.length * 40 + 12;
+        const left = Math.min(quickAdd.x, window.innerWidth - W - 8);
+        const top = Math.min(quickAdd.y, window.innerHeight - hEst - 8);
+        return (
+          <div ref={quickAddRef} className="cnv-quick-add" role="menu"
+               style={{ left: Math.max(8, left), top: Math.max(8, top), width: W }}>
+            {items.map((t) => (
+              <button key={t.id} type="button" className="cnv-quick-add-item" role="menuitem"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => { closeQuickAdd(); t.run(); }}>
+                <span className="cnv-quick-add-ico"><Icon as={t.icon} size={18} weight="bold" /></span>
+                <span className="cnv-quick-add-lbl">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* welcome_showcase arm B: while the seeded brand demo is still present,
           show the "try it yourself" banner. One click clears exactly the
