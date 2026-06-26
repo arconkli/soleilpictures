@@ -7936,7 +7936,7 @@ export function CanvasSurface({
                         const pos = emptyCenterPos();
                         buildAddActions(pos, 'empty_cta').find((a) => a.id === t.id)?.run();
                       }}>
-                <span className="cnv-empty-tile-ico"><Icon as={t.icon} size={30} weight="bold" /></span>
+                <span className="cnv-empty-tile-ico"><Icon as={t.icon} size={26} weight="regular" /></span>
                 <span className="cnv-empty-tile-lbl">{t.label}</span>
               </button>
             ))}
@@ -7971,7 +7971,7 @@ export function CanvasSurface({
               <button key={t.id} type="button" className="cnv-quick-add-item" role="menuitem"
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => { closeQuickAdd(); t.run(); }}>
-                <span className="cnv-quick-add-ico"><Icon as={t.icon} size={18} weight="bold" /></span>
+                <span className="cnv-quick-add-ico"><Icon as={t.icon} size={18} weight="regular" /></span>
                 <span className="cnv-quick-add-lbl">{t.label}</span>
               </button>
             ))}

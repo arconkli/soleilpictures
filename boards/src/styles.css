@@ -8056,13 +8056,17 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .cnv-empty-tile:hover { transform: translateY(-2px); background: var(--bg-hov); }
+.cnv-empty-tile:hover .cnv-empty-tile-ico,
+.cnv-empty-tile:hover .cnv-empty-tile-lbl { color: var(--ink-0); }
 .cnv-empty-tile:active { transform: translateY(0); background: var(--bg-act); }
 .cnv-empty-tile:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+/* Neutral ink (NOT gold) — icons read like the rest of the app's toolbars:
+   muted at rest, brighten on hover. Gold stays reserved for active/selection. */
 .cnv-empty-tile-ico {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--soleil);
+  color: var(--ink-2);
 }
 .cnv-empty-tile-lbl {
   font: 600 13px/1.2 var(--font-sans);
@@ -8114,20 +8118,21 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   border: 0;
   border-radius: var(--radius);
   background: transparent;
-  color: var(--ink-0);
-  font: 600 13px/1 var(--font-sans);
+  color: var(--ink-1);
+  font: 500 13px/1 var(--font-sans);
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background var(--dur-quick) var(--ease);
+  transition: background var(--dur-quick) var(--ease), color var(--dur-quick) var(--ease);
 }
-.cnv-quick-add-item:hover { background: var(--bg-hov); }
+.cnv-quick-add-item:hover { background: var(--bg-hov); color: var(--ink-0); }
 .cnv-quick-add-item:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+/* Icon follows the row's text colour (neutral ink), matching .ctx-menu / toolbars. */
 .cnv-quick-add-ico {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--soleil);
+  color: inherit;
 }
 
 /* welcome_showcase arm B — the "this is a demo" banner pinned bottom-center while
