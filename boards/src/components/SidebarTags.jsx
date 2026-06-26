@@ -334,9 +334,10 @@ export function SidebarTags({
         (t.slug || '').toLowerCase().includes(tagQuery))
     : sorted;
 
-  // Group the index by what each entity IS (Character/Setting/Topic/Thing),
-  // with an Untyped bucket last — an "index of your world", not a flat roster.
-  const TYPE_ORDER = ['character', 'setting', 'concept', 'thing'];
+  // Group the index by what each entity IS (Character/Setting/Organization/
+  // Topic/Thing), with an Untyped bucket last — an "index of your world", not a
+  // flat roster. Order mirrors ENTITY_TYPES in lib/entityTypes.js.
+  const TYPE_ORDER = ['character', 'setting', 'organization', 'concept', 'thing'];
   const grouped = (() => {
     const buckets = new Map();
     for (const t of filtered) {
