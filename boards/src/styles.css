@@ -7996,6 +7996,96 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   .cnv-empty-cta { animation: none; opacity: 1; }
 }
 
+/* Empty-board starter panel — a contained, frosted card of card-type tiles
+   (image / note / upload / doc) shown on an empty canvas so the first "add a
+   card" gesture lets you choose what to drop. Reuses the .ctx-menu frosted
+   surface + the .mobile-add-tile visual language so it matches the app.
+   Because it reads as a panel ON the canvas, the (now-static) empty grid
+   behind it looks intentional rather than mismatched. */
+.cnv-empty-tiles {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 22px;
+  border-radius: var(--radius-lg);
+  background: rgba(16, 16, 20, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  box-shadow: var(--shadow-3);
+  opacity: 0;
+  animation: cnvEmptyHintIn var(--dur-base) var(--ease) 500ms forwards;
+}
+[data-theme='light'] .cnv-empty-tiles {
+  background: rgba(250, 250, 252, 0.82);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+.cnv-empty-tiles.is-escalated { box-shadow: var(--shadow-3), var(--shadow-glow); }
+.cnv-empty-tiles-head {
+  font: 600 14px/1 var(--font-sans);
+  letter-spacing: 0.02em;
+  color: var(--ink-1);
+}
+.cnv-empty-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.cnv-empty-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 88px;
+  min-height: 88px;
+  padding: 14px 8px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  background: var(--bg-2);
+  color: var(--ink-0);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.cnv-empty-tile:hover { transform: translateY(-1px); background: var(--bg-3); border-color: var(--line-2); }
+.cnv-empty-tile:active { transform: translateY(0); background: var(--bg-3); }
+.cnv-empty-tile:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.cnv-empty-tile-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px; height: 44px;
+  border-radius: 999px;
+  background: var(--bg-1);
+  color: var(--soleil);
+}
+.cnv-empty-tile-lbl {
+  font: 600 12px/1.2 var(--font-sans);
+  color: var(--ink-1);
+}
+.cnv-empty-tiles-sub {
+  font: 500 12px/1.5 var(--font-sans);
+  color: var(--ink-3);
+  text-align: center;
+}
+.cnv-empty-tiles-sub-coarse { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .cnv-empty-tiles-sub-fine { display: none; }
+  .cnv-empty-tiles-sub-coarse { display: inline; }
+}
+@media (max-width: 540px) {
+  .cnv-empty-tiles-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cnv-empty-tiles { animation: none; opacity: 1; }
+}
+
 /* welcome_showcase arm B — the "this is a demo" banner pinned bottom-center while
    the seeded showcase cards are present. Its button is the "try it yourself" CTA
    (clears the demo in one undoable step). Mirrors the coachmark's frosted pill. */

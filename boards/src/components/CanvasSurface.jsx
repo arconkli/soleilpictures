@@ -29,7 +29,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { Sheet } from './shell/Sheet.jsx';
@@ -6973,8 +6973,13 @@ export function CanvasSurface({
   ), [groups, cardsByGroup, drag, arrowFrom, selectedTool, mutators, arrowOptions]);
 
 
-  const gz = Math.max(8, 80 * zoom);
-  const dz = Math.max(2, 20 * zoom);
+  // An empty board has nothing to zoom into, so freeze the dotted grid
+  // (constant tile size AND position) instead of letting it pulse/slide against
+  // the fixed-size empty-state panel — that mismatch read as "broken". Normal
+  // `× zoom` scaling + pan-follow resumes the moment the first card lands.
+  const boardIsEmpty = cards.length === 0 && !(strokes?.length) && !(arrows?.length);
+  const gz = Math.max(8, 80 * (boardIsEmpty ? 1 : zoom));
+  const dz = Math.max(2, 20 * (boardIsEmpty ? 1 : zoom));
   // Size-accurate eraser cursor — the red stroke preview only showed the
   // radius after you'd already erased something.
   const eraserCursor = useMemo(() => {
@@ -6991,7 +6996,18 @@ export function CanvasSurface({
     backgroundColor: board.bg_color || undefined,
     backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
     backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px`,
-    backgroundPosition: `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
+    backgroundPosition: boardIsEmpty
+      ? '0 0, 0 0, 0 0'
+      : `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
+  };
+
+  // Viewport-centre canvas point — where the empty-state tiles drop their card
+  // (same calc the old single CTA used inline).
+  const emptyCenterPos = () => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    return rect
+      ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      : { x: 200, y: 200 };
   };
 
   return (
@@ -7883,42 +7899,41 @@ export function CanvasSurface({
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (
         <div className="cnv-selcount">{selected.size + selectedStrokes.size + selectedArrows.size} selected</div>
       )}
-      {/* Empty-board hint: faint, centered, non-interactive. The CSS fade-in
-          is delayed ~500ms so board switches and first-run seeding (which
-          fill the canvas within a tick) never flash it. */}
-      {canEdit && selectedTool === 'select'
-        && cards.length === 0 && (strokes?.length || 0) === 0 && (arrows?.length || 0) === 0 && (
-        firstCardArm === 'B' ? (
-          // first_card_cta arm B: a bold, obvious affordance instead of the faint
-          // hint. The button does NOT auto-create — the CLICK is the user's genuine
-          // first-card gesture (same as double-click), so it counts as real
-          // activation; auto-placing would game the reward.
-          <div className="cnv-empty-cta" role="group" aria-label="Get started">
-            <button type="button" className="cnv-empty-cta-btn"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => {
-                noteCreateIntent('empty_cta');
-                const wrap = wrapRef.current;
-                const rect = wrap?.getBoundingClientRect();
-                const pos = rect
-                  ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
-                  : { x: 200, y: 200 };
-                mutators.addNote?.(pos);
-              }}>
-              ＋ Add your first card
-            </button>
-            <span className="cnv-empty-cta-sub">or double-click anywhere · drag in an image</span>
+      {/* Empty-board starter: a contained, frosted panel of card-type tiles so
+          the first "add a card" gesture lets you CHOOSE what to drop (image /
+          note / upload / doc) instead of force-dropping a note. Each tile routes
+          through buildAddActions(pos,'empty_cta') so it keeps the real handler
+          AND the noteCreateIntent('empty_cta') activation analytics. The panel
+          reading as floating chrome is also what lets the now-static empty grid
+          behind it look intentional. CSS fade-in is delayed ~500ms so board
+          switches / first-run seeding never flash it. The friction-stuck signal
+          adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
+      {canEdit && selectedTool === 'select' && boardIsEmpty && (
+        <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}`}
+             aria-label="Add your first card"
+             role={frictionStuck ? 'status' : 'group'}>
+          <div className="cnv-empty-tiles-head">Start your cluster</div>
+          <div className="cnv-empty-tiles-grid">
+            {[
+              { id: 'image', label: 'Image',  icon: ImageIcon },
+              { id: 'note',  label: 'Note',   icon: NotePencil },
+              { id: 'file',  label: 'Upload', icon: Upload },
+              { id: 'doc',   label: 'Doc',    icon: FileText },
+            ].map((t) => (
+              <button key={t.id} type="button" className="cnv-empty-tile"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => {
+                        const pos = emptyCenterPos();
+                        buildAddActions(pos, 'empty_cta').find((a) => a.id === t.id)?.run();
+                      }}>
+                <span className="cnv-empty-tile-ico"><Icon as={t.icon} size={22} /></span>
+                <span className="cnv-empty-tile-lbl">{t.label}</span>
+              </button>
+            ))}
           </div>
-        ) : (
-          // Passive escalation: when a new user trips the stuck signal the hint
-          // brightens (is-escalated) and, because it's no longer decorative,
-          // becomes announceable to screen readers (role=status, aria-hidden off).
-          <div className={`cnv-empty-hint${frictionStuck ? ' is-escalated' : ''}`}
-            aria-hidden={frictionStuck ? undefined : 'true'} role={frictionStuck ? 'status' : undefined}>
-            <span className="cnv-empty-hint-fine">Double-click to add a note&ensp;·&ensp;drag in images&ensp;·&ensp;right-click for more</span>
-            <span className="cnv-empty-hint-coarse">Tap the + to add something — or long-press the canvas</span>
-          </div>
-        )
+          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine">or double-click anywhere&ensp;·&ensp;drag in an image</span>
+          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse">or long-press the canvas&ensp;·&ensp;drag in an image</span>
+        </div>
       )}
 
       {/* welcome_showcase arm B: while the seeded brand demo is still present,
