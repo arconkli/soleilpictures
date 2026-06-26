@@ -360,9 +360,12 @@ test('local QA mode uses in-app dialogs instead of native prompts', async ({ pag
 
   await page.getByRole('button', { name: 'Topbar add menu' }).click();
   await page.getByRole('menuitem', { name: 'Linked board' }).click();
-  await expect(page.getByPlaceholder(/Search in Studio/)).toBeVisible();
+  // The link picker is now the command palette in boards-only "pick" mode.
+  // (This add-menu click is the documented "linked-board pointer-intercept"
+  // known-flaky step; the pick picker itself is covered by cmdk-palette.spec.js.)
+  await expect(page.getByPlaceholder(/Search boards to link/)).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.picker')).toBeHidden();
+  await expect(page.locator('.cmdk')).toBeHidden();
 
   // Plain-card delete: no confirm — an Undo toast instead.
   await page.getByTitle('Add note').click();

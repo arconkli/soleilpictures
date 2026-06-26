@@ -59,7 +59,6 @@ import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { ReadOnlyBanner } from './components/ReadOnlyBanner.jsx';
-import { BoardPicker } from './components/BoardPicker.jsx';
 import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
@@ -4135,22 +4134,35 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         )}
       </main>
 
-      <BoardPicker
+      {/* Boards-only "link a board onto canvas" picker — the command palette in
+          pick mode (same UI, boards only, selecting one links it). */}
+      <CommandPalette
+        mode="pick"
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         excludeIds={[currentId]}
+        workspaceId={workspace.id}
         boards={boards}
         rootId={rootBoard.id}
-        onPick={(b) => addLink(b)}
+        recents={recents.recents}
+        mobileShell={mobileShell}
+        placeholder="Search boards to link…"
+        onPickBoard={(b) => addLink(b)}
       />
 
-      <BoardPicker
+      {/* Split-view board picker — same pick mode, opens the chosen board beside. */}
+      <CommandPalette
+        mode="pick"
         open={splitPickerOpen}
         onClose={() => setSplitPickerOpen(false)}
         excludeIds={[currentId]}
+        workspaceId={workspace.id}
         boards={boards}
         rootId={rootBoard.id}
-        onPick={(b) => { setSplitId(b.id); setSplitPickerOpen(false); }}
+        recents={recents.recents}
+        mobileShell={mobileShell}
+        placeholder="Open a board in split view…"
+        onPickBoard={(b) => { setSplitId(b.id); setSplitPickerOpen(false); }}
       />
 
       <CommandPalette

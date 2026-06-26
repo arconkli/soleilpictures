@@ -84,7 +84,15 @@ export function CommandPalette({
   onNavigateRef,
   onOpenBoard,
   mobileShell = false,
+  // Boards-only "pick" mode — the link-a-board / split-view picker. Shows only
+  // boards (no cards/tags/commands), and selecting one calls onPickBoard(board)
+  // instead of navigating. Empty query lists every board for browse-and-pick.
+  mode = 'search',
+  onPickBoard,
+  excludeIds = [],
+  placeholder,
 }) {
+  const isPick = mode === 'pick';
   const [query, setQuery] = useState('');
   const [asyncRows, setAsyncRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -113,7 +121,7 @@ export function CommandPalette({
     let cancelled = false;
     setLoading(true);
     const id = setTimeout(async () => {
-      const rows = await searchEntities({ workspaceId, query: q, limit: 30 });
+      const rows = await searchEntities({ workspaceId, query: q, limit: 30, kinds: isPick ? ['board'] : undefined });
       if (cancelled) return;
       setAsyncRows(rows || []);
       setLoading(false);
@@ -124,14 +132,14 @@ export function CommandPalette({
       }
     }, 250);
     return () => { cancelled = true; clearTimeout(id); };
-  }, [open, q, workspaceId]);
+  }, [open, q, workspaceId, isPick]);
 
   // Instant local board-name matches from the in-memory map.
   const localBoards = useMemo(() => {
     if (!open || !q) return [];
     const recentSet = new Set(recents);
     return Object.values(boards || {})
-      .filter(b => b.id !== rootId && b.name && b.name.toLowerCase().includes(lq))
+      .filter(b => b.id !== rootId && !excludeIds.includes(b.id) && b.name && b.name.toLowerCase().includes(lq))
       .sort((a, b) => {
         const ra = boardRank(a.name, lq), rb = boardRank(b.name, lq);
         if (ra !== rb) return ra - rb;
@@ -140,23 +148,35 @@ export function CommandPalette({
         return String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
       })
       .slice(0, CAP.localBoards);
-  }, [open, q, lq, boards, rootId, recents]);
+  }, [open, q, lq, boards, rootId, recents, excludeIds]);
 
-  // Matching commands (label + keywords). Only when typing.
+  // Matching commands (label + keywords). Only when typing, never in pick mode.
   const commandHits = useMemo(() => {
-    if (!open || !q) return [];
+    if (!open || !q || isPick) return [];
     return commands.filter(c => {
       if (c.available === false) return false;
       const hay = `${c.label} ${(c.keywords || []).join(' ')}`.toLowerCase();
       return hay.includes(lq);
     });
-  }, [open, q, lq, commands]);
+  }, [open, q, lq, commands, isPick]);
 
   // Recently-opened boards — the empty-state launcher.
   const recentBoards = useMemo(() => {
     if (!open || q) return [];
-    return recents.map(id => boards?.[id]).filter(Boolean).slice(0, CAP.recent);
-  }, [open, q, recents, boards]);
+    return recents.map(id => boards?.[id]).filter(Boolean)
+      .filter(b => !excludeIds.includes(b.id)).slice(0, CAP.recent);
+  }, [open, q, recents, boards, excludeIds]);
+
+  // Pick mode, empty query: every board (minus root / excluded / already-recent),
+  // alphabetical — so the link picker is browseable without typing.
+  const allBoardsList = useMemo(() => {
+    if (!open || !isPick || q) return [];
+    const recentSet = new Set(recents);
+    return Object.values(boards || {})
+      .filter(b => b.id !== rootId && !excludeIds.includes(b.id) && !recentSet.has(b.id))
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+      .slice(0, 50);
+  }, [open, isPick, q, boards, rootId, excludeIds, recents]);
 
   const localBoardIds = useMemo(() => new Set(localBoards.map(b => b.id)), [localBoards]);
 
@@ -182,6 +202,33 @@ export function CommandPalette({
   const sections = useMemo(() => {
     const out = [];
     const close = () => onClose?.();
+
+    // Boards-only pick mode: Recent + (matches | all boards). Select = pick.
+    if (isPick) {
+      const pick = (b) => { close(); onPickBoard?.(b); };
+      if (recentBoards.length) out.push({
+        id: 'recent', label: 'Recent',
+        items: recentBoards.map(b => ({
+          key: `recent:${b.id}`, kind: 'board', icon: LayoutGrid,
+          title: b.name || 'Untitled', sub: b.meta || null,
+          activate: () => pick(b),
+        })),
+      });
+      const matched = [
+        ...localBoards,
+        ...asyncGroups.asyncBoards.map(r => boards?.[r.board_id]).filter(Boolean),
+      ];
+      const boardItems = q ? matched : allBoardsList;
+      if (boardItems.length) out.push({
+        id: 'boards', label: q ? 'Boards' : 'All boards',
+        items: boardItems.map(b => ({
+          key: `board:${b.id}`, kind: 'board', icon: LayoutGrid,
+          title: b.name || 'Untitled', sub: b.meta || null,
+          activate: () => pick(b),
+        })),
+      });
+      return out;
+    }
 
     if (commandHits.length) out.push({
       id: 'commands', label: 'Actions',
@@ -242,7 +289,7 @@ export function CommandPalette({
     });
 
     return out;
-  }, [commandHits, recentBoards, localBoards, asyncGroups, onClose, onOpenBoard, onNavigateRef]);
+  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, recentBoards, localBoards, asyncGroups, q, onClose, onOpenBoard, onNavigateRef]);
 
   const flat = useMemo(() => sections.flatMap(s => s.items), [sections]);
   const flatIndexByKey = useMemo(() => {
@@ -279,7 +326,7 @@ export function CommandPalette({
           <input
             ref={inputRef}
             className="cmdk-input"
-            placeholder="Search boards, cards, tags — or run a command"
+            placeholder={placeholder || (isPick ? 'Search boards to link…' : 'Search boards, cards, tags — or run a command')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -310,11 +357,13 @@ export function CommandPalette({
 
         <div className="cmdk-list">
           {showEmpty && (
-            <div className="cmdk-empty">No results for “{q}”.</div>
+            <div className="cmdk-empty">{isPick ? 'No boards match.' : `No results for “${q}”.`}</div>
           )}
-          {!q && !recentBoards.length && (
+          {!q && !hasResults && !loading && (
             <div className="cmdk-empty">
-              Search boards, cards, notes, docs and tags — or jump to an action.
+              {isPick
+                ? 'No boards to link yet.'
+                : 'Search boards, cards, notes, docs and tags — or jump to an action.'}
             </div>
           )}
           {sections.map(section => (
@@ -357,7 +406,7 @@ export function CommandPalette({
         {!mobileShell && (
           <div className="cmdk-foot">
             <span className="cmdk-hint"><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
-            <span className="cmdk-hint"><kbd>↵</kbd> open</span>
+            <span className="cmdk-hint"><kbd>↵</kbd> {isPick ? 'link' : 'open'}</span>
             <span className="cmdk-hint"><kbd>esc</kbd> close</span>
           </div>
         )}

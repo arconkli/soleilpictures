@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CanvasSurface } from '../components/CanvasSurface.jsx';
 import { ListSurface } from '../components/ListSurface.jsx';
-import { BoardPicker } from '../components/BoardPicker.jsx';
 import { CommandPalette } from '../components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
@@ -854,13 +853,19 @@ export function LocalBoardsApp({ user, signOut }) {
         )}
       </main>
 
-      <BoardPicker
+      {/* Boards-only "link a board" picker — command palette in pick mode. */}
+      <CommandPalette
+        mode="pick"
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         excludeIds={[currentId]}
+        workspaceId={null}
         boards={boards}
         rootId={ROOT_ID}
-        onPick={addLink}
+        recents={recents.recents}
+        mobileShell={mobileShell}
+        placeholder="Search boards to link…"
+        onPickBoard={addLink}
       />
 
       <CommandPalette

@@ -103,3 +103,25 @@ test('no-results shows an empty state', async ({ page }) => {
   await page.locator('.cmdk-input').fill('zzzznotaboard');
   await expect(page.locator('.cmdk-empty')).toContainText('No results');
 });
+
+test('link-a-board picker is the same palette restricted to boards (pick mode)', async ({ page }) => {
+  // "All boards" opens the link picker — the palette in boards-only pick mode.
+  await page.locator('.sb-row-all').click();
+  await expect(page.locator('.cmdk')).toBeVisible();
+  await expect(page.getByPlaceholder(/Search boards to link/)).toBeVisible();
+  // Empty query lists every board for browse-and-pick; no Actions/commands.
+  await expect(page.locator('.cmdk-group-label', { hasText: 'All boards' })).toBeVisible();
+  await expect(page.locator('.cmdk-group', { hasText: 'Actions' })).toHaveCount(0);
+  // Footer reads "link", not "open".
+  await expect(page.locator('.cmdk-foot')).toContainText('link');
+
+  // A command keyword yields NO command row here — boards only.
+  await page.locator('.cmdk-input').fill('theme');
+  await expect(page.locator('.cmdk-row', { hasText: 'Toggle theme' })).toHaveCount(0);
+  await expect(page.locator('.cmdk-empty')).toContainText('No boards match');
+
+  // Picking a board closes the picker (and links it onto the canvas).
+  await page.locator('.cmdk-input').fill('Halcyon');
+  await page.locator('.cmdk-row', { hasText: 'Halcyon' }).first().click();
+  await expect(page.locator('.cmdk')).toBeHidden();
+});
