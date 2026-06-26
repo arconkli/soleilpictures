@@ -1,6 +1,8 @@
-// Insert menu — the toolbar "+" button opens a click-to-open dropdown of blocks
-// to insert (headings, lists, table, image, divider, embed, code…), or the
-// screenplay elements in script mode. Replaces the old "/" slash-command menu.
+// Insert menu — the toolbar "+" button opens a click-to-open dropdown to insert
+// content that has NO other home in the toolbar: Image, Table, Divider, Code
+// block, Embed board. (Headings/lists/quote/bookmark are deliberately NOT here —
+// they're already one click away as their own toolbar controls.) Doc mode only;
+// in screenplay mode the element <select> covers everything, so the "+" is hidden.
 //
 // Portaled to <body> with fixed positioning because the toolbar (.doc-tb) is an
 // overflow scroll container that would clip an inline absolutely-positioned
@@ -11,70 +13,31 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-// Prose blocks. Each runs on the live editor (no slash range to clean up).
-function proseItems({ onInsertImage, onInsertBookmark, onInsertBoardEmbed }) {
+// Insert-only blocks (each runs on the live editor). Intentionally excludes
+// anything already reachable from the toolbar (style <select>, list/quote/
+// bookmark buttons) — the "+" is not a second copy of the toolbar.
+function insertItems({ onInsertImage, onInsertBoardEmbed }) {
   return [
-    { id: 'h1', title: 'Heading 1', subtitle: 'Big section title',
-      run: (e) => e.chain().focus().setNode('heading', { level: 1 }).run() },
-    { id: 'h2', title: 'Heading 2', subtitle: 'Medium section title',
-      run: (e) => e.chain().focus().setNode('heading', { level: 2 }).run() },
-    { id: 'h3', title: 'Heading 3', subtitle: 'Sub-section title',
-      run: (e) => e.chain().focus().setNode('heading', { level: 3 }).run() },
-    { id: 'p', title: 'Paragraph', subtitle: 'Regular body text',
-      run: (e) => e.chain().focus().setParagraph().run() },
-    { id: 'bullet', title: 'Bulleted list', subtitle: 'Unordered list',
-      run: (e) => e.chain().focus().toggleBulletList().run() },
-    { id: 'ordered', title: 'Numbered list', subtitle: 'Ordered list',
-      run: (e) => e.chain().focus().toggleOrderedList().run() },
-    { id: 'task', title: 'Task list', subtitle: 'Checkable items',
-      run: (e) => e.chain().focus().toggleTaskList().run() },
-    { id: 'quote', title: 'Quote', subtitle: 'Block quote',
-      run: (e) => e.chain().focus().toggleBlockquote().run() },
-    { id: 'code', title: 'Code block', subtitle: 'Monospace code',
-      run: (e) => e.chain().focus().toggleCodeBlock().run() },
-    { id: 'divider', title: 'Divider', subtitle: 'Horizontal rule',
-      run: (e) => e.chain().focus().setHorizontalRule().run() },
-    { id: 'table', title: 'Table', subtitle: 'Insert 3×3 table',
-      run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
     { id: 'image', title: 'Image', subtitle: 'Upload from your machine',
       run: (e) => onInsertImage?.(e) },
-    { id: 'bookmark', title: 'Bookmark', subtitle: 'Anchor for cross-links',
-      run: (e) => onInsertBookmark?.(e) },
+    { id: 'table', title: 'Table', subtitle: 'Insert 3×3 table',
+      run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+    { id: 'divider', title: 'Divider', subtitle: 'Horizontal rule',
+      run: (e) => e.chain().focus().setHorizontalRule().run() },
+    { id: 'code', title: 'Code block', subtitle: 'Monospace code',
+      run: (e) => e.chain().focus().toggleCodeBlock().run() },
     { id: 'embed', title: 'Embed board', subtitle: 'Link to another board / card',
       run: (e) => onInsertBoardEmbed?.(e) },
   ];
 }
 
-// In screenplay mode the prose blocks are meaningless (converting a script line
-// into a heading/list breaks it), so the menu offers the script elements — each
-// just retypes the current line's element via setScreenplayElement.
-function screenplayItems() {
-  const el = (id, title, subtitle, element) => ({
-    id, title, subtitle,
-    run: (e) => e.chain().focus().setScreenplayElement(element).run(),
-  });
-  return [
-    el('sp-scene', 'Scene Heading', 'INT./EXT. location — time', 'scene'),
-    el('sp-action', 'Action', 'Describe what happens', 'action'),
-    el('sp-character', 'Character', 'Who is speaking', 'character'),
-    el('sp-dialogue', 'Dialogue', 'The spoken lines', 'dialogue'),
-    el('sp-paren', 'Parenthetical', 'Acting direction (wryly)', 'parenthetical'),
-    el('sp-transition', 'Transition', 'CUT TO:, DISSOLVE TO:', 'transition'),
-    el('sp-shot', 'Shot', 'A camera shot / angle', 'shot'),
-    el('sp-centered', 'Centered', 'Centered text (THE END)', 'centered'),
-  ];
-}
-
-export function DocInsertMenu({ editor, docMode = 'doc', disabled = false,
-                                onInsertImage, onInsertBookmark, onInsertBoardEmbed }) {
+export function DocInsertMenu({ editor, disabled = false, onInsertImage, onInsertBoardEmbed }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const ref = useRef(null);      // trigger wrapper
   const menuRef = useRef(null);  // portaled panel
 
-  const items = docMode === 'screenplay'
-    ? screenplayItems()
-    : proseItems({ onInsertImage, onInsertBookmark, onInsertBoardEmbed });
+  const items = insertItems({ onInsertImage, onInsertBoardEmbed });
 
   // Portaled + fixed against the trigger. Left-aligned to the button (it sits at
   // the left of the toolbar); flip above when there's no room below.

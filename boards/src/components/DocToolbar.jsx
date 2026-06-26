@@ -141,12 +141,15 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
 
   return (
     <div className="doc-tb" role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
-      {/* Click-to-open insert menu (blocks in a doc, script elements in a
-          screenplay). Portaled so the toolbar's overflow doesn't clip it. */}
-      <DocInsertMenu editor={editor} docMode={docMode} disabled={disabled}
-                     onInsertImage={onInsertImage}
-                     onInsertBookmark={onInsertBookmark}
-                     onInsertBoardEmbed={onInsertBoardEmbed} />
+      {/* Click-to-open insert menu — only the things with no other toolbar home
+          (image, table, divider, code, embed). Doc mode only: in screenplay mode
+          the element <select> covers everything, so no "+". Portaled so the
+          toolbar's overflow doesn't clip it. */}
+      {!isScreenplay && (
+        <DocInsertMenu editor={editor} disabled={disabled}
+                       onInsertImage={onInsertImage}
+                       onInsertBoardEmbed={onInsertBoardEmbed} />
+      )}
       {onToggleScreenplay && (
         <button type="button"
                 className={`doc-tb-pill doc-tb-screenplay-toggle${isScreenplay ? ' is-active' : ''}`}
