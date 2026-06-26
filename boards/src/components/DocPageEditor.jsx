@@ -13,8 +13,7 @@ import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { v4 as uuid } from 'uuid';
-import { getOrCreatePageContent, getOrCreateSheetContent, addBookmark, readPagesWithText } from '../lib/docState.js';
-import { encodeAnchor } from '../lib/bookmarkRelPos.js';
+import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { uploadImage } from '../lib/uploads.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
@@ -45,7 +44,6 @@ import { DocPagination, PAGE_STRIDE, PAGE_H } from './docExtensions/DocPaginatio
 import { ReadableColors } from './docExtensions/ReadableColors.js';
 import { ScreenplaySuggest } from './docExtensions/screenplay/ScreenplaySuggest.js';
 import { MentionExtension } from './docExtensions/MentionExtension.js';
-import { makeSlashExtension } from './DocSlashMenu.jsx';
 import { FindHighlightExtension } from './DocFindReplace.jsx';
 // Block-handle extension removed — the docs feel less Notion-y / more
 // flowing-document without the per-block drag-dots in the gutter.
@@ -167,7 +165,7 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestBoardEmbed, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onRequestLink, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -654,46 +652,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     }
   };
 
-  const pickImageFromDisk = (editor) => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*';
-    input.onchange = () => { const f = input.files?.[0]; if (f) uploadAndInsert(editor, f); };
-    input.click();
-  };
-
-  const pickBoardEmbed = (editor) => {
-    if (!onRequestBoardEmbed) {
-      console.warn('Board embed picker not wired up — onRequestBoardEmbed prop missing');
-      return;
-    }
-    onRequestBoardEmbed((picked) => {
-      if (!picked) return;
-      editor.chain().focus().insertContent({
-        type: 'boardEmbed',
-        attrs: { boardId: picked.boardId, cardId: picked.cardId || null, label: picked.label || null },
-      }).run();
-    });
-  };
-
-  const insertBookmarkInline = async (editor) => {
-    if (!activePageId) return;
-    const anchor = editor.state.selection.from;
-    let suggested = '';
-    try {
-      const para = editor.state.doc.resolve(anchor).parent;
-      suggested = para?.textContent?.slice(0, 40) || '';
-    } catch (_) {}
-    const name = await feedback.prompt({
-      title: 'Add bookmark',
-      label: 'Bookmark name',
-      defaultValue: suggested || 'Bookmark',
-      confirmLabel: 'Add',
-    });
-    if (name == null) return; // cancelled
-    const relAnchor = encodeAnchor(editor, anchor);
-    addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, anchor, relAnchor, scope });
-  };
-
   // Prose pagination (DocPagination) reports how many 8.5×11 pages the content
   // currently spans; we draw that many white sheets behind the text. zoomRef
   // lets the plugin read the live zoom without re-creating the editor.
@@ -789,7 +747,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       Typography,
       Placeholder.configure({
         placeholder: ({ node }) =>
-          node.type.name === 'heading' ? 'Heading' : "Type '/' for blocks, or just start writing…",
+          node.type.name === 'heading' ? 'Heading' : 'Start writing…',
         showOnlyWhenEditable: true,
         showOnlyCurrent: true,
       }),
@@ -801,14 +759,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // CollaborationCursor was unreliable in our setup — replaced with a
       // custom DocPresence overlay that uses the same awareness-based
       // cursor system as the canvas (LiveCursor with rAF-lerp).
-      makeSlashExtension({
-        onInsertImage: pickImageFromDisk,
-        onInsertBookmark: insertBookmarkInline,
-        onInsertBoardEmbed: pickBoardEmbed,
-        // In screenplay mode `/` offers script elements, not prose blocks. The
-        // editor is keyed `sid:docMode` so it rebuilds when the mode flips.
-        docMode,
-      }),
       FindHighlightExtension,
       // BlockHandleExtension removed — per-block drag handles felt
       // too Notion-y; Google-Docs-style flowing prose works better.

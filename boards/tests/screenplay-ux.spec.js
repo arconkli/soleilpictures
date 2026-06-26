@@ -491,22 +491,22 @@ test('Enter progression from dialogue: new character → action → scene', asyn
   expect(await caretElement(page)).toBe('scene');
 });
 
-test('the slash menu offers screenplay elements in screenplay mode', async ({ page }) => {
+test('the "+" insert menu offers screenplay elements in screenplay mode', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
   const editor = page.locator('.doc-card-modal .tt-editor').first();
   await editor.click();
   await page.keyboard.press('Enter');  // seeded scene → action line
-  await page.keyboard.type('/');
-  await expect(page.locator('.doc-slash')).toBeVisible();
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Scene Heading' })).toBeVisible();
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Dialogue' })).toBeVisible();
-  // No prose blocks leak in.
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Heading 1' })).toHaveCount(0);
-  // Filter + pick Character → the current line becomes a character cue.
-  await page.keyboard.type('char');
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Character' })).toBeVisible();
-  await page.keyboard.press('Enter');
+  // Open the toolbar "+" menu (NOT a "/" trigger anymore).
+  await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
+  const menu = page.locator('.doc-insert-menu');
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.doc-insert-item-title', { hasText: 'Scene Heading' })).toBeVisible();
+  await expect(menu.locator('.doc-insert-item-title', { hasText: 'Dialogue' })).toBeVisible();
+  // No prose blocks leak into screenplay mode.
+  await expect(menu.locator('.doc-insert-item-title', { hasText: 'Heading 1' })).toHaveCount(0);
+  // Pick Character → the current line becomes a character cue.
+  await menu.locator('.doc-insert-item', { hasText: 'Character' }).click();
   const cur = await page.evaluate(() => {
     const ed = window.__soleilDocTest.editor;
     const $from = ed.state.selection.$from;
@@ -518,14 +518,38 @@ test('the slash menu offers screenplay elements in screenplay mode', async ({ pa
   expect(cur).toBe('character');
 });
 
-test('the slash menu still offers prose blocks outside screenplay mode (no regression)', async ({ page }) => {
+test('the "+" insert menu offers prose blocks outside screenplay mode', async ({ page }) => {
+  await openDoc(page);
+  await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
+  const menu = page.locator('.doc-insert-menu');
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.doc-insert-item-title', { hasText: 'Heading 1' })).toBeVisible();
+  await expect(menu.locator('.doc-insert-item-title', { hasText: 'Table' })).toBeVisible();
+  await expect(menu.locator('.doc-insert-item-title', { hasText: 'Scene Heading' })).toHaveCount(0);
+});
+
+test('typing "/" in a doc is literal text — the slash command menu is gone', async ({ page }) => {
   await openDoc(page);
   const editor = page.locator('.doc-card-modal .tt-editor').first();
   await editor.click();
-  await page.keyboard.type('/');
-  await expect(page.locator('.doc-slash')).toBeVisible();
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Heading 1' })).toBeVisible();
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Scene Heading' })).toHaveCount(0);
+  await page.keyboard.type('/hello');
+  // No popup of any kind appears…
+  await expect(page.locator('.doc-slash')).toHaveCount(0);
+  await expect(page.locator('.doc-insert-menu')).toHaveCount(0);
+  // …and the "/" is just typed into the document.
+  await expect(editor).toContainText('/hello');
+});
+
+test('the "+" insert menu actually inserts a table (and is not clipped)', async ({ page }) => {
+  await openDoc(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
+  const menu = page.locator('.doc-insert-menu');
+  await expect(menu).toBeVisible();
+  // The item must be a real hit target — the toolbar must not clip the menu.
+  await menu.locator('.doc-insert-item', { hasText: 'Table' }).click({ timeout: 4000 });
+  await expect(page.locator('.doc-card-modal .tt-editor table').first()).toBeVisible();
 });
 
 test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {

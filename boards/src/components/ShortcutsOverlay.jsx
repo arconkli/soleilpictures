@@ -66,7 +66,6 @@ const SECTIONS = [
   {
     title: 'Document',
     rows: [
-      [['/'], 'Insert menu (blocks, table, image…)'],
       [[`${CMD}⌥1`, `${CMD}⌥0`], 'Heading 1 · body'],
       [[`${CMD}⇧7`, `${CMD}⇧8`, `${CMD}⇧9`], 'Numbered · bullet · task list'],
       [[`${CMD}⇧H`, `${CMD}E`], 'Highlight · inline code'],

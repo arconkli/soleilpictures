@@ -5,6 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { DocExportMenu } from './DocExportMenu.jsx';
+import { DocInsertMenu } from './DocInsertMenu.jsx';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
 import { SizeInput } from './SizeInput.jsx';
@@ -39,7 +40,7 @@ const SIZES = [12, 14, 16, 18, 22, 28, 36];
 
 const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink, onAddComment,
+export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBoardEmbed, onOpenFind, docName, onOpenLink, onAddComment,
                                ydoc = null, scope = null, docMode = 'doc', authorName = '', onToggleScreenplay,
                                titlePageEnabled = false, onToggleTitlePage,
                                sceneNumbersShow = false, onSetSceneNumbersShow,
@@ -140,13 +141,12 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
 
   return (
     <div className="doc-tb" role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
-      {/* Visible doorway into the slash menu — typing "/" is invisible to
-          anyone who hasn't read the placeholder. Inserting the trigger char
-          at the caret opens the same suggestion menu. */}
-      <button className="doc-tb-btn" disabled={disabled}
-              title="Insert a block — or type / anywhere in the text"
-              aria-label="Insert a block"
-              onClick={() => editor?.chain().focus().insertContent('/').run()}>+</button>
+      {/* Click-to-open insert menu (blocks in a doc, script elements in a
+          screenplay). Portaled so the toolbar's overflow doesn't clip it. */}
+      <DocInsertMenu editor={editor} docMode={docMode} disabled={disabled}
+                     onInsertImage={onInsertImage}
+                     onInsertBookmark={onInsertBookmark}
+                     onInsertBoardEmbed={onInsertBoardEmbed} />
       {onToggleScreenplay && (
         <button type="button"
                 className={`doc-tb-pill doc-tb-screenplay-toggle${isScreenplay ? ' is-active' : ''}`}

@@ -12893,9 +12893,13 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-outline-l3 { font-weight: 500; }
 .doc-outline-l4, .doc-outline-l5, .doc-outline-l6 { color: var(--ink-2); font-size: 11.5px; }
 
-/* Slash menu */
-.doc-slash {
-  width: 280px; max-height: 320px; overflow-y: auto;
+/* Toolbar "+" insert menu — portaled to <body> (fixed), so the toolbar's
+   overflow can't clip it. top/left supplied inline from the trigger rect. */
+.doc-insert-wrap { display: inline-flex; }
+.doc-insert-menu {
+  position: fixed;
+  z-index: 2147483647;
+  width: 280px; max-height: 60vh; overflow-y: auto;
   background: rgba(16,16,20,.78);
   -webkit-backdrop-filter: blur(12px) saturate(1.05);
   backdrop-filter: blur(12px) saturate(1.05);
@@ -12906,9 +12910,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   font-family: var(--font-sans);
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
-[data-theme='light'] .doc-slash { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
-.doc-slash-empty { padding: 14px; color: var(--ink-3); font: 400 12px/1.4 var(--font-sans); font-style: italic; text-align: center; }
-.doc-slash-item {
+[data-theme='light'] .doc-insert-menu { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
+.doc-insert-item {
   display: block; width: 100%;
   appearance: none; border: 0; background: transparent;
   padding: 8px 12px;
@@ -12918,11 +12921,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   color: var(--ink-1);
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.doc-slash-item:hover { background: var(--bg-hov); color: var(--ink-0); }
-.doc-slash-item.is-active { background: var(--soleil-soft); color: var(--ink-0); }
-.doc-slash-item-title { font: 600 13px/1.3 var(--font-sans); letter-spacing: -0.005em; }
-.doc-slash-item-sub { font: 400 11px/1.4 var(--font-sans); color: var(--ink-3); margin-top: 3px; }
-.doc-slash-item.is-active .doc-slash-item-sub { color: var(--ink-2); }
+.doc-insert-item:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-insert-item-title { font: 600 13px/1.3 var(--font-sans); letter-spacing: -0.005em; }
+.doc-insert-item-sub { font: 400 11px/1.4 var(--font-sans); color: var(--ink-3); margin-top: 3px; }
+.doc-insert-item:hover .doc-insert-item-sub { color: var(--ink-2); }
 
 /* Find & replace bar */
 .doc-find {

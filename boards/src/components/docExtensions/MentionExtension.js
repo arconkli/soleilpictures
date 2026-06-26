@@ -2,8 +2,8 @@ import { Extension } from '@tiptap/core';
 import { PluginKey } from '@tiptap/pm/state';
 import Suggestion from '@tiptap/suggestion';
 
-// Unique plugin key — prevents collision with the slash menu's
-// default-keyed Suggestion plugin (both use @tiptap/suggestion).
+// Unique plugin key — keeps this Suggestion plugin from colliding with any
+// other default-keyed @tiptap/suggestion plugin.
 const MENTION_KEY = new PluginKey('soleilMention');
 
 // `@`-trigger that opens the EntityPicker at the caret. The picker is

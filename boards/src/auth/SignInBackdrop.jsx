@@ -48,7 +48,7 @@ const CARDS = [
   { kind:'note', mSlot:'bottom', head:'AUTO-TAG', text:'Drop any image, link, or file — Clusters reads it, auto-tags it, and files it to the right board.', dot:'#f59e0b', x:375,y:235,r:4,w:224,h:142, in:0.28,out:0.52 },
   // scene C → BOTTOM-LEFT: MoodBoard → DOCS note
   { kind:'board', name:'MoodBoard', count:36, mini:[ {t:'img',src:'/signin-losttime-still1.webp',l:5,tp:8,w:46,h:50,r:-4}, {t:'img',src:'/signin-losttime-still2.webp',l:50,tp:30,w:46,h:52,r:4}, {t:'pal',cols:['#222a4e','#f8ebce','#ff7720'],l:8,tp:60,w:38,h:20,r:2} ], x:-455,y:25,r:-3,w:196,h:142, in:0.42,out:0.66 },
-  { kind:'note', mSlot:'top', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with slash commands and @mentions.', dot:'#f59e0b', x:-360,y:215,r:3,w:214,h:134, in:0.48,out:0.70 },
+  { kind:'note', mSlot:'top', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with @mentions and screenplay mode.', dot:'#f59e0b', x:-360,y:215,r:3,w:214,h:134, in:0.48,out:0.70 },
   // idx8 — filler: Yahweh score (balances scene C, bottom-centre)
   { kind:'audio', cover:'/signin-yahweh.webp', title:'Yahweh — main theme', artist:'Soleil Pictures · score', dur:'3:48', x:120,y:265,r:-3,w:250,h:110, in:0.52,out:0.72 },
   // scene D → TOP-RIGHT: dailies reel → SHARE OR LOCK note
