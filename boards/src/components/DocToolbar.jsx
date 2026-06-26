@@ -2,7 +2,8 @@
 // editor instance the parent passes in; gracefully renders disabled buttons
 // when no editor is mounted (e.g. between page switches).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { DocExportMenu } from './DocExportMenu.jsx';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
@@ -348,8 +349,52 @@ function SceneNumberToggle({ show, onSetShow, disabled }) {
 
 function ColorBtn({ disabled, onPick, onClear, title }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const wrapRef = useRef(null);
+  const popRef = useRef(null);
+
+  // Same fix as DocExportMenu: the toolbar clips inline absolute popups, so the
+  // swatch grid is portaled to <body> and positioned (fixed) against the button.
+  useLayoutEffect(() => {
+    if (!open || !wrapRef.current) return;
+    const GAP = 6, PAD = 8;
+    const measure = () => {
+      const r = wrapRef.current.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const pw = popRef.current?.offsetWidth || 211;
+      const ph = popRef.current?.offsetHeight || 0;
+      const spaceBelow = vh - r.bottom - PAD;
+      const placeAbove = ph > 0 && spaceBelow < ph && (r.top - PAD) > spaceBelow;
+      const top = placeAbove ? Math.max(PAD, r.top - ph - GAP) : r.bottom + GAP;
+      const left = Math.min(Math.max(PAD, r.left), vw - pw - PAD);
+      setPos({ top, left });
+    };
+    measure();
+    const id = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', measure); };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (wrapRef.current?.contains(e.target)) return;
+      if (popRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   return (
-    <span className="doc-tb-colorwrap">
+    <span className="doc-tb-colorwrap" ref={wrapRef}>
       <button className="doc-tb-btn" disabled={disabled} title={title}
               aria-label={title} aria-haspopup="true" aria-expanded={open}
               onMouseDown={(e) => e.preventDefault()}
@@ -359,8 +404,10 @@ function ColorBtn({ disabled, onPick, onClear, title }) {
           <rect x="3" y="11" width="8" height="2" fill="currentColor" />
         </svg>
       </button>
-      {open && (
-        <div className="doc-tb-colorpop" onMouseDown={(e) => e.preventDefault()}>
+      {open && createPortal(
+        <div className="doc-tb-colorpop" ref={popRef}
+             style={{ position: 'fixed', top: pos.top, left: pos.left }}
+             onMouseDown={(e) => e.preventDefault()}>
           {COLORS.map(c => (
             <button key={c} className="doc-tb-sw" style={{ background: c }}
                     title={c} aria-label={`Color ${c}`}
@@ -368,7 +415,8 @@ function ColorBtn({ disabled, onPick, onClear, title }) {
           ))}
           <button className="doc-tb-sw doc-tb-sw-x" title="Default" aria-label="Default color"
                   onClick={() => { onClear(); setOpen(false); }}>×</button>
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );

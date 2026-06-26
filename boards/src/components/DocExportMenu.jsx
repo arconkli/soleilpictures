@@ -10,7 +10,8 @@
 // Every generated file routes through deliverFile (download on web, native
 // share sheet in the app, where <a download> doesn't save).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown, collectFullDocJSON } from '../lib/docFullExport.js';
 import {
   jsonToFountain, fountainToBlocks, jsonToFdx, fdxToBlocks, blocksToDocJSON, docJSONToBlocks,
@@ -29,17 +30,54 @@ import { useFeedback } from './AppFeedback.jsx';
 export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc' }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const ref = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const ref = useRef(null);      // trigger wrapper
+  const menuRef = useRef(null);  // portaled menu panel
   const feedback = useFeedback();
+
+  // The toolbar (.doc-tb) is a horizontal scroll container (overflow:auto/hidden),
+  // which CLIPS any absolutely-positioned descendant — that's why an inline
+  // dropdown showed only as a sliver under the toolbar. So we render the menu
+  // through a portal to <body> and position it (fixed) against the trigger,
+  // mirroring FontPickerDropdown: prefer below the button, flip above when there
+  // isn't room, right-align to the button, clamp to the viewport.
+  useLayoutEffect(() => {
+    if (!open || !ref.current) return;
+    const GAP = 6, PAD = 8, MIN_W = 200;
+    const measure = () => {
+      const r = ref.current.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const mw = Math.max(menuRef.current?.offsetWidth || MIN_W, MIN_W);
+      const mh = menuRef.current?.offsetHeight || 0;
+      const spaceBelow = vh - r.bottom - PAD;
+      const placeAbove = mh > 0 && spaceBelow < mh && (r.top - PAD) > spaceBelow;
+      const top = placeAbove ? Math.max(PAD, r.top - mh - GAP) : r.bottom + GAP;
+      const left = Math.min(Math.max(PAD, r.right - mw), vw - mw - PAD);
+      setPos({ top, left });
+    };
+    measure();
+    // Re-measure once the panel has real dimensions, and on resize.
+    const id = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', measure); };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    // The menu now lives in a portal, so an outside-click check must spare BOTH
+    // the trigger and the portaled panel.
+    const onDown = (e) => {
+      if (ref.current?.contains(e.target)) return;
+      if (menuRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     window.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
       window.removeEventListener('keydown', onKey);
     };
   }, [open]);
@@ -176,8 +214,9 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
           <path d="M3 11 H11" />
         </svg>
       </button>
-      {open && (
-        <div className="doc-export-menu" role="menu">
+      {open && createPortal(
+        <div className="doc-export-menu" role="menu" ref={menuRef}
+             style={{ position: 'fixed', top: pos.top, left: pos.left }}>
           {docMode === 'screenplay' && (
             <>
               <button role="menuitem" onClick={exportFountain}>Export Fountain (.fountain)</button>
@@ -191,7 +230,8 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
           <button role="menuitem" onClick={exportPDF}>
             {docMode === 'screenplay' ? 'Export PDF' : 'Print / Save as PDF'}
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );

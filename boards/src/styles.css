@@ -11996,8 +11996,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-tb-spacer { flex: 1 1 auto; }
 .doc-tb-colorwrap { position: relative; }
 .doc-tb-colorpop {
-  position: absolute; top: calc(100% + 6px); left: 0;
-  z-index: 5;
+  /* Portaled to <body> like .doc-export-menu — the toolbar clips inline popups.
+     top/left supplied inline from the trigger's getBoundingClientRect. */
+  position: fixed;
+  z-index: 2147483647;
   background: rgba(16,16,20,.85);
   -webkit-backdrop-filter: blur(12px) saturate(1.05);
   backdrop-filter: blur(12px) saturate(1.05);
@@ -13206,8 +13208,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 /* ─────── Export menu ─────── */
 .doc-export-wrap { position: relative; display: inline-block; }
 .doc-export-menu {
-  position: absolute; top: calc(100% + 6px); right: 0;
-  z-index: 10;
+  /* Portaled to <body> (the .doc-tb toolbar is an overflow scroll container
+     that would clip an absolutely-positioned child to a sliver). top/left are
+     supplied inline from the trigger's getBoundingClientRect. Matches the
+     .font-pop portal pattern. */
+  position: fixed;
+  z-index: 2147483647;
   min-width: 200px;
   background: rgba(16,16,20,.78);
   -webkit-backdrop-filter: blur(12px) saturate(1.05);
@@ -16826,7 +16832,6 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
 .tob,
 .tob-pop,
 .doc,
-.doc-tb-colorpop,
 .doc-card,
 .doc-embed-picker,
 .doc-tpl,
@@ -16890,7 +16895,6 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
 .presence-stack,
 .cfont,
 .doc-ctx,
-.doc-export-menu,
 .ent-backlinks-panel,
 .feedback-dialog,
 .lightbox,
@@ -16909,11 +16913,11 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
    Both absolute and fixed establish a containing block for the
    ::after pseudo, so the grain still anchors correctly. */
 .cnv-tools, .cnv-zoom, .cnv-hint, .cnv-add-menu, .topbar-add-menu,
-.inbox, .tob, .tob-pop, .doc-tb-colorpop, .doc-find, .tt-img-tb,
+.inbox, .tob, .tob-pop, .doc-find, .tt-img-tb,
 .ws-menu, .ws-menu-row-pop,
 .home-graph-drawer, .home-graph-hud, .public-card,
 .rb-swatch-pop, .folder-tab,
-.doc-export-menu, .msg-panel { position: absolute; }
+.msg-panel { position: absolute; }
 
 .auth-screen, .pricing-screen, .welcome-screen,
 .doc-card-modal, .ctx-menu, .ctx-submenu, .cp-pop,
