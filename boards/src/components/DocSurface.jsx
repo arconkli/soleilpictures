@@ -663,6 +663,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     ydoc={ydoc}
                     scope={scope}
                     docMode={docMode}
+                    authorName={currentUser?.name || ''}
                     onToggleScreenplay={toggleScreenplay}
                     titlePageEnabled={titlePage.enabled}
                     onToggleTitlePage={toggleTitlePage}

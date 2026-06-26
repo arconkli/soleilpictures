@@ -40,7 +40,7 @@ const SIZES = [12, 14, 16, 18, 22, 28, 36];
 const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink, onAddComment,
-                               ydoc = null, scope = null, docMode = 'doc', onToggleScreenplay,
+                               ydoc = null, scope = null, docMode = 'doc', authorName = '', onToggleScreenplay,
                                titlePageEnabled = false, onToggleTitlePage,
                                sceneNumbersShow = false, onSetSceneNumbersShow,
                                pageless = true, onTogglePageless,
@@ -290,7 +290,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
            onClick={() => onAddComment?.()}><Glyph as={MessageCircle} size={14} /></Btn>
       <Btn title="Find (⌘F)" disabled={disabled}
            onClick={() => onOpenFind?.()}><Glyph as={Search} size={14} /></Btn>
-      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} />
+      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} authorName={authorName} />
 
       <span className="doc-tb-spacer" />
 

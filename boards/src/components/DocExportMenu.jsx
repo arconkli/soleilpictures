@@ -27,7 +27,7 @@ import { useFeedback } from './AppFeedback.jsx';
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
 // `editor` is only a fallback for the rare caller without doc state.
 // Screenplay docs additionally get Fountain/FDX export + import.
-export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc' }) {
+export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc', authorName = '' }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -82,12 +82,23 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
     };
   }, [open]);
 
-  const safeName = (docName || 'document').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 80);
+  // The document's display name — used for the file name AND the screenplay
+  // title-page title. For a screenplay the real title lives on the title page
+  // (the card is often left "Untitled doc"), so prefer that; fall back to the
+  // doc/card name. Read fresh on each export so renaming mid-session is picked up.
+  const currentDocTitle = () => {
+    const tp = (docMode === 'screenplay' && ydoc) ? getTitlePage(ydoc, scope) : null;
+    const fromTitlePage = (tp && tp.enabled && tp.title && tp.title.trim()) ? tp.title.trim() : '';
+    return fromTitlePage || (docName && docName.trim()) || (docMode === 'screenplay' ? 'Screenplay' : 'document');
+  };
+  const sanitizeName = (s) => (String(s || 'document').replace(/[^a-z0-9-_ ]/gi, '_').trim().slice(0, 80) || 'document');
+  const safeName = sanitizeName(currentDocTitle());
 
   // Deliver a generated blob: a download on web, the native share sheet inside
   // the app (where <a download> doesn't save). Surfaces a toast on failure.
+  // Named after the document (computed fresh so a just-typed title is honored).
   const saveFile = async (blob, ext) => {
-    try { await deliverFile(blob, `${safeName}.${ext}`); }
+    try { await deliverFile(blob, `${sanitizeName(currentDocTitle())}.${ext}`); }
     catch (err) {
       console.error('[export] delivery failed', err);
       feedback.toast({ type: 'error', message: 'Export failed — please try again.' });
@@ -138,10 +149,17 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
         // A real, line-accurate PDF drawn from the paginator (Courier, 1.5"/1"
         // margins, page numbers, MORE/CONT'D). Delivered as a file so it works
         // on web AND the native app, where window.print() is unavailable.
-        const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+        const docTitle = currentDocTitle();
+        const stored = ydoc ? getTitlePage(ydoc, scope) : null;
+        // Always include a title page so every exported script has a proper
+        // cover sheet: use the writer's when they've enabled one, else synthesize
+        // a minimal one from the document title (+ author).
+        const titlePage = (stored && stored.enabled)
+          ? stored
+          : { enabled: true, title: docTitle, credit: 'Written by', authors: authorName || '' };
         const sceneNumbers = ydoc ? getSceneNumbersShow(ydoc, scope) : false;
-        const blob = await buildScreenplayPdfBlob(docJSONToBlocks(scriptBlocks()), { title: safeName, titlePage, sceneNumbers });
-        await deliverFile(blob, `${safeName}.pdf`);
+        const blob = await buildScreenplayPdfBlob(docJSONToBlocks(scriptBlocks()), { title: docTitle, titlePage, sceneNumbers });
+        await deliverFile(blob, `${sanitizeName(docTitle)}.pdf`);
       } else {
         // Prose docs print through a hidden same-origin iframe → the system
         // "Save as PDF". Avoids the popup path (popup blockers + the

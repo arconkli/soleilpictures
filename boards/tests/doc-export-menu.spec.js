@@ -1,19 +1,41 @@
-// Regression: the doc/screenplay "Export" dropdown must actually be reachable.
+// Regression + behavior for the doc/screenplay "Export" control.
 //
-// The toolbar (.doc-tb) is a horizontal scroll container (overflow-x:auto;
-// overflow-y:hidden). For months the Export menu was an inline absolutely-
-// positioned child of that toolbar, so it was CLIPPED to a few-pixel sliver
-// hanging below the bar — the user could see a dark sliver but never click
-// "Export PDF". The fix portals the menu to <body> (fixed-positioned against
-// the trigger), like FontPickerDropdown.
+// 1) The dropdown must actually be reachable. The toolbar (.doc-tb) is a
+//    horizontal scroll container (overflow-x:auto; overflow-y:hidden); for
+//    months the Export menu was an inline absolutely-positioned child of it, so
+//    it was CLIPPED to a few-pixel sliver — the user saw a dark sliver but could
+//    never click "Export PDF". The fix portals the menu to <body> (fixed,
+//    anchored to the trigger), like FontPickerDropdown. getBoundingClientRect
+//    IGNORES ancestor overflow-clipping, so a rect check would pass while
+//    clipped — the reliable signal is hit-testing (document.elementFromPoint).
 //
-// getBoundingClientRect ignores ancestor overflow-clipping, so a rect-in-
-// viewport check would have PASSED even while clipped. The reliable signal is
-// hit-testing: a clipped element is not the top element at its own center, so
-// document.elementFromPoint() returns something behind it. We assert the menu
-// item IS the hit target → genuinely visible and clickable.
+// 2) An exported screenplay must INCLUDE A TITLE PAGE and be NAMED after the
+//    document: use the writer's title page when present (its title also drives
+//    the filename), else synthesize a cover page from the document name.
 
 import { expect, test } from '@playwright/test';
+import { createRequire } from 'module';
+import { readFileSync } from 'fs';
+
+const require = createRequire(import.meta.url);
+
+async function parsePdf(bytes) {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+  const doc = await pdfjs.getDocument({ data: bytes, isEvalSupported: false, disableFontFace: true }).promise;
+  const pages = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p);
+    const tc = await page.getTextContent();
+    pages.push(tc.items.map((i) => i.str).join(' '));
+  }
+  return { numPages: doc.numPages, text: pages.join('\n') };
+}
+
+async function readDownloadPdf(download) {
+  const path = await download.path();
+  return parsePdf(new Uint8Array(readFileSync(path)));
+}
 
 async function openScreenplayDoc(page) {
   await page.goto('/?docqa=1');
@@ -24,6 +46,17 @@ async function openScreenplayDoc(page) {
   await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
   await page.locator('.doc-tb-screenplay-toggle').click();
   await expect(page.locator('.doc-paper.is-screenplay')).toBeVisible();
+}
+
+async function exportPdf(page) {
+  await page.locator('.doc-card-modal button[aria-label="Export"]').click();
+  const menu = page.locator('.doc-export-menu');
+  await expect(menu).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 15000 }),
+    menu.getByRole('menuitem', { name: 'Export PDF' }).click({ timeout: 4000 }),
+  ]);
+  return download;
 }
 
 // Is `selector`'s element the actual hit target at its own center (i.e. not
@@ -46,33 +79,58 @@ async function isHittable(page, selector) {
   }, selector);
 }
 
-test('the Export menu opens fully (not clipped by the toolbar) and its items are clickable', async ({ page }) => {
+test('the Export menu opens fully (not clipped) and Export PDF includes a synthesized title page', async ({ page }) => {
   await openScreenplayDoc(page);
 
-  // Click the down-arrow Export button in the toolbar.
+  // Open the menu and prove the "Export PDF" item is a genuine hit target — the
+  // whole bug was that it existed in the DOM but was clipped to a sliver.
   await page.locator('.doc-card-modal button[aria-label="Export"]').click();
-
-  // The menu renders (portaled to <body>, so it's outside .doc-card-modal).
   const menu = page.locator('.doc-export-menu');
   await expect(menu).toBeVisible();
-
-  // The "Export PDF" item must be a genuine hit target — the whole point of the
-  // bug was that it existed in the DOM but was clipped to a sliver.
-  const pdfItem = menu.getByRole('menuitem', { name: 'Export PDF' });
-  await expect(pdfItem).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'Export PDF' })).toBeVisible();
 
   const hit = await isHittable(page, '.doc-export-menu');
   expect(hit.found).toBe(true);
   expect(hit.r.height).toBeGreaterThan(40);   // a real multi-row menu, not a sliver
-  expect(hit.inViewport).toBe(true);          // fully on-screen
-  expect(hit.hittable).toBe(true);            // not clipped / not covered
+  expect(hit.inViewport).toBe(true);
+  expect(hit.hittable).toBe(true);
 
-  // Clicking it fires the real export and produces a downloadable PDF — the
-  // exact end-to-end path the user wanted. On the old clipped menu, Playwright's
-  // own hit-test gate would have timed out before any download could start.
+  // Click it → a real PDF download. Even with no title page configured, the
+  // export synthesizes a cover page from the document name ("Untitled doc" in
+  // the harness), so the PDF is title-page + body (≥2 pages).
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 15000 }),
-    pdfItem.click({ timeout: 4000 }),
+    menu.getByRole('menuitem', { name: 'Export PDF' }).click({ timeout: 4000 }),
   ]);
   expect(download.suggestedFilename()).toMatch(/\.pdf$/i);
+
+  const pdf = await readDownloadPdf(download);
+  expect(pdf.numPages).toBeGreaterThanOrEqual(2);     // cover page + ≥1 body page
+  expect(pdf.text).toContain('Untitled doc');         // synthesized title page
+});
+
+test('a configured title page is included in the PDF and names the file', async ({ page }) => {
+  await openScreenplayDoc(page);
+
+  // Turn on the title page and give the screenplay a real title.
+  await page.locator('.doc-tb-titlepage-toggle').click();
+  const titlePage = page.locator('.doc-card-modal .sp-title-page');
+  await expect(titlePage).toBeVisible();
+  const titleField = titlePage.locator('.sp-tp-title');
+  await titleField.click();
+  await titleField.fill('Big Fish');
+  // Commit the field (blur by clicking the script body) and type a line.
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.keyboard.type('INT. RIVER - DAY\n');
+
+  const download = await exportPdf(page);
+
+  // Named after the document (the title-page title), not "Untitled doc".
+  expect(download.suggestedFilename()).toBe('Big Fish.pdf');
+
+  const pdf = await readDownloadPdf(download);
+  expect(pdf.numPages).toBeGreaterThanOrEqual(2);
+  expect(pdf.text).toContain('Big Fish');          // the title page is in the PDF
+  expect(pdf.text).toMatch(/INT\. RIVER/i);        // and the body followed it
 });
