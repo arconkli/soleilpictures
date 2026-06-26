@@ -11369,6 +11369,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transition: opacity var(--dur-fast) var(--ease);
 }
 .ic:hover .ic-actions { opacity: 1; }
+/* Keep the image's top-right actions (incl. the single Download button) visible
+   while the compact editor for this card is open — the popover sits beside the
+   image, so the cursor isn't hovering the image to reveal them. */
+.ic.is-editing .ic-actions { opacity: 1; }
 .ic-actions .ic-act {
   position: static; top: auto; right: auto;
   width: 24px; height: 24px; min-width: 24px; min-height: 24px;
@@ -11576,6 +11580,15 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 .iem-x:hover { background: rgba(255,255,255,.18); transform: translateY(-1px); }
+.iem-download {
+  position: absolute; top: 16px; right: 16px;
+  width: 38px; height: 38px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.08); color: #fff;
+  display: grid; place-items: center; cursor: pointer; z-index: 2;
+  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.iem-download:hover:not(:disabled) { background: rgba(255,165,0,.85); transform: translateY(-1px); }
+.iem-download:disabled { opacity: .5; cursor: default; }
 @keyframes iemRailIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes iemImgIn { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: none; } }
 @media (max-width: 720px) {

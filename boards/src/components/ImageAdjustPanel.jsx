@@ -6,9 +6,8 @@
 // It operates on the NORMALIZED adjust (so editing a legacy v1 card migrates it)
 // and stamps the v2 schema marker on every write.
 
-import { useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { Download, RotateCcw, Maximize2, X, Eye, FlipHorizontal, FlipVertical, CircleHalf } from '../lib/icons.js';
+import { RotateCcw, Maximize2, X, Eye, FlipHorizontal, FlipVertical, CircleHalf } from '../lib/icons.js';
 import { isAdjusted, normalizeAdjust, ADJUST_VERSION } from '../lib/imageAdjust.js';
 
 const SLIDERS = [
@@ -30,9 +29,8 @@ const GROUPS = [['light', 'Light'], ['color', 'Color'], ['detail', 'Detail']];
 
 const pct = (v, min, max) => ((v - min) / (max - min)) * 100;
 
-export function ImageAdjustPanel({ adjust, onChange, onReset, onDownload, onExpand, onClose,
+export function ImageAdjustPanel({ adjust, onChange, onReset, onExpand, onClose,
                                    onCompareStart, onCompareEnd, mode = 'compact' }) {
-  const [downloading, setDownloading] = useState(false);
   const a = normalizeAdjust(adjust) || {};
   const val = (key, neutral) => (a[key] == null ? neutral : Number(a[key]));
   const dirty = isAdjusted(adjust);
@@ -41,12 +39,6 @@ export function ImageAdjustPanel({ adjust, onChange, onReset, onDownload, onExpa
   // normalized `a` migrates a legacy card to v2 on first edit.
   const setField = (key, value) => onChange?.({ ...a, v: ADJUST_VERSION, [key]: value });
   const toggle = (key) => onChange?.({ ...a, v: ADJUST_VERSION, [key]: !a[key] });
-
-  const doDownload = async () => {
-    if (downloading || !onDownload) return;
-    setDownloading(true);
-    try { await onDownload(); } finally { setDownloading(false); }
-  };
 
   const endCompare = () => onCompareEnd?.();
 
@@ -138,9 +130,6 @@ export function ImageAdjustPanel({ adjust, onChange, onReset, onDownload, onExpa
         )}
         <button type="button" className="iap-btn" disabled={!dirty} onClick={onReset}>
           <Icon as={RotateCcw} size={14} /><span>Reset</span>
-        </button>
-        <button type="button" className="iap-btn iap-btn-primary" disabled={downloading} onClick={doDownload}>
-          <Icon as={Download} size={14} /><span>{downloading ? 'Saving…' : 'Download'}</span>
         </button>
       </div>
     </div>

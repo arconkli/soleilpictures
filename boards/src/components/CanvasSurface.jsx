@@ -6014,6 +6014,7 @@ export function CanvasSurface({
     } else if (c.kind === 'image')   inner = <ImageCard src={c.src || localImagePreview[c.id] || null} tone={c.tone} label={c.label} title={c.title} link={c.link} aspect={`${c.w}/${c.h}`} w={Math.round(c.w)} h={Math.round(c.h)} caption={c.caption} onUpdate={onUpdate} autoFocus={af}
                                                      cardId={c.id}
                                                      adjust={compareCardId === c.id ? null : c.adjust}
+                                                     editing={imageEdit?.cardId === c.id}
                                                      backfillEnabled={canEdit} boardId={board.id}
                                                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                      editCaptionAt={editFieldSignal.id === c.id && editFieldSignal.field === 'caption' ? editFieldSignal.n : 0}
@@ -8208,7 +8209,6 @@ export function CanvasSurface({
             adjust={card.adjust}
             onChange={(next) => mutators.updateCard?.(card.id, { adjust: next })}
             onReset={() => mutators.updateCard?.(card.id, { adjust: null })}
-            onDownload={() => downloadImage({ src: card.src, title: card.title || card.label || '', adjust: card.adjust })}
             onExpand={() => { setImageEditFull({ cardId: card.id }); setImageEdit(null); }}
             onCompareStart={() => setCompareCardId(card.id)}
             onCompareEnd={() => setCompareCardId(null)}

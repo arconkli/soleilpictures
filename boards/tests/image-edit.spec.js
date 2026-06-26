@@ -190,7 +190,10 @@ test.describe('image photo editing (DOM)', () => {
       r2p.evaluate((el) => getComputedStyle(el).transform)
     ).not.toBe('none');
 
-    await pop.getByRole('button', { name: /Download/ }).click();
+    // Single download is the image card's own top-right button (pinned visible
+    // while editing) — the editor panel has no separate download.
+    await expect(pop.getByRole('button', { name: /^Download$/ })).toHaveCount(0);
+    await card.locator('.ic-download').click();
     await page.waitForTimeout(400);
     const taint = errors.filter((e) => /taint|SecurityError|insecure/i.test(e));
     expect(taint).toEqual([]);

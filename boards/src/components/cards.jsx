@@ -537,7 +537,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
                             onUpdate, autoFocus = false,
                             editTitleAt = 0, editCaptionAt = 0,
                             onAfterEdit, onExpand, onEdit, onDownload,
-                            adjust = null,
+                            adjust = null, editing = false,
                             pending = false, uploadProgress = null,
                             backfillEnabled = false, boardId = null, cardId = null }) {
   // Non-destructive photo adjustments → CSS filter/transform on the image.
@@ -588,7 +588,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
   const showCaption = !!caption || editingCaption;
 
   return (
-    <div className="ic">
+    <div className={`ic${editing ? ' is-editing' : ''}`}>
       <div className="ic-imgwrap" onDoubleClick={onImgDblClick}>
         {src
           ? <R2Image src={src} alt={title || label || ''} w={w} h={h} className="ic-img" draggable="false"

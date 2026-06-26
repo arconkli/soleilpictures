@@ -30,7 +30,7 @@ function placeBeside(rect, w, h, vw, vh) {
   return { left: vw - w - PAD, top: topAligned }; // fallback: pin to right edge
 }
 
-export function ImageEditPopover({ anchorRect, adjust, onChange, onReset, onDownload, onExpand,
+export function ImageEditPopover({ anchorRect, adjust, onChange, onReset, onExpand,
                                    onCompareStart, onCompareEnd, onClose }) {
   const ref = useRef(null);
   const movedRef = useRef(false);   // user dragged → stop re-anchoring to the image
@@ -114,8 +114,7 @@ export function ImageEditPopover({ anchorRect, adjust, onChange, onReset, onDown
          onContextMenu={(e) => e.stopPropagation()}
          onWheel={(e) => e.stopPropagation()}>
       <ImageAdjustPanel adjust={adjust} mode="compact"
-                        onChange={onChange} onReset={onReset}
-                        onDownload={onDownload} onExpand={onExpand}
+                        onChange={onChange} onReset={onReset} onExpand={onExpand}
                         onCompareStart={onCompareStart} onCompareEnd={onCompareEnd} />
     </div>
   );
