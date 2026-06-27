@@ -184,6 +184,15 @@
 .sb-frost .auth-btn:hover:not(:disabled) { box-shadow: var(--shadow-2); transform: translateY(-1px); }
 .sb-cap { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); text-align: center; }
 
+/* credential line — the whole pitch (IYKYK): "Made by a film studio, …". Sits
+   below the form as the last box child; quiet gold tint so it reads as a
+   credential, not body copy. */
+.sb-trust { margin: 2px auto 0; max-width: 30ch; text-align: center; letter-spacing: .03em;
+  font: 600 11.5px/1.5 var(--font-sans); color: var(--soleil); opacity: .9;
+  /* the box overflows into the finale's cards; a dark halo keeps the line crisp
+     over any card (incl. a bright palette) without adding a heavy scrim. */
+  text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 10px rgba(10,10,12,.75); }
+
 /* subtle link to a real public board — absolutely positioned just below the
    box so it never shifts the centered box; JS fades it in only at the very end
    of the scroll (the resolved live board), starting hidden + non-interactive. */
@@ -241,6 +250,7 @@
     bottom: calc(10px + var(--safe-bottom, 0px)); padding: 0 14px; font-size: 10px; }
   .sb-foot-left { justify-content: center; gap: 3px 9px; }
   .sb-foot-copy { display: none; }
+  .sb-trust { font-size: 11px; }
 }
 
 /* Touch: the "explore a live board" payoff is shown from the first frame
