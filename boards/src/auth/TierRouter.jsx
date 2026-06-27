@@ -19,6 +19,8 @@ import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { useAuth } from './AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
+import { assignArm } from '../lib/experiments.js';
+import { trackAdLead } from '../lib/metaPixel.js';
 import { setJourneySink, beginJourney, setJourneyState, journey } from '../lib/journey.js';
 
 // Wire the post-signup journey's emitter at module load (journey.js can't import
@@ -42,6 +44,18 @@ export function TierRouter({ children }) {
   const { tier, loading, banned, adOfferPending, refetch, onboarding } = useMyTier({ userId: user?.id });
   const [hasEntry, setHasEntry] = useState(null);
   const path = window.location.pathname;
+
+  // ── instant_entry: SHIPPED at 100% arm B (decided HERE, before App mounts) ──
+  // Every brand-new demo user drops STRAIGHT into their seeded board; the price-first
+  // AdWelcome gate is fully off-path. It used to strand ~20-50% of signups (0% of whom
+  // ever placed a card) for ~0 paid conversions. The Creator offer lives on, re-timed
+  // to the in-app first-value nudge (FirstValueUpgradeBanner) + the always-present
+  // UpgradeChip. assignArm returns 'B' for everyone (A:0/B:100 in experiments.js),
+  // keeping the analytics arm-stamp consistent; the `|| 'B'` belt-and-suspenders keeps
+  // AdWelcome skipped even if the experiment were ever disabled.
+  const atOfferGate = !loading && !!user?.id && tier === 'demo' && adOfferPending;
+  const entryArm = atOfferGate ? (assignArm('instant_entry', user.id) || 'B') : null;
+  const instantEntryRef = useRef(false);
 
   // ── Post-signup journey: open + tier-gate instrumentation ──────────────────
   // The tier gate is the FIRST dark spot after signup: while get_my_tier loads we
@@ -86,9 +100,38 @@ export function TierRouter({ children }) {
   useEffect(() => {
     if (loading) return;
     if (tier === 'waitlist') setJourneyState({ phase: JOURNEY_PHASE.WAITLIST, route: window.location.pathname });
-    else if (tier === 'demo' && adOfferPending) setJourneyState({ phase: JOURNEY_PHASE.AD_WELCOME, route: window.location.pathname });
+    else if (tier === 'demo' && adOfferPending && entryArm !== 'B') setJourneyState({ phase: JOURNEY_PHASE.AD_WELCOME, route: window.location.pathname });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, tier, adOfferPending]);
+  }, [loading, tier, adOfferPending, entryArm]);
+
+  // instant_entry: enroll BOTH arms at the gate DECISION (not at seed time) so arm-A
+  // users who bounce on AdWelcome are still counted — otherwise arm A's denominator
+  // would silently drop its worst users and inflate its rate. set_experiment_arm is
+  // absent-only (first-touch wins); the App seed loop skips instant_entry so this is
+  // the single enroll. For arm B we also clear the one-time offer flag (so the gate
+  // never re-pops on a later focus/session — useMyTier refetches on focus), fire the
+  // ad-cohort Meta Lead that AdWelcome would have fired (safe server-side no-op for
+  // non-ad users), and mark the skip. All best-effort; nothing blocks entering the app.
+  useEffect(() => {
+    if (!atOfferGate || !entryArm || instantEntryRef.current) return;
+    // No-Supabase dev build: supabase.auth.getSession() below would throw
+    // synchronously (not caught by the trailing .catch). Bail — there's nothing
+    // to dismiss server-side and the seeded app renders regardless.
+    if (!supabase) return;
+    instantEntryRef.current = true;
+    // PostgREST builder is a thenable with NO .catch → use the two-arg .then.
+    supabase.rpc('set_experiment_arm', { p_key: 'instant_entry', p_arm: entryArm }).then(undefined, () => {});
+    try { logEvent(EV.EXPERIMENT_ENROLLED, { key: 'instant_entry', arm: entryArm }); } catch (_) {}
+    if (entryArm === 'B') {
+      try { logEvent(EV.INSTANT_ENTRY_SKIP, { arm: entryArm }); } catch (_) {}
+      supabase.auth.getSession().then(({ data }) => trackAdLead(data?.session)).catch(() => {});
+      (async () => {
+        try { await supabase.rpc('dismiss_ad_offer'); } catch (_) {}
+        try { await refetch(); } catch (_) {}
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atOfferGate, entryArm]);
 
   // For tier='waitlist' users, peek at their waitlist_entries row so we know
   // whether to send them to /welcome (decide) vs /waitlist/status (waiting).
@@ -131,11 +174,11 @@ export function TierRouter({ children }) {
     return hasEntry ? <WaitlistConfirm /> : <WelcomePage />;
   }
 
-  // Ad-sourced demo users (fbclid instant-demo) see the price-first offer once
-  // before entering the app. AdWelcome clears the flag (dismiss_ad_offer); the
-  // refetch here then drops them into the workspace. Buying flips tier→paid,
-  // which also falls out of this branch. Organic demo users never set the flag.
-  if (tier === 'demo' && adOfferPending) {
+  // AdWelcome is now OFF-PATH: instant_entry shipped at 100% arm B, so entryArm is
+  // always 'B' at the gate and this branch never renders (the effect above clears the
+  // flag + defers the offer, then we fall through to the seeded app below). Kept only
+  // as a dead safety net until AdWelcome.jsx is removed in the fast-follow cleanup.
+  if (tier === 'demo' && adOfferPending && entryArm !== 'B') {
     return <AdWelcome onEnter={async () => {
       await refetch();
       // Dev preview (?local=1&tier=demo&adoffer=1): tier is a static QA override,

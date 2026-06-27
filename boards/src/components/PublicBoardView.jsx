@@ -41,6 +41,7 @@ import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { logEvent, logEventNow, logEventOnce, seedShareFirstSource, seedPublicBoardFirstSource } from '../lib/analytics.js';
 import { getRelatedPublicBoards } from '../lib/publicBoardsApi.js';
+import { encodeRemixParam } from '../lib/remix.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
 
@@ -90,9 +91,20 @@ function ctaHref(ctx, surface) {
   return `/?utm_source=${src}&utm_medium=${encodeURIComponent(surface)}&utm_campaign=${campaign}${idParam}`;
 }
 
+// "Make a copy" CTA — carries the share/public attribution (utm + structured id,
+// medium=remix) PLUS a ?remix=<source> param. AuthGate stashes the source; the
+// authenticated app clones this board into the user's workspace after signup.
+function remixHref(ctx) {
+  const base = ctaHref(ctx, 'remix');
+  const param = encodeRemixParam(ctx.slug ? { kind: 'slug', value: ctx.slug } : { kind: 'token', value: ctx.token });
+  return param ? `${base}&remix=${encodeURIComponent(param)}` : base;
+}
+
 // Branded top bar — rendered in every viewer state (loading / invalid / ok)
-// so the wordmark and signup CTA are visible from the first paint.
-function PublicTopbar({ ctx, center, busy, onCta }) {
+// so the wordmark and signup CTA are visible from the first paint. When a valid
+// board is loaded (remixUrl set), "Make a copy" is the primary action (highest
+// intent: clone THIS board) and "Try free" steps back to secondary.
+function PublicTopbar({ ctx, center, busy, onCta, remixUrl }) {
   return (
     <div className="public-topbar">
       <a className="public-brand" href={ctaHref(ctx, 'badge')} title="Clusters home" onClick={onCta('badge')}>
@@ -102,7 +114,14 @@ function PublicTopbar({ ctx, center, busy, onCta }) {
       {center}
       <div className="public-topbar-actions">
         <a className="public-signin-quiet" href={ctaHref(ctx, 'signin')} onClick={onCta('signin')}>Sign in</a>
-        <a className="public-cta" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try Clusters free</a>
+        {remixUrl ? (
+          <>
+            <a className="public-cta" href={remixUrl} onClick={onCta('remix')}>Make a copy</a>
+            <a className="public-signin-quiet" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try free</a>
+          </>
+        ) : (
+          <a className="public-cta" href={ctaHref(ctx, 'topbar')} onClick={onCta('topbar')}>Try Clusters free</a>
+        )}
       </div>
       {busy && <div className="public-nav-progress" aria-hidden="true" />}
     </div>
@@ -604,6 +623,7 @@ export function PublicBoardView({ token, slug }) {
         ctx={ctx}
         busy={navBusy}
         onCta={onCta}
+        remixUrl={remixHref(ctx)}
         center={showCrumbs ? (
           <nav className="public-crumbs" aria-label="Breadcrumb">
             {stack.map((id, i) => {

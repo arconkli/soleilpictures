@@ -34,3 +34,27 @@ export function decodeShowcaseCards(snapshotB64) {
     .filter((c) => c && CLONE_KINDS.has(c.kind))
     .map((c) => ({ ...c, seed: true, showcase: true }));
 }
+
+// Remix variant (the "Make a copy" viral loop): same self-contained filter, but
+// the cards are GENUINE — NOT stamped seed/showcase — so a remixed board is the
+// user's real content and their first edit stamps first_card_at (activation).
+// Capped so a huge source can't blow past the demo card cap; keeps the
+// front-most cards (highest z) when trimming.
+export const REMIX_MAX_CARDS = 80;
+export function decodeRemixCards(snapshotB64, { max = REMIX_MAX_CARDS } = {}) {
+  if (!snapshotB64 || typeof snapshotB64 !== 'string') return [];
+  let cards = [];
+  try {
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, b64ToBytes(snapshotB64));
+    cards = readCards(doc);
+    doc.destroy();
+  } catch (_) {
+    return [];
+  }
+  const filtered = (cards || []).filter((c) => c && CLONE_KINDS.has(c.kind));
+  const capped = filtered.length > max
+    ? [...filtered].sort((a, b) => (Number(b?.z) || 0) - (Number(a?.z) || 0)).slice(0, max)
+    : filtered;
+  return capped.map((c) => ({ ...c }));   // genuine cards — no seed/showcase stamp
+}

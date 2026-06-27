@@ -1,50 +1,108 @@
-// Export the active doc as HTML, Markdown, or print-to-PDF.
+// Export the active doc as HTML, Markdown, PDF, or (screenplay) Fountain/FDX.
 //
 // HTML: uses editor.getHTML() wrapped in a minimal printable shell so all
 // docs export with consistent typography regardless of the user's theme.
 // Markdown: walks the editor JSON and serializes to GFM (good-enough subset).
-// PDF: window.print() of the same printable shell — user picks "Save as PDF"
-// in the system dialog.
+// PDF — screenplay: a real, paginated vector PDF (buildScreenplayPdfBlob) so it
+// works on web AND in the native app, where window.print() doesn't exist.
+// PDF — prose: print the printable shell via a hidden iframe → system "Save as
+// PDF" (no popup, so no popup-blocker / window.open-noopener-null failures).
+// Every generated file routes through deliverFile (download on web, native
+// share sheet in the app, where <a download> doesn't save).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown, collectFullDocJSON } from '../lib/docFullExport.js';
 import {
   jsonToFountain, fountainToBlocks, jsonToFdx, fdxToBlocks, blocksToDocJSON, docJSONToBlocks,
   parseFountainTitlePage, fdxToTitlePage,
 } from '../lib/screenplayIO.js';
-import { screenplayPrintHTML } from '../lib/screenplayPrint.js';
+import { buildScreenplayPdfBlob } from '../lib/screenplayPdf.js';
+import { deliverFile } from '../lib/exportDelivery.js';
 import { docPrintCSS } from '../lib/docTypography.js';
 import { getTitlePage, setTitlePage, getSceneNumbersShow } from '../lib/docState.js';
+import { useFeedback } from './AppFeedback.jsx';
 
 // Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
 // EVERY sheet (the single-focused-sheet path was silent data loss); the bare
 // `editor` is only a fallback for the rare caller without doc state.
 // Screenplay docs additionally get Fountain/FDX export + import.
-export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc' }) {
+export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc', authorName = '' }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const ref = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const ref = useRef(null);      // trigger wrapper
+  const menuRef = useRef(null);  // portaled menu panel
+  const feedback = useFeedback();
+
+  // The toolbar (.doc-tb) is a horizontal scroll container (overflow:auto/hidden),
+  // which CLIPS any absolutely-positioned descendant — that's why an inline
+  // dropdown showed only as a sliver under the toolbar. So we render the menu
+  // through a portal to <body> and position it (fixed) against the trigger,
+  // mirroring FontPickerDropdown: prefer below the button, flip above when there
+  // isn't room, right-align to the button, clamp to the viewport.
+  useLayoutEffect(() => {
+    if (!open || !ref.current) return;
+    const GAP = 6, PAD = 8, MIN_W = 200;
+    const measure = () => {
+      const r = ref.current.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const mw = Math.max(menuRef.current?.offsetWidth || MIN_W, MIN_W);
+      const mh = menuRef.current?.offsetHeight || 0;
+      const spaceBelow = vh - r.bottom - PAD;
+      const placeAbove = mh > 0 && spaceBelow < mh && (r.top - PAD) > spaceBelow;
+      const top = placeAbove ? Math.max(PAD, r.top - mh - GAP) : r.bottom + GAP;
+      const left = Math.min(Math.max(PAD, r.right - mw), vw - mw - PAD);
+      setPos({ top, left });
+    };
+    measure();
+    // Re-measure once the panel has real dimensions, and on resize.
+    const id = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', measure); };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    // The menu now lives in a portal, so an outside-click check must spare BOTH
+    // the trigger and the portaled panel.
+    const onDown = (e) => {
+      if (ref.current?.contains(e.target)) return;
+      if (menuRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
     window.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
       window.removeEventListener('keydown', onKey);
     };
   }, [open]);
 
-  const safeName = (docName || 'document').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 80);
+  // The document's display name — used for the file name AND the screenplay
+  // title-page title. For a screenplay the real title lives on the title page
+  // (the card is often left "Untitled doc"), so prefer that; fall back to the
+  // doc/card name. Read fresh on each export so renaming mid-session is picked up.
+  const currentDocTitle = () => {
+    const tp = (docMode === 'screenplay' && ydoc) ? getTitlePage(ydoc, scope) : null;
+    const fromTitlePage = (tp && tp.enabled && tp.title && tp.title.trim()) ? tp.title.trim() : '';
+    return fromTitlePage || (docName && docName.trim()) || (docMode === 'screenplay' ? 'Screenplay' : 'document');
+  };
+  const sanitizeName = (s) => (String(s || 'document').replace(/[^a-z0-9-_ ]/gi, '_').trim().slice(0, 80) || 'document');
+  const safeName = sanitizeName(currentDocTitle());
 
-  const downloadBlob = (blob, ext) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `${safeName}.${ext}`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  // Deliver a generated blob: a download on web, the native share sheet inside
+  // the app (where <a download> doesn't save). Surfaces a toast on failure.
+  // Named after the document (computed fresh so a just-typed title is honored).
+  const saveFile = async (blob, ext) => {
+    try { await deliverFile(blob, `${sanitizeName(currentDocTitle())}.${ext}`); }
+    catch (err) {
+      console.error('[export] delivery failed', err);
+      feedback.toast({ type: 'error', message: 'Export failed — please try again.' });
+    }
   };
 
   // WYSIWYG: the exported HTML / printed PDF uses the SAME typography as the
@@ -67,7 +125,7 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
     setBusy(true);
     try {
       const bodyHTML = await fullBodyHtml();
-      downloadBlob(new Blob([printableHTML(bodyHTML)], { type: 'text/html' }), 'html');
+      await saveFile(new Blob([printableHTML(bodyHTML)], { type: 'text/html' }), 'html');
       setOpen(false);
     } finally { setBusy(false); }
   };
@@ -78,7 +136,7 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
     try {
       const md = ydoc ? await collectFullDocMarkdown(ydoc, scope)
                       : (editor ? jsonToMarkdown(editor.getJSON()) : '');
-      downloadBlob(new Blob([md], { type: 'text/markdown' }), 'md');
+      await saveFile(new Blob([md], { type: 'text/markdown' }), 'md');
       setOpen(false);
     } finally { setBusy(false); }
   };
@@ -86,34 +144,32 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
   const exportPDF = async () => {
     if (busy) return;
     setBusy(true);
-    // Open the print window synchronously (popup-blockers require it be tied to
-    // the click) and fill it once the async body resolves.
-    const w = window.open('', '_blank', 'noopener');
     try {
-      // Screenplay docs print from the line-accurate paginator (Courier, 1"
-      // margins, page numbers, MORE/CONT'D) so the PDF matches on-screen pages.
-      let html;
       if (docMode === 'screenplay') {
-        const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
+        // A real, line-accurate PDF drawn from the paginator (Courier, 1.5"/1"
+        // margins, page numbers, MORE/CONT'D). Delivered as a file so it works
+        // on web AND the native app, where window.print() is unavailable.
+        const docTitle = currentDocTitle();
+        const stored = ydoc ? getTitlePage(ydoc, scope) : null;
+        // Always include a title page so every exported script has a proper
+        // cover sheet: use the writer's when they've enabled one, else synthesize
+        // a minimal one from the document title (+ author).
+        const titlePage = (stored && stored.enabled)
+          ? stored
+          : { enabled: true, title: docTitle, credit: 'Written by', authors: authorName || '' };
         const sceneNumbers = ydoc ? getSceneNumbersShow(ydoc, scope) : false;
-        const fontBaseUrl = typeof location !== 'undefined' ? location.origin : '';
-        html = screenplayPrintHTML(docJSONToBlocks(scriptBlocks()), { title: safeName, titlePage, fontBaseUrl, sceneNumbers });
+        const blob = await buildScreenplayPdfBlob(docJSONToBlocks(scriptBlocks()), { title: docTitle, titlePage, sceneNumbers });
+        await deliverFile(blob, `${sanitizeName(docTitle)}.pdf`);
       } else {
-        html = printableHTML(await fullBodyHtml());
-      }
-      if (!w) return;
-      w.document.write(html);
-      w.document.close();
-      // Print once fonts are ready so Courier metrics are correct (no FOUT-driven
-      // re-pagination); fall back to a short delay if fonts.ready is unavailable.
-      const doPrint = () => { try { w.focus(); w.print(); } catch (_) {} };
-      const fontsReady = w.document.fonts && w.document.fonts.ready;
-      if (fontsReady && typeof fontsReady.then === 'function') {
-        fontsReady.then(() => setTimeout(doPrint, 50)).catch(() => setTimeout(doPrint, 300));
-      } else {
-        setTimeout(doPrint, 300);
+        // Prose docs print through a hidden same-origin iframe → the system
+        // "Save as PDF". Avoids the popup path (popup blockers + the
+        // window.open(...'noopener') === null gotcha that silently no-op'd).
+        await printHtmlViaIframe(printableHTML(await fullBodyHtml()));
       }
       setOpen(false);
+    } catch (err) {
+      console.error('[export] PDF failed', err);
+      feedback.toast({ type: 'error', message: 'Couldn’t export this document — please try again.' });
     } finally { setBusy(false); }
   };
 
@@ -121,14 +177,14 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
     if (ydoc) return collectFullDocJSON(ydoc, scope);
     return editor ? editor.getJSON() : { type: 'doc', content: [] };
   };
-  const exportFountain = () => {
+  const exportFountain = async () => {
     const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
-    downloadBlob(new Blob([jsonToFountain(scriptBlocks(), titlePage)], { type: 'text/plain' }), 'fountain');
+    await saveFile(new Blob([jsonToFountain(scriptBlocks(), titlePage)], { type: 'text/plain' }), 'fountain');
     setOpen(false);
   };
-  const exportFdx = () => {
+  const exportFdx = async () => {
     const titlePage = ydoc ? getTitlePage(ydoc, scope) : null;
-    downloadBlob(new Blob([jsonToFdx(scriptBlocks(), titlePage)], { type: 'application/xml' }), 'fdx');
+    await saveFile(new Blob([jsonToFdx(scriptBlocks(), titlePage)], { type: 'application/xml' }), 'fdx');
     setOpen(false);
   };
   const importScript = () => {
@@ -176,8 +232,9 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
           <path d="M3 11 H11" />
         </svg>
       </button>
-      {open && (
-        <div className="doc-export-menu" role="menu">
+      {open && createPortal(
+        <div className="doc-export-menu" role="menu" ref={menuRef}
+             style={{ position: 'fixed', top: pos.top, left: pos.left }}>
           {docMode === 'screenplay' && (
             <>
               <button role="menuitem" onClick={exportFountain}>Export Fountain (.fountain)</button>
@@ -188,8 +245,11 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
           )}
           <button role="menuitem" onClick={exportHTML}>Export HTML</button>
           <button role="menuitem" onClick={exportMarkdown}>Export Markdown</button>
-          <button role="menuitem" onClick={exportPDF}>Print / Save as PDF</button>
-        </div>
+          <button role="menuitem" onClick={exportPDF}>
+            {docMode === 'screenplay' ? 'Export PDF' : 'Print / Save as PDF'}
+          </button>
+        </div>,
+        document.body
       )}
     </span>
   );
@@ -197,4 +257,38 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
+}
+
+// Print an HTML document via a hidden same-origin iframe and tear it down once
+// printing finishes. Prints ONLY the iframe's content, and avoids window.open
+// entirely — no popup blocker, and no window.open(...,'noopener') === null
+// gotcha (which silently no-op'd the old popup-print path). Resolves when done.
+function printHtmlViaIframe(html) {
+  return new Promise((resolve) => {
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'position:fixed; right:0; bottom:0; width:0; height:0; border:0; visibility:hidden;';
+    let done = false;
+    const cleanup = () => {
+      if (done) return;
+      done = true;
+      try { document.body.removeChild(iframe); } catch (_) {}
+      resolve();
+    };
+    iframe.onload = () => {
+      const win = iframe.contentWindow;
+      if (!win) { cleanup(); return; }
+      const doPrint = () => {
+        try { win.focus(); win.print(); } catch (_) {}
+        try { win.onafterprint = cleanup; } catch (_) {}
+        setTimeout(cleanup, 60000); // safety net if afterprint never fires
+      };
+      // Wait for fonts so Courier/serif metrics are correct before printing.
+      const fr = win.document.fonts && win.document.fonts.ready;
+      if (fr && typeof fr.then === 'function') fr.then(() => setTimeout(doPrint, 50)).catch(() => setTimeout(doPrint, 300));
+      else setTimeout(doPrint, 300);
+    };
+    document.body.appendChild(iframe);
+    iframe.srcdoc = html;
+  });
 }

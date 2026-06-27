@@ -19,7 +19,8 @@ import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
-import { decodeShowcaseCards } from './lib/showcaseClone.js';
+import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
+import { readRemix, clearRemix } from './lib/remix.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
@@ -58,11 +59,11 @@ import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ListSurface } from './components/ListSurface.jsx';
 import { ReadOnlyBanner } from './components/ReadOnlyBanner.jsx';
-import { BoardPicker } from './components/BoardPicker.jsx';
+import { CommandPalette } from './components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight } from './lib/icons.js';
+import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus } from './lib/icons.js';
 import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from './components/TweaksPanel.jsx';
 import { useAuth } from './auth/AuthGate.jsx';
@@ -86,7 +87,8 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink } from './lib/boardsApi.js';
+import { forceBoardThumbnail } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
@@ -334,28 +336,61 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const sessionKey = `${SESSION_PREFIX}${user.id}.${workspace.id}`;
   const [initialSession] = useState(() => readSession(sessionKey));
 
-  // On cold start, always open at the root board (the "first layer"). Don't
-  // restore a deep nav stack — users find it disorienting to land 4 boards
-  // deep on reload, especially when the in-between context (which sub-board
-  // they were comparing) has decayed from memory. Session-storage still
-  // restores splitId / viewOverride / splitRatio below.
-  const [stack, setStack] = useState(() => [rootBoard.id]);
+  // On cold start, restore the user's last nav position so a returning user lands
+  // back in the board they were working in — coming back should be effortless, not
+  // a reset to the top. The breadcrumb stays intact so popping up is one click. The
+  // persisted blob (written on every change below) holds the full chain for a normal
+  // reload; a ?w=&b= deep link (consumeDeepLink in AuthGate) writes just [boardId],
+  // so we prepend the root to keep "back to root" working. Stale/deleted boards are
+  // pruned by the existence-filter effect below. Falls back to root when nothing is
+  // saved. (splitId / viewOverride / splitRatio are restored separately below.)
+  const [stack, setStack] = useState(() => {
+    const saved = initialSession?.stack;
+    if (!Array.isArray(saved) || saved.length === 0) return [rootBoard.id];
+    return saved[0] === rootBoard.id
+      ? saved
+      : [rootBoard.id, ...saved.filter((id) => id !== rootBoard.id)];
+  });
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Global search + ⌘K command palette (distinct from the boards-only
+  // BoardPicker above, which stays the "link a board onto canvas" surface).
+  const [paletteOpen, setPaletteOpen] = useState(false);
   // Sidebar scroll region (the board/tag list between the pinned nav and
   // footer). useScrollEdges toggles fade-top/fade-bottom on it so the edges
   // fade only when there's hidden content above/below.
   const sidebarScrollRef = useRef(null);
   useScrollEdges(sidebarScrollRef);
-  // Mobile shell state. isPhone keys all phone-only UI; mobileNavOpen
-  // controls the slide-out sidebar (which uses the existing .sidebar
-  // markup repositioned as a drawer at phone width).
-  const { isPhone } = useBreakpoint();
+  // Mobile shell state. mobileShell keys the drawer-sidebar + bottom-nav layout;
+  // mobileNavOpen controls the slide-out sidebar (which uses the existing
+  // .sidebar markup repositioned as a drawer).
+  //
+  // mobileShell covers phones AND touch tablets in portrait/small-landscape
+  // (isTablet caps at 1024px). A touch iPad in wide landscape reads as
+  // isDesktop && isTouch and keeps the desktop sidebar (it has the room) — but
+  // isTouch still drives the focus button, tap-to-view, auto-hide and 44px
+  // targets below, so every iPad gets the touch affordances regardless of
+  // orientation. Plain desktop (mouse, !isTouch) is unaffected.
+  const { isPhone, isTablet, isTouch } = useBreakpoint();
+  const mobileShell = isPhone || (isTablet && isTouch);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Ephemeral immersive "focus" view for touch — hides ALL chrome so the user
+  // can just look at a board/pictures. Distinct from the persisted desktop
+  // clean mode (⌘.) so entering it on a phone never leaves a later desktop
+  // session chromeless. Both share the same CSS hide-rules (see styles.css).
+  const [focusMode, setFocusMode] = useState(false);
   // Close the drawer whenever the user navigates surfaces or boards —
   // otherwise you tap a board in the drawer, the board loads behind, and
   // the drawer stays open obscuring the content.
-  useEffect(() => { if (!isPhone) setMobileNavOpen(false); }, [isPhone]);
+  useEffect(() => { if (!mobileShell) setMobileNavOpen(false); }, [mobileShell]);
+  // Drop focus mode the moment we're back on a non-touch/desktop viewport so a
+  // resized window can't get stuck chromeless with no touch exit affordance.
+  useEffect(() => { if (!isTouch) setFocusMode(false); }, [isTouch]);
+  useEffect(() => {
+    if (focusMode) document.body.setAttribute('data-focus-mode', '1');
+    else document.body.removeAttribute('data-focus-mode');
+    return () => document.body.removeAttribute('data-focus-mode');
+  }, [focusMode]);
   // Workspace switcher popover (in the sidebar header). Click-outside +
   // Escape close it; selecting a workspace also closes.
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
@@ -1858,10 +1893,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
-  // Phone: any navigation closes the drawer — tapping a board in the
+  // Mobile shell: any navigation closes the drawer — tapping a board in the
   // drawer used to leave it open, hiding the very board it just opened.
   useEffect(() => {
-    if (isPhone) setMobileNavOpen(false);
+    if (mobileShell) setMobileNavOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stack, currentSurface, activeTag]);
   const openTagSurface = (tag) => {
@@ -2161,6 +2196,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     for (const n of (shareNotifs || [])) {
       if (surfacedNotifsRef.current.has(n.id)) continue;
       surfacedNotifsRef.current.add(n.id);
+      // Decision on a "Publish to Explore" request the user submitted (0171).
+      if (n.kind === 'explore_approved') {
+        const slug = n.detail;
+        feedback.toast({
+          type: 'success',
+          message: '🎉 Your board is now public on Explore!',
+          ttl: 8000,
+          ...(slug ? { action: { label: 'View', onClick: () => { try { window.open(`/c/${slug}`, '_blank', 'noopener,noreferrer'); } catch (_) {} } } } : {}),
+        });
+        continue;
+      }
+      if (n.kind === 'explore_rejected') {
+        feedback.toast({
+          type: 'info',
+          ttl: 8000,
+          message: `Your board wasn’t approved for Explore${n.detail ? `: ${n.detail}` : '.'}`,
+        });
+        continue;
+      }
       const board = boards[n.board_id];
       const name = board?.name || 'a board';
       feedback.toast({
@@ -2198,7 +2252,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({
           type: 'success',
           message: `You earned ${delta} free card${delta === 1 ? '' : 's'}! A friend you invited just got started 🎉`,
-          ttl: 7000,
+          // The highest-intent re-share moment — turn the celebration back into
+          // the loop instead of dead-ending. Longer ttl so the CTA is clickable.
+          action: { label: 'Invite more', onClick: () => openInviteFriends('reward_toast') },
+          ttl: 12000,
         });
       } catch (_) {}
     }
@@ -2310,6 +2367,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { expCfg = (await supabase.rpc('get_experiment_config')).data; } catch (_) {}
       const enrolled = {};
       for (const key of getActiveExperiments()) {
+        // instant_entry is decided + stamped in TierRouter (deterministically, BEFORE
+        // App mounts — see experiments.js). Stamping it here too would double-log the
+        // enrollment and could disagree with TierRouter's render decision, so the seed
+        // loop leaves it alone.
+        if (key === 'instant_entry') continue;
         // Hardened: a throw here (bad weights, a thenable without .catch, a
         // throwing logEvent) must NEVER escape and abort the rest of the seed —
         // that blanked the board for every new user. See the .then(undefined,…)
@@ -2463,6 +2525,88 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace?.id, rootBoard?.id, user?.id]);
 
+  // "Make a copy" remix loop: if the user arrived from a /share or /c viewer's
+  // remix CTA (AuthGate stashed the source across signup), clone that PUBLIC
+  // board into a fresh board in their workspace and open it. create board →
+  // prepare_remix grants image read + returns the source snapshot → decode
+  // GENUINE cards → open the board → seed via the LIVE mutators (below). We do
+  // NOT saveBoardSnapshot+forceResetBoardRoom: that races the fresh room's empty
+  // doc and the clone gets overwritten (the board opened EMPTY). Seeding through
+  // the live doc (the same path the onboarding seed uses) persists with no race.
+  const remixConsumedRef = useRef(false);
+  const pendingRemixRef = useRef(null);   // { boardId, cards, kind } awaiting the live seed below
+  const [, setRemixPendingTick] = useState(0);
+  useEffect(() => {
+    if (remixConsumedRef.current || typeof window === 'undefined') return;
+    if (!workspace?.id || !rootBoard?.id || !user?.id) return;
+    const src = readRemix();
+    if (!src) return;
+    remixConsumedRef.current = true;
+    clearRemix();   // one-shot: never re-clone on reload
+    (async () => {
+      try {
+        const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Remix', view: 'canvas', userId: user.id });
+        if (!b?.id) { feedback.toast({ type: 'error', message: 'Could not start your copy — try again.' }); return; }
+        const res = await supabase.rpc('prepare_remix', {
+          p_token: src.kind === 'token' ? src.value : null,
+          p_slug:  src.kind === 'slug'  ? src.value : null,
+          p_dest_board: b.id,
+        });
+        const tpl = res?.data;
+        if (res?.error || !tpl?.snapshot) {
+          try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'prepare', reason: String(res?.error?.message || 'no_snapshot').slice(0, 120) }); } catch (_) {}
+          feedback.toast({ type: 'error', message: 'That board could not be copied (the link may have expired).' });
+          try { await deleteBoard(b.id); } catch (_) {}
+          return;
+        }
+        const cards = decodeRemixCards(tpl.snapshot);
+        if (!cards.length) {
+          try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'decode', reason: 'empty' }); } catch (_) {}
+          try { await deleteBoard(b.id); } catch (_) {}
+          feedback.toast({ type: 'info', message: 'That board had nothing to copy.' });
+          return;
+        }
+        if (tpl.name) { try { await renameBoard(b.id, `${tpl.name} (remix)`); } catch (_) {} }
+        // Hand the cards to the live-seed effect, then open the board. The effect
+        // fires once the new board's doc is mounted + empty and adds the cards
+        // through the live mutators (no save/reset race).
+        pendingRemixRef.current = { boardId: b.id, cards, kind: src.kind };
+        setRemixPendingTick((t) => t + 1);
+        try { await refreshBoards(); } catch (_) {}
+        setStack([b.id]);
+      } catch (e) {
+        console.error('[remix] consume failed', e);
+        try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'consume', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
+        feedback.toast({ type: 'error', message: 'Could not finish your copy — try again.' });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.id, rootBoard?.id, user?.id]);
+
+  // Seed remix cards through the LIVE board doc once the new board is open +
+  // ready + empty — the reliable path (mirrors the onboarding seed gate). Adding
+  // through the live mutators propagates to the room + persists with no race,
+  // and the cards are GENUINE (decodeRemixCards strips the seed stamp) so they
+  // count toward the demo cap + stamp activation, which is the remix intent.
+  useEffect(() => {
+    const pend = pendingRemixRef.current;
+    if (!pend) return;
+    if (currentId !== pend.boardId) return;                                  // not on the remix board yet
+    if (!currentYDoc || !yb.ready || yb.boardId !== pend.boardId) return;     // doc not hydrated
+    if (yb.cards.length !== 0) return;                                        // empty canvas only (idempotent)
+    pendingRemixRef.current = null;   // claim before the (sync) add so it can't re-fire
+    try {
+      mainMutators.addCards?.(pend.cards);
+      try { logEvent(EV.REMIX_CLONE, { kind: pend.kind, n: pend.cards.length }); } catch (_) {}
+      feedback.toast({ type: 'success', message: 'Copied to your workspace — make it your own.' });
+    } catch (e) {
+      console.error('[remix] seed failed', e);
+      try { logEvent(EV.REMIX_FAILED, { kind: pend.kind, stage: 'seed', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
+      feedback.toast({ type: 'error', message: 'Could not finish your copy — try again.' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentId, currentYDoc, yb.ready, yb.boardId, yb.cards.length, mainMutators]);
+
   // Activation detection — DECOUPLED from the onboarding coachmark UI. The old
   // version only fired ONBOARDING_FIRST_CARD while the coachmark was showing AND
   // on the root board, so it never fired in practice (users place their first
@@ -2549,12 +2693,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       else if (!firstValueTimerRef.current) firstValueTimerRef.current = setTimeout(dispatchFirstValue, 15000); // 1st → ~15s beat
     }
 
-    // Post-activation referral nudge (demo only): once they've clearly gotten
-    // value (≥5 genuine cards), invite them to share. A higher bar than the
-    // first-value upgrade banner (2 cards) so the two soft banners never stack.
-    // ReferralNudge owns the demo-gate + once-per-account guard; repeated
-    // dispatches as the count grows are harmless (it de-dupes).
-    if (myTier.tier === 'demo' && genuine.length >= 5) {
+    // Post-activation referral nudge: once they've clearly gotten value (≥5
+    // genuine cards), invite them to share. A higher bar than the first-value
+    // upgrade banner (2 cards) so the two soft banners never stack. Fires for
+    // demo AND paid users — paid users are the best advocates and now have a
+    // real reward (a free month when a friend upgrades, migration 0167).
+    // ReferralNudge owns the tier-gate + once-per-account guard (per-tier key);
+    // repeated dispatches as the count grows are harmless (it de-dupes).
+    if ((myTier.tier === 'demo' || myTier.tier === 'paid') && genuine.length >= 5) {
       window.dispatchEvent(new CustomEvent('soleil:referral-nudge'));
     }
 
@@ -2620,6 +2766,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+
+  // One-tap share: mint-or-reuse a view-only link for the current board and copy
+  // it instantly, collapsing the ~4-click ShareModal flow to one. Defaults to
+  // include-subboards ON so a shared demo shows depth (server still enforces the
+  // subtree). Eagerly refreshes the OG thumbnail so the pasted link unfurls with
+  // a real preview, not the generic logo. Gated on write access by the caller.
+  const [quickShareBusy, setQuickShareBusy] = useState(false);
+  const quickCopyShareLink = React.useCallback(async () => {
+    if (quickShareBusy) return;
+    setQuickShareBusy(true);
+    try {
+      const { token } = await ensurePublicLink({ boardId: currentBoard.id, includeSubboards: true });
+      const url = `${window.location.origin}/share/${token}`;
+      let copied = false;
+      try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
+      // Fresh unfurl preview for the link we just handed out.
+      try {
+        const yd = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
+        if (yd) forceBoardThumbnail(currentBoard.id, yd, { workspaceId: workspace.id, userId: user.id });
+      } catch (_) {}
+      try { logEvent(EV.SHARE_OPEN, { board_id: currentBoard.id, quick: true }); } catch (_) {}
+      feedback.toast(copied
+        ? { type: 'success', message: 'Share link copied — anyone with it can view this board.',
+            action: { label: 'Manage', onClick: () => setShareOpen(true) }, ttl: 9000 }
+        : { type: 'info', message: url, ttl: 9000 });
+    } catch (e) {
+      feedback.toast({ type: 'error', message: 'Could not create a share link — try again.' });
+    } finally {
+      setQuickShareBusy(false);
+    }
+  }, [quickShareBusy, currentBoard.id, yb.ready, yb.boardId, yb.ydoc, workspace.id, user.id, feedback]);
+
   // Per-row write check for the sidebar board context menu. Uses the same
   // pure decider as currentBoardPerm, callable per-board (a hook can't be).
   const canEditBoard = React.useCallback((boardId) => {
@@ -3379,6 +3557,59 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => window.removeEventListener('keydown', onKey);
   }, [tweak.compactSidebar, setTweak]);
 
+  // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (isEditableTarget(e)) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen(o => !o);
+      } else if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Command palette actions. Per-shell so each closure captures the right
+  // setters; `available` gates rows that need an editable board / a real board.
+  const appCommands = useMemo(() => [
+    { id: 'new-board', label: 'Create board', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'board'],
+      available: canEditCurrent,
+      run: () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } },
+    { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
+      available: canEditCurrent && view !== 'list' && currentSurface === 'board',
+      run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
+    { id: 'home', label: 'Go to Home', icon: Home, keywords: ['home', 'graph', 'overview'],
+      run: () => setCurrentSurface('home') },
+    { id: 'link-board', label: 'Link a board onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'board'],
+      available: canEditCurrent && currentSurface === 'board',
+      run: () => setPickerOpen(true) },
+    { id: 'split', label: 'Open split view', icon: Columns2, keywords: ['split', 'side by side', 'compare'],
+      run: () => setSplitPickerOpen(true) },
+    { id: 'share', label: 'Share this board', icon: Share2, keywords: ['share', 'invite', 'collaborate', 'public link'],
+      available: currentSurface === 'board', run: () => setShareOpen(true) },
+    { id: 'messages', label: 'Messages', icon: MessageSquare, keywords: ['messages', 'chat', 'dm', 'comments'],
+      run: () => setTweak('showMessages', !tweak.showMessages) },
+    { id: 'theme', label: 'Toggle theme', icon: themeMode === 'dark' ? Sun : Moon, keywords: ['theme', 'dark', 'light', 'mode'],
+      run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
+    { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
+      run: () => setTweak('compactSidebar', !tweak.compactSidebar) },
+    { id: 'trash', label: 'Open trash', icon: Trash2, keywords: ['trash', 'deleted', 'restore', 'bin'],
+      run: () => setTrashOpen(true) },
+    { id: 'settings', label: 'Open settings', icon: Settings, keywords: ['settings', 'preferences', 'workspace', 'display'],
+      run: () => setSettingsOpen(true) },
+    { id: 'account', label: 'Account & billing', icon: User, keywords: ['account', 'profile', 'billing', 'plan'],
+      run: () => setAccountOpen(true) },
+    { id: 'invite', label: 'Invite friends', icon: UserPlus, keywords: ['invite', 'referral', 'friends', 'earn'],
+      run: () => openInviteFriends('palette') },
+    { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
+      run: () => signOut?.() },
+  ], [canEditCurrent, view, currentSurface, themeMode, tweak.showMessages, tweak.compactSidebar,
+      setTheme, setTweak, mainMutators, openInviteFriends, signOut]);
+
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -3475,7 +3706,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          autotagReady={autotagReady}
                          sessionId={yh?.sessionId || null}
                          frictionStuck={isMain ? frictionStuck : false}
-                         firstCardArm={isMain ? (getEnrolledArm('first_card_cta') || 'A') : 'A'}
+                         /* Bold "＋ Add your first card" CTA is now the DEFAULT
+                            empty-canvas affordance on the main board (was a paused
+                            A/B — ~80% of new users never placed a card under the
+                            faint passive hint). first_card_cta stays retired in
+                            experiments.js; this is a default, not a test. */
+                         firstCardArm={isMain ? 'B' : 'A'}
                          showcaseArm={isMain ? (getEnrolledArm('welcome_showcase') || (board?.id === showcasePreviewBoardId ? 'B' : 'A')) : 'A'}
                          defaults={defaults} />
         </Profiler>
@@ -3516,24 +3752,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <AppTrieProvider workspaceId={workspace.id}>
     <div className={`app ${tweak.compactSidebar ? 'sb-collapsed' : ''}`}
          data-screen-label={`Board · ${currentBoard.name}`}>
-      {/* Clean-mode exit button — only renders while body[data-clean-mode='1'].
-          CSS hides it otherwise. Click or press ⌘. to leave. */}
+      {/* Exit affordance for BOTH the persisted desktop clean mode and the
+          ephemeral touch focus mode. CSS shows it only while one of the two
+          body attributes is set, and positions it inside the safe-area on
+          touch so it never hides under the notch. */}
       <button className="clean-mode-exit"
               onClick={() => {
-                document.body.removeAttribute('data-clean-mode');
-                updateOwnSettings({ ui: { ...(mySettings.ui || {}), hideChrome: false } })
-                  .then(() => refreshSettings?.())
-                  .catch(() => {});
+                // Drop the ephemeral focus mode first (no persistence)...
+                setFocusMode(false);
+                // ...then the persisted clean mode, if it was the active one.
+                if (mySettings?.ui?.hideChrome) {
+                  document.body.removeAttribute('data-clean-mode');
+                  updateOwnSettings({ ui: { ...(mySettings.ui || {}), hideChrome: false } })
+                    .then(() => refreshSettings?.())
+                    .catch(() => {});
+                }
               }}
-              title="Exit clean mode (⌘.)">
-        Exit clean mode
+              title="Exit focus view">
+        <Icon as={Minimize2} size={14} /> <span className="clean-mode-exit-label">Exit focus</span>
       </button>
-      {isPhone && mobileNavOpen && (
+      {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
              onClick={() => setMobileNavOpen(false)}
              aria-hidden="true" />
       )}
-      <aside className={`sidebar${isPhone && mobileNavOpen ? ' is-mobile-open' : ''}`}>
+      <aside className={`sidebar${mobileShell && mobileNavOpen ? ' is-mobile-open' : ''}`}>
         {/* Single-column sidebar. Workspace switcher is now a popover
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
@@ -3621,9 +3864,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             );
           })()}
 
-          <button className="sb-search" onClick={() => setPickerOpen(true)} title="Search boards (⌘K)">
+          <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
             <Icon as={Search} size={13} />
-            <span>Search boards…</span>
+            <span>Search…</span>
             <span className="sb-search-kbd">⌘K</span>
           </button>
 
@@ -3755,11 +3998,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         />
         <div className="topbar">
           <div className="tb-left">
-            {(tweak.compactSidebar || isPhone) && (
-              <button className="tb-icon" title={isPhone ? 'Open menu' : 'Open sidebar (⌘B)'}
-                      aria-label={isPhone ? 'Open menu' : 'Open sidebar'}
+            {(tweak.compactSidebar || mobileShell) && (
+              <button className="tb-icon" title={mobileShell ? 'Open menu' : 'Open sidebar (⌘B)'}
+                      aria-label={mobileShell ? 'Open menu' : 'Open sidebar'}
                       onClick={() => {
-                        if (isPhone) setMobileNavOpen(true);
+                        if (mobileShell) setMobileNavOpen(true);
                         else setTweak('compactSidebar', false);
                       }}>
                 <Icon as={PanelLeftOpen} size={16} />
@@ -3809,6 +4052,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 Admin
               </button>
             )}
+            <button className="tb-icon" title="Search (⌘K)" aria-label="Search"
+                    onClick={() => setPaletteOpen(true)}>
+              <Icon as={Search} size={16} />
+            </button>
             <button className="tb-icon" title="Undo (⌘Z)" disabled={!yb.canUndo} onClick={() => mainMutators.undo?.()}>
               <Icon as={Undo} size={16} />
             </button>
@@ -3826,6 +4073,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <span className="tb-divider" aria-hidden="true" />
             {!canEditCurrent && (
               <span className="tb-viewonly" title="You have view-only access to this board">VIEW ONLY</span>
+            )}
+            {canEditCurrent && (
+              <button className="tb-icon" onClick={quickCopyShareLink} disabled={quickShareBusy}
+                      title="Copy a view-only link to this board">
+                <Icon as={LinkIcon} size={16} />
+              </button>
+            )}
+            {isTouch && (
+              <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
+                      title="Focus view — hide everything but the board"
+                      aria-label="Enter focus view">
+                <Icon as={Maximize2} size={16} />
+              </button>
             )}
             <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this board">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
@@ -3906,22 +4166,61 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         )}
       </main>
 
-      <BoardPicker
+      {/* Boards-only "link a board onto canvas" picker — the command palette in
+          pick mode (same UI, boards only, selecting one links it). */}
+      <CommandPalette
+        mode="pick"
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         excludeIds={[currentId]}
+        workspaceId={workspace.id}
         boards={boards}
         rootId={rootBoard.id}
-        onPick={(b) => addLink(b)}
+        recents={recents.recents}
+        mobileShell={mobileShell}
+        placeholder="Search boards to link…"
+        onPickBoard={(b) => addLink(b)}
       />
 
-      <BoardPicker
+      {/* Split-view board picker — same pick mode, opens the chosen board beside. */}
+      <CommandPalette
+        mode="pick"
         open={splitPickerOpen}
         onClose={() => setSplitPickerOpen(false)}
         excludeIds={[currentId]}
+        workspaceId={workspace.id}
         boards={boards}
         rootId={rootBoard.id}
-        onPick={(b) => { setSplitId(b.id); setSplitPickerOpen(false); }}
+        recents={recents.recents}
+        mobileShell={mobileShell}
+        placeholder="Open a board in split view…"
+        onPickBoard={(b) => { setSplitId(b.id); setSplitPickerOpen(false); }}
+      />
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        workspaceId={workspace.id}
+        boards={boards}
+        rootId={rootBoard.id}
+        recents={recents.recents}
+        commands={appCommands}
+        mobileShell={mobileShell}
+        onOpenBoard={(id) => {
+          setStack([id]);
+          recents.push(id);
+          setCurrentSurface('board');
+        }}
+        onNavigateRef={(ref) => {
+          // Card/doc/group results live on a board — land on it, in canvas view
+          // so the soleil-flash-card listener (canvas-only) can center the card.
+          if (ref.kind === 'card' || ref.kind === 'doc' || ref.kind === 'docPos' || ref.kind === 'group') {
+            setCurrentSurface('board');
+            const bid = ref.boardId;
+            if (bid) setViewOverride(o => (o[bid] === 'canvas' ? o : { ...o, [bid]: 'canvas' }));
+          }
+          navHandlers[ref.kind]?.(ref);
+        }}
       />
 
       <TrashModal
@@ -3986,6 +4285,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onClose={() => setShareOpen(false)}
           onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
           onSharesChanged={() => { refreshSharedBoards?.(); }}
+          onLinkCreated={() => {
+            try {
+              const yd = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
+              if (yd) forceBoardThumbnail(currentBoard.id, yd, { workspaceId: workspace.id, userId: user.id });
+            } catch (_) {}
+          }}
         />
       )}
       {backlinksRef && (
@@ -4005,14 +4310,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       <ReferralNudge tier={myTier.tier} onInvite={openInviteFriends} />
 
-      {isPhone && (() => {
+      {mobileShell && (() => {
         // The "+" appears only when a board canvas is the active surface and
         // it's editable — that's the only place a card can be created. When it
         // shows, no tab is "selected" (the user is on a board, not Home), so
         // pass active={null} rather than the old fall-through to 'home' which
         // wrongly lit Home next to the create puck.
         const onBoard = currentSurface === 'board'
-          && !tweak.showMessages && !settingsOpen && !pickerOpen && !mobileNavOpen;
+          && !tweak.showMessages && !settingsOpen && !pickerOpen && !paletteOpen && !mobileNavOpen;
         const showCreate = onBoard && canEditCurrent;
         return (
         <MobileBottomNav
@@ -4029,7 +4334,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             : currentSurface === 'home' ? 'home'
             : tweak.showMessages ? 'messages'
             : settingsOpen ? 'settings'
-            : pickerOpen ? 'search'
+            : (paletteOpen || pickerOpen) ? 'search'
             : 'home'
           }
           tabs={[
@@ -4042,10 +4347,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             // Each tap is a destination; closing the others keeps the
             // surface stack consistent (only one "primary" overlay at a time).
             setMobileNavOpen(false);
-            if (k === 'home')     { setCurrentSurface('home'); setPickerOpen(false); setSettingsOpen(false); setTweak('showMessages', false); }
-            if (k === 'search')   { setPickerOpen(true); setSettingsOpen(false); setTweak('showMessages', false); }
-            if (k === 'messages') { setTweak('showMessages', true); setPickerOpen(false); setSettingsOpen(false); }
-            if (k === 'settings') { setSettingsOpen(true); setPickerOpen(false); setTweak('showMessages', false); }
+            if (k === 'home')     { setCurrentSurface('home'); setPaletteOpen(false); setSettingsOpen(false); setTweak('showMessages', false); }
+            if (k === 'search')   { setPaletteOpen(true); setSettingsOpen(false); setTweak('showMessages', false); }
+            if (k === 'messages') { setTweak('showMessages', true); setPaletteOpen(false); setSettingsOpen(false); }
+            if (k === 'settings') { setSettingsOpen(true); setPaletteOpen(false); setTweak('showMessages', false); }
           }}
         />
         );

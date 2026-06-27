@@ -179,9 +179,10 @@ export async function getOrCreateMyReferralCode() {
   return data || null;
 }
 
-// Referral: the caller's invite stats for the "Invite & earn" tab —
-// { code, friends_joined, friends_activated, pending, cards_earned }. Always
-// returns one row (zeros when no referrals yet).
+// Referral: the caller's invite stats for the "Invite & earn" tab. Always
+// returns one row (zeros when no referrals yet). friendsPaid/monthsEarned are
+// the conversion-gated paid reward (migration 0167): a referee who upgrades to a
+// paid plan earns the referrer a free Creator month.
 export async function getMyReferralStats() {
   const { data, error } = await supabase.rpc('get_my_referral_stats');
   if (error) throw error;
@@ -192,6 +193,8 @@ export async function getMyReferralStats() {
     friendsActivated:  Number(row?.friends_activated ?? 0),
     pending:           Number(row?.pending ?? 0),
     cardsEarned:       Number(row?.cards_earned ?? 0),
+    friendsPaid:       Number(row?.friends_paid ?? 0),
+    monthsEarned:      Number(row?.months_earned ?? 0),
   };
 }
 
@@ -405,6 +408,22 @@ export async function listPublicLinks(boardId) {
   return data || [];
 }
 
+// Reuse-before-mint: return the board's existing active same-scope public link
+// or create one. Powers the one-tap "Copy share link" toolbar action (and the
+// ShareModal create button), so a board has at most one interchangeable link
+// per scope instead of accumulating random tokens. Returns { token, reused }.
+export async function ensurePublicLink({ boardId, includeSubboards = false, expiresAt = null }) {
+  if (!boardId) throw new Error('ensurePublicLink: boardId required');
+  const rows = await listPublicLinks(boardId);
+  const active = (rows || []).filter(
+    l => !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())
+  );
+  const existing = active.find(l => !!l.include_subboards === !!includeSubboards);
+  if (existing) return { token: existing.token, reused: true };
+  const token = await createPublicLink({ boardId, expiresAt, includeSubboards });
+  return { token, reused: false };
+}
+
 // ── Public marketing boards (admin-only; migration 0136) ────────────────────
 // Curate which boards are publicly discoverable at /c/<slug> with their own SEO
 // copy. Every RPC is gated on is_admin() server-side; the UI gate is cosmetic.
@@ -493,6 +512,63 @@ export async function pingIndexNow(slug) {
       body: JSON.stringify({ slug }),
     });
   } catch (_) { /* non-fatal */ }
+}
+
+// ── Self-serve "Publish to Explore" + admin approve-queue (migration 0169) ──
+// Any board owner can SUBMIT their board to the public /c/ + /explore SEO
+// surface; it sits in a moderation queue (invisible publicly) until an admin
+// approves. Approval = SEO/brand self-protection, not heavy moderation.
+
+// USER: submit (or re-submit) my board. Returns { status:'pending'|'already_published', slug }.
+export async function submitBoardToExplore({ boardId, slug = null, title = null, description = null, body = null, keyword = null }) {
+  const { data, error } = await supabase.rpc('submit_board_to_explore', {
+    p_board_id: boardId, p_slug: slug, p_title: title,
+    p_description: description, p_body: body, p_keyword: keyword,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// USER: my board's submission status, or null if never submitted.
+// { slug, review_status, published_at, published_by, review_reason }
+export async function getMyExploreSubmission(boardId) {
+  const { data, error } = await supabase.rpc('get_my_explore_submission', { p_board_id: boardId });
+  if (error) throw error;
+  return data || null;
+}
+
+// ADMIN: the review queue (default 'pending'; pass 'approved'/'rejected'/null).
+export async function adminListPublicBoardSubmissions(status = 'pending') {
+  const { data, error } = await supabase.rpc('admin_list_public_board_submissions', { p_status: status });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+// ADMIN: approve (publish) or reject a submission. Returns { status, slug }.
+// Also emits a one-shot share_notifications toast to the submitter (migration 0171).
+export async function adminReviewPublicBoard({ boardId, approve, reason = null }) {
+  const { data, error } = await supabase.rpc('admin_review_public_board', {
+    p_board_id: boardId, p_approve: approve, p_reason: reason,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// ADMIN: pending/approved/rejected counts for the Approvals nav badge (0171).
+export async function adminPublicBoardSubmissionCounts() {
+  const { data, error } = await supabase.rpc('admin_public_board_submission_counts');
+  if (error) throw error;
+  return data || { pending: 0, approved: 0, rejected: 0 };
+}
+
+// ADMIN: preview a (possibly still-pending) board's content before approving —
+// { board_id, cards:[{card_id,kind,title,body,href,media}], subboards, truncated }
+// (0171). Image bytes are streamed by the admin-gated worker route
+// /api/admin/preview-img/<board_id>?i=<index>, indexed into this cards array.
+export async function adminPreviewPublicBoard(boardId) {
+  const { data, error } = await supabase.rpc('admin_public_board_preview', { p_board_id: boardId });
+  if (error) throw error;
+  return data || { board_id: boardId, cards: [], subboards: [], truncated: false };
 }
 
 // ── Boards ─────────────────────────────────────────────────────────────────

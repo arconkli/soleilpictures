@@ -43,10 +43,19 @@ test('onboarding copy is touch-aware on a touch device', async ({ page }, testIn
     window.matchMedia('(hover: none) and (pointer: coarse)').matches);
   test.skip(!coarse, 'requires a coarse-pointer (touch) device');
 
-  // The welcome note tells touch users to long-press / tap — never "right-click".
-  const welcome = (await page.locator('[data-card-id="onb-welcome"]').innerText()).toLowerCase();
-  expect(welcome).toContain('long-press');
+  // The seeded intro note must be touch-aware: never "right-click" (no mouse on a
+  // phone), and it must point at a touch gesture (tap / long-press). Wider touch
+  // devices (tablet) get the onb-welcome note; phones get a single combined
+  // "onb-drag" note instead (no separate onb-welcome) — assert against whichever the
+  // device-adaptive seed actually produced.
+  const hasWelcome = await page.locator('[data-card-id="onb-welcome"]').count();
+  const intro = hasWelcome
+    ? page.locator('[data-card-id="onb-welcome"]')
+    : page.locator('[data-card-id="onb-drag"]');
+  await expect(intro).toBeVisible();
+  const welcome = (await intro.innerText()).toLowerCase();
   expect(welcome).not.toContain('right-click');
+  expect(/tap|long-press/.test(welcome)).toBe(true);
 
   // The coachmark nudge is touch-aware too (when present).
   const coach = page.locator('.onboarding-coachmark-body');

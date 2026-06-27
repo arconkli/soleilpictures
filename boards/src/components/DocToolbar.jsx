@@ -2,8 +2,10 @@
 // editor instance the parent passes in; gracefully renders disabled buttons
 // when no editor is mounted (e.g. between page switches).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { DocExportMenu } from './DocExportMenu.jsx';
+import { DocInsertMenu } from './DocInsertMenu.jsx';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
 import { SizeInput } from './SizeInput.jsx';
@@ -38,8 +40,8 @@ const SIZES = [12, 14, 16, 18, 22, 28, 36];
 
 const COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOpenLink, onAddComment,
-                               ydoc = null, scope = null, docMode = 'doc', onToggleScreenplay,
+export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBoardEmbed, onOpenFind, docName, onOpenLink, onAddComment,
+                               ydoc = null, scope = null, docMode = 'doc', authorName = '', onToggleScreenplay,
                                titlePageEnabled = false, onToggleTitlePage,
                                sceneNumbersShow = false, onSetSceneNumbersShow,
                                pageless = true, onTogglePageless,
@@ -139,13 +141,15 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
 
   return (
     <div className="doc-tb" role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
-      {/* Visible doorway into the slash menu — typing "/" is invisible to
-          anyone who hasn't read the placeholder. Inserting the trigger char
-          at the caret opens the same suggestion menu. */}
-      <button className="doc-tb-btn" disabled={disabled}
-              title="Insert a block — or type / anywhere in the text"
-              aria-label="Insert a block"
-              onClick={() => editor?.chain().focus().insertContent('/').run()}>+</button>
+      {/* Click-to-open insert menu — only the things with no other toolbar home
+          (image, table, divider, code, embed). Doc mode only: in screenplay mode
+          the element <select> covers everything, so no "+". Portaled so the
+          toolbar's overflow doesn't clip it. */}
+      {!isScreenplay && (
+        <DocInsertMenu editor={editor} disabled={disabled}
+                       onInsertImage={onInsertImage}
+                       onInsertBoardEmbed={onInsertBoardEmbed} />
+      )}
       {onToggleScreenplay && (
         <button type="button"
                 className={`doc-tb-pill doc-tb-screenplay-toggle${isScreenplay ? ' is-active' : ''}`}
@@ -289,7 +293,7 @@ export function DocToolbar({ editor, onInsertBookmark, onOpenFind, docName, onOp
            onClick={() => onAddComment?.()}><Glyph as={MessageCircle} size={14} /></Btn>
       <Btn title="Find (⌘F)" disabled={disabled}
            onClick={() => onOpenFind?.()}><Glyph as={Search} size={14} /></Btn>
-      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} />
+      <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} authorName={authorName} />
 
       <span className="doc-tb-spacer" />
 
@@ -348,8 +352,52 @@ function SceneNumberToggle({ show, onSetShow, disabled }) {
 
 function ColorBtn({ disabled, onPick, onClear, title }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const wrapRef = useRef(null);
+  const popRef = useRef(null);
+
+  // Same fix as DocExportMenu: the toolbar clips inline absolute popups, so the
+  // swatch grid is portaled to <body> and positioned (fixed) against the button.
+  useLayoutEffect(() => {
+    if (!open || !wrapRef.current) return;
+    const GAP = 6, PAD = 8;
+    const measure = () => {
+      const r = wrapRef.current.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const pw = popRef.current?.offsetWidth || 211;
+      const ph = popRef.current?.offsetHeight || 0;
+      const spaceBelow = vh - r.bottom - PAD;
+      const placeAbove = ph > 0 && spaceBelow < ph && (r.top - PAD) > spaceBelow;
+      const top = placeAbove ? Math.max(PAD, r.top - ph - GAP) : r.bottom + GAP;
+      const left = Math.min(Math.max(PAD, r.left), vw - pw - PAD);
+      setPos({ top, left });
+    };
+    measure();
+    const id = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', measure); };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (wrapRef.current?.contains(e.target)) return;
+      if (popRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('mousedown', onDown, true);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('mousedown', onDown, true);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   return (
-    <span className="doc-tb-colorwrap">
+    <span className="doc-tb-colorwrap" ref={wrapRef}>
       <button className="doc-tb-btn" disabled={disabled} title={title}
               aria-label={title} aria-haspopup="true" aria-expanded={open}
               onMouseDown={(e) => e.preventDefault()}
@@ -359,8 +407,10 @@ function ColorBtn({ disabled, onPick, onClear, title }) {
           <rect x="3" y="11" width="8" height="2" fill="currentColor" />
         </svg>
       </button>
-      {open && (
-        <div className="doc-tb-colorpop" onMouseDown={(e) => e.preventDefault()}>
+      {open && createPortal(
+        <div className="doc-tb-colorpop" ref={popRef}
+             style={{ position: 'fixed', top: pos.top, left: pos.left }}
+             onMouseDown={(e) => e.preventDefault()}>
           {COLORS.map(c => (
             <button key={c} className="doc-tb-sw" style={{ background: c }}
                     title={c} aria-label={`Color ${c}`}
@@ -368,7 +418,8 @@ function ColorBtn({ disabled, onPick, onClear, title }) {
           ))}
           <button className="doc-tb-sw doc-tb-sw-x" title="Default" aria-label="Default color"
                   onClick={() => { onClear(); setOpen(false); }}>×</button>
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );

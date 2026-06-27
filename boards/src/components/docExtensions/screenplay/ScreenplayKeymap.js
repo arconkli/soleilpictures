@@ -5,7 +5,7 @@
 // / AutoDetect (Enter) / mention — array order does NOT decide precedence in
 // Tiptap. Each handler GATES: it returns false (yielding to the normal doc
 // keymaps) unless the caret is in a screenplayBlock and not inside a nested
-// list/table, and it yields Enter/Tab to an open slash/mention popup.
+// list/table, and it yields Enter/Tab to an open mention/autocomplete popup.
 
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
@@ -14,11 +14,11 @@ import {
   nextOnEnter, nextOnTab, prevOnTab, shouldUppercase, detectElementFromText,
 } from './screenplayFlow.js';
 
-// A slash (.doc-slash) or @-mention (.entity-picker) popup is open — let it own
-// Enter/Tab.
+// An @-mention (.entity-picker) or screenplay autocomplete (.sp-autocomplete)
+// popup is open — let it own Enter/Tab.
 function suggestionOpen() {
   return typeof document !== 'undefined'
-    && !!document.querySelector('.doc-slash, .entity-picker, .sp-autocomplete.is-open');
+    && !!document.querySelector('.entity-picker, .sp-autocomplete.is-open');
 }
 
 function currentScreenplayElement(state) {

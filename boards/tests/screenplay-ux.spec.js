@@ -48,7 +48,7 @@ test('the Screenplay toggle is a labeled pill that does not overlap its toolbar 
     const toggle = tb.querySelector('.doc-tb-screenplay-toggle');
     const plus = tb.querySelector('button[aria-label="Insert a block"]');
     const select = tb.querySelector('.doc-tb-select');
-    const r = (el) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, width: b.width }; };
+    const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, width: b.width }; };
     return { toggle: r(toggle), plus: r(plus), select: r(select) };
   });
 
@@ -59,11 +59,12 @@ test('the Screenplay toggle is a labeled pill that does not overlap its toolbar 
   expect(before.toggle.left).toBeGreaterThanOrEqual(before.plus.right - 0.5);
   expect(before.select.left).toBeGreaterThanOrEqual(before.toggle.right - 0.5);
 
-  // Still clean in screenplay mode (where the element <select> sits to its right).
+  // In screenplay mode the "+" is gone (the element <select> is the inserter),
+  // so just confirm the toggle still doesn't overlap that <select> to its right.
   await enableScreenplay(page);
   const after = await rects();
+  expect(after.plus).toBeNull();
   expect(after.toggle.width).toBeGreaterThan(40);
-  expect(after.toggle.left).toBeGreaterThanOrEqual(after.plus.right - 0.5);
   expect(after.select.left).toBeGreaterThanOrEqual(after.toggle.right - 0.5);
 });
 
@@ -491,41 +492,53 @@ test('Enter progression from dialogue: new character → action → scene', asyn
   expect(await caretElement(page)).toBe('scene');
 });
 
-test('the slash menu offers screenplay elements in screenplay mode', async ({ page }) => {
+test('screenplay mode has no "+" insert menu (the element dropdown handles elements)', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
-  const editor = page.locator('.doc-card-modal .tt-editor').first();
-  await editor.click();
-  await page.keyboard.press('Enter');  // seeded scene → action line
-  await page.keyboard.type('/');
-  await expect(page.locator('.doc-slash')).toBeVisible();
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Scene Heading' })).toBeVisible();
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Dialogue' })).toBeVisible();
-  // No prose blocks leak in.
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Heading 1' })).toHaveCount(0);
-  // Filter + pick Character → the current line becomes a character cue.
-  await page.keyboard.type('char');
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Character' })).toBeVisible();
-  await page.keyboard.press('Enter');
-  const cur = await page.evaluate(() => {
-    const ed = window.__soleilDocTest.editor;
-    const $from = ed.state.selection.$from;
-    for (let d = $from.depth; d > 0; d--) {
-      if ($from.node(d).type.name === 'screenplayBlock') return $from.node(d).attrs.element;
-    }
-    return null;
-  });
-  expect(cur).toBe('character');
+  // The "+" is hidden in screenplay mode — the element <select> + Tab cover
+  // every element (incl. Centered), so there's nothing for it to add.
+  await expect(page.locator('.doc-card-modal button[aria-label="Insert a block"]')).toHaveCount(0);
+  await expect(page.locator('.doc-card-modal .doc-tb-select')).toBeVisible();
 });
 
-test('the slash menu still offers prose blocks outside screenplay mode (no regression)', async ({ page }) => {
+test('the "+" insert menu holds only insert-content items, not toolbar duplicates', async ({ page }) => {
+  await openDoc(page);
+  await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
+  const menu = page.locator('.doc-insert-menu');
+  await expect(menu).toBeVisible();
+  // The five things with no other toolbar home.
+  for (const label of ['Image', 'Table', 'Divider', 'Code block', 'Embed board']) {
+    await expect(menu.locator('.doc-insert-item-title', { hasText: label })).toBeVisible();
+  }
+  // None of the things the toolbar already provides (style select / list / quote
+  // / bookmark buttons) — no "same thing twice".
+  for (const dupe of ['Heading 1', 'Paragraph', 'Bulleted list', 'Quote', 'Bookmark']) {
+    await expect(menu.locator('.doc-insert-item-title', { hasText: dupe })).toHaveCount(0);
+  }
+});
+
+test('typing "/" in a doc is literal text — the slash command menu is gone', async ({ page }) => {
   await openDoc(page);
   const editor = page.locator('.doc-card-modal .tt-editor').first();
   await editor.click();
-  await page.keyboard.type('/');
-  await expect(page.locator('.doc-slash')).toBeVisible();
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Heading 1' })).toBeVisible();
-  await expect(page.locator('.doc-slash-item-title', { hasText: 'Scene Heading' })).toHaveCount(0);
+  await page.keyboard.type('/hello');
+  // No popup of any kind appears…
+  await expect(page.locator('.doc-slash')).toHaveCount(0);
+  await expect(page.locator('.doc-insert-menu')).toHaveCount(0);
+  // …and the "/" is just typed into the document.
+  await expect(editor).toContainText('/hello');
+});
+
+test('the "+" insert menu actually inserts a table (and is not clipped)', async ({ page }) => {
+  await openDoc(page);
+  const editor = page.locator('.doc-card-modal .tt-editor').first();
+  await editor.click();
+  await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
+  const menu = page.locator('.doc-insert-menu');
+  await expect(menu).toBeVisible();
+  // The item must be a real hit target — the toolbar must not clip the menu.
+  await menu.locator('.doc-insert-item', { hasText: 'Table' }).click({ timeout: 4000 });
+  await expect(page.locator('.doc-card-modal .tt-editor table').first()).toBeVisible();
 });
 
 test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {

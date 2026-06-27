@@ -29,6 +29,7 @@ import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
 import { AdminCampaignTab } from './admin/AdminCampaignTab.jsx';
 import { AdminDiscoverTab } from './admin/AdminDiscoverTab.jsx';
+import { AdminApprovalsTab } from './admin/AdminApprovalsTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
 import { AdminErrorsTab } from './admin/AdminErrorsTab.jsx';
@@ -37,6 +38,7 @@ import { AdminMoreMenu } from './admin/AdminMoreMenu.jsx';
 import { FeedbackButton } from '../components/FeedbackButton.jsx';
 import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { adminPublicBoardSubmissionCounts } from '../lib/boardsApi.js';
 
 const TABS = [
   { id: 'overview',  label: 'Overview' },
@@ -45,6 +47,7 @@ const TABS = [
   { id: 'grants',    label: 'Grants' },
   { id: 'campaign',  label: 'Campaign' },
   { id: 'discover',  label: 'Discover' },
+  { id: 'approvals', label: 'Approvals' },
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
   { id: 'errors',    label: 'Errors' },
@@ -57,7 +60,7 @@ const STORAGE_KEY = 'admin.tab';
 // The header shows only the daily/frequent sections as pills; the rarely-touched
 // long tail folds into a single "More" overflow so the bar isn't 11 items wide.
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
-const PRIMARY_IDS = ['overview', 'analytics', 'users', 'waitlist'];
+const PRIMARY_IDS = ['overview', 'analytics', 'users', 'approvals', 'waitlist'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
 const OVERFLOW_IDS = ['discover', 'feedback', 'errors', 'grants', 'campaign', 'tagging', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
@@ -96,6 +99,10 @@ export function AdminPage() {
   const feedback = useFeedback();
   const [tab, setTab] = useState(initialTab);
   const [signingOut, setSigningOut] = useState(false);
+  // Pending public-board requests, surfaced as a badge on the Approvals tab so
+  // an operator notices submissions without opening the tab. Seeded once when
+  // tier resolves; the Approvals tab keeps it fresh after each review.
+  const [pendingApprovals, setPendingApprovals] = useState(0);
   const { isPhone } = useBreakpoint();
   const tabRefs = useRef([]);
   const moreTriggerRef = useRef(null);
@@ -125,6 +132,17 @@ export function AdminPage() {
       }
     } catch { /* ignore */ }
   }, []);
+
+  // Seed the Approvals badge once tier resolves to admin (the tab itself keeps
+  // it live after each approve/reject via onCountsChange).
+  useEffect(() => {
+    if (tier !== 'admin') return undefined;
+    let cancelled = false;
+    adminPublicBoardSubmissionCounts()
+      .then((c) => { if (!cancelled) setPendingApprovals(c?.pending ?? 0); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [tier]);
 
   // Roving focus spans the VISIBLE controls only — the primary pills plus the
   // More trigger at index PRIMARY_TABS.length. Selection follows focus for the
@@ -212,6 +230,9 @@ export function AdminPage() {
                     onClick={() => selectTab(t.id)}
                     onKeyDown={(e) => onTabKeyDown(e, i)}>
               {t.label}
+              {t.id === 'approvals' && pendingApprovals > 0 && (
+                <span className="admin-tab-badge" aria-label={`${pendingApprovals} pending`}>{pendingApprovals}</span>
+              )}
             </button>
           ))}
           <AdminMoreMenu
@@ -242,6 +263,7 @@ export function AdminPage() {
         {tab === 'grants'    && <AdminGrantsTab />}
         {tab === 'campaign'  && <AdminCampaignTab />}
         {tab === 'discover'  && <AdminDiscoverTab />}
+        {tab === 'approvals' && <AdminApprovalsTab onCountsChange={(c) => setPendingApprovals(c?.pending ?? 0)} />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
         {tab === 'feedback'  && <AdminFeedbackTab />}
         {tab === 'errors'    && <AdminErrorsTab />}

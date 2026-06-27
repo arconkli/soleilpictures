@@ -91,7 +91,7 @@ async function sbUpsert(env, table, rows, onConflict) {
   if (!res.ok) throw new Error(`sbUpsert ${table} ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
 }
 
-async function getTier(env, userToken) {
+export async function getTier(env, userToken) {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_my_tier`, {
     method: 'POST',
     headers: {

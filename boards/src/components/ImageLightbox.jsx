@@ -6,9 +6,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGesture } from '@use-gesture/react';
 import { R2Image } from './R2Image.jsx';
-import { resolveSrc } from '../lib/r2.js';
+import { downloadImage } from '../lib/imageExport.js';
+import { buildFilterRef, buildTransform } from '../lib/imageAdjust.js';
 
-export function ImageLightbox({ src, title, alt, onClose }) {
+export function ImageLightbox({ src, title, alt, adjust, cardId, onClose }) {
   // 'fit'    → contained inside the viewport (default)
   // 'actual' → natural size, pannable
   // Touch: pinch-zoom interpolates continuously between fit and 4× scale,
@@ -84,46 +85,22 @@ export function ImageLightbox({ src, title, alt, onClose }) {
     dragRef.current = null;
   };
 
-  const filenameFor = (s, t) => {
-    let base = (t || '').toString().trim();
-    if (!base) {
-      // Use the last path segment of the URL when no title is set.
-      const m = String(s || '').match(/([^/?#]+)(?:[?#]|$)/);
-      base = m ? decodeURIComponent(m[1]) : 'image';
-    }
-    base = base.replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
-    if (!/\.(jpe?g|png|gif|webp|avif|heic|bmp|svg)$/i.test(base)) base += '.jpg';
-    return base;
-  };
-
   const onDownload = async (e) => {
     e.stopPropagation();
     if (downloading) return;
     setDownloading(true);
-    try {
-      const url = await resolveSrc(src);
-      if (!url) return;
-      // Fetch + blob so the `download` attribute works across origins
-      // (a plain anchor with download="" gets ignored on cross-origin
-      // responses without the right headers).
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objUrl;
-      a.download = filenameFor(url, title);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
-    } catch (_) {
-      // Fall back to opening in a new tab.
-      const url = await resolveSrc(src).catch(() => null);
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
-    } finally {
-      setDownloading(false);
-    }
+    // Delegates to the shared module, which bakes any photo adjustments into
+    // the file (or streams the original when there are none).
+    try { await downloadImage({ src, title, adjust }); }
+    finally { setDownloading(false); }
   };
+
+  // Reflect photo adjustments in the viewer. `filter` is a separate CSS
+  // property from `transform`, so it never collides with the pan/zoom
+  // transform; the flip transform is appended to whatever transform the
+  // pan/zoom logic produces.
+  const adjFilter = buildFilterRef(adjust, cardId);
+  const adjFlip = buildTransform(adjust);
 
   return (
     <div className={`lightbox lightbox-mode-${mode}`}
@@ -157,12 +134,20 @@ export function ImageLightbox({ src, title, alt, onClose }) {
                  onClick={onImgClick}
                  style={(() => {
                    // Touch pinch wins while active (touchScale != 1),
-                   // otherwise fall back to the mouse fit/actual modes.
+                   // otherwise fall back to the mouse fit/actual modes. The
+                   // flip transform (if any) is appended; the color filter is
+                   // a separate property.
+                   let transform = '';
                    if (touchScale !== 1) {
-                     return { transform: `scale(${touchScale}) translate(${pan.x / touchScale}px, ${pan.y / touchScale}px)` };
+                     transform = `scale(${touchScale}) translate(${pan.x / touchScale}px, ${pan.y / touchScale}px)`;
+                   } else if (mode === 'actual') {
+                     transform = `translate(${pan.x}px, ${pan.y}px)`;
                    }
-                   if (mode === 'actual') return { transform: `translate(${pan.x}px, ${pan.y}px)` };
-                   return undefined;
+                   if (adjFlip) transform = `${transform} ${adjFlip}`.trim();
+                   const style = {};
+                   if (transform) style.transform = transform;
+                   if (adjFilter) style.filter = adjFilter;
+                   return Object.keys(style).length ? style : undefined;
                  })()} />
       </div>
       {title && <div className="lightbox-cap">{title}</div>}

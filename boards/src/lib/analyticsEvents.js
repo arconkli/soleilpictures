@@ -66,6 +66,7 @@ export const EV = Object.freeze({
   AD_OFFER_ENTER:          'ad_offer_enter',              // chose "continue into workspace" (skipped buying) {plan}
   AD_OFFER_DWELL:          'ad_offer_dwell',              // {ms}
   AD_OFFER_ABANDON:        'ad_offer_abandon',            // hid the AdWelcome offer without buying OR continuing {ms} (the silent bounce; beacon)
+  INSTANT_ENTRY_SKIP:      'instant_entry_skip',          // instant_entry arm B: the pre-app offer gate was SKIPPED — user dropped straight into the seeded board {arm} (symmetric marker to ad_offer_view; offer deferred to first_value_upgrade_*)
 
   // ── Post-signup journey (the high-resolution, AI-analyzable first-session trace —
   //    see lib/journey.js + migration 0161 admin_journey_* RPCs). Every ps_* event
@@ -137,7 +138,7 @@ export const EV = Object.freeze({
   // ── Public share viewer (/share/<token>, anonymous) ──
   SHARE_VIEW:              'share_view',                  // public viewer mounted {share_token,board_id,root_id,include_subboards,valid}
   SHARE_SUBBOARD_OPEN:     'share_subboard_open',         // navigated into a sub-board {share_token,board_id,from_board_id,depth,cached}
-  SHARE_CTA_CLICK:         'share_cta_click',             // signup CTA clicked {surface:'topbar'|'prompt'|'invalid_page'|'badge'|'signin',share_token} (must-land)
+  SHARE_CTA_CLICK:         'share_cta_click',             // signup CTA clicked {surface:'topbar'|'prompt'|'invalid_page'|'badge'|'signin'|'remix',share_token} (must-land)
   SHARE_DWELL:             'share_dwell',                 // time on the public viewer {ms,share_token,board_id,boards_opened}
   SHARE_PROMPT_VIEW:       'share_prompt_view',           // engagement prompt shown {trigger:'dwell'|'subboard'}
   SHARE_PROMPT_DISMISS:    'share_prompt_dismiss',        // prompt dismissed {trigger,visible_ms}
@@ -145,16 +146,20 @@ export const EV = Object.freeze({
   // ── Referral / "Invite friends, earn free cards" (migration 0163) ──
   // Client-fired; the three conversion events (signup/activated/reward_granted)
   // are fired SERVER-side from the signup + first-card triggers into analytics_events.
-  REFERRAL_OPEN:           'referral_open',               // opened the invite surface {surface:'cap_toast'|'nudge'|'cap_modal'|'menu'}
+  REFERRAL_OPEN:           'referral_open',               // opened the invite surface {surface:'cap_toast'|'nudge'|'cap_modal'|'menu'|'reward_toast'|'paid_nudge'}
   REFERRAL_TAB_VIEW:       'referral_tab_view',           // Invite & earn account tab mounted {has_code}
   REFERRAL_LINK_COPIED:    'referral_link_copied',        // copied the ?ref= link {surface}
-  REFERRAL_LINK_SHARED:    'referral_link_shared',        // native-shared the link {surface}
+  REFERRAL_LINK_SHARED:    'referral_link_shared',        // shared the link {surface,channel:'native'|'whatsapp'|'x'|'email'|'sms'}
   REFERRAL_NUDGE_VIEW:     'referral_nudge_view',         // post-activation invite nudge shown
   REFERRAL_NUDGE_CTA:      'referral_nudge_cta',          // nudge "Invite friends" clicked → opens tab (must-land)
   REFERRAL_NUDGE_DISMISS:  'referral_nudge_dismiss',      // nudge dismissed
   REFERRAL_SIGNUP:         'referral_signup',             // SERVER: friend signed up via a referral {source,code}
   REFERRAL_ACTIVATED:      'referral_activated',          // SERVER: referee created first genuine card
   REFERRAL_REWARD_GRANTED: 'referral_reward_granted',     // SERVER: referrer credited {referee,amount}
+
+  // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
+  REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n}
+  REMIX_FAILED:            'remix_failed',                // remix consume failed {kind,stage,reason}
 
   // ── Public marketing boards (/c/<slug> + /explore, migration 0136) ──
   EXPLORE_VIEW:            'explore_view',                // /explore index mounted {count}

@@ -47,11 +47,13 @@ test('bottom nav has four tabs; no tab is lit while viewing a board', async ({ p
   await expect(page.locator('.mb-nav-create')).toBeVisible();
 });
 
-test('Search tab opens the BoardPicker', async ({ page }, testInfo) => {
+test('Search tab opens the command palette', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'desktop-chrome' || testInfo.project.name === 'tablet',
     'phone-width only (≤640px)');
   await page.locator('.mb-nav-tab').nth(1).tap();
-  await expect(page.locator('.picker')).toBeVisible();
+  await expect(page.locator('.cmdk')).toBeVisible();
+  // Full-screen on phone: the mobile close button is shown (no Esc key on touch).
+  await expect(page.locator('.cmdk-close')).toBeVisible();
 });
 
 test('Messages tab opens the MessagesPanel', async ({ page }, testInfo) => {
@@ -66,11 +68,17 @@ test('bottom nav is not rendered on desktop', async ({ page }, testInfo) => {
   await expect(page.locator('.mb-nav')).toHaveCount(0);
 });
 
-test('tablet does not engage phone shell (sidebar visible, no bottom nav)', async ({ page }, testInfo) => {
+test('touch tablet engages the mobile shell (bottom nav + drawer sidebar)', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'tablet', 'tablet only');
-  // Tablet (>640px) shows the full desktop sidebar inline + no bottom nav.
-  await expect(page.locator('.mb-nav')).toHaveCount(0);
-  await expect(page.locator('.sidebar').first()).toBeVisible();
-  // The sidebar must not have the phone slide-out class applied.
-  await expect(page.locator('.sidebar').first()).not.toHaveClass(/is-mobile-open/);
+  // iPad portrait (≤1024px, touch) now gets the SAME decluttered mobile shell
+  // as a phone — a bottom nav + a slide-out drawer sidebar — instead of the
+  // pinned desktop layout. Mirrors `mobileShell` in App.jsx / LocalBoardsApp and
+  // the shell media query in styles.css.
+  await expect(page.locator('.mb-nav')).toBeVisible();
+  const sidebar = page.locator('.sidebar').first();
+  // Sidebar starts as a closed drawer (present, not slid in)...
+  await expect(sidebar).not.toHaveClass(/is-mobile-open/);
+  // ...and the hamburger opens it.
+  await page.getByLabel('Open menu').first().tap();
+  await expect(sidebar).toHaveClass(/is-mobile-open/);
 });

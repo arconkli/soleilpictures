@@ -162,6 +162,26 @@ function maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId }) {
   void _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, workspaceId, userId });
 }
 
+// Deliberately (re)generate a board's stored thumbnail RIGHT NOW, bypassing the
+// session hash-dedup that maybeGenerateThumbnail applies. Used when the user
+// creates/copies a public share link so the pasted link unfurls with a FRESH
+// preview instead of the generic logo (the lazy on-edit/on-open paths can leave
+// a stale or missing thumb). Non-blocking, never throws; skips empty boards.
+// In-flight guard in _renderUploadStampThumb prevents a concurrent double render.
+export function forceBoardThumbnail(boardId, ydoc, { workspaceId, userId } = {}) {
+  if (!workspaceId || !boardId || !ydoc || ydoc.isDestroyed) return;
+  let cards, arrows, strokes;
+  try {
+    cards = readCards(ydoc);
+    arrows = ydoc.getArray('arrows').toArray().map(a => (a && a.toJSON) ? a.toJSON() : a);
+    strokes = ydoc.getArray('strokes').toArray().map(s => (s && s.toJSON) ? s.toJSON() : s);
+  } catch (_) { return; }
+  if (cards.length === 0 && strokes.length === 0) return;   // nothing to render
+  const hash = quickVisualHash(cards, strokes, arrows);
+  _lastThumbAttempt.set(boardId, Date.now());
+  void _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, workspaceId, userId });
+}
+
 function genSessionId() {
   try {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();

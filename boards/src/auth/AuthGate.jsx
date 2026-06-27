@@ -22,6 +22,7 @@ import { logEvent, logEventOnce, getFirstSource } from '../lib/analytics.js';
 import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { peekPendingInviteEmail, claimPendingInvite } from '../lib/inviteApi.js';
+import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
@@ -100,6 +101,21 @@ function captureInviteToken() {
   return token;
 }
 
+// Capture ?remix=<t_token|s_slug> on landing (from the /share or /c "Make a
+// copy" CTA) and stash the source so the authenticated app can clone it into a
+// fresh board after sign-in. Strips the param. Runs whether or not the user is
+// already signed in — a signed-in viewer is handled by the same app-side consume.
+function captureRemixSource() {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  const raw = url.searchParams.get('remix');
+  if (!raw) return;
+  const src = parseRemixParam(raw);
+  if (src) stashRemix(src);
+  url.searchParams.delete('remix');
+  window.history.replaceState({}, document.title, url.pathname + url.search);
+}
+
 // Claim the pending invite associated with the stored token and wire
 // the returned workspace_id/board_id into the deep-link localStorage
 // slots so the app lands on the right board after sign-in. Idempotent —
@@ -167,9 +183,10 @@ export function AuthGate({ children }) {
   useEffect(() => {
     if (localMode || devWithoutSupabase) return;
     if (!supabase) return;
-    // Capture ?invite=<token> on every mount BEFORE any auth roundtrip,
-    // so a click from the invite email survives the OTP redirect dance.
+    // Capture ?invite=<token> and ?remix=<source> on every mount BEFORE any
+    // auth roundtrip, so they survive the OTP redirect dance.
     captureInviteToken();
+    captureRemixSource();
     let cancelled = false;
     (async () => {
       try {
@@ -517,6 +534,8 @@ function SignIn() {
           </form>
         )}
       </div>
+
+      <p className="sb-trust">Made by a film studio, for film professionals.</p>
     </SignInBackdrop>
   );
 }

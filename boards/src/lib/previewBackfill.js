@@ -18,6 +18,7 @@ import { getMeta } from './imageMeta.js';
 import { getSignedUrl } from './r2.js';
 import { runGated } from './backfillGate.js';
 import { importWithReload } from './lazyWithReload.js';
+import { listPendingVariants, dequeueVariant, recordVariantFailure } from './variantQueue.js';
 
 // One attempt per image key per session (success OR definitive failure),
 // SHARED with R2Image's on-view backfill — a duplicate generation would
@@ -29,7 +30,8 @@ export const backfillAttempted = new Set();
 // broken images than the cap heals over successive sessions. Kept small and
 // late because the sweep's multi-MB original downloads compete with the
 // interactive image fetches the user actually sees.
-const MAX_PER_SWEEP = 10;
+const MAX_PER_SWEEP = 40;     // heal a board faster per open — variant gen is cheap + gated
+const MAX_DRAIN = 25;         // durable-queue items to resume per session (see drainVariantQueue)
 const START_DELAY_MS = 10000;
 const MAX_BYTES = 25 * 1024 * 1024;
 // Raster only: svg/audio/video rows also live in the images table (it doubles
@@ -44,9 +46,11 @@ const RASTER_RE = /\.(png|jpe?g|webp)$/i;
 // of spraying one CORS error per image per board open. Page reload retries.
 let _fetchBlocked = false;
 
+// Returns true when the image now has variants, false on a retryable failure —
+// drainVariantQueue uses this to dequeue vs. count a retry.
 async function backfillOne(key, boardId) {
   const url = await getSignedUrl(key);
-  if (!url) return;
+  if (!url) return false;
   // priority:'low' keeps the multi-MB original download behind the user's
   // visible image fetches (Chromium honors it; other engines ignore unknown
   // RequestInit members, so it degrades to a normal fetch).
@@ -62,17 +66,17 @@ async function backfillOne(key, boardId) {
     res = await fetch(url, { priority: 'low', cache: 'no-store' });
   } catch (_) {
     _fetchBlocked = true;
-    return;
+    return false;
   }
-  if (!res.ok) return;
+  if (!res.ok) return false;
   const len = parseInt(res.headers.get('content-length') || '0', 10);
-  if (len > MAX_BYTES) { try { res.body?.cancel(); } catch (_) {} return; }
+  if (len > MAX_BYTES) { try { res.body?.cancel(); } catch (_) {} return false; }
   const blob = await res.blob();
-  if (blob.size > MAX_BYTES) return;
+  if (blob.size > MAX_BYTES) return false;
   // Same dynamic import as R2Image's backfill: keeps the canvas-encode path
   // out of the main bundle until a writer actually backfills something.
   const m = await importWithReload(() => import('./uploads.js'));
-  await m.generateAndUploadVariants({
+  return await m.generateAndUploadVariants({
     workspaceId: key.split('/')[0],
     boardId,
     storagePath: key,
@@ -117,4 +121,28 @@ export function requestImageBackfill(key, boardId) {
   backfillAttempted.add(key);
   runGated(() => backfillOne(key, boardId));
   return true;
+}
+
+// Drain the durable variant queue (variantQueue.js) ONCE per session. Images
+// whose upload-time generation never finished (the uploader closed the tab
+// mid-batch — the original ~80% gap on high-volume drops) get their variants on
+// the next board open, regardless of WHICH board is open now. Reuses backfillOne
+// (fetch original → generate) + the shared gate; dequeues on success, counts a
+// retry otherwise (variantQueue caps attempts so a bad image can't wedge it).
+let _drained = false;
+export async function drainVariantQueue() {
+  if (_drained || _fetchBlocked) return;
+  _drained = true;
+  let items;
+  try { items = await listPendingVariants(MAX_DRAIN); } catch (_) { return; }
+  for (const it of items) {
+    const key = it?.key;
+    if (!key || backfillAttempted.has(key) || !RASTER_RE.test(key)) continue;
+    backfillAttempted.add(key);   // shared with on-view backfill so the two can't double-run a key
+    runGated(async () => {
+      const ok = await backfillOne(key, it.boardId);
+      if (ok) await dequeueVariant(key);
+      else await recordVariantFailure(key);
+    });
+  }
 }

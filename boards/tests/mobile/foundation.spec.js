@@ -51,14 +51,14 @@ test('safe-area CSS variables resolve', async ({ page }) => {
   expect(values.bpPhoneMax).toBe('640px');
 });
 
-test('body font-size bumps to 15px at phone width', async ({ page }, testInfo) => {
+test('body font-size bumps to 15px on phone + touch-tablet widths', async ({ page }) => {
   await page.goto('/?local=1');
-  const { width } = page.viewportSize();
   const fontSize = await page.evaluate(() => getComputedStyle(document.body).fontSize);
-  if (width <= 640) {
-    expect(fontSize).toBe('15px');
-  } else {
-    // Tablet/desktop keep the original 13px.
-    expect(fontSize).toBe('13px');
-  }
+  // Phone OR a touch tablet ≤1024px (iPad portrait) gets the larger, more
+  // readable base size — driven by the same mobile-shell media query as the
+  // rest of the shell (styles.css). Plain desktop keeps the denser 13px.
+  const mobileShell = await page.evaluate(() => matchMedia(
+    '(max-width: 640px), (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse)'
+  ).matches);
+  expect(fontSize).toBe(mobileShell ? '15px' : '13px');
 });

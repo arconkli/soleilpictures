@@ -17,6 +17,7 @@ import {
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { logClientError } from '../lib/errorReporting.js';
+import { REFERRAL_PITCH, referralMessage, buildShareTargets } from '../lib/shareTargets.js';
 import { supabase } from '../lib/supabase.js';
 import { uploadImage } from '../lib/uploads.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -757,12 +758,14 @@ function InviteTab({ user }) {
   // (clusters.soleilpictures.com in prod). ?ref flows into signup metadata.
   const link = code ? `${window.location.origin}/?ref=${code}` : '';
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
+  const shareTargets = buildShareTargets(link);
 
+  // Copy the PITCH + link (not a bare URL) so the value prop rides every paste.
   const copy = async () => {
     if (!link) return;
     try {
-      await navigator.clipboard.writeText(link);
-      feedback.toast({ type: 'success', message: 'Invite link copied — share it anywhere.' });
+      await navigator.clipboard.writeText(referralMessage(link));
+      feedback.toast({ type: 'success', message: 'Invite message copied — paste it anywhere.' });
     } catch (_) {
       feedback.toast({ type: 'info', message: link });
     }
@@ -771,14 +774,16 @@ function InviteTab({ user }) {
 
   const share = async () => {
     if (!link) return;
-    try { logEventNow(EV.REFERRAL_LINK_SHARED, { surface: 'account_tab' }); } catch (_) {}
+    try { logEventNow(EV.REFERRAL_LINK_SHARED, { surface: 'account_tab', channel: 'native' }); } catch (_) {}
     try {
-      await navigator.share({
-        title: 'Clusters',
-        text: 'I’m using Clusters to organize ideas on an infinite canvas — here are 25 free cards to start.',
-        url: link,
-      });
+      await navigator.share({ title: 'Clusters', text: REFERRAL_PITCH, url: link });
     } catch (_) { /* user cancelled the share sheet, or it’s unsupported */ }
+  };
+
+  // Desktop has no native share sheet — log the per-channel deep-link click so
+  // we can see which channels actually drive invites.
+  const onShareTarget = (channel) => {
+    try { logEventNow(EV.REFERRAL_LINK_SHARED, { surface: 'account_tab', channel }); } catch (_) {}
   };
 
   if (loading) {
@@ -791,6 +796,7 @@ function InviteTab({ user }) {
       <p className="settings-section-hint">
         Share Clusters and you <b>both</b> get free cards. Your friend starts with
         {' '}<b>25 bonus cards</b>; the moment they place their first card, <b>you earn 25 too</b>.
+        {' '}And when a friend <b>upgrades to a paid plan, you get a free month</b>.
         {' '}No limit — keep inviting, keep earning.
       </p>
 
@@ -811,21 +817,51 @@ function InviteTab({ user }) {
                 color: 'var(--text-1, inherit)', fontSize: 13,
               }}
             />
-            <button type="button" className="settings-btn settings-btn-primary" onClick={copy}>Copy link</button>
+            <button type="button" className="settings-btn settings-btn-primary" onClick={copy}>Copy message</button>
             {canNativeShare && (
               <button type="button" className="settings-btn" onClick={share}>Share…</button>
             )}
           </div>
 
+          {/* Per-channel deep-links — pre-filled with the pitch. The mobile-only
+              native sheet used to be the ONLY thing that carried the message;
+              these give desktop the same one-tap share. */}
+          {shareTargets.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {shareTargets.map((t) => (
+                <a
+                  key={t.key}
+                  className="settings-btn"
+                  href={t.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => onShareTarget(t.key)}
+                  style={{ textDecoration: 'none' }}
+                >
+                  {t.label}
+                </a>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 22, marginTop: 18, flexWrap: 'wrap' }}>
             <ReferralStat label="Friends joined" value={stats?.friendsJoined ?? 0} />
             <ReferralStat label="Got started"    value={stats?.friendsActivated ?? 0} />
             <ReferralStat label="Cards earned"   value={stats?.cardsEarned ?? 0} highlight />
+            {(stats?.monthsEarned ?? 0) > 0 && (
+              <ReferralStat label="Free months" value={stats.monthsEarned} highlight />
+            )}
           </div>
           {stats?.pending > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 12 }}>
               {stats.pending} {stats.pending === 1 ? 'friend has' : 'friends have'} joined but
               {' '}haven’t placed their first card yet — you’ll earn 25 cards each when they do.
+            </p>
+          )}
+          {(stats?.friendsPaid ?? 0) > 0 && (
+            <p className="settings-section-hint" style={{ marginTop: 8 }}>
+              🎉 {stats.friendsPaid} {stats.friendsPaid === 1 ? 'friend' : 'friends'} you invited
+              {' '}upgraded to a paid plan — that’s {stats.monthsEarned} free {stats.monthsEarned === 1 ? 'month' : 'months'} for you.
             </p>
           )}
         </>

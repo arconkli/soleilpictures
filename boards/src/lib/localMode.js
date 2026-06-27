@@ -72,6 +72,16 @@ export function isAlignQaMode() {
   return new URLSearchParams(window.location.search).get('alignqa') === '1';
 }
 
+// Dev-only photo-adjustment QA bridge. Active ONLY in a DEV build with
+// ?imgeditqa=1 (same trust boundary as isDndQaMode). Publishes the PURE
+// imageAdjust helpers (buildFilterCss / buildTransform / isAdjusted / …) on
+// window.__soleilImgEditTest so Playwright can verify the filter-string math
+// directly — no backend, no UI. See main.jsx's branch.
+export function isImageEditQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('imgeditqa') === '1';
+}
+
 // Dev-only presence/collaboration QA harness. Active ONLY in a DEV build with
 // ?presenceqa=1 (same trust boundary as isAlignQaMode). Mounts the real
 // <CanvasPresence> against a fake awareness (lib/presenceQa.js) so Playwright

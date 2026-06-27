@@ -20,6 +20,7 @@ import * as screenplayFlow from '../components/docExtensions/screenplay/screenpl
 import * as screenplayIO from '../lib/screenplayIO.js';
 import * as screenplayPaginate from '../lib/screenplayPaginate.js';
 import * as screenplayPrint from '../lib/screenplayPrint.js';
+import * as screenplayPdf from '../lib/screenplayPdf.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { RichDocCard } from '../components/DocCard.jsx';
 
@@ -60,7 +61,7 @@ export function DocQaHarness() {
       ...docState,
       ...(window.__soleilDocTest || {}), // preserve `editor` set by DocSurface
       docExport,
-      screenplay: { ...screenplayFlow, ...screenplayIO, ...screenplayPaginate, ...screenplayPrint },
+      screenplay: { ...screenplayFlow, ...screenplayIO, ...screenplayPaginate, ...screenplayPrint, ...screenplayPdf },
       encodeAnchor,
       resolveAnchor,
       Y,

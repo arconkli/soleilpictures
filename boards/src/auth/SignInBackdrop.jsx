@@ -48,7 +48,7 @@ const CARDS = [
   { kind:'note', mSlot:'bottom', head:'AUTO-TAG', text:'Drop any image, link, or file — Clusters reads it, auto-tags it, and files it to the right board.', dot:'#f59e0b', x:375,y:235,r:4,w:224,h:142, in:0.28,out:0.52 },
   // scene C → BOTTOM-LEFT: MoodBoard → DOCS note
   { kind:'board', name:'MoodBoard', count:36, mini:[ {t:'img',src:'/signin-losttime-still1.webp',l:5,tp:8,w:46,h:50,r:-4}, {t:'img',src:'/signin-losttime-still2.webp',l:50,tp:30,w:46,h:52,r:4}, {t:'pal',cols:['#222a4e','#f8ebce','#ff7720'],l:8,tp:60,w:38,h:20,r:2} ], x:-455,y:25,r:-3,w:196,h:142, in:0.42,out:0.66 },
-  { kind:'note', mSlot:'top', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with slash commands and @mentions.', dot:'#f59e0b', x:-360,y:215,r:3,w:214,h:134, in:0.48,out:0.70 },
+  { kind:'note', mSlot:'top', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with @mentions and screenplay mode.', dot:'#f59e0b', x:-360,y:215,r:3,w:214,h:134, in:0.48,out:0.70 },
   // idx8 — filler: Yahweh score (balances scene C, bottom-centre)
   { kind:'audio', cover:'/signin-yahweh.webp', title:'Yahweh — main theme', artist:'Soleil Pictures · score', dur:'3:48', x:120,y:265,r:-3,w:250,h:110, in:0.52,out:0.72 },
   // scene D → TOP-RIGHT: dailies reel → SHARE OR LOCK note
@@ -165,6 +165,7 @@ export function SignInBackdrop({ children, exploreHref }) {
   const hintRef    = useRef(null);
   const boxRef     = useRef(null);
   const exploreRef = useRef(null);
+  const footRef    = useRef(null);
 
   useEffect(() => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -189,7 +190,10 @@ export function SignInBackdrop({ children, exploreHref }) {
       el.className = 'sb-card sb-' + c.kind + (c.logo ? ' sb-logo sb-logo-' + c.logo : '');
       if (c.kind !== 'tag') { el.style.width = c.w + 'px'; el.style.height = c.h + 'px'; }
       el.innerHTML = cardInner(c);
-      el.style.zIndex = (c.kind === 'tag') ? 4 : (i % 3) + 1;
+      // On touch, notes are force-stacked above/below the box and share the top/
+      // bottom strips with the finale's tags + media — lift notes above every
+      // other card so they're the readable foreground, never covered by a card.
+      el.style.zIndex = (coarse && c.kind === 'note') ? 8 : (c.kind === 'tag') ? 4 : (i % 3) + 1;
       cardsEl.appendChild(el);
       c.phase = i * 1.3;
       return el;
@@ -352,6 +356,22 @@ export function SignInBackdrop({ children, exploreHref }) {
       const cxv = cx(), cyv = cy();
       const br = boxRef.current ? boxRef.current.getBoundingClientRect() : null;
 
+      // Mobile note safe-band: notes must stay clear of the faux topbar (top), the
+      // footer + the always-on "explore" pill (bottom), and the on-screen keyboard.
+      // Reserve the topbar height ALWAYS (its opacity ramps 0.74→0.90) so notes don't
+      // lurch down as it fades in.
+      let noteBandTop = 0, noteBandBot = 0, noteExploreBot = 0;
+      if (coarse && br) {
+        const chromeH = chrome ? chrome.getBoundingClientRect().height : 48;   // 48 + safe-top
+        noteBandTop = chromeH + 10;
+        const footEl = footRef.current;
+        const footTop = footEl ? footEl.getBoundingClientRect().top : ch() - 40;
+        const vvh = vv ? vv.height : ch();                                     // keep above keyboard
+        noteBandBot = Math.min(footTop, vvh) - 10;
+        const exEl = exploreRef.current;                                       // always-on pill on touch
+        noteExploreBot = exEl ? exEl.getBoundingClientRect().bottom : (br.bottom + 44);
+      }
+
       // atmosphere: the Clusters canvas grid is faintly there from the FIRST frame
       // (reads as the app immediately) and eases up to full as you scroll in.
       grid.style.opacity = clamp(0.30 + p / 0.28, 0, 1);
@@ -377,17 +397,28 @@ export function SignInBackdrop({ children, exploreHref }) {
         const s = S[i];
         const e = ramp(p, c.in, ENTER_RAMP);                        // entering 0→1
         const o = (c.out != null) ? ramp(p, c.out, EXIT_RAMP) : 0;  // exiting 0→1
-        const v = e * (1 - o);
+        let v = e * (1 - o);
         const wob = reduce ? 0 : Math.sin(t * 0.6 + c.phase) * 5 * v;
         let ox, oy, rot = c.r;
+        let sc = 0.7 + 0.3 * e - 0.16 * o + (s._grab ? 0.05 : 0);
         if (coarse && c.kind === 'note' && br) {
-          // mobile: notes are the pitch — center them and stack above/below the
-          // box so they're FULLY on-screen and readable (images may bleed off,
-          // notes never do). At most two notes overlap in time → top + bottom.
-          const half = c.h / 2 + 6, gap = 14;
-          const ty = c.mSlot === 'top' ? (br.top - cyv - gap - half) : (br.bottom - cyv + gap + half);
+          // mobile: notes are the pitch — stack them tight to the box but ALWAYS
+          // inside the safe band (below the topbar, above the footer, clear of the
+          // explore pill). If a note can't fit its slot, shrink it; if there's truly
+          // no room, hide it rather than paint a covered/clipped sliver.
+          const gap = 20, chipGap = 10, MIN = 0.5;
+          const top = c.mSlot === 'top';
+          const nearY = top ? (br.top - gap) : (noteExploreBot + chipGap);   // edge that hugs the box/pill
+          const slot  = top ? (nearY - noteBandTop) : (noteBandBot - nearY);
+          const fitMax = slot / c.h;                  // largest scale that fits the slot
+          if (fitMax < MIN) v = 0;                    // no room (e.g. landscape) → hide, never cover
+          sc = Math.min(sc, Math.max(fitMax, MIN));   // cap scale to the slot; never below the readable floor
+          const hh = (c.h * sc) / 2;                  // SCALED half-height
+          let cY = top ? (nearY - hh) : (nearY + hh); // hug the near edge, grow into the band
+          cY += 16 * (1 - e) - 16 * o + (s.dragY || 0); // entry/exit drift + cursor nudge
+          cY = Math.max(noteBandTop + hh, Math.min(noteBandBot - hh, cY));  // hard safety clamp
           ox = (s.dragX || 0);
-          oy = ty + 16 * (1 - e) - 16 * o + (s.dragY || 0);
+          oy = cY - cyv;
           rot = 0;
         } else {
           // Cards mostly scale + fade in place — only a small drift, so the eye
@@ -398,7 +429,6 @@ export function SignInBackdrop({ children, exploreHref }) {
           ox = c.x * sx + inDX * (1 - e) * sx + outDX * o * sx + (s.dragX || 0);
           oy = c.y * sy + inDY * (1 - e) + outDY * o + wob + (s.dragY || 0);
         }
-        const sc = 0.7 + 0.3 * e - 0.16 * o + (s._grab ? 0.05 : 0);
         const el = cardEls[i];
         el.style.opacity = v;
         el.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px)) rotate(${rot}deg) scale(${sc})`;
@@ -546,7 +576,7 @@ export function SignInBackdrop({ children, exploreHref }) {
               <span className="sb-chev" />
             </div>
 
-            <div className="sb-foot">
+            <div className="sb-foot" ref={footRef}>
               <div className="sb-foot-left">
                 <span className="sb-foot-copy">© Soleil Pictures</span>
                 <a className="sb-foot-link" href="/legal/privacy" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'privacy' })}>Privacy</a>

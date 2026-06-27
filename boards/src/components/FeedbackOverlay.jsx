@@ -164,6 +164,16 @@ function PromptField({ dialog, value, setValue }) {
         placeholder={dialog.placeholder}
         onChange={(event) => setValue(event.target.value)}
       />
+      {Array.isArray(dialog.suggestions) && dialog.suggestions.length > 0 && (
+        <div className="feedback-suggestions">
+          {dialog.suggestions.map((s) => (
+            <button key={s} type="button" className="feedback-suggestion"
+                    onClick={() => setValue(s)}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
     </label>
   );
 }

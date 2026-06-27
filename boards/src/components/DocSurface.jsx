@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { addBookmark, addPage, addPageSheet, detachPageSheet, reattachPageSheet, purgeSheetContent, renamePage, getDocMode, setDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap } from '../lib/docState.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
+import { uploadImage } from '../lib/uploads.js';
 import { isDocQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -593,6 +594,38 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, sheetId, anchor, relAnchor, scope });
   };
 
+  // Toolbar "+" insert menu — upload an image from disk into the active editor.
+  const pickImageFromDisk = (editor) => {
+    if (!editor) return;
+    if (!workspaceId || !userId) { feedback.toast({ type: 'error', message: 'Sign in to add images.' }); return; }
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file || !file.type?.startsWith('image/')) return;
+      try {
+        const payload = await uploadImage({ file, workspaceId, userId });
+        editor.chain().focus().setImage({ src: payload.publicUrl }).run();
+      } catch (e) {
+        console.error('image upload failed', e);
+        feedback.toast({ type: 'error', message: `Image upload failed: ${e?.message || e}` });
+      }
+    };
+    input.click();
+  };
+
+  // Toolbar "+" insert menu — insert a board/card embed via the existing picker.
+  const pickBoardEmbed = (editor) => {
+    if (!editor) return;
+    requestBoardEmbed((picked) => {
+      if (!picked) return;
+      editor.chain().focus().insertContent({
+        type: 'boardEmbed',
+        attrs: { boardId: picked.boardId, cardId: picked.cardId || null, label: picked.label || null },
+      }).run();
+    });
+  };
+
   if (!ready) {
     return (
       <div className="doc-surface">
@@ -663,6 +696,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     ydoc={ydoc}
                     scope={scope}
                     docMode={docMode}
+                    authorName={currentUser?.name || ''}
                     onToggleScreenplay={toggleScreenplay}
                     titlePageEnabled={titlePage.enabled}
                     onToggleTitlePage={toggleTitlePage}
@@ -671,6 +705,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     pageless={pageless}
                     onTogglePageless={onTogglePageless}
                     onInsertBookmark={insertBookmarkAtCaret}
+                    onInsertImage={pickImageFromDisk}
+                    onInsertBoardEmbed={pickBoardEmbed}
                     onOpenFind={() => setFindOpen(true)}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
                     onAddComment={() => openAddCommentRef.current?.()}
@@ -721,7 +757,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 onEditorReady={onEditorReady}
                 onEditorDestroy={onEditorDestroy}
                 onEditorFocus={onEditorFocus}
-                onRequestBoardEmbed={requestBoardEmbed}
                 onRequestLink={requestLink}
                 awareness={awareness}
                 onNavigateTarget={handleNavigateTarget}

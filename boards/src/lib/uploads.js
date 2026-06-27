@@ -17,6 +17,8 @@ import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
 import * as perf from './perf.js';
 import { planParts } from './multipartPlan.js';
+import { runGated } from './backfillGate.js';
+import { enqueueVariant, dequeueVariant } from './variantQueue.js';
 
 const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST || 'localhost:1999';
 const PARTYKIT_PROTOCOL = PARTYKIT_HOST.startsWith('localhost') ? 'http' : 'https';
@@ -271,6 +273,30 @@ function drawableToWebpNative({ drawable, w, h }, quality) {
   });
 }
 
+// Decode `file` ONCE at bounded resolution for an optimistic on-canvas preview,
+// returning its natural dimensions + a small preview Blob and releasing the
+// full-resolution decode immediately. Replaces painting the raw multi-MB
+// original as an <img>: iOS Safari had to fully decode AND keep that original
+// resident for every pending card, so a multi-file drop of 12MP/HEIC photos blew
+// past the per-tab memory ceiling and froze the canvas. Returns null on decode
+// failure (caller falls back to a plain object URL of the original).
+export async function makeBoundedPreview(file, maxEdge = PREVIEW_LONGEST_EDGE) {
+  const d = await getDrawable(file);
+  if (!d) return null;
+  try {
+    let blob = null;
+    try {
+      const down = await downscaleDrawableToWebp(d, maxEdge, PREVIEW_QUALITY);
+      if (down?.blob) blob = down.blob;
+    } catch (_) { /* fall through — use the original below */ }
+    // downscale returns null when the source is already ≤maxEdge; the original
+    // is then already small enough to paint directly.
+    return { width: d.w, height: d.h, blob: blob || file };
+  } finally {
+    d.release?.();  // free the full-res ImageBitmap NOW, not at GC's leisure
+  }
+}
+
 // Compute a base64 ThumbHash from a drawable (downscaled to <=100px/side).
 function computeThumbHashBase64({ drawable, w, h }) {
   const maxSide = Math.max(w, h);
@@ -294,11 +320,11 @@ function computeThumbHashBase64({ drawable, w, h }) {
 // (backfill — must be CORS-clean so the canvas isn't tainted). Best-effort:
 // any failure (CORS taint, viewer 403, small image) just leaves the row as-is.
 export async function generateAndUploadVariants({ workspaceId, boardId, storagePath, imageSource }) {
-  if (!workspaceId || !storagePath || !imageSource) return;
+  if (!workspaceId || !storagePath || !imageSource) return false;
   const _t0 = perf.isEnabled() ? performance.now() : 0;
   perf.bump('image.backfill.run');
   const d = await getDrawable(imageSource);
-  if (!d) return;
+  if (!d) return false;   // undecodable — the variantQueue drain counts a retry
   try {
     let blur = null;
     try { blur = computeThumbHashBase64(d); }
@@ -357,8 +383,9 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
       } catch (_) { previewSmKey = null; previewSmW = null; previewSmH = null; }
     }
 
-    // Nothing to record? (small image with no blur computed.) Skip the RPC.
-    if (!blur && !previewKey) return;
+    // Nothing to record? (small image with no blur computed.) Skip the RPC —
+    // there's genuinely nothing to generate, so the queue can drop it as done.
+    if (!blur && !previewKey) return true;
 
     const { error } = await supabase.rpc('set_image_variant', {
       p_storage_path: storagePath,
@@ -370,7 +397,7 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
       p_preview_sm_w: previewSmW,
       p_preview_sm_h: previewSmH,
     });
-    if (error) return;  // viewer 403 / RLS — stay quiet
+    if (error) return false;  // viewer 403 / RLS — stay quiet, retry later
 
     setMetaLocal(storagePath, { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH });
     // Warm the new preview's signed URL now (batched presign, zero image
@@ -380,6 +407,7 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
     // through this function (board sweep, R2Image on-view backfill, upload).
     if (previewKey) { getSignedUrl(previewKey); if (previewSmKey) getSignedUrl(previewSmKey); }
     if (_t0) perf.mark('image.backfill.ms', performance.now() - _t0);
+    return true;
   } finally {
     d.release?.();
   }
@@ -438,8 +466,21 @@ export async function uploadImage({ file, workspaceId, boardId, cardId = null, u
 
   // Generate Tier-0 blur + Tier-1 preview in the background so the card appears
   // immediately. Needs the images row to exist (set_image_variant looks it up).
-  generateAndUploadVariants({ workspaceId, boardId: boardId || null, storagePath: key, imageSource: file })
-    .catch(() => {});
+  // Routed through the shared backfillGate so a multi-image drop can't fire N
+  // full-res decodes + WebP encodes at once — the burst that froze iOS Safari.
+  // runGated is fire-and-forget + swallows errors, matching the prior .catch().
+  // Record the pending variant durably (IndexedDB) BEFORE the fire-and-forget
+  // generation, so a big batch drop that's interrupted (tab close / navigation)
+  // still completes on the next board open via drainVariantQueue — the original
+  // failure mode that left ~80% of high-volume uploads without previews. The
+  // in-memory gen below dequeues it the moment it lands in-session.
+  enqueueVariant({ key, workspaceId, boardId: boardId || null });
+  runGated(async () => {
+    const ok = await generateAndUploadVariants({
+      workspaceId, boardId: boardId || null, storagePath: key, imageSource: file,
+    });
+    if (ok) dequeueVariant(key);
+  });
 
   return {
     id: row?.id || null,

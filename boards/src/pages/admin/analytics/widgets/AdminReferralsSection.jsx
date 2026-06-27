@@ -7,8 +7,10 @@
 //
 // `data` shape (from admin_referral_stats):
 //   { total, pending, activated, activation_rate, cards_granted,
+//     referring_users, paid_conversions, months_granted, k_factor,
+//     median_days_to_activate,
 //     by_source: { link:{total,activated}, collab:{total,activated} },
-//     top_referrers: [{ user_id, email, friends_joined, friends_activated, cards_earned }] }
+//     top_referrers: [{ user_id, email, friends_joined, friends_activated, friends_paid, cards_earned }] }
 
 import { CopyableText } from '../../../../components/CopyableText.jsx';
 import { formatCount } from '../../../../lib/adminFormat.js';
@@ -64,6 +66,21 @@ export function AdminReferralsSection({ data, days = 30 }) {
             label="Cards granted"
             value={formatCount(d.cards_granted)}
             sub="to referrers" />
+          <AdminStatCard
+            label="Paid upgrades"
+            value={formatCount(d.paid_conversions || 0)}
+            sub="referred friends who paid"
+            title="Referred friends who became paying customers (each earns the referrer a free month)"
+            accent />
+          <AdminStatCard
+            label="Free months granted"
+            value={formatCount(d.months_granted || 0)}
+            sub="to referrers" />
+          <AdminStatCard
+            label="Viral coefficient"
+            value={d.k_factor != null ? d.k_factor : '—'}
+            sub={d.median_days_to_activate != null ? `${d.median_days_to_activate}d median to activate` : 'activations ÷ referrers'}
+            title="k-factor: activated referrals per referring user. >1 = self-sustaining growth." />
         </div>
       </section>
 
@@ -112,6 +129,7 @@ export function AdminReferralsSection({ data, days = 30 }) {
                 <th>Email</th>
                 <th className="num">Joined</th>
                 <th className="num">Activated</th>
+                <th className="num">Paid</th>
                 <th className="num">Cards earned</th>
               </tr>
             </thead>
@@ -124,6 +142,7 @@ export function AdminReferralsSection({ data, days = 30 }) {
                   </td>
                   <td className="num">{formatCount(r.friends_joined)}</td>
                   <td className="num">{formatCount(r.friends_activated)}</td>
+                  <td className="num">{formatCount(r.friends_paid || 0)}</td>
                   <td className="num admin-funnel-num">{formatCount(r.cards_earned)}</td>
                 </tr>
               ))}

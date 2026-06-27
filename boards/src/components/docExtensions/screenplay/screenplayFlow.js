@@ -10,7 +10,7 @@ export const ELEMENTS = [
 ];
 
 // Tab cycles through this canonical ring (Shift-Tab reverses). `centered` is a
-// rarely-used element reachable only via the toolbar/slash menu, so it's out of
+// rarely-used element reachable via the toolbar "+" insert menu, so it's out of
 // the Tab ring.
 const TAB_RING = ['scene', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot'];
 

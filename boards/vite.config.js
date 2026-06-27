@@ -21,6 +21,12 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
   },
+  // jspdf is reached only via a dynamic import() in screenplayPdf.js (so it
+  // stays a lazy chunk in prod). Pre-bundle it for dev so the first export
+  // doesn't trigger Vite's "new dependency optimized → full reload".
+  optimizeDeps: {
+    include: ['jspdf'],
+  },
   build: {
     // The app is large by nature (CRDT editor + graph + charts); the win is
     // splitting it off the signed-out landing, not shrinking it. Don't warn on

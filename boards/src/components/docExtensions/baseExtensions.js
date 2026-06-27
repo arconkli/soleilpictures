@@ -1,6 +1,6 @@
 // Shared schema-defining Tiptap extensions for the doc editor.
-// Runtime-only stuff (Collaboration, Placeholder, custom keymaps, slash
-// menu, etc.) is added by DocPageEditor on top of this list.
+// Runtime-only stuff (Collaboration, Placeholder, custom keymaps, mentions,
+// etc.) is added by DocPageEditor on top of this list.
 
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
