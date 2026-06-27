@@ -39,25 +39,26 @@ export const EXPERIMENTS = {
       { id: 'B', weight: 50 }, // variant — the brand showcase + "Clear & try it yourself" banner
     ],
   },
-  // instant_entry — the highest-leverage activation lever: drop a brand-new demo
-  // user STRAIGHT into their seeded board (arm B), or show the price-first AdWelcome
-  // offer gate first (arm A = current behavior)? ~100% of signups hit that gate and
-  // ~35% bounced there before ever seeing a board, with 0 paid conversions anyway.
-  // The decision is made in TierRouter BEFORE App mounts, so it MUST be synchronous +
-  // deterministic (assignArm, never drawArm) — the gate can't wait on a config round-
-  // trip without re-introducing the tier-gate stall. Therefore this experiment is
-  // INTENTIONALLY absent from the app_config 'experiments' bandit row: the nightly
-  // optimizer can't meaningfully tune a deterministic allocation, and
-  // admin_activation_by_experiment('instant_entry') reads the stamped arm from
-  // profiles.settings.experiments (not config), so the payment-weighted readout works
-  // with zero server changes and guards revenue (a false win that lifts first-card but
-  // tanks paid shows up there). Arm B's deferred Creator offer already exists
-  // (FirstValueUpgradeBanner on 'soleil:first-value' + the always-present UpgradeChip).
+  // instant_entry — ROLLED OUT to 100% arm B (2026-06-26). The experiment is over:
+  // arm B (drop a brand-new demo user STRAIGHT into their seeded board) decisively
+  // beat arm A (the price-first AdWelcome gate). The data: among users who cleared the
+  // gate, ~75% placed a genuine card; among the ~20-50% stranded at the gate, 0% did,
+  // and the gate produced ~0 self-serve paid conversions. The deferred Creator offer
+  // lives on (FirstValueUpgradeBanner on 'soleil:first-value' + the always-present
+  // UpgradeChip), so monetization is unaffected — just re-timed past first value.
+  //
+  // Weights are A:0 / B:100, so assignArm() returns 'B' for everyone — keeping the
+  // analytics arm-stamping (exp_instant_entry on every event) and
+  // admin_activation_by_experiment('instant_entry') consistent with the forced-B
+  // routing in TierRouter. The decision is still made in TierRouter BEFORE App mounts,
+  // synchronously + deterministically (assignArm, never drawArm). Left enabled (not
+  // deleted) so the stamped-arm readout and any in-flight cohort stay intact; flip a
+  // weight back only to re-introduce the gate.
   instant_entry: {
     enabled: true,
     arms: [
-      { id: 'A', weight: 50 }, // control — current pre-app AdWelcome offer gate
-      { id: 'B', weight: 50 }, // treatment — straight into the seeded board; offer deferred to first_value_upgrade_*
+      { id: 'A', weight: 0 },   // retired — the pre-app AdWelcome offer gate
+      { id: 'B', weight: 100 }, // shipped — straight into the seeded board; offer deferred to first_value_upgrade_*
     ],
   },
   // PAUSED — its empty-board surface is subsumed by the showcase, and we run one

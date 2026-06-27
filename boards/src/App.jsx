@@ -336,12 +336,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const sessionKey = `${SESSION_PREFIX}${user.id}.${workspace.id}`;
   const [initialSession] = useState(() => readSession(sessionKey));
 
-  // On cold start, always open at the root board (the "first layer"). Don't
-  // restore a deep nav stack — users find it disorienting to land 4 boards
-  // deep on reload, especially when the in-between context (which sub-board
-  // they were comparing) has decayed from memory. Session-storage still
-  // restores splitId / viewOverride / splitRatio below.
-  const [stack, setStack] = useState(() => [rootBoard.id]);
+  // On cold start, restore the user's last nav position so a returning user lands
+  // back in the board they were working in — coming back should be effortless, not
+  // a reset to the top. The breadcrumb stays intact so popping up is one click. The
+  // persisted blob (written on every change below) holds the full chain for a normal
+  // reload; a ?w=&b= deep link (consumeDeepLink in AuthGate) writes just [boardId],
+  // so we prepend the root to keep "back to root" working. Stale/deleted boards are
+  // pruned by the existence-filter effect below. Falls back to root when nothing is
+  // saved. (splitId / viewOverride / splitRatio are restored separately below.)
+  const [stack, setStack] = useState(() => {
+    const saved = initialSession?.stack;
+    if (!Array.isArray(saved) || saved.length === 0) return [rootBoard.id];
+    return saved[0] === rootBoard.id
+      ? saved
+      : [rootBoard.id, ...saved.filter((id) => id !== rootBoard.id)];
+  });
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
   const [pickerOpen, setPickerOpen] = useState(false);
   // Global search + ⌘K command palette (distinct from the boards-only

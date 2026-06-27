@@ -45,16 +45,16 @@ export function TierRouter({ children }) {
   const [hasEntry, setHasEntry] = useState(null);
   const path = window.location.pathname;
 
-  // ── instant_entry experiment (deterministic; decided HERE, before App mounts) ──
-  // Arm B drops a brand-new demo user STRAIGHT into their seeded board instead of the
-  // price-first AdWelcome gate (~100% of signups hit that gate, ~35% bounced there, 0
-  // paid anyway). The Creator offer is deferred to the in-app first-value nudge + the
-  // always-present UpgradeChip. assignArm is a pure synchronous hash of user.id (no
-  // server round-trip), so arm A's gate still renders instantly. Null (experiment off
-  // / no user) falls back to control. See experiments.js for why this is deterministic
-  // and intentionally outside the bandit config.
+  // ── instant_entry: SHIPPED at 100% arm B (decided HERE, before App mounts) ──
+  // Every brand-new demo user drops STRAIGHT into their seeded board; the price-first
+  // AdWelcome gate is fully off-path. It used to strand ~20-50% of signups (0% of whom
+  // ever placed a card) for ~0 paid conversions. The Creator offer lives on, re-timed
+  // to the in-app first-value nudge (FirstValueUpgradeBanner) + the always-present
+  // UpgradeChip. assignArm returns 'B' for everyone (A:0/B:100 in experiments.js),
+  // keeping the analytics arm-stamp consistent; the `|| 'B'` belt-and-suspenders keeps
+  // AdWelcome skipped even if the experiment were ever disabled.
   const atOfferGate = !loading && !!user?.id && tier === 'demo' && adOfferPending;
-  const entryArm = atOfferGate ? assignArm('instant_entry', user.id) : null;
+  const entryArm = atOfferGate ? (assignArm('instant_entry', user.id) || 'B') : null;
   const instantEntryRef = useRef(false);
 
   // ── Post-signup journey: open + tier-gate instrumentation ──────────────────
@@ -114,6 +114,10 @@ export function TierRouter({ children }) {
   // non-ad users), and mark the skip. All best-effort; nothing blocks entering the app.
   useEffect(() => {
     if (!atOfferGate || !entryArm || instantEntryRef.current) return;
+    // No-Supabase dev build: supabase.auth.getSession() below would throw
+    // synchronously (not caught by the trailing .catch). Bail — there's nothing
+    // to dismiss server-side and the seeded app renders regardless.
+    if (!supabase) return;
     instantEntryRef.current = true;
     // PostgREST builder is a thenable with NO .catch → use the two-arg .then.
     supabase.rpc('set_experiment_arm', { p_key: 'instant_entry', p_arm: entryArm }).then(undefined, () => {});
@@ -170,13 +174,10 @@ export function TierRouter({ children }) {
     return hasEntry ? <WaitlistConfirm /> : <WelcomePage />;
   }
 
-  // Demo users with the one-time offer flag see the price-first AdWelcome once before
-  // entering the app — UNLESS the instant_entry experiment put them in arm B, which
-  // skips the gate entirely (the effect above clears the flag + defers the offer) and
-  // falls through to the seeded app below. AdWelcome clears the flag (dismiss_ad_offer);
-  // the refetch there then drops them in. Buying flips tier→paid, also out of this
-  // branch. (With the waitlist off, the signup trigger sets this flag for every demo
-  // signup; with it on, only fbclid ad traffic carries it.)
+  // AdWelcome is now OFF-PATH: instant_entry shipped at 100% arm B, so entryArm is
+  // always 'B' at the gate and this branch never renders (the effect above clears the
+  // flag + defers the offer, then we fall through to the seeded app below). Kept only
+  // as a dead safety net until AdWelcome.jsx is removed in the fast-follow cleanup.
   if (tier === 'demo' && adOfferPending && entryArm !== 'B') {
     return <AdWelcome onEnter={async () => {
       await refetch();
