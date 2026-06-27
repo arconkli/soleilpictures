@@ -7822,7 +7822,7 @@ export function CanvasSurface({
         <div className="cnv-add-wrap">
           <div
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}
-            title="Add"
+            data-tip="Add"
             role="button"
             tabIndex={0}
             aria-label="Add menu"
@@ -7865,7 +7865,7 @@ export function CanvasSurface({
         {tools.map(t => (
           <div key={t.id}
                className={`cnv-tool ${selectedTool === t.id ? 'active' : ''}`}
-               title={t.title}
+               data-tip={t.title}
                role="button"
                tabIndex={0}
                aria-label={t.label}
@@ -7882,7 +7882,7 @@ export function CanvasSurface({
         ))}
         <div className="cnv-tool-sep" />
         <div className="cnv-tool"
-             title="Keyboard shortcuts (?)"
+             data-tip="Keyboard shortcuts (?)"
              role="button"
              tabIndex={0}
              aria-label="Keyboard shortcuts"
@@ -7930,33 +7930,44 @@ export function CanvasSurface({
           behind it look intentional. CSS fade-in is delayed ~500ms so board
           switches / first-run seeding never flash it. The friction-stuck signal
           adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
-      {canEdit && selectedTool === 'select' && (boardIsEmpty || firstCardPrompt) && (
+      {canEdit && selectedTool === 'select' && (boardIsEmpty || firstCardPrompt) && (() => {
+        // IMAGE-FIRST: adding an image is the single behavior that drives activation
+        // (14/14 of activated users used an image; note-only users ~never return), so
+        // Image is a big hero CTA and Note / Upload / Doc sit beneath as secondary.
+        const runTile = (id) => buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run();
+        return (
         <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}`}
-             aria-label="Add your first card"
+             aria-label="Add your first image"
              role={frictionStuck ? 'status' : 'group'}>
-          <div className="cnv-empty-tiles-head">Start your cluster</div>
+          <div className="cnv-empty-tiles-head">Start your moodboard</div>
+          <button type="button" className="cnv-empty-tile cnv-empty-tile-hero"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => runTile('image')}>
+            <span className="cnv-empty-tile-ico"><Icon as={ImageIcon} size={30} weight="regular" /></span>
+            <span className="cnv-empty-tile-hero-copy">
+              <span className="cnv-empty-tile-lbl">Add an image</span>
+              <span className="cnv-empty-tile-hero-hint">Drag in, paste, or upload your references</span>
+            </span>
+          </button>
           <div className="cnv-empty-tiles-grid">
             {[
-              { id: 'image', label: 'Image',  icon: ImageIcon },
               { id: 'note',  label: 'Note',   icon: NotePencil },
               { id: 'file',  label: 'Upload', icon: Upload },
               { id: 'doc',   label: 'Doc',    icon: FileText },
             ].map((t) => (
               <button key={t.id} type="button" className="cnv-empty-tile"
                       onPointerDown={(e) => e.stopPropagation()}
-                      onClick={() => {
-                        const pos = emptyCenterPos();
-                        buildAddActions(pos, 'empty_cta').find((a) => a.id === t.id)?.run();
-                      }}>
-                <span className="cnv-empty-tile-ico"><Icon as={t.icon} size={26} weight="regular" /></span>
+                      onClick={() => runTile(t.id)}>
+                <span className="cnv-empty-tile-ico"><Icon as={t.icon} size={24} weight="regular" /></span>
                 <span className="cnv-empty-tile-lbl">{t.label}</span>
               </button>
             ))}
           </div>
-          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine">or double-click to add&ensp;·&ensp;drag in an image</span>
-          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse">or long-press the canvas&ensp;·&ensp;drag in an image</span>
+          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine">drag an image straight in&ensp;·&ensp;paste&ensp;·&ensp;or double-click to add</span>
+          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse">drag an image in&ensp;·&ensp;or long-press the canvas to add</span>
         </div>
-      )}
+        );
+      })()}
 
       {/* Cursor add-card menu — opened by double-clicking bare canvas. A small,
           icon-led chooser (Image / Note / Upload / Doc) so double-click means

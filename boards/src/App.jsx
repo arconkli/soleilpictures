@@ -18,7 +18,7 @@ import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
-import { getStarterCards, getStarterTutorialCard, getMinimalStarterCard, isShowcaseCard } from './lib/onboardingStarter.js';
+import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
@@ -2436,12 +2436,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // starter notes. Clearing it leaves an empty canvas the coachmark then guides.
         cardsToSeed = showcaseCards;
       } else if (obArm === 'B') {
-        // Arm B (guided first card): a SINGLE welcome note, NO Ideas tutorial board.
-        // The prominent "Start your cluster" tiles (shown on the seeded root via the
-        // firstCardPrompt wiring) + the "Add your first card" coachmark carry the
-        // first action — aligned to the first_card activation metric, vs arm A's
-        // drag-the-note-to-Ideas tutorial (which never produces a genuine card).
-        cardsToSeed = [getMinimalStarterCard()];
+        // Arm B (SHIPPED default): a clean EMPTY board — Miro-style — seed NOTHING.
+        // The empty root makes boardIsEmpty true, so the image-first "Start your
+        // cluster" tiles render immediately, and the "Add your first image" coachmark
+        // points at the one action the data ties to activation (image-use = 14/14 of
+        // activations). No note clutter to read past or clear.
+        cardsToSeed = [];
       } else {
         // Arm A (control): a nested "Ideas" tutorial board + starter notes (the
         // nest-the-note AHA). The board card id MUST equal the real DB UUID

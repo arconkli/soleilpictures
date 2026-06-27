@@ -25,29 +25,24 @@
 // (experiment_optimize). `enabled` is the code-level master switch (whether the
 // client assigns + a consumer renders); the runtime on/off lives in config.
 export const EXPERIMENTS = {
-  // ACTIVE lever (the one onboarding experiment at current volume): three boldly
-  // different first-run PHILOSOPHIES, folding seed CONTENT and first-ACTION into a
-  // single test so traffic isn't split across confounded experiments. Drawn at
-  // seed time; the arm decides what gets seeded AND which first-action prompt
-  // shows (see App.jsx seed effect + the firstCardPrompt/coachmark wiring).
-  //   A — control: starter notes + nested "Ideas" board, small "Make it yours"
-  //       coachmark (drag-the-note-to-Ideas tutorial). = the prior default.
-  //   B — guided first card: minimal seed (one welcome note, no Ideas clutter) +
-  //       the prominent "Start your cluster" tiles ON the seeded root + a coachmark
-  //       that leads with "Add your first card" (COACHMARK_VARIANTS.B). Aligned to
-  //       the first_card activation metric (the 38% seed→first-action cliff).
-  //   C — showcase wow: clone the curated brand board as the whole first canvas
-  //       (the retired welcome_showcase arm B), cleared in one click to start.
-  // NOTE on volume: at ~20 signups/wk this won't reach significance — it's a
-  // DIRECTIONAL read; the bandit leans toward the best arm and we ship it as the
-  // new default. The seed-reliability fix (App.jsx isFreshSignup) ships to ALL
-  // arms — a defect, not a variable.
+  // ROLLED OUT to 100% arm B (2026-06-27, the IMAGE-FIRST empty board). The data
+  // settled it without a significant test: image-use IS the activation signal —
+  // 14/14 of all activated (populated-board) users used an image; image-users
+  // averaged 3.92 active days vs 0.74 for note-only; 0 note-only users ever
+  // activated. So we ship the predicted winner as the default: a clean empty board
+  // (Miro-style) whose first action is "add an image" (image-first "Start your
+  // cluster" tiles + an "Add your first image" coachmark). Kept enabled at A:0/B:100/
+  // C:0 so arm-stamping (exp_onboarding_v2 on every event) + admin_activation_by_
+  // experiment('onboarding_v2') still measure B; flip a weight back to re-test.
+  //   A — retired: starter notes + nested "Ideas" board (taught the wrong action).
+  //   B — SHIPPED: image-first empty board (empty root + image-first tiles + coachmark).
+  //   C — retired: showcase clone (wow, but you clear it → nothing kept).
   onboarding_v2: {
     enabled: true,
     arms: [
-      { id: 'A', weight: 34 }, // control — starter notes + Ideas tutorial board
-      { id: 'B', weight: 33 }, // guided — minimal seed + bold first-card tiles + "Add your first card"
-      { id: 'C', weight: 33 }, // showcase — clone the brand board as the first canvas
+      { id: 'A', weight: 0 },   // retired — starter notes + Ideas tutorial board
+      { id: 'B', weight: 100 }, // shipped — image-first empty board
+      { id: 'C', weight: 0 },   // retired — showcase clone
     ],
   },
   // RETIRED 2026-06-27 → folded into onboarding_v2 (its showcase = arm C). Disabled
@@ -178,10 +173,13 @@ export function getAssignedArms(userId) {
 export const COACHMARK_VARIANTS = {
   A: null,
   B: {
-    title: 'Add your first card',
+    // Image-first (onboarding_v2 arm B = the shipped default). The data: adding an
+    // image is the single behavior that turns a bounce into a retained user, so the
+    // first-run nudge points straight at it (drag / paste / Upload an image).
+    title: 'Add your first image',
     // Mirrors the component's three copy branches (tutorial / touch / desktop).
-    hasTutorial: 'Drag the note into the “Ideas” board — that’s how you organize ✨',
-    touch: 'Tap the + on the left (or long-press the canvas) to drop your first card.',
-    desktop: 'Double-click the canvas — or right-click → Add — to drop your first card.',
+    hasTutorial: 'Drag or paste an image to start your moodboard ✨',
+    touch: 'Tap Image on the left — or paste — to drop your first reference.',
+    desktop: 'Drag an image in, paste, or hit Image on the left to start your moodboard.',
   },
 };
