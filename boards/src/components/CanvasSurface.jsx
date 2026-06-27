@@ -44,7 +44,7 @@ import { makeLimiter } from '../lib/asyncPool.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import { trackStroke } from '../lib/pointerStroke.js';
 import { resolveSrc } from '../lib/r2.js';
-import { scheduleBoardPreviewBackfill } from '../lib/previewBackfill.js';
+import { scheduleBoardPreviewBackfill, drainVariantQueue } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
 import { downloadImage } from '../lib/imageExport.js';
@@ -380,6 +380,9 @@ export function CanvasSurface({
   // paint or an active edit burst.
   useEffect(() => {
     if (!canEdit || isPublic || useLocalImages) return undefined;
+    // Resume any uploads whose variant generation was interrupted (tab closed
+    // mid-batch) — once per session, independent of which board this is.
+    drainVariantQueue();
     const keys = cards
       .filter(c => c.kind === 'image' && typeof c.src === 'string' && c.src.startsWith('r2:'))
       .map(c => c.src.slice(3));
