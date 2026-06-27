@@ -535,7 +535,7 @@ function SignIn() {
         )}
       </div>
 
-      <p className="sb-trust">Made by a film studio, for film professionals.</p>
+      <p className="sb-trust">Made by a film studio, for creative professionals.</p>
     </SignInBackdrop>
   );
 }
