@@ -633,7 +633,11 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
           </a>
         )}
         {src && (onEdit || onDownload || onExpand) && (
-          <div className="ic-actions">
+          // A double-click anywhere in the action cluster must NOT bubble to the
+          // wrapper's onImgDblClick (which opens the title editor). The buttons
+          // only stop `click`/`pointerdown`; `dblclick` is a distinct event, so
+          // stop it here once for the whole cluster.
+          <div className="ic-actions" onDoubleClick={(e) => e.stopPropagation()}>
             {onEdit && (
               <button type="button" className="ic-act ic-edit" title="Edit photo"
                       onPointerDown={(e) => e.stopPropagation()}

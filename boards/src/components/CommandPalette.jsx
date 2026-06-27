@@ -164,8 +164,11 @@ export function CommandPalette({
   const recentBoards = useMemo(() => {
     if (!open || q) return [];
     return recents.map(id => boards?.[id]).filter(Boolean)
-      .filter(b => !excludeIds.includes(b.id)).slice(0, CAP.recent);
-  }, [open, q, recents, boards, excludeIds]);
+      // In pick mode (link/split picker) the workspace Home/root isn't a valid
+      // link target — match localBoards/allBoardsList, which already drop it.
+      // In nav mode, navigating to Home IS valid, so keep it there.
+      .filter(b => !excludeIds.includes(b.id) && (!isPick || b.id !== rootId)).slice(0, CAP.recent);
+  }, [open, q, recents, boards, excludeIds, isPick, rootId]);
 
   // Pick mode, empty query: every board (minus root / excluded / already-recent),
   // alphabetical — so the link picker is browseable without typing.

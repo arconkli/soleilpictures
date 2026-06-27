@@ -28,24 +28,27 @@ test('help button in the toolbar opens the overlay', async ({ page }) => {
 test('"?" while editing a note types instead of opening the overlay', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note (N)').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
-  await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
+  // Place on a CLEAR patch — the local root ships full of demo cards, so a click
+  // at the centre lands on one and places nothing (the card eats the pointer).
+  await page.locator('.canvas-wrap').click({ position: { x: 160, y: cb.height - 140 } });
 
   await page.keyboard.type('really?');
   await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).not.toBeVisible();
   await expect(page.locator('.card .note-body').last()).toContainText('really?');
 });
 
-test('empty board shows add-card tiles; double-click drops a note and clears them', async ({ page }) => {
+test('empty board shows add-card tiles; double-click opens the quick-add menu', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
 
   // The local root board ships full of demo cards — create a fresh board
   // and open it to get an empty canvas.
-  await page.getByTitle('Add board').click();
+  await page.getByRole('button', { name: 'Add board tool', exact: true }).click();
   const wrap = await page.locator('.canvas-wrap').boundingBox();
-  await page.locator('.canvas-wrap').click({ position: { x: wrap.width / 2, y: wrap.height / 2 } });
+  // Place the new board on a CLEAR patch (centre is covered by demo cards).
+  await page.locator('.canvas-wrap').click({ position: { x: 160, y: wrap.height - 140 } });
   const newBoard = page.locator('.card', { hasText: 'Untitled board' }).first();
   await newBoard.dblclick();
   await expect(page.locator('.cnv-empty-tiles')).toHaveCount(1);
@@ -55,9 +58,16 @@ test('empty board shows add-card tiles; double-click drops a note and clears the
   // (and clear of the left tool rail / bottom-right zoom control).
   await page.locator('.canvas-wrap').dblclick({ position: { x: 160, y: cb.height - 140 } });
 
-  // Double-click on the bare canvas creates a note in edit mode...
+  // Double-click no longer reflexively drops a note — it opens the quick-add
+  // menu so the user chooses what to add. The board stays empty (tiles remain)
+  // until a menu item is picked.
+  const menu = page.locator('.cnv-quick-add');
+  await expect(menu).toBeVisible();
+  await expect(page.locator('.cnv-empty-tiles')).toHaveCount(1);
+
+  // Choosing "Note" creates a note in edit mode and clears the tiles.
+  await menu.locator('.cnv-quick-add-item', { hasText: 'Note' }).click();
   await expect(page.locator('.card .note-body[contenteditable="true"]')).toBeVisible();
-  // ...and the board is no longer empty, so the tiles go away.
   await expect(page.locator('.cnv-empty-tiles')).toHaveCount(0);
 });
 

@@ -835,12 +835,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
 
     const addCards = (cardsToAdd) => {
-      const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return; }
-      if (isDemoBlockedOnThisBoard()) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_blocked'); return; }
+      // Returns { added, requested, capHit } so callers (e.g. the remix seed) can
+      // tell whether the demo cap silently dropped cards and toast accordingly.
+      const requested = cardsToAdd?.length || 0;
+      let capHit = false;
+      const m = cardsMap(); if (!m || !cardsToAdd?.length) { if (!m && genuineCards(cardsToAdd || []).length) noteBlocked('mutator_null'); return { added: 0, requested, capHit }; }
+      if (isDemoBlockedOnThisBoard()) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_blocked'); return { added: 0, requested, capHit }; }
       if (myTier.tier === 'demo') {
         const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
-        const { accepted, capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: cardsToAdd.length, limit });
-        if (capHit && accepted === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return; }
+        const evald = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: cardsToAdd.length, limit });
+        const accepted = evald.accepted; capHit = evald.capHit;
+        if (capHit && accepted === 0) { if (genuineCards(cardsToAdd).length) noteBlocked('demo_cap'); setUpgradeReason('cap-hit'); return { added: 0, requested, capHit }; }
         if (capHit) {
           cardsToAdd = cardsToAdd.slice(0, accepted);
           setUpgradeReason('cap-hit');
@@ -871,6 +876,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
         });
       }
+      return { added: cardsToAdd.length, requested, capHit };
     };
 
     const updateCard = (cardId, patch) => {
@@ -2344,6 +2350,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the organize-by-dragging AHA (see the nest-detection in the onDrop handler).
   useEffect(() => {
     if (seedAttemptedRef.current) return;
+    // A pending "Make a copy" remix owns first-run: the remix consume effect
+    // creates a new board and setStack()s onto it, which destroys the root Y.Doc.
+    // Seeding the root here would race that teardown — the addCards could land on
+    // a dead doc (silently lost) while `seeded` is persisted, leaving Home empty
+    // forever. Skip WITHOUT marking seeded so the still-empty Home seeds cleanly
+    // on a later visit (once the remix is consumed + storage cleared). readRemix()
+    // covers the same-commit ordering (this effect runs before the remix effect,
+    // so storage is still set); remixConsumedRef covers a later commit (remix
+    // already consumed storage but hasn't finished navigating).
+    if (readRemix() || remixConsumedRef.current) { noteSeedSkip('remix_pending'); return; }
     // A brand-new account CANNOT be already-seeded, so for a fresh signup we do
     // NOT wait on the (sometimes slow) get_my_tier RPC. Waiting was stranding the
     // seed for ~28% of new users: they landed on a blank canvas during the cold-
@@ -2620,9 +2636,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (yb.cards.length !== 0) return;                                        // empty canvas only (idempotent)
     pendingRemixRef.current = null;   // claim before the (sync) add so it can't re-fire
     try {
-      mainMutators.addCards?.(pend.cards);
-      try { logEvent(EV.REMIX_CLONE, { kind: pend.kind, n: pend.cards.length }); } catch (_) {}
-      feedback.toast({ type: 'success', message: 'Copied to your workspace — make it your own.' });
+      // addCards reports how many it actually placed — a demo user at their cap
+      // can have all/most cards silently dropped, so don't claim "Copied!" then.
+      const res = mainMutators.addCards?.(pend.cards) || {};
+      const added = res.added ?? pend.cards.length;
+      const requested = res.requested ?? pend.cards.length;
+      if (added === 0) {
+        try { logEvent(EV.REMIX_FAILED, { kind: pend.kind, stage: 'seed', reason: 'demo_cap_full' }); } catch (_) {}
+        feedback.toast({ type: 'info', message: 'Your copy is ready, but the demo is full — upgrade to add these cards.' });
+      } else {
+        try { logEvent(EV.REMIX_CLONE, { kind: pend.kind, n: added }); } catch (_) {}
+        feedback.toast(added < requested
+          ? { type: 'success', message: `Copied ${added} of ${requested} cards — upgrade for the rest.` }
+          : { type: 'success', message: 'Copied to your workspace — make it your own.' });
+      }
     } catch (e) {
       console.error('[remix] seed failed', e);
       try { logEvent(EV.REMIX_FAILED, { kind: pend.kind, stage: 'seed', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
