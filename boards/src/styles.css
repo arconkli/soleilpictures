@@ -8026,6 +8026,10 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   border-color: rgba(0, 0, 0, 0.05);
 }
 .cnv-empty-tiles.is-escalated { box-shadow: var(--shadow-2), var(--shadow-glow); }
+/* onboarding_v2 arm B: the seeded-root first-card prompt should be present from
+   the first seconds (the 44s-bounce window), so skip the 500ms board-switch
+   anti-flash delay used on plain empty boards. */
+.cnv-empty-tiles.is-prompt { animation-delay: 0ms; }
 .cnv-empty-tiles-head {
   font: 600 15px/1 var(--font-sans);
   letter-spacing: 0.01em;

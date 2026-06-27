@@ -93,6 +93,19 @@ export function getStarterCards() {
   return buildCards(DESKTOP, false, isTouch());
 }
 
+// Arm B (onboarding_v2 "guided first card"): a SINGLE brief welcome note, NO
+// Ideas tutorial board — the prominent "Start your cluster" tiles + the "Add your
+// first card" coachmark carry the first action instead of the drag-to-nest AHA.
+// Keeps the board from being fully blank (the bounce trigger) while leaving the
+// center clear for the tiles. Stable onb- id → seed:true semantics (excluded from
+// activation / card_index, per firstValueTrigger.isSeedCard).
+export function getMinimalStarterCard() {
+  if (isNarrow()) {
+    return { id: 'onb-welcome', kind: 'note', seed: true, html: phoneIntroHtml(), ...PHONE.note };
+  }
+  return { id: 'onb-welcome', kind: 'note', seed: true, html: welcomeHtml(isTouch()), ...DESKTOP.welcome };
+}
+
 // The tutorial "Ideas" board mirror card (real seed only — App.jsx). seed:true
 // keeps it out of card_placed / activation / card_index. Position tracks the
 // device layout so it stays inside the phone column (below the drag note).

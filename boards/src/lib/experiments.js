@@ -25,15 +25,36 @@
 // (experiment_optimize). `enabled` is the code-level master switch (whether the
 // client assigns + a consumer renders); the runtime on/off lives in config.
 export const EXPERIMENTS = {
-  // ACTIVE lever: greet a brand-new user with a curated brand "showcase" board
-  // (arm B) — logo, sample stills, palette, "how it works" — that they clear in
-  // one click ("try it yourself"), vs the current minimal onboarding (arm A).
-  // Does the wow lift the COMPOSITE payment-weighted reward, or just add clutter
-  // to clear? The bandit decides. The arm is drawn at seed time and decides what
-  // gets seeded onto the root (see App.jsx seed effect: arm B clones the real
-  // Clusters Logo board via prepare_showcase + showcaseClone.decodeShowcaseCards).
-  welcome_showcase: {
+  // ACTIVE lever (the one onboarding experiment at current volume): three boldly
+  // different first-run PHILOSOPHIES, folding seed CONTENT and first-ACTION into a
+  // single test so traffic isn't split across confounded experiments. Drawn at
+  // seed time; the arm decides what gets seeded AND which first-action prompt
+  // shows (see App.jsx seed effect + the firstCardPrompt/coachmark wiring).
+  //   A — control: starter notes + nested "Ideas" board, small "Make it yours"
+  //       coachmark (drag-the-note-to-Ideas tutorial). = the prior default.
+  //   B — guided first card: minimal seed (one welcome note, no Ideas clutter) +
+  //       the prominent "Start your cluster" tiles ON the seeded root + a coachmark
+  //       that leads with "Add your first card" (COACHMARK_VARIANTS.B). Aligned to
+  //       the first_card activation metric (the 38% seed→first-action cliff).
+  //   C — showcase wow: clone the curated brand board as the whole first canvas
+  //       (the retired welcome_showcase arm B), cleared in one click to start.
+  // NOTE on volume: at ~20 signups/wk this won't reach significance — it's a
+  // DIRECTIONAL read; the bandit leans toward the best arm and we ship it as the
+  // new default. The seed-reliability fix (App.jsx isFreshSignup) ships to ALL
+  // arms — a defect, not a variable.
+  onboarding_v2: {
     enabled: true,
+    arms: [
+      { id: 'A', weight: 34 }, // control — starter notes + Ideas tutorial board
+      { id: 'B', weight: 33 }, // guided — minimal seed + bold first-card tiles + "Add your first card"
+      { id: 'C', weight: 33 }, // showcase — clone the brand board as the first canvas
+    ],
+  },
+  // RETIRED 2026-06-27 → folded into onboarding_v2 (its showcase = arm C). Disabled
+  // so getActiveExperiments() stops drawing it; already-enrolled users keep their
+  // stamped arm and stay in the historical admin readout. Do not delete.
+  welcome_showcase: {
+    enabled: false,
     arms: [
       { id: 'A', weight: 50 }, // control — current minimal onboarding (starter note + Ideas)
       { id: 'B', weight: 50 }, // variant — the brand showcase + "Clear & try it yourself" banner

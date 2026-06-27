@@ -350,8 +350,9 @@ export function CanvasSurface({
   frictionStuck = false,   // true → a new user tripped the stuck signal
                            // (frictionSignal.js); brightens the empty-board
                            // hint as the passive escalation.
-  firstCardArm = 'A',      // first_card_cta experiment arm: 'B' → bold CTA button
-                           // on the empty board; 'A'/anything else → passive hint.
+  firstCardPrompt = false, // onboarding_v2 arm B: surface the "Start your cluster"
+                           // tiles even on a SEEDED (non-empty) root until the user
+                           // places their own genuine card (the guided first-card flow).
   showcaseArm = 'A',       // welcome_showcase experiment arm: 'B' → root was
                            // seeded with the brand demo; show the "Clear & try it
                            // yourself" banner while its cards are present.
@@ -4783,8 +4784,16 @@ export function CanvasSurface({
     }
     // Double-click no longer reflexively drops a note — it opens a small
     // add-card menu at the cursor so you choose what to place (consistent with
-    // the empty-state tiles). noteCreateIntent fires inside each action's run()
-    // (buildAddActions) when the user actually picks, so don't count it here.
+    // the empty-state tiles). Opening the menu IS a "make a card" intent: record
+    // it for the funnel so a user who opens the menu and closes it without
+    // picking still counts as first_intent (previously they registered NOTHING,
+    // under-reporting the activation funnel and hiding the seed→first-action
+    // cliff). We log + advance the journey here but SKIP recordIntent's friction
+    // tick — each type's run() in buildAddActions fires the full
+    // noteCreateIntent('dblclick') on pick, so ticking the stuck signal here too
+    // would double-count the menu-open+pick into a false rage-escalation.
+    try { logEvent(EV.CARD_CREATE_INTENT, { method: 'dblclick_menu', board_id: board?.id }); } catch (_) {}
+    try { setJourneyState({ phase: JOURNEY_PHASE.FIRST_INTENT }); } catch (_) {}
     setQuickAdd({ open: true, x: e.clientX, y: e.clientY, pos: clientToCanvas(e.clientX, e.clientY) });
   };
 
@@ -7921,8 +7930,8 @@ export function CanvasSurface({
           behind it look intentional. CSS fade-in is delayed ~500ms so board
           switches / first-run seeding never flash it. The friction-stuck signal
           adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
-      {canEdit && selectedTool === 'select' && boardIsEmpty && (
-        <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}`}
+      {canEdit && selectedTool === 'select' && (boardIsEmpty || firstCardPrompt) && (
+        <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}`}
              aria-label="Add your first card"
              role={frictionStuck ? 'status' : 'group'}>
           <div className="cnv-empty-tiles-head">Start your cluster</div>
