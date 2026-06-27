@@ -2344,7 +2344,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the organize-by-dragging AHA (see the nest-detection in the onDrop handler).
   useEffect(() => {
     if (seedAttemptedRef.current) return;
-    if (myTier.loading) { noteSeedSkip('loading'); return; }                                 // wait for tier/onboarding
+    // A brand-new account CANNOT be already-seeded, so for a fresh signup we do
+    // NOT wait on the (sometimes slow) get_my_tier RPC. Waiting was stranding the
+    // seed for ~28% of new users: they landed on a blank canvas during the cold-
+    // RPC window and bounced before `loading` flipped false, so this effect never
+    // re-ran and the seed never happened (the ps_seed_skip{gate:'loading'} with
+    // no following ps_seed_start fingerprint). The structural gates below
+    // (personal root + doc ready + EMPTY canvas) already prove a fresh seed is
+    // safe; the empty-canvas gate is what actually prevents a double-seed on
+    // reload. Older/dormant accounts still wait on the RPC so an emptied root is
+    // never re-seeded under them.
+    const isFreshSignup = !!user?.created_at
+      && (Date.now() - new Date(user.created_at).getTime()) < 10 * 60 * 1000;
+    if (myTier.loading && !isFreshSignup) { noteSeedSkip('loading'); return; }               // wait for tier/onboarding (skipped for brand-new signups)
     if (myTier.onboarding?.seeded === true || myTier.onboarding?.done === true) { noteSeedSkip('already_seeded'); return; }
     if (!currentYDoc || !yb.ready) { noteSeedSkip('doc_not_ready'); return; }                // doc hydrated
     if (currentId !== rootBoard.id) { noteSeedSkip('not_personal_root'); return; }           // personal root only
@@ -2392,14 +2404,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled);
 
-      // welcome_showcase arm B: CLONE the real "Clusters Logo" brand board onto the
+      // onboarding_v2 arm decides the whole first-run flow (seed content +
+      // first-action). Default 'A' (control) if unenrolled (config fetch failed /
+      // experiment off) so we always have a sane flow.
+      const obArm = enrolled['exp_onboarding_v2'] || 'A';
+
+      // Arm C (showcase wow): CLONE the real "Clusters Logo" brand board onto the
       // root — the cloned board IS the first canvas; the user clears it in one click
       // ("try it yourself") to start their own. prepare_showcase hands us the source
       // snapshot AND grants this root board cross-workspace read on the source images
       // (referenced_in_board_ids) BEFORE we render, so the images load with no broken
       // flash. Any failure → no cards → we fall back to standard onboarding below.
       let showcaseCards = null;
-      if (enrolled['exp_welcome_showcase'] === 'B') {
+      if (obArm === 'C') {
         try {
           const tpl = (await supabase.rpc('prepare_showcase', { p_board_id: rootBoard.id })).data;
           if (tpl?.snapshot) {
@@ -2415,11 +2432,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       let tutorialBoardId = null;
       let cardsToSeed;
       if (showcase) {
-        // The cloned brand board is the whole first canvas — no Ideas board / starter
-        // notes. Clearing it leaves an empty canvas the coachmark then guides.
+        // Arm C: the cloned brand board is the whole first canvas — no Ideas board /
+        // starter notes. Clearing it leaves an empty canvas the coachmark then guides.
         cardsToSeed = showcaseCards;
+      } else if (obArm === 'B') {
+        // Arm B (SHIPPED default): a clean EMPTY board — Miro-style — seed NOTHING.
+        // The empty root makes boardIsEmpty true, so the image-first "Start your
+        // cluster" tiles render immediately, and the "Add your first image" coachmark
+        // points at the one action the data ties to activation (image-use = 14/14 of
+        // activations). No note clutter to read past or clear.
+        cardsToSeed = [];
       } else {
-        // Standard onboarding: a nested "Ideas" tutorial board + starter notes (the
+        // Arm A (control): a nested "Ideas" tutorial board + starter notes (the
         // nest-the-note AHA). The board card id MUST equal the real DB UUID
         // (kind:'board' renders via boards[id]); seed:true keeps it out of
         // card_placed / activation / card_index. Add it BEFORE refreshBoards() so the
@@ -3706,13 +3730,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                          autotagReady={autotagReady}
                          sessionId={yh?.sessionId || null}
                          frictionStuck={isMain ? frictionStuck : false}
-                         /* Bold "＋ Add your first card" CTA is now the DEFAULT
-                            empty-canvas affordance on the main board (was a paused
-                            A/B — ~80% of new users never placed a card under the
-                            faint passive hint). first_card_cta stays retired in
-                            experiments.js; this is a default, not a test. */
-                         firstCardArm={isMain ? 'B' : 'A'}
-                         showcaseArm={isMain ? (getEnrolledArm('welcome_showcase') || (board?.id === showcasePreviewBoardId ? 'B' : 'A')) : 'A'}
+                         /* The bold "Start your cluster" tiles are the DEFAULT
+                            empty-canvas affordance. firstCardPrompt ALSO surfaces
+                            them on the SEEDED root for onboarding_v2 arm B (the
+                            guided-first-card flow) until the user places their own
+                            genuine card — the strongest affordance was otherwise
+                            hidden on a seeded board (the 38% seed→first-action
+                            cliff). The empty-board case still shows them unchanged. */
+                         firstCardPrompt={isMain && (getEnrolledArm('onboarding_v2') === 'B')
+                           && onboardingUiActive && board?.id === rootBoard.id && !hasGenuineCard(cards)}
+                         /* showcaseArm 'B' = show the "Clear & try it yourself"
+                            banner. onboarding_v2 arm C seeds the brand showcase, so
+                            map C→'B'; keep the ?showcasepreview clone path. */
+                         showcaseArm={isMain ? ((getEnrolledArm('onboarding_v2') === 'C' || board?.id === showcasePreviewBoardId) ? 'B' : 'A') : 'A'}
                          defaults={defaults} />
         </Profiler>
       );
@@ -4305,7 +4335,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {showCoachmark && (
-        <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={getEnrolledArm('coachmark_copy')} />
+        <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={getEnrolledArm('onboarding_v2')} />
       )}
 
       <ReferralNudge tier={myTier.tier} onInvite={openInviteFriends} />

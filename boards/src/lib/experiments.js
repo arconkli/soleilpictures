@@ -25,15 +25,31 @@
 // (experiment_optimize). `enabled` is the code-level master switch (whether the
 // client assigns + a consumer renders); the runtime on/off lives in config.
 export const EXPERIMENTS = {
-  // ACTIVE lever: greet a brand-new user with a curated brand "showcase" board
-  // (arm B) — logo, sample stills, palette, "how it works" — that they clear in
-  // one click ("try it yourself"), vs the current minimal onboarding (arm A).
-  // Does the wow lift the COMPOSITE payment-weighted reward, or just add clutter
-  // to clear? The bandit decides. The arm is drawn at seed time and decides what
-  // gets seeded onto the root (see App.jsx seed effect: arm B clones the real
-  // Clusters Logo board via prepare_showcase + showcaseClone.decodeShowcaseCards).
-  welcome_showcase: {
+  // ROLLED OUT to 100% arm B (2026-06-27, the IMAGE-FIRST empty board). The data
+  // settled it without a significant test: image-use IS the activation signal —
+  // 14/14 of all activated (populated-board) users used an image; image-users
+  // averaged 3.92 active days vs 0.74 for note-only; 0 note-only users ever
+  // activated. So we ship the predicted winner as the default: a clean empty board
+  // (Miro-style) whose first action is "add an image" (image-first "Start your
+  // cluster" tiles + an "Add your first image" coachmark). Kept enabled at A:0/B:100/
+  // C:0 so arm-stamping (exp_onboarding_v2 on every event) + admin_activation_by_
+  // experiment('onboarding_v2') still measure B; flip a weight back to re-test.
+  //   A — retired: starter notes + nested "Ideas" board (taught the wrong action).
+  //   B — SHIPPED: image-first empty board (empty root + image-first tiles + coachmark).
+  //   C — retired: showcase clone (wow, but you clear it → nothing kept).
+  onboarding_v2: {
     enabled: true,
+    arms: [
+      { id: 'A', weight: 0 },   // retired — starter notes + Ideas tutorial board
+      { id: 'B', weight: 100 }, // shipped — image-first empty board
+      { id: 'C', weight: 0 },   // retired — showcase clone
+    ],
+  },
+  // RETIRED 2026-06-27 → folded into onboarding_v2 (its showcase = arm C). Disabled
+  // so getActiveExperiments() stops drawing it; already-enrolled users keep their
+  // stamped arm and stay in the historical admin readout. Do not delete.
+  welcome_showcase: {
+    enabled: false,
     arms: [
       { id: 'A', weight: 50 }, // control — current minimal onboarding (starter note + Ideas)
       { id: 'B', weight: 50 }, // variant — the brand showcase + "Clear & try it yourself" banner
@@ -157,10 +173,13 @@ export function getAssignedArms(userId) {
 export const COACHMARK_VARIANTS = {
   A: null,
   B: {
-    title: 'Add your first card',
+    // Image-first (onboarding_v2 arm B = the shipped default). The data: adding an
+    // image is the single behavior that turns a bounce into a retained user, so the
+    // first-run nudge points straight at it (drag / paste / Upload an image).
+    title: 'Add your first image',
     // Mirrors the component's three copy branches (tutorial / touch / desktop).
-    hasTutorial: 'Drag the note into the “Ideas” board — that’s how you organize ✨',
-    touch: 'Tap the + on the left (or long-press the canvas) to drop your first card.',
-    desktop: 'Double-click the canvas — or right-click → Add — to drop your first card.',
+    hasTutorial: 'Drag or paste an image to start your moodboard ✨',
+    touch: 'Tap Image on the left — or paste — to drop your first reference.',
+    desktop: 'Drag an image in, paste, or hit Image on the left to start your moodboard.',
   },
 };
