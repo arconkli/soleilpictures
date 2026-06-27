@@ -14,7 +14,6 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
-import { getStarterCards, getStarterTutorialCard } from '../lib/onboardingStarter.js';
 import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
@@ -109,16 +108,11 @@ function createShowcasePreviewState() {
 }
 
 function createOnboardingState() {
-  // Mirror the real seed (App.jsx): a tutorial "Ideas" child board + its mirror
-  // card, so the preview shows the FULL first-run layout (notes + a real board to
-  // drag into) and the drag-to-nest gesture can be exercised on a phone emulator.
-  // A kind:'board' card needs a matching boards-map entry or it renders as an
-  // orphan — hence both the board row and the card.
-  const IDEAS_ID = 'local-ideas';
-  // Apollo 11's Eagle touched down 1969-07-20 20:17 UTC. A deliberate, fun
-  // placeholder date for the demo "Ideas" board — the board card formats anything
-  // older than ~30 days as a calendar date, so the tile reads "Jul 20, 1969".
-  const MOON_LANDING = '1969-07-20T20:17:00.000Z';
+  // Mirror the SHIPPED default (onboarding_v2 arm B, image-first): a clean EMPTY
+  // Studio root — no seed cards — so CanvasSurface renders the image-first "Start
+  // your moodboard" tiles, exactly what a brand-new user now sees. (The prior arm-A
+  // notes + "Ideas" tutorial is retired.) The "Add your first image" coachmark is
+  // shown via the arm="B" prop at the render site below.
   return {
     boards: {
       [ROOT_ID]: {
@@ -126,18 +120,9 @@ function createOnboardingState() {
         workspace_id: 'local-workspace', parent_board_id: null,
         created_at: new Date(0).toISOString(),
       },
-      [IDEAS_ID]: {
-        id: IDEAS_ID, name: 'Ideas', view: 'canvas',
-        workspace_id: 'local-workspace', parent_board_id: ROOT_ID,
-        created_at: MOON_LANDING,
-      },
     },
     boardState: {
-      [ROOT_ID]: {
-        cards: [...clone(getStarterCards()), clone(getStarterTutorialCard(IDEAS_ID))],
-        arrows: [], strokes: [],
-      },
-      [IDEAS_ID]: { cards: [], arrows: [], strokes: [] },
+      [ROOT_ID]: { cards: [], arrows: [], strokes: [] },
     },
   };
 }
@@ -900,7 +885,7 @@ export function LocalBoardsApp({ user, signOut }) {
       <LocalSettingsPanel tweak={tweak} setTweak={setTweak} />
 
       {ONBOARD_PREVIEW && onboardCoachOpen && currentId === ROOT_ID && currentSurface === 'board' && (
-        <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} />
+        <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} arm="B" />
       )}
 
       {mobileShell && (() => {
