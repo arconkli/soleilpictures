@@ -196,8 +196,8 @@ function describeListItem(card, boards = {}) {
   };
   if (card.kind === 'board') {
     const target = boards[card.id];
-    return { ...base, boardId: card.id, name: target?.name || 'Untitled board',
-             meta: target?.view === 'list' ? 'list' : 'board',
+    return { ...base, boardId: card.id, name: target?.name || 'Untitled cluster',
+             meta: target?.view === 'list' ? 'list' : 'cluster',
              color: COVER_TINTS[target?.cover || 'neutral'] || dot };
   }
   if (card.kind === 'boardlink') {
@@ -266,7 +266,7 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
     // render the same placeholder — a leaked or stale reference is
     // indistinguishable from a removed one from the client's POV.
     return (
-      <div className="bc bc-locked" title="No access — ask the workspace owner to share this board">
+      <div className="bc bc-locked" title="No access — ask the workspace owner to share this cluster">
         <div className="bc-locked-icon">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
             <rect x="5" y="9" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
@@ -380,7 +380,7 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
     const boardCount = items.filter(it => it.kind === 'board' || it.kind === 'list' || it.kind === 'boardlink').length;
     const cardCount = items.length - boardCount;
     const subParts = [];
-    if (boardCount > 0) subParts.push(`${boardCount} ${boardCount === 1 ? 'board' : 'boards'}`);
+    if (boardCount > 0) subParts.push(`${boardCount} ${boardCount === 1 ? 'cluster' : 'clusters'}`);
     if (cardCount > 0) subParts.push(`${cardCount} ${cardCount === 1 ? 'card' : 'cards'}`);
     const handleItemClick = (it) => {
       if (onOpenItem && onOpenItem(it) === true) return;
@@ -476,7 +476,7 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
         {onRename
           ? <EditableText className="bc-name" value={board.name}
                           onChange={onRename}
-                          placeholder="Untitled board"
+                          placeholder="Untitled cluster"
                           autoFocus={autoFocus}
                           selectAllOnFocus={autoFocus} />
           : <div className="bc-name">{board.name}</div>}
@@ -502,14 +502,14 @@ function BoardLinkCard({ targetBoard, note, onOpen }) {
   if (!targetBoard) {
     // Linked board the viewer can't access (or that no longer exists).
     return (
-      <div className="blc blc-locked" title="No access — ask the workspace owner to share this board">
+      <div className="blc blc-locked" title="No access — ask the workspace owner to share this cluster">
         <div className="bc-locked-icon">
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
             <rect x="5" y="9" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
             <path d="M8 9 V6 a3 3 0 0 1 6 0 V9" stroke="currentColor" strokeWidth="1.5"/>
           </svg>
         </div>
-        <div className="bc-locked-label">Linked board · no access</div>
+        <div className="bc-locked-label">Linked cluster · no access</div>
       </div>
     );
   }
@@ -633,7 +633,11 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
           </a>
         )}
         {src && (onEdit || onDownload || onExpand) && (
-          <div className="ic-actions">
+          // A double-click anywhere in the action cluster must NOT bubble to the
+          // wrapper's onImgDblClick (which opens the title editor). The buttons
+          // only stop `click`/`pointerdown`; `dblclick` is a distinct event, so
+          // stop it here once for the whole cluster.
+          <div className="ic-actions" onDoubleClick={(e) => e.stopPropagation()}>
             {onEdit && (
               <button type="button" className="ic-act ic-edit" title="Edit photo"
                       onPointerDown={(e) => e.stopPropagation()}

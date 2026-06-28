@@ -28,7 +28,7 @@ test('free-draw lands on the board even while a non-art card is selected', async
   await page.locator('.card').first().click();
   await expect(page.locator('.card.is-selected')).toHaveCount(1);
 
-  await page.getByTitle('Free-draw').click();
+  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
   await expect(page.getByText('Drag to draw')).toBeVisible();
 
   const strokePathCount = await page.locator('.strokes-layer path').count();

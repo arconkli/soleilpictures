@@ -21,8 +21,14 @@ test('topbar brand + CTAs render and share attribution is seeded', async ({ page
   await page.goto(`/share/${TOKEN}`);
 
   await expect(page.locator('.public-brand-name')).toHaveText('Clusters');
-  await expect(page.locator('.public-topbar .public-cta')).toHaveText('Try Clusters free');
-  await expect(page.locator('.public-topbar .public-signin-quiet')).toHaveText('Sign in');
+  // For a valid loaded board the primary CTA is "Make a copy" (remix THIS board);
+  // "Try free" + "Sign in" step back to secondary (both .public-signin-quiet).
+  const cta = page.locator('.public-topbar .public-cta');
+  await expect(cta).toHaveText('Make a copy');
+  await expect(cta).toHaveAttribute('href', /utm_medium=remix/);
+  await expect(cta).toHaveAttribute('href', /[?&]remix=/);
+  await expect(page.locator('.public-topbar .public-signin-quiet', { hasText: 'Try free' })).toBeVisible();
+  await expect(page.locator('.public-topbar .public-signin-quiet', { hasText: 'Sign in' })).toBeVisible();
   await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
   await expect(page).toHaveTitle('Marketing Root — Soleil Clusters');
 
@@ -40,13 +46,17 @@ test('topbar CTA logs share_cta_click and lands on / with share utm params', asy
   await page.goto(`/share/${TOKEN}`);
   await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
 
+  // The primary topbar CTA is now "Make a copy" (remix) — medium=remix; clicking
+  // it still beacons share_cta_click and lands on /. (The &remix=<source> param
+  // is on the CTA href — asserted in the test above — but AuthGate stashes it and
+  // strips it from the URL on landing, so we don't assert it post-navigation.)
   await page.locator('.public-topbar .public-cta').click();
-  await page.waitForURL(new RegExp(`/\\?utm_source=share_link&utm_medium=topbar&utm_campaign=${TOKEN}`));
+  await page.waitForURL(new RegExp(`/\\?utm_source=share_link&utm_medium=remix&utm_campaign=${TOKEN}`));
 
   // The CTA beacons the whole queue, so the earlier share_view lands too.
   await expect.poll(() => rows.map((r) => r.event), { timeout: 10_000 }).toContain('share_cta_click');
   const cta = rows.find((r) => r.event === 'share_cta_click');
-  expect(cta.props.surface).toBe('topbar');
+  expect(cta.props.surface).toBe('remix');
   expect(cta.props.share_token).toBe(TOKEN);
 
   const view = rows.find((r) => r.event === 'share_view');

@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-const go = async (page) => {
-  await page.goto('/?local=1&reset=1');
+const go = async (page, { blank = true } = {}) => {
+  // Default blank (empty cluster) so the placement/keyboard tests get a clear
+  // canvas; the marquee test opts back to the seeded board (it needs cards).
+  await page.goto(blank ? '/?local=1&reset=1&blank=1' : '/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await expect(page.getByTitle('Select / move (V)')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Select tool', exact: true })).toBeVisible();
 };
 
 test('v / h bare-key shortcuts switch the canvas tool', async ({ page }) => {
@@ -18,7 +20,7 @@ test('v / h bare-key shortcuts switch the canvas tool', async ({ page }) => {
 });
 
 test('Escape stacks: tool reset first, then selection clear', async ({ page }) => {
-  await go(page);
+  await go(page, { blank: false });
   const cb = await page.locator('.canvas-wrap').boundingBox();
   // Select everything via a full-canvas marquee.
   const sx = cb.x + 40, sy = cb.y + 60;
@@ -49,9 +51,12 @@ test('Cmd/Ctrl+B bolds a note and does NOT toggle the sidebar', async ({ page })
   const appClassBefore = await page.locator('.app').getAttribute('class');
 
   // Place a note (auto-focuses its editable) and type into it.
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
+  // Focus the fresh note body before typing (placing enters edit mode, but typing
+  // immediately races the caret landing).
+  await page.locator('.note-body[contenteditable="true"]').last().click();
   await page.keyboard.type('hello world');
   const body = page.locator('.card .note-body').last();
   await expect(body).toContainText('hello world');

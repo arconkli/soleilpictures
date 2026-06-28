@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 test('sketch-pad discard prompt uses the in-app dialog (not native confirm)', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Free-draw').click();
+  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
   await page.getByTitle('Open a fullscreen drawing canvas').click();
   const pad = page.locator('.sketchpad-surface');
   await expect(pad).toBeVisible();

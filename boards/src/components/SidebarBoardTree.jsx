@@ -133,7 +133,7 @@ export function SidebarBoardTree({
       items.push({ id: 'rename', label: 'Rename', run: () => beginRename(board) });
       items.push({ divider: true });
       items.push({
-        id: 'new-inside', label: 'New board inside',
+        id: 'new-inside', label: 'New cluster inside',
         run: () => { expandBoard(board.id); onCreateBoardInside?.(board.id); },
       });
       items.push({
@@ -163,7 +163,7 @@ export function SidebarBoardTree({
     items.push({ id: 'copy', label: 'Copy', run: () => onCopyBoard?.(board) });
     if (canEdit) {
       items.push({
-        id: 'paste', label: 'Paste into this board',
+        id: 'paste', label: 'Paste into this cluster',
         disabled: boardClipboardSize() === 0,
         run: () => onPasteBoardInto?.(board.id),
       });

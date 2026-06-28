@@ -16,9 +16,9 @@ const transformOf = (page) => page.evaluate(() => {
 });
 
 async function placeOverflowingNote(page) {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x: 640, y: 200 } });
   const body = page.locator('.note-body[contenteditable="true"]');
   await body.waitFor();

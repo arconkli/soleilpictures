@@ -6,9 +6,9 @@ import { expect, test } from '@playwright/test';
 // reversible).
 
 test('note background can be set to transparent and back', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x: 620, y: 300 } });
   const body = page.locator('.note-body[contenteditable="true"]');
   await body.waitFor();

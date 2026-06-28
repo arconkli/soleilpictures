@@ -115,13 +115,13 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       .filter((r) => selectedIds.has(r.board_id) && r.target_snapshot_id != null)
       .map((r) => ({ board_id: r.board_id, snapshot_id: r.target_snapshot_id }));
     if (targets.length === 0) {
-      feedback.toast({ type: 'error', message: 'No boards selected for rewind' });
+      feedback.toast({ type: 'error', message: 'No clusters selected for rewind' });
       return;
     }
     const ok = await feedback.confirm({
       title: 'Rewind workspace',
-      message: `Atomically rewind ${targets.length} board${targets.length === 1 ? '' : 's'} to the state at ${fmtDate(localToIso(targetLocal))}? This is undoable per board (each gets a pre-restore snapshot), but it's a workspace-scale change.`,
-      confirmLabel: `Rewind ${targets.length} board${targets.length === 1 ? '' : 's'}`,
+      message: `Atomically rewind ${targets.length} cluster${targets.length === 1 ? '' : 's'} to the state at ${fmtDate(localToIso(targetLocal))}? This is undoable per cluster (each gets a pre-restore snapshot), but it's a workspace-scale change.`,
+      confirmLabel: `Rewind ${targets.length} cluster${targets.length === 1 ? '' : 's'}`,
     });
     if (!ok) return;
     setBusy(true);
@@ -131,7 +131,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       });
       feedback.toast({
         type: 'success',
-        message: `Rewound ${result.targets_count} board${result.targets_count === 1 ? '' : 's'} to ${fmtDate(localToIso(targetLocal))}`,
+        message: `Rewound ${result.targets_count} cluster${result.targets_count === 1 ? '' : 's'} to ${fmtDate(localToIso(targetLocal))}`,
       });
       if (onRewindComplete) onRewindComplete();
       // Refresh alerts (the rewind itself logged one).
@@ -205,7 +205,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
           )}
 
           {/* Time picker + preview button */}
-          <div className="wsr-step-hint">Step 1 — pick a time, then preview which boards would change.</div>
+          <div className="wsr-step-hint">Step 1 — pick a time, then preview which clusters would change.</div>
           <div className="wsr-picker">
             <label className="wsr-picker-label">Rewind to:</label>
             <input
@@ -227,7 +227,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
           {/* Preview table */}
           {previewError && <div className="modal-empty">Preview failed: {previewError}</div>}
           {previewRows.length > 0 && (
-            <div className="wsr-step-hint">Step 2 — review the impact, check the boards to rewind, then confirm below.</div>
+            <div className="wsr-step-hint">Step 2 — review the impact, check the clusters to rewind, then confirm below.</div>
           )}
           {previewRows.length > 0 && (
             <div className="wsr-table-wrap">
@@ -247,7 +247,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
                         }}
                       />
                     </th>
-                    <th>Board</th>
+                    <th>Cluster</th>
                     <th>Target snapshot</th>
                     <th>Now</th>
                     <th>Δ</th>

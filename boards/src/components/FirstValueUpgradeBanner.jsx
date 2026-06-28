@@ -25,9 +25,9 @@ export function FirstValueUpgradeBanner({ onSeeCreator, onDismiss }) {
     <div className={`fv-banner surface-frosted${leaving ? ' is-leaving' : ''}`} role="dialog" aria-label="Upgrade to Creator">
       <div className="fv-banner-spark" aria-hidden="true">✦</div>
       <div className="fv-banner-copy">
-        <div className="fv-banner-title">Your first board is taking shape.</div>
+        <div className="fv-banner-title">Your first cluster is taking shape.</div>
         <div className="fv-banner-body">
-          Creator unlocks unlimited cards, boards, and full edit access.
+          Creator unlocks unlimited cards, clusters, and full edit access.
         </div>
       </div>
       <div className="fv-banner-actions">

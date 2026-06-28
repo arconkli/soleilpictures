@@ -487,6 +487,12 @@ body {
 .app {
   display: grid;
   grid-template-columns: 240px 1fr;
+  /* Live sidebar width — kept in lockstep with grid-template-columns at every
+     spot it changes (collapsed / clean-focus / mobile below). Overlays that want
+     to center over the CANVAS (not the viewport) — e.g. the onboarding coachmark —
+     read it as `left: calc(50% + var(--sb-w)/2)`; it inherits through the DOM even
+     for position:fixed children. */
+  --sb-w: 240px;
   /* Pin the single row to exactly the viewport (max 1fr = available height,
      min 0). Without this the implicit auto row grows to its tallest item's
      content, so a long surface (e.g. the tag profile) pushes .main past 100vh
@@ -500,7 +506,7 @@ body {
 }
 /* Compact mode collapses the entire sidebar to zero — the open-button
    moves into the topbar (.tb-left). */
-.app.sb-collapsed { grid-template-columns: 0 1fr; }
+.app.sb-collapsed { grid-template-columns: 0 1fr; --sb-w: 0px; }
 
 /* ─────────────────────────────── Sidebar ────────────────────────────────── */
 
@@ -8068,10 +8074,31 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   letter-spacing: 0.01em;
   color: var(--ink-1);
 }
+/* Rotating breadth word in the headline ("Start your moodboard / script / …").
+   Brighter than the static prefix; fades up on each swap (the span is keyed on
+   the word so it remounts). Reduced-motion shows it static. */
+.cnv-rotating-word {
+  display: inline-block;
+  color: var(--ink-0);
+  animation: cnvRotatingWordIn var(--dur-base) var(--ease);
+}
+@keyframes cnvRotatingWordIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* One muted line under the headline naming the range — breadth without a wall
+   of options. */
+.cnv-empty-tiles-breadth {
+  margin-top: -3px;
+  max-width: 340px;
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--ink-3);
+  text-align: center;
+}
 .cnv-empty-tiles-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
   justify-items: center;
 }
 /* Image-first hero tile — the primary CTA, since adding an image is the single
@@ -8110,9 +8137,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 11px;
-  width: 96px;
-  padding: 16px 10px;
+  gap: 9px;
+  width: 84px;
+  padding: 14px 8px;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -8149,7 +8176,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   .cnv-empty-tiles-sub-coarse { display: inline; }
 }
 @media (max-width: 540px) {
-  .cnv-empty-tiles-grid { grid-template-columns: repeat(2, 1fr); }
+  .cnv-empty-tiles-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   .cnv-empty-tiles { animation: none; opacity: 1; }
@@ -16622,7 +16649,7 @@ body:is([data-clean-mode='1'], [data-focus-mode='1']) .onboarding-coachmark {
 }
 /* Collapse the sidebar column so the canvas fills the screen instead
    of leaving a 240px gutter where the sidebar used to be. */
-body:is([data-clean-mode='1'], [data-focus-mode='1']) .app { grid-template-columns: 0 1fr !important; }
+body:is([data-clean-mode='1'], [data-focus-mode='1']) .app { grid-template-columns: 0 1fr !important; --sb-w: 0px; }
 .clean-mode-exit {
   position: fixed;
   /* Inside the safe-area so it never hides under an iPad/iPhone notch. */
@@ -18245,8 +18272,8 @@ button, [role="button"], a {
 
   /* Single-column shell. The sidebar grid track collapses (it goes
      position:fixed below) so .main takes the full viewport width. */
-  .app { grid-template-columns: 1fr; }
-  .app.sb-collapsed { grid-template-columns: 1fr; }
+  .app { grid-template-columns: 1fr; --sb-w: 0px; }
+  .app.sb-collapsed { grid-template-columns: 1fr; --sb-w: 0px; }
 
   /* Sidebar becomes a slide-out drawer. JSX wires .is-mobile-open
      from App.jsx mobileNavOpen state. Same DOM, different layout. */
@@ -18953,7 +18980,11 @@ button, [role="button"], a {
 /* ─────────────────────── Onboarding coachmark (first-run) ─────────────────── */
 .onboarding-coachmark {
   position: fixed;
-  left: 50%;
+  /* Center over the CANVAS, not the viewport: shift right by half the sidebar
+     width so the pill lines up under the empty-board panel (which is centered in
+     the canvas column). --sb-w is 0 when collapsed / clean / mobile, so this
+     reduces to a plain 50% there. */
+  left: calc(50% + var(--sb-w, 0px) / 2);
   bottom: calc(88px + var(--safe-bottom));
   transform: translateX(-50%);
   z-index: 60;

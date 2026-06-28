@@ -26,13 +26,13 @@ test('local QA mode opens a usable Studio canvas', async ({ page }) => {
 
   await expect(page.locator('.rail-brand')).toBeVisible();
   await expect(page.getByRole('main').getByText('Studio', { exact: true })).toBeVisible();
-  await expect(page.getByTitle('Add note')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add note tool', exact: true })).toBeVisible();
 });
 
 test('local QA mode can add a note, switch views, and toggle chrome', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a note')).toBeVisible();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
 
@@ -52,24 +52,16 @@ test('local QA mode can add a note, switch views, and toggle chrome', async ({ p
 });
 
 test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
 
   const canvas = page.locator('.canvas-wrap');
-  // The reset=1 fixture seeds a non-empty starter set asynchronously after navigation,
-  // so the baseline .count() races to 0 and throws off every +1 assertion below. Wait
-  // until the count is BOTH non-zero (seed has painted) AND stable across two reads
-  // (seed fully painted) before sampling — a bare `n === prevCount` would falsely settle
-  // on the initial 0,0. (Pre-existing fragility, fixed while reworking the toolbar.)
-  let prevCount = -1;
-  await expect.poll(async () => {
-    const n = await page.locator('.card').count();
-    const settled = n > 0 && n === prevCount;
-    prevCount = n;
-    return settled;
-  }, { timeout: 10000 }).toBe(true);
-  const initialCardCount = await page.locator('.card').count();
+  await expect(canvas).toBeVisible();
+  // Blank cluster boots deterministically empty, so the baseline is 0 and the +1
+  // assertions below are stable (no async seed to wait out).
+  await expect(page.locator('.card')).toHaveCount(0);
+  const initialCardCount = 0;
 
-  await page.getByTitle('Add board').click();
+  await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a board')).toBeVisible();
   await canvas.click({ position: { x: 220, y: 220 } });
   await expect(page.locator('.card')).toHaveCount(initialCardCount + 1);
@@ -79,23 +71,25 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await expect(page.getByRole('menuitem', { name: 'Shape', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a note')).toBeVisible();
-  await canvas.click({ position: { x: 280, y: 260 } });
+  // Blank canvas is at zoom 1, so these placements must be spaced apart by more
+  // than a card's width or they'd land on the cluster card placed above.
+  await canvas.click({ position: { x: 820, y: 200 } });
   await expect(page.locator('.note').last()).toBeVisible();
 
   await page.getByRole('button', { name: 'Add menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Shape', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a shape')).toBeVisible();
   await expect(page.locator('.tob').getByText('Shape')).toBeVisible();
-  await canvas.click({ position: { x: 340, y: 300 } });
+  await canvas.click({ position: { x: 220, y: 580 } });
 
   await page.getByRole('button', { name: 'Add menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Palette' }).click();
-  await canvas.click({ position: { x: 400, y: 340 } });
+  await canvas.click({ position: { x: 820, y: 580 } });
   await expect(page.locator('.pc').last()).toBeVisible();
 
-  await page.getByTitle('Free-draw').click();
+  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
   await expect(page.getByTitle('Erase strokes')).toHaveCount(0);
   await expect(page.getByText('Drag to draw')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pen', exact: true })).toHaveClass(/is-active/);
@@ -104,12 +98,12 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await expect(page.locator('.tob .tob-thickness button').first()).toBeVisible();
   const strokePathCount = await page.locator('.strokes-layer path').count();
   await canvas.dragTo(canvas, {
-    sourcePosition: { x: 500, y: 300 },
-    targetPosition: { x: 570, y: 330 },
+    sourcePosition: { x: 560, y: 440 },
+    targetPosition: { x: 700, y: 460 },
   });
   await expect(page.locator('.strokes-layer path')).toHaveCount(strokePathCount + 2);
 
-  await page.getByTitle('Arrow (A) — click 2 cards, or drag on empty canvas').click();
+  await page.getByRole('button', { name: 'Arrow tool', exact: true }).click();
   await expect(page.getByText('Click a card to start, or drag on empty canvas for a free arrow')).toBeVisible();
   // .tob renders arrow options; presence is enough.
   await expect(page.locator('.tob')).toBeVisible();
@@ -118,7 +112,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await page.locator('.card', { has: page.locator('.note') }).last().click({ position: { x: 20, y: 20 } });
   await expect(page.locator('.arrows-layer path')).toHaveCount(arrowPathCount + 2);
 
-  await page.getByTitle('Pan canvas (H or Space)').click();
+  await page.getByRole('button', { name: 'Pan tool', exact: true }).click();
   await expect(page.getByText('Drag to pan')).toBeVisible();
 });
 
@@ -200,7 +194,7 @@ test('local QA mode preserves session location and card edits across refresh', a
   await expect(page.locator('.crumb.here')).toHaveText('Halcyon');
   await page.getByRole('button', { name: 'Canvas' }).click();
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await canvas.click({ position: { x: 430, y: 330 } });
   await expect(page.locator('.card .note').last()).toBeVisible();
   await page.keyboard.type('Persistent refresh note');
@@ -257,10 +251,10 @@ test('local QA mode preserves session location and card edits across refresh', a
 });
 
 test('local QA mode lets select marquee delete drawn strokes', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
 
   const canvas = page.locator('.canvas-wrap');
-  await page.getByTitle('Free-draw').click();
+  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
   await canvas.dragTo(canvas, {
     sourcePosition: { x: 300, y: 500 },
     targetPosition: { x: 470, y: 520 },
@@ -271,7 +265,7 @@ test('local QA mode lets select marquee delete drawn strokes', async ({ page }) 
   });
   await expect(page.locator('.strokes-layer path')).toHaveCount(4);
 
-  await page.getByTitle('Select / move (V)').click();
+  await page.getByRole('button', { name: 'Select tool', exact: true }).click();
   await canvas.dragTo(canvas, {
     sourcePosition: { x: 280, y: 470 },
     targetPosition: { x: 500, y: 610 },
@@ -283,10 +277,10 @@ test('local QA mode lets select marquee delete drawn strokes', async ({ page }) 
 });
 
 test('local QA mode erases part of a stroke from the draw tool', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
 
   const canvas = page.locator('.canvas-wrap');
-  await page.getByTitle('Free-draw').click();
+  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
   await canvas.dragTo(canvas, {
     sourcePosition: { x: 450, y: 320 },
     targetPosition: { x: 650, y: 320 },
@@ -295,23 +289,29 @@ test('local QA mode erases part of a stroke from the draw tool', async ({ page }
 
   await page.getByRole('button', { name: 'Eraser' }).click();
   await expect(page.getByText('Drag to erase strokes')).toBeVisible();
-  await canvas.dragTo(canvas, {
-    sourcePosition: { x: 540, y: 285 },
-    targetPosition: { x: 560, y: 355 },
-  });
+  // Slow, stepped swipe straight down through the middle of the horizontal stroke
+  // (drawn at y≈320, x 450→650) so the eraser samples points ON it — a fast
+  // 2-point drag can skip over the line without cutting it.
+  const cb = await canvas.boundingBox();
+  await page.mouse.move(cb.x + 550, cb.y + 280);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(cb.x + 550, cb.y + 280 + i * 10, { steps: 2 });
+  await page.mouse.up();
 
   await expect(page.locator('.strokes-layer path')).toHaveCount(4);
 });
 
 test('local QA mode turns URLs in text notes into removable previews', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
   // Reset tweaks so theme/sidebar settings don't bleed across tests.
   await page.evaluate(() => { try { localStorage.removeItem('soleil-boards-tweaks'); } catch (_) {} });
   await page.reload();
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
-  // Auto-focus places caret in the new note's editable.
+  // Focus the fresh note body before typing (placing enters edit mode, but typing
+  // immediately races the caret landing).
+  await page.locator('.note-body[contenteditable="true"]').last().click();
   await page.keyboard.type('Research https://example.com/deck');
   // Click on the empty topbar area to blur the note and trigger linkify.
   await page.locator('.tb-right').click({ force: true });
@@ -326,10 +326,11 @@ test('local QA mode turns URLs in text notes into removable previews', async ({ 
 });
 
 test('local QA mode keeps expanded card contents inside card bounds', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
+  await page.locator('.note-body[contenteditable="true"]').last().click();
   await page.keyboard.type('https://example.com/' + 'very-long-path-segment'.repeat(16));
   await page.keyboard.press('Tab');
 
@@ -359,7 +360,7 @@ test('local QA mode uses in-app dialogs instead of native prompts', async ({ pag
   await expect(page.getByRole('menu')).toBeHidden();
 
   await page.getByRole('button', { name: 'Topbar add menu' }).click();
-  await page.getByRole('menuitem', { name: 'Linked board' }).click();
+  await page.getByRole('menuitem', { name: 'Linked cluster' }).click();
   // The link picker is now the command palette in boards-only "pick" mode.
   // (This add-menu click is the documented "linked-board pointer-intercept"
   // known-flaky step; the pick picker itself is covered by cmdk-palette.spec.js.)
@@ -368,7 +369,7 @@ test('local QA mode uses in-app dialogs instead of native prompts', async ({ pag
   await expect(page.locator('.cmdk')).toBeHidden();
 
   // Plain-card delete: no confirm — an Undo toast instead.
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
   await page.keyboard.type('disposable');
   // The fresh note opens in edit mode; click away to commit, then select it.

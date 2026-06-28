@@ -10,11 +10,16 @@ const LONG_TEXT =
   'and the credits roll past the harbor lights in the long summer dusk.';
 
 async function placeNoteWithText(page) {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
+  // Focus the fresh note's body before typing — placing a note enters edit mode,
+  // but typing immediately races the caret landing (text would go nowhere).
+  const editing = page.locator('.note-body[contenteditable="true"]');
+  await editing.waitFor();
+  await editing.click();
   await page.keyboard.type(LONG_TEXT);
   // Commit the edit (blur — Escape would revert).
   await page.locator('.canvas-wrap').click({ position: { x: 30, y: cb.height - 30 } });

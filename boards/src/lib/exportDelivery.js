@@ -56,7 +56,15 @@ export async function deliverFile(blob, filename) {
     // Cache dir is the right home for a transient export the user is about to
     // save/share elsewhere; the OS reclaims it without our bookkeeping.
     const written = await Filesystem.writeFile({ path: filename, data, directory: Directory.Cache });
-    await Share.share({ title: filename, url: written.uri });
+    try {
+      await Share.share({ title: filename, url: written.uri });
+    } catch (err) {
+      // Dismissing the share sheet rejects with "Share canceled" — that's a user
+      // choice, not a failure (the file was generated + written fine). Only let
+      // genuine errors propagate so the caller's "Export failed" toast is honest.
+      if (/cancel/i.test(String(err?.message || err))) return;
+      throw err;
+    }
     return;
   }
   downloadBlob(blob, filename);

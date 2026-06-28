@@ -27,16 +27,38 @@ const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
 //     points at hello@ so any stray reply lands somewhere a human reads.
 const FROM_HELLO   = "Clusters <hello@clusters.soleilpictures.com>";
 const FROM_NOREPLY = "Clusters <noreply@updates.soleilpictures.com>";
-const REPLY_TO     = "hello@clusters.soleilpictures.com";
+// Lifecycle nudges send from the brand on the bulk subdomain — keeping
+// marketing reputation off the auth domain (which carries the sign-in codes).
+const FROM_LIFECYCLE = "Clusters <hello@updates.soleilpictures.com>";
+const REPLY_TO       = "hello@clusters.soleilpictures.com";
 
 function fromAddress(template: string): string {
   switch (template) {
     case "waitlist_submitted":
     case "waitlist_accepted":
       return FROM_HELLO;
+    case "activate_nudge_1":
+    case "activate_nudge_2":
+    case "reengage_1":
+      return FROM_LIFECYCLE;
     default:
       return FROM_NOREPLY;
   }
+}
+
+// One-click List-Unsubscribe (RFC 8058) — required by Gmail/Yahoo for bulk
+// senders. Only attached to lifecycle (marketing) templates, and only when a
+// valid 64-hex unsubscribe token is present. Transactional/auth mail gets none.
+const LIST_UNSUB_TEMPLATES = new Set(["activate_nudge_1", "activate_nudge_2", "reengage_1"]);
+
+function listUnsubHeaders(template: string, data: Record<string, unknown> = {}): Record<string, string> {
+  const tok = String(data.unsubscribeToken ?? "");
+  if (!LIST_UNSUB_TEMPLATES.has(template) || !/^[0-9a-f]{64}$/.test(tok)) return {};
+  const url = `https://clusters.soleilpictures.com/api/unsubscribe?u=${tok}&k=email_lifecycle`;
+  return {
+    "List-Unsubscribe": `<${url}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
 }
 
 const cors = {
@@ -50,6 +72,7 @@ interface Body {
   template?: string;
   to?: string;
   data?: Record<string, unknown>;
+  idempotencyKey?: string;   // optional Resend dedup key (lifecycle cron sets it)
 }
 
 function json(payload: unknown, status: number): Response {
@@ -97,6 +120,7 @@ Deno.serve(async (req) => {
     headers: {
       "authorization": `Bearer ${RESEND_API_KEY}`,
       "content-type":  "application/json",
+      ...(body.idempotencyKey ? { "Idempotency-Key": body.idempotencyKey } : {}),
     },
     body: JSON.stringify({
       from:     fromAddress(body.template as TemplateName),
@@ -105,6 +129,7 @@ Deno.serve(async (req) => {
       html:     rendered.html,
       text:     rendered.text,
       reply_to: REPLY_TO,
+      headers:  listUnsubHeaders(body.template as TemplateName, body.data || {}),
     }),
   });
 

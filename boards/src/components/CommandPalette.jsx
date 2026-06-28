@@ -164,8 +164,11 @@ export function CommandPalette({
   const recentBoards = useMemo(() => {
     if (!open || q) return [];
     return recents.map(id => boards?.[id]).filter(Boolean)
-      .filter(b => !excludeIds.includes(b.id)).slice(0, CAP.recent);
-  }, [open, q, recents, boards, excludeIds]);
+      // In pick mode (link/split picker) the workspace Home/root isn't a valid
+      // link target — match localBoards/allBoardsList, which already drop it.
+      // In nav mode, navigating to Home IS valid, so keep it there.
+      .filter(b => !excludeIds.includes(b.id) && (!isPick || b.id !== rootId)).slice(0, CAP.recent);
+  }, [open, q, recents, boards, excludeIds, isPick, rootId]);
 
   // Pick mode, empty query: every board (minus root / excluded / already-recent),
   // alphabetical — so the link picker is browseable without typing.
@@ -220,7 +223,7 @@ export function CommandPalette({
       ];
       const boardItems = q ? matched : allBoardsList;
       if (boardItems.length) out.push({
-        id: 'boards', label: q ? 'Boards' : 'All boards',
+        id: 'boards', label: q ? 'Clusters' : 'All clusters',
         items: boardItems.map(b => ({
           key: `board:${b.id}`, kind: 'board', icon: LayoutGrid,
           title: b.name || 'Untitled', sub: b.meta || null,
@@ -250,7 +253,7 @@ export function CommandPalette({
 
     const boardItems = [...localBoards, ...asyncGroups.asyncBoards];
     if (boardItems.length) out.push({
-      id: 'boards', label: 'Boards',
+      id: 'boards', label: 'Clusters',
       items: boardItems.map(b => {
         const id = b.id || b.board_id;
         return {
@@ -357,7 +360,7 @@ export function CommandPalette({
 
         <div className="cmdk-list">
           {showEmpty && (
-            <div className="cmdk-empty">{isPick ? 'No boards match.' : `No results for “${q}”.`}</div>
+            <div className="cmdk-empty">{isPick ? 'No clusters match.' : `No results for “${q}”.`}</div>
           )}
           {!q && !hasResults && !loading && (
             <div className="cmdk-empty">

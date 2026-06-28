@@ -439,7 +439,7 @@ export function ShareModal({
     const label = meta.email || meta.name;
     const ok = await feedback.confirm({
       title: `Remove ${label}?`,
-      message: `They'll lose access to "${workspace.name}" and all its boards.`,
+      message: `They'll lose access to "${workspace.name}" and all its clusters.`,
       confirmLabel: 'Remove member',
       danger: true,
     });
@@ -460,7 +460,7 @@ export function ShareModal({
         <div className="share-head">
           <div>
             <div className="share-eyebrow">SHARE</div>
-            <div className="share-title" id="share-title">{board?.name || 'Untitled board'}</div>
+            <div className="share-title" id="share-title">{board?.name || 'Untitled cluster'}</div>
           </div>
           <button className="share-close" onClick={onClose} aria-label="Close">
             <Glyph as={XIcon} size={14} />
@@ -483,15 +483,15 @@ export function ShareModal({
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}>
                 {isDemo ? (
-                  <option value="viewer">Can view — this board &amp; its sub-boards</option>
+                  <option value="viewer">Can view — this cluster &amp; its sub-clusters</option>
                 ) : (
                   <>
-                    <option value="editor">Can edit — this board &amp; its sub-boards</option>
-                    <option value="viewer">Can view — this board &amp; its sub-boards</option>
+                    <option value="editor">Can edit — this cluster &amp; its sub-clusters</option>
+                    <option value="viewer">Can view — this cluster &amp; its sub-clusters</option>
                     {/* Workspace membership grants access to every board, so
                         only the owner may hand it out. */}
                     {isOwner && (
-                      <option value="workspace">Workspace member — every board in this workspace</option>
+                      <option value="workspace">Workspace member — every cluster in this workspace</option>
                     )}
                   </>
                 )}
@@ -512,8 +512,8 @@ export function ShareModal({
                 </>
               ) : (
                 <>
-                  Anyone you add gets the same access to this board&apos;s
-                  sub-boards too.{isOwner && ' Workspace members can edit every board in this workspace, not just this one.'}
+                  Anyone you add gets the same access to this cluster&apos;s
+                  sub-clusters too.{isOwner && ' Workspace members can edit every cluster in this workspace, not just this one.'}
                 </>
               )}
             </div>
@@ -551,7 +551,7 @@ export function ShareModal({
                       {meta.online && <span className="share-online" title="Online" />}
                     </div>
                     <div className="share-row-sub">
-                      {isWsOwner ? 'Owner' : 'Member — can edit every board'}
+                      {isWsOwner ? 'Owner' : 'Member — can edit every cluster'}
                       {meta.email && ` · ${meta.email}`}
                     </div>
                   </div>
@@ -592,7 +592,7 @@ export function ShareModal({
           {canInvite && (
             <>
               <div className="share-subhead">
-                Added to this board · {shares.length}{pendingBoardInvites.length > 0 ? ` (+${pendingBoardInvites.length} pending)` : ''}
+                Added to this cluster · {shares.length}{pendingBoardInvites.length > 0 ? ` (+${pendingBoardInvites.length} pending)` : ''}
               </div>
               <div className="share-list">
                 {loadingShares ? (
@@ -600,7 +600,7 @@ export function ShareModal({
                 ) : shares.length === 0 && pendingBoardInvites.length === 0 ? (
                   <div className="share-empty">
                     No one yet. Invite people above to give them access to this
-                    board and everything inside it.
+                    cluster and everything inside it.
                   </div>
                 ) : shares.map(s => {
                   const profile = userProfiles.get(s.user_id);
@@ -665,18 +665,18 @@ export function ShareModal({
             {publicLinks.length === 0 ? (
               <>
                 <div className="share-hint" style={{ marginBottom: 8 }}>
-                  Create a link that lets anyone view this board without signing
+                  Create a link that lets anyone view this cluster without signing
                   in — view-only, no account needed.{' '}
                   {linkIncludeSubboards
-                    ? 'Viewers can also open its sub-boards.'
-                    : 'Sub-boards are not included.'}
+                    ? 'Viewers can also open its sub-clusters.'
+                    : 'Sub-clusters are not included.'}
                 </div>
                 <div className="share-link-create">
                   <label className="share-link-opt">
                     <input type="checkbox"
                            checked={linkIncludeSubboards}
                            onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
-                    Include sub-boards
+                    Include sub-clusters
                   </label>
                   <label className="share-link-opt">
                     Expires:
@@ -703,7 +703,7 @@ export function ShareModal({
                     <div className="share-row-text">
                       <div className="share-row-name">/share/{l.token.slice(0, 8)}…</div>
                       <div className="share-row-sub">
-                        View-only · {l.include_subboards ? 'with sub-boards' : 'this board only'} · created {new Date(l.created_at).toLocaleDateString()}
+                        View-only · {l.include_subboards ? 'with sub-clusters' : 'this cluster only'} · created {new Date(l.created_at).toLocaleDateString()}
                         {l.expires_at ? ` · expires ${new Date(l.expires_at).toLocaleDateString()}` : ''}
                         {l.allow_indexing ? ' · indexable by search' : ''}
                       </div>
@@ -712,14 +712,14 @@ export function ShareModal({
                       <>
                         <button className="share-remove"
                                 onClick={() => onToggleLinkSubboards(l)}
-                                title={l.include_subboards ? 'Stop sharing sub-boards' : 'Also share sub-boards'}>
-                          {l.include_subboards ? 'Hide sub-boards' : 'Add sub-boards'}
+                                title={l.include_subboards ? 'Stop sharing sub-clusters' : 'Also share sub-clusters'}>
+                          {l.include_subboards ? 'Hide sub-clusters' : 'Add sub-clusters'}
                         </button>
                         <button className="share-remove"
                                 onClick={() => onToggleLinkIndexing(l)}
                                 title={l.allow_indexing
                                   ? 'Search engines may index this link — click to hide it from search'
-                                  : 'Hidden from search engines — click to let this link rank (for marketing boards)'}>
+                                  : 'Hidden from search engines — click to let this link rank (for marketing clusters)'}>
                           {l.allow_indexing ? 'Hide from search' : 'Allow indexing'}
                         </button>
                       </>
@@ -739,7 +739,7 @@ export function ShareModal({
                     <input type="checkbox"
                            checked={linkIncludeSubboards}
                            onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
-                    Include sub-boards
+                    Include sub-clusters
                   </label>
                   <label className="share-link-opt">
                     Expires:
@@ -772,7 +772,7 @@ export function ShareModal({
         {!canInvite && (
           <div className="share-section">
             <div className="share-hint">
-              Only people who can edit this board can change who has access. You
+              Only people who can edit this cluster can change who has access. You
               can still see who does, above.
             </div>
           </div>

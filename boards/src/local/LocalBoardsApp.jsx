@@ -14,7 +14,6 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
-import { getStarterCards, getStarterTutorialCard } from '../lib/onboardingStarter.js';
 import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
@@ -48,6 +47,21 @@ function loadLocalSession() {
 }
 
 function createInitialState() {
+  // Blank test surface (see BLANK_SEED): a clean empty Studio root so bare-canvas
+  // placement clicks aren't swallowed by seeded demo cards. Same shape as
+  // createOnboardingState's return.
+  if (BLANK_SEED) {
+    return {
+      boards: {
+        [ROOT_ID]: {
+          id: ROOT_ID, name: 'Studio', view: 'canvas',
+          workspace_id: 'local-workspace', parent_board_id: null,
+          created_at: new Date(0).toISOString(),
+        },
+      },
+      boardState: { [ROOT_ID]: { cards: [], arrows: [], strokes: [] } },
+    };
+  }
   const boards = {};
   const boardState = {};
 
@@ -85,6 +99,13 @@ function createInitialState() {
 const ONBOARD_PREVIEW = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('onboard') === '1';
 
+// Dev/test-only: ?local=1&reset=1&blank=1 boots an EMPTY "Studio" root (no demo
+// cards). Placement specs that click bare canvas to add a card need a clear
+// surface — the normal seed packs the canvas, so a hardcoded click lands on a
+// demo card and places nothing. See createInitialState() below.
+const BLANK_SEED = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).get('blank') === '1';
+
 // Dev-only: ?local=1&showcase=1 renders welcome_showcase arm B exactly as a new
 // user gets it — calls the real prepare_showcase RPC (grants this session's images
 // read + returns the Clusters Logo snapshot), decodes it the same way production
@@ -109,16 +130,11 @@ function createShowcasePreviewState() {
 }
 
 function createOnboardingState() {
-  // Mirror the real seed (App.jsx): a tutorial "Ideas" child board + its mirror
-  // card, so the preview shows the FULL first-run layout (notes + a real board to
-  // drag into) and the drag-to-nest gesture can be exercised on a phone emulator.
-  // A kind:'board' card needs a matching boards-map entry or it renders as an
-  // orphan — hence both the board row and the card.
-  const IDEAS_ID = 'local-ideas';
-  // Apollo 11's Eagle touched down 1969-07-20 20:17 UTC. A deliberate, fun
-  // placeholder date for the demo "Ideas" board — the board card formats anything
-  // older than ~30 days as a calendar date, so the tile reads "Jul 20, 1969".
-  const MOON_LANDING = '1969-07-20T20:17:00.000Z';
+  // Mirror the SHIPPED default (onboarding_v2 arm B, image-first): a clean EMPTY
+  // Studio root — no seed cards — so CanvasSurface renders the image-first "Start
+  // your moodboard" tiles, exactly what a brand-new user now sees. (The prior arm-A
+  // notes + "Ideas" tutorial is retired.) The "Add your first image" coachmark is
+  // shown via the arm="B" prop at the render site below.
   return {
     boards: {
       [ROOT_ID]: {
@@ -126,18 +142,9 @@ function createOnboardingState() {
         workspace_id: 'local-workspace', parent_board_id: null,
         created_at: new Date(0).toISOString(),
       },
-      [IDEAS_ID]: {
-        id: IDEAS_ID, name: 'Ideas', view: 'canvas',
-        workspace_id: 'local-workspace', parent_board_id: ROOT_ID,
-        created_at: MOON_LANDING,
-      },
     },
     boardState: {
-      [ROOT_ID]: {
-        cards: [...clone(getStarterCards()), clone(getStarterTutorialCard(IDEAS_ID))],
-        arrows: [], strokes: [],
-      },
-      [IDEAS_ID]: { cards: [], arrows: [], strokes: [] },
+      [ROOT_ID]: { cards: [], arrows: [], strokes: [] },
     },
   };
 }
@@ -232,7 +239,7 @@ export function LocalBoardsApp({ user, signOut }) {
   }, []);
 
   useEffect(() => {
-    if (ONBOARD_PREVIEW || SHOWCASE_PREVIEW) return;   // preview is throwaway — never pollute the saved local session
+    if (ONBOARD_PREVIEW || SHOWCASE_PREVIEW) return;   // previews are throwaway — never pollute the saved local session (blank DOES persist, so the persistence spec can reload and find its note)
     try {
       localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({
         localState: { boards, boardState },
@@ -383,7 +390,7 @@ export function LocalBoardsApp({ user, signOut }) {
 
   const addNewBoard = (clickPos = null) => {
     const id = createId('board');
-    const name = 'Untitled board';
+    const name = 'Untitled cluster';
     setLocalState(prev => ({
       boards: {
         ...prev.boards,
@@ -646,7 +653,7 @@ export function LocalBoardsApp({ user, signOut }) {
 
   // Reduced command set — the local QA shell has no Settings/Share/Trash modals.
   const localCommands = useMemo(() => [
-    { id: 'new-board', label: 'Create board', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'board'],
+    { id: 'new-board', label: 'Create cluster', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board'],
       run: () => { setCurrentSurface('board'); addNewBoard(); } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
       available: view !== 'list' && currentSurface === 'board',
@@ -728,7 +735,7 @@ export function LocalBoardsApp({ user, signOut }) {
             <span className="sb-row-label">Messages</span>
           </div>
 
-          <div className="sb-eyebrow">BOARDS</div>
+          <div className="sb-eyebrow">CLUSTERS</div>
           {stack.map((id, index) => {
             const isActive = index === stack.length - 1 && currentSurface === 'board';
             return (
@@ -750,7 +757,7 @@ export function LocalBoardsApp({ user, signOut }) {
           ))}
           <div className="sb-row sb-row-all" onClick={() => setPickerOpen(true)}>
             <Icon as={MoreHorizontal} size={14} />
-            <span className="sb-row-label">All boards</span>
+            <span className="sb-row-label">All clusters</span>
           </div>
         </div>
       </aside>
@@ -841,6 +848,7 @@ export function LocalBoardsApp({ user, signOut }) {
             autoFocusId={autoFocusId}
             clearAutoFocus={() => setAutoFocusId(null)}
             showcaseArm={SHOWCASE_PREVIEW && currentId === ROOT_ID ? 'B' : 'A'}
+            autoFrame={!BLANK_SEED}
             useLocalImages
           />
         ) : (
@@ -900,7 +908,7 @@ export function LocalBoardsApp({ user, signOut }) {
       <LocalSettingsPanel tweak={tweak} setTweak={setTweak} />
 
       {ONBOARD_PREVIEW && onboardCoachOpen && currentId === ROOT_ID && currentSurface === 'board' && (
-        <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} />
+        <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} arm="B" />
       )}
 
       {mobileShell && (() => {
@@ -970,8 +978,8 @@ function LocalTopbarAddMenu({ onAddBoard, onLinkBoard }) {
       </button>
       {open && (
         <div className="topbar-add-menu" role="menu" aria-label="Add">
-          <button role="menuitem" onClick={() => { setOpen(false); onAddBoard(); }}>Board</button>
-          <button role="menuitem" onClick={() => { setOpen(false); onLinkBoard(); }}>Linked board</button>
+          <button role="menuitem" onClick={() => { setOpen(false); onAddBoard(); }}>Cluster</button>
+          <button role="menuitem" onClick={() => { setOpen(false); onLinkBoard(); }}>Linked cluster</button>
         </div>
       )}
     </div>
@@ -980,7 +988,7 @@ function LocalTopbarAddMenu({ onAddBoard, onLinkBoard }) {
 
 function LocalSettingsPanel({ tweak, setTweak }) {
   return (
-    <TweaksPanel title="Board settings">
+    <TweaksPanel title="Cluster settings">
       <TweakSection label="Interface">
         <TweakRadio
           label="Theme"

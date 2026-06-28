@@ -82,7 +82,7 @@ function TargetPreview({ target }) {
       try {
         if (target.kind === 'board') {
           const { data } = await supabase.from('boards').select('name,cover,view').eq('id', target.id).maybeSingle();
-          if (!cancelled && data) setMeta({ title: data.name, sub: `${data.view || 'canvas'} board`, cover: data.cover });
+          if (!cancelled && data) setMeta({ title: data.name, sub: `${data.view || 'canvas'} cluster`, cover: data.cover });
         } else if (target.kind === 'card') {
           const { data } = await supabase.from('card_index').select('title,body,kind').eq('board_id', target.boardId).eq('card_id', target.cardId).maybeSingle();
           if (!cancelled && data) setMeta({ title: data.title || 'Untitled card', sub: data.kind, body: data.body });

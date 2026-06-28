@@ -29,7 +29,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -96,6 +96,23 @@ import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
+
+// Empty-board headline rotator — cycles a few accurate, breadth-signaling nouns
+// ("Start your moodboard / script / shot list…") to hint the app's full range
+// without a wall of options. Honors prefers-reduced-motion (→ static first word).
+// Each swap is keyed so the CSS fade (cnvRotatingWordIn) re-triggers.
+const BREADTH_WORDS = ['moodboard', 'script', 'shot list', 'lookbook', 'asset board'];
+function RotatingWord({ words = BREADTH_WORDS, intervalMs = 2000 }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    let reduce = false;
+    try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) {}
+    if (reduce || words.length < 2) return undefined;
+    const t = setInterval(() => setI((n) => (n + 1) % words.length), intervalMs);
+    return () => clearInterval(t);
+  }, [words, intervalMs]);
+  return <span key={words[i]} className="cnv-rotating-word">{words[i]}</span>;
+}
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -353,6 +370,9 @@ export function CanvasSurface({
   firstCardPrompt = false, // onboarding_v2 arm B: surface the "Start your cluster"
                            // tiles even on a SEEDED (non-empty) root until the user
                            // places their own genuine card (the guided first-card flow).
+  autoFrame = true,        // false (LocalBoardsApp ?blank=1, tests) → don't auto-fit
+                           // the viewport to content; keep zoom 1 so placement specs
+                           // aren't thrown off by the empty→first-card fit (~3x).
   showcaseArm = 'A',       // welcome_showcase experiment arm: 'B' → root was
                            // seeded with the brand demo; show the "Clear & try it
                            // yourself" banner while its cards are present.
@@ -1123,7 +1143,7 @@ export function CanvasSurface({
     editBlockedToastShownRef.current = true;
     feedback.toast({
       type: 'info',
-      message: 'Subscribe to edit shared boards.',
+      message: 'Subscribe to edit shared clusters.',
       action: onRequestUpgrade ? { label: 'Upgrade', onClick: onRequestUpgrade } : null,
       ttl: 5000,
     });
@@ -1206,6 +1226,15 @@ export function CanvasSurface({
     if (!wrapRef.current) return;
     if (!cards) return;
     if (fitOnceForRef.current === board.id) return;
+    // Test mode (autoFrame=false, LocalBoardsApp ?blank=1): never auto-fit — keep
+    // zoom 1 and lock immediately so placement specs run at a stable zoom. The
+    // empty→first-card fit would otherwise zoom-to-frame that single card to ~3x.
+    if (!autoFrame) {
+      fitOnceForRef.current = board.id;
+      setZoom(1);
+      setPan({ x: 40, y: 60 });
+      return;
+    }
     const r = wrapRef.current.getBoundingClientRect();
     if (r.width < 50 || r.height < 50) return;
     if (!ydoc && cards.length === 0) return; // not ready yet
@@ -3719,7 +3748,7 @@ export function CanvasSurface({
                     await bulletproofRestore(board.id, b64);
                     feedback.toast({
                       type: 'error',
-                      message: `Drag aborted — source board lost ${actualDelta} cards instead of ${expectedDelta}. Restored automatically.`,
+                      message: `Drag aborted — source cluster lost ${actualDelta} cards instead of ${expectedDelta}. Restored automatically.`,
                       ttl: 12000,
                     });
                   } else {
@@ -4297,15 +4326,15 @@ export function CanvasSurface({
     if (!canEdit) {
       if (boardPermission?.source === 'tier-demoted') {
         items.push({ id: 'upgrade-edit',
-          label: 'Upgrade to edit shared boards →',
+          label: 'Upgrade to edit shared clusters →',
           run: () => onRequestUpgrade?.() });
         items.push({ divider: true });
       }
       if (!multi) {
         if (c.kind === 'board') {
-          items.push({ id: 'open', label: 'Open board', run: () => onOpenBoard(c.id) });
+          items.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         } else if (c.kind === 'boardlink') {
-          items.push({ id: 'open', label: 'Open linked board',
+          items.push({ id: 'open', label: 'Open linked cluster',
             run: () => boards[c.target] && onOpenBoard(c.target) });
         } else if (c.kind === 'link' && (c.source || c.link)) {
           items.push({ id: 'open', label: 'Open link', run: () => {
@@ -4347,7 +4376,7 @@ export function CanvasSurface({
         ];
         items.push({
           id: 'move-to-board',
-          label: actingBoardIds.length > 1 ? `Move ${actingBoardIds.length} boards to…` : 'Move to board…',
+          label: actingBoardIds.length > 1 ? `Move ${actingBoardIds.length} clusters to…` : 'Move to cluster…',
           submenu,
         });
       }
@@ -4471,7 +4500,7 @@ export function CanvasSurface({
           { id: 'sw-8', label: '8 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 8 }) },
         ]});
       } else if (c.kind === 'board') {
-        items.push({ id: 'open', label: 'Open board', run: () => onOpenBoard(c.id) });
+        items.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
         const currentCover = target?.cover || 'neutral';
         items.push({ id: 'cover', label: 'Cover color', submenu: [
@@ -4487,7 +4516,7 @@ export function CanvasSurface({
           items.push({ id: 'clone', label: 'Copy to my workspace', run: () => mutators.cloneBoardToPersonal?.(c.id) });
         }
       } else if (c.kind === 'boardlink') {
-        items.push({ id: 'open', label: 'Open linked board', run: () => boards[c.target] && onOpenBoard(c.target) });
+        items.push({ id: 'open', label: 'Open linked cluster', run: () => boards[c.target] && onOpenBoard(c.target) });
       } else if (c.kind === 'palette') {
         items.push({ id: 'palette-edit', label: 'Edit', submenu: [
           { id: 'pc-pure',
@@ -4510,7 +4539,7 @@ export function CanvasSurface({
               mutators.updateCard?.(c.id, { swatches: next });
             } catch (_) { /* user cancelled */ }
           }},
-          { id: 'pc-pick-image', label: 'Pick from board image…', run: () => {
+          { id: 'pc-pick-image', label: 'Pick from cluster image…', run: () => {
             setEyedropFor(c.id);
             feedback.toast({ type: 'info', message: 'Click an image to sample a color. Esc to cancel.' });
           }},
@@ -5229,11 +5258,12 @@ export function CanvasSurface({
   // partition card-creating actions from annotations; `icon` is consumed by
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
-    { id: 'board',   group: 'card', label: 'Board',   icon: LayoutGrid,    run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
+    { id: 'board',   group: 'card', label: 'Cluster', icon: LayoutGrid,    run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); mutators.addImageAt?.(pos); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
     { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method); mutators.addNote?.(pos); } },
     { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method); mutators.addDocCard?.(pos); } },
+    { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method); mutators.addScriptCard?.(pos); } },
     { id: 'shape',   group: 'card', label: 'Shape',   icon: Square,        run: () => { noteCreateIntent(method); mutators.addShape?.(pos, shapeOptions); } },
     { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method); mutators.addPalette?.(pos); } },
     { id: 'addurl',  group: 'card', label: 'Link', icon: Link, run: async () => {
@@ -5360,7 +5390,7 @@ export function CanvasSurface({
     if (boardPermission?.source === 'tier-demoted') {
       return [
         { id: 'upgrade-edit',
-          label: 'Upgrade to edit shared boards →',
+          label: 'Upgrade to edit shared clusters →',
           run: () => onRequestUpgrade?.() },
         { divider: true },
         { id: 'selectall', label: 'Select all', shortcut: `${cmdKey}A`, run: selectAll },
@@ -6026,7 +6056,7 @@ export function CanvasSurface({
                      onRename={canEdit ? (name) => mutators.renameBoardById?.(c.id, name) : null}
                      autoFocus={af} />
         : boardsReady
-          ? <div className="bc bc-missing" title={`Missing board ${c.id}`}>Missing board</div>
+          ? <div className="bc bc-missing" title={`Missing cluster ${c.id}`}>Missing cluster</div>
           : <div className="bc bc-loading" aria-hidden="true" />;
     } else if (c.kind === 'boardlink') {
       const target = boards[c.target];
@@ -6247,7 +6277,7 @@ export function CanvasSurface({
     // tell the user, rather than silently no-op'ing the mutators.
     if (!canEdit) {
       e.preventDefault();
-      feedback?.toast?.({ type: 'info', message: 'This board is view-only — drops are disabled.' });
+      feedback?.toast?.({ type: 'info', message: 'This cluster is view-only — drops are disabled.' });
       return;
     }
     const types = e.dataTransfer.types;
@@ -6284,7 +6314,7 @@ export function CanvasSurface({
                   .catch(err => feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) }));
               }
             } else {
-              feedback.toast({ type: 'info', message: 'Drop a tag onto a card or board to apply it.' });
+              feedback.toast({ type: 'info', message: 'Drop a tag onto a card or cluster to apply it.' });
             }
             return;
           }
@@ -6743,7 +6773,7 @@ export function CanvasSurface({
     { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand },
     { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
-    { id: 'board',  title: 'Add board', label: 'Add board tool', icon: LayoutGrid },
+    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: LayoutGrid },
     { id: 'draw',   title: 'Free-draw (D)', label: 'Free-draw tool', icon: Scribble },
     { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
   ];
@@ -6756,7 +6786,7 @@ export function CanvasSurface({
     { label: 'File', action: () => { noteCreateIntent('add_menu'); openFilePicker(resolvePastePos().pos); } },
     { label: 'Shape', action: () => setSelectedTool('shape') },
     { label: 'Palette', action: () => setSelectedTool('palette') },
-    { label: 'Linked board', action: () => onOpenPicker() },
+    { label: 'Linked cluster', action: () => onOpenPicker() },
   ];
 
   const marqueeRect = marquee && {
@@ -7931,15 +7961,19 @@ export function CanvasSurface({
           switches / first-run seeding never flash it. The friction-stuck signal
           adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
       {canEdit && selectedTool === 'select' && (boardIsEmpty || firstCardPrompt) && (() => {
-        // IMAGE-FIRST: adding an image is the single behavior that drives activation
-        // (14/14 of activated users used an image; note-only users ~never return), so
-        // Image is a big hero CTA and Note / Upload / Doc sit beneath as secondary.
+        // IMAGE-FIRST, but show the RANGE: adding an image drives activation (14/14
+        // of activated users used an image), so Image stays the hero — while the
+        // rotating headline + the breadth line + the Script/Board/Note/Doc/Any-file
+        // row signal that this is also where you write scripts, organize, and drop
+        // any asset. ("Any file" is a deliberate upsell tease: an image uploads free,
+        // a generic file hits the existing paid-upgrade prompt in ingestFiles.)
         const runTile = (id) => buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run();
         return (
         <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}`}
              aria-label="Add your first image"
              role={frictionStuck ? 'status' : 'group'}>
-          <div className="cnv-empty-tiles-head">Start your moodboard</div>
+          <div className="cnv-empty-tiles-head">Start your <RotatingWord /></div>
+          <div className="cnv-empty-tiles-breadth">Moodboards, scripts, shot lists — every asset, one canvas.</div>
           <button type="button" className="cnv-empty-tile cnv-empty-tile-hero"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => runTile('image')}>
@@ -7951,9 +7985,11 @@ export function CanvasSurface({
           </button>
           <div className="cnv-empty-tiles-grid">
             {[
-              { id: 'note',  label: 'Note',   icon: NotePencil },
-              { id: 'file',  label: 'Upload', icon: Upload },
-              { id: 'doc',   label: 'Doc',    icon: FileText },
+              { id: 'script', label: 'Script',   icon: Clapperboard },
+              { id: 'board',  label: 'Cluster',  icon: LayoutGrid },
+              { id: 'note',   label: 'Note',     icon: NotePencil },
+              { id: 'doc',    label: 'Doc',      icon: FileText },
+              { id: 'file',   label: 'Any file', icon: Upload },
             ].map((t) => (
               <button key={t.id} type="button" className="cnv-empty-tile"
                       onPointerDown={(e) => e.stopPropagation()}
@@ -8049,7 +8085,7 @@ export function CanvasSurface({
           title="Drag to zoom"
         />
         <span className="cnv-zoom-val"
-              title="Click: 100% · Double-click: Full Board"
+              title="Click: 100% · Double-click: Full Cluster"
               onClick={() => { enableSmoothTransform(); markZooming(); setZoom(1); setPan({ x: 40, y: 60 }); }}
               onDoubleClick={() => { enableSmoothTransform(); markZooming(); fitToContent(); }}>
           {Math.round(zoom * 100)}%
@@ -8138,7 +8174,7 @@ export function CanvasSurface({
           sheet before running so card auto-focus/editors aren't fighting the
           sheet teardown. */}
       {isPhone && mobileAdd && (
-        <Sheet open onClose={() => setMobileAdd(null)} title="Add to board" snap="half">
+        <Sheet open onClose={() => setMobileAdd(null)} title="Add to cluster" snap="half">
           <div className="mobile-add-grid">
             {buildAddActions(mobileAdd.pos, 'mobile_nav').map(a => (
               <button

@@ -131,7 +131,7 @@ export function ListSurface({
     if (!isRecognizedDrag(t)) return;
     e.preventDefault(); // swallow so the browser never navigates
     if (!canEdit) {
-      feedback?.toast?.({ type: 'info', message: 'This board is view-only — drops are disabled.' });
+      feedback?.toast?.({ type: 'info', message: 'This cluster is view-only — drops are disabled.' });
       return;
     }
     // Board(s) dropped here → nest under this board (reparent). See the
@@ -155,7 +155,7 @@ export function ListSurface({
     }
     // Files / URLs / text have no canvas coordinates in list view — guide the
     // user instead of dropping into the void.
-    feedback?.toast?.({ type: 'info', message: 'Switch to canvas view to drop files, links or text onto a board.' });
+    feedback?.toast?.({ type: 'info', message: 'Switch to canvas view to drop files, links or text onto a cluster.' });
   };
 
   const totalSel = selectedBoards.size + selectedCards.size;
@@ -175,14 +175,14 @@ export function ListSurface({
 
         {subBoards.length === 0 && linkedCards.length === 0 && otherCards.length === 0 && (
           <div className="list-empty">
-            <div className="list-empty-title">Empty board</div>
-            <div className="list-empty-sub">Add a sub-board, or link to one elsewhere.</div>
-            <button className="tb-btn" onClick={onOpenPicker}>Link a board</button>
+            <div className="list-empty-title">Empty cluster</div>
+            <div className="list-empty-sub">Add a sub-cluster, or link to one elsewhere.</div>
+            <button className="tb-btn" onClick={onOpenPicker}>Link a cluster</button>
           </div>
         )}
         {subBoards.length > 0 && (
           <>
-            <div className="list-section">Boards</div>
+            <div className="list-section">Clusters</div>
             <div className="list-grid">
               {subBoards.map(b => (
                 <div key={b.id}

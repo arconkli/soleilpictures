@@ -264,6 +264,8 @@ export default {
       // Admin-only preview of a still-pending board's images (Approvals tab).
       const admPrevMatch = url.pathname.match(/^\/api\/admin\/preview-img\/([0-9a-f-]{36})$/i);
       if (admPrevMatch) return await handleAdminPreviewImg(env, admPrevMatch[1], url.searchParams, request);
+      // Logged-out one-click unsubscribe for lifecycle email (migration 0173).
+      if (url.pathname === '/api/unsubscribe') return await handleUnsubscribe(request, url, env);
     } catch (e) {
       return json({ error: e?.message || String(e) }, 500);
     }
@@ -464,6 +466,66 @@ async function runR2Sweep(env) {
   } catch (e) {
     console.error('[r2-sweep] failed', e);
   }
+}
+
+// ── Lifecycle email: logged-out one-click unsubscribe ───────────────────────
+// GET renders a confirm page and DOES NOT mutate (email clients prefetch GET
+// links). POST — from the confirm button AND RFC 8058 List-Unsubscribe=One-Click
+// — flips the consent flag via the service-role email_unsubscribe RPC.
+function unsubShell(inner) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">`
+    + `<meta name="viewport" content="width=device-width,initial-scale=1">`
+    + `<title>Unsubscribe · Clusters</title></head>`
+    + `<body style="margin:0;background:#0a0a0c;color:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">`
+    + `<div style="max-width:440px;margin:0 auto;padding:80px 24px;text-align:center;">`
+    + `<div style="font:700 20px/1 inherit;letter-spacing:.18em;text-transform:uppercase;color:#f5f5f7;margin-bottom:32px;">Clusters</div>`
+    + inner
+    + `<p style="margin-top:24px;font-size:12px;line-height:1.5;color:#8a8a8e;">Sign-in codes and account-critical emails are unaffected.</p>`
+    + `</div></body></html>`;
+}
+
+function unsubConfirmPage(action) {
+  return unsubShell(
+    `<p style="font-size:16px;line-height:1.6;color:#b3b3b7;">Stop getting product tips &amp; check-in emails from Clusters?</p>`
+    + `<form method="POST" action="${action}" style="margin-top:24px;">`
+    + `<button type="submit" style="background:#ffa500;color:#0a0a0c;border:0;border-radius:4px;padding:12px 22px;font:600 14px inherit;cursor:pointer;">Unsubscribe</button>`
+    + `</form>`,
+  );
+}
+
+function unsubResultPage(message) {
+  return unsubShell(`<p style="font-size:16px;line-height:1.6;color:#b3b3b7;">${message}</p>`);
+}
+
+async function handleUnsubscribe(request, url, env) {
+  const token = url.searchParams.get('u') || '';
+  const keyRaw = url.searchParams.get('k') || 'email_lifecycle';
+  const key = keyRaw === 'email_lifecycle' ? keyRaw : 'email_lifecycle';   // allowlist
+  const validToken = /^[0-9a-f]{64}$/.test(token);
+  const headers = {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'referrer-policy': 'no-referrer',
+  };
+  // Build the form action ourselves from the validated token (no echo of raw query).
+  const action = `/api/unsubscribe?u=${token}&k=${key}`;
+
+  if (request.method === 'POST') {
+    if (!validToken) return new Response(unsubResultPage('That link looks invalid.'), { status: 400, headers });
+    let ok = false;
+    try { ok = (await rpc(env, 'email_unsubscribe', { p_token: token, p_key: key })) === true; }
+    catch (e) { console.warn('[unsubscribe] rpc failed', e); ok = false; }
+    return new Response(
+      unsubResultPage(ok
+        ? "You're unsubscribed. You won't get these notes anymore."
+        : "We couldn't process that — the link may have expired."),
+      { status: 200, headers },
+    );
+  }
+
+  if (request.method !== 'GET') return new Response('Method not allowed', { status: 405, headers });
+  if (!validToken) return new Response(unsubResultPage('That link looks invalid.'), { status: 400, headers });
+  return new Response(unsubConfirmPage(action), { status: 200, headers });
 }
 
 async function rpc(env, fn, params) {

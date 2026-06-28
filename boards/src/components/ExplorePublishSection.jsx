@@ -41,7 +41,7 @@ export function ExplorePublishSection({ board, canManage }) {
         description: desc.trim() || null,
       });
       if (res?.status === 'already_published') {
-        feedback.toast({ type: 'info', message: 'This board is already live on Explore.' });
+        feedback.toast({ type: 'info', message: 'This cluster is already live on Explore.' });
       } else {
         feedback.toast({ type: 'success', message: 'Submitted to Explore — we’ll review it shortly.' });
       }
@@ -63,14 +63,14 @@ export function ExplorePublishSection({ board, canManage }) {
 
       {isLive ? (
         <p className="share-hint">
-          ✓ This board is live on Explore.{' '}
+          ✓ This cluster is live on Explore.{' '}
           {slug && <a href={`/c/${slug}`} target="_blank" rel="noopener noreferrer">View public page →</a>}
         </p>
       ) : status === 'pending' ? (
         <p className="share-hint">⏳ Submitted — pending review. We’ll publish it to Explore once approved.</p>
       ) : status === 'rejected' ? (
         <>
-          <p className="share-hint">This board wasn’t approved for Explore{sub?.review_reason ? `: ${sub.review_reason}` : '.'}</p>
+          <p className="share-hint">This cluster wasn’t approved for Explore{sub?.review_reason ? `: ${sub.review_reason}` : '.'}</p>
           {!open && <button type="button" style={ghostBtn} onClick={() => setOpen(true)}>Resubmit</button>}
         </>
       ) : !open ? (

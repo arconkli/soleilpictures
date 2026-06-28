@@ -87,8 +87,10 @@ async function acceptOne(admin: ReturnType<typeof createClient>, entryId: string
   if (!userId) throw new Error("no auth.users row for " + email);
 
   // Flip tier: only 'waitlist' → 'demo'. Don't touch 'admin'/'paid'.
+  // Stamp activated_access_at so lifecycle-email windows anchor on when the
+  // user actually got app access, not their (earlier) OTP signup time.
   const tierUpd = await admin.from("profiles")
-    .update({ tier: "demo" })
+    .update({ tier: "demo", activated_access_at: new Date().toISOString() })
     .eq("user_id", userId)
     .eq("tier", "waitlist");
   if (tierUpd.error) throw tierUpd.error;

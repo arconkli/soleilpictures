@@ -625,7 +625,7 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
         <div className="tag-detail-block-head">
           <Icon as={LayoutGrid} size={12} />
           <button className="tag-detail-block-title-link"
-                  title="Click to open the parent board · right-click for actions"
+                  title="Click to open the parent cluster · right-click for actions"
                   onClick={() => navigate(navTarget)}
                   onContextMenu={(e) => openMenu(e, menuTarget)}>
             {g.title || 'Group'}
@@ -649,8 +649,8 @@ export function TagDetailView({ tag, workspaceId, userId, onOpenItem, onClose })
           // show the real count + a way in, not a dead "no cards" line.
           <button className="tag-detail-block-peek"
                   onClick={() => navigate(navTarget)}
-                  title="Open the board to view its cards">
-            {g.member_count} {g.member_count === 1 ? 'item' : 'items'} · open the board to view
+                  title="Open the cluster to view its cards">
+            {g.member_count} {g.member_count === 1 ? 'item' : 'items'} · open the cluster to view
           </button>
         ) : null /* genuinely-empty name-match auto-tag → just its title row */}
       </div>

@@ -7,20 +7,26 @@ import { expect, test } from '@playwright/test';
 
 // ─── helpers ──────────────────────────────────────────────────────────────
 
-async function go(page) {
-  await page.goto('/?local=1&reset=1');
+async function go(page, { blank = false } = {}) {
+  // blank:true boots an EMPTY cluster (?blank=1) so canvas-placement tests click
+  // bare canvas; default keeps the dense demo seed for tests that read it.
+  const url = blank ? '/?local=1&reset=1&blank=1' : '/?local=1&reset=1';
+  const after = blank ? '/?local=1&blank=1' : '/?local=1';
+  await page.goto(url);
   // Wipe persisted tweaks (theme, compactSidebar, showMessages) so test
   // order doesn't change click geometry.
   await page.evaluate(() => { try { localStorage.removeItem('soleil-boards-tweaks'); } catch (_) {} });
-  await page.goto('/?local=1&reset=1');
-  await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
+  await page.goto(url);
+  await page.evaluate((a) => window.history.replaceState(null, '', a), after);
   await expect(page.locator('.rail-brand')).toBeVisible();
 }
 
-async function withFreshSession(page) {
+async function withFreshSession(page, { blank = false } = {}) {
   // For tests that need to assert against persisted state, drop session storage first.
-  await page.goto('/?local=1&reset=1');
-  await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
+  const url = blank ? '/?local=1&reset=1&blank=1' : '/?local=1&reset=1';
+  const after = blank ? '/?local=1&blank=1' : '/?local=1';
+  await page.goto(url);
+  await page.evaluate((a) => window.history.replaceState(null, '', a), after);
 }
 
 // ═══════════════ SIDEBAR ═══════════════
@@ -82,7 +88,7 @@ test.describe('Topbar', () => {
   test('Add menu button opens menu with all kinds', async ({ page }) => {
     await go(page);
     await page.getByRole('button', { name: 'Topbar add menu' }).click();
-    // Local-mode topbar add menu has Add board / Linked board.
+    // Local-mode topbar add menu has Add board / Linked cluster.
     const menuitems = page.locator('.topbar-add-menu [role="menuitem"], .topbar-add-menu button');
     expect(await menuitems.count()).toBeGreaterThan(0);
     // Close
@@ -93,35 +99,35 @@ test.describe('Topbar', () => {
 // ═══════════════ CANVAS — TOOLBAR & ADD MENU ═══════════════
 
 test.describe('Canvas tools', () => {
-  test('Add menu opens, lists Doc / Shape / Palette / Linked board (Board + Text note moved off)', async ({ page }) => {
+  test('Add menu opens, lists Doc / Shape / Palette / Linked cluster (Board + Text note moved off)', async ({ page }) => {
     await go(page);
     await page.getByRole('button', { name: 'Add menu', exact: true }).click();
-    for (const label of ['Doc', 'Shape', 'Palette', 'Linked board']) {
+    for (const label of ['Doc', 'Shape', 'Palette', 'Linked cluster']) {
       await expect(page.getByRole('menuitem', { name: label, exact: true })).toBeVisible();
     }
     // Board is now a first-class toolbar tool, and Text note is the toolbar's Add-note
     // tool — so neither is repeated in the "+" menu anymore.
-    await expect(page.getByRole('menuitem', { name: 'Board', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: 'Cluster', exact: true })).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: 'Text note', exact: true })).toHaveCount(0);
     await page.keyboard.press('Escape');
   });
 
   test('Select tool is the default after page load', async ({ page }) => {
     await go(page);
-    await expect(page.getByTitle('Select / move (V)')).toHaveClass(/active/);
+    await expect(page.getByRole('button', { name: 'Select tool', exact: true })).toHaveClass(/active/);
   });
 
   test('Pan tool activates + shows hint', async ({ page }) => {
     await go(page);
-    await page.getByTitle('Pan canvas (H or Space)').click();
+    await page.getByRole('button', { name: 'Pan tool', exact: true }).click();
     await expect(page.getByText('Drag to pan')).toBeVisible();
     await page.keyboard.press('Escape');
   });
 
   test('Add note → click → note card spawns', async ({ page }) => {
-    await go(page);
+    await go(page, { blank: true });
     const before = await page.locator('.card').count();
-    await page.getByTitle('Add note').click();
+    await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
     await expect(page.getByText('Click on the canvas to place a note')).toBeVisible();
     await page.locator('.canvas-wrap').click({ position: { x: 480, y: 380 } });
     await expect(page.locator('.card')).toHaveCount(before + 1);
@@ -129,16 +135,16 @@ test.describe('Canvas tools', () => {
   });
 
   test('Add Board via toolbar → click → board card spawns', async ({ page }) => {
-    await go(page);
+    await go(page, { blank: true });
     const before = await page.locator('.card').count();
-    await page.getByTitle('Add board').click();
+    await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
     await expect(page.getByText('Click on the canvas to place a board')).toBeVisible();
     await page.locator('.canvas-wrap').click({ position: { x: 380, y: 320 } });
     await expect(page.locator('.card')).toHaveCount(before + 1);
   });
 
   test('Add Palette via Add menu → click → palette card spawns', async ({ page }) => {
-    await go(page);
+    await go(page, { blank: true });
     await page.getByRole('button', { name: 'Add menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Palette', exact: true }).click();
     await page.locator('.canvas-wrap').click({ position: { x: 460, y: 360 } });
@@ -154,7 +160,7 @@ test.describe('Canvas tools', () => {
 
   test('Free-draw tool activates + Pen/Eraser segmented control appears', async ({ page }) => {
     await go(page);
-    await page.getByTitle('Free-draw').click();
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
     await expect(page.getByText('Drag to draw')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Pen', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Eraser' })).toBeVisible();
@@ -162,15 +168,15 @@ test.describe('Canvas tools', () => {
 
   test('Arrow tool activates + hint asks for cards', async ({ page }) => {
     await go(page);
-    await page.getByTitle(/^Arrow/).click();
+    await page.getByRole('button', { name: 'Arrow tool', exact: true }).click();
     await expect(page.getByText(/Click a card to start/)).toBeVisible();
   });
 
   test('Esc returns to select tool', async ({ page }) => {
     await go(page);
-    await page.getByTitle('Add note').click();
+    await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
     await page.keyboard.press('Escape');
-    await expect(page.getByTitle('Select / move (V)')).toHaveClass(/active/);
+    await expect(page.getByRole('button', { name: 'Select tool', exact: true })).toHaveClass(/active/);
   });
 });
 
@@ -178,9 +184,9 @@ test.describe('Canvas tools', () => {
 
 test.describe('Canvas interaction', () => {
   test('Drag a card to a new position', async ({ page }) => {
-    await go(page);
+    await go(page, { blank: true });
     // Place a note in an empty corner.
-    await page.getByTitle('Add note').click();
+    await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
     const cb = await page.locator('.canvas-wrap').boundingBox();
     await page.locator('.canvas-wrap').click({ position: { x: cb.width - 220, y: 140 } });
     // Make sure we are back in select mode (placement may leave tool armed).
@@ -210,9 +216,9 @@ test.describe('Canvas interaction', () => {
   });
 
   test('Free-draw: dragging on canvas creates a stroke path', async ({ page }) => {
-    await go(page);
+    await go(page, { blank: true });
     const before = await page.locator('.strokes-layer path').count();
-    await page.getByTitle('Free-draw').click();
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
     const canvas = page.locator('.canvas-wrap');
     await canvas.dragTo(canvas, {
       sourcePosition: { x: 520, y: 300 },
@@ -222,7 +228,7 @@ test.describe('Canvas interaction', () => {
   });
 
   test('Marquee: dragging empty area shows the marquee rect', async ({ page }) => {
-    await go(page);
+    await go(page, { blank: true });
     // Find a definitely-empty region of the canvas (far right, above the toolbar).
     const cb = await page.locator('.canvas-wrap').boundingBox();
     const sx = cb.x + cb.width - 120;
@@ -289,9 +295,9 @@ test.describe('Tweaks panel', () => {
 
 test.describe('Persistence', () => {
   test('Adding a note then reloading keeps the note', async ({ page }) => {
-    await withFreshSession(page);
+    await withFreshSession(page, { blank: true });
     const before = await page.locator('.card').count();
-    await page.getByTitle('Add note').click();
+    await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
     await page.locator('.canvas-wrap').click({ position: { x: 500, y: 400 } });
     await expect(page.locator('.card')).toHaveCount(before + 1);
     await page.reload();
