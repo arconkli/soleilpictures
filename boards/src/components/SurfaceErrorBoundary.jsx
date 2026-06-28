@@ -82,7 +82,7 @@ export class SurfaceErrorBoundary extends Component {
       // scoped to this pane (Workspace + the other pane stay alive).
       return (
         <div className="surface-error" role="alert">
-          <div className="surface-error-text">This board view hit a display glitch.</div>
+          <div className="surface-error-text">This cluster view hit a display glitch.</div>
           <button
             className="surface-error-btn"
             onClick={() => window.location.reload()}

@@ -50,7 +50,7 @@ export function compareByPriority(a, b) {
 }
 
 // v1 baseline registrations.
-register('board',    { label: 'Board',     kindPriority: 10, icon: LayoutGrid,     previewMini: BoardP.previewMini,    previewFull: BoardP.previewFull });
+register('board',    { label: 'Cluster',   kindPriority: 10, icon: LayoutGrid,     previewMini: BoardP.previewMini,    previewFull: BoardP.previewFull });
 register('group',    { label: 'Group',     kindPriority: 15, icon: Folder,         previewMini: GroupP.previewMini,    previewFull: GroupP.previewFull });
 register('doc',      { label: 'Doc',       kindPriority: 20, icon: FileText,       previewMini: DocP.previewMini,      previewFull: DocP.previewFull });
 register('docPos',   { label: 'Doc anchor',kindPriority: 25, icon: FileText,       previewMini: DocP.previewMini,      previewFull: DocP.previewFull });

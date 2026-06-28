@@ -32,18 +32,18 @@ export function DocBoardEmbedPicker({ boards, onPick, onClose }) {
       <div className="doc-embed-picker" ref={ref} onClick={(e) => e.stopPropagation()}>
         <div className="doc-tpl-head">
           <div>
-            <div className="doc-tpl-kicker">Embed board</div>
-            <div className="doc-tpl-title">Pick a board to link to</div>
+            <div className="doc-tpl-kicker">Embed cluster</div>
+            <div className="doc-tpl-title">Pick a cluster to link to</div>
           </div>
           <button className="doc-tpl-x" onClick={onClose} aria-label="Close">×</button>
         </div>
         <input autoFocus
                className="doc-embed-search"
-               placeholder="Search boards…"
+               placeholder="Search clusters…"
                value={q}
                onChange={(e) => setQ(e.target.value)} />
         <div className="doc-embed-list">
-          {list.length === 0 && <div className="doc-embed-empty">No boards match.</div>}
+          {list.length === 0 && <div className="doc-embed-empty">No clusters match.</div>}
           {list.map(b => (
             <button key={b.id} className="doc-embed-row"
                     onClick={() => { onPick({ boardId: b.id, label: b.name }); onClose(); }}>

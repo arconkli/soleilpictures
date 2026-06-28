@@ -26,7 +26,7 @@ function insertItems({ onInsertImage, onInsertBoardEmbed }) {
       run: (e) => e.chain().focus().setHorizontalRule().run() },
     { id: 'code', title: 'Code block', subtitle: 'Monospace code',
       run: (e) => e.chain().focus().toggleCodeBlock().run() },
-    { id: 'embed', title: 'Embed board', subtitle: 'Link to another board / card',
+    { id: 'embed', title: 'Embed cluster', subtitle: 'Link to another cluster / card',
       run: (e) => onInsertBoardEmbed?.(e) },
   ];
 }

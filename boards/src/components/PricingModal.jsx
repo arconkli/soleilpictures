@@ -84,31 +84,31 @@ export function PricingModal({ onClose, header = null, surface = 'modal' }) {
             <>
               <div className="upgrade-eyebrow t-eyebrow">DEMO LIMIT REACHED</div>
               <h2 className="upgrade-title">You've filled up your demo workspace.</h2>
-              <p className="upgrade-sub t-body">Upgrade to Creator for unlimited cards, boards, and edits on other people's boards — or invite friends to earn more free cards.</p>
+              <p className="upgrade-sub t-body">Upgrade to Creator for unlimited cards, clusters, and edits on other people's clusters — or invite friends to earn more free cards.</p>
             </>
           ) : header === 'shared-edit' ? (
             <>
               <div className="upgrade-eyebrow t-eyebrow">EDIT ACCESS REQUIRED</div>
-              <h2 className="upgrade-title">Editing shared boards is a Creator feature.</h2>
-              <p className="upgrade-sub t-body">You can view this board. Upgrade to Creator to edit any board you've been invited to — plus unlimited cards and boards.</p>
+              <h2 className="upgrade-title">Editing shared clusters is a Creator feature.</h2>
+              <p className="upgrade-sub t-body">You can view this cluster. Upgrade to Creator to edit any cluster you've been invited to — plus unlimited cards and clusters.</p>
             </>
           ) : header === 'first-value' ? (
             <>
               <div className="upgrade-eyebrow t-eyebrow">YOU'RE OFF THE GROUND</div>
               <h2 className="upgrade-title">Love it? Keep building.</h2>
-              <p className="upgrade-sub t-body">You've made your first board. Upgrade to Creator for unlimited cards, boards, any file type, and full edit access.</p>
+              <p className="upgrade-sub t-body">You've made your first cluster. Upgrade to Creator for unlimited cards, clusters, any file type, and full edit access.</p>
             </>
           ) : header === 'storage' ? (
             <>
               <div className="upgrade-eyebrow t-eyebrow">UPLOAD ANYTHING</div>
               <h2 className="upgrade-title">Store any file, up to 100GB.</h2>
-              <p className="upgrade-sub t-body">Upgrade to Creator to drop any file type — large video, zips, design files, docs — straight onto your boards, with 100GB of storage.</p>
+              <p className="upgrade-sub t-body">Upgrade to Creator to drop any file type — large video, zips, design files, docs — straight onto your clusters, with 100GB of storage.</p>
             </>
           ) : (
             <>
               <div className="upgrade-eyebrow t-eyebrow">GO CREATOR</div>
               <h2 className="upgrade-title">Unlock everything.</h2>
-              <p className="upgrade-sub t-body">Unlimited cards, boards, any file type with 100GB storage, and full edit access.</p>
+              <p className="upgrade-sub t-body">Unlimited cards, clusters, any file type with 100GB storage, and full edit access.</p>
             </>
           )}
         </div>

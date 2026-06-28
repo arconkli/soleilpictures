@@ -635,7 +635,7 @@ function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings
       </SettingsCategory>
 
       {/* BOARDS */}
-      <SettingsCategory title="Boards" desc="When you create a new board">
+      <SettingsCategory title="Clusters" desc="When you create a new cluster">
         <Field label="Default view">
           <select className="settings-input"
                   value={settings.board?.view ?? 'canvas'}
@@ -683,7 +683,7 @@ function DefaultsTab({ workspaceId, workspaceName, user, role, workspaceSettings
       </SettingsCategory>
 
       {isOwner && onOpenRecovery && (
-        <SettingsCategory title="Workspace recovery" subtitle="Owner-only. Rewinds every board in this workspace atomically — useful after an accidental mass-delete. Each board's pre-rewind state is preserved so the operation is reversible.">
+        <SettingsCategory title="Workspace recovery" subtitle="Owner-only. Rewinds every cluster in this workspace atomically — useful after an accidental mass-delete. Each cluster's pre-rewind state is preserved so the operation is reversible.">
           <button type="button" className="settings-link-btn" onClick={onOpenRecovery}>
             Open recovery →
           </button>
@@ -1355,7 +1355,7 @@ function NotificationsTab({ user }) {
 
       <Toggle
         label="@-mentions"
-        desc="When someone @-mentions you in a board, DM, or workspace chat."
+        desc="When someone @-mentions you in a cluster, DM, or workspace chat."
         value={isOn('email_mentions')}
         onChange={(v) => togglePref('email_mentions', v)} />
 
@@ -1373,7 +1373,7 @@ function NotificationsTab({ user }) {
 
       <Toggle
         label="Board shares"
-        desc="When a board is shared with you."
+        desc="When a cluster is shared with you."
         value={isOn('email_board_shared')}
         onChange={(v) => togglePref('email_board_shared', v)} />
 

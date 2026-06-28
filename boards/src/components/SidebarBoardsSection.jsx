@@ -54,11 +54,11 @@ export function SidebarBoardsSection({
         <span className={`sb-boards-chev ${open ? 'is-open' : ''}`} aria-hidden="true">
           <Icon as={ChevronRight} size={11} />
         </span>
-        <span className="sb-boards-head-label">BOARDS</span>
+        <span className="sb-boards-head-label">CLUSTERS</span>
         {count > 0 && <span className="sb-boards-count">{count}</span>}
         {onCreateBoard && (
           <button className="sb-boards-add"
-                  title="New board"
+                  title="New cluster"
                   onClick={(e) => { e.stopPropagation(); onCreateBoard(); }}>
             <Icon as={Plus} size={11} />
           </button>
@@ -87,7 +87,7 @@ export function SidebarBoardsSection({
           />
           <div className="sb-row sb-row-all" onClick={onOpenPicker}>
             <Icon as={MoreHorizontal} size={14} />
-            <span className="sb-row-label">All boards</span>
+            <span className="sb-row-label">All clusters</span>
           </div>
         </>
       )}

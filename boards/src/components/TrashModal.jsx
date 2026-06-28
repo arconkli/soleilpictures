@@ -63,7 +63,7 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
       await restoreBoard(b.id);
       refreshTrash();
       onBoardRestored?.();
-      feedback.toast({ type: 'success', message: `Restored "${b.name || 'Untitled board'}"` });
+      feedback.toast({ type: 'success', message: `Restored "${b.name || 'Untitled cluster'}"` });
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Restore failed: ' + (e?.message || e) });
     } finally {
@@ -73,8 +73,8 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
 
   const onHardDeleteBoard = async (b) => {
     const ok = await feedback.confirm({
-      title: 'Permanently delete board?', confirmLabel: 'Delete forever', danger: true,
-      message: `"${b.name || 'Untitled board'}" and ALL its content will be permanently removed. This cannot be undone.`,
+      title: 'Permanently delete cluster?', confirmLabel: 'Delete forever', danger: true,
+      message: `"${b.name || 'Untitled cluster'}" and ALL its content will be permanently removed. This cannot be undone.`,
     });
     if (!ok) return;
     setBusyId(b.id);
@@ -94,12 +94,12 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
   return (
     <Modal open={open} onClose={onClose} className="modal" labelledBy="trash-title">
       <div className="modal-hd">
-        <div className="modal-title" id="trash-title">Deleted boards</div>
+        <div className="modal-title" id="trash-title">Deleted clusters</div>
         <button className="modal-x" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       <div className="modal-actions">
-        <span className="modal-hint">Deleted boards stay here for 30 days before being permanently removed.</span>
+        <span className="modal-hint">Deleted clusters stay here for 30 days before being permanently removed.</span>
       </div>
       <div className="modal-body">
         {loading && <div className="modal-empty">Loading…</div>}
@@ -114,7 +114,7 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
               <div key={b.id} className="hist-row">
                 <div className="hist-meta">
                   <div className="hist-when" title={fmtDate(b.deleted_at)}>
-                    {b.name || 'Untitled board'}
+                    {b.name || 'Untitled cluster'}
                   </div>
                   <div className="hist-sub">
                     <span>deleted {relTime(b.deleted_at)}</span>

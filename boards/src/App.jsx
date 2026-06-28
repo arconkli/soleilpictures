@@ -1443,7 +1443,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const addNewBoard = async (clickPos = null, opts = {}) => {
       const d = defaultsRef.current?.board || {};
       const view = opts.view || d.view || 'canvas';
-      const defaultName = view === 'list' ? 'Untitled list' : 'Untitled board';
+      const defaultName = view === 'list' ? 'Untitled list' : 'Untitled cluster';
       try {
         const b = await createBoard({
           workspaceId: workspace.id,
@@ -1459,7 +1459,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         setAutoFocusId(b.id);
       } catch (e) {
         console.error('createBoard failed', e);
-        feedback.toast({ type: 'error', message: 'Could not create board: ' + (e.message || e) });
+        feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
       }
     };
     // ── Board-delete-aware undo/redo ──────────────────────────────────────
@@ -1574,7 +1574,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // board back to the grid; the drift-reconcile effect re-adds any canvas card.
     feedback.toast({
       type: 'info',
-      message: ids.length === 1 ? 'Board deleted' : `${ids.length} boards deleted`,
+      message: ids.length === 1 ? 'Cluster deleted' : `${ids.length} clusters deleted`,
       action: { label: 'Undo', onClick: async () => {
         for (const id of ids) { try { await restoreBoard(id); } catch (e) { console.error('[undo] restoreBoard failed', id, e); } }
         await refreshBoards();
@@ -1722,13 +1722,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const sourceBoard = boards[sourceBoardId];
     if (!sourceBoard) return;
     if (sourceBoard.workspace_id === personalWorkspaceId) {
-      feedback.toast({ type: 'info', message: 'This board is already in your workspace.' });
+      feedback.toast({ type: 'info', message: 'This cluster is already in your workspace.' });
       return;
     }
     const ok = await feedback.confirm({
-      title: 'Copy board',
+      title: 'Copy cluster',
       message: `Copy "${sourceBoard.name}" to your personal workspace?`,
-      confirmLabel: 'Copy board',
+      confirmLabel: 'Copy cluster',
     });
     if (!ok) return;
     try {
@@ -1771,14 +1771,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       await createBoard({
         workspaceId: parent.workspace_id,
         parentBoardId: parentId,
-        name: view === 'list' ? 'Untitled list' : 'Untitled board',
+        name: view === 'list' ? 'Untitled list' : 'Untitled cluster',
         view, userId: user.id,
         cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
       });
       await refreshBoards();
     } catch (e) {
       console.error('createBoardInside failed', e);
-      feedback.toast({ type: 'error', message: 'Could not create board: ' + (e.message || e) });
+      feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
     }
   };
 
@@ -1802,7 +1802,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       boardId: board.id, name: board.name, view: board.view,
       cover: board.cover, meta: board.meta,
     });
-    feedback.toast({ type: 'info', message: `Copied "${board.name || 'board'}".`, ttl: 2500 });
+    feedback.toast({ type: 'info', message: `Copied "${board.name || 'cluster'}".`, ttl: 2500 });
   };
 
   // Paste the clipboard board as a child of targetId — a SHALLOW duplicate
@@ -1823,7 +1823,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const newBoard = await createBoard({
         workspaceId: target.workspace_id,
         parentBoardId: targetId,
-        name: (clip.name || 'Board') + ' (copy)',
+        name: (clip.name || 'Cluster') + ' (copy)',
         view: clip.view, cover: clip.cover, meta: clip.meta,
         userId: user.id,
       });
@@ -1845,7 +1845,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         tmp.destroy();
       }
       await refreshBoards();
-      feedback.toast({ type: 'success', message: 'Pasted board.' });
+      feedback.toast({ type: 'success', message: 'Pasted cluster.' });
     } catch (e) {
       console.error('pasteBoardInto failed', e);
       feedback.toast({ type: 'error', message: 'Paste failed: ' + (e.message || e) });
@@ -2232,7 +2232,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const slug = n.detail;
         feedback.toast({
           type: 'success',
-          message: '🎉 Your board is now public on Explore!',
+          message: '🎉 Your cluster is now public on Explore!',
           ttl: 8000,
           ...(slug ? { action: { label: 'View', onClick: () => { try { window.open(`/c/${slug}`, '_blank', 'noopener,noreferrer'); } catch (_) {} } } } : {}),
         });
@@ -2242,12 +2242,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({
           type: 'info',
           ttl: 8000,
-          message: `Your board wasn’t approved for Explore${n.detail ? `: ${n.detail}` : '.'}`,
+          message: `Your cluster wasn’t approved for Explore${n.detail ? `: ${n.detail}` : '.'}`,
         });
         continue;
       }
       const board = boards[n.board_id];
-      const name = board?.name || 'a board';
+      const name = board?.name || 'a cluster';
       feedback.toast({
         type: 'info',
         message: `${n.role === 'editor' ? 'Editor access' : 'View access'} to "${name}" was shared with you. Find it in "Shared with me".`,
@@ -2554,7 +2554,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     (async () => {
       try {
         const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Showcase preview', view: 'canvas', userId: user.id });
-        if (!b?.id) { feedback.toast({ type: 'error', message: 'Showcase preview: could not create the board.' }); return; }
+        if (!b?.id) { feedback.toast({ type: 'error', message: 'Showcase preview: could not create the cluster.' }); return; }
         const res = await supabase.rpc('prepare_showcase', { p_board_id: b.id });
         if (res.error) { feedback.toast({ type: 'error', message: 'Showcase preview failed: ' + (res.error.message || 'RPC error') }); }
         const tpl = res.data;
@@ -2579,7 +2579,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }
         try { await refreshBoards(); } catch (_) {}
         setStack([b.id]);
-        if (tpl?.snapshot) feedback.toast({ type: 'success', message: 'Showcase preview ready — delete this board when done.' });
+        if (tpl?.snapshot) feedback.toast({ type: 'success', message: 'Showcase preview ready — delete this cluster when done.' });
         // strip the param so a reload doesn't make a second copy
         try { const u = new URL(window.location.href); u.searchParams.delete('showcasepreview'); window.history.replaceState({}, '', u.toString()); } catch (_) {}
       } catch (e) {
@@ -2620,7 +2620,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const tpl = res?.data;
         if (res?.error || !tpl?.snapshot) {
           try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'prepare', reason: String(res?.error?.message || 'no_snapshot').slice(0, 120) }); } catch (_) {}
-          feedback.toast({ type: 'error', message: 'That board could not be copied (the link may have expired).' });
+          feedback.toast({ type: 'error', message: 'That cluster could not be copied (the link may have expired).' });
           try { await deleteBoard(b.id); } catch (_) {}
           return;
         }
@@ -2628,7 +2628,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (!cards.length) {
           try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'decode', reason: 'empty' }); } catch (_) {}
           try { await deleteBoard(b.id); } catch (_) {}
-          feedback.toast({ type: 'info', message: 'That board had nothing to copy.' });
+          feedback.toast({ type: 'info', message: 'That cluster had nothing to copy.' });
           return;
         }
         if (tpl.name) { try { await renameBoard(b.id, `${tpl.name} (remix)`); } catch (_) {} }
@@ -2738,7 +2738,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (META_REG_BAR === 'first_card') fireMetaReg();
         // A small confirming beat on the very first genuine card — once per account
         // (the fcKey stamp guards it, so a reload never re-fires it).
-        try { feedback.toast({ type: 'success', message: 'Nice — your first card is on the board 🎉', ttl: 3500 }); } catch (_) {}
+        try { feedback.toast({ type: 'success', message: 'Nice — your first card is on the cluster 🎉', ttl: 3500 }); } catch (_) {}
         // First value reached → end any passive escalation immediately (the
         // dedicated effect below also stops the friction signal on this change).
         setFrictionStuck(false);
@@ -2864,7 +2864,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (_) {}
       try { logEvent(EV.SHARE_OPEN, { board_id: currentBoard.id, quick: true }); } catch (_) {}
       feedback.toast(copied
-        ? { type: 'success', message: 'Share link copied — anyone with it can view this board.',
+        ? { type: 'success', message: 'Share link copied — anyone with it can view this cluster.',
             action: { label: 'Manage', onClick: () => setShareOpen(true) }, ttl: 9000 }
         : { type: 'info', message: url, ttl: 9000 });
     } catch (e) {
@@ -3203,7 +3203,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           console.error('[xbm] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
           feedback.toast({
             type: 'error',
-            message: 'Could not load the destination board’s state. Drag cancelled to prevent data loss. Try again in a moment.',
+            message: 'Could not load the destination cluster’s state. Drag cancelled to prevent data loss. Try again in a moment.',
             duration: 8000,
           });
           reject(new Error('target board_state empty'));
@@ -3293,7 +3293,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           tmp.destroy();
           feedback.toast({
             type: 'error',
-            message: 'Drag aborted — target board state looked unsafe to overwrite.',
+            message: 'Drag aborted — target cluster state looked unsafe to overwrite.',
             duration: 8000,
           });
           reject(new Error('tmp card count below expected'));
@@ -3306,7 +3306,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (saveErr) {
           console.error('[xbm:save] saveBoardSnapshot threw', saveErr);
           tmp.destroy();
-          feedback.toast({ type: 'error', message: 'Could not save destination board: ' + (saveErr.message || saveErr) });
+          feedback.toast({ type: 'error', message: 'Could not save destination cluster: ' + (saveErr.message || saveErr) });
           reject(saveErr);
           return;
         }
@@ -3330,7 +3330,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           console.error('[xbm] target room reset failed; NOT acking (source keeps cards)', resetErr);
           feedback.toast({
             type: 'error',
-            message: 'Move incomplete — could not finalize the destination board. Your cards are safe on this board; try again.',
+            message: 'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.',
             duration: 8000,
           });
           reject(resetErr);
@@ -3413,7 +3413,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (e.defaultPrevented || isEditableTarget(e)) return;
       if (!isDataDrag(e)) return;
       e.preventDefault(); // stop the browser navigating to / opening the drop
-      try { feedback?.toast?.({ type: 'info', message: 'Drop onto a board’s canvas to add it.' }); } catch (_) {}
+      try { feedback?.toast?.({ type: 'info', message: 'Drop onto a cluster’s canvas to add it.' }); } catch (_) {}
     };
     window.addEventListener('dragover', onDragOver);
     window.addEventListener('drop', onDrop);
@@ -3652,7 +3652,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Command palette actions. Per-shell so each closure captures the right
   // setters; `available` gates rows that need an editable board / a real board.
   const appCommands = useMemo(() => [
-    { id: 'new-board', label: 'Create board', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'board'],
+    { id: 'new-board', label: 'Create cluster', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board'],
       available: canEditCurrent,
       run: () => { setCurrentSurface('board'); mainMutators.addNewBoard?.(); } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
@@ -3660,12 +3660,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
     { id: 'home', label: 'Go to Home', icon: Home, keywords: ['home', 'graph', 'overview'],
       run: () => setCurrentSurface('home') },
-    { id: 'link-board', label: 'Link a board onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'board'],
+    { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
       run: () => setPickerOpen(true) },
     { id: 'split', label: 'Open split view', icon: Columns2, keywords: ['split', 'side by side', 'compare'],
       run: () => setSplitPickerOpen(true) },
-    { id: 'share', label: 'Share this board', icon: Share2, keywords: ['share', 'invite', 'collaborate', 'public link'],
+    { id: 'share', label: 'Share this cluster', icon: Share2, keywords: ['share', 'invite', 'collaborate', 'public link'],
       available: currentSurface === 'board', run: () => setShareOpen(true) },
     { id: 'messages', label: 'Messages', icon: MessageSquare, keywords: ['messages', 'chat', 'dm', 'comments'],
       run: () => setTweak('showMessages', !tweak.showMessages) },
@@ -4144,7 +4144,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <button className="tb-icon" title="Redo (⌘⇧Z)" disabled={!yb.canRedo} onClick={() => mainMutators.redo?.()}>
               <Icon as={Redo} size={16} />
             </button>
-            <button className="tb-icon tb-icon-trash" title="Deleted boards (Trash)" onClick={() => setTrashOpen(true)}>
+            <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
               <Icon as={Trash2} size={16} />
             </button>
             <FeedbackButton as="icon" />
@@ -4154,22 +4154,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                                     onJumpTo={jumpToPeer} />
             <span className="tb-divider" aria-hidden="true" />
             {!canEditCurrent && (
-              <span className="tb-viewonly" title="You have view-only access to this board">VIEW ONLY</span>
+              <span className="tb-viewonly" title="You have view-only access to this cluster">VIEW ONLY</span>
             )}
             {canEditCurrent && (
               <button className="tb-icon" onClick={quickCopyShareLink} disabled={quickShareBusy}
-                      title="Copy a view-only link to this board">
+                      title="Copy a view-only link to this cluster">
                 <Icon as={LinkIcon} size={16} />
               </button>
             )}
             {isTouch && (
               <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
-                      title="Focus view — hide everything but the board"
+                      title="Focus view — hide everything but the cluster"
                       aria-label="Enter focus view">
                 <Icon as={Maximize2} size={16} />
               </button>
             )}
-            <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this board">
+            <button className="tb-btn" onClick={() => setShareOpen(true)} title="Share this cluster">
               <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
             </button>
             <button className="tb-icon tb-icon-theme" title="Toggle theme"
@@ -4518,8 +4518,8 @@ function TopbarAddMenu({ onAddBoard, onAddDoc, onLinkBoard }) {
       </button>
       {open && (
         <div className="topbar-add-menu" role="menu" aria-label="Add">
-          <button role="menuitem" onClick={() => { setOpen(false); onAddBoard(); }}>Board</button>
-          <button role="menuitem" onClick={() => { setOpen(false); onLinkBoard(); }}>Linked board</button>
+          <button role="menuitem" onClick={() => { setOpen(false); onAddBoard(); }}>Cluster</button>
+          <button role="menuitem" onClick={() => { setOpen(false); onLinkBoard(); }}>Linked cluster</button>
           {/* Docs are added as canvas cards now — use Add → Doc inside a board. */}
         </div>
       )}
@@ -4529,7 +4529,7 @@ function TopbarAddMenu({ onAddBoard, onAddDoc, onLinkBoard }) {
 
 function BoardsSettingsPanel({ tweak, setTweak }) {
   return (
-    <TweaksPanel title="Board settings">
+    <TweaksPanel title="Cluster settings">
       <TweakSection label="Interface">
         <TweakRadio
           label="Theme"

@@ -579,7 +579,7 @@ function BoardInlineExpansion({ boardId, onNavigate }) {
     return <div className="ent-pop-expand-empty">Loading…</div>;
   }
   if (cards.length === 0) {
-    return <div className="ent-pop-expand-empty">This board is empty.</div>;
+    return <div className="ent-pop-expand-empty">This cluster is empty.</div>;
   }
   return (
     <div className="ent-pop-expand">

@@ -390,7 +390,7 @@ export function LocalBoardsApp({ user, signOut }) {
 
   const addNewBoard = (clickPos = null) => {
     const id = createId('board');
-    const name = 'Untitled board';
+    const name = 'Untitled cluster';
     setLocalState(prev => ({
       boards: {
         ...prev.boards,
@@ -653,7 +653,7 @@ export function LocalBoardsApp({ user, signOut }) {
 
   // Reduced command set — the local QA shell has no Settings/Share/Trash modals.
   const localCommands = useMemo(() => [
-    { id: 'new-board', label: 'Create board', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'board'],
+    { id: 'new-board', label: 'Create cluster', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board'],
       run: () => { setCurrentSurface('board'); addNewBoard(); } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
       available: view !== 'list' && currentSurface === 'board',
@@ -735,7 +735,7 @@ export function LocalBoardsApp({ user, signOut }) {
             <span className="sb-row-label">Messages</span>
           </div>
 
-          <div className="sb-eyebrow">BOARDS</div>
+          <div className="sb-eyebrow">CLUSTERS</div>
           {stack.map((id, index) => {
             const isActive = index === stack.length - 1 && currentSurface === 'board';
             return (
@@ -757,7 +757,7 @@ export function LocalBoardsApp({ user, signOut }) {
           ))}
           <div className="sb-row sb-row-all" onClick={() => setPickerOpen(true)}>
             <Icon as={MoreHorizontal} size={14} />
-            <span className="sb-row-label">All boards</span>
+            <span className="sb-row-label">All clusters</span>
           </div>
         </div>
       </aside>
@@ -848,6 +848,7 @@ export function LocalBoardsApp({ user, signOut }) {
             autoFocusId={autoFocusId}
             clearAutoFocus={() => setAutoFocusId(null)}
             showcaseArm={SHOWCASE_PREVIEW && currentId === ROOT_ID ? 'B' : 'A'}
+            autoFrame={!BLANK_SEED}
             useLocalImages
           />
         ) : (
@@ -977,8 +978,8 @@ function LocalTopbarAddMenu({ onAddBoard, onLinkBoard }) {
       </button>
       {open && (
         <div className="topbar-add-menu" role="menu" aria-label="Add">
-          <button role="menuitem" onClick={() => { setOpen(false); onAddBoard(); }}>Board</button>
-          <button role="menuitem" onClick={() => { setOpen(false); onLinkBoard(); }}>Linked board</button>
+          <button role="menuitem" onClick={() => { setOpen(false); onAddBoard(); }}>Cluster</button>
+          <button role="menuitem" onClick={() => { setOpen(false); onLinkBoard(); }}>Linked cluster</button>
         </div>
       )}
     </div>
@@ -987,7 +988,7 @@ function LocalTopbarAddMenu({ onAddBoard, onLinkBoard }) {
 
 function LocalSettingsPanel({ tweak, setTweak }) {
   return (
-    <TweaksPanel title="Board settings">
+    <TweaksPanel title="Cluster settings">
       <TweakSection label="Interface">
         <TweakRadio
           label="Theme"

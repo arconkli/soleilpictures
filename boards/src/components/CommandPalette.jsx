@@ -223,7 +223,7 @@ export function CommandPalette({
       ];
       const boardItems = q ? matched : allBoardsList;
       if (boardItems.length) out.push({
-        id: 'boards', label: q ? 'Boards' : 'All boards',
+        id: 'boards', label: q ? 'Clusters' : 'All clusters',
         items: boardItems.map(b => ({
           key: `board:${b.id}`, kind: 'board', icon: LayoutGrid,
           title: b.name || 'Untitled', sub: b.meta || null,
@@ -253,7 +253,7 @@ export function CommandPalette({
 
     const boardItems = [...localBoards, ...asyncGroups.asyncBoards];
     if (boardItems.length) out.push({
-      id: 'boards', label: 'Boards',
+      id: 'boards', label: 'Clusters',
       items: boardItems.map(b => {
         const id = b.id || b.board_id;
         return {
@@ -360,7 +360,7 @@ export function CommandPalette({
 
         <div className="cmdk-list">
           {showEmpty && (
-            <div className="cmdk-empty">{isPick ? 'No boards match.' : `No results for “${q}”.`}</div>
+            <div className="cmdk-empty">{isPick ? 'No clusters match.' : `No results for “${q}”.`}</div>
           )}
           {!q && !hasResults && !loading && (
             <div className="cmdk-empty">
