@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 const go = async (page) => {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await expect(page.getByTitle('Select / move (V)')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Select tool', exact: true })).toBeVisible();
 };
 
 test('v / h bare-key shortcuts switch the canvas tool', async ({ page }) => {
@@ -49,7 +49,7 @@ test('Cmd/Ctrl+B bolds a note and does NOT toggle the sidebar', async ({ page })
   const appClassBefore = await page.locator('.app').getAttribute('class');
 
   // Place a note (auto-focuses its editable) and type into it.
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
   await page.keyboard.type('hello world');

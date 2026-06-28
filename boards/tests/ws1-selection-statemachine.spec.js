@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
 const go = async (page) => {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await expect(page.getByTitle('Select / move (V)')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Select tool', exact: true })).toBeVisible();
 };
 
 test('Escape aborts an in-progress card drag (card stays put)', async ({ page }) => {

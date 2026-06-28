@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 async function addEditingNote(page, seed = 'seed ') {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
   await page.keyboard.type(seed);

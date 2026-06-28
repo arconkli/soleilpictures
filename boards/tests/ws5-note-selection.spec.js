@@ -36,7 +36,7 @@ test('wrapSelectionStyle formats boundary text across a line break (collectTextN
 test('pasting rich HTML into a note is sanitized', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
   await page.keyboard.type('start ');
@@ -66,7 +66,7 @@ test('pasting rich HTML into a note is sanitized', async ({ page }) => {
 test('native drag-selection still spans plain line breaks (baseline guard)', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
   await page.keyboard.type('alpha');
@@ -104,7 +104,7 @@ test('note editor: Grammarly off, native spellcheck on', async ({ page }) => {
   // spellcheck stays explicitly on.
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
   await page.keyboard.type('hello');
@@ -121,7 +121,7 @@ test('drag-select spans a BLANK line (forward)', async ({ page }) => {
   // covered CONSECUTIVE lines; this covers the empty <div><br></div> block.
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
   await page.keyboard.type('alpha');
@@ -173,7 +173,7 @@ test('slow backward drag-select is not hijacked by the canvas marquee', async ({
   // and backward (drag-up) selections failed almost always for real users.
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
   await page.keyboard.type('alpha');

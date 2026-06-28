@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('note format buttons reflect active state + size picker shows current size', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
   await page.keyboard.type('hello world');
@@ -29,7 +29,7 @@ test('note format buttons reflect active state + size picker shows current size'
 async function openNoteForEdit(page, text = 'hello world') {
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
   const body = page.locator('.note-body[contenteditable="true"]');

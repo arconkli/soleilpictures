@@ -108,12 +108,12 @@ test.describe('Canvas tools', () => {
 
   test('Select tool is the default after page load', async ({ page }) => {
     await go(page);
-    await expect(page.getByTitle('Select / move (V)')).toHaveClass(/active/);
+    await expect(page.getByRole('button', { name: 'Select tool', exact: true })).toHaveClass(/active/);
   });
 
   test('Pan tool activates + shows hint', async ({ page }) => {
     await go(page);
-    await page.getByTitle('Pan canvas (H or Space)').click();
+    await page.getByRole('button', { name: 'Pan tool', exact: true }).click();
     await expect(page.getByText('Drag to pan')).toBeVisible();
     await page.keyboard.press('Escape');
   });
@@ -121,7 +121,7 @@ test.describe('Canvas tools', () => {
   test('Add note → click → note card spawns', async ({ page }) => {
     await go(page);
     const before = await page.locator('.card').count();
-    await page.getByTitle('Add note').click();
+    await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
     await expect(page.getByText('Click on the canvas to place a note')).toBeVisible();
     await page.locator('.canvas-wrap').click({ position: { x: 480, y: 380 } });
     await expect(page.locator('.card')).toHaveCount(before + 1);
@@ -131,7 +131,7 @@ test.describe('Canvas tools', () => {
   test('Add Board via toolbar → click → board card spawns', async ({ page }) => {
     await go(page);
     const before = await page.locator('.card').count();
-    await page.getByTitle('Add board').click();
+    await page.getByRole('button', { name: 'Add board tool', exact: true }).click();
     await expect(page.getByText('Click on the canvas to place a board')).toBeVisible();
     await page.locator('.canvas-wrap').click({ position: { x: 380, y: 320 } });
     await expect(page.locator('.card')).toHaveCount(before + 1);
@@ -154,7 +154,7 @@ test.describe('Canvas tools', () => {
 
   test('Free-draw tool activates + Pen/Eraser segmented control appears', async ({ page }) => {
     await go(page);
-    await page.getByTitle('Free-draw').click();
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
     await expect(page.getByText('Drag to draw')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Pen', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Eraser' })).toBeVisible();
@@ -162,15 +162,15 @@ test.describe('Canvas tools', () => {
 
   test('Arrow tool activates + hint asks for cards', async ({ page }) => {
     await go(page);
-    await page.getByTitle(/^Arrow/).click();
+    await page.getByRole('button', { name: 'Arrow tool', exact: true }).click();
     await expect(page.getByText(/Click a card to start/)).toBeVisible();
   });
 
   test('Esc returns to select tool', async ({ page }) => {
     await go(page);
-    await page.getByTitle('Add note').click();
+    await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
     await page.keyboard.press('Escape');
-    await expect(page.getByTitle('Select / move (V)')).toHaveClass(/active/);
+    await expect(page.getByRole('button', { name: 'Select tool', exact: true })).toHaveClass(/active/);
   });
 });
 
@@ -180,7 +180,7 @@ test.describe('Canvas interaction', () => {
   test('Drag a card to a new position', async ({ page }) => {
     await go(page);
     // Place a note in an empty corner.
-    await page.getByTitle('Add note').click();
+    await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
     const cb = await page.locator('.canvas-wrap').boundingBox();
     await page.locator('.canvas-wrap').click({ position: { x: cb.width - 220, y: 140 } });
     // Make sure we are back in select mode (placement may leave tool armed).
@@ -212,7 +212,7 @@ test.describe('Canvas interaction', () => {
   test('Free-draw: dragging on canvas creates a stroke path', async ({ page }) => {
     await go(page);
     const before = await page.locator('.strokes-layer path').count();
-    await page.getByTitle('Free-draw').click();
+    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
     const canvas = page.locator('.canvas-wrap');
     await canvas.dragTo(canvas, {
       sourcePosition: { x: 520, y: 300 },
@@ -291,7 +291,7 @@ test.describe('Persistence', () => {
   test('Adding a note then reloading keeps the note', async ({ page }) => {
     await withFreshSession(page);
     const before = await page.locator('.card').count();
-    await page.getByTitle('Add note').click();
+    await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
     await page.locator('.canvas-wrap').click({ position: { x: 500, y: 400 } });
     await expect(page.locator('.card')).toHaveCount(before + 1);
     await page.reload();

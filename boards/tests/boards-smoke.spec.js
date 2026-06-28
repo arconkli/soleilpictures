@@ -26,13 +26,13 @@ test('local QA mode opens a usable Studio canvas', async ({ page }) => {
 
   await expect(page.locator('.rail-brand')).toBeVisible();
   await expect(page.getByRole('main').getByText('Studio', { exact: true })).toBeVisible();
-  await expect(page.getByTitle('Add note')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add note tool', exact: true })).toBeVisible();
 });
 
 test('local QA mode can add a note, switch views, and toggle chrome', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a note')).toBeVisible();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
 
@@ -69,7 +69,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   }, { timeout: 10000 }).toBe(true);
   const initialCardCount = await page.locator('.card').count();
 
-  await page.getByTitle('Add board').click();
+  await page.getByRole('button', { name: 'Add board tool', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a board')).toBeVisible();
   await canvas.click({ position: { x: 220, y: 220 } });
   await expect(page.locator('.card')).toHaveCount(initialCardCount + 1);
@@ -79,7 +79,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await expect(page.getByRole('menuitem', { name: 'Shape', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a note')).toBeVisible();
   await canvas.click({ position: { x: 280, y: 260 } });
   await expect(page.locator('.note').last()).toBeVisible();
@@ -95,7 +95,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await canvas.click({ position: { x: 400, y: 340 } });
   await expect(page.locator('.pc').last()).toBeVisible();
 
-  await page.getByTitle('Free-draw').click();
+  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
   await expect(page.getByTitle('Erase strokes')).toHaveCount(0);
   await expect(page.getByText('Drag to draw')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pen', exact: true })).toHaveClass(/is-active/);
@@ -109,7 +109,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   });
   await expect(page.locator('.strokes-layer path')).toHaveCount(strokePathCount + 2);
 
-  await page.getByTitle('Arrow (A) — click 2 cards, or drag on empty canvas').click();
+  await page.getByRole('button', { name: 'Arrow tool', exact: true }).click();
   await expect(page.getByText('Click a card to start, or drag on empty canvas for a free arrow')).toBeVisible();
   // .tob renders arrow options; presence is enough.
   await expect(page.locator('.tob')).toBeVisible();
@@ -118,7 +118,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await page.locator('.card', { has: page.locator('.note') }).last().click({ position: { x: 20, y: 20 } });
   await expect(page.locator('.arrows-layer path')).toHaveCount(arrowPathCount + 2);
 
-  await page.getByTitle('Pan canvas (H or Space)').click();
+  await page.getByRole('button', { name: 'Pan tool', exact: true }).click();
   await expect(page.getByText('Drag to pan')).toBeVisible();
 });
 
@@ -200,7 +200,7 @@ test('local QA mode preserves session location and card edits across refresh', a
   await expect(page.locator('.crumb.here')).toHaveText('Halcyon');
   await page.getByRole('button', { name: 'Canvas' }).click();
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await canvas.click({ position: { x: 430, y: 330 } });
   await expect(page.locator('.card .note').last()).toBeVisible();
   await page.keyboard.type('Persistent refresh note');
@@ -260,7 +260,7 @@ test('local QA mode lets select marquee delete drawn strokes', async ({ page }) 
   await page.goto('/?local=1&reset=1');
 
   const canvas = page.locator('.canvas-wrap');
-  await page.getByTitle('Free-draw').click();
+  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
   await canvas.dragTo(canvas, {
     sourcePosition: { x: 300, y: 500 },
     targetPosition: { x: 470, y: 520 },
@@ -271,7 +271,7 @@ test('local QA mode lets select marquee delete drawn strokes', async ({ page }) 
   });
   await expect(page.locator('.strokes-layer path')).toHaveCount(4);
 
-  await page.getByTitle('Select / move (V)').click();
+  await page.getByRole('button', { name: 'Select tool', exact: true }).click();
   await canvas.dragTo(canvas, {
     sourcePosition: { x: 280, y: 470 },
     targetPosition: { x: 500, y: 610 },
@@ -286,7 +286,7 @@ test('local QA mode erases part of a stroke from the draw tool', async ({ page }
   await page.goto('/?local=1&reset=1');
 
   const canvas = page.locator('.canvas-wrap');
-  await page.getByTitle('Free-draw').click();
+  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
   await canvas.dragTo(canvas, {
     sourcePosition: { x: 450, y: 320 },
     targetPosition: { x: 650, y: 320 },
@@ -309,7 +309,7 @@ test('local QA mode turns URLs in text notes into removable previews', async ({ 
   await page.evaluate(() => { try { localStorage.removeItem('soleil-boards-tweaks'); } catch (_) {} });
   await page.reload();
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
   // Auto-focus places caret in the new note's editable.
   await page.keyboard.type('Research https://example.com/deck');
@@ -328,7 +328,7 @@ test('local QA mode turns URLs in text notes into removable previews', async ({ 
 test('local QA mode keeps expanded card contents inside card bounds', async ({ page }) => {
   await page.goto('/?local=1&reset=1');
 
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
   await page.keyboard.type('https://example.com/' + 'very-long-path-segment'.repeat(16));
   await page.keyboard.press('Tab');
@@ -368,7 +368,7 @@ test('local QA mode uses in-app dialogs instead of native prompts', async ({ pag
   await expect(page.locator('.cmdk')).toBeHidden();
 
   // Plain-card delete: no confirm — an Undo toast instead.
-  await page.getByTitle('Add note').click();
+  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
   await page.keyboard.type('disposable');
   // The fresh note opens in edit mode; click away to commit, then select it.
