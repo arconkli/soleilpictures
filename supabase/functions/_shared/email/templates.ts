@@ -357,18 +357,18 @@ function activateNudge1(d: ActivateNudgeData): RenderedEmail {
     html: renderPlainNote({
       preheader: "the fastest way in: drop three things you're into onto a board.",
       bodyHtml:
-        noteP("hey — andrew here, one of the people behind clusters.") +
-        noteP("saw you signed up but haven't actually built anything yet. no judgment — a blank canvas is the worst part.") +
+        noteP("hey — note from the team at soleil.") +
+        noteP("you signed up but haven't actually built anything yet. no judgment — a blank canvas is the worst part.") +
         noteP("the move is to not overthink it: dump three things you're into onto a board and let it cluster itself. takes about a minute, and it's basically the whole point.") +
         noteP("want to give it a shot?") +
         noteLink("open clusters", url) +
-        noteP("— andrew, soleil"),
+        noteP("— team soleil"),
       unsubscribeUrl: unsubUrl(d.unsubscribeToken),
     }),
     text:
-`hey — andrew here, one of the people behind clusters.
+`hey — note from the team at soleil.
 
-saw you signed up but haven't actually built anything yet. no judgment — a blank canvas is the worst part.
+you signed up but haven't actually built anything yet. no judgment — a blank canvas is the worst part.
 
 the move is to not overthink it: dump three things you're into onto a board and let it cluster itself. takes about a minute, and it's basically the whole point.
 
@@ -376,7 +376,7 @@ want to give it a shot?
 
 open clusters: ${url}
 
-— andrew, soleil
+— team soleil
 
 —
 Unsubscribe: ${unsubUrl(d.unsubscribeToken)}`,
@@ -386,27 +386,27 @@ Unsubscribe: ${unsubUrl(d.unsubscribeToken)}`,
 function activateNudge2(d: ActivateNudgeData): RenderedEmail {
   const url = deepLink({ w: d.workspaceId }, utm("activate_nudge_2"));
   return {
-    subject: "last note from me",
+    subject: "last note from us",
     html: renderPlainNote({
       preheader: "for the stuff that lives in 40 open tabs and six group chats.",
       bodyHtml:
-        noteP("hey, andrew again — i'll keep this one short, then i'll leave you be.") +
+        noteP("hey again — we'll keep this one short, then we'll leave you be.") +
         noteP("clusters is for the stuff that lives in 40 open tabs and six group chats: references, ideas, things you don't want to lose. you drop it in, it organizes itself into boards you can actually share.") +
         noteP("if that sounds at all like your kind of thing, it's worth two minutes to start one. if it's not, genuinely no hard feelings.") +
-        noteP("— andrew, soleil") +
-        noteLink("build my first board", url),
+        noteLink("build my first board", url) +
+        noteP("— team soleil"),
       unsubscribeUrl: unsubUrl(d.unsubscribeToken),
     }),
     text:
-`hey, andrew again — i'll keep this one short, then i'll leave you be.
+`hey again — we'll keep this one short, then we'll leave you be.
 
 clusters is for the stuff that lives in 40 open tabs and six group chats: references, ideas, things you don't want to lose. you drop it in, it organizes itself into boards you can actually share.
 
 if that sounds at all like your kind of thing, it's worth two minutes to start one. if it's not, genuinely no hard feelings.
 
-— andrew, soleil
-
 build my first board: ${url}
+
+— team soleil
 
 —
 Unsubscribe: ${unsubUrl(d.unsubscribeToken)}`,
@@ -433,7 +433,7 @@ function reengage1(d: ReengageData): RenderedEmail {
     html: renderPlainNote({
       preheader: "it's all still there, right where you left it.",
       bodyHtml:
-        noteP("hey — andrew, soleil.") +
+        noteP("hey — team soleil here.") +
         noteP(opener) +
         noteP("it's all still there, exactly how you left it. no pressure, but if a few new things have piled up since, this is a good moment to drop them in.") +
         noteP("pick up where you left off:") +
@@ -441,7 +441,7 @@ function reengage1(d: ReengageData): RenderedEmail {
       unsubscribeUrl: unsubUrl(d.unsubscribeToken),
     }),
     text:
-`hey — andrew, soleil.
+`hey — team soleil here.
 
 ${opener}
 

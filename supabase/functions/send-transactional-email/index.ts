@@ -27,10 +27,10 @@ const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
 //     points at hello@ so any stray reply lands somewhere a human reads.
 const FROM_HELLO   = "Clusters <hello@clusters.soleilpictures.com>";
 const FROM_NOREPLY = "Clusters <noreply@updates.soleilpictures.com>";
-// Lifecycle nudges read as a personal note, so they come from a human local
-// part on the bulk subdomain — keeping marketing reputation off the auth domain.
-const FROM_FOUNDER = "Andrew at Clusters <andrew@updates.soleilpictures.com>";
-const REPLY_TO     = "hello@clusters.soleilpictures.com";
+// Lifecycle nudges send from the brand on the bulk subdomain — keeping
+// marketing reputation off the auth domain (which carries the sign-in codes).
+const FROM_LIFECYCLE = "Clusters by Soleil <hello@updates.soleilpictures.com>";
+const REPLY_TO       = "hello@clusters.soleilpictures.com";
 
 function fromAddress(template: string): string {
   switch (template) {
@@ -40,7 +40,7 @@ function fromAddress(template: string): string {
     case "activate_nudge_1":
     case "activate_nudge_2":
     case "reengage_1":
-      return FROM_FOUNDER;
+      return FROM_LIFECYCLE;
     default:
       return FROM_NOREPLY;
   }
