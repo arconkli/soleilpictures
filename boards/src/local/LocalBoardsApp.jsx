@@ -239,7 +239,7 @@ export function LocalBoardsApp({ user, signOut }) {
   }, []);
 
   useEffect(() => {
-    if (ONBOARD_PREVIEW || SHOWCASE_PREVIEW || BLANK_SEED) return;   // preview/blank is throwaway — never pollute the saved local session
+    if (ONBOARD_PREVIEW || SHOWCASE_PREVIEW) return;   // previews are throwaway — never pollute the saved local session (blank DOES persist, so the persistence spec can reload and find its note)
     try {
       localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({
         localState: { boards, boardState },

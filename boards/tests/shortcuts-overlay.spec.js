@@ -45,11 +45,11 @@ test('empty board shows add-card tiles; double-click opens the quick-add menu', 
 
   // The local root board ships full of demo cards — create a fresh board
   // and open it to get an empty canvas.
-  await page.getByRole('button', { name: 'Add board tool', exact: true }).click();
+  await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
   const wrap = await page.locator('.canvas-wrap').boundingBox();
   // Place the new board on a CLEAR patch (centre is covered by demo cards).
   await page.locator('.canvas-wrap').click({ position: { x: 160, y: wrap.height - 140 } });
-  const newBoard = page.locator('.card', { hasText: 'Untitled board' }).first();
+  const newBoard = page.locator('.card', { hasText: 'Untitled cluster' }).first();
   await newBoard.dblclick();
   await expect(page.locator('.cnv-empty-tiles')).toHaveCount(1);
 
