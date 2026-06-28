@@ -177,8 +177,7 @@ ${subtitleBlock}${bodyBlock}${ctaBlock}${caveatBlock}
 // templates.ts). cta + unsubscribeUrl are escaped here.
 
 // CAN-SPAM requires a physical mailing address on every marketing email.
-// TODO(ops): replace before the first send.
-export const POSTAL_ADDRESS = "Soleil Pictures · [POSTAL ADDRESS — fill before first send]";
+export const POSTAL_ADDRESS = "Soleil Pictures · 903 Peachtree St NE, Apt 2709, Atlanta, GA 30309";
 
 export interface RenderPlainNoteOpts {
   preheader: string;

@@ -68,6 +68,23 @@ Deno.serve(async (req) => {
   if (!okCron && !okService) return json({ error: "unauthorized" }, 401);
   if (!SEND_EMAIL_SECRET)    return json({ error: "SEND_EMAIL_SECRET not set" }, 500);
 
+  // Test hook: POST { testTo, testType?, workspaceId?, boardId?, boardName? }
+  // sends ONE email to a chosen address, bypassing eligibility/claim/log — for
+  // previewing render + From + deliverability before a real batch.
+  // deno-lint-ignore no-explicit-any
+  const reqBody: any = await req.json().catch(() => ({}));
+  if (reqBody && reqBody.testTo) {
+    const type = String(reqBody.testType || "activate_nudge_1");
+    const r = await sendOne(type, String(reqBody.testTo), {
+      firstName: "there",
+      workspaceId: reqBody.workspaceId ? String(reqBody.workspaceId) : undefined,
+      boardId: reqBody.boardId ? String(reqBody.boardId) : undefined,
+      boardName: reqBody.boardName ? String(reqBody.boardName) : undefined,
+      unsubscribeToken: "0".repeat(64),
+    }, `test:${String(reqBody.testTo)}:${type}`);
+    return json({ ok: r.ok, test: true, id: r.id }, r.ok ? 200 : 502);
+  }
+
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
   const mailed = new Set<string>();   // user_ids already mailed this run (cohorts can overlap)
