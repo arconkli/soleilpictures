@@ -10,7 +10,7 @@ const LONG_TEXT =
   'and the credits roll past the harbor lights in the long summer dusk.';
 
 async function placeNoteWithText(page) {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
   await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();

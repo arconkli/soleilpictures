@@ -47,6 +47,21 @@ function loadLocalSession() {
 }
 
 function createInitialState() {
+  // Blank test surface (see BLANK_SEED): a clean empty Studio root so bare-canvas
+  // placement clicks aren't swallowed by seeded demo cards. Same shape as
+  // createOnboardingState's return.
+  if (BLANK_SEED) {
+    return {
+      boards: {
+        [ROOT_ID]: {
+          id: ROOT_ID, name: 'Studio', view: 'canvas',
+          workspace_id: 'local-workspace', parent_board_id: null,
+          created_at: new Date(0).toISOString(),
+        },
+      },
+      boardState: { [ROOT_ID]: { cards: [], arrows: [], strokes: [] } },
+    };
+  }
   const boards = {};
   const boardState = {};
 
@@ -83,6 +98,13 @@ function createInitialState() {
 // session). Mirrors the existing ?adoffer / ?reset dev affordances.
 const ONBOARD_PREVIEW = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('onboard') === '1';
+
+// Dev/test-only: ?local=1&reset=1&blank=1 boots an EMPTY "Studio" root (no demo
+// cards). Placement specs that click bare canvas to add a card need a clear
+// surface — the normal seed packs the canvas, so a hardcoded click lands on a
+// demo card and places nothing. See createInitialState() below.
+const BLANK_SEED = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).get('blank') === '1';
 
 // Dev-only: ?local=1&showcase=1 renders welcome_showcase arm B exactly as a new
 // user gets it — calls the real prepare_showcase RPC (grants this session's images
@@ -217,7 +239,7 @@ export function LocalBoardsApp({ user, signOut }) {
   }, []);
 
   useEffect(() => {
-    if (ONBOARD_PREVIEW || SHOWCASE_PREVIEW) return;   // preview is throwaway — never pollute the saved local session
+    if (ONBOARD_PREVIEW || SHOWCASE_PREVIEW || BLANK_SEED) return;   // preview/blank is throwaway — never pollute the saved local session
     try {
       localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({
         localState: { boards, boardState },

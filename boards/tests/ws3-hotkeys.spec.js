@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const go = async (page) => {
-  await page.goto('/?local=1&reset=1');
+  await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Select tool', exact: true })).toBeVisible();
 };
