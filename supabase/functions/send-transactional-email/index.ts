@@ -29,7 +29,7 @@ const FROM_HELLO   = "Clusters <hello@clusters.soleilpictures.com>";
 const FROM_NOREPLY = "Clusters <noreply@updates.soleilpictures.com>";
 // Lifecycle nudges send from the brand on the bulk subdomain — keeping
 // marketing reputation off the auth domain (which carries the sign-in codes).
-const FROM_LIFECYCLE = "Clusters by Soleil <hello@updates.soleilpictures.com>";
+const FROM_LIFECYCLE = "Clusters <hello@updates.soleilpictures.com>";
 const REPLY_TO       = "hello@clusters.soleilpictures.com";
 
 function fromAddress(template: string): string {
