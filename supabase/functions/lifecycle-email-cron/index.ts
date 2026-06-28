@@ -56,6 +56,19 @@ async function sendOne(
   return { ok: res.ok, id: body?.id };
 }
 
+// Weighted random pick of a copy variant from the bandit's current weights
+// (e.g. { A: 60, B: 40 }). Falls back to "A" if no config.
+// deno-lint-ignore no-explicit-any
+function pickVariant(cfg: any, emailType: string): string {
+  const weights = cfg?.[emailType]?.weights || { A: 100 };
+  const entries = Object.entries(weights).filter(([, w]) => Number(w) > 0);
+  if (!entries.length) return "A";
+  const total = entries.reduce((s, [, w]) => s + Number(w), 0);
+  let r = Math.random() * total;
+  for (const [arm, w] of entries) { r -= Number(w); if (r <= 0) return arm; }
+  return String(entries[0][0]);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
@@ -80,12 +93,18 @@ Deno.serve(async (req) => {
       workspaceId: reqBody.workspaceId ? String(reqBody.workspaceId) : undefined,
       boardId: reqBody.boardId ? String(reqBody.boardId) : undefined,
       boardName: reqBody.boardName ? String(reqBody.boardName) : undefined,
+      variant: reqBody.variant ? String(reqBody.variant) : undefined,
       unsubscribeToken: "0".repeat(64),
-    }, `test:${String(reqBody.testTo)}:${type}`);
+    }, `test:${String(reqBody.testTo)}:${type}:${reqBody.variant || "A"}`);
     return json({ ok: r.ok, test: true, id: r.id }, r.ok ? 200 : 502);
   }
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+  // Per-user send timing: only email users whose preferred active hour == now.
+  const hour = new Date().getUTCHours();
+  // Current bandit weights for the copy variants (per email type).
+  const variantCfg = (await admin.rpc("lifecycle_email_variant_weights")).data || {};
 
   const mailed = new Set<string>();   // user_ids already mailed this run (cohorts can overlap)
   let totalSent = 0;
@@ -101,7 +120,7 @@ Deno.serve(async (req) => {
     let errMsg: string | undefined;
 
     if (totalSent < MAX_SENDS) {
-      const { data, error } = await admin.rpc(rpcName, {});
+      const { data, error } = await admin.rpc(rpcName, { p_hour: hour });
       if (error) {
         errMsg = error.message;
       } else {
@@ -114,15 +133,16 @@ Deno.serve(async (req) => {
           const userId = String(row.user_id);
           if (mailed.has(userId)) { skipped++; continue; }
 
+          const variant = pickVariant(variantCfg, emailType);
           const claim = await admin.rpc("lifecycle_claim_send", {
-            p_user_id: userId, p_email_type: emailType, p_recipient_email: row.email,
+            p_user_id: userId, p_email_type: emailType, p_recipient_email: row.email, p_variant: variant,
           });
           if (claim.error) { failed++; continue; }
           const logId = claim.data as number | null;
           if (!logId) { skipped++; continue; }   // cap hit or consent withdrawn
           mailed.add(userId);
 
-          const payload = { ...toData(row), firstName: row.display_name, unsubscribeToken: row.unsub_token };
+          const payload = { ...toData(row), firstName: row.display_name, unsubscribeToken: row.unsub_token, variant };
           let ok = false, resendId: string | undefined;
           try {
             const r = await sendOne(emailType, String(row.email), payload, `lifecycle:${userId}:${emailType}`);

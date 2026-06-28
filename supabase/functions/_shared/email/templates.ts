@@ -345,13 +345,47 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
 }
 
 // ── Lifecycle emails (founder-voice plain notes; see migration 0173) ────────
+// Each builder renders one of two copy variants ('A' default / 'B'); the bandit
+// (migration 0174) picks which variant a recipient gets and learns the winner.
 interface ActivateNudgeData {
   workspaceId?: string;
   unsubscribeToken: string;
+  variant?: string;
 }
 
 function activateNudge1(d: ActivateNudgeData): RenderedEmail {
   const url = deepLink({ w: d.workspaceId }, utm("activate_nudge_1"));
+  const unsub = unsubUrl(d.unsubscribeToken);
+  if (d.variant === "B") {
+    return {
+      subject: "the fastest way to start a board",
+      html: renderPlainNote({
+        preheader: "pick something you're working on and drop in a few images or links.",
+        bodyHtml:
+          noteP("hey, the clusters team here.") +
+          noteP("you made it in but haven't started a board yet, so here's the 10-second version:") +
+          noteP("pick something you're working on, drop in a few images or links, and clusters arranges it into something you can actually use and share.") +
+          noteP("give it a go?") +
+          noteLink("open clusters", url) +
+          noteP("talk soon, the clusters team"),
+        unsubscribeUrl: unsub,
+      }),
+      text:
+`hey, the clusters team here.
+
+you made it in but haven't started a board yet, so here's the 10-second version:
+
+pick something you're working on, drop in a few images or links, and clusters arranges it into something you can actually use and share.
+
+give it a go?
+
+open clusters: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+    };
+  }
   return {
     subject: "your board's still blank",
     html: renderPlainNote({
@@ -363,7 +397,7 @@ function activateNudge1(d: ActivateNudgeData): RenderedEmail {
         noteP("want to give it a shot?") +
         noteLink("open clusters", url) +
         noteP("talk soon, the clusters team"),
-      unsubscribeUrl: unsubUrl(d.unsubscribeToken),
+      unsubscribeUrl: unsub,
     }),
     text:
 `hey, quick note from the clusters team.
@@ -378,12 +412,40 @@ open clusters: ${url}
 
 talk soon, the clusters team
 
-Unsubscribe: ${unsubUrl(d.unsubscribeToken)}`,
+Unsubscribe: ${unsub}`,
   };
 }
 
 function activateNudge2(d: ActivateNudgeData): RenderedEmail {
   const url = deepLink({ w: d.workspaceId }, utm("activate_nudge_2"));
+  const unsub = unsubUrl(d.unsubscribeToken);
+  if (d.variant === "B") {
+    return {
+      subject: "before you go",
+      html: renderPlainNote({
+        preheader: "most people start with one messy board. it sorts itself out from there.",
+        bodyHtml:
+          noteP("hey, last one from us, promise.") +
+          noteP("most people who stick with clusters start with one messy board: a moodboard, a project, a pile of references. it sorts itself out from there.") +
+          noteP("two minutes to see if it clicks?") +
+          noteLink("build my first board", url) +
+          noteP("talk soon, the clusters team"),
+        unsubscribeUrl: unsub,
+      }),
+      text:
+`hey, last one from us, promise.
+
+most people who stick with clusters start with one messy board: a moodboard, a project, a pile of references. it sorts itself out from there.
+
+two minutes to see if it clicks?
+
+build my first board: ${url}
+
+talk soon, the clusters team
+
+Unsubscribe: ${unsub}`,
+    };
+  }
   return {
     subject: "last note from us",
     html: renderPlainNote({
@@ -394,7 +456,7 @@ function activateNudge2(d: ActivateNudgeData): RenderedEmail {
         noteP("if that sounds at all like your kind of thing, it's worth two minutes to start one. if it's not, genuinely no hard feelings.") +
         noteLink("build my first board", url) +
         noteP("talk soon, the clusters team"),
-      unsubscribeUrl: unsubUrl(d.unsubscribeToken),
+      unsubscribeUrl: unsub,
     }),
     text:
 `hey again, we'll keep this one short, then we'll leave you be.
@@ -407,7 +469,7 @@ build my first board: ${url}
 
 talk soon, the clusters team
 
-Unsubscribe: ${unsubUrl(d.unsubscribeToken)}`,
+Unsubscribe: ${unsub}`,
   };
 }
 
@@ -416,11 +478,45 @@ interface ReengageData {
   boardId?: string;
   boardName?: string;   // pre-sanitized in renderTemplate
   unsubscribeToken: string;
+  variant?: string;
 }
 
 function reengage1(d: ReengageData): RenderedEmail {
   const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("reengage_1"));
+  const unsub = unsubUrl(d.unsubscribeToken);
   const hasName = !!d.boardName;
+  if (d.variant === "B") {
+    const subjectB  = hasName ? `your board "${d.boardName}" is still here` : "your boards are still here";
+    const ctaLabelB = hasName ? `open "${d.boardName}"` : "open my boards";
+    const nudge     = hasName
+      ? `quick nudge: "${d.boardName}" is still sitting in your workspace.`
+      : "quick nudge: your boards are still sitting in your workspace.";
+    return {
+      subject: subjectB,
+      html: renderPlainNote({
+        preheader: "the easy place to put whatever's been piling up.",
+        bodyHtml:
+          noteP("hey, the clusters team here.") +
+          noteP(nudge) +
+          noteP("if new references or ideas have been piling up, this is the easy place to put them.") +
+          noteP("jump back in:") +
+          noteLink(ctaLabelB, url),
+        unsubscribeUrl: unsub,
+      }),
+      text:
+`hey, the clusters team here.
+
+${nudge}
+
+if new references or ideas have been piling up, this is the easy place to put them.
+
+jump back in:
+
+${ctaLabelB}: ${url}
+
+Unsubscribe: ${unsub}`,
+    };
+  }
   const subject  = hasName ? `"${d.boardName}" is right where you left it` : "your board's right where you left it";
   const ctaLabel = hasName ? `open "${d.boardName}"` : "open my board";
   const opener   = hasName
@@ -436,7 +532,7 @@ function reengage1(d: ReengageData): RenderedEmail {
         noteP("it's all still there, exactly how you left it. no pressure, but if a few new things have piled up since, this is a good moment to drop them in.") +
         noteP("pick up where you left off:") +
         noteLink(ctaLabel, url),
-      unsubscribeUrl: unsubUrl(d.unsubscribeToken),
+      unsubscribeUrl: unsub,
     }),
     text:
 `hey, the clusters team here.
@@ -449,7 +545,7 @@ pick up where you left off:
 
 ${ctaLabel}: ${url}
 
-Unsubscribe: ${unsubUrl(d.unsubscribeToken)}`,
+Unsubscribe: ${unsub}`,
   };
 }
 
@@ -509,11 +605,13 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       return activateNudge1({
         workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        variant:          data.variant != null ? String(data.variant) : undefined,
       });
     case "activate_nudge_2":
       return activateNudge2({
         workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        variant:          data.variant != null ? String(data.variant) : undefined,
       });
     case "reengage_1": {
       const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
@@ -522,6 +620,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:          data.boardId != null ? String(data.boardId) : undefined,
         boardName:        boardName || undefined,
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        variant:          data.variant != null ? String(data.variant) : undefined,
       });
     }
   }
