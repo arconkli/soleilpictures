@@ -1377,6 +1377,12 @@ function NotificationsTab({ user }) {
         value={isOn('email_board_shared')}
         onChange={(v) => togglePref('email_board_shared', v)} />
 
+      <Toggle
+        label="Product tips & check-ins"
+        desc="Occasional nudges to help you get started and get back in when it's been a while."
+        value={isOn('email_lifecycle')}
+        onChange={(v) => togglePref('email_lifecycle', v)} />
+
       <p className="settings-section-hint" style={{ marginTop: 16 }}>
         Sign-in codes and account-critical emails always send, regardless of these settings.
       </p>

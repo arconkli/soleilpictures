@@ -7,7 +7,7 @@
 //   3. wire it in renderTemplate's switch
 //   4. update send-transactional-email's accepted template list
 
-import { renderEmail } from "./layout.ts";
+import { renderEmail, renderPlainNote } from "./layout.ts";
 
 export type TemplateName =
   | "waitlist_submitted"
@@ -16,7 +16,10 @@ export type TemplateName =
   | "board_shared"
   | "pending_invite"
   | "mention_email"
-  | "comment_reply_email";
+  | "comment_reply_email"
+  | "activate_nudge_1"
+  | "activate_nudge_2"
+  | "reengage_1";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
   "waitlist_submitted",
@@ -26,6 +29,9 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "pending_invite",
   "mention_email",
   "comment_reply_email",
+  "activate_nudge_1",
+  "activate_nudge_2",
+  "reengage_1",
 ];
 
 export interface RenderedEmail {
@@ -38,17 +44,41 @@ const SIGN_IN_URL = "https://clusters.soleilpictures.com/sign-in";
 const APP_URL     = "https://clusters.soleilpictures.com/";
 
 // Build a deep link that AuthGate consumes into localStorage post-sign-in
-// so the app lands on the right workspace/board automatically.
-function deepLink(params: { w?: string; b?: string } = {}): string {
+// so the app lands on the right workspace/board automatically. Extra `utm`
+// params survive consumeDeepLink (which strips only ?w/?b) into analytics.js
+// last-touch, so lifecycle CTA clicks attribute with no new tracking infra.
+function deepLink(params: { w?: string; b?: string } = {}, utm: Record<string, string> = {}): string {
   const qs = new URLSearchParams();
   if (params.w) qs.set("w", params.w);
   if (params.b) qs.set("b", params.b);
+  for (const [k, v] of Object.entries(utm)) if (v) qs.set(k, v);
   const tail = qs.toString();
   return tail ? `${APP_URL}?${tail}` : APP_URL;
 }
 
 function plain(lines: string[]): string {
   return lines.filter((l) => l !== "").join("\n");
+}
+
+// ── Lifecycle "simple note" helpers ─────────────────────────────────────────
+const UNSUB_BASE = "https://clusters.soleilpictures.com/api/unsubscribe";
+
+function unsubUrl(token: string): string {
+  return `${UNSUB_BASE}?u=${encodeURIComponent(token)}&k=email_lifecycle`;
+}
+
+function utm(campaign: string): Record<string, string> {
+  return { utm_source: "email", utm_medium: "lifecycle", utm_campaign: campaign };
+}
+
+const NOTE_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+function noteP(text: string): string {
+  return `<p style="margin:0 0 18px; font:400 15px/1.65 ${NOTE_FONT}; color:#1a1a1a;">${escapeHtml(text)}</p>`;
+}
+
+function noteLink(label: string, url: string): string {
+  return `<p style="margin:2px 0 18px; font:600 15px/1.65 ${NOTE_FONT};"><a href="${escapeHtml(url)}" style="color:#1a1a1a; text-decoration:underline;">${escapeHtml(label)} &rarr;</a></p>`;
 }
 
 function waitlistSubmitted(): RenderedEmail {
@@ -314,6 +344,118 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
   };
 }
 
+// ── Lifecycle emails (founder-voice plain notes; see migration 0173) ────────
+interface ActivateNudgeData {
+  workspaceId?: string;
+  unsubscribeToken: string;
+}
+
+function activateNudge1(d: ActivateNudgeData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId }, utm("activate_nudge_1"));
+  return {
+    subject: "your board's still blank",
+    html: renderPlainNote({
+      preheader: "the fastest way in: drop three things you're into onto a board.",
+      bodyHtml:
+        noteP("hey — andrew here, one of the people behind clusters.") +
+        noteP("saw you signed up but haven't actually built anything yet. no judgment — a blank canvas is the worst part.") +
+        noteP("the move is to not overthink it: dump three things you're into onto a board and let it cluster itself. takes about a minute, and it's basically the whole point.") +
+        noteP("want to give it a shot?") +
+        noteLink("open clusters", url) +
+        noteP("— andrew, soleil"),
+      unsubscribeUrl: unsubUrl(d.unsubscribeToken),
+    }),
+    text:
+`hey — andrew here, one of the people behind clusters.
+
+saw you signed up but haven't actually built anything yet. no judgment — a blank canvas is the worst part.
+
+the move is to not overthink it: dump three things you're into onto a board and let it cluster itself. takes about a minute, and it's basically the whole point.
+
+want to give it a shot?
+
+open clusters: ${url}
+
+— andrew, soleil
+
+—
+Unsubscribe: ${unsubUrl(d.unsubscribeToken)}`,
+  };
+}
+
+function activateNudge2(d: ActivateNudgeData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId }, utm("activate_nudge_2"));
+  return {
+    subject: "last note from me",
+    html: renderPlainNote({
+      preheader: "for the stuff that lives in 40 open tabs and six group chats.",
+      bodyHtml:
+        noteP("hey, andrew again — i'll keep this one short, then i'll leave you be.") +
+        noteP("clusters is for the stuff that lives in 40 open tabs and six group chats: references, ideas, things you don't want to lose. you drop it in, it organizes itself into boards you can actually share.") +
+        noteP("if that sounds at all like your kind of thing, it's worth two minutes to start one. if it's not, genuinely no hard feelings.") +
+        noteP("— andrew, soleil") +
+        noteLink("build my first board", url),
+      unsubscribeUrl: unsubUrl(d.unsubscribeToken),
+    }),
+    text:
+`hey, andrew again — i'll keep this one short, then i'll leave you be.
+
+clusters is for the stuff that lives in 40 open tabs and six group chats: references, ideas, things you don't want to lose. you drop it in, it organizes itself into boards you can actually share.
+
+if that sounds at all like your kind of thing, it's worth two minutes to start one. if it's not, genuinely no hard feelings.
+
+— andrew, soleil
+
+build my first board: ${url}
+
+—
+Unsubscribe: ${unsubUrl(d.unsubscribeToken)}`,
+  };
+}
+
+interface ReengageData {
+  workspaceId?: string;
+  boardId?: string;
+  boardName?: string;   // pre-sanitized in renderTemplate
+  unsubscribeToken: string;
+}
+
+function reengage1(d: ReengageData): RenderedEmail {
+  const url = deepLink({ w: d.workspaceId, b: d.boardId }, utm("reengage_1"));
+  const hasName = !!d.boardName;
+  const subject  = hasName ? `"${d.boardName}" is right where you left it` : "your board's right where you left it";
+  const ctaLabel = hasName ? `open "${d.boardName}"` : "open my board";
+  const opener   = hasName
+    ? `you built something real in clusters — "${d.boardName}" — and then went quiet. happens to the best of us.`
+    : "you built something real in clusters and then went quiet. happens to the best of us.";
+  return {
+    subject,
+    html: renderPlainNote({
+      preheader: "it's all still there, right where you left it.",
+      bodyHtml:
+        noteP("hey — andrew, soleil.") +
+        noteP(opener) +
+        noteP("it's all still there, exactly how you left it. no pressure, but if a few new things have piled up since, this is a good moment to drop them in.") +
+        noteP("pick up where you left off:") +
+        noteLink(ctaLabel, url),
+      unsubscribeUrl: unsubUrl(d.unsubscribeToken),
+    }),
+    text:
+`hey — andrew, soleil.
+
+${opener}
+
+it's all still there, exactly how you left it. no pressure, but if a few new things have piled up since, this is a good moment to drop them in.
+
+pick up where you left off:
+
+${ctaLabel}: ${url}
+
+—
+Unsubscribe: ${unsubUrl(d.unsubscribeToken)}`,
+  };
+}
+
 export function renderTemplate(name: TemplateName, data: Record<string, unknown>): RenderedEmail {
   switch (name) {
     case "waitlist_submitted":
@@ -366,5 +508,24 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
       });
+    case "activate_nudge_1":
+      return activateNudge1({
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+      });
+    case "activate_nudge_2":
+      return activateNudge2({
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+      });
+    case "reengage_1": {
+      const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
+      return reengage1({
+        workspaceId:      data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:          data.boardId != null ? String(data.boardId) : undefined,
+        boardName:        boardName || undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+      });
+    }
   }
 }

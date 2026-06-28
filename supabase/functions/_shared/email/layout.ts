@@ -166,3 +166,73 @@ ${subtitleBlock}${bodyBlock}${ctaBlock}${caveatBlock}
   </body>
 </html>`;
 }
+
+// ── Plain founder-note layout ───────────────────────────────────────────────
+// A deliberately un-designed, light, almost-text-only shell for lifecycle email
+// (activation nudges + re-engagement). Reads like a note from a person, not a
+// marketing blast — left-aligned paragraphs, an inline text-link CTA (no gold
+// button), and a small required footer with the postal address + unsubscribe.
+//
+// bodyHtml is TRUSTED HTML the caller has already escaped (see noteBody in
+// templates.ts). cta + unsubscribeUrl are escaped here.
+
+// CAN-SPAM requires a physical mailing address on every marketing email.
+// TODO(ops): replace before the first send.
+export const POSTAL_ADDRESS = "Soleil Pictures · [POSTAL ADDRESS — fill before first send]";
+
+export interface RenderPlainNoteOpts {
+  preheader: string;
+  bodyHtml: string;            // already-escaped <p> paragraphs
+  cta?: { label: string; url: string };
+  unsubscribeUrl: string;      // required (CAN-SPAM)
+}
+
+export function renderPlainNote(opts: RenderPlainNoteOpts): string {
+  const { preheader, bodyHtml, cta, unsubscribeUrl } = opts;
+
+  const ctaBlock = cta
+    ? `
+                <p style="margin:4px 0 0; font:600 15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                  <a href="${escapeHtml(cta.url)}" style="color:#1a1a1a; text-decoration:underline;">${escapeHtml(cta.label)} &rarr;</a>
+                </p>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light only">
+    <meta name="supported-color-schemes" content="light only">
+    <style>
+      :root { color-scheme: light; supported-color-schemes: light; }
+      .preheader { display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background:#faf9f7; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#1a1a1a; -webkit-font-smoothing:antialiased;">
+    <span class="preheader">${escapeHtml(preheader)}</span>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#faf9f7;">
+      <tr>
+        <td align="center" style="padding:44px 20px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:480px;">
+            <tr>
+              <td style="text-align:left;">
+                ${bodyHtml}${ctaBlock}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding-top:30px;">
+                <div style="border-top:1px solid #e7e4df; padding-top:18px; font:400 12px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#8a8780; text-align:left;">
+                  ${escapeHtml(POSTAL_ADDRESS)}<br>
+                  Not into these? <a href="${escapeHtml(unsubscribeUrl)}" style="color:#8a8780; text-decoration:underline;">Unsubscribe</a>.
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}

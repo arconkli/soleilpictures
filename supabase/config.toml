@@ -16,3 +16,6 @@ verify_jwt = false
 
 [functions.waitlist-accept-cron]
 verify_jwt = false
+
+[functions.lifecycle-email-cron]
+verify_jwt = false
