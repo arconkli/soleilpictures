@@ -8074,10 +8074,31 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   letter-spacing: 0.01em;
   color: var(--ink-1);
 }
+/* Rotating breadth word in the headline ("Start your moodboard / script / …").
+   Brighter than the static prefix; fades up on each swap (the span is keyed on
+   the word so it remounts). Reduced-motion shows it static. */
+.cnv-rotating-word {
+  display: inline-block;
+  color: var(--ink-0);
+  animation: cnvRotatingWordIn var(--dur-base) var(--ease);
+}
+@keyframes cnvRotatingWordIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* One muted line under the headline naming the range — breadth without a wall
+   of options. */
+.cnv-empty-tiles-breadth {
+  margin-top: -3px;
+  max-width: 340px;
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--ink-3);
+  text-align: center;
+}
 .cnv-empty-tiles-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
   justify-items: center;
 }
 /* Image-first hero tile — the primary CTA, since adding an image is the single
@@ -8116,9 +8137,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 11px;
-  width: 96px;
-  padding: 16px 10px;
+  gap: 9px;
+  width: 84px;
+  padding: 14px 8px;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -8155,7 +8176,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   .cnv-empty-tiles-sub-coarse { display: inline; }
 }
 @media (max-width: 540px) {
-  .cnv-empty-tiles-grid { grid-template-columns: repeat(2, 1fr); }
+  .cnv-empty-tiles-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   .cnv-empty-tiles { animation: none; opacity: 1; }

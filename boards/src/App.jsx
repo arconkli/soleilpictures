@@ -95,7 +95,7 @@ import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
-import { initCardDocStore } from './lib/docState.js';
+import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { uploadImage, uploadPdf } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
@@ -1284,6 +1284,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setAutoFocusId(id); // signals "open the doc editor immediately"
     };
 
+    // Like addDocCard, but the doc opens already in SCREENPLAY mode (Courier,
+    // scene-element picker, Fountain/FDX export) — the empty-board "Script" tile
+    // surfaces the app's screenwriting depth as a one-click starting point. The
+    // mode lives in the per-card docMeta map, so we flip it in the same afterInsert
+    // (right after the store exists) via setDocMode on the card's own scope.
+    const addScriptCard = (clickPos = null) => {
+      const d = defaultsRef.current?.doc || {};
+      const w = d.w || 320, h = d.h || 240;
+      const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
+      const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
+      const id = `doc-${Date.now()}`;
+      addCard({
+        id, kind: 'doc', title: 'Untitled script',
+        ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
+        x: Math.max(8, x), y: Math.max(8, y), w, h,
+      }, {
+        afterInsert: (cardYM) => {
+          if (!cardYM) return;
+          initCardDocStore(ydoc, cardYM);
+          try { setDocMode(ydoc, cardScope(cardYM), 'screenplay'); } catch (_) {}
+        },
+      });
+      setAutoFocusId(id);
+    };
+
     const setBoardBgColor = async (color) => {
       try {
         await updateBoardMeta(boardId, { bg_color: color || null });
@@ -1488,7 +1513,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
-      addDocCard,
+      addDocCard, addScriptCard,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
       setBoardCover,

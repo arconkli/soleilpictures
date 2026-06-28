@@ -29,7 +29,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -96,6 +96,23 @@ import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
+
+// Empty-board headline rotator — cycles a few accurate, breadth-signaling nouns
+// ("Start your moodboard / script / shot list…") to hint the app's full range
+// without a wall of options. Honors prefers-reduced-motion (→ static first word).
+// Each swap is keyed so the CSS fade (cnvRotatingWordIn) re-triggers.
+const BREADTH_WORDS = ['moodboard', 'script', 'shot list', 'lookbook', 'asset board'];
+function RotatingWord({ words = BREADTH_WORDS, intervalMs = 2000 }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    let reduce = false;
+    try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) {}
+    if (reduce || words.length < 2) return undefined;
+    const t = setInterval(() => setI((n) => (n + 1) % words.length), intervalMs);
+    return () => clearInterval(t);
+  }, [words, intervalMs]);
+  return <span key={words[i]} className="cnv-rotating-word">{words[i]}</span>;
+}
 
 const RESIZE_HANDLE_PX = 14;
 const MIN_W = 60, MIN_H = 40;
@@ -5234,6 +5251,7 @@ export function CanvasSurface({
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
     { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method); mutators.addNote?.(pos); } },
     { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method); mutators.addDocCard?.(pos); } },
+    { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method); mutators.addScriptCard?.(pos); } },
     { id: 'shape',   group: 'card', label: 'Shape',   icon: Square,        run: () => { noteCreateIntent(method); mutators.addShape?.(pos, shapeOptions); } },
     { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method); mutators.addPalette?.(pos); } },
     { id: 'addurl',  group: 'card', label: 'Link', icon: Link, run: async () => {
@@ -7931,15 +7949,19 @@ export function CanvasSurface({
           switches / first-run seeding never flash it. The friction-stuck signal
           adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
       {canEdit && selectedTool === 'select' && (boardIsEmpty || firstCardPrompt) && (() => {
-        // IMAGE-FIRST: adding an image is the single behavior that drives activation
-        // (14/14 of activated users used an image; note-only users ~never return), so
-        // Image is a big hero CTA and Note / Upload / Doc sit beneath as secondary.
+        // IMAGE-FIRST, but show the RANGE: adding an image drives activation (14/14
+        // of activated users used an image), so Image stays the hero — while the
+        // rotating headline + the breadth line + the Script/Board/Note/Doc/Any-file
+        // row signal that this is also where you write scripts, organize, and drop
+        // any asset. ("Any file" is a deliberate upsell tease: an image uploads free,
+        // a generic file hits the existing paid-upgrade prompt in ingestFiles.)
         const runTile = (id) => buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run();
         return (
         <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}`}
              aria-label="Add your first image"
              role={frictionStuck ? 'status' : 'group'}>
-          <div className="cnv-empty-tiles-head">Start your moodboard</div>
+          <div className="cnv-empty-tiles-head">Start your <RotatingWord /></div>
+          <div className="cnv-empty-tiles-breadth">Moodboards, scripts, shot lists — every asset, one canvas.</div>
           <button type="button" className="cnv-empty-tile cnv-empty-tile-hero"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => runTile('image')}>
@@ -7951,9 +7973,11 @@ export function CanvasSurface({
           </button>
           <div className="cnv-empty-tiles-grid">
             {[
-              { id: 'note',  label: 'Note',   icon: NotePencil },
-              { id: 'file',  label: 'Upload', icon: Upload },
-              { id: 'doc',   label: 'Doc',    icon: FileText },
+              { id: 'script', label: 'Script',   icon: Clapperboard },
+              { id: 'board',  label: 'Board',    icon: LayoutGrid },
+              { id: 'note',   label: 'Note',     icon: NotePencil },
+              { id: 'doc',    label: 'Doc',      icon: FileText },
+              { id: 'file',   label: 'Any file', icon: Upload },
             ].map((t) => (
               <button key={t.id} type="button" className="cnv-empty-tile"
                       onPointerDown={(e) => e.stopPropagation()}
