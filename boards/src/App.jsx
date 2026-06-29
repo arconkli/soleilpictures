@@ -2412,13 +2412,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const emitTourStep = useCallback((e) => {
     try { logEvent(EV.ONBOARDING_STEP, { step: e.step, action: e.action, via: e.via || null }); } catch (_) {}
   }, []);
+  const tourActive = onboardingArmB && onboardingUiActive;
   const tour = useOnboardingTour({
     onboarding: myTier.onboarding,
     persist: persistTour,
     emit: emitTourStep,
-    enabled: onboardingArmB && onboardingUiActive,
+    enabled: tourActive,
   });
-  tourFireRef.current = tour.fire;
+  // Only feed tour events while the tour is actually running — otherwise a
+  // non-arm-B (or finished) user's card/nav actions would advance + persist +
+  // emit tour state into their profile. Null ref → the mutators' `?.()` no-op.
+  tourFireRef.current = tourActive ? tour.fire : null;
   // Finishing the last step (or Skip) closes the onboarding UI.
   useEffect(() => { if (tour.state.done) setOnboardingUiActive(false); }, [tour.state.done]);
 

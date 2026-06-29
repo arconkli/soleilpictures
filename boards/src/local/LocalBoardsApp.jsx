@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CanvasSurface } from '../components/CanvasSurface.jsx';
 import { ListSurface } from '../components/ListSurface.jsx';
 import { CommandPalette } from '../components/CommandPalette.jsx';
@@ -14,6 +14,8 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
+import { OnboardingTour } from '../components/OnboardingTour.jsx';
+import { useOnboardingTour } from '../hooks/useOnboardingTour.js';
 import { supabase } from '../lib/supabase.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
@@ -105,6 +107,12 @@ const ONBOARD_PREVIEW = typeof window !== 'undefined'
 // demo card and places nothing. See createInitialState() below.
 const BLANK_SEED = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('blank') === '1';
+
+// Dev-only: add &tour=1 (best alongside &blank=1) to walk the REAL first-run
+// guided tour on a live local canvas — no Supabase / arm enrollment needed.
+// e.g. /?local=1&reset=1&blank=1&tour=1
+const TOUR_DEMO = typeof window !== 'undefined' && import.meta.env.DEV
+  && new URLSearchParams(window.location.search).get('tour') === '1';
 
 // Dev-only: ?local=1&showcase=1 renders welcome_showcase arm B exactly as a new
 // user gets it — calls the real prepare_showcase RPC (grants this session's images
@@ -253,6 +261,21 @@ export function LocalBoardsApp({ user, signOut }) {
   const currentBoard = boards[currentId] || boards[ROOT_ID];
   const currentState = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
   const view = viewOverride[currentId] || currentBoard.view || 'canvas';
+
+  // Dev-only guided-tour demo (?tour=1). The mutators below emit tour events via
+  // tourFireRef; the overlay is mounted near the surface. No persistence/funnel
+  // here — this is purely to preview the real component/engine on a live canvas.
+  const tourFireRef = useRef(null);
+  const tour = useOnboardingTour({ onboarding: {}, persist: () => {}, emit: () => {}, enabled: TOUR_DEMO });
+  tourFireRef.current = TOUR_DEMO ? tour.fire : null;
+  const prevTourBoardRef = useRef(currentId);
+  useEffect(() => {
+    const was = prevTourBoardRef.current;
+    prevTourBoardRef.current = currentId;
+    if (TOUR_DEMO && was !== currentId && currentId === ROOT_ID && was !== ROOT_ID) {
+      tourFireRef.current?.({ type: 'nav_back' });
+    }
+  }, [currentId]);
   const childBoards = useMemo(
     () => Object.values(boards).filter(board => board.parent_board_id === currentId),
     [boards, currentId],
@@ -282,6 +305,7 @@ export function LocalBoardsApp({ user, signOut }) {
       ...state,
       cards: [...state.cards, { z: getNextZ(state.cards), ...card }],
     }));
+    if (card?.kind !== 'board') tourFireRef.current?.({ type: 'content_added', boardId: currentId, kind: card?.kind || 'card' });
   };
 
   const addCards = (cardsToAdd) => {
@@ -420,6 +444,7 @@ export function LocalBoardsApp({ user, signOut }) {
       h,
     });
     setAutoFocusId(id);
+    tourFireRef.current?.({ type: 'cluster_created', boardId: id });
   };
 
   const renameBoardById = (boardId, name) => {
@@ -431,6 +456,7 @@ export function LocalBoardsApp({ user, signOut }) {
         [boardId]: { ...prev.boards[boardId], name: name.trim() },
       },
     }));
+    tourFireRef.current?.({ type: 'cluster_renamed', boardId });
   };
 
   const deleteBoardsById = (ids) => {
@@ -598,7 +624,7 @@ export function LocalBoardsApp({ user, signOut }) {
   };
 
   const openBoard = (id) => {
-    if (boards[id]) { setStack(prev => [...prev, id]); recents.push(id); }
+    if (boards[id]) { setStack(prev => [...prev, id]); recents.push(id); tourFireRef.current?.({ type: 'cluster_opened', boardId: id }); }
   };
   const goTo = (index) => setStack(prev => prev.slice(0, index + 1));
 
@@ -771,7 +797,7 @@ export function LocalBoardsApp({ user, signOut }) {
                 <Icon as={PanelLeftOpen} size={16} />
               </button>
             )}
-            <div className="crumbs">
+            <div className="crumbs" data-tour="nav">
               {crumbs.map((crumb, index) => (
                 <React.Fragment key={`${crumb.id}-${index}`}>
                   {index > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
@@ -909,6 +935,15 @@ export function LocalBoardsApp({ user, signOut }) {
 
       {ONBOARD_PREVIEW && onboardCoachOpen && currentId === ROOT_ID && currentSurface === 'board' && (
         <OnboardingCoachmark boardId={ROOT_ID} onDismiss={() => setOnboardCoachOpen(false)} arm="B" />
+      )}
+
+      {TOUR_DEMO && tour.step && currentSurface === 'board' && (
+        <OnboardingTour
+          step={tour.step}
+          onEvent={(e) => tour.fire(e)}
+          onSkip={() => tour.skip()}
+          onView={(id) => tour.markView(id)}
+        />
       )}
 
       {mobileShell && (() => {
