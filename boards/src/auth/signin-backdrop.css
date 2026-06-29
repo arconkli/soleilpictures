@@ -187,7 +187,7 @@
 /* credential line — the whole pitch (IYKYK): "Made by a film studio, …". Sits
    below the form as the last box child; quiet gold tint so it reads as a
    credential, not body copy. */
-.sb-trust { margin: 2px auto 0; max-width: 30ch; text-align: center; letter-spacing: .03em;
+.sb-trust { margin: 2px auto 0; max-width: 100%; text-align: center; letter-spacing: .02em; white-space: nowrap;
   font: 600 11.5px/1.5 var(--font-sans); color: var(--soleil); opacity: .9;
   /* the box overflows into the finale's cards; a dark halo keeps the line crisp
      over any card (incl. a bright palette) without adding a heavy scrim. */
