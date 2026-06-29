@@ -3,17 +3,11 @@ import { OnboardingTour } from '../components/OnboardingTour.jsx';
 import { useOnboardingTour } from '../hooks/useOnboardingTour.js';
 
 // Dev-only harness for ?tourqa=1. Renders the real <OnboardingTour> driven by
-// the real engine over a set of fake data-tour anchors, isolated from Supabase,
-// and exposes window.__soleilTourTest = { fire, skip, getState, getEmitted } so
-// Playwright (tests/onboarding-tour.spec.js) can drive step advancement and
-// assert anchoring. Gated to DEV builds in main.jsx.
-const ANCHORS = [
-  { anchor: 'empty-cluster-tile', label: 'Cluster tile', style: { top: '48%', left: '46%' } },
-  { anchor: 'cluster-card', label: 'Cluster card', style: { top: '28%', left: '62%' } },
-  { anchor: 'nav', label: 'Studio ›', style: { top: '10px', left: '40%' } },
-  { anchor: 'image-tool', label: 'Image', style: { top: '50%', left: '10px' } },
-];
-
+// the real engine over fake data-tour anchors laid out like the real app (a
+// left tool rail, a top breadcrumb, a mid-canvas cluster card), inside a
+// .canvas-wrap so the canvas-region centering is exercised — isolated from
+// Supabase. Exposes window.__soleilTourTest = { fire, skip, getState, getEmitted }
+// so Playwright (tests/onboarding-tour.spec.js) can drive + assert. DEV only.
 export function TourQaHarness() {
   const emittedRef = useRef([]);
   const sinks = useRef({
@@ -28,7 +22,6 @@ export function TourQaHarness() {
     enabled: true,
   });
 
-  // Keep live refs so the window bridge never closes over stale state.
   const ref = useRef(tour);
   ref.current = tour;
 
@@ -44,19 +37,19 @@ export function TourQaHarness() {
   }, []);
 
   return (
-    <div style={{ position: 'fixed', inset: 0 }}>
+    <div className="canvas-wrap" style={{ position: 'fixed', inset: 0 }}>
       <div id="tourqa-ready" style={{ position: 'fixed', top: 4, left: 4, fontSize: 10, color: '#888' }}>
         tourqa ready
       </div>
-      {ANCHORS.map((a) => (
-        <button
-          key={a.anchor}
-          data-tour={a.anchor}
-          style={{ position: 'fixed', ...a.style, padding: '6px 10px' }}
-        >
-          {a.label}
-        </button>
-      ))}
+      {/* breadcrumb (nav anchor) */}
+      <div className="crumbs" data-tour="nav" style={{ position: 'fixed', top: 10, left: '42%' }}>Studio ›</div>
+      {/* left tool rail */}
+      <div className="cnv-tools" style={{ position: 'fixed', left: 14, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="cnv-tool" data-tour="cluster-tool" style={{ width: 30, height: 30 }}>C</div>
+        <div className="cnv-tool" data-tour="image-tool" style={{ width: 30, height: 30 }}>I</div>
+      </div>
+      {/* a cluster card mid-canvas (rename/open anchor) */}
+      <div className="bc" data-tour="cluster-card" style={{ position: 'fixed', top: '42%', left: '55%', width: 140, height: 100, border: '1px solid #888', borderRadius: 8 }}>Cluster</div>
       <OnboardingTour
         step={tour.step}
         onEvent={(e) => tour.fire(e)}

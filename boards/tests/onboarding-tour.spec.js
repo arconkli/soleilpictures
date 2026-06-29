@@ -16,15 +16,26 @@ test.describe('onboarding tour overlay', () => {
     await expect(page.locator('#tourqa-ready')).toBeVisible({ timeout: 15000 });
   });
 
-  test('shows the create step anchored to the cluster tile', async ({ page }) => {
+  test('shows the create step anchored to the left-rail Cluster tool, with a target ring', async ({ page }) => {
     const pill = page.locator('.onboarding-tour');
     await expect(pill).toBeVisible();
     await expect(pill).toContainText('Make your first cluster');
-    await expect(pill).toHaveAttribute('data-tour-anchor', 'empty-cluster-tile');
+    await expect(pill).toHaveAttribute('data-tour-anchor', 'cluster-tool');
 
     const pillBox = await pill.boundingBox();
-    const anchorBox = await page.locator('[data-tour="empty-cluster-tile"]').boundingBox();
+    const anchorBox = await page.locator('[data-tour="cluster-tool"]').boundingBox();
     expect(near(pillBox, anchorBox)).toBe(true);
+
+    // The target element gets the highlight ring so it's obvious what's pointed at.
+    await expect(page.locator('[data-tour="cluster-tool"]')).toHaveClass(/tour-target/);
+  });
+
+  test('moves the target ring from one anchor to the next as steps advance', async ({ page }) => {
+    await expect(page.locator('[data-tour="cluster-tool"]')).toHaveClass(/tour-target/);
+    await page.evaluate(() => window.__soleilTourTest.fire({ type: 'cluster_created', boardId: 'b1' }));
+    // ring leaves the tool, lands on the cluster card (rename step)
+    await expect(page.locator('[data-tour="cluster-tool"]')).not.toHaveClass(/tour-target/);
+    await expect(page.locator('[data-tour="cluster-card"]')).toHaveClass(/tour-target/);
   });
 
   test('advances through the steps as events fire, re-anchoring each time', async ({ page }) => {

@@ -18,13 +18,16 @@ export const TOUR_VERSION = 1;
 
 export const TOUR_STEPS = [
   {
+    // Points at the left-rail Cluster tool — the primary surface users will live
+    // in. The center empty-state tiles also fire cluster_created, so either path
+    // advances the step.
     id: 'create',
-    anchor: 'empty-cluster-tile',
-    placement: 'top',
+    anchor: 'cluster-tool',
+    placement: 'right',
     copy: {
       title: 'Make your first cluster',
-      body: 'A cluster is a space to collect ideas — images, notes, scripts. Click here to add one.',
-      touch: 'Tap here to make your first cluster — a space for your ideas.',
+      body: 'Grab the Cluster tool, then click the canvas to drop a cluster — a home for images, notes & scripts.',
+      touch: 'Tap the Cluster tool, then tap the canvas to drop your first cluster.',
     },
     accepts: (e) => e?.type === 'cluster_created',
   },

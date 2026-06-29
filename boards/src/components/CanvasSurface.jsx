@@ -6149,7 +6149,7 @@ export function CanvasSurface({
     // and the user has no feedback that anything happened.
     const cardTags = tagsByCard?.get?.(c.id) || [];
     return (
-      <div key={c.id} {...wrapper}>
+      <div key={c.id} {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
         {inner}
         <CardStrokesOverlay strokes={c.strokes} w={w} h={h} />
         {cardTags.length > 0 && (

@@ -19093,15 +19093,19 @@ button, [role="button"], a {
 }
 .onboarding-tour-arrow {
   position: absolute;
-  width: 10px;
-  height: 10px;
-  background: inherit;
+  width: 14px;
+  height: 14px;
+  background: inherit;            /* matches the frosted pill */
+  border: 1px solid rgba(255, 255, 255, 0.12);
   transform: rotate(45deg);
 }
-.onboarding-tour.tour-bottom .onboarding-tour-arrow { top: -5px; left: 50%; margin-left: -5px; }
-.onboarding-tour.tour-top    .onboarding-tour-arrow { bottom: -5px; left: 50%; margin-left: -5px; }
-.onboarding-tour.tour-right  .onboarding-tour-arrow { left: -5px; top: 50%; margin-top: -5px; }
-.onboarding-tour.tour-left   .onboarding-tour-arrow { right: -5px; top: 50%; margin-top: -5px; }
+[data-theme='light'] .onboarding-tour-arrow { border-color: rgba(10, 9, 8, 0.12); }
+.onboarding-tour.tour-bottom .onboarding-tour-arrow { top: -7px;    left: 50%; margin-left: -7px; }
+.onboarding-tour.tour-top    .onboarding-tour-arrow { bottom: -7px; left: 50%; margin-left: -7px; }
+.onboarding-tour.tour-right  .onboarding-tour-arrow { left: -7px;   top: 50%;  margin-top: -7px; }
+.onboarding-tour.tour-left   .onboarding-tour-arrow { right: -7px;  top: 50%;  margin-top: -7px; }
+/* Centered fallback has no target to point at — hide the arrow. */
+.onboarding-tour.tour-centered .onboarding-tour-arrow { display: none; }
 .onboarding-tour-actions { display: flex; align-items: center; gap: 6px; flex: none; }
 .onboarding-tour-skip {
   background: none;
@@ -19112,8 +19116,40 @@ button, [role="button"], a {
   padding: 6px 4px;
 }
 .onboarding-tour-skip:hover { color: var(--ink-1); }
+
+/* Glow ring on whatever the active step points at — the clearest "this is the
+   thing" signal, and it makes anchoring forgiving when the pill is clamped away
+   on small screens. Applied by OnboardingTour.jsx to the [data-tour] target.
+   box-shadow follows the target's own border-radius automatically. */
+.tour-target {
+  box-shadow: 0 0 0 3px var(--soleil), var(--soleil-glow) !important;
+  animation: tour-target-pulse 1.6s var(--ease) infinite;
+  border-radius: inherit;
+}
+@keyframes tour-target-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--soleil), var(--soleil-glow); }
+  50%      { box-shadow: 0 0 0 6px var(--soleil-soft), 0 0 30px rgba(255, 165, 0, .32); }
+}
+
+/* Phones: let the pill wrap so copy isn't crushed, full-width action row with
+   bigger tap targets, and keep clear of the bottom-nav (handled by the canvas
+   region inset in OnboardingTour.jsx). */
+@media (max-width: 640px) {
+  .onboarding-tour {
+    max-width: calc(100vw - 24px);
+    flex-wrap: wrap;
+    gap: 10px;
+    row-gap: 10px;
+  }
+  .onboarding-tour .onboarding-coachmark-copy { flex: 1 1 auto; min-width: 0; }
+  .onboarding-tour .onboarding-tour-actions { flex: 1 0 100%; justify-content: flex-end; }
+  .onboarding-tour .onboarding-coachmark-dismiss { height: 38px; padding: 0 16px; }
+  .onboarding-tour-skip { padding: 10px 10px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .onboarding-tour { animation: none; }
+  .tour-target { animation: none; }
 }
 
 /* ───────────── First-value upgrade nudge (demo, one-time soft banner) ──────── */

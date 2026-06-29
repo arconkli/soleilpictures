@@ -3,20 +3,41 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 
 // First-run guided tour overlay. Renders the active step as a Milanote-style
 // frosted pill with a pointer arrow, anchored to the live on-screen position of
-// the step's target (the element carrying `data-tour="<anchor>"`). It is
-// non-modal — it never blocks canvas interaction — and advances when the engine
+// the step's target (the element carrying `data-tour="<anchor>"`), and puts a
+// glowing ring on that target so it's unmistakable what the pill points at. It
+// is non-modal — never blocks canvas interaction — and advances when the engine
 // (driven by App) moves to the next step. Steps with no natural action (the nav
 // step) carry an explicit CTA button.
 
 const GAP = 12;        // px between anchor and pill
-const MARGIN = 8;      // viewport edge margin
+const MARGIN = 8;      // edge margin within the canvas region
 const VISIBLE = (r) =>
   r && r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < window.innerWidth;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-function place(ar, pr, placement) {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+// The region the pills live in: the canvas drawing area (excludes the left
+// sidebar + topbar already, since .canvas-wrap is the flex child below them),
+// further inset by the floating left tool rail and the mobile bottom-nav so a
+// pill never sits under either. Falls back to the viewport if the canvas isn't
+// mounted (e.g. the QA harness).
+function canvasRegion() {
+  const wrap = document.querySelector('.canvas-wrap');
+  let left = 0;
+  let top = 0;
+  let right = window.innerWidth;
+  let bottom = window.innerHeight;
+  if (wrap) {
+    const r = wrap.getBoundingClientRect();
+    left = r.left; top = r.top; right = r.right; bottom = r.bottom;
+  }
+  const rail = document.querySelector('.cnv-tools');
+  if (rail) { const rr = rail.getBoundingClientRect(); if (rr.width) left = Math.max(left, rr.right + 6); }
+  const nav = document.querySelector('.mb-nav');
+  if (nav) { const nr = nav.getBoundingClientRect(); if (nr.height && nr.top < bottom) bottom = Math.min(bottom, nr.top); }
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+
+function place(ar, pr, placement, region) {
   const cx = ar.left + ar.width / 2;
   const cy = ar.top + ar.height / 2;
   let p = placement || 'bottom';
@@ -30,23 +51,29 @@ function place(ar, pr, placement) {
     else { left = ar.left - pr.width - GAP; top = cy - pr.height / 2; }
   };
   set(p);
-  // Flip to the opposite side if it would spill off the viewport.
-  if (p === 'bottom' && top + pr.height > vh - MARGIN) set('top');
-  else if (p === 'top' && top < MARGIN) set('bottom');
-  else if (p === 'right' && left + pr.width > vw - MARGIN) set('left');
-  else if (p === 'left' && left < MARGIN) set('right');
+  // Flip to the opposite side if it would spill past the canvas region.
+  if (p === 'bottom' && top + pr.height > region.bottom - MARGIN) set('top');
+  else if (p === 'top' && top < region.top + MARGIN) set('bottom');
+  else if (p === 'right' && left + pr.width > region.right - MARGIN) set('left');
+  else if (p === 'left' && left < region.left + MARGIN) set('right');
   return {
-    top: clamp(top, MARGIN, vh - pr.height - MARGIN),
-    left: clamp(left, MARGIN, vw - pr.width - MARGIN),
+    top: clamp(top, region.top + MARGIN, Math.max(region.top + MARGIN, region.bottom - pr.height - MARGIN)),
+    left: clamp(left, region.left + MARGIN, Math.max(region.left + MARGIN, region.right - pr.width - MARGIN)),
     placement: p,
+    anchored: true,
   };
 }
 
-function centered(pr) {
+// Fallback when the anchor is missing / off-screen / hidden: center on the
+// canvas region (not the page), so the pill sits where it looks best.
+function centered(pr, region) {
   return {
-    top: window.innerHeight - pr.height - 96,
-    left: (window.innerWidth - pr.width) / 2,
+    top: clamp(region.top + (region.height - pr.height) / 2,
+      region.top + MARGIN, Math.max(region.top + MARGIN, region.bottom - pr.height - MARGIN)),
+    left: clamp(region.left + (region.width - pr.width) / 2,
+      region.left + MARGIN, Math.max(region.left + MARGIN, region.right - pr.width - MARGIN)),
     placement: 'bottom',
+    anchored: false,
   };
 }
 
@@ -55,6 +82,7 @@ export function OnboardingTour({ step, onEvent, onSkip, onView }) {
   const pillRef = useRef(null);
   const [pos, setPos] = useState(null);
   const posRef = useRef(null);
+  const highlightRef = useRef(null);
   const stepId = step?.id || null;
 
   // One-time view event per step.
@@ -62,21 +90,34 @@ export function OnboardingTour({ step, onEvent, onSkip, onView }) {
     if (stepId) onView?.(stepId);
   }, [stepId, onView]);
 
-  // Track the anchor's live screen position (it can move with canvas pan/zoom)
-  // via rAF, but only re-render when it actually shifts.
+  // Track the anchor's live screen position (it moves with canvas pan/zoom) via
+  // rAF, re-rendering only when it shifts, and keep a glow ring on the target.
   useEffect(() => {
     if (!step) return undefined;
+    const setHighlight = (el) => {
+      if (highlightRef.current === el) return;
+      highlightRef.current?.classList.remove('tour-target');
+      el?.classList.add('tour-target');
+      highlightRef.current = el;
+    };
     let raf = 0;
     const tick = () => {
       const pill = pillRef.current;
       if (pill) {
         const pr = pill.getBoundingClientRect();
+        const region = canvasRegion();
+        // Chrome (incl. the tool rail) fades out while the canvas is being
+        // panned/pinched — don't ring or point at an invisible target.
+        const interacting = document.body?.dataset?.canvasInteracting === '1';
         const anchorEl = document.querySelector(`[data-tour="${step.anchor}"]`);
         const ar = anchorEl ? anchorEl.getBoundingClientRect() : null;
-        const next = ar && VISIBLE(ar) ? place(ar, pr, step.placement) : centered(pr);
+        const useAnchor = !!(ar && VISIBLE(ar) && !interacting);
+        setHighlight(useAnchor ? anchorEl : null);
+        const next = useAnchor ? place(ar, pr, step.placement, region) : centered(pr, region);
         const prev = posRef.current;
         if (!prev || Math.abs(prev.top - next.top) > 0.5 ||
-            Math.abs(prev.left - next.left) > 0.5 || prev.placement !== next.placement) {
+            Math.abs(prev.left - next.left) > 0.5 ||
+            prev.placement !== next.placement || prev.anchored !== next.anchored) {
           posRef.current = next;
           setPos(next);
         }
@@ -84,7 +125,7 @@ export function OnboardingTour({ step, onEvent, onSkip, onView }) {
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); setHighlight(null); };
   }, [step]);
 
   // Reset position when the step changes so the new pill re-anchors.
@@ -96,11 +137,12 @@ export function OnboardingTour({ step, onEvent, onSkip, onView }) {
   const style = pos
     ? { top: `${pos.top}px`, left: `${pos.left}px` }
     : { top: 0, left: 0, visibility: 'hidden' };
+  const arrowClass = pos && !pos.anchored ? ' tour-centered' : '';
 
   return (
     <div
       ref={pillRef}
-      className={`onboarding-tour surface-frosted tour-${pos?.placement || step.placement}`}
+      className={`onboarding-tour surface-frosted tour-${pos?.placement || step.placement}${arrowClass}`}
       data-tour-anchor={step.anchor}
       style={style}
       role="dialog"
