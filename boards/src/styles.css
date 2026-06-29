@@ -19071,6 +19071,51 @@ button, [role="button"], a {
   .onboarding-coachmark-dismiss { width: 100%; height: 40px; order: 3; }
 }
 
+/* ───────────── First-run guided tour (arm B) ─────────────────────────────────
+   Anchored, step-advancing coachmark pill (Milanote-style). Reuses the coachmark
+   spark/copy/dismiss classes; position is set inline by OnboardingTour.jsx so the
+   pill tracks its on-screen anchor (no fixed translate like the static pill). */
+.onboarding-tour {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(340px, calc(100vw - 24px));
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3), var(--soleil-glow);
+  animation: onboarding-tour-in var(--dur-base, .24s) var(--ease, ease) both;
+}
+@keyframes onboarding-tour-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.onboarding-tour-arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  transform: rotate(45deg);
+}
+.onboarding-tour.tour-bottom .onboarding-tour-arrow { top: -5px; left: 50%; margin-left: -5px; }
+.onboarding-tour.tour-top    .onboarding-tour-arrow { bottom: -5px; left: 50%; margin-left: -5px; }
+.onboarding-tour.tour-right  .onboarding-tour-arrow { left: -5px; top: 50%; margin-top: -5px; }
+.onboarding-tour.tour-left   .onboarding-tour-arrow { right: -5px; top: 50%; margin-top: -5px; }
+.onboarding-tour-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.onboarding-tour-skip {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--ink-3);
+  font: 500 12px/1 var(--font-sans);
+  padding: 6px 4px;
+}
+.onboarding-tour-skip:hover { color: var(--ink-1); }
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-tour { animation: none; }
+}
+
 /* ───────────── First-value upgrade nudge (demo, one-time soft banner) ──────── */
 /* Soft, non-blocking bottom slide-in shown the first time a demo user places a
    genuine card. Reuses the coachmark's tokens; never blocks the canvas. */

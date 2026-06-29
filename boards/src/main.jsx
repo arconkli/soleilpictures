@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isPresenceQaMode, isImageEditQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -249,6 +249,18 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <AlignQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isTourQaMode()) {
+  // First-run guided-tour QA (?tourqa=1). Mounts the real <OnboardingTour> over
+  // fake data-tour anchors driven by the real engine + installs
+  // window.__soleilTourTest for the step-advance/anchoring assertions. DEV guard
+  // drops it (and its fixtures) from production builds.
+  import('./local/TourQaHarness.jsx').then(({ TourQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <TourQaHarness />
       </StrictMode>
     );
   });

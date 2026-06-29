@@ -3,7 +3,7 @@
 // (parent_board_id). Each board's cards/arrows live in a Y.Doc whose
 // snapshot is persisted to board_state.
 
-import React, { useState, useEffect, useMemo, useRef, Profiler, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, Profiler, Suspense } from 'react';
 import { pickPresenceColor } from './lib/presenceColor.js';
 import * as perf from './lib/perf.js';
 import { isEditableTarget } from './lib/isEditableTarget.js';
@@ -17,6 +17,9 @@ import { useMyTier } from './hooks/useMyTier.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
+import { OnboardingTour } from './components/OnboardingTour.jsx';
+import { useOnboardingTour } from './hooks/useOnboardingTour.js';
+import { mergeTourIntoOnboarding } from './lib/onboardingTour.js';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
 import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
@@ -352,6 +355,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       : [rootBoard.id, ...saved.filter((id) => id !== rootBoard.id)];
   });
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
+  // Mirror of the guided-tour `fire` fn (the hook is defined far below, but the
+  // card/nav/rename mutators above need to emit tour events). Assigned in render
+  // once the hook exists; only ever invoked at runtime, so the ref is populated.
+  const tourFireRef = useRef(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   // Global search + ⌘K command palette (distinct from the boards-only
   // BoardPicker above, which stays the "link a board onto canvas" surface).
@@ -664,6 +671,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     recents.push(id);
     // Breadth signal: which boards get opened, and how deep (sub-board nesting).
     logEvent(EV.BOARD_OPEN, { board_id: id, depth: stack.length, is_subboard: !!rootBoard && id !== rootBoard.id });
+    tourFireRef.current?.({ type: 'cluster_opened', boardId: id });
   };
   const goTo = (i) => setStack(s => s.slice(0, i + 1));
 
@@ -707,6 +715,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Track the currently-open root-board access too — top of stack is "active".
   useEffect(() => { if (currentId) recents.push(currentId); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [currentId]);
+  // Guided tour: advancing the "find your way back" step when the user actually
+  // navigates back to the root on their own (skips a board → root transition on
+  // first mount, which starts at root).
+  const prevCurrentIdRef = useRef(currentId);
+  useEffect(() => {
+    const was = prevCurrentIdRef.current;
+    prevCurrentIdRef.current = currentId;
+    if (was !== currentId && currentId === rootBoard.id && was !== rootBoard.id) {
+      tourFireRef.current?.({ type: 'nav_back' });
+    }
+  }, [currentId, rootBoard.id]);
   // Toggling the view in the topbar persists to the boards table so the
   // change survives reloads AND propagates to anywhere this board appears
   // as a card on a parent canvas (where we render list-mode boards as an
@@ -831,6 +850,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           n: 1, kind: card?.kind || 'card',
           board_id: boardId, workspace_id: workspace?.id, actor: user?.email || null,
         });
+        // Guided tour: a real content card (note/image/doc/file) placed inside the
+        // tour's cluster completes the "add your first image" step. Cluster cards
+        // (kind:'board') drive the create step instead (see addNewBoard).
+        if (card?.kind !== 'board') {
+          tourFireRef.current?.({ type: 'content_added', boardId, kind: card?.kind || 'card' });
+        }
       }
     };
 
@@ -1457,6 +1482,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h });
         await refreshBoards();
         setAutoFocusId(b.id);
+        tourFireRef.current?.({ type: 'cluster_created', boardId: b.id });
       } catch (e) {
         console.error('createBoard failed', e);
         feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
@@ -1547,6 +1573,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try {
       await renameBoard(boardId, name.trim());
       await refreshBoards();
+      tourFireRef.current?.({ type: 'cluster_renamed', boardId });
     } catch (e) {
       console.error('renameBoard failed', e);
       feedback.toast({ type: 'error', message: 'Could not rename: ' + (e.message || e) });
@@ -2265,6 +2292,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the demo-cap on addCard, and the tier-aware viewer fallback in
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
+  // Live mirror so stable callbacks (e.g. the guided-tour persist fn) read fresh
+  // tier/onboarding without re-creating on every tier refetch.
+  const myTierRef = useRef(myTier);
+  myTierRef.current = myTier;
   const [upgradeReason, setUpgradeReason] = useState(null); // 'cap-hit' | 'shared-edit' | 'storage' | 'manual' | null
 
   // Celebrate referral rewards: when bonus_card_credits grows (a friend you
@@ -2358,6 +2389,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       .then(() => myTier.refetch?.())
       .catch((e) => { try { logEvent(EV.ONBOARDING_SETTINGS_PERSIST_FAILED, { op: 'dismiss', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {} });
   };
+
+  // ── First-run guided tour (onboarding_v2 arm B) ───────────────────────────
+  // Replaces the static coachmark for arm B with an anchored, step-advancing
+  // sequence (make cluster → name → open → learn the nav → add an image). The
+  // step engine is pure (lib/onboardingTour.js); here we feed it the persisted
+  // progress and wire persistence + the step funnel. The mutators above emit
+  // tour events through tourFireRef (assigned just below).
+  const onboardingArmB = getEnrolledArm('onboarding_v2') === 'B';
+  const persistTour = useCallback((tourState) => {
+    updateOwnSettings({
+      onboarding: {
+        ...mergeTourIntoOnboarding(myTierRef.current?.onboarding || {}, tourState),
+        // Completing or skipping the tour also finishes onboarding so it never
+        // re-shows for a returning user.
+        ...(tourState.done ? { seeded: true, done: true } : {}),
+      },
+    })
+      .then(() => myTierRef.current?.refetch?.())
+      .catch((e) => { try { logEvent(EV.ONBOARDING_SETTINGS_PERSIST_FAILED, { op: 'tour', reason: String(e?.message || e || 'error').slice(0, 120) }); } catch (_) {} });
+  }, []);
+  const emitTourStep = useCallback((e) => {
+    try { logEvent(EV.ONBOARDING_STEP, { step: e.step, action: e.action, via: e.via || null }); } catch (_) {}
+  }, []);
+  const tour = useOnboardingTour({
+    onboarding: myTier.onboarding,
+    persist: persistTour,
+    emit: emitTourStep,
+    enabled: onboardingArmB && onboardingUiActive,
+  });
+  tourFireRef.current = tour.fire;
+  // Finishing the last step (or Skip) closes the onboarding UI.
+  useEffect(() => { if (tour.state.done) setOnboardingUiActive(false); }, [tour.state.done]);
 
   // Returning first-run user (seeded a prior session but never finished) →
   // re-show the coachmark. Brand-new users get it switched on by the seed effect.
@@ -4104,7 +4167,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     disabled={!navCaps.fwd} onClick={() => navHistGo(1)}>
               <Icon as={ChevronRight} size={15} />
             </button>
-            <div className="crumbs">
+            <div className="crumbs" data-tour="nav">
               {crumbs.map((c, i) => (
                 <React.Fragment key={`${c.id}-${i}`}>
                   {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
@@ -4386,8 +4449,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <UpgradeModal reason={upgradeReason} onClose={() => setUpgradeReason(null)} />
       )}
 
-      {showCoachmark && (
+      {/* Arm B gets the guided tour (below) instead of the static pill. */}
+      {showCoachmark && !onboardingArmB && (
         <OnboardingCoachmark boardId={rootBoard.id} onDismiss={dismissOnboarding} hasTutorialBoard={!!myTier.onboarding?.tutorialBoardId} escalated={frictionStuck} arm={getEnrolledArm('onboarding_v2')} />
+      )}
+
+      {tour.step && (
+        <OnboardingTour
+          step={tour.step}
+          onEvent={(e) => tour.fire(e)}
+          onSkip={() => tour.skip()}
+          onView={(id) => tour.markView(id)}
+        />
       )}
 
       <ReferralNudge tier={myTier.tier} onInvite={openInviteFriends} />

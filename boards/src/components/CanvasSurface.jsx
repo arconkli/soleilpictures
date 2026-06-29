@@ -7896,6 +7896,7 @@ export function CanvasSurface({
           <div key={t.id}
                className={`cnv-tool ${selectedTool === t.id ? 'active' : ''}`}
                data-tip={t.title}
+               data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
                role="button"
                tabIndex={0}
                aria-label={t.label}
@@ -7992,6 +7993,7 @@ export function CanvasSurface({
               { id: 'file',   label: 'Any file', icon: Upload },
             ].map((t) => (
               <button key={t.id} type="button" className="cnv-empty-tile"
+                      data-tour={t.id === 'board' ? 'empty-cluster-tile' : undefined}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => runTile(t.id)}>
                 <span className="cnv-empty-tile-ico"><Icon as={t.icon} size={24} weight="regular" /></span>
