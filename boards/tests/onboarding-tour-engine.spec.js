@@ -65,15 +65,19 @@ test.describe('onboarding tour engine', () => {
     expect(currentStep(s)).toBeNull();
   });
 
-  test('content added in the wrong board does not finish the tour', () => {
-    let s = ['cluster_created', 'cluster_renamed', 'cluster_opened'].reduce(
+  test('content step finishes on ANY content add (image/doc/file/note)', () => {
+    // The lock prevents adding content before this step, so the content step
+    // accepts any content card — "add anything" — without a brittle board match.
+    const base = ['cluster_created', 'cluster_renamed', 'cluster_opened'].reduce(
       (st, type) => advanceTour(st, { type, boardId: 'b1' }),
       initialTourState(),
     );
-    s = advanceTour(s, { type: 'nav_ack' });
-    const stillOpen = advanceTour(s, { type: 'content_added', boardId: 'root', kind: 'image' });
-    expect(stillOpen.done).toBe(false);
-    expect(stillOpen.step).toBe('content');
+    const atContent = advanceTour(base, { type: 'nav_ack' });
+    expect(atContent.step).toBe('content');
+    for (const kind of ['image', 'doc', 'file', 'note']) {
+      const done = advanceTour(atContent, { type: 'content_added', boardId: 'anything', kind });
+      expect(done.done).toBe(true);
+    }
   });
 
   test('events are ignored once the tour is done', () => {

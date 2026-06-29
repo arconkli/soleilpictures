@@ -70,15 +70,20 @@ export const TOUR_STEPS = [
     accepts: (e) => e?.type === 'nav_ack' || e?.type === 'nav_back',
   },
   {
+    // Final step opens up the whole rail (anchoring to the rail container makes
+    // the lock's `.tour-target *` rule re-enable every add tool) so the user can
+    // add ANYTHING. Accepts any content card — the lock guarantees no content can
+    // be added before this step, so there's no premature-completion risk and no
+    // brittle board-id match (which was failing to complete on live).
     id: 'content',
-    anchor: 'image-tool',
+    anchor: 'rail',
     placement: 'right',
     copy: {
-      title: 'Add your first image',
-      body: 'Drag an image in, paste, or click Image to start your moodboard.',
-      touch: 'Tap Image to add your first reference.',
+      title: 'Now add anything',
+      body: 'An image, a note, a doc, a file — drop in whatever you want. This is your canvas.',
+      touch: 'Add anything — image, note, doc or file. This is your canvas.',
     },
-    accepts: (e, ctx) => e?.type === 'content_added' && e.boardId === ctx.clusterId,
+    accepts: (e) => e?.type === 'content_added',
   },
 ];
 

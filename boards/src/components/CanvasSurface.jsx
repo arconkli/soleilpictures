@@ -7850,7 +7850,7 @@ export function CanvasSurface({
       </div>
 
 
-      <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`}>
+      <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`} data-tour="rail">
         <div className="cnv-add-wrap">
           <div
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}

@@ -43,8 +43,8 @@ export function TourQaHarness() {
       </div>
       {/* breadcrumb (nav anchor) */}
       <div className="crumbs" data-tour="nav" style={{ position: 'fixed', top: 10, left: '42%' }}>Studio ›</div>
-      {/* left tool rail */}
-      <div className="cnv-tools" style={{ position: 'fixed', left: 14, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {/* left tool rail (the container is the 'rail' anchor for the final step) */}
+      <div className="cnv-tools" data-tour="rail" style={{ position: 'fixed', left: 14, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div className="cnv-tool" data-tour="cluster-tool" style={{ width: 30, height: 30 }}>C</div>
         <div className="cnv-tool" data-tour="image-tool" style={{ width: 30, height: 30 }}>I</div>
       </div>

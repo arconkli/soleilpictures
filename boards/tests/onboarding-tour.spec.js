@@ -66,8 +66,8 @@ test.describe('onboarding tour overlay', () => {
     const pill = page.locator('.onboarding-tour');
     await expect(pill).toContainText('Find your way back');
     await pill.getByRole('button', { name: /got it/i }).click();
-    await expect(pill).toContainText('Add your first image');
-    await expect(pill).toHaveAttribute('data-tour-anchor', 'image-tool');
+    await expect(pill).toContainText('Now add anything');
+    await expect(pill).toHaveAttribute('data-tour-anchor', 'rail');
   });
 
   test('finishing the last step hides the tour', async ({ page }) => {
