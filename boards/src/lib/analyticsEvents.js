@@ -94,6 +94,7 @@ export const EV = Object.freeze({
   ONBOARDING_FIRST_CARD:   'onboarding_first_card',       // user placed their OWN first card during onboarding (activation north-star)
   ONBOARDING_NEST:         'onboarding_nest',             // first time the seed note is dragged into the tutorial board — the retention AHA {board_id,source_board_id,n}
   ONBOARDING_DISMISS:      'onboarding_dismiss',          // onboarding ended {reason:'placed'|'dismissed'|'nested'}
+  ONBOARDING_STEP:         'onboarding_step',             // arm-B guided tour funnel {step,action:'view'|'advance'|'skip',via?}
   // welcome_showcase experiment (arm B): the curated brand demo is seeded onto
   // the root, shown as a "this is a demo" banner, then cleared in one click.
   ONBOARDING_SHOWCASE_VIEW:    'onboarding_showcase_view',    // the demo showcase banner was shown {board_id} (logEventOnce)

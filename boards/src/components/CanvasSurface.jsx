@@ -1699,6 +1699,7 @@ export function CanvasSurface({
     const onAdd = (e) => {
       if (e.detail?.boardId !== board.id) return;
       if (!canEdit) return;
+      if (document.body.dataset.tourActive === '1') return;   // guided tour owns input
       const rect = wrapRef.current?.getBoundingClientRect();
       const pos = rect
         ? clientToCanvas(rect.left + rect.width / 2, rect.top + rect.height / 2)
@@ -4797,6 +4798,7 @@ export function CanvasSurface({
   // empty-board hint advertises). Cards, chrome, strokes and arrows keep
   // their own double-click behaviors.
   const onBackgroundDoubleClick = (e) => {
+    if (document.body.dataset.tourActive === '1') return;   // guided tour owns input
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
     if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
@@ -6149,7 +6151,7 @@ export function CanvasSurface({
     // and the user has no feedback that anything happened.
     const cardTags = tagsByCard?.get?.(c.id) || [];
     return (
-      <div key={c.id} {...wrapper}>
+      <div key={c.id} {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
         {inner}
         <CardStrokesOverlay strokes={c.strokes} w={w} h={h} />
         {cardTags.length > 0 && (
@@ -7848,7 +7850,7 @@ export function CanvasSurface({
       </div>
 
 
-      <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`}>
+      <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`} data-tour="rail">
         <div className="cnv-add-wrap">
           <div
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}
@@ -7896,6 +7898,7 @@ export function CanvasSurface({
           <div key={t.id}
                className={`cnv-tool ${selectedTool === t.id ? 'active' : ''}`}
                data-tip={t.title}
+               data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
                role="button"
                tabIndex={0}
                aria-label={t.label}
@@ -7992,6 +7995,7 @@ export function CanvasSurface({
               { id: 'file',   label: 'Any file', icon: Upload },
             ].map((t) => (
               <button key={t.id} type="button" className="cnv-empty-tile"
+                      data-tour={t.id === 'board' ? 'empty-cluster-tile' : undefined}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => runTile(t.id)}>
                 <span className="cnv-empty-tile-ico"><Icon as={t.icon} size={24} weight="regular" /></span>

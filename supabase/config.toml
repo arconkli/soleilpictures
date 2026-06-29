@@ -19,3 +19,8 @@ verify_jwt = false
 
 [functions.lifecycle-email-cron]
 verify_jwt = false
+
+# Resend POSTs delivery events here with an svix signature, never a Supabase
+# user JWT. We verify the svix signature in the handler (the real auth boundary).
+[functions.resend-webhook]
+verify_jwt = false

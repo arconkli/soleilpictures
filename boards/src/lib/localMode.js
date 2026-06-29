@@ -72,6 +72,16 @@ export function isAlignQaMode() {
   return new URLSearchParams(window.location.search).get('alignqa') === '1';
 }
 
+// Dev-only first-run guided-tour QA harness. Active ONLY in a DEV build with
+// ?tourqa=1 (same trust boundary as isAlignQaMode). Mounts the real
+// <OnboardingTour> over fake data-tour anchors, driven by the real tour engine,
+// and publishes fire/skip/getState on window.__soleilTourTest so Playwright can
+// verify step advancement + anchoring without a backend. See ../local/TourQaHarness.jsx.
+export function isTourQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('tourqa') === '1';
+}
+
 // Dev-only photo-adjustment QA bridge. Active ONLY in a DEV build with
 // ?imgeditqa=1 (same trust boundary as isDndQaMode). Publishes the PURE
 // imageAdjust helpers (buildFilterCss / buildTransform / isAdjusted / …) on

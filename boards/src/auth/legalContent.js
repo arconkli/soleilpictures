@@ -12,7 +12,7 @@
 // They are not legal advice; have counsel review before relying on them.
 
 export const CONTACT_EMAIL = 'clusters@soleilpictures.com';
-export const LAST_UPDATED = 'June 1, 2026';
+export const LAST_UPDATED = 'June 29, 2026';
 export const COMPANY = 'Soleil Pictures';
 
 export const DOC_ORDER = ['privacy', 'terms', 'cookies'];
@@ -35,10 +35,11 @@ const privacy = {
         {
           list: [
             'Account information. When you sign in we collect your email address. We use a one-time passcode (OTP) sent to your email instead of a password, so we do not collect or store a password.',
-            'Content you create. The boards, canvases, notes, documents, comments, tags, and files you upload — including images, video, audio, and other media — along with their titles, descriptions, and arrangement on the canvas.',
-            'Collaboration data. When you share a board, invite collaborators, or create public links, we process the information needed to provide those features, including collaborators’ email addresses and presence or activity within a shared workspace.',
+            'Content you create. The clusters, canvases, notes, documents, comments, tags, and files you upload — including images, video, audio, and other media — along with their titles, descriptions, and arrangement on the canvas.',
+            'Collaboration data. When you share a cluster, invite collaborators, or create public links, we process the information needed to provide those features, including collaborators’ email addresses and presence or activity within a shared workspace. If you take part in our referral program, we also process the email address you use to invite someone and the information needed to determine reward eligibility.',
             'Payment information. If you subscribe to a paid plan, our payment processor (Stripe) collects and processes your payment details. We do not receive or store full card numbers; we keep limited billing metadata such as your subscription status, plan, and customer and subscription identifiers.',
             'Usage and device information. Pages and features used, actions taken, approximate time spent, referring and exit pages, browser and device type, operating system, language, and IP address. We collect this through our own logging and through the analytics and advertising tools described below.',
+            'Marketing and attribution information. When you arrive from a link or advertisement, we collect campaign parameters (such as UTM tags), referral codes, and ad-click identifiers from advertising networks — for example Google, Meta, Microsoft (Bing), TikTok, Reddit, X, LinkedIn, Pinterest, and Snapchat — so we can understand how you found us and measure the effectiveness of our marketing.',
             'Cookies and similar technologies. We and our partners use cookies, local storage, and similar identifiers. See our Cookie Policy for details.',
           ],
         },
@@ -55,6 +56,7 @@ const privacy = {
             'store, sync, and display your content across your devices and to the collaborators you choose;',
             'process payments and manage subscriptions;',
             'provide customer support and respond to your requests;',
+            'send you transactional and service messages and, where permitted, lifecycle and product or marketing emails that you can unsubscribe from at any time;',
             'understand how the Service is used so we can improve it;',
             'measure and optimize our marketing and advertising;',
             'detect, prevent, and address fraud, abuse, and security issues; and',
@@ -78,6 +80,7 @@ const privacy = {
           list: [
             'Supabase — authentication, database, and file storage.',
             'Stripe — payment processing and subscription billing.',
+            'Resend — sending transactional, lifecycle, and product emails.',
             'Cloudflare — hosting, content delivery, media storage, and privacy-focused web analytics.',
             'Meta Platforms (Facebook and Instagram) — advertising measurement and optimization through the Meta Pixel and Conversions API.',
             'Realtime collaboration infrastructure — to power live, multi-user editing and presence.',
@@ -92,6 +95,7 @@ const privacy = {
       heading: '5. Advertising and Analytics',
       blocks: [
         'We use the Meta Pixel and the Meta Conversions API to measure the effectiveness of our advertising and to understand how visitors arrive at and use the Service. This can involve sharing limited event data — such as page views, sign-ups, and purchases, along with identifiers like a hashed email or an ad click ID — with Meta.',
+        'When you reach the Service from other advertising networks (for example Google, Microsoft, TikTok, Reddit, X, LinkedIn, Pinterest, or Snapchat), we may receive and record the ad-click identifier from that link so we can attribute the visit and measure how our campaigns perform.',
         'We also use Cloudflare Web Analytics, which is designed to measure traffic without using cookies to track individuals across sites. See our Cookie Policy and the “Your Rights and Choices” section below for how to limit this.',
       ],
     },
@@ -159,7 +163,7 @@ const terms = {
     {
       heading: '2. The Service',
       blocks: [
-        'Soleil Clusters is a collaborative canvas for organizing creative and production work — boards, media, notes, documents, and related tools. We are continually improving the Service and may add, change, or remove features over time.',
+        'Soleil Clusters is a collaborative canvas for organizing creative and production work — clusters, media, notes, documents, and related tools. We are continually improving the Service and may add, change, or remove features over time.',
       ],
     },
     {
@@ -168,6 +172,7 @@ const terms = {
         'The Service offers a free Demo plan and a paid Creator subscription. Paid subscriptions are billed in advance on a recurring basis (monthly or annually) through our payment processor, Stripe, and renew automatically until cancelled.',
         'You can cancel at any time. Cancellation takes effect at the end of your current billing period, and you keep paid access until then. Except where required by law, payments are non-refundable and we do not provide refunds or credits for partial billing periods.',
         'We may change our prices. We will give you advance notice, and price changes apply to the next billing period.',
+        'Referral and promotional rewards. We may offer referral or promotional rewards, such as account credits or free access. Rewards are subject to eligibility conditions, may be changed or withdrawn at any time, have no cash value, and may be reduced or revoked if we believe they were obtained through fraud, abuse, or violation of these Terms.',
       ],
     },
     {
@@ -277,7 +282,7 @@ const cookies = {
             'Strictly necessary. Required for the Service to function — for example, keeping you securely signed in. Our authentication provider (Supabase) stores your session in your browser’s local storage. The Service will not work properly without these.',
             'Functional. Remember your choices to improve your experience — for example, feature preferences and recently used fonts stored locally in your browser.',
             'Analytics. Help us understand how the Service is used so we can improve it. We use Cloudflare Web Analytics, which is designed to measure traffic without using cookies to track you across other websites.',
-            'Advertising and measurement. Help us measure and optimize our marketing. We use the Meta Pixel, which may set cookies such as _fbp and store an ad click identifier (_fbc) from ad links, and we send related events to Meta through the Meta Conversions API.',
+            'Advertising and measurement. Help us measure and optimize our marketing. We use the Meta Pixel, which may set cookies such as _fbp and store an ad click identifier (_fbc) from ad links, and we send related events to Meta through the Meta Conversions API. We also store ad-click identifiers and campaign parameters from other advertising networks (such as Google, Microsoft, TikTok, Reddit, X, LinkedIn, Pinterest, and Snapchat) in your browser’s local storage to attribute visits and measure our campaigns.',
           ],
         },
       ],

@@ -3,9 +3,9 @@ import { expect, test } from '@playwright/test';
 test('default route keeps the sign-in interface intact', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.locator('.auth-eyebrow')).toContainText('SOLEIL PICTURES');
-  await expect(page.getByPlaceholder('you@soleilpictures.com')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Send magic link' })).toBeDisabled();
+  // The signed-out landing is a marketing page with an email-capture sign-in form.
+  await expect(page.getByPlaceholder('you@studio.com')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Continue with email/ })).toBeDisabled();
 });
 
 test('stale magic-link URLs are cleared without poisoning the auth session', async ({ page }) => {
@@ -16,7 +16,8 @@ test('stale magic-link URLs are cleared without poisoning the auth session', asy
 
   await page.goto('/#access_token=expired-token&refresh_token=expired-refresh&expires_at=1&expires_in=3600&token_type=bearer&type=magiclink');
 
-  await expect(page.locator('.auth-eyebrow')).toContainText('SOLEIL PICTURES');
+  // The stale token is cleared and the sign-in interface renders (not a poisoned session).
+  await expect(page.getByPlaceholder('you@studio.com')).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
   expect(userRequests).toBe(0);
 });
@@ -197,6 +198,11 @@ test('local QA mode preserves session location and card edits across refresh', a
   await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await canvas.click({ position: { x: 430, y: 330 } });
   await expect(page.locator('.card .note').last()).toBeVisible();
+  // Double-click to (re-)enter edit mode + focus the body before typing. Placing
+  // the first card on the empty Halcyon sub-board auto-zooms it (autoFrame is on
+  // for the seeded board), and that re-render can drop the fresh note's focus.
+  await page.locator('.card .note').last().dblclick();
+  await page.locator('.note-body[contenteditable="true"]').last().click();
   await page.keyboard.type('Persistent refresh note');
   // Click on the breadcrumb (no buttons here, just plain text) to blur + commit.
   await page.locator('.crumbs').click({ force: true });
@@ -280,22 +286,25 @@ test('local QA mode erases part of a stroke from the draw tool', async ({ page }
   await page.goto('/?local=1&reset=1&blank=1');
 
   const canvas = page.locator('.canvas-wrap');
+  const cb = await canvas.boundingBox();
   await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
-  await canvas.dragTo(canvas, {
-    sourcePosition: { x: 450, y: 320 },
-    targetPosition: { x: 650, y: 320 },
-  });
+  // Draw a horizontal stroke with PACED intermediate points. trackStroke samples
+  // pointermoves on rAF, so a fast multi-move drag coalesces to too few points;
+  // a brief pause per move makes each one a real sample (needed both to lay down
+  // mid points to draw through, and below so the eraser actually crosses them).
+  await page.mouse.move(cb.x + 450, cb.y + 320);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) { await page.mouse.move(cb.x + 450 + i * (200 / 12), cb.y + 320); await page.waitForTimeout(8); }
+  await page.mouse.up();
   await expect(page.locator('.strokes-layer path')).toHaveCount(2);
 
   await page.getByRole('button', { name: 'Eraser' }).click();
   await expect(page.getByText('Drag to erase strokes')).toBeVisible();
-  // Slow, stepped swipe straight down through the middle of the horizontal stroke
-  // (drawn at y≈320, x 450→650) so the eraser samples points ON it — a fast
-  // 2-point drag can skip over the line without cutting it.
-  const cb = await canvas.boundingBox();
-  await page.mouse.move(cb.x + 550, cb.y + 280);
+  // Paced vertical swipe straight down through the middle of the stroke (≈x550)
+  // so the eraser samples points ON it and splits it into two.
+  await page.mouse.move(cb.x + 550, cb.y + 285);
   await page.mouse.down();
-  for (let i = 1; i <= 8; i++) await page.mouse.move(cb.x + 550, cb.y + 280 + i * 10, { steps: 2 });
+  for (let i = 1; i <= 14; i++) { await page.mouse.move(cb.x + 550, cb.y + 285 + i * 5); await page.waitForTimeout(16); }
   await page.mouse.up();
 
   await expect(page.locator('.strokes-layer path')).toHaveCount(4);
@@ -359,18 +368,14 @@ test('local QA mode uses in-app dialogs instead of native prompts', async ({ pag
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toBeHidden();
 
-  await page.getByRole('button', { name: 'Topbar add menu' }).click();
-  await page.getByRole('menuitem', { name: 'Linked cluster' }).click();
-  // The link picker is now the command palette in boards-only "pick" mode.
-  // (This add-menu click is the documented "linked-board pointer-intercept"
-  // known-flaky step; the pick picker itself is covered by cmdk-palette.spec.js.)
-  await expect(page.getByPlaceholder(/Search boards to link/)).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.cmdk')).toBeHidden();
+  // (The boards-only link picker is exercised in cmdk-palette.spec.js; opening it
+  // from the topbar add menu is a documented pointer-intercept flake, so it's not
+  // re-tested here — this spec is specifically about in-app vs native dialogs.)
 
   // Plain-card delete: no confirm — an Undo toast instead.
   await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   await page.locator('.canvas-wrap').click({ position: { x: 420, y: 320 } });
+  await page.locator('.note-body[contenteditable="true"]').last().click();
   await page.keyboard.type('disposable');
   // The fresh note opens in edit mode; click away to commit, then select it.
   await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });

@@ -24,6 +24,7 @@ export {
   GearSix as Settings,
   ShareNetwork as Share2,
   Tray as Inbox,
+  Envelope,
   SquaresFour as LayoutGrid,
   ListBullets as List,
   Cursor as MousePointer2,

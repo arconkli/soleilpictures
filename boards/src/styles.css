@@ -16715,6 +16715,26 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
   }
 }
 
+/* ── First-run guided tour: Milanote-style lock ────────────────────────────
+   While the tour is showing (OnboardingTour sets body[data-tour-active]), the
+   rest of the app is non-interactive — only the current step's highlighted
+   target (.tour-target) and the tour pill stay clickable, so users can't open
+   menus over the pill, hover stray tooltips, or wander off the guided path.
+   Same idiom as data-clean-mode / data-canvas-interacting above. The canvas and
+   cards are deliberately NOT locked: create/content steps need a canvas click to
+   drop a card, and the cluster card itself is the .tour-target on rename/open. */
+body[data-tour-active] :is(
+  .cnv-tools, .cnv-add-wrap, .tob, .sidebar, .topbar, .mb-nav,
+  .cnv-comments-eye, .cnv-zoom, .upgrade-chip, .feedback-trigger, .fv-banner
+) { pointer-events: none; }
+body[data-tour-active] :is(
+  .tour-target, .tour-target *, .onboarding-tour, .onboarding-tour *
+) { pointer-events: auto !important; }
+/* Hide the competing empty-board panel + rail tooltips while guiding. Both come
+   back after skip/finish (the flag is removed). */
+body[data-tour-active] .cnv-empty-tiles { display: none; }
+body[data-tour-active] .cnv-tool[data-tip]::after { display: none; }
+
 /* Eyedropper mode — when picking a color from a board image, the
    canvas-wrap gets data-eyedrop=1 so we can flip the cursor and
    ring image cards as the obvious targets. */
@@ -19069,6 +19089,87 @@ button, [role="button"], a {
   .onboarding-coachmark { bottom: calc(96px + var(--safe-bottom)); max-width: calc(100vw - 24px); flex-wrap: wrap; row-gap: 10px; }
   .onboarding-coachmark-copy { flex: 1 1 auto; }
   .onboarding-coachmark-dismiss { width: 100%; height: 40px; order: 3; }
+}
+
+/* ───────────── First-run guided tour (arm B) ─────────────────────────────────
+   Anchored, step-advancing coachmark pill (Milanote-style). Reuses the coachmark
+   spark/copy/dismiss classes; position is set inline by OnboardingTour.jsx so the
+   pill tracks its on-screen anchor (no fixed translate like the static pill). */
+.onboarding-tour {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(340px, calc(100vw - 24px));
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3), var(--soleil-glow);
+  animation: onboarding-tour-in var(--dur-base, .24s) var(--ease, ease) both;
+}
+@keyframes onboarding-tour-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.onboarding-tour-arrow {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: inherit;            /* matches the frosted pill */
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transform: rotate(45deg);
+}
+[data-theme='light'] .onboarding-tour-arrow { border-color: rgba(10, 9, 8, 0.12); }
+.onboarding-tour.tour-bottom .onboarding-tour-arrow { top: -7px;    left: 50%; margin-left: -7px; }
+.onboarding-tour.tour-top    .onboarding-tour-arrow { bottom: -7px; left: 50%; margin-left: -7px; }
+.onboarding-tour.tour-right  .onboarding-tour-arrow { left: -7px;   top: 50%;  margin-top: -7px; }
+.onboarding-tour.tour-left   .onboarding-tour-arrow { right: -7px;  top: 50%;  margin-top: -7px; }
+/* Centered fallback has no target to point at — hide the arrow. */
+.onboarding-tour.tour-centered .onboarding-tour-arrow { display: none; }
+.onboarding-tour-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.onboarding-tour-skip {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--ink-3);
+  font: 500 12px/1 var(--font-sans);
+  padding: 6px 4px;
+}
+.onboarding-tour-skip:hover { color: var(--ink-1); }
+
+/* Glow ring on whatever the active step points at — the clearest "this is the
+   thing" signal, and it makes anchoring forgiving when the pill is clamped away
+   on small screens. Applied by OnboardingTour.jsx to the [data-tour] target.
+   box-shadow follows the target's own border-radius automatically. */
+.tour-target {
+  box-shadow: 0 0 0 3px var(--soleil), var(--soleil-glow) !important;
+  animation: tour-target-pulse 1.6s var(--ease) infinite;
+  border-radius: inherit;
+}
+@keyframes tour-target-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--soleil), var(--soleil-glow); }
+  50%      { box-shadow: 0 0 0 6px var(--soleil-soft), 0 0 30px rgba(255, 165, 0, .32); }
+}
+
+/* Phones: let the pill wrap so copy isn't crushed, full-width action row with
+   bigger tap targets, and keep clear of the bottom-nav (handled by the canvas
+   region inset in OnboardingTour.jsx). */
+@media (max-width: 640px) {
+  .onboarding-tour {
+    max-width: calc(100vw - 24px);
+    flex-wrap: wrap;
+    gap: 10px;
+    row-gap: 10px;
+  }
+  .onboarding-tour .onboarding-coachmark-copy { flex: 1 1 auto; min-width: 0; }
+  .onboarding-tour .onboarding-tour-actions { flex: 1 0 100%; justify-content: flex-end; }
+  .onboarding-tour .onboarding-coachmark-dismiss { height: 38px; padding: 0 16px; }
+  .onboarding-tour-skip { padding: 10px 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-tour { animation: none; }
+  .tour-target { animation: none; }
 }
 
 /* ───────────── First-value upgrade nudge (demo, one-time soft banner) ──────── */

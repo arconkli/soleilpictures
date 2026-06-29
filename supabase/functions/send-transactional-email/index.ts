@@ -14,10 +14,49 @@
 // fail a user-visible action.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { renderTemplate, TEMPLATE_NAMES, type TemplateName } from "../_shared/email/templates.ts";
 
 const RESEND_API_KEY    = Deno.env.get("RESEND_API_KEY") || "";
 const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
+const SUPABASE_URL      = Deno.env.get("SUPABASE_URL") || "";
+const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+// Service-role client used ONLY for the universal email_sends log (migration
+// 0175). Created lazily so the function still runs if the env is missing.
+const logDb = (SUPABASE_URL && SERVICE_KEY)
+  ? createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
+  : null;
+
+// Coarse bucket for the dashboard, derived from the template name.
+function emailCategory(template: string): string {
+  if (/^activate_|^reengage_/.test(template)) return "lifecycle";
+  if (template.startsWith("waitlist_"))       return "waitlist";
+  return "transactional";
+}
+
+// Log every send (success or our-side failure) into email_sends. This is the
+// single choke point all outbound mail passes through, so one insert here
+// captures 100% of it. NON-FATAL: a logging hiccup must never turn a delivered
+// email into a 502 — we only console.warn. user_id is resolved by a DB trigger
+// from the recipient address.
+async function logEmailSend(opts: {
+  template: string; to: string; ok: boolean; resendId?: string; errorBody?: unknown;
+}): Promise<void> {
+  if (!logDb) return;
+  try {
+    await logDb.from("email_sends").insert({
+      resend_id:       opts.ok ? (opts.resendId ?? null) : null,
+      template:        opts.template,
+      category:        emailCategory(opts.template),
+      recipient_email: opts.to,
+      status:          opts.ok ? "sent" : "failed",
+      error:           opts.ok ? null : JSON.stringify(opts.errorBody ?? null).slice(0, 500),
+    });
+  } catch (e) {
+    console.warn("email_sends log failed", (e as Error)?.message || String(e));
+  }
+}
 
 // Per-template From routing.
 //   • hello@clusters.soleilpictures.com  → onboarding-class (waitlist).
@@ -141,8 +180,10 @@ Deno.serve(async (req) => {
       to: body.to,
       body: resendBody,
     });
+    await logEmailSend({ template: body.template, to: body.to, ok: false, errorBody: resendBody });
     return json({ error: "resend failed", detail: resendBody }, 502);
   }
 
+  await logEmailSend({ template: body.template, to: body.to, ok: true, resendId: resendBody.id });
   return json({ ok: true, id: resendBody.id }, 200);
 });
