@@ -47,6 +47,9 @@ test.describe('onboarding tour overlay', () => {
 
     await page.evaluate(() => window.__soleilTourTest.fire({ type: 'cluster_renamed', boardId: 'b1' }));
     await expect(pill).toContainText('Step inside');
+    // Clusters open on a single click — copy must not say "double-click".
+    await expect(pill).toContainText('Click your cluster to open it');
+    await expect(pill).not.toContainText(/double-click/i);
 
     await page.evaluate(() => window.__soleilTourTest.fire({ type: 'cluster_opened', boardId: 'b1' }));
     await expect(pill).toContainText('Find your way back');
@@ -80,6 +83,22 @@ test.describe('onboarding tour overlay', () => {
     });
     await expect(page.locator('.onboarding-tour')).toHaveCount(0);
     expect(await page.evaluate(() => window.__soleilTourTest.getState().done)).toBe(true);
+  });
+
+  test('locks the app (body[data-tour-active]) while showing, unlocks when done', async ({ page }) => {
+    await expect(page.locator('body')).toHaveAttribute('data-tour-active', '1');
+    await page.evaluate(() => {
+      const T = window.__soleilTourTest;
+      for (const e of [
+        { type: 'cluster_created', boardId: 'b1' },
+        { type: 'cluster_renamed', boardId: 'b1' },
+        { type: 'cluster_opened', boardId: 'b1' },
+        { type: 'nav_ack' },
+        { type: 'content_added', boardId: 'b1', kind: 'image' },
+      ]) T.fire(e);
+    });
+    await expect(page.locator('.onboarding-tour')).toHaveCount(0);
+    await expect(page.locator('body')).not.toHaveAttribute('data-tour-active', '1');
   });
 
   test('Skip ends the tour immediately', async ({ page }) => {

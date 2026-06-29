@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs';
 const read = (rel) => readFileSync(new URL(rel, new URL('../', import.meta.url)), 'utf8');
 const app = () => read('src/App.jsx');
 const canvas = () => read('src/components/CanvasSurface.jsx');
+const styles = () => read('src/styles.css');
+const tourComp = () => read('src/components/OnboardingTour.jsx');
 
 test.describe('guided tour wiring', () => {
   test('App mounts the tour and retires the static pill for arm B', () => {
@@ -34,5 +36,24 @@ test.describe('guided tour wiring', () => {
 
   test('App tags the nav breadcrumb anchor', () => {
     expect(app()).toContain('className="crumbs" data-tour="nav"');
+  });
+
+  test('OnboardingTour sets the body[data-tour-active] lock flag', () => {
+    expect(tourComp()).toContain("setAttribute('data-tour-active'");
+    expect(tourComp()).toContain("removeAttribute('data-tour-active')");
+  });
+
+  test('styles.css locks chrome under body[data-tour-active] and keeps target+pill live', () => {
+    const s = styles();
+    expect(s).toContain('body[data-tour-active]');
+    expect(s).toMatch(/body\[data-tour-active\][^{]*\.tour-target[\s\S]*pointer-events:\s*auto/);
+    expect(s).toContain('body[data-tour-active] .cnv-empty-tiles');
+  });
+
+  test('CanvasSurface bails note-creating gestures while the tour is active', () => {
+    const s = canvas();
+    // both the desktop dblclick quick-add and the mobile add listener must yield
+    const hits = s.match(/dataset\.tourActive === '1'/g) || [];
+    expect(hits.length).toBeGreaterThanOrEqual(2);
   });
 });

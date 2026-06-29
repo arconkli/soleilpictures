@@ -16715,6 +16715,26 @@ body:not([data-clean-mode='1']):not([data-focus-mode='1']) .clean-mode-exit { di
   }
 }
 
+/* ── First-run guided tour: Milanote-style lock ────────────────────────────
+   While the tour is showing (OnboardingTour sets body[data-tour-active]), the
+   rest of the app is non-interactive — only the current step's highlighted
+   target (.tour-target) and the tour pill stay clickable, so users can't open
+   menus over the pill, hover stray tooltips, or wander off the guided path.
+   Same idiom as data-clean-mode / data-canvas-interacting above. The canvas and
+   cards are deliberately NOT locked: create/content steps need a canvas click to
+   drop a card, and the cluster card itself is the .tour-target on rename/open. */
+body[data-tour-active] :is(
+  .cnv-tools, .cnv-add-wrap, .tob, .sidebar, .topbar, .mb-nav,
+  .cnv-comments-eye, .cnv-zoom, .upgrade-chip, .feedback-trigger, .fv-banner
+) { pointer-events: none; }
+body[data-tour-active] :is(
+  .tour-target, .tour-target *, .onboarding-tour, .onboarding-tour *
+) { pointer-events: auto !important; }
+/* Hide the competing empty-board panel + rail tooltips while guiding. Both come
+   back after skip/finish (the flag is removed). */
+body[data-tour-active] .cnv-empty-tiles { display: none; }
+body[data-tour-active] .cnv-tool[data-tip]::after { display: none; }
+
 /* Eyedropper mode — when picking a color from a board image, the
    canvas-wrap gets data-eyedrop=1 so we can flip the cursor and
    ring image cards as the obvious targets. */

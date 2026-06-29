@@ -90,6 +90,18 @@ export function OnboardingTour({ step, onEvent, onSkip, onView }) {
     if (stepId) onView?.(stepId);
   }, [stepId, onView]);
 
+  // Milanote-style lock: while a step is showing, flag the body so CSS can make
+  // everything except the current target + this pill non-interactive (mirrors the
+  // app's data-clean-mode / data-canvas-interacting idiom). Tied to step PRESENCE
+  // (not mount) so it clears the moment the tour finishes/skips even if the parent
+  // keeps the component mounted. Covers the real app and the ?tour=1 preview.
+  const tourShowing = !!stepId;
+  useEffect(() => {
+    if (!tourShowing) return undefined;
+    document.body.setAttribute('data-tour-active', '1');
+    return () => document.body.removeAttribute('data-tour-active');
+  }, [tourShowing]);
+
   // Track the anchor's live screen position (it moves with canvas pan/zoom) via
   // rAF, re-rendering only when it shifts, and keep a glow ring on the target.
   useEffect(() => {

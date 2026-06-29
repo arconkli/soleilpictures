@@ -48,7 +48,7 @@ export const TOUR_STEPS = [
     placement: 'bottom',
     copy: {
       title: 'Step inside',
-      body: 'Double-click your cluster to open it.',
+      body: 'Click your cluster to open it.',
       touch: 'Tap your cluster to open it.',
     },
     accepts: (e, ctx) => e?.type === 'cluster_opened' && e.boardId === ctx.clusterId,
