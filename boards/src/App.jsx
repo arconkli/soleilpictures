@@ -101,6 +101,7 @@ import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout } from './lib/gridState.js';
 import { presetTree, resizeDivider, splitCell, mergeCell } from './lib/gridLayout.js';
+import { hasLabelTag } from './lib/gridSequence.js';
 import { uploadImage, uploadPdf } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
@@ -1640,6 +1641,96 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ydoc.transact(() => { cy.set('layout', layout); cy.delete('templateId'); }, 'local');
     };
 
+    // ── Sequences + stamping ────────────────────────────────────────────────
+    // Label-tag cells (a text cell whose html contains [#]/[A]/…) from a source
+    // Grid are CARRIED to its stamped/generated copies, so a "SHOT [#]" slate
+    // propagates while image/action cells stay blank to fill in.
+    const labelTagCellsOf = (cy) => {
+      const out = {};
+      const cm = cy.get('gridCells');
+      if (cm) cm.forEach((v, k) => {
+        const cell = (v && v.toJSON) ? v.toJSON() : v;
+        if (cell && cell.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
+      });
+      return out;
+    };
+    // Promote (if needed) so source + copies share ONE layout, and ensure the
+    // source belongs to a sequence. Must run inside a transaction. Returns
+    // { tplId, seqId, carry }.
+    const ensureTemplateAndSequence = (cy) => {
+      let tplId = cy.get('templateId');
+      if (!tplId) {
+        const layout = cy.get('layout');
+        tplId = `gtpl-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        ydoc.getMap('gridTemplates').set(tplId, { id: tplId, name: 'Grid layout', layout });
+        cy.set('templateId', tplId); cy.delete('layout');
+      }
+      let seqId = cy.get('seqId');
+      if (!seqId) {
+        seqId = `gseq-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        ydoc.getMap('gridSequences').set(seqId, { id: seqId, name: 'Sequence', pattern: 'z', format: { startAt: 1 } });
+        cy.set('seqId', seqId);
+      }
+      return { tplId, seqId, carry: labelTagCellsOf(cy) };
+    };
+    const placeLinkedGrid = (m, tplId, seqId, carry, x, y, w, h) => {
+      const id = `grid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const neighbor = stampCreate({ z: nextZ(), id, kind: 'grid', templateId: tplId, seqId, x: Math.max(8, x), y: Math.max(8, y), w, h });
+      m.set(id, cardToYMap(neighbor));
+      const nym = m.get(id);
+      initCardGridStore(ydoc, nym);
+      const ncm = nym.get('gridCells');
+      if (ncm) Object.entries(carry).forEach(([k, val]) => ncm.set(k, val));
+      return id;
+    };
+    // Directional "+": stamp an empty, layout-identical, linked Grid on `dir`,
+    // joined to the source's sequence and auto-numbered by position.
+    const stampGridNeighbor = (gridId, dir) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const x = cy.get('x'), y = cy.get('y'), w = cy.get('w') || 360, h = cy.get('h') || 300;
+      const gap = 24;
+      let nx = x, ny = y;
+      if (dir === 'right') nx = x + w + gap;
+      else if (dir === 'left') nx = x - w - gap;
+      else if (dir === 'bottom') ny = y + h + gap;
+      else if (dir === 'top') ny = y - h - gap;
+      breakUndo();
+      ydoc.transact(() => {
+        const { tplId, seqId, carry } = ensureTemplateAndSequence(cy);
+        placeLinkedGrid(m, tplId, seqId, carry, nx, ny, w, h);
+      }, 'local');
+    };
+    // Bulk matrix: replicate the source Grid into a cols×rows lattice (source at
+    // 0,0), all linked + in one sequence, numbered in reading order.
+    const bulkGenerateGrids = (gridId, cols, rows, opts = {}) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const C = Math.max(1, Math.min(24, cols | 0)), R = Math.max(1, Math.min(24, rows | 0));
+      if (C * R <= 1) return;
+      const w = cy.get('w') || 360, h = cy.get('h') || 300;
+      const x0 = cy.get('x'), y0 = cy.get('y');
+      const gx = opts.gapX ?? 24, gy = opts.gapY ?? 24;
+      breakUndo();
+      ydoc.transact(() => {
+        const { tplId, seqId, carry } = ensureTemplateAndSequence(cy);
+        for (let r = 0; r < R; r++) {
+          for (let c = 0; c < C; c++) {
+            if (r === 0 && c === 0) continue; // source occupies the first cell
+            placeLinkedGrid(m, tplId, seqId, carry, x0 + c * (w + gx), y0 + r * (h + gy), w, h);
+          }
+        }
+      }, 'local');
+    };
+    const setGridSequencePattern = (seqId, pattern) => {
+      const sm = ydoc.getMap('gridSequences'); const prev = sm.get(seqId); if (!prev) return;
+      breakUndo();
+      ydoc.transact(() => { sm.set(seqId, { ...prev, pattern }); }, 'local');
+    };
+    const setGridSequenceStartAt = (seqId, startAt) => {
+      const sm = ydoc.getMap('gridSequences'); const prev = sm.get(seqId); if (!prev) return;
+      breakUndo();
+      ydoc.transact(() => { sm.set(seqId, { ...prev, format: { ...(prev.format || {}), startAt } }); }, 'local');
+    };
+
     return {
       updateCard, updateCards, deleteCard, deleteCards,
       duplicateCard, duplicateCards, addCard, addCards,
@@ -1651,6 +1742,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
+      stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
       setBoardCover,

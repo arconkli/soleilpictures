@@ -9,6 +9,7 @@ import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as Inbox
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { presetTree, resizeDivider, splitCell, mergeCell } from '../lib/gridLayout.js';
+import { hasLabelTag } from '../lib/gridSequence.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -194,6 +195,8 @@ export function LocalBoardsApp({ user, signOut }) {
   // Shared Grid layout templates (global sync), keyed by boardId → { tplId: {id,name,layout} }.
   // Kept separate from boardState (whose updater only threads cards/arrows/strokes).
   const [gridTplState, setGridTplState] = useState({});
+  // Grid sequences, keyed by boardId → { seqId: {id,name,pattern,format} }.
+  const [gridSeqState, setGridSeqState] = useState({});
   const [pickerOpen, setPickerOpen] = useState(false);
   // Global search + ⌘K command palette (separate from the boards-only
   // BoardPicker, which stays the "link a board" surface).
@@ -265,6 +268,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const currentBoard = boards[currentId] || boards[ROOT_ID];
   const currentState = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
   const currentTemplates = gridTplState[currentId] || {};
+  const currentSequences = gridSeqState[currentId] || {};
   const view = viewOverride[currentId] || currentBoard.view || 'canvas';
 
   // Dev-only guided-tour demo (?tour=1). The mutators below emit tour events via
@@ -677,6 +681,58 @@ export function LocalBoardsApp({ user, signOut }) {
     const layout = gridTplState[currentId]?.[card.templateId]?.layout || card.layout; if (!layout) return;
     mapGridCard(gridId, c => { const { templateId, ...rest } = c; return { ...rest, layout: clone(layout) }; });
   };
+  // Sequences + stamping (local parity). Carries label-tag text cells to copies.
+  const localLabelTagCells = (card) => {
+    const out = {};
+    for (const [k, cell] of Object.entries(card.cells || {})) {
+      if (cell?.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
+    }
+    return out;
+  };
+  const ensureLocalTemplate = (card) => {
+    if (card.templateId) return card.templateId;
+    const tplId = createId('gtpl');
+    setGridTplState(prev => ({ ...prev, [currentId]: { ...(prev[currentId] || {}), [tplId]: { id: tplId, name: 'Grid layout', layout: card.layout } } }));
+    mapGridCard(card.id, c => { const { layout, ...rest } = c; return { ...rest, templateId: tplId }; });
+    return tplId;
+  };
+  const ensureLocalSequence = (card) => {
+    if (card.seqId) return card.seqId;
+    const seqId = createId('gseq');
+    setGridSeqState(prev => ({ ...prev, [currentId]: { ...(prev[currentId] || {}), [seqId]: { id: seqId, name: 'Sequence', pattern: 'z', format: { startAt: 1 } } } }));
+    mapGridCard(card.id, c => ({ ...c, seqId }));
+    return seqId;
+  };
+  const stampGridNeighbor = (gridId, dir) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    const w = card.w || 360, h = card.h || 300, x = card.x, y = card.y, gap = 24;
+    let nx = x, ny = y;
+    if (dir === 'right') nx = x + w + gap; else if (dir === 'left') nx = x - w - gap;
+    else if (dir === 'bottom') ny = y + h + gap; else if (dir === 'top') ny = y - h - gap;
+    const tplId = ensureLocalTemplate(card);
+    const seqId = ensureLocalSequence(card);
+    const carry = localLabelTagCells(card);
+    addCard({ id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: carry, x: Math.max(8, nx), y: Math.max(8, ny), w, h });
+  };
+  const bulkGenerateGrids = (gridId, cols, rows, opts = {}) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    const C = Math.max(1, Math.min(24, cols | 0)), R = Math.max(1, Math.min(24, rows | 0));
+    if (C * R <= 1) return;
+    const w = card.w || 360, h = card.h || 300, x0 = card.x, y0 = card.y, gx = opts.gapX ?? 24, gy = opts.gapY ?? 24;
+    const tplId = ensureLocalTemplate(card);
+    const seqId = ensureLocalSequence(card);
+    const carry = localLabelTagCells(card);
+    const newCards = [];
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+      if (r === 0 && c === 0) continue;
+      newCards.push({ id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: { ...carry }, x: Math.max(8, x0 + c * (w + gx)), y: Math.max(8, y0 + r * (h + gy)), w, h });
+    }
+    addCards(newCards);
+  };
+  const setGridSequencePattern = (seqId, pattern) => setGridSeqState(prev => {
+    const board = prev[currentId] || {}; const seq = board[seqId]; if (!seq) return prev;
+    return { ...prev, [currentId]: { ...board, [seqId]: { ...seq, pattern } } };
+  });
 
   // Chat-attachment drops piggy-back on the INBOX_MIME drag protocol so
   // CanvasSurface still calls onDropInboxItem for them.
@@ -728,6 +784,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
+    stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern,
     addShape,
     addStroke,
     replaceStrokes,
@@ -933,6 +990,7 @@ export function LocalBoardsApp({ user, signOut }) {
             arrows={currentState.arrows}
             strokes={currentState.strokes}
             gridTemplates={currentTemplates}
+            gridSequences={currentSequences}
             onOpenBoard={openBoard}
             tweak={tweak}
             depth={stack.length - 1}

@@ -4529,6 +4529,22 @@ export function CanvasSurface({
           label: linked ? 'Unlink layout' : 'Share layout',
           run: () => { if (linked) mutators.unlinkGrid?.(c.id); else mutators.promoteGridToTemplate?.(c.id); },
         });
+        items.push({ id: 'grid-matrix', label: 'Generate matrix…', run: async () => {
+          const v = await feedback.prompt({ title: 'Generate a matrix', label: 'Columns × Rows', placeholder: '6 x 3', defaultValue: '3 x 2', confirmLabel: 'Generate' });
+          if (!v) return;
+          const mt = String(v).match(/(\d+)\s*[x×,]\s*(\d+)/i);
+          if (!mt) { feedback.toast({ type: 'error', message: 'Enter dimensions like 6 x 3.' }); return; }
+          mutators.bulkGenerateGrids?.(c.id, parseInt(mt[1], 10), parseInt(mt[2], 10));
+        }});
+        if (c.seqId) {
+          const seq = gridSequences[c.seqId];
+          const pat = seq?.pattern || 'z';
+          items.push({ id: 'grid-order', label: 'Reading order', submenu: [
+            { id: 'ord-z', label: `Z — rows, left→right${pat === 'z' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'z') },
+            { id: 'ord-n', label: `N — columns, top→bottom${pat === 'n' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'n') },
+            { id: 'ord-snake', label: `Snake — alternating rows${pat === 'snake' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'snake') },
+          ]});
+        }
       } else if (c.kind === 'board') {
         items.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
@@ -5987,6 +6003,8 @@ export function CanvasSurface({
     clearCellContent: (gridId, cellId) => mutators.clearGridCellContent?.(gridId, cellId),
     unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),
     promoteToTemplate: (gridId) => mutators.promoteGridToTemplate?.(gridId),
+    stampNeighbor: (gridId, dir) => mutators.stampGridNeighbor?.(gridId, dir),
+    bulkGenerate: (gridId, cols, rows) => mutators.bulkGenerateGrids?.(gridId, cols, rows),
     pickImageForCell: (gridId, cellId) => {
       const input = document.createElement('input');
       input.type = 'file'; input.accept = 'image/*';

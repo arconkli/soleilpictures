@@ -96,6 +96,34 @@
 
 .gridc-divider.is-grabbable { pointer-events: auto; }
 .gridc-divider.is-grabbable:hover { background: var(--soleil, #d8b25a); }
+
+/* Directional "+" — stamp an empty linked Grid on that edge. */
+.gridc-add {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  border-radius: 50%;
+  border: 1px solid var(--soleil, #d8b25a);
+  background: var(--surface-3, #20202a);
+  color: var(--soleil, #d8b25a);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 4;
+}
+/* Positioned just INSIDE the edges (the .gridc clips overflow, so they can't
+   sit outside the box). Shown on hover. */
+.gridc:hover .gridc-add { opacity: 0.85; }
+.gridc-add:hover { opacity: 1; background: var(--soleil, #d8b25a); color: #1a1407; }
+.gridc-add-top { top: 4px; left: 50%; transform: translateX(-50%); }
+.gridc-add-bottom { bottom: 4px; left: 50%; transform: translateX(-50%); }
+.gridc-add-left { left: 4px; top: 50%; transform: translateY(-50%); }
+.gridc-add-right { right: 4px; top: 50%; transform: translateY(-50%); }
 .gridc-divider-x { cursor: col-resize; }
 .gridc-divider-y { cursor: row-resize; }
 

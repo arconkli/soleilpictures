@@ -221,6 +221,16 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
           aria-hidden="true"
         />
       ))}
+      {editable && isSelected && gridActions.stampNeighbor && ['top', 'bottom', 'left', 'right'].map((dir) => (
+        <button
+          key={dir}
+          type="button"
+          className={`gridc-add gridc-add-${dir}`}
+          title={`Stamp a Grid ${dir}`}
+          onPointerDown={stop}
+          onClick={(e) => { e.stopPropagation(); gridActions.stampNeighbor(card.id, dir); }}
+        >+</button>
+      ))}
     </div>
   );
 }

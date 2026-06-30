@@ -96,6 +96,52 @@ test.describe('grids — local interaction', () => {
     expect(Math.abs(afterUnlink.width - after1.width)).toBeLessThan(4);
   });
 
+  // Add a "[#]" tag to the bottom-left cell of the (selected) Grid.
+  async function tagBottomCell(page) {
+    const cell = page.locator('.gridc-cell.is-empty').nth(1); // bottom-left
+    await cell.hover();
+    await cell.getByRole('button', { name: 'Text', exact: true }).click();
+    const editor = page.locator('.gridc-cell [contenteditable="true"]').first();
+    await editor.click();
+    await page.keyboard.type('[#]');
+    await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
+  }
+
+  test('directional + stamps a numbered neighbor (auto-sequence)', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    await grid.click({ position: { x: 180, y: 8 } });
+    await tagBottomCell(page);
+    // Re-select (the blur click cleared selection) and stamp to the right.
+    await grid.click({ position: { x: 180, y: 8 } });
+    await grid.hover();
+    await page.locator('.gridc-add-right').first().click();
+
+    await expect(page.locator('.card-kind-grid')).toHaveCount(2);
+    // Both Grids share the layout + sequence; their [#] cells resolve to 1 and 2.
+    const texts = page.locator('.card-kind-grid .gridc-cell-text .gc-text');
+    await expect(texts.nth(0)).toHaveText('1');
+    await expect(texts.nth(1)).toHaveText('2');
+  });
+
+  test('bulk matrix generates a numbered sequence', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    await grid.click({ position: { x: 180, y: 8 } });
+    await tagBottomCell(page);
+    await grid.click({ position: { x: 180, y: 8 } });
+
+    // Generate a 3 x 1 matrix from this Grid.
+    await grid.dispatchEvent('contextmenu');
+    await page.locator('.ctx-menu').getByText('Generate matrix…', { exact: true }).click();
+    await page.locator('.modal input, .modal textarea, [role="dialog"] input').first().fill('3 x 1');
+    await page.getByRole('button', { name: 'Generate', exact: true }).click();
+
+    await expect(page.locator('.card-kind-grid')).toHaveCount(3);
+    const nums = await page.locator('.card-kind-grid .gridc-cell-text .gc-text').allInnerTexts();
+    expect(nums.map((s) => s.trim()).sort()).toEqual(['1', '2', '3']);
+  });
+
   test('fill an empty cell with text via the chooser', async ({ page }) => {
     await addGrid(page);
     const grid = page.locator('.card-kind-grid').first();
