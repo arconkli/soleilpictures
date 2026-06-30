@@ -1609,6 +1609,36 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
       clearGridCell(ydoc, cy, cellId);
     };
+    // Global sync (same board): promote an unlinked Grid's layout into a shared
+    // gridTemplates record + link the Grid to it, so any other Grid linked to the
+    // same template reflows live when this one's dividers move. Returns templateId.
+    const promoteGridToTemplate = (gridId, name = 'Grid layout') => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return null;
+      const existing = cy.get('templateId'); if (existing) return existing;
+      const layout = cy.get('layout'); if (!layout) return null;
+      const tplId = `gtpl-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      breakUndo();
+      ydoc.transact(() => {
+        ydoc.getMap('gridTemplates').set(tplId, { id: tplId, name, layout });
+        cy.set('templateId', tplId);
+        cy.delete('layout');
+      }, 'local');
+      return tplId;
+    };
+    const linkGridToTemplate = (gridId, tplId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy || !tplId) return;
+      breakUndo();
+      ydoc.transact(() => { cy.set('templateId', tplId); cy.delete('layout'); }, 'local');
+    };
+    const unlinkGrid = (gridId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const tplId = cy.get('templateId'); if (!tplId) return;
+      const tpl = ydoc.getMap('gridTemplates').get(tplId);
+      const layout = (tpl && tpl.layout) || cy.get('layout');
+      if (!layout) return;
+      breakUndo();
+      ydoc.transact(() => { cy.set('layout', layout); cy.delete('templateId'); }, 'local');
+    };
 
     return {
       updateCard, updateCards, deleteCard, deleteCards,
@@ -1620,6 +1650,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
+      promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
       setBoardCover,

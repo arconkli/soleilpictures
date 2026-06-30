@@ -53,6 +53,49 @@ test.describe('grids — local interaction', () => {
     expect(afterBox.width).toBeLessThan(beforeBox.width - 30);
   });
 
+  test('linked Grids reflow together — global sync + unlink round-trip', async ({ page }) => {
+    await addGrid(page);
+    const first = page.locator('.card-kind-grid').first();
+    await first.click({ position: { x: 180, y: 8 } });
+    await expect(first).toHaveClass(/is-selected/);
+
+    // Share layout → this Grid becomes linked to a shared template.
+    await first.dispatchEvent('contextmenu');
+    await page.locator('.ctx-menu').getByText('Share layout', { exact: true }).click();
+    await expect(first.locator('.gridc-linked-badge')).toBeVisible();
+
+    // Duplicate → a second Grid linked to the SAME template.
+    await first.dispatchEvent('contextmenu');
+    await page.locator('.ctx-menu').getByText('Duplicate', { exact: true }).click();
+    await expect(page.locator('.card-kind-grid')).toHaveCount(2);
+
+    const cellOf = (n) => page.locator('.card-kind-grid').nth(n).locator('.gridc-cell').nth(1);
+    const before0 = await cellOf(0).boundingBox();
+    const before1 = await cellOf(1).boundingBox();
+
+    // Drag the (selected duplicate's) grabbable bottom divider left.
+    const divider = page.locator('.gridc-divider-x.is-grabbable').first();
+    const db = await divider.boundingBox();
+    await page.mouse.move(db.x + db.width / 2, db.y + db.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(db.x - 70, db.y + db.height / 2, { steps: 6 });
+    await page.mouse.up();
+
+    // BOTH linked Grids reflow (they read the same shared template layout).
+    const after0 = await cellOf(0).boundingBox();
+    const after1 = await cellOf(1).boundingBox();
+    expect(after0.width).toBeLessThan(before0.width - 30);
+    expect(after1.width).toBeLessThan(before1.width - 30);
+
+    // Unlink the duplicate → it keeps the (resized) layout independently.
+    const dupe = page.locator('.card-kind-grid').nth(1);
+    await dupe.dispatchEvent('contextmenu');
+    await page.locator('.ctx-menu').getByText('Unlink layout', { exact: true }).click();
+    await expect(dupe.locator('.gridc-linked-badge')).toHaveCount(0);
+    const afterUnlink = await cellOf(1).boundingBox();
+    expect(Math.abs(afterUnlink.width - after1.width)).toBeLessThan(4);
+  });
+
   test('fill an empty cell with text via the chooser', async ({ page }) => {
     await addGrid(page);
     const grid = page.locator('.card-kind-grid').first();

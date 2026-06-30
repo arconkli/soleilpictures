@@ -137,8 +137,19 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     window.addEventListener('pointerup', up);
   };
 
+  const linked = !!model.templateId;
+
   return (
     <div className="gridc" data-grid-id={card.id}>
+      {linked && isSelected && (
+        <button
+          type="button"
+          className="gridc-linked-badge"
+          title="Linked layout — edits reflow every linked Grid. Click to unlink."
+          onPointerDown={stop}
+          onClick={editable ? (e) => { e.stopPropagation(); gridActions.unlinkGrid?.(card.id); } : undefined}
+        >🔗 Linked</button>
+      )}
       {rects.map((r) => {
         const cell = model.cells[r.id];
         const type = (cell && cell.type) || 'empty';

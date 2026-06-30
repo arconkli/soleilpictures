@@ -76,6 +76,24 @@
   pointer-events: none;
   background: var(--hairline, rgba(255, 255, 255, 0.12));
 }
+/* "Linked layout" badge — shown top-left when a Grid is linked + selected. */
+.gridc-linked-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--soleil, #d8b25a);
+  background: var(--surface-3, rgba(20, 20, 26, 0.9));
+  color: var(--soleil, #d8b25a);
+  cursor: pointer;
+}
+
 .gridc-divider.is-grabbable { pointer-events: auto; }
 .gridc-divider.is-grabbable:hover { background: var(--soleil, #d8b25a); }
 .gridc-divider-x { cursor: col-resize; }

@@ -4522,6 +4522,13 @@ export function CanvasSurface({
           { id: 'sw-4', label: '4 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 4 }) },
           { id: 'sw-8', label: '8 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 8 }) },
         ]});
+      } else if (c.kind === 'grid') {
+        const linked = !!c.templateId;
+        items.push({
+          id: 'grid-link',
+          label: linked ? 'Unlink layout' : 'Share layout',
+          run: () => { if (linked) mutators.unlinkGrid?.(c.id); else mutators.promoteGridToTemplate?.(c.id); },
+        });
       } else if (c.kind === 'board') {
         items.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
@@ -5978,6 +5985,8 @@ export function CanvasSurface({
     mergeCell: (gridId, cellId) => mutators.mergeGridCell?.(gridId, cellId),
     setCellContent: (gridId, cellId, patch) => mutators.setGridCellContent?.(gridId, cellId, patch),
     clearCellContent: (gridId, cellId) => mutators.clearGridCellContent?.(gridId, cellId),
+    unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),
+    promoteToTemplate: (gridId) => mutators.promoteGridToTemplate?.(gridId),
     pickImageForCell: (gridId, cellId) => {
       const input = document.createElement('input');
       input.type = 'file'; input.accept = 'image/*';

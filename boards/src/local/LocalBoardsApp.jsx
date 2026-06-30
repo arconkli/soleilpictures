@@ -191,6 +191,9 @@ export function LocalBoardsApp({ user, signOut }) {
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
+  // Shared Grid layout templates (global sync), keyed by boardId → { tplId: {id,name,layout} }.
+  // Kept separate from boardState (whose updater only threads cards/arrows/strokes).
+  const [gridTplState, setGridTplState] = useState({});
   const [pickerOpen, setPickerOpen] = useState(false);
   // Global search + ⌘K command palette (separate from the boards-only
   // BoardPicker, which stays the "link a board" surface).
@@ -261,6 +264,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const currentId = stack[stack.length - 1] || ROOT_ID;
   const currentBoard = boards[currentId] || boards[ROOT_ID];
   const currentState = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+  const currentTemplates = gridTplState[currentId] || {};
   const view = viewOverride[currentId] || currentBoard.view || 'canvas';
 
   // Dev-only guided-tour demo (?tour=1). The mutators below emit tour events via
@@ -618,27 +622,61 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
-  // Grid cell + divider mutators (local shell = plain layout/cells fields).
+  // Grid cell + divider mutators (local shell = plain layout/cells fields; shared
+  // layouts live in gridTplState, mirroring the Yjs gridTemplates map).
   const mapGridCard = (gridId, fn) => updateBoardState(state => ({
     ...state,
-    cards: state.cards.map(c => (c.id === gridId && c.layout) ? fn(c) : c),
+    cards: state.cards.map(c => (c.id === gridId ? fn(c) : c)),
   }));
+  const findLocalGrid = (gridId) => (boardState[currentId]?.cards || []).find(c => c.id === gridId) || null;
+  // Template-aware layout edit: write to the shared template when linked, else the
+  // card's own layout — so editing one linked Grid's divider reflows every Grid
+  // sharing the template (same-board global sync).
+  const localGridLayoutEdit = (gridId, transform) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    if (card.templateId) {
+      setGridTplState(prev => {
+        const board = prev[currentId] || {};
+        const tpl = board[card.templateId];
+        const cur = tpl?.layout || card.layout; if (!cur) return prev;
+        return { ...prev, [currentId]: { ...board, [card.templateId]: { ...(tpl || { id: card.templateId }), layout: transform(cur) } } };
+      });
+    } else {
+      mapGridCard(gridId, c => (c.layout ? { ...c, layout: transform(c.layout) } : c));
+    }
+  };
+  const localGridLayout = (card) => card?.templateId
+    ? ((gridTplState[currentId]?.[card.templateId]?.layout) || card?.layout || null)
+    : (card?.layout || null);
   const resizeGridDivider = (gridId, path, childIndex, deltaFrac) =>
-    mapGridCard(gridId, c => ({ ...c, layout: resizeDivider(c.layout, path, childIndex, deltaFrac) }));
+    localGridLayoutEdit(gridId, l => resizeDivider(l, path, childIndex, deltaFrac));
   const splitGridCell = (gridId, cellId, orientation) =>
-    mapGridCard(gridId, c => ({ ...c, layout: splitCell(c.layout, cellId, orientation) }));
-  const mergeGridCell = (gridId, cellId) =>
-    mapGridCard(gridId, c => {
-      const { tree, removedIds } = mergeCell(c.layout, cellId);
-      if (!removedIds.length) return c;
-      const cells = { ...(c.cells || {}) };
-      removedIds.forEach(id => delete cells[id]);
-      return { ...c, layout: tree, cells };
-    });
+    localGridLayoutEdit(gridId, l => splitCell(l, cellId, orientation));
+  const mergeGridCell = (gridId, cellId) => {
+    const card = findLocalGrid(gridId); const cur = localGridLayout(card); if (!cur) return;
+    const { tree, removedIds } = mergeCell(cur, cellId);
+    if (!removedIds.length) return;
+    localGridLayoutEdit(gridId, () => tree);
+    mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
+  };
   const setGridCellContent = (gridId, cellId, patch) =>
     mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { ...(c.cells?.[cellId] || {}), ...patch } } }));
   const clearGridCellContent = (gridId, cellId) =>
     mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { type: 'empty' } } }));
+  const promoteGridToTemplate = (gridId, name = 'Grid layout') => {
+    const card = findLocalGrid(gridId); if (!card || card.templateId || !card.layout) return null;
+    const tplId = createId('gtpl');
+    setGridTplState(prev => ({ ...prev, [currentId]: { ...(prev[currentId] || {}), [tplId]: { id: tplId, name, layout: card.layout } } }));
+    mapGridCard(gridId, c => { const { layout, ...rest } = c; return { ...rest, templateId: tplId }; });
+    return tplId;
+  };
+  const linkGridToTemplate = (gridId, tplId) =>
+    mapGridCard(gridId, c => { const { layout, ...rest } = c; return { ...rest, templateId: tplId }; });
+  const unlinkGrid = (gridId) => {
+    const card = findLocalGrid(gridId); if (!card?.templateId) return;
+    const layout = gridTplState[currentId]?.[card.templateId]?.layout || card.layout; if (!layout) return;
+    mapGridCard(gridId, c => { const { templateId, ...rest } = c; return { ...rest, layout: clone(layout) }; });
+  };
 
   // Chat-attachment drops piggy-back on the INBOX_MIME drag protocol so
   // CanvasSurface still calls onDropInboxItem for them.
@@ -689,6 +727,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addPalette,
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
+    promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
     addShape,
     addStroke,
     replaceStrokes,
@@ -893,6 +932,7 @@ export function LocalBoardsApp({ user, signOut }) {
             cards={currentState.cards}
             arrows={currentState.arrows}
             strokes={currentState.strokes}
+            gridTemplates={currentTemplates}
             onOpenBoard={openBoard}
             tweak={tweak}
             depth={stack.length - 1}
