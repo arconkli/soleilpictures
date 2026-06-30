@@ -461,9 +461,13 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
           <div className="bc-thumb-wrap"
                style={{ background: board.bg_color || 'var(--bg-2)' }}>
             {/* key on thumb_updated_at so a regen remounts → fresh resolveSrc.
+                `bust` forces a fresh presign when the version changes, so the
+                in-place R2 overwrite isn't hidden by the immutable browser
+                cache (thumb keys are stable + overwritten — see R2Image).
                 v2 renders are opaque mini-screenshots → edge-to-edge cover;
                 legacy transparent renders keep the inset/contain framing. */}
             <R2Image src={board.thumb_key} key={board.thumb_updated_at || board.thumb_key}
+                     bust={board.thumb_updated_at}
                      className={thumbCurrent ? 'bc-thumb bc-thumb--cover' : 'bc-thumb'}
                      alt="" draggable={false} />
           </div>
