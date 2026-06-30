@@ -100,7 +100,7 @@ import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout } from './lib/gridState.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids } from './lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { uploadImage, uploadPdf } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
@@ -1628,6 +1628,42 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
       clearGridCell(ydoc, cy, cellId);
     };
+    // Drop a whole Grid INTO a host cell, fully editable inline: graft the source
+    // Grid's layout subtree into the host's target leaf (fresh ids) + copy its cell
+    // content, then consume the source card. The host unlinks (its structure now
+    // differs from any linked siblings). The grafted region edits with the normal
+    // divider/split/cell machinery — no recursive component.
+    const graftGridIntoCell = (hostGridId, cellId, sourceGridId) => {
+      const m = cardsMap();
+      const hostCy = m && m.get(hostGridId);
+      const srcCy = m && m.get(sourceGridId);
+      if (!hostCy || !srcCy || hostGridId === sourceGridId) return;
+      const hostLayout = gridLayoutOf(hostCy);
+      const srcLayout = gridLayoutOf(srcCy);
+      if (!hostLayout || !srcLayout) return;
+      const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+      const { tree, idMap } = graftSubtree(hostLayout, cellId, srcLayout, mkCellId);
+      if (!Object.keys(idMap).length) return;
+      // snapshot the source's cell records before deleting it
+      const srcCells = {};
+      const scm = srcCy.get('gridCells');
+      if (scm && scm.forEach) scm.forEach((v, k) => { srcCells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+      breakUndo();
+      ydoc.transact(() => {
+        // write the grafted layout onto the HOST, unlinking it (graft is local)
+        if (hostCy.get('templateId')) hostCy.delete('templateId');
+        hostCy.set('layout', tree);
+        const hcm = hostCy.get('gridCells');
+        if (hcm) {
+          hcm.delete(cellId); // target leaf is replaced by the grafted subtree
+          Object.entries(idMap).forEach(([srcId, newId]) => {
+            const rec = srcCells[srcId];
+            if (rec && rec.type && rec.type !== 'empty') hcm.set(newId, rec);
+          });
+        }
+        m.delete(sourceGridId); // consume the source (move semantics)
+      }, 'local');
+    };
     // Global sync (same board): promote an unlinked Grid's layout into a shared
     // gridTemplates record + link the Grid to it, so any other Grid linked to the
     // same template reflows live when this one's dividers move. Returns templateId.
@@ -1800,7 +1836,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent,
-      promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids,
+      promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,

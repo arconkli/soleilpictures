@@ -9,6 +9,9 @@
 //   { type:'empty' } | { type:'image', src, adjust, fit, pos } | { type:'text', html }
 //   | { type:'link', source, title, image, favicon, embed } | { type:'video', src }
 //   | { type:'file', fileSrc, fileName, mime, sizeBytes, ext }
+//   | { type:'board', boardId }   — a cluster preview (opens on click)
+// A whole Grid dropped into a cell is NOT a cell record: it grafts into the host
+// layout tree (see gridLayout.graftSubtree), so it edits inline like any nesting.
 //
 // Top-level (per-board) types, created in yboard.js loadYBoard:
 //   gridTemplates: Y.Map<id, { id, name, layout }>   — shared layout (global sync)

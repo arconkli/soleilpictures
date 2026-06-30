@@ -245,4 +245,33 @@ test.describe('grids — local interaction', () => {
     await expect(link).toHaveCount(1);
     await expect(link).toHaveAttribute('href', 'https://example.com');
   });
+
+  // Place a Grid centered near a screen point via the top-level right-click "Grid".
+  async function placeGridAt(page, sx, sy) {
+    await page.locator('.canvas-wrap').evaluate((node, p) => {
+      const rect = node.getBoundingClientRect();
+      node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: rect.left + p.x, clientY: rect.top + p.y }));
+    }, { x: sx, y: sy });
+    await page.locator('.ctx-menu').getByText('Grid', { exact: true }).first().click();
+  }
+
+  test('drag a grid into a cell grafts it inline (nested, source consumed)', async ({ page }) => {
+    await placeGridAt(page, 320, 300);  // grid A (left)
+    await placeGridAt(page, 760, 300);  // grid B (right)
+    await expect(page.locator('.card-kind-grid')).toHaveCount(2);
+    // resolve A (leftmost) and B (rightmost) by x
+    const grids = page.locator('.card-kind-grid');
+    const xs = await grids.evaluateAll((els) => els.map((e, i) => ({ i, x: e.getBoundingClientRect().x })));
+    xs.sort((a, b) => a.x - b.x);
+    const A = grids.nth(xs[0].i), B = grids.nth(xs[1].i);
+    const aBox = await A.boundingBox(), bBox = await B.boundingBox();
+    // drag B (grab top-left, clear of the centered chooser) onto A's bottom-right cell
+    await page.mouse.move(bBox.x + 40, bBox.y + 24);
+    await page.mouse.down();
+    await page.mouse.move(aBox.x + aBox.width - 60, aBox.y + aBox.height - 60, { steps: 12 });
+    await page.mouse.up();
+    // B is consumed; A absorbed B's 3-cell layout into one cell → 3 - 1 + 3 = 5 cells
+    await expect(page.locator('.card-kind-grid')).toHaveCount(1);
+    await expect(page.locator('.card-kind-grid .gridc-cell')).toHaveCount(5);
+  });
 });

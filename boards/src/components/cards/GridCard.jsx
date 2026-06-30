@@ -66,8 +66,24 @@ function CellVideo({ src }) {
   return <video className="gc-video" src={url} controls preload="metadata" onPointerDown={stop} />;
 }
 
-function CellContent({ cell, rect, seqIndex, seqFormat }) {
+function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard }) {
   const type = cell?.type || 'empty';
+  if (type === 'board' && cell.boardId) {
+    const b = boards?.[cell.boardId];
+    return (
+      <button type="button" className="gc-board" onPointerDown={stop}
+        onClick={(e) => { e.stopPropagation(); onOpenBoard?.(cell.boardId); }}
+        title={b?.name ? `Open ${b.name}` : 'Open cluster'}>
+        {b?.thumb_key
+          ? <R2Image src={b.thumb_key} w={Math.round(rect.w)} h={Math.round(rect.h)} className="gc-board-thumb" draggable="false" />
+          : <span className="gc-board-ph" aria-hidden="true" />}
+        <span className="gc-board-meta">
+          <span className="gc-board-badge">CLUSTER</span>
+          <span className="gc-board-name">{b?.name || 'Cluster'}</span>
+        </span>
+      </button>
+    );
+  }
   if (type === 'image' && cell.src) {
     return (
       <R2Image
@@ -99,7 +115,7 @@ function CellContent({ cell, rect, seqIndex, seqFormat }) {
   return null; // empty cell — placeholder/chooser drawn by the wrapper
 }
 
-export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true, focusedCellId = null }) {
+export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true, focusedCellId = null, dropCellId = null, boards = null, onOpenBoard = null }) {
   useGridCellsVersion(cardYMap);
   const [preview, setPreview] = useState(null);        // { layout } during a divider drag
   const [dragId, setDragId] = useState(null);          // id of the divider being dragged
@@ -187,7 +203,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         return (
           <div
             key={r.id}
-            className={`gridc-cell${empty ? ' is-empty' : ''} gridc-cell-${type}${dragOverCell === r.id ? ' is-drop' : ''}${focusedCellId === r.id ? ' is-focused' : ''}`}
+            className={`gridc-cell${empty ? ' is-empty' : ''} gridc-cell-${type}${(dragOverCell === r.id || dropCellId === r.id) ? ' is-drop' : ''}${focusedCellId === r.id ? ' is-focused' : ''}`}
             data-cell-id={r.id}
             style={{ left: r.x + gutter / 2, top: r.y + gutter / 2, width: Math.max(0, r.w - gutter), height: Math.max(0, r.h - gutter) }}
             onPointerDownCapture={editable && gridActions.focusCell ? () => gridActions.focusCell(card.id, r.id) : undefined}
@@ -216,7 +232,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                   />
                 </div>
               ) : (
-                <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} />
+                <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} boards={boards} onOpenBoard={onOpenBoard} />
               )}
             </div>
 

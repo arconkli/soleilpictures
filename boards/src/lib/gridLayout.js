@@ -253,6 +253,32 @@ export function leafIds(tree) {
   return out;
 }
 
+// Graft another Grid's whole layout (`subtree`) INTO a host leaf — i.e. drop a Grid
+// into a cell, fully editable inline (the cell becomes a nested split region that
+// the existing divider/split/cell machinery already renders + edits). The subtree
+// is cloned with FRESH leaf ids (so it can't collide with the host's), and its root
+// adopts the target leaf's `frac`. Returns { tree, idMap } where idMap maps the
+// source's leaf ids → their new host ids, so the caller copies the matching cell
+// content across. Pure.
+export function graftSubtree(hostTree, targetLeafId, subtree, mkId = defaultMkId) {
+  if (!hostTree || !subtree) return { tree: hostTree, idMap: {} };
+  const idMap = {};
+  const remap = (n) => {
+    if (!n) return n;
+    if (n.type === 'leaf') { const nid = mkId(); idMap[n.id] = nid; return { type: 'leaf', id: nid, frac: n.frac }; }
+    return { type: n.type, frac: n.frac, children: (n.children || []).map(remap) };
+  };
+  const grafted = remap(cloneNode(subtree));
+  const next = cloneNode(hostTree);
+  const ok = replaceLeaf(next, targetLeafId, (lf) => (
+    grafted.type === 'leaf'
+      ? { type: 'leaf', id: grafted.id, frac: lf.frac }
+      : { type: grafted.type, frac: lf.frac, children: grafted.children }
+  ));
+  if (!ok) return { tree: hostTree, idMap: {} };
+  return { tree: normalizeTree(next), idMap };
+}
+
 // Re-lattice a family of linked Grids so they stay a connected matrix at a new
 // outer size. `rects` = [{id,x,y,w,h}] (their CURRENT positions); we band them
 // into rows (by y-centre) then columns (by x within a row), and re-place each on

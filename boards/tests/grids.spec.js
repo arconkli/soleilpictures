@@ -135,6 +135,31 @@ test.describe('grids — fraction-tree layout', () => {
     });
     expect(r).toEqual([{ x: 0, y: 0, w: 120 }, { x: 120, y: 0, w: 120 }, { x: 240, y: 0, w: 120 }]);
   });
+
+  test('graftSubtree nests one grid into a host leaf with fresh, mapped ids', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilGridTest;
+      let n = 0; const mk = () => 'n' + (++n);
+      const host = T.seedGridLayout();          // storyboard: leaves c1 (top), c2, c3 (bottom)
+      // source = a 2-col split (leaves s1 | s2)
+      const source = { type: 'row', frac: 1, children: [
+        { type: 'leaf', id: 's1', frac: 0.5 }, { type: 'leaf', id: 's2', frac: 0.5 } ] };
+      const { tree, idMap } = T.graftSubtree(host, 'c1', source, mk);
+      const leaves = T.leafIds(tree);
+      return {
+        idMap,
+        leafCount: leaves.length,                 // c1 replaced by 2 → 4 leaves total
+        hasC1: leaves.includes('c1'),             // old target leaf id is gone
+        keepsSiblings: leaves.includes('c2') && leaves.includes('c3'),
+        mappedFresh: Object.values(idMap).every((id) => leaves.includes(id) && id !== 's1' && id !== 's2'),
+      };
+    });
+    expect(r.leafCount).toBe(4);
+    expect(r.hasC1).toBe(false);
+    expect(r.keepsSiblings).toBe(true);
+    expect(Object.keys(r.idMap).sort()).toEqual(['s1', 's2']);
+    expect(r.mappedFresh).toBe(true);
+  });
 });
 
 test.describe('grids — spatial sequence ordering', () => {

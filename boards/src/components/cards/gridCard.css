@@ -86,6 +86,15 @@
 .gridc-cell .gc-link-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gridc-cell-file .filec { width: 100%; height: 100%; }
 
+/* Board (cluster) cell — a live preview tile that opens the cluster on click. */
+.gridc-cell .gc-board { display: flex; flex-direction: column; width: 100%; height: 100%; border: 0; padding: 0; margin: 0; background: var(--bg-2, #16161a); cursor: pointer; text-align: left; overflow: hidden; }
+.gridc-cell .gc-board-thumb { width: 100%; flex: 1 1 auto; min-height: 0; object-fit: cover; display: block; }
+.gridc-cell .gc-board-ph { width: 100%; flex: 1 1 auto; min-height: 0; background: linear-gradient(135deg, var(--bg-3, #1c1c20), var(--bg-2, #16161a)); }
+.gridc-cell .gc-board-meta { display: flex; align-items: center; gap: 7px; padding: 6px 9px; background: var(--bg-2, #16161a); border-top: 1px solid var(--line-1, #212126); }
+.gridc-cell .gc-board-badge { font: 700 8.5px/1 var(--font-sans, sans-serif); letter-spacing: 0.12em; color: var(--ink-2, #888890); flex: none; }
+.gridc-cell .gc-board-name { font-size: 12px; color: var(--ink-0, #f5f5f7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gridc-cell .gc-board:hover .gc-board-name { color: var(--soleil, #ffa500); }
+
 /* ── dividers ─────────────────────────────────────────────────────────────── */
 /* The element is a wide TRANSPARENT hit zone; ::after draws a crisp 1px line on
    the seam. Quiet hairline at rest → a whisper brighter when the Grid is selected

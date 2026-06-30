@@ -8,7 +8,7 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids } from '../lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from '../lib/gridLayout.js';
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
@@ -672,6 +672,28 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const setGridCellContent = (gridId, cellId, patch) =>
     mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { ...(c.cells?.[cellId] || {}), ...patch } } }));
+  // Graft a source Grid INTO a host cell (drop-a-grid-into-a-cell, editable inline).
+  const graftGridIntoCell = (hostGridId, cellId, sourceGridId) => {
+    const host = findLocalGrid(hostGridId); const src = findLocalGrid(sourceGridId);
+    if (!host || !src || hostGridId === sourceGridId) return;
+    const hostLayout = localGridLayout(host); const srcLayout = localGridLayout(src);
+    if (!hostLayout || !srcLayout) return;
+    const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+    const { tree, idMap } = graftSubtree(hostLayout, cellId, srcLayout, mkCellId);
+    if (!Object.keys(idMap).length) return;
+    const srcCells = src.cells || {};
+    mapGridCard(hostGridId, c => {
+      const { templateId, ...rest } = c; // unlink — graft is local to this Grid
+      const cells = { ...(c.cells || {}) };
+      delete cells[cellId];
+      Object.entries(idMap).forEach(([srcId, newId]) => {
+        const rec = srcCells[srcId];
+        if (rec && rec.type && rec.type !== 'empty') cells[newId] = rec;
+      });
+      return { ...rest, layout: clone(tree), cells };
+    });
+    deleteCards([sourceGridId]); // consume the source (move semantics)
+  };
   const clearGridCellContent = (gridId, cellId) =>
     mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { type: 'empty' } } }));
   const promoteGridToTemplate = (gridId, name = 'Grid layout') => {
@@ -805,7 +827,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
-    removeGridDivider, resizeLinkedGrids,
+    removeGridDivider, resizeLinkedGrids, graftGridIntoCell,
     stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern,
     addShape,
     addStroke,

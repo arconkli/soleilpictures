@@ -775,6 +775,36 @@ export function CanvasSurface({
   // a captured closure goes stale across React re-renders).
   const [boardDropTarget, setBoardDropTarget] = useState(null);
   const boardDropTargetRef = useRef(null);
+  // Drop an existing canvas card INTO a grid cell. Tracks the {gridId, cellId}
+  // under the cursor during a card drag (ref for the live drop, state for the
+  // .is-cell-drop highlight).
+  const [cellDropTarget, setCellDropTarget] = useState(null);
+  const cellDropTargetRef = useRef(null);
+  const updateCellDropTarget = useCallback((next) => {
+    const a = cellDropTargetRef.current, b = next;
+    const same = (!a && !b) || (a && b && a.gridId === b.gridId && a.cellId === b.cellId);
+    cellDropTargetRef.current = next;
+    if (!same) setCellDropTarget(next);
+  }, []);
+  // Convert a dragged canvas card into the content of a grid cell. Content cards
+  // (image/note/link/file/video) MOVE (consumed); a board → a board cell (preview,
+  // reference kept); a grid → grafted inline (graftGridIntoCell consumes it).
+  const routeCardIntoCell = useCallback((card, gridId, cellId) => {
+    if (!card || !gridId || !cellId) return;
+    const k = card.kind;
+    if (k === 'grid') { mutators.graftGridIntoCell?.(gridId, cellId, card.id); return; }
+    let patch = null, consume = true;
+    if (k === 'image') patch = { type: 'image', src: card.src, fit: 'cover', ...(card.adjust ? { adjust: card.adjust } : {}), ...(card.pos ? { pos: card.pos } : {}) };
+    else if (k === 'note' || k === 'textlink') patch = { type: 'text', html: card.html || '' };
+    else if (k === 'link') patch = { type: 'link', source: card.source || card.link, link: card.link || card.source, title: card.title, image: card.image, favicon: card.favicon, ...(card.embed ? { embed: card.embed } : {}) };
+    else if (k === 'board') { patch = { type: 'board', boardId: card.id }; consume = false; }
+    else if (k === 'boardlink' && card.target) { patch = { type: 'board', boardId: card.target }; consume = false; }
+    else if (k === 'video') patch = { type: 'video', src: card.src };
+    else if (k === 'file' || k === 'pdf') patch = { type: 'file', fileSrc: card.fileSrc || card.src, fileName: card.fileName || card.name, mime: card.mime, sizeBytes: card.sizeBytes, ext: card.ext };
+    if (!patch) return;
+    mutators.setGridCellContent?.(gridId, cellId, patch);
+    if (consume) mutators.deleteCards?.([card.id]);
+  }, [mutators]);
   // Tracks the last endpoint-handle click so a second click within
   // ~350ms on the same endpoint spawns a sibling line/arrow (see
   // onHandleDown's dblclick branch).
@@ -3595,6 +3625,24 @@ export function CanvasSurface({
         }
       }
       updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
+      // Grid-cell drop target: walk the same stack for a [data-cell-id] inside a
+      // grid that ISN'T part of the dragged set (can't drop a grid into its own
+      // cell). A board drop wins over a cell drop (handled first → we clear the
+      // cell target when a board is targeted).
+      let nextCell = null;
+      if (!nextDropTarget && Math.abs(dx) + Math.abs(dy) > 4) {
+        const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
+        for (const el of stack) {
+          const cellEl = el?.closest?.('[data-cell-id]');
+          if (!cellEl) continue;
+          const gridEl = cellEl.closest('[data-grid-id]');
+          const gid = gridEl?.getAttribute?.('data-grid-id');
+          if (!gid || dragIds.includes(gid)) continue; // not into the dragged grid itself
+          nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id') };
+          break;
+        }
+      }
+      updateCellDropTarget(nextCell);
       // Live cross-pane / inbox hover signal — other panes use this to
       // highlight themselves as drop targets while the pointer is over them.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
@@ -3670,6 +3718,17 @@ export function CanvasSurface({
       // committed position. (The Y.Doc updateCards call below propagates
       // the final position via Yjs sync.)
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
+      // ── Drop a single card INTO a grid cell (auto-formats by kind) ──
+      const cellTarget = cellDropTargetRef.current;
+      updateCellDropTarget(null);
+      if (cellTarget && (Math.abs(dx) + Math.abs(dy) > 4)) {
+        const moved = dragIds.map(id => cardById[id]).filter(Boolean);
+        if (moved.length === 1) {
+          routeCardIntoCell(moved[0], cellTarget.gridId, cellTarget.cellId);
+          setDrag(null);
+          return;
+        }
+      }
       // ── Same-canvas drop onto a board card (move INTO that board) ──
       // Read from the ref — the state captured in this closure is stale
       // across re-renders during the drag.
@@ -6382,6 +6441,8 @@ export function CanvasSurface({
                         isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
                         annotationsVisible={commentsVisible}
                         focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
+                        dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
+                        boards={boards} onOpenBoard={onOpenBoard}
                         gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
     }
     else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}
