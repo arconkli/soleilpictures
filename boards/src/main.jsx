@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -249,6 +249,17 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <AlignQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isGridQaMode()) {
+  // Grid QA (?gridqa=1). Pure logic bridge — installs window.__soleilGridTest +
+  // a ready flag the spec waits on. DEV guard drops it (and its fixtures) from
+  // production builds.
+  import('./local/GridQaHarness.jsx').then(({ GridQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <GridQaHarness />
       </StrictMode>
     );
   });

@@ -72,6 +72,16 @@ export function isAlignQaMode() {
   return new URLSearchParams(window.location.search).get('alignqa') === '1';
 }
 
+// Dev-only Grid QA bridge. Active ONLY in a DEV build with ?gridqa=1 (same trust
+// boundary as isAlignQaMode). Publishes the PURE grid-layout (fraction tree,
+// shared-edge divider resize, split/merge) + grid-sequence (spatial order, label
+// resolution) helpers + deterministic seeds on window.__soleilGridTest so
+// Playwright can verify the Grid math without a backend. See ../local/GridQaHarness.jsx.
+export function isGridQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('gridqa') === '1';
+}
+
 // Dev-only first-run guided-tour QA harness. Active ONLY in a DEV build with
 // ?tourqa=1 (same trust boundary as isAlignQaMode). Mounts the real
 // <OnboardingTour> over fake data-tour anchors, driven by the real tour engine,
