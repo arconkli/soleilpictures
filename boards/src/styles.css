@@ -9439,7 +9439,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 
 /* Tool buttons hover scale */
-.cnv-tool { transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); }
+.cnv-tool { transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), opacity var(--dur-base) var(--ease); }
 .cnv-tool:hover:not(.active) { transform: translateX(1px); }
 /* Touch has no hover — give taps the same nudge as press feedback. */
 @media (hover: none) {
@@ -16750,6 +16750,14 @@ body[data-tour-active] .tour-target .cnv-tool[data-tip]::after {
   display: block;
   opacity: 1;
   transform: translateY(-50%) translateX(0);
+}
+/* Milanote focus: on the board-select step — a single rail tool is the .tour-target
+   — grey out the OTHER rail icons so the eye lands on the highlighted one. The
+   :has() fires ONLY when a rail tool is the target (the create step), never on the
+   content step (the rail itself is the target → no child .cnv-tool.tour-target) or
+   the off-rail steps. The target keeps full opacity + its gold ring. */
+body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour-target) {
+  opacity: 0.32;
 }
 
 /* Eyedropper mode — when picking a color from a board image, the
