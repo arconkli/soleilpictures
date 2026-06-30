@@ -3526,6 +3526,8 @@ body {
 }
 .cnv-tool-sep { height: 1px; background: var(--line-1); margin: 3px 4px; }
 .cnv-add-wrap { position: relative; }
+/* The open menu must paint ABOVE the rail tooltips (.cnv-tool[data-tip]::after is
+   z-index 60) — without this it has no z-index (0) and hides under them. */
 .cnv-add-menu {
   position: absolute;
   left: 38px;
@@ -3540,7 +3542,10 @@ body {
   flex-direction: column;
   gap: 2px;
   overflow: hidden;
+  z-index: 70;
 }
+/* While the + menu is open, don't also float the button's own "Add" tooltip over it. */
+.cnv-add-wrap .cnv-tool.active[data-tip]::after { display: none; }
 .cnv-add-menu button {
   height: 28px;
   border: 0;
@@ -8049,8 +8054,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
-  padding: 26px 30px;
+  gap: 14px;
+  padding: 22px 24px;
+  min-width: 320px;
   border-radius: var(--radius-lg);
   background: rgba(16, 16, 20, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -8086,9 +8092,10 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   from { opacity: 0; transform: translateY(2px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-/* One muted line under the headline naming the range — breadth without a wall
-   of options. */
+/* Breadth subline hidden for a minimal, simple panel — the hero + tiles already
+   show the range, so the extra sentence is noise. (Kept in markup; reversible.) */
 .cnv-empty-tiles-breadth {
+  display: none;
   margin-top: -3px;
   max-width: 340px;
   font: 500 12px/1.4 var(--font-sans);
@@ -8097,8 +8104,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .cnv-empty-tiles-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
   justify-items: center;
 }
 /* Image-first hero tile — the primary CTA, since adding an image is the single
@@ -8137,9 +8145,9 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 8px;
   width: 84px;
-  padding: 14px 8px;
+  padding: 12px 8px;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -8149,8 +8157,8 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .cnv-empty-tile:hover { transform: translateY(-2px); background: var(--bg-hov); }
-.cnv-empty-tile:hover .cnv-empty-tile-ico,
 .cnv-empty-tile:hover .cnv-empty-tile-lbl { color: var(--ink-0); }
+.cnv-empty-tile:hover .cnv-empty-tile-ico { color: var(--soleil); }
 .cnv-empty-tile:active { transform: translateY(0); background: var(--bg-act); }
 .cnv-empty-tile:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
 /* Neutral ink (NOT gold) — icons read like the rest of the app's toolbars:
@@ -8163,7 +8171,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .cnv-empty-tile-lbl {
   font: 600 13px/1.2 var(--font-sans);
-  color: var(--ink-1);
+  color: var(--ink-2);
 }
 .cnv-empty-tiles-sub {
   font: 500 12px/1.5 var(--font-sans);
