@@ -29,7 +29,7 @@ import { paletteLayout, readableInk, hasCustomName } from './paletteLayout.js';
 // Bump when the rendered output changes materially. Stored thumbnails carry
 // this in boards.thumb_version; tiles re-render stale versions in the
 // background (useThumbnailBackfill) so the new look rolls out lazily.
-export const RENDER_VERSION = 3;
+export const RENDER_VERSION = 4;
 
 // Output frame: 16:9 ≈ both the grid tile cover and OG's 1.91:1. Fixed
 // supersample (NOT device DPR) so the stored artifact is deterministic
@@ -597,13 +597,18 @@ function drawBoardLinkInterior(ctx, c, x, y, w, h, boards) {
   ctx.restore();
 }
 
-function drawBoardInterior(ctx, c, x, y, w, h, boards) {
+function drawBoardInterior(ctx, c, x, y, w, h, boards, img) {
   const board = boards?.[c.id];
   const metaH = Math.min(44, h * 0.36);
   const coverH = Math.max(1, h - metaH);
-  // Cover region: the board's own bg color (like .bc-thumb-wrap).
+  // Cover region: the child board's own stored thumbnail when we have it —
+  // so a parent tile lets you see what's inside each nested board, instead
+  // of a flat rectangle. Falls back to the board's bg color (like
+  // .bc-thumb-wrap) when the child has no thumbnail yet. The bg fill is
+  // painted first so a transparent-edged cover (or no cover) still reads.
   ctx.fillStyle = board?.bg_color || T.bg2;
   ctx.fillRect(x, y, w, coverH);
+  if (img) drawCover(ctx, img, x, y, w, coverH);
   if (coverH > 26 && w > 60) {
     drawPill(ctx, 'BOARD', x + 10, y + 10, {
       font: `700 9px ${FONT_DISPLAY}`, color: T.ink1, bg: 'rgba(10,10,12,.7)', padX: 7, padY: 3,
@@ -1071,6 +1076,11 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
       const src = (c.kind === 'image' && c.src) ? c.src
         : (c.kind === 'pdf' && c.src) ? c.src
         : (c.kind === 'link' && c.image) ? c.image
+        // Nested boards: load the child board's stored thumbnail (an r2:
+        // sentinel) so drawBoardInterior can paint the real preview. A
+        // child thumb is itself a pre-rendered bitmap — drawing it does
+        // NOT recurse, so deep nesting costs one bitmap per visible child.
+        : (c.kind === 'board') ? (boards?.[c.id]?.thumb_key || null)
         : null;
       if (!src) continue;
       loadJobs.push((async () => {
@@ -1143,7 +1153,7 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
       }
       if (c.kind === 'board') {
         beginCard(ctx, x, y, w, h, ppu, { fill: T.bg3 });
-        drawBoardInterior(ctx, c, x, y, w, h, boards);
+        drawBoardInterior(ctx, c, x, y, w, h, boards, imageMap.get(c.id) || null);
         endCard(ctx);
         innerBorder(ctx, x, y, w, h, 8, T.line2);
         continue;

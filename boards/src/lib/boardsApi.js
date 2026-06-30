@@ -762,6 +762,26 @@ export async function getBoardBgColor(boardId) {
   return data?.bg_color || null;
 }
 
+// Direct child boards of a parent, with just the fields the thumbnail
+// renderer needs to paint each nested board's stored preview
+// (drawBoardInterior reads thumb_key + bg_color; labelForCard reads name).
+// Returns a boards-shaped map { [childId]: row } so it can be passed straight
+// into renderThumbnailBlob({ boards }). Used by the yboard regen path, which
+// has no in-memory boards map. Empty object on error. One indexed select,
+// gated upstream by the 8s throttle + content-hash dedup.
+export async function getChildBoardThumbs(parentBoardId) {
+  if (!parentBoardId) return {};
+  const { data, error } = await supabase
+    .from('boards')
+    .select('id, name, thumb_key, thumb_version, thumb_updated_at, bg_color')
+    .eq('parent_board_id', parentBoardId)
+    .is('deleted_at', null);
+  if (error) { console.warn('[getChildBoardThumbs]', error); return {}; }
+  const map = {};
+  for (const b of data || []) map[b.id] = b;
+  return map;
+}
+
 // Stamp a board's stored-preview pointer (thumb_key / card_count) after the
 // editing client regenerates its thumbnail. Deliberately does NOT touch
 // `updated_at` or log to board_meta_history (unlike updateBoardMeta) so the
