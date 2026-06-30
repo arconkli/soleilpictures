@@ -20,6 +20,7 @@ import { getCanvasScale } from '../../lib/canvasScale.js';
 import { R2Image } from '../R2Image.jsx';
 import { RichNoteEditor } from '../RichNoteEditor.jsx';
 import { resolveSrc } from '../../lib/r2.js';
+import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { FileCard } from './FileCard.jsx';
 import { Icon } from '../Icon.jsx';
 import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link } from '../../lib/icons.js';
@@ -98,7 +99,7 @@ function CellContent({ cell, rect, seqIndex, seqFormat }) {
   return null; // empty cell — placeholder/chooser drawn by the wrapper
 }
 
-export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null }) {
+export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true }) {
   useGridCellsVersion(cardYMap);
   const [preview, setPreview] = useState(null);        // { layout } during a divider drag
   const [dragId, setDragId] = useState(null);          // id of the divider being dragged
@@ -168,11 +169,15 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const linked = !!model.templateId;
 
   return (
+    <>
     <div className="gridc" data-grid-id={card.id}>
-      {linked && (
+      {linked && annotationsVisible && (
         // Purely informational (pointer-events:none in CSS) so it never swallows a
         // selection click or unlinks by accident — unlink via right-click → Unlink.
-        <span className="gridc-linked-badge" title="Linked layout — size & dividers reflow every linked Grid. Right-click → Unlink to detach.">Linked</span>
+        // Per-family colour (by templateId) so distinct linked families read apart;
+        // follows the top-left comments-eye toggle (hidden when annotations are off).
+        <span className="gridc-linked-badge" style={{ '--link-color': pickPresenceColor(model.templateId) }}
+              title="Linked layout — size & dividers reflow every linked Grid. Right-click → Unlink to detach.">Linked</span>
       )}
       {rects.map((r) => {
         const cell = model.cells[r.id];
@@ -276,16 +281,24 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
           </div>
         );
       })}
-      {editable && isSelected && gridActions.stampNeighbor && ['top', 'bottom', 'left', 'right'].map((dir) => (
-        <button
-          key={dir}
-          type="button"
-          className={`gridc-add gridc-add-${dir}`}
-          title={`Stamp a Grid ${dir}`}
-          onPointerDown={stop}
-          onClick={(e) => { e.stopPropagation(); gridActions.stampNeighbor(card.id, dir); }}
-        ><span className="gridc-ico"><Icon as={Plus} size={13} /></span></button>
-      ))}
     </div>
+    {/* Directional "+" live OUTSIDE .gridc (a sibling overlay in the card box) so
+        they straddle the edges and never cover interior cell tools. Shown when the
+        Grid is selected; the selected card has overflow:visible so they paint. */}
+    {editable && isSelected && gridActions.stampNeighbor && (
+      <div className="gridc-edges" aria-hidden="false">
+        {['top', 'bottom', 'left', 'right'].map((dir) => (
+          <button
+            key={dir}
+            type="button"
+            className={`gridc-add gridc-add-${dir}`}
+            title={`Stamp a Grid ${dir}`}
+            onPointerDown={stop}
+            onClick={(e) => { e.stopPropagation(); gridActions.stampNeighbor(card.id, dir); }}
+          ><span className="gridc-ico"><Icon as={Plus} size={13} /></span></button>
+        ))}
+      </div>
+    )}
+    </>
   );
 }

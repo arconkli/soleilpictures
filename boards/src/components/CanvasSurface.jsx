@@ -1225,6 +1225,7 @@ export function CanvasSurface({
   // as "the app is broken"). Returns true if it handled the tool.
   const placeToolAt = (pos) => {
     if (!PLACE_TOOLS.includes(selectedTool)) return false;
+    markViewSettled(); // keep the placed card where clicked (no first-card auto-fit)
     noteCreateIntent('tool_place');
     switch (selectedTool) {
       case 'board':   mutators.addNewBoard?.(pos); break;
@@ -1265,6 +1266,12 @@ export function CanvasSurface({
     // the previous board's viewport.
     fitOnceForRef.current = null;
   }, [board.id]);
+  // Mark the camera "settled" for this board so the empty→first-card auto-fit
+  // below won't zoom-frame (and recenter) a card the user just placed. Called
+  // synchronously from every user create entry point BEFORE the card is added,
+  // so the fit useLayoutEffect early-returns. Initial-load sync-retry is
+  // unaffected (it runs before any user placement).
+  const markViewSettled = useCallback(() => { fitOnceForRef.current = board.id; }, [board.id]);
   // useLayoutEffect (not useEffect): runs after DOM mutations but
   // BEFORE the browser paints. setState inside a layout effect
   // triggers a sync re-render in the same commit phase, so the cards
@@ -5320,6 +5327,7 @@ export function CanvasSurface({
     if (e.target.closest('.card, .cnv-tool, .cnv-zoom, .inbox')) return;
     e.preventDefault();
     closeCardMenu();
+    markViewSettled(); // a create from this menu should land at the cursor, not auto-fit
     const pos = clientToCanvas(e.clientX, e.clientY);
     setBgCtx({ open: true, x: e.clientX, y: e.clientY, canvasPos: pos });
   };
@@ -5494,6 +5502,9 @@ export function CanvasSurface({
     const addActions = buildAddActions(pos, 'context_menu');
     const byId = (id) => addActions.find(a => a.id === id);
     return [
+      // Grid gets a direct top-level entry (drops at the cursor) — it's a
+      // first-class card type, not buried in the Add submenu.
+      { id: 'grid-top', label: 'Grid', run: byId('grid').run },
       { id: 'add', label: 'Add', submenu: addActions
         .filter(a => a.group === 'card' && a.id !== 'addurl')
         .map(a => ({ id: a.id, label: a.label, run: a.run })) },
@@ -6312,6 +6323,7 @@ export function CanvasSurface({
       inner = <GridCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
                         templates={gridTemplates} seqIndex={gridSeqIndex.get(c.id)} seqFormat={gridSeqFormatFor(c)}
                         isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
+                        annotationsVisible={commentsVisible}
                         gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
     }
     else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}
@@ -6967,7 +6979,7 @@ export function CanvasSurface({
     // 'Board' is now a first-class toolbar tool, and 'Text note' is the toolbar's
     // Add-note tool — so neither is repeated here. 'Shape' moved off the toolbar
     // (boards took its slot) and lives here now.
-    { label: 'Grid', action: () => { noteCreateIntent('add_menu'); mutators.addGrid?.(resolvePastePos().pos, { preset: 'storyboard-1-2' }); } },
+    { label: 'Grid', action: () => { markViewSettled(); noteCreateIntent('add_menu'); mutators.addGrid?.(resolvePastePos().pos, { preset: 'storyboard-1-2' }); } },
     { label: 'Doc', action: () => { noteCreateIntent('add_menu'); mutators.addDocCard?.(); } },
     { label: 'File', action: () => { noteCreateIntent('add_menu'); openFilePicker(resolvePastePos().pos); } },
     { label: 'Shape', action: () => setSelectedTool('shape') },
@@ -8154,7 +8166,7 @@ export function CanvasSurface({
         // row signal that this is also where you write scripts, organize, and drop
         // any asset. ("Any file" is a deliberate upsell tease: an image uploads free,
         // a generic file hits the existing paid-upgrade prompt in ingestFiles.)
-        const runTile = (id) => buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run();
+        const runTile = (id) => { markViewSettled(); return buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run(); };
         return (
         <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}`}
              aria-label="Add your first image"
@@ -8218,7 +8230,7 @@ export function CanvasSurface({
             {items.map((t) => (
               <button key={t.id} type="button" className="cnv-quick-add-item" role="menuitem"
                       onPointerDown={(e) => e.stopPropagation()}
-                      onClick={() => { closeQuickAdd(); t.run(); }}>
+                      onClick={() => { markViewSettled(); closeQuickAdd(); t.run(); }}>
                 <span className="cnv-quick-add-ico"><Icon as={t.icon} size={18} weight="regular" /></span>
                 <span className="cnv-quick-add-lbl">{t.label}</span>
               </button>

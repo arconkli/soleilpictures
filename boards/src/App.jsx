@@ -1717,6 +1717,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (ncm) Object.entries(carry).forEach(([k, val]) => ncm.set(k, val));
       return id;
     };
+    // Put a linked Grid family into ONE group so they move together (drag one →
+    // all move) + draw a soft outline. Reuses the source's group if it already
+    // has one, so a 3rd stamp joins the SAME group. Runs inside the caller's
+    // transaction. (Groups exist in the Yjs shell only; LocalBoardsApp no-ops.)
+    const ensureGridGroup = (m, sourceCy, memberIds) => {
+      const gm = groupsMap(); if (!gm) return null;
+      let groupId = sourceCy.get('groupId');
+      if (!groupId) {
+        groupId = `g-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        const g = new Y.Map();
+        g.set('id', groupId);
+        g.set('name', 'Grid');
+        g.set('outline', true);
+        g.set('color', null);
+        g.set('width', 1);
+        g.set('createdAt', Date.now());
+        g.set('createdBy', user?.id || null);
+        gm.set(groupId, g);
+      }
+      for (const id of memberIds) { const ym = m.get(id); if (ym) ym.set('groupId', groupId); }
+      return groupId;
+    };
     // Directional "+": stamp an empty, layout-identical, linked Grid on `dir`,
     // joined to the source's sequence and auto-numbered by position.
     const stampGridNeighbor = (gridId, dir) => {
@@ -1731,7 +1753,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       breakUndo();
       ydoc.transact(() => {
         const { tplId, seqId, carry } = ensureTemplateAndSequence(cy);
-        placeLinkedGrid(m, tplId, seqId, carry, nx, ny, w, h);
+        const newId = placeLinkedGrid(m, tplId, seqId, carry, nx, ny, w, h);
+        ensureGridGroup(m, cy, [gridId, newId]);
       }, 'local');
     };
     // Bulk matrix: replicate the source Grid into a cols×rows lattice (source at
@@ -1746,12 +1769,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       breakUndo();
       ydoc.transact(() => {
         const { tplId, seqId, carry } = ensureTemplateAndSequence(cy);
+        const newIds = [];
         for (let r = 0; r < R; r++) {
           for (let c = 0; c < C; c++) {
             if (r === 0 && c === 0) continue; // source occupies the first cell
-            placeLinkedGrid(m, tplId, seqId, carry, x0 + c * (w + gx), y0 + r * (h + gy), w, h);
+            newIds.push(placeLinkedGrid(m, tplId, seqId, carry, x0 + c * (w + gx), y0 + r * (h + gy), w, h));
           }
         }
+        ensureGridGroup(m, cy, [gridId, ...newIds]);
       }, 'local');
     };
     const setGridSequencePattern = (seqId, pattern) => {

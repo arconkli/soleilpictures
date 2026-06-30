@@ -241,16 +241,26 @@
   color: var(--ink-1, #d0d0d4);
   pointer-events: none;
 }
+/* The dot colour is set per linked family via --link-color (inline, by templateId)
+   so distinct families read apart; falls back to gold for an un-templated badge. */
+.gridc-linked-badge {
+  border-color: color-mix(in srgb, var(--link-color, var(--soleil, #ffa500)) 30%, rgba(255,255,255,.06));
+}
 .gridc-linked-badge::before {
   content: '';
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--soleil, #ffa500);
-  box-shadow: 0 0 6px var(--soleil-soft, rgba(255,165,0,.14));
+  background: var(--link-color, var(--soleil, #ffa500));
+  box-shadow: 0 0 6px color-mix(in srgb, var(--link-color, var(--soleil, #ffa500)) 40%, transparent);
 }
 
 /* ── directional + (stamp a neighbor) ─────────────────────────────────────── */
+/* The + live in a sibling overlay (.gridc-edges) spanning the card box, and sit
+   just OUTSIDE each edge so they never cover interior cell tools. The wrapper is
+   click-through; only the buttons are live. They paint because a selected grid card
+   has overflow:visible. */
+.gridc-edges { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
 .gridc-add {
   position: absolute;
   width: 22px;
@@ -270,18 +280,17 @@
   pointer-events: none;
   transition: opacity var(--dur-fast, 120ms) var(--ease, ease), transform var(--dur-fast, 120ms) var(--ease, ease),
     color var(--dur-quick, 80ms) var(--ease, ease), border-color var(--dur-quick, 80ms) var(--ease, ease);
-  z-index: 4;
 }
-.gridc:hover .gridc-add { opacity: 1; pointer-events: auto; }
+.card-kind-grid:hover .gridc-add { opacity: 1; pointer-events: auto; }
 .gridc-add:hover { color: var(--soleil, #ffa500); border-color: color-mix(in srgb, var(--soleil, #ffa500) 55%, transparent); }
-.gridc-add-top { top: 5px; left: 50%; transform: translateX(-50%) scale(0.86); }
-.gridc-add-bottom { bottom: 5px; left: 50%; transform: translateX(-50%) scale(0.86); }
-.gridc-add-left { left: 5px; top: 50%; transform: translateY(-50%) scale(0.86); }
-.gridc-add-right { right: 5px; top: 50%; transform: translateY(-50%) scale(0.86); }
-.gridc:hover .gridc-add-top { transform: translateX(-50%) scale(1); }
-.gridc:hover .gridc-add-bottom { transform: translateX(-50%) scale(1); }
-.gridc:hover .gridc-add-left { transform: translateY(-50%) scale(1); }
-.gridc:hover .gridc-add-right { transform: translateY(-50%) scale(1); }
+.gridc-add-top { top: -11px; left: 50%; transform: translateX(-50%) scale(0.86); }
+.gridc-add-bottom { bottom: -11px; left: 50%; transform: translateX(-50%) scale(0.86); }
+.gridc-add-left { left: -11px; top: 50%; transform: translateY(-50%) scale(0.86); }
+.gridc-add-right { right: -11px; top: 50%; transform: translateY(-50%) scale(0.86); }
+.card-kind-grid:hover .gridc-add-top { transform: translateX(-50%) scale(1); }
+.card-kind-grid:hover .gridc-add-bottom { transform: translateX(-50%) scale(1); }
+.card-kind-grid:hover .gridc-add-left { transform: translateY(-50%) scale(1); }
+.card-kind-grid:hover .gridc-add-right { transform: translateY(-50%) scale(1); }
 
 /* The inline matrix control floats just BELOW a selected Grid. The base .card has
    overflow:hidden + contain:paint, which would clip anything outside the card box —
@@ -295,7 +304,7 @@
    match the app's premium floating controls. */
 .grid-matrix-ctl {
   position: absolute;
-  bottom: -40px;
+  bottom: -56px; /* clear of the bottom directional + (which straddles the edge) */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
