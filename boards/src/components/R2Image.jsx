@@ -46,6 +46,45 @@ const SIGN_RETRY_BASE_MS = 800; // backoff: 0.8s, 1.6s, 3.2s, 6.4s
 // avoids even scheduling the call). Cleared only by a page reload.
 const _primeAttempted = new Set();
 
+// ── Cache-bust for in-place-overwritten objects (board thumbnails) ─────────
+// Most R2 objects are content-stable (per-UUID keys), so the party serves them
+// with `immutable, max-age=7d` and the same signed URL is reused forever — a
+// browser-disk-cache hit on every view. Board thumbnails break that assumption:
+// they reuse a STABLE key (<ws>/thumbs/<id>.webp) and are overwritten in place
+// when a board (or one of its nested boards) changes. Under `immutable`, the
+// browser then shows the OLD bytes for up to 7 days and won't even revalidate.
+//
+// Fix: when a thumbnail's content version (thumb_updated_at) is newer than the
+// last version we minted a URL for, force a fresh presign. The new X-Amz-Date
+// produces a new URL string → a browser-cache MISS → fresh bytes; and the new
+// URL is legitimately immutable (that version's bytes never change — the next
+// version gets its own URL). Persisted so an UNCHANGED thumbnail still reuses
+// its URL across sessions (no needless re-download), only changed ones re-sign.
+const _BUST_LS = 'soleil:thumbbust';
+let _bustMap = null;
+function bustMap() {
+  if (_bustMap) return _bustMap;
+  _bustMap = new Map();
+  try {
+    const raw = (typeof localStorage !== 'undefined') && localStorage.getItem(_BUST_LS);
+    if (raw) for (const [k, v] of Object.entries(JSON.parse(raw))) _bustMap.set(k, v);
+  } catch (_) { /* disabled/quota storage — in-memory only */ }
+  return _bustMap;
+}
+function shouldBust(key, version) {
+  return bustMap().get(key) !== String(version);
+}
+function markBust(key, version) {
+  const m = bustMap();
+  m.set(key, String(version));
+  try {
+    if (typeof localStorage === 'undefined') return;
+    // Bound the map (drop oldest) so it can't grow past the LS quota.
+    while (m.size > 2000) { const oldest = m.keys().next().value; m.delete(oldest); }
+    localStorage.setItem(_BUST_LS, JSON.stringify(Object.fromEntries(m)));
+  } catch (_) { /* quota — keep the in-memory map, skip persistence */ }
+}
+
 // A decoded original above this many pixels costs more GPU/decode memory
 // than the one-time blur-up it would avoid (a 12MP photo decodes to ~48MB;
 // dozens of those alive at once is how canvas raster tiles get dropped).
@@ -163,6 +202,12 @@ function BlockedPlaceholder({ rootRef, ...rest }) {
 
 // ── Basic (unchanged behavior) ──────────────────────────────────────────
 function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
+                        // `bust` (optional): a content-version token (board
+                        // thumb_updated_at) that forces a fresh presign when it
+                        // changes, so an in-place R2 overwrite isn't hidden by
+                        // the immutable browser cache. Destructured (not in
+                        // ...rest) so it never leaks onto the DOM.
+                        bust,
                         // progressive-only props are accepted + ignored here so
                         // they never leak onto the DOM if mis-passed.
                         backfillEnabled, upgradeToFull, boardId, ...rest }) {
@@ -197,12 +242,20 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
     let refreshTimer = null;
     let retryTimer = null;
     let attempt = 0;
+    const isR2 = typeof src === 'string' && src.startsWith('r2:');
+    const key = isR2 ? src.slice(3) : null;
     const tick = async () => {
-      const resolved = await resolveSrc(src);
+      // When a content version (bust) newer than the one we last minted is
+      // present, force a fresh presign so the URL string changes and the
+      // immutable browser cache is bypassed (see the bust tracker above).
+      const wantBust = isR2 && bust != null && shouldBust(key, bust);
+      const resolved = wantBust
+        ? await getSignedUrl(key, { force: true })
+        : await resolveSrc(src);
       if (cancelled) return;
       if (!resolved) {
         // Transient sign failures: retry with backoff before showing the lock.
-        if (typeof src === 'string' && src.startsWith('r2:') && attempt < MAX_SIGN_RETRIES) {
+        if (isR2 && attempt < MAX_SIGN_RETRIES) {
           attempt += 1;
           if (attempt >= 2) setSlowRetry(true);
           retryTimer = setTimeout(tick, SIGN_RETRY_BASE_MS * 2 ** (attempt - 1));
@@ -211,6 +264,9 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
         setFailed(true);
         return;
       }
+      // Record the version only after a successful sign, so a transient
+      // failure retries the bust next time instead of silently skipping it.
+      if (wantBust) markBust(key, bust);
       attempt = 0;
       setSlowRetry(false);
       setUrl(resolved);
@@ -225,7 +281,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
     };
     tick();
     return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
-  }, [src, visible]);
+  }, [src, visible, bust]);
 
   if (failed) return <BlockedPlaceholder {...rest} />;
 
