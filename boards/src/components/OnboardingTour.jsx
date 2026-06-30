@@ -125,7 +125,11 @@ export function OnboardingTour({ step, onEvent, onSkip, onView }) {
         const ar = anchorEl ? anchorEl.getBoundingClientRect() : null;
         const useAnchor = !!(ar && VISIBLE(ar) && !interacting);
         setHighlight(useAnchor ? anchorEl : null);
-        const next = useAnchor ? place(ar, pr, step.placement, region) : centered(pr, region);
+        // centerPill steps (the final "add anything" step) keep the ring on the
+        // target but center the pill so it clears the revealed rail-tooltip column.
+        const next = (useAnchor && !step.centerPill)
+          ? place(ar, pr, step.placement, region)
+          : centered(pr, region);
         const prev = posRef.current;
         if (!prev || Math.abs(prev.top - next.top) > 0.5 ||
             Math.abs(prev.left - next.left) > 0.5 ||
