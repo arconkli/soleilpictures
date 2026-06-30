@@ -1,0 +1,80 @@
+/* Grid card — a container of nested cells (see GridCard.jsx). The outer .card
+   wrapper (CanvasSurface) owns position/size/selection; .gridc fills it. */
+
+.gridc {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--surface-1, #14141a);
+  box-shadow: inset 0 0 0 1px var(--hairline, rgba(255, 255, 255, 0.10));
+}
+.gridc-empty { background: var(--surface-1, #14141a); }
+
+/* Each cell is absolutely positioned in the card's local space. */
+.gridc-cell {
+  position: absolute;
+  overflow: hidden;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface-2, #1b1b22);
+}
+.gridc-cell.is-empty {
+  background:
+    repeating-linear-gradient(45deg,
+      transparent 0, transparent 9px,
+      var(--hairline, rgba(255, 255, 255, 0.035)) 9px,
+      var(--hairline, rgba(255, 255, 255, 0.035)) 10px);
+}
+
+/* Cell content fills the cell. Image crop-to-fill is the default; the inline
+   style on the <img> sets object-fit/position, this is the layout + fallback. */
+.gridc-cell img.gc-img,
+.gridc-cell .gc-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gridc-cell .gc-text {
+  width: 100%;
+  height: 100%;
+  padding: 8px 10px;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-0, #ececf1);
+  word-break: break-word;
+}
+.gridc-cell .gc-text :where(p, h1, h2, h3, ul, ol) { margin: 0 0 4px; }
+
+.gridc-cell .gc-video { width: 100%; height: 100%; object-fit: cover; background: #000; display: block; }
+.gridc-cell .gc-loading { width: 100%; height: 100%; background: var(--surface-3, #22222b); }
+
+.gridc-cell .gc-link {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+  color: var(--ink-0, #ececf1);
+}
+.gridc-cell .gc-link-img { width: 100%; flex: 1 1 auto; min-height: 0; object-fit: cover; }
+.gridc-cell .gc-link-meta { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 12px; }
+.gridc-cell .gc-link-fav { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+.gridc-cell .gc-link-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The file cell reuses FileCard, which brings its own chrome; clip it. */
+.gridc-cell-file .filec { width: 100%; height: 100%; }
+
+/* Dividers — thin hairlines between cells. Interactive handles (P2) widen the
+   hit area and add the resize cursor; here they are a visual seam only. */
+.gridc-divider {
+  position: absolute;
+  pointer-events: none;
+  background: var(--hairline, rgba(255, 255, 255, 0.12));
+}
+.gridc-divider-x { cursor: col-resize; }
+.gridc-divider-y { cursor: row-resize; }

@@ -245,6 +245,12 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   const docPageContent = ydoc.getMap('docPageContent');
   const docBookmarks = ydoc.getMap('docBookmarks');
   const docComments = ydoc.getMap('docComments');
+  // Grid (modular grid-template card) shared state. gridTemplates: id →
+  // { id, name, layout } shared by all linked Grids on the board, so editing the
+  // layout reflows them live. gridSequences: id → { id, name, pattern, format } —
+  // sequence config only (order is derived spatially, not stored). See gridState.js.
+  const gridTemplates = ydoc.getMap('gridTemplates');
+  const gridSequences = ydoc.getMap('gridSequences');
 
   // captureTimeout (Yjs default 500ms) coalesces transactions fired within
   // the window into ONE undo step — desirable for gesture commits (a drag/
@@ -253,7 +259,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   // `breakUndo` helper in buildMutators so two quick clicks don't collapse
   // into a single Cmd+Z. Made explicit here to document the intent.
   const undoManager = new Y.UndoManager(
-    [cards, arrows, strokes, groups, docPages, docPageContent, docBookmarks, docComments],
+    [cards, arrows, strokes, groups, docPages, docPageContent, docBookmarks, docComments, gridTemplates, gridSequences],
     { trackedOrigins: new Set(['local']), captureTimeout: 500 }
   );
 
@@ -573,6 +579,10 @@ export function restoreVersionInto(ydoc, b64) {
     docBookmarks.forEach((_v, k) => docBookmarks.delete(k));
     const docComments = ydoc.getMap('docComments');
     docComments.forEach((_v, k) => docComments.delete(k));
+    const gridTemplates = ydoc.getMap('gridTemplates');
+    gridTemplates.forEach((_v, k) => gridTemplates.delete(k));
+    const gridSequences = ydoc.getMap('gridSequences');
+    gridSequences.forEach((_v, k) => gridSequences.delete(k));
   }, 'restore');
   const _t0 = perf.isEnabled() ? performance.now() : 0;
   Y.applyUpdate(ydoc, bytes, 'restore');

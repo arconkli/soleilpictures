@@ -2,11 +2,12 @@ import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallbac
 import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
+import { spatialOrder } from '../lib/gridSequence.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard,
+  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
 } from './cards.jsx';
 import { RichDocCard } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
@@ -29,7 +30,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -330,6 +331,8 @@ function GuideLabel({ cx, cy, text, zoom }) {
 
 export function CanvasSurface({
   board, boards, boardsReady = true, cards, arrows, strokes, groups = [],
+  gridTemplates = {},      // id → { id, name, layout }  — shared Grid layouts
+  gridSequences = {},      // id → { id, name, pattern, format } — sequence config
   ydoc, // raw Y.Doc — needed by doc cards to access their per-card YMap
   getAwareness,            // () => Awareness | null  — for live presence
   currentUser,             // { id, name, color }     — for awareness localState
@@ -5277,6 +5280,7 @@ export function CanvasSurface({
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
     { id: 'board',   group: 'card', label: 'Cluster', icon: LayoutGrid,    run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
+    { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); mutators.addImageAt?.(pos); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
     { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method); mutators.addNote?.(pos); } },
@@ -5944,6 +5948,28 @@ export function CanvasSurface({
     return out;
   }, [marquee, cards]);
 
+  // Spatial sequence numbering: for each named sequence, read its member Grids
+  // in the chosen pattern and map gridId → 0-based index. Keyed on card positions
+  // + sequence config, so inserting/moving a Grid auto-renumbers with no writes.
+  // The [#]/[A] tags inside cells resolve against this index (see GridCard).
+  const gridSeqIndex = useMemo(() => {
+    const m = new Map();
+    const bySeq = new Map();
+    for (const c of (cards || [])) {
+      if (c.kind === 'grid' && c.seqId) {
+        if (!bySeq.has(c.seqId)) bySeq.set(c.seqId, []);
+        bySeq.get(c.seqId).push(c);
+      }
+    }
+    for (const [seqId, gs] of bySeq) {
+      const pattern = gridSequences[seqId]?.pattern || 'z';
+      spatialOrder(gs.map((g) => ({ id: g.id, x: g.x, y: g.y, w: g.w, h: g.h })), pattern)
+        .forEach((id, i) => m.set(id, i));
+    }
+    return m;
+  }, [cards, gridSequences]);
+  const gridSeqFormatFor = (c) => (c?.seqId && gridSequences[c.seqId]?.format) || null;
+
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
     const dragDelta = inDrag ? drag : null;
@@ -6152,6 +6178,16 @@ export function CanvasSurface({
                                                         label={c.label} onUpdate={onUpdate}
                                                         editLabelAt={editFieldSignal.id === c.id && editFieldSignal.field === 'shapeLabel' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'art')       inner = <ArtCanvasCard bg={c.bg || '#ffffff'} />;
+    else if (c.kind === 'grid') {
+      // Grid card. cardYMap gives GridCard access to its nested gridCells Y.Map
+      // (cell content). Layout comes from the shared template when linked, else
+      // from c.layout. seqIndex/seqFormat (label tags) + interactive dividers land
+      // in later phases; P1 renders the static cell layout read-only.
+      const cardYMap = ydoc?.getMap?.('cards')?.get?.(c.id) || null;
+      inner = <GridCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
+                        templates={gridTemplates} seqIndex={gridSeqIndex.get(c.id)} seqFormat={gridSeqFormatFor(c)}
+                        isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate} />;
+    }
     else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}
                                                        sizeBytes={c.sizeBytes} ext={c.ext} title={c.title}
                                                        onUpdate={onUpdate} autoFocus={af}

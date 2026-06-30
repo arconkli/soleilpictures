@@ -26,6 +26,7 @@ export {
   Tray as Inbox,
   Envelope,
   SquaresFour as LayoutGrid,
+  GridFour,
   ListBullets as List,
   Cursor as MousePointer2,
   DotsSixVertical as GripVertical,

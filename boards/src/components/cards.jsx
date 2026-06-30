@@ -38,6 +38,7 @@ import {
 import { Icon } from './Icon.jsx';
 import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
+import { GridCard } from './cards/GridCard.jsx';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -1868,6 +1869,7 @@ const MemoShapeCard      = memo(ShapeCard,      shallowEqualIgnoreFns);
 const MemoAudioCard      = memo(AudioCard,      shallowEqualIgnoreFns);
 const MemoPdfCard        = memo(PdfCard,        shallowEqualIgnoreFns);
 const MemoFileCard       = memo(FileCard,       shallowEqualIgnoreFns);
+const MemoGridCard       = memo(GridCard,       shallowEqualIgnoreFns);
 
 export {
   MemoBoardCard     as BoardCard,
@@ -1883,4 +1885,5 @@ export {
   MemoAudioCard     as AudioCard,
   MemoPdfCard       as PdfCard,
   MemoFileCard      as FileCard,
+  MemoGridCard      as GridCard,
 };

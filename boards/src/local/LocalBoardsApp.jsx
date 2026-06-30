@@ -8,6 +8,7 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { presetTree } from '../lib/gridLayout.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -600,6 +601,23 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
+  // Grid card. Local shell has no Yjs, so layout + cell content live as plain
+  // fields on the card (readGridModel normalizes both paths). Always unlinked
+  // here — shared templates need the per-board Y.Doc the local shell lacks.
+  const addGrid = (clickPos = null, opts = {}) => {
+    const preset = opts.preset || 'storyboard-1-2';
+    const w = opts.w || 360, h = opts.h || 300;
+    const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
+    const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
+    const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+    addCard({
+      id: createId('grid'), kind: 'grid',
+      layout: presetTree(preset, mkCellId),
+      cells: {}, templateId: null, seqId: null,
+      x: Math.max(8, x), y: Math.max(8, y), w, h,
+    });
+  };
+
   // Chat-attachment drops piggy-back on the INBOX_MIME drag protocol so
   // CanvasSurface still calls onDropInboxItem for them.
   const dropInboxItem = (_inboxId, card) => addCard(card);
@@ -647,6 +665,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addPdfAt,
     addNewBoard,
     addPalette,
+    addGrid,
     addShape,
     addStroke,
     replaceStrokes,

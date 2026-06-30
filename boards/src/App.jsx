@@ -99,6 +99,8 @@ import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
+import { initCardGridStore } from './lib/gridState.js';
+import { presetTree } from './lib/gridLayout.js';
 import { uploadImage, uploadPdf } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
@@ -1531,6 +1533,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const canUndo = () => !!(undoManager && undoManager.undoStack.length > 0);
     const canRedo = () => !!(undoManager && undoManager.redoStack.length > 0);
 
+    // Grid card (modular grid-template card). Mirrors addDocCard: a fresh card
+    // plus a per-card Y store (gridCells/gridMeta) initialized in the SAME
+    // transaction (afterInsert) so create+init is ONE undo step. Unlinked by
+    // default — it carries its own `layout` tree; linking to a shared template
+    // (global sync) lands in a later phase.
+    const addGrid = (clickPos = null, opts = {}) => {
+      const preset = opts.preset || 'storyboard-1-2';
+      const w = opts.w || 360, h = opts.h || 300;
+      const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
+      const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
+      const id = `grid-${Date.now()}`;
+      const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+      const card = {
+        id, kind: 'grid',
+        templateId: opts.linkTemplateId || null,
+        seqId: null,
+        x: Math.max(8, x), y: Math.max(8, y), w, h,
+      };
+      if (!opts.linkTemplateId) card.layout = presetTree(preset, mkCellId);
+      addCard(card, { afterInsert: (cardYM) => { if (cardYM) initCardGridStore(ydoc, cardYM); } });
+      setAutoFocusId(id);
+    };
+
     return {
       updateCard, updateCards, deleteCard, deleteCards,
       duplicateCard, duplicateCards, addCard, addCards,
@@ -1539,7 +1564,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
-      addDocCard, addScriptCard,
+      addDocCard, addScriptCard, addGrid,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
       setBoardCover,
@@ -3807,6 +3832,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const arrows = ready ? yh.arrows : [];
     const strokes = ready ? yh.strokes : [];
     const groups = ready ? (yh.groups || []) : [];
+    const gridTemplates = ready ? (yh.gridTemplates || {}) : {};
+    const gridSequences = ready ? (yh.gridSequences || {}) : {};
     const muts = isMain ? mainMutatorsFull : splitMutatorsFull;
     const surfaceJsx = (() => {
       if (view === 'list') return (
@@ -3824,6 +3851,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return (
         <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
           <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
+                         gridTemplates={gridTemplates} gridSequences={gridSequences}
                          ydoc={yd}
                          getAwareness={yh.getAwareness}
                          peersHereByBoard={peersHereByBoard}
