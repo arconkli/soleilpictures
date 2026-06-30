@@ -8,7 +8,7 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
-import { presetTree, resizeDivider, splitCell, mergeCell } from '../lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider } from '../lib/gridLayout.js';
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
@@ -663,6 +663,13 @@ export function LocalBoardsApp({ user, signOut }) {
     localGridLayoutEdit(gridId, () => tree);
     mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
   };
+  const removeGridDivider = (gridId, path, childIndex) => {
+    const card = findLocalGrid(gridId); const cur = localGridLayout(card); if (!cur) return;
+    const { tree, removedIds } = removeDivider(cur, path, childIndex);
+    if (!removedIds.length) return;
+    localGridLayoutEdit(gridId, () => tree);
+    mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
+  };
   const setGridCellContent = (gridId, cellId, patch) =>
     mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { ...(c.cells?.[cellId] || {}), ...patch } } }));
   const clearGridCellContent = (gridId, cellId) =>
@@ -705,7 +712,7 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const stampGridNeighbor = (gridId, dir) => {
     const card = findLocalGrid(gridId); if (!card) return;
-    const w = card.w || 360, h = card.h || 300, x = card.x, y = card.y, gap = 24;
+    const w = card.w || 360, h = card.h || 300, x = card.x, y = card.y, gap = 0; // flush — share the edge line
     let nx = x, ny = y;
     if (dir === 'right') nx = x + w + gap; else if (dir === 'left') nx = x - w - gap;
     else if (dir === 'bottom') ny = y + h + gap; else if (dir === 'top') ny = y - h - gap;
@@ -784,6 +791,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
+    removeGridDivider,
     stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern,
     addShape,
     addStroke,

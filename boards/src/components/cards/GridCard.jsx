@@ -13,7 +13,7 @@
 // edits re-render. Layout / templateId / seqId arrive as plain props.
 
 import { useEffect, useReducer, useState } from 'react';
-import { computeCellRects, collectDividers, resizeDivider, GRID_TUNING } from '../../lib/gridLayout.js';
+import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
 import { resolveTagText, hasLabelTag } from '../../lib/gridSequence.js';
 import { readGridModel } from '../../lib/gridState.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
@@ -123,11 +123,19 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     const startX = e.clientX, startY = e.clientY;
     const zoom = getCanvasScale() || 1;
     const baseLayout = model.layout;
+    // Snap: lock the dragged line onto other parallel lines + the equal-split.
+    const line0 = d.axis === 'x' ? d.x + d.w / 2 : d.y + d.h / 2;
+    const targets = dividerSnapTargets(baseLayout, box, d);
+    const thresh = (GRID_TUNING.SNAP_PX || 6) / zoom;
     let lastDf = 0;
     setDragId(d.id);
     const move = (ev) => {
       const deltaScreen = d.axis === 'x' ? (ev.clientX - startX) : (ev.clientY - startY);
-      const df = (deltaScreen / zoom) / (d.parentExtent || 1);
+      let line = line0 + deltaScreen / zoom;
+      let best = thresh, snapped = line;
+      for (const t of targets) { const dist = Math.abs(line - t); if (dist < best) { best = dist; snapped = t; } }
+      line = snapped;
+      const df = (line - line0) / (d.parentExtent || 1);
       lastDf = df;
       setPreview({ layout: resizeDivider(baseLayout, d.path, d.childIndex, df) });
     };
@@ -190,21 +198,25 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
               else setDragOverCell(null);
             } : undefined}
           >
-            {isEditingText ? (
-              <div className="gc-text-edit" onPointerDown={stop}>
-                <RichNoteEditor
-                  html={cell.html || ''}
-                  autoFocus
-                  onChangeHTML={(html) => gridActions.setCellContent(card.id, r.id, { html })}
-                  onEditingChange={(ed) => { if (!ed) setEditingCellId((p) => (p === r.id ? null : p)); }}
-                  awareness={getAwareness ? (getAwareness() || null) : null}
-                  cardId={`${card.id}:${r.id}`}
-                  boardId={boardId}
-                />
-              </div>
-            ) : (
-              <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} />
-            )}
+            {/* Content sits in a clipping body so the hover toolbar (a sibling)
+                can overflow a small cell instead of being cut off. */}
+            <div className="gridc-cell-body">
+              {isEditingText ? (
+                <div className="gc-text-edit" onPointerDown={stop}>
+                  <RichNoteEditor
+                    html={cell.html || ''}
+                    autoFocus
+                    onChangeHTML={(html) => gridActions.setCellContent(card.id, r.id, { html })}
+                    onEditingChange={(ed) => { if (!ed) setEditingCellId((p) => (p === r.id ? null : p)); }}
+                    awareness={getAwareness ? (getAwareness() || null) : null}
+                    cardId={`${card.id}:${r.id}`}
+                    boardId={boardId}
+                  />
+                </div>
+              ) : (
+                <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} />
+              )}
+            </div>
 
             {editable && !isEditingText && (
               // Wrapper is pointer-events:none (CSS) so the cell bg still selects
@@ -224,31 +236,40 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
               </div>
             )}
 
-            {editable && !isEditingText && (!empty || canMerge) && (
+            {editable && !isEditingText && !empty && (
               <button
                 type="button"
                 className="gridc-cell-x"
-                title={!empty ? 'Clear cell' : 'Merge into neighbor'}
+                title="Clear cell"
                 onPointerDown={stop}
-                onClick={(e) => { e.stopPropagation(); if (!empty) gridActions.clearCellContent(card.id, r.id); else gridActions.mergeCell(card.id, r.id); }}
-              ><span className="gridc-ico"><Icon as={!empty ? Trash : X} size={13} /></span></button>
+                onClick={(e) => { e.stopPropagation(); gridActions.clearCellContent(card.id, r.id); }}
+              ><span className="gridc-ico"><Icon as={Trash} size={13} /></span></button>
             )}
           </div>
         );
       })}
       {dividers.map((d) => {
         const grab = editable && isSelected;   // resize after select (standard, avoids mis-grabs)
+        const remove = (e) => { e.stopPropagation(); gridActions.removeDivider?.(card.id, d.path, d.childIndex); };
         return (
           <div
             key={d.id}
             className={`gridc-divider gridc-divider-${d.axis}${grab ? ' is-grabbable' : ''}${dragId === d.id ? ' is-dragging' : ''}`}
             style={{ left: d.x, top: d.y, width: d.w, height: d.h }}
             onPointerDown={grab ? (e) => onDividerDown(e, d) : undefined}
-            aria-hidden="true"
-          />
+            onDoubleClick={grab ? remove : undefined}
+            title={grab ? 'Drag to resize · double-click to remove this line' : undefined}
+          >
+            {grab && (
+              <button type="button" className="gridc-divider-rm" title="Remove this line"
+                onPointerDown={stop} onClick={remove}>
+                <span className="gridc-ico"><Icon as={X} size={11} /></span>
+              </button>
+            )}
+          </div>
         );
       })}
-      {editable && isSelected && gridActions.stampNeighbor && ['top', 'bottom', 'left', 'right'].map((dir) => (
+      {editable && gridActions.stampNeighbor && ['top', 'bottom', 'left', 'right'].map((dir) => (
         <button
           key={dir}
           type="button"

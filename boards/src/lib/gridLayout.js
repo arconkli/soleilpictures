@@ -30,6 +30,8 @@ export const GRID_TUNING = Object.freeze({
                          //   applied as a CSS inset by the renderer, NOT here, so
                          //   computeCellRects stays an exact tiling.
   EDGE_ADD_ZONE_PX: 24,  // hover band at a Grid's outer edge that reveals the +
+  SNAP_PX: 6,            // divider-drag snap radius (÷zoom): lock onto aligned
+                        //   lines + the equal-split (see dividerSnapTargets)
 });
 
 // ── tree helpers ───────────────────────────────────────────────────────────
@@ -197,6 +199,51 @@ export function mergeCell(tree, cellId) {
   };
   if (!remove(next)) return { tree, removedIds: [] };
   return { tree: normalizeTree(next), removedIds: removed };
+}
+
+// Remove the line (divider) at [path, childIndex]: merge the two children it
+// separates by deleting child[childIndex+1] and giving its space to
+// child[childIndex]. Returns { tree, removedIds } (the cells that disappeared).
+export function removeDivider(tree, path, childIndex) {
+  const next = cloneNode(tree);
+  const node = nodeAt(next, path);
+  if (!node || !node.children || childIndex < 0 || childIndex + 1 >= node.children.length) return { tree, removedIds: [] };
+  const removed = leafIds(node.children[childIndex + 1]);
+  const goneFrac = node.children[childIndex + 1].frac || 0;
+  node.children.splice(childIndex + 1, 1);
+  node.children[childIndex].frac = (node.children[childIndex].frac || 0) + goneFrac;
+  return { tree: normalizeTree(next), removedIds: removed };
+}
+
+// Snap targets (absolute LOCAL coords along the dragged divider's axis) so a
+// divider drag "locks" onto: (a) any other same-axis divider line — so columns /
+// rows align across the Grid — and (b) the equal-split of the two cells it
+// separates. The drag handler snaps the dragged line to the nearest within a px
+// threshold. Pure → unit-testable.
+export function dividerSnapTargets(tree, box, d, _tuning = GRID_TUNING) {
+  const axis = d.axis;
+  const lineOf = (x) => (axis === 'x' ? x.x + x.w / 2 : x.y + x.h / 2);
+  const targets = new Set();
+  for (const o of collectDividers(tree, box)) {
+    if (o.id === d.id || o.axis !== axis) continue;
+    targets.add(lineOf(o));
+  }
+  // Equal-split: midpoint of the union of the cells flush against this line.
+  const line0 = lineOf(d);
+  const c0 = axis === 'x' ? d.y : d.x;
+  const c1 = axis === 'x' ? d.y + d.h : d.x + d.w;
+  const start = (r) => (axis === 'x' ? r.x : r.y);
+  const end = (r) => (axis === 'x' ? r.x + r.w : r.y + r.h);
+  const cross0 = (r) => (axis === 'x' ? r.y : r.x);
+  const cross1 = (r) => (axis === 'x' ? r.y + r.h : r.x + r.w);
+  let lo = null, hi = null;
+  for (const r of computeCellRects(tree, box)) {
+    if (cross0(r) >= c1 - 0.5 || cross1(r) <= c0 + 0.5) continue; // not in this band
+    if (Math.abs(end(r) - line0) < 1.5) lo = (lo == null) ? start(r) : Math.min(lo, start(r));
+    if (Math.abs(start(r) - line0) < 1.5) hi = (hi == null) ? end(r) : Math.max(hi, end(r));
+  }
+  if (lo != null && hi != null) targets.add((lo + hi) / 2);
+  return [...targets];
 }
 
 export function leafIds(tree) {

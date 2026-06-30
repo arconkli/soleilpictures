@@ -83,6 +83,31 @@ test.describe('grids — fraction-tree layout', () => {
     expect(r.ids).toEqual(['c1', 'c3']);
     expect(r.unique).toBe(2);
   });
+
+  test('removing a divider merges the two cells it separates', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilGridTest;
+      // bottom row is at path [1]; its only divider is childIndex 0 (c2 | c3)
+      const { tree, removedIds } = T.removeDivider(T.seedGridLayout(), [1], 0);
+      return { ids: T.leafIds(tree), removedIds };
+    });
+    expect(r.removedIds).toEqual(['c3']);   // the right cell is absorbed
+    expect(r.ids).toEqual(['c1', 'c2']);    // the bottom row collapses to one cell
+  });
+
+  test('divider drag snaps to the equal-split of its two cells', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilGridTest;
+      const layout = T.seedGridLayout();
+      const box = { x: 0, y: 0, w: 400, h: 300 };
+      const dx = T.collectDividers(layout, box).find((d) => d.axis === 'x'); // bottom-row line
+      const targets = T.dividerSnapTargets(layout, box, dx);
+      return { targets, lineX: dx.x + dx.w / 2 };
+    });
+    // c2 [0..200] | c3 [200..400] → equal-split target at x=200 (its union midpoint)
+    expect(r.targets).toContain(200);
+    expect(r.lineX).toBeCloseTo(200, 5);
+  });
 });
 
 test.describe('grids — spatial sequence ordering', () => {

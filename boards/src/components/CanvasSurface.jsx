@@ -5999,6 +5999,7 @@ export function CanvasSurface({
     resizeDivider: (gridId, path, ci, df) => mutators.resizeGridDivider?.(gridId, path, ci, df),
     splitCell: (gridId, cellId, orientation) => mutators.splitGridCell?.(gridId, cellId, orientation),
     mergeCell: (gridId, cellId) => mutators.mergeGridCell?.(gridId, cellId),
+    removeDivider: (gridId, path, childIndex) => mutators.removeGridDivider?.(gridId, path, childIndex),
     setCellContent: (gridId, cellId, patch) => mutators.setGridCellContent?.(gridId, cellId, patch),
     clearCellContent: (gridId, cellId) => mutators.clearGridCellContent?.(gridId, cellId),
     unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),

@@ -100,7 +100,7 @@ import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout } from './lib/gridState.js';
-import { presetTree, resizeDivider, splitCell, mergeCell } from './lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { uploadImage, uploadPdf } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
@@ -1602,6 +1602,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (cm) removedIds.forEach((id) => cm.delete(id));
       }, 'local');
     };
+    // Remove a divider LINE (merge the two cells it separates). Same write path
+    // as mergeGridCell but addressed by the divider, not a cell.
+    const removeGridDivider = (gridId, path, childIndex) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const layout = gridLayoutOf(cy); if (!layout) return;
+      const { tree, removedIds } = removeDivider(layout, path, childIndex);
+      if (!removedIds.length) return;
+      breakUndo();
+      const templateId = cy.get('templateId') || null;
+      ydoc.transact(() => {
+        if (templateId) {
+          const tm = ydoc.getMap('gridTemplates'); const prev = tm.get(templateId);
+          if (prev) tm.set(templateId, { ...prev, layout: tree });
+        } else cy.set('layout', tree);
+        const cm = cy.get('gridCells');
+        if (cm) removedIds.forEach((id) => cm.delete(id));
+      }, 'local');
+    };
     const setGridCellContent = (gridId, cellId, patch) => {
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
       setGridCell(ydoc, cy, cellId, patch);
@@ -1688,7 +1706,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const stampGridNeighbor = (gridId, dir) => {
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
       const x = cy.get('x'), y = cy.get('y'), w = cy.get('w') || 360, h = cy.get('h') || 300;
-      const gap = 24;
+      const gap = 0; // flush — the new Grid SHARES the edge line with the source
       let nx = x, ny = y;
       if (dir === 'right') nx = x + w + gap;
       else if (dir === 'left') nx = x - w - gap;
@@ -1740,7 +1758,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
-      resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
+      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
