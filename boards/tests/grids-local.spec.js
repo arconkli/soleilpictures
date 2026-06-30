@@ -152,10 +152,13 @@ test.describe('grids — local interaction', () => {
     await cell.getByRole('button', { name: 'Text', exact: true }).click();
 
     const editor = page.locator('.gridc-cell [contenteditable="true"]').first();
+    await editor.waitFor({ state: 'visible' });
     await editor.click();
     await page.keyboard.type('Shot 1 action');
+    await expect(editor).toContainText('Shot 1 action');
 
-    // Blur by clicking empty canvas → editor commits, read-only html renders.
+    // Blur the editor → it commits the html; the read-only body then renders.
+    await editor.evaluate((el) => el.blur());
     await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
     await expect(page.locator('.gridc-cell-text .gc-text')).toContainText('Shot 1 action');
   });
