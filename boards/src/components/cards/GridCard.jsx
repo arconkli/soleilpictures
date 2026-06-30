@@ -70,16 +70,19 @@ function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard }) {
   const type = cell?.type || 'empty';
   if (type === 'board' && cell.boardId) {
     const b = boards?.[cell.boardId];
+    const missing = !b;                                  // referenced cluster was deleted
+    const name = b?.name || cell.name || 'Cluster';      // cell.name = snapshot at drop
     return (
-      <button type="button" className="gc-board" onPointerDown={stop}
-        onClick={(e) => { e.stopPropagation(); onOpenBoard?.(cell.boardId); }}
-        title={b?.name ? `Open ${b.name}` : 'Open cluster'}>
+      <button type="button" className={`gc-board${missing ? ' is-missing' : ''}`} onPointerDown={stop}
+        onClick={(e) => { e.stopPropagation(); if (!missing) onOpenBoard?.(cell.boardId); }}
+        disabled={missing}
+        title={missing ? 'This cluster was removed' : `Open ${name}`}>
         {b?.thumb_key
           ? <R2Image src={b.thumb_key} w={Math.round(rect.w)} h={Math.round(rect.h)} className="gc-board-thumb" draggable="false" />
           : <span className="gc-board-ph" aria-hidden="true" />}
         <span className="gc-board-meta">
-          <span className="gc-board-badge">CLUSTER</span>
-          <span className="gc-board-name">{b?.name || 'Cluster'}</span>
+          <span className="gc-board-badge">{missing ? 'REMOVED' : 'CLUSTER'}</span>
+          <span className="gc-board-name">{missing ? `${name} (removed)` : name}</span>
         </span>
       </button>
     );

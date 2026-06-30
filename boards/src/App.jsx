@@ -1661,7 +1661,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             if (rec && rec.type && rec.type !== 'empty') hcm.set(newId, rec);
           });
         }
-        m.delete(sourceGridId); // consume the source (move semantics)
+        // Consume the source (move semantics) + cascade its arrow endpoints, so we
+        // don't leave dangling arrows in the Y.Doc (matches the deleteCards path +
+        // the LocalBoardsApp twin which deletes via deleteCards).
+        const a = arrowsArr();
+        if (a) {
+          const cardIdOf = (r) => (typeof r === 'string' ? r : (r && typeof r === 'object' && r.type === 'card' ? r.id : null));
+          for (let i = a.length - 1; i >= 0; i--) {
+            const ar = a.get(i);
+            const fromCard = cardIdOf(ar?.from ?? ar?.get?.('from'));
+            const toCard = cardIdOf(ar?.to ?? ar?.get?.('to'));
+            if (fromCard === sourceGridId || toCard === sourceGridId) a.delete(i, 1);
+          }
+        }
+        m.delete(sourceGridId);
       }, 'local');
     };
     // Global sync (same board): promote an unlinked Grid's layout into a shared
@@ -1759,12 +1772,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // transaction. (Groups exist in the Yjs shell only; LocalBoardsApp no-ops.)
     const ensureGridGroup = (m, sourceCy, memberIds) => {
       const gm = groupsMap(); if (!gm) return null;
+      // Only reuse the source's group if it's a Grid-FAMILY group (tagged
+      // kind:'gridFamily'). Don't absorb stamped grids into a group the user made
+      // manually (e.g. Cmd+G on a Grid + an unrelated Note) — that would drag the
+      // Note along and fracture the family; make a fresh family group instead.
       let groupId = sourceCy.get('groupId');
+      if (groupId) { const g = gm.get(groupId); if (!g || g.get('kind') !== 'gridFamily') groupId = null; }
       if (!groupId) {
         groupId = `g-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
         const g = new Y.Map();
         g.set('id', groupId);
         g.set('name', 'Grid');
+        g.set('kind', 'gridFamily');
         g.set('outline', true);
         g.set('color', null);
         g.set('width', 1);

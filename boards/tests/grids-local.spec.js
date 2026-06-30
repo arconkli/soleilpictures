@@ -255,6 +255,20 @@ test.describe('grids — local interaction', () => {
     await page.locator('.ctx-menu').getByText('Grid', { exact: true }).first().click();
   }
 
+  test('cell focus clears when its grid is deleted (paste not swallowed)', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    // click a cell → focuses it AND selects the grid
+    await grid.locator('.gridc-cell').nth(1).click({ position: { x: 20, y: 8 } });
+    await expect(page.locator('.gridc-cell.is-focused')).toHaveCount(1);
+    await page.keyboard.press('Delete');
+    await expect(page.locator('.card-kind-grid')).toHaveCount(0);
+    await expect(page.locator('.gridc-cell.is-focused')).toHaveCount(0);
+    // the stale focus is gone → a paste now lands on the canvas (a note), not nowhere
+    await pasteInto(page, 'after delete');
+    await expect(page.locator('.card-kind-note')).toHaveCount(1);
+  });
+
   test('drag a grid into a cell grafts it inline (nested, source consumed)', async ({ page }) => {
     await placeGridAt(page, 320, 300);  // grid A (left)
     await placeGridAt(page, 760, 300);  // grid B (right)

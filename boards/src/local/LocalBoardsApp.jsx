@@ -671,7 +671,12 @@ export function LocalBoardsApp({ user, signOut }) {
     mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
   };
   const setGridCellContent = (gridId, cellId, patch) =>
-    mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { ...(c.cells?.[cellId] || {}), ...patch } } }));
+    mapGridCard(gridId, c => ({
+      ...c,
+      // type-carrying patch = full content write → replace (no stale fields leak);
+      // type-less patch = partial update → merge (mirrors gridState.setGridCell).
+      cells: { ...(c.cells || {}), [cellId]: (patch && patch.type ? { ...patch } : { ...(c.cells?.[cellId] || {}), ...patch }) },
+    }));
   // Graft a source Grid INTO a host cell (drop-a-grid-into-a-cell, editable inline).
   const graftGridIntoCell = (hostGridId, cellId, sourceGridId) => {
     const host = findLocalGrid(hostGridId); const src = findLocalGrid(sourceGridId);

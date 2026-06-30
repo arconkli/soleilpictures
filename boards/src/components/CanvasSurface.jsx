@@ -329,6 +329,10 @@ function GuideLabel({ cx, cy, text, zoom }) {
   );
 }
 
+// Card kinds that can become grid-cell content when dragged onto a cell (see
+// routeCardIntoCell). Anything else keeps dragging/repositioning normally.
+const CELL_DROP_KINDS = new Set(['image', 'note', 'textlink', 'link', 'board', 'boardlink', 'video', 'file', 'pdf', 'grid']);
+
 // Inline "make a grid" control shown below a selected Grid: type cols × rows and
 // it replicates the Grid into a flush, connected matrix (the effortless path to a
 // massive grid). Module-level so its input state survives canvas re-renders.
@@ -789,22 +793,26 @@ export function CanvasSurface({
   // Convert a dragged canvas card into the content of a grid cell. Content cards
   // (image/note/link/file/video) MOVE (consumed); a board → a board cell (preview,
   // reference kept); a grid → grafted inline (graftGridIntoCell consumes it).
+  // Returns true if the drop was consumed into the cell (so the caller skips the
+  // normal move-commit); false for kinds with no cell representation (doc/shape/
+  // palette/…) so those keep dragging/repositioning normally.
   const routeCardIntoCell = useCallback((card, gridId, cellId) => {
-    if (!card || !gridId || !cellId) return;
+    if (!card || !gridId || !cellId) return false;
     const k = card.kind;
-    if (k === 'grid') { mutators.graftGridIntoCell?.(gridId, cellId, card.id); return; }
+    if (k === 'grid') { mutators.graftGridIntoCell?.(gridId, cellId, card.id); return true; }
     let patch = null, consume = true;
     if (k === 'image') patch = { type: 'image', src: card.src, fit: 'cover', ...(card.adjust ? { adjust: card.adjust } : {}), ...(card.pos ? { pos: card.pos } : {}) };
     else if (k === 'note' || k === 'textlink') patch = { type: 'text', html: card.html || '' };
     else if (k === 'link') patch = { type: 'link', source: card.source || card.link, link: card.link || card.source, title: card.title, image: card.image, favicon: card.favicon, ...(card.embed ? { embed: card.embed } : {}) };
-    else if (k === 'board') { patch = { type: 'board', boardId: card.id }; consume = false; }
-    else if (k === 'boardlink' && card.target) { patch = { type: 'board', boardId: card.target }; consume = false; }
+    else if (k === 'board') { patch = { type: 'board', boardId: card.id, name: boards?.[card.id]?.name || null }; consume = false; }
+    else if (k === 'boardlink' && card.target) { patch = { type: 'board', boardId: card.target, name: boards?.[card.target]?.name || null }; consume = false; }
     else if (k === 'video') patch = { type: 'video', src: card.src };
     else if (k === 'file' || k === 'pdf') patch = { type: 'file', fileSrc: card.fileSrc || card.src, fileName: card.fileName || card.name, mime: card.mime, sizeBytes: card.sizeBytes, ext: card.ext };
-    if (!patch) return;
+    if (!patch) return false;
     mutators.setGridCellContent?.(gridId, cellId, patch);
     if (consume) mutators.deleteCards?.([card.id]);
-  }, [mutators]);
+    return true;
+  }, [mutators, boards]);
   // Tracks the last endpoint-handle click so a second click within
   // ~350ms on the same endpoint spawns a sibling line/arrow (see
   // onHandleDown's dblclick branch).
@@ -3214,6 +3222,11 @@ export function CanvasSurface({
   const onCardPointerDown = (e, c) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
+    // Selecting any card that isn't a grid cell drops grid-cell focus so a
+    // following paste isn't misrouted into a stale cell. (A grid cell's own
+    // onPointerDownCapture sets focus first; its target IS a [data-cell-id], so
+    // this leaves it intact.)
+    if (focusedCellRef.current && !e.target.closest?.('[data-cell-id]')) focusCell(null, null);
     // Focus view = "just looking": tap an image to open it fullscreen, drag to
     // pan (never move or select the card). Works in any tier — browsing intent
     // overrides edit affordances — and mirrors the read-only clean-tap pattern
@@ -3629,8 +3642,12 @@ export function CanvasSurface({
       // grid that ISN'T part of the dragged set (can't drop a grid into its own
       // cell). A board drop wins over a cell drop (handled first → we clear the
       // cell target when a board is targeted).
+      // Only a SINGLE card of a kind that can become cell content highlights a
+      // cell — so a multi-select drag or an unsupported kind (doc/shape/palette/…)
+      // never shows a misleading drop affordance (and won't snap back on release).
       let nextCell = null;
-      if (!nextDropTarget && Math.abs(dx) + Math.abs(dy) > 4) {
+      const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
+      if (!nextDropTarget && CELL_DROP_KINDS.has(soloKind) && Math.abs(dx) + Math.abs(dy) > 4) {
         const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
         for (const el of stack) {
           const cellEl = el?.closest?.('[data-cell-id]');
@@ -3723,8 +3740,10 @@ export function CanvasSurface({
       updateCellDropTarget(null);
       if (cellTarget && (Math.abs(dx) + Math.abs(dy) > 4)) {
         const moved = dragIds.map(id => cardById[id]).filter(Boolean);
-        if (moved.length === 1) {
-          routeCardIntoCell(moved[0], cellTarget.gridId, cellTarget.cellId);
+        // Only short-circuit the normal move if the card actually became cell
+        // content; an unsupported kind (doc/shape/palette/…) falls through and
+        // repositions normally instead of silently snapping back.
+        if (moved.length === 1 && routeCardIntoCell(moved[0], cellTarget.gridId, cellTarget.cellId)) {
           setDrag(null);
           return;
         }
@@ -3971,6 +3990,7 @@ export function CanvasSurface({
       pendingLiveDrag = null;
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
       updateBoardDropTarget(null);
+      updateCellDropTarget(null);
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
       setSnapHints(null);
       setDrag(null);
@@ -3992,6 +4012,7 @@ export function CanvasSurface({
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
       cleanupTouchHold();
       updateBoardDropTarget(null);
+      updateCellDropTarget(null);
       setSnapHints(null);
       setDrag(null);
     };
@@ -5396,7 +5417,6 @@ export function CanvasSurface({
     if (e.target.closest('.card, .cnv-tool, .cnv-zoom, .inbox')) return;
     e.preventDefault();
     closeCardMenu();
-    markViewSettled(); // a create from this menu should land at the cursor, not auto-fit
     const pos = clientToCanvas(e.clientX, e.clientY);
     setBgCtx({ open: true, x: e.clientX, y: e.clientY, canvasPos: pos });
   };
@@ -5570,13 +5590,16 @@ export function CanvasSurface({
     // while Comment/Vote/Link stay top-level with their longer labels.
     const addActions = buildAddActions(pos, 'context_menu');
     const byId = (id) => addActions.find(a => a.id === id);
+    // Settle the camera only when a create actually RUNS (not on menu open), so a
+    // right-click during a slow content load doesn't defeat the late-content auto-fit.
+    const settled = (fn) => () => { markViewSettled(); return fn?.(); };
     return [
       // Grid gets a direct top-level entry (drops at the cursor) — it's a
       // first-class card type, not buried in the Add submenu.
-      { id: 'grid-top', label: 'Grid', run: byId('grid').run },
+      { id: 'grid-top', label: 'Grid', run: settled(byId('grid').run) },
       { id: 'add', label: 'Add', submenu: addActions
         .filter(a => a.group === 'card' && a.id !== 'addurl')
-        .map(a => ({ id: a.id, label: a.label, run: a.run })) },
+        .map(a => ({ id: a.id, label: a.label, run: settled(a.run) })) },
       { id: 'comment', label: 'Add comment', run: byId('comment').run },
       { id: 'vote', label: 'Add vote', run: byId('vote').run },
       { id: 'addurl', label: 'Add link…', run: byId('addurl').run },
@@ -6124,6 +6147,13 @@ export function CanvasSurface({
     focusedCellRef.current = v;
     setFocusedCell(v);
   }, []);
+  // Drop cell focus when its grid disappears — deleted, or board-switched (the
+  // surface doesn't remount on board change). Prevents a stale paste being
+  // silently swallowed into a vanished cell.
+  useEffect(() => {
+    const fc = focusedCellRef.current;
+    if (fc && !cards.some((c) => c.id === fc.gridId)) focusCell(null, null);
+  }, [cards, focusCell]);
   // Decode a file list into the right cell content (image / video / file).
   const fillCellFromFiles = useCallback(async (gridId, cellId, files) => {
     const f = files && files[0]; if (!f) return;

@@ -9,7 +9,8 @@
 //   { type:'empty' } | { type:'image', src, adjust, fit, pos } | { type:'text', html }
 //   | { type:'link', source, title, image, favicon, embed } | { type:'video', src }
 //   | { type:'file', fileSrc, fileName, mime, sizeBytes, ext }
-//   | { type:'board', boardId }   — a cluster preview (opens on click)
+//   | { type:'board', boardId, name }   — a cluster preview (opens on click; name
+//                                          is a snapshot so a deleted cluster still reads)
 // A whole Grid dropped into a cell is NOT a cell record: it grafts into the host
 // layout tree (see gridLayout.graftSubtree), so it edits inline like any nesting.
 //
@@ -71,8 +72,13 @@ export function setGridCell(ydoc, cardYMap, cellId, patch, origin = 'local') {
   const cm = gridCellsMap(cardYMap);
   if (!cm) return;
   ydoc.transact(() => {
+    // A patch carrying a `type` is a FULL content write (chooser / paste / drop) →
+    // REPLACE so no stale type-specific fields (an old link's image/favicon, an
+    // image's pos) leak when overwriting an occupied cell. A type-less patch
+    // (async link-preview backfill {title,image}, the text editor {html}) is a
+    // partial update → MERGE onto the existing record.
     const prev = cm.get(cellId) || {};
-    cm.set(cellId, { ...prev, ...patch });
+    cm.set(cellId, patch && patch.type ? { ...patch } : { ...prev, ...patch });
   }, origin);
 }
 export function clearGridCell(ydoc, cardYMap, cellId, origin = 'local') {

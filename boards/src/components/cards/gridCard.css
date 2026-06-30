@@ -93,7 +93,9 @@
 .gridc-cell .gc-board-meta { display: flex; align-items: center; gap: 7px; padding: 6px 9px; background: var(--bg-2, #16161a); border-top: 1px solid var(--line-1, #212126); }
 .gridc-cell .gc-board-badge { font: 700 8.5px/1 var(--font-sans, sans-serif); letter-spacing: 0.12em; color: var(--ink-2, #888890); flex: none; }
 .gridc-cell .gc-board-name { font-size: 12px; color: var(--ink-0, #f5f5f7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gridc-cell .gc-board:hover .gc-board-name { color: var(--soleil, #ffa500); }
+.gridc-cell .gc-board:hover:not(.is-missing) .gc-board-name { color: var(--soleil, #ffa500); }
+.gridc-cell .gc-board.is-missing { cursor: default; opacity: 0.55; }
+.gridc-cell .gc-board.is-missing .gc-board-badge { color: var(--ink-error, #e08b8b); }
 
 /* ── dividers ─────────────────────────────────────────────────────────────── */
 /* The element is a wide TRANSPARENT hit zone; ::after draws a crisp 1px line on
