@@ -329,6 +329,31 @@ function GuideLabel({ cx, cy, text, zoom }) {
   );
 }
 
+// Inline "make a grid" control shown below a selected Grid: type cols × rows and
+// it replicates the Grid into a flush, connected matrix (the effortless path to a
+// massive grid). Module-level so its input state survives canvas re-renders.
+function GridMatrixControl({ onGenerate }) {
+  const [cols, setCols] = useState('5');
+  const [rows, setRows] = useState('5');
+  const submit = () => {
+    const c = Math.max(1, Math.min(50, parseInt(cols, 10) || 1));
+    const r = Math.max(1, Math.min(50, parseInt(rows, 10) || 1));
+    if (c * r <= 1) return;
+    onGenerate(c, r);
+  };
+  const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
+  return (
+    <div className="grid-matrix-ctl" onPointerDown={(e) => e.stopPropagation()}>
+      <input type="number" min="1" max="50" value={cols} aria-label="Columns"
+        onChange={(e) => setCols(e.target.value)} onKeyDown={onKey} />
+      <span className="gm-x">×</span>
+      <input type="number" min="1" max="50" value={rows} aria-label="Rows"
+        onChange={(e) => setRows(e.target.value)} onKeyDown={onKey} />
+      <button type="button" onClick={submit}>Make grid</button>
+    </div>
+  );
+}
+
 export function CanvasSurface({
   board, boards, boardsReady = true, cards, arrows, strokes, groups = [],
   gridTemplates = {},      // id → { id, name, layout }  — shared Grid layouts
@@ -4032,7 +4057,10 @@ export function CanvasSurface({
             ? (noteHeightMode && newH !== noteMeasurer.cardHeightAt(newW))
             : true;
         }
-        mutators.updateCard?.(c.id, patch);
+        // Grids: resize the whole LINKED family + re-tile so a connected matrix
+        // scales as one unit (unlinked Grids just resize themselves).
+        if (c.kind === 'grid' && mutators.resizeLinkedGrids) mutators.resizeLinkedGrids(c.id, newW, newH);
+        else mutators.updateCard?.(c.id, patch);
       }
       noteMeasurer?.destroy();
       noteMeasurer = null;
@@ -5993,6 +6021,16 @@ export function CanvasSurface({
   }, [cards, gridSequences]);
   const gridSeqFormatFor = (c) => (c?.seqId && gridSequences[c.seqId]?.format) || null;
 
+  // Bulk-generate from the inline control, confirming for very large matrices.
+  const makeGridMatrix = async (gridId, cols, rows) => {
+    const n = cols * rows;
+    if (n > 200) {
+      const ok = await feedback.confirm?.({ title: 'Make a big grid', message: `This creates ${n} grids — it may take a moment. Continue?`, confirmLabel: 'Make grid' });
+      if (!ok) return;
+    }
+    mutators.bulkGenerateGrids?.(gridId, cols, rows);
+  };
+
   // Editing actions GridCard calls — thin forwards to the grid mutators plus the
   // canvas-context bits (image/file upload, link prompt) that a cell needs.
   const gridActions = useMemo(() => ({
@@ -6350,6 +6388,10 @@ export function CanvasSurface({
               if (!selected.has(c.id)) setSelected(new Set([c.id]));
               setCtx({ open: true, x: r.left, y: r.bottom, cardId: c.id });
             }}>⋯</button>
+        )}
+        {canEdit && selectedTool === 'select' && isSelected && c.kind === 'grid'
+          && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
+          <GridMatrixControl onGenerate={(cols, rows) => makeGridMatrix(c.id, cols, rows)} />
         )}
       </div>
     );

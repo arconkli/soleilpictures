@@ -6,7 +6,7 @@
 // and label resolution — with no backend. Mirrors lib/snapQa.js / lib/arrowQa.js.
 import {
   GRID_TUNING, computeCellRects, collectDividers, resizeDivider, splitCell,
-  mergeCell, removeDivider, dividerSnapTargets, leafIds, normalizeTree, presetTree, PRESETS,
+  mergeCell, removeDivider, dividerSnapTargets, tileLinkedGrids, leafIds, normalizeTree, presetTree, PRESETS,
 } from './gridLayout.js';
 import {
   SEQ_TUNING, spatialOrder, labelFor, resolveTagText, hasLabelTag, orderKey,
@@ -37,7 +37,7 @@ export function makeGridTestBridge() {
   return {
     GRID_TUNING, SEQ_TUNING, PRESETS,
     computeCellRects, collectDividers, resizeDivider, splitCell, mergeCell,
-    removeDivider, dividerSnapTargets, leafIds, normalizeTree, presetTree,
+    removeDivider, dividerSnapTargets, tileLinkedGrids, leafIds, normalizeTree, presetTree,
     spatialOrder, labelFor, resolveTagText, hasLabelTag, orderKey,
     seedGridLayout, seedGridMatrix,
   };

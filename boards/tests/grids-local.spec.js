@@ -142,6 +142,57 @@ test.describe('grids — local interaction', () => {
     expect(nums.map((s) => s.trim()).sort()).toEqual(['1', '2', '3']);
   });
 
+  async function makeMatrix(page, cols, rows) {
+    const grid = page.locator('.card-kind-grid').first();
+    await grid.click({ position: { x: 60, y: 8 } }); // select
+    const ctl = page.locator('.grid-matrix-ctl');
+    await expect(ctl).toBeVisible();
+    await ctl.locator('input').nth(0).fill(String(cols));
+    await ctl.locator('input').nth(1).fill(String(rows));
+    await ctl.getByRole('button', { name: 'Make grid' }).click();
+    await expect(page.locator('.card-kind-grid')).toHaveCount(cols * rows);
+  }
+
+  test('the inline control makes a flush, connected matrix', async ({ page }) => {
+    await addGrid(page);
+    await makeMatrix(page, 4, 3); // 12 grids
+    const boxes = await page.locator('.card-kind-grid').evaluateAll((els) => els.map((e) => {
+      const b = e.getBoundingClientRect();
+      return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) };
+    }));
+    const w0 = boxes[0].w, h0 = boxes[0].h;
+    // every grid is the same size
+    expect(boxes.every((b) => Math.abs(b.w - w0) < 2 && Math.abs(b.h - h0) < 2)).toBe(true);
+    // flush: some grid's left edge == another's right edge on the same row (touching)
+    const touching = boxes.some((a) => boxes.some((b) => a !== b && Math.abs(a.x - (b.x + b.w)) < 2 && Math.abs(a.y - b.y) < 2));
+    expect(touching).toBe(true);
+  });
+
+  test('resizing one grid in a connected matrix resizes + re-tiles all', async ({ page }) => {
+    await addGrid(page);
+    await makeMatrix(page, 3, 1); // horizontal strip
+    const geom = () => page.locator('.card-kind-grid').evaluateAll((els) => els.map((e) => ({
+      x: Math.round(parseFloat(e.style.left)), w: Math.round(parseFloat(e.style.width)),
+    })));
+    const before = await geom();
+    // resize the rightmost grid (last in DOM) — select via a spot clear of the
+    // top-left "Linked" badge / edge "+" / cell toolbar, then drag its handle.
+    const last = page.locator('.card-kind-grid').last();
+    await last.click({ position: { x: 270, y: 45 } });
+    const hb = await last.locator('.card-resize').boundingBox();
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hb.x + 90, hb.y + 50, { steps: 6 });
+    await page.mouse.up();
+    const after = await geom();
+    const widths = after.map((g) => g.w);
+    expect(new Set(widths).size).toBe(1);              // all the SAME width now
+    expect(widths[0]).toBeGreaterThan(before[0].w + 30); // and bigger
+    // flush: sorted by x, each starts where the previous ended
+    const sorted = [...after].sort((a, b) => a.x - b.x);
+    for (let i = 1; i < sorted.length; i++) expect(Math.abs(sorted[i].x - (sorted[i - 1].x + sorted[i - 1].w))).toBeLessThan(2);
+  });
+
   test('fill an empty cell with text via the chooser', async ({ page }) => {
     await addGrid(page);
     const grid = page.locator('.card-kind-grid').first();

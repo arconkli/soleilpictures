@@ -170,13 +170,9 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   return (
     <div className="gridc" data-grid-id={card.id}>
       {linked && (
-        <button
-          type="button"
-          className="gridc-linked-badge"
-          title="Linked layout — edits reflow every linked Grid. Click to unlink."
-          onPointerDown={stop}
-          onClick={editable ? (e) => { e.stopPropagation(); gridActions.unlinkGrid?.(card.id); } : undefined}
-        >Linked</button>
+        // Purely informational (pointer-events:none in CSS) so it never swallows a
+        // selection click or unlinks by accident — unlink via right-click → Unlink.
+        <span className="gridc-linked-badge" title="Linked layout — size & dividers reflow every linked Grid. Right-click → Unlink to detach.">Linked</span>
       )}
       {rects.map((r) => {
         const cell = model.cells[r.id];
@@ -269,7 +265,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
           </div>
         );
       })}
-      {editable && gridActions.stampNeighbor && ['top', 'bottom', 'left', 'right'].map((dir) => (
+      {editable && isSelected && gridActions.stampNeighbor && ['top', 'bottom', 'left', 'right'].map((dir) => (
         <button
           key={dir}
           type="button"

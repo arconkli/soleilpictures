@@ -8,7 +8,7 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider } from '../lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids } from '../lib/gridLayout.js';
 import { hasLabelTag } from '../lib/gridSequence.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
@@ -723,9 +723,9 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const bulkGenerateGrids = (gridId, cols, rows, opts = {}) => {
     const card = findLocalGrid(gridId); if (!card) return;
-    const C = Math.max(1, Math.min(24, cols | 0)), R = Math.max(1, Math.min(24, rows | 0));
+    const C = Math.max(1, Math.min(50, cols | 0)), R = Math.max(1, Math.min(50, rows | 0));
     if (C * R <= 1) return;
-    const w = card.w || 360, h = card.h || 300, x0 = card.x, y0 = card.y, gx = opts.gapX ?? 24, gy = opts.gapY ?? 24;
+    const w = card.w || 360, h = card.h || 300, x0 = card.x, y0 = card.y, gx = opts.gapX ?? 0, gy = opts.gapY ?? 0;
     const tplId = ensureLocalTemplate(card);
     const seqId = ensureLocalSequence(card);
     const carry = localLabelTagCells(card);
@@ -735,6 +735,20 @@ export function LocalBoardsApp({ user, signOut }) {
       newCards.push({ id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: { ...carry }, x: Math.max(8, x0 + c * (w + gx)), y: Math.max(8, y0 + r * (h + gy)), w, h });
     }
     addCards(newCards);
+  };
+  // Resize one Grid → linked family all become the same size + re-tile (flush);
+  // unlinked just resizes itself. Mirrors App.resizeLinkedGrids.
+  const resizeLinkedGrids = (gridId, newW, newH) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    if (!card.templateId) { updateCard(gridId, { w: newW, h: newH }); return; }
+    const fam = (boardState[currentId]?.cards || []).filter(c => c.kind === 'grid' && c.templateId === card.templateId)
+      .map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w, h: c.h }));
+    const tiled = tileLinkedGrids(fam, newW, newH, 0);
+    const byId = Object.fromEntries(tiled.map(t => [t.id, t]));
+    updateBoardState(state => ({
+      ...state,
+      cards: state.cards.map(c => byId[c.id] ? { ...c, x: byId[c.id].x, y: byId[c.id].y, w: byId[c.id].w, h: byId[c.id].h } : c),
+    }));
   };
   const setGridSequencePattern = (seqId, pattern) => setGridSeqState(prev => {
     const board = prev[currentId] || {}; const seq = board[seqId]; if (!seq) return prev;
@@ -791,7 +805,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
-    removeGridDivider,
+    removeGridDivider, resizeLinkedGrids,
     stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern,
     addShape,
     addStroke,

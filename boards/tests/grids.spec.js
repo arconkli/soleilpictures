@@ -108,6 +108,33 @@ test.describe('grids — fraction-tree layout', () => {
     expect(r.targets).toContain(200);
     expect(r.lineX).toBeCloseTo(200, 5);
   });
+
+  test('tileLinkedGrids re-lattices a 2×2 family to stay flush at a new size', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilGridTest;
+      const rects = [
+        { id: 'a', x: 0, y: 0, w: 100, h: 100 }, { id: 'b', x: 100, y: 0, w: 100, h: 100 },
+        { id: 'c', x: 0, y: 100, w: 100, h: 100 }, { id: 'd', x: 100, y: 100, w: 100, h: 100 },
+      ];
+      const out = T.tileLinkedGrids(rects, 150, 150, 0);
+      return Object.fromEntries(out.map((g) => [g.id, g]));
+    });
+    expect(r.a).toMatchObject({ x: 0, y: 0, w: 150, h: 150 });
+    expect(r.b).toMatchObject({ x: 150, y: 0, w: 150, h: 150 });   // shares a's right edge
+    expect(r.c).toMatchObject({ x: 0, y: 150, w: 150, h: 150 });   // shares a's bottom edge
+    expect(r.d).toMatchObject({ x: 150, y: 150, w: 150, h: 150 });
+  });
+
+  test('tileLinkedGrids keeps a 1×3 strip a single row', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const T = window.__soleilGridTest;
+      const rects = [
+        { id: 'a', x: 0, y: 0, w: 100, h: 100 }, { id: 'b', x: 100, y: 0, w: 100, h: 100 }, { id: 'c', x: 200, y: 0, w: 100, h: 100 },
+      ];
+      return T.tileLinkedGrids(rects, 120, 100, 0).map((g) => ({ x: g.x, y: g.y, w: g.w }));
+    });
+    expect(r).toEqual([{ x: 0, y: 0, w: 120 }, { x: 120, y: 0, w: 120 }, { x: 240, y: 0, w: 120 }]);
+  });
 });
 
 test.describe('grids — spatial sequence ordering', () => {

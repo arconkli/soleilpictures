@@ -100,7 +100,7 @@ import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout } from './lib/gridState.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider } from './lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { uploadImage, uploadPdf } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
@@ -1658,6 +1658,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       breakUndo();
       ydoc.transact(() => { cy.set('layout', layout); cy.delete('templateId'); }, 'local');
     };
+    // Resize one Grid → if it's LINKED, every Grid sharing its template becomes the
+    // same outer size and the family re-lattices to stay a connected matrix (the
+    // whole massive grid scales as one). Unlinked → just resize that card.
+    const resizeLinkedGrids = (gridId, newW, newH) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const tplId = cy.get('templateId');
+      if (!tplId) { updateCard(gridId, { w: newW, h: newH }); return; }
+      const fam = [];
+      m.forEach((ym, id) => {
+        if (ym.get && ym.get('kind') === 'grid' && ym.get('templateId') === tplId) {
+          fam.push({ id, x: ym.get('x'), y: ym.get('y'), w: ym.get('w'), h: ym.get('h') });
+        }
+      });
+      const tiled = tileLinkedGrids(fam, newW, newH, 0);
+      updateCards(tiled.map((t) => ({ id: t.id, patch: { x: t.x, y: t.y, w: t.w, h: t.h } })));
+    };
 
     // ── Sequences + stamping ────────────────────────────────────────────────
     // Label-tag cells (a text cell whose html contains [#]/[A]/…) from a source
@@ -1722,11 +1738,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // 0,0), all linked + in one sequence, numbered in reading order.
     const bulkGenerateGrids = (gridId, cols, rows, opts = {}) => {
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
-      const C = Math.max(1, Math.min(24, cols | 0)), R = Math.max(1, Math.min(24, rows | 0));
+      const C = Math.max(1, Math.min(50, cols | 0)), R = Math.max(1, Math.min(50, rows | 0));
       if (C * R <= 1) return;
       const w = cy.get('w') || 360, h = cy.get('h') || 300;
       const x0 = cy.get('x'), y0 = cy.get('y');
-      const gx = opts.gapX ?? 24, gy = opts.gapY ?? 24;
+      const gx = opts.gapX ?? 0, gy = opts.gapY ?? 0; // flush — one continuous grid
       breakUndo();
       ydoc.transact(() => {
         const { tplId, seqId, carry } = ensureTemplateAndSequence(cy);
@@ -1759,7 +1775,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent,
-      promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
+      promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,

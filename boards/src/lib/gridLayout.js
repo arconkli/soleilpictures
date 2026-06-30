@@ -253,6 +253,35 @@ export function leafIds(tree) {
   return out;
 }
 
+// Re-lattice a family of linked Grids so they stay a connected matrix at a new
+// outer size. `rects` = [{id,x,y,w,h}] (their CURRENT positions); we band them
+// into rows (by y-centre) then columns (by x within a row), and re-place each on
+// a fresh lattice (cellsize newW×newH, `gap` between) anchored at the family's
+// top-left. Ragged arrangements collapse into a clean left-aligned grid. Pure.
+export function tileLinkedGrids(rects, newW, newH, gap = 0) {
+  if (!rects || !rects.length) return [];
+  const minX = Math.min(...rects.map((r) => r.x));
+  const minY = Math.min(...rects.map((r) => r.y));
+  const minH = Math.min(...rects.map((r) => r.h || newH));
+  const tol = Math.max(8, 0.5 * minH); // "same row" if y-centres are within this
+  const withC = rects.map((r) => ({ id: r.id, cx: r.x + (r.w || newW) / 2, cy: r.y + (r.h || newH) / 2 }));
+  withC.sort((a, b) => a.cy - b.cy);
+  const rows = [];
+  for (const g of withC) {
+    const row = rows[rows.length - 1];
+    if (row && g.cy - row.base <= tol) row.items.push(g);
+    else rows.push({ base: g.cy, items: [g] });
+  }
+  const out = [];
+  rows.forEach((row, r) => {
+    row.items.sort((a, b) => a.cx - b.cx);
+    row.items.forEach((g, c) => {
+      out.push({ id: g.id, x: minX + c * (newW + gap), y: minY + r * (newH + gap), w: newW, h: newH });
+    });
+  });
+  return out;
+}
+
 // Tidy a tree: flatten a split nested inside a same-type split (distributing
 // frac), collapse single-child splits, and renormalize each split's children to
 // sum 1. Pure — returns a new tree.

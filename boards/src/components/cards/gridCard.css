@@ -204,10 +204,9 @@
   border: 1px solid var(--line-2, #2c2c32);
   background: color-mix(in srgb, var(--bg-3, #1c1c20) 92%, transparent);
   color: var(--ink-1, #d0d0d4);
-  cursor: pointer;
+  pointer-events: none; /* informational only — never swallows a selection click */
 }
 .gridc-linked-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--soleil, #ffa500); }
-.gridc-linked-badge:hover { color: var(--ink-0, #f5f5f7); border-color: var(--line-3, #3a3a40); }
 
 /* ── directional + (stamp a neighbor) ─────────────────────────────────────── */
 .gridc-add {
@@ -223,12 +222,55 @@
   color: var(--ink-2, #888890);
   cursor: pointer;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.12s ease, color 0.1s ease, border-color 0.1s ease;
   z-index: 4;
 }
-.gridc:hover .gridc-add { opacity: 1; }
+.gridc:hover .gridc-add { opacity: 1; pointer-events: auto; }
 .gridc-add:hover { color: var(--soleil, #ffa500); border-color: var(--soleil, #ffa500); }
 .gridc-add-top { top: 5px; left: 50%; transform: translateX(-50%); }
 .gridc-add-bottom { bottom: 5px; left: 50%; transform: translateX(-50%); }
 .gridc-add-left { left: 5px; top: 50%; transform: translateY(-50%); }
 .gridc-add-right { right: 5px; top: 50%; transform: translateY(-50%); }
+
+/* Inline "make a grid" control — sits just below a selected Grid (rendered in the
+   card wrapper, so it isn't clipped by .gridc). Type cols × rows → a flush matrix. */
+.grid-matrix-ctl {
+  position: absolute;
+  bottom: -38px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--bg-3, #1c1c20) 94%, transparent);
+  border: 1px solid var(--line-2, #2c2c32);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  z-index: 6;
+  white-space: nowrap;
+}
+.grid-matrix-ctl input {
+  width: 40px;
+  height: 24px;
+  text-align: center;
+  border-radius: var(--radius, 4px);
+  border: 1px solid var(--line-2, #2c2c32);
+  background: var(--bg-1, #111114);
+  color: var(--ink-0, #f5f5f7);
+  font-size: 12px;
+}
+.grid-matrix-ctl .gm-x { color: var(--ink-2, #888890); font-size: 12px; }
+.grid-matrix-ctl button {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius, 4px);
+  border: 1px solid var(--line-2, #2c2c32);
+  background: var(--bg-act, #212126);
+  color: var(--ink-1, #d0d0d4);
+  font-size: 12px;
+  cursor: pointer;
+}
+.grid-matrix-ctl button:hover { border-color: var(--soleil, #ffa500); color: var(--soleil, #ffa500); }
