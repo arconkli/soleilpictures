@@ -6921,6 +6921,7 @@ export function CanvasSurface({
     // 'Board' is now a first-class toolbar tool, and 'Text note' is the toolbar's
     // Add-note tool — so neither is repeated here. 'Shape' moved off the toolbar
     // (boards took its slot) and lives here now.
+    { label: 'Grid', action: () => { noteCreateIntent('add_menu'); mutators.addGrid?.(resolvePastePos().pos, { preset: 'storyboard-1-2' }); } },
     { label: 'Doc', action: () => { noteCreateIntent('add_menu'); mutators.addDocCard?.(); } },
     { label: 'File', action: () => { noteCreateIntent('add_menu'); openFilePicker(resolvePastePos().pos); } },
     { label: 'Shape', action: () => setSelectedTool('shape') },
@@ -8125,6 +8126,7 @@ export function CanvasSurface({
           </button>
           <div className="cnv-empty-tiles-grid">
             {[
+              { id: 'grid',   label: 'Grid',     icon: GridFour },
               { id: 'script', label: 'Script',   icon: Clapperboard },
               { id: 'board',  label: 'Cluster',  icon: LayoutGrid },
               { id: 'note',   label: 'Note',     icon: NotePencil },
