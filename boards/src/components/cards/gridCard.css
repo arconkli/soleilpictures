@@ -69,12 +69,73 @@
 /* The file cell reuses FileCard, which brings its own chrome; clip it. */
 .gridc-cell-file .filec { width: 100%; height: 100%; }
 
-/* Dividers — thin hairlines between cells. Interactive handles (P2) widen the
-   hit area and add the resize cursor; here they are a visual seam only. */
+/* Dividers — thin hairlines between cells. Visual-only until the Grid is
+   selected + editable, when they become grabbable resize handles. */
 .gridc-divider {
   position: absolute;
   pointer-events: none;
   background: var(--hairline, rgba(255, 255, 255, 0.12));
 }
+.gridc-divider.is-grabbable { pointer-events: auto; }
+.gridc-divider.is-grabbable:hover { background: var(--soleil, #d8b25a); }
 .gridc-divider-x { cursor: col-resize; }
 .gridc-divider-y { cursor: row-resize; }
+
+/* Drop hover on a cell. */
+.gridc-cell.is-drop { outline: 2px solid var(--soleil, #d8b25a); outline-offset: -2px; }
+
+/* In-cell rich-text editor fills the cell. */
+.gridc-cell .gc-text-edit { width: 100%; height: 100%; overflow: auto; }
+
+/* Empty-cell content chooser — centered, revealed on hover. */
+.gridc-chooser {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;            /* click-through to the cell bg (card select) */
+}
+.gridc-chooser button { pointer-events: auto; }
+.gridc-cell.is-empty:hover .gridc-chooser { opacity: 1; }
+.gridc-chooser button {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.18));
+  background: var(--surface-3, #262630);
+  color: var(--ink-1, #c9c9d2);
+  cursor: pointer;
+}
+.gridc-chooser button:hover { color: var(--ink-0, #ececf1); border-color: var(--soleil, #d8b25a); }
+
+/* Per-cell split/merge/clear controls — top-right, revealed on cell hover. */
+.gridc-cell-ctrls {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 2;
+}
+.gridc-cell:hover .gridc-cell-ctrls { opacity: 1; }
+.gridc-cell-ctrls button {
+  font-size: 10px;
+  line-height: 1;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.18));
+  background: var(--surface-3, rgba(20, 20, 26, 0.9));
+  color: var(--ink-1, #c9c9d2);
+  cursor: pointer;
+}
+.gridc-cell-ctrls button:hover { color: var(--ink-0, #ececf1); border-color: var(--soleil, #d8b25a); }

@@ -8,7 +8,7 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
-import { presetTree } from '../lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell } from '../lib/gridLayout.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -618,6 +618,28 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
+  // Grid cell + divider mutators (local shell = plain layout/cells fields).
+  const mapGridCard = (gridId, fn) => updateBoardState(state => ({
+    ...state,
+    cards: state.cards.map(c => (c.id === gridId && c.layout) ? fn(c) : c),
+  }));
+  const resizeGridDivider = (gridId, path, childIndex, deltaFrac) =>
+    mapGridCard(gridId, c => ({ ...c, layout: resizeDivider(c.layout, path, childIndex, deltaFrac) }));
+  const splitGridCell = (gridId, cellId, orientation) =>
+    mapGridCard(gridId, c => ({ ...c, layout: splitCell(c.layout, cellId, orientation) }));
+  const mergeGridCell = (gridId, cellId) =>
+    mapGridCard(gridId, c => {
+      const { tree, removedIds } = mergeCell(c.layout, cellId);
+      if (!removedIds.length) return c;
+      const cells = { ...(c.cells || {}) };
+      removedIds.forEach(id => delete cells[id]);
+      return { ...c, layout: tree, cells };
+    });
+  const setGridCellContent = (gridId, cellId, patch) =>
+    mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { ...(c.cells?.[cellId] || {}), ...patch } } }));
+  const clearGridCellContent = (gridId, cellId) =>
+    mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { type: 'empty' } } }));
+
   // Chat-attachment drops piggy-back on the INBOX_MIME drag protocol so
   // CanvasSurface still calls onDropInboxItem for them.
   const dropInboxItem = (_inboxId, card) => addCard(card);
@@ -666,6 +688,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addNewBoard,
     addPalette,
     addGrid,
+    resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
     addShape,
     addStroke,
     replaceStrokes,

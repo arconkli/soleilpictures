@@ -5970,6 +5970,63 @@ export function CanvasSurface({
   }, [cards, gridSequences]);
   const gridSeqFormatFor = (c) => (c?.seqId && gridSequences[c.seqId]?.format) || null;
 
+  // Editing actions GridCard calls — thin forwards to the grid mutators plus the
+  // canvas-context bits (image/file upload, link prompt) that a cell needs.
+  const gridActions = useMemo(() => ({
+    resizeDivider: (gridId, path, ci, df) => mutators.resizeGridDivider?.(gridId, path, ci, df),
+    splitCell: (gridId, cellId, orientation) => mutators.splitGridCell?.(gridId, cellId, orientation),
+    mergeCell: (gridId, cellId) => mutators.mergeGridCell?.(gridId, cellId),
+    setCellContent: (gridId, cellId, patch) => mutators.setGridCellContent?.(gridId, cellId, patch),
+    clearCellContent: (gridId, cellId) => mutators.clearGridCellContent?.(gridId, cellId),
+    pickImageForCell: (gridId, cellId) => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*';
+      input.onchange = async () => {
+        const f = input.files?.[0]; if (!f) return;
+        try {
+          const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
+          mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
+        } catch (e) { feedback.toast({ type: 'error', message: 'Image upload failed: ' + (e.message || e) }); }
+      };
+      input.click();
+    },
+    fillCellFromFiles: async (gridId, cellId, files) => {
+      const f = files && files[0]; if (!f) return;
+      const mime = f.type || '';
+      try {
+        if (mime.startsWith('image/')) {
+          const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
+          mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
+        } else if (mime.startsWith('video/')) {
+          const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId });
+          mutators.setGridCellContent?.(gridId, cellId, { type: 'video', src: up.src });
+        } else {
+          const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
+          mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
+        }
+      } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
+    },
+    addLinkToCell: async (gridId, cellId) => {
+      const v = await feedback.prompt({ title: 'Add a link', label: 'URL', placeholder: 'https://…', confirmLabel: 'Add' });
+      if (!v) return;
+      const url = v.trim(); if (!url) return;
+      const embed = detectEmbed(url);
+      let title = url;
+      try { title = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
+      const patch = { type: 'link', source: url, link: url, title };
+      if (embed) patch.embed = embed;
+      mutators.setGridCellContent?.(gridId, cellId, patch);
+      if (!embed) fetchLinkPreview(url).then((p) => {
+        if (!p) return;
+        const np = {};
+        if (p.title) np.title = p.title;
+        if (p.image) np.image = p.image;
+        if (p.favicon) np.favicon = p.favicon;
+        if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np);
+      });
+    },
+  }), [mutators, workspaceId, board?.id, userId, feedback]);
+
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
     const dragDelta = inDrag ? drag : null;
@@ -6186,7 +6243,8 @@ export function CanvasSurface({
       const cardYMap = ydoc?.getMap?.('cards')?.get?.(c.id) || null;
       inner = <GridCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
                         templates={gridTemplates} seqIndex={gridSeqIndex.get(c.id)} seqFormat={gridSeqFormatFor(c)}
-                        isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate} />;
+                        isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
+                        gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
     }
     else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}
                                                        sizeBytes={c.sizeBytes} ext={c.ext} title={c.title}

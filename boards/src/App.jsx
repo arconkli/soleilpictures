@@ -99,8 +99,8 @@ import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
-import { initCardGridStore } from './lib/gridState.js';
-import { presetTree } from './lib/gridLayout.js';
+import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout } from './lib/gridState.js';
+import { presetTree, resizeDivider, splitCell, mergeCell } from './lib/gridLayout.js';
 import { uploadImage, uploadPdf } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
@@ -1556,6 +1556,60 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setAutoFocusId(id);
     };
 
+    // Layout reads/writes are link-aware: a linked Grid's layout lives in the
+    // shared gridTemplates record (editing reflows every linked Grid); an
+    // unlinked Grid carries its own `layout` field. Centralized here so GridCard
+    // stays dumb about the link state.
+    const gridLayoutOf = (cy) => {
+      if (!cy) return null;
+      const templateId = cy.get('templateId') || null;
+      if (templateId) {
+        const t = ydoc.getMap('gridTemplates').get(templateId);
+        return (t && t.layout) || cy.get('layout') || null;
+      }
+      return cy.get('layout') || null;
+    };
+    const writeGridLayout = (cy, gridId, newLayout) => {
+      const templateId = cy.get('templateId') || null;
+      if (templateId) setTemplateLayout(ydoc, templateId, newLayout);
+      else updateCard(gridId, { layout: newLayout });
+    };
+    const resizeGridDivider = (gridId, path, childIndex, deltaFrac) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const layout = gridLayoutOf(cy); if (!layout) return;
+      writeGridLayout(cy, gridId, resizeDivider(layout, path, childIndex, deltaFrac));
+    };
+    const splitGridCell = (gridId, cellId, orientation) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const layout = gridLayoutOf(cy); if (!layout) return;
+      breakUndo();
+      writeGridLayout(cy, gridId, splitCell(layout, cellId, orientation));
+    };
+    const mergeGridCell = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const layout = gridLayoutOf(cy); if (!layout) return;
+      const { tree, removedIds } = mergeCell(layout, cellId);
+      if (!removedIds.length) return;
+      breakUndo();
+      const templateId = cy.get('templateId') || null;
+      ydoc.transact(() => {
+        if (templateId) {
+          const tm = ydoc.getMap('gridTemplates'); const prev = tm.get(templateId);
+          if (prev) tm.set(templateId, { ...prev, layout: tree });
+        } else cy.set('layout', tree);
+        const cm = cy.get('gridCells');
+        if (cm) removedIds.forEach((id) => cm.delete(id));
+      }, 'local');
+    };
+    const setGridCellContent = (gridId, cellId, patch) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      setGridCell(ydoc, cy, cellId, patch);
+    };
+    const clearGridCellContent = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      clearGridCell(ydoc, cy, cellId);
+    };
+
     return {
       updateCard, updateCards, deleteCard, deleteCards,
       duplicateCard, duplicateCards, addCard, addCards,
@@ -1565,6 +1619,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
+      resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
       setBoardCover,
