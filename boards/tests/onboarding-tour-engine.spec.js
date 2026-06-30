@@ -122,6 +122,11 @@ test.describe('onboarding tour engine', () => {
     expect(tourStepIndex('nope')).toBe(-1);
   });
 
+  test('the content step centers its pill (so the revealed rail tooltips stay clear)', () => {
+    const content = TOUR_STEPS.find((s) => s.id === 'content');
+    expect(content.centerPill).toBe(true);
+  });
+
   test('every step declares an anchor and copy', () => {
     for (const st of TOUR_STEPS) {
       expect(typeof st.id).toBe('string');

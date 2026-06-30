@@ -78,6 +78,10 @@ export const TOUR_STEPS = [
     id: 'content',
     anchor: 'rail',
     placement: 'right',
+    // Ring the whole rail but center the pill in the canvas: this step reveals
+    // every rail tooltip at once (a column down the rail), so a right-placed pill
+    // would sit on top of them. Centering clears the column. See OnboardingTour.
+    centerPill: true,
     copy: {
       title: 'Now add anything',
       body: 'An image, a note, a doc, a file — drop in whatever you want. This is your canvas.',

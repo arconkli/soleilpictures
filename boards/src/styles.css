@@ -16734,6 +16734,15 @@ body[data-tour-active] :is(
    back after skip/finish (the flag is removed). */
 body[data-tour-active] .cnv-empty-tiles { display: none; }
 body[data-tour-active] .cnv-tool[data-tip]::after { display: none; }
+/* …except the final step, where the rail IS the .tour-target: reveal EVERY tool's
+   tooltip at once (not just on hover) so the user can read the whole toolset in a
+   tidy column down the rail. Higher specificity + later source than the rule above,
+   so it wins. Tooltips keep base pointer-events:none → they never block clicks. */
+body[data-tour-active] .tour-target .cnv-tool[data-tip]::after {
+  display: block;
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
 
 /* Eyedropper mode — when picking a color from a board image, the
    canvas-wrap gets data-eyedrop=1 so we can flip the cursor and
