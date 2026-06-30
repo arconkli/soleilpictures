@@ -1190,6 +1190,26 @@ export function CanvasSurface({
   // Place tools (click empty canvas to drop a card); 'draw'/'arrow' are not.
   const PLACE_TOOLS = ['text', 'image', 'board', 'shape', 'palette'];
 
+  // Drop the armed place-tool's card at `pos` — wherever the click landed,
+  // empty canvas OR on top of an existing card. Shared by the background placer
+  // and the card placer so a mis-click on a card no longer dead-ends (the data
+  // showed armed-tool clicks that hit a card just silently no-op'd, which reads
+  // as "the app is broken"). Returns true if it handled the tool.
+  const placeToolAt = (pos) => {
+    if (!PLACE_TOOLS.includes(selectedTool)) return false;
+    noteCreateIntent('tool_place');
+    switch (selectedTool) {
+      case 'board':   mutators.addNewBoard?.(pos); break;
+      case 'image':   mutators.addImageAt?.(pos);  break;
+      case 'text':    mutators.addNote?.(pos);     break;
+      case 'palette': mutators.addPalette?.(pos);  break;
+      case 'shape':   mutators.addShape?.(pos, shapeOptions); break;
+      default: return false;
+    }
+    setSelectedTool('select');
+    return true;
+  };
+
   // Briefly enable smooth transform after programmatic zoom changes.
   const enableSmoothTransform = useCallback(() => {
     setSmoothXform(true);
@@ -3194,14 +3214,13 @@ export function CanvasSurface({
       return;
     }
     if (spaceDown || selectedTool === 'pan') { startPan(e); return; }
-    // A place tool is armed but the click landed on a CARD, not empty canvas —
-    // the background placer never runs, so the create silently does nothing.
-    // Keep the tool armed, point the user at empty canvas, and record the miss.
+    // A place tool is armed and the click landed ON a card, not empty canvas.
+    // Drop the new card at the click point anyway (forgiving placement) — same
+    // as clicking empty canvas — instead of silently no-op'ing. The new card
+    // lands at the cursor (it can overlap; the user drags it off).
     if (PLACE_TOOLS.includes(selectedTool)) {
       e.stopPropagation();
-      noteCreateIntent('tool_place');
-      noteCreateBlocked('place_miss', 'tool_place');
-      feedback.toast({ type: 'info', message: `Click an empty spot to place the ${selectedTool === 'text' ? 'note' : selectedTool}.`, ttl: 3000 });
+      placeToolAt(clientToCanvas(e.clientX, e.clientY));
       return;
     }
     if (isEditorTarget(e)) return;
@@ -5122,12 +5141,9 @@ export function CanvasSurface({
     }
 
     if (selectedTool !== 'select') {
-      const pos = clientToCanvas(e.clientX, e.clientY);
-      if (PLACE_TOOLS.includes(selectedTool)) noteCreateIntent('tool_place');
-      if (selectedTool === 'board')   { mutators.addNewBoard?.(pos);  setSelectedTool('select'); return; }
-      if (selectedTool === 'image')   { mutators.addImageAt?.(pos);   setSelectedTool('select'); return; }
-      if (selectedTool === 'text')    { mutators.addNote?.(pos);      setSelectedTool('select'); return; }
-      if (selectedTool === 'palette') { mutators.addPalette?.(pos);   setSelectedTool('select'); return; }
+      // board/image/text/palette drop at the click via the shared placer;
+      // shape (drag-to-draw) and draw/arrow were already handled above.
+      placeToolAt(clientToCanvas(e.clientX, e.clientY));
       return;
     }
 
