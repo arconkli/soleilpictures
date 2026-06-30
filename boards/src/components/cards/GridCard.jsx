@@ -19,6 +19,7 @@ import { readGridModel } from '../../lib/gridState.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { R2Image } from '../R2Image.jsx';
 import { RichNoteEditor } from '../RichNoteEditor.jsx';
+import { Spinner } from '../Spinner.jsx';
 import { resolveSrc } from '../../lib/r2.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { FileCard } from './FileCard.jsx';
@@ -118,7 +119,7 @@ function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard }) {
   return null; // empty cell — placeholder/chooser drawn by the wrapper
 }
 
-export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true, focusedCellId = null, dropCellId = null, boards = null, onOpenBoard = null }) {
+export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true, focusedCellId = null, dropCellId = null, cellUploads = null, boards = null, onOpenBoard = null }) {
   useGridCellsVersion(cardYMap);
   const [preview, setPreview] = useState(null);        // { layout } during a divider drag
   const [dragId, setDragId] = useState(null);          // id of the divider being dragged
@@ -130,6 +131,10 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   if (!layout) return <div className="gridc gridc-empty" aria-hidden="true" />;
 
   const editable = canEdit && !!gridActions;
+  // Enter/leave a text cell's editor. Also tells CanvasSurface so the bottom
+  // note formatting toolbar (font / size / style) shows scoped to this cell.
+  const enterTextEdit = (cellId) => { setEditingCellId(cellId); gridActions?.setCellEditing?.(card.id, cellId); };
+  const exitTextEdit = (cellId) => { setEditingCellId((p) => (p === cellId ? null : p)); gridActions?.setCellEditing?.(null, null); };
   const box = { x: 0, y: 0, w, h };
   const rects = computeCellRects(layout, box);
   const dividers = collectDividers(layout, box);
@@ -190,11 +195,12 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   return (
     <>
     <div className="gridc" data-grid-id={card.id}>
-      {linked && annotationsVisible && (
+      {linked && (
         // Purely informational (pointer-events:none in CSS) so it never swallows a
         // selection click or unlinks by accident — unlink via right-click → Unlink.
-        // Per-family colour (by templateId) so distinct linked families read apart;
-        // follows the top-left comments-eye toggle (hidden when annotations are off).
+        // Per-family colour (by templateId) so distinct linked families read apart.
+        // Hidden at rest and revealed only on grid hover/selection (CSS) so it never
+        // persistently covers the top-left cell corner — no comments-eye toggle needed.
         <span className="gridc-linked-badge" style={{ '--link-color': pickPresenceColor(model.templateId) }}
               title="Linked layout — size & dividers reflow every linked Grid. Right-click → Unlink to detach.">Linked</span>
       )}
@@ -210,7 +216,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
             data-cell-id={r.id}
             style={{ left: r.x + gutter / 2, top: r.y + gutter / 2, width: Math.max(0, r.w - gutter), height: Math.max(0, r.h - gutter) }}
             onPointerDownCapture={editable && gridActions.focusCell ? () => gridActions.focusCell(card.id, r.id) : undefined}
-            onDoubleClick={editable && type === 'text' && !isEditingText ? (e) => { e.stopPropagation(); setEditingCellId(r.id); } : undefined}
+            onDoubleClick={editable && type === 'text' && !isEditingText ? (e) => { e.stopPropagation(); enterTextEdit(r.id); } : undefined}
             onDragOver={editable ? (e) => { e.preventDefault(); setDragOverCell(r.id); } : undefined}
             onDragLeave={editable ? () => setDragOverCell((p) => (p === r.id ? null : p)) : undefined}
             onDrop={editable ? (e) => {
@@ -228,7 +234,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                     html={cell.html || ''}
                     autoFocus
                     onChangeHTML={(html) => gridActions.setCellContent(card.id, r.id, { html })}
-                    onEditingChange={(ed) => { if (!ed) setEditingCellId((p) => (p === r.id ? null : p)); }}
+                    onEditingChange={(ed) => { if (!ed) exitTextEdit(r.id); }}
                     awareness={getAwareness ? (getAwareness() || null) : null}
                     cardId={`${card.id}:${r.id}`}
                     boardId={boardId}
@@ -238,6 +244,15 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                 <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} boards={boards} onOpenBoard={onOpenBoard} />
               )}
             </div>
+
+            {cellUploads && cellUploads[r.id] !== undefined && (
+              // In-cell upload feedback (paste / drop / Image-picker) — spinner +
+              // optional percentage so the user sees the upload is in flight.
+              <div className="gridc-cell-uploading" aria-label="Uploading">
+                <Spinner size={20} tone="on-dark" label="Uploading" />
+                {cellUploads[r.id] > 0 && <span className="gridc-cell-pct">{Math.round(cellUploads[r.id] * 100)}%</span>}
+              </div>
+            )}
 
             {editable && !isEditingText && (
               // Wrapper is pointer-events:none (CSS) so the cell bg still selects
@@ -249,7 +264,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                       {/* Icon-only choosers; accessible name (title + aria-label) kept as
                           "Text"/"Image"/"Link" so tooltips read and tests still resolve them. */}
                       <button type="button" className="is-icon" title="Text" aria-label="Text"
-                        onClick={(e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); setEditingCellId(r.id); }}>
+                        onClick={(e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); enterTextEdit(r.id); }}>
                         <span className="gridc-ico"><Icon as={TextT} size={15} /></span>
                       </button>
                       <button type="button" className="is-icon" title="Image" aria-label="Image"

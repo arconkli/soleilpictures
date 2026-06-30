@@ -377,6 +377,7 @@ export function ToolOptionsBar({
   arrowOptions, setArrowOptions,
   editingNoteCard,
   onUpdateEditingNote,
+  editingCellText,        // a grid TEXT cell is being edited (no backing note card)
   editingShapeCard,
   onUpdateEditingShape,
   editingLineArrow,       // { idx, arrow } when a single line-arrow is selected
@@ -405,13 +406,17 @@ export function ToolOptionsBar({
   const tobProps = { className: 'tob' };
 
   // ── Note rich text bar ──────────────────────────────────────────────────
-  if (editingNoteCard) {
+  // Also shown for a grid TEXT cell (editingCellText) — same inline formatting,
+  // driven against the focused contenteditable. With no backing note card the
+  // two card-level controls (card background, vertical balance) are hidden.
+  if (editingNoteCard || editingCellText) {
     return <NoteRichTextBar
       tobProps={tobProps}
       paletteColors={paletteColors}
       openPickerAt={openPickerAt}
       editingNoteCard={editingNoteCard}
       onUpdateEditingNote={onUpdateEditingNote}
+      cardLevel={!!editingNoteCard}
     />;
   }
 
@@ -681,7 +686,7 @@ export function ToolOptionsBar({
 // selectionchange while the note is being edited). Keeping it inside the
 // main ToolOptionsBar function would mean the hook runs in every render of
 // every tool's bar.
-function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote }) {
+function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote, cardLevel = true }) {
   const currentFore = useNoteForeColor(true);
   const fmt = useNoteFormatState(true);
   const barRef = useRef(null);
@@ -738,11 +743,12 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
       <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft"   active={fmt.align === 'left'} />
       <FormatBtn label="≡" title="Align center" cmd="justifyCenter" active={fmt.align === 'center'} />
       <FormatBtn label="⇥" title="Align right"  cmd="justifyRight"  active={fmt.align === 'right'} />
-      {(() => {
+      {cardLevel && (() => {
         // One-click "balance": center the text on BOTH axes so a one-line note
         // reads as a tidy header with even space around it. Toggles back to
         // left + top. Vertical centering (vAlign) is a flat card field written
-        // through the same undo-aware path as bgColor.
+        // through the same undo-aware path as bgColor — so it's note-card-only
+        // (hidden when formatting a grid text cell, which has no card to align).
         const balanced = fmt.align === 'center' && editingNoteCard?.vAlign === 'center';
         return (
           <button type="button"
@@ -778,7 +784,8 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
                   onChange: (c) => applyStyleOrNoteDefault({ color: c },
                     () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c })),
                 })} />
-      <ColorBtn title="Card background" defaultColor={editingNoteCard?.bgColor || '#1c1c1f'}
+      {cardLevel && (
+        <ColorBtn title="Card background" defaultColor={editingNoteCard?.bgColor || '#1c1c1f'}
                 swatches={BG_COLORS}
                 paletteColors={paletteColors}
                 onPick={(c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c })}
@@ -791,6 +798,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
                   onChange: (c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
                   allowTransparent: true,
                 })} />
+      )}
     </div>
   );
 }

@@ -2796,16 +2796,30 @@ export function CanvasSurface({
     };
 
     const onPaste = async (e) => {
-      if (isEditorTarget(e)) return;
-
       // 0) A grid cell is focused → paste anything INTO that cell (auto-formatted:
-      //    image/file → upload, URL → link, text → text). Clicking a cell focuses it.
+      //    image/file → upload, URL → link, text → text). This runs BEFORE the
+      //    isEditorTarget guard on purpose: clicking a cell sets focus STATE but not
+      //    DOM focus, so a stale contenteditable (a note you were just editing —
+      //    clicking a non-focusable cell div doesn't blur it) would otherwise trip
+      //    the guard and the image would land on the canvas. Only defer to the editor
+      //    when the caret is genuinely inside THIS cell's own text editor (so native
+      //    text paste into a text cell still works).
       const fc = focusedCellRef.current;
       if (fc && canEdit) {
-        e.preventDefault();
-        await pasteIntoCell(fc.gridId, fc.cellId, e.clipboardData);
-        return;
+        const ae = document.activeElement;
+        let typingInThisCell = false;
+        if (ae && ae.isContentEditable) {
+          const cellEl = ae.closest?.('[data-cell-id]');
+          typingInThisCell = cellEl?.getAttribute('data-cell-id') === fc.cellId;
+        }
+        if (!typingInThisCell) {
+          e.preventDefault();
+          await pasteIntoCell(fc.gridId, fc.cellId, e.clipboardData);
+          return;
+        }
       }
+
+      if (isEditorTarget(e)) return;
 
       // 1) Image in OS clipboard wins outright.
       const items = e.clipboardData?.items;
@@ -6147,29 +6161,41 @@ export function CanvasSurface({
     focusedCellRef.current = v;
     setFocusedCell(v);
   }, []);
+  // Per-cell upload progress (paste / drop / Image-picker into a cell), keyed
+  // `${gridId}:${cellId}` → fraction 0..1. Drives the in-cell spinner overlay so
+  // the user sees that an upload is happening (mirrors the canvas ImageCard pattern).
+  const [cellUploads, setCellUploads] = useState({});
+  // A grid text cell currently being edited → surfaces the note formatting toolbar
+  // (font / size / style) scoped to that cell's editor. { gridId, cellId } | null.
+  const [editingCell, setEditingCell] = useState(null);
   // Drop cell focus when its grid disappears — deleted, or board-switched (the
   // surface doesn't remount on board change). Prevents a stale paste being
   // silently swallowed into a vanished cell.
   useEffect(() => {
     const fc = focusedCellRef.current;
     if (fc && !cards.some((c) => c.id === fc.gridId)) focusCell(null, null);
+    setEditingCell((ec) => (ec && !cards.some((c) => c.id === ec.gridId) ? null : ec));
   }, [cards, focusCell]);
   // Decode a file list into the right cell content (image / video / file).
   const fillCellFromFiles = useCallback(async (gridId, cellId, files) => {
     const f = files && files[0]; if (!f) return;
     const mime = f.type || '';
+    const key = `${gridId}:${cellId}`;
+    const onProgress = (frac) => setCellUploads((p) => ({ ...p, [key]: frac }));
+    setCellUploads((p) => ({ ...p, [key]: 0 }));   // show the spinner the moment upload starts
     try {
       if (mime.startsWith('image/')) {
-        const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
+        const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
       } else if (mime.startsWith('video/')) {
-        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId });
+        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId, onProgress });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'video', src: up.src });
       } else {
-        const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
+        const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
       }
     } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
+    finally { setCellUploads((p) => { const n = { ...p }; delete n[key]; return n; }); }
   }, [mutators, workspaceId, board?.id, userId, feedback]);
   // Decode a clipboard/drag payload INTO a cell: files/images → upload; a bare URL
   // → link (with async preview); any other text → a text cell. Shared by paste +
@@ -6208,6 +6234,9 @@ export function CanvasSurface({
   const gridActions = useMemo(() => ({
     focusCell,
     pasteIntoCell,
+    // GridCard tells us when a text cell enters/leaves edit mode so the bottom
+    // toolbar can show the note formatting controls scoped to that cell.
+    setCellEditing: (gridId, cellId) => setEditingCell((gridId && cellId) ? { gridId, cellId } : null),
     resizeDivider: (gridId, path, ci, df) => mutators.resizeGridDivider?.(gridId, path, ci, df),
     splitCell: (gridId, cellId, orientation) => mutators.splitGridCell?.(gridId, cellId, orientation),
     mergeCell: (gridId, cellId) => mutators.mergeGridCell?.(gridId, cellId),
@@ -6221,13 +6250,9 @@ export function CanvasSurface({
     pickImageForCell: (gridId, cellId) => {
       const input = document.createElement('input');
       input.type = 'file'; input.accept = 'image/*';
-      input.onchange = async () => {
-        const f = input.files?.[0]; if (!f) return;
-        try {
-          const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
-          mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
-        } catch (e) { feedback.toast({ type: 'error', message: 'Image upload failed: ' + (e.message || e) }); }
-      };
+      // Route through fillCellFromFiles so the Image-picker gets the same in-cell
+      // spinner + progress as paste/drop.
+      input.onchange = () => { if (input.files?.[0]) fillCellFromFiles(gridId, cellId, input.files); };
       input.click();
     },
     fillCellFromFiles,
@@ -6466,12 +6491,16 @@ export function CanvasSurface({
       // from c.layout. seqIndex/seqFormat (label tags) + interactive dividers land
       // in later phases; P1 renders the static cell layout read-only.
       const cardYMap = ydoc?.getMap?.('cards')?.get?.(c.id) || null;
+      // Per-cell upload progress slice for this grid: { cellId: frac }.
+      const gridUploads = {};
+      for (const k in cellUploads) { if (k.startsWith(`${c.id}:`)) gridUploads[k.slice(c.id.length + 1)] = cellUploads[k]; }
       inner = <GridCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
                         templates={gridTemplates} seqIndex={gridSeqIndex.get(c.id)} seqFormat={gridSeqFormatFor(c)}
                         isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
                         annotationsVisible={commentsVisible}
                         focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
                         dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
+                        cellUploads={gridUploads}
                         boards={boards} onOpenBoard={onOpenBoard}
                         gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
     }
@@ -8553,6 +8582,7 @@ export function CanvasSurface({
         onOpenSketchpad={() => setSketchpadOpen(true)}
         editingNoteCard={editingNoteId ? cardById[editingNoteId] : null}
         onUpdateEditingNote={editingNoteId ? (patch) => mutators.updateCard?.(editingNoteId, patch) : null}
+        editingCellText={!!editingCell}
         editingShapeCard={(() => {
           if (selected.size !== 1) return null;
           const id = [...selected][0];

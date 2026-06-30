@@ -91,6 +91,12 @@ export function RichNoteEditor({
   const [editing, setEditing] = useState(autoFocus);
   const theme = useThemeAttr();
   const initialRef = useRef('');
+  // Whether we've written the saved html into the contenteditable yet. The seed
+  // effect below "owns the DOM while editing" and skips incoming html, but a
+  // component that mounts straight into edit mode (autoFocus — e.g. a grid text
+  // cell re-opened by double-click) must STILL seed its saved html once, or the
+  // editor shows blank and the user overwrites it.
+  const seededRef = useRef(false);
   // Coords of the most recent pointerdown in the contenteditable. Used by
   // onBodyClick's checkbox-toggle branch to tell a tap (small movement →
   // toggle) from a drag-end click (movement > threshold → leave alone, so
@@ -114,7 +120,13 @@ export function RichNoteEditor({
 
   useEffect(() => {
     if (!ref.current) return;
-    if (editing) return;  // editor owns the DOM while editing
+    // The editor owns the DOM while editing — don't clobber in-progress text with
+    // incoming html. EXCEPT the very first mount: if we entered straight into edit
+    // mode (autoFocus), we must still seed the saved html ONCE, or the editor shows
+    // blank and the user overwrites it (the grid text-cell "text disappears on
+    // re-entry" bug). After the first seed, subsequent html changes are skipped
+    // while editing, exactly as before.
+    if (editing && seededRef.current) return;
     // Receiver: prefer the peer's in-flight html if a peer is editing this
     // note right now (peerLiveHtml from awareness), otherwise the committed
     // html from Y.Doc. peerLiveHtml clears on the peer's blur and falls
@@ -122,6 +134,7 @@ export function RichNoteEditor({
     const next = peerLiveHtml ?? (html || (body ? `<div>${escapeHtml(body)}</div>` : ''));
     if (ref.current.innerHTML !== next) ref.current.innerHTML = next;
     initialRef.current = ref.current.innerHTML;
+    seededRef.current = true;
     // Any inline `font-family: 'X', ...` referring to a Google catalog font
     // needs its stylesheet injected on cold load — otherwise the browser
     // falls back to system-ui and the note looks like the font reverted.

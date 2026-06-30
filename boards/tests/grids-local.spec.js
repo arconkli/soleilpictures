@@ -214,6 +214,36 @@ test.describe('grids — local interaction', () => {
     await expect(page.locator('.gridc-cell-text .gc-text')).toContainText('Shot 1 action');
   });
 
+  test('re-entering a text cell keeps its text and shows the format toolbar', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    await grid.click({ position: { x: 180, y: 8 } });
+
+    // Create a text cell with content, then commit it (read-only body renders).
+    const empty = page.locator('.gridc-cell.is-empty').first();
+    await empty.hover();
+    await empty.getByRole('button', { name: 'Text', exact: true }).click();
+    const editor = page.locator('.gridc-cell [contenteditable="true"]').first();
+    await editor.waitFor({ state: 'visible' });
+    await editor.click();
+    await page.keyboard.type('Keep me');
+    await editor.evaluate((el) => el.blur());
+    await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
+    await expect(grid.locator('.gridc-cell-text .gc-text')).toContainText('Keep me');
+
+    // Double-click back into the cell. Regression: the editor used to mount BLANK
+    // (autoFocus skipped the DOM seed), so the saved text vanished and typing
+    // overwrote it. It must now show the saved text, and the bottom formatting
+    // toolbar must appear scoped to the cell (no card-only "Card background").
+    await grid.locator('.gridc-cell-text').first().dblclick();
+    const reEditor = page.locator('.gridc-cell [contenteditable="true"]').first();
+    await reEditor.waitFor({ state: 'visible' });
+    await expect(reEditor).toContainText('Keep me');
+    await expect(page.locator('.tob')).toBeVisible();
+    await expect(page.locator('.tob [title="Bold (⌘B)"]')).toHaveCount(1);
+    await expect(page.locator('.tob [title="Card background"]')).toHaveCount(0);
+  });
+
   // Click a cell to focus it, then paste — the cell auto-formats by clipboard type.
   async function pasteInto(page, text) {
     await page.evaluate((t) => {
