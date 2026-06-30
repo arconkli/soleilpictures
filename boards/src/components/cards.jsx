@@ -337,7 +337,22 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
   // (no flash back to placeholder) but re-enables the preview decode +
   // backfill below so it self-heals to the current look in the background.
   const thumbCurrent = hasStoredThumb && board.thumb_version === THUMB_RENDER_VERSION;
-  const needsRegen = !isList && (!hasStoredThumb || !thumbCurrent);
+  // Freshness vs nested boards: a parent's thumbnail bakes in each child's
+  // stored preview (nested boards render the child's thumb). When a child's
+  // content changes its thumb_updated_at advances, but the parent's own
+  // cards/hash don't — so the parent keeps showing children as they looked
+  // at its last render. Detect "stale vs children" (direct children, valid
+  // ISO dates only) and force a one-shot regen through the same backfill
+  // path. Date.parse(null) is NaN and all NaN comparisons are false, so
+  // children without a thumb are naturally excluded.
+  const childThumbMax = children.reduce((m, b) => {
+    const t = Date.parse(b.thumb_updated_at);
+    return Number.isFinite(t) && t > m ? t : m;
+  }, 0);
+  const parentThumbAt = Date.parse(board.thumb_updated_at);
+  const staleVsChildren = hasStoredThumb &&
+    childThumbMax > (Number.isFinite(parentThumbAt) ? parentThumbAt : 0);
+  const needsRegen = !isList && (!hasStoredThumb || !thumbCurrent || staleVsChildren);
   const preview = useBoardPreview(board.id, isList || (needsRegen && thumbVisible));
   const liveHasPreview = !isList && !hasStoredThumb && preview &&
     (preview.cards?.length > 0 || preview.strokes?.length > 0);
@@ -346,7 +361,7 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
   // stale-version one) has its already-decoded preview persisted to R2
   // (writers only) so the next load is a cheap static image. No-ops for
   // list mode, current thumbs, empty boards, and viewers (presign 403).
-  useThumbnailBackfill({ board, preview, boards, enabled: needsRegen && thumbVisible });
+  useThumbnailBackfill({ board, preview, boards, enabled: needsRegen && thumbVisible, force: staleVsChildren });
 
   // Item count survives without a decode thanks to boards.card_count; fall
   // back to the live preview's count (list mode / pre-backfill tiles).

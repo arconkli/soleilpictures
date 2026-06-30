@@ -13,7 +13,7 @@
 // onto the undo stack. Restores use 'restore'.
 
 import * as Y from 'yjs';
-import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb, getBoardBgColor } from './boardsApi.js';
+import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb, getBoardBgColor, getChildBoardThumbs } from './boardsApi.js';
 import { b64ToBytes, bytesToB64, readCards } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 // Round 23: render each board's preview ONCE on the editing client and
@@ -127,7 +127,16 @@ async function _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, 
     // repaints the canvas mid-session). Failure → default canvas bg.
     let bgColor = null;
     try { bgColor = await getBoardBgColor(boardId); } catch (_) {}
-    const blob = await renderThumbnailBlob({ cards, strokes, arrows, bgColor });
+    // If this board contains nested boards, fetch their stored thumbnails so
+    // each renders the child's real preview instead of a flat rectangle. The
+    // long-lived yboard handle has no React `boards` map, so we self-fetch —
+    // always fresh, scoped to direct children, and only when there's a board
+    // card to paint. Same throttle/hash-dedup gating as the bg_color read.
+    let boards = {};
+    if (cards.some((c) => c && c.kind === 'board')) {
+      try { boards = await getChildBoardThumbs(boardId); } catch (_) {}
+    }
+    const blob = await renderThumbnailBlob({ cards, strokes, arrows, boards, bgColor });
     if (!blob) return;
     const { src } = await uploadBoardThumbnail({ workspaceId, boardId, blob, userId });
     await updateBoardThumb(boardId, { thumbKey: src, cardCount: cards.length, thumbVersion: RENDER_VERSION });

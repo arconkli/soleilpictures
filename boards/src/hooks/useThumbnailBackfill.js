@@ -35,7 +35,7 @@ const _attempted = new Set();
 // a freshly-painted board/grid.
 const _runGated = runGated;
 
-export function useThumbnailBackfill({ board, preview, boards = {}, enabled = true }) {
+export function useThumbnailBackfill({ board, preview, boards = {}, enabled = true, force = false }) {
   const boardId = board?.id;
   const workspaceId = board?.workspace_id;
   const bgColor = board?.bg_color || null;
@@ -45,7 +45,11 @@ export function useThumbnailBackfill({ board, preview, boards = {}, enabled = tr
   const hasThumb = !!board?.thumb_key && board?.thumb_version === RENDER_VERSION;
 
   useEffect(() => {
-    if (!enabled || !boardId || !workspaceId || hasThumb) return;
+    // `force` lets a caller regenerate even a current-version thumb — used
+    // when a parent board's stored thumb is stale relative to its children
+    // (a child's preview changed but the parent's own cards didn't). The
+    // _attempted one-shot below still caps it to one regen per session.
+    if (!enabled || !boardId || !workspaceId || (hasThumb && !force)) return;
     if (_attempted.has(boardId)) return;
 
     const cards = preview?.cards || [];
@@ -82,5 +86,5 @@ export function useThumbnailBackfill({ board, preview, boards = {}, enabled = tr
         if (perf.isEnabled()) console.warn('[thumb backfill] skipped', boardId, e?.message || e);
       }
     });
-  }, [enabled, boardId, workspaceId, hasThumb, bgColor, preview, boards]);
+  }, [enabled, boardId, workspaceId, hasThumb, force, bgColor, preview, boards]);
 }
