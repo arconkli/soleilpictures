@@ -21,6 +21,8 @@ import { R2Image } from '../R2Image.jsx';
 import { RichNoteEditor } from '../RichNoteEditor.jsx';
 import { resolveSrc } from '../../lib/r2.js';
 import { FileCard } from './FileCard.jsx';
+import { Icon } from '../Icon.jsx';
+import { Columns2 as Columns, Plus, Trash2 as Trash, X } from '../../lib/icons.js';
 import './gridCard.css';
 
 const stop = (e) => e.stopPropagation();
@@ -99,6 +101,7 @@ function CellContent({ cell, rect, seqIndex, seqFormat }) {
 export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null }) {
   useGridCellsVersion(cardYMap);
   const [preview, setPreview] = useState(null);        // { layout } during a divider drag
+  const [dragId, setDragId] = useState(null);          // id of the divider being dragged
   const [editingCellId, setEditingCellId] = useState(null);
   const [dragOverCell, setDragOverCell] = useState(null);
 
@@ -121,6 +124,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     const zoom = getCanvasScale() || 1;
     const baseLayout = model.layout;
     let lastDf = 0;
+    setDragId(d.id);
     const move = (ev) => {
       const deltaScreen = d.axis === 'x' ? (ev.clientX - startX) : (ev.clientY - startY);
       const df = (deltaScreen / zoom) / (d.parentExtent || 1);
@@ -131,24 +135,40 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       setPreview(null);
+      setDragId(null);
       if (Math.abs(lastDf) > 1e-4) gridActions.resizeDivider(card.id, d.path, d.childIndex, lastDf);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };
 
+  // Split control: a vertical line (split into columns = a 'row' of two cells) or
+  // a horizontal line (split into rows = a 'col'). Real icons (Columns, rotated).
+  const SplitButtons = ({ cellId }) => (
+    <>
+      <button type="button" className="is-icon" title="Add a vertical line (split into columns)"
+        onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(card.id, cellId, 'row'); }}>
+        <span className="gridc-ico"><Icon as={Columns} size={15} /></span>
+      </button>
+      <button type="button" className="is-icon" title="Add a horizontal line (split into rows)"
+        onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(card.id, cellId, 'col'); }}>
+        <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={15} /></span>
+      </button>
+    </>
+  );
+
   const linked = !!model.templateId;
 
   return (
     <div className="gridc" data-grid-id={card.id}>
-      {linked && isSelected && (
+      {linked && (
         <button
           type="button"
           className="gridc-linked-badge"
           title="Linked layout — edits reflow every linked Grid. Click to unlink."
           onPointerDown={stop}
           onClick={editable ? (e) => { e.stopPropagation(); gridActions.unlinkGrid?.(card.id); } : undefined}
-        >🔗 Linked</button>
+        >Linked</button>
       )}
       {rects.map((r) => {
         const cell = model.cells[r.id];
@@ -186,41 +206,48 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
               <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} />
             )}
 
-            {editable && empty && !isEditingText && (
-              // pointer-events:none on the wrapper (CSS) so clicking the empty
-              // cell BACKGROUND still selects/drags the card; only the buttons
-              // are interactive and stop propagation themselves.
-              <div className="gridc-chooser">
-                <button type="button" onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); setEditingCellId(r.id); }}>Text</button>
-                <button type="button" onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.pickImageForCell(card.id, r.id); }}>Image</button>
-                <button type="button" onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.addLinkToCell(card.id, r.id); }}>Link</button>
+            {editable && !isEditingText && (
+              // Wrapper is pointer-events:none (CSS) so the cell bg still selects
+              // the card; only the pill is interactive.
+              <div className="gridc-celltools">
+                <div className="gridc-pill" onPointerDown={stop}>
+                  {empty && (
+                    <>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); setEditingCellId(r.id); }}>Text</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); gridActions.pickImageForCell(card.id, r.id); }}>Image</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); gridActions.addLinkToCell(card.id, r.id); }}>Link</button>
+                      <span className="gridc-pill-sep" />
+                    </>
+                  )}
+                  <SplitButtons cellId={r.id} />
+                </div>
               </div>
             )}
 
-            {editable && isSelected && !isEditingText && (
-              <div className="gridc-cell-ctrls" onPointerDown={stop}>
-                <button type="button" title="Split into columns" onClick={(e) => { e.stopPropagation(); gridActions.splitCell(card.id, r.id, 'row'); }}>▢▢</button>
-                <button type="button" title="Split into rows" onClick={(e) => { e.stopPropagation(); gridActions.splitCell(card.id, r.id, 'col'); }}>⊟</button>
-                {!empty && (
-                  <button type="button" title="Clear cell" onClick={(e) => { e.stopPropagation(); gridActions.clearCellContent(card.id, r.id); }}>⌫</button>
-                )}
-                {canMerge && (
-                  <button type="button" title="Merge into neighbor" onClick={(e) => { e.stopPropagation(); gridActions.mergeCell(card.id, r.id); }}>✕</button>
-                )}
-              </div>
+            {editable && !isEditingText && (!empty || canMerge) && (
+              <button
+                type="button"
+                className="gridc-cell-x"
+                title={!empty ? 'Clear cell' : 'Merge into neighbor'}
+                onPointerDown={stop}
+                onClick={(e) => { e.stopPropagation(); if (!empty) gridActions.clearCellContent(card.id, r.id); else gridActions.mergeCell(card.id, r.id); }}
+              ><span className="gridc-ico"><Icon as={!empty ? Trash : X} size={13} /></span></button>
             )}
           </div>
         );
       })}
-      {dividers.map((d) => (
-        <div
-          key={d.id}
-          className={`gridc-divider gridc-divider-${d.axis}${editable && isSelected ? ' is-grabbable' : ''}`}
-          style={{ left: d.x, top: d.y, width: d.w, height: d.h }}
-          onPointerDown={editable && isSelected ? (e) => onDividerDown(e, d) : undefined}
-          aria-hidden="true"
-        />
-      ))}
+      {dividers.map((d) => {
+        const grab = editable && isSelected;   // resize after select (standard, avoids mis-grabs)
+        return (
+          <div
+            key={d.id}
+            className={`gridc-divider gridc-divider-${d.axis}${grab ? ' is-grabbable' : ''}${dragId === d.id ? ' is-dragging' : ''}`}
+            style={{ left: d.x, top: d.y, width: d.w, height: d.h }}
+            onPointerDown={grab ? (e) => onDividerDown(e, d) : undefined}
+            aria-hidden="true"
+          />
+        );
+      })}
       {editable && isSelected && gridActions.stampNeighbor && ['top', 'bottom', 'left', 'right'].map((dir) => (
         <button
           key={dir}
@@ -229,7 +256,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
           title={`Stamp a Grid ${dir}`}
           onPointerDown={stop}
           onClick={(e) => { e.stopPropagation(); gridActions.stampNeighbor(card.id, dir); }}
-        >+</button>
+        ><span className="gridc-ico"><Icon as={Plus} size={13} /></span></button>
       ))}
     </div>
   );

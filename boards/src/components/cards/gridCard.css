@@ -1,42 +1,48 @@
-/* Grid card — a container of nested cells (see GridCard.jsx). The outer .card
-   wrapper (CanvasSurface) owns position/size/selection; .gridc fills it. */
+/* Grid card — minimal, elegant container of nested cells (see GridCard.jsx).
+   Uses the app design tokens (--bg-*, --line-*, --ink-*, --soleil). Lines are
+   crisp 1px hairlines; chrome (dividers, chooser, split controls) is invisible at
+   rest and revealed on hover, neutral ink → gold only on hover/active. */
 
 .gridc {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border-radius: 10px;
-  background: var(--surface-1, #14141a);
-  box-shadow: inset 0 0 0 1px var(--hairline, rgba(255, 255, 255, 0.10));
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-2, #16161a);
+  border: 1px solid var(--line-1, #212126);
 }
-.gridc-empty { background: var(--surface-1, #14141a); }
+.gridc-empty { background: var(--bg-2, #16161a); }
 
-/* Each cell is absolutely positioned in the card's local space. */
+/* Cells — flush; the 1px dividers between them are the only separators. */
 .gridc-cell {
   position: absolute;
   overflow: hidden;
   display: flex;
   min-width: 0;
   min-height: 0;
-  background: var(--surface-2, #1b1b22);
+  background: var(--bg-1, #111114);
 }
-.gridc-cell.is-empty {
-  background:
-    repeating-linear-gradient(45deg,
-      transparent 0, transparent 9px,
-      var(--hairline, rgba(255, 255, 255, 0.035)) 9px,
-      var(--hairline, rgba(255, 255, 255, 0.035)) 10px);
+/* Empty cell: a calm panel with a faint centred + hint at rest. */
+.gridc-cell.is-empty { background: var(--bg-1, #111114); }
+.gridc-cell.is-empty::after {
+  content: '+';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--ink-4, #3a3a40);
+  pointer-events: none;
+  transition: color 0.12s ease, opacity 0.12s ease;
 }
+.gridc-cell.is-empty:hover::after { opacity: 0; }
+.gridc-cell.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
 
-/* Cell content fills the cell. Image crop-to-fill is the default; the inline
-   style on the <img> sets object-fit/position, this is the layout + fallback. */
+/* ── cell content ─────────────────────────────────────────────────────────── */
 .gridc-cell img.gc-img,
-.gridc-cell .gc-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
+.gridc-cell .gc-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .gridc-cell .gc-text {
   width: 100%;
@@ -44,60 +50,140 @@
   padding: 8px 10px;
   overflow: auto;
   font-size: 13px;
-  line-height: 1.4;
-  color: var(--ink-0, #ececf1);
+  line-height: 1.45;
+  color: var(--ink-0, #f5f5f7);
   word-break: break-word;
 }
 .gridc-cell .gc-text :where(p, h1, h2, h3, ul, ol) { margin: 0 0 4px; }
+.gridc-cell .gc-text-edit { width: 100%; height: 100%; overflow: auto; }
 
 .gridc-cell .gc-video { width: 100%; height: 100%; object-fit: cover; background: #000; display: block; }
-.gridc-cell .gc-loading { width: 100%; height: 100%; background: var(--surface-3, #22222b); }
+.gridc-cell .gc-loading { width: 100%; height: 100%; background: var(--bg-3, #1c1c20); }
 
-.gridc-cell .gc-link {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  text-decoration: none;
-  color: var(--ink-0, #ececf1);
-}
+.gridc-cell .gc-link { display: flex; flex-direction: column; width: 100%; height: 100%; text-decoration: none; color: var(--ink-0, #f5f5f7); }
 .gridc-cell .gc-link-img { width: 100%; flex: 1 1 auto; min-height: 0; object-fit: cover; }
-.gridc-cell .gc-link-meta { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 12px; }
+.gridc-cell .gc-link-meta { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 12px; color: var(--ink-1, #d0d0d4); }
 .gridc-cell .gc-link-fav { width: 14px; height: 14px; border-radius: 3px; flex: none; }
 .gridc-cell .gc-link-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* The file cell reuses FileCard, which brings its own chrome; clip it. */
 .gridc-cell-file .filec { width: 100%; height: 100%; }
 
-/* Dividers — thin hairlines between cells. Visual-only until the Grid is
-   selected + editable, when they become grabbable resize handles. */
-.gridc-divider {
+/* ── dividers ─────────────────────────────────────────────────────────────── */
+/* The element is a wide TRANSPARENT hit zone; ::after draws a crisp 1px line
+   centred on the seam. Invisible chrome → just a hairline at rest. */
+.gridc-divider { position: absolute; pointer-events: none; }
+.gridc-divider::after {
+  content: '';
   position: absolute;
-  pointer-events: none;
-  background: var(--hairline, rgba(255, 255, 255, 0.12));
+  background: var(--line-2, #2c2c32);
+  transition: background 0.12s ease, box-shadow 0.12s ease, width 0.1s ease, height 0.1s ease;
 }
-/* "Linked layout" badge — shown top-left when a Grid is linked + selected. */
-.gridc-linked-badge {
+.gridc-divider-x::after { left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-50%); }
+.gridc-divider-y::after { top: 50%; left: 0; right: 0; height: 1px; transform: translateY(-50%); }
+.gridc-divider.is-grabbable { pointer-events: auto; }
+.gridc-divider-x.is-grabbable { cursor: col-resize; }
+.gridc-divider-y.is-grabbable { cursor: row-resize; }
+.gridc-divider.is-grabbable:hover::after,
+.gridc-divider.is-dragging::after { background: var(--soleil, #ffa500); box-shadow: 0 0 8px var(--soleil-soft, rgba(255,165,0,.14)); }
+.gridc-divider-x.is-grabbable:hover::after, .gridc-divider-x.is-dragging::after { width: 2px; }
+.gridc-divider-y.is-grabbable:hover::after, .gridc-divider-y.is-dragging::after { height: 2px; }
+
+/* ── floating controls (revealed on hover) ────────────────────────────────── */
+/* Shared pill look for the empty-cell chooser + the split control. */
+.gridc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--bg-3, #1c1c20) 92%, transparent);
+  border: 1px solid var(--line-2, #2c2c32);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+}
+.gridc-pill button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  border: 0;
+  border-radius: var(--radius, 4px);
+  background: transparent;
+  color: var(--ink-2, #888890);
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.gridc-pill button:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+.gridc-pill button.is-icon { width: 26px; padding: 0; justify-content: center; }
+.gridc-pill-sep { width: 1px; align-self: stretch; margin: 3px 1px; background: var(--line-2, #2c2c32); }
+
+/* Per-cell hover toolbar — bottom-centre. For an empty cell it offers the content
+   choosers (Text / Image / Link); for any cell it offers split-into-columns /
+   split-into-rows (the headline "easy to add a line" affordance). Wrapper is
+   click-through so the cell bg still selects the card; only the pill is live. */
+.gridc-celltools {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 10px);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+.gridc-cell:hover .gridc-celltools { opacity: 1; }
+.gridc-celltools > .gridc-pill { pointer-events: auto; max-width: 100%; flex-wrap: nowrap; }
+
+/* Tiny remove (clear content / merge cell) — top-right corner on hover. */
+.gridc-cell-x {
   position: absolute;
   top: 4px;
-  left: 4px;
-  z-index: 3;
+  right: 4px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 5px;
-  border: 1px solid var(--soleil, #d8b25a);
-  background: var(--surface-3, rgba(20, 20, 26, 0.9));
-  color: var(--soleil, #d8b25a);
+  justify-content: center;
+  border-radius: var(--radius, 4px);
+  border: 1px solid var(--line-2, #2c2c32);
+  background: color-mix(in srgb, var(--bg-3, #1c1c20) 92%, transparent);
+  color: var(--ink-2, #888890);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.1s ease;
+  z-index: 3;
+}
+.gridc-cell:hover .gridc-cell-x { opacity: 1; }
+.gridc-cell-x:hover { color: var(--ink-0, #f5f5f7); border-color: var(--line-3, #3a3a40); }
+
+/* Icon helpers. */
+.gridc-ico { width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; }
+.gridc-rot90 { transform: rotate(90deg); }
+
+/* ── linked badge ─────────────────────────────────────────────────────────── */
+.gridc-linked-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2, #2c2c32);
+  background: color-mix(in srgb, var(--bg-3, #1c1c20) 92%, transparent);
+  color: var(--ink-1, #d0d0d4);
   cursor: pointer;
 }
+.gridc-linked-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--soleil, #ffa500); }
+.gridc-linked-badge:hover { color: var(--ink-0, #f5f5f7); border-color: var(--line-3, #3a3a40); }
 
-.gridc-divider.is-grabbable { pointer-events: auto; }
-.gridc-divider.is-grabbable:hover { background: var(--soleil, #d8b25a); }
-
-/* Directional "+" — stamp an empty linked Grid on that edge. */
+/* ── directional + (stamp a neighbor) ─────────────────────────────────────── */
 .gridc-add {
   position: absolute;
   width: 22px;
@@ -105,83 +191,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  line-height: 1;
   border-radius: 50%;
-  border: 1px solid var(--soleil, #d8b25a);
-  background: var(--surface-3, #20202a);
-  color: var(--soleil, #d8b25a);
+  border: 1px solid var(--line-2, #2c2c32);
+  background: var(--bg-3, #1c1c20);
+  color: var(--ink-2, #888890);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.12s ease, color 0.1s ease, border-color 0.1s ease;
   z-index: 4;
 }
-/* Positioned just INSIDE the edges (the .gridc clips overflow, so they can't
-   sit outside the box). Shown on hover. */
-.gridc:hover .gridc-add { opacity: 0.85; }
-.gridc-add:hover { opacity: 1; background: var(--soleil, #d8b25a); color: #1a1407; }
-.gridc-add-top { top: 4px; left: 50%; transform: translateX(-50%); }
-.gridc-add-bottom { bottom: 4px; left: 50%; transform: translateX(-50%); }
-.gridc-add-left { left: 4px; top: 50%; transform: translateY(-50%); }
-.gridc-add-right { right: 4px; top: 50%; transform: translateY(-50%); }
-.gridc-divider-x { cursor: col-resize; }
-.gridc-divider-y { cursor: row-resize; }
-
-/* Drop hover on a cell. */
-.gridc-cell.is-drop { outline: 2px solid var(--soleil, #d8b25a); outline-offset: -2px; }
-
-/* In-cell rich-text editor fills the cell. */
-.gridc-cell .gc-text-edit { width: 100%; height: 100%; overflow: auto; }
-
-/* Empty-cell content chooser — centered, revealed on hover. */
-.gridc-chooser {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-  pointer-events: none;            /* click-through to the cell bg (card select) */
-}
-.gridc-chooser button { pointer-events: auto; }
-.gridc-cell.is-empty:hover .gridc-chooser { opacity: 1; }
-.gridc-chooser button {
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.18));
-  background: var(--surface-3, #262630);
-  color: var(--ink-1, #c9c9d2);
-  cursor: pointer;
-}
-.gridc-chooser button:hover { color: var(--ink-0, #ececf1); border-color: var(--soleil, #d8b25a); }
-
-/* Per-cell split/merge/clear controls — top-right, revealed on cell hover. */
-.gridc-cell-ctrls {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-  z-index: 2;
-}
-.gridc-cell:hover .gridc-cell-ctrls { opacity: 1; }
-.gridc-cell-ctrls button {
-  font-size: 10px;
-  line-height: 1;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.18));
-  background: var(--surface-3, rgba(20, 20, 26, 0.9));
-  color: var(--ink-1, #c9c9d2);
-  cursor: pointer;
-}
-.gridc-cell-ctrls button:hover { color: var(--ink-0, #ececf1); border-color: var(--soleil, #d8b25a); }
+.gridc:hover .gridc-add { opacity: 1; }
+.gridc-add:hover { color: var(--soleil, #ffa500); border-color: var(--soleil, #ffa500); }
+.gridc-add-top { top: 5px; left: 50%; transform: translateX(-50%); }
+.gridc-add-bottom { bottom: 5px; left: 50%; transform: translateX(-50%); }
+.gridc-add-left { left: 5px; top: 50%; transform: translateY(-50%); }
+.gridc-add-right { right: 5px; top: 50%; transform: translateY(-50%); }
