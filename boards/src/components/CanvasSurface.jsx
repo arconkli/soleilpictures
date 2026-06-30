@@ -2760,6 +2760,15 @@ export function CanvasSurface({
     const onPaste = async (e) => {
       if (isEditorTarget(e)) return;
 
+      // 0) A grid cell is focused → paste anything INTO that cell (auto-formatted:
+      //    image/file → upload, URL → link, text → text). Clicking a cell focuses it.
+      const fc = focusedCellRef.current;
+      if (fc && canEdit) {
+        e.preventDefault();
+        await pasteIntoCell(fc.gridId, fc.cellId, e.clipboardData);
+        return;
+      }
+
       // 1) Image in OS clipboard wins outright.
       const items = e.clipboardData?.items;
       if (items) {
@@ -4915,6 +4924,7 @@ export function CanvasSurface({
     if (e.button !== 0) return;
     if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
 
+    if (focusedCellRef.current) focusCell(null, null); // clicking the canvas drops cell focus
     setAddMenuOpen(false);
     closeCardMenu();
     setBgCtx(b => ({ ...b, open: false }));
@@ -6046,7 +6056,69 @@ export function CanvasSurface({
 
   // Editing actions GridCard calls — thin forwards to the grid mutators plus the
   // canvas-context bits (image/file upload, link prompt) that a cell needs.
+  // ── Universal cell content (paste / drop anything into a grid cell) ─────────
+  // Focused grid cell — the paste/drop target set by clicking a specific cell.
+  const [focusedCell, setFocusedCell] = useState(null); // { gridId, cellId } | null
+  const focusedCellRef = useRef(null);
+  const focusCell = useCallback((gridId, cellId) => {
+    const v = (gridId && cellId) ? { gridId, cellId } : null;
+    focusedCellRef.current = v;
+    setFocusedCell(v);
+  }, []);
+  // Decode a file list into the right cell content (image / video / file).
+  const fillCellFromFiles = useCallback(async (gridId, cellId, files) => {
+    const f = files && files[0]; if (!f) return;
+    const mime = f.type || '';
+    try {
+      if (mime.startsWith('image/')) {
+        const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
+        mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
+      } else if (mime.startsWith('video/')) {
+        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId });
+        mutators.setGridCellContent?.(gridId, cellId, { type: 'video', src: up.src });
+      } else {
+        const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
+        mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
+      }
+    } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
+  }, [mutators, workspaceId, board?.id, userId, feedback]);
+  // Decode a clipboard/drag payload INTO a cell: files/images → upload; a bare URL
+  // → link (with async preview); any other text → a text cell. Shared by paste +
+  // external drop so a cell auto-formats whatever you give it.
+  const pasteIntoCell = useCallback(async (gridId, cellId, dt) => {
+    if (!dt) return false;
+    if (dt.files && dt.files.length) { await fillCellFromFiles(gridId, cellId, dt.files); return true; }
+    if (dt.items) {
+      for (const it of dt.items) {
+        if (it.kind === 'file' && (it.type || '').startsWith('image/')) {
+          const f = it.getAsFile(); if (f) { await fillCellFromFiles(gridId, cellId, [f]); return true; }
+        }
+      }
+    }
+    const text = (dt.getData && dt.getData('text/plain')) || '';
+    const urlMatch = text.match(/^\s*(https?:\/\/\S+)\s*$/i);
+    if (urlMatch) {
+      const url = urlMatch[1];
+      const embed = detectEmbed(url);
+      let title = url; try { title = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
+      const patch = { type: 'link', source: url, link: url, title };
+      if (embed) patch.embed = embed;
+      mutators.setGridCellContent?.(gridId, cellId, patch);
+      if (!embed) fetchLinkPreview(url).then((p) => { if (!p) return; const np = {}; if (p.title) np.title = p.title; if (p.image) np.image = p.image; if (p.favicon) np.favicon = p.favicon; if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np); });
+      return true;
+    }
+    if (text.trim().length) {
+      const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const html = text.split(/\r?\n/).map((l) => `<div>${esc(l) || '<br>'}</div>`).join('');
+      mutators.setGridCellContent?.(gridId, cellId, { type: 'text', html });
+      return true;
+    }
+    return false;
+  }, [fillCellFromFiles, mutators]);
+
   const gridActions = useMemo(() => ({
+    focusCell,
+    pasteIntoCell,
     resizeDivider: (gridId, path, ci, df) => mutators.resizeGridDivider?.(gridId, path, ci, df),
     splitCell: (gridId, cellId, orientation) => mutators.splitGridCell?.(gridId, cellId, orientation),
     mergeCell: (gridId, cellId) => mutators.mergeGridCell?.(gridId, cellId),
@@ -6069,22 +6141,7 @@ export function CanvasSurface({
       };
       input.click();
     },
-    fillCellFromFiles: async (gridId, cellId, files) => {
-      const f = files && files[0]; if (!f) return;
-      const mime = f.type || '';
-      try {
-        if (mime.startsWith('image/')) {
-          const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
-          mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
-        } else if (mime.startsWith('video/')) {
-          const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId });
-          mutators.setGridCellContent?.(gridId, cellId, { type: 'video', src: up.src });
-        } else {
-          const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId });
-          mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
-        }
-      } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
-    },
+    fillCellFromFiles,
     addLinkToCell: async (gridId, cellId) => {
       const v = await feedback.prompt({ title: 'Add a link', label: 'URL', placeholder: 'https://…', confirmLabel: 'Add' });
       if (!v) return;
@@ -6104,7 +6161,7 @@ export function CanvasSurface({
         if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np);
       });
     },
-  }), [mutators, workspaceId, board?.id, userId, feedback]);
+  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles]);
 
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
@@ -6324,6 +6381,7 @@ export function CanvasSurface({
                         templates={gridTemplates} seqIndex={gridSeqIndex.get(c.id)} seqFormat={gridSeqFormatFor(c)}
                         isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
                         annotationsVisible={commentsVisible}
+                        focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
                         gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
     }
     else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}

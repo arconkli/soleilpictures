@@ -213,4 +213,36 @@ test.describe('grids — local interaction', () => {
     await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
     await expect(page.locator('.gridc-cell-text .gc-text')).toContainText('Shot 1 action');
   });
+
+  // Click a cell to focus it, then paste — the cell auto-formats by clipboard type.
+  async function pasteInto(page, text) {
+    await page.evaluate((t) => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', t);
+      window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }, text);
+  }
+
+  test('paste text into a focused cell formats it as text', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    // click an empty cell to focus it (the paste target)
+    const cell = page.locator('.gridc-cell.is-empty').nth(1);
+    await cell.click({ position: { x: 20, y: 8 } });
+    await expect(page.locator('.gridc-cell.is-focused')).toHaveCount(1);
+    await pasteInto(page, 'Pasted shot note');
+    await expect(grid.locator('.gridc-cell-text .gc-text')).toContainText('Pasted shot note');
+  });
+
+  test('paste a URL into a focused cell formats it as a link', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    const cell = page.locator('.gridc-cell.is-empty').first();
+    await cell.click({ position: { x: 30, y: 8 } });
+    await expect(page.locator('.gridc-cell.is-focused')).toHaveCount(1);
+    await pasteInto(page, 'https://example.com');
+    const link = grid.locator('.gridc-cell-link .gc-link');
+    await expect(link).toHaveCount(1);
+    await expect(link).toHaveAttribute('href', 'https://example.com');
+  });
 });

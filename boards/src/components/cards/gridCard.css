@@ -54,6 +54,10 @@
 .gridc-cell.is-empty:hover::after { opacity: 0; }
 /* File drag-over: a clean gold inset ring (selection-grade affordance). */
 .gridc-cell.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); background: var(--bg-hov, #1a1a1e); }
+/* Focused cell — the paste/drop target (click a cell to focus it). A soft gold
+   inset ring so you can see where a paste/drop will land. */
+.gridc-cell.is-focused { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--soleil, #ffa500) 70%, transparent); }
+.gridc-cell.is-focused.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
 
 /* ── cell content ─────────────────────────────────────────────────────────── */
 .gridc-cell img.gc-img,

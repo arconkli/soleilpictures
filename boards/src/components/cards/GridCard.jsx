@@ -99,7 +99,7 @@ function CellContent({ cell, rect, seqIndex, seqFormat }) {
   return null; // empty cell — placeholder/chooser drawn by the wrapper
 }
 
-export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true }) {
+export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true, focusedCellId = null }) {
   useGridCellsVersion(cardYMap);
   const [preview, setPreview] = useState(null);        // { layout } during a divider drag
   const [dragId, setDragId] = useState(null);          // id of the divider being dragged
@@ -187,9 +187,10 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         return (
           <div
             key={r.id}
-            className={`gridc-cell${empty ? ' is-empty' : ''} gridc-cell-${type}${dragOverCell === r.id ? ' is-drop' : ''}`}
+            className={`gridc-cell${empty ? ' is-empty' : ''} gridc-cell-${type}${dragOverCell === r.id ? ' is-drop' : ''}${focusedCellId === r.id ? ' is-focused' : ''}`}
             data-cell-id={r.id}
             style={{ left: r.x + gutter / 2, top: r.y + gutter / 2, width: Math.max(0, r.w - gutter), height: Math.max(0, r.h - gutter) }}
+            onPointerDownCapture={editable && gridActions.focusCell ? () => gridActions.focusCell(card.id, r.id) : undefined}
             onDoubleClick={editable && type === 'text' && !isEditingText ? (e) => { e.stopPropagation(); setEditingCellId(r.id); } : undefined}
             onDragOver={editable ? (e) => { e.preventDefault(); setDragOverCell(r.id); } : undefined}
             onDragLeave={editable ? () => setDragOverCell((p) => (p === r.id ? null : p)) : undefined}
