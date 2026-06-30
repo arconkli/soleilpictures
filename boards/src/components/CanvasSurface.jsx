@@ -30,7 +30,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -1216,7 +1216,7 @@ export function CanvasSurface({
     }
   };
   // Place tools (click empty canvas to drop a card); 'draw'/'arrow' are not.
-  const PLACE_TOOLS = ['text', 'image', 'board', 'shape', 'palette'];
+  const PLACE_TOOLS = ['text', 'image', 'board', 'grid', 'shape', 'palette'];
 
   // Drop the armed place-tool's card at `pos` — wherever the click landed,
   // empty canvas OR on top of an existing card. Shared by the background placer
@@ -1228,6 +1228,7 @@ export function CanvasSurface({
     noteCreateIntent('tool_place');
     switch (selectedTool) {
       case 'board':   mutators.addNewBoard?.(pos); break;
+      case 'grid':    mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); break;
       case 'image':   mutators.addImageAt?.(pos);  break;
       case 'text':    mutators.addNote?.(pos);     break;
       case 'palette': mutators.addPalette?.(pos);  break;
@@ -2887,6 +2888,7 @@ export function CanvasSurface({
         if (e.key === 'v' || e.key === 'V') { e.preventDefault(); setSelectedTool('select'); return; }
         if (e.key === 'h' || e.key === 'H') { e.preventDefault(); setSelectedTool('pan'); return; }
         if (e.key === 'n' || e.key === 'N') { e.preventDefault(); setSelectedTool('text'); return; }
+        if (e.key === 'g' || e.key === 'G') { e.preventDefault(); setSelectedTool('grid'); return; }
         if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setSelectedTool('draw'); return; }
         if (e.key === 'a' || e.key === 'A') { e.preventDefault(); setSelectedTool('arrow'); return; }
         if (e.key === '[') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('backward'); return; }
@@ -6956,6 +6958,7 @@ export function CanvasSurface({
     { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
     { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: LayoutGrid },
+    { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine },
     { id: 'draw',   title: 'Free-draw (D)', label: 'Free-draw tool', icon: Scribble },
     { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
   ];
@@ -8126,9 +8129,9 @@ export function CanvasSurface({
       {selectedTool === 'pan' && (
         <div className="cnv-hint">Drag to pan <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button></div>
       )}
-      {(selectedTool === 'board' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'shape' || selectedTool === 'palette') && (
+      {(selectedTool === 'board' || selectedTool === 'grid' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'shape' || selectedTool === 'palette') && (
         <div className="cnv-hint">
-          Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool}
+          Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool === 'board' ? 'cluster' : selectedTool}
           <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button>
         </div>
       )}

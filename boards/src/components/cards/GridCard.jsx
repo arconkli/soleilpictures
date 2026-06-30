@@ -22,7 +22,7 @@ import { RichNoteEditor } from '../RichNoteEditor.jsx';
 import { resolveSrc } from '../../lib/r2.js';
 import { FileCard } from './FileCard.jsx';
 import { Icon } from '../Icon.jsx';
-import { Columns2 as Columns, Plus, Trash2 as Trash, X } from '../../lib/icons.js';
+import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link } from '../../lib/icons.js';
 import './gridCard.css';
 
 const stop = (e) => e.stopPropagation();
@@ -221,9 +221,20 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                 <div className="gridc-pill" onPointerDown={stop}>
                   {empty && (
                     <>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); setEditingCellId(r.id); }}>Text</button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); gridActions.pickImageForCell(card.id, r.id); }}>Image</button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); gridActions.addLinkToCell(card.id, r.id); }}>Link</button>
+                      {/* Icon-only choosers; accessible name (title + aria-label) kept as
+                          "Text"/"Image"/"Link" so tooltips read and tests still resolve them. */}
+                      <button type="button" className="is-icon" title="Text" aria-label="Text"
+                        onClick={(e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); setEditingCellId(r.id); }}>
+                        <span className="gridc-ico"><Icon as={TextT} size={15} /></span>
+                      </button>
+                      <button type="button" className="is-icon" title="Image" aria-label="Image"
+                        onClick={(e) => { e.stopPropagation(); gridActions.pickImageForCell(card.id, r.id); }}>
+                        <span className="gridc-ico"><Icon as={ImageIcon} size={15} /></span>
+                      </button>
+                      <button type="button" className="is-icon" title="Link" aria-label="Link"
+                        onClick={(e) => { e.stopPropagation(); gridActions.addLinkToCell(card.id, r.id); }}>
+                        <span className="gridc-ico"><Icon as={Link} size={15} /></span>
+                      </button>
                       <span className="gridc-pill-sep" />
                     </>
                   )}
