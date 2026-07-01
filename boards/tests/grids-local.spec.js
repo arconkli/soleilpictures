@@ -276,13 +276,17 @@ test.describe('grids — local interaction', () => {
     await expect(link).toHaveAttribute('href', 'https://example.com');
   });
 
-  // Place a Grid centered near a screen point via the top-level right-click "Grid".
+  // Place a Grid centered near a screen point via the right-click "Add › Grid"
+  // (the cursor position is where it drops), mirroring addGrid so it stays robust
+  // to the right-click menu reorganization.
   async function placeGridAt(page, sx, sy) {
     await page.locator('.canvas-wrap').evaluate((node, p) => {
       const rect = node.getBoundingClientRect();
       node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: rect.left + p.x, clientY: rect.top + p.y }));
     }, { x: sx, y: sy });
-    await page.locator('.ctx-menu').getByText('Grid', { exact: true }).first().click();
+    const menu = page.locator('.ctx-menu').first();
+    await menu.locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
+    await page.locator('.ctx-submenu').getByRole('button', { name: 'Grid', exact: true }).click();
   }
 
   test('cell focus clears when its grid is deleted (paste not swallowed)', async ({ page }) => {
@@ -376,5 +380,48 @@ test.describe('grids — local interaction', () => {
     await page.locator('.tob [aria-label="Increase font size"]').click();
     await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
     expect(await cellFontPx(bText)).toBe(bPinned);             // pinned box ignored the shared change
+  });
+
+  test('double-tap an empty cell turns it into a note', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    // Double-tap the big top cell (away from the centered chooser) → instant note.
+    await grid.locator('.gridc-cell.is-empty').first().dblclick({ position: { x: 40, y: 30 } });
+    const editor = grid.locator('.gridc-cell [contenteditable="true"]').first();
+    await editor.waitFor({ state: 'visible' });
+    await editor.click();
+    await page.keyboard.type('Quick note');
+    await editor.evaluate((el) => el.blur());
+    await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
+    await expect(grid.locator('.gridc-cell-text .gc-text')).toContainText('Quick note');
+  });
+
+  test('Replace swaps a filled cell to another content type in place', async ({ page }) => {
+    await addGrid(page);
+    const grid = page.locator('.card-kind-grid').first();
+    // Make a text cell (double-tap → note), commit it.
+    await grid.locator('.gridc-cell.is-empty').first().dblclick({ position: { x: 40, y: 30 } });
+    const editor = grid.locator('.gridc-cell [contenteditable="true"]').first();
+    await editor.waitFor({ state: 'visible' });
+    await editor.click();
+    await page.keyboard.type('caption');
+    await editor.evaluate((el) => el.blur());
+    await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
+    const cell = grid.locator('.gridc-cell-text').first();
+    await expect(cell.locator('.gc-text')).toContainText('caption');
+
+    // At rest a filled cell shows "Replace", NOT the chooser.
+    await cell.hover();
+    await expect(cell.getByRole('button', { name: 'Replace' })).toBeVisible();
+    await expect(cell.getByRole('button', { name: 'Text', exact: true })).toHaveCount(0);
+    // Click Replace → the Text/Image/Link chooser appears on this filled cell.
+    await cell.getByRole('button', { name: 'Replace' }).click();
+    await expect(cell.getByRole('button', { name: 'Image', exact: true })).toBeVisible();
+    // Swap to a Link → fill the in-app URL dialog → same cell becomes a link.
+    await cell.getByRole('button', { name: 'Link', exact: true }).click();
+    const dlg = page.getByRole('dialog');
+    await dlg.getByRole('textbox').first().fill('https://example.com');
+    await dlg.getByRole('button', { name: 'Add' }).click();
+    await expect(grid.locator('.gridc-cell-link .gc-link')).toHaveCount(1);
   });
 });

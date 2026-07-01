@@ -24,7 +24,7 @@ import { resolveSrc } from '../../lib/r2.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { FileCard } from './FileCard.jsx';
 import { Icon } from '../Icon.jsx';
-import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link } from '../../lib/icons.js';
+import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link, ArrowsClockwise } from '../../lib/icons.js';
 import './gridCard.css';
 
 const stop = (e) => e.stopPropagation();
@@ -144,6 +144,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const [dragId, setDragId] = useState(null);          // id of the divider being dragged
   const [editingCellId, setEditingCellId] = useState(null);
   const [dragOverCell, setDragOverCell] = useState(null);
+  const [swapCellId, setSwapCellId] = useState(null);   // a filled cell showing the "Replace" type chooser
 
   const model = readGridModel(card, ydoc, templates);
   const layout = preview?.layout || model.layout;
@@ -230,6 +231,9 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         const isEditingText = editable && type === 'text' && editingCellId === r.id;
         // Effective text style = family (shared) style + this cell's override.
         const tstyle = cellTextStyle(effectiveCellStyle(model.familyTextStyle, cell));
+        // Show the Text/Image/Link chooser when the cell is empty OR the user hit
+        // "Replace" on a filled cell to swap its type in place.
+        const showChooser = empty || swapCellId === r.id;
         return (
           <div
             key={r.id}
@@ -237,7 +241,16 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
             data-cell-id={r.id}
             style={{ left: r.x + gutter / 2, top: r.y + gutter / 2, width: Math.max(0, r.w - gutter), height: Math.max(0, r.h - gutter) }}
             onPointerDownCapture={editable && gridActions.focusCell ? () => gridActions.focusCell(card.id, r.id) : undefined}
-            onDoubleClick={editable && type === 'text' && !isEditingText ? (e) => { e.stopPropagation(); enterTextEdit(r.id); } : undefined}
+            onDoubleClick={editable && !isEditingText ? (e) => {
+              e.stopPropagation();
+              // Double-tap an EMPTY cell → it instantly becomes a note (unless an
+              // upload is in flight). A text cell → edit. Other filled types →
+              // no-op (never destroy content on a double-tap; use Replace/Clear).
+              const uploading = cellUploads && cellUploads[r.id] !== undefined;
+              if (empty && !uploading) { gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); enterTextEdit(r.id); }
+              else if (type === 'text') enterTextEdit(r.id);
+            } : undefined}
+            onPointerLeave={editable ? () => setSwapCellId((s) => (s === r.id ? null : s)) : undefined}
             onDragOver={editable ? (e) => { e.preventDefault(); setDragOverCell(r.id); } : undefined}
             onDragLeave={editable ? () => setDragOverCell((p) => (p === r.id ? null : p)) : undefined}
             onDrop={editable ? (e) => {
@@ -280,21 +293,33 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
               // the card; only the pill is interactive.
               <div className="gridc-celltools">
                 <div className="gridc-pill" onPointerDown={stop}>
-                  {empty && (
+                  {showChooser ? (
                     <>
                       {/* Icon-only choosers; accessible name (title + aria-label) kept as
-                          "Text"/"Image"/"Link" so tooltips read and tests still resolve them. */}
+                          "Text"/"Image"/"Link" so tooltips read and tests still resolve them.
+                          Also the in-place "Replace" swap for a filled cell (keeps the cell,
+                          its size/position and text style — see setGridCell REPLACE branch). */}
                       <button type="button" className="is-icon" title="Text" aria-label="Text"
-                        onClick={(e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); enterTextEdit(r.id); }}>
+                        onClick={(e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); enterTextEdit(r.id); setSwapCellId(null); }}>
                         <span className="gridc-ico"><Icon as={TextT} size={15} /></span>
                       </button>
                       <button type="button" className="is-icon" title="Image" aria-label="Image"
-                        onClick={(e) => { e.stopPropagation(); gridActions.pickImageForCell(card.id, r.id); }}>
+                        onClick={(e) => { e.stopPropagation(); gridActions.pickImageForCell(card.id, r.id); setSwapCellId(null); }}>
                         <span className="gridc-ico"><Icon as={ImageIcon} size={15} /></span>
                       </button>
                       <button type="button" className="is-icon" title="Link" aria-label="Link"
-                        onClick={(e) => { e.stopPropagation(); gridActions.addLinkToCell(card.id, r.id); }}>
+                        onClick={(e) => { e.stopPropagation(); gridActions.addLinkToCell(card.id, r.id); setSwapCellId(null); }}>
                         <span className="gridc-ico"><Icon as={Link} size={15} /></span>
+                      </button>
+                      <span className="gridc-pill-sep" />
+                    </>
+                  ) : (
+                    <>
+                      {/* Filled cell at rest → a single "Replace" swap that reveals the
+                          chooser above so you can switch this cell's content type. */}
+                      <button type="button" className="is-icon" title="Replace" aria-label="Replace"
+                        onClick={(e) => { e.stopPropagation(); setSwapCellId(r.id); }}>
+                        <span className="gridc-ico"><Icon as={ArrowsClockwise} size={15} /></span>
                       </button>
                       <span className="gridc-pill-sep" />
                     </>
@@ -310,7 +335,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                 className="gridc-cell-x"
                 title="Clear cell"
                 onPointerDown={stop}
-                onClick={(e) => { e.stopPropagation(); gridActions.clearCellContent(card.id, r.id); }}
+                onClick={(e) => { e.stopPropagation(); gridActions.clearCellContent(card.id, r.id); setSwapCellId(null); }}
               ><span className="gridc-ico"><Icon as={Trash} size={13} /></span></button>
             )}
           </div>
