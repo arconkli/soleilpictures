@@ -3532,7 +3532,7 @@ body {
   position: absolute;
   left: 38px;
   top: 0;
-  width: 148px;
+  width: 184px;
   padding: 5px;
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
@@ -3540,28 +3540,83 @@ body {
   box-shadow: var(--shadow-2);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
+  gap: 1px;
+  /* visible (not hidden) so the per-item hover tips can float to the right;
+     the grain ::after self-clips via border-radius:inherit and sits at z-index:-1. */
+  overflow: visible;
   z-index: 70;
 }
 /* While the + menu is open, don't also float the button's own "Add" tooltip over it. */
 .cnv-add-wrap .cnv-tool.active[data-tip]::after { display: none; }
+/* Tiny uppercase section label between + menu groups (Tools / Create / Annotate). */
+.cnv-add-group-head {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 8px 8px 3px;
+  user-select: none;
+}
+.cnv-add-menu .cnv-add-group-head:first-child { padding-top: 4px; }
 .cnv-add-menu button {
-  height: 28px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 5px;
   background: transparent;
   color: var(--ink-1);
   text-align: left;
-  padding: 0 8px;
+  padding: 0 9px;
   font: inherit;
   cursor: pointer;
 }
+.cnv-add-menu button .cnv-add-ico {
+  display: grid;
+  place-items: center;
+  width: 18px; height: 18px;
+  flex: 0 0 auto;
+  color: var(--ink-2);
+}
+.cnv-add-menu button .cnv-add-lbl { flex: 1 1 auto; }
 .cnv-add-menu button:hover,
 .cnv-add-menu button:focus-visible {
   background: var(--bg-hov);
   color: var(--ink-0);
   outline: none;
+}
+.cnv-add-menu button:hover .cnv-add-ico,
+.cnv-add-menu button:focus-visible .cnv-add-ico { color: var(--ink-0); }
+/* Right-floating hover tip for + menu items — mirrors .cnv-tool[data-tip]. */
+.cnv-add-menu button[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  white-space: nowrap;
+  font: 500 12px/1 var(--font-sans);
+  color: var(--ink-0);
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 6px 9px;
+  box-shadow: var(--shadow-1);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  z-index: 80;
+}
+.cnv-add-menu button[data-tip]:hover::after,
+.cnv-add-menu button[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  transition-delay: 200ms;
+}
+@media (hover: none) and (pointer: coarse) {
+  .cnv-add-menu button[data-tip]::after { display: none; }
 }
 
 /* (.view-switch superseded by .view-pill in the topbar block) */
@@ -8373,6 +8428,15 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .ctx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
 .ctx-shortcut { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); flex-shrink: 0; }
 .ctx-divider { height: 1px; background: var(--line-2); margin: 4px 6px; }
+/* Non-interactive section label inside a context menu / its "Add" submenu. */
+.ctx-header {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 7px 10px 3px;
+  user-select: none;
+}
 .ctx-section-label {
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-3);

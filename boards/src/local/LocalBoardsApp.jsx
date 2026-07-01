@@ -541,6 +541,27 @@ export function LocalBoardsApp({ user, signOut }) {
     setAutoFocusId(id);
   };
 
+  // Minimal doc card for the local QA harness — enough for the rail "Doc"
+  // tool + the + / right-click Doc entries to place a card. There's no
+  // ydoc-backed doc store here, so CanvasSurface renders the static
+  // <DocCard> fallback (kind:'doc' without docPages). Not a full editor.
+  const addDocCard = (clickPos = null) => {
+    const id = createId('doc');
+    const w = 320;
+    const h = 240;
+    addCard({
+      id,
+      kind: 'doc',
+      title: 'Untitled doc',
+      lines: [],
+      x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      w,
+      h,
+    });
+    setAutoFocusId(id);
+  };
+
   const addShape = (clickPos = null, opts = {}) => {
     const w = opts.w || 160;
     const h = opts.h || 100;
@@ -871,6 +892,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addPdfAt,
     addNewBoard,
     addPalette,
+    addDocCard,
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
     setGridTextStyle, pinCellStyle, unpinCellStyle,

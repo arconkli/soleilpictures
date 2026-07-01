@@ -29,8 +29,8 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
-  MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine,
+  MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -1254,7 +1254,7 @@ export function CanvasSurface({
     }
   };
   // Place tools (click empty canvas to drop a card); 'draw'/'arrow' are not.
-  const PLACE_TOOLS = ['text', 'image', 'board', 'grid', 'shape', 'palette'];
+  const PLACE_TOOLS = ['text', 'image', 'doc', 'board', 'grid', 'shape', 'palette'];
 
   // Drop the armed place-tool's card at `pos` — wherever the click landed,
   // empty canvas OR on top of an existing card. Shared by the background placer
@@ -1269,6 +1269,7 @@ export function CanvasSurface({
       case 'board':   mutators.addNewBoard?.(pos); break;
       case 'grid':    mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); break;
       case 'image':   mutators.addImageAt?.(pos);  break;
+      case 'doc':     mutators.addDocCard?.(pos);  break;
       case 'text':    mutators.addNote?.(pos);     break;
       case 'palette': mutators.addPalette?.(pos);  break;
       case 'shape':   mutators.addShape?.(pos, shapeOptions); break;
@@ -5443,7 +5444,8 @@ export function CanvasSurface({
   // partition card-creating actions from annotations; `icon` is consumed by
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
-    { id: 'board',   group: 'card', label: 'Cluster', icon: LayoutGrid,    run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
+    { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
+    { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.() },
     { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); mutators.addImageAt?.(pos); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
@@ -5599,24 +5601,37 @@ export function CanvasSurface({
     const pos = (bgCtx.open && Number.isFinite(bgCtx.x) && Number.isFinite(bgCtx.y))
       ? clientToCanvas(bgCtx.x, bgCtx.y)
       : (bgCtx.canvasPos || lastMouseCanvasRef.current);
-    // Shared add actions (see buildAddActions). The desktop menu keeps its
-    // own labels/structure: the 7 card types nest under an "Add" submenu,
-    // while Comment/Vote/Link stay top-level with their longer labels.
+    // Shared add actions (see buildAddActions). The right-click "Add" is the
+    // COMPLETE catalog — every card type + linked cluster + link + the two
+    // annotations + the Draw/Arrow tool-modes — grouped under section headers
+    // so it stays scannable. Script is intentionally omitted (write scripts
+    // inside a doc). Comment/Vote/Link no longer sit loose at the top level.
     const addActions = buildAddActions(pos, 'context_menu');
     const byId = (id) => addActions.find(a => a.id === id);
     // Settle the camera only when a create actually RUNS (not on menu open), so a
     // right-click during a slow content load doesn't defeat the late-content auto-fit.
     const settled = (fn) => () => { markViewSettled(); return fn?.(); };
+    const sub = (id, labelOverride) => {
+      const a = byId(id);
+      return a ? { id: a.id, label: labelOverride || a.label, run: settled(a.run) } : null;
+    };
+    const addSubmenu = [
+      { header: 'Cards' },
+      sub('note', 'Note'), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('doc'), sub('file'),
+      { divider: true },
+      { header: 'Visual' },
+      sub('shape'), sub('palette', 'Palette'),
+      { id: 'draw', label: 'Draw', run: settled(() => setSelectedTool('draw')) },
+      { divider: true },
+      { header: 'Web' },
+      sub('addurl', 'Link'),
+      { divider: true },
+      { header: 'Annotate' },
+      sub('comment'), sub('vote'),
+      { id: 'arrow', label: 'Arrow', run: settled(() => setSelectedTool('arrow')) },
+    ].filter(Boolean);
     return [
-      // Grid gets a direct top-level entry (drops at the cursor) — it's a
-      // first-class card type, not buried in the Add submenu.
-      { id: 'grid-top', label: 'Grid', run: settled(byId('grid').run) },
-      { id: 'add', label: 'Add', submenu: addActions
-        .filter(a => a.group === 'card' && a.id !== 'addurl')
-        .map(a => ({ id: a.id, label: a.label, run: settled(a.run) })) },
-      { id: 'comment', label: 'Add comment', run: byId('comment').run },
-      { id: 'vote', label: 'Add vote', run: byId('vote').run },
-      { id: 'addurl', label: 'Add link…', run: byId('addurl').run },
+      { id: 'add', label: 'Add', submenu: addSubmenu },
       { divider: true },
       { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
         shortcut: `${cmdKey}V`, disabled: clipboardSize() === 0,
@@ -7183,22 +7198,37 @@ export function CanvasSurface({
     { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand },
     { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
-    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: LayoutGrid },
+    { id: 'doc',    title: 'Add doc', label: 'Add doc tool', icon: FileText },
+    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: Browsers },
     { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine },
-    { id: 'draw',   title: 'Free-draw (D)', label: 'Free-draw tool', icon: Scribble },
     { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
   ];
 
-  const addMenuItems = [
-    // 'Board' is now a first-class toolbar tool, and 'Text note' is the toolbar's
-    // Add-note tool — so neither is repeated here. 'Shape' moved off the toolbar
-    // (boards took its slot) and lives here now.
-    { label: 'Grid', action: () => { markViewSettled(); noteCreateIntent('add_menu'); mutators.addGrid?.(resolvePastePos().pos, { preset: 'storyboard-1-2' }); } },
-    { label: 'Doc', action: () => { noteCreateIntent('add_menu'); mutators.addDocCard?.(); } },
-    { label: 'File', action: () => { noteCreateIntent('add_menu'); openFilePicker(resolvePastePos().pos); } },
-    { label: 'Shape', action: () => setSelectedTool('shape') },
-    { label: 'Palette', action: () => setSelectedTool('palette') },
-    { label: 'Linked cluster', action: () => onOpenPicker() },
+  // The rail "+" holds only the SECONDARY creators — anything already on the
+  // rail (Note, Image, Doc, Cluster, Grid) is intentionally absent so the two
+  // never duplicate. Grouped into Tools / Create / Annotate with icons +
+  // hover tips. The Tools group switches into a canvas tool; Create/Annotate
+  // reuse the shared buildAddActions runs so behaviour + analytics match the
+  // right-click menu exactly. (Script lives only in the empty-state hero.)
+  const addFromRegistry = (id) => {
+    const pos = resolvePastePos().pos;
+    return buildAddActions(pos, 'add_menu').find(a => a.id === id)?.run();
+  };
+  const addGroups = [
+    { title: 'Tools', items: [
+      { id: 'draw',    label: 'Draw',    icon: Scribble, tip: 'Free-draw (D)',   action: () => setSelectedTool('draw') },
+      { id: 'shape',   label: 'Shape',   icon: Square,   tip: 'Draw a shape',    action: () => setSelectedTool('shape') },
+      { id: 'palette', label: 'Palette', icon: Palette,  tip: 'Color palette',   action: () => setSelectedTool('palette') },
+    ]},
+    { title: 'Create', items: [
+      { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
+      { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
+      { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.() },
+    ]},
+    { title: 'Annotate', items: [
+      { id: 'comment', label: 'Comment', icon: MessageCircle, tip: 'Add a comment', action: () => addFromRegistry('comment') },
+      { id: 'vote',    label: 'Vote',    icon: ListChecks,    tip: 'Add a vote',    action: () => addFromRegistry('vote') },
+    ]},
   ];
 
   const marqueeRect = marquee && {
@@ -8286,19 +8316,26 @@ export function CanvasSurface({
           </div>
           {addMenuOpen && (
             <div className="cnv-add-menu" role="menu" aria-label="Add">
-              {addMenuItems.map(item => (
-                <button
-                  key={item.label}
-                  type="button"
-                  role="menuitem"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => {
-                    setAddMenuOpen(false);
-                    item.action();
-                  }}
-                >
-                  {item.label}
-                </button>
+              {addGroups.map(group => (
+                <Fragment key={group.title}>
+                  <div className="cnv-add-group-head" aria-hidden="true">{group.title}</div>
+                  {group.items.map(item => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="menuitem"
+                      data-tip={item.tip}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => {
+                        setAddMenuOpen(false);
+                        item.action();
+                      }}
+                    >
+                      <span className="cnv-add-ico" aria-hidden="true"><Icon as={item.icon} size={16} /></span>
+                      <span className="cnv-add-lbl">{item.label}</span>
+                    </button>
+                  ))}
+                </Fragment>
               ))}
             </div>
           )}
@@ -8355,7 +8392,7 @@ export function CanvasSurface({
       {selectedTool === 'pan' && (
         <div className="cnv-hint">Drag to pan <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button></div>
       )}
-      {(selectedTool === 'board' || selectedTool === 'grid' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'shape' || selectedTool === 'palette') && (
+      {(selectedTool === 'board' || selectedTool === 'grid' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'doc' || selectedTool === 'shape' || selectedTool === 'palette') && (
         <div className="cnv-hint">
           Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool === 'board' ? 'cluster' : selectedTool}
           <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button>
@@ -8400,7 +8437,7 @@ export function CanvasSurface({
             {[
               { id: 'grid',   label: 'Grid',     icon: GridFour },
               { id: 'script', label: 'Script',   icon: Clapperboard },
-              { id: 'board',  label: 'Cluster',  icon: LayoutGrid },
+              { id: 'board',  label: 'Cluster',  icon: Browsers },
               { id: 'note',   label: 'Note',     icon: NotePencil },
               { id: 'doc',    label: 'Doc',      icon: FileText },
               { id: 'file',   label: 'Any file', icon: Upload },
@@ -8591,7 +8628,7 @@ export function CanvasSurface({
       {isPhone && mobileAdd && (
         <Sheet open onClose={() => setMobileAdd(null)} title="Add to cluster" snap="half">
           <div className="mobile-add-grid">
-            {buildAddActions(mobileAdd.pos, 'mobile_nav').map(a => (
+            {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script').map(a => (
               <button
                 key={a.id}
                 type="button"
