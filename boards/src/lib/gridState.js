@@ -53,9 +53,15 @@ export function gridCardYMap(ydoc, cardId) {
 // live gridCells Y.Map (Yjs) or the card.cells plain field (local mode).
 export function readGridModel(card, ydoc, templates) {
   const templateId = card?.templateId || null;
+  const tpl = templateId ? (templates && templates[templateId]) : null;
   const layout = templateId
-    ? ((templates && templates[templateId] && templates[templateId].layout) || card?.layout || null)
+    ? ((tpl && tpl.layout) || card?.layout || null)
     : (card?.layout || null);
+  // Shared "family" text style: for a LINKED grid it lives on the shared template
+  // so every linked grid follows it live; for an UNLINKED grid it lives on the card
+  // itself. A per-cell `style` override (frozen "only this box") merges on top in
+  // the render (see effectiveCellStyle).
+  const familyTextStyle = (templateId ? (tpl && tpl.textStyle) : card?.textStyle) || null;
   let cells = {};
   const ym = gridCardYMap(ydoc, card?.id);
   const cm = ym && ym.get && ym.get('gridCells');
@@ -64,7 +70,21 @@ export function readGridModel(card, ydoc, templates) {
   } else if (card?.cells && typeof card.cells === 'object') {
     cells = { ...card.cells };
   }
-  return { layout, cells, templateId, seqId: card?.seqId || null };
+  return { layout, cells, templateId, seqId: card?.seqId || null, familyTextStyle };
+}
+
+// Resolve the effective text style for one cell: the family (shared) style with the
+// cell's own `style` override (a "pinned / only this box" cell) layered on top.
+export function effectiveCellStyle(familyTextStyle, cell) {
+  const base = familyTextStyle || {};
+  const own = (cell && cell.style) || {};
+  const eff = { ...base, ...own };
+  return Object.keys(eff).length ? eff : null;
+}
+
+// True when a cell has been pinned to its own frozen style (ignores family changes).
+export function isCellPinned(cell) {
+  return !!(cell && cell.style && Object.keys(cell.style).length);
 }
 
 // ── cell content (Yjs path) ──────────────────────────────────────────────────
@@ -76,9 +96,13 @@ export function setGridCell(ydoc, cardYMap, cellId, patch, origin = 'local') {
     // REPLACE so no stale type-specific fields (an old link's image/favicon, an
     // image's pos) leak when overwriting an occupied cell. A type-less patch
     // (async link-preview backfill {title,image}, the text editor {html}) is a
-    // partial update → MERGE onto the existing record.
+    // partial update → MERGE onto the existing record. The cell's `style` override
+    // (a pinned "only this box" text style) is DISPLAY state, not content, so it
+    // survives a content replace.
     const prev = cm.get(cellId) || {};
-    cm.set(cellId, patch && patch.type ? { ...patch } : { ...prev, ...patch });
+    cm.set(cellId, patch && patch.type
+      ? { ...(prev.style ? { style: prev.style } : {}), ...patch }
+      : { ...prev, ...patch });
   }, origin);
 }
 export function clearGridCell(ydoc, cardYMap, cellId, origin = 'local') {

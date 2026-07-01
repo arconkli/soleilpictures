@@ -318,4 +318,63 @@ test.describe('grids — local interaction', () => {
     await expect(page.locator('.card-kind-grid')).toHaveCount(1);
     await expect(page.locator('.card-kind-grid .gridc-cell')).toHaveCount(5);
   });
+
+  // Fill a grid's first empty cell with a text caption, committing it (read body renders).
+  async function addTextToCell(page, gridLoc, text) {
+    const cell = gridLoc.locator('.gridc-cell.is-empty').first();
+    await cell.hover();
+    await cell.getByRole('button', { name: 'Text', exact: true }).click();
+    const editor = gridLoc.locator('[contenteditable="true"]').first();
+    await editor.waitFor({ state: 'visible' });
+    await editor.click();
+    await page.keyboard.type(text);
+    await editor.evaluate((el) => el.blur());
+    await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
+  }
+  const cellFontPx = (loc) => loc.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+
+  test('linked family shares text style live; a pinned box stays put; center works', async ({ page }) => {
+    await addGrid(page);
+    const gridA = page.locator('.card-kind-grid').first();
+    await gridA.click({ position: { x: 180, y: 8 } });
+    await expect(gridA).toHaveClass(/is-selected/);
+    await page.getByRole('button', { name: 'Stamp a Grid right' }).click();
+    await expect(page.locator('.card-kind-grid')).toHaveCount(2);
+    // Resolve A (left) and B (right) by x so DOM order can't flake the test.
+    const grids = page.locator('.card-kind-grid');
+    const xs = await grids.evaluateAll((els) => els.map((e, i) => ({ i, x: e.getBoundingClientRect().x })));
+    xs.sort((a, b) => a.x - b.x);
+    const A = grids.nth(xs[0].i), B = grids.nth(xs[1].i);
+    await addTextToCell(page, A, 'A');
+    await addTextToCell(page, B, 'B');
+
+    const bText = B.locator('.gridc-cell-text .gc-text').first();
+    const before = await cellFontPx(bText);
+
+    // Edit A's caption and bump the SHARED font size → B (un-pinned) follows live.
+    await A.locator('.gridc-cell-text').first().dblclick();
+    await expect(page.locator('.tob')).toBeVisible();
+    await page.locator('.tob [aria-label="Increase font size"]').click();
+    await page.locator('.tob [aria-label="Increase font size"]').click();
+    await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
+    const afterShared = await cellFontPx(bText);
+    expect(afterShared).toBeGreaterThan(before);
+
+    // Center A's caption → the shared vAlign makes B's box flex-center too.
+    await A.locator('.gridc-cell-text').first().dblclick();
+    await page.locator('.tob button[title="Center — put the text dead-center of the box"]').click();
+    await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
+    await expect(bText).toHaveCSS('justify-content', 'center');
+
+    // Pin B ("only this box"), then change the shared style again → B must NOT move.
+    await B.locator('.gridc-cell-text').first().dblclick();
+    await page.locator('.tob .tob-pin').click();               // Shared → This box
+    await expect(page.locator('.tob .tob-pin')).toHaveText('This box');
+    await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
+    const bPinned = await cellFontPx(bText);
+    await A.locator('.gridc-cell-text').first().dblclick();
+    await page.locator('.tob [aria-label="Increase font size"]').click();
+    await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
+    expect(await cellFontPx(bText)).toBe(bPinned);             // pinned box ignored the shared change
+  });
 });

@@ -862,6 +862,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
     };
 
+    // Gate for FILLING a grid cell with weighted content (image / link / file /
+    // video / board / grid). Grid cells now count toward the demo card cap, so a
+    // grid with 25 images counts ~25, not 1. Mirrors addCard's demo check for +1
+    // weight; opens the upgrade modal and returns false when at the cap. Empty text
+    // cells add no weight, so the Text chooser is intentionally NOT gated here.
+    const guardWeightedAdd = () => {
+      if (myTier.tier !== 'demo') return true;
+      const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
+      const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1, limit });
+      if (capHit) { noteBlocked('demo_cap_cell'); setUpgradeReason('cap-hit'); return false; }
+      return true;
+    };
+
     const addCards = (cardsToAdd) => {
       // Returns { added, requested, capHit } so callers (e.g. the remix seed) can
       // tell whether the demo cap silently dropped cards and toast accordingly.
@@ -1628,6 +1641,55 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
       clearGridCell(ydoc, cy, cellId);
     };
+    // ── shared / per-cell text style ──────────────────────────────────────────
+    // The family (shared) text style: linked → the shared template; else the card.
+    const familyStyleOf = (cy) => {
+      const tplId = cy.get('templateId');
+      if (tplId) return (ydoc.getMap('gridTemplates').get(tplId)?.textStyle) || {};
+      return cy.get('textStyle') || {};
+    };
+    // Apply a text-style patch {fontFamily?,fontSize?,color?,align?,vAlign?}.
+    //   pinned=false → the shared family style (linked template, else the grid card)
+    //                  so EVERY un-pinned cell follows it live.
+    //   pinned=true  → the cell's own frozen `style` ("only this box").
+    const setGridTextStyle = (gridId, cellId, patch, opts = {}) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy || !patch) return;
+      const pinned = !!opts.pinned;
+      ydoc.transact(() => {
+        if (pinned) {
+          const cm = cy.get('gridCells'); if (!cm) return;
+          const prev = cm.get(cellId) || {};
+          cm.set(cellId, { ...prev, style: { ...(prev.style || {}), ...patch } });
+        } else {
+          const tplId = cy.get('templateId');
+          if (tplId) {
+            const gm = ydoc.getMap('gridTemplates');
+            const prev = gm.get(tplId) || { id: tplId };
+            gm.set(tplId, { ...prev, id: tplId, textStyle: { ...(prev.textStyle || {}), ...patch } });
+          } else {
+            cy.set('textStyle', { ...(cy.get('textStyle') || {}), ...patch });
+          }
+        }
+      }, 'local');
+    };
+    // Pin a cell to its current effective style (freeze against family changes), or
+    // unpin it (drop its override so it rejoins the shared family style).
+    const pinCellStyle = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      ydoc.transact(() => {
+        const cm = cy.get('gridCells'); if (!cm) return;
+        const prev = cm.get(cellId) || {};
+        cm.set(cellId, { ...prev, style: { ...familyStyleOf(cy), ...(prev.style || {}) } });
+      }, 'local');
+    };
+    const unpinCellStyle = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      ydoc.transact(() => {
+        const cm = cy.get('gridCells'); const prev = cm && cm.get(cellId); if (!prev) return;
+        const { style, ...rest } = prev;
+        cm.set(cellId, rest);
+      }, 'local');
+    };
     // Drop a whole Grid INTO a host cell, fully editable inline: graft the source
     // Grid's layout subtree into the host's target leaf (fresh ids) + copy its cell
     // content, then consume the source card. The host unlinks (its structure now
@@ -1855,6 +1917,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
       addDocCard, addScriptCard, addGrid,
       resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent,
+      setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
       promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
       stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,

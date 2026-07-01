@@ -5,6 +5,7 @@ import * as Y from 'yjs';
 import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
+import { cardWeight } from './gridCount.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -1002,6 +1003,15 @@ async function _doSyncCardIndex(boardId, ydoc) {
       ? { ...baseMeta, groupId, groupName }
       : baseMeta;
     if (kind === 'image' && !meta.src) imageCardsNeedingSrc.push(id);
+    // Weighted card count: a grid weighs its FILLED cells (min 1), so a grid of
+    // 25 images counts ~25 toward the demo cap, not 1. Everything else weighs 1.
+    let weight = 1;
+    if (kind === 'grid') {
+      const cellsObj = {};
+      const gcm = get('gridCells');
+      if (gcm && typeof gcm.forEach === 'function') gcm.forEach((cv, ck) => { cellsObj[ck] = (cv && cv.toJSON) ? cv.toJSON() : cv; });
+      weight = cardWeight('grid', cellsObj);
+    }
     rows.push({
       workspace_id: workspaceId,
       board_id: boardId,
@@ -1010,6 +1020,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
       title: String(title).slice(0, 200),
       body: String(body).slice(0, 500),
       meta,
+      weight,
     });
     liveIds.add(id);
   });
@@ -1056,7 +1067,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
   // the source of truth, so a stale signature only ever costs one extra
   // (correct) upsert, never data loss.
   const cache = _cardIndexCache.get(boardId) || { sigs: new Map(), ids: new Set() };
-  const sigFor = (r) => `${r.kind}\x00${r.title}\x00${r.body}\x00${JSON.stringify(r.meta ?? null)}`;
+  const sigFor = (r) => `${r.kind}\x00${r.title}\x00${r.body}\x00${r.weight ?? 1}\x00${JSON.stringify(r.meta ?? null)}`;
   const changed = rows.filter(r => cache.sigs.get(r.card_id) !== sigFor(r));
 
   if (changed.length > 0) {

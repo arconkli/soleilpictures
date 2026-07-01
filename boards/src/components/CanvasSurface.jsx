@@ -6168,6 +6168,36 @@ export function CanvasSurface({
   // A grid text cell currently being edited → surfaces the note formatting toolbar
   // (font / size / style) scoped to that cell's editor. { gridId, cellId } | null.
   const [editingCell, setEditingCell] = useState(null);
+  // Whether the cell being edited is "pinned" (has its own frozen text style, i.e.
+  // "only this box"). Tracked as state (a cell's nested `style` change does NOT bust
+  // the top-level cards snapshot) and updated optimistically on toggle.
+  const [editingCellPinned, setEditingCellPinned] = useState(false);
+  // Live-read a grid cell record across both shells (Yjs gridCells / local card.cells).
+  const gridCellRecord = useCallback((gridId, cellId) => {
+    if (!gridId || !cellId) return null;
+    const ym = ydoc?.getMap?.('cards')?.get?.(gridId);
+    const cm = ym && ym.get && ym.get('gridCells');
+    if (cm && cm.get) { const v = cm.get(cellId); return (v && v.toJSON) ? v.toJSON() : v; }
+    const c = cards.find((cc) => cc.id === gridId);
+    return c?.cells?.[cellId] || null;
+  }, [ydoc, cards]);
+  const recIsPinned = (r) => !!(r && r.style && Object.keys(r.style).length);
+  // Filling an EMPTY grid cell with weighted content (image / link / file) counts
+  // toward the demo card cap (a grid of 25 images ≈ 25 cards). Block + open the
+  // upgrade modal at the cap. No-op where there's no guard (local QA / paid tier).
+  // Dragging an EXISTING card into a cell is a move (source consumed) → net-neutral,
+  // so those paths (routeCardIntoCell) intentionally don't call this.
+  const guardCellFill = useCallback((gridId, cellId) => {
+    const rec = gridCellRecord(gridId, cellId);
+    const wasEmpty = !rec || rec.type === 'empty' || (rec.type === 'image' && !rec.src);
+    if (!wasEmpty) return true;   // replacing existing content — no new weight
+    return mutators.guardWeightedAdd ? mutators.guardWeightedAdd() : true;
+  }, [gridCellRecord, mutators]);
+  // Re-derive pinned state when the edited cell changes / board switches.
+  useEffect(() => {
+    if (!editingCell) { setEditingCellPinned(false); return; }
+    setEditingCellPinned(recIsPinned(gridCellRecord(editingCell.gridId, editingCell.cellId)));
+  }, [editingCell, gridCellRecord]);
   // Drop cell focus when its grid disappears — deleted, or board-switched (the
   // surface doesn't remount on board change). Prevents a stale paste being
   // silently swallowed into a vanished cell.
@@ -6179,6 +6209,7 @@ export function CanvasSurface({
   // Decode a file list into the right cell content (image / video / file).
   const fillCellFromFiles = useCallback(async (gridId, cellId, files) => {
     const f = files && files[0]; if (!f) return;
+    if (!guardCellFill(gridId, cellId)) return;   // demo cap: filling counts as a card
     const mime = f.type || '';
     const key = `${gridId}:${cellId}`;
     const onProgress = (frac) => setCellUploads((p) => ({ ...p, [key]: frac }));
@@ -6196,7 +6227,7 @@ export function CanvasSurface({
       }
     } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
     finally { setCellUploads((p) => { const n = { ...p }; delete n[key]; return n; }); }
-  }, [mutators, workspaceId, board?.id, userId, feedback]);
+  }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill]);
   // Decode a clipboard/drag payload INTO a cell: files/images → upload; a bare URL
   // → link (with async preview); any other text → a text cell. Shared by paste +
   // external drop so a cell auto-formats whatever you give it.
@@ -6213,6 +6244,7 @@ export function CanvasSurface({
     const text = (dt.getData && dt.getData('text/plain')) || '';
     const urlMatch = text.match(/^\s*(https?:\/\/\S+)\s*$/i);
     if (urlMatch) {
+      if (!guardCellFill(gridId, cellId)) return true;   // demo cap: a link counts as a card
       const url = urlMatch[1];
       const embed = detectEmbed(url);
       let title = url; try { title = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
@@ -6229,7 +6261,7 @@ export function CanvasSurface({
       return true;
     }
     return false;
-  }, [fillCellFromFiles, mutators]);
+  }, [fillCellFromFiles, mutators, guardCellFill]);
 
   const gridActions = useMemo(() => ({
     focusCell,
@@ -6237,6 +6269,9 @@ export function CanvasSurface({
     // GridCard tells us when a text cell enters/leaves edit mode so the bottom
     // toolbar can show the note formatting controls scoped to that cell.
     setCellEditing: (gridId, cellId) => setEditingCell((gridId && cellId) ? { gridId, cellId } : null),
+    setTextStyle: (gridId, cellId, patch, opts) => mutators.setGridTextStyle?.(gridId, cellId, patch, opts),
+    pinCell: (gridId, cellId) => mutators.pinCellStyle?.(gridId, cellId),
+    unpinCell: (gridId, cellId) => mutators.unpinCellStyle?.(gridId, cellId),
     resizeDivider: (gridId, path, ci, df) => mutators.resizeGridDivider?.(gridId, path, ci, df),
     splitCell: (gridId, cellId, orientation) => mutators.splitGridCell?.(gridId, cellId, orientation),
     mergeCell: (gridId, cellId) => mutators.mergeGridCell?.(gridId, cellId),
@@ -6257,6 +6292,7 @@ export function CanvasSurface({
     },
     fillCellFromFiles,
     addLinkToCell: async (gridId, cellId) => {
+      if (!guardCellFill(gridId, cellId)) return;   // demo cap: a link counts as a card
       const v = await feedback.prompt({ title: 'Add a link', label: 'URL', placeholder: 'https://…', confirmLabel: 'Add' });
       if (!v) return;
       const url = v.trim(); if (!url) return;
@@ -6275,7 +6311,7 @@ export function CanvasSurface({
         if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np);
       });
     },
-  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles]);
+  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles, guardCellFill]);
 
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
@@ -8583,6 +8619,16 @@ export function CanvasSurface({
         editingNoteCard={editingNoteId ? cardById[editingNoteId] : null}
         onUpdateEditingNote={editingNoteId ? (patch) => mutators.updateCard?.(editingNoteId, patch) : null}
         editingCellText={!!editingCell}
+        cellPinned={editingCellPinned}
+        onCellStyle={editingCell ? (patch) => mutators.setGridTextStyle?.(editingCell.gridId, editingCell.cellId, patch, { pinned: editingCellPinned }) : null}
+        onCellPinToggle={editingCell ? () => {
+          setEditingCellPinned((p) => {
+            const next = !p;
+            if (next) mutators.pinCellStyle?.(editingCell.gridId, editingCell.cellId);
+            else mutators.unpinCellStyle?.(editingCell.gridId, editingCell.cellId);
+            return next;
+          });
+        } : null}
         editingShapeCard={(() => {
           if (selected.size !== 1) return null;
           const id = [...selected][0];

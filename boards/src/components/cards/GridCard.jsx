@@ -15,7 +15,7 @@
 import { useEffect, useReducer, useState } from 'react';
 import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
 import { resolveTagText, hasLabelTag } from '../../lib/gridSequence.js';
-import { readGridModel } from '../../lib/gridState.js';
+import { readGridModel, effectiveCellStyle } from '../../lib/gridState.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { R2Image } from '../R2Image.jsx';
 import { RichNoteEditor } from '../RichNoteEditor.jsx';
@@ -54,11 +54,30 @@ function useResolvedSrc(src) {
   return url;
 }
 
-function CellText({ html, seqIndex, seqFormat }) {
+// Translate a resolved cell text style {fontFamily,fontSize,color,align,vAlign}
+// into inline CSS. vAlign uses flex so text can sit dead-center (or bottom) in
+// the box; align is text-align. Typed text stays plain html and inherits this,
+// so a shared-style change re-flows every un-pinned cell live.
+function cellTextStyle(eff) {
+  if (!eff) return undefined;
+  const s = {};
+  if (eff.fontFamily) s.fontFamily = eff.fontFamily;
+  if (eff.fontSize) s.fontSize = typeof eff.fontSize === 'number' ? `${eff.fontSize}px` : eff.fontSize;
+  if (eff.color) s.color = eff.color;
+  if (eff.align) s.textAlign = eff.align;
+  if (eff.vAlign && eff.vAlign !== 'top') {
+    s.display = 'flex';
+    s.flexDirection = 'column';
+    s.justifyContent = eff.vAlign === 'center' ? 'center' : eff.vAlign === 'bottom' ? 'flex-end' : 'flex-start';
+  }
+  return Object.keys(s).length ? s : undefined;
+}
+
+function CellText({ html, seqIndex, seqFormat, style }) {
   const resolved = (seqIndex != null && hasLabelTag(html))
     ? resolveTagText(html, { index: seqIndex, format: seqFormat || {} })
     : (html || '');
-  return <div className="gc-text" dangerouslySetInnerHTML={{ __html: resolved }} />;
+  return <div className="gc-text" style={style} dangerouslySetInnerHTML={{ __html: resolved }} />;
 }
 
 function CellVideo({ src }) {
@@ -67,7 +86,7 @@ function CellVideo({ src }) {
   return <video className="gc-video" src={url} controls preload="metadata" onPointerDown={stop} />;
 }
 
-function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard }) {
+function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, textStyle }) {
   const type = cell?.type || 'empty';
   if (type === 'board' && cell.boardId) {
     const b = boards?.[cell.boardId];
@@ -100,7 +119,7 @@ function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard }) {
       />
     );
   }
-  if (type === 'text') return <CellText html={cell.html} seqIndex={seqIndex} seqFormat={seqFormat} />;
+  if (type === 'text') return <CellText html={cell.html} seqIndex={seqIndex} seqFormat={seqFormat} style={textStyle} />;
   if (type === 'link') {
     return (
       <a className="gc-link" href={cell.source || cell.link || '#'} target="_blank" rel="noreferrer" onClick={stop}>
@@ -209,6 +228,8 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         const type = (cell && cell.type) || 'empty';
         const empty = type === 'empty' || (type === 'image' && !cell.src);
         const isEditingText = editable && type === 'text' && editingCellId === r.id;
+        // Effective text style = family (shared) style + this cell's override.
+        const tstyle = cellTextStyle(effectiveCellStyle(model.familyTextStyle, cell));
         return (
           <div
             key={r.id}
@@ -229,7 +250,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                 can overflow a small cell instead of being cut off. */}
             <div className="gridc-cell-body">
               {isEditingText ? (
-                <div className="gc-text-edit" onPointerDown={stop}>
+                <div className="gc-text-edit" style={tstyle} onPointerDown={stop}>
                   <RichNoteEditor
                     html={cell.html || ''}
                     autoFocus
@@ -241,7 +262,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                   />
                 </div>
               ) : (
-                <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} boards={boards} onOpenBoard={onOpenBoard} />
+                <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} boards={boards} onOpenBoard={onOpenBoard} textStyle={tstyle} />
               )}
             </div>
 

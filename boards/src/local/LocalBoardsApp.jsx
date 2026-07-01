@@ -671,12 +671,16 @@ export function LocalBoardsApp({ user, signOut }) {
     mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
   };
   const setGridCellContent = (gridId, cellId, patch) =>
-    mapGridCard(gridId, c => ({
-      ...c,
+    mapGridCard(gridId, c => {
+      const prev = c.cells?.[cellId] || {};
       // type-carrying patch = full content write → replace (no stale fields leak);
       // type-less patch = partial update → merge (mirrors gridState.setGridCell).
-      cells: { ...(c.cells || {}), [cellId]: (patch && patch.type ? { ...patch } : { ...(c.cells?.[cellId] || {}), ...patch }) },
-    }));
+      // The `style` override (pinned text style) is display state → survives replace.
+      const next = patch && patch.type
+        ? { ...(prev.style ? { style: prev.style } : {}), ...patch }
+        : { ...prev, ...patch };
+      return { ...c, cells: { ...(c.cells || {}), [cellId]: next } };
+    });
   // Graft a source Grid INTO a host cell (drop-a-grid-into-a-cell, editable inline).
   const graftGridIntoCell = (hostGridId, cellId, sourceGridId) => {
     const host = findLocalGrid(hostGridId); const src = findLocalGrid(sourceGridId);
@@ -701,6 +705,44 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const clearGridCellContent = (gridId, cellId) =>
     mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { type: 'empty' } } }));
+  // ── shared / per-cell text style (local twin of App.jsx) ───────────────────
+  const localFamilyStyle = (card) => {
+    if (card?.templateId) return gridTplState[currentId]?.[card.templateId]?.textStyle || {};
+    return card?.textStyle || {};
+  };
+  const setGridTextStyle = (gridId, cellId, patch, opts = {}) => {
+    if (!patch) return;
+    const card = findLocalGrid(gridId); if (!card) return;
+    if (opts.pinned) {
+      mapGridCard(gridId, c => {
+        const prev = c.cells?.[cellId] || {};
+        return { ...c, cells: { ...(c.cells || {}), [cellId]: { ...prev, style: { ...(prev.style || {}), ...patch } } } };
+      });
+    } else if (card.templateId) {
+      const tplId = card.templateId;
+      setGridTplState(prev => {
+        const tpls = prev[currentId] || {};
+        const tpl = tpls[tplId] || { id: tplId };
+        return { ...prev, [currentId]: { ...tpls, [tplId]: { ...tpl, id: tplId, textStyle: { ...(tpl.textStyle || {}), ...patch } } } };
+      });
+    } else {
+      mapGridCard(gridId, c => ({ ...c, textStyle: { ...(c.textStyle || {}), ...patch } }));
+    }
+  };
+  const pinCellStyle = (gridId, cellId) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    const fam = localFamilyStyle(card);
+    mapGridCard(gridId, c => {
+      const prev = c.cells?.[cellId] || {};
+      return { ...c, cells: { ...(c.cells || {}), [cellId]: { ...prev, style: { ...fam, ...(prev.style || {}) } } } };
+    });
+  };
+  const unpinCellStyle = (gridId, cellId) =>
+    mapGridCard(gridId, c => {
+      const prev = c.cells?.[cellId]; if (!prev) return c;
+      const { style, ...rest } = prev;
+      return { ...c, cells: { ...(c.cells || {}), [cellId]: rest } };
+    });
   const promoteGridToTemplate = (gridId, name = 'Grid layout') => {
     const card = findLocalGrid(gridId); if (!card || card.templateId || !card.layout) return null;
     const tplId = createId('gtpl');
@@ -831,6 +873,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addPalette,
     addGrid,
     resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
+    setGridTextStyle, pinCellStyle, unpinCellStyle,
     promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
     removeGridDivider, resizeLinkedGrids, graftGridIntoCell,
     stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern,
