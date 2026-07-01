@@ -849,6 +849,10 @@ export function CanvasSurface({
   // an image card on this board samples a pixel and adds it as a swatch
   // to that palette. Escape exits the mode.
   const [eyedropFor, setEyedropFor] = useState(null);
+  // Annotation placement mode armed from the rail "+" menu: 'comment' | 'vote'
+  // | null. While set, the next canvas click drops a point annotation and the
+  // next card click attaches one to that card (mirrors the card right-click).
+  const [annotPlacing, setAnnotPlacing] = useState(null);
   // Sketch pad — full-screen overlay drawing modal. When closed with
   // strokes, they're committed to the current board's strokes Y.Array.
   const [sketchpadOpen, setSketchpadOpen] = useState(false);
@@ -1482,7 +1486,7 @@ export function CanvasSurface({
     mutators.createGroup?.({ name: 'Group', cardIds: [...selected] });
   }, [selected, mutators]);
 
-  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
+  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); setAnnotPlacing(null); }, [selectedTool, board.id]);
   useEffect(() => {
     setSelected(new Set());
     setSelectedStrokes(new Set());
@@ -2987,6 +2991,7 @@ export function CanvasSurface({
         e.preventDefault();
         if (ctx.open || bgCtx.open) { setCtx(c => ({ ...c, open: false })); setBgCtx(c => ({ ...c, open: false })); return; }
         if (addMenuOpen) { setAddMenuOpen(false); return; }
+        if (annotPlacing) { setAnnotPlacing(null); return; }
         if (arrowFrom || activeStroke || activeFreeArrow) { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); return; }
         if (selectedTool !== 'select') { setSelectedTool('select'); return; }
         if (selected.size || selectedStrokes.size || selectedArrows.size) {
@@ -2999,7 +3004,7 @@ export function CanvasSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
-      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool]);
+      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
   // On each undoable action the UndoManager fires 'stack-item-added'; we stash
@@ -3315,6 +3320,16 @@ export function CanvasSurface({
       e.stopPropagation();
       e.preventDefault();
       sampleImagePixel(e, c, eyedropFor);
+      return;
+    }
+    // Annotation placement (armed from the + menu) — clicking any card attaches
+    // the comment/vote to it, mirroring the card right-click "Add comment/vote".
+    if (annotPlacing) {
+      e.stopPropagation();
+      e.preventDefault();
+      const anchor = { kind: 'card', id: c.id };
+      if (annotPlacing === 'vote') addVoteCardAt(anchor); else promptComment(anchor);
+      setAnnotPlacing(null);
       return;
     }
     if (spaceDown || selectedTool === 'pan') { startPan(e); return; }
@@ -5308,6 +5323,22 @@ export function CanvasSurface({
       return;
     }
 
+    // Annotation placement (armed from the + menu) — clicking empty canvas
+    // drops a point comment/vote here. Clicking a card is handled in
+    // onCardPointerDown (attaches to that card); this is the empty-space path.
+    // preventDefault suppresses the trailing compatibility mousedown — without
+    // it, the comment draft we just opened would be instantly cancelled by its
+    // own outside-pointerdown/mousedown listener firing on the same press.
+    if (annotPlacing) {
+      e.preventDefault();
+      e.stopPropagation();
+      const pos = clientToCanvas(e.clientX, e.clientY);
+      const anchor = { kind: 'point', x: pos.x, y: pos.y };
+      if (annotPlacing === 'vote') addVoteCardAt(anchor); else promptComment(anchor);
+      setAnnotPlacing(null);
+      return;
+    }
+
     if (selectedTool !== 'select') {
       // board/image/text/palette drop at the click via the shared placer;
       // shape (drag-to-draw) and draw/arrow were already handled above.
@@ -7196,8 +7227,8 @@ export function CanvasSurface({
   const tools = [
     { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2 },
     { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand },
-    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
+    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
     { id: 'doc',    title: 'Add doc', label: 'Add doc tool', icon: FileText },
     { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: Browsers },
     { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine },
@@ -7226,8 +7257,8 @@ export function CanvasSurface({
       { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.() },
     ]},
     { title: 'Annotate', items: [
-      { id: 'comment', label: 'Comment', icon: MessageCircle, tip: 'Add a comment', action: () => addFromRegistry('comment') },
-      { id: 'vote',    label: 'Vote',    icon: ListChecks,    tip: 'Add a vote',    action: () => addFromRegistry('vote') },
+      { id: 'comment', label: 'Comment', icon: MessageCircle, tip: 'Place a comment — click a card or the canvas', action: () => setAnnotPlacing('comment') },
+      { id: 'vote',    label: 'Vote',    icon: ListChecks,    tip: 'Place a vote — click a card or the canvas',    action: () => setAnnotPlacing('vote') },
     ]},
   ];
 
@@ -7505,7 +7536,7 @@ export function CanvasSurface({
   };
 
   return (
-    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''}`}
+    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''}`}
          data-eyedrop={eyedropFor ? '1' : undefined}
          ref={wrapRef}
          style={wrapStyle}
@@ -8396,6 +8427,12 @@ export function CanvasSurface({
         <div className="cnv-hint">
           Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool === 'board' ? 'cluster' : selectedTool}
           <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button>
+        </div>
+      )}
+      {annotPlacing && (
+        <div className="cnv-hint">
+          Click a card to attach, or empty space to drop a {annotPlacing}
+          <button className="cnv-hint-x" onClick={() => setAnnotPlacing(null)}>esc</button>
         </div>
       )}
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (

@@ -16837,6 +16837,16 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   outline-color: var(--soleil);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--soleil) 22%, transparent);
 }
+/* Annotation placement mode (armed from the + menu's Comment/Vote): crosshair
+   everywhere and ring cards on hover so it reads as "click a card to attach". */
+.canvas-wrap.is-annot-place,
+.canvas-wrap.is-annot-place .canvas,
+.canvas-wrap.is-annot-place .card { cursor: crosshair; }
+.canvas-wrap.is-annot-place .card:hover {
+  outline: 1px dashed var(--soleil);
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
+}
 
 /* ──────────────────────────── Sketch Pad ──────────────────────────── */
 /* Fullscreen drawing overlay launched from the toolbar. Covers the
