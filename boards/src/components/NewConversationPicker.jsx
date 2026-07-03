@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { Search, X, Check } from '../lib/icons.js';
-import { useWorkspaceMembers } from '../hooks/useWorkspaceMembers.js';
+import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { findOrCreateDm, createGroupConversation } from '../lib/messages.js';
@@ -26,7 +26,7 @@ const PAD = 8;
 const WIDTH = 320;
 
 export function NewConversationPicker({ workspaceId, currentUserId, anchor, suggestedUserIds, onCreated, onClose }) {
-  const { members } = useWorkspaceMembers(workspaceId);
+  const { users: members } = useMessageableUsers(workspaceId);
   const [stage, setStage] = useState('pick');           // 'pick' | 'name'
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState([]);             // array of user_id
@@ -86,9 +86,9 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
         const p = userProfiles.get(m.user_id);
         return {
           user_id: m.user_id,
-          name: p?.name || p?.email || 'Member',
-          email: p?.email || '',
-          color: p?.color || pickPresenceColor(m.user_id),
+          name: p?.name || m.name || p?.email || m.email || 'Member',
+          email: p?.email || m.email || '',
+          color: p?.color || m.color || pickPresenceColor(m.user_id),
         };
       })
       .filter(m => !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
@@ -206,7 +206,7 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
           <div className="msg-newconv-list">
             {totalVisible === 0 && (
               <div className="msg-empty t-meta">
-                {query.trim() ? 'No members match.' : 'No other workspace members to message. Invite people via Share.'}
+                {query.trim() ? 'No people match.' : 'No one to message yet. Share a board to start collaborating.'}
               </div>
             )}
             {suggested.length > 0 && (

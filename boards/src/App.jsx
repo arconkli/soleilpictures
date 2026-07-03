@@ -90,7 +90,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink, listBoardShares } from './lib/boardsApi.js';
 import { forceBoardThumbnail } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
@@ -634,6 +634,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setPendingDmPeerId(peerId);
     setTweak('showMessages', true);
   }, [user?.id, setTweak]);
+
+  // Collaborators on the open board (share recipients) — floated to the top of
+  // the New-chat picker under "ON THIS BOARD". Fetched lazily only while the
+  // Messages panel is open. Live presence peers are merged in at the call site.
+  const [boardSharePeerIds, setBoardSharePeerIds] = useState(() => new Set());
+  useEffect(() => {
+    if (!tweak.showMessages || !currentBoard?.id) { setBoardSharePeerIds(new Set()); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const shares = await listBoardShares(currentBoard.id);
+        if (!cancelled) setBoardSharePeerIds(new Set((shares || []).map(s => s.user_id).filter(Boolean)));
+      } catch (_) { if (!cancelled) setBoardSharePeerIds(new Set()); }
+    })();
+    return () => { cancelled = true; };
+  }, [tweak.showMessages, currentBoard?.id]);
   const currentYDoc = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
 
   // Side-by-side: when set, the workspace splits 50/50 with a draggable
@@ -4410,6 +4426,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           pendingOpenPeerId={pendingDmPeerId}
           suggestedUserIds={
             new Set([
+              ...boardSharePeerIds,
               ...((peersHereByBoard.get(currentBoard.id) || []).map(p => p?.user?.id).filter(Boolean)),
               ...((peersBelowByBoard.get(currentBoard.id) || []).map(p => p?.user?.id).filter(Boolean)),
             ])

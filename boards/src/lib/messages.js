@@ -15,37 +15,46 @@ import { requestPermissionDeferred } from './browserNotifications.js';
 
 // ── Conversation list ────────────────────────────────────────────────
 
-// Returns the rows of conversation_summary visible to the current user
-// (RLS scopes to conversations you participate in), sorted by recency.
-export async function listConversations({ workspaceId }) {
+// Returns the rows of conversation_summary the current user participates in
+// (the security_invoker view scopes to your conversations via RLS), sorted by
+// recency. Deliberately NOT filtered by workspace: DMs with collaborators are
+// anchored to whichever workspace they were started from, so the Messages panel
+// is a single unified inbox across all your workspaces. The workspaceId arg is
+// kept only as a readiness gate.
+export async function listConversations({ workspaceId } = {}) {
   if (!workspaceId) return [];
   const { data, error } = await supabase
     .from('conversation_summary')
     .select('*')
-    .eq('workspace_id', workspaceId)
     .order('last_message_at', { ascending: false, nullsFirst: false });
   if (error) { console.warn('listConversations', error); return []; }
   return data || [];
 }
 
-// Returns conversation_participants for the conversations the current
-// user can see (RLS scopes to conversations you participate in).
-export async function listMyConversationParticipants({ workspaceId }) {
+// Returns conversation_participants for every conversation the current user can
+// see (RLS scopes to conversations you participate in). Not workspace-filtered
+// — matches listConversations' unified-inbox behavior.
+export async function listMyConversationParticipants({ workspaceId } = {}) {
   if (!workspaceId) return [];
-  // Join participants → conversations to filter by workspace.
   const { data, error } = await supabase
     .from('conversation_participants')
-    .select('conversation_id, user_id, joined_at, left_at, last_read_at, conversation:conversations!inner(workspace_id)')
-    .eq('conversation.workspace_id', workspaceId);
+    .select('conversation_id, user_id, joined_at, left_at, last_read_at');
   if (error) { console.warn('listMyConversationParticipants', error); return []; }
-  // Flatten — drop the nested workspace_id wrapper.
-  return (data || []).map(r => ({
-    conversation_id: r.conversation_id,
-    user_id: r.user_id,
-    joined_at: r.joined_at,
-    left_at: r.left_at,
-    last_read_at: r.last_read_at,
-  }));
+  return data || [];
+}
+
+// People the current user can search for + start a conversation with:
+// workspace teammates ∪ anyone they share a board with. Backed by the
+// list_messageable_users RPC (migration 0178). Optional `query` does a
+// server-side ILIKE on name/email (the picker filters client-side too).
+export async function listMessageableUsers({ workspaceId, query = null } = {}) {
+  if (!workspaceId) return [];
+  const { data, error } = await supabase.rpc('list_messageable_users', {
+    p_workspace: workspaceId,
+    p_query: query || null,
+  });
+  if (error) { console.warn('listMessageableUsers', error); return []; }
+  return data || [];
 }
 
 // ── Message fetching ────────────────────────────────────────────────

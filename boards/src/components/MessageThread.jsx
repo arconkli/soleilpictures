@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit } from '../lib/icons.js';
 import { useMessageThread } from '../hooks/useMessageThread.js';
-import { useWorkspaceMembers } from '../hooks/useWorkspaceMembers.js';
+import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import {
   sendMessage, deleteMessage, editMessage, toggleReaction,
   searchMessagesInConversation,
@@ -754,9 +754,9 @@ function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) 
   ), document.body);
 }
 
-// ── Add-participants picker (workspace member list + addParticipants) ──
+// ── Add-participants picker (messageable-users list + addParticipants) ──
 function AddParticipantsPicker({ workspaceId, conversationId, existingIds, anchor, onClose, onAdded, actorId, currentUser }) {
-  const { members } = useWorkspaceMembers(workspaceId);
+  const { users: members } = useMessageableUsers(workspaceId);
   const feedback = useFeedback();
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState([]);
@@ -802,9 +802,9 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
         const p = userProfiles.get(m.user_id);
         return {
           user_id: m.user_id,
-          name: p?.name || p?.email || 'Member',
-          email: p?.email || '',
-          color: p?.color || pickPresenceColor(m.user_id),
+          name: p?.name || m.name || p?.email || m.email || 'Member',
+          email: p?.email || m.email || '',
+          color: p?.color || m.color || pickPresenceColor(m.user_id),
         };
       })
       .filter(m => !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
@@ -862,7 +862,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
       </div>
       <div className="msg-newconv-list">
         {visibleMembers.length === 0 && (
-          <div className="msg-empty t-meta">No more members to add.</div>
+          <div className="msg-empty t-meta">No more people to add.</div>
         )}
         {visibleMembers.map(m => {
           const sel = picked.includes(m.user_id);

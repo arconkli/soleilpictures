@@ -79,10 +79,9 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
     if (!userId || !workspaceId) return;
     return subscribeInbox(userId, (payload) => {
       if (!payload || !payload.conversation_id) return;
-      // Only bump for conversations in the current workspace context.
-      // DMs that go cross-workspace in PR2 will use workspace_id=null;
-      // expand this check then.
-      if (payload.workspace_id && payload.workspace_id !== workspaceId) return;
+      // Unified inbox: bump for any conversation we participate in, regardless
+      // of which workspace it's anchored to (DMs with board collaborators live
+      // in the starter's workspace). The debounced refetch reconciles truth.
       setCounts(prev => ({
         ...prev,
         [payload.conversation_id]: (Number(prev[payload.conversation_id]) || 0) + 1,
