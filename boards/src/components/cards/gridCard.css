@@ -229,6 +229,77 @@
 .gridc-cell:hover .gridc-celltools { opacity: 1; }
 .gridc-celltools > .gridc-pill { pointer-events: auto; max-width: 100%; flex-wrap: nowrap; }
 
+/* Compact trigger — shown INSTEAD of the pill on cells too small to host it
+   (see GRID_TUNING.PILL_MIN_W/H). A single frosted button; clicking it opens the
+   portaled full-size menu (.gridc-cell-menu). Fits any cell down to MIN_CELL_PX. */
+.gridc-pill-mini {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: var(--radius, 4px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(16, 16, 20, 0.78);
+  box-shadow: var(--shadow-2, 0 6px 20px rgba(0,0,0,.35));
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
+  color: var(--ink-2, #888890);
+  cursor: pointer;
+  animation: ctx-menu-in var(--dur-base, 200ms) var(--ease, ease);
+  transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.gridc-pill-mini:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+.gridc-pill-mini:active { background: var(--bg-4, #26262a); }
+
+/* Portaled full-size cell menu (opened by .gridc-pill-mini). Rendered at <body>
+   so it escapes the .gridc overflow:hidden clip and is never scaled by the
+   canvas transform. Matches .ctx-menu / .iep-pop palette + z-index. Positioned
+   flush beside the cell (position:fixed set inline via placeBeside). */
+.gridc-cell-menu {
+  z-index: 2147483600;
+  min-width: 178px;
+  max-width: calc(100vw - 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: rgba(16, 16, 20, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-3, 0 12px 48px rgba(0,0,0,.45)), inset 0 1px 0 rgba(255,255,255,.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
+  font-family: var(--font-sans, sans-serif);
+  transform-origin: top left;
+  animation: ctx-menu-in var(--dur-base, 200ms) var(--ease, ease);
+}
+[data-theme='light'] .gridc-cell-menu { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
+.gridc-cell-menu .gcm-group { display: flex; flex-direction: column; gap: 2px; }
+.gridc-cell-menu .gcm-sep { height: 1px; margin: 4px 3px; background: var(--line-2, #2c2c32); }
+.gridc-cell-menu .gcm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius, 4px);
+  background: transparent;
+  color: var(--ink-1, #d0d0d4);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.gridc-cell-menu .gcm-item:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+.gridc-cell-menu .gcm-item:active { background: var(--bg-4, #26262a); }
+.gridc-cell-menu .gcm-item .gridc-ico { color: var(--ink-2, #888890); flex: none; }
+.gridc-cell-menu .gcm-item:hover .gridc-ico { color: var(--ink-0, #f5f5f7); }
+.gridc-cell-menu .gcm-label { flex: 1 1 auto; }
+
 /* Tiny clear (remove content) — top-right corner on hover; frosted to match. */
 .gridc-cell-x {
   position: absolute;

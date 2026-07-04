@@ -424,4 +424,63 @@ test.describe('grids — local interaction', () => {
     await dlg.getByRole('button', { name: 'Add' }).click();
     await expect(grid.locator('.gridc-cell-link .gc-link')).toHaveCount(1);
   });
+
+  // Split a 180px bottom cell into columns → two ~90px cells (below
+  // GRID_TUNING.PILL_MIN_W=172) → those cells swap the inline pill for a compact
+  // trigger that opens a portaled full-size menu with every option.
+  async function makeCompactCell(page) {
+    // Split the 180×150 bottom-left cell into columns → two ~90px cells (below
+    // GRID_TUNING.PILL_MIN_W=172). The split buttons live in the opacity-gated
+    // hover pill; a native click on the icon-only button is deterministic where
+    // Playwright's synthesized click on that transient pill can race the reveal.
+    await page.evaluate(() => {
+      const cell = [...document.querySelectorAll('.gridc-cell')][1];
+      const btn = cell && [...cell.querySelectorAll('button')].find(b => (b.getAttribute('title') || '') === 'Add a vertical line (split into columns)');
+      btn && btn.click();
+    });
+    const mini = page.locator('.gridc-cell .gridc-pill-mini').first();
+    await expect(mini).toBeVisible();
+    return mini;
+  }
+
+  test('a too-small cell uses the pop-out menu for every insert option', async ({ page }) => {
+    await addGrid(page);
+    const mini = await makeCompactCell(page);
+
+    // The compact cell has NO inline chooser (it moved to the pop-out).
+    const compactCell = page.locator('.gridc-cell', { has: page.locator('.gridc-pill-mini') }).first();
+    await expect(compactCell.getByRole('button', { name: 'Text', exact: true })).toHaveCount(0);
+
+    // Open the portaled menu — it lives at <body>, escaping the .gridc clip.
+    await mini.click();
+    const menu = page.locator('.gridc-cell-menu');
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Text', exact: true })).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Image', exact: true })).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Link', exact: true })).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Split into columns' })).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Split into rows' })).toBeVisible();
+    // The menu is NOT inside the grid card (it's portaled to <body>).
+    await expect(page.locator('.card-kind-grid .gridc-cell-menu')).toHaveCount(0);
+
+    // Pick Text → the (tiny) cell mounts the editor, and the menu closes.
+    await menu.getByRole('button', { name: 'Text', exact: true }).click();
+    await expect(page.locator('.gridc-cell [contenteditable="true"]').first()).toBeVisible();
+    await expect(menu).toHaveCount(0);
+  });
+
+  test('the cell pop-out menu dismisses on Escape and outside-tap', async ({ page }) => {
+    await addGrid(page);
+    const mini = await makeCompactCell(page);
+
+    await mini.click();
+    await expect(page.locator('.gridc-cell-menu')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.gridc-cell-menu')).toHaveCount(0);
+
+    await mini.click();
+    await expect(page.locator('.gridc-cell-menu')).toBeVisible();
+    await page.mouse.click(24, 24); // far from the menu
+    await expect(page.locator('.gridc-cell-menu')).toHaveCount(0);
+  });
 });

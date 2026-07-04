@@ -24,7 +24,8 @@ import { resolveSrc } from '../../lib/r2.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { FileCard } from './FileCard.jsx';
 import { Icon } from '../Icon.jsx';
-import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link, ArrowsClockwise } from '../../lib/icons.js';
+import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link, ArrowsClockwise, MoreHorizontal } from '../../lib/icons.js';
+import { GridCellMenu } from './GridCellMenu.jsx';
 import './gridCard.css';
 
 const stop = (e) => e.stopPropagation();
@@ -145,6 +146,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const [editingCellId, setEditingCellId] = useState(null);
   const [dragOverCell, setDragOverCell] = useState(null);
   const [swapCellId, setSwapCellId] = useState(null);   // a filled cell showing the "Replace" type chooser
+  const [menu, setMenu] = useState(null);               // { cellId, anchorRect, mode } — pop-out menu for a too-small cell
 
   const model = readGridModel(card, ydoc, templates);
   const layout = preview?.layout || model.layout;
@@ -234,6 +236,12 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         // Show the Text/Image/Link chooser when the cell is empty OR the user hit
         // "Replace" on a filled cell to swap its type in place.
         const showChooser = empty || swapCellId === r.id;
+        // Too small (LOCAL px) to host the inline pill without overflowing the
+        // .gridc clip → swap the pill for a compact trigger that opens the
+        // portaled full-size menu. Local, not screen: the pill scales with the
+        // cell, so fit is zoom-independent.
+        const cellW = Math.max(0, r.w - gutter), cellH = Math.max(0, r.h - gutter);
+        const compact = cellW < GRID_TUNING.PILL_MIN_W || cellH < GRID_TUNING.PILL_MIN_H;
         return (
           <div
             key={r.id}
@@ -290,8 +298,18 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
 
             {editable && !isEditingText && (
               // Wrapper is pointer-events:none (CSS) so the cell bg still selects
-              // the card; only the pill is interactive.
+              // the card; only the pill / trigger is interactive.
               <div className="gridc-celltools">
+                {compact ? (
+                  // Too small for the inline pill → a single trigger opens the
+                  // portaled full-size menu (every option, never clipped).
+                  <button type="button" className="gridc-pill-mini"
+                    title={empty ? 'Add content' : 'Cell options'} aria-label={empty ? 'Add content' : 'Cell options'}
+                    onPointerDown={stop}
+                    onClick={(e) => { e.stopPropagation(); setMenu({ cellId: r.id, anchorRect: e.currentTarget.getBoundingClientRect(), mode: empty ? 'empty' : 'filled' }); }}>
+                    <span className="gridc-ico"><Icon as={empty ? Plus : MoreHorizontal} size={16} /></span>
+                  </button>
+                ) : (
                 <div className="gridc-pill" onPointerDown={stop}>
                   {showChooser ? (
                     <>
@@ -326,10 +344,13 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                   )}
                   <SplitButtons cellId={r.id} />
                 </div>
+                )}
               </div>
             )}
 
-            {editable && !isEditingText && !empty && (
+            {editable && !isEditingText && !empty && !compact && (
+              // Corner Clear only on normal cells; on compact cells Clear lives
+              // in the pop-out menu (avoids a cramped/overlapping corner button).
               <button
                 type="button"
                 className="gridc-cell-x"
@@ -363,6 +384,22 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         );
       })}
     </div>
+    {menu && (
+      // Pop-out full-size menu for a too-small cell. Portaled to <body>, so it
+      // escapes .gridc { overflow:hidden } and stays comfortable at any zoom.
+      // Every option reuses the SAME gridActions handlers as the inline pill.
+      <GridCellMenu
+        anchorRect={menu.anchorRect}
+        mode={menu.mode}
+        onText={() => { gridActions.setCellContent(card.id, menu.cellId, { type: 'text', html: '' }); enterTextEdit(menu.cellId); }}
+        onImage={() => gridActions.pickImageForCell(card.id, menu.cellId)}
+        onLink={() => gridActions.addLinkToCell(card.id, menu.cellId)}
+        onSplitRow={() => gridActions.splitCell(card.id, menu.cellId, 'row')}
+        onSplitCol={() => gridActions.splitCell(card.id, menu.cellId, 'col')}
+        onClear={() => gridActions.clearCellContent(card.id, menu.cellId)}
+        onClose={() => setMenu(null)}
+      />
+    )}
     {/* Directional "+" live OUTSIDE .gridc (a sibling overlay in the card box) so
         they straddle the edges and never cover interior cell tools. Shown when the
         Grid is selected; the selected card has overflow:visible so they paint. */}

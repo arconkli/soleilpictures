@@ -32,6 +32,14 @@ export const GRID_TUNING = Object.freeze({
   EDGE_ADD_ZONE_PX: 24,  // hover band at a Grid's outer edge that reveals the +
   SNAP_PX: 6,            // divider-drag snap radius (÷zoom): lock onto aligned
                         //   lines + the equal-split (see dividerSnapTargets)
+  // Below either dimension (LOCAL px), a cell is too small to host the inline
+  // hover pill (~163px of choosers + splits) without overflowing/clipping — the
+  // renderer swaps it for a compact trigger that opens a portaled full-size menu.
+  // Kept just under the default storyboard grid's smallest cell (180×150) so
+  // normal cells stay inline. Local, not screen: the pill scales WITH the cell,
+  // so fit is zoom-independent.
+  PILL_MIN_W: 172,       // min cell width to keep the inline pill
+  PILL_MIN_H: 46,        // min cell height to keep the inline pill
 });
 
 // ── tree helpers ───────────────────────────────────────────────────────────
