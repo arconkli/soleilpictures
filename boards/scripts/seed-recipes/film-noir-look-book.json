@@ -1,0 +1,48 @@
+{
+  "slug": "film-noir-look-book",
+  "name": "Film Noir Look Book — Lighting & Mood Reference",
+  "priority": 4,
+  "seo": {
+    "title": "Film Noir Look Book & Mood Board",
+    "description": "A film noir look book: hard shadows, rain-slicked streets, venetian-blind light, and a moody monochrome palette — cinematography reference on one canvas.",
+    "body": "A cinematographer's reference board for the film noir look: low-key lighting, hard chiaroscuro shadows, venetian-blind slats, rain-slicked night streets, cigarette smoke, and the moody monochrome palette the style is built on. A visual look book assembled the way a DP or production designer would — references, notes, and a color story together on one shareable canvas. Made with Soleil Clusters.",
+    "keyword": "film noir look book"
+  },
+  "cards": [
+    {
+      "id": "note-intro",
+      "kind": "note",
+      "span": "full",
+      "fontFamily": "display",
+      "html": "<p><b>FILM NOIR</b><br>Low-key light · hard shadow · rain &amp; neon · monochrome mood</p>"
+    },
+    { "id": "img-shadow", "kind": "image", "source": { "provider": "unsplash", "query": "black and white hard shadow low key portrait", "count": 4 } },
+    { "id": "img-street", "kind": "image", "source": { "provider": "unsplash", "query": "rainy night city street noir neon", "count": 3 } },
+    { "id": "img-blinds", "kind": "image", "source": { "provider": "pexels", "query": "venetian blinds light shadow black and white", "count": 2 } },
+    { "id": "img-smoke", "kind": "image", "source": { "provider": "pexels", "query": "cigarette smoke dramatic black and white", "count": 2 } },
+    { "id": "img-stair", "kind": "image", "source": { "provider": "unsplash", "query": "dramatic staircase shadow monochrome", "count": 2 } },
+    {
+      "id": "pal-noir",
+      "kind": "palette",
+      "title": "Noir palette",
+      "swatches": [
+        { "hex": "#0a0a0c", "name": "Black" },
+        { "hex": "#2b2b30", "name": "Shadow" },
+        { "hex": "#6e6e76", "name": "Gunmetal" },
+        { "hex": "#c9c4b8", "name": "Bone" },
+        { "hex": "#e8b23a", "name": "Sodium neon" }
+      ]
+    },
+    {
+      "id": "note-light",
+      "kind": "note",
+      "html": "<p><b>Lighting notes</b><br>Single hard key, deep falloff. Rim to separate from black. Practicals for motivation. Let the blacks crush.</p>"
+    },
+    {
+      "id": "note-refs",
+      "kind": "note",
+      "bgColor": "#c9c4b8",
+      "html": "<p>Touchstones: <i>Double Indemnity</i>, <i>The Third Man</i>, <i>Sin City</i>, <i>Blade Runner</i>.</p>"
+    }
+  ]
+}

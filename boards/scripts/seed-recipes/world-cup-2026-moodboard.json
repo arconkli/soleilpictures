@@ -1,0 +1,48 @@
+{
+  "slug": "world-cup-2026-moodboard",
+  "name": "World Cup 2026 — Visual Reference Board",
+  "priority": 5,
+  "seo": {
+    "title": "World Cup 2026 Mood Board",
+    "description": "A visual reference board for the 2026 FIFA World Cup — host cities, stadiums, kit colors, and matchday atmosphere, collected on one Clusters canvas.",
+    "body": "A living reference board for the 2026 FIFA World Cup across the United States, Canada, and Mexico. It pulls together stadium architecture, host-city skylines, national kit color palettes, and the atmosphere of matchday into one place — a mood board built the way a creative team would build one, on an infinite, shareable canvas. Made with Soleil Clusters.",
+    "keyword": "world cup 2026 mood board"
+  },
+  "cards": [
+    {
+      "id": "note-intro",
+      "kind": "note",
+      "span": "full",
+      "fontFamily": "display",
+      "html": "<p><b>WORLD CUP 2026</b><br>48 teams · 16 host cities · United States, Canada &amp; Mexico</p>"
+    },
+    { "id": "img-stadium", "kind": "image", "source": { "provider": "wikimedia", "query": "association football stadium full crowd", "count": 4 } },
+    { "id": "img-city", "kind": "image", "source": { "provider": "unsplash", "query": "north american city skyline", "count": 3 } },
+    { "id": "img-fans", "kind": "image", "source": { "provider": "unsplash", "query": "soccer fans crowd flags stadium", "count": 3 } },
+    { "id": "img-pitch", "kind": "image", "source": { "provider": "pexels", "query": "soccer pitch green grass aerial", "count": 2 } },
+    { "id": "img-ball", "kind": "image", "source": { "provider": "pexels", "query": "soccer ball close up", "count": 2 } },
+    {
+      "id": "pal-pitch",
+      "kind": "palette",
+      "title": "Pitch & kit palette",
+      "swatches": [
+        { "hex": "#0b7d3e", "name": "Pitch green" },
+        { "hex": "#f4f4f4", "name": "Chalk line" },
+        { "hex": "#d21f3c", "name": "Kit red" },
+        { "hex": "#1560bd", "name": "Kit blue" },
+        { "hex": "#f5c518", "name": "Trophy gold" }
+      ]
+    },
+    {
+      "id": "note-hosts",
+      "kind": "note",
+      "html": "<p><b>Host cities</b><br>New York/NJ · LA · Dallas · Kansas City · Atlanta · Miami · Seattle · SF Bay · Houston · Boston · Philadelphia · Toronto · Vancouver · Guadalajara · Mexico City · Monterrey</p>"
+    },
+    {
+      "id": "note-theme",
+      "kind": "note",
+      "bgColor": "#f5c518",
+      "html": "<p>First 48-team tournament — and the first hosted across three nations.</p>"
+    }
+  ]
+}
