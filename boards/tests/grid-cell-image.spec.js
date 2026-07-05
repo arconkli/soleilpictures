@@ -104,7 +104,7 @@ test.describe('grid cell image controls', () => {
     await expect(modal).toHaveCount(0);
   });
 
-  test('Open full screen opens the lightbox viewer with download', async ({ page }) => {
+  test('Open full screen opens a TRULY full-screen lightbox viewer with download', async ({ page }) => {
     const cell = imgCell(page);
     await cell.hover();
     await cell.getByRole('button', { name: 'Open full screen' }).click();
@@ -112,8 +112,30 @@ test.describe('grid cell image controls', () => {
     await expect(lb).toBeVisible();
     await expect(lb.locator('.lightbox-img')).toBeVisible();
     await expect(lb.locator('.lightbox-download')).toBeVisible();
+    // Fills the whole viewport (portaled to <body>, not clipped to the grid box).
+    const box = await lb.boundingBox();
+    const vp = page.viewportSize();
+    expect(box.x).toBeLessThanOrEqual(1);
+    expect(box.y).toBeLessThanOrEqual(1);
+    expect(box.width).toBeGreaterThanOrEqual(vp.width - 2);
+    expect(box.height).toBeGreaterThanOrEqual(vp.height - 2);
     await page.keyboard.press('Escape');
     await expect(lb).toHaveCount(0);
+  });
+
+  test('Fit truly fits after a zoom (zoom-crop is ignored in contain mode)', async ({ page }) => {
+    const pop = await openEditor(page);
+    const img = imgCell(page).locator('.gc-img');
+    // Zoom in while in Fill → the cell image is scaled (cropped in).
+    await setRange(pop.locator('input[aria-label="Zoom"]'), 2);
+    await expect(img).toHaveAttribute('style', /scale\(2/);
+    // Fit → object-fit contain AND no leftover scale, so the whole image fits.
+    await pop.getByRole('button', { name: 'Fit', exact: true }).click();
+    await expect(img).toHaveAttribute('style', /object-fit:\s*contain/);
+    await expect(img).not.toHaveAttribute('style', /scale\(/);
+    // Fill again → the zoom-crop is restored (zoom value was preserved).
+    await pop.getByRole('button', { name: 'Fill' }).click();
+    await expect(img).toHaveAttribute('style', /scale\(2/);
   });
 
   test('dragging the grid hides the per-cell chrome', async ({ page }) => {

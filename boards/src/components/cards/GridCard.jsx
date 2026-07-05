@@ -13,6 +13,7 @@
 // edits re-render. Layout / templateId / seqId arrive as plain props.
 
 import { useEffect, useReducer, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
 import { resolveTagText, hasLabelTag } from '../../lib/gridSequence.js';
 import { readGridModel, effectiveCellStyle } from '../../lib/gridState.js';
@@ -121,7 +122,9 @@ function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, tex
     // image card). `compare` nulls the adjust so a hold-to-compare shows the source.
     const objPos = cell.pos ? `${cell.pos.x}% ${cell.pos.y}%` : 'center';
     const base = buildImgStyle(compare ? null : cell.adjust, `${cardId}:${cellId}`) || {};
-    const z = Number(cell.zoom) > 1 ? Number(cell.zoom) : 0;
+    // Zoom-crop only applies in Fill (cover) — in Fit (contain) the whole image
+    // must fit, so ignore the stored zoom (it's preserved for switching back).
+    const z = (cell.fit !== 'contain' && Number(cell.zoom) > 1) ? Number(cell.zoom) : 0;
     const transform = [base.transform, z ? `scale(${z})` : ''].filter(Boolean).join(' ');
     const style = {
       objectFit: cell.fit === 'contain' ? 'contain' : 'cover',
@@ -528,15 +531,18 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     })()}
     {lightbox && (() => {
       // Full-screen VIEWER (zoom/pan) for a cell image, with its own Download.
+      // Portal to <body>: ImageLightbox doesn't portal itself, and GridCard lives
+      // inside the transformed .canvas / contain:paint .card — which would trap its
+      // position:fixed to the grid's box. At <body> it's truly full-screen.
       const c = model.cells[lightbox.cellId];
       if (!c || c.type !== 'image' || !c.src) return null;
-      return (
+      return createPortal(
         <ImageLightbox
           src={c.src} title={c.title || ''} alt={c.title || ''} adjust={c.adjust}
           cardId={`${card.id}:${lightbox.cellId}`}
           onClose={() => setLightbox(null)}
-        />
-      );
+        />,
+        document.body);
     })()}
     {/* Directional "+" live OUTSIDE .gridc (a sibling overlay in the card box) so
         they straddle the edges and never cover interior cell tools. Shown when the
