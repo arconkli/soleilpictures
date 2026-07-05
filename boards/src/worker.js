@@ -16,6 +16,10 @@ import { handleTagsRoute } from './worker-tags.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { runCompactionJob1 } from './worker-compaction.js';
+// Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
+// registry shared with the React component so the crawlable server-rendered
+// text can't drift from what the app renders (anti-cloaking).
+import { getLandingSpec, SEO_LANDING_PATHS } from './lib/seoLanding.js';
 
 const PARTYKIT_HOST = 'soleil-boards-party.arconkli.partykit.dev';
 
@@ -315,6 +319,14 @@ export default {
         const canonical = p === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${p}`;
         return withRevalidate(injectRouteMeta(res, meta, canonical));
       }
+    }
+
+    // Self-authored SEO landing pages (/tools/*, /vs/*, /use-cases): inject the
+    // spec's meta + crawlable content + JSON-LD (SoftwareApplication + FAQPage +
+    // BreadcrumbList). Pure static data, no RPC — resolve the exact spec here.
+    if (request.method === 'GET' && contentType.includes('text/html')) {
+      const landingSpec = getLandingSpec(url.pathname);
+      if (landingSpec) return withRevalidate(injectLanding(res, landingSpec));
     }
 
     // Public marketing board (/c/<slug>): keyword-rich meta + crawlable
@@ -787,6 +799,106 @@ function injectExplore(res, boards) {
   return rw.transform(res);
 }
 
+// ── Self-authored SEO landing pages ─────────────────────────────────────
+// Inject a landing spec's meta + crawlable content + JSON-LD. The content is
+// static (lib/seoLanding.js) but every interpolation is still escapeHtml'd /
+// jsonLdSafe'd for defense in depth. Server-rendered text mirrors what
+// SeoLandingPage.jsx renders from the same spec (anti-cloaking parity).
+function injectLanding(res, spec) {
+  const canonical = `${SITE_ORIGIN}${spec.path}`;
+  const rw = new HTMLRewriter()
+    .on('title',                            new SetText(spec.title))
+    .on('meta[name="description"]',         new SetContent(spec.metaDescription))
+    .on('meta[property="og:title"]',        new SetContent(spec.title))
+    .on('meta[property="og:description"]',  new SetContent(spec.metaDescription))
+    .on('meta[property="og:url"]',          new SetContent(canonical))
+    .on('meta[name="twitter:title"]',       new SetContent(spec.title))
+    .on('meta[name="twitter:description"]', new SetContent(spec.metaDescription))
+    .on('link[rel="canonical"]',            new SetHref(canonical));
+  rw.on('main#seo-fallback', new SetInnerHtml(buildLandingCrawlableHtml(spec)));
+  rw.on('head', new AppendHead(
+    '<script type="application/ld+json">' + jsonLdSafe(buildLandingJsonLd(spec, canonical)) + '</script>'
+  ));
+  return rw.transform(res);
+}
+
+function buildLandingCrawlableHtml(spec) {
+  const H2 = 'font-size:1.35rem;font-weight:600;margin:1.4em 0 .4em;';
+  const parts = [];
+  parts.push(`<h1 style="font-size:1.9rem;font-weight:700;margin:0 0 .4em;">${escapeHtml(spec.h1)}</h1>`);
+  parts.push(`<p style="color:#b7b1a6;font-size:1.15rem;margin:0 0 1.4em;">${escapeHtml(spec.subhead)}</p>`);
+  for (const s of spec.sections || []) {
+    parts.push(`<section><h2 style="${H2}">${escapeHtml(s.heading)}</h2><p>${escapeHtml(s.body)}</p>`);
+    if (Array.isArray(s.bullets) && s.bullets.length) {
+      parts.push(`<ul>${s.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}</ul>`);
+    }
+    parts.push(`</section>`);
+  }
+  if (spec.compare) {
+    parts.push(`<section><h2 style="${H2}">Clusters vs ${escapeHtml(spec.compare.competitor)}</h2>`);
+    if (spec.compare.intro) parts.push(`<p>${escapeHtml(spec.compare.intro)}</p>`);
+    parts.push(`<table><thead><tr><th>Feature</th><th>Clusters</th><th>${escapeHtml(spec.compare.competitor)}</th></tr></thead><tbody>`);
+    for (const r of spec.compare.rows || []) {
+      parts.push(`<tr><th>${escapeHtml(r.feature)}</th><td>${escapeHtml(r.us)}</td><td>${escapeHtml(r.them)}</td></tr>`);
+    }
+    parts.push(`</tbody></table></section>`);
+  }
+  if (Array.isArray(spec.faq) && spec.faq.length) {
+    parts.push(`<section><h2 style="${H2}">Frequently asked questions</h2>`);
+    for (const f of spec.faq) parts.push(`<h3>${escapeHtml(f.q)}</h3><p>${escapeHtml(f.a)}</p>`);
+    parts.push(`</section>`);
+  }
+  const related = spec.related || [];
+  if (related.length) {
+    parts.push(`<nav aria-label="Related pages" style="margin-top:1.6em;"><h2 style="font-size:1.1rem;">Keep exploring</h2><ul>`);
+    for (const p of related) {
+      const label = getLandingSpec(p)?.h1 || p;
+      parts.push(`<li><a href="${escapeHtml(p)}" style="color:#FFA500;">${escapeHtml(label)}</a></li>`);
+    }
+    parts.push(`<li><a href="/explore" style="color:#FFA500;">Explore example boards</a></li>`);
+    parts.push(`<li><a href="/pricing" style="color:#FFA500;">Pricing</a></li></ul></nav>`);
+  }
+  return `<div style="max-width:800px;margin:0 auto;padding:14vh 24px 24px;"><article>${parts.join('')}</article></div>`;
+}
+
+// SoftwareApplication + BreadcrumbList + (if present) FAQPage — the FAQ is
+// visible on-page (the accordion), which is what FAQ rich results require.
+function buildLandingJsonLd(spec, url) {
+  const graph = [
+    {
+      '@type': 'SoftwareApplication',
+      '@id': `${url}#software`,
+      name: 'Soleil Clusters',
+      applicationCategory: 'BusinessApplication',
+      applicationSubCategory: spec.h1,
+      operatingSystem: 'Web, iOS, Android',
+      url,
+      description: spec.metaDescription,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
+        { '@type': 'ListItem', position: 2, name: spec.h1, item: url },
+      ],
+    },
+  ];
+  if (Array.isArray(spec.faq) && spec.faq.length) {
+    graph.push({
+      '@type': 'FAQPage',
+      '@id': `${url}#faq`,
+      mainEntity: spec.faq.map((f) => ({
+        '@type': 'Question',
+        name: f.q,
+        acceptedAnswer: { '@type': 'Answer', text: f.a },
+      })),
+    });
+  }
+  return { '@context': 'https://schema.org', '@graph': graph };
+}
+
 // Dynamic /sitemap.xml: static pages + /explore + every published /c/<slug>.
 // MUST never 500 or shrink to empty (Google reads a sudden empty sitemap as a
 // deindex signal): on RPC failure we still emit the static set. Short-cached.
@@ -795,6 +907,11 @@ async function handleSitemap(env) {
     { loc: `${SITE_ORIGIN}/`,               changefreq: 'weekly',  priority: '1.0' },
     { loc: `${SITE_ORIGIN}/pricing`,        changefreq: 'monthly', priority: '0.9' },
     { loc: `${SITE_ORIGIN}/explore`,        changefreq: 'daily',   priority: '0.8' },
+    // Self-authored SEO landing pages (lib/seoLanding.js): tool / "alternative
+    // to" / hub. These rank independent of user-uploaded boards.
+    ...SEO_LANDING_PATHS.map((p) => ({
+      loc: `${SITE_ORIGIN}${p}`, changefreq: 'monthly', priority: '0.8',
+    })),
     { loc: `${SITE_ORIGIN}/legal/privacy`,  changefreq: 'yearly',  priority: '0.3' },
     { loc: `${SITE_ORIGIN}/legal/terms`,    changefreq: 'yearly',  priority: '0.3' },
     { loc: `${SITE_ORIGIN}/legal/cookies`,  changefreq: 'yearly',  priority: '0.3' },

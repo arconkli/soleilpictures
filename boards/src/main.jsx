@@ -35,6 +35,7 @@ const PublicBoardView = lazyWithReload(() => import('./components/PublicBoardVie
 const ExplorePage     = lazyWithReload(() => import('./pages/ExplorePage.jsx').then(m => ({ default: m.ExplorePage })));
 const LegalPage       = lazyWithReload(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
 const PublicPricingPage = lazyWithReload(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
+const SeoLandingPage  = lazyWithReload(() => import('./pages/SeoLandingPage.jsx').then(m => ({ default: m.SeoLandingPage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -149,6 +150,13 @@ const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$
 // crawlable content; React hydrates over it once mounted.
 const publicBoardMatch = window.location.pathname.match(/^\/c\/([a-z0-9][a-z0-9-]{0,79})\/?$/);
 const exploreMatch = /^\/explore\/?$/.test(window.location.pathname);
+
+// Self-authored SEO landing pages (lib/seoLanding.js): tool pages (/tools/*),
+// "alternative to" pages (/vs/*), and the /use-cases hub. Matched by path SHAPE
+// here — no registry import — so the entry chunk stays lean; the code-split
+// SeoLandingPage resolves the exact spec from the registry in its own chunk.
+// The Worker injects each page's meta + crawlable content + JSON-LD at the edge.
+const seoLandingMatch = /^\/(?:tools\/[a-z0-9-]+|vs\/[a-z0-9-]+|use-cases)\/?$/i.test(window.location.pathname);
 
 // /legal/<privacy|terms|cookies> = public legal documents. Like /share, these
 // render before the AuthGate so they're reachable signed-out (footer links,
@@ -329,6 +337,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
           <Suspense fallback={<SplashLoading />}>
             {legalMatch ? (
               <LegalPage doc={legalMatch[1].toLowerCase()} />
+            ) : seoLandingMatch ? (
+              <SeoLandingPage path={window.location.pathname} />
             ) : showPublicPricing ? (
               <PublicPricingPage />
             ) : exploreMatch ? (
