@@ -789,13 +789,29 @@ export async function getChildBoardThumbs(parentBoardId) {
 // tile's "Updated X ago" stays meaningful and undo/meta-history isn't
 // polluted by background preview refreshes. RLS: boards update =
 // can_write_workspace, so the editing user is permitted. Fire-and-forget.
-export async function updateBoardThumb(boardId, { thumbKey = null, cardCount = null, thumbVersion = null } = {}) {
+export async function updateBoardThumb(boardId, { thumbKey = null, cardCount = null, thumbVersion = null, custom = null } = {}) {
   const patch = { thumb_updated_at: new Date().toISOString() };
   if (thumbKey != null) patch.thumb_key = thumbKey;
   if (cardCount != null) patch.card_count = cardCount;
   if (thumbVersion != null) patch.thumb_version = thumbVersion;
+  // `custom` marks the stored preview as a user-uploaded cover (true) or clears
+  // that mark on reset (false). While true, all three auto-regen paths skip the
+  // board so a canvas edit / nested-child change can't overwrite the user's image.
+  if (custom != null) patch.thumb_custom = custom;
   const { error } = await supabase.from('boards').update(patch).eq('id', boardId);
   if (error) console.warn('[updateBoardThumb]', error);
+}
+
+// Authoritative "is this board's thumbnail user-set?" check for the yboard regen
+// funnel (_renderUploadStampThumb), which has only a boardId and no in-memory
+// board row. One indexed PK select behind the same 8s throttle + content-hash
+// gate as the other per-regen reads. Defaults to false on any error so a
+// transient failure never permanently blocks the auto thumbnail.
+export async function isBoardThumbCustom(boardId) {
+  if (!boardId) return false;
+  const { data, error } = await supabase.from('boards').select('thumb_custom').eq('id', boardId).maybeSingle();
+  if (error) return false;
+  return !!data?.thumb_custom;
 }
 
 // History of metadata changes for a board, newest first.

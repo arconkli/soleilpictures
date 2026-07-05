@@ -351,9 +351,12 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
     return Number.isFinite(t) && t > m ? t : m;
   }, 0);
   const parentThumbAt = Date.parse(board.thumb_updated_at);
-  const staleVsChildren = hasStoredThumb &&
+  // A user-set cover owns the key: never regenerate it, and never treat it as
+  // "stale vs children" (its image is intentional, not a baked-in child mosaic).
+  const isCustomThumb = !!board.thumb_custom;
+  const staleVsChildren = hasStoredThumb && !isCustomThumb &&
     childThumbMax > (Number.isFinite(parentThumbAt) ? parentThumbAt : 0);
-  const needsRegen = !isList && (!hasStoredThumb || !thumbCurrent || staleVsChildren);
+  const needsRegen = !isList && !isCustomThumb && (!hasStoredThumb || !thumbCurrent || staleVsChildren);
   const preview = useBoardPreview(board.id, isList || (needsRegen && thumbVisible));
   const liveHasPreview = !isList && !hasStoredThumb && preview &&
     (preview.cards?.length > 0 || preview.strokes?.length > 0);

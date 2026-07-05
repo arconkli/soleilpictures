@@ -76,6 +76,7 @@ import { useBoardList } from './hooks/useBoardList.js';
 import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
 import { useYBoard } from './hooks/useYBoard.js';
 import { RENDER_VERSION as THUMB_VERSION } from './lib/renderThumbnail.js';
+import { forgetThumbnailAttempt } from './hooks/useThumbnailBackfill.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -90,7 +91,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink, listBoardShares } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink, listBoardShares, updateBoardThumb } from './lib/boardsApi.js';
 import { forceBoardThumbnail } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
@@ -102,7 +103,7 @@ import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout } from './lib/gridState.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
-import { uploadImage, uploadPdf } from './lib/uploads.js';
+import { uploadImage, uploadPdf, uploadBoardThumbnail } from './lib/uploads.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
@@ -2214,6 +2215,41 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (e) {
       console.error('setBoardBgColorById failed', e);
       feedback.toast({ type: 'error', message: 'Could not set background: ' + (e.message || e) });
+    }
+  };
+
+  // Save a user-picked (cropped) image as a board's custom thumbnail. The crop
+  // modal hands us a 1200×675 WebP blob; we overwrite the board's canonical
+  // thumb key so it shows on every surface that reads thumb_key (grid tiles,
+  // nested-board covers, public views, exports), and flag thumb_custom=true so
+  // the three auto-regen paths never clobber it.
+  const setBoardCustomThumbById = async (boardId, blob) => {
+    const wsId = boards[boardId]?.workspace_id || workspace.id;
+    try {
+      const { src } = await uploadBoardThumbnail({ workspaceId: wsId, boardId, blob, userId: user.id });
+      await updateBoardThumb(boardId, { thumbKey: src, thumbVersion: THUMB_VERSION, custom: true });
+      await refreshBoards();
+      feedback.toast({ type: 'success', message: 'Custom thumbnail set.' });
+    } catch (e) {
+      console.error('setBoardCustomThumbById failed', e);
+      feedback.toast({ type: 'error', message: 'Could not set thumbnail: ' + (e.message || e) });
+    }
+  };
+
+  // Revert to the auto-generated thumbnail: clear the custom flag and stale the
+  // stored version so the self-healing backfill (useThumbnailBackfill) renders a
+  // fresh canvas-derived preview into the same key on the next tile view.
+  const resetBoardThumbById = async (boardId) => {
+    try {
+      await updateBoardThumb(boardId, { thumbVersion: 0, custom: false });
+      // Re-arm the per-session backfill one-shot so the auto thumbnail
+      // regenerates now, not only after a page reload.
+      forgetThumbnailAttempt(boardId);
+      await refreshBoards();
+      feedback.toast({ type: 'success', message: 'Reverted to auto thumbnail.' });
+    } catch (e) {
+      console.error('resetBoardThumbById failed', e);
+      feedback.toast({ type: 'error', message: 'Could not reset thumbnail: ' + (e.message || e) });
     }
   };
 
@@ -4455,6 +4491,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onCreateBoardInside={createBoardInside}
             onSetBoardCover={mainMutators.setBoardCover}
             onSetBoardBgColor={setBoardBgColorById}
+            onSetBoardThumb={setBoardCustomThumbById}
+            onResetBoardThumb={resetBoardThumbById}
             onCopyBoard={copyBoard}
             onPasteBoardInto={pasteBoardInto}
             onDeleteBoard={(id) => deleteBoardsById([id])}

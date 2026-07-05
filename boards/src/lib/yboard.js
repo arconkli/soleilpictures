@@ -13,7 +13,7 @@
 // onto the undo stack. Restores use 'restore'.
 
 import * as Y from 'yjs';
-import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb, getBoardBgColor, getChildBoardThumbs } from './boardsApi.js';
+import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb, getBoardBgColor, getChildBoardThumbs, isBoardThumbCustom } from './boardsApi.js';
 import { b64ToBytes, bytesToB64, readCards } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 // Round 23: render each board's preview ONCE on the editing client and
@@ -122,6 +122,11 @@ async function _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, 
   if (_thumbInFlight.has(boardId)) return;
   _thumbInFlight.add(boardId);
   try {
+    // User-set cover: never overwrite it from the canvas. This is the single
+    // funnel for BOTH the on-edit (maybeGenerateThumbnail) and share-link
+    // (forceBoardThumbnail) paths, so one authoritative DB check here guards
+    // both. Failure → fall through (default false) rather than block forever.
+    try { if (await isBoardThumbCustom(boardId)) return; } catch (_) {}
     // Re-read bg_color live (the yboard handle outlives the board row it
     // was opened with, so a passed-in value would go stale if the user
     // repaints the canvas mid-session). Failure → default canvas bg.
