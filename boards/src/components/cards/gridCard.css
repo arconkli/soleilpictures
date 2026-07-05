@@ -313,6 +313,23 @@
 }
 .gridc-reposition:active { cursor: grabbing; }
 
+/* Keep the drag clean: while moving the whole grid card, or while repositioning
+   an image inside a cell, hide the per-cell hover chrome (pills / Clear / Split),
+   the "Linked" badge and the "+" edge overlay so they don't flicker over the
+   grid. The gold reposition ring + canvas alignment guides stay. */
+.card.card-kind-grid.is-dragging .gridc-celltools,
+.card.card-kind-grid.is-dragging .gridc-cell-x,
+.card.card-kind-grid.is-dragging .gridc-linked-badge,
+.card.card-kind-grid.is-dragging .gridc-edges {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.gridc.is-repositioning .gridc-celltools,
+.gridc.is-repositioning .gridc-cell-x {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Portaled image-cell photo + fit editor (opened by the pill pencil / GridCellMenu
    "Edit photo"). Frosted like .ctx-menu / .iap-pop; hosts the shared ImageAdjustPanel
    plus a cell-only framing header. position:fixed set inline via placeBeside. */

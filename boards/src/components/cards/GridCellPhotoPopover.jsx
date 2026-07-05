@@ -32,11 +32,13 @@ function placeBeside(rect, w, h, vw, vh) {
   return { left: vw - w - PAD, top: topAligned };
 }
 
-export function GridCellPhotoPopover({ anchorRect, fit, zoom = 1, adjust, full = false, repositionOn = false,
-                                       onFit, onAdjustChange, onAdjustReset, onToggleFull, onToggleReposition,
+export function GridCellPhotoPopover({ anchorRect, fit, zoom = 1, adjust, repositionOn = false,
+                                       onFit, onAdjustChange, onAdjustReset, onOpenFullEditor, onToggleReposition,
                                        onResetFraming, onCompareStart, onCompareEnd, onClose }) {
   const ref = useRef(null);
-  useDismissOnOutside(ref, true, onClose);
+  // Ignore the reposition drag layer (a portal SIBLING over the cell) so dragging
+  // to pan doesn't count as an outside-tap and close the editor mid-drag.
+  useDismissOnOutside(ref, true, onClose, { ignore: '.gridc-reposition' });
 
   const [style, setStyle] = useState(() => anchorRect ? {
     position: 'fixed',
@@ -45,7 +47,7 @@ export function GridCellPhotoPopover({ anchorRect, fit, zoom = 1, adjust, full =
     visibility: 'hidden',
   } : undefined);
 
-  const aKey = anchorRect ? `${anchorRect.left},${anchorRect.top},${anchorRect.width},${anchorRect.height},${full}` : null;
+  const aKey = anchorRect ? `${anchorRect.left},${anchorRect.top},${anchorRect.width},${anchorRect.height}` : null;
   useLayoutEffect(() => {
     if (!anchorRect || !ref.current) return undefined;
     const place = () => {
@@ -104,11 +106,10 @@ export function GridCellPhotoPopover({ anchorRect, fit, zoom = 1, adjust, full =
       <div className="gcp-sep" />
       <ImageAdjustPanel
         adjust={adjust}
-        mode={full ? 'full' : 'compact'}
+        mode="compact"
         onChange={onAdjustChange}
         onReset={onAdjustReset}
-        onExpand={onToggleFull}
-        onClose={full ? onToggleFull : undefined}
+        onExpand={onOpenFullEditor}
         onCompareStart={onCompareStart}
         onCompareEnd={onCompareEnd} />
     </div>

@@ -19,7 +19,7 @@ import { useEffect, useRef } from 'react';
 //   useDismissOnOutside(ref, true, onClose);            // always-on while mounted
 //   useDismissOnOutside(ref, open, onClose, { escapeCapture: true });
 export function useDismissOnOutside(ref, isOpen, onClose, options = {}) {
-  const { escape = true, escapeCapture = false } = options;
+  const { escape = true, escapeCapture = false, ignore = null } = options;
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
@@ -30,7 +30,13 @@ export function useDismissOnOutside(ref, isOpen, onClose, options = {}) {
     const onDocDown = (e) => {
       if (!armed) return;
       const el = ref.current;
-      if (el && !el.contains(e.target)) onCloseRef.current?.();
+      if (!el) return;
+      if (el.contains(e.target)) return;
+      // Opt-in escape hatch: a portaled control can have an interactive sibling
+      // OUTSIDE its ref (e.g. a drag layer over a grid cell) that must NOT count
+      // as an outside-tap. Default null → unchanged for every other caller.
+      if (ignore && e.target?.closest?.(ignore)) return;
+      onCloseRef.current?.();
     };
     const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.(); };
     document.addEventListener('pointerdown', onDocDown, true);
@@ -42,5 +48,5 @@ export function useDismissOnOutside(ref, isOpen, onClose, options = {}) {
       document.removeEventListener('mousedown', onDocDown, true);
       if (escape) window.removeEventListener('keydown', onKey, escapeCapture);
     };
-  }, [isOpen, escape, escapeCapture, ref]);
+  }, [isOpen, escape, escapeCapture, ref, ignore]);
 }

@@ -11,7 +11,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { Icon } from '../Icon.jsx';
-import { Columns2 as Columns, Trash2 as Trash, TextT, Image as ImageIcon, Link, ArrowsClockwise, Edit as Pencil } from '../../lib/icons.js';
+import { Columns2 as Columns, Trash2 as Trash, TextT, Image as ImageIcon, Link, ArrowsClockwise, Edit as Pencil, Maximize2, Download } from '../../lib/icons.js';
 
 const PAD = 10;
 const GAP = 10;   // gap between the cell edge and the menu
@@ -35,7 +35,8 @@ function placeBeside(rect, w, h, vw, vh) {
 }
 
 export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
-                              onText, onImage, onLink, onSplitRow, onSplitCol, onClear, onEditPhoto, onClose }) {
+                              onText, onImage, onLink, onSplitRow, onSplitCol, onClear,
+                              onEditPhoto, onOpenFullScreen, onDownload, onClose }) {
   const ref = useRef(null);
   // Filled cells rest on Replace/Clear; clicking Replace reveals the choosers.
   // Empty cells show the choosers straight away. Held HERE (not GridCard's
@@ -96,6 +97,16 @@ export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
           {isImage && (
             <button type="button" className="gcm-item" title="Edit photo" aria-label="Edit photo" onClick={run(onEditPhoto)}>
               <span className="gridc-ico"><Icon as={Pencil} size={16} /></span><span className="gcm-label">Edit photo</span>
+            </button>
+          )}
+          {isImage && (
+            <button type="button" className="gcm-item" title="Open full screen" aria-label="Open full screen" onClick={run(onOpenFullScreen)}>
+              <span className="gridc-ico"><Icon as={Maximize2} size={16} /></span><span className="gcm-label">Open full screen</span>
+            </button>
+          )}
+          {isImage && (
+            <button type="button" className="gcm-item" title="Download" aria-label="Download" onClick={run(onDownload)}>
+              <span className="gridc-ico"><Icon as={Download} size={16} /></span><span className="gcm-label">Download</span>
             </button>
           )}
           <button type="button" className="gcm-item" title="Replace" aria-label="Replace"

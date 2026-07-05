@@ -24,10 +24,13 @@ import { resolveSrc } from '../../lib/r2.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { FileCard } from './FileCard.jsx';
 import { Icon } from '../Icon.jsx';
-import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link, ArrowsClockwise, MoreHorizontal, Edit as Pencil } from '../../lib/icons.js';
+import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link, ArrowsClockwise, MoreHorizontal, Edit as Pencil, Maximize2, Download } from '../../lib/icons.js';
 import { GridCellMenu } from './GridCellMenu.jsx';
 import { GridCellPhotoPopover } from './GridCellPhotoPopover.jsx';
+import { ImageEditModal } from '../ImageEditModal.jsx';
+import { ImageLightbox } from '../ImageLightbox.jsx';
 import { buildImgStyle, hasFilterStages } from '../../lib/imageAdjust.js';
+import { downloadImage } from '../../lib/imageExport.js';
 import { PerCardFilter } from '../ImageAdjustFilters.jsx';
 import './gridCard.css';
 
@@ -165,7 +168,8 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const [swapCellId, setSwapCellId] = useState(null);   // a filled cell showing the "Replace" type chooser
   const [menu, setMenu] = useState(null);               // { cellId, anchorRect, mode } — pop-out menu for a too-small cell
   const [photoEdit, setPhotoEdit] = useState(null);     // { cellId, anchorRect } — image cell's photo/fit editor
-  const [photoFull, setPhotoFull] = useState(false);    // editor expanded to the full adjust panel
+  const [photoFullModal, setPhotoFullModal] = useState(null); // { cellId } — full-screen ImageEditModal
+  const [lightbox, setLightbox] = useState(null);       // { cellId } — full-screen ImageLightbox viewer
   const [repositionOn, setRepositionOn] = useState(false); // reposition drag armed on the edited cell
   const [compareCellId, setCompareCellId] = useState(null); // cell showing its unadjusted source (hold-to-compare)
 
@@ -179,8 +183,10 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const enterTextEdit = (cellId) => { setEditingCellId(cellId); gridActions?.setCellEditing?.(card.id, cellId); };
   const exitTextEdit = (cellId) => { setEditingCellId((p) => (p === cellId ? null : p)); gridActions?.setCellEditing?.(null, null); };
   // Open / close the image cell's photo + fit editor (portaled popover below).
-  const openPhotoEdit = (cellId, anchorRect) => { setMenu(null); setPhotoFull(false); setRepositionOn(false); setCompareCellId(null); setPhotoEdit({ cellId, anchorRect }); };
-  const closePhotoEdit = () => { setPhotoEdit(null); setPhotoFull(false); setRepositionOn(false); setCompareCellId(null); };
+  const openPhotoEdit = (cellId, anchorRect) => { setMenu(null); setRepositionOn(false); setCompareCellId(null); setPhotoEdit({ cellId, anchorRect }); };
+  const closePhotoEdit = () => { setPhotoEdit(null); setRepositionOn(false); setCompareCellId(null); };
+  const openFullEditor = (cellId) => { closePhotoEdit(); setPhotoFullModal({ cellId }); };
+  const openLightbox = (cellId) => { setMenu(null); closePhotoEdit(); setLightbox({ cellId }); };
   // Drag-to-reposition (object-position pan) an image cell. Screen-space ratio
   // (dx / cell width) is zoom-invariant, so no getCanvasScale needed. Dragging the
   // image right reveals its left → object-position x decreases.
@@ -258,7 +264,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
 
   return (
     <>
-    <div className="gridc" data-grid-id={card.id}>
+    <div className={`gridc${repositionOn ? ' is-repositioning' : ''}`} data-grid-id={card.id}>
       {linked && (
         // Purely informational (pointer-events:none in CSS) so it never swallows a
         // selection click or unlinks by accident — unlink via right-click → Unlink.
@@ -392,6 +398,12 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                           <span className="gridc-ico"><Icon as={Pencil} size={15} /></span>
                         </button>
                       )}
+                      {isImage && (
+                        <button type="button" className="is-icon" title="Open full screen" aria-label="Open full screen"
+                          onClick={(e) => { e.stopPropagation(); openLightbox(r.id); }}>
+                          <span className="gridc-ico"><Icon as={Maximize2} size={15} /></span>
+                        </button>
+                      )}
                       <button type="button" className="is-icon" title="Replace" aria-label="Replace"
                         onClick={(e) => { e.stopPropagation(); setSwapCellId(r.id); }}>
                         <span className="gridc-ico"><Icon as={ArrowsClockwise} size={15} /></span>
@@ -450,6 +462,8 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         mode={menu.mode}
         isImage={!!(model.cells[menu.cellId] && model.cells[menu.cellId].type === 'image' && model.cells[menu.cellId].src)}
         onEditPhoto={() => openPhotoEdit(menu.cellId, menu.anchorRect)}
+        onOpenFullScreen={() => openLightbox(menu.cellId)}
+        onDownload={() => { const c = model.cells[menu.cellId]; if (c && c.src) downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust }); }}
         onText={() => { gridActions.setCellContent(card.id, menu.cellId, { type: 'text', html: '' }); enterTextEdit(menu.cellId); }}
         onImage={() => gridActions.pickImageForCell(card.id, menu.cellId)}
         onLink={() => gridActions.addLinkToCell(card.id, menu.cellId)}
@@ -482,16 +496,45 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         <GridCellPhotoPopover
           anchorRect={photoEdit.anchorRect}
           fit={c.fit} zoom={c.zoom} adjust={c.adjust}
-          full={photoFull} repositionOn={repositionOn}
+          repositionOn={repositionOn}
           onFit={(patch) => gridActions.setCellContent(g, cid, patch)}
           onAdjustChange={(next) => gridActions.setCellContent(g, cid, { adjust: next })}
           onAdjustReset={() => gridActions.setCellContent(g, cid, { adjust: null })}
-          onToggleFull={() => setPhotoFull((v) => !v)}
+          onOpenFullEditor={() => openFullEditor(cid)}
           onToggleReposition={() => setRepositionOn((v) => !v)}
           onResetFraming={() => gridActions.setCellContent(g, cid, { fit: 'cover', pos: null, zoom: 1 })}
           onCompareStart={() => setCompareCellId(cid)}
           onCompareEnd={() => setCompareCellId(null)}
           onClose={closePhotoEdit}
+        />
+      );
+    })()}
+    {photoFullModal && (() => {
+      // Full-screen photo EDITOR for a cell image (all 12 sliders + big live
+      // preview + Download). GridCard-owned so a cell.adjust edit re-renders live
+      // (CanvasSurface's cards snapshot doesn't bust on a nested cell edit).
+      const c = model.cells[photoFullModal.cellId];
+      if (!c || c.type !== 'image' || !c.src) return null;
+      const cid = photoFullModal.cellId;
+      return (
+        <ImageEditModal
+          src={c.src} title={c.title || ''} adjust={c.adjust} cardId={`${card.id}:${cid}`}
+          onChange={(next) => gridActions.setCellContent(card.id, cid, { adjust: next })}
+          onReset={() => gridActions.setCellContent(card.id, cid, { adjust: null })}
+          onDownload={() => downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust })}
+          onClose={() => setPhotoFullModal(null)}
+        />
+      );
+    })()}
+    {lightbox && (() => {
+      // Full-screen VIEWER (zoom/pan) for a cell image, with its own Download.
+      const c = model.cells[lightbox.cellId];
+      if (!c || c.type !== 'image' || !c.src) return null;
+      return (
+        <ImageLightbox
+          src={c.src} title={c.title || ''} alt={c.title || ''} adjust={c.adjust}
+          cardId={`${card.id}:${lightbox.cellId}`}
+          onClose={() => setLightbox(null)}
         />
       );
     })()}
