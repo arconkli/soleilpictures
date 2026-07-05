@@ -43,6 +43,14 @@ const PAGES = [
     subhead:
       'Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.',
     cta: { label: 'Start a mood board — free', sub: 'No credit card. Your first board in seconds.' },
+    stepsHeading: 'How to make a mood board',
+    steps: [
+      { t: 'Start a board', d: 'Open Clusters and create a blank board — an infinite canvas you can pan and zoom.' },
+      { t: 'Drop in your references', d: 'Drag images, screenshots, links, and files straight onto the canvas; Clusters tags and files each one for you.' },
+      { t: 'Add color and notes', d: 'Pull a color palette and add rich-text notes or a brief right beside the imagery.' },
+      { t: 'Arrange and connect', d: 'Move cards freely, group related references, and draw arrows to show how ideas relate.' },
+      { t: 'Share it', d: 'Send one link for a clean, interactive preview — or invite your team to build the board live with you.' },
+    ],
     sections: [
       {
         heading: 'Everything in one place, not fifteen tabs',
@@ -81,6 +89,14 @@ const PAGES = [
     subhead:
       'Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.',
     cta: { label: 'Start a storyboard — free', sub: 'No credit card. Free to start.' },
+    stepsHeading: 'How to make a storyboard',
+    steps: [
+      { t: 'Add a grid card', d: 'Drop a grid onto the board and split it into the number of panels your sequence needs.' },
+      { t: 'Fill each frame', d: 'Drop a reference still or a sketch into each cell, and caption it with the action.' },
+      { t: 'Order your shots', d: 'Drag panels to re-sequence the scene, and number them automatically.' },
+      { t: 'Add the shot list', d: 'Put a doc or schedule card beside the frames for lens, camera movement, and shoot day.' },
+      { t: 'Share with the crew', d: 'Send one link, or invite your DP and AD to edit and comment on the frames in real time.' },
+    ],
     sections: [
       {
         heading: 'A grid built for sequences',
@@ -119,6 +135,14 @@ const PAGES = [
     subhead:
       'Keep your shots, reference frames, and schedule on one board — visual and organized, not buried in a spreadsheet.',
     cta: { label: 'Build a shot list — free', sub: 'Free to start. No install.' },
+    stepsHeading: 'How to make a shot list',
+    steps: [
+      { t: 'Start a board for the scene', d: 'One board per scene or setup keeps the day organized.' },
+      { t: 'Add a card per shot', d: 'Give each shot its own card with a reference frame plus lens and movement notes.' },
+      { t: 'Switch views as needed', d: 'Toggle to list view for a clean table; back to canvas to see the frames.' },
+      { t: 'Map shots to days', d: 'Add a schedule card to tie each shot to its shoot day and location.' },
+      { t: 'Share live', d: 'Invite the crew so everyone works from one source of truth that updates in real time.' },
+    ],
     sections: [
       {
         heading: 'A shot list with pictures, not just rows',
@@ -157,6 +181,14 @@ const PAGES = [
     subhead:
       'Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.',
     cta: { label: 'Make a look book — free', sub: 'Free to start. Share with one link.' },
+    stepsHeading: 'How to make a look book',
+    steps: [
+      { t: 'Start a board and set the mood', d: 'Begin with a blank canvas — or a nested board per season, campaign, or client.' },
+      { t: 'Drop in your looks', d: 'Add your imagery and references, then crop and adjust them non-destructively to unify the set.' },
+      { t: 'Arrange the spreads', d: 'Use grid layouts for tidy, editorial spreads that read intentionally.' },
+      { t: 'Pull a color story', d: 'Add a palette card so the color direction sits right in the presentation.' },
+      { t: 'Send a link', d: 'Share a single link for a polished, interactive look book — no account needed to view.' },
+    ],
     sections: [
       {
         heading: 'Composed, not cluttered',
@@ -195,6 +227,14 @@ const PAGES = [
     subhead:
       'Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.',
     cta: { label: 'Make one free', sub: 'No credit card. No install.' },
+    stepsHeading: 'How to make a mood board online, free',
+    steps: [
+      { t: 'Open Clusters in your browser', d: 'There is nothing to download — just open it and start.' },
+      { t: 'Create a board', d: 'Make a blank board and drag in images, links, and notes.' },
+      { t: 'Add a color palette', d: 'Drop a palette card to set the tone of the board.' },
+      { t: 'Arrange it', d: 'Move everything around on the infinite canvas until it reads the way you want.' },
+      { t: 'Share it free', d: 'Send your board with a link — viewers need no sign-up to see it.' },
+    ],
     sections: [
       {
         heading: 'Free, and actually usable',

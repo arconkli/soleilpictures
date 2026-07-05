@@ -834,6 +834,11 @@ function buildLandingCrawlableHtml(spec) {
     }
     parts.push(`</section>`);
   }
+  if (Array.isArray(spec.steps) && spec.steps.length) {
+    parts.push(`<section><h2 style="${H2}">${escapeHtml(spec.stepsHeading || 'How it works')}</h2><ol>`);
+    for (const s of spec.steps) parts.push(`<li><b>${escapeHtml(s.t)}</b> — ${escapeHtml(s.d)}</li>`);
+    parts.push(`</ol></section>`);
+  }
   if (spec.compare) {
     parts.push(`<section><h2 style="${H2}">Clusters vs ${escapeHtml(spec.compare.competitor)}</h2>`);
     if (spec.compare.intro) parts.push(`<p>${escapeHtml(spec.compare.intro)}</p>`);

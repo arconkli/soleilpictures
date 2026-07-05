@@ -74,6 +74,21 @@ export function SeoLandingPage({ spec: specProp, path }) {
             </section>
           ))}
 
+          {/* How-to steps (tool pages) — captures informational intent */}
+          {Array.isArray(spec.steps) && spec.steps.length > 0 && (
+            <section className="seo-section">
+              <h2 className="seo-h2">{spec.stepsHeading || 'How it works'}</h2>
+              <ol className="seo-steps">
+                {spec.steps.map((s, i) => (
+                  <li key={i}>
+                    <span className="seo-step-t">{s.t}</span>
+                    <span className="seo-step-d">{s.d}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
           {/* Comparison table (alternative-to pages) */}
           {spec.compare && (
             <section className="seo-section">
