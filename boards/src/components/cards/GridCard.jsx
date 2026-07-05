@@ -24,8 +24,11 @@ import { resolveSrc } from '../../lib/r2.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { FileCard } from './FileCard.jsx';
 import { Icon } from '../Icon.jsx';
-import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link, ArrowsClockwise, MoreHorizontal } from '../../lib/icons.js';
+import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link, ArrowsClockwise, MoreHorizontal, Edit as Pencil } from '../../lib/icons.js';
 import { GridCellMenu } from './GridCellMenu.jsx';
+import { GridCellPhotoPopover } from './GridCellPhotoPopover.jsx';
+import { buildImgStyle, hasFilterStages } from '../../lib/imageAdjust.js';
+import { PerCardFilter } from '../ImageAdjustFilters.jsx';
 import './gridCard.css';
 
 const stop = (e) => e.stopPropagation();
@@ -87,7 +90,7 @@ function CellVideo({ src }) {
   return <video className="gc-video" src={url} controls preload="metadata" onPointerDown={stop} />;
 }
 
-function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, textStyle }) {
+function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, textStyle, cardId, cellId, compare = false }) {
   const type = cell?.type || 'empty';
   if (type === 'board' && cell.boardId) {
     const b = boards?.[cell.boardId];
@@ -109,6 +112,20 @@ function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, tex
     );
   }
   if (type === 'image' && cell.src) {
+    // Full image controls: object-fit (Fill/Fit) + object-position (Reposition) +
+    // zoom (scale, cropping around the focal point) + non-destructive photo
+    // adjustments (buildImgStyle → CSS filter/flip, byte-identical to a standalone
+    // image card). `compare` nulls the adjust so a hold-to-compare shows the source.
+    const objPos = cell.pos ? `${cell.pos.x}% ${cell.pos.y}%` : 'center';
+    const base = buildImgStyle(compare ? null : cell.adjust, `${cardId}:${cellId}`) || {};
+    const z = Number(cell.zoom) > 1 ? Number(cell.zoom) : 0;
+    const transform = [base.transform, z ? `scale(${z})` : ''].filter(Boolean).join(' ');
+    const style = {
+      objectFit: cell.fit === 'contain' ? 'contain' : 'cover',
+      objectPosition: objPos,
+      ...(base.filter ? { filter: base.filter } : {}),
+      ...(transform ? { transform, transformOrigin: objPos } : {}),
+    };
     return (
       <R2Image
         src={cell.src}
@@ -116,7 +133,7 @@ function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, tex
         h={Math.round(rect.h)}
         draggable="false"
         className="gc-img"
-        style={{ objectFit: cell.fit === 'contain' ? 'contain' : 'cover', objectPosition: cell.pos ? `${cell.pos.x}% ${cell.pos.y}%` : 'center' }}
+        style={style}
       />
     );
   }
@@ -147,6 +164,10 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const [dragOverCell, setDragOverCell] = useState(null);
   const [swapCellId, setSwapCellId] = useState(null);   // a filled cell showing the "Replace" type chooser
   const [menu, setMenu] = useState(null);               // { cellId, anchorRect, mode } — pop-out menu for a too-small cell
+  const [photoEdit, setPhotoEdit] = useState(null);     // { cellId, anchorRect } — image cell's photo/fit editor
+  const [photoFull, setPhotoFull] = useState(false);    // editor expanded to the full adjust panel
+  const [repositionOn, setRepositionOn] = useState(false); // reposition drag armed on the edited cell
+  const [compareCellId, setCompareCellId] = useState(null); // cell showing its unadjusted source (hold-to-compare)
 
   const model = readGridModel(card, ydoc, templates);
   const layout = preview?.layout || model.layout;
@@ -157,6 +178,27 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   // note formatting toolbar (font / size / style) shows scoped to this cell.
   const enterTextEdit = (cellId) => { setEditingCellId(cellId); gridActions?.setCellEditing?.(card.id, cellId); };
   const exitTextEdit = (cellId) => { setEditingCellId((p) => (p === cellId ? null : p)); gridActions?.setCellEditing?.(null, null); };
+  // Open / close the image cell's photo + fit editor (portaled popover below).
+  const openPhotoEdit = (cellId, anchorRect) => { setMenu(null); setPhotoFull(false); setRepositionOn(false); setCompareCellId(null); setPhotoEdit({ cellId, anchorRect }); };
+  const closePhotoEdit = () => { setPhotoEdit(null); setPhotoFull(false); setRepositionOn(false); setCompareCellId(null); };
+  // Drag-to-reposition (object-position pan) an image cell. Screen-space ratio
+  // (dx / cell width) is zoom-invariant, so no getCanvasScale needed. Dragging the
+  // image right reveals its left → object-position x decreases.
+  const onRepositionDown = (e, cellId, cellEl) => {
+    if (!editable || !cellEl) return;
+    e.stopPropagation(); e.preventDefault();
+    const rect = cellEl.getBoundingClientRect();
+    const start = (model.cells[cellId] && model.cells[cellId].pos) || { x: 50, y: 50 };
+    const sx = e.clientX, sy = e.clientY;
+    const move = (ev) => {
+      const x = Math.max(0, Math.min(100, start.x - ((ev.clientX - sx) / Math.max(1, rect.width)) * 100));
+      const y = Math.max(0, Math.min(100, start.y - ((ev.clientY - sy) / Math.max(1, rect.height)) * 100));
+      gridActions.setCellContent(card.id, cellId, { pos: { x: Math.round(x), y: Math.round(y) } });
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
   const box = { x: 0, y: 0, w, h };
   const rects = computeCellRects(layout, box);
   const dividers = collectDividers(layout, box);
@@ -242,6 +284,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         // cell, so fit is zoom-independent.
         const cellW = Math.max(0, r.w - gutter), cellH = Math.max(0, r.h - gutter);
         const compact = cellW < GRID_TUNING.PILL_MIN_W || cellH < GRID_TUNING.PILL_MIN_H;
+        const isImage = type === 'image' && !!cell.src;   // gets the "Edit photo" affordance
         return (
           <div
             key={r.id}
@@ -283,9 +326,16 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                   />
                 </div>
               ) : (
-                <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} boards={boards} onOpenBoard={onOpenBoard} textStyle={tstyle} />
+                <CellContent cell={cell} rect={r} seqIndex={seqIndex} seqFormat={seqFormat} boards={boards} onOpenBoard={onOpenBoard} textStyle={tstyle}
+                  cardId={card.id} cellId={r.id} compare={compareCellId === r.id} />
               )}
             </div>
+
+            {editable && isImage && repositionOn && photoEdit?.cellId === r.id && (
+              // Reposition mode: a drag layer over the image → pan object-position.
+              <div className="gridc-reposition" title="Drag to reposition"
+                onPointerDown={(e) => onRepositionDown(e, r.id, e.currentTarget.parentElement)} />
+            )}
 
             {cellUploads && cellUploads[r.id] !== undefined && (
               // In-cell upload feedback (paste / drop / Image-picker) — spinner +
@@ -333,8 +383,15 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                     </>
                   ) : (
                     <>
-                      {/* Filled cell at rest → a single "Replace" swap that reveals the
-                          chooser above so you can switch this cell's content type. */}
+                      {/* Filled cell at rest → "Edit photo" (image cells only) +
+                          a single "Replace" swap that reveals the chooser above so
+                          you can switch this cell's content type. */}
+                      {isImage && (
+                        <button type="button" className="is-icon" title="Edit photo" aria-label="Edit photo"
+                          onClick={(e) => { e.stopPropagation(); openPhotoEdit(r.id, (e.currentTarget.closest('.gridc-cell') || e.currentTarget).getBoundingClientRect()); }}>
+                          <span className="gridc-ico"><Icon as={Pencil} size={15} /></span>
+                        </button>
+                      )}
                       <button type="button" className="is-icon" title="Replace" aria-label="Replace"
                         onClick={(e) => { e.stopPropagation(); setSwapCellId(r.id); }}>
                         <span className="gridc-ico"><Icon as={ArrowsClockwise} size={15} /></span>
@@ -391,6 +448,8 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
       <GridCellMenu
         anchorRect={menu.anchorRect}
         mode={menu.mode}
+        isImage={!!(model.cells[menu.cellId] && model.cells[menu.cellId].type === 'image' && model.cells[menu.cellId].src)}
+        onEditPhoto={() => openPhotoEdit(menu.cellId, menu.anchorRect)}
         onText={() => { gridActions.setCellContent(card.id, menu.cellId, { type: 'text', html: '' }); enterTextEdit(menu.cellId); }}
         onImage={() => gridActions.pickImageForCell(card.id, menu.cellId)}
         onLink={() => gridActions.addLinkToCell(card.id, menu.cellId)}
@@ -400,6 +459,42 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         onClose={() => setMenu(null)}
       />
     )}
+    {(() => {
+      // Per-cell photo-adjust SVG filter defs (referenced by the cell <img>'s
+      // filter:url(#…)). Owned by GridCard (NOT CanvasSurface's ImageAdjustFilters)
+      // because a cell.adjust edit doesn't bust the top-level cards snapshot —
+      // GridCard self-observes gridCells, so these defs track the adjust live.
+      const adjusted = rects.filter((r) => { const c = model.cells[r.id]; return c && c.type === 'image' && c.src && hasFilterStages(c.adjust); });
+      return adjusted.length ? (
+        <svg width="0" height="0" aria-hidden="true" focusable="false"
+             style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+          <defs>
+            {adjusted.map((r) => <PerCardFilter key={r.id} cardId={`${card.id}:${r.id}`} adjust={model.cells[r.id].adjust} />)}
+          </defs>
+        </svg>
+      ) : null;
+    })()}
+    {photoEdit && (() => {
+      const c = model.cells[photoEdit.cellId];
+      if (!c || c.type !== 'image' || !c.src) return null;
+      const g = card.id, cid = photoEdit.cellId;
+      return (
+        <GridCellPhotoPopover
+          anchorRect={photoEdit.anchorRect}
+          fit={c.fit} zoom={c.zoom} adjust={c.adjust}
+          full={photoFull} repositionOn={repositionOn}
+          onFit={(patch) => gridActions.setCellContent(g, cid, patch)}
+          onAdjustChange={(next) => gridActions.setCellContent(g, cid, { adjust: next })}
+          onAdjustReset={() => gridActions.setCellContent(g, cid, { adjust: null })}
+          onToggleFull={() => setPhotoFull((v) => !v)}
+          onToggleReposition={() => setRepositionOn((v) => !v)}
+          onResetFraming={() => gridActions.setCellContent(g, cid, { fit: 'cover', pos: null, zoom: 1 })}
+          onCompareStart={() => setCompareCellId(cid)}
+          onCompareEnd={() => setCompareCellId(null)}
+          onClose={closePhotoEdit}
+        />
+      );
+    })()}
     {/* Directional "+" live OUTSIDE .gridc (a sibling overlay in the card box) so
         they straddle the edges and never cover interior cell tools. Shown when the
         Grid is selected; the selected card has overflow:visible so they paint. */}

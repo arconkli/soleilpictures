@@ -300,6 +300,56 @@
 .gridc-cell-menu .gcm-item:hover .gridc-ico { color: var(--ink-0, #f5f5f7); }
 .gridc-cell-menu .gcm-label { flex: 1 1 auto; }
 
+/* Reposition mode: a drag layer over an image cell → pan object-position. The
+   gold ring signals the active reposition state (active/selection accent). */
+.gridc-reposition {
+  position: absolute;
+  inset: 0;
+  z-index: 2;                    /* above the image, below the pill (z-index 3) */
+  cursor: grab;
+  pointer-events: auto;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--soleil, #ffa500) 70%, transparent);
+  background: color-mix(in srgb, var(--soleil, #ffa500) 8%, transparent);
+}
+.gridc-reposition:active { cursor: grabbing; }
+
+/* Portaled image-cell photo + fit editor (opened by the pill pencil / GridCellMenu
+   "Edit photo"). Frosted like .ctx-menu / .iap-pop; hosts the shared ImageAdjustPanel
+   plus a cell-only framing header. position:fixed set inline via placeBeside. */
+.gridc-photo-pop {
+  z-index: 2147483600;
+  width: 288px;
+  max-width: calc(100vw - 16px);
+  max-height: min(80vh, 620px);
+  overflow-y: auto;
+  background: rgba(16, 16, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-3, 0 12px 48px rgba(0,0,0,.45)), inset 0 1px 0 rgba(255,255,255,.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
+  font-family: var(--font-sans, sans-serif);
+  transform-origin: top left;
+  animation: ctx-menu-in var(--dur-base, 200ms) var(--ease, ease);
+}
+[data-theme='light'] .gridc-photo-pop { background: rgba(250,250,252,.92); border-color: rgba(10,10,12,.06); }
+.gridc-photo-pop .gcp-frame { display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 0; }
+.gridc-photo-pop .gcp-eyebrow { font: 600 10px/1 var(--font-sans, sans-serif); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-2, #888890); }
+.gridc-photo-pop .gcp-frame-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gridc-photo-pop .gcp-seg { display: inline-flex; border: 1px solid var(--line-2, #2c2c32); border-radius: var(--radius, 4px); overflow: hidden; }
+.gridc-photo-pop .gcp-seg-btn { height: 28px; padding: 0 13px; border: 0; background: transparent; color: var(--ink-2, #888890); font-size: 12px; cursor: pointer; transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease); }
+.gridc-photo-pop .gcp-seg-btn:hover { color: var(--ink-0, #f5f5f7); }
+.gridc-photo-pop .gcp-seg-btn.is-on { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+.gridc-photo-pop .gcp-tool { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--line-2, #2c2c32); border-radius: var(--radius, 4px); background: transparent; color: var(--ink-2, #888890); font-size: 12px; cursor: pointer; transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease), border-color var(--dur-fast, 120ms) var(--ease, ease); }
+.gridc-photo-pop .gcp-tool:hover { color: var(--ink-0, #f5f5f7); }
+.gridc-photo-pop .gcp-tool.is-icon { padding: 0; width: 28px; justify-content: center; }
+.gridc-photo-pop .gcp-tool.is-on { border-color: var(--soleil, #ffa500); color: var(--ink-0, #f5f5f7); background: color-mix(in srgb, var(--soleil, #ffa500) 12%, transparent); }
+.gridc-photo-pop .gcp-zoom { display: flex; align-items: center; gap: 9px; color: var(--ink-2, #888890); }
+.gridc-photo-pop .gcp-zoom[aria-disabled="true"] { opacity: 0.4; }
+.gridc-photo-pop .gcp-zoom-slider { flex: 1 1 auto; accent-color: var(--soleil, #ffa500); cursor: pointer; }
+.gridc-photo-pop .gcp-zoom-val { font-size: 11px; min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.gridc-photo-pop .gcp-sep { height: 1px; margin: 12px 14px 0; background: var(--line-2, #2c2c32); }
+
 /* Tiny clear (remove content) — top-right corner on hover; frosted to match. */
 .gridc-cell-x {
   position: absolute;

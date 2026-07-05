@@ -11,7 +11,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { Icon } from '../Icon.jsx';
-import { Columns2 as Columns, Trash2 as Trash, TextT, Image as ImageIcon, Link, ArrowsClockwise } from '../../lib/icons.js';
+import { Columns2 as Columns, Trash2 as Trash, TextT, Image as ImageIcon, Link, ArrowsClockwise, Edit as Pencil } from '../../lib/icons.js';
 
 const PAD = 10;
 const GAP = 10;   // gap between the cell edge and the menu
@@ -34,8 +34,8 @@ function placeBeside(rect, w, h, vw, vh) {
   return { left: vw - w - PAD, top: topAligned }; // fallback: pin to right edge
 }
 
-export function GridCellMenu({ anchorRect, mode = 'empty',
-                              onText, onImage, onLink, onSplitRow, onSplitCol, onClear, onClose }) {
+export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
+                              onText, onImage, onLink, onSplitRow, onSplitCol, onClear, onEditPhoto, onClose }) {
   const ref = useRef(null);
   // Filled cells rest on Replace/Clear; clicking Replace reveals the choosers.
   // Empty cells show the choosers straight away. Held HERE (not GridCard's
@@ -93,6 +93,11 @@ export function GridCellMenu({ anchorRect, mode = 'empty',
         </div>
       ) : (
         <div className="gcm-group">
+          {isImage && (
+            <button type="button" className="gcm-item" title="Edit photo" aria-label="Edit photo" onClick={run(onEditPhoto)}>
+              <span className="gridc-ico"><Icon as={Pencil} size={16} /></span><span className="gcm-label">Edit photo</span>
+            </button>
+          )}
           <button type="button" className="gcm-item" title="Replace" aria-label="Replace"
                   onClick={(e) => { e.stopPropagation(); setShowChooser(true); }}>
             <span className="gridc-ico"><Icon as={ArrowsClockwise} size={16} /></span><span className="gcm-label">Replace</span>

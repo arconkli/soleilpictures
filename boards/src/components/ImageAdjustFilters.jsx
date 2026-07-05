@@ -69,7 +69,7 @@ function buildPrimitives(n) {
   return prims;
 }
 
-const PerCardFilter = memo(function PerCardFilter({ cardId, adjust }) {
+export const PerCardFilter = memo(function PerCardFilter({ cardId, adjust }) {
   const n = normalizeAdjust(adjust);
   if (!n) return null;
   return (
