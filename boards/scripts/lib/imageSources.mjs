@@ -80,10 +80,14 @@ export async function fetchWikimedia(query, { count = 6 } = {}) {
     const license = stripHtml(em.LicenseShortName?.value || '');
     // Only accept clearly-free licenses (CC / public domain).
     if (!/^(cc|public domain|pd|no restrictions)/i.test(license)) continue;
+    // The File: page title (the filename) is the strongest relevance signal —
+    // "BC_Place_roof.jpg" vs "Vancouver_fireboat.jpg" — so surface it for scoring.
+    const titleText = stripHtml((p.title || '').replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' '));
     out.push({
       url: ii.thumburl,
+      titleText,
       srcW: ii.thumbwidth || ii.width, srcH: ii.thumbheight || ii.height,
-      alt: stripHtml(em.ImageDescription?.value || p.title?.replace(/^File:/, '') || query),
+      alt: stripHtml(em.ImageDescription?.value || titleText || query),
       credit: {
         name: stripHtml(em.Artist?.value || 'Wikimedia Commons'),
         link: ii.descriptionurl || ii.url,
@@ -108,14 +112,45 @@ export async function fetchCandidates(spec, keys = {}) {
   }
 }
 
+// How well a candidate matches the query, by keyword overlap against the
+// image's description/filename. Used to reject tangential search hits (e.g. a
+// "Vancouver fireboat" for a "BC Place stadium" query). Common connectors are
+// dropped; every other word (≥3 chars) counts.
+const STOP = new Set(['the', 'and', 'for', 'new', 'with', 'from']);
+export function relevanceScore(query, cand) {
+  const words = String(query).toLowerCase().match(/[a-z0-9]{3,}/g) || [];
+  const hay = `${cand.alt || ''} ${cand.titleText || ''} ${cand.credit?.name || ''}`.toLowerCase();
+  let score = 0;
+  for (const w of words) { if (!STOP.has(w) && hay.includes(w)) score++; }
+  return score;
+}
+
+// Reject non-photographic assets (maps, seating charts, logos, diagrams) that
+// Wikimedia search often returns for venue queries — a stadium's seating chart
+// is worse than no image when the caption names the stadium.
+const REJECT_RE = /\b(map|diagram|seating|chart|logo|schematic|locator|blueprint|infographic|bracket|svg|icon|coat of arms|flag of)\b/i;
+export function looksLikePhoto(cand) {
+  return !REJECT_RE.test(`${cand.alt || ''} ${cand.titleText || ''}`);
+}
+
 // Download an image URL to bytes. Returns { bytes, contentType, ext }.
-export async function downloadImage(url) {
-  const res = await fetch(url, { headers: { 'User-Agent': 'SoleilClusters-SeedBot/1.0' } });
-  if (!res.ok) throw new Error(`download ${res.status} for ${url.slice(0, 80)}`);
-  const contentType = (res.headers.get('content-type') || 'image/jpeg').split(';')[0];
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  const ext = contentType.includes('png') ? 'png'
-    : contentType.includes('webp') ? 'webp'
-    : contentType.includes('gif') ? 'gif' : 'jpg';
-  return { bytes, contentType, ext };
+// Retries on 429/503 with exponential backoff — Wikimedia rate-limits bursts.
+export async function downloadImage(url, { retries = 4 } = {}) {
+  const UA = 'SoleilClusters-SeedBot/1.0 (clusters.soleilpictures.com; contact clusters@soleilpictures.com)';
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'image/*' } });
+    if (res.ok) {
+      const contentType = (res.headers.get('content-type') || 'image/jpeg').split(';')[0];
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const ext = contentType.includes('png') ? 'png'
+        : contentType.includes('webp') ? 'webp'
+        : contentType.includes('gif') ? 'gif' : 'jpg';
+      return { bytes, contentType, ext };
+    }
+    if ((res.status === 429 || res.status === 503) && attempt < retries) {
+      await new Promise((r) => setTimeout(r, 800 * Math.pow(2, attempt)));
+      continue;
+    }
+    throw new Error(`download ${res.status} for ${url.slice(0, 80)}`);
+  }
 }

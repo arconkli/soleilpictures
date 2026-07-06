@@ -26,5 +26,15 @@ export function makeR2({ accountId, bucket, accessKeyId, secretAccessKey }) {
       }
       return key;
     },
+
+    // DELETE an object. 404 is treated as success (already gone).
+    async del(key) {
+      const res = await client.fetch(`${base}/${encodeURI(key)}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 404) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`R2 DELETE ${key} → ${res.status} ${detail.slice(0, 200)}`);
+      }
+      return key;
+    },
   };
 }

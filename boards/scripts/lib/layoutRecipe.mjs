@@ -1,51 +1,52 @@
-// Masonry auto-layout for the board generator.
+// Section-based composition for the board generator.
 //
-// A recipe lists cards without positions; this packs them into a tidy
-// Pinterest-style masonry so a generated board looks designed rather than
-// dumped. Image heights follow their real aspect ratio (from the source API);
-// text/palette cards get sensible fixed heights. Cards that already carry an
+// A board is laid out as a stack of horizontal BANDS. A card flagged
+// `sectionHeader` (or `span:'full'`) spans the full board width and starts a
+// fresh band; the cards after it masonry into columns beneath it until the next
+// header. This reads as a designed, sectioned reference board — "Host Nations",
+// "Team Colors", "Iconic Stadiums" — rather than one flat wall of thumbnails.
+//
+// Image heights follow their source aspect ratio (srcW/srcH from the image
+// API); text/palette/schedule cards get sensible fixed heights. Cards with an
 // explicit x/y are respected (manual placement wins).
 
 const DEFAULTS = {
   columns: 4,
-  colWidth: 300,
-  gap: 24,
+  colWidth: 336,
+  gap: 26,
   originX: 80,
   originY: 80,
 };
 
-// Target height for a 1-column-wide card of the given kind. Images ALWAYS fit
-// to their source aspect ratio (srcW/srcH from the image API) — never the raw
-// pixel height — so a 4000px-tall photo becomes a tidy ~200px card, not a tower.
+// Target height for a 1-column-wide card of the given kind.
 function cardHeight(card, colWidth) {
   if (card.kind === 'image') {
     const arW = card.srcW || 3;
     const arH = card.srcH || 2;
     const ar = arW && arH ? arW / arH : 1.5;
-    return Math.round(Math.min(440, Math.max(150, colWidth / ar)));
+    return Math.round(Math.min(460, Math.max(150, colWidth / ar)));
   }
   if (card.h) return card.h;
   switch (card.kind) {
-    case 'palette': return 132;
+    case 'palette': return 148;
     case 'note': {
-      const text = (card.body || '') + (card.html || '');
-      const len = text.replace(/<[^>]+>/g, '').length;
-      return len > 220 ? 220 : len > 90 ? 176 : 132;
+      const text = ((card.body || '') + (card.html || '')).replace(/<[^>]+>/g, '');
+      return text.length > 240 ? 236 : text.length > 100 ? 184 : 136;
     }
     case 'doc': return 240;
     case 'link': return 176;
-    case 'schedule': return 200;
+    case 'schedule': return 40 + 26 * (Array.isArray(card.rows) ? card.rows.length : 3);
     default: return 168;
   }
 }
 
-// Assign x/y/w/h to every card. Returns NEW card objects (recipe untouched).
-// Wide cards (card.span === 'full' or 2) occupy multiple columns and are placed
-// on a fresh row so the masonry stays clean.
+// Assign x/y/w/h to every card. Section headers span full width and reset the
+// masonry baseline so each section starts as a clean band.
 export function layoutRecipe(cards, opts = {}) {
   const o = { ...DEFAULTS, ...opts };
   const { columns, colWidth, gap, originX, originY } = o;
   const colStep = colWidth + gap;
+  const boardW = columns * colWidth + (columns - 1) * gap;
   const colHeights = new Array(columns).fill(0);
 
   const shortestCol = () => {
@@ -53,33 +54,34 @@ export function layoutRecipe(cards, opts = {}) {
     for (let i = 1; i < columns; i++) if (colHeights[i] < colHeights[idx]) idx = i;
     return idx;
   };
+  const maxH = () => Math.max(...colHeights);
 
   const out = [];
   for (const card of cards) {
+    // Full-width band (section header / hero banner): clear everything above,
+    // place full width, then drop all columns to just below it.
+    if (card.sectionHeader || card.span === 'full') {
+      const baseY = originY + maxH();
+      const h = card.h || (card.sub ? 104 : 72);
+      out.push({ ...card, x: originX, y: baseY, w: boardW, h });
+      const bottom = maxH() + h + gap;
+      for (let i = 0; i < columns; i++) colHeights[i] = bottom;
+      continue;
+    }
+
     // Respect manual placement.
     if (card.x != null && card.y != null) {
       out.push({ ...card, w: card.w || colWidth, h: card.h || cardHeight(card, colWidth) });
       continue;
     }
 
-    const span = card.span === 'full' ? columns : Math.min(columns, Math.max(1, card.span || 1));
-    const w = span === 1 ? colWidth : colWidth * span + gap * (span - 1);
-
-    if (span === 1) {
-      const col = shortestCol();
-      const h = cardHeight(card, w);
-      const x = originX + col * colStep;
-      const y = originY + colHeights[col];
-      colHeights[col] += h + gap;
-      out.push({ ...card, x, y, w, h });
-    } else {
-      // Multi-column card: drop it on a fresh row across the spanned columns.
-      const baseY = originY + Math.max(...colHeights);
-      const h = card.h || Math.round(w / 3.2); // banner-ish default
-      out.push({ ...card, x: originX, y: baseY, w, h });
-      const rowBottom = baseY + h + gap - originY;
-      for (let i = 0; i < span; i++) colHeights[i] = Math.max(colHeights[i], rowBottom);
-    }
+    // Masonry: place in the shortest column.
+    const col = shortestCol();
+    const h = cardHeight(card, colWidth);
+    const x = originX + col * colStep;
+    const y = originY + colHeights[col];
+    colHeights[col] += h + gap;
+    out.push({ ...card, x, y, w: colWidth, h });
   }
   return out;
 }
