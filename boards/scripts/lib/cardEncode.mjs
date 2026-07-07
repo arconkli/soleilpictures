@@ -61,14 +61,52 @@ export function stampCard(card, i, nowIso) {
   };
 }
 
-// Build the base64 board_state.doc snapshot from stamped cards. Matches
-// saveBoardSnapshot(): Y.Map('cards') keyed by card.id, then
+// Grid cards need NESTED Y.Maps (gridCells) to render in production — a plain
+// object won't render (readGridModel reads cardYMap.get('gridCells').forEach).
+// Everything else is a flat Y.Map via cardToYMap. `layout` stays a plain object.
+function cardToYMapDeep(card) {
+  if (card.kind !== 'grid') return cardToYMap(card);
+  const m = new Y.Map();
+  for (const [k, v] of Object.entries(card)) {
+    if (k === 'cells' || k === 'gridCells') continue;
+    m.set(k, v);
+  }
+  const gc = new Y.Map();
+  const cells = card.gridCells || card.cells || {};
+  for (const [cid, cell] of Object.entries(cells)) gc.set(cid, cell);
+  m.set('gridCells', gc);
+  m.set('gridMeta', new Y.Map());
+  return m;
+}
+
+// Build a rows×cols grid: a plain `layout` fraction-tree (col of rows, each a row
+// of leaves) + a `cells` map keyed by leaf id. cellContents is row-major.
+export function buildGridStructure(cellContents, rows, cols) {
+  const cells = {};
+  const rowNodes = [];
+  for (let r = 0; r < rows; r++) {
+    const leaves = [];
+    for (let c = 0; c < cols; c++) {
+      const id = `gc-${r}-${c}`;
+      cells[id] = cellContents[r * cols + c] || { type: 'empty' };
+      leaves.push({ type: 'leaf', id, frac: 1 / cols });
+    }
+    rowNodes.push({ type: 'row', frac: 1 / rows, children: leaves });
+  }
+  return { layout: { type: 'col', frac: 1, children: rowNodes }, cells };
+}
+
+// Build the base64 board_state.doc snapshot from stamped cards + arrows. Matches
+// saveBoardSnapshot(): Y.Map('cards') keyed by card.id + Y.Array('arrows'), then
 // bytesToB64(Y.encodeStateAsUpdate(doc)).
-export function encodeBoardSnapshot(cards) {
+export function encodeBoardSnapshot(cards, arrows = []) {
   const doc = new Y.Doc();
   const map = doc.getMap('cards');
   doc.transact(() => {
-    for (const c of cards) map.set(c.id, cardToYMap(c));
+    for (const c of cards) map.set(c.id, cardToYMapDeep(c));
+    if (Array.isArray(arrows) && arrows.length) {
+      doc.getArray('arrows').push(arrows.map((a) => ({ ...a })));
+    }
   });
   const b64 = bytesToB64(Y.encodeStateAsUpdate(doc));
   doc.destroy();

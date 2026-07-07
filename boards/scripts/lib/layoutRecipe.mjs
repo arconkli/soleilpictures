@@ -58,11 +58,17 @@ export function layoutRecipe(cards, opts = {}) {
 
   const out = [];
   for (const card of cards) {
-    // Full-width band (section header / hero banner): clear everything above,
-    // place full width, then drop all columns to just below it.
+    // Full-width band (section header / hero banner / grid mosaic): clear
+    // everything above, place full width, then drop all columns below it.
     if (card.sectionHeader || card.span === 'full') {
       const baseY = originY + maxH();
-      const h = card.h || (card.sub ? 104 : 72);
+      let h;
+      if (card.kind === 'grid') {
+        const cols = card.cols || 3, rows = card.rows || 2;
+        h = card.h || Math.round(rows * (boardW / cols) / 1.6);
+      } else {
+        h = card.h || (card.sub ? 104 : 72);
+      }
       out.push({ ...card, x: originX, y: baseY, w: boardW, h });
       const bottom = maxH() + h + gap;
       for (let i = 0; i < columns; i++) colHeights[i] = bottom;

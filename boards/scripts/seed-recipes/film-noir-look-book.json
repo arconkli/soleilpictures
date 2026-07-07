@@ -1,48 +1,69 @@
 {
   "slug": "film-noir-look-book",
-  "name": "Film Noir Look Book — Lighting & Mood Reference",
+  "name": "Film Noir Look Book — Lighting and Mood Reference",
   "priority": 4,
+  "bgColor": "#0a0a0c",
+  "cover": "neutral",
   "seo": {
-    "title": "Film Noir Look Book & Mood Board",
-    "description": "A film noir look book: hard shadows, rain-slicked streets, venetian-blind light, and a moody monochrome palette — cinematography reference on one canvas.",
-    "body": "A cinematographer's reference board for the film noir look: low-key lighting, hard chiaroscuro shadows, venetian-blind slats, rain-slicked night streets, cigarette smoke, and the moody monochrome palette the style is built on. A visual look book assembled the way a DP or production designer would — references, notes, and a color story together on one shareable canvas. Made with Soleil Clusters.",
+    "title": "Film Noir Look Book and Mood Board",
+    "description": "A film noir look book: hard shadows, rain-slicked streets, venetian-blind light, and monochrome palettes with hex codes — a cinematography reference on one canvas.",
+    "body": "A cinematographer's reference board for the film noir look: low-key lighting, hard chiaroscuro shadows, venetian-blind slats, rain-slicked night streets, cigarette smoke, and the moody monochrome palettes the style is built on. A visual look book assembled the way a DP or production designer would — references, lighting notes, exact color stories, connected annotations, and grid mosaics together on one shareable canvas. Made with Soleil Clusters.",
     "keyword": "film noir look book"
   },
-  "cards": [
+  "arrows": [
+    { "from": "note-grade", "to": "pal-neo", "color": "orange", "head": "single" },
+    { "from": "note-light", "to": "img-hardlight", "color": "ink", "head": "single" },
+    { "from": "note-films", "to": "img-classic", "color": "purple", "dashed": true }
+  ],
+  "sections": [
     {
-      "id": "note-intro",
-      "kind": "note",
-      "span": "full",
-      "fontFamily": "display",
-      "html": "<p><b>FILM NOIR</b><br>Low-key light · hard shadow · rain &amp; neon · monochrome mood</p>"
-    },
-    { "id": "img-shadow", "kind": "image", "source": { "provider": "unsplash", "query": "black and white hard shadow low key portrait", "count": 4 } },
-    { "id": "img-street", "kind": "image", "source": { "provider": "unsplash", "query": "rainy night city street noir neon", "count": 3 } },
-    { "id": "img-blinds", "kind": "image", "source": { "provider": "pexels", "query": "venetian blinds light shadow black and white", "count": 2 } },
-    { "id": "img-smoke", "kind": "image", "source": { "provider": "pexels", "query": "cigarette smoke dramatic black and white", "count": 2 } },
-    { "id": "img-stair", "kind": "image", "source": { "provider": "unsplash", "query": "dramatic staircase shadow monochrome", "count": 2 } },
-    {
-      "id": "pal-noir",
-      "kind": "palette",
-      "title": "Noir palette",
-      "swatches": [
-        { "hex": "#0a0a0c", "name": "Black" },
-        { "hex": "#2b2b30", "name": "Shadow" },
-        { "hex": "#6e6e76", "name": "Gunmetal" },
-        { "hex": "#c9c4b8", "name": "Bone" },
-        { "hex": "#e8b23a", "name": "Sodium neon" }
+      "header": { "text": "FILM NOIR", "sub": "Low-key light · hard shadow · rain and neon · the monochrome mood", "hero": true, "bg": "#18181c" },
+      "cards": [
+        { "id": "grid-studies", "kind": "grid", "title": "Shadow studies", "rows": 2, "cols": 3, "images": [
+          { "provider": "unsplash", "query": "black and white hard shadow low key portrait" },
+          { "provider": "unsplash", "query": "rainy night city street neon reflection noir" },
+          { "provider": "pexels", "query": "venetian blinds shadow light black and white" },
+          { "provider": "pexels", "query": "cigarette smoke dramatic black and white" },
+          { "provider": "unsplash", "query": "silhouette figure fog street lamp night" },
+          { "provider": "unsplash", "query": "dramatic staircase shadow monochrome architecture" }
+        ] },
+        { "id": "hero-shadow", "kind": "image", "source": { "provider": "unsplash", "query": "black and white dramatic chiaroscuro portrait low key", "orientation": "landscape" }, "title": "Chiaroscuro", "caption": "One hard key, deep falloff" }
       ]
     },
     {
-      "id": "note-light",
-      "kind": "note",
-      "html": "<p><b>Lighting notes</b><br>Single hard key, deep falloff. Rim to separate from black. Practicals for motivation. Let the blacks crush.</p>"
+      "header": { "text": "The Look" },
+      "cards": [
+        { "id": "img-alley", "kind": "image", "source": { "provider": "unsplash", "query": "dark alley neon sign night moody" }, "title": "The city", "caption": "Neon in the dark" },
+        { "id": "img-window", "kind": "image", "source": { "provider": "pexels", "query": "silhouette window rain night dramatic" }, "title": "Interiors", "caption": "Light through glass and rain" },
+        { "id": "img-portrait", "kind": "image", "source": { "provider": "pexels", "query": "moody black and white portrait dramatic lighting" }, "title": "The face", "caption": "Half in shadow" },
+        { "id": "note-mood", "kind": "note", "bgColor": "#18181c", "html": "<p><b>The mood</b><br>Fatalism and glamour in equal measure. Shadow as a character. Every frame withholds as much as it shows.</p>" }
+      ]
     },
     {
-      "id": "note-refs",
-      "kind": "note",
-      "bgColor": "#c9c4b8",
-      "html": "<p>Touchstones: <i>Double Indemnity</i>, <i>The Third Man</i>, <i>Sin City</i>, <i>Blade Runner</i>.</p>"
+      "header": { "text": "The Noir Palette — Exact Color Stories", "sub": "The tones and grades behind the look" },
+      "cards": [
+        { "id": "pal-mono", "kind": "palette", "title": "Classic monochrome", "swatches": [ { "hex": "#0A0A0C", "name": "Black" }, { "hex": "#2B2B30", "name": "Shadow" }, { "hex": "#6E6E76", "name": "Gunmetal" }, { "hex": "#C9C4B8", "name": "Bone" } ] },
+        { "id": "pal-sodium", "kind": "palette", "title": "Sodium and neon", "swatches": [ { "hex": "#12161C", "name": "Night" }, { "hex": "#E8B23A", "name": "Sodium" }, { "hex": "#D21F3C", "name": "Neon red" }, { "hex": "#2AA0C0", "name": "Neon cyan" } ] },
+        { "id": "pal-neo", "kind": "palette", "title": "Neo-noir teal and amber", "swatches": [ { "hex": "#0B1A2A", "name": "Teal night" }, { "hex": "#173A4A", "name": "Slate" }, { "hex": "#E8853A", "name": "Amber" }, { "hex": "#C0303A", "name": "Ember red" } ] },
+        { "id": "pal-highcon", "kind": "palette", "title": "High-contrast red", "swatches": [ { "hex": "#000000", "name": "Ink" }, { "hex": "#FFFFFF", "name": "Paper" }, { "hex": "#CC1122", "name": "Blood red" }, { "hex": "#F5E642", "name": "Cab yellow" } ] },
+        { "id": "note-grade", "kind": "note", "bgColor": "#12161C", "html": "<p><b>Grading notes</b><br>Crush the blacks; let highlights clip on practicals. Desaturate toward monochrome, or push a single accent — sodium amber, neon red — against a cold night base.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Lighting Technique" },
+      "cards": [
+        { "id": "img-hardlight", "kind": "image", "source": { "provider": "unsplash", "query": "single hard light beam dark room dramatic" }, "title": "Single source", "caption": "Hard, low, and motivated" },
+        { "id": "img-reflect", "kind": "image", "source": { "provider": "pexels", "query": "wet street reflection lights night city" }, "title": "Reflections", "caption": "Wet-down every surface" },
+        { "id": "note-light", "kind": "note", "bgColor": "#1a1a1f", "html": "<p><b>Lighting notes</b><br>Single hard key, deep falloff. Rim to separate the subject from black. Practicals for motivation. Smoke and rain to catch the beam. Let the blacks crush.</p>" },
+        { "id": "note-lenses", "kind": "note", "bgColor": "#c9c4b8", "html": "<p><b>Camera</b><br>Longer lenses for compression, low and canted angles, deep shadows framing the subject. Shoot for the grade.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Touchstones" },
+      "cards": [
+        { "id": "img-classic", "kind": "image", "source": { "provider": "unsplash", "query": "vintage film noir cinema aesthetic monochrome" }, "title": "The canon", "caption": "Where the language was written" },
+        { "id": "note-films", "kind": "note", "bgColor": "#18181c", "html": "<p><b>Touchstones</b><br>Double Indemnity · The Third Man · The Night of the Hunter · Touch of Evil · Chinatown · Blade Runner · Sin City · Se7en</p>" }
+      ]
     }
   ]
 }
