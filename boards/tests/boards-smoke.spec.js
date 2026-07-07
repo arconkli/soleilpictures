@@ -41,7 +41,7 @@ test('local QA mode can add a note, switch views, and toggle chrome', async ({ p
   await expect(newNote).toBeVisible();
 
   await page.getByRole('button', { name: 'List' }).click();
-  await expect(page.getByText('Files')).toBeVisible();
+  await expect(page.getByText('Files', { exact: true })).toBeVisible();
   await expect(page.getByText('Empty note')).toBeVisible();
 
   await page.getByRole('button', { name: 'Canvas' }).click();

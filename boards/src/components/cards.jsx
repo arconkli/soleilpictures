@@ -56,7 +56,7 @@ function NoteAutoLinkBody({ html }) {
 
 // Map an arbitrary card from a list-view board into a clickable row entry.
 // Returns null for kinds that don't make sense in a flat list (drawings, etc).
-const KIND_DOTS = {
+export const KIND_DOTS = {
   image:    '#3b82f6',
   note:     '#f59e0b',
   link:     '#a78bfa',
@@ -80,7 +80,7 @@ function htmlToText(html, max = 80) {
   return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
 }
 // Phosphor-thin glyphs used in list-board rows. Sized to fill a 22px tile.
-function KindIcon({ kind }) {
+export function KindIcon({ kind }) {
   if (kind === 'board' || kind === 'list' || kind === 'boardlink') {
     return <Icon as={FolderIcon} size={22} />;
   }
@@ -715,7 +715,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // playback uses a <video> element with a presigned read URL fetched
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
-function VideoCard({ src, title, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function VideoCard({ src, poster, title, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // Same fix as ImageCard: don't auto-open the title row on paste; it
   // silently eats vertical layout and makes object-fit:cover crop the
   // video. Double-click to edit instead.
@@ -737,6 +737,16 @@ function VideoCard({ src, title, onUpdate, autoFocus = false, editTitleAt = 0 })
     });
     return () => { cancelled = true; };
   }, [src]);
+  // Resolve the first-frame poster (r2:<key>) so the card shows a real frame
+  // before playback + while the video streams in.
+  const [posterUrl, setPosterUrl] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!poster) { setPosterUrl(null); return; }
+    if (!poster.startsWith('r2:')) { setPosterUrl(poster); return; }
+    resolveSrc(poster).then(u => { if (!cancelled) setPosterUrl(u || null); });
+    return () => { cancelled = true; };
+  }, [poster]);
   const showTitle = !!title || editingTitle;
   const onDbl = (e) => { e.stopPropagation(); setEditingTitle(true); };
   return (
@@ -744,8 +754,11 @@ function VideoCard({ src, title, onUpdate, autoFocus = false, editTitleAt = 0 })
       <div className="vc-vidwrap" onDoubleClick={onDbl}>
         {resolvedUrl
           ? <video className="vc-video" src={resolvedUrl}
+                   {...(posterUrl ? { poster: posterUrl } : {})}
                    controls preload="metadata" playsInline />
-          : <ImagePlaceholder label="VIDEO" tone="neutral" />}
+          : (posterUrl
+              ? <img className="vc-video" src={posterUrl} alt="" draggable="false" />
+              : <ImagePlaceholder label="VIDEO" tone="neutral" />)}
       </div>
       {showTitle && onUpdate && (
         <EditableText

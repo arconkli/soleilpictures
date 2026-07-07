@@ -31,6 +31,31 @@ export function isDescendantOf(boards, nodeId, ancestorId) {
   return false;
 }
 
+// Collect every board id in the subtree rooted at `rootId` (EXCLUDING the root
+// itself). Used to scope the cluster-browser's "search / presence includes
+// descendants" pass. BFS over parent_board_id with a visited guard against
+// looped data.
+export function collectDescendantIds(boards, rootId) {
+  const out = [];
+  if (rootId == null || !boards) return out;
+  const all = Array.isArray(boards) ? boards : Object.values(boards);
+  const visited = new Set([rootId]);
+  let frontier = [rootId];
+  while (frontier.length) {
+    const next = [];
+    for (const b of all) {
+      const pid = b?.parent_board_id ?? null;
+      if (pid != null && frontier.includes(pid) && !visited.has(b.id)) {
+        visited.add(b.id);
+        out.push(b.id);
+        next.push(b.id);
+      }
+    }
+    frontier = next;
+  }
+  return out;
+}
+
 // Moving `childId` under `targetId` creates a cycle when the target IS the
 // child or sits anywhere in the child's subtree.
 export function wouldCreateCycle(boards, childId, targetId) {

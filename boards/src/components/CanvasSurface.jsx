@@ -95,6 +95,7 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
+import { classifyDropFile } from '../lib/fileIngest.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
@@ -409,6 +410,10 @@ export function CanvasSurface({
   showcaseArm = 'A',       // welcome_showcase experiment arm: 'B' → root was
                            // seeded with the brand demo; show the "Clear & try it
                            // yourself" banner while its cards are present.
+  focusRequest = null,     // { boardId, ids:[], token } — after a list-view file
+                           // drop, select + frame the newly-arranged cards once
+                           // the user switches to canvas ("where did my files go?").
+  clearFocusRequest = null,// () => void — consume the request after framing.
 }) {
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
@@ -1489,6 +1494,62 @@ export function CanvasSurface({
     });
   }, [cards, selected, enableSmoothTransform]);
 
+  // Fit-frame an EXPLICIT set of card ids (not the `selected` state, which
+  // updates async). Same math as zoomToSelection. Returns false if the ids
+  // aren't on the board yet or the wrap has no real size — the caller retries.
+  const frameCards = useCallback((ids) => {
+    if (!wrapRef.current || !ids?.length) return false;
+    const idSet = new Set(ids);
+    const sel = (cards || []).filter(c => idSet.has(c.id));
+    if (!sel.length) return false;
+    const r = wrapRef.current.getBoundingClientRect();
+    if (r.width < 50 || r.height < 50) return false;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of sel) {
+      minX = Math.min(minX, c.x); minY = Math.min(minY, c.y);
+      maxX = Math.max(maxX, c.x + c.w); maxY = Math.max(maxY, c.y + c.h);
+    }
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+    const margin = 120;
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
+      (r.width - margin * 2) / contentW,
+      (r.height - margin * 2) / contentH,
+    )));
+    enableSmoothTransform();
+    setZoom(z);
+    setPan({
+      x: (r.width  - contentW * z) / 2 - minX * z,
+      y: (r.height - contentH * z) / 2 - minY * z,
+    });
+    return true;
+  }, [cards, enableSmoothTransform]);
+
+  // After a list-view file drop, when the user switches to canvas: select the
+  // freshly-arranged cards and frame them so the batch is impossible to miss.
+  // Fires once per request token; retries via rAF until the cards have synced
+  // in and the wrap has a real size.
+  const focusTokenRef = useRef(null);
+  useEffect(() => {
+    const req = focusRequest;
+    if (!req || !req.ids?.length) return;
+    if (focusTokenRef.current === req.token) return;
+    let tries = 0, raf = 0;
+    const attempt = () => {
+      const idSet = new Set(req.ids);
+      const present = (cards || []).some(c => idSet.has(c.id));
+      if (present && frameCards(req.ids)) {
+        focusTokenRef.current = req.token;
+        setSelected(new Set(req.ids));
+        clearFocusRequest?.();
+        return;
+      }
+      if (tries++ < 40) raf = requestAnimationFrame(attempt);
+    };
+    raf = requestAnimationFrame(attempt);
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, [focusRequest, cards, frameCards, clearFocusRequest]);
+
   // Arrange the current selection in z-order (keyboard [ / ] shortcuts). Mirrors
   // the context-menu arrangeRun for the 'forward'/'backward' ops.
   const arrangeSelected = useCallback((op) => {
@@ -2128,6 +2189,7 @@ export function CanvasSurface({
       id: `vid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
       kind: 'video',
       src: up.src,
+      ...(up.poster ? { poster: up.poster } : {}),
       x: Math.round(cx - w / 2),
       y: Math.round(cy - h / 2),
       w, h,
@@ -2164,35 +2226,29 @@ export function CanvasSurface({
   const ingestFiles = useCallback(async (fileList, cx, cy) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
-    const FREE_VIDEO_CAP = 30 * 1024 * 1024;
-    const FREE_AUDIO_CAP = 50 * 1024 * 1024;
-    const FREE_PDF_CAP   = 50 * 1024 * 1024;
     const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
     const blockedForUpgrade = [];
     let offsetX = 0;
     for (const f of files) {
-      const isImage = f.type.startsWith('image/');
-      const isVideo = f.type.startsWith('video/');
-      const isAudio = f.type.startsWith('audio/');
-      // Some browsers report an empty type for .pdf picks/drops — match the extension too.
-      const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+      // Shared routing/caps (lib/fileIngest.js) so canvas + list agree.
+      const c = classifyDropFile(f, { canAttemptFiles });
       try {
-        if (isImage) {
+        if (c.route === 'image') {
           // Optimistic — adds the card and uploads in the background so
           // multi-file drops aren't blocked one at a time.
           optimisticDropImage(f, cx + offsetX, cy); offsetX += 260;
-        } else if (isVideo && f.size <= FREE_VIDEO_CAP) {
+        } else if (c.route === 'video') {
           await dropVideoFile(f, cx + offsetX, cy, canAttemptFiles); offsetX += 320;
-        } else if (isAudio && f.size <= FREE_AUDIO_CAP) {
+        } else if (c.route === 'audio') {
           await dropAudioFile(f, cx + offsetX, cy); offsetX += 380;
-        } else if (isPdf && f.size <= FREE_PDF_CAP) {
+        } else if (c.route === 'pdf') {
           optimisticDropPdf(f, cx + offsetX, cy); offsetX += 320;
-        } else if (!canAttemptFiles) {
+        } else if (c.route === 'blocked') {
           blockedForUpgrade.push(f);
-        } else if (isVideo || isAudio) {
+        } else if (c.route === 'largeMedia') {
           // Over-cap clip — still an inline media card, uploaded via multipart.
-          dropLargeMedia(f, isVideo ? 'video' : 'audio', cx + offsetX, cy);
-          offsetX += isVideo ? 320 : 380;
+          dropLargeMedia(f, c.kind, cx + offsetX, cy);
+          offsetX += c.kind === 'video' ? 320 : 380;
         } else {
           // PDFs over the inline cap + every other type → downloadable file card.
           optimisticDropFile(f, cx + offsetX, cy); offsetX += 260;
@@ -6555,7 +6611,7 @@ export function CanvasSurface({
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} w={Math.round(w)} h={Math.round(h)} onUpdate={onUpdate} autoFocus={af}
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'video')     inner = <VideoCard src={c.src} title={c.title} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover}
                                                         onUpdate={onUpdate} autoFocus={af}

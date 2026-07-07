@@ -574,6 +574,59 @@ export function readVideoMeta(file) {
   });
 }
 
+// Capture a video's first frame as a WebP poster blob (best-effort). Loads the
+// clip, seeks a hair past 0 (an exact-0 frame is often black), draws it to a
+// canvas, and encodes WebP — all client-side, mirroring the PDF page-1 pattern.
+// `source` may be a File/Blob (eager, on-upload — no CORS taint) OR a same-origin
+// object URL built from a fetched blob (backfill). Resolves null on any failure
+// so the caller degrades to the video glyph rather than erroring.
+export function captureVideoPoster(source, { seekTo = 0.12, maxWidth = 1024, timeoutMs = 7000 } = {}) {
+  return new Promise((resolve) => {
+    let url = null;
+    let ownUrl = false;
+    let settled = false;
+    const done = (blob) => {
+      if (settled) return; settled = true;
+      try { if (ownUrl && url) URL.revokeObjectURL(url); } catch (_) {}
+      resolve(blob || null);
+    };
+    try {
+      if (typeof source === 'string') { url = source; }
+      else { url = URL.createObjectURL(source); ownUrl = true; }
+      const v = document.createElement('video');
+      v.preload = 'auto';
+      v.muted = true;
+      v.playsInline = true;
+      const grab = () => {
+        try {
+          const vw = v.videoWidth, vh = v.videoHeight;
+          if (!vw || !vh) return done(null);
+          const scale = Math.min(1, maxWidth / vw);
+          const cw = Math.max(1, Math.round(vw * scale));
+          const ch = Math.max(1, Math.round(vh * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = cw; canvas.height = ch;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(v, 0, 0, cw, ch);
+          canvasToWebpBlob(canvas).then(done).catch(() => done(null));
+        } catch (_) { done(null); }
+      };
+      v.onloadeddata = () => {
+        try {
+          const dur = Number.isFinite(v.duration) ? v.duration : null;
+          const t = dur ? Math.min(seekTo, dur / 2) : seekTo;
+          if (Math.abs((v.currentTime || 0) - t) < 0.01) grab();
+          else v.currentTime = t;
+        } catch (_) { grab(); }
+      };
+      v.onseeked = grab;
+      v.onerror = () => done(null);
+      setTimeout(() => done(null), timeoutMs); // never hang the upload
+      v.src = url;
+    } catch (_) { done(null); }
+  });
+}
+
 // Read duration from an audio File. Returns null if metadata fails.
 export function readAudioMeta(file) {
   return new Promise((res) => {
@@ -763,6 +816,22 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
     throw new Error('Could not finish saving the video — please try again.');
   }
 
+  // Capture a first-frame poster (best-effort, non-fatal) and store it as a
+  // normal image object so it renders through R2Image everywhere (list/gallery
+  // rows, video card, board thumbnails). Same pattern as the PDF page-1 thumb.
+  let poster = null;
+  try {
+    const blob = await captureVideoPoster(file);
+    if (blob) {
+      const base = (file.name || 'video').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'video';
+      const posterFile = new File([blob], `${base}.webp`, { type: 'image/webp' });
+      const up = await uploadImage({ file: posterFile, workspaceId, boardId, userId });
+      poster = up.src;
+    }
+  } catch (err) {
+    console.warn('[uploads] video poster capture failed (video still plays)', err);
+  }
+
   return {
     src: `r2:${key}`,
     storagePath: key,
@@ -770,6 +839,7 @@ export async function uploadVideo({ file, workspaceId, boardId, userId, onProgre
     width: meta.w,
     height: meta.h,
     duration: meta.duration,
+    poster,
   };
 }
 
