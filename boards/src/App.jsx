@@ -2369,11 +2369,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // (renameBoardById / deleteBoardsById / cloneBoardToPersonal). They live
   // outside the factory because they don't need a Y.Doc.
   const mainMutatorsFull = useMemo(
-    () => ({ ...mainMutators, renameBoardById, deleteBoardsById, cloneBoardToPersonal }),
+    () => ({ ...mainMutators, renameBoardById, deleteBoardsById, cloneBoardToPersonal,
+             setBoardCustomThumb: setBoardCustomThumbById, resetBoardThumb: resetBoardThumbById }),
     [mainMutators]
   );
   const splitMutatorsFull = useMemo(
-    () => ({ ...splitMutators, renameBoardById, deleteBoardsById, cloneBoardToPersonal }),
+    () => ({ ...splitMutators, renameBoardById, deleteBoardsById, cloneBoardToPersonal,
+             setBoardCustomThumb: setBoardCustomThumbById, resetBoardThumb: resetBoardThumbById }),
     [splitMutators]
   );
   // Back-compat alias — older code still refers to `mutators`.

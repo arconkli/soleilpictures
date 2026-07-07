@@ -53,6 +53,7 @@ import { ImageAdjustFilters } from './ImageAdjustFilters.jsx';
 import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
+import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
@@ -849,6 +850,30 @@ export function CanvasSurface({
   // an image card on this board samples a pixel and adds it as a swatch
   // to that palette. Escape exits the mode.
   const [eyedropFor, setEyedropFor] = useState(null);
+  // Custom-thumbnail flow for a board card: a hidden file input (opened from the
+  // card's right-click menu) then a crop/reposition modal on the picked file.
+  const thumbInputRef = useRef(null);
+  const pendingThumbBoardId = useRef(null);
+  const [thumbCropFor, setThumbCropFor] = useState(null);   // { boardId, file } | null
+  const [thumbSaving, setThumbSaving] = useState(false);
+  const triggerThumbPick = (boardId) => {
+    pendingThumbBoardId.current = boardId;
+    const input = thumbInputRef.current;
+    if (input) { input.value = ''; input.click(); }
+  };
+  const onThumbFileChange = (e) => {
+    const file = e.target.files?.[0];
+    const boardId = pendingThumbBoardId.current;
+    pendingThumbBoardId.current = null;
+    if (file && boardId) setThumbCropFor({ boardId, file });
+  };
+  const saveThumbCrop = async (blob) => {
+    const boardId = thumbCropFor?.boardId;
+    if (!boardId) { setThumbCropFor(null); return; }
+    setThumbSaving(true);
+    try { await mutators.setBoardCustomThumb?.(boardId, blob); }
+    finally { setThumbSaving(false); setThumbCropFor(null); }
+  };
   // Annotation placement mode armed from the rail "+" menu: 'comment' | 'vote'
   // | null. While set, the next canvas click drops a point annotation and the
   // next card click attaches one to that card (mirrors the card right-click).
@@ -4714,6 +4739,12 @@ export function CanvasSurface({
             run: () => mutators.setBoardCover?.(c.id, k === 'neutral' ? null : k),
           })),
         ]});
+        items.push({ id: 'custom-thumb', label: 'Upload custom thumbnail…',
+          run: () => triggerThumbPick(c.id) });
+        if (target?.thumb_custom) {
+          items.push({ id: 'reset-thumb', label: 'Reset to auto thumbnail',
+            run: () => mutators.resetBoardThumb?.(c.id) });
+        }
         if (target && personalWorkspaceId && target.workspace_id !== personalWorkspaceId) {
           items.push({ id: 'clone', label: 'Copy to my workspace', run: () => mutators.cloneBoardToPersonal?.(c.id) });
         }
@@ -8632,6 +8663,19 @@ export function CanvasSurface({
         boardId={board?.id}
         card={ctx.cardId ? cardById[ctx.cardId] : null}
       />
+
+      {/* Custom thumbnail for a board card: hidden picker + crop/reposition modal
+          (opened from the card's right-click "Upload custom thumbnail…"). */}
+      <input ref={thumbInputRef} type="file" accept="image/*"
+             style={{ display: 'none' }} onChange={onThumbFileChange} />
+      {thumbCropFor && (
+        <ThumbnailCropModal
+          file={thumbCropFor.file}
+          saving={thumbSaving}
+          onCancel={() => { if (!thumbSaving) setThumbCropFor(null); }}
+          onSave={saveThumbCrop}
+        />
+      )}
 
       {infoFor && (() => {
         const c = cardById[infoFor.cardId];
