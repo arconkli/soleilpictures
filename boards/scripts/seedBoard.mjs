@@ -229,7 +229,7 @@ async function main() {
   // Layout + stamp. Strip helper-only fields so the snapshot stays clean.
   const nowIso = new Date().toISOString();
   const laid = layoutRecipe(allCards).map((c, i) => {
-    const { source, srcW, srcH, span, sectionHeader, sub, images, rows, cols, ...clean } = c;
+    const { source, srcW, srcH, span, sectionHeader, sub, images, rows, cols, feature, ...clean } = c;
     return stampCard(clean, i, nowIso);
   });
   const idSet = new Set(laid.map((c) => c.id));

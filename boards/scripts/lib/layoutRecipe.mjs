@@ -1,47 +1,43 @@
-// Section-based composition for the board generator.
+// Editorial composition for the board generator.
 //
-// A board is laid out as a stack of horizontal BANDS. A card flagged
-// `sectionHeader` (or `span:'full'`) spans the full board width and starts a
-// fresh band; the cards after it masonry into columns beneath it until the next
-// header. This reads as a designed, sectioned reference board — "Host Nations",
-// "Team Colors", "Iconic Stadiums" — rather than one flat wall of thumbnails.
-//
-// Image heights follow their source aspect ratio (srcW/srcH from the image
-// API); text/palette/schedule cards get sensible fixed heights. Cards with an
-// explicit x/y are respected (manual placement wins).
+// A board is a stack of horizontal BANDS. A card flagged `sectionHeader` (or
+// `span:'full'`) spans the full width and starts a fresh band; the cards after
+// it flow into a span-aware masonry beneath it. Cards can be:
+//   • standard  — one column wide (aspect-fit for images)
+//   • feature   — TWO columns wide (a large focal image), via `feature:true`
+//   • full      — the whole board width (grid mosaics, section headers)
+// Feature images + varied heights + generous gaps give the board an editorial
+// rhythm and focal hierarchy instead of a flat uniform grid.
 
 const DEFAULTS = {
   columns: 4,
-  colWidth: 336,
-  gap: 26,
-  originX: 80,
-  originY: 80,
+  colWidth: 344,
+  gap: 32,
+  originX: 96,
+  originY: 96,
 };
 
-// Target height for a 1-column-wide card of the given kind.
-function cardHeight(card, colWidth) {
+// Height of a card at width `w`.
+function cardHeight(card, w) {
   if (card.kind === 'image') {
-    const arW = card.srcW || 3;
-    const arH = card.srcH || 2;
-    const ar = arW && arH ? arW / arH : 1.5;
-    return Math.round(Math.min(460, Math.max(150, colWidth / ar)));
+    const ar = (card.srcW && card.srcH) ? card.srcW / card.srcH : 1.5;
+    // Clamp so a tall portrait doesn't tower and a wide pano isn't a sliver.
+    return Math.round(Math.min(w * 1.35, Math.max(w * 0.6, w / ar)));
   }
   if (card.h) return card.h;
   switch (card.kind) {
-    case 'palette': return 148;
+    case 'palette': return 160;
     case 'note': {
       const text = ((card.body || '') + (card.html || '')).replace(/<[^>]+>/g, '');
-      return text.length > 240 ? 236 : text.length > 100 ? 184 : 136;
+      return text.length > 260 ? 244 : text.length > 120 ? 188 : 140;
     }
-    case 'doc': return 240;
-    case 'link': return 176;
-    case 'schedule': return 40 + 26 * (Array.isArray(card.rows) ? card.rows.length : 3);
-    default: return 168;
+    case 'doc': return 250;
+    case 'link': return 184;
+    case 'schedule': return 46 + 28 * (Array.isArray(card.rows) ? card.rows.length : 3);
+    default: return 176;
   }
 }
 
-// Assign x/y/w/h to every card. Section headers span full width and reset the
-// masonry baseline so each section starts as a clean band.
 export function layoutRecipe(cards, opts = {}) {
   const o = { ...DEFAULTS, ...opts };
   const { columns, colWidth, gap, originX, originY } = o;
@@ -56,18 +52,39 @@ export function layoutRecipe(cards, opts = {}) {
   };
   const maxH = () => Math.max(...colHeights);
 
+  // Place a 1-column card in the shortest column.
+  const place1 = (h) => {
+    const col = shortestCol();
+    const x = originX + col * colStep;
+    const y = originY + colHeights[col];
+    colHeights[col] += h + gap;
+    return { x, y, w: colWidth };
+  };
+  // Place a 2-column card in the adjacent column pair with the lowest top.
+  const place2 = (h) => {
+    let best = 0, bestY = Infinity;
+    for (let i = 0; i < columns - 1; i++) {
+      const yy = Math.max(colHeights[i], colHeights[i + 1]);
+      if (yy < bestY) { bestY = yy; best = i; }
+    }
+    const w = 2 * colWidth + gap;
+    const x = originX + best * colStep;
+    const y = originY + bestY;
+    colHeights[best] = colHeights[best + 1] = bestY + h + gap;
+    return { x, y, w };
+  };
+
   const out = [];
   for (const card of cards) {
-    // Full-width band (section header / hero banner / grid mosaic): clear
-    // everything above, place full width, then drop all columns below it.
+    // Full-width band: section header / hero banner / grid mosaic.
     if (card.sectionHeader || card.span === 'full') {
       const baseY = originY + maxH();
       let h;
       if (card.kind === 'grid') {
         const cols = card.cols || 3, rows = card.rows || 2;
-        h = card.h || Math.round(rows * (boardW / cols) / 1.6);
+        h = card.h || Math.round(rows * (boardW / cols) / 1.55);
       } else {
-        h = card.h || (card.sub ? 104 : 72);
+        h = card.h || (card.sub ? 108 : 72);
       }
       out.push({ ...card, x: originX, y: baseY, w: boardW, h });
       const bottom = maxH() + h + gap;
@@ -75,19 +92,27 @@ export function layoutRecipe(cards, opts = {}) {
       continue;
     }
 
-    // Respect manual placement.
+    // Manual placement wins.
     if (card.x != null && card.y != null) {
-      out.push({ ...card, w: card.w || colWidth, h: card.h || cardHeight(card, colWidth) });
+      out.push({ ...card, w: card.w || colWidth, h: card.h || cardHeight(card, card.w || colWidth) });
       continue;
     }
 
-    // Masonry: place in the shortest column.
-    const col = shortestCol();
-    const h = cardHeight(card, colWidth);
-    const x = originX + col * colStep;
-    const y = originY + colHeights[col];
-    colHeights[col] += h + gap;
-    out.push({ ...card, x, y, w: colWidth, h });
+    const feature = card.feature || card.span === 2;
+    if (feature) {
+      const w = 2 * colWidth + gap;
+      // Feature images stay landscape (0.5–0.8 ratio); a portrait fills via cover.
+      const ar = (card.srcW && card.srcH) ? card.srcW / card.srcH : 1.5;
+      const h = card.kind === 'image'
+        ? Math.round(Math.min(w * 0.8, Math.max(w * 0.5, w / ar)))
+        : cardHeight(card, w);
+      const p = place2(h);
+      out.push({ ...card, x: p.x, y: p.y, w, h });
+    } else {
+      const h = cardHeight(card, colWidth);
+      const p = place1(h);
+      out.push({ ...card, x: p.x, y: p.y, w: colWidth, h });
+    }
   }
   return out;
 }

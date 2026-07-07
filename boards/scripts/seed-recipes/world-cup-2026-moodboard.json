@@ -17,7 +17,7 @@
   ],
   "sections": [
     {
-      "header": { "text": "FIFA WORLD CUP 2026", "sub": "48 teams · 104 matches · 16 host cities · United States · Canada · Mexico", "hero": true, "bg": "#0b7d3e" },
+      "header": { "text": "FIFA WORLD CUP 2026", "sub": "48 teams · 104 matches · 16 host cities · United States · Canada · Mexico", "hero": true },
       "cards": [
         { "id": "grid-matchday", "kind": "grid", "title": "Matchday", "rows": 2, "cols": 3, "images": [
           { "provider": "unsplash", "query": "soccer fans celebration flags crowd" },
@@ -33,11 +33,11 @@
     {
       "header": { "text": "Host Cities and Venues", "sub": "Sixteen stadiums across the US, Canada, and Mexico" },
       "cards": [
-        { "id": "st-aerial", "kind": "image", "source": { "provider": "unsplash", "query": "aerial view football stadium architecture", "orientation": "landscape" }, "title": "World-class venues", "caption": "16 stadiums, three nations" },
+        { "id": "st-aerial", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "aerial view football stadium architecture", "orientation": "landscape" }, "title": "World-class venues", "caption": "16 stadiums, three nations" },
         { "id": "st-night", "kind": "image", "source": { "provider": "pexels", "query": "football stadium night lights full crowd" }, "title": "Matchday", "caption": "Under the lights" },
         { "id": "st-roof", "kind": "image", "source": { "provider": "unsplash", "query": "modern stadium roof architecture detail" }, "title": "Modern arenas", "caption": "Retractable roofs and open bowls" },
         { "id": "note-venues", "kind": "note", "bgColor": "#14110d", "html": "<p><b>Marquee venues</b><br>Estadio Azteca, Mexico City — opening match · 87,523<br>MetLife Stadium, NY/NJ — the Final · 82,500<br>SoFi Stadium, Los Angeles · 70,240<br>AT&amp;T Stadium, Dallas · 80,000<br>Mercedes-Benz, Atlanta · Hard Rock, Miami · BC Place, Vancouver</p>" },
-        { "id": "note-hosts", "kind": "note", "bgColor": "#0b7d3e", "html": "<p><b>16 host cities</b><br>New York/NJ · Los Angeles · Dallas · Kansas City · Atlanta · Miami · Seattle · SF Bay · Houston · Philadelphia · Boston · Toronto · Vancouver · Guadalajara · Mexico City · Monterrey</p>" }
+        { "id": "note-hosts", "kind": "note", "bgColor": "#0e1712", "html": "<p><b>16 host cities</b><br>New York/NJ · Los Angeles · Dallas · Kansas City · Atlanta · Miami · Seattle · SF Bay · Houston · Philadelphia · Boston · Toronto · Vancouver · Guadalajara · Mexico City · Monterrey</p>" }
       ]
     },
     {
@@ -51,7 +51,7 @@
         { "id": "pal-usa", "kind": "palette", "title": "United States", "swatches": [ { "hex": "#002868", "name": "Old Glory Blue" }, { "hex": "#FFFFFF", "name": "White" }, { "hex": "#BF0A30", "name": "Old Glory Red" } ] },
         { "id": "pal-germany", "kind": "palette", "title": "Germany", "swatches": [ { "hex": "#000000", "name": "Schwarz" }, { "hex": "#DD0000", "name": "Rot" }, { "hex": "#FFCE00", "name": "Gold" }, { "hex": "#FFFFFF", "name": "Weiß" } ] },
         { "id": "pal-netherlands", "kind": "palette", "title": "Netherlands", "swatches": [ { "hex": "#EC6E19", "name": "Oranje" }, { "hex": "#FFFFFF", "name": "Wit" }, { "hex": "#21468B", "name": "Blauw" } ] },
-        { "id": "img-fans-arg", "kind": "image", "source": { "provider": "unsplash", "query": "argentina soccer fans jersey celebration" }, "title": "Kit culture", "caption": "Colors that carry a nation" },
+        { "id": "img-fans-arg", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "argentina soccer fans jersey celebration" }, "title": "Kit culture", "caption": "Colors that carry a nation" },
         { "id": "img-jerseys", "kind": "image", "source": { "provider": "pexels", "query": "soccer jerseys hanging locker room" }, "title": "The kits", "caption": "Every nation, its own palette" }
       ]
     },
@@ -60,7 +60,7 @@
       "cards": [
         { "id": "img-ball", "kind": "image", "source": { "provider": "pexels", "query": "soccer ball on pitch close up" }, "title": "The match ball", "caption": "On the pitch" },
         { "id": "img-pitch", "kind": "image", "source": { "provider": "pexels", "query": "aerial green football pitch stadium" }, "title": "The pitch", "caption": "Groundsmanship at world level" },
-        { "id": "img-night", "kind": "image", "source": { "provider": "unsplash", "query": "night football stadium lights atmosphere" }, "title": "Under lights", "caption": "Knockout nights" },
+        { "id": "img-night", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "night football stadium lights atmosphere" }, "title": "Under lights", "caption": "Knockout nights" },
         { "id": "pal-pitch", "kind": "palette", "title": "Pitch and chalk", "swatches": [ { "hex": "#1B7A3D", "name": "Pitch green" }, { "hex": "#0E5A2C", "name": "Mow stripe" }, { "hex": "#F4F4F4", "name": "Chalk" }, { "hex": "#F5C518", "name": "Trophy gold" } ] }
       ]
     },
