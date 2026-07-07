@@ -48,6 +48,8 @@ export function ListSurface({
   recentlyAddedIds,
   // Live presence: awareness handle + identity for per-row highlight.
   getAwareness, workspaceId, selfId,
+  // Shared grid layouts (id → { layout }) so a linked Grid's preview resolves.
+  gridTemplates = {},
 }) {
   const feedback = useFeedback();
   const subBoards = childBoards || [];
@@ -70,8 +72,8 @@ export function ListSurface({
   // Normalize the non-folder cards into uniform ListItems. Depends on the raw
   // card fields + primed meta (getMeta is a stable module accessor).
   const items = useMemo(
-    () => otherCards.map(c => toListItem(c, { boards, getMeta, boardId: board.id })).filter(Boolean),
-    [otherCards, boards, board.id]
+    () => otherCards.map(c => toListItem(c, { boards, getMeta, boardId: board.id, gridTemplates })).filter(Boolean),
+    [otherCards, boards, board.id, gridTemplates]
   );
 
   // Available filter buckets (with counts) present in this cluster.

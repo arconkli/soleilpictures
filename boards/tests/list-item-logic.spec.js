@@ -66,6 +66,60 @@ test('sortItems: name is case-insensitive + numeric-aware', () => {
   expect(sortItems(items, 'name', 'asc').map(i => i.name)).toEqual(['file1', 'File2', 'file10']);
 });
 
+test('rich preview marks: grid/doc/schedule/shape/note/link resolve real modes (no generic icon)', () => {
+  const doc = toListItem({ id: 'd', kind: 'doc', title: 'T', lines: [{ t: 'a', h: 1 }, { t: 'b' }, { bullet: true, t: 'c' }] }, {});
+  expect(doc.preview.mode).toBe('doc');
+  expect(doc.preview.lines.length).toBe(3);
+  expect(doc.preview.lines[0].heading).toBe(true);
+  expect(doc.preview.lines[2].bullet).toBe(true);
+
+  const sched = toListItem({ id: 's', kind: 'schedule', rows: [{ day: 'Mon' }, { when: 'Tue' }] }, {});
+  expect(sched.preview.mode).toBe('schedule');
+  expect(sched.preview.rows.length).toBe(2);
+
+  const shape = toListItem({ id: 'sh', kind: 'shape', shape: 'star', fill: '#f00', stroke: '#0f0' }, {});
+  expect(shape.preview.mode).toBe('shape');
+  expect(shape.preview.shape).toBe('star');
+
+  const note = toListItem({ id: 'n', kind: 'note', html: '<p>Hello <b>world</b></p>' }, {});
+  expect(note.preview.mode).toBe('note');
+  expect(note.preview.text).toContain('Hello world');
+
+  const link = toListItem({ id: 'l', kind: 'link', source: 'https://example.com', favicon: 'https://example.com/fav.ico' }, {});
+  expect(link.preview.mode).toBe('link');
+  expect(link.preview.favicon).toContain('fav.ico');
+
+  const linkImg = toListItem({ id: 'l2', kind: 'link', source: 'x.com', image: 'r2:og' }, {});
+  expect(linkImg.preview.mode).toBe('r2'); // an OG image beats the favicon mark
+});
+
+test('grid preview: tiles the box exactly, resolves a linked template, respects the cap', () => {
+  const leaf = (id) => ({ type: 'leaf', id, frac: 1 });
+  const twoUp = (a, b) => ({ type: 'row', frac: 1, children: [{ ...leaf(a), frac: 0.5 }, { ...leaf(b), frac: 0.5 }] });
+  const layout = { type: 'col', frac: 1, children: [{ ...twoUp('c1', 'c2'), frac: 0.5 }, { ...twoUp('c3', 'c4'), frac: 0.5 }] };
+
+  const own = toListItem({ id: 'g', kind: 'grid', layout, cells: { c1: { type: 'image' }, c2: { type: 'empty' } } }, {});
+  expect(own.preview.mode).toBe('grid');
+  expect(own.preview.rects.length).toBe(4);
+  const area = own.preview.rects.reduce((s, r) => s + r.w * r.h, 0); // full coverage, no overlap
+  expect(Math.abs(area - 1) < 1e-9).toBe(true);
+  expect(own.preview.cells.c1.type).toBe('image');
+
+  // linked grid: layout comes from the shared gridTemplates snapshot
+  const linked = toListItem({ id: 'g2', kind: 'grid', templateId: 'tpl' }, { gridTemplates: { tpl: { layout } } });
+  expect(linked.preview.mode).toBe('grid');
+  expect(linked.preview.rects.length).toBe(4);
+
+  // >64 cells → sliced to the cap, content tint dropped
+  const many = { type: 'row', frac: 1, children: Array.from({ length: 70 }, (_, i) => ({ type: 'leaf', id: `m${i}`, frac: 1 })) };
+  const capped = toListItem({ id: 'g4', kind: 'grid', layout: many, cells: { m0: { type: 'image' } } }, {});
+  expect(capped.preview.rects.length).toBe(64);
+  expect(capped.preview.cells).toBe(null);
+
+  // no layout anywhere → clean icon fallback
+  expect(toListItem({ id: 'g3', kind: 'grid' }, {}).preview.mode).toBe('icon');
+});
+
 test('filterItems + matchItems', () => {
   const items = [
     { id: 'a', name: 'sunset.jpg', typeBucket: 'image', typeLabel: 'Image', sub: '' },

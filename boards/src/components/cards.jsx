@@ -1468,17 +1468,44 @@ function ScheduleCard({ title, rows, onUpdate = null, editTitleAt = 0 }) {
 // `dash`: 'solid' (default) | 'dashed' | 'dotted'.
 // No inline text — shapes are just shapes; edit colors / stroke / etc. via
 // the toolbar (revealed when a shape is selected).
-function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid',
-                     label = null, onUpdate = null, editLabelAt = 0 }) {
-  // strokeWidth: 0 = "No Border" for fillable shapes (rect, ellipse, etc.).
-  // Line/arrow shapes have no fill, so 0 would make them invisible — clamp
-  // to 1 in that case so the user can still see what they're editing.
+// Pure SVG silhouette for a shape kind, in a normalized 0–100 viewBox that
+// stretches to any box (preserveAspectRatio:none). Extracted from ShapeCard so
+// the cluster-browser preview mark draws the SAME geometry (single source of
+// truth — no drift when a shape is added). strokeWidth 0 = "No Border" on
+// fillable shapes; line/arrow clamp to 1 so they never vanish.
+export function ShapeGlyph({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid', className }) {
   const isStrokeOnly = shape === 'line' || shape === 'arrow';
   const sw = strokeWidth === 0 && isStrokeOnly ? 1 : strokeWidth;
   const dashArray = dash === 'dashed' ? '6,4' : dash === 'dotted' ? '2,3' : undefined;
   const common = sw === 0
     ? { stroke: 'none', fill, vectorEffect: 'non-scaling-stroke' }
     : { stroke, fill, strokeWidth: sw, vectorEffect: 'non-scaling-stroke', strokeDasharray: dashArray };
+  return (
+    <svg className={className} width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      {shape === 'rect' && <rect x={sw/2} y={sw/2} width={100 - sw} height={100 - sw} {...common} />}
+      {shape === 'ellipse' && <ellipse cx="50" cy="50" rx={50 - sw/2} ry={50 - sw/2} {...common} />}
+      {shape === 'line' && <line x1="0" y1="0" x2="100" y2="100" stroke={stroke} strokeWidth={sw} strokeDasharray={dashArray} strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+      {shape === 'arrow' && (
+        <g>
+          <line x1="2" y1="50" x2="92" y2="50" stroke={stroke} strokeWidth={sw} strokeDasharray={dashArray} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <polyline points="80,30 95,50 80,70" stroke={stroke} fill="none" strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </g>
+      )}
+      {shape === 'diamond' && <polygon points="50,3 97,50 50,97 3,50" {...common} />}
+      {shape === 'triangle' && <polygon points="50,5 95,90 5,90" {...common} />}
+      {shape === 'hexagon' && <polygon points="25,7 75,7 95,50 75,93 25,93 5,50" {...common} />}
+      {shape === 'star' && (
+        <polygon
+          points="50,5 61,38 95,38 67,58 78,92 50,72 22,92 33,58 5,38 39,38"
+          {...common} />
+      )}
+    </svg>
+  );
+}
+
+function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', strokeWidth = 2, dash = 'solid',
+                     label = null, onUpdate = null, editLabelAt = 0 }) {
+  const isStrokeOnly = shape === 'line' || shape === 'arrow';
   // Optional centered label — double-click the shape (or right-click →
   // Add label) to edit, matching the dblclick-to-edit convention every
   // other card kind follows. Line/arrow shapes skip it (no interior).
@@ -1488,25 +1515,7 @@ function ShapeCard({ shape = 'rect', stroke = '#f5f5f6', fill = 'transparent', s
   return (
     <div className="shape"
          onDoubleClick={onUpdate && !isStrokeOnly ? (e) => { e.stopPropagation(); setEditingLabel(true); } : undefined}>
-      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-        {shape === 'rect' && <rect x={sw/2} y={sw/2} width={100 - sw} height={100 - sw} {...common} />}
-        {shape === 'ellipse' && <ellipse cx="50" cy="50" rx={50 - sw/2} ry={50 - sw/2} {...common} />}
-        {shape === 'line' && <line x1="0" y1="0" x2="100" y2="100" stroke={stroke} strokeWidth={sw} strokeDasharray={dashArray} strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
-        {shape === 'arrow' && (
-          <g>
-            <line x1="2" y1="50" x2="92" y2="50" stroke={stroke} strokeWidth={sw} strokeDasharray={dashArray} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            <polyline points="80,30 95,50 80,70" stroke={stroke} fill="none" strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-          </g>
-        )}
-        {shape === 'diamond' && <polygon points="50,3 97,50 50,97 3,50" {...common} />}
-        {shape === 'triangle' && <polygon points="50,5 95,90 5,90" {...common} />}
-        {shape === 'hexagon' && <polygon points="25,7 75,7 95,50 75,93 25,93 5,50" {...common} />}
-        {shape === 'star' && (
-          <polygon
-            points="50,5 61,38 95,38 67,58 78,92 50,72 22,92 33,58 5,38 39,38"
-            {...common} />
-        )}
-      </svg>
+      <ShapeGlyph shape={shape} stroke={stroke} fill={fill} strokeWidth={strokeWidth} dash={dash} />
       {showLabel && (
         <EditableText className="shape-label" value={label || ''} placeholder="Label"
                       editing={editingLabel}

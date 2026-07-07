@@ -9202,7 +9202,48 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .cbp-ext { position: absolute; bottom: 1px; right: 1px; font-family: var(--font-mono); font-size: 7px; font-weight: 700; background: var(--bg-4); color: var(--ink-1); padding: 0 2px; border-radius: 2px; }
 .cbp-swatches { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 100%; }
 .cbp-sw { width: 100%; height: 100%; }
-.cbp-shape { width: 58%; height: 58%; border: 2px solid var(--line-3); border-radius: 3px; }
+
+/* Schematic marks — grid/doc/schedule/shape (SVG) + note/link (HTML). Each
+   fills the preview box and scales cleanly at both the row thumb and tile. */
+.cbp-mark { width: 100%; height: 100%; display: block; }
+
+/* Grid subdivision */
+.gm-cell { stroke: var(--line-3); stroke-width: 1.25px; fill: var(--ink-2); fill-opacity: 0; }
+.gm-plain { fill-opacity: .12; }
+.gm-empty { fill-opacity: 0; }
+.gm-text { fill-opacity: .16; }
+.gm-other { fill-opacity: .3; }
+.gm-media { fill: var(--ink-1); fill-opacity: .5; }
+
+/* Doc page */
+.cbp-doc { background: var(--bg-1); }
+.cbp-doc-title { fill: var(--ink-1); opacity: .82; }
+.cbp-doc-bar { fill: var(--ink-2); opacity: .4; }
+.cbp-doc-bar.is-h { fill: var(--ink-1); opacity: .62; }
+.cbp-doc-bar.is-empty { opacity: .22; }
+.cbp-doc-dot { fill: var(--ink-2); opacity: .5; }
+
+/* Schedule rows */
+.cbp-sched { background: var(--bg-1); }
+.cbp-sched-tick { fill: var(--soleil); opacity: .6; }
+.cbp-sched-bar { fill: var(--ink-2); opacity: .34; }
+
+/* Shape silhouette — centered, a touch inset so it never bleeds to the edge */
+.cbp-shape-mark { display: grid; place-items: center; padding: 20%; box-sizing: border-box; }
+
+/* Note — real text on the tint */
+.cbp-note-mark { display: flex; align-items: flex-start; overflow: hidden; background: var(--bg-2); color: var(--ink-1); box-sizing: border-box; }
+.cbp-note-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.cbp-note-row { padding: 5px 6px; }
+.cbp-note-row .cbp-note-text { -webkit-line-clamp: 2; font-size: 7.5px; line-height: 1.25; }
+.cbp-note-tile { padding: 11% 12%; }
+.cbp-note-tile .cbp-note-text { -webkit-line-clamp: 6; font-size: 12px; line-height: 1.4; }
+
+/* Link — favicon (+ domain at tile) */
+.cbp-link { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--ink-2); }
+.cbp-link-favicon { width: 46%; max-width: 40px; height: auto; aspect-ratio: 1; object-fit: contain; border-radius: 3px; }
+.ct-thumb .cbp-link-favicon { width: 20px; }
+.cbp-link-domain { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Live presence highlight */
 .ct-row.is-peer { box-shadow: inset 3px 0 0 var(--peer-color, var(--soleil)); }

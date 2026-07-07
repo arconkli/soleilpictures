@@ -8,6 +8,12 @@
 // to a generic "·" glyph — and carries the columns the browser needs (size,
 // created/updated, z, a preview descriptor consumed by CardPreview).
 
+import { computeCellRects } from './gridLayout.js';
+
+// Cap the grid schematic: past this many cells the subdivision is unreadable at
+// thumb size and re-tiling wastes work, so we draw the raw box instead.
+const GRID_RECT_CAP = 64;
+
 export const TYPE_LABELS = {
   image: 'Image', pdf: 'PDF', video: 'Video', audio: 'Audio', file: 'File',
   note: 'Note', link: 'Link', doc: 'Doc', palette: 'Palette', schedule: 'Schedule',
@@ -52,11 +58,25 @@ function mediaSizeFrom(getMeta, src) {
   return m?.sizeBytes ?? m?.size_bytes ?? null;
 }
 
+// Build the grid preview descriptor: resolve the layout (own `layout`, or the
+// shared template's when linked), tile it into normalized rects, and tint each
+// by its cell's content type. Mirrors readGridModel's layout resolution
+// (gridState.js) without a Yjs read — cells come from card.cells when present.
+function gridPreview(card, gridTemplates) {
+  const layout = card?.layout || (card?.templateId ? gridTemplates?.[card.templateId]?.layout : null) || null;
+  if (!layout) return { mode: 'icon', kind: 'grid' };
+  const rects = computeCellRects(layout, { x: 0, y: 0, w: 1, h: 1 });
+  if (!rects.length || rects.length > GRID_RECT_CAP) return { mode: 'grid', rects: rects.slice(0, GRID_RECT_CAP), cells: null };
+  const cells = card?.cells && typeof card.cells === 'object' ? card.cells : null;
+  return { mode: 'grid', rects, cells };
+}
+
 // Normalize a card into a ListItem.
-//   opts.boards  — board map, for cluster/link names
-//   opts.getMeta — imageMeta.getMeta(key) → { sizeBytes?, ... } for media size
-//   opts.boardId — the cluster this card lives on (informational)
-export function toListItem(card, { boards = {}, getMeta = null, boardId = null } = {}) {
+//   opts.boards        — board map, for cluster/link names
+//   opts.getMeta       — imageMeta.getMeta(key) → { sizeBytes?, ... } for media size
+//   opts.boardId       — the cluster this card lives on (informational)
+//   opts.gridTemplates — shared gridTemplates snapshot (id → { layout }) for linked grids
+export function toListItem(card, { boards = {}, getMeta = null, boardId = null, gridTemplates = {} } = {}) {
   if (!card || !card.id) return null;
   const kind = card.kind;
   const item = {
@@ -102,18 +122,30 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null }
       item.preview = { mode: 'file', ext: card.ext, mime: card.mime, kind };
       item.sizeBytes = card.sizeBytes ?? null;
       break;
-    case 'note':
-      item.name = stripTags(card.html, 90) || String(card.body || '').slice(0, 90) || 'Empty note';
-      item.preview = { mode: 'note', tone: card.bgColor, kind };
+    case 'note': {
+      const noteText = stripTags(card.html, 120) || String(card.body || '').slice(0, 120);
+      item.name = noteText.slice(0, 90) || 'Empty note';
+      // Show the real text on the tint — far more readable than a glyph.
+      item.preview = { mode: 'note', text: noteText, tone: card.bgColor, kind };
       break;
+    }
     case 'link':
       item.name = card.title || card.source || card.link || 'Link';
       item.sub = card.source || card.link || '';
-      item.preview = card.image ? { mode: 'r2', src: card.image, kind } : { mode: 'icon', kind };
+      item.preview = card.image
+        ? { mode: 'r2', src: card.image, kind }
+        : { mode: 'link', favicon: card.favicon || null, source: card.source || card.link || '', kind };
       break;
     case 'doc':
       item.name = card.title || 'Doc';
       item.sub = Array.isArray(card.lines) ? `${card.lines.length} lines` : '';
+      item.preview = {
+        mode: 'doc',
+        title: card.title || '',
+        lines: (Array.isArray(card.lines) ? card.lines : []).slice(0, 6)
+          .map(l => ({ heading: !!(l && l.h), bullet: !!(l && l.bullet), empty: !((l && (l.t || l.text)) || '').trim() })),
+        kind,
+      };
       break;
     case 'palette':
       item.name = card.title || 'Palette';
@@ -123,13 +155,20 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null }
     case 'schedule':
       item.name = card.title || 'Schedule';
       item.sub = `${(card.rows || []).length} rows`;
+      item.preview = {
+        mode: 'schedule',
+        rows: (Array.isArray(card.rows) ? card.rows : []).slice(0, 4)
+          .map(r => ({ when: String((r && (r.day ?? r.when)) || '').slice(0, 10) })),
+        kind,
+      };
       break;
     case 'shape':
-      item.name = card.title || `Shape (${card.shape || 'rect'})`;
-      item.preview = { mode: 'shape', fill: card.fill, stroke: card.stroke, kind };
+      item.name = card.label || card.title || `Shape (${card.shape || 'rect'})`;
+      item.preview = { mode: 'shape', shape: card.shape || 'rect', fill: card.fill, stroke: card.stroke, dash: card.dash, kind };
       break;
     case 'grid':
       item.name = card.title || 'Grid';
+      item.preview = gridPreview(card, gridTemplates);
       break;
     case 'board':
       item.name = boards[card.id]?.name || card.name || 'Cluster';

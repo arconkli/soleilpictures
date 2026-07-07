@@ -4447,6 +4447,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      getAwareness={yh.getAwareness}
                      workspaceId={workspace.id}
                      selfId={user.id}
+                     gridTemplates={gridTemplates}
                      mutators={muts} />
       );
       return (
