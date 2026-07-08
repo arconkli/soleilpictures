@@ -1,0 +1,98 @@
+{
+  "slug": "screenplay-beat-sheet",
+  "name": "Screenplay Beat Sheet — Story Structure, Visualized",
+  "priority": 4,
+  "bgColor": "#100e0b",
+  "cover": "neutral",
+  "seo": {
+    "title": "Screenplay Beat Sheet Board",
+    "description": "Blake Snyder's 15 story beats mapped as a visual board — every beat, its page number, and how the acts connect, on one shareable canvas.",
+    "keyword": "screenplay beat sheet",
+    "body": "The classic 15-beat screenplay structure from Blake Snyder's Save the Cat!, laid out the way a writers' room would pin it to a corkboard: one card per beat with its target page on a 110-page script, arrows tracing the causal chain from Catalyst to Finale, and the three acts grouped so you can see the whole shape of a story at a glance. Use it as a reference while outlining, or copy the layout and fill in your own logline, beats, and scene ideas. Made with Soleil Clusters."
+  },
+  "arrows": [
+    { "from": "note-catalyst", "to": "note-break2", "color": "orange", "head": "single" },
+    { "from": "note-midpoint", "to": "note-allislost", "color": "red", "head": "single" },
+    { "from": "note-darknight", "to": "note-break3", "color": "green", "head": "single" },
+    { "from": "note-finale", "to": "note-finalimage", "color": "blue", "dashed": true }
+  ],
+  "sections": [
+    {
+      "header": { "text": "THE BEAT SHEET", "sub": "Blake Snyder's 15 story beats · three acts · one canvas", "hero": true },
+      "cards": [
+        { "id": "grid-desk", "kind": "grid", "title": "The writers' room", "rows": 2, "cols": 3, "images": [
+          { "provider": "unsplash", "query": "vintage typewriter keys macro" },
+          { "provider": "pexels", "query": "corkboard index cards pinned notes" },
+          { "provider": "unsplash", "query": "screenplay script pages stack" },
+          { "provider": "pexels", "query": "writer desk notebook coffee pen" },
+          { "provider": "unsplash", "query": "red cinema seats empty theater" },
+          { "provider": "pexels", "query": "film clapperboard black slate" }
+        ] },
+        { "id": "hero-typewriter", "kind": "image", "source": { "provider": "unsplash", "query": "vintage typewriter dramatic moody light" }, "title": "110 pages, 15 beats", "caption": "Structure is rhythm, not formula" }
+      ]
+    },
+    {
+      "header": { "text": "Act One — Setup", "sub": "Pages 1 to 25: the world before the story breaks it" },
+      "cards": [
+        { "id": "note-opening", "kind": "note", "bgColor": "#14110d", "html": "<p><b>1 · Opening Image — p. 1</b><br>A single frame that captures the hero's before state. It will be mirrored by the Final Image, so choose something that can transform.</p>" },
+        { "id": "note-theme", "kind": "note", "bgColor": "#14110d", "html": "<p><b>2 · Theme Stated — p. 5</b><br>Someone tells the hero the lesson of the movie, usually in passing, usually dismissed. The rest of the script argues the point.</p>" },
+        { "id": "note-setup", "kind": "note", "bgColor": "#14110d", "html": "<p><b>3 · Set-Up — pp. 1–10</b><br>Plant every character, tic, and flaw that pays off later. Show the six things that need fixing in the hero's life.</p>" },
+        { "id": "note-catalyst", "kind": "note", "bgColor": "#f5c518", "html": "<p><b>4 · Catalyst — p. 12</b><br>The telegram, the firing, the diagnosis, the knock on the door. Life as the hero knows it ends here.</p>" },
+        { "id": "note-debate", "kind": "note", "bgColor": "#14110d", "html": "<p><b>5 · Debate — pp. 12–25</b><br>Can I really do this? The hero resists the call. The debate sharpens the stakes before the leap.</p>" },
+        { "id": "img-script", "kind": "image", "source": { "provider": "pexels", "query": "typewriter paper page writing close up" }, "title": "FADE IN:", "caption": "Every structure starts on page one" }
+      ]
+    },
+    {
+      "header": { "text": "Act Two — Confrontation", "sub": "Pages 25 to 85: the upside-down world" },
+      "cards": [
+        { "id": "note-break2", "kind": "note", "bgColor": "#14110d", "html": "<p><b>6 · Break Into Two — p. 25</b><br>The hero chooses to act and steps into the antithesis world. It must be a decision, not an accident.</p>" },
+        { "id": "note-bstory", "kind": "note", "bgColor": "#14110d", "html": "<p><b>7 · B Story — p. 30</b><br>The love story, the mentor, the friendship — a new relationship that carries the theme while the A story carries the plot.</p>" },
+        { "id": "note-fun", "kind": "note", "bgColor": "#14110d", "html": "<p><b>8 · Fun and Games — pp. 30–55</b><br>The promise of the premise. The trailer moments. The reason the audience bought a ticket.</p>" },
+        { "id": "note-midpoint", "kind": "note", "bgColor": "#f5c518", "html": "<p><b>9 · Midpoint — p. 55</b><br>A false victory or a false defeat. Stakes are raised, the clock starts, and fun and games are over.</p>" },
+        { "id": "note-badguys", "kind": "note", "bgColor": "#14110d", "html": "<p><b>10 · Bad Guys Close In — pp. 55–75</b><br>External enemies regroup and internal doubts fester. The team frays. Pressure from both directions.</p>" },
+        { "id": "note-allislost", "kind": "note", "bgColor": "#14110d", "html": "<p><b>11 · All Is Lost — p. 75</b><br>The opposite of the Midpoint, with a whiff of death: something — a mentor, a dream, an old self — dies here.</p>" },
+        { "id": "note-darknight", "kind": "note", "bgColor": "#0e0c14", "html": "<p><b>12 · Dark Night of the Soul — pp. 75–85</b><br>The hero sits in the wreckage and finally absorbs the theme stated on page five. The lesson lands only after the loss.</p>" },
+        { "id": "img-writer", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "person writing notebook window rain moody" }, "title": "The long middle", "caption": "Act Two is where scripts are won or abandoned" }
+      ]
+    },
+    {
+      "header": { "text": "Act Three — Resolution", "sub": "Pages 85 to 110: synthesis" },
+      "cards": [
+        { "id": "note-break3", "kind": "note", "bgColor": "#14110d", "html": "<p><b>13 · Break Into Three — p. 85</b><br>Thanks to the B story and the theme, the hero finds the real solution — and chooses to fight with new knowledge.</p>" },
+        { "id": "note-finale", "kind": "note", "bgColor": "#14110d", "html": "<p><b>14 · Finale — pp. 85–110</b><br>Five steps: gather the team, execute the plan, the high tower surprise, dig deep down, execute the new plan. The hero proves the change.</p>" },
+        { "id": "note-finalimage", "kind": "note", "bgColor": "#f5c518", "html": "<p><b>15 · Final Image — p. 110</b><br>The mirror of the Opening Image. Proof, in one frame, that transformation happened.</p>" },
+        { "id": "img-cinema", "kind": "image", "source": { "provider": "pexels", "query": "movie theater screen glowing dark audience" }, "title": "The payoff", "caption": "Structure the audience feels but never sees" }
+      ]
+    },
+    {
+      "header": { "text": "The Page Math", "sub": "Beat targets on a 110-page screenplay — scale proportionally for yours" },
+      "cards": [
+        { "id": "sched", "kind": "schedule", "title": "15 beats at a glance", "rows": [
+          { "day": "p. 1", "what": "Opening Image", "loc": "Act I" },
+          { "day": "p. 5", "what": "Theme Stated", "loc": "Act I" },
+          { "day": "pp. 1–10", "what": "Set-Up", "loc": "Act I" },
+          { "day": "p. 12", "what": "Catalyst", "loc": "Act I" },
+          { "day": "pp. 12–25", "what": "Debate", "loc": "Act I" },
+          { "day": "p. 25", "what": "Break Into Two", "loc": "Act II" },
+          { "day": "p. 30", "what": "B Story", "loc": "Act II" },
+          { "day": "pp. 30–55", "what": "Fun and Games", "loc": "Act II" },
+          { "day": "p. 55", "what": "Midpoint", "loc": "Act II" },
+          { "day": "pp. 55–75", "what": "Bad Guys Close In", "loc": "Act II" },
+          { "day": "p. 75", "what": "All Is Lost", "loc": "Act II" },
+          { "day": "pp. 75–85", "what": "Dark Night of the Soul", "loc": "Act II" },
+          { "day": "p. 85", "what": "Break Into Three", "loc": "Act III" },
+          { "day": "pp. 85–110", "what": "Finale", "loc": "Act III" },
+          { "day": "p. 110", "what": "Final Image", "loc": "Act III" }
+        ] },
+        { "id": "pal-temp", "kind": "palette", "title": "Emotional temperature", "swatches": [
+          { "hex": "#3E5C76", "name": "Setup blue" },
+          { "hex": "#F5C518", "name": "Fun and games gold" },
+          { "hex": "#8B2635", "name": "Bad guys crimson" },
+          { "hex": "#191524", "name": "Dark night" },
+          { "hex": "#4E7A46", "name": "New life green" }
+        ] },
+        { "id": "note-credit", "kind": "note", "bgColor": "#14110d", "html": "<p><b>Where this comes from</b><br>The 15 beats are from Blake Snyder's Save the Cat! (2005), the most-used beat sheet in working screenwriting. Treat the page numbers as rhythm markers, not law — every great script bends them.</p>" }
+      ]
+    }
+  ]
+}

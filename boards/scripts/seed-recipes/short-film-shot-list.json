@@ -1,0 +1,74 @@
+{
+  "slug": "short-film-shot-list",
+  "name": "Short Film Shot List — Coverage Plan, Visualized",
+  "priority": 4,
+  "bgColor": "#0c0e12",
+  "cover": "neutral",
+  "seo": {
+    "title": "Short Film Shot List Board",
+    "description": "A complete one-scene coverage plan: shot sizes with visual examples, a lettered shot list with lenses, the 180-degree rule, and movement notes — on one canvas.",
+    "keyword": "short film shot list",
+    "body": "A working shot list for a two-person dialogue scene, built the way a director and DP would board it: the full shot-size ladder from extreme wide to extreme close-up with a visual example of each, a lettered coverage plan (master, over-the-shoulders, clean singles, inserts) with lens choices, and the craft notes that keep a set moving — the 180-degree rule, shooting wide to tight, and matching eyelines. Copy the structure, swap in your scene, and walk on set with a plan. Made with Soleil Clusters."
+  },
+  "arrows": [
+    { "from": "sched", "to": "note-coverage", "color": "blue", "dashed": true },
+    { "from": "note-180", "to": "img-ms", "color": "orange", "head": "single" },
+    { "from": "note-lenses", "to": "img-cu", "color": "green", "head": "single" }
+  ],
+  "sections": [
+    {
+      "header": { "text": "THE SHOT LIST", "sub": "One scene · full coverage · every setup planned before call time", "hero": true },
+      "cards": [
+        { "id": "grid-onset", "kind": "grid", "title": "On set", "rows": 2, "cols": 3, "images": [
+          { "provider": "unsplash", "query": "film clapperboard scene take" },
+          { "provider": "pexels", "query": "cinema camera rig film set" },
+          { "provider": "unsplash", "query": "director monitor film set dark" },
+          { "provider": "pexels", "query": "film set lighting softbox crew" },
+          { "provider": "unsplash", "query": "camera lens close up glass" },
+          { "provider": "pexels", "query": "film crew shooting behind the scenes" }
+        ] },
+        { "id": "hero-camera", "kind": "image", "source": { "provider": "unsplash", "query": "cinema camera silhouette dramatic light" }, "title": "Plan the day, then shoot the plan", "caption": "A shot list is a schedule, a budget, and a style guide in one" }
+      ]
+    },
+    {
+      "header": { "text": "The Shot-Size Ladder", "sub": "Learn the vocabulary once — every list is written in it" },
+      "cards": [
+        { "id": "img-ews", "kind": "image", "source": { "provider": "unsplash", "query": "lone person vast landscape extreme wide" }, "title": "EWS — Extreme Wide", "caption": "Geography and scale; the character belongs to the world" },
+        { "id": "img-ws", "kind": "image", "source": { "provider": "pexels", "query": "full body person standing street wide shot" }, "title": "WS — Wide", "caption": "Full body; blocking and body language read clearly" },
+        { "id": "img-ms", "kind": "image", "source": { "provider": "unsplash", "query": "waist up portrait person natural light" }, "title": "MS — Medium", "caption": "Waist up; the conversational workhorse" },
+        { "id": "img-cu", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "close up portrait face dramatic light" }, "title": "CU — Close-Up", "caption": "The face is the scene; save it for the beats that earn it" },
+        { "id": "img-ecu", "kind": "image", "source": { "provider": "unsplash", "query": "extreme close up human eye macro" }, "title": "ECU — Extreme Close-Up", "caption": "Detail as punctuation — an eye, a trigger, a ring" }
+      ]
+    },
+    {
+      "header": { "text": "Scene 1 — Kitchen Argument", "sub": "Two actors, seven setups, half a day" },
+      "cards": [
+        { "id": "sched", "kind": "schedule", "title": "Coverage plan", "rows": [
+          { "day": "1A", "what": "Master — whole scene, both actors in frame", "loc": "25mm" },
+          { "day": "1B", "what": "Over-the-shoulder favoring ANA", "loc": "50mm" },
+          { "day": "1C", "what": "Over-the-shoulder favoring SAM", "loc": "50mm" },
+          { "day": "1D", "what": "Clean single — ANA, from the turn to the exit", "loc": "85mm" },
+          { "day": "1E", "what": "Clean single — SAM, full scene", "loc": "85mm" },
+          { "day": "1F", "what": "Insert — the unsent message on the phone", "loc": "100mm macro" },
+          { "day": "1G", "what": "Cutaway — kettle reaching boil", "loc": "50mm" }
+        ] },
+        { "id": "note-coverage", "kind": "note", "bgColor": "#12141a", "html": "<p><b>Coverage logic</b><br>Shoot the master first while energy and light are fresh, then work wide to tight — makeup, continuity, and performance all degrade gracefully in that order. Inserts and cutaways go last; they forgive everything.</p>" },
+        { "id": "note-180", "kind": "note", "bgColor": "#f5c518", "html": "<p><b>The 180° rule</b><br>Draw a line between your two actors and keep the camera on one side of it. Eyelines stay opposed, screen direction stays constant, and the audience always knows who is looking at whom.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Lenses and Movement", "sub": "What the glass and the dolly are saying" },
+      "cards": [
+        { "id": "note-lenses", "kind": "note", "bgColor": "#12141a", "html": "<p><b>Lens language</b><br>24mm — context and energy, space stretches.<br>35mm — how the eye sees a room.<br>50mm — honest, neutral, documentary.<br>85mm — intimacy and compression; backgrounds melt.</p>" },
+        { "id": "note-movement", "kind": "note", "bgColor": "#12141a", "html": "<p><b>Move with a reason</b><br>Static — observation. Push-in — realization. Handheld — instability. Dolly — grace and inevitability. If the move has no motivation, lock it off.</p>" },
+        { "id": "img-dolly", "kind": "image", "source": { "provider": "pexels", "query": "camera slider dolly filming video" }, "title": "Motivated movement", "caption": "The camera is a character with opinions" },
+        { "id": "pal-exposure", "kind": "palette", "title": "A night-interior exposure", "swatches": [
+          { "hex": "#10131A", "name": "Shadow floor" },
+          { "hex": "#31405C", "name": "Window fill" },
+          { "hex": "#E8A13D", "name": "Practical warmth" },
+          { "hex": "#F4EFE6", "name": "Key highlight" }
+        ] }
+      ]
+    }
+  ]
+}

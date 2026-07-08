@@ -1,0 +1,76 @@
+{
+  "slug": "japandi-living-room",
+  "name": "Japandi Living Room — Mood Board and Palette",
+  "priority": 3,
+  "bgColor": "#16130f",
+  "cover": "neutral",
+  "seo": {
+    "title": "Japandi Living Room Mood Board",
+    "description": "A Japandi living room mood board: warm-neutral palette with hex codes, material studies in oak, linen and paper, low-slung furniture forms, and wabi-sabi principles.",
+    "keyword": "japandi living room mood board",
+    "body": "A mood board for a Japandi living room — Japanese restraint meeting Scandinavian warmth. It gathers the exact warm-neutral palette with hex codes, a material study in oak, linen, ceramic, stone, and paper, the low-slung furniture forms the style is known for, and the principles that hold it together: diffuse light, negative space, and wabi-sabi imperfection. Built the way an interior designer would pin a concept: references, palettes, and rules on one connected canvas. Made with Soleil Clusters."
+  },
+  "arrows": [
+    { "from": "pal-neutrals", "to": "hero-room", "color": "orange", "head": "single" },
+    { "from": "note-wabisabi", "to": "img-ceramic", "color": "green", "head": "single" },
+    { "from": "note-light", "to": "img-window", "color": "blue", "dashed": true }
+  ],
+  "sections": [
+    {
+      "header": { "text": "JAPANDI", "sub": "Japanese restraint · Scandinavian warmth · one calm room", "hero": true },
+      "cards": [
+        { "id": "grid-textures", "kind": "grid", "title": "Material study", "rows": 2, "cols": 3, "images": [
+          { "provider": "unsplash", "query": "oak wood grain texture close up" },
+          { "provider": "pexels", "query": "natural linen fabric texture beige" },
+          { "provider": "unsplash", "query": "handmade ceramic vase beige minimal" },
+          { "provider": "pexels", "query": "smooth stone texture neutral gray" },
+          { "provider": "unsplash", "query": "rice paper lamp warm glow" },
+          { "provider": "pexels", "query": "cream wool knit throw blanket texture" }
+        ] },
+        { "id": "hero-room", "kind": "image", "source": { "provider": "unsplash", "query": "japandi minimalist living room interior wood" }, "title": "The whole idea in one room", "caption": "Nothing extra, everything warm" }
+      ]
+    },
+    {
+      "header": { "text": "The Palette", "sub": "Warm neutrals, one green, no pure white" },
+      "cards": [
+        { "id": "pal-neutrals", "kind": "palette", "title": "Warm neutrals", "swatches": [
+          { "hex": "#EDE6DA", "name": "Linen" },
+          { "hex": "#D9C7AE", "name": "Oak" },
+          { "hex": "#A89A88", "name": "Clay" },
+          { "hex": "#6E6A61", "name": "Stone" },
+          { "hex": "#2B2822", "name": "Charcoal" }
+        ] },
+        { "id": "pal-accents", "kind": "palette", "title": "Quiet accents", "swatches": [
+          { "hex": "#7A8471", "name": "Moss" },
+          { "hex": "#96876F", "name": "Tatami" },
+          { "hex": "#4A555C", "name": "Indigo gray" }
+        ] },
+        { "id": "note-nowhite", "kind": "note", "bgColor": "#1a1712", "html": "<p><b>Why no pure white</b><br>Bright white reads cold and gallery-like. Japandi warmth comes from linen, bone, and oat tones — walls a half-step warmer than you think you want.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Furniture and Form", "sub": "Low, honest, joinery on display" },
+      "cards": [
+        { "id": "img-sofa", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "low wooden sofa minimalist living room" }, "title": "Low-slung seating", "caption": "Furniture that hugs the floor calms the ceiling" },
+        { "id": "img-lamp", "kind": "image", "source": { "provider": "unsplash", "query": "paper lantern floor lamp minimal interior" }, "title": "Paper light", "caption": "A lamp that is also sculpture" },
+        { "id": "img-bench", "kind": "image", "source": { "provider": "pexels", "query": "wooden bench minimal interior design" }, "title": "Visible joinery", "caption": "The grain is the ornament" },
+        { "id": "note-forms", "kind": "note", "bgColor": "#1a1712", "html": "<p><b>Forms</b><br>Low-slung and ground-hugging. Legs you can see under. No ornament the material didn't make itself — the wood grain, the weave, the glaze are the decoration.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Light and Life", "sub": "Diffuse everything" },
+      "cards": [
+        { "id": "img-window", "kind": "image", "source": { "provider": "unsplash", "query": "soft window light minimal interior plant shadow" }, "title": "Borrowed light", "caption": "Shadows are part of the design" },
+        { "id": "img-ceramic", "kind": "image", "source": { "provider": "pexels", "query": "bonsai plant ceramic pot indoor" }, "title": "One living thing per room", "caption": "A plant is a slow sculpture" },
+        { "id": "note-light", "kind": "note", "bgColor": "#1a1712", "html": "<p><b>Light</b><br>Diffuse everything — paper shades, linen curtains, bounced sources. Keep bulbs at 2700K. A Japandi room at night should feel lit by lanterns, not fixtures.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "The Principles", "sub": "What makes it Japandi and not just beige" },
+      "cards": [
+        { "id": "note-wabisabi", "kind": "note", "bgColor": "#7a8471", "html": "<p><b>Wabi-sabi</b><br>Imperfect, handmade, aged. One cracked-glaze vase beats five perfect ones. If everything is flawless, the room has no story.</p>" },
+        { "id": "note-dodont", "kind": "note", "bgColor": "#1a1712", "html": "<p><b>Do / Don't</b><br>Do: negative space, one focal object per surface, natural fiber everything.<br>Don't: matched furniture sets, high-gloss finishes, open shelves full of small objects.</p>" }
+      ]
+    }
+  ]
+}

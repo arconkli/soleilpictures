@@ -1,0 +1,76 @@
+{
+  "slug": "neon-noir-look-book",
+  "name": "Neon Noir — Night Look Book",
+  "priority": 4,
+  "bgColor": "#0a0a12",
+  "cover": "neutral",
+  "seo": {
+    "title": "Neon Noir Look Book",
+    "description": "A night-exterior look book for the neon noir style: practical light sources, cyan-against-magenta palettes with hex codes, haze and wet-down technique, and frame studies.",
+    "keyword": "neon noir look book",
+    "body": "A cinematography look book for neon noir — the night-exterior style built on practical light: neon signage, sodium vapor, car headlights, and vending machines doing the work a lighting truck normally would. It collects the exact color stories (signal cyan against magenta, sodium orange against teal shadow) with hex codes, the technique that sells the look — atomized haze, wet-downs, fast glass, two hues per frame — and a set of frame studies for silhouette, reflection, and doorway compositions. Made with Soleil Clusters."
+  },
+  "arrows": [
+    { "from": "pal-cyanmag", "to": "img-portrait", "color": "pink", "head": "single" },
+    { "from": "note-haze", "to": "img-wetstreet", "color": "blue", "head": "single" },
+    { "from": "note-practicals", "to": "hero-neon", "color": "orange", "dashed": true }
+  ],
+  "sections": [
+    {
+      "header": { "text": "NEON NOIR", "sub": "Wet streets · practical light · cyan against magenta", "hero": true },
+      "cards": [
+        { "id": "grid-night", "kind": "grid", "title": "Night studies", "rows": 2, "cols": 3, "images": [
+          { "provider": "unsplash", "query": "portrait face pink neon light" },
+          { "provider": "pexels", "query": "city night street reflections puddle" },
+          { "provider": "unsplash", "query": "neon sign window bar night" },
+          { "provider": "pexels", "query": "silhouette person umbrella night street" },
+          { "provider": "unsplash", "query": "traffic light bokeh rain night" },
+          { "provider": "pexels", "query": "dark alley fog night city" }
+        ] },
+        { "id": "hero-neon", "kind": "image", "source": { "provider": "unsplash", "query": "neon sign rain night street glow" }, "title": "The sign is the key light", "caption": "Every source in frame, every source motivated" }
+      ]
+    },
+    {
+      "header": { "text": "Light Is the Set", "sub": "No fixture the audience can't see" },
+      "cards": [
+        { "id": "note-practicals", "kind": "note", "bgColor": "#101018", "html": "<p><b>Practicals do the work</b><br>Neon signage, sodium street lamps, car headlights, shop windows, vending machines. Rig your movie lights to imitate what's in frame — the look dies the moment a source feels unmotivated.</p>" },
+        { "id": "note-haze", "kind": "note", "bgColor": "#101018", "html": "<p><b>Haze + wet-downs</b><br>Atomized haze turns every beam into geometry. Wet asphalt doubles every light in the frame for free. Shoot after real rain or budget a water truck — dry pavement is where neon noir goes to die.</p>" },
+        { "id": "img-wetstreet", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "neon lights reflection wet street night" }, "title": "The double exposure you get for free", "caption": "One sign, two images" },
+        { "id": "img-fog", "kind": "image", "source": { "provider": "unsplash", "query": "street lamp fog night moody" }, "title": "Atmosphere is a light modifier", "caption": "Haze gives beams a body" }
+      ]
+    },
+    {
+      "header": { "text": "The Color Stories", "sub": "Two hues per frame — discipline is the style" },
+      "cards": [
+        { "id": "pal-cyanmag", "kind": "palette", "title": "Signal cyan / neon magenta", "swatches": [
+          { "hex": "#00C2D1", "name": "Signal cyan" },
+          { "hex": "#E63E80", "name": "Neon magenta" },
+          { "hex": "#0B0B12", "name": "Asphalt black" },
+          { "hex": "#F4F4F6", "name": "Skin highlight" }
+        ] },
+        { "id": "pal-sodium", "kind": "palette", "title": "Sodium / teal shadow", "swatches": [
+          { "hex": "#E8A13D", "name": "Sodium vapor" },
+          { "hex": "#1B4B5A", "name": "Teal shadow" },
+          { "hex": "#22201C", "name": "Night brown" },
+          { "hex": "#C7CCD1", "name": "Overcast skin" }
+        ] },
+        { "id": "note-wb", "kind": "note", "bgColor": "#101018", "html": "<p><b>White balance to the dominant practical</b><br>Balance for the neon and let the rest of the frame fall where it may. Correcting toward neutral flattens the exact contrast the style is built on.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Frame Studies", "sub": "Silhouette, reflection, doorway" },
+      "cards": [
+        { "id": "img-portrait", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "portrait blue pink neon light face" }, "title": "Split-tone portrait", "caption": "Cyan key, magenta fill — the signature frame" },
+        { "id": "img-doorway", "kind": "image", "source": { "provider": "unsplash", "query": "silhouette person doorway neon night" }, "title": "The doorway frame", "caption": "Negative space carries the tension" },
+        { "id": "img-umbrella", "kind": "image", "source": { "provider": "pexels", "query": "person umbrella night city rain lights" }, "title": "Rain as texture", "caption": "Every drop catches a color" }
+      ]
+    },
+    {
+      "header": { "text": "How to Shoot It", "sub": "Exposure and discipline" },
+      "cards": [
+        { "id": "note-exposure", "kind": "note", "bgColor": "#101018", "html": "<p><b>Expose for the sign</b><br>Protect the neon's saturation and let the shadows go. Fast glass at T1.4–T2, modern sensors at ISO 3200–6400, and resist the urge to lift the blacks — the void is doing compositional work.</p>" },
+        { "id": "note-twohues", "kind": "note", "bgColor": "#e63e80", "html": "<p><b>The two-hue rule</b><br>Pick two hues per frame and police everything else out — wardrobe, set dressing, background signage. Neon noir is restraint wearing loud colors.</p>" }
+      ]
+    }
+  ]
+}

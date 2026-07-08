@@ -1,0 +1,77 @@
+{
+  "slug": "sage-terracotta-wedding",
+  "name": "Sage and Terracotta Wedding — Color Palette Board",
+  "priority": 3,
+  "bgColor": "#141210",
+  "cover": "neutral",
+  "seo": {
+    "title": "Sage and Terracotta Wedding Palette",
+    "description": "A sage green and terracotta wedding color board: exact hex palettes, the florals that carry it, a tablescape formula, and how the party wears it.",
+    "keyword": "sage and terracotta wedding palette",
+    "body": "A complete color story for a sage green and terracotta wedding — the earthy, sun-warmed palette that owns late summer and early fall. It collects the exact hex codes for the core and accent tones, the stems that carry the look (eucalyptus, olive, pampas, rust chrysanthemum), a repeatable tablescape formula in linen, clay, and brass, and how the wedding party wears the palette without matching like a uniform. Pinned, connected, and shareable on one canvas. Made with Soleil Clusters."
+  },
+  "arrows": [
+    { "from": "pal-core", "to": "hero-table", "color": "orange", "head": "single" },
+    { "from": "note-stems", "to": "img-eucalyptus", "color": "green", "head": "single" },
+    { "from": "note-table", "to": "img-tablescape", "color": "pink", "dashed": true }
+  ],
+  "sections": [
+    {
+      "header": { "text": "SAGE + TERRACOTTA", "sub": "An earthy, sun-warmed palette for late summer and fall", "hero": true },
+      "cards": [
+        { "id": "grid-mood", "kind": "grid", "title": "The mood", "rows": 2, "cols": 3, "images": [
+          { "provider": "pexels", "query": "eucalyptus branch green leaves close up" },
+          { "provider": "pexels", "query": "terracotta clay pots stacked" },
+          { "provider": "pexels", "query": "dried pampas grass beige decor" },
+          { "provider": "pexels", "query": "olive tree branches sunlight" },
+          { "provider": "pexels", "query": "linen tablecloth napkin table setting" },
+          { "provider": "pexels", "query": "ceramic plates stacked neutral tableware" }
+        ] },
+        { "id": "hero-table", "kind": "image", "source": { "provider": "pexels", "query": "outdoor wedding table setting greenery candles" }, "title": "The palette at work", "caption": "Green from the garden, warmth from the clay" }
+      ]
+    },
+    {
+      "header": { "text": "The Exact Colors", "sub": "Hand these hex codes to every vendor" },
+      "cards": [
+        { "id": "pal-core", "kind": "palette", "title": "Core", "swatches": [
+          { "hex": "#9CAF88", "name": "Sage" },
+          { "hex": "#C4704F", "name": "Terracotta" },
+          { "hex": "#F3EDE3", "name": "Cream" },
+          { "hex": "#7C6A58", "name": "Taupe" }
+        ] },
+        { "id": "pal-accents", "kind": "palette", "title": "Accents", "swatches": [
+          { "hex": "#D9A87C", "name": "Apricot" },
+          { "hex": "#66705C", "name": "Olive" },
+          { "hex": "#B98A5E", "name": "Raw clay" },
+          { "hex": "#EFE1D1", "name": "Champagne" }
+        ] },
+        { "id": "note-ratio", "kind": "note", "bgColor": "#1a1613", "html": "<p><b>The 60 / 30 / 10 ratio</b><br>Cream and taupe do 60% of the work (linens, paper, walls), sage does 30% (florals, ribbon, dresses), and terracotta is the 10% that makes photographs — bud vases, taper candles, the odd stem.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "The Florals", "sub": "Stems that carry the palette" },
+      "cards": [
+        { "id": "img-eucalyptus", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "eucalyptus greenery wedding bouquet" }, "title": "Eucalyptus does the heavy lifting", "caption": "Silver-green, cheap in bulk, survives a hot day" },
+        { "id": "img-dried", "kind": "image", "source": { "provider": "pexels", "query": "dried flowers pampas arrangement vase" }, "title": "Dried texture", "caption": "Pampas and bunny grass — booked months ahead, never wilts" },
+        { "id": "img-rust", "kind": "image", "source": { "provider": "pexels", "query": "rust orange flowers bouquet terracotta" }, "title": "The terracotta stems", "caption": "Rust chrysanthemum, marigold, toffee rose" },
+        { "id": "note-stems", "kind": "note", "bgColor": "#1a1613", "html": "<p><b>The recipe</b><br>Eucalyptus and olive for the green mass, cream garden roses for softness, rust chrysanthemum and toffee roses for the terracotta notes, pampas for height. Dried elements cut cost and survive heat.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Table and Paper", "sub": "A formula you can repeat down every table" },
+      "cards": [
+        { "id": "img-tablescape", "kind": "image", "source": { "provider": "pexels", "query": "rustic wedding table candles flowers" }, "title": "Linen, clay, brass, flame", "caption": "Four materials, endless tables" },
+        { "id": "img-paper", "kind": "image", "source": { "provider": "pexels", "query": "kraft paper wedding invitation stationery" }, "title": "Paper goods", "caption": "Handmade paper takes the palette beautifully" },
+        { "id": "note-table", "kind": "note", "bgColor": "#1a1613", "html": "<p><b>Table formula</b><br>Cream linen runner · clustered terracotta bud vases, odd numbers only · brass taper holders with cream candles · name cards on handmade paper in taupe ink. Repeat every 60cm.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Wearing It", "sub": "Same palette, never a uniform" },
+      "cards": [
+        { "id": "img-dresses", "kind": "image", "source": { "provider": "pexels", "query": "sage green bridesmaid dresses bouquet" }, "title": "Sage on the party", "caption": "Mismatched silhouettes, one hue" },
+        { "id": "note-attire", "kind": "note", "bgColor": "#9caf88", "html": "<p><b>Who wears what</b><br>Bridesmaids in sage — different silhouettes, same fabric family. Suits in taupe or olive, never black. Terracotta stays in the florals, ties, and pocket squares so it reads as an accent, not a costume.</p>" },
+        { "id": "note-season", "kind": "note", "bgColor": "#1a1613", "html": "<p><b>When it works best</b><br>Late August through October. The palette is built for golden-hour light and dry grasses — it photographs warmer as the season turns.</p>" }
+      ]
+    }
+  ]
+}
