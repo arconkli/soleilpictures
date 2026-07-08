@@ -3532,7 +3532,7 @@ body {
   position: absolute;
   left: 38px;
   top: 0;
-  width: 148px;
+  width: 184px;
   padding: 5px;
   border: 1px solid var(--line-2);
   border-radius: var(--radius);
@@ -3540,28 +3540,83 @@ body {
   box-shadow: var(--shadow-2);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
+  gap: 1px;
+  /* visible (not hidden) so the per-item hover tips can float to the right;
+     the grain ::after self-clips via border-radius:inherit and sits at z-index:-1. */
+  overflow: visible;
   z-index: 70;
 }
 /* While the + menu is open, don't also float the button's own "Add" tooltip over it. */
 .cnv-add-wrap .cnv-tool.active[data-tip]::after { display: none; }
+/* Tiny uppercase section label between + menu groups (Tools / Create / Annotate). */
+.cnv-add-group-head {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 8px 8px 3px;
+  user-select: none;
+}
+.cnv-add-menu .cnv-add-group-head:first-child { padding-top: 4px; }
 .cnv-add-menu button {
-  height: 28px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 5px;
   background: transparent;
   color: var(--ink-1);
   text-align: left;
-  padding: 0 8px;
+  padding: 0 9px;
   font: inherit;
   cursor: pointer;
 }
+.cnv-add-menu button .cnv-add-ico {
+  display: grid;
+  place-items: center;
+  width: 18px; height: 18px;
+  flex: 0 0 auto;
+  color: var(--ink-2);
+}
+.cnv-add-menu button .cnv-add-lbl { flex: 1 1 auto; }
 .cnv-add-menu button:hover,
 .cnv-add-menu button:focus-visible {
   background: var(--bg-hov);
   color: var(--ink-0);
   outline: none;
+}
+.cnv-add-menu button:hover .cnv-add-ico,
+.cnv-add-menu button:focus-visible .cnv-add-ico { color: var(--ink-0); }
+/* Right-floating hover tip for + menu items — mirrors .cnv-tool[data-tip]. */
+.cnv-add-menu button[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  white-space: nowrap;
+  font: 500 12px/1 var(--font-sans);
+  color: var(--ink-0);
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 6px 9px;
+  box-shadow: var(--shadow-1);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  z-index: 80;
+}
+.cnv-add-menu button[data-tip]:hover::after,
+.cnv-add-menu button[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  transition-delay: 200ms;
+}
+@media (hover: none) and (pointer: coarse) {
+  .cnv-add-menu button[data-tip]::after { display: none; }
 }
 
 /* (.view-switch superseded by .view-pill in the topbar block) */
@@ -8373,6 +8428,15 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .ctx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
 .ctx-shortcut { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); flex-shrink: 0; }
 .ctx-divider { height: 1px; background: var(--line-2); margin: 4px 6px; }
+/* Non-interactive section label inside a context menu / its "Add" submenu. */
+.ctx-header {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 7px 10px 3px;
+  user-select: none;
+}
 .ctx-section-label {
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-3);
@@ -9032,6 +9096,191 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   letter-spacing: .04em;
+}
+
+/* Just-dropped rows (list-view file drop) — brief gold flash + "Just added"
+   pill, plus an uploading spinner while the card is still pending. */
+.lf-row { position: relative; }
+.lf-row.is-new { animation: lf-row-flash 1400ms var(--ease); }
+@keyframes lf-row-flash {
+  0%   { background: var(--soleil-soft); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .lf-row.is-new { animation: none; } }
+.lf-row.is-pending { opacity: .82; }
+.lf-thumb-spin {
+  position: absolute; right: -3px; bottom: -3px;
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--line-3); border-top-color: var(--soleil);
+  animation: lf-spin 700ms linear infinite;
+}
+@keyframes lf-spin { to { transform: rotate(360deg); } }
+.lf-thumb { position: relative; }
+.lf-new-pill {
+  flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--soleil);
+  background: var(--soleil-soft);
+  border-radius: 999px; padding: 2px 7px;
+}
+
+/* ───────────────────────── Cluster browser (list view) ──────────────────────
+   Switchable Table / Gallery over a cluster's files, sharing one toolbar
+   (search + sort + filter + view toggle + Add-files + facepile). Built on the
+   existing tokens + .ctx-menu / .view-pill so it lands visually cohesive. */
+.cluster-browser { display: flex; flex-direction: column; min-width: 0; }
+.list-section-files { margin-bottom: 6px; }
+
+/* Toolbar */
+.cbt { display: flex; align-items: center; gap: 8px; padding: 0 0 12px; flex-wrap: wrap; }
+.cbt-search {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 8px;
+  padding: 5px 10px; min-width: 200px; flex: 1 1 240px; max-width: 400px;
+}
+.cbt-search:focus-within { border-color: var(--soleil); }
+.cbt-search-icon { color: var(--ink-3); flex-shrink: 0; }
+.cbt-input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: var(--ink-0); font-size: 13px; font-weight: 500; }
+.cbt-input::placeholder { color: var(--ink-3); }
+.cbt-clear { background: none; border: none; color: var(--ink-3); cursor: pointer; display: grid; place-items: center; padding: 2px; border-radius: 4px; }
+.cbt-clear:hover { color: var(--ink-1); background: var(--bg-hov); }
+.cbt-spacer { flex: 1 1 auto; }
+.cbt-menuwrap { position: relative; }
+.cbt-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-1);
+  border-radius: 7px; padding: 5px 11px; font-size: 12px; font-weight: 500; cursor: pointer;
+  white-space: nowrap;
+}
+.cbt-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.cbt-btn.is-open, .cbt-btn.has-active { border-color: var(--soleil); color: var(--ink-0); }
+.cbt-add { background: var(--soleil-soft); border-color: transparent; color: var(--soleil); }
+.cbt-add:hover { color: var(--soleil); filter: brightness(1.12); }
+.cbt-viewtoggle .view-pill-btn { display: grid; place-items: center; padding: 4px 11px; }
+.cbt-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; min-width: 190px; z-index: 60;
+  display: flex; flex-direction: column; gap: 1px; padding: 4px;
+  background: rgba(16,16,20,.82); backdrop-filter: blur(12px) saturate(1.05);
+  border: 1px solid rgba(255,255,255,.06); border-radius: 8px;
+  box-shadow: var(--shadow-3, 0 12px 32px rgba(0,0,0,.4));
+  animation: ctx-menu-in var(--dur-fast) var(--ease);
+}
+:root[data-theme="light"] .cbt-menu, .theme-light .cbt-menu { background: rgba(250,250,252,.86); }
+.cbt-menu .ctx-item { justify-content: space-between; }
+.cbt-caret, .cbt-count { color: var(--ink-3); font-family: var(--font-mono); font-size: 11px; }
+.ctx-empty { padding: 8px 12px; color: var(--ink-3); font-size: 12px; }
+.cbt-facepile { display: inline-flex; align-items: center; padding-left: 4px; }
+.cbt-facepile > * { margin-left: -6px; }
+.cbt-facepile > *:first-child { margin-left: 0; }
+.cbt-face-more { margin-left: 5px; color: var(--ink-3); font-size: 11px; }
+
+/* Table */
+.ct-table { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; background: var(--bg-3); }
+.ct-head, .ct-row { display: grid; grid-template-columns: minmax(0,1fr) 92px 80px 116px 60px; align-items: center; }
+.ct-head { border-bottom: 1px solid var(--line-2); background: var(--bg-2); }
+.ct-th { text-align: left; background: none; border: none; cursor: pointer; color: var(--ink-2); font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; padding: 8px 12px; }
+.ct-th:hover { color: var(--ink-0); }
+.ct-body { display: flex; flex-direction: column; }
+.ct-row { border-bottom: 1px solid var(--line-1); cursor: default; }
+.ct-row:last-child { border-bottom: 0; }
+.ct-row:hover { background: var(--bg-hov); }
+.ct-row.is-selected { background: var(--bg-act); box-shadow: inset 0 0 0 1px var(--line-3); }
+.ct-cell { padding: 7px 12px; min-width: 0; font-size: 12.5px; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-c-name { display: flex; align-items: center; gap: 10px; }
+.ct-c-type, .ct-c-size, .ct-c-date { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+.ct-c-presence { display: flex; align-items: center; gap: 2px; overflow: visible; }
+.ct-thumb { position: relative; width: 34px; height: 34px; flex-shrink: 0; border-radius: 5px; overflow: hidden; background: var(--bg-2); border: 1px solid var(--line-1); display: grid; place-items: center; color: var(--ink-2); }
+.ct-name-wrap { min-width: 0; }
+.ct-name { color: var(--ink-0); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ct-sub { color: var(--ink-3); font-family: var(--font-mono); font-size: 10px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* CardPreview inner (shared by row thumb + gallery tile) */
+.cbp-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cbp-glyph, .cbp-file, .cbp-note { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-2); }
+.cbp-file { position: relative; }
+.cbp-ext { position: absolute; bottom: 1px; right: 1px; font-family: var(--font-mono); font-size: 7px; font-weight: 700; background: var(--bg-4); color: var(--ink-1); padding: 0 2px; border-radius: 2px; }
+.cbp-swatches { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 100%; }
+.cbp-sw { width: 100%; height: 100%; }
+
+/* Schematic marks — grid/doc/schedule/shape (SVG) + note/link (HTML). Each
+   fills the preview box and scales cleanly at both the row thumb and tile. */
+.cbp-mark { width: 100%; height: 100%; display: block; }
+
+/* Grid subdivision */
+.gm-cell { stroke: var(--line-3); stroke-width: 1.25px; fill: var(--ink-2); fill-opacity: 0; }
+.gm-plain { fill-opacity: .12; }
+.gm-empty { fill-opacity: 0; }
+.gm-text { fill-opacity: .16; }
+.gm-other { fill-opacity: .3; }
+.gm-media { fill: var(--ink-1); fill-opacity: .5; }
+
+/* Doc page */
+.cbp-doc { background: var(--bg-1); }
+.cbp-doc-title { fill: var(--ink-1); opacity: .82; }
+.cbp-doc-bar { fill: var(--ink-2); opacity: .4; }
+.cbp-doc-bar.is-h { fill: var(--ink-1); opacity: .62; }
+.cbp-doc-bar.is-empty { opacity: .22; }
+.cbp-doc-dot { fill: var(--ink-2); opacity: .5; }
+
+/* Schedule rows */
+.cbp-sched { background: var(--bg-1); }
+.cbp-sched-tick { fill: var(--soleil); opacity: .6; }
+.cbp-sched-bar { fill: var(--ink-2); opacity: .34; }
+
+/* Shape silhouette — centered, a touch inset so it never bleeds to the edge */
+.cbp-shape-mark { display: grid; place-items: center; padding: 20%; box-sizing: border-box; }
+
+/* Note — real text on the tint */
+.cbp-note-mark { display: flex; align-items: flex-start; overflow: hidden; background: var(--bg-2); color: var(--ink-1); box-sizing: border-box; }
+.cbp-note-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.cbp-note-row { padding: 5px 6px; }
+.cbp-note-row .cbp-note-text { -webkit-line-clamp: 2; font-size: 7.5px; line-height: 1.25; }
+.cbp-note-tile { padding: 11% 12%; }
+.cbp-note-tile .cbp-note-text { -webkit-line-clamp: 6; font-size: 12px; line-height: 1.4; }
+
+/* Link — favicon (+ domain at tile) */
+.cbp-link { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--ink-2); }
+.cbp-link-favicon { width: 46%; max-width: 40px; height: auto; aspect-ratio: 1; object-fit: contain; border-radius: 3px; }
+.ct-thumb .cbp-link-favicon { width: 20px; }
+.cbp-link-domain { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Live presence highlight */
+.ct-row.is-peer { box-shadow: inset 3px 0 0 var(--peer-color, var(--soleil)); }
+.ct-tile.is-peer { border-color: var(--peer-color, var(--soleil)); box-shadow: 0 0 0 1px var(--peer-color, var(--soleil)); }
+
+/* Upload spinner + just-added flash (reuse keyframes from the list-drop block) */
+.ct-thumb-spin { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--line-3); border-top-color: var(--soleil); animation: lf-spin 700ms linear infinite; }
+.ct-row.is-new, .ct-tile.is-new { animation: lf-row-flash 1400ms var(--ease); }
+.ct-row.is-pending, .ct-tile.is-pending { opacity: .85; }
+
+/* Gallery */
+.ct-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+.ct-tile { border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; background: var(--bg-3); cursor: default; }
+.ct-tile:hover { border-color: var(--line-3); }
+.ct-tile.is-selected { border-color: var(--soleil); box-shadow: 0 0 0 1px var(--soleil); }
+.ct-tile-preview { position: relative; aspect-ratio: 4 / 3; background: var(--bg-2); display: grid; place-items: center; overflow: hidden; }
+.ct-tile-preview .cbp-glyph, .ct-tile-preview .cbp-file, .ct-tile-preview .cbp-note { color: var(--ink-3); }
+.ct-tile-spin { right: 6px; bottom: 6px; }
+.ct-tile-peers { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 2px; }
+.ct-tile-meta { padding: 8px 10px; }
+.ct-tile-name { font-size: 12.5px; font-weight: 500; color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ct-tile-type { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+
+.cluster-browser-empty { padding: 40px 12px; text-align: center; color: var(--ink-3); font-size: 13px; }
+
+/* Descendant search results (matches from sub-clusters — open, don't select) */
+.cb-descendants { margin-top: 14px; border-top: 1px solid var(--line-1); padding-top: 10px; }
+.cb-desc-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin-bottom: 4px; }
+.cb-desc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; background: none; border: none; text-align: left; cursor: pointer; padding: 6px 8px; border-radius: 6px; }
+.cb-desc-row:hover { background: var(--bg-hov); }
+.cb-desc-name { color: var(--ink-1); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-desc-cluster { color: var(--ink-3); font-family: var(--font-mono); font-size: 10px; flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .ct-head, .ct-row { grid-template-columns: minmax(0,1fr) 70px 56px; }
+  .ct-c-date, .ct-th.ct-c-date, .ct-c-presence, .ct-th.ct-c-presence { display: none; }
+  .ct-gallery { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }
 
 /* Bigger zoom range allowance */
@@ -16772,6 +17021,16 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .canvas-wrap[data-eyedrop='1'] .card-kind-image:hover > :first-child {
   outline-color: var(--soleil);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--soleil) 22%, transparent);
+}
+/* Annotation placement mode (armed from the + menu's Comment/Vote): crosshair
+   everywhere and ring cards on hover so it reads as "click a card to attach". */
+.canvas-wrap.is-annot-place,
+.canvas-wrap.is-annot-place .canvas,
+.canvas-wrap.is-annot-place .card { cursor: crosshair; }
+.canvas-wrap.is-annot-place .card:hover {
+  outline: 1px dashed var(--soleil);
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
 }
 
 /* ──────────────────────────── Sketch Pad ──────────────────────────── */

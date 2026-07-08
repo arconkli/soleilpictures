@@ -21,7 +21,7 @@ const CODE_EXTS = new Set(['js','jsx','ts','tsx','py','rb','go','rs','c','h','cp
   'java','kt','swift','sh','bash','zsh','sql','css','scss','html','htm','xml','json','yml','yaml','toml']);
 const TEXT_EXTS = new Set([...CODE_EXTS, 'txt','md','markdown','csv','tsv','ini','log','env','conf']);
 
-function humanSize(bytes) {
+export function humanSize(bytes) {
   if (bytes == null) return '';
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];
   let n = bytes, i = 0;
@@ -29,13 +29,13 @@ function humanSize(bytes) {
   return `${n >= 10 || i === 0 ? Math.round(n) : n.toFixed(1)} ${u[i]}`;
 }
 
-function extOf(fileName, ext) {
+export function extOf(fileName, ext) {
   if (ext) return String(ext).toLowerCase();
   const m = String(fileName || '').toLowerCase().match(/\.([a-z0-9]+)$/);
   return m ? m[1] : '';
 }
 
-function iconForFile(ext, mime) {
+export function iconForFile(ext, mime) {
   const e = (ext || '').toLowerCase();
   const m = (mime || '').toLowerCase();
   if (e === 'pdf' || m === 'application/pdf') return FilePdf;

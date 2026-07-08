@@ -76,6 +76,8 @@ import { useBoardList } from './hooks/useBoardList.js';
 import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
 import { useYBoard } from './hooks/useYBoard.js';
 import { RENDER_VERSION as THUMB_VERSION } from './lib/renderThumbnail.js';
+import { forgetThumbnailAttempt } from './hooks/useThumbnailBackfill.js';
+import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -90,7 +92,7 @@ const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx')
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink, listBoardShares } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, listBoardVersions, loadBoardVersionDoc, fetchPrevVersion, fetchNextVersion, cleanupDocCards, ensurePublicLink, listBoardShares, updateBoardThumb } from './lib/boardsApi.js';
 import { forceBoardThumbnail } from './lib/yboard.js';
 import { planReparent } from './lib/boardTree.js';
 import * as Y from 'yjs';
@@ -99,7 +101,13 @@ import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
-import { uploadImage, uploadPdf } from './lib/uploads.js';
+import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout } from './lib/gridState.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
+import { hasLabelTag } from './lib/gridSequence.js';
+import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
+import { arrangeInFreeSpace } from './lib/canvasGeom.js';
+import { classifyDropFile, fitImageDims } from './lib/fileIngest.js';
+import { makeLimiter } from './lib/asyncPool.js';
 import { TrashModal } from './components/TrashModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
@@ -166,6 +174,25 @@ function onCanvasRender(id, phase, actualDuration) {
     console.warn('[perf] slow canvas render', { id, phase, ms: +actualDuration.toFixed(1) });
   }
 }
+
+// Read an image file's natural dimensions (for list-view drops, which arrange a
+// batch in doc space before uploads resolve). Lightweight: one <img> decode via
+// an object URL, released immediately. Resolves 0×0 on failure so the caller
+// falls back to the classifier's intrinsic dims.
+function readImageDims(file) {
+  return new Promise((resolve) => {
+    let url = null;
+    const img = new Image();
+    const done = (w, h) => { try { if (url) URL.revokeObjectURL(url); } catch (_) {} resolve({ width: w, height: h }); };
+    img.onload = () => done(img.naturalWidth || 0, img.naturalHeight || 0);
+    img.onerror = () => done(0, 0);
+    try { url = URL.createObjectURL(file); img.src = url; } catch (_) { done(0, 0); }
+  });
+}
+
+// Bound how many list-view drop uploads run at once so a 100-file drop doesn't
+// fire 100 concurrent PUTs. Module-scope so it's shared across panes/boards.
+const listUploadLimiter = makeLimiter(4);
 
 export function App() {
   perf.usePerfRenderTime('App');
@@ -355,6 +382,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       : [rootBoard.id, ...saved.filter((id) => id !== rootBoard.id)];
   });
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
+  // List-view file drops: a Set of the just-added card ids (drives the "just
+  // added" row flash in the list), and a one-shot focus request so that when
+  // the user switches to canvas the new cards arrive selected + framed. Both
+  // ephemeral — not persisted, not in the Y.Doc. focusRequest carries the
+  // boardId so only the pane showing that board frames it.
+  const [recentlyAddedIds, setRecentlyAddedIds] = useState(null);
+  const [focusRequest, setFocusRequest] = useState(null); // { boardId, ids:[], token }
   // Mirror of the guided-tour `fire` fn (the hook is defined far below, but the
   // card/nav/rename mutators above need to emit tour events). Assigned in render
   // once the hook exists; only ever invoked at runtime, so the ref is populated.
@@ -875,6 +909,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
     };
 
+    // Gate for FILLING a grid cell with weighted content (image / link / file /
+    // video / board / grid). Grid cells now count toward the demo card cap, so a
+    // grid with 25 images counts ~25, not 1. Mirrors addCard's demo check for +1
+    // weight; opens the upgrade modal and returns false when at the cap. Empty text
+    // cells add no weight, so the Text chooser is intentionally NOT gated here.
+    const guardWeightedAdd = () => {
+      if (myTier.tier !== 'demo') return true;
+      const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
+      const { capHit } = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: 1, limit });
+      if (capHit) { noteBlocked('demo_cap_cell'); setUpgradeReason('cap-hit'); return false; }
+      return true;
+    };
+
     const addCards = (cardsToAdd) => {
       // Returns { added, requested, capHit } so callers (e.g. the remix seed) can
       // tell whether the demo cap silently dropped cards and toast accordingly.
@@ -942,6 +989,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           if (isContentEdit(patch)) logCardEdit(id, ym.get('kind'), boardId);
         }
       }, 'local');
+    };
+
+    // Like updateCard but transacts with a NON-'local' origin so the board
+    // UndoManager (trackedOrigins: {'local'}) ignores it — used for the async
+    // post-upload src/dims patches on a bulk list-view drop, so a single Cmd+Z
+    // removes the whole batch instead of peeling off one card's src at a time.
+    // Still broadcasts to peers + persists (yboard persists every non-snapshot
+    // origin; ySupabase only skips 'remote'). No-ops if the card is already gone.
+    const updateCardSilent = (cardId, patch) => {
+      const m = cardsMap(); if (!m) return;
+      if (isDemoBlockedOnThisBoard()) return;
+      const ym = m.get(cardId); if (!ym) return;
+      ydoc.transact(() => {
+        for (const [k, v] of Object.entries(patch)) ym.set(k, v);
+        writeUpdateStamp(ym);
+      }, 'upload');
     };
 
     const deleteCards = async (ids) => {
@@ -1481,6 +1544,137 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       input.click();
     };
 
+    // List-view file drop / "Add files": ingest a FileList in LIST mode, which
+    // has NO canvas viewport to convert a drop point. Instead of a cursor
+    // anchor we auto-arrange the whole batch into a tidy uniform grid in
+    // guaranteed-free canvas space (below existing content) via
+    // arrangeInFreeSpace, so switching back to canvas shows them neatly laid
+    // out — answering "where did my files go?". Mirrors addImageAt/addPdfAt's
+    // optimistic template, but BATCHED: one addCards() = one undo step, and the
+    // async post-upload patches use updateCardSilent so a single Cmd+Z removes
+    // the whole batch cleanly. Type routing / caps are shared with the canvas
+    // via classifyDropFile so the two ingest paths can't drift.
+    const ingestFilesArranged = async (fileList) => {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+      const isPaidPlan = myTier.tier === 'paid' || myTier.tier === 'admin';
+      const ownsWorkspace = workspace?.created_by === user?.id;
+      const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
+
+      // 1) Classify — split blocked (paid-only) from accepted.
+      const blocked = [];
+      let accepted = [];
+      for (const file of files) {
+        const c = classifyDropFile(file, { canAttemptFiles });
+        if (c.route === 'blocked') { blocked.push(file); continue; }
+        accepted.push({ file, ...c }); // { file, route, kind, w, h }
+      }
+      if (blocked.length) {
+        setUpgradeReason('storage');
+        feedback.toast({
+          type: 'warning',
+          message: `Uploading ${blocked.length === 1 ? 'that file' : 'large or non-standard files'} needs a paid plan — upgrade to add any file type, up to 100GB.`,
+          duration: 6000,
+        });
+      }
+      if (!accepted.length) return;
+
+      // 2) Demo cap FIRST — slice to what will actually be accepted so we never
+      //    place cards the cap would silently drop (leaving grid gaps).
+      if (myTier.tier === 'demo') {
+        const limit = myTier.effectiveCardLimit || DEMO_CARD_LIMIT;
+        const evald = evaluateDemoCap({ tier: myTier.tier, demoCardCount: myTier.demoCardCount, requested: accepted.length, limit });
+        if (evald.capHit && evald.accepted === 0) { setUpgradeReason('cap-hit'); return; }
+        if (evald.capHit) { accepted = accepted.slice(0, evald.accepted); setUpgradeReason('cap-hit'); }
+      }
+
+      // 3) Pre-measure real dims for images + videos so the uniform grid cell
+      //    is sized right (audio/pdf/file keep their fixed fallback dims).
+      await Promise.all(accepted.map(async (it) => {
+        try {
+          if (it.route === 'image') {
+            const d = await readImageDims(it.file);
+            if (d.width && d.height) { const f = fitImageDims(d.width, d.height); it.w = f.w; it.h = f.h; }
+          } else if (it.kind === 'video') {
+            const meta = await readVideoMeta(it.file);
+            if (meta?.w) {
+              const w = Math.max(240, Math.min(560, meta.w || 360));
+              const aspect = meta.h && meta.w ? (meta.h / meta.w) : 9 / 16;
+              it.w = w; it.h = Math.max(160, Math.round(w * aspect));
+            }
+          }
+        } catch (_) { /* keep fallback dims */ }
+      }));
+
+      // 4) Arrange in free space (below existing content) + pre-generate ids.
+      const existing = [];
+      const m0 = cardsMap();
+      if (m0) m0.forEach(ym => {
+        const x = ym.get('x'), y = ym.get('y');
+        if (Number.isFinite(x) && Number.isFinite(y)) existing.push({ x, y, w: ym.get('w') || 0, h: ym.get('h') || 0 });
+      });
+      const positioned = arrangeInFreeSpace(existing, accepted);
+      const stamp = Date.now();
+      const prefixFor = (k) => (k === 'image' ? 'img' : k === 'pdf' ? 'pdf' : k === 'video' ? 'vid' : k === 'audio' ? 'aud' : 'file');
+      const prepared = positioned.map((it, i) => {
+        const id = `${prefixFor(it.kind)}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`;
+        const card = { id, kind: it.kind, x: it.x, y: it.y, w: it.w, h: it.h, pending: true };
+        if (it.kind === 'pdf') card.name = it.file.name || 'PDF';
+        else if (it.kind === 'audio') card.title = it.file.name || 'Audio';
+        else if (it.kind === 'file') {
+          card.fileName = it.file.name; card.mime = it.file.type; card.sizeBytes = it.file.size;
+          card.ext = (it.file.name?.split('.').pop() || '').toLowerCase();
+        }
+        return { it, id, card };
+      });
+
+      // 5) ONE batch add → single undo step. Use the actual accepted count in
+      //    case addCards trimmed against the live cap.
+      const res = addCards(prepared.map(p => p.card));
+      const live = prepared.slice(0, res?.added ?? prepared.length);
+      if (!live.length) return;
+      const addedIds = live.map(p => p.id);
+      // Flash the new rows in the list; prime canvas framing on view switch.
+      setRecentlyAddedIds(new Set(addedIds));
+      setFocusRequest({ boardId, ids: addedIds, token: stamp });
+      setTimeout(() => setRecentlyAddedIds(prev => (prev && prev.has(addedIds[0]) ? null : prev)), 4000);
+      feedback.toast({
+        type: 'success',
+        message: `Added ${addedIds.length} ${addedIds.length === 1 ? 'file' : 'files'} — arranged on canvas.`,
+        action: { label: 'View on canvas', onClick: () => setView('canvas') },
+      });
+
+      // 6) Background uploads (bounded concurrency). Patch via updateCardSilent
+      //    so the async src writes stay OFF the undo stack; roll back on failure.
+      await Promise.all(live.map(({ it, id }) => listUploadLimiter(async () => {
+        try {
+          if (it.route === 'image') {
+            const up = await uploadImage({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
+            updateCardSilent(id, { src: up.src, pending: false });
+          } else if (it.route === 'pdf') {
+            const up = await uploadPdf({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
+            updateCardSilent(id, { src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount, name: up.name, w: up.w, h: up.h, pending: false });
+          } else if (it.route === 'video') {
+            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id, ...(isPaidPlan ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+            updateCardSilent(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
+          } else if (it.route === 'audio') {
+            const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, userId: user.id });
+            updateCardSilent(id, { src: up.src, duration: up.duration || null, pending: false });
+          } else {
+            // 'largeMedia' (over-cap video/audio) + 'file' → multipart upload.
+            const up = await uploadFile({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id });
+            if (it.kind === 'video' || it.kind === 'audio') updateCardSilent(id, { src: up.src, pending: false });
+            else updateCardSilent(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
+          }
+        } catch (err) {
+          console.error('list drop upload failed', err);
+          if (err?.code === 402 || err?.code === 403) setUpgradeReason('storage');
+          else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+          deleteCard(id);
+        }
+      })));
+    };
+
     const addNewBoard = async (clickPos = null, opts = {}) => {
       const d = defaultsRef.current?.board || {};
       const view = opts.view || d.view || 'canvas';
@@ -1547,6 +1741,366 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const canUndo = () => !!(undoManager && undoManager.undoStack.length > 0);
     const canRedo = () => !!(undoManager && undoManager.redoStack.length > 0);
 
+    // Grid card (modular grid-template card). Mirrors addDocCard: a fresh card
+    // plus a per-card Y store (gridCells/gridMeta) initialized in the SAME
+    // transaction (afterInsert) so create+init is ONE undo step. Unlinked by
+    // default — it carries its own `layout` tree; linking to a shared template
+    // (global sync) lands in a later phase.
+    const addGrid = (clickPos = null, opts = {}) => {
+      const preset = opts.preset || 'storyboard-1-2';
+      const w = opts.w || 360, h = opts.h || 300;
+      const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
+      const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
+      const id = `grid-${Date.now()}`;
+      const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+      const card = {
+        id, kind: 'grid',
+        templateId: opts.linkTemplateId || null,
+        seqId: null,
+        x: Math.max(8, x), y: Math.max(8, y), w, h,
+      };
+      if (!opts.linkTemplateId) card.layout = presetTree(preset, mkCellId);
+      addCard(card, { afterInsert: (cardYM) => { if (cardYM) initCardGridStore(ydoc, cardYM); } });
+      setAutoFocusId(id);
+    };
+
+    // Layout reads/writes are link-aware: a linked Grid's layout lives in the
+    // shared gridTemplates record (editing reflows every linked Grid); an
+    // unlinked Grid carries its own `layout` field. Centralized here so GridCard
+    // stays dumb about the link state.
+    const gridLayoutOf = (cy) => {
+      if (!cy) return null;
+      const templateId = cy.get('templateId') || null;
+      if (templateId) {
+        const t = ydoc.getMap('gridTemplates').get(templateId);
+        return (t && t.layout) || cy.get('layout') || null;
+      }
+      return cy.get('layout') || null;
+    };
+    const writeGridLayout = (cy, gridId, newLayout) => {
+      const templateId = cy.get('templateId') || null;
+      if (templateId) setTemplateLayout(ydoc, templateId, newLayout);
+      else updateCard(gridId, { layout: newLayout });
+    };
+    const resizeGridDivider = (gridId, path, childIndex, deltaFrac) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const layout = gridLayoutOf(cy); if (!layout) return;
+      writeGridLayout(cy, gridId, resizeDivider(layout, path, childIndex, deltaFrac));
+    };
+    const splitGridCell = (gridId, cellId, orientation) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const layout = gridLayoutOf(cy); if (!layout) return;
+      breakUndo();
+      writeGridLayout(cy, gridId, splitCell(layout, cellId, orientation));
+    };
+    const mergeGridCell = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const layout = gridLayoutOf(cy); if (!layout) return;
+      const { tree, removedIds } = mergeCell(layout, cellId);
+      if (!removedIds.length) return;
+      breakUndo();
+      const templateId = cy.get('templateId') || null;
+      ydoc.transact(() => {
+        if (templateId) {
+          const tm = ydoc.getMap('gridTemplates'); const prev = tm.get(templateId);
+          if (prev) tm.set(templateId, { ...prev, layout: tree });
+        } else cy.set('layout', tree);
+        const cm = cy.get('gridCells');
+        if (cm) removedIds.forEach((id) => cm.delete(id));
+      }, 'local');
+    };
+    // Remove a divider LINE (merge the two cells it separates). Same write path
+    // as mergeGridCell but addressed by the divider, not a cell.
+    const removeGridDivider = (gridId, path, childIndex) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const layout = gridLayoutOf(cy); if (!layout) return;
+      const { tree, removedIds } = removeDivider(layout, path, childIndex);
+      if (!removedIds.length) return;
+      breakUndo();
+      const templateId = cy.get('templateId') || null;
+      ydoc.transact(() => {
+        if (templateId) {
+          const tm = ydoc.getMap('gridTemplates'); const prev = tm.get(templateId);
+          if (prev) tm.set(templateId, { ...prev, layout: tree });
+        } else cy.set('layout', tree);
+        const cm = cy.get('gridCells');
+        if (cm) removedIds.forEach((id) => cm.delete(id));
+      }, 'local');
+    };
+    const setGridCellContent = (gridId, cellId, patch) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      setGridCell(ydoc, cy, cellId, patch);
+    };
+    const clearGridCellContent = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      clearGridCell(ydoc, cy, cellId);
+    };
+    // ── shared / per-cell text style ──────────────────────────────────────────
+    // The family (shared) text style: linked → the shared template; else the card.
+    const familyStyleOf = (cy) => {
+      const tplId = cy.get('templateId');
+      if (tplId) return (ydoc.getMap('gridTemplates').get(tplId)?.textStyle) || {};
+      return cy.get('textStyle') || {};
+    };
+    // Apply a text-style patch {fontFamily?,fontSize?,color?,align?,vAlign?}.
+    //   pinned=false → the shared family style (linked template, else the grid card)
+    //                  so EVERY un-pinned cell follows it live.
+    //   pinned=true  → the cell's own frozen `style` ("only this box").
+    const setGridTextStyle = (gridId, cellId, patch, opts = {}) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy || !patch) return;
+      const pinned = !!opts.pinned;
+      ydoc.transact(() => {
+        if (pinned) {
+          const cm = cy.get('gridCells'); if (!cm) return;
+          const prev = cm.get(cellId) || {};
+          cm.set(cellId, { ...prev, style: { ...(prev.style || {}), ...patch } });
+        } else {
+          const tplId = cy.get('templateId');
+          if (tplId) {
+            const gm = ydoc.getMap('gridTemplates');
+            const prev = gm.get(tplId) || { id: tplId };
+            gm.set(tplId, { ...prev, id: tplId, textStyle: { ...(prev.textStyle || {}), ...patch } });
+          } else {
+            cy.set('textStyle', { ...(cy.get('textStyle') || {}), ...patch });
+          }
+        }
+      }, 'local');
+    };
+    // Pin a cell to its current effective style (freeze against family changes), or
+    // unpin it (drop its override so it rejoins the shared family style).
+    const pinCellStyle = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      ydoc.transact(() => {
+        const cm = cy.get('gridCells'); if (!cm) return;
+        const prev = cm.get(cellId) || {};
+        cm.set(cellId, { ...prev, style: { ...familyStyleOf(cy), ...(prev.style || {}) } });
+      }, 'local');
+    };
+    const unpinCellStyle = (gridId, cellId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      ydoc.transact(() => {
+        const cm = cy.get('gridCells'); const prev = cm && cm.get(cellId); if (!prev) return;
+        const { style, ...rest } = prev;
+        cm.set(cellId, rest);
+      }, 'local');
+    };
+    // Drop a whole Grid INTO a host cell, fully editable inline: graft the source
+    // Grid's layout subtree into the host's target leaf (fresh ids) + copy its cell
+    // content, then consume the source card. The host unlinks (its structure now
+    // differs from any linked siblings). The grafted region edits with the normal
+    // divider/split/cell machinery — no recursive component.
+    const graftGridIntoCell = (hostGridId, cellId, sourceGridId) => {
+      const m = cardsMap();
+      const hostCy = m && m.get(hostGridId);
+      const srcCy = m && m.get(sourceGridId);
+      if (!hostCy || !srcCy || hostGridId === sourceGridId) return;
+      const hostLayout = gridLayoutOf(hostCy);
+      const srcLayout = gridLayoutOf(srcCy);
+      if (!hostLayout || !srcLayout) return;
+      const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+      const { tree, idMap } = graftSubtree(hostLayout, cellId, srcLayout, mkCellId);
+      if (!Object.keys(idMap).length) return;
+      // snapshot the source's cell records before deleting it
+      const srcCells = {};
+      const scm = srcCy.get('gridCells');
+      if (scm && scm.forEach) scm.forEach((v, k) => { srcCells[k] = (v && v.toJSON) ? v.toJSON() : v; });
+      breakUndo();
+      ydoc.transact(() => {
+        // write the grafted layout onto the HOST, unlinking it (graft is local)
+        if (hostCy.get('templateId')) hostCy.delete('templateId');
+        hostCy.set('layout', tree);
+        const hcm = hostCy.get('gridCells');
+        if (hcm) {
+          hcm.delete(cellId); // target leaf is replaced by the grafted subtree
+          Object.entries(idMap).forEach(([srcId, newId]) => {
+            const rec = srcCells[srcId];
+            if (rec && rec.type && rec.type !== 'empty') hcm.set(newId, rec);
+          });
+        }
+        // Consume the source (move semantics) + cascade its arrow endpoints, so we
+        // don't leave dangling arrows in the Y.Doc (matches the deleteCards path +
+        // the LocalBoardsApp twin which deletes via deleteCards).
+        const a = arrowsArr();
+        if (a) {
+          const cardIdOf = (r) => (typeof r === 'string' ? r : (r && typeof r === 'object' && r.type === 'card' ? r.id : null));
+          for (let i = a.length - 1; i >= 0; i--) {
+            const ar = a.get(i);
+            const fromCard = cardIdOf(ar?.from ?? ar?.get?.('from'));
+            const toCard = cardIdOf(ar?.to ?? ar?.get?.('to'));
+            if (fromCard === sourceGridId || toCard === sourceGridId) a.delete(i, 1);
+          }
+        }
+        m.delete(sourceGridId);
+      }, 'local');
+    };
+    // Global sync (same board): promote an unlinked Grid's layout into a shared
+    // gridTemplates record + link the Grid to it, so any other Grid linked to the
+    // same template reflows live when this one's dividers move. Returns templateId.
+    const promoteGridToTemplate = (gridId, name = 'Grid layout') => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return null;
+      const existing = cy.get('templateId'); if (existing) return existing;
+      const layout = cy.get('layout'); if (!layout) return null;
+      const tplId = `gtpl-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      breakUndo();
+      ydoc.transact(() => {
+        ydoc.getMap('gridTemplates').set(tplId, { id: tplId, name, layout });
+        cy.set('templateId', tplId);
+        cy.delete('layout');
+      }, 'local');
+      return tplId;
+    };
+    const linkGridToTemplate = (gridId, tplId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy || !tplId) return;
+      breakUndo();
+      ydoc.transact(() => { cy.set('templateId', tplId); cy.delete('layout'); }, 'local');
+    };
+    const unlinkGrid = (gridId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const tplId = cy.get('templateId'); if (!tplId) return;
+      const tpl = ydoc.getMap('gridTemplates').get(tplId);
+      const layout = (tpl && tpl.layout) || cy.get('layout');
+      if (!layout) return;
+      breakUndo();
+      ydoc.transact(() => { cy.set('layout', layout); cy.delete('templateId'); }, 'local');
+    };
+    // Resize one Grid → if it's LINKED, every Grid sharing its template becomes the
+    // same outer size and the family re-lattices to stay a connected matrix (the
+    // whole massive grid scales as one). Unlinked → just resize that card.
+    const resizeLinkedGrids = (gridId, newW, newH) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const tplId = cy.get('templateId');
+      if (!tplId) { updateCard(gridId, { w: newW, h: newH }); return; }
+      const fam = [];
+      m.forEach((ym, id) => {
+        if (ym.get && ym.get('kind') === 'grid' && ym.get('templateId') === tplId) {
+          fam.push({ id, x: ym.get('x'), y: ym.get('y'), w: ym.get('w'), h: ym.get('h') });
+        }
+      });
+      const tiled = tileLinkedGrids(fam, newW, newH, 0);
+      updateCards(tiled.map((t) => ({ id: t.id, patch: { x: t.x, y: t.y, w: t.w, h: t.h } })));
+    };
+
+    // ── Sequences + stamping ────────────────────────────────────────────────
+    // Label-tag cells (a text cell whose html contains [#]/[A]/…) from a source
+    // Grid are CARRIED to its stamped/generated copies, so a "SHOT [#]" slate
+    // propagates while image/action cells stay blank to fill in.
+    const labelTagCellsOf = (cy) => {
+      const out = {};
+      const cm = cy.get('gridCells');
+      if (cm) cm.forEach((v, k) => {
+        const cell = (v && v.toJSON) ? v.toJSON() : v;
+        if (cell && cell.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
+      });
+      return out;
+    };
+    // Promote (if needed) so source + copies share ONE layout, and ensure the
+    // source belongs to a sequence. Must run inside a transaction. Returns
+    // { tplId, seqId, carry }.
+    const ensureTemplateAndSequence = (cy) => {
+      let tplId = cy.get('templateId');
+      if (!tplId) {
+        const layout = cy.get('layout');
+        tplId = `gtpl-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        ydoc.getMap('gridTemplates').set(tplId, { id: tplId, name: 'Grid layout', layout });
+        cy.set('templateId', tplId); cy.delete('layout');
+      }
+      let seqId = cy.get('seqId');
+      if (!seqId) {
+        seqId = `gseq-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        ydoc.getMap('gridSequences').set(seqId, { id: seqId, name: 'Sequence', pattern: 'z', format: { startAt: 1 } });
+        cy.set('seqId', seqId);
+      }
+      return { tplId, seqId, carry: labelTagCellsOf(cy) };
+    };
+    const placeLinkedGrid = (m, tplId, seqId, carry, x, y, w, h) => {
+      const id = `grid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      const neighbor = stampCreate({ z: nextZ(), id, kind: 'grid', templateId: tplId, seqId, x: Math.max(8, x), y: Math.max(8, y), w, h });
+      m.set(id, cardToYMap(neighbor));
+      const nym = m.get(id);
+      initCardGridStore(ydoc, nym);
+      const ncm = nym.get('gridCells');
+      if (ncm) Object.entries(carry).forEach(([k, val]) => ncm.set(k, val));
+      return id;
+    };
+    // Put a linked Grid family into ONE group so they move together (drag one →
+    // all move) + draw a soft outline. Reuses the source's group if it already
+    // has one, so a 3rd stamp joins the SAME group. Runs inside the caller's
+    // transaction. (Groups exist in the Yjs shell only; LocalBoardsApp no-ops.)
+    const ensureGridGroup = (m, sourceCy, memberIds) => {
+      const gm = groupsMap(); if (!gm) return null;
+      // Only reuse the source's group if it's a Grid-FAMILY group (tagged
+      // kind:'gridFamily'). Don't absorb stamped grids into a group the user made
+      // manually (e.g. Cmd+G on a Grid + an unrelated Note) — that would drag the
+      // Note along and fracture the family; make a fresh family group instead.
+      let groupId = sourceCy.get('groupId');
+      if (groupId) { const g = gm.get(groupId); if (!g || g.get('kind') !== 'gridFamily') groupId = null; }
+      if (!groupId) {
+        groupId = `g-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+        const g = new Y.Map();
+        g.set('id', groupId);
+        g.set('name', 'Grid');
+        g.set('kind', 'gridFamily');
+        g.set('outline', true);
+        g.set('color', null);
+        g.set('width', 1);
+        g.set('createdAt', Date.now());
+        g.set('createdBy', user?.id || null);
+        gm.set(groupId, g);
+      }
+      for (const id of memberIds) { const ym = m.get(id); if (ym) ym.set('groupId', groupId); }
+      return groupId;
+    };
+    // Directional "+": stamp an empty, layout-identical, linked Grid on `dir`,
+    // joined to the source's sequence and auto-numbered by position.
+    const stampGridNeighbor = (gridId, dir) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const x = cy.get('x'), y = cy.get('y'), w = cy.get('w') || 360, h = cy.get('h') || 300;
+      const gap = 0; // flush — the new Grid SHARES the edge line with the source
+      let nx = x, ny = y;
+      if (dir === 'right') nx = x + w + gap;
+      else if (dir === 'left') nx = x - w - gap;
+      else if (dir === 'bottom') ny = y + h + gap;
+      else if (dir === 'top') ny = y - h - gap;
+      breakUndo();
+      ydoc.transact(() => {
+        const { tplId, seqId, carry } = ensureTemplateAndSequence(cy);
+        const newId = placeLinkedGrid(m, tplId, seqId, carry, nx, ny, w, h);
+        ensureGridGroup(m, cy, [gridId, newId]);
+      }, 'local');
+    };
+    // Bulk matrix: replicate the source Grid into a cols×rows lattice (source at
+    // 0,0), all linked + in one sequence, numbered in reading order.
+    const bulkGenerateGrids = (gridId, cols, rows, opts = {}) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const C = Math.max(1, Math.min(50, cols | 0)), R = Math.max(1, Math.min(50, rows | 0));
+      if (C * R <= 1) return;
+      const w = cy.get('w') || 360, h = cy.get('h') || 300;
+      const x0 = cy.get('x'), y0 = cy.get('y');
+      const gx = opts.gapX ?? 0, gy = opts.gapY ?? 0; // flush — one continuous grid
+      breakUndo();
+      ydoc.transact(() => {
+        const { tplId, seqId, carry } = ensureTemplateAndSequence(cy);
+        const newIds = [];
+        for (let r = 0; r < R; r++) {
+          for (let c = 0; c < C; c++) {
+            if (r === 0 && c === 0) continue; // source occupies the first cell
+            newIds.push(placeLinkedGrid(m, tplId, seqId, carry, x0 + c * (w + gx), y0 + r * (h + gy), w, h));
+          }
+        }
+        ensureGridGroup(m, cy, [gridId, ...newIds]);
+      }, 'local');
+    };
+    const setGridSequencePattern = (seqId, pattern) => {
+      const sm = ydoc.getMap('gridSequences'); const prev = sm.get(seqId); if (!prev) return;
+      breakUndo();
+      ydoc.transact(() => { sm.set(seqId, { ...prev, pattern }); }, 'local');
+    };
+    const setGridSequenceStartAt = (seqId, startAt) => {
+      const sm = ydoc.getMap('gridSequences'); const prev = sm.get(seqId); if (!prev) return;
+      breakUndo();
+      ydoc.transact(() => { sm.set(seqId, { ...prev, format: { ...(prev.format || {}), startAt } }); }, 'local');
+    };
+
     return {
       updateCard, updateCards, deleteCard, deleteCards,
       duplicateCard, duplicateCards, addCard, addCards,
@@ -1554,8 +2108,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       createGroup, ungroup, renameGroup, setGroupOutline,
       addToGroup, removeFromGroup,
       addArrow, addFreeArrow, deleteArrows, updateArrow,
-      addNote, addTextLink, addImageAt, addPdfAt, addNewBoard, addPalette,
-      addDocCard, addScriptCard,
+      addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, addNewBoard, addPalette,
+      addDocCard, addScriptCard, addGrid,
+      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, setGridCellContent, clearGridCellContent,
+      setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd,
+      promoteGridToTemplate, linkGridToTemplate, unlinkGrid, resizeLinkedGrids, graftGridIntoCell,
+      stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern, setGridSequenceStartAt,
       addShape, addStroke, replaceStrokes, deleteStroke, deleteStrokes, clearStrokes,
       setBoardBgColor,
       setBoardCover,
@@ -1837,6 +2395,41 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
   };
 
+  // Save a user-picked (cropped) image as a board's custom thumbnail. The crop
+  // modal hands us a 1200×675 WebP blob; we overwrite the board's canonical
+  // thumb key so it shows on every surface that reads thumb_key (grid tiles,
+  // nested-board covers, public views, exports), and flag thumb_custom=true so
+  // the three auto-regen paths never clobber it.
+  const setBoardCustomThumbById = async (boardId, blob) => {
+    const wsId = boards[boardId]?.workspace_id || workspace.id;
+    try {
+      const { src } = await uploadBoardThumbnail({ workspaceId: wsId, boardId, blob, userId: user.id });
+      await updateBoardThumb(boardId, { thumbKey: src, thumbVersion: THUMB_VERSION, custom: true });
+      await refreshBoards();
+      feedback.toast({ type: 'success', message: 'Custom thumbnail set.' });
+    } catch (e) {
+      console.error('setBoardCustomThumbById failed', e);
+      feedback.toast({ type: 'error', message: 'Could not set thumbnail: ' + (e.message || e) });
+    }
+  };
+
+  // Revert to the auto-generated thumbnail: clear the custom flag and stale the
+  // stored version so the self-healing backfill (useThumbnailBackfill) renders a
+  // fresh canvas-derived preview into the same key on the next tile view.
+  const resetBoardThumbById = async (boardId) => {
+    try {
+      await updateBoardThumb(boardId, { thumbVersion: 0, custom: false });
+      // Re-arm the per-session backfill one-shot so the auto thumbnail
+      // regenerates now, not only after a page reload.
+      forgetThumbnailAttempt(boardId);
+      await refreshBoards();
+      feedback.toast({ type: 'success', message: 'Reverted to auto thumbnail.' });
+    } catch (e) {
+      console.error('resetBoardThumbById failed', e);
+      feedback.toast({ type: 'error', message: 'Could not reset thumbnail: ' + (e.message || e) });
+    }
+  };
+
   // Copy a board to the in-memory board clipboard (metadata only; the Y.Doc
   // snapshot is re-read at paste time so the copy reflects the latest state).
   const copyBoard = (board) => {
@@ -1953,11 +2546,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // (renameBoardById / deleteBoardsById / cloneBoardToPersonal). They live
   // outside the factory because they don't need a Y.Doc.
   const mainMutatorsFull = useMemo(
-    () => ({ ...mainMutators, renameBoardById, deleteBoardsById, cloneBoardToPersonal }),
+    () => ({ ...mainMutators, renameBoardById, deleteBoardsById, cloneBoardToPersonal,
+             setBoardCustomThumb: setBoardCustomThumbById, resetBoardThumb: resetBoardThumbById }),
     [mainMutators]
   );
   const splitMutatorsFull = useMemo(
-    () => ({ ...splitMutators, renameBoardById, deleteBoardsById, cloneBoardToPersonal }),
+    () => ({ ...splitMutators, renameBoardById, deleteBoardsById, cloneBoardToPersonal,
+             setBoardCustomThumb: setBoardCustomThumbById, resetBoardThumb: resetBoardThumbById }),
     [splitMutators]
   );
   // Back-compat alias — older code still refers to `mutators`.
@@ -3793,6 +4388,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const currentArrows = ybReadyForCurrent ? yb.arrows : [];
   const currentStrokes = ybReadyForCurrent ? yb.strokes : [];
 
+  // Best-effort backfill: give pre-existing video cards a first-frame poster so
+  // old clips get real previews in the list/gallery (new videos capture one on
+  // upload). Writer-only, one attempt per card per session. Runs regardless of
+  // canvas/list view since it's mounted at the Workspace level.
+  useVideoPosterBackfill({
+    cards: currentCards, canEdit: canEditCurrent,
+    workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
+    updateCardSilent: mainMutators.updateCardSilent,
+  });
+
   // Surface renderer used for both the main pane and the split pane. Reads
   // cards/arrows/strokes off whichever board's `yb` was passed in. Mutators
   // (canvas-only) are still wired against the *main* board's Y.Doc — the
@@ -3823,6 +4428,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const arrows = ready ? yh.arrows : [];
     const strokes = ready ? yh.strokes : [];
     const groups = ready ? (yh.groups || []) : [];
+    const gridTemplates = ready ? (yh.gridTemplates || {}) : {};
+    const gridSequences = ready ? (yh.gridSequences || {}) : {};
     const muts = isMain ? mainMutatorsFull : splitMutatorsFull;
     const surfaceJsx = (() => {
       if (view === 'list') return (
@@ -3835,13 +4442,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      peersHereByBoard={peersHereByBoard}
                      peersBelowByBoard={peersBelowByBoard}
                      onJumpToPeer={jumpToPeer}
+                     onDropFilesToCluster={(files) => muts.ingestFilesArranged?.(files)}
+                     recentlyAddedIds={focusRequest?.boardId === board.id ? recentlyAddedIds : null}
+                     getAwareness={yh.getAwareness}
+                     workspaceId={workspace.id}
+                     selfId={user.id}
+                     gridTemplates={gridTemplates}
                      mutators={muts} />
       );
       return (
         <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
           <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards} arrows={arrows} strokes={strokes} groups={groups}
+                         gridTemplates={gridTemplates} gridSequences={gridSequences}
                          ydoc={yd}
                          getAwareness={yh.getAwareness}
+                         focusRequest={focusRequest?.boardId === board.id ? focusRequest : null}
+                         clearFocusRequest={() => setFocusRequest(null)}
                          peersHereByBoard={peersHereByBoard}
                          peersBelowByBoard={peersBelowByBoard}
                          wsPeers={wsPeers}
@@ -4072,6 +4688,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onCreateBoardInside={createBoardInside}
             onSetBoardCover={mainMutators.setBoardCover}
             onSetBoardBgColor={setBoardBgColorById}
+            onSetBoardThumb={setBoardCustomThumbById}
+            onResetBoardThumb={resetBoardThumbById}
             onCopyBoard={copyBoard}
             onPasteBoardInto={pasteBoardInto}
             onDeleteBoard={(id) => deleteBoardsById([id])}

@@ -1,0 +1,137 @@
+// Helpers for the Grid card's Yjs shape — mirrors lib/docState.js (the doc-card
+// container precedent). A Grid card stores its per-cell content as nested Y types
+// ON ITS OWN card Y.Map, and (when LINKED) reads its layout tree from a shared
+// top-level gridTemplates map; when UNLINKED it carries its own `layout` field.
+//
+//   gridCells: Y.Map<cellId, record>   — per-cell content, keyed by layout leaf id
+//   gridMeta:  Y.Map                    — per-grid extras
+// A cell record is a plain object discriminated by `type`:
+//   { type:'empty' } | { type:'image', src, adjust, fit, pos } | { type:'text', html }
+//   | { type:'link', source, title, image, favicon, embed } | { type:'video', src }
+//   | { type:'file', fileSrc, fileName, mime, sizeBytes, ext }
+//   | { type:'board', boardId, name }   — a cluster preview (opens on click; name
+//                                          is a snapshot so a deleted cluster still reads)
+// A whole Grid dropped into a cell is NOT a cell record: it grafts into the host
+// layout tree (see gridLayout.graftSubtree), so it edits inline like any nesting.
+//
+// Top-level (per-board) types, created in yboard.js loadYBoard:
+//   gridTemplates: Y.Map<id, { id, name, layout }>   — shared layout (global sync)
+//   gridSequences: Y.Map<id, { id, name, pattern, format }>  — sequence config
+//
+// readGridModel is the single normalized read that BOTH the Yjs path and the
+// local array-state path (LocalBoardsApp, which has no Yjs) go through.
+
+import * as Y from 'yjs';
+
+// Origin for grid STRUCTURAL init only. Layout + cell-content edits use 'local'
+// (tracked by the board UndoManager) so Cmd+Z undoes a divider drag / image drop
+// — grids have no competing editor history, so unlike doc cards they don't need
+// an off-stack origin. Like initCardDocStore, this runs reentrant inside addGrid's
+// 'local' transact, so the OUTER 'local' wins and create+init is one undo step.
+const GRID_ORIGIN = 'grid-struct';
+
+// Initialize the Y types on a fresh Grid card YMap. Idempotent. Call once when a
+// new Grid card is created (via addCard's afterInsert).
+export function initCardGridStore(ydoc, cardYMap) {
+  if (!cardYMap) return;
+  ydoc.transact(() => {
+    if (!cardYMap.get('gridCells')) cardYMap.set('gridCells', new Y.Map());
+    if (!cardYMap.get('gridMeta')) cardYMap.set('gridMeta', new Y.Map());
+  }, GRID_ORIGIN);
+}
+
+export function gridCellsMap(cardYMap) { return (cardYMap && cardYMap.get) ? (cardYMap.get('gridCells') || null) : null; }
+export function gridMetaMap(cardYMap) { return (cardYMap && cardYMap.get) ? (cardYMap.get('gridMeta') || null) : null; }
+
+// Live cardYMap for a grid id (Yjs path); null in local mode.
+export function gridCardYMap(ydoc, cardId) {
+  return ydoc?.getMap?.('cards')?.get?.(cardId) || null;
+}
+
+// Normalized { layout, cells, templateId, seqId } for a grid card. Resolves the
+// layout from the shared template when linked, and reads cell content from the
+// live gridCells Y.Map (Yjs) or the card.cells plain field (local mode).
+export function readGridModel(card, ydoc, templates) {
+  const templateId = card?.templateId || null;
+  const tpl = templateId ? (templates && templates[templateId]) : null;
+  const layout = templateId
+    ? ((tpl && tpl.layout) || card?.layout || null)
+    : (card?.layout || null);
+  // Shared "family" text style: for a LINKED grid it lives on the shared template
+  // so every linked grid follows it live; for an UNLINKED grid it lives on the card
+  // itself. A per-cell `style` override (frozen "only this box") merges on top in
+  // the render (see effectiveCellStyle).
+  const familyTextStyle = (templateId ? (tpl && tpl.textStyle) : card?.textStyle) || null;
+  let cells = {};
+  const ym = gridCardYMap(ydoc, card?.id);
+  const cm = ym && ym.get && ym.get('gridCells');
+  if (cm && typeof cm.forEach === 'function') {
+    cm.forEach((v, k) => { cells[k] = (v && typeof v.toJSON === 'function') ? v.toJSON() : v; });
+  } else if (card?.cells && typeof card.cells === 'object') {
+    cells = { ...card.cells };
+  }
+  return { layout, cells, templateId, seqId: card?.seqId || null, familyTextStyle };
+}
+
+// Resolve the effective text style for one cell: the family (shared) style with the
+// cell's own `style` override (a "pinned / only this box" cell) layered on top.
+export function effectiveCellStyle(familyTextStyle, cell) {
+  const base = familyTextStyle || {};
+  const own = (cell && cell.style) || {};
+  const eff = { ...base, ...own };
+  return Object.keys(eff).length ? eff : null;
+}
+
+// True when a cell has been pinned to its own frozen style (ignores family changes).
+export function isCellPinned(cell) {
+  return !!(cell && cell.style && Object.keys(cell.style).length);
+}
+
+// ── cell content (Yjs path) ──────────────────────────────────────────────────
+export function setGridCell(ydoc, cardYMap, cellId, patch, origin = 'local') {
+  const cm = gridCellsMap(cardYMap);
+  if (!cm) return;
+  ydoc.transact(() => {
+    // A patch carrying a `type` is a FULL content write (chooser / paste / drop) →
+    // REPLACE so no stale type-specific fields (an old link's image/favicon, an
+    // image's pos) leak when overwriting an occupied cell. A type-less patch
+    // (async link-preview backfill {title,image}, the text editor {html}) is a
+    // partial update → MERGE onto the existing record. The cell's `style` override
+    // (a pinned "only this box" text style) is DISPLAY state, not content, so it
+    // survives a content replace.
+    const prev = cm.get(cellId) || {};
+    cm.set(cellId, patch && patch.type
+      ? { ...(prev.style ? { style: prev.style } : {}), ...patch }
+      : { ...prev, ...patch });
+  }, origin);
+}
+export function clearGridCell(ydoc, cardYMap, cellId, origin = 'local') {
+  const cm = gridCellsMap(cardYMap);
+  if (!cm) return;
+  ydoc.transact(() => { cm.set(cellId, { type: 'empty' }); }, origin);
+}
+
+// ── shared layout templates (global sync) ────────────────────────────────────
+export function upsertGridTemplate(ydoc, id, patch, origin = 'local') {
+  const m = ydoc.getMap('gridTemplates');
+  ydoc.transact(() => {
+    const prev = m.get(id) || { id };
+    m.set(id, { ...prev, ...patch, id });
+  }, origin);
+}
+// Replace a template's layout tree → every linked Grid reflows live.
+export function setTemplateLayout(ydoc, templateId, layout, origin = 'local') {
+  const m = ydoc.getMap('gridTemplates');
+  const prev = m.get(templateId);
+  if (!prev) return;
+  ydoc.transact(() => { m.set(templateId, { ...prev, layout }); }, origin);
+}
+
+// ── sequences ────────────────────────────────────────────────────────────────
+export function upsertGridSequence(ydoc, id, patch, origin = 'local') {
+  const m = ydoc.getMap('gridSequences');
+  ydoc.transact(() => {
+    const prev = m.get(id) || { id };
+    m.set(id, { ...prev, ...patch, id });
+  }, origin);
+}

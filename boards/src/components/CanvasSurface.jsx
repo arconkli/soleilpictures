@@ -2,11 +2,12 @@ import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallbac
 import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
+import { spatialOrder } from '../lib/gridSequence.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
-  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard,
+  PaletteCard, DocCard, ScheduleCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
 } from './cards.jsx';
 import { RichDocCard } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
@@ -28,8 +29,8 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import {
   Eye, EyeOff, MessageCircle,
-  MousePointer2, Hand, NotePencil, Image as ImageIcon, LayoutGrid, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard,
+  MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
@@ -52,6 +53,7 @@ import { ImageAdjustFilters } from './ImageAdjustFilters.jsx';
 import { ImageEditPopover } from './ImageEditPopover.jsx';
 import { ImageEditModal } from './ImageEditModal.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
+import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { setClipboard, getClipboard, clipboardSize, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
@@ -93,6 +95,7 @@ import {
   computeSnap as computeSnapPure, computeResizeSnap as computeResizeSnapPure,
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
+import { classifyDropFile } from '../lib/fileIngest.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
@@ -328,8 +331,39 @@ function GuideLabel({ cx, cy, text, zoom }) {
   );
 }
 
+// Card kinds that can become grid-cell content when dragged onto a cell (see
+// routeCardIntoCell). Anything else keeps dragging/repositioning normally.
+const CELL_DROP_KINDS = new Set(['image', 'note', 'textlink', 'link', 'board', 'boardlink', 'video', 'file', 'pdf', 'grid']);
+
+// Inline "make a grid" control shown below a selected Grid: type cols × rows and
+// it replicates the Grid into a flush, connected matrix (the effortless path to a
+// massive grid). Module-level so its input state survives canvas re-renders.
+function GridMatrixControl({ onGenerate }) {
+  const [cols, setCols] = useState('5');
+  const [rows, setRows] = useState('5');
+  const submit = () => {
+    const c = Math.max(1, Math.min(50, parseInt(cols, 10) || 1));
+    const r = Math.max(1, Math.min(50, parseInt(rows, 10) || 1));
+    if (c * r <= 1) return;
+    onGenerate(c, r);
+  };
+  const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
+  return (
+    <div className="grid-matrix-ctl" onPointerDown={(e) => e.stopPropagation()}>
+      <input type="number" min="1" max="50" value={cols} aria-label="Columns"
+        onChange={(e) => setCols(e.target.value)} onKeyDown={onKey} />
+      <span className="gm-x">×</span>
+      <input type="number" min="1" max="50" value={rows} aria-label="Rows"
+        onChange={(e) => setRows(e.target.value)} onKeyDown={onKey} />
+      <button type="button" onClick={submit}>Make grid</button>
+    </div>
+  );
+}
+
 export function CanvasSurface({
   board, boards, boardsReady = true, cards, arrows, strokes, groups = [],
+  gridTemplates = {},      // id → { id, name, layout }  — shared Grid layouts
+  gridSequences = {},      // id → { id, name, pattern, format } — sequence config
   ydoc, // raw Y.Doc — needed by doc cards to access their per-card YMap
   getAwareness,            // () => Awareness | null  — for live presence
   currentUser,             // { id, name, color }     — for awareness localState
@@ -376,6 +410,10 @@ export function CanvasSurface({
   showcaseArm = 'A',       // welcome_showcase experiment arm: 'B' → root was
                            // seeded with the brand demo; show the "Clear & try it
                            // yourself" banner while its cards are present.
+  focusRequest = null,     // { boardId, ids:[], token } — after a list-view file
+                           // drop, select + frame the newly-arranged cards once
+                           // the user switches to canvas ("where did my files go?").
+  clearFocusRequest = null,// () => void — consume the request after framing.
 }) {
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
@@ -747,6 +785,40 @@ export function CanvasSurface({
   // a captured closure goes stale across React re-renders).
   const [boardDropTarget, setBoardDropTarget] = useState(null);
   const boardDropTargetRef = useRef(null);
+  // Drop an existing canvas card INTO a grid cell. Tracks the {gridId, cellId}
+  // under the cursor during a card drag (ref for the live drop, state for the
+  // .is-cell-drop highlight).
+  const [cellDropTarget, setCellDropTarget] = useState(null);
+  const cellDropTargetRef = useRef(null);
+  const updateCellDropTarget = useCallback((next) => {
+    const a = cellDropTargetRef.current, b = next;
+    const same = (!a && !b) || (a && b && a.gridId === b.gridId && a.cellId === b.cellId);
+    cellDropTargetRef.current = next;
+    if (!same) setCellDropTarget(next);
+  }, []);
+  // Convert a dragged canvas card into the content of a grid cell. Content cards
+  // (image/note/link/file/video) MOVE (consumed); a board → a board cell (preview,
+  // reference kept); a grid → grafted inline (graftGridIntoCell consumes it).
+  // Returns true if the drop was consumed into the cell (so the caller skips the
+  // normal move-commit); false for kinds with no cell representation (doc/shape/
+  // palette/…) so those keep dragging/repositioning normally.
+  const routeCardIntoCell = useCallback((card, gridId, cellId) => {
+    if (!card || !gridId || !cellId) return false;
+    const k = card.kind;
+    if (k === 'grid') { mutators.graftGridIntoCell?.(gridId, cellId, card.id); return true; }
+    let patch = null, consume = true;
+    if (k === 'image') patch = { type: 'image', src: card.src, fit: 'cover', ...(card.adjust ? { adjust: card.adjust } : {}), ...(card.pos ? { pos: card.pos } : {}) };
+    else if (k === 'note' || k === 'textlink') patch = { type: 'text', html: card.html || '' };
+    else if (k === 'link') patch = { type: 'link', source: card.source || card.link, link: card.link || card.source, title: card.title, image: card.image, favicon: card.favicon, ...(card.embed ? { embed: card.embed } : {}) };
+    else if (k === 'board') { patch = { type: 'board', boardId: card.id, name: boards?.[card.id]?.name || null }; consume = false; }
+    else if (k === 'boardlink' && card.target) { patch = { type: 'board', boardId: card.target, name: boards?.[card.target]?.name || null }; consume = false; }
+    else if (k === 'video') patch = { type: 'video', src: card.src };
+    else if (k === 'file' || k === 'pdf') patch = { type: 'file', fileSrc: card.fileSrc || card.src, fileName: card.fileName || card.name, mime: card.mime, sizeBytes: card.sizeBytes, ext: card.ext };
+    if (!patch) return false;
+    mutators.setGridCellContent?.(gridId, cellId, patch);
+    if (consume) mutators.deleteCards?.([card.id]);
+    return true;
+  }, [mutators, boards]);
   // Tracks the last endpoint-handle click so a second click within
   // ~350ms on the same endpoint spawns a sibling line/arrow (see
   // onHandleDown's dblclick branch).
@@ -783,6 +855,34 @@ export function CanvasSurface({
   // an image card on this board samples a pixel and adds it as a swatch
   // to that palette. Escape exits the mode.
   const [eyedropFor, setEyedropFor] = useState(null);
+  // Custom-thumbnail flow for a board card: a hidden file input (opened from the
+  // card's right-click menu) then a crop/reposition modal on the picked file.
+  const thumbInputRef = useRef(null);
+  const pendingThumbBoardId = useRef(null);
+  const [thumbCropFor, setThumbCropFor] = useState(null);   // { boardId, file } | null
+  const [thumbSaving, setThumbSaving] = useState(false);
+  const triggerThumbPick = (boardId) => {
+    pendingThumbBoardId.current = boardId;
+    const input = thumbInputRef.current;
+    if (input) { input.value = ''; input.click(); }
+  };
+  const onThumbFileChange = (e) => {
+    const file = e.target.files?.[0];
+    const boardId = pendingThumbBoardId.current;
+    pendingThumbBoardId.current = null;
+    if (file && boardId) setThumbCropFor({ boardId, file });
+  };
+  const saveThumbCrop = async (blob) => {
+    const boardId = thumbCropFor?.boardId;
+    if (!boardId) { setThumbCropFor(null); return; }
+    setThumbSaving(true);
+    try { await mutators.setBoardCustomThumb?.(boardId, blob); }
+    finally { setThumbSaving(false); setThumbCropFor(null); }
+  };
+  // Annotation placement mode armed from the rail "+" menu: 'comment' | 'vote'
+  // | null. While set, the next canvas click drops a point annotation and the
+  // next card click attaches one to that card (mirrors the card right-click).
+  const [annotPlacing, setAnnotPlacing] = useState(null);
   // Sketch pad — full-screen overlay drawing modal. When closed with
   // strokes, they're committed to the current board's strokes Y.Array.
   const [sketchpadOpen, setSketchpadOpen] = useState(false);
@@ -1188,7 +1288,7 @@ export function CanvasSurface({
     }
   };
   // Place tools (click empty canvas to drop a card); 'draw'/'arrow' are not.
-  const PLACE_TOOLS = ['text', 'image', 'board', 'shape', 'palette'];
+  const PLACE_TOOLS = ['text', 'image', 'doc', 'board', 'grid', 'shape', 'palette'];
 
   // Drop the armed place-tool's card at `pos` — wherever the click landed,
   // empty canvas OR on top of an existing card. Shared by the background placer
@@ -1197,10 +1297,13 @@ export function CanvasSurface({
   // as "the app is broken"). Returns true if it handled the tool.
   const placeToolAt = (pos) => {
     if (!PLACE_TOOLS.includes(selectedTool)) return false;
+    markViewSettled(); // keep the placed card where clicked (no first-card auto-fit)
     noteCreateIntent('tool_place');
     switch (selectedTool) {
       case 'board':   mutators.addNewBoard?.(pos); break;
+      case 'grid':    mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); break;
       case 'image':   mutators.addImageAt?.(pos);  break;
+      case 'doc':     mutators.addDocCard?.(pos);  break;
       case 'text':    mutators.addNote?.(pos);     break;
       case 'palette': mutators.addPalette?.(pos);  break;
       case 'shape':   mutators.addShape?.(pos, shapeOptions); break;
@@ -1236,6 +1339,12 @@ export function CanvasSurface({
     // the previous board's viewport.
     fitOnceForRef.current = null;
   }, [board.id]);
+  // Mark the camera "settled" for this board so the empty→first-card auto-fit
+  // below won't zoom-frame (and recenter) a card the user just placed. Called
+  // synchronously from every user create entry point BEFORE the card is added,
+  // so the fit useLayoutEffect early-returns. Initial-load sync-retry is
+  // unaffected (it runs before any user placement).
+  const markViewSettled = useCallback(() => { fitOnceForRef.current = board.id; }, [board.id]);
   // useLayoutEffect (not useEffect): runs after DOM mutations but
   // BEFORE the browser paints. setState inside a layout effect
   // triggers a sync re-render in the same commit phase, so the cards
@@ -1385,6 +1494,62 @@ export function CanvasSurface({
     });
   }, [cards, selected, enableSmoothTransform]);
 
+  // Fit-frame an EXPLICIT set of card ids (not the `selected` state, which
+  // updates async). Same math as zoomToSelection. Returns false if the ids
+  // aren't on the board yet or the wrap has no real size — the caller retries.
+  const frameCards = useCallback((ids) => {
+    if (!wrapRef.current || !ids?.length) return false;
+    const idSet = new Set(ids);
+    const sel = (cards || []).filter(c => idSet.has(c.id));
+    if (!sel.length) return false;
+    const r = wrapRef.current.getBoundingClientRect();
+    if (r.width < 50 || r.height < 50) return false;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of sel) {
+      minX = Math.min(minX, c.x); minY = Math.min(minY, c.y);
+      maxX = Math.max(maxX, c.x + c.w); maxY = Math.max(maxY, c.y + c.h);
+    }
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
+    const margin = 120;
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(
+      (r.width - margin * 2) / contentW,
+      (r.height - margin * 2) / contentH,
+    )));
+    enableSmoothTransform();
+    setZoom(z);
+    setPan({
+      x: (r.width  - contentW * z) / 2 - minX * z,
+      y: (r.height - contentH * z) / 2 - minY * z,
+    });
+    return true;
+  }, [cards, enableSmoothTransform]);
+
+  // After a list-view file drop, when the user switches to canvas: select the
+  // freshly-arranged cards and frame them so the batch is impossible to miss.
+  // Fires once per request token; retries via rAF until the cards have synced
+  // in and the wrap has a real size.
+  const focusTokenRef = useRef(null);
+  useEffect(() => {
+    const req = focusRequest;
+    if (!req || !req.ids?.length) return;
+    if (focusTokenRef.current === req.token) return;
+    let tries = 0, raf = 0;
+    const attempt = () => {
+      const idSet = new Set(req.ids);
+      const present = (cards || []).some(c => idSet.has(c.id));
+      if (present && frameCards(req.ids)) {
+        focusTokenRef.current = req.token;
+        setSelected(new Set(req.ids));
+        clearFocusRequest?.();
+        return;
+      }
+      if (tries++ < 40) raf = requestAnimationFrame(attempt);
+    };
+    raf = requestAnimationFrame(attempt);
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, [focusRequest, cards, frameCards, clearFocusRequest]);
+
   // Arrange the current selection in z-order (keyboard [ / ] shortcuts). Mirrors
   // the context-menu arrangeRun for the 'forward'/'backward' ops.
   const arrangeSelected = useCallback((op) => {
@@ -1407,7 +1572,7 @@ export function CanvasSurface({
     mutators.createGroup?.({ name: 'Group', cardIds: [...selected] });
   }, [selected, mutators]);
 
-  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); }, [selectedTool, board.id]);
+  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); setAnnotPlacing(null); }, [selectedTool, board.id]);
   useEffect(() => {
     setSelected(new Set());
     setSelectedStrokes(new Set());
@@ -2024,6 +2189,7 @@ export function CanvasSurface({
       id: `vid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
       kind: 'video',
       src: up.src,
+      ...(up.poster ? { poster: up.poster } : {}),
       x: Math.round(cx - w / 2),
       y: Math.round(cy - h / 2),
       w, h,
@@ -2060,35 +2226,29 @@ export function CanvasSurface({
   const ingestFiles = useCallback(async (fileList, cx, cy) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
-    const FREE_VIDEO_CAP = 30 * 1024 * 1024;
-    const FREE_AUDIO_CAP = 50 * 1024 * 1024;
-    const FREE_PDF_CAP   = 50 * 1024 * 1024;
     const canAttemptFiles = !(ownsWorkspace && !isPaidPlan);
     const blockedForUpgrade = [];
     let offsetX = 0;
     for (const f of files) {
-      const isImage = f.type.startsWith('image/');
-      const isVideo = f.type.startsWith('video/');
-      const isAudio = f.type.startsWith('audio/');
-      // Some browsers report an empty type for .pdf picks/drops — match the extension too.
-      const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+      // Shared routing/caps (lib/fileIngest.js) so canvas + list agree.
+      const c = classifyDropFile(f, { canAttemptFiles });
       try {
-        if (isImage) {
+        if (c.route === 'image') {
           // Optimistic — adds the card and uploads in the background so
           // multi-file drops aren't blocked one at a time.
           optimisticDropImage(f, cx + offsetX, cy); offsetX += 260;
-        } else if (isVideo && f.size <= FREE_VIDEO_CAP) {
+        } else if (c.route === 'video') {
           await dropVideoFile(f, cx + offsetX, cy, canAttemptFiles); offsetX += 320;
-        } else if (isAudio && f.size <= FREE_AUDIO_CAP) {
+        } else if (c.route === 'audio') {
           await dropAudioFile(f, cx + offsetX, cy); offsetX += 380;
-        } else if (isPdf && f.size <= FREE_PDF_CAP) {
+        } else if (c.route === 'pdf') {
           optimisticDropPdf(f, cx + offsetX, cy); offsetX += 320;
-        } else if (!canAttemptFiles) {
+        } else if (c.route === 'blocked') {
           blockedForUpgrade.push(f);
-        } else if (isVideo || isAudio) {
+        } else if (c.route === 'largeMedia') {
           // Over-cap clip — still an inline media card, uploaded via multipart.
-          dropLargeMedia(f, isVideo ? 'video' : 'audio', cx + offsetX, cy);
-          offsetX += isVideo ? 320 : 380;
+          dropLargeMedia(f, c.kind, cx + offsetX, cy);
+          offsetX += c.kind === 'video' ? 320 : 380;
         } else {
           // PDFs over the inline cap + every other type → downloadable file card.
           optimisticDropFile(f, cx + offsetX, cy); offsetX += 260;
@@ -2722,6 +2882,29 @@ export function CanvasSurface({
     };
 
     const onPaste = async (e) => {
+      // 0) A grid cell is focused → paste anything INTO that cell (auto-formatted:
+      //    image/file → upload, URL → link, text → text). This runs BEFORE the
+      //    isEditorTarget guard on purpose: clicking a cell sets focus STATE but not
+      //    DOM focus, so a stale contenteditable (a note you were just editing —
+      //    clicking a non-focusable cell div doesn't blur it) would otherwise trip
+      //    the guard and the image would land on the canvas. Only defer to the editor
+      //    when the caret is genuinely inside THIS cell's own text editor (so native
+      //    text paste into a text cell still works).
+      const fc = focusedCellRef.current;
+      if (fc && canEdit) {
+        const ae = document.activeElement;
+        let typingInThisCell = false;
+        if (ae && ae.isContentEditable) {
+          const cellEl = ae.closest?.('[data-cell-id]');
+          typingInThisCell = cellEl?.getAttribute('data-cell-id') === fc.cellId;
+        }
+        if (!typingInThisCell) {
+          e.preventDefault();
+          await pasteIntoCell(fc.gridId, fc.cellId, e.clipboardData);
+          return;
+        }
+      }
+
       if (isEditorTarget(e)) return;
 
       // 1) Image in OS clipboard wins outright.
@@ -2859,6 +3042,7 @@ export function CanvasSurface({
         if (e.key === 'v' || e.key === 'V') { e.preventDefault(); setSelectedTool('select'); return; }
         if (e.key === 'h' || e.key === 'H') { e.preventDefault(); setSelectedTool('pan'); return; }
         if (e.key === 'n' || e.key === 'N') { e.preventDefault(); setSelectedTool('text'); return; }
+        if (e.key === 'g' || e.key === 'G') { e.preventDefault(); setSelectedTool('grid'); return; }
         if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setSelectedTool('draw'); return; }
         if (e.key === 'a' || e.key === 'A') { e.preventDefault(); setSelectedTool('arrow'); return; }
         if (e.key === '[') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('backward'); return; }
@@ -2888,6 +3072,7 @@ export function CanvasSurface({
         e.preventDefault();
         if (ctx.open || bgCtx.open) { setCtx(c => ({ ...c, open: false })); setBgCtx(c => ({ ...c, open: false })); return; }
         if (addMenuOpen) { setAddMenuOpen(false); return; }
+        if (annotPlacing) { setAnnotPlacing(null); return; }
         if (arrowFrom || activeStroke || activeFreeArrow) { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); return; }
         if (selectedTool !== 'select') { setSelectedTool('select'); return; }
         if (selected.size || selectedStrokes.size || selectedArrows.size) {
@@ -2900,7 +3085,7 @@ export function CanvasSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
-      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool]);
+      ctx.open, bgCtx.open, addMenuOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
   // On each undoable action the UndoManager fires 'stack-item-added'; we stash
@@ -3138,6 +3323,11 @@ export function CanvasSurface({
   const onCardPointerDown = (e, c) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
+    // Selecting any card that isn't a grid cell drops grid-cell focus so a
+    // following paste isn't misrouted into a stale cell. (A grid cell's own
+    // onPointerDownCapture sets focus first; its target IS a [data-cell-id], so
+    // this leaves it intact.)
+    if (focusedCellRef.current && !e.target.closest?.('[data-cell-id]')) focusCell(null, null);
     // Focus view = "just looking": tap an image to open it fullscreen, drag to
     // pan (never move or select the card). Works in any tier — browsing intent
     // overrides edit affordances — and mirrors the read-only clean-tap pattern
@@ -3211,6 +3401,16 @@ export function CanvasSurface({
       e.stopPropagation();
       e.preventDefault();
       sampleImagePixel(e, c, eyedropFor);
+      return;
+    }
+    // Annotation placement (armed from the + menu) — clicking any card attaches
+    // the comment/vote to it, mirroring the card right-click "Add comment/vote".
+    if (annotPlacing) {
+      e.stopPropagation();
+      e.preventDefault();
+      const anchor = { kind: 'card', id: c.id };
+      if (annotPlacing === 'vote') addVoteCardAt(anchor); else promptComment(anchor);
+      setAnnotPlacing(null);
       return;
     }
     if (spaceDown || selectedTool === 'pan') { startPan(e); return; }
@@ -3549,6 +3749,28 @@ export function CanvasSurface({
         }
       }
       updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
+      // Grid-cell drop target: walk the same stack for a [data-cell-id] inside a
+      // grid that ISN'T part of the dragged set (can't drop a grid into its own
+      // cell). A board drop wins over a cell drop (handled first → we clear the
+      // cell target when a board is targeted).
+      // Only a SINGLE card of a kind that can become cell content highlights a
+      // cell — so a multi-select drag or an unsupported kind (doc/shape/palette/…)
+      // never shows a misleading drop affordance (and won't snap back on release).
+      let nextCell = null;
+      const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
+      if (!nextDropTarget && CELL_DROP_KINDS.has(soloKind) && Math.abs(dx) + Math.abs(dy) > 4) {
+        const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
+        for (const el of stack) {
+          const cellEl = el?.closest?.('[data-cell-id]');
+          if (!cellEl) continue;
+          const gridEl = cellEl.closest('[data-grid-id]');
+          const gid = gridEl?.getAttribute?.('data-grid-id');
+          if (!gid || dragIds.includes(gid)) continue; // not into the dragged grid itself
+          nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id') };
+          break;
+        }
+      }
+      updateCellDropTarget(nextCell);
       // Live cross-pane / inbox hover signal — other panes use this to
       // highlight themselves as drop targets while the pointer is over them.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
@@ -3624,6 +3846,19 @@ export function CanvasSurface({
       // committed position. (The Y.Doc updateCards call below propagates
       // the final position via Yjs sync.)
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
+      // ── Drop a single card INTO a grid cell (auto-formats by kind) ──
+      const cellTarget = cellDropTargetRef.current;
+      updateCellDropTarget(null);
+      if (cellTarget && (Math.abs(dx) + Math.abs(dy) > 4)) {
+        const moved = dragIds.map(id => cardById[id]).filter(Boolean);
+        // Only short-circuit the normal move if the card actually became cell
+        // content; an unsupported kind (doc/shape/palette/…) falls through and
+        // repositions normally instead of silently snapping back.
+        if (moved.length === 1 && routeCardIntoCell(moved[0], cellTarget.gridId, cellTarget.cellId)) {
+          setDrag(null);
+          return;
+        }
+      }
       // ── Same-canvas drop onto a board card (move INTO that board) ──
       // Read from the ref — the state captured in this closure is stale
       // across re-renders during the drag.
@@ -3866,6 +4101,7 @@ export function CanvasSurface({
       pendingLiveDrag = null;
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
       updateBoardDropTarget(null);
+      updateCellDropTarget(null);
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
       setSnapHints(null);
       setDrag(null);
@@ -3887,6 +4123,7 @@ export function CanvasSurface({
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
       cleanupTouchHold();
       updateBoardDropTarget(null);
+      updateCellDropTarget(null);
       setSnapHints(null);
       setDrag(null);
     };
@@ -4029,7 +4266,10 @@ export function CanvasSurface({
             ? (noteHeightMode && newH !== noteMeasurer.cardHeightAt(newW))
             : true;
         }
-        mutators.updateCard?.(c.id, patch);
+        // Grids: resize the whole LINKED family + re-tile so a connected matrix
+        // scales as one unit (unlinked Grids just resize themselves).
+        if (c.kind === 'grid' && mutators.resizeLinkedGrids) mutators.resizeLinkedGrids(c.id, newW, newH);
+        else mutators.updateCard?.(c.id, patch);
       }
       noteMeasurer?.destroy();
       noteMeasurer = null;
@@ -4519,6 +4759,29 @@ export function CanvasSurface({
           { id: 'sw-4', label: '4 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 4 }) },
           { id: 'sw-8', label: '8 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 8 }) },
         ]});
+      } else if (c.kind === 'grid') {
+        const linked = !!c.templateId;
+        items.push({
+          id: 'grid-link',
+          label: linked ? 'Unlink layout' : 'Share layout',
+          run: () => { if (linked) mutators.unlinkGrid?.(c.id); else mutators.promoteGridToTemplate?.(c.id); },
+        });
+        items.push({ id: 'grid-matrix', label: 'Generate matrix…', run: async () => {
+          const v = await feedback.prompt({ title: 'Generate a matrix', label: 'Columns × Rows', placeholder: '6 x 3', defaultValue: '3 x 2', confirmLabel: 'Generate' });
+          if (!v) return;
+          const mt = String(v).match(/(\d+)\s*[x×,]\s*(\d+)/i);
+          if (!mt) { feedback.toast({ type: 'error', message: 'Enter dimensions like 6 x 3.' }); return; }
+          mutators.bulkGenerateGrids?.(c.id, parseInt(mt[1], 10), parseInt(mt[2], 10));
+        }});
+        if (c.seqId) {
+          const seq = gridSequences[c.seqId];
+          const pat = seq?.pattern || 'z';
+          items.push({ id: 'grid-order', label: 'Reading order', submenu: [
+            { id: 'ord-z', label: `Z — rows, left→right${pat === 'z' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'z') },
+            { id: 'ord-n', label: `N — columns, top→bottom${pat === 'n' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'n') },
+            { id: 'ord-snake', label: `Snake — alternating rows${pat === 'snake' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'snake') },
+          ]});
+        }
       } else if (c.kind === 'board') {
         items.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
@@ -4532,6 +4795,12 @@ export function CanvasSurface({
             run: () => mutators.setBoardCover?.(c.id, k === 'neutral' ? null : k),
           })),
         ]});
+        items.push({ id: 'custom-thumb', label: 'Upload custom thumbnail…',
+          run: () => triggerThumbPick(c.id) });
+        if (target?.thumb_custom) {
+          items.push({ id: 'reset-thumb', label: 'Reset to auto thumbnail',
+            run: () => mutators.resetBoardThumb?.(c.id) });
+        }
         if (target && personalWorkspaceId && target.workspace_id !== personalWorkspaceId) {
           items.push({ id: 'clone', label: 'Copy to my workspace', run: () => mutators.cloneBoardToPersonal?.(c.id) });
         }
@@ -4852,6 +5121,7 @@ export function CanvasSurface({
     if (e.button !== 0) return;
     if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
 
+    if (focusedCellRef.current) focusCell(null, null); // clicking the canvas drops cell focus
     setAddMenuOpen(false);
     closeCardMenu();
     setBgCtx(b => ({ ...b, open: false }));
@@ -5140,6 +5410,22 @@ export function CanvasSurface({
       return;
     }
 
+    // Annotation placement (armed from the + menu) — clicking empty canvas
+    // drops a point comment/vote here. Clicking a card is handled in
+    // onCardPointerDown (attaches to that card); this is the empty-space path.
+    // preventDefault suppresses the trailing compatibility mousedown — without
+    // it, the comment draft we just opened would be instantly cancelled by its
+    // own outside-pointerdown/mousedown listener firing on the same press.
+    if (annotPlacing) {
+      e.preventDefault();
+      e.stopPropagation();
+      const pos = clientToCanvas(e.clientX, e.clientY);
+      const anchor = { kind: 'point', x: pos.x, y: pos.y };
+      if (annotPlacing === 'vote') addVoteCardAt(anchor); else promptComment(anchor);
+      setAnnotPlacing(null);
+      return;
+    }
+
     if (selectedTool !== 'select') {
       // board/image/text/palette drop at the click via the shared placer;
       // shape (drag-to-draw) and draw/arrow were already handled above.
@@ -5276,7 +5562,9 @@ export function CanvasSurface({
   // partition card-creating actions from annotations; `icon` is consumed by
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
-    { id: 'board',   group: 'card', label: 'Cluster', icon: LayoutGrid,    run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
+    { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method); mutators.addNewBoard?.(pos); } },
+    { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.() },
+    { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method); mutators.addImageAt?.(pos); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method); openFilePicker(pos); } },
     { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method); mutators.addNote?.(pos); } },
@@ -5431,18 +5719,37 @@ export function CanvasSurface({
     const pos = (bgCtx.open && Number.isFinite(bgCtx.x) && Number.isFinite(bgCtx.y))
       ? clientToCanvas(bgCtx.x, bgCtx.y)
       : (bgCtx.canvasPos || lastMouseCanvasRef.current);
-    // Shared add actions (see buildAddActions). The desktop menu keeps its
-    // own labels/structure: the 7 card types nest under an "Add" submenu,
-    // while Comment/Vote/Link stay top-level with their longer labels.
+    // Shared add actions (see buildAddActions). The right-click "Add" is the
+    // COMPLETE catalog — every card type + linked cluster + link + the two
+    // annotations + the Draw/Arrow tool-modes — grouped under section headers
+    // so it stays scannable. Script is intentionally omitted (write scripts
+    // inside a doc). Comment/Vote/Link no longer sit loose at the top level.
     const addActions = buildAddActions(pos, 'context_menu');
     const byId = (id) => addActions.find(a => a.id === id);
+    // Settle the camera only when a create actually RUNS (not on menu open), so a
+    // right-click during a slow content load doesn't defeat the late-content auto-fit.
+    const settled = (fn) => () => { markViewSettled(); return fn?.(); };
+    const sub = (id, labelOverride) => {
+      const a = byId(id);
+      return a ? { id: a.id, label: labelOverride || a.label, run: settled(a.run) } : null;
+    };
+    const addSubmenu = [
+      { header: 'Cards' },
+      sub('note', 'Note'), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('doc'), sub('file'),
+      { divider: true },
+      { header: 'Visual' },
+      sub('shape'), sub('palette', 'Palette'),
+      { id: 'draw', label: 'Draw', run: settled(() => setSelectedTool('draw')) },
+      { divider: true },
+      { header: 'Web' },
+      sub('addurl', 'Link'),
+      { divider: true },
+      { header: 'Annotate' },
+      sub('comment'), sub('vote'),
+      { id: 'arrow', label: 'Arrow', run: settled(() => setSelectedTool('arrow')) },
+    ].filter(Boolean);
     return [
-      { id: 'add', label: 'Add', submenu: addActions
-        .filter(a => a.group === 'card' && a.id !== 'addurl')
-        .map(a => ({ id: a.id, label: a.label, run: a.run })) },
-      { id: 'comment', label: 'Add comment', run: byId('comment').run },
-      { id: 'vote', label: 'Add vote', run: byId('vote').run },
-      { id: 'addurl', label: 'Add link…', run: byId('addurl').run },
+      { id: 'add', label: 'Add', submenu: addSubmenu },
       { divider: true },
       { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
         shortcut: `${cmdKey}V`, disabled: clipboardSize() === 0,
@@ -5944,6 +6251,201 @@ export function CanvasSurface({
     return out;
   }, [marquee, cards]);
 
+  // Spatial sequence numbering: for each named sequence, read its member Grids
+  // in the chosen pattern and map gridId → 0-based index. Keyed on card positions
+  // + sequence config, so inserting/moving a Grid auto-renumbers with no writes.
+  // The [#]/[A] tags inside cells resolve against this index (see GridCard).
+  const gridSeqIndex = useMemo(() => {
+    const m = new Map();
+    const bySeq = new Map();
+    for (const c of (cards || [])) {
+      if (c.kind === 'grid' && c.seqId) {
+        if (!bySeq.has(c.seqId)) bySeq.set(c.seqId, []);
+        bySeq.get(c.seqId).push(c);
+      }
+    }
+    for (const [seqId, gs] of bySeq) {
+      const pattern = gridSequences[seqId]?.pattern || 'z';
+      spatialOrder(gs.map((g) => ({ id: g.id, x: g.x, y: g.y, w: g.w, h: g.h })), pattern)
+        .forEach((id, i) => m.set(id, i));
+    }
+    return m;
+  }, [cards, gridSequences]);
+  const gridSeqFormatFor = (c) => (c?.seqId && gridSequences[c.seqId]?.format) || null;
+
+  // Bulk-generate from the inline control, confirming for very large matrices.
+  const makeGridMatrix = async (gridId, cols, rows) => {
+    const n = cols * rows;
+    if (n > 200) {
+      const ok = await feedback.confirm?.({ title: 'Make a big grid', message: `This creates ${n} grids — it may take a moment. Continue?`, confirmLabel: 'Make grid' });
+      if (!ok) return;
+    }
+    mutators.bulkGenerateGrids?.(gridId, cols, rows);
+  };
+
+  // Editing actions GridCard calls — thin forwards to the grid mutators plus the
+  // canvas-context bits (image/file upload, link prompt) that a cell needs.
+  // ── Universal cell content (paste / drop anything into a grid cell) ─────────
+  // Focused grid cell — the paste/drop target set by clicking a specific cell.
+  const [focusedCell, setFocusedCell] = useState(null); // { gridId, cellId } | null
+  const focusedCellRef = useRef(null);
+  const focusCell = useCallback((gridId, cellId) => {
+    const v = (gridId && cellId) ? { gridId, cellId } : null;
+    focusedCellRef.current = v;
+    setFocusedCell(v);
+  }, []);
+  // Per-cell upload progress (paste / drop / Image-picker into a cell), keyed
+  // `${gridId}:${cellId}` → fraction 0..1. Drives the in-cell spinner overlay so
+  // the user sees that an upload is happening (mirrors the canvas ImageCard pattern).
+  const [cellUploads, setCellUploads] = useState({});
+  // A grid text cell currently being edited → surfaces the note formatting toolbar
+  // (font / size / style) scoped to that cell's editor. { gridId, cellId } | null.
+  const [editingCell, setEditingCell] = useState(null);
+  // Whether the cell being edited is "pinned" (has its own frozen text style, i.e.
+  // "only this box"). Tracked as state (a cell's nested `style` change does NOT bust
+  // the top-level cards snapshot) and updated optimistically on toggle.
+  const [editingCellPinned, setEditingCellPinned] = useState(false);
+  // Live-read a grid cell record across both shells (Yjs gridCells / local card.cells).
+  const gridCellRecord = useCallback((gridId, cellId) => {
+    if (!gridId || !cellId) return null;
+    const ym = ydoc?.getMap?.('cards')?.get?.(gridId);
+    const cm = ym && ym.get && ym.get('gridCells');
+    if (cm && cm.get) { const v = cm.get(cellId); return (v && v.toJSON) ? v.toJSON() : v; }
+    const c = cards.find((cc) => cc.id === gridId);
+    return c?.cells?.[cellId] || null;
+  }, [ydoc, cards]);
+  const recIsPinned = (r) => !!(r && r.style && Object.keys(r.style).length);
+  // Filling an EMPTY grid cell with weighted content (image / link / file) counts
+  // toward the demo card cap (a grid of 25 images ≈ 25 cards). Block + open the
+  // upgrade modal at the cap. No-op where there's no guard (local QA / paid tier).
+  // Dragging an EXISTING card into a cell is a move (source consumed) → net-neutral,
+  // so those paths (routeCardIntoCell) intentionally don't call this.
+  const guardCellFill = useCallback((gridId, cellId) => {
+    const rec = gridCellRecord(gridId, cellId);
+    const wasEmpty = !rec || rec.type === 'empty' || (rec.type === 'image' && !rec.src);
+    if (!wasEmpty) return true;   // replacing existing content — no new weight
+    return mutators.guardWeightedAdd ? mutators.guardWeightedAdd() : true;
+  }, [gridCellRecord, mutators]);
+  // Re-derive pinned state when the edited cell changes / board switches.
+  useEffect(() => {
+    if (!editingCell) { setEditingCellPinned(false); return; }
+    setEditingCellPinned(recIsPinned(gridCellRecord(editingCell.gridId, editingCell.cellId)));
+  }, [editingCell, gridCellRecord]);
+  // Drop cell focus when its grid disappears — deleted, or board-switched (the
+  // surface doesn't remount on board change). Prevents a stale paste being
+  // silently swallowed into a vanished cell.
+  useEffect(() => {
+    const fc = focusedCellRef.current;
+    if (fc && !cards.some((c) => c.id === fc.gridId)) focusCell(null, null);
+    setEditingCell((ec) => (ec && !cards.some((c) => c.id === ec.gridId) ? null : ec));
+  }, [cards, focusCell]);
+  // Decode a file list into the right cell content (image / video / file).
+  const fillCellFromFiles = useCallback(async (gridId, cellId, files) => {
+    const f = files && files[0]; if (!f) return;
+    if (!guardCellFill(gridId, cellId)) return;   // demo cap: filling counts as a card
+    const mime = f.type || '';
+    const key = `${gridId}:${cellId}`;
+    const onProgress = (frac) => setCellUploads((p) => ({ ...p, [key]: frac }));
+    setCellUploads((p) => ({ ...p, [key]: 0 }));   // show the spinner the moment upload starts
+    try {
+      if (mime.startsWith('image/')) {
+        const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
+        mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
+      } else if (mime.startsWith('video/')) {
+        const up = await uploadVideo({ file: f, workspaceId, boardId: board?.id, userId, onProgress });
+        mutators.setGridCellContent?.(gridId, cellId, { type: 'video', src: up.src });
+      } else {
+        const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress });
+        mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
+      }
+    } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
+    finally { setCellUploads((p) => { const n = { ...p }; delete n[key]; return n; }); }
+  }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill]);
+  // Decode a clipboard/drag payload INTO a cell: files/images → upload; a bare URL
+  // → link (with async preview); any other text → a text cell. Shared by paste +
+  // external drop so a cell auto-formats whatever you give it.
+  const pasteIntoCell = useCallback(async (gridId, cellId, dt) => {
+    if (!dt) return false;
+    if (dt.files && dt.files.length) { await fillCellFromFiles(gridId, cellId, dt.files); return true; }
+    if (dt.items) {
+      for (const it of dt.items) {
+        if (it.kind === 'file' && (it.type || '').startsWith('image/')) {
+          const f = it.getAsFile(); if (f) { await fillCellFromFiles(gridId, cellId, [f]); return true; }
+        }
+      }
+    }
+    const text = (dt.getData && dt.getData('text/plain')) || '';
+    const urlMatch = text.match(/^\s*(https?:\/\/\S+)\s*$/i);
+    if (urlMatch) {
+      if (!guardCellFill(gridId, cellId)) return true;   // demo cap: a link counts as a card
+      const url = urlMatch[1];
+      const embed = detectEmbed(url);
+      let title = url; try { title = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
+      const patch = { type: 'link', source: url, link: url, title };
+      if (embed) patch.embed = embed;
+      mutators.setGridCellContent?.(gridId, cellId, patch);
+      if (!embed) fetchLinkPreview(url).then((p) => { if (!p) return; const np = {}; if (p.title) np.title = p.title; if (p.image) np.image = p.image; if (p.favicon) np.favicon = p.favicon; if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np); });
+      return true;
+    }
+    if (text.trim().length) {
+      const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const html = text.split(/\r?\n/).map((l) => `<div>${esc(l) || '<br>'}</div>`).join('');
+      mutators.setGridCellContent?.(gridId, cellId, { type: 'text', html });
+      return true;
+    }
+    return false;
+  }, [fillCellFromFiles, mutators, guardCellFill]);
+
+  const gridActions = useMemo(() => ({
+    focusCell,
+    pasteIntoCell,
+    // GridCard tells us when a text cell enters/leaves edit mode so the bottom
+    // toolbar can show the note formatting controls scoped to that cell.
+    setCellEditing: (gridId, cellId) => setEditingCell((gridId && cellId) ? { gridId, cellId } : null),
+    setTextStyle: (gridId, cellId, patch, opts) => mutators.setGridTextStyle?.(gridId, cellId, patch, opts),
+    pinCell: (gridId, cellId) => mutators.pinCellStyle?.(gridId, cellId),
+    unpinCell: (gridId, cellId) => mutators.unpinCellStyle?.(gridId, cellId),
+    resizeDivider: (gridId, path, ci, df) => mutators.resizeGridDivider?.(gridId, path, ci, df),
+    splitCell: (gridId, cellId, orientation) => mutators.splitGridCell?.(gridId, cellId, orientation),
+    mergeCell: (gridId, cellId) => mutators.mergeGridCell?.(gridId, cellId),
+    removeDivider: (gridId, path, childIndex) => mutators.removeGridDivider?.(gridId, path, childIndex),
+    setCellContent: (gridId, cellId, patch) => mutators.setGridCellContent?.(gridId, cellId, patch),
+    clearCellContent: (gridId, cellId) => mutators.clearGridCellContent?.(gridId, cellId),
+    unlinkGrid: (gridId) => mutators.unlinkGrid?.(gridId),
+    promoteToTemplate: (gridId) => mutators.promoteGridToTemplate?.(gridId),
+    stampNeighbor: (gridId, dir) => mutators.stampGridNeighbor?.(gridId, dir),
+    bulkGenerate: (gridId, cols, rows) => mutators.bulkGenerateGrids?.(gridId, cols, rows),
+    pickImageForCell: (gridId, cellId) => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*';
+      // Route through fillCellFromFiles so the Image-picker gets the same in-cell
+      // spinner + progress as paste/drop.
+      input.onchange = () => { if (input.files?.[0]) fillCellFromFiles(gridId, cellId, input.files); };
+      input.click();
+    },
+    fillCellFromFiles,
+    addLinkToCell: async (gridId, cellId) => {
+      if (!guardCellFill(gridId, cellId)) return;   // demo cap: a link counts as a card
+      const v = await feedback.prompt({ title: 'Add a link', label: 'URL', placeholder: 'https://…', confirmLabel: 'Add' });
+      if (!v) return;
+      const url = v.trim(); if (!url) return;
+      const embed = detectEmbed(url);
+      let title = url;
+      try { title = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
+      const patch = { type: 'link', source: url, link: url, title };
+      if (embed) patch.embed = embed;
+      mutators.setGridCellContent?.(gridId, cellId, patch);
+      if (!embed) fetchLinkPreview(url).then((p) => {
+        if (!p) return;
+        const np = {};
+        if (p.title) np.title = p.title;
+        if (p.image) np.image = p.image;
+        if (p.favicon) np.favicon = p.favicon;
+        if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np);
+      });
+    },
+  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles, guardCellFill]);
+
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
     const dragDelta = inDrag ? drag : null;
@@ -6109,7 +6611,7 @@ export function CanvasSurface({
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} w={Math.round(w)} h={Math.round(h)} onUpdate={onUpdate} autoFocus={af}
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'video')     inner = <VideoCard src={c.src} title={c.title} onUpdate={onUpdate} autoFocus={af}
+    else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover}
                                                         onUpdate={onUpdate} autoFocus={af}
@@ -6152,6 +6654,25 @@ export function CanvasSurface({
                                                         label={c.label} onUpdate={onUpdate}
                                                         editLabelAt={editFieldSignal.id === c.id && editFieldSignal.field === 'shapeLabel' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'art')       inner = <ArtCanvasCard bg={c.bg || '#ffffff'} />;
+    else if (c.kind === 'grid') {
+      // Grid card. cardYMap gives GridCard access to its nested gridCells Y.Map
+      // (cell content). Layout comes from the shared template when linked, else
+      // from c.layout. seqIndex/seqFormat (label tags) + interactive dividers land
+      // in later phases; P1 renders the static cell layout read-only.
+      const cardYMap = ydoc?.getMap?.('cards')?.get?.(c.id) || null;
+      // Per-cell upload progress slice for this grid: { cellId: frac }.
+      const gridUploads = {};
+      for (const k in cellUploads) { if (k.startsWith(`${c.id}:`)) gridUploads[k.slice(c.id.length + 1)] = cellUploads[k]; }
+      inner = <GridCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
+                        templates={gridTemplates} seqIndex={gridSeqIndex.get(c.id)} seqFormat={gridSeqFormatFor(c)}
+                        isSelected={isSelected} canEdit={canEdit} onUpdate={onUpdate}
+                        annotationsVisible={commentsVisible}
+                        focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
+                        dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
+                        cellUploads={gridUploads}
+                        boards={boards} onOpenBoard={onOpenBoard}
+                        gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
+    }
     else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}
                                                        sizeBytes={c.sizeBytes} ext={c.ext} title={c.title}
                                                        onUpdate={onUpdate} autoFocus={af}
@@ -6228,6 +6749,10 @@ export function CanvasSurface({
               if (!selected.has(c.id)) setSelected(new Set([c.id]));
               setCtx({ open: true, x: r.left, y: r.bottom, cardId: c.id });
             }}>⋯</button>
+        )}
+        {canEdit && selectedTool === 'select' && isSelected && c.kind === 'grid'
+          && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
+          <GridMatrixControl onGenerate={(cols, rows) => makeGridMatrix(c.id, cols, rows)} />
         )}
       </div>
     );
@@ -6789,22 +7314,39 @@ export function CanvasSurface({
   const tools = [
     { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2 },
     { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand },
-    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
-    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: LayoutGrid },
-    { id: 'draw',   title: 'Free-draw (D)', label: 'Free-draw tool', icon: Scribble },
+    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
+    { id: 'doc',    title: 'Add doc', label: 'Add doc tool', icon: FileText },
+    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: Browsers },
+    { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine },
     { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
   ];
 
-  const addMenuItems = [
-    // 'Board' is now a first-class toolbar tool, and 'Text note' is the toolbar's
-    // Add-note tool — so neither is repeated here. 'Shape' moved off the toolbar
-    // (boards took its slot) and lives here now.
-    { label: 'Doc', action: () => { noteCreateIntent('add_menu'); mutators.addDocCard?.(); } },
-    { label: 'File', action: () => { noteCreateIntent('add_menu'); openFilePicker(resolvePastePos().pos); } },
-    { label: 'Shape', action: () => setSelectedTool('shape') },
-    { label: 'Palette', action: () => setSelectedTool('palette') },
-    { label: 'Linked cluster', action: () => onOpenPicker() },
+  // The rail "+" holds only the SECONDARY creators — anything already on the
+  // rail (Note, Image, Doc, Cluster, Grid) is intentionally absent so the two
+  // never duplicate. Grouped into Tools / Create / Annotate with icons +
+  // hover tips. The Tools group switches into a canvas tool; Create/Annotate
+  // reuse the shared buildAddActions runs so behaviour + analytics match the
+  // right-click menu exactly. (Script lives only in the empty-state hero.)
+  const addFromRegistry = (id) => {
+    const pos = resolvePastePos().pos;
+    return buildAddActions(pos, 'add_menu').find(a => a.id === id)?.run();
+  };
+  const addGroups = [
+    { title: 'Tools', items: [
+      { id: 'draw',    label: 'Draw',    icon: Scribble, tip: 'Free-draw (D)',   action: () => setSelectedTool('draw') },
+      { id: 'shape',   label: 'Shape',   icon: Square,   tip: 'Draw a shape',    action: () => setSelectedTool('shape') },
+      { id: 'palette', label: 'Palette', icon: Palette,  tip: 'Color palette',   action: () => setSelectedTool('palette') },
+    ]},
+    { title: 'Create', items: [
+      { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
+      { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
+      { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.() },
+    ]},
+    { title: 'Annotate', items: [
+      { id: 'comment', label: 'Comment', icon: MessageCircle, tip: 'Place a comment — click a card or the canvas', action: () => setAnnotPlacing('comment') },
+      { id: 'vote',    label: 'Vote',    icon: ListChecks,    tip: 'Place a vote — click a card or the canvas',    action: () => setAnnotPlacing('vote') },
+    ]},
   ];
 
   const marqueeRect = marquee && {
@@ -7081,7 +7623,7 @@ export function CanvasSurface({
   };
 
   return (
-    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''}`}
+    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''}`}
          data-eyedrop={eyedropFor ? '1' : undefined}
          ref={wrapRef}
          style={wrapStyle}
@@ -7892,19 +8434,26 @@ export function CanvasSurface({
           </div>
           {addMenuOpen && (
             <div className="cnv-add-menu" role="menu" aria-label="Add">
-              {addMenuItems.map(item => (
-                <button
-                  key={item.label}
-                  type="button"
-                  role="menuitem"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => {
-                    setAddMenuOpen(false);
-                    item.action();
-                  }}
-                >
-                  {item.label}
-                </button>
+              {addGroups.map(group => (
+                <Fragment key={group.title}>
+                  <div className="cnv-add-group-head" aria-hidden="true">{group.title}</div>
+                  {group.items.map(item => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="menuitem"
+                      data-tip={item.tip}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => {
+                        setAddMenuOpen(false);
+                        item.action();
+                      }}
+                    >
+                      <span className="cnv-add-ico" aria-hidden="true"><Icon as={item.icon} size={16} /></span>
+                      <span className="cnv-add-lbl">{item.label}</span>
+                    </button>
+                  ))}
+                </Fragment>
               ))}
             </div>
           )}
@@ -7961,10 +8510,16 @@ export function CanvasSurface({
       {selectedTool === 'pan' && (
         <div className="cnv-hint">Drag to pan <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button></div>
       )}
-      {(selectedTool === 'board' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'shape' || selectedTool === 'palette') && (
+      {(selectedTool === 'board' || selectedTool === 'grid' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'doc' || selectedTool === 'shape' || selectedTool === 'palette') && (
         <div className="cnv-hint">
-          Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool}
+          Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool === 'board' ? 'cluster' : selectedTool}
           <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button>
+        </div>
+      )}
+      {annotPlacing && (
+        <div className="cnv-hint">
+          Click a card to attach, or empty space to drop a {annotPlacing}
+          <button className="cnv-hint-x" onClick={() => setAnnotPlacing(null)}>esc</button>
         </div>
       )}
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (
@@ -7986,7 +8541,7 @@ export function CanvasSurface({
         // row signal that this is also where you write scripts, organize, and drop
         // any asset. ("Any file" is a deliberate upsell tease: an image uploads free,
         // a generic file hits the existing paid-upgrade prompt in ingestFiles.)
-        const runTile = (id) => buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run();
+        const runTile = (id) => { markViewSettled(); return buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run(); };
         return (
         <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}`}
              aria-label="Add your first image"
@@ -8004,8 +8559,9 @@ export function CanvasSurface({
           </button>
           <div className="cnv-empty-tiles-grid">
             {[
+              { id: 'grid',   label: 'Grid',     icon: GridFour },
               { id: 'script', label: 'Script',   icon: Clapperboard },
-              { id: 'board',  label: 'Cluster',  icon: LayoutGrid },
+              { id: 'board',  label: 'Cluster',  icon: Browsers },
               { id: 'note',   label: 'Note',     icon: NotePencil },
               { id: 'doc',    label: 'Doc',      icon: FileText },
               { id: 'file',   label: 'Any file', icon: Upload },
@@ -8049,7 +8605,7 @@ export function CanvasSurface({
             {items.map((t) => (
               <button key={t.id} type="button" className="cnv-quick-add-item" role="menuitem"
                       onPointerDown={(e) => e.stopPropagation()}
-                      onClick={() => { closeQuickAdd(); t.run(); }}>
+                      onClick={() => { markViewSettled(); closeQuickAdd(); t.run(); }}>
                 <span className="cnv-quick-add-ico"><Icon as={t.icon} size={18} weight="regular" /></span>
                 <span className="cnv-quick-add-lbl">{t.label}</span>
               </button>
@@ -8164,6 +8720,19 @@ export function CanvasSurface({
         card={ctx.cardId ? cardById[ctx.cardId] : null}
       />
 
+      {/* Custom thumbnail for a board card: hidden picker + crop/reposition modal
+          (opened from the card's right-click "Upload custom thumbnail…"). */}
+      <input ref={thumbInputRef} type="file" accept="image/*"
+             style={{ display: 'none' }} onChange={onThumbFileChange} />
+      {thumbCropFor && (
+        <ThumbnailCropModal
+          file={thumbCropFor.file}
+          saving={thumbSaving}
+          onCancel={() => { if (!thumbSaving) setThumbCropFor(null); }}
+          onSave={saveThumbCrop}
+        />
+      )}
+
       {infoFor && (() => {
         const c = cardById[infoFor.cardId];
         if (!c) return null;
@@ -8196,7 +8765,7 @@ export function CanvasSurface({
       {isPhone && mobileAdd && (
         <Sheet open onClose={() => setMobileAdd(null)} title="Add to cluster" snap="half">
           <div className="mobile-add-grid">
-            {buildAddActions(mobileAdd.pos, 'mobile_nav').map(a => (
+            {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script').map(a => (
               <button
                 key={a.id}
                 type="button"
@@ -8223,6 +8792,17 @@ export function CanvasSurface({
         onOpenSketchpad={() => setSketchpadOpen(true)}
         editingNoteCard={editingNoteId ? cardById[editingNoteId] : null}
         onUpdateEditingNote={editingNoteId ? (patch) => mutators.updateCard?.(editingNoteId, patch) : null}
+        editingCellText={!!editingCell}
+        cellPinned={editingCellPinned}
+        onCellStyle={editingCell ? (patch) => mutators.setGridTextStyle?.(editingCell.gridId, editingCell.cellId, patch, { pinned: editingCellPinned }) : null}
+        onCellPinToggle={editingCell ? () => {
+          setEditingCellPinned((p) => {
+            const next = !p;
+            if (next) mutators.pinCellStyle?.(editingCell.gridId, editingCell.cellId);
+            else mutators.unpinCellStyle?.(editingCell.gridId, editingCell.cellId);
+            return next;
+          });
+        } : null}
         editingShapeCard={(() => {
           if (selected.size !== 1) return null;
           const id = [...selected][0];

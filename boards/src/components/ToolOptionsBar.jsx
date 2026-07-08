@@ -377,6 +377,10 @@ export function ToolOptionsBar({
   arrowOptions, setArrowOptions,
   editingNoteCard,
   onUpdateEditingNote,
+  editingCellText,        // a grid TEXT cell is being edited (no backing note card)
+  cellPinned = false,     // that cell is "pinned" to its own frozen text style
+  onCellStyle,            // (patch) => write text style: shared family, or this cell if pinned
+  onCellPinToggle,        // () => pin/unpin this cell ("only this box" vs shared)
   editingShapeCard,
   onUpdateEditingShape,
   editingLineArrow,       // { idx, arrow } when a single line-arrow is selected
@@ -405,13 +409,21 @@ export function ToolOptionsBar({
   const tobProps = { className: 'tob' };
 
   // ── Note rich text bar ──────────────────────────────────────────────────
-  if (editingNoteCard) {
+  // Also shown for a grid TEXT cell (editingCellText) — same inline formatting,
+  // driven against the focused contenteditable. With no backing note card the
+  // two card-level controls (card background, vertical balance) are hidden.
+  if (editingNoteCard || editingCellText) {
     return <NoteRichTextBar
       tobProps={tobProps}
       paletteColors={paletteColors}
       openPickerAt={openPickerAt}
       editingNoteCard={editingNoteCard}
       onUpdateEditingNote={onUpdateEditingNote}
+      cardLevel={!!editingNoteCard}
+      cellStyleMode={!editingNoteCard && !!editingCellText}
+      cellPinned={cellPinned}
+      onCellStyle={onCellStyle}
+      onCellPinToggle={onCellPinToggle}
     />;
   }
 
@@ -681,7 +693,7 @@ export function ToolOptionsBar({
 // selectionchange while the note is being edited). Keeping it inside the
 // main ToolOptionsBar function would mean the hook runs in every render of
 // every tool's bar.
-function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote }) {
+function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellPinned = false, onCellStyle, onCellPinToggle }) {
   const currentFore = useNoteForeColor(true);
   const fmt = useNoteFormatState(true);
   const barRef = useRef(null);
@@ -720,11 +732,13 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
          ref={barRef}
          onPointerDown={(e) => e.stopPropagation()}>
       <FontPicker currentLabel={fmt.fontFamily || 'Font'}
-                  onApplyFont={(css) => applyStyleOrNoteDefault({ fontFamily: css },
-                    () => onUpdateEditingNote && onUpdateEditingNote({ fontFamily: css }))} />
+                  onApplyFont={(css) => cellStyleMode
+                    ? onCellStyle?.({ fontFamily: css })
+                    : applyStyleOrNoteDefault({ fontFamily: css }, () => onUpdateEditingNote && onUpdateEditingNote({ fontFamily: css }))} />
       <SizePicker value={fmt.fontSize}
-                  onApply={(px) => applyStyleOrNoteDefault({ fontSize: px + 'px' },
-                    () => onUpdateEditingNote && onUpdateEditingNote({ fontSize: px }))} />
+                  onApply={(px) => cellStyleMode
+                    ? onCellStyle?.({ fontSize: px })
+                    : applyStyleOrNoteDefault({ fontSize: px + 'px' }, () => onUpdateEditingNote && onUpdateEditingNote({ fontSize: px }))} />
       <span className="tob-sep" />
       <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold toggle active={fmt.bold} />
       <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" toggle active={fmt.italic} />
@@ -735,24 +749,43 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
       <ListBtn label="1." title="Numbered list" type="ol"   active={fmt.listType === 'ol'} />
       <ListBtn label="☐"  title="Checklist"     type="task" active={fmt.listType === 'task'} />
       <span className="tob-sep" />
-      <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft"   active={fmt.align === 'left'} />
-      <FormatBtn label="≡" title="Align center" cmd="justifyCenter" active={fmt.align === 'center'} />
-      <FormatBtn label="⇥" title="Align right"  cmd="justifyRight"  active={fmt.align === 'right'} />
-      {(() => {
-        // One-click "balance": center the text on BOTH axes so a one-line note
-        // reads as a tidy header with even space around it. Toggles back to
-        // left + top. Vertical centering (vAlign) is a flat card field written
-        // through the same undo-aware path as bgColor.
-        const balanced = fmt.align === 'center' && editingNoteCard?.vAlign === 'center';
+      {cellStyleMode ? (
+        <>
+          {/* Cell alignment is container-level (part of the shared/pinned text style)
+              so it propagates like the font — not baked per-content via execCommand. */}
+          <button type="button" className={`tob-btn ${(!fmt.align || fmt.align === 'left') ? 'is-active' : ''}`.trim()}
+            title="Align left" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'left' })}>⇤</button>
+          <button type="button" className={`tob-btn ${fmt.align === 'center' ? 'is-active' : ''}`.trim()}
+            title="Align center" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'center' })}>≡</button>
+          <button type="button" className={`tob-btn ${fmt.align === 'right' ? 'is-active' : ''}`.trim()}
+            title="Align right" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'right' })}>⇥</button>
+        </>
+      ) : (
+        <>
+          <FormatBtn label="⇤" title="Align left"   cmd="justifyLeft"   active={fmt.align === 'left'} />
+          <FormatBtn label="≡" title="Align center" cmd="justifyCenter" active={fmt.align === 'center'} />
+          <FormatBtn label="⇥" title="Align right"  cmd="justifyRight"  active={fmt.align === 'right'} />
+        </>
+      )}
+      {(cardLevel || cellStyleMode) && (() => {
+        // One-click "center" — text sits DEAD-CENTER of the box, both axes. For a
+        // note it's a flat card field (vAlign) through the undo-aware path; for a
+        // grid cell it's part of the cell's text style (shared or pinned) applied
+        // as container flex + text-align, so it propagates like the font.
+        const balanced = cellStyleMode
+          ? (fmt.align === 'center')
+          : (fmt.align === 'center' && editingNoteCard?.vAlign === 'center');
         return (
           <button type="button"
             className={`tob-btn ${balanced ? 'is-active' : ''}`.trim()}
-            title="Balance — center text vertically & horizontally"
+            title="Center — put the text dead-center of the box"
             aria-pressed={balanced}
             onMouseDown={(e) => e.preventDefault()}
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => {
-              if (balanced) {
+              if (cellStyleMode) {
+                onCellStyle?.(balanced ? { align: 'left', vAlign: 'top' } : { align: 'center', vAlign: 'center' });
+              } else if (balanced) {
                 setAlignAllBlocks('left');
                 onUpdateEditingNote && onUpdateEditingNote({ vAlign: null });
               } else {
@@ -771,14 +804,17 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
       <ColorBtn title="Text color" glyph="A" defaultColor={currentFore}
                 swatches={TEXT_COLORS}
                 paletteColors={paletteColors}
-                onPick={(c) => applyStyleOrNoteDefault({ color: c },
-                  () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c }))}
+                onPick={(c) => cellStyleMode
+                  ? onCellStyle?.({ color: c })
+                  : applyStyleOrNoteDefault({ color: c }, () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c }))}
                 onCustom={(e) => openPickerAt(e, {
                   value: currentFore,
-                  onChange: (c) => applyStyleOrNoteDefault({ color: c },
-                    () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c })),
+                  onChange: (c) => cellStyleMode
+                    ? onCellStyle?.({ color: c })
+                    : applyStyleOrNoteDefault({ color: c }, () => onUpdateEditingNote && onUpdateEditingNote({ textColor: c })),
                 })} />
-      <ColorBtn title="Card background" defaultColor={editingNoteCard?.bgColor || '#1c1c1f'}
+      {cardLevel && (
+        <ColorBtn title="Card background" defaultColor={editingNoteCard?.bgColor || '#1c1c1f'}
                 swatches={BG_COLORS}
                 paletteColors={paletteColors}
                 onPick={(c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c })}
@@ -791,6 +827,26 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
                   onChange: (c) => onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
                   allowTransparent: true,
                 })} />
+      )}
+      {cellStyleMode && (
+        <>
+          <span className="tob-sep" />
+          {/* Shared vs. "only this box". Default = Shared: font/size/color/align set
+              the grid's shared text style, live across every un-pinned cell. Pinned
+              = this box keeps its own style and ignores later shared changes. */}
+          <button type="button"
+            className={`tob-btn tob-pin ${cellPinned ? 'is-active' : ''}`.trim()}
+            title={cellPinned
+              ? 'Only this box — its style is frozen. Click to rejoin the grid’s shared style.'
+              : 'Shared style — changes apply to every box. Click to style only this box.'}
+            aria-pressed={cellPinned}
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => onCellPinToggle?.()}>
+            {cellPinned ? 'This box' : 'Shared'}
+          </button>
+        </>
+      )}
     </div>
   );
 }

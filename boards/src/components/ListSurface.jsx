@@ -1,13 +1,37 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { BoardCard, BoardLinkCard } from './cards.jsx';
-import { ImagePlaceholder } from './primitives.jsx';
-import { R2Image } from './R2Image.jsx';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
-import { wouldCreateCycle } from '../lib/boardTree.js';
+import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { toListItem, sortItems, filterItems, matchItems } from '../lib/listItem.js';
+import { searchEntities } from '../lib/entitySearch.js';
+import { getMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
+import { usePeerSelections } from '../hooks/usePeerSelections.js';
+import { ClusterBrowserToolbar } from './clusterBrowser/ClusterBrowserToolbar.jsx';
+import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
+import { ClusterGallery } from './clusterBrowser/ClusterGallery.jsx';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
+
+// Persist the browser's view/sort/filter per session (survives navigation).
+const BROWSER_PREFS_KEY = 'soleil.cluster.browser.prefs';
+function readBrowserPrefs() {
+  try { return JSON.parse(sessionStorage.getItem(BROWSER_PREFS_KEY) || '{}') || {}; } catch (_) { return {}; }
+}
+function writeBrowserPrefs(patch) {
+  try {
+    const cur = readBrowserPrefs();
+    sessionStorage.setItem(BROWSER_PREFS_KEY, JSON.stringify({ ...cur, ...patch }));
+  } catch (_) {}
+}
+
+// Bucket labels for the filter menu (order = display order).
+const BUCKET_LABELS = {
+  image: 'Images', pdf: 'PDFs', video: 'Video', audio: 'Audio', file: 'Files',
+  note: 'Notes', link: 'Links', doc: 'Docs', palette: 'Palettes', other: 'Other',
+};
+const BUCKET_ORDER = ['image', 'pdf', 'video', 'audio', 'file', 'note', 'link', 'doc', 'palette', 'other'];
 
 export function ListSurface({
   board, boards, boardsReady = true, cards, childBoards,
@@ -18,11 +42,104 @@ export function ListSurface({
   // For nested list-mode previews — let inner BoardCards render
   // clickable peer dots in their preview rows.
   onJumpToPeer,
+  // Drop / picked OS files → auto-arranged on the canvas (list has no viewport).
+  onDropFilesToCluster,
+  // Set of card ids just added via a list drop — flashes those rows.
+  recentlyAddedIds,
+  // Live presence: awareness handle + identity for per-row highlight.
+  getAwareness, workspaceId, selfId,
+  // Shared grid layouts (id → { layout }) so a linked Grid's preview resolves.
+  gridTemplates = {},
 }) {
   const feedback = useFeedback();
   const subBoards = childBoards || [];
   const linkedCards = (cards || []).filter(c => c.kind === 'boardlink');
   const otherCards = (cards || []).filter(c => c.kind !== 'board' && c.kind !== 'boardlink');
+
+  // ── Cluster browser state (persisted per session) ──────────────────────────
+  const prefs0 = readBrowserPrefs();
+  const [viewMode, setViewMode] = useState(prefs0.viewMode === 'gallery' ? 'gallery' : 'table');
+  const [query, setQuery] = useState('');
+  const [sortKey, setSortKey] = useState(prefs0.sortKey || 'updated');
+  const [sortDir, setSortDir] = useState(prefs0.sortDir || 'desc');
+  const [filters, setFilters] = useState(() => new Set());
+  const addInputRef = useRef(null);
+
+  // Prime image/media metadata once per cluster so thumbnails paint instantly
+  // and media Size can resolve.
+  useEffect(() => { if (board?.id) primeImageMetaForBoard(board.id); }, [board?.id]);
+
+  // Normalize the non-folder cards into uniform ListItems. Depends on the raw
+  // card fields + primed meta (getMeta is a stable module accessor).
+  const items = useMemo(
+    () => otherCards.map(c => toListItem(c, { boards, getMeta, boardId: board.id, gridTemplates })).filter(Boolean),
+    [otherCards, boards, board.id, gridTemplates]
+  );
+
+  // Available filter buckets (with counts) present in this cluster.
+  const availableBuckets = useMemo(() => {
+    const counts = new Map();
+    for (const it of items) counts.set(it.typeBucket, (counts.get(it.typeBucket) || 0) + 1);
+    return BUCKET_ORDER.filter(k => counts.has(k)).map(k => ({ key: k, label: BUCKET_LABELS[k] || k, count: counts.get(k) }));
+  }, [items]);
+
+  // Search → filter → sort pipeline (all pure).
+  const visibleItems = useMemo(
+    () => sortItems(filterItems(matchItems(items, query), filters), sortKey, sortDir),
+    [items, query, filters, sortKey, sortDir]
+  );
+
+  // Live per-row presence (which cards peers currently have open), scoped to
+  // this cluster + descendants.
+  const descendantIds = useMemo(() => collectDescendantIds(boards, board.id), [boards, board.id]);
+  const peerMap = usePeerSelections({ getAwareness, boardId: board.id, descendantIds, selfId });
+  const facePeers = peersHereByBoard?.get?.(board.id) || [];
+
+  const onSort = useCallback((key) => {
+    setSortKey(prev => {
+      if (prev === key) {
+        setSortDir(d => { const nd = d === 'asc' ? 'desc' : 'asc'; writeBrowserPrefs({ sortDir: nd }); return nd; });
+        return prev;
+      }
+      // New key: sensible default direction — name/type asc, size/date desc.
+      const nd = (key === 'name' || key === 'type') ? 'asc' : 'desc';
+      setSortDir(nd);
+      writeBrowserPrefs({ sortKey: key, sortDir: nd });
+      return key;
+    });
+  }, []);
+  const onViewMode = useCallback((m) => { setViewMode(m); writeBrowserPrefs({ viewMode: m }); }, []);
+  const onToggleFilter = useCallback((bucket) => {
+    setFilters(prev => { const next = new Set(prev); if (next.has(bucket)) next.delete(bucket); else next.add(bucket); return next; });
+  }, []);
+  const onClearFilters = useCallback(() => setFilters(new Set()), []);
+  const openAddPicker = useCallback(() => addInputRef.current?.click(), []);
+
+  // Descendant search: when the user types a query, also surface matches from
+  // sub-clusters (server-side entity_search, filtered to this subtree). These
+  // aren't loaded cards, so they render as compact links that open the owning
+  // sub-cluster rather than as full preview rows. Debounced; in-cluster search
+  // stays instant + local above.
+  const [descHits, setDescHits] = useState([]);
+  useEffect(() => {
+    const q = query.trim();
+    if (!q || !workspaceId || descendantIds.length === 0) { setDescHits([]); return; }
+    const descSet = new Set(descendantIds);
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const rows = await searchEntities({ workspaceId, query: q, limit: 40 });
+        if (cancelled) return;
+        const hits = (rows || [])
+          .filter(r => r.board_id && descSet.has(r.board_id) && r.card_id)
+          .slice(0, 12)
+          .map(r => ({ id: r.card_id || r.id, name: r.title || 'Untitled', kind: r.kind, boardId: r.board_id, clusterName: boards[r.board_id]?.name || 'Sub-cluster' }));
+        setDescHits(hits);
+      } catch (_) { if (!cancelled) setDescHits([]); }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, workspaceId, descendantIds.join(','), boards]);
 
   // Selection — strings: board ids and card ids share an id namespace.
   const [selectedBoards, setSelectedBoards] = useState(() => new Set());
@@ -153,9 +270,16 @@ export function ListSurface({
       onDropInboxItem && onDropInboxItem(item.id, card);
       return;
     }
-    // Files / URLs / text have no canvas coordinates in list view — guide the
-    // user instead of dropping into the void.
-    feedback?.toast?.({ type: 'info', message: 'Switch to canvas view to drop files, links or text onto a cluster.' });
+    // OS files (or a picked FileList) → route through the cluster's file-ingest
+    // mutator. List view has no viewport, so it auto-arranges the batch into a
+    // tidy grid in free canvas space (see App.ingestFilesArranged); switching to
+    // canvas shows them laid out. No longer refused.
+    if (e.dataTransfer.files && e.dataTransfer.files.length) {
+      onDropFilesToCluster?.(e.dataTransfer.files, { boardId: board.id });
+      return;
+    }
+    // URLs / plain text still have no home in list view — nudge to canvas.
+    feedback?.toast?.({ type: 'info', message: 'Switch to canvas view to drop links or text onto a cluster.' });
   };
 
   const totalSel = selectedBoards.size + selectedCards.size;
@@ -255,88 +379,55 @@ export function ListSurface({
           </>
         )}
         {otherCards.length > 0 && (
-          <>
-            <div className="list-section">Files</div>
-            <div className="list-files">
-              {otherCards.map(c => (
-                <FileRow key={c.id}
-                         card={c}
-                         selected={selectedCards.has(c.id)}
-                         onClick={(e) => onTileClick(e, 'file', c.id)}
-                         onUpdate={(patch) => mutators.updateCard?.(c.id, patch)} />
-              ))}
-            </div>
-          </>
+          <div className="cluster-browser">
+            <div className="list-section list-section-files">Files</div>
+            <ClusterBrowserToolbar
+              query={query} onQueryChange={setQuery}
+              sortKey={sortKey} sortDir={sortDir} onSort={onSort}
+              filters={filters} availableBuckets={availableBuckets}
+              onToggleFilter={onToggleFilter} onClearFilters={onClearFilters}
+              viewMode={viewMode} onViewMode={onViewMode}
+              onAddFiles={openAddPicker} canEdit={canEdit}
+              facePeers={facePeers}
+            />
+            {visibleItems.length === 0 && descHits.length === 0 ? (
+              <div className="cluster-browser-empty">
+                {query || filters.size ? 'No files match your search.' : 'No files yet.'}
+              </div>
+            ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
+              <ClusterGallery
+                items={visibleItems} selectedCards={selectedCards} peerMap={peerMap}
+                recentlyAddedIds={recentlyAddedIds}
+                onRowClick={(e, id) => onTileClick(e, 'file', id)}
+                onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
+            ) : (
+              <ClusterTable
+                items={visibleItems} selectedCards={selectedCards} peerMap={peerMap}
+                sortKey={sortKey} sortDir={sortDir} onSort={onSort}
+                recentlyAddedIds={recentlyAddedIds}
+                onRowClick={(e, id) => onTileClick(e, 'file', id)}
+                onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
+            )}
+            {descHits.length > 0 && (
+              <div className="cb-descendants">
+                <div className="cb-desc-label">In sub-clusters</div>
+                {descHits.map(h => (
+                  <button key={`${h.boardId}:${h.id}`} className="cb-desc-row" onClick={() => onOpenBoard(h.boardId)}>
+                    <span className="cb-desc-name">{h.name}</span>
+                    <span className="cb-desc-cluster">{h.clusterName}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
+        {/* Hidden picker for the toolbar "Add files" button (touch-friendly). */}
+        <input ref={addInputRef} type="file" multiple style={{ display: 'none' }}
+               onChange={(e) => {
+                 if (e.target.files && e.target.files.length) onDropFilesToCluster?.(e.target.files, { boardId: board.id });
+                 e.target.value = '';
+               }} />
       </div>
     </div>
   );
-}
-
-function FileRow({ card: c, selected, onClick, onUpdate }) {
-  let thumb = null;
-  let name = '';
-  let meta = '';
-
-  if (c.kind === 'image') {
-    thumb = c.src
-      ? <R2Image src={c.src} alt="" className="lf-thumb-img" draggable="false" />
-      : <ImagePlaceholder tone={c.tone} aspect="1/1" />;
-    name = c.title || c.label || 'image';
-    meta = c.caption ? `· ${c.caption}` : 'IMAGE';
-  } else if (c.kind === 'note') {
-    thumb = <div className="lf-thumb-glyph" style={{ background: c.bgColor || 'var(--bg-3)' }}>¶</div>;
-    // Notes: derive the display title from the first words of the body.
-    // Manual `c.title` is intentionally ignored — the user asked for the
-    // first line / header to win so the listing always reflects content.
-    name = stripHTML(c.html, 80) || (c.body || '').toString().slice(0, 80) || 'Empty note';
-    meta = 'NOTE';
-  } else if (c.kind === 'link') {
-    thumb = <div className="lf-thumb-glyph">↗</div>;
-    name = c.title || c.source || 'Untitled link';
-    meta = c.source || c.link || '';
-  } else if (c.kind === 'doc') {
-    thumb = <div className="lf-thumb-glyph">≡</div>;
-    name = c.title || 'Untitled doc';
-    meta = `${(c.lines || []).length} lines`;
-  } else if (c.kind === 'palette') {
-    thumb = (
-      <div className="lf-thumb-pal">
-        {(c.swatches || []).slice(0, 4).map((s, i) => (
-          <div key={i} className="lf-thumb-sw" style={{ background: s.hex }} />
-        ))}
-      </div>
-    );
-    name = c.title || 'Palette';
-    meta = `${(c.swatches || []).length} colors`;
-  } else if (c.kind === 'shape') {
-    thumb = <div className="lf-thumb-glyph">▢</div>;
-    name = `Shape (${c.shape || 'rect'})`;
-    meta = c.fill && c.fill !== 'transparent' ? c.fill : c.stroke;
-  } else if (c.kind === 'schedule') {
-    thumb = <div className="lf-thumb-glyph">▤</div>;
-    name = c.title || 'Schedule';
-    meta = `${(c.rows || []).length} rows`;
-  } else {
-    thumb = <div className="lf-thumb-glyph">·</div>;
-    name = c.kind;
-    meta = '';
-  }
-
-  return (
-    <div className={`lf-row ${selected ? 'is-selected' : ''}`} onClick={onClick}>
-      <div className="lf-thumb">{thumb}</div>
-      <div className="lf-meta">
-        <div className="lf-name" title={name}>{name}</div>
-        <div className="lf-sub">{meta}</div>
-      </div>
-    </div>
-  );
-}
-
-function stripHTML(s, max = 120) {
-  if (!s) return '';
-  const tmp = document.createElement('div');
-  tmp.innerHTML = s;
-  return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }

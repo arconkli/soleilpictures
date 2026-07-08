@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { initCapacitor } from './lib/capacitorInit.js';
@@ -35,6 +35,7 @@ const PublicBoardView = lazyWithReload(() => import('./components/PublicBoardVie
 const ExplorePage     = lazyWithReload(() => import('./pages/ExplorePage.jsx').then(m => ({ default: m.ExplorePage })));
 const LegalPage       = lazyWithReload(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
 const PublicPricingPage = lazyWithReload(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
+const SeoLandingPage  = lazyWithReload(() => import('./pages/SeoLandingPage.jsx').then(m => ({ default: m.SeoLandingPage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -150,6 +151,16 @@ const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$
 const publicBoardMatch = window.location.pathname.match(/^\/c\/([a-z0-9][a-z0-9-]{0,79})\/?$/);
 const exploreMatch = /^\/explore\/?$/.test(window.location.pathname);
 
+// Self-authored SEO landing pages (lib/seoLanding.js): tool pages (/tools/*),
+// "alternative to" pages (/vs/*), and the /use-cases hub. Matched by path SHAPE
+// here — no registry import — so the entry chunk stays lean; the code-split
+// SeoLandingPage resolves the exact spec from the registry in its own chunk
+// (unknown paths render its branded NotFoundPage). The shape must cover
+// EVERYTHING the Worker 404s under these prefixes (any depth/charset), or a
+// 404 document would boot into AuthGate instead of the not-found page. Bare
+// /tools and /vs never reach the client — the Worker 301s them to /use-cases.
+const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$))/i.test(window.location.pathname);
+
 // /legal/<privacy|terms|cookies> = public legal documents. Like /share, these
 // render before the AuthGate so they're reachable signed-out (footer links,
 // ad-policy review, etc). SPA fallback in the Worker serves these deep links.
@@ -252,6 +263,17 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
       </StrictMode>
     );
   });
+} else if (import.meta.env.DEV && isGridQaMode()) {
+  // Grid QA (?gridqa=1). Pure logic bridge — installs window.__soleilGridTest +
+  // a ready flag the spec waits on. DEV guard drops it (and its fixtures) from
+  // production builds.
+  import('./local/GridQaHarness.jsx').then(({ GridQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <GridQaHarness />
+      </StrictMode>
+    );
+  });
 } else if (import.meta.env.DEV && isTourQaMode()) {
   // First-run guided-tour QA (?tourqa=1). Mounts the real <OnboardingTour> over
   // fake data-tour anchors driven by the real engine + installs
@@ -318,6 +340,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
           <Suspense fallback={<SplashLoading />}>
             {legalMatch ? (
               <LegalPage doc={legalMatch[1].toLowerCase()} />
+            ) : seoLandingMatch ? (
+              <SeoLandingPage path={window.location.pathname} />
             ) : showPublicPricing ? (
               <PublicPricingPage />
             ) : exploreMatch ? (

@@ -8,6 +8,8 @@ import { Icon } from '../components/Icon.jsx';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, Inbox as InboxIcon, Sun, Moon, LogOut, Home, MessageSquare, Settings, MoreHorizontal, StickyNote } from '../lib/icons.js';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from '../lib/gridLayout.js';
+import { hasLabelTag } from '../lib/gridSequence.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -190,6 +192,11 @@ export function LocalBoardsApp({ user, signOut }) {
   const [tweak, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [stack, setStack] = useState(() => initialSession?.stack?.length ? initialSession.stack : [ROOT_ID]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
+  // Shared Grid layout templates (global sync), keyed by boardId → { tplId: {id,name,layout} }.
+  // Kept separate from boardState (whose updater only threads cards/arrows/strokes).
+  const [gridTplState, setGridTplState] = useState({});
+  // Grid sequences, keyed by boardId → { seqId: {id,name,pattern,format} }.
+  const [gridSeqState, setGridSeqState] = useState({});
   const [pickerOpen, setPickerOpen] = useState(false);
   // Global search + ⌘K command palette (separate from the boards-only
   // BoardPicker, which stays the "link a board" surface).
@@ -260,6 +267,8 @@ export function LocalBoardsApp({ user, signOut }) {
   const currentId = stack[stack.length - 1] || ROOT_ID;
   const currentBoard = boards[currentId] || boards[ROOT_ID];
   const currentState = boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+  const currentTemplates = gridTplState[currentId] || {};
+  const currentSequences = gridSeqState[currentId] || {};
   const view = viewOverride[currentId] || currentBoard.view || 'canvas';
 
   // Dev-only guided-tour demo (?tour=1). The mutators below emit tour events via
@@ -532,6 +541,27 @@ export function LocalBoardsApp({ user, signOut }) {
     setAutoFocusId(id);
   };
 
+  // Minimal doc card for the local QA harness — enough for the rail "Doc"
+  // tool + the + / right-click Doc entries to place a card. There's no
+  // ydoc-backed doc store here, so CanvasSurface renders the static
+  // <DocCard> fallback (kind:'doc' without docPages). Not a full editor.
+  const addDocCard = (clickPos = null) => {
+    const id = createId('doc');
+    const w = 320;
+    const h = 240;
+    addCard({
+      id,
+      kind: 'doc',
+      title: 'Untitled doc',
+      lines: [],
+      x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
+      y: Math.max(8, Math.round((clickPos?.y ?? 180) - h / 2)),
+      w,
+      h,
+    });
+    setAutoFocusId(id);
+  };
+
   const addShape = (clickPos = null, opts = {}) => {
     const w = opts.w || 160;
     const h = opts.h || 100;
@@ -600,6 +630,221 @@ export function LocalBoardsApp({ user, signOut }) {
     });
   };
 
+  // Grid card. Local shell has no Yjs, so layout + cell content live as plain
+  // fields on the card (readGridModel normalizes both paths). Always unlinked
+  // here — shared templates need the per-board Y.Doc the local shell lacks.
+  const addGrid = (clickPos = null, opts = {}) => {
+    const preset = opts.preset || 'storyboard-1-2';
+    const w = opts.w || 360, h = opts.h || 300;
+    const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
+    const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
+    const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+    addCard({
+      id: createId('grid'), kind: 'grid',
+      layout: presetTree(preset, mkCellId),
+      cells: {}, templateId: null, seqId: null,
+      x: Math.max(8, x), y: Math.max(8, y), w, h,
+    });
+  };
+
+  // Grid cell + divider mutators (local shell = plain layout/cells fields; shared
+  // layouts live in gridTplState, mirroring the Yjs gridTemplates map).
+  const mapGridCard = (gridId, fn) => updateBoardState(state => ({
+    ...state,
+    cards: state.cards.map(c => (c.id === gridId ? fn(c) : c)),
+  }));
+  const findLocalGrid = (gridId) => (boardState[currentId]?.cards || []).find(c => c.id === gridId) || null;
+  // Template-aware layout edit: write to the shared template when linked, else the
+  // card's own layout — so editing one linked Grid's divider reflows every Grid
+  // sharing the template (same-board global sync).
+  const localGridLayoutEdit = (gridId, transform) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    if (card.templateId) {
+      setGridTplState(prev => {
+        const board = prev[currentId] || {};
+        const tpl = board[card.templateId];
+        const cur = tpl?.layout || card.layout; if (!cur) return prev;
+        return { ...prev, [currentId]: { ...board, [card.templateId]: { ...(tpl || { id: card.templateId }), layout: transform(cur) } } };
+      });
+    } else {
+      mapGridCard(gridId, c => (c.layout ? { ...c, layout: transform(c.layout) } : c));
+    }
+  };
+  const localGridLayout = (card) => card?.templateId
+    ? ((gridTplState[currentId]?.[card.templateId]?.layout) || card?.layout || null)
+    : (card?.layout || null);
+  const resizeGridDivider = (gridId, path, childIndex, deltaFrac) =>
+    localGridLayoutEdit(gridId, l => resizeDivider(l, path, childIndex, deltaFrac));
+  const splitGridCell = (gridId, cellId, orientation) =>
+    localGridLayoutEdit(gridId, l => splitCell(l, cellId, orientation));
+  const mergeGridCell = (gridId, cellId) => {
+    const card = findLocalGrid(gridId); const cur = localGridLayout(card); if (!cur) return;
+    const { tree, removedIds } = mergeCell(cur, cellId);
+    if (!removedIds.length) return;
+    localGridLayoutEdit(gridId, () => tree);
+    mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
+  };
+  const removeGridDivider = (gridId, path, childIndex) => {
+    const card = findLocalGrid(gridId); const cur = localGridLayout(card); if (!cur) return;
+    const { tree, removedIds } = removeDivider(cur, path, childIndex);
+    if (!removedIds.length) return;
+    localGridLayoutEdit(gridId, () => tree);
+    mapGridCard(gridId, c => { const cells = { ...(c.cells || {}) }; removedIds.forEach(id => delete cells[id]); return { ...c, cells }; });
+  };
+  const setGridCellContent = (gridId, cellId, patch) =>
+    mapGridCard(gridId, c => {
+      const prev = c.cells?.[cellId] || {};
+      // type-carrying patch = full content write → replace (no stale fields leak);
+      // type-less patch = partial update → merge (mirrors gridState.setGridCell).
+      // The `style` override (pinned text style) is display state → survives replace.
+      const next = patch && patch.type
+        ? { ...(prev.style ? { style: prev.style } : {}), ...patch }
+        : { ...prev, ...patch };
+      return { ...c, cells: { ...(c.cells || {}), [cellId]: next } };
+    });
+  // Graft a source Grid INTO a host cell (drop-a-grid-into-a-cell, editable inline).
+  const graftGridIntoCell = (hostGridId, cellId, sourceGridId) => {
+    const host = findLocalGrid(hostGridId); const src = findLocalGrid(sourceGridId);
+    if (!host || !src || hostGridId === sourceGridId) return;
+    const hostLayout = localGridLayout(host); const srcLayout = localGridLayout(src);
+    if (!hostLayout || !srcLayout) return;
+    const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);
+    const { tree, idMap } = graftSubtree(hostLayout, cellId, srcLayout, mkCellId);
+    if (!Object.keys(idMap).length) return;
+    const srcCells = src.cells || {};
+    mapGridCard(hostGridId, c => {
+      const { templateId, ...rest } = c; // unlink — graft is local to this Grid
+      const cells = { ...(c.cells || {}) };
+      delete cells[cellId];
+      Object.entries(idMap).forEach(([srcId, newId]) => {
+        const rec = srcCells[srcId];
+        if (rec && rec.type && rec.type !== 'empty') cells[newId] = rec;
+      });
+      return { ...rest, layout: clone(tree), cells };
+    });
+    deleteCards([sourceGridId]); // consume the source (move semantics)
+  };
+  const clearGridCellContent = (gridId, cellId) =>
+    mapGridCard(gridId, c => ({ ...c, cells: { ...(c.cells || {}), [cellId]: { type: 'empty' } } }));
+  // ── shared / per-cell text style (local twin of App.jsx) ───────────────────
+  const localFamilyStyle = (card) => {
+    if (card?.templateId) return gridTplState[currentId]?.[card.templateId]?.textStyle || {};
+    return card?.textStyle || {};
+  };
+  const setGridTextStyle = (gridId, cellId, patch, opts = {}) => {
+    if (!patch) return;
+    const card = findLocalGrid(gridId); if (!card) return;
+    if (opts.pinned) {
+      mapGridCard(gridId, c => {
+        const prev = c.cells?.[cellId] || {};
+        return { ...c, cells: { ...(c.cells || {}), [cellId]: { ...prev, style: { ...(prev.style || {}), ...patch } } } };
+      });
+    } else if (card.templateId) {
+      const tplId = card.templateId;
+      setGridTplState(prev => {
+        const tpls = prev[currentId] || {};
+        const tpl = tpls[tplId] || { id: tplId };
+        return { ...prev, [currentId]: { ...tpls, [tplId]: { ...tpl, id: tplId, textStyle: { ...(tpl.textStyle || {}), ...patch } } } };
+      });
+    } else {
+      mapGridCard(gridId, c => ({ ...c, textStyle: { ...(c.textStyle || {}), ...patch } }));
+    }
+  };
+  const pinCellStyle = (gridId, cellId) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    const fam = localFamilyStyle(card);
+    mapGridCard(gridId, c => {
+      const prev = c.cells?.[cellId] || {};
+      return { ...c, cells: { ...(c.cells || {}), [cellId]: { ...prev, style: { ...fam, ...(prev.style || {}) } } } };
+    });
+  };
+  const unpinCellStyle = (gridId, cellId) =>
+    mapGridCard(gridId, c => {
+      const prev = c.cells?.[cellId]; if (!prev) return c;
+      const { style, ...rest } = prev;
+      return { ...c, cells: { ...(c.cells || {}), [cellId]: rest } };
+    });
+  const promoteGridToTemplate = (gridId, name = 'Grid layout') => {
+    const card = findLocalGrid(gridId); if (!card || card.templateId || !card.layout) return null;
+    const tplId = createId('gtpl');
+    setGridTplState(prev => ({ ...prev, [currentId]: { ...(prev[currentId] || {}), [tplId]: { id: tplId, name, layout: card.layout } } }));
+    mapGridCard(gridId, c => { const { layout, ...rest } = c; return { ...rest, templateId: tplId }; });
+    return tplId;
+  };
+  const linkGridToTemplate = (gridId, tplId) =>
+    mapGridCard(gridId, c => { const { layout, ...rest } = c; return { ...rest, templateId: tplId }; });
+  const unlinkGrid = (gridId) => {
+    const card = findLocalGrid(gridId); if (!card?.templateId) return;
+    const layout = gridTplState[currentId]?.[card.templateId]?.layout || card.layout; if (!layout) return;
+    mapGridCard(gridId, c => { const { templateId, ...rest } = c; return { ...rest, layout: clone(layout) }; });
+  };
+  // Sequences + stamping (local parity). Carries label-tag text cells to copies.
+  const localLabelTagCells = (card) => {
+    const out = {};
+    for (const [k, cell] of Object.entries(card.cells || {})) {
+      if (cell?.type === 'text' && hasLabelTag(cell.html)) out[k] = { type: 'text', html: cell.html };
+    }
+    return out;
+  };
+  const ensureLocalTemplate = (card) => {
+    if (card.templateId) return card.templateId;
+    const tplId = createId('gtpl');
+    setGridTplState(prev => ({ ...prev, [currentId]: { ...(prev[currentId] || {}), [tplId]: { id: tplId, name: 'Grid layout', layout: card.layout } } }));
+    mapGridCard(card.id, c => { const { layout, ...rest } = c; return { ...rest, templateId: tplId }; });
+    return tplId;
+  };
+  const ensureLocalSequence = (card) => {
+    if (card.seqId) return card.seqId;
+    const seqId = createId('gseq');
+    setGridSeqState(prev => ({ ...prev, [currentId]: { ...(prev[currentId] || {}), [seqId]: { id: seqId, name: 'Sequence', pattern: 'z', format: { startAt: 1 } } } }));
+    mapGridCard(card.id, c => ({ ...c, seqId }));
+    return seqId;
+  };
+  const stampGridNeighbor = (gridId, dir) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    const w = card.w || 360, h = card.h || 300, x = card.x, y = card.y, gap = 0; // flush — share the edge line
+    let nx = x, ny = y;
+    if (dir === 'right') nx = x + w + gap; else if (dir === 'left') nx = x - w - gap;
+    else if (dir === 'bottom') ny = y + h + gap; else if (dir === 'top') ny = y - h - gap;
+    const tplId = ensureLocalTemplate(card);
+    const seqId = ensureLocalSequence(card);
+    const carry = localLabelTagCells(card);
+    addCard({ id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: carry, x: Math.max(8, nx), y: Math.max(8, ny), w, h });
+  };
+  const bulkGenerateGrids = (gridId, cols, rows, opts = {}) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    const C = Math.max(1, Math.min(50, cols | 0)), R = Math.max(1, Math.min(50, rows | 0));
+    if (C * R <= 1) return;
+    const w = card.w || 360, h = card.h || 300, x0 = card.x, y0 = card.y, gx = opts.gapX ?? 0, gy = opts.gapY ?? 0;
+    const tplId = ensureLocalTemplate(card);
+    const seqId = ensureLocalSequence(card);
+    const carry = localLabelTagCells(card);
+    const newCards = [];
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+      if (r === 0 && c === 0) continue;
+      newCards.push({ id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: { ...carry }, x: Math.max(8, x0 + c * (w + gx)), y: Math.max(8, y0 + r * (h + gy)), w, h });
+    }
+    addCards(newCards);
+  };
+  // Resize one Grid → linked family all become the same size + re-tile (flush);
+  // unlinked just resizes itself. Mirrors App.resizeLinkedGrids.
+  const resizeLinkedGrids = (gridId, newW, newH) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    if (!card.templateId) { updateCard(gridId, { w: newW, h: newH }); return; }
+    const fam = (boardState[currentId]?.cards || []).filter(c => c.kind === 'grid' && c.templateId === card.templateId)
+      .map(c => ({ id: c.id, x: c.x, y: c.y, w: c.w, h: c.h }));
+    const tiled = tileLinkedGrids(fam, newW, newH, 0);
+    const byId = Object.fromEntries(tiled.map(t => [t.id, t]));
+    updateBoardState(state => ({
+      ...state,
+      cards: state.cards.map(c => byId[c.id] ? { ...c, x: byId[c.id].x, y: byId[c.id].y, w: byId[c.id].w, h: byId[c.id].h } : c),
+    }));
+  };
+  const setGridSequencePattern = (seqId, pattern) => setGridSeqState(prev => {
+    const board = prev[currentId] || {}; const seq = board[seqId]; if (!seq) return prev;
+    return { ...prev, [currentId]: { ...board, [seqId]: { ...seq, pattern } } };
+  });
+
   // Chat-attachment drops piggy-back on the INBOX_MIME drag protocol so
   // CanvasSurface still calls onDropInboxItem for them.
   const dropInboxItem = (_inboxId, card) => addCard(card);
@@ -647,6 +892,13 @@ export function LocalBoardsApp({ user, signOut }) {
     addPdfAt,
     addNewBoard,
     addPalette,
+    addDocCard,
+    addGrid,
+    resizeGridDivider, splitGridCell, mergeGridCell, setGridCellContent, clearGridCellContent,
+    setGridTextStyle, pinCellStyle, unpinCellStyle,
+    promoteGridToTemplate, linkGridToTemplate, unlinkGrid,
+    removeGridDivider, resizeLinkedGrids, graftGridIntoCell,
+    stampGridNeighbor, bulkGenerateGrids, setGridSequencePattern,
     addShape,
     addStroke,
     replaceStrokes,
@@ -851,6 +1103,8 @@ export function LocalBoardsApp({ user, signOut }) {
             cards={currentState.cards}
             arrows={currentState.arrows}
             strokes={currentState.strokes}
+            gridTemplates={currentTemplates}
+            gridSequences={currentSequences}
             onOpenBoard={openBoard}
             tweak={tweak}
             depth={stack.length - 1}

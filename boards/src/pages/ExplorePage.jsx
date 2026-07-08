@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SoleilMark } from '../components/primitives.jsx';
 import { getPublicBoards } from '../lib/publicBoardsApi.js';
+import { SEO_LANDING_PAGES, EXPLORE_INTRO, matchToolPath } from '../lib/seoLanding.js';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 
@@ -49,9 +50,24 @@ export function ExplorePage() {
           <h1 style={{ fontSize: '2rem', fontWeight: 600, letterSpacing: '-0.01em', margin: '0 0 .4em' }}>
             Explore Boards
           </h1>
-          <p style={{ color: 'var(--text-soft, #b7b1a6)', margin: '0 0 2em', maxWidth: 620, lineHeight: 1.55 }}>
-            Curated public moodboards and reference collections made with Soleil Clusters.
+          {/* Intro + tools nav mirror the worker's crawlable #seo-fallback (hub-
+              and-spoke: /explore must link every landing page or they orphan). */}
+          <p style={{ color: 'var(--text-soft, #b7b1a6)', margin: '0 0 1.6em', maxWidth: 680, lineHeight: 1.55 }}>
+            {EXPLORE_INTRO}
           </p>
+          <nav aria-label="Make it with Clusters" style={{ margin: '0 0 2.2em' }}>
+            <div style={{ font: '600 12px/1 var(--font-sans)', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-3, #5a5a60)', marginBottom: 10 }}>
+              Make it with Clusters
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px' }}>
+              {SEO_LANDING_PAGES.map((s) => (
+                <a key={s.path} href={s.path} style={{ color: 'var(--soleil)', textDecoration: 'none', font: '500 .95rem/1.3 var(--font-sans)' }}>
+                  {s.h1}
+                </a>
+              ))}
+              <a href="/pricing" style={{ color: 'var(--soleil)', textDecoration: 'none', font: '500 .95rem/1.3 var(--font-sans)' }}>Pricing</a>
+            </div>
+          </nav>
 
           {boards === null ? (
             <div style={{ display: 'grid', placeItems: 'center', padding: '12vh 0', gap: 12 }}>
@@ -95,6 +111,14 @@ export function ExplorePage() {
                         )}
                       </div>
                     </a>
+                    {matchToolPath(b.target_keyword || b.seo_title) && (
+                      <a
+                        href={matchToolPath(b.target_keyword || b.seo_title)}
+                        style={{ display: 'inline-block', marginTop: 6, color: 'var(--soleil)', textDecoration: 'none', font: '500 .85rem/1.3 var(--font-sans)' }}
+                      >
+                        Make your own →
+                      </a>
+                    )}
                   </li>
                 );
               })}

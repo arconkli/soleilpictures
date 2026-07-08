@@ -32,6 +32,8 @@ export function SidebarBoardsSection({
   onCreateBoardInside,      // (parentBoardId) => void — context-menu "New board inside"
   onSetBoardCover,          // (boardId, coverKey|null) => void
   onSetBoardBgColor,        // (boardId, hex|null) => void
+  onSetBoardThumb,          // (boardId, blob) => Promise — custom thumbnail
+  onResetBoardThumb,        // (boardId) => Promise — revert to auto thumbnail
   onCopyBoard,              // (board) => void
   onPasteBoardInto,         // (targetBoardId) => void
   onDeleteBoard,            // (boardId) => void
@@ -77,6 +79,8 @@ export function SidebarBoardsSection({
             onCreateBoardInside={onCreateBoardInside}
             onSetBoardCover={onSetBoardCover}
             onSetBoardBgColor={onSetBoardBgColor}
+            onSetBoardThumb={onSetBoardThumb}
+            onResetBoardThumb={onResetBoardThumb}
             onCopyBoard={onCopyBoard}
             onPasteBoardInto={onPasteBoardInto}
             onDeleteBoard={onDeleteBoard}

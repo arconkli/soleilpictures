@@ -42,6 +42,19 @@ export const BOARDS = {
           { name: 'Warn',   hex: '#f59e0b' },
         ]},
       { id: 'home-image', kind: 'image', x: 660, y: 600, w: 240, h: 200, tone: 'neutral', label: 'PINNED · KEY ART REF', src: '/signin-losttime-still1.webp' },
+      // A storyboard grid whose bottom-left cell already holds an image — gives the
+      // grid image-cell controls (fit/reposition/zoom + photo adjust) a real cell
+      // to drive in the local harness, where an upload backend isn't available and
+      // image cards can't be dragged into a cell under headless input.
+      { id: 'home-grid', kind: 'grid', x: 60, y: 900, w: 360, h: 300, templateId: null, seqId: null,
+        layout: { type: 'col', children: [
+          { type: 'leaf', id: 'hg-top', frac: 0.5 },
+          { type: 'row', frac: 0.5, children: [
+            { type: 'leaf', id: 'hg-img', frac: 0.5 },
+            { type: 'leaf', id: 'hg-empty', frac: 0.5 },
+          ] },
+        ] },
+        cells: { 'hg-img': { type: 'image', src: '/signin-losttime-still1.webp', fit: 'cover' } } },
     ],
     arrows: [],
     links: [],

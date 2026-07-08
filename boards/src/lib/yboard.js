@@ -13,7 +13,7 @@
 // onto the undo stack. Restores use 'restore'.
 
 import * as Y from 'yjs';
-import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb, getBoardBgColor, getChildBoardThumbs } from './boardsApi.js';
+import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb, getBoardBgColor, getChildBoardThumbs, isBoardThumbCustom } from './boardsApi.js';
 import { b64ToBytes, bytesToB64, readCards } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 // Round 23: render each board's preview ONCE on the editing client and
@@ -122,6 +122,11 @@ async function _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, 
   if (_thumbInFlight.has(boardId)) return;
   _thumbInFlight.add(boardId);
   try {
+    // User-set cover: never overwrite it from the canvas. This is the single
+    // funnel for BOTH the on-edit (maybeGenerateThumbnail) and share-link
+    // (forceBoardThumbnail) paths, so one authoritative DB check here guards
+    // both. Failure → fall through (default false) rather than block forever.
+    try { if (await isBoardThumbCustom(boardId)) return; } catch (_) {}
     // Re-read bg_color live (the yboard handle outlives the board row it
     // was opened with, so a passed-in value would go stale if the user
     // repaints the canvas mid-session). Failure → default canvas bg.
@@ -254,6 +259,12 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   const docPageContent = ydoc.getMap('docPageContent');
   const docBookmarks = ydoc.getMap('docBookmarks');
   const docComments = ydoc.getMap('docComments');
+  // Grid (modular grid-template card) shared state. gridTemplates: id →
+  // { id, name, layout } shared by all linked Grids on the board, so editing the
+  // layout reflows them live. gridSequences: id → { id, name, pattern, format } —
+  // sequence config only (order is derived spatially, not stored). See gridState.js.
+  const gridTemplates = ydoc.getMap('gridTemplates');
+  const gridSequences = ydoc.getMap('gridSequences');
 
   // captureTimeout (Yjs default 500ms) coalesces transactions fired within
   // the window into ONE undo step — desirable for gesture commits (a drag/
@@ -262,7 +273,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   // `breakUndo` helper in buildMutators so two quick clicks don't collapse
   // into a single Cmd+Z. Made explicit here to document the intent.
   const undoManager = new Y.UndoManager(
-    [cards, arrows, strokes, groups, docPages, docPageContent, docBookmarks, docComments],
+    [cards, arrows, strokes, groups, docPages, docPageContent, docBookmarks, docComments, gridTemplates, gridSequences],
     { trackedOrigins: new Set(['local']), captureTimeout: 500 }
   );
 
@@ -582,6 +593,10 @@ export function restoreVersionInto(ydoc, b64) {
     docBookmarks.forEach((_v, k) => docBookmarks.delete(k));
     const docComments = ydoc.getMap('docComments');
     docComments.forEach((_v, k) => docComments.delete(k));
+    const gridTemplates = ydoc.getMap('gridTemplates');
+    gridTemplates.forEach((_v, k) => gridTemplates.delete(k));
+    const gridSequences = ydoc.getMap('gridSequences');
+    gridSequences.forEach((_v, k) => gridSequences.delete(k));
   }, 'restore');
   const _t0 = perf.isEnabled() ? performance.now() : 0;
   Y.applyUpdate(ydoc, bytes, 'restore');

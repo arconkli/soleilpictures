@@ -1,0 +1,84 @@
+{
+  "slug": "world-cup-2026-moodboard",
+  "name": "World Cup 2026 — Visual Reference Board",
+  "priority": 5,
+  "bgColor": "#0a120d",
+  "cover": "sea",
+  "seo": {
+    "title": "World Cup 2026 Mood Board",
+    "description": "A visual reference board for the 2026 FIFA World Cup — host cities, stadiums, exact team-kit color palettes, the trophy, and the schedule, on one Clusters canvas.",
+    "body": "A living reference board for the 2026 FIFA World Cup across the United States, Canada, and Mexico — the first 48-team tournament and the first hosted by three nations. It collects the host stadiums and their capacities, exact national-kit color palettes with hex codes, the trophy and match ball, and the full tournament schedule, composed the way a creative team would build a mood board: on an infinite, shareable canvas with connected notes and grid mosaics. Made with Soleil Clusters.",
+    "keyword": "world cup 2026 mood board"
+  },
+  "arrows": [
+    { "from": "pal-argentina", "to": "img-fans-arg", "color": "orange", "head": "single" },
+    { "from": "note-format", "to": "sched", "color": "blue", "dashed": true },
+    { "from": "note-venues", "to": "note-hosts", "color": "green", "head": "single" }
+  ],
+  "sections": [
+    {
+      "header": { "text": "FIFA WORLD CUP 2026", "sub": "48 teams · 104 matches · 16 host cities · United States · Canada · Mexico", "hero": true },
+      "cards": [
+        { "id": "grid-matchday", "kind": "grid", "title": "Matchday", "rows": 2, "cols": 3, "images": [
+          { "provider": "unsplash", "query": "soccer fans celebration flags crowd" },
+          { "provider": "pexels", "query": "packed football stadium aerial view" },
+          { "provider": "unsplash", "query": "soccer player silhouette stadium lights" },
+          { "provider": "pexels", "query": "confetti celebration stadium crowd" },
+          { "provider": "unsplash", "query": "soccer fans face paint flag" },
+          { "provider": "pexels", "query": "football corner flag pitch close up" }
+        ] },
+        { "id": "hero-trophy", "kind": "image", "source": { "provider": "wikimedia", "query": "FIFA World Cup Trophy" }, "title": "The FIFA World Cup Trophy", "caption": "18-carat gold · lifted July 19, 2026" }
+      ]
+    },
+    {
+      "header": { "text": "Host Cities and Venues", "sub": "Sixteen stadiums across the US, Canada, and Mexico" },
+      "cards": [
+        { "id": "st-aerial", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "aerial view football stadium architecture", "orientation": "landscape" }, "title": "World-class venues", "caption": "16 stadiums, three nations" },
+        { "id": "st-night", "kind": "image", "source": { "provider": "pexels", "query": "football stadium night lights full crowd" }, "title": "Matchday", "caption": "Under the lights" },
+        { "id": "st-roof", "kind": "image", "source": { "provider": "unsplash", "query": "modern stadium roof architecture detail" }, "title": "Modern arenas", "caption": "Retractable roofs and open bowls" },
+        { "id": "note-venues", "kind": "note", "bgColor": "#14110d", "html": "<p><b>Marquee venues</b><br>Estadio Azteca, Mexico City — opening match · 87,523<br>MetLife Stadium, NY/NJ — the Final · 82,500<br>SoFi Stadium, Los Angeles · 70,240<br>AT&amp;T Stadium, Dallas · 80,000<br>Mercedes-Benz, Atlanta · Hard Rock, Miami · BC Place, Vancouver</p>" },
+        { "id": "note-hosts", "kind": "note", "bgColor": "#0e1712", "html": "<p><b>16 host cities</b><br>New York/NJ · Los Angeles · Dallas · Kansas City · Atlanta · Miami · Seattle · SF Bay · Houston · Philadelphia · Boston · Toronto · Vancouver · Guadalajara · Mexico City · Monterrey</p>" }
+      ]
+    },
+    {
+      "header": { "text": "Team Colors — Exact Kit Palettes", "sub": "The hex codes behind the jerseys" },
+      "cards": [
+        { "id": "pal-brazil", "kind": "palette", "title": "Brazil", "swatches": [ { "hex": "#FEDD00", "name": "Amarelo" }, { "hex": "#009C3B", "name": "Verde" }, { "hex": "#002776", "name": "Azul" }, { "hex": "#FFFFFF", "name": "Branco" } ] },
+        { "id": "pal-argentina", "kind": "palette", "title": "Argentina", "swatches": [ { "hex": "#75AADB", "name": "Celeste" }, { "hex": "#FFFFFF", "name": "Blanco" }, { "hex": "#F6B40E", "name": "Sol" }, { "hex": "#000000", "name": "Negro" } ] },
+        { "id": "pal-france", "kind": "palette", "title": "France", "swatches": [ { "hex": "#002654", "name": "Bleu" }, { "hex": "#FFFFFF", "name": "Blanc" }, { "hex": "#ED2939", "name": "Rouge" } ] },
+        { "id": "pal-england", "kind": "palette", "title": "England", "swatches": [ { "hex": "#FFFFFF", "name": "White" }, { "hex": "#CE1124", "name": "St George Red" }, { "hex": "#001489", "name": "Navy" } ] },
+        { "id": "pal-mexico", "kind": "palette", "title": "Mexico", "swatches": [ { "hex": "#006847", "name": "Verde" }, { "hex": "#FFFFFF", "name": "Blanco" }, { "hex": "#CE1126", "name": "Rojo" } ] },
+        { "id": "pal-usa", "kind": "palette", "title": "United States", "swatches": [ { "hex": "#002868", "name": "Old Glory Blue" }, { "hex": "#FFFFFF", "name": "White" }, { "hex": "#BF0A30", "name": "Old Glory Red" } ] },
+        { "id": "pal-germany", "kind": "palette", "title": "Germany", "swatches": [ { "hex": "#000000", "name": "Schwarz" }, { "hex": "#DD0000", "name": "Rot" }, { "hex": "#FFCE00", "name": "Gold" }, { "hex": "#FFFFFF", "name": "Weiß" } ] },
+        { "id": "pal-netherlands", "kind": "palette", "title": "Netherlands", "swatches": [ { "hex": "#EC6E19", "name": "Oranje" }, { "hex": "#FFFFFF", "name": "Wit" }, { "hex": "#21468B", "name": "Blauw" } ] },
+        { "id": "img-fans-arg", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "argentina soccer fans jersey celebration" }, "title": "Kit culture", "caption": "Colors that carry a nation" },
+        { "id": "img-jerseys", "kind": "image", "source": { "provider": "pexels", "query": "soccer jerseys hanging locker room" }, "title": "The kits", "caption": "Every nation, its own palette" }
+      ]
+    },
+    {
+      "header": { "text": "The Trophy, Ball and Atmosphere" },
+      "cards": [
+        { "id": "img-ball", "kind": "image", "source": { "provider": "pexels", "query": "soccer ball on pitch close up" }, "title": "The match ball", "caption": "On the pitch" },
+        { "id": "img-pitch", "kind": "image", "source": { "provider": "pexels", "query": "aerial green football pitch stadium" }, "title": "The pitch", "caption": "Groundsmanship at world level" },
+        { "id": "img-night", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "night football stadium lights atmosphere" }, "title": "Under lights", "caption": "Knockout nights" },
+        { "id": "pal-pitch", "kind": "palette", "title": "Pitch and chalk", "swatches": [ { "hex": "#1B7A3D", "name": "Pitch green" }, { "hex": "#0E5A2C", "name": "Mow stripe" }, { "hex": "#F4F4F4", "name": "Chalk" }, { "hex": "#F5C518", "name": "Trophy gold" } ] }
+      ]
+    },
+    {
+      "header": { "text": "Format and Key Dates", "sub": "The first 48-team, three-nation World Cup" },
+      "cards": [
+        { "id": "sched", "kind": "schedule", "title": "Tournament schedule", "rows": [
+          { "day": "Jun 11", "what": "Opening match", "loc": "Estadio Azteca" },
+          { "day": "Jun 11–27", "what": "Group stage — 12 groups of 4", "loc": "" },
+          { "day": "Jun 28–Jul 3", "what": "Round of 32", "loc": "" },
+          { "day": "Jul 4–7", "what": "Round of 16", "loc": "" },
+          { "day": "Jul 9–11", "what": "Quarter-finals", "loc": "" },
+          { "day": "Jul 14–15", "what": "Semi-finals", "loc": "" },
+          { "day": "Jul 19", "what": "Final", "loc": "MetLife Stadium" }
+        ] },
+        { "id": "note-format", "kind": "note", "bgColor": "#14110d", "html": "<p><b>New format</b><br>48 teams in 12 groups of four. The top two from each group plus the eight best third-placed teams advance to a new Round of 32 — 104 matches in all, up from 64.</p>" },
+        { "id": "note-firsts", "kind": "note", "bgColor": "#f5c518", "html": "<p><b>A tournament of firsts</b><br>First hosted across three nations, and the first with 48 teams.</p>" }
+      ]
+    }
+  ]
+}

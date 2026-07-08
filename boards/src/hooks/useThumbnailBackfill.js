@@ -30,6 +30,14 @@ import * as perf from '../lib/perf.js';
 // only by a page reload — a transient failure simply retries next session.
 const _attempted = new Set();
 
+// Allow a caller to re-arm the one-shot for a board so the backfill runs again
+// this session. Used when reverting a custom thumbnail: the board may have been
+// auto-backfilled earlier this session (so it's in _attempted), and without
+// re-arming, the reset auto thumbnail wouldn't regenerate until a page reload.
+export function forgetThumbnailAttempt(boardId) {
+  if (boardId) _attempted.delete(boardId);
+}
+
 // Concurrency is capped by the shared backfillGate (runGated) so thumbnail
 // backfill and image-preview backfill don't burst presigns + PUTs together on
 // a freshly-painted board/grid.
@@ -50,6 +58,9 @@ export function useThumbnailBackfill({ board, preview, boards = {}, enabled = tr
     // (a child's preview changed but the parent's own cards didn't). The
     // _attempted one-shot below still caps it to one regen per session.
     if (!enabled || !boardId || !workspaceId || (hasThumb && !force)) return;
+    // User-set cover: never auto-regenerate, even under `force` (the parent
+    // stale-vs-children regen path) — a custom thumbnail owns the key.
+    if (board?.thumb_custom) return;
     if (_attempted.has(boardId)) return;
 
     const cards = preview?.cards || [];

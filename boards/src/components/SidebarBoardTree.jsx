@@ -14,6 +14,7 @@ import { BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds } from '../lib/dra
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
+import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { boardClipboardSize } from '../lib/boardClipboard.js';
 
 const HOVER_PREFETCH_MS = 80;
@@ -41,6 +42,8 @@ export function SidebarBoardTree({
   onCreateBoardInside,     // (parentBoardId) => void — context-menu "New board inside"
   onSetBoardCover,         // (boardId, coverKey|null) => void
   onSetBoardBgColor,       // (boardId, hex|null) => void
+  onSetBoardThumb,         // (boardId, blob) => Promise — save a custom thumbnail
+  onResetBoardThumb,       // (boardId) => Promise — revert to the auto thumbnail
   onCopyBoard,             // (board) => void
   onPasteBoardInto,        // (targetBoardId) => void
   onDeleteBoard,           // (boardId) => void
@@ -70,6 +73,32 @@ export function SidebarBoardTree({
   const closeMenu = () => setMenu(m => ({ ...m, open: false }));
   // "Custom…" full color picker for bg_color: { boardId, value, x, y } | null.
   const [picker, setPicker] = useState(null);
+  // Custom-thumbnail flow: a hidden file input (opened from the context menu),
+  // then a crop/reposition modal on the picked file. thumbCrop = { boardId, file }
+  // while the modal is up; thumbSaving covers the upload round-trip.
+  const thumbInputRef = useRef(null);
+  const pendingThumbBoardId = useRef(null);
+  const [thumbCrop, setThumbCrop] = useState(null);
+  const [thumbSaving, setThumbSaving] = useState(false);
+
+  const triggerThumbPick = (boardId) => {
+    pendingThumbBoardId.current = boardId;
+    const input = thumbInputRef.current;
+    if (input) { input.value = ''; input.click(); }
+  };
+  const onThumbFileChange = (e) => {
+    const file = e.target.files?.[0];
+    const boardId = pendingThumbBoardId.current;
+    pendingThumbBoardId.current = null;
+    if (file && boardId) setThumbCrop({ boardId, file });
+  };
+  const saveThumbCrop = async (blob) => {
+    const boardId = thumbCrop?.boardId;
+    if (!boardId) { setThumbCrop(null); return; }
+    setThumbSaving(true);
+    try { await onSetBoardThumb?.(boardId, blob); }
+    finally { setThumbSaving(false); setThumbCrop(null); }
+  };
   // Multi-select set for dragging several boards at once (cmd/shift-click).
   const [selectedTreeBoards, setSelectedTreeBoards] = useState(() => new Set());
   // Live boards map for the touch DnD listener (its effect deps are []).
@@ -157,6 +186,16 @@ export function SidebarBoardTree({
           },
         ],
       });
+      items.push({
+        id: 'custom-thumb', label: 'Upload custom thumbnail…',
+        run: () => triggerThumbPick(board.id),
+      });
+      if (board.thumb_custom) {
+        items.push({
+          id: 'reset-thumb', label: 'Reset to auto thumbnail',
+          run: () => onResetBoardThumb?.(board.id),
+        });
+      }
       items.push({ divider: true });
     }
 
@@ -567,6 +606,17 @@ export function SidebarBoardTree({
           onClose={() => setPicker(null)}
           position={{ x: picker.x, y: picker.y }}
           allowTransparent
+        />
+      )}
+      {/* Hidden picker for the "Upload custom thumbnail…" menu item. */}
+      <input ref={thumbInputRef} type="file" accept="image/*"
+             style={{ display: 'none' }} onChange={onThumbFileChange} />
+      {thumbCrop && (
+        <ThumbnailCropModal
+          file={thumbCrop.file}
+          saving={thumbSaving}
+          onCancel={() => { if (!thumbSaving) setThumbCrop(null); }}
+          onSave={saveThumbCrop}
         />
       )}
     </div>

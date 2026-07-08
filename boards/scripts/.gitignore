@@ -1,0 +1,4 @@
+# Secrets for the board generator — NEVER commit.
+.env
+.env.*
+!.env.example

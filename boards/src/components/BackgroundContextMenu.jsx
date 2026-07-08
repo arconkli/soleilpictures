@@ -64,6 +64,7 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
     <div className="ctx-menu" style={{ left: px, top: py }} role="menu">
       {items.map((it, i) => {
         if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
+        if (it.header) return <div key={`h-${i}`} className="ctx-header" aria-hidden="true">{it.header}</div>;
         if (it.submenu) return <SubmenuItem key={it.id || i} item={it} onClose={onClose} />;
         return (
           <button
@@ -148,6 +149,7 @@ function SubmenuItem({ item, onClose }) {
              onMouseLeave={handleLeave}>
           {item.submenu.map((sub, j) => {
             if (sub.divider) return <div key={`sd-${j}`} className="ctx-divider" />;
+            if (sub.header) return <div key={`sh-${j}`} className="ctx-header" aria-hidden="true">{sub.header}</div>;
             if (sub.swatch) {
               return (
                 <button key={sub.id || j}

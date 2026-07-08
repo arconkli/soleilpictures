@@ -579,6 +579,8 @@ export function SignInBackdrop({ children, exploreHref }) {
             <div className="sb-foot" ref={footRef}>
               <div className="sb-foot-left">
                 <span className="sb-foot-copy">© Soleil Pictures</span>
+                <a className="sb-foot-link" href="/use-cases" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'use_cases' })}>Use cases</a>
+                <a className="sb-foot-link" href="/explore" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'explore' })}>Explore</a>
                 <a className="sb-foot-link" href="/legal/privacy" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'privacy' })}>Privacy</a>
                 <a className="sb-foot-link" href="/legal/terms" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'terms' })}>Terms</a>
                 <a className="sb-foot-link" href="/legal/cookies" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'cookies' })}>Cookies</a>

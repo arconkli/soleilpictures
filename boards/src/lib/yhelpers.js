@@ -130,3 +130,20 @@ export function readGroups(ydoc) {
   });
   return out;
 }
+
+// Grid shared state — both are plain-object Y.Maps keyed by id (the values are
+// plain objects, not nested Y types, so a layout edit is a whole-record LWW which
+// is the acceptable v1 model). Returned as objects keyed by id so the renderer can
+// do templates[card.templateId]; callers wanting a list use Object.values.
+export function readGridTemplates(ydoc) {
+  const map = ydoc.getMap('gridTemplates');
+  const out = {};
+  map.forEach((v, id) => { out[id] = (v && typeof v.toJSON === 'function') ? { id, ...v.toJSON() } : { id, ...v }; });
+  return out;
+}
+export function readGridSequences(ydoc) {
+  const map = ydoc.getMap('gridSequences');
+  const out = {};
+  map.forEach((v, id) => { out[id] = (v && typeof v.toJSON === 'function') ? { id, ...v.toJSON() } : { id, ...v }; });
+  return out;
+}

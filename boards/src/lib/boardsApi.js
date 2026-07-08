@@ -5,6 +5,7 @@ import * as Y from 'yjs';
 import { supabase } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
+import { cardWeight } from './gridCount.js';
 
 const PARTYKIT_HOST = import.meta.env?.VITE_PARTYKIT_HOST || 'localhost:1999';
 
@@ -476,6 +477,25 @@ export async function adminImportGscCsv(rows, asOf = null) {
   return data; // count imported
 }
 
+// SEO measurement (migration 0180). Landing-page views/sessions/signups with a
+// referrer-class breakdown (ai/search/social/referral/direct), the top external
+// referrer hosts, and the latest SEO-health/deploy-drift run.
+export async function adminSeoPageStats(days = 30) {
+  const { data, error } = await supabase.rpc('admin_seo_page_stats', { p_days: days });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+export async function adminSeoReferrers(days = 30) {
+  const { data, error } = await supabase.rpc('admin_seo_referrers', { p_days: days });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+export async function adminSeoHealthLatest() {
+  const { data, error } = await supabase.rpc('admin_seo_health_latest');
+  if (error) throw error;
+  return data || null; // { run, checks } or null when no runs yet
+}
+
 // AI SEO tooling (migration 0137) — admin-only worker routes (worker-seo.js),
 // gated server-side on tier='admin'. Same same-origin Bearer pattern as
 // forceResetBoardRoom. Cloudflare Workers AI drafts copy / writes image alt; both return
@@ -788,13 +808,29 @@ export async function getChildBoardThumbs(parentBoardId) {
 // tile's "Updated X ago" stays meaningful and undo/meta-history isn't
 // polluted by background preview refreshes. RLS: boards update =
 // can_write_workspace, so the editing user is permitted. Fire-and-forget.
-export async function updateBoardThumb(boardId, { thumbKey = null, cardCount = null, thumbVersion = null } = {}) {
+export async function updateBoardThumb(boardId, { thumbKey = null, cardCount = null, thumbVersion = null, custom = null } = {}) {
   const patch = { thumb_updated_at: new Date().toISOString() };
   if (thumbKey != null) patch.thumb_key = thumbKey;
   if (cardCount != null) patch.card_count = cardCount;
   if (thumbVersion != null) patch.thumb_version = thumbVersion;
+  // `custom` marks the stored preview as a user-uploaded cover (true) or clears
+  // that mark on reset (false). While true, all three auto-regen paths skip the
+  // board so a canvas edit / nested-child change can't overwrite the user's image.
+  if (custom != null) patch.thumb_custom = custom;
   const { error } = await supabase.from('boards').update(patch).eq('id', boardId);
   if (error) console.warn('[updateBoardThumb]', error);
+}
+
+// Authoritative "is this board's thumbnail user-set?" check for the yboard regen
+// funnel (_renderUploadStampThumb), which has only a boardId and no in-memory
+// board row. One indexed PK select behind the same 8s throttle + content-hash
+// gate as the other per-regen reads. Defaults to false on any error so a
+// transient failure never permanently blocks the auto thumbnail.
+export async function isBoardThumbCustom(boardId) {
+  if (!boardId) return false;
+  const { data, error } = await supabase.from('boards').select('thumb_custom').eq('id', boardId).maybeSingle();
+  if (error) return false;
+  return !!data?.thumb_custom;
 }
 
 // History of metadata changes for a board, newest first.
@@ -1002,6 +1038,15 @@ async function _doSyncCardIndex(boardId, ydoc) {
       ? { ...baseMeta, groupId, groupName }
       : baseMeta;
     if (kind === 'image' && !meta.src) imageCardsNeedingSrc.push(id);
+    // Weighted card count: a grid weighs its FILLED cells (min 1), so a grid of
+    // 25 images counts ~25 toward the demo cap, not 1. Everything else weighs 1.
+    let weight = 1;
+    if (kind === 'grid') {
+      const cellsObj = {};
+      const gcm = get('gridCells');
+      if (gcm && typeof gcm.forEach === 'function') gcm.forEach((cv, ck) => { cellsObj[ck] = (cv && cv.toJSON) ? cv.toJSON() : cv; });
+      weight = cardWeight('grid', cellsObj);
+    }
     rows.push({
       workspace_id: workspaceId,
       board_id: boardId,
@@ -1010,6 +1055,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
       title: String(title).slice(0, 200),
       body: String(body).slice(0, 500),
       meta,
+      weight,
     });
     liveIds.add(id);
   });
@@ -1056,7 +1102,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
   // the source of truth, so a stale signature only ever costs one extra
   // (correct) upsert, never data loss.
   const cache = _cardIndexCache.get(boardId) || { sigs: new Map(), ids: new Set() };
-  const sigFor = (r) => `${r.kind}\x00${r.title}\x00${r.body}\x00${JSON.stringify(r.meta ?? null)}`;
+  const sigFor = (r) => `${r.kind}\x00${r.title}\x00${r.body}\x00${r.weight ?? 1}\x00${JSON.stringify(r.meta ?? null)}`;
   const changed = rows.filter(r => cache.sigs.get(r.card_id) !== sigFor(r));
 
   if (changed.length > 0) {
