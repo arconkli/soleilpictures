@@ -477,6 +477,25 @@ export async function adminImportGscCsv(rows, asOf = null) {
   return data; // count imported
 }
 
+// SEO measurement (migration 0180). Landing-page views/sessions/signups with a
+// referrer-class breakdown (ai/search/social/referral/direct), the top external
+// referrer hosts, and the latest SEO-health/deploy-drift run.
+export async function adminSeoPageStats(days = 30) {
+  const { data, error } = await supabase.rpc('admin_seo_page_stats', { p_days: days });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+export async function adminSeoReferrers(days = 30) {
+  const { data, error } = await supabase.rpc('admin_seo_referrers', { p_days: days });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+export async function adminSeoHealthLatest() {
+  const { data, error } = await supabase.rpc('admin_seo_health_latest');
+  if (error) throw error;
+  return data || null; // { run, checks } or null when no runs yet
+}
+
 // AI SEO tooling (migration 0137) — admin-only worker routes (worker-seo.js),
 // gated server-side on tier='admin'. Same same-origin Bearer pattern as
 // forceResetBoardRoom. Cloudflare Workers AI drafts copy / writes image alt; both return

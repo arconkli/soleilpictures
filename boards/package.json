@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "prebuild": "node scripts/stamp-build.mjs",
     "dev": "vite",
     "dev:party": "partykit dev --port 1999",
     "build": "vite build",

@@ -35,6 +35,7 @@ import { CanvasSurface } from './CanvasSurface.jsx';
 import { SharePrompt } from './SharePrompt.jsx';
 import { setReadUrlResolver, clearReadUrlResolver, setImageAuthErrorHandler, clearImageAuthErrorHandler } from '../lib/r2.js';
 import { setMetaResolver, clearMetaResolver } from '../lib/imageMeta.js';
+import { matchToolPath } from '../lib/seoLanding.js';
 import { logClientError } from '../lib/errorReporting.js';
 import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
@@ -701,23 +702,36 @@ export function PublicBoardView({ token, slug }) {
       </EntityNavigateContext.Provider>
       )}
 
-      {/* Related boards (slug mode) — a subtle bottom strip of internal links to
-          tag-related public boards. The worker also injects these server-side as
-          crawlable anchors; this is the live-app equivalent for visitors. */}
-      {slug && relatedBoards.length > 0 && (
+      {/* Related boards + hub links (slug mode) — a subtle bottom strip. The
+          worker injects the same links server-side as crawlable anchors; this is
+          the live-app equivalent for visitors (anti-cloaking parity). The
+          "Make your own" spoke→hub link points at the tool page matching this
+          board's subject so example boards feed the landing pages. */}
+      {slug && (
         <nav className="public-related" aria-label="Related boards" style={{
           position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 6,
           display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
           padding: '8px 14px', background: 'rgba(10,9,8,0.72)', backdropFilter: 'blur(8px)',
           borderTop: '1px solid rgba(255,255,255,0.08)', pointerEvents: 'auto',
         }}>
-          <span className="t-meta" style={{ color: 'var(--text-soft, #b7b1a6)', fontWeight: 600 }}>Related:</span>
-          {relatedBoards.slice(0, 5).map((r) => (
-            <a key={r.slug} href={`/c/${r.slug}`} style={{
-              color: '#FFA500', textDecoration: 'none', fontSize: '.85rem',
-              border: '1px solid rgba(255,165,0,0.3)', borderRadius: 999, padding: '3px 10px', whiteSpace: 'nowrap',
-            }}>{r.seo_title || r.slug}</a>
-          ))}
+          {relatedBoards.length > 0 && (
+            <>
+              <span className="t-meta" style={{ color: 'var(--text-soft, #b7b1a6)', fontWeight: 600 }}>Related:</span>
+              {relatedBoards.slice(0, 4).map((r) => (
+                <a key={r.slug} href={`/c/${r.slug}`} style={{
+                  color: '#FFA500', textDecoration: 'none', fontSize: '.85rem',
+                  border: '1px solid rgba(255,165,0,0.3)', borderRadius: 999, padding: '3px 10px', whiteSpace: 'nowrap',
+                }}>{r.seo_title || r.slug}</a>
+              ))}
+            </>
+          )}
+          <span style={{ flex: '1 1 auto' }} />
+          <a href={matchToolPath(board?.name) || '/use-cases'} style={{
+            color: '#FFA500', textDecoration: 'none', fontSize: '.85rem', fontWeight: 600, whiteSpace: 'nowrap',
+          }}>Make your own — free</a>
+          <a href="/use-cases" style={{
+            color: 'var(--text-soft, #b7b1a6)', textDecoration: 'none', fontSize: '.85rem', whiteSpace: 'nowrap',
+          }}>What you can make</a>
         </nav>
       )}
 

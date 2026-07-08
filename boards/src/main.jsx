@@ -154,9 +154,12 @@ const exploreMatch = /^\/explore\/?$/.test(window.location.pathname);
 // Self-authored SEO landing pages (lib/seoLanding.js): tool pages (/tools/*),
 // "alternative to" pages (/vs/*), and the /use-cases hub. Matched by path SHAPE
 // here — no registry import — so the entry chunk stays lean; the code-split
-// SeoLandingPage resolves the exact spec from the registry in its own chunk.
-// The Worker injects each page's meta + crawlable content + JSON-LD at the edge.
-const seoLandingMatch = /^\/(?:tools\/[a-z0-9-]+|vs\/[a-z0-9-]+|use-cases)\/?$/i.test(window.location.pathname);
+// SeoLandingPage resolves the exact spec from the registry in its own chunk
+// (unknown paths render its branded NotFoundPage). The shape must cover
+// EVERYTHING the Worker 404s under these prefixes (any depth/charset), or a
+// 404 document would boot into AuthGate instead of the not-found page. Bare
+// /tools and /vs never reach the client — the Worker 301s them to /use-cases.
+const seoLandingMatch = /^\/(?:tools\/|vs\/|use-cases(?:\/|$))/i.test(window.location.pathname);
 
 // /legal/<privacy|terms|cookies> = public legal documents. Like /share, these
 // render before the AuthGate so they're reachable signed-out (footer links,

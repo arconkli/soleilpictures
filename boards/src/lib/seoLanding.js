@@ -19,8 +19,17 @@
 //     metaDescription: '≤155 chars, unique',
 //     h1:              'On-page headline',
 //     subhead:         'One-line value prop under the H1',
+//     answer:          '40–60 word direct answer to the page's head query — the
+//                       first content block. AI answer engines quote extractable,
+//                       self-contained answers; this is the block they lift.',
+//     updated:         'YYYY-MM-DD — bump ONLY when the page copy meaningfully
+//                       changes (rendered visibly, JSON-LD dateModified, sitemap
+//                       lastmod). Honest dates only: fake freshness trains
+//                       Google to ignore the field.',
+//     steps?:          [{ t, d }] + stepsHeading,   // how-to block (tool pages)
 //     sections:        [{ heading, body, bullets?: string[] }],   // 3–4 unique sections
-//     faq:             [{ q, a }],                                 // 4–6 → FAQPage rich result
+//     faq:             [{ q, a }],   // FAQPage JSON-LD — SERP rich results are dead
+//                                    // (May 2026); kept for AI-answer citation.
 //     compare?:        { competitor, intro, rows: [{ feature, us, them }] }, // alt-to pages
 //     related:         ['/other/path', ...],       // internal-linking spokes
 //     cta:             { label, sub? },             // hero call-to-action
@@ -42,6 +51,9 @@ const PAGES = [
     h1: 'Mood Board Maker',
     subhead:
       'Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.',
+    answer:
+      'Soleil Clusters is a free online mood board maker: drag images, links, video, and color palettes onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.',
+    updated: '2026-07-07',
     cta: { label: 'Start a mood board — free', sub: 'No credit card. Your first board in seconds.' },
     stepsHeading: 'How to make a mood board',
     steps: [
@@ -88,6 +100,9 @@ const PAGES = [
     h1: 'Storyboard Maker',
     subhead:
       'Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.',
+    answer:
+      'Soleil Clusters is an online storyboard maker: split a grid card into panels, drop a still or sketch into each frame, caption and re-order shots by dragging, and keep the shot list beside the boards. Your director, DP, and AD can edit the same storyboard live, and one link shares it with the whole crew.',
+    updated: '2026-07-07',
     cta: { label: 'Start a storyboard — free', sub: 'No credit card. Free to start.' },
     stepsHeading: 'How to make a storyboard',
     steps: [
@@ -134,6 +149,9 @@ const PAGES = [
     h1: 'Shot List Maker',
     subhead:
       'Keep your shots, reference frames, and schedule on one board — visual and organized, not buried in a spreadsheet.',
+    answer:
+      'Soleil Clusters is a visual shot list maker: every shot gets its own card with a reference frame, lens, and movement notes, and the board toggles between a freeform canvas and a clean list view. Link it to your storyboard and mood board, map shots to shoot days with a schedule card, and share one live link with the crew.',
+    updated: '2026-07-07',
     cta: { label: 'Build a shot list — free', sub: 'Free to start. No install.' },
     stepsHeading: 'How to make a shot list',
     steps: [
@@ -180,6 +198,9 @@ const PAGES = [
     h1: 'Look Book Maker',
     subhead:
       'Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.',
+    answer:
+      'Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to a polished, interactive presentation — no account or download required to view it.',
+    updated: '2026-07-07',
     cta: { label: 'Make a look book — free', sub: 'Free to start. Share with one link.' },
     stepsHeading: 'How to make a look book',
     steps: [
@@ -226,6 +247,9 @@ const PAGES = [
     h1: 'Free Online Mood Board Maker',
     subhead:
       'Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.',
+    answer:
+      'Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited boards and 100GB storage.',
+    updated: '2026-07-07',
     cta: { label: 'Make one free', sub: 'No credit card. No install.' },
     stepsHeading: 'How to make a mood board online, free',
     steps: [
@@ -277,6 +301,9 @@ const PAGES = [
     h1: 'A Milanote Alternative Built for Production Teams',
     subhead:
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
+    answer:
+      'Soleil Clusters is a Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, automatic tagging that files dropped references for you, a relationship graph connecting whole projects, and 100GB storage for any file type on Creator ($25/mo). Milanote remains strong for solo planning; Clusters is for visual, media-heavy, collaborative work.',
+    updated: '2026-07-07',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
@@ -323,6 +350,9 @@ const PAGES = [
     h1: 'A PureRef Alternative for Teams and the Cloud',
     subhead:
       'PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.',
+    answer:
+      'Soleil Clusters is a PureRef alternative for teams and the cloud: reference boards live in your browser, sync across devices, and can be shared with one link or edited together in real time. Boards hold notes, docs, video, and color palettes alongside images. PureRef still wins for a tiny offline desktop overlay; Clusters wins when reference needs to be shared and organized.',
+    updated: '2026-07-07',
     cta: { label: 'Try Clusters free', sub: 'Runs in your browser. Free to start.' },
     sections: [
       {
@@ -368,6 +398,9 @@ const PAGES = [
     h1: 'A Miro Alternative for Filmmakers and Creative Teams',
     subhead:
       'Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.',
+    answer:
+      'Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, auto-tagging, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.',
+    updated: '2026-07-07',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
@@ -418,6 +451,9 @@ const PAGES = [
     h1: 'What You Can Make with Clusters',
     subhead:
       'One canvas for the whole creative process — from first reference to final shot list. Here is where to start.',
+    answer:
+      'Soleil Clusters is a visual workspace where creative teams make mood boards, look books, storyboards, shot lists, and brand boards — all on one infinite, collaborative canvas. Drop in references, connect boards into a project, and share any of it with a single link. Start free in the browser; no download.',
+    updated: '2026-07-07',
     cta: { label: 'Start free', sub: 'No credit card. Your first board in seconds.' },
     sections: [
       {
@@ -476,4 +512,29 @@ export function getLandingSpec(pathname) {
   let p = pathname.toLowerCase();
   if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
   return BY_PATH.get(p) || null;
+}
+
+// Static 1200×630 OG card for a landing page (generated by
+// scripts/generate-og.mjs into public/og/). Naming is derived from the path so
+// there's no per-spec field to drift: /tools/mood-board-maker → /og/tools-mood-board-maker.png
+export function landingOgPath(spec) {
+  return `/og/${spec.path.slice(1).replace(/\//g, '-')}.png`;
+}
+
+// ── Hub-and-spoke helpers (shared by the Worker's server-rendered HTML and the
+// React pages so both surfaces stay in lockstep — anti-cloaking parity) ──────
+
+// /explore intro: evergreen copy so the hub isn't thin at low board counts.
+export const EXPLORE_INTRO =
+  'Curated public boards made with Soleil Clusters — real mood boards, look books, and reference collections you can open and explore. Every board here was built with the same tools you get for free: an infinite canvas, image grids, color palettes, notes, and connections. Browse for inspiration, then make your own.';
+
+// Map a board's target keyword / title to the most relevant tool page, so
+// example boards link back into the landing pages ("make your own").
+export function matchToolPath(text) {
+  const t = String(text || '').toLowerCase();
+  if (/storyboard/.test(t)) return '/tools/storyboard-maker';
+  if (/shot ?list/.test(t)) return '/tools/shot-list-maker';
+  if (/look ?book|lookbook/.test(t)) return '/tools/look-book-maker';
+  if (/mood ?board|moodboard|reference|aesthetic|palette/.test(t)) return '/tools/mood-board-maker';
+  return null;
 }

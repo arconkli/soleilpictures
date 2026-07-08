@@ -35,6 +35,21 @@
   max-width: 42ch;
   margin: 0 0 1.6em;
 }
+/* The extractable direct-answer block — slightly brighter than body copy so it
+   reads as the page's definitive answer, not a footnote. */
+.seo-answer {
+  font: 400 1.02rem/1.6 var(--font-sans);
+  color: var(--ink-0);
+  max-width: 62ch;
+  margin: 0 0 1.6em;
+  padding-left: 14px;
+  border-left: 3px solid var(--soleil);
+}
+.seo-updated {
+  font: 500 0.78rem/1 var(--font-sans);
+  color: var(--ink-3);
+  margin-top: 14px;
+}
 .seo-hero-cta {
   display: flex;
   align-items: center;

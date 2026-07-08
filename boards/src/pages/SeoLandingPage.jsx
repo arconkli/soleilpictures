@@ -10,6 +10,7 @@
 import { useEffect } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SEO_LANDING_PAGES, getLandingSpec } from '../lib/seoLanding.js';
+import { NotFoundPage } from './NotFoundPage.jsx';
 import { logEventOnce } from '../lib/analytics.js';
 import './seoLanding.css';
 
@@ -19,9 +20,12 @@ const TITLE_BY_PATH = new Map(
 );
 
 export function SeoLandingPage({ spec: specProp, path }) {
-  // Accept a spec directly, or resolve it from a path (router passes one or the
-  // other). Fall back to the mood-board page so a bad deep link never blanks.
-  const spec = specProp || getLandingSpec(path) || getLandingSpec('/tools/mood-board-maker');
+  // Accept a spec directly, or resolve it from a path (router passes one or
+  // the other). An unknown landing-shaped path renders the branded NotFound —
+  // the Worker has already served this document with a real HTTP 404, so
+  // falling back to page content here would be a soft-404 (content at a URL
+  // whose status says "gone").
+  const spec = specProp || getLandingSpec(path) || null;
 
   useEffect(() => {
     if (!spec) return;
@@ -29,7 +33,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
     logEventOnce(`seo_landing_${spec.path}`, 'seo_landing_view', { path: spec.path, kind: spec.kind });
   }, [spec]);
 
-  if (!spec) return null;
+  if (!spec) return <NotFoundPage />;
 
   const cta = spec.cta || {};
   const related = (spec.related || []).filter((p) => TITLE_BY_PATH.has(p));
@@ -51,14 +55,21 @@ export function SeoLandingPage({ spec: specProp, path }) {
 
       <div className="seo-scroll">
         <article className="seo-main">
-          {/* Hero */}
+          {/* Hero — the answer block is the 40–60-word direct answer AI answer
+              engines can lift verbatim; keep it above the CTA. */}
           <header className="seo-hero">
             <h1 className="seo-h1">{spec.h1}</h1>
             <p className="seo-subhead">{spec.subhead}</p>
+            {spec.answer && <p className="seo-answer">{spec.answer}</p>}
             <div className="seo-hero-cta">
               <a className="seo-cta-primary" href={cta.href || '/'}>{cta.label || 'Start free'}</a>
               {cta.sub && <span className="seo-cta-sub">{cta.sub}</span>}
             </div>
+            {spec.updated && (
+              <div className="seo-updated">
+                Updated {new Date(spec.updated + 'T00:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+              </div>
+            )}
           </header>
 
           {/* Feature / value sections */}
