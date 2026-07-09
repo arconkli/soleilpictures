@@ -238,15 +238,30 @@ export default function PublicArticle({ model, boardId, remixUrl, tryHref, onCta
         )}
 
         <div className="pa-cta">
-          <div className="pa-cta-copy">
-            <b>Make this board yours.</b> Copy it into a free Clusters workspace and start editing —
-            or start from a blank canvas.
-          </div>
-          <div className="pa-cta-actions">
-            {remixUrl && <a className="public-cta" href={remixUrl} onClick={onCta ? onCta('article_remix') : undefined}>Make a copy — free</a>}
-            {tryHref && <a className="public-signin-quiet" href={tryHref} onClick={onCta ? onCta('article_try') : undefined}>Try Clusters free</a>}
-            {model.toolPath && <a className="pa-toollink" href={model.toolPath}>How to make your own</a>}
-          </div>
+          {model.isTemplate ? (
+            <>
+              <div className="pa-cta-copy">
+                <b>This board is a working template.</b> Use it in a free Clusters workspace —
+                every card, arrow, and note stays editable.
+              </div>
+              <div className="pa-cta-actions">
+                {remixUrl && <a className="public-cta" href={remixUrl} onClick={onCta ? onCta('article_remix') : undefined}>Use this template — free</a>}
+                {tryHref && <a className="public-signin-quiet" href={tryHref} onClick={onCta ? onCta('article_try') : undefined}>Or start blank</a>}
+                {model.toolPath && <a className="pa-toollink" href={model.toolPath}>How boards like this are made</a>}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="pa-cta-copy">
+                <b>Made with Clusters.</b> Boards like this take an afternoon, not a design degree —
+                images, notes, palettes, and connections on one canvas.
+              </div>
+              <div className="pa-cta-actions">
+                {tryHref && <a className="public-cta" href={tryHref} onClick={onCta ? onCta('article_try') : undefined}>Start your own board — free</a>}
+                {model.toolPath && <a className="pa-toollink" href={model.toolPath}>How boards like this are made</a>}
+              </div>
+            </>
+          )}
           <div className="pa-hubnav">
             <a href="/use-cases">What you can make with Clusters</a>
             <a href="/explore">Explore more boards</a>

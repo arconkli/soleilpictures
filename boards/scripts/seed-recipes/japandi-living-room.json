@@ -2,6 +2,10 @@
   "slug": "japandi-living-room",
   "name": "Japandi Living Room — Mood Board and Palette",
   "priority": 3,
+  "template": true,
+  "layout": {
+    "columns": 5
+  },
   "bgColor": "#16130f",
   "cover": "neutral",
   "seo": {
@@ -34,124 +38,615 @@
     "body": "A mood board for a Japandi living room — Japanese restraint meeting Scandinavian warmth. It gathers the exact warm-neutral palette with hex codes, a material study in oak, linen, ceramic, stone, and paper, the low-slung furniture forms the style is known for, and the principles that hold it together: diffuse light, negative space, and wabi-sabi imperfection. Built the way an interior designer would pin a concept: references, palettes, rules, a six-move starter plan, and a one-page shopping brief on one connected canvas. Made with Soleil Clusters."
   },
   "arrows": [
-    { "from": "pal-neutrals", "to": "hero-room", "color": "orange", "head": "single", "thickness": "thick", "label": "the palette in practice" },
-    { "from": "note-wabisabi", "to": "img-ceramic", "color": "green", "head": "single", "label": "imperfection on display" },
-    { "from": "note-light", "to": "img-window", "color": "blue", "dashed": true, "label": "diffuse, never direct" },
-    { "from": "shape-ratio", "to": "pal-neutrals", "color": "purple", "head": "double", "label": "same 60/30/10 split" },
-    { "from": "ellipse-negspace", "to": "hero-room", "color": "ink", "dashed": true, "label": "let the wall breathe" },
-    { "from": "grid-moves", "to": "doc-brief", "color": "green", "head": "single", "thickness": "thick", "label": "then go shopping" }
+    {
+      "from": "pal-neutrals",
+      "to": "hero-room",
+      "color": "orange",
+      "head": "single",
+      "thickness": "thick",
+      "label": "the palette in practice"
+    },
+    {
+      "from": "note-wabisabi",
+      "to": "img-ceramic",
+      "color": "green",
+      "head": "single",
+      "label": "imperfection on display"
+    },
+    {
+      "from": "note-light",
+      "to": "img-window",
+      "color": "blue",
+      "dashed": true,
+      "label": "diffuse, never direct"
+    },
+    {
+      "from": "shape-ratio",
+      "to": "pal-neutrals",
+      "color": "purple",
+      "head": "double",
+      "label": "same 60/30/10 split"
+    },
+    {
+      "from": "ellipse-negspace",
+      "to": "hero-room",
+      "color": "ink",
+      "dashed": true,
+      "label": "let the wall breathe"
+    },
+    {
+      "from": "grid-moves",
+      "to": "doc-brief",
+      "color": "green",
+      "head": "single",
+      "thickness": "thick",
+      "label": "then go shopping"
+    }
   ],
   "groups": [
-    { "id": "grp-material", "name": "The material story", "outline": true, "color": "#7a8471" }
+    {
+      "id": "grp-material",
+      "name": "The material story",
+      "outline": true,
+      "color": "#7a8471"
+    }
   ],
   "strokes": [
-    { "relTo": "note-wabisabi", "color": "#e0563e", "width": 4, "points": [[325, 62], [316, 74], [290, 84], [252, 90], [210, 92], [168, 89], [132, 82], [105, 72], [98, 60], [107, 49], [133, 40], [170, 34], [212, 33], [254, 36], [292, 44], [318, 53]] },
-    { "relTo": "note-nowhite", "color": "#f5c518", "width": 3, "points": [[14, 44], [44, 47], [76, 43], [108, 47], [140, 44], [172, 47], [200, 43]] },
-    { "relTo": "doc-brief", "color": "#e0563e", "width": 3, "points": [[-64, 232], [-40, 252], [-14, 272], [-32, 266], [-14, 272], [-22, 252]] }
+    {
+      "relTo": "note-wabisabi",
+      "color": "#e0563e",
+      "width": 4,
+      "points": [
+        [
+          325,
+          62
+        ],
+        [
+          316,
+          74
+        ],
+        [
+          290,
+          84
+        ],
+        [
+          252,
+          90
+        ],
+        [
+          210,
+          92
+        ],
+        [
+          168,
+          89
+        ],
+        [
+          132,
+          82
+        ],
+        [
+          105,
+          72
+        ],
+        [
+          98,
+          60
+        ],
+        [
+          107,
+          49
+        ],
+        [
+          133,
+          40
+        ],
+        [
+          170,
+          34
+        ],
+        [
+          212,
+          33
+        ],
+        [
+          254,
+          36
+        ],
+        [
+          292,
+          44
+        ],
+        [
+          318,
+          53
+        ]
+      ]
+    },
+    {
+      "relTo": "note-nowhite",
+      "color": "#f5c518",
+      "width": 3,
+      "points": [
+        [
+          14,
+          44
+        ],
+        [
+          44,
+          47
+        ],
+        [
+          76,
+          43
+        ],
+        [
+          108,
+          47
+        ],
+        [
+          140,
+          44
+        ],
+        [
+          172,
+          47
+        ],
+        [
+          200,
+          43
+        ]
+      ]
+    },
+    {
+      "relTo": "doc-brief",
+      "color": "#e0563e",
+      "width": 3,
+      "points": [
+        [
+          -64,
+          232
+        ],
+        [
+          -40,
+          252
+        ],
+        [
+          -14,
+          272
+        ],
+        [
+          -32,
+          266
+        ],
+        [
+          -14,
+          272
+        ],
+        [
+          -22,
+          252
+        ]
+      ]
+    }
   ],
   "sections": [
     {
-      "header": { "text": "JAPANDI", "sub": "Japanese restraint · Scandinavian warmth · one calm room", "hero": true },
+      "header": {
+        "text": "JAPANDI",
+        "sub": "Japanese restraint · Scandinavian warmth · one calm room",
+        "hero": true
+      },
       "cards": [
-        { "id": "grid-textures", "kind": "grid", "title": "Material study", "rows": 2, "cols": 3, "images": [
-          { "provider": "unsplash", "query": "oak wood grain texture close up" },
-          { "provider": "pexels", "query": "natural linen fabric texture beige" },
-          { "provider": "unsplash", "query": "handmade ceramic vase beige minimal" },
-          { "provider": "pexels", "query": "smooth stone texture neutral gray" },
-          { "provider": "unsplash", "query": "rice paper lamp warm glow" },
-          { "provider": "pexels", "query": "cream wool knit throw blanket texture" }
-        ] },
-        { "id": "hero-room", "kind": "image", "source": { "provider": "unsplash", "query": "japandi minimalist living room interior wood" }, "title": "The whole idea in one room", "caption": "Nothing extra, everything warm" }
+        {
+          "id": "grid-textures",
+          "kind": "grid",
+          "title": "Material study",
+          "rows": 2,
+          "cols": 3,
+          "images": [
+            {
+              "provider": "unsplash",
+              "query": "oak wood grain texture close up"
+            },
+            {
+              "provider": "pexels",
+              "query": "natural linen fabric texture beige"
+            },
+            {
+              "provider": "unsplash",
+              "query": "handmade ceramic vase beige minimal"
+            },
+            {
+              "provider": "pexels",
+              "query": "smooth stone texture neutral gray"
+            },
+            {
+              "provider": "unsplash",
+              "query": "rice paper lamp warm glow"
+            },
+            {
+              "provider": "pexels",
+              "query": "cream wool knit throw blanket texture"
+            }
+          ]
+        },
+        {
+          "id": "hero-room",
+          "kind": "image",
+          "source": {
+            "provider": "unsplash",
+            "query": "japandi minimalist living room interior wood"
+          },
+          "title": "The whole idea in one room",
+          "caption": "Nothing extra, everything warm"
+        }
       ]
     },
     {
-      "header": { "text": "The Palette", "sub": "Warm neutrals, one green, no pure white" },
+      "header": {
+        "text": "The Palette",
+        "sub": "Warm neutrals, one green, no pure white"
+      },
       "cards": [
-        { "id": "pal-neutrals", "kind": "palette", "title": "Warm neutrals", "swatches": [
-          { "hex": "#EDE6DA", "name": "Linen" },
-          { "hex": "#D9C7AE", "name": "Oak" },
-          { "hex": "#A89A88", "name": "Clay" },
-          { "hex": "#6E6A61", "name": "Stone" },
-          { "hex": "#2B2822", "name": "Charcoal" }
-        ] },
-        { "id": "pal-accents", "kind": "palette", "title": "Quiet accents", "swatches": [
-          { "hex": "#7A8471", "name": "Moss" },
-          { "hex": "#96876F", "name": "Tatami" },
-          { "hex": "#4A555C", "name": "Indigo gray" }
-        ] },
-        { "id": "pal-grounding", "kind": "palette", "title": "Grounding accents", "chipsOnly": true, "swatches": [
-          { "hex": "#1F1D1A", "name": "Matte black" },
-          { "hex": "#5A4632", "name": "Walnut" },
-          { "hex": "#A66A4C", "name": "Baked clay" },
-          { "hex": "#3F4A3C", "name": "Pine shadow" },
-          { "hex": "#262B33", "name": "Night indigo" }
-        ] },
-        { "id": "shape-ratio", "kind": "shape", "shape": "rect", "stroke": "#d9c7ae", "fill": "transparent", "strokeWidth": 3, "dash": "solid", "label": "60% linen · 30% oak · 10% moss" },
-        { "id": "note-nowhite", "kind": "note", "bgColor": "#1a1712", "html": "<p><b>Why no pure white</b><br>Bright white reads cold and gallery-like. Japandi warmth comes from linen, bone, and oat tones — walls a half-step warmer than you think you want.</p>" }
+        {
+          "id": "pal-neutrals",
+          "kind": "palette",
+          "title": "Warm neutrals",
+          "swatches": [
+            {
+              "hex": "#EDE6DA",
+              "name": "Linen"
+            },
+            {
+              "hex": "#D9C7AE",
+              "name": "Oak"
+            },
+            {
+              "hex": "#A89A88",
+              "name": "Clay"
+            },
+            {
+              "hex": "#6E6A61",
+              "name": "Stone"
+            },
+            {
+              "hex": "#2B2822",
+              "name": "Charcoal"
+            }
+          ]
+        },
+        {
+          "id": "pal-accents",
+          "kind": "palette",
+          "title": "Quiet accents",
+          "swatches": [
+            {
+              "hex": "#7A8471",
+              "name": "Moss"
+            },
+            {
+              "hex": "#96876F",
+              "name": "Tatami"
+            },
+            {
+              "hex": "#4A555C",
+              "name": "Indigo gray"
+            }
+          ]
+        },
+        {
+          "id": "pal-grounding",
+          "kind": "palette",
+          "title": "Grounding accents",
+          "chipsOnly": true,
+          "swatches": [
+            {
+              "hex": "#1F1D1A",
+              "name": "Matte black"
+            },
+            {
+              "hex": "#5A4632",
+              "name": "Walnut"
+            },
+            {
+              "hex": "#A66A4C",
+              "name": "Baked clay"
+            },
+            {
+              "hex": "#3F4A3C",
+              "name": "Pine shadow"
+            },
+            {
+              "hex": "#262B33",
+              "name": "Night indigo"
+            }
+          ]
+        },
+        {
+          "id": "shape-ratio",
+          "kind": "shape",
+          "shape": "rect",
+          "stroke": "#d9c7ae",
+          "fill": "transparent",
+          "strokeWidth": 3,
+          "dash": "solid",
+          "label": "60% linen · 30% oak · 10% moss"
+        },
+        {
+          "id": "note-nowhite",
+          "kind": "note",
+          "bgColor": "#1a1712",
+          "html": "<p><b>Why no pure white</b><br>Bright white reads cold and gallery-like. Japandi warmth comes from linen, bone, and oat tones — walls a half-step warmer than you think you want.</p>"
+        }
       ]
     },
     {
-      "header": { "text": "Furniture and Form", "sub": "Low, honest, joinery on display" },
+      "header": {
+        "text": "Furniture and Form",
+        "sub": "Low, honest, joinery on display"
+      },
       "cards": [
-        { "id": "img-sofa", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "low wooden sofa minimalist living room" }, "title": "Low-slung seating", "caption": "Furniture that hugs the floor calms the ceiling" },
-        { "id": "img-lamp", "kind": "image", "groupId": "grp-material", "source": { "provider": "unsplash", "query": "paper lantern floor lamp minimal interior" }, "title": "Paper light", "caption": "A lamp that is also sculpture" },
-        { "id": "img-bench", "kind": "image", "groupId": "grp-material", "source": { "provider": "pexels", "query": "wooden bench minimal interior design" }, "title": "Visible joinery", "caption": "The grain is the ornament" },
-        { "id": "note-forms", "kind": "note", "bgColor": "#1a1712", "groupId": "grp-material", "html": "<p><b>Forms</b><br>Low-slung and ground-hugging. Legs you can see under. No ornament the material didn't make itself — the wood grain, the weave, the glaze are the decoration.</p>" }
+        {
+          "id": "img-sofa",
+          "kind": "image",
+          "feature": true,
+          "source": {
+            "provider": "pexels",
+            "query": "low wooden sofa minimalist living room"
+          },
+          "title": "Low-slung seating",
+          "caption": "Furniture that hugs the floor calms the ceiling"
+        },
+        {
+          "id": "img-lamp",
+          "kind": "image",
+          "groupId": "grp-material",
+          "source": {
+            "provider": "unsplash",
+            "query": "paper lantern floor lamp minimal interior"
+          },
+          "title": "Paper light",
+          "caption": "A lamp that is also sculpture"
+        },
+        {
+          "id": "img-bench",
+          "kind": "image",
+          "groupId": "grp-material",
+          "source": {
+            "provider": "pexels",
+            "query": "wooden bench minimal interior design"
+          },
+          "title": "Visible joinery",
+          "caption": "The grain is the ornament"
+        },
+        {
+          "id": "note-forms",
+          "kind": "note",
+          "bgColor": "#1a1712",
+          "groupId": "grp-material",
+          "html": "<p><b>Forms</b><br>Low-slung and ground-hugging. Legs you can see under. No ornament the material didn't make itself — the wood grain, the weave, the glaze are the decoration.</p>"
+        }
       ]
     },
     {
-      "header": { "text": "Light and Life", "sub": "Diffuse everything" },
+      "header": {
+        "text": "Light and Life",
+        "sub": "Diffuse everything"
+      },
       "cards": [
-        { "id": "img-window", "kind": "image", "source": { "provider": "unsplash", "query": "soft window light minimal interior plant shadow" }, "title": "Borrowed light", "caption": "Shadows are part of the design" },
-        { "id": "img-ceramic", "kind": "image", "source": { "provider": "pexels", "query": "bonsai plant ceramic pot indoor" }, "title": "One living thing per room", "caption": "A plant is a slow sculpture" },
-        { "id": "note-light", "kind": "note", "bgColor": "#1a1712", "html": "<p><b>Light</b><br>Diffuse everything — paper shades, linen curtains, bounced sources. Keep bulbs at 2700K. A Japandi room at night should feel lit by lanterns, not fixtures.</p>" }
+        {
+          "id": "img-window",
+          "kind": "image",
+          "source": {
+            "provider": "unsplash",
+            "query": "soft window light minimal interior plant shadow"
+          },
+          "title": "Borrowed light",
+          "caption": "Shadows are part of the design"
+        },
+        {
+          "id": "img-ceramic",
+          "kind": "image",
+          "source": {
+            "provider": "pexels",
+            "query": "bonsai plant ceramic pot indoor"
+          },
+          "title": "One living thing per room",
+          "caption": "A plant is a slow sculpture"
+        },
+        {
+          "id": "note-light",
+          "kind": "note",
+          "bgColor": "#1a1712",
+          "html": "<p><b>Light</b><br>Diffuse everything — paper shades, linen curtains, bounced sources. Keep bulbs at 2700K. A Japandi room at night should feel lit by lanterns, not fixtures.</p>"
+        }
       ]
     },
     {
-      "header": { "text": "The Principles", "sub": "What makes it Japandi and not just beige" },
+      "header": {
+        "text": "The Principles",
+        "sub": "What makes it Japandi and not just beige"
+      },
       "cards": [
-        { "id": "note-wabisabi", "kind": "note", "bgColor": "#7a8471", "html": "<p><b>Wabi-sabi</b><br>Imperfect, handmade, aged. One cracked-glaze vase beats five perfect ones. If everything is flawless, the room has no story.</p>" },
-        { "id": "ellipse-negspace", "kind": "shape", "feature": true, "shape": "ellipse", "stroke": "#7a8471", "fill": "transparent", "strokeWidth": 3, "dash": "dashed", "label": "Negative space is the loudest element — leave one wall empty" },
-        { "id": "note-dodont", "kind": "note", "bgColor": "#1a1712", "html": "<p><b>Do / Don't</b><br>Do: negative space, one focal object per surface, natural fiber everything.<br>Don't: matched furniture sets, high-gloss finishes, open shelves full of small objects.</p>" }
+        {
+          "id": "note-wabisabi",
+          "kind": "note",
+          "bgColor": "#7a8471",
+          "html": "<p><b>Wabi-sabi</b><br>Imperfect, handmade, aged. One cracked-glaze vase beats five perfect ones. If everything is flawless, the room has no story.</p>"
+        },
+        {
+          "id": "ellipse-negspace",
+          "kind": "shape",
+          "feature": true,
+          "shape": "ellipse",
+          "stroke": "#7a8471",
+          "fill": "transparent",
+          "strokeWidth": 3,
+          "dash": "dashed",
+          "label": "Negative space is the loudest element — leave one wall empty"
+        },
+        {
+          "id": "note-dodont",
+          "kind": "note",
+          "bgColor": "#1a1712",
+          "html": "<p><b>Do / Don't</b><br>Do: negative space, one focal object per surface, natural fiber everything.<br>Don't: matched furniture sets, high-gloss finishes, open shelves full of small objects.</p>"
+        }
       ]
     },
     {
-      "header": { "text": "Get the Look", "sub": "Six moves, one shopping brief, and the references worth keeping" },
+      "header": {
+        "text": "Get the Look",
+        "sub": "Six moves, one shopping brief, and the references worth keeping"
+      },
       "cards": [
-        { "id": "grid-moves", "kind": "grid", "title": "Get the look in 6 moves", "rows": 3, "cols": 3,
-          "seq": { "pattern": "z", "format": { "style": "num" } },
+        {
+          "id": "grid-moves",
+          "kind": "grid",
+          "title": "Get the look in 6 moves",
+          "rows": 3,
+          "cols": 3,
+          "seq": {
+            "pattern": "z",
+            "format": {
+              "style": "num"
+            }
+          },
           "cellSpecs": [
-            { "text": "<p><b>[#] Declutter to one focal object</b><br>Clear every surface completely, then return the single best piece. Storage is the style's secret engine.</p>" },
-            { "text": "<p><b>[#] Warm the whites</b><br>Repaint pure white to linen or bone, and match every soft surface a half-step warmer than you think you want.</p>" },
-            { "text": "<p><b>[#] Lower the furniture</b><br>Low sofa, low table, floor cushions. When the furniture hugs the floor, the ceiling — and the room — relaxes.</p>" },
-            { "text": "<p><b>[#] Paper the light</b><br>Washi shades, linen curtains, 2700K bulbs. Nothing glares; everything glows.</p>" },
-            { "text": "<p><b>[#] One living thing</b><br>A single plant or cut branch per room — a bonsai, a maple stem, a monstera. A slow sculpture.</p>" },
-            { "text": "<p><b>[#] Age one surface</b><br>Let oak wear, brass dull, leather crease. One honest patina keeps the room from feeling staged.</p>" },
-            { "image": { "provider": "pexels", "query": "minimalist ceramic vase on empty shelf", "alt": "A single ceramic vase on an otherwise empty wooden shelf" } },
-            { "image": { "provider": "pexels", "query": "paper lantern pendant lamp warm light", "alt": "A round paper lantern glowing warm against a plain wall" } },
-            { "image": { "provider": "pexels", "query": "green branch in vase minimal interior", "alt": "A cut green branch in a simple vase on a wooden table" } }
-          ] },
-        { "id": "doc-brief", "kind": "doc", "title": "Japandi shopping brief", "author": "Clusters", "date": "2026-07-09", "lines": [
-          { "text": "Japandi shopping brief", "h": true },
-          { "text": "Buy less, buy heavier: every object should earn its place by material, not by pattern." },
-          { "text": "Materials to buy", "h": true },
-          { "text": "Solid oak, ash, or walnut with a matte oiled finish — never high-gloss", "bullet": true },
-          { "text": "Washed linen for curtains and cushion covers; wool for throws", "bullet": true },
-          { "text": "Handmade stoneware and unglazed or crackle-glaze ceramics", "bullet": true },
-          { "text": "Washi or rice-paper shades — Noguchi's Akari series is the reference", "bullet": true },
-          { "text": "Rattan, paper cord, and bamboo for chairs and screens", "bullet": true },
-          { "text": "Finishes to avoid", "h": true },
-          { "text": "Pure bright white paint — choose linen, bone, or oat off-whites", "bullet": true },
-          { "text": "Polished chrome, high-gloss lacquer, and mirror-finish stone", "bullet": true },
-          { "text": "Matched furniture sets and busy printed patterns", "bullet": true },
-          { "text": "Budget tiers", "h": true },
-          { "text": "Weekend: declutter, one paper lamp, linen covers — under $300", "bullet": true },
-          { "text": "Upgrade: a low oak coffee table and a stoneware vase — $300 to $1,500", "bullet": true },
-          { "text": "Invest: a floor-hugging sofa or vintage Danish teak — $1,500 and up", "bullet": true }
-        ] },
-        { "id": "link-britannica", "kind": "link", "source": "https://www.britannica.com/topic/wabi-sabi", "title": "Wabi-sabi — Encyclopaedia Britannica", "description": "A concise, authoritative primer on the Japanese aesthetic of imperfection and impermanence that underpins the whole Japandi look." },
-        { "id": "link-wooddb", "kind": "link", "source": "https://www.wood-database.com/white-oak/", "title": "The Wood Database — White Oak", "description": "Density, grain, workability, and finishing data for oak and every other furniture wood — the reference to check before you buy a big piece." },
-        { "id": "link-noguchi", "kind": "link", "source": "https://www.noguchi.org/", "title": "The Noguchi Museum — Akari light sculptures", "description": "Isamu Noguchi's washi-paper Akari lamps, designed from 1951 onward, are the canonical Japandi light source; the museum documents the whole series." }
+            {
+              "text": "<p><b>[#] Declutter to one focal object</b><br>Clear every surface completely, then return the single best piece. Storage is the style's secret engine.</p>"
+            },
+            {
+              "text": "<p><b>[#] Warm the whites</b><br>Repaint pure white to linen or bone, and match every soft surface a half-step warmer than you think you want.</p>"
+            },
+            {
+              "text": "<p><b>[#] Lower the furniture</b><br>Low sofa, low table, floor cushions. When the furniture hugs the floor, the ceiling — and the room — relaxes.</p>"
+            },
+            {
+              "text": "<p><b>[#] Paper the light</b><br>Washi shades, linen curtains, 2700K bulbs. Nothing glares; everything glows.</p>"
+            },
+            {
+              "text": "<p><b>[#] One living thing</b><br>A single plant or cut branch per room — a bonsai, a maple stem, a monstera. A slow sculpture.</p>"
+            },
+            {
+              "text": "<p><b>[#] Age one surface</b><br>Let oak wear, brass dull, leather crease. One honest patina keeps the room from feeling staged.</p>"
+            },
+            {
+              "image": {
+                "provider": "pexels",
+                "query": "minimalist ceramic vase on empty shelf",
+                "alt": "A single ceramic vase on an otherwise empty wooden shelf"
+              }
+            },
+            {
+              "image": {
+                "provider": "pexels",
+                "query": "paper lantern pendant lamp warm light",
+                "alt": "A round paper lantern glowing warm against a plain wall"
+              }
+            },
+            {
+              "image": {
+                "provider": "pexels",
+                "query": "green branch in vase minimal interior",
+                "alt": "A cut green branch in a simple vase on a wooden table"
+              }
+            }
+          ]
+        },
+        {
+          "id": "doc-brief",
+          "kind": "doc",
+          "title": "Japandi shopping brief",
+          "author": "Clusters",
+          "date": "2026-07-09",
+          "lines": [
+            {
+              "text": "Japandi shopping brief",
+              "h": true
+            },
+            {
+              "text": "Buy less, buy heavier: every object should earn its place by material, not by pattern."
+            },
+            {
+              "text": "Materials to buy",
+              "h": true
+            },
+            {
+              "text": "Solid oak, ash, or walnut with a matte oiled finish — never high-gloss",
+              "bullet": true
+            },
+            {
+              "text": "Washed linen for curtains and cushion covers; wool for throws",
+              "bullet": true
+            },
+            {
+              "text": "Handmade stoneware and unglazed or crackle-glaze ceramics",
+              "bullet": true
+            },
+            {
+              "text": "Washi or rice-paper shades — Noguchi's Akari series is the reference",
+              "bullet": true
+            },
+            {
+              "text": "Rattan, paper cord, and bamboo for chairs and screens",
+              "bullet": true
+            },
+            {
+              "text": "Finishes to avoid",
+              "h": true
+            },
+            {
+              "text": "Pure bright white paint — choose linen, bone, or oat off-whites",
+              "bullet": true
+            },
+            {
+              "text": "Polished chrome, high-gloss lacquer, and mirror-finish stone",
+              "bullet": true
+            },
+            {
+              "text": "Matched furniture sets and busy printed patterns",
+              "bullet": true
+            },
+            {
+              "text": "Budget tiers",
+              "h": true
+            },
+            {
+              "text": "Weekend: declutter, one paper lamp, linen covers — under $300",
+              "bullet": true
+            },
+            {
+              "text": "Upgrade: a low oak coffee table and a stoneware vase — $300 to $1,500",
+              "bullet": true
+            },
+            {
+              "text": "Invest: a floor-hugging sofa or vintage Danish teak — $1,500 and up",
+              "bullet": true
+            }
+          ]
+        },
+        {
+          "id": "link-britannica",
+          "kind": "link",
+          "source": "https://www.britannica.com/topic/wabi-sabi",
+          "title": "Wabi-sabi — Encyclopaedia Britannica",
+          "description": "A concise, authoritative primer on the Japanese aesthetic of imperfection and impermanence that underpins the whole Japandi look."
+        },
+        {
+          "id": "link-wooddb",
+          "kind": "link",
+          "source": "https://www.wood-database.com/white-oak/",
+          "title": "The Wood Database — White Oak",
+          "description": "Density, grain, workability, and finishing data for oak and every other furniture wood — the reference to check before you buy a big piece."
+        },
+        {
+          "id": "link-noguchi",
+          "kind": "link",
+          "source": "https://www.noguchi.org/",
+          "title": "The Noguchi Museum — Akari light sculptures",
+          "description": "Isamu Noguchi's washi-paper Akari lamps, designed from 1951 onward, are the canonical Japandi light source; the museum documents the whole series."
+        }
       ]
     }
   ]

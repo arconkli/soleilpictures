@@ -493,10 +493,27 @@ const PAGES = [
   },
 ];
 
+// Curated example boards per landing page — the visual proof strip ("Made with
+// Clusters") and the hero example card. Slugs of published /c/<slug> boards;
+// the first slug is the hero card. Shared by the React page AND the worker's
+// crawlable HTML (landing→board internal links: hub-and-spoke both directions).
+const EXAMPLES_BY_PATH = {
+  '/tools/mood-board-maker':      ['japandi-living-room', 'sage-terracotta-wedding', 'world-cup-2026-moodboard'],
+  '/tools/free-mood-board-maker': ['sage-terracotta-wedding', 'japandi-living-room', 'neon-noir-look-book'],
+  '/tools/storyboard-maker':      ['screenplay-beat-sheet', 'short-film-shot-list'],
+  '/tools/shot-list-maker':       ['short-film-shot-list', 'screenplay-beat-sheet'],
+  '/tools/look-book-maker':       ['neon-noir-look-book', 'film-noir-look-book'],
+  '/vs/milanote':                 ['japandi-living-room', 'neon-noir-look-book', 'screenplay-beat-sheet'],
+  '/vs/pureref':                  ['film-noir-look-book', 'neon-noir-look-book'],
+  '/vs/miro':                     ['screenplay-beat-sheet', 'short-film-shot-list', 'world-cup-2026-moodboard'],
+  '/use-cases':                   ['world-cup-2026-moodboard', 'neon-noir-look-book', 'sage-terracotta-wedding'],
+};
+
 // Attach the signup CTA href to each page (campaign = last path segment).
 for (const p of PAGES) {
   const campaign = p.path.replace(/^\//, '').replace(/\//g, '_');
   p.cta = { ...p.cta, href: SIGNUP(campaign) };
+  p.exampleSlugs = EXAMPLES_BY_PATH[p.path] || [];
 }
 
 // Fast lookups. Paths are matched with an optional trailing slash by callers.

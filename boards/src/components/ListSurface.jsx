@@ -11,6 +11,8 @@ import { usePeerSelections } from '../hooks/usePeerSelections.js';
 import { ClusterBrowserToolbar } from './clusterBrowser/ClusterBrowserToolbar.jsx';
 import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { ClusterGallery } from './clusterBrowser/ClusterGallery.jsx';
+import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
+import { groupGridFamilies } from '../lib/gridFamilies.js';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
@@ -50,6 +52,11 @@ export function ListSurface({
   getAwareness, workspaceId, selfId,
   // Shared grid layouts (id → { layout }) so a linked Grid's preview resolves.
   gridTemplates = {},
+  // Live grid resolver (readGridModel over the Y.Doc) → real cell content in the
+  // grid preview + detail. Absent in the ?local harness (falls back to schematic).
+  getGridModel = null,
+  // Reveal a card on the canvas (selects + frames it), used by the detail popout.
+  onRevealOnCanvas = null,
 }) {
   const feedback = useFeedback();
   const subBoards = childBoards || [];
@@ -63,6 +70,11 @@ export function ListSurface({
   const [sortKey, setSortKey] = useState(prefs0.sortKey || 'updated');
   const [sortDir, setSortDir] = useState(prefs0.sortDir || 'desc');
   const [filters, setFilters] = useState(() => new Set());
+  // Which linked-grid families are expanded (collapsed by default). Persisted.
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set(prefs0.expandedGroups || []));
+  // A grid family selected for the detail popout (family view). Card selection
+  // lives in selectedCards below; these two are mutually exclusive.
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
   const addInputRef = useRef(null);
 
   // Prime image/media metadata once per cluster so thumbnails paint instantly
@@ -72,8 +84,18 @@ export function ListSurface({
   // Normalize the non-folder cards into uniform ListItems. Depends on the raw
   // card fields + primed meta (getMeta is a stable module accessor).
   const items = useMemo(
-    () => otherCards.map(c => toListItem(c, { boards, getMeta, boardId: board.id, gridTemplates })).filter(Boolean),
-    [otherCards, boards, board.id, gridTemplates]
+    () => otherCards.map(c => {
+      const it = toListItem(c, { boards, getMeta, boardId: board.id, gridTemplates });
+      // For a grid, swap the abstract schematic for its REAL cell content when
+      // the live resolver is available (App threads getGridModel; the ?local
+      // harness doesn't, so it keeps the schematic).
+      if (it && c.kind === 'grid' && getGridModel) {
+        const model = getGridModel(c);
+        if (model && model.layout) it.preview = { mode: 'grid', model };
+      }
+      return it;
+    }).filter(Boolean),
+    [otherCards, boards, board.id, gridTemplates, getGridModel]
   );
 
   // Available filter buckets (with counts) present in this cluster.
@@ -88,6 +110,21 @@ export function ListSurface({
     () => sortItems(filterItems(matchItems(items, query), filters), sortKey, sortDir),
     [items, query, filters, sortKey, sortDir]
   );
+
+  // Collapse linked-grid families into expandable group nodes (tens of grids →
+  // a few rows). Pure; members render only when their family is expanded.
+  const displayItems = useMemo(
+    () => groupGridFamilies(visibleItems, { gridTemplates }),
+    [visibleItems, gridTemplates]
+  );
+  const onToggleGroup = useCallback((groupId) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      writeBrowserPrefs({ expandedGroups: [...next] });
+      return next;
+    });
+  }, []);
 
   // Live per-row presence (which cards peers currently have open), scoped to
   // this cluster + descendants.
@@ -149,6 +186,7 @@ export function ListSurface({
   useEffect(() => {
     setSelectedBoards(new Set());
     setSelectedCards(new Set());
+    setSelectedGroupId(null);
   }, [board.id]);
 
   const toggle = useCallback((set, setSet, id, multi) => {
@@ -166,6 +204,7 @@ export function ListSurface({
   const onTileClick = (e, kind, id) => {
     if (e.target.closest && e.target.closest('.editable')) return;
     e.stopPropagation();
+    setSelectedGroupId(null); // selecting an item exits any family view
     const multi = e.metaKey || e.ctrlKey || e.shiftKey;
     if (kind === 'board') {
       if (multi) toggle(selectedBoards, setSelectedBoards, id, true);
@@ -182,8 +221,35 @@ export function ListSurface({
     else if (kind === 'boardlink') {
       const c = (cards || []).find(c => c.id === id);
       if (c && boards[c.target]) onOpenBoard(c.target);
+    } else {
+      // A file/card: jump to it on the canvas (files had no dbl-click action).
+      onRevealOnCanvas?.([id]);
     }
   };
+
+  // A grid family header: toggle its expansion AND select it for the detail
+  // popout (family view).
+  const onGroupClick = useCallback((e, groupId) => {
+    e.stopPropagation();
+    onToggleGroup(groupId);
+    setSelectedGroupId(groupId);
+    setSelectedCards(new Set());
+    setSelectedBoards(new Set());
+  }, [onToggleGroup]);
+
+  // Delete from the detail popout — same undo-safe confirm as Backspace.
+  const onDeleteItems = useCallback(async (ids) => {
+    const list = (ids || []).filter(Boolean);
+    if (!list.length) return;
+    const ok = await feedback.confirm({
+      title: 'Delete', danger: true, confirmLabel: 'Delete',
+      message: list.length === 1 ? 'Delete this card?' : `Delete ${list.length} cards?`,
+    });
+    if (!ok) return;
+    mutators.deleteCards?.(list);
+    setSelectedCards(new Set());
+    setSelectedGroupId(null);
+  }, [feedback, mutators]);
 
   // Delete selected via Backspace/Delete.
   useEffect(() => {
@@ -284,6 +350,21 @@ export function ListSurface({
 
   const totalSel = selectedBoards.size + selectedCards.size;
   const cmdKey = isMac ? '⌘' : 'Ctrl';
+
+  // What the right-side detail popout shows: a single selected card, or a
+  // selected grid family. Nothing selected (or multi-select) → no popout.
+  const detailTarget = useMemo(() => {
+    if (selectedGroupId) {
+      const g = displayItems.find(d => d.isGroup && d.id === selectedGroupId);
+      if (g) return { type: 'group', group: g };
+    }
+    if (selectedCards.size === 1) {
+      const id = [...selectedCards][0];
+      const it = items.find(i => i.id === id);
+      if (it) return { type: 'card', item: it };
+    }
+    return null;
+  }, [selectedGroupId, selectedCards, displayItems, items]);
 
   return (
     <div className={`list-wrap ${dragOver ? 'is-drop-target' : ''}`}
@@ -390,35 +471,50 @@ export function ListSurface({
               onAddFiles={openAddPicker} canEdit={canEdit}
               facePeers={facePeers}
             />
-            {visibleItems.length === 0 && descHits.length === 0 ? (
-              <div className="cluster-browser-empty">
-                {query || filters.size ? 'No files match your search.' : 'No files yet.'}
+            <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
+              <div className="cb-main">
+                {visibleItems.length === 0 && descHits.length === 0 ? (
+                  <div className="cluster-browser-empty">
+                    {query || filters.size ? 'No files match your search.' : 'No files yet.'}
+                  </div>
+                ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
+                  <ClusterGallery
+                    items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
+                    recentlyAddedIds={recentlyAddedIds}
+                    expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
+                    onGroupClick={onGroupClick}
+                    onRowClick={(e, id) => onTileClick(e, 'file', id)}
+                    onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
+                ) : (
+                  <ClusterTable
+                    items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
+                    sortKey={sortKey} sortDir={sortDir} onSort={onSort}
+                    recentlyAddedIds={recentlyAddedIds}
+                    expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
+                    onGroupClick={onGroupClick}
+                    onRowClick={(e, id) => onTileClick(e, 'file', id)}
+                    onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
+                )}
+                {descHits.length > 0 && (
+                  <div className="cb-descendants">
+                    <div className="cb-desc-label">In sub-clusters</div>
+                    {descHits.map(h => (
+                      <button key={`${h.boardId}:${h.id}`} className="cb-desc-row" onClick={() => onOpenBoard(h.boardId)}>
+                        <span className="cb-desc-name">{h.name}</span>
+                        <span className="cb-desc-cluster">{h.clusterName}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
-              <ClusterGallery
-                items={visibleItems} selectedCards={selectedCards} peerMap={peerMap}
-                recentlyAddedIds={recentlyAddedIds}
-                onRowClick={(e, id) => onTileClick(e, 'file', id)}
-                onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
-            ) : (
-              <ClusterTable
-                items={visibleItems} selectedCards={selectedCards} peerMap={peerMap}
-                sortKey={sortKey} sortDir={sortDir} onSort={onSort}
-                recentlyAddedIds={recentlyAddedIds}
-                onRowClick={(e, id) => onTileClick(e, 'file', id)}
-                onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
-            )}
-            {descHits.length > 0 && (
-              <div className="cb-descendants">
-                <div className="cb-desc-label">In sub-clusters</div>
-                {descHits.map(h => (
-                  <button key={`${h.boardId}:${h.id}`} className="cb-desc-row" onClick={() => onOpenBoard(h.boardId)}>
-                    <span className="cb-desc-name">{h.name}</span>
-                    <span className="cb-desc-cluster">{h.clusterName}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+              {detailTarget && (
+                <DetailPanel
+                  target={detailTarget} boards={boards} canEdit={canEdit}
+                  onClose={() => { setSelectedCards(new Set()); setSelectedGroupId(null); }}
+                  onReveal={(id) => onRevealOnCanvas?.([id])}
+                  onDelete={onDeleteItems} />
+              )}
+            </div>
           </div>
         )}
         {/* Hidden picker for the toolbar "Add files" button (touch-friendly). */}

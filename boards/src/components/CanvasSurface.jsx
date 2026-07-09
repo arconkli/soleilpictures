@@ -407,6 +407,10 @@ export function CanvasSurface({
   autoFrame = true,        // false (LocalBoardsApp ?blank=1, tests) → don't auto-fit
                            // the viewport to content; keep zoom 1 so placement specs
                            // aren't thrown off by the empty→first-card fit (~3x).
+  initialFrame = null,     // public only: {x,y,w,h} board-space rect to frame on
+                           // mount instead of the all-cards bbox (PublicBoardView
+                           // passes the top band at fit-to-width so tall boards
+                           // open readable).
   showcaseArm = 'A',       // welcome_showcase experiment arm: 'B' → root was
                            // seeded with the brand demo; show the "Clear & try it
                            // yourself" banner while its cards are present.
@@ -1394,6 +1398,15 @@ export function CanvasSurface({
       maxX = Math.max(maxX, c.x + c.w);
       maxY = Math.max(maxY, c.y + c.h);
     }
+    // Public pages may supply an initial frame (a sub-rect — e.g. the board's
+    // top band at fit-to-width) so tall boards open readable instead of as a
+    // tiny fit-everything strip. Same margin/clamp/center math either way.
+    if (isPublic && initialFrame && Number.isFinite(initialFrame.w) && initialFrame.w > 0) {
+      minX = initialFrame.x;
+      minY = initialFrame.y;
+      maxX = initialFrame.x + initialFrame.w;
+      maxY = initialFrame.y + Math.max(1, initialFrame.h);
+    }
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
     const margin = fitMargin(r);
@@ -1406,7 +1419,7 @@ export function CanvasSurface({
       x: (r.width  - contentW * z) / 2 - minX * z,
       y: (r.height - contentH * z) / 2 - minY * z,
     });
-  }, [cards, board.id, ydoc, isPublic]);
+  }, [cards, board.id, ydoc, isPublic, initialFrame]);
 
   // Persist zoom+pan changes per board so reopening the board resumes
   // where the user left off. Debounced so rapid wheel/pan gestures

@@ -10,6 +10,7 @@ import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from '../lib/gridLayout.js';
 import { hasLabelTag } from '../lib/gridSequence.js';
+import { readGridModel } from '../lib/gridState.js';
 import { TweaksPanel, TweakSection, TweakToggle, TweakRadio, useTweaks } from '../components/TweaksPanel.jsx';
 import { BOARDS } from '../data.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -1140,6 +1141,9 @@ export function LocalBoardsApp({ user, signOut }) {
             onOpenBoard={openBoard}
             onOpenPicker={() => setPickerOpen(true)}
             onDropInboxItem={dropInboxItem}
+            gridTemplates={currentTemplates}
+            getGridModel={(card) => readGridModel(card, null, currentTemplates)}
+            onRevealOnCanvas={() => setView('canvas')}
             mutators={mutators}
           />
         )}

@@ -5,12 +5,12 @@ import { Avatar } from '../primitives.jsx';
 // One gallery tile: a large preview, name + type badge, and a live presence
 // overlay (peer color border + avatar) when a teammate has this card open.
 export const ClusterTile = memo(function ClusterTile({
-  item, selected, isNew, peers, onClick, onDoubleClick,
+  item, selected, isNew, peers, onClick, onDoubleClick, member = false,
 }) {
   const peer = peers && peers[0];
   return (
     <div
-      className={`ct-tile${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}`}
+      className={`ct-tile${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}`}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}

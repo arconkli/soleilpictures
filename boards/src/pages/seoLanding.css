@@ -281,3 +281,31 @@
   font: 400 0.85rem/1.4 var(--font-sans);
   color: var(--ink-3);
 }
+
+/* ── Visual proof: split hero + example-board cards ──────────────────────── */
+.seo-hero-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 40px;
+  align-items: center;
+}
+.seo-hero-card { min-width: 0; }
+.seo-hero-card .pubcard img { aspect-ratio: 16 / 9; }
+.seo-hero-card-cap {
+  margin-top: 10px;
+  font-size: .82rem;
+  color: var(--ink-2);
+}
+.seo-examples .pubgrid { margin-top: 16px; }
+.seo-examples-more {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--soleil);
+  font: 600 .9rem/1.3 var(--font-sans);
+  text-decoration: none;
+}
+.seo-examples-more:hover { text-decoration: underline; }
+@media (max-width: 860px) {
+  .seo-hero-split { grid-template-columns: 1fr; gap: 24px; }
+  .seo-hero-card { max-width: 480px; }
+}

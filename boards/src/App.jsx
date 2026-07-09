@@ -101,7 +101,7 @@ import { cardToYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode } from './lib/docState.js';
-import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout } from './lib/gridState.js';
+import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel } from './lib/gridState.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree } from './lib/gridLayout.js';
 import { hasLabelTag } from './lib/gridSequence.js';
 import { uploadImage, uploadPdf, uploadBoardThumbnail, uploadVideo, uploadAudio, uploadFile, readVideoMeta } from './lib/uploads.js';
@@ -389,6 +389,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // boardId so only the pane showing that board frames it.
   const [recentlyAddedIds, setRecentlyAddedIds] = useState(null);
   const [focusRequest, setFocusRequest] = useState(null); // { boardId, ids:[], token }
+  // Consume a copied card deep link (?board=&card=, from the list detail popout's
+  // "Copy link") once boards are ready: jump to that board in canvas view and
+  // flash the card, then clean the URL. One-shot.
+  const cardLinkDone = useRef(false);
+  useEffect(() => {
+    if (cardLinkDone.current || !boardsReady) return;
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const bid = p.get('board'); const cid = p.get('card');
+      if (!bid || !cid || !boards[bid]) return;
+      cardLinkDone.current = true;
+      setStack([bid]);
+      setViewOverride(o => (o[bid] === 'canvas' ? o : { ...o, [bid]: 'canvas' }));
+      setTimeout(() => document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId: bid, cardId: cid } })), 300);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('board'); url.searchParams.delete('card');
+      window.history.replaceState({}, '', url.pathname + (url.search || ''));
+    } catch (_) {}
+  }, [boardsReady, boards]);
   // Mirror of the guided-tour `fire` fn (the hook is defined far below, but the
   // card/nav/rename mutators above need to emit tour events). Assigned in render
   // once the hook exists; only ever invoked at runtime, so the ref is populated.
@@ -4448,6 +4467,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                      workspaceId={workspace.id}
                      selfId={user.id}
                      gridTemplates={gridTemplates}
+                     getGridModel={(card) => readGridModel(card, yd, gridTemplates)}
+                     onRevealOnCanvas={(ids) => { setView('canvas'); setFocusRequest({ boardId: board.id, ids, token: Date.now() }); }}
                      mutators={muts} />
       );
       return (
