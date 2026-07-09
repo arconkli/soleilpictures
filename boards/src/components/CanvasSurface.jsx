@@ -7362,6 +7362,7 @@ export function CanvasSurface({
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
+      { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A when / what / where table', action: () => addFromRegistry('schedule') },
       { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.() },
     ]},
     { title: 'Annotate', items: [
