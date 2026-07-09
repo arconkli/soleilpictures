@@ -19,6 +19,7 @@ import { Icon } from '../Icon.jsx';
 import { iconForFile } from '../cards/FileCard.jsx';
 import { Headphones, Clapperboard } from '../../lib/icons.js';
 import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark } from './marks.jsx';
+import { GridContentPreview } from './GridContentPreview.jsx';
 
 // `size`: 'row' (40px thumb) or 'tile' (large gallery preview). Controls the
 // R2Image displayed-px hint + glyph size.
@@ -52,6 +53,9 @@ export function CardPreview({ item, size = 'row' }) {
     return <KindIcon kind="palette" />;
   }
   if (p.mode === 'grid') {
+    // Real cell content when the live model resolved (App threads getGridModel);
+    // else the abstract subdivision schematic (pure/local path); else a glyph.
+    if (p.model && p.model.layout) return <GridContentPreview model={p.model} size={size} />;
     if (p.rects && p.rects.length) return <GridMark rects={p.rects} cells={p.cells} />;
     return <div className="cbp-glyph"><KindIcon kind="grid" /></div>;
   }
