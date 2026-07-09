@@ -8,12 +8,47 @@
     "title": "Neon Noir Look Book",
     "description": "A night-exterior look book for the neon noir style: practical light sources, cyan-against-magenta palettes with hex codes, haze and wet-down technique, and frame studies.",
     "keyword": "neon noir look book",
-    "body": "A cinematography look book for neon noir — the night-exterior style built on practical light: neon signage, sodium vapor, car headlights, and vending machines doing the work a lighting truck normally would. It collects the exact color stories (signal cyan against magenta, sodium orange against teal shadow) with hex codes, the technique that sells the look — atomized haze, wet-downs, fast glass, two hues per frame — and a set of frame studies for silhouette, reflection, and doorway compositions. Made with Soleil Clusters."
+    "answer": "Neon noir is a night-exterior film style that updates classic noir with saturated practical color — neon signage, wet streets, cyan against magenta. This look book collects its exact palettes with hex codes, the technique that sells the look (haze, wet-downs, exposing for the sign), frame studies, and a shootable night-exterior recipe and run sheet.",
+    "faq": [
+      {
+        "q": "What is neon noir?",
+        "a": "Neon noir is a modern evolution of film noir that trades black-and-white shadow for saturated color on night streets — neon signage, wet asphalt, and high-contrast cyan against magenta. The style runs from Michael Mann's Thief (1981) and Ridley Scott's Blade Runner (1982) through Drive (2011), Only God Forgives (2013), and the John Wick films. Its defining trait is motivated light: nearly every source is visible in the frame."
+      },
+      {
+        "q": "How do you light a neon noir scene?",
+        "a": "Practical sources do the work: neon signs, shop windows, sodium street lamps, and car headlights provide the keys, while off-camera movie fixtures are gelled and dimmed to imitate them. Cinematographers expose to protect the neon's saturation and let the shadows fall to black, typically on fast lenses around T1.4–T2 at ISO 3200–6400 on modern digital cameras."
+      },
+      {
+        "q": "What colors define the neon noir palette?",
+        "a": "Two color stories dominate: signal cyan against neon magenta or pink, and sodium-vapor orange against teal shadow. The discipline is restraint — strong examples commit to roughly two hues per frame and police competing colors out of wardrobe, set dressing, and background signage. This board's reference values are cyan #00C2D1 against magenta #E63E80, and sodium #E8A13D against teal #1B4B5A."
+      },
+      {
+        "q": "Why are the streets always wet in neon noir films?",
+        "a": "Productions wet the asphalt on purpose — a water truck sprays the street before and between setups, a standard night-exterior practice called a wet-down. Wet pavement acts as a mirror, doubling every light source in frame and filling what would otherwise read as flat black. It also adds specular texture that helps night streets hold depth on camera."
+      },
+      {
+        "q": "What does haze do in night-exterior cinematography?",
+        "a": "Atomized haze scatters light so beams become visible volumes and every source gains a soft halo, separating subjects from the background and giving the frame depth. It reads most strongly in backlight, which is why neon noir frames so often shoot toward a sign or oncoming headlights. Haze thins between takes, so crews re-top it continuously to keep shots matching."
+      }
+    ],
+    "body": "A cinematography look book for neon noir — the night-exterior style built on practical light: neon signage, sodium vapor, car headlights, and vending machines doing the work a lighting truck normally would. It collects the exact color stories (signal cyan against magenta, sodium orange against teal shadow) with hex codes, the technique that sells the look — atomized haze, wet-downs, fast glass, two hues per frame — a numbered night-exterior recipe with a call-time-to-wrap run sheet, and a set of frame studies for silhouette, reflection, and doorway compositions. Made with Soleil Clusters."
   },
   "arrows": [
-    { "from": "pal-cyanmag", "to": "img-portrait", "color": "pink", "head": "single" },
-    { "from": "note-haze", "to": "img-wetstreet", "color": "blue", "head": "single" },
-    { "from": "note-practicals", "to": "hero-neon", "color": "orange", "dashed": true }
+    { "from": "pal-cyanmag", "to": "img-portrait", "color": "#E63E80", "head": "single", "label": "the palette in practice" },
+    { "from": "note-haze", "to": "img-wetstreet", "color": "blue", "head": "single", "label": "doubles every source" },
+    { "from": "note-practicals", "to": "hero-neon", "color": "orange", "dashed": true, "label": "every source motivated" },
+    { "from": "pal-cyanmag", "to": "pal-sodium", "color": "purple", "head": "double", "dashed": true, "label": "rival color stories" },
+    { "from": "note-twohues", "to": "shape-cyan", "color": "ink", "head": "single", "thickness": "thin", "label": "the rule, drawn" },
+    { "from": "doc-runsheet", "to": "grid-recipe", "color": "green", "head": "single", "thickness": "thick", "label": "the night, hour by hour" },
+    { "from": "vid-rain", "to": "note-haze", "color": "blue", "dashed": true, "label": "rain is free atmosphere" }
+  ],
+  "groups": [
+    { "id": "grp-colorstories", "name": "The two color stories", "outline": true, "color": "#E63E80" }
+  ],
+  "strokes": [
+    { "relTo": "note-practicals", "color": "#00C2D1", "width": 4, "points": [[335, 74], [326, 85], [302, 92], [270, 96], [236, 97], [202, 93], [174, 87], [151, 79], [147, 71], [158, 62], [184, 55], [216, 51], [252, 51], [288, 55], [318, 62], [333, 70], [337, 77]] },
+    { "relTo": "note-exposure", "color": "#E8A13D", "width": 3, "points": [[16, 42], [40, 45], [66, 41], [94, 45], [122, 42], [150, 46], [176, 42], [198, 45]] },
+    { "relTo": "img-portrait", "color": "#E63E80", "width": 4, "points": [[-46, -38], [-33, -27], [-19, -15], [-7, -5], [3, 5], [-13, -3], [3, 5], [-2, -16]] }
   ],
   "sections": [
     {
@@ -27,6 +62,7 @@
           { "provider": "unsplash", "query": "traffic light bokeh rain night" },
           { "provider": "pexels", "query": "dark alley fog night city" }
         ] },
+        { "id": "vid-rain", "kind": "video", "feature": true, "source": { "query": "neon lights rain street night" }, "title": "The look in motion", "caption": "Rain, signage, and nothing else lighting the street" },
         { "id": "hero-neon", "kind": "image", "source": { "provider": "unsplash", "query": "neon sign rain night street glow" }, "title": "The sign is the key light", "caption": "Every source in frame, every source motivated" }
       ]
     },
@@ -36,25 +72,26 @@
         { "id": "note-practicals", "kind": "note", "bgColor": "#101018", "html": "<p><b>Practicals do the work</b><br>Neon signage, sodium street lamps, car headlights, shop windows, vending machines. Rig your movie lights to imitate what's in frame — the look dies the moment a source feels unmotivated.</p>" },
         { "id": "note-haze", "kind": "note", "bgColor": "#101018", "html": "<p><b>Haze + wet-downs</b><br>Atomized haze turns every beam into geometry. Wet asphalt doubles every light in the frame for free. Shoot after real rain or budget a water truck — dry pavement is where neon noir goes to die.</p>" },
         { "id": "img-wetstreet", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "neon lights reflection wet street night" }, "title": "The double exposure you get for free", "caption": "One sign, two images" },
-        { "id": "img-fog", "kind": "image", "source": { "provider": "unsplash", "query": "street lamp fog night moody" }, "title": "Atmosphere is a light modifier", "caption": "Haze gives beams a body" }
+        { "id": "img-fog", "kind": "image", "source": { "provider": "unsplash", "query": "street lamp fog night moody" }, "title": "Atmosphere is a light modifier", "caption": "Haze gives beams a body" },
+        { "id": "link-deakins", "kind": "link", "source": "https://www.rogerdeakins.com/", "title": "Roger Deakins — forums", "description": "The Blade Runner 2049 and 1917 cinematographer answers working DPs' questions on night exteriors, practicals, and exposure on his long-running forum." }
       ]
     },
     {
       "header": { "text": "The Color Stories", "sub": "Two hues per frame — discipline is the style" },
       "cards": [
-        { "id": "pal-cyanmag", "kind": "palette", "title": "Signal cyan / neon magenta", "swatches": [
+        { "id": "pal-cyanmag", "kind": "palette", "groupId": "grp-colorstories", "title": "Signal cyan / neon magenta", "swatches": [
           { "hex": "#00C2D1", "name": "Signal cyan" },
           { "hex": "#E63E80", "name": "Neon magenta" },
           { "hex": "#0B0B12", "name": "Asphalt black" },
           { "hex": "#F4F4F6", "name": "Skin highlight" }
         ] },
-        { "id": "pal-sodium", "kind": "palette", "title": "Sodium / teal shadow", "swatches": [
+        { "id": "pal-sodium", "kind": "palette", "groupId": "grp-colorstories", "title": "Sodium / teal shadow", "swatches": [
           { "hex": "#E8A13D", "name": "Sodium vapor" },
           { "hex": "#1B4B5A", "name": "Teal shadow" },
           { "hex": "#22201C", "name": "Night brown" },
           { "hex": "#C7CCD1", "name": "Overcast skin" }
         ] },
-        { "id": "note-wb", "kind": "note", "bgColor": "#101018", "html": "<p><b>White balance to the dominant practical</b><br>Balance for the neon and let the rest of the frame fall where it may. Correcting toward neutral flattens the exact contrast the style is built on.</p>" }
+        { "id": "note-wb", "kind": "note", "bgColor": "#101018", "groupId": "grp-colorstories", "html": "<p><b>White balance to the dominant practical</b><br>Balance for the neon and let the rest of the frame fall where it may. Correcting toward neutral flattens the exact contrast the style is built on.</p>" }
       ]
     },
     {
@@ -66,10 +103,41 @@
       ]
     },
     {
-      "header": { "text": "How to Shoot It", "sub": "Exposure and discipline" },
+      "header": { "text": "How to Shoot It", "sub": "The recipe, the run sheet, and the two-hue rule" },
       "cards": [
+        { "id": "grid-recipe", "kind": "grid", "title": "Night exterior recipe", "rows": 2, "cols": 4,
+          "seq": { "pattern": "z", "format": { "style": "num" } },
+          "cellSpecs": [
+            { "text": "<p><b>[#] Scout the practicals</b><br>Choose the street for its signage — the location is the lighting plan</p>" },
+            { "text": "<p><b>[#] Wet the street down</b><br>Water truck before the first shot; re-wet between setups</p>" },
+            { "text": "<p><b>[#] Add haze</b><br>Thin, even atmosphere until the beams read on camera</p>" },
+            { "text": "<p><b>[#] Expose for the sign</b><br>Hold the neon's saturation; let the shadows fall to black</p>" },
+            { "image": { "provider": "pexels", "query": "neon sign storefront night street", "alt": "Neon storefront signage on a night street" } },
+            { "image": { "provider": "pexels", "query": "wet road reflection night city lights", "alt": "Wet asphalt mirroring city lights at night" } },
+            { "image": { "provider": "pexels", "query": "street light beam fog night", "alt": "Hazy light beam from a street lamp at night" } },
+            { "image": { "provider": "pexels", "query": "neon sign close up glow night", "alt": "Close-up of a glowing neon sign" } }
+          ] },
         { "id": "note-exposure", "kind": "note", "bgColor": "#101018", "html": "<p><b>Expose for the sign</b><br>Protect the neon's saturation and let the shadows go. Fast glass at T1.4–T2, modern sensors at ISO 3200–6400, and resist the urge to lift the blacks — the void is doing compositional work.</p>" },
-        { "id": "note-twohues", "kind": "note", "bgColor": "#e63e80", "html": "<p><b>The two-hue rule</b><br>Pick two hues per frame and police everything else out — wardrobe, set dressing, background signage. Neon noir is restraint wearing loud colors.</p>" }
+        { "id": "note-twohues", "kind": "note", "bgColor": "#e63e80", "html": "<p><b>The two-hue rule</b><br>Pick two hues per frame and police everything else out — wardrobe, set dressing, background signage. Neon noir is restraint wearing loud colors.</p>" },
+        { "id": "shape-cyan", "kind": "shape", "shape": "ellipse", "stroke": "#7FE8F0", "fill": "#00C2D1", "strokeWidth": 3, "dash": "solid", "label": "Hue 1 — cyan key: signage, windows" },
+        { "id": "shape-magenta", "kind": "shape", "shape": "ellipse", "stroke": "#F58BB4", "fill": "#E63E80", "strokeWidth": 3, "dash": "solid", "label": "Hue 2 — magenta fill: the answer light" },
+        { "id": "doc-runsheet", "kind": "doc", "title": "Night-exterior run sheet", "author": "Clusters", "date": "2026-07-09", "lines": [
+          { "text": "Pre-light — before dark", "h": true },
+          { "text": "17:00 — Crew call; walk the blocking in daylight", "bullet": true },
+          { "text": "17:30 — Rig practicals: sign dimmers, window fixtures, tube lights", "bullet": true },
+          { "text": "18:30 — Water truck: first wet-down pass; run a haze test", "bullet": true },
+          { "text": "The night", "h": true },
+          { "text": "19:45 — Blue hour: balance the ambient sky to the practicals", "bullet": true },
+          { "text": "20:30 — First shot: widest frames while the street is freshest", "bullet": true },
+          { "text": "23:00 — Re-wet the asphalt; top up haze between setups", "bullet": true },
+          { "text": "01:00 — Turn around for reverses; check both hues still read", "bullet": true },
+          { "text": "Wrap", "h": true },
+          { "text": "04:30 — Last looks: plates, empty frames, sign close-ups", "bullet": true },
+          { "text": "05:00 — Wrap before dawn contaminates the sky", "bullet": true },
+          { "text": "Rule of thumb: schedule tight shots late — puddles survive longest in close-ups." }
+        ] },
+        { "id": "link-asc", "kind": "link", "source": "https://theasc.com/", "title": "American Cinematographer — ASC", "description": "The American Society of Cinematographers' magazine; its production stories break down how features like Blade Runner 2049 lit their night work." },
+        { "id": "link-aces", "kind": "link", "source": "https://acescentral.com/", "title": "ACES Central", "description": "Community hub for the Academy Color Encoding System — the color-management standard that keeps saturated neon consistent from camera through grade." }
       ]
     }
   ]

@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { makeSupabase } from './lib/supa.mjs';
 import { makeR2 } from './lib/r2.mjs';
-import { fetchCandidates, downloadImage, pingUnsplashDownload, relevanceScore, looksLikePhoto } from './lib/imageSources.mjs';
+import { fetchCandidates, downloadImage, pingUnsplashDownload, relevanceScore, looksLikePhoto, fetchPexelsVideo, downloadVideo } from './lib/imageSources.mjs';
 import { layoutRecipe } from './lib/layoutRecipe.mjs';
 import { stampCard, encodeBoardSnapshot, buildCardIndexRows, buildGridStructure } from './lib/cardEncode.mjs';
 
@@ -50,7 +50,7 @@ function flattenSections(recipe) {
     if (h && h.text) {
       out.push({
         id: h.id || `hdr-${Math.random().toString(36).slice(2, 8)}`,
-        kind: 'note', sectionHeader: true, sub: !!h.sub,
+        kind: 'note', sectionHeader: true, sub: h.sub || null,
         fontFamily: h.font || 'display', fontSize: h.size || (h.hero ? 40 : 28),
         bgColor: h.bg || 'transparent',
         html: `<p><b>${esc(h.text)}</b></p>${h.sub ? `<p>${esc(h.sub)}</p>` : ''}`,
@@ -121,22 +121,68 @@ async function resolveCards(cards, ctx) {
   const addRow = async (cardId, im) => { if (!dryRun) await insertImageRow(supa, { workspaceId, boardId, cardId, key: im.key, w: im.srcW, h: im.srcH, userId }); };
 
   for (const card of cards) {
-    // Grid mosaic (showcase): one image per cell.
-    if (card.kind === 'grid' && Array.isArray(card.images)) {
+    // Grid (showcase): image mosaics via `images`, or mixed image/text cells via
+    // `cellSpecs` (row-major: {image:{provider,query,alt?}} | {text:'<html>'}).
+    // Optional `seq:{pattern,format}` registers a gridSequences entry so text
+    // cells can carry [#]/[A] auto-number tags.
+    if (card.kind === 'grid' && (Array.isArray(card.images) || Array.isArray(card.cellSpecs))) {
+      const specs = Array.isArray(card.cellSpecs)
+        ? card.cellSpecs
+        : card.images.map((s) => ({ image: s.source || s }));
       const contents = [];
-      for (const spec of card.images) {
-        const src = spec.source || spec;
-        const [im] = await resolveImageQuery(src, ctx, 1);
-        if (!im) continue;
+      for (const spec of specs) {
+        if (spec.text != null) {
+          contents.push({ type: 'text', html: spec.text });
+          continue;
+        }
+        if (!spec.image) { contents.push({ type: 'empty' }); continue; }
+        const [im] = await resolveImageQuery(spec.image, ctx, 1);
+        if (!im) { contents.push({ type: 'empty' }); continue; }
         await addRow(card.id, im);
-        contents.push({ type: 'image', src: `r2:${im.key}`, fit: 'cover' });
+        contents.push({ type: 'image', src: `r2:${im.key}`, fit: 'cover', alt: spec.image.alt || im.alt });
         credits.push(im.credit);
       }
-      if (contents.length < 2) { console.warn(`  ⚠ grid ${card.id}: too few images, skipping`); continue; }
+      const filled = contents.filter((c) => c.type !== 'empty').length;
+      if (filled < 2) { console.warn(`  ⚠ grid ${card.id}: too few cells resolved, skipping`); continue; }
       const cols = card.cols || Math.ceil(Math.sqrt(contents.length));
       const rows = card.rows || Math.ceil(contents.length / cols);
       const { layout, cells } = buildGridStructure(contents, rows, cols);
-      resolved.push({ ...card, images: undefined, kind: 'grid', layout, cells, rows, cols, span: card.span || 'full', title: card.title || '' });
+      const next = { ...card, images: undefined, cellSpecs: undefined, kind: 'grid', layout, cells,
+                     rows, cols, gridRows: rows, gridCols: cols,
+                     span: card.span || 'full', title: card.title || '' };
+      if (card.seq) {
+        const seqId = `seq-${card.id}`;
+        ctx.gridSequences.push({ id: seqId, name: card.seq.name || card.title || 'Sequence',
+                                 pattern: card.seq.pattern || 'z', format: card.seq.format || { style: 'num' } });
+        next.seqId = seqId;
+        next.seqFormat = card.seq.format || { style: 'num' }; // meta/article tag resolution
+        next.seq = undefined;
+      }
+      resolved.push(next);
+      continue;
+    }
+    // Ambient video loop (Pexels Videos): mp4 + poster both land in R2 with
+    // images rows so get_public_board_bundle presigns them for the public page.
+    if (card.kind === 'video' && card.source) {
+      if (dryRun) { resolved.push({ ...card, source: undefined, src: 'r2:DRYRUN/v.mp4', poster: 'r2:DRYRUN/p.jpg', srcW: 1280, srcH: 720 }); continue; }
+      try {
+        const v = await fetchPexelsVideo(card.source.query, { key: ctx.keys.pexels });
+        if (!v) { console.warn(`  ⚠ video ${card.id}: no candidate for "${card.source.query}", skipping`); continue; }
+        const vid = await downloadVideo(v.url);
+        const vKey = `${workspaceId}/${randomUUID()}.mp4`;
+        await ctx.r2.put(vKey, vid.bytes, vid.contentType);
+        let pKey = null;
+        if (v.posterUrl) {
+          const p = await downloadImage(v.posterUrl);
+          pKey = `${workspaceId}/${randomUUID()}.${p.ext}`;
+          await ctx.r2.put(pKey, p.bytes, p.contentType);
+        }
+        await addRow(card.id, { key: vKey, srcW: v.w, srcH: v.h });
+        if (pKey) await addRow(card.id, { key: pKey, srcW: v.w, srcH: v.h });
+        credits.push(v.credit);
+        console.log(`  ✓ video:${card.source.query.slice(0, 30)} (${v.duration}s, ${v.h}p)`);
+        resolved.push({ ...card, source: undefined, src: `r2:${vKey}`, poster: pKey ? `r2:${pKey}` : null, srcW: v.w, srcH: v.h });
+      } catch (e) { console.warn(`  ✗ video ${card.id}: ${e.message}`); }
       continue;
     }
     // Regular image card(s).
@@ -170,17 +216,63 @@ function attributionCard(credits) {
   return { id: 'note-credits', kind: 'note', span: 'full', h: 56, html: `<p style="font-size:12px;">Image credits — ${parts.join(' · ')}</p>`, bgColor: 'transparent', fontSize: 12 };
 }
 
+// Resolve → layout → strip → stamp → encode one board's content. Shared by the
+// parent board and recipe.children. The strip is kind-aware: `rows`/`cols` are
+// grid TEMPLATE inputs but real data on schedule cards (stripping them there was
+// the blank-schedule bug); sectionHeader/sub stay on the card — buildCardIndexRows
+// mirrors them into card_index.meta for the page RPC's section grouping.
+async function composeBoard(cardList, recipeLike, ctx) {
+  ctx.gridSequences = [];
+  const { resolved, credits } = await resolveCards(cardList, ctx);
+  const credit = attributionCard(credits);
+  const allCards = credit ? [...resolved, credit] : resolved;
+
+  const nowIso = new Date().toISOString();
+  const laid = layoutRecipe(allCards).map((c, i) => {
+    const { source, srcW, srcH, span, images, cellSpecs, feature, child, ...rest } = c;
+    let clean = rest;
+    if (c.kind === 'grid') { const { rows: _r, cols: _c, ...noRC } = rest; clean = noRC; }
+    return stampCard(clean, i, nowIso);
+  });
+  const idSet = new Set(laid.map((c) => c.id));
+  // Arrows may anchor to cards (string id), points, or groups (objects pass).
+  const okRef = (ref) => (ref && typeof ref === 'object') ? true : idSet.has(ref);
+  const arrows = (recipeLike.arrows || []).filter((a) => okRef(a.from) && okRef(a.to));
+  // Hand-drawn stroke annotations: points relative to a named card (or absolute).
+  const byId = Object.fromEntries(laid.map((c) => [c.id, c]));
+  const strokes = (recipeLike.strokes || []).map((s) => {
+    const base = s.relTo ? byId[s.relTo] : null;
+    if (s.relTo && !base) return null;
+    const ox = base ? base.x : 0, oy = base ? base.y : 0;
+    return { color: s.color || '#f5c518', width: s.width || 3,
+             points: (s.points || []).map(([dx, dy]) => [ox + dx, oy + dy]) };
+  }).filter((s) => s && s.points.length > 1);
+  const groups = (recipeLike.groups || []).filter((g) => g && g.id);
+
+  const b64 = encodeBoardSnapshot(laid, arrows, { strokes, groups, gridSequences: ctx.gridSequences });
+  const rows = buildCardIndexRows({ workspaceId: ctx.workspaceId, boardId: ctx.boardId, cards: laid });
+  const heroKey = (laid.find((c) => c.kind === 'image')?.src || '').replace(/^r2:/, '') || null;
+  const imageCount = laid.filter((c) => c.kind === 'image').length;
+  const gridCount = laid.filter((c) => c.kind === 'grid').length;
+  return { laid, arrows, strokes, groups, b64, rows, heroKey, imageCount, gridCount, nowIso };
+}
+
 // --replace: remove any prior board for this recipe (by name) + its R2 objects.
 async function replaceExisting(supa, r2, { workspaceId, name }) {
   const { data: boards, error } = await supa.from('boards').select('id').eq('workspace_id', workspaceId).eq('name', name);
   if (error) throw new Error(`replace lookup: ${error.message}`);
   if (!boards?.length) { console.log('  (nothing to replace)'); return; }
   for (const b of boards) {
-    const { data: imgs } = await supa.from('images').select('storage_path').eq('board_id', b.id);
-    for (const im of (imgs || [])) { try { await r2.del(im.storage_path); } catch (_) {} }
-    await supa.from('images').delete().eq('board_id', b.id);
-    await supa.from('boards').delete().eq('id', b.id);
-    console.log(`  replaced board ${b.id} (${(imgs || []).length} images removed)`);
+    // Include child boards (recipe.children) in the teardown.
+    const { data: kids } = await supa.from('boards').select('id').eq('parent_board_id', b.id);
+    const ids = [b.id, ...(kids || []).map((k) => k.id)];
+    for (const id of ids) {
+      const { data: imgs } = await supa.from('images').select('storage_path').eq('board_id', id);
+      for (const im of (imgs || [])) { try { await r2.del(im.storage_path); } catch (_) {} }
+      await supa.from('images').delete().eq('board_id', id);
+    }
+    for (const id of ids.reverse()) await supa.from('boards').delete().eq('id', id);
+    console.log(`  replaced board ${b.id} (+${ids.length - 1} children)`);
   }
 }
 
@@ -222,26 +314,52 @@ async function main() {
     console.log(`  board ${boardId}`);
   }
 
-  const { resolved, credits } = await resolveCards(cards, { r2, supa, keys, workspaceId, boardId, userId, dryRun });
-  const credit = attributionCard(credits);
-  const allCards = credit ? [...resolved, credit] : resolved;
-
-  // Layout + stamp. Strip helper-only fields so the snapshot stays clean.
-  const nowIso = new Date().toISOString();
-  const laid = layoutRecipe(allCards).map((c, i) => {
-    const { source, srcW, srcH, span, sectionHeader, sub, images, rows, cols, feature, ...clean } = c;
-    return stampCard(clean, i, nowIso);
+  // Child boards first (recipe.children): each is a real board row under the
+  // parent; the parent references them via {kind:'board', child:'<name>'} cards.
+  // BoardCard's contract: the parent card's id IS the child board's id.
+  const childIds = {};
+  for (const child of (recipe.children || [])) {
+    const childId = dryRun ? `DRYRUN-CHILD` : randomUUID();
+    childIds[child.name] = childId;
+    if (!dryRun) {
+      const { error } = await supa.from('boards').insert({
+        id: childId, workspace_id: workspaceId, parent_board_id: boardId,
+        name: child.name, view: 'canvas', created_by: userId,
+        bg_color: child.bgColor || recipe.bgColor || null, cover: child.cover || recipe.cover || null,
+      });
+      if (error) throw new Error(`child board insert: ${error.message}`);
+    }
+    const cb = await composeBoard(flattenSections(child), child,
+      { r2, supa, keys, workspaceId, boardId: childId, userId, dryRun });
+    console.log(`  child "${child.name}": ${cb.laid.length} cards (${cb.imageCount} images)`);
+    if (!dryRun) {
+      let { error } = await supa.from('board_state').upsert(
+        { board_id: childId, doc: cb.b64, updated_at: cb.nowIso }, { onConflict: 'board_id' });
+      if (error) throw new Error(`child board_state: ${error.message}`);
+      ({ error } = await supa.from('card_index').upsert(cb.rows, { onConflict: 'board_id,card_id' }));
+      if (error) throw new Error(`child card_index: ${error.message}`);
+    }
+  }
+  const idRemap = {};
+  const mapped = cards.map((c) => {
+    if (c.kind !== 'board' || !c.child) return c;
+    const nid = childIds[c.child] || c.id;
+    if (nid !== c.id) idRemap[c.id] = nid;
+    return { ...c, id: nid, child: undefined, title: c.title || c.child };
   });
-  const idSet = new Set(laid.map((c) => c.id));
-  const arrows = (recipe.arrows || []).filter((a) => idSet.has(a.from) && idSet.has(a.to));
-  const imageCount = laid.filter((c) => c.kind === 'image').length;
-  const gridCount = laid.filter((c) => c.kind === 'grid').length;
-  console.log(`  ${laid.length} cards (${imageCount} images, ${gridCount} grids, ${arrows.length} arrows)`);
-  if (imageCount < 3 && !noPublish) console.warn('  ⚠ fewer than 3 standalone images — public boards should have ≥3');
+  // Board-card ids become the child board's UUID — follow the rename in arrow/
+  // stroke references so recipes can anchor arrows to {kind:'board'} cards.
+  const remapRef = (r) => (typeof r === 'string' && idRemap[r]) || r;
+  const recipeRemapped = {
+    ...recipe,
+    arrows: (recipe.arrows || []).map((a) => ({ ...a, from: remapRef(a.from), to: remapRef(a.to) })),
+    strokes: (recipe.strokes || []).map((s) => (s && s.relTo ? { ...s, relTo: remapRef(s.relTo) } : s)),
+  };
 
-  const b64 = encodeBoardSnapshot(laid, arrows);
-  const rows = buildCardIndexRows({ workspaceId, boardId, cards: laid });
-  const heroKey = (laid.find((c) => c.kind === 'image')?.src || '').replace(/^r2:/, '') || null;
+  const built = await composeBoard(mapped, recipeRemapped, { r2, supa, keys, workspaceId, boardId, userId, dryRun });
+  const { laid, arrows, strokes, b64, rows, heroKey, imageCount, gridCount, nowIso } = built;
+  console.log(`  ${laid.length} cards (${imageCount} images, ${gridCount} grids, ${arrows.length} arrows, ${strokes.length} strokes)`);
+  if (imageCount < 3 && !noPublish) console.warn('  ⚠ fewer than 3 standalone images — public boards should have ≥3');
   console.log(`  snapshot ${Math.round(Buffer.from(b64, 'base64').length / 1024)}KB · card_index ${rows.length} rows`);
 
   if (dryRun) {
@@ -263,6 +381,7 @@ async function main() {
   if (!noPublish) {
     const { error } = await supa.from('public_boards').upsert({
       board_id: boardId, slug, seo_title: seo.title, seo_description: seo.description, seo_body: seo.body,
+      answer: seo.answer || null, faq: Array.isArray(seo.faq) && seo.faq.length ? seo.faq : null,
       target_keyword: seo.keyword, og_image_key: heroKey, priority: recipe.priority || 0, published_at: nowIso,
       review_status: 'approved', published_by: 'admin', created_by: userId, updated_at: nowIso,
     }, { onConflict: 'board_id' });

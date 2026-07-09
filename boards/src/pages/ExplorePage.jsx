@@ -77,30 +77,18 @@ export function ExplorePage() {
           ) : boards.length === 0 ? (
             <div style={{ color: 'var(--text-soft, #b7b1a6)' }}>No public boards yet — check back soon.</div>
           ) : (
-            <ul style={{
-              listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 18,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-            }}>
+            <ul className="pubgrid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 18 }}>
               {boards.map((b) => {
                 const v = encodeURIComponent(b.thumb_updated_at || '');
                 const thumb = b.thumb_key ? `/api/public-thumb/${b.slug}?v=${v}` : null;
                 return (
                   <li key={b.slug}>
-                    <a href={`/c/${b.slug}`} style={{
-                      display: 'block', textDecoration: 'none', color: 'inherit',
-                      border: '1px solid var(--border, #2a2722)', borderRadius: 12, overflow: 'hidden',
-                      background: 'var(--bg-1, #14110d)',
-                    }}>
-                      <div style={{ aspectRatio: '16 / 9', background: '#0a0908', overflow: 'hidden' }}>
-                        {thumb && (
-                          <img src={thumb} alt={b.seo_title || b.slug} loading="lazy"
-                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        )}
-                      </div>
+                    <a className="pubcard" href={`/c/${b.slug}`}>
+                      {thumb
+                        ? <img src={thumb} alt={b.seo_title || b.slug} loading="lazy" width="320" height="180" />
+                        : <div style={{ aspectRatio: '16 / 9', background: '#0a0908' }} />}
                       <div style={{ padding: '12px 14px 14px' }}>
-                        <div style={{ fontWeight: 600, fontSize: '1.02rem', lineHeight: 1.3 }}>
-                          {b.seo_title || b.slug}
-                        </div>
+                        <span className="pubcard-title" style={{ padding: 0 }}>{b.seo_title || b.slug}</span>
                         {b.seo_description && (
                           <div style={{
                             color: 'var(--text-soft, #b7b1a6)', fontSize: '.88rem', marginTop: 4,

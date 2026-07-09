@@ -7,13 +7,47 @@
   "seo": {
     "title": "Film Noir Look Book and Mood Board",
     "description": "A film noir look book: hard shadows, rain-slicked streets, venetian-blind light, and monochrome palettes with hex codes — a cinematography reference on one canvas.",
-    "body": "A cinematographer's reference board for the film noir look: low-key lighting, hard chiaroscuro shadows, venetian-blind slats, rain-slicked night streets, cigarette smoke, and the moody monochrome palettes the style is built on. A visual look book assembled the way a DP or production designer would — references, lighting notes, exact color stories, connected annotations, and grid mosaics together on one shareable canvas. Made with Soleil Clusters.",
-    "keyword": "film noir look book"
+    "keyword": "film noir look book",
+    "answer": "A film noir look book is a cinematography reference that collects the style's building blocks — hard low-key light, venetian-blind shadows, rain-slicked night streets, smoke, and crushed-black monochrome palettes. This board adds exact hex color stories, four numbered classic lighting setups, a DP's lighting checklist, and the touchstone films that wrote the visual language.",
+    "faq": [
+      {
+        "q": "What defines film noir lighting?",
+        "a": "Low-key lighting: one hard, undiffused key source, minimal or no fill, and a contrast ratio of 8:1 or deeper so shadows go truly black. The hardness of the source is what keeps noir's signature patterns — venetian-blind slats, window frames, silhouettes — crisp instead of mushy. The approach descends from German Expressionist cinema of the 1920s, carried to Hollywood by émigré directors and cinematographers."
+      },
+      {
+        "q": "When was the classic film noir era?",
+        "a": "The classic cycle is usually dated 1941 to 1958, from The Maltese Falcon to Orson Welles' Touch of Evil. The term itself was coined in 1946 by French critic Nino Frank, describing the dark American crime films that reached Paris after the war. Émigrés such as Fritz Lang, Robert Siodmak, and Billy Wilder brought Expressionist shadow-play into the American crime picture."
+      },
+      {
+        "q": "What is chiaroscuro in cinematography?",
+        "a": "Chiaroscuro is Italian for light-dark — a painting technique associated with Caravaggio and Rembrandt in which strong contrast models form out of darkness. In cinematography it means a single hard key with little fill, letting shadow sculpt the face — often leaving it half-lit. It is the foundational lighting idea of film noir."
+      },
+      {
+        "q": "How do you light a venetian-blind shadow shot?",
+        "a": "Use a hard, focused source such as a fresnel, placed well back from real blinds so the slat pattern projects sharp onto the subject or wall. The closer or softer the source, the mushier the pattern becomes. Add a little haze if you want the beam itself visible in the air."
+      },
+      {
+        "q": "What colors define neo-noir?",
+        "a": "Neo-noir trades pure monochrome for a cold teal or blue-black night base with a single warm accent — sodium-vapor amber or neon red and cyan. Blade Runner (1982) codified the neon-noir grade, and later films like Se7en and Sin City pushed crushed blacks with one isolated accent color. The underlying logic is unchanged from the 1940s: darkness first, then one thing allowed to glow."
+      }
+    ],
+    "body": "A cinematographer's reference board for the film noir look: low-key lighting, hard chiaroscuro shadows, venetian-blind slats, rain-slicked night streets, cigarette smoke, and the moody monochrome palettes the style is built on. A visual look book assembled the way a DP or production designer would — references, four numbered classic lighting setups, a shootable lighting checklist, exact color stories, connected annotations, and grid mosaics together on one shareable canvas. Made with Soleil Clusters."
   },
   "arrows": [
-    { "from": "note-grade", "to": "pal-neo", "color": "orange", "head": "single" },
-    { "from": "note-light", "to": "img-hardlight", "color": "ink", "head": "single" },
-    { "from": "note-films", "to": "img-classic", "color": "purple", "dashed": true }
+    { "from": "note-grade", "to": "pal-neo", "color": "orange", "head": "single", "label": "push one accent" },
+    { "from": "note-light", "to": "img-hardlight", "color": "ink", "head": "single", "label": "one hard source" },
+    { "from": "note-films", "to": "img-classic", "color": "purple", "dashed": true, "label": "study the canon" },
+    { "from": "pal-mono", "to": "pal-neo", "color": "blue", "head": "double", "dashed": true, "label": "same contrast, new color" },
+    { "from": "vid-smoke", "to": "img-hardlight", "color": "orange", "dashed": true, "label": "smoke reveals the beam" },
+    { "from": "grid-setups", "to": "doc-check", "color": "green", "head": "single", "thickness": "thick", "label": "then run the checklist" }
+  ],
+  "groups": [
+    { "id": "grp-mono", "name": "The monochrome story", "outline": true, "color": "#c9c4b8" }
+  ],
+  "strokes": [
+    { "relTo": "grid-setups", "color": "#d21f3c", "width": 4, "points": [[334, 358], [322, 392], [288, 419], [240, 436], [186, 441], [132, 435], [85, 417], [52, 391], [40, 357], [50, 324], [84, 299], [131, 283], [185, 277], [237, 282], [286, 300], [321, 326], [336, 354]] },
+    { "relTo": "pal-neo", "color": "#e8b23a", "width": 3, "points": [[14, 44], [42, 47], [74, 43], [108, 47], [140, 44], [172, 47], [200, 44]] },
+    { "relTo": "doc-check", "color": "#d21f3c", "width": 3, "points": [[-64, 122], [-44, 116], [-24, 111], [-8, 107], [-22, 97], [-8, 107], [-24, 119]] }
   ],
   "sections": [
     {
@@ -31,38 +65,69 @@
       ]
     },
     {
-      "header": { "text": "The Look" },
+      "header": { "text": "The Atmosphere", "sub": "Smoke, rain, neon — the night city as a character" },
       "cards": [
+        { "id": "vid-smoke", "kind": "video", "source": { "query": "cigarette smoke black background slow" }, "title": "Smoke in the beam", "caption": "Atmosphere makes light visible" },
         { "id": "img-alley", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "dark alley neon sign night moody" }, "title": "The city", "caption": "Neon in the dark" },
         { "id": "img-window", "kind": "image", "source": { "provider": "pexels", "query": "silhouette window rain night dramatic" }, "title": "Interiors", "caption": "Light through glass and rain" },
         { "id": "img-portrait", "kind": "image", "source": { "provider": "pexels", "query": "moody black and white portrait dramatic lighting" }, "title": "The face", "caption": "Half in shadow" },
-        { "id": "note-mood", "kind": "note", "bgColor": "#18181c", "html": "<p><b>The mood</b><br>Fatalism and glamour in equal measure. Shadow as a character. Every frame withholds as much as it shows.</p>" }
+        { "id": "note-mood", "kind": "note", "bgColor": "#18181c", "textColor": "#c9c4b8", "vAlign": "center", "html": "<p><b>The mood</b><br>Fatalism and glamour in equal measure. Shadow as a character. Every frame withholds as much as it shows.</p>" }
       ]
     },
     {
       "header": { "text": "The Noir Palette — Exact Color Stories", "sub": "The tones and grades behind the look" },
       "cards": [
-        { "id": "pal-mono", "kind": "palette", "title": "Classic monochrome", "swatches": [ { "hex": "#0A0A0C", "name": "Black" }, { "hex": "#2B2B30", "name": "Shadow" }, { "hex": "#6E6E76", "name": "Gunmetal" }, { "hex": "#C9C4B8", "name": "Bone" } ] },
-        { "id": "pal-sodium", "kind": "palette", "title": "Sodium and neon", "swatches": [ { "hex": "#12161C", "name": "Night" }, { "hex": "#E8B23A", "name": "Sodium" }, { "hex": "#D21F3C", "name": "Neon red" }, { "hex": "#2AA0C0", "name": "Neon cyan" } ] },
-        { "id": "pal-neo", "kind": "palette", "title": "Neo-noir teal and amber", "swatches": [ { "hex": "#0B1A2A", "name": "Teal night" }, { "hex": "#173A4A", "name": "Slate" }, { "hex": "#E8853A", "name": "Amber" }, { "hex": "#C0303A", "name": "Ember red" } ] },
-        { "id": "pal-highcon", "kind": "palette", "title": "High-contrast red", "swatches": [ { "hex": "#000000", "name": "Ink" }, { "hex": "#FFFFFF", "name": "Paper" }, { "hex": "#CC1122", "name": "Blood red" }, { "hex": "#F5E642", "name": "Cab yellow" } ] },
+        { "id": "pal-mono", "kind": "palette", "groupId": "grp-mono", "title": "Classic monochrome", "swatches": [ { "hex": "#0A0A0C", "name": "Black" }, { "hex": "#2B2B30", "name": "Shadow" }, { "hex": "#6E6E76", "name": "Gunmetal" }, { "hex": "#C9C4B8", "name": "Bone" } ] },
+        { "id": "pal-sodium", "kind": "palette", "groupId": "grp-mono", "title": "Sodium and neon", "swatches": [ { "hex": "#12161C", "name": "Night" }, { "hex": "#E8B23A", "name": "Sodium" }, { "hex": "#D21F3C", "name": "Neon red" }, { "hex": "#2AA0C0", "name": "Neon cyan" } ] },
+        { "id": "pal-neo", "kind": "palette", "groupId": "grp-mono", "title": "Neo-noir teal and amber", "swatches": [ { "hex": "#0B1A2A", "name": "Teal night" }, { "hex": "#173A4A", "name": "Slate" }, { "hex": "#E8853A", "name": "Amber" }, { "hex": "#C0303A", "name": "Ember red" } ] },
+        { "id": "pal-highcon", "kind": "palette", "groupId": "grp-mono", "title": "High-contrast red", "swatches": [ { "hex": "#000000", "name": "Ink" }, { "hex": "#FFFFFF", "name": "Paper" }, { "hex": "#CC1122", "name": "Blood red" }, { "hex": "#F5E642", "name": "Cab yellow" } ] },
         { "id": "note-grade", "kind": "note", "bgColor": "#12161C", "html": "<p><b>Grading notes</b><br>Crush the blacks; let highlights clip on practicals. Desaturate toward monochrome, or push a single accent — sodium amber, neon red — against a cold night base.</p>" }
       ]
     },
     {
-      "header": { "text": "Lighting Technique" },
+      "header": { "text": "The Lighting Playbook", "sub": "Four classic setups, the key angle, and a checklist to shoot by" },
       "cards": [
-        { "id": "img-hardlight", "kind": "image", "source": { "provider": "unsplash", "query": "single hard light beam dark room dramatic" }, "title": "Single source", "caption": "Hard, low, and motivated" },
-        { "id": "img-reflect", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "wet street reflection lights night city" }, "title": "Reflections", "caption": "Wet-down every surface" },
+        { "id": "grid-setups", "kind": "grid", "title": "Lighting setups", "rows": 2, "cols": 4,
+          "seq": { "pattern": "z", "format": { "style": "num" } },
+          "cellSpecs": [
+            { "text": "<p><b>[#] Venetian slats</b><br>Hard key through real blinds — source far back so the pattern stays crisp</p>" },
+            { "text": "<p><b>[#] Single hard key</b><br>One fresnel, 45 degrees off axis, no fill — let the ratio fall past 8:1</p>" },
+            { "text": "<p><b>[#] Low-angle up-light</b><br>Key from below eyeline — the menace light for villains and interrogations</p>" },
+            { "text": "<p><b>[#] Silhouette doorway</b><br>Expose for the bright doorway and let the figure go full black</p>" },
+            { "image": { "provider": "pexels", "query": "venetian blinds shadow stripes portrait black and white", "alt": "Venetian-blind slat shadows falling across a face" } },
+            { "image": { "provider": "pexels", "query": "hard spotlight portrait dark background black and white", "alt": "Portrait lit by a single hard key against black" } },
+            { "image": { "provider": "pexels", "query": "portrait lit from below dramatic shadow dark", "alt": "Face lit from below with hard up-light" } },
+            { "image": { "provider": "pexels", "query": "silhouette person standing doorway bright light dark room", "alt": "Figure in silhouette against a bright doorway" } }
+          ] },
+        { "id": "shape-key", "kind": "shape", "feature": true, "shape": "triangle", "stroke": "#e8b23a", "fill": "transparent", "strokeWidth": 3, "dash": "dashed", "label": "The key cone — hard source 45 degrees off axis, above or below eyeline, no fill" },
+        { "id": "doc-check", "kind": "doc", "title": "Noir lighting checklist", "author": "Clusters", "date": "2026-07-09", "lines": [
+          { "text": "Noir lighting checklist", "h": true },
+          { "text": "Contrast is the subject. Light the shadows first, then decide what escapes them." },
+          { "text": "The key", "h": true },
+          { "text": "One hard source — a fresnel or open-face unit, never diffused", "bullet": true },
+          { "text": "30–45 degrees off axis; drop below eyeline for menace", "bullet": true },
+          { "text": "Kill the fill: hold a lighting ratio of 8:1 or deeper", "bullet": true },
+          { "text": "The frame", "h": true },
+          { "text": "Motivate every source with a practical — desk lamp, neon, streetlight", "bullet": true },
+          { "text": "Slat the key through blinds; keep the source far back so the pattern stays crisp", "bullet": true },
+          { "text": "Haze interiors and wet down streets so light has something to hit", "bullet": true },
+          { "text": "Rim from behind to cut the subject out of black", "bullet": true },
+          { "text": "In the grade", "h": true },
+          { "text": "Crush the blacks, let practicals clip, desaturate toward mono or one accent", "bullet": true }
+        ] },
         { "id": "note-light", "kind": "note", "bgColor": "#1a1a1f", "html": "<p><b>Lighting notes</b><br>Single hard key, deep falloff. Rim to separate the subject from black. Practicals for motivation. Smoke and rain to catch the beam. Let the blacks crush.</p>" },
-        { "id": "note-lenses", "kind": "note", "bgColor": "#c9c4b8", "html": "<p><b>Camera</b><br>Longer lenses for compression, low and canted angles, deep shadows framing the subject. Shoot for the grade.</p>" }
+        { "id": "img-hardlight", "kind": "image", "source": { "provider": "unsplash", "query": "single hard light beam dark room dramatic" }, "title": "Single source", "caption": "Hard, low, and motivated" },
+        { "id": "note-lenses", "kind": "note", "bgColor": "#c9c4b8", "html": "<p><b>Camera</b><br>Longer lenses for compression, low and canted angles, deep shadows framing the subject. Shoot for the grade.</p>" },
+        { "id": "img-reflect", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "wet street reflection lights night city" }, "title": "Reflections", "caption": "Wet-down every surface" }
       ]
     },
     {
-      "header": { "text": "Touchstones" },
+      "header": { "text": "Touchstones and Study", "sub": "Where the language was written — and where to keep learning it" },
       "cards": [
         { "id": "img-classic", "kind": "image", "feature": true, "source": { "provider": "unsplash", "query": "vintage film noir cinema aesthetic monochrome" }, "title": "The canon", "caption": "Where the language was written" },
-        { "id": "note-films", "kind": "note", "bgColor": "#18181c", "html": "<p><b>Touchstones</b><br>Double Indemnity · The Third Man · The Night of the Hunter · Touch of Evil · Chinatown · Blade Runner · Sin City · Se7en</p>" }
+        { "id": "note-films", "kind": "note", "bgColor": "#18181c", "html": "<p><b>Touchstones</b><br>Double Indemnity · The Third Man · The Night of the Hunter · Touch of Evil · Chinatown · Blade Runner · Sin City · Se7en</p>" },
+        { "id": "link-fnf", "kind": "link", "source": "https://www.filmnoirfoundation.org/", "title": "Film Noir Foundation", "description": "Eddie Muller's nonprofit that finds and restores at-risk noir films and publishes NOIR CITY magazine — the canonical home of noir preservation." },
+        { "id": "link-asc", "kind": "link", "source": "https://theasc.com/", "title": "American Society of Cinematographers", "description": "Publisher of American Cinematographer since 1920 — lighting breakdowns, technique articles, and interviews with the DPs who shoot in this language." }
       ]
     }
   ]

@@ -11,10 +11,13 @@
 
 import * as Y from 'yjs';
 import { cardToYMap, readCards, bytesToB64 } from '../../src/lib/yhelpers.js';
+import { resolveTagText } from '../../src/lib/gridSequence.js';
 
 // Per-kind card_index.meta — mirrors buildCardMeta() in src/lib/boardsApi.js.
 // image → { src, alt, w, h } is what get_public_board_content turns into
 // media.src_key, which /api/public-img and the image sitemap serve.
+// get_public_board_page (0181) additionally reads: swatches (palette),
+// rows (schedule), cells/rows/cols (grid), shape/label (shape), poster (video).
 export function buildCardMeta(kind, card) {
   const g = (k) => card[k];
   switch (kind) {
@@ -28,7 +31,41 @@ export function buildCardMeta(kind, card) {
     case 'boardlink':
       return { boardId: g('id') || g('target') || null };
     case 'doc':
-      return { pageCount: (g('pages') || []).length || null };
+      // The legacy flat doc card renders `lines`, not `pages`.
+      return { lineCount: (g('lines') || []).length || null };
+    case 'schedule':
+      return { rows: (g('rows') || []).slice(0, 30) };
+    case 'grid': {
+      // Row-major cell summary for the page RPC. The RPC strips `src`
+      // before it reaches the client; it's kept here for future image-
+      // sitemap use only. [#]/[A] auto-number tags resolve with the app's
+      // real gridSequence resolver (row-major == 'z' spatial order for a
+      // uniform generator grid), so the article shows "01 · Master", never
+      // a literal "[#]".
+      const cells = card.gridCells || card.cells || {};
+      const fmt = card.seqFormat || {};
+      const out = [];
+      let idx = 0;
+      for (const cell of Object.values(cells)) {
+        const i = idx++;
+        if (!cell || cell.type === 'empty') { out.push({ type: 'empty' }); continue; }
+        out.push({
+          type: cell.type,
+          src: cell.src || null,
+          alt: cell.alt || null,
+          text: cell.type === 'text'
+            ? htmlToText(resolveTagText(cell.html || '', { index: i, format: fmt }))
+            : null,
+        });
+      }
+      return { rows: g('gridRows') || null, cols: g('gridCols') || null, cells: out.slice(0, 60) };
+    }
+    case 'shape':
+      return { shape: g('shape') || 'rect', label: g('label') || null };
+    case 'video':
+      // src/poster keys recorded for R2-sweep ref-counting; the page RPC
+      // exposes neither.
+      return { src: g('src') || null, poster: g('poster') || null };
     default:
       return null;
   }
@@ -96,16 +133,39 @@ export function buildGridStructure(cellContents, rows, cols) {
   return { layout: { type: 'col', frac: 1, children: rowNodes }, cells };
 }
 
-// Build the base64 board_state.doc snapshot from stamped cards + arrows. Matches
-// saveBoardSnapshot(): Y.Map('cards') keyed by card.id + Y.Array('arrows'), then
-// bytesToB64(Y.encodeStateAsUpdate(doc)).
-export function encodeBoardSnapshot(cards, arrows = []) {
+// Build the base64 board_state.doc snapshot from stamped cards + arrows (+ the
+// optional board-level structures). Matches saveBoardSnapshot(): Y.Map('cards')
+// keyed by card.id + Y.Array('arrows') + Y.Array('strokes') + Y.Map('groups')
+// (values MUST be nested Y.Maps — readGroups calls .forEach on them) +
+// Y.Map('gridTemplates') / Y.Map('gridSequences') (plain-object values are fine —
+// readGridTemplates/readGridSequences handle both).
+export function encodeBoardSnapshot(cards, arrows = [], extras = {}) {
+  const { strokes = [], groups = [], gridTemplates = [], gridSequences = [] } = extras;
   const doc = new Y.Doc();
   const map = doc.getMap('cards');
   doc.transact(() => {
     for (const c of cards) map.set(c.id, cardToYMapDeep(c));
     if (Array.isArray(arrows) && arrows.length) {
       doc.getArray('arrows').push(arrows.map((a) => ({ ...a })));
+    }
+    if (Array.isArray(strokes) && strokes.length) {
+      doc.getArray('strokes').push(strokes.map((s) => ({ ...s })));
+    }
+    if (Array.isArray(groups) && groups.length) {
+      const gm = doc.getMap('groups');
+      for (const g of groups) {
+        const ym = new Y.Map();
+        for (const [k, v] of Object.entries(g)) ym.set(k, v);
+        gm.set(g.id, ym);
+      }
+    }
+    if (Array.isArray(gridTemplates) && gridTemplates.length) {
+      const tm = doc.getMap('gridTemplates');
+      for (const t of gridTemplates) tm.set(t.id, { ...t });
+    }
+    if (Array.isArray(gridSequences) && gridSequences.length) {
+      const sm = doc.getMap('gridSequences');
+      for (const s of gridSequences) sm.set(s.id, { ...s });
     }
   });
   const b64 = bytesToB64(Y.encodeStateAsUpdate(doc));
@@ -133,8 +193,25 @@ export function buildCardIndexRows({ workspaceId, boardId, cards }) {
     const kind = g('kind') || 'note';
     const title = g('title') || g('name') || g('label') || g('url') || '';
     const rawBody = g('body') || g('caption') || '';
-    const body = rawBody || htmlToText(g('html') || '');
+    let body = rawBody || htmlToText(g('html') || '');
+    // Kind-aware bodies so the page RPC / search see the real content.
+    if (kind === 'doc' && Array.isArray(card.lines)) {
+      body = card.lines.map((l) => (l.bullet ? `• ${l.text}` : l.text || '')).join('\n').trim() || body;
+    } else if (kind === 'schedule' && Array.isArray(card.rows)) {
+      body = card.rows.map((r) => [r.day, r.what, r.loc].filter(Boolean).join(' — ')).join('\n') || body;
+    }
     const meta = buildCardMeta(kind, card) || {};
+    // Layout metadata for the page RPC's spatial ordering + section grouping
+    // (0181 get_public_board_page orders by meta.pos and splits sections at
+    // meta.sectionHeader boundaries).
+    if (Number.isFinite(card.x) && Number.isFinite(card.y)) {
+      meta.pos = { x: Math.round(card.x), y: Math.round(card.y),
+                   w: Math.round(card.w || 0), h: Math.round(card.h || 0) };
+    }
+    if (card.sectionHeader) {
+      meta.sectionHeader = true;
+      if (card.sub) meta.sub = String(card.sub).slice(0, 300);
+    }
     rows.push({
       workspace_id: workspaceId,
       board_id: boardId,

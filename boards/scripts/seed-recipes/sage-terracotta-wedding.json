@@ -6,14 +6,48 @@
   "cover": "neutral",
   "seo": {
     "title": "Sage and Terracotta Wedding Palette",
-    "description": "A sage green and terracotta wedding color board: exact hex palettes, the florals that carry it, a tablescape formula, and how the party wears it.",
+    "description": "A sage green and terracotta wedding color board: exact hex palettes, the florals that carry it, a tablescape formula, the planning order, and the one-page color brief to hand every vendor.",
     "keyword": "sage and terracotta wedding palette",
-    "body": "A complete color story for a sage green and terracotta wedding — the earthy, sun-warmed palette that owns late summer and early fall. It collects the exact hex codes for the core and accent tones, the stems that carry the look (eucalyptus, olive, pampas, rust chrysanthemum), a repeatable tablescape formula in linen, clay, and brass, and how the wedding party wears the palette without matching like a uniform. Pinned, connected, and shareable on one canvas. Made with Soleil Clusters."
+    "answer": "A sage and terracotta wedding palette pairs soft gray-green (sage, #9CAF88) with earthy burnt orange (terracotta, #C4704F) over a cream-and-taupe base. Use a 60/30/10 ratio: cream and taupe carry the linens and paper, sage carries florals and attire, and terracotta appears only as accents. It photographs best from late August through October.",
+    "faq": [
+      {
+        "q": "What colors go with sage green and terracotta?",
+        "a": "Cream, champagne, and taupe are the working neutrals — they make up most of the linens and paper so the two hero colors stay special. Olive deepens the green side, while apricot and raw clay bridge sage and terracotta. For metals, stick to brass or antique gold; silver reads cold against terracotta."
+      },
+      {
+        "q": "What season is a sage and terracotta wedding best for?",
+        "a": "Late August through October is the sweet spot. The palette is built around golden-hour light, dried grasses, and warm earth tones, so it photographs richer as the season turns. It still works in spring if you lean the ratio toward sage and cream and keep terracotta as a small accent."
+      },
+      {
+        "q": "What flowers work for a sage and terracotta palette?",
+        "a": "Eucalyptus and olive branches carry the sage tones and are inexpensive in bulk; cream garden roses soften the arrangements. For the terracotta notes, florists reach for rust chrysanthemums, marigolds, and toffee roses. Dried pampas grass and bunny tail grass add height and texture — and unlike fresh stems, they never wilt in heat."
+      },
+      {
+        "q": "What is the 60-30-10 rule for wedding colors?",
+        "a": "It is a decorating ratio borrowed from interior design: the dominant color takes about 60 percent of the visual field, a secondary color 30 percent, and an accent 10 percent. In a sage and terracotta wedding, cream and taupe do the 60 (linens, paper, walls), sage does the 30 (florals, ribbon, attire), and terracotta is the 10 that makes photographs pop. Keeping the accent scarce is what makes it read as intentional."
+      },
+      {
+        "q": "What should the wedding party wear with a sage and terracotta palette?",
+        "a": "Bridesmaids typically wear sage in mismatched silhouettes from the same fabric family, so the color reads unified without looking like a uniform. Suits work best in taupe or olive rather than black, which is too harsh for the palette. Terracotta stays in bouquets, ties, and pocket squares so it remains an accent rather than a costume."
+      }
+    ],
+    "body": "A complete color story for a sage green and terracotta wedding — the earthy, sun-warmed palette that owns late summer and early fall. It collects the exact hex codes for the core and accent tones, the stems that carry the look (eucalyptus, olive, pampas, rust chrysanthemum), a repeatable tablescape formula in linen, clay, and brass, how the wedding party wears the palette without matching like a uniform, the four planning moves in order, and the one-page color brief a couple hands every vendor. Pinned, connected, and shareable on one canvas. Made with Soleil Clusters."
   },
   "arrows": [
-    { "from": "pal-core", "to": "hero-table", "color": "orange", "head": "single" },
-    { "from": "note-stems", "to": "img-eucalyptus", "color": "green", "head": "single" },
-    { "from": "note-table", "to": "img-tablescape", "color": "pink", "dashed": true }
+    { "from": "pal-core", "to": "img-tablescape", "color": "orange", "head": "single", "straight": true, "dashed": true, "label": "repeated down every table" },
+    { "from": "note-stems", "to": "img-eucalyptus", "color": "green", "head": "single", "label": "the green mass" },
+    { "from": "pal-accents", "to": "img-rust", "color": "#C4704F", "head": "single", "dashed": true, "label": "terracotta lives here" },
+    { "from": "note-ratio", "to": "shape-ratio", "color": "blue", "head": "single", "straight": true, "thickness": "thin", "label": "drawn out" },
+    { "from": "note-attire", "to": "note-ratio", "color": "purple", "head": "double", "label": "the same 10 percent rule" },
+    { "from": "doc-brief", "to": "grid-plan", "color": "ink", "head": "single", "dashed": true, "label": "goes out at step 2" }
+  ],
+  "strokes": [
+    { "relTo": "note-ratio", "color": "#C4704F", "width": 3, "points": [[7,31],[12,17],[34,7],[66,1],[102,-2],[138,2],[168,9],[190,19],[199,31],[193,43],[170,52],[136,58],[99,60],[62,56],[30,47],[19,26]] },
+    { "relTo": "note-table", "color": "#D9A87C", "width": 3, "points": [[44,98],[67,101],[91,96],[116,100],[141,97],[165,101],[189,97]] },
+    { "relTo": "doc-brief", "color": "#9CAF88", "width": 4, "points": [[-66,50],[-44,46],[-22,50],[-9,48],[-24,36],[-9,48],[-27,60]] }
+  ],
+  "groups": [
+    { "id": "grp-florals", "name": "The florals", "outline": true, "color": "#9CAF88" }
   ],
   "sections": [
     {
@@ -45,16 +79,27 @@
           { "hex": "#B98A5E", "name": "Raw clay" },
           { "hex": "#EFE1D1", "name": "Champagne" }
         ] },
-        { "id": "note-ratio", "kind": "note", "bgColor": "#1a1613", "html": "<p><b>The 60 / 30 / 10 ratio</b><br>Cream and taupe do 60% of the work (linens, paper, walls), sage does 30% (florals, ribbon, dresses), and terracotta is the 10% that makes photographs — bud vases, taper candles, the odd stem.</p>" }
+        { "id": "pal-full", "kind": "palette", "title": "The full eight-tone story", "chipsOnly": true, "swatches": [
+          { "hex": "#F3EDE3", "name": "Cream" },
+          { "hex": "#EFE1D1", "name": "Champagne" },
+          { "hex": "#7C6A58", "name": "Taupe" },
+          { "hex": "#9CAF88", "name": "Sage" },
+          { "hex": "#66705C", "name": "Olive" },
+          { "hex": "#D9A87C", "name": "Apricot" },
+          { "hex": "#B98A5E", "name": "Raw clay" },
+          { "hex": "#C4704F", "name": "Terracotta" }
+        ] },
+        { "id": "note-ratio", "kind": "note", "bgColor": "#1a1613", "html": "<p><b>The 60 / 30 / 10 ratio</b><br>Cream and taupe do 60% of the work (linens, paper, walls), sage does 30% (florals, ribbon, dresses), and terracotta is the 10% that makes photographs — bud vases, taper candles, the odd stem.</p>" },
+        { "id": "shape-ratio", "kind": "shape", "shape": "rect", "feature": true, "h": 150, "stroke": "#C4704F", "fill": "transparent", "strokeWidth": 3, "dash": "solid", "label": "60 cream / 30 sage / 10 terracotta" }
       ]
     },
     {
       "header": { "text": "The Florals", "sub": "Stems that carry the palette" },
       "cards": [
-        { "id": "img-eucalyptus", "kind": "image", "feature": true, "source": { "provider": "pexels", "query": "eucalyptus greenery wedding bouquet" }, "title": "Eucalyptus does the heavy lifting", "caption": "Silver-green, cheap in bulk, survives a hot day" },
-        { "id": "img-dried", "kind": "image", "source": { "provider": "pexels", "query": "dried flowers pampas arrangement vase" }, "title": "Dried texture", "caption": "Pampas and bunny grass — booked months ahead, never wilts" },
-        { "id": "img-rust", "kind": "image", "source": { "provider": "pexels", "query": "rust orange flowers bouquet terracotta" }, "title": "The terracotta stems", "caption": "Rust chrysanthemum, marigold, toffee rose" },
-        { "id": "note-stems", "kind": "note", "bgColor": "#1a1613", "html": "<p><b>The recipe</b><br>Eucalyptus and olive for the green mass, cream garden roses for softness, rust chrysanthemum and toffee roses for the terracotta notes, pampas for height. Dried elements cut cost and survive heat.</p>" }
+        { "id": "img-eucalyptus", "kind": "image", "feature": true, "groupId": "grp-florals", "source": { "provider": "pexels", "query": "eucalyptus greenery wedding bouquet" }, "title": "Eucalyptus does the heavy lifting", "caption": "Silver-green, cheap in bulk, survives a hot day" },
+        { "id": "img-dried", "kind": "image", "groupId": "grp-florals", "source": { "provider": "pexels", "query": "dried flowers pampas arrangement vase" }, "title": "Dried texture", "caption": "Pampas and bunny grass — booked months ahead, never wilts" },
+        { "id": "img-rust", "kind": "image", "groupId": "grp-florals", "source": { "provider": "pexels", "query": "rust orange flowers bouquet terracotta" }, "title": "The terracotta stems", "caption": "Rust chrysanthemum, marigold, toffee rose" },
+        { "id": "note-stems", "kind": "note", "groupId": "grp-florals", "bgColor": "#1a1613", "html": "<p><b>The recipe</b><br>Eucalyptus and olive for the green mass, cream garden roses for softness, rust chrysanthemum and toffee roses for the terracotta notes, pampas for height. Dried elements cut cost and survive heat.</p>" }
       ]
     },
     {
@@ -69,8 +114,42 @@
       "header": { "text": "Wearing It", "sub": "Same palette, never a uniform" },
       "cards": [
         { "id": "img-dresses", "kind": "image", "source": { "provider": "pexels", "query": "sage green bridesmaid dresses bouquet" }, "title": "Sage on the party", "caption": "Mismatched silhouettes, one hue" },
-        { "id": "note-attire", "kind": "note", "bgColor": "#9caf88", "html": "<p><b>Who wears what</b><br>Bridesmaids in sage — different silhouettes, same fabric family. Suits in taupe or olive, never black. Terracotta stays in the florals, ties, and pocket squares so it reads as an accent, not a costume.</p>" },
+        { "id": "note-attire", "kind": "note", "bgColor": "#9caf88", "textColor": "#20241c", "html": "<p><b>Who wears what</b><br>Bridesmaids in sage — different silhouettes, same fabric family. Suits in taupe or olive, never black. Terracotta stays in the florals, ties, and pocket squares so it reads as an accent, not a costume.</p>" },
         { "id": "note-season", "kind": "note", "bgColor": "#1a1613", "html": "<p><b>When it works best</b><br>Late August through October. The palette is built for golden-hour light and dry grasses — it photographs warmer as the season turns.</p>" }
+      ]
+    },
+    {
+      "header": { "text": "The Planning Order", "sub": "Four moves in sequence, then the paper trail vendors actually need" },
+      "cards": [
+        { "id": "grid-plan", "kind": "grid", "title": "The planning order", "rows": 2, "cols": 4,
+          "seq": { "pattern": "z", "format": { "style": "num" } },
+          "cellSpecs": [
+            { "text": "<p><b>[#] Book the florist</b><br>Eight months out — rust stems and dried texture sell out first for September and October dates</p>" },
+            { "image": { "provider": "pexels", "query": "florist arranging eucalyptus bouquet workshop", "alt": "Florist arranging a sage-green eucalyptus bouquet" } },
+            { "text": "<p><b>[#] Swatches to every vendor</b><br>Mail physical fabric swatches with the one-page color brief — screens run sage too blue</p>" },
+            { "image": { "provider": "pexels", "query": "linen fabric swatches samples neutral tones", "alt": "Neutral linen fabric swatches in cream and taupe" } },
+            { "text": "<p><b>[#] Mock one full table</b><br>Six weeks out, build one real place setting — linen, clay, brass, flame — and photograph it</p>" },
+            { "image": { "provider": "pexels", "query": "wedding table setting terracotta vase candles", "alt": "Tablescape mockup with terracotta bud vases and candles" } },
+            { "text": "<p><b>[#] Golden-hour portraits</b><br>Schedule couple portraits for the last hour of sun — this palette is built for that light</p>" },
+            { "image": { "provider": "pexels", "query": "couple golden hour sunset field portrait", "alt": "Couple portrait in warm golden-hour light" } }
+          ] },
+        { "id": "doc-brief", "kind": "doc", "title": "Vendor color brief", "author": "Clusters", "date": "2026-07-09", "lines": [
+          { "text": "The palette", "h": true },
+          { "text": "Sage #9CAF88 · Terracotta #C4704F · Cream #F3EDE3 · Taupe #7C6A58" },
+          { "text": "Accents: Apricot #D9A87C · Olive #66705C · Raw clay #B98A5E · Champagne #EFE1D1" },
+          { "text": "The ratio", "h": true },
+          { "text": "60% cream and taupe (linens, paper, walls) · 30% sage (florals, ribbon, dresses) · 10% terracotta (bud vases, candles, the odd stem)" },
+          { "text": "Do", "h": true },
+          { "text": "Match sage to #9CAF88 in daylight — screens run it too blue", "bullet": true },
+          { "text": "Keep terracotta to accents; it reads rust in candlelight", "bullet": true },
+          { "text": "Use unbleached or oatmeal linen, never bright white", "bullet": true },
+          { "text": "Do not", "h": true },
+          { "text": "No black — suits and menus in taupe or olive", "bullet": true },
+          { "text": "No burgundy or blush; they fight the terracotta", "bullet": true },
+          { "text": "No mixed metals — brass only, everywhere", "bullet": true }
+        ] },
+        { "id": "link-sierra", "kind": "link", "link": "https://www.sierraflowerfinder.com", "source": "https://www.sierraflowerfinder.com", "title": "Sierra Flower Finder", "description": "The florist-industry reference for cut flower varieties — search any bloom to check its true color range and seasonal availability before you promise it to a palette." },
+        { "id": "link-knot", "kind": "link", "link": "https://www.theknot.com", "source": "https://www.theknot.com", "title": "The Knot — planning checklists and vendors", "description": "Month-by-month planning checklists, budget tools, and vendor reviews — useful for keeping the eight-month florist deadline honest." }
       ]
     }
   ]

@@ -19929,3 +19929,212 @@ button, [role="button"], a {
 .admin-preview-links { display: grid; gap: 4px; }
 .admin-preview-link { font-size: 13px; color: var(--soleil); word-break: break-all; }
 @keyframes admin-preview-pulse { 0%, 100% { opacity: .5; } 50% { opacity: .9; } }
+
+/* ── Public board page 2.0 — canvas hero + editorial article (/c/<slug>) ──
+   The article renders the SAME model the worker injects as crawlable HTML
+   (src/lib/publicPageModel.js). Gold is reserved for interactive accents. */
+
+.public-shell-doc { height: auto; min-height: 100dvh; overflow: visible; }
+.public-shell-doc .public-topbar { position: sticky; top: 0; z-index: 30; }
+.public-shell-doc .public-canvas-host {
+  flex: none;
+  height: clamp(440px, 78dvh, 920px);
+  position: relative;
+}
+.public-shell-doc .public-canvas-host::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0; height: 64px;
+  background: linear-gradient(to bottom, rgba(10,9,8,0), rgba(10,9,8,0.5));
+  pointer-events: none;
+}
+
+.pa-wrap {
+  /* Self-contained dark palette: the article commits to the public boards'
+     dark editorial world regardless of the visitor's OS theme. */
+  --pab0: #0f0d0b;
+  --pab1: #171410;
+  --pat:  #eae4d8;
+  --pats: #a89f90;
+  --pafaint: #7c7466;
+  --paline: rgba(255,255,255,0.09);
+  background: var(--pab0);
+}
+.pa-scroll-hint {
+  position: relative; z-index: 5;
+  margin: -40px auto 0; width: max-content;
+  padding: 7px 16px; border-radius: 999px;
+  font: 600 12.5px/1 var(--font-sans, system-ui);
+  letter-spacing: .04em;
+  color: var(--pats);
+  background: rgba(16,14,12,0.82);
+  border: 1px solid var(--paline);
+  backdrop-filter: blur(6px);
+  opacity: 1; transition: opacity .5s ease;
+  pointer-events: none;
+}
+.pa-scroll-hint.is-gone { opacity: 0; }
+.pa-scroll-arrow { display: inline-block; animation: pa-bob 1.6s ease-in-out infinite; }
+@keyframes pa-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .pa-scroll-arrow { animation: none; } }
+
+.public-article {
+  max-width: 860px; margin: 0 auto;
+  padding: 56px 24px 96px;
+  color: var(--pat);
+  font-size: 16px; line-height: 1.65;
+}
+.public-article h1 {
+  color: var(--pat);
+  font-size: clamp(1.9rem, 4vw, 2.5rem); font-weight: 650;
+  line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 14px;
+  text-wrap: balance;
+}
+.public-article h2 { color: var(--pat); font-size: 1.35rem; font-weight: 650; margin: 0 0 6px; letter-spacing: -0.005em; }
+.public-article h3 { color: var(--pat); font-size: 1.02rem; font-weight: 650; margin: 0 0 6px; }
+.pa-answer {
+  font-size: 1.13rem; line-height: 1.6; margin: 0 0 10px;
+  padding-left: 14px; border-left: 3px solid #f5c518;
+  color: var(--pat);
+}
+.pa-updated { font-size: .82rem; color: var(--pats); margin: 0 0 18px; }
+.pa-body { color: var(--pats); margin: 0 0 8px; }
+.pa-deck { color: var(--pats); margin: 0 0 16px; font-size: .95rem; }
+
+.pa-chips {
+  position: sticky; top: 48px; z-index: 25;
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 10px 0; margin: 18px 0 8px;
+  background: linear-gradient(var(--pab0) 82%, transparent);
+}
+.pa-chip {
+  appearance: none; cursor: pointer;
+  font: 600 12.5px/1 var(--font-sans, system-ui);
+  color: var(--pats);
+  background: var(--pab1);
+  border: 1px solid var(--paline);
+  border-radius: 999px; padding: 7px 13px;
+  transition: color .15s, border-color .15s, transform .15s;
+}
+.pa-chip:hover { color: #f5c518; border-color: #f5c518; transform: translateY(-1px); }
+
+.pa-section { margin: 34px 0 0; }
+.pa-h2-jump {
+  appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: inherit; text-align: left;
+}
+.pa-h2-jump:hover { color: #f5c518; }
+
+.pa-items { display: flex; flex-direction: column; gap: 18px; margin-top: 12px; }
+
+.pa-figure { margin: 0; }
+.pa-figure img {
+  display: block; width: 100%; height: auto; max-height: 560px; object-fit: cover;
+  border-radius: 12px; border: 1px solid var(--paline);
+  cursor: pointer; transition: transform .18s ease, box-shadow .18s ease;
+}
+.pa-figure img:hover { transform: translateY(-2px); box-shadow: 0 10px 34px rgba(0,0,0,0.45); }
+.pa-figure figcaption { font-size: .85rem; color: var(--pats); padding: 8px 2px 0; }
+
+.pa-note, .pa-doc, .pa-link, .pa-grid-note {
+  background: var(--pab1);
+  border: 1px solid var(--paline);
+  border-radius: 12px; padding: 16px 18px;
+}
+.pa-note p, .pa-doc p, .pa-grid-note p { margin: 0; color: var(--pats); }
+.pa-doc p { margin: 0 0 6px; }
+.pa-link a { color: #f5c518; font-weight: 600; text-decoration: none; }
+.pa-link a:hover { text-decoration: underline; }
+.pa-link p { margin: 6px 0 0; font-size: .92rem; color: var(--pats); }
+.pa-grid-note ul { margin: 10px 0 0; padding-left: 20px; color: var(--pats); }
+.pa-video, .pa-shape, .pa-board { color: var(--pats); margin: 0; }
+
+.pa-jump {
+  appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: #f5c518; text-decoration: underline;
+  text-decoration-color: rgba(245,197,24,0.4);
+}
+.pa-jump:hover { text-decoration-color: #f5c518; }
+
+.pa-palette { background: var(--pab1); border: 1px solid var(--paline); border-radius: 12px; padding: 16px 18px; }
+.pa-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.pa-swatch {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--pab0);
+  border: 1px solid var(--paline); border-radius: 999px;
+  padding: 6px 12px 6px 7px;
+  font: 500 12.5px/1 var(--font-sans, system-ui);
+  color: var(--pat);
+  transition: border-color .15s, transform .15s;
+}
+.pa-swatch:hover { border-color: #f5c518; transform: translateY(-1px); }
+.pa-swatch-chip { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.18); flex: none; }
+.pa-swatch-hex { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11.5px; color: var(--pats); min-width: 58px; text-align: left; }
+
+.pa-table table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.pa-table { background: var(--pab1); border: 1px solid var(--paline); border-radius: 12px; padding: 16px 18px; overflow-x: auto; }
+.pa-table td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; }
+.pa-table tr:last-child td { border-bottom: 0; }
+.pa-table td:first-child { white-space: nowrap; color: var(--pats); font-variant-numeric: tabular-nums; }
+
+.pa-faq { margin: 40px 0 0; }
+.pa-faq details {
+  background: var(--pab1); border: 1px solid var(--paline);
+  border-radius: 12px; padding: 0 18px; margin: 10px 0;
+}
+.pa-faq summary {
+  cursor: pointer; font-weight: 600; padding: 14px 0; list-style: none;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pa-faq summary::-webkit-details-marker { display: none; }
+.pa-faq summary::after { content: '+'; color: #f5c518; font-size: 1.2rem; font-weight: 400; }
+.pa-faq details[open] summary::after { content: '–'; }
+.pa-faq details p { margin: 0; padding: 0 0 16px; color: var(--pats); }
+
+.pa-credits { margin: 26px 0 0; font-size: .78rem; color: var(--pafaint); }
+
+.pa-related { margin: 44px 0 0; }
+.pubgrid { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin: 12px 0 0; padding: 0; }
+.pubcard {
+  /* Used inside .pa-wrap (scoped props) AND on /explore — keep fallbacks. */
+  display: block; text-decoration: none; color: var(--pat, inherit);
+  background: var(--pab1, var(--bg-1, #14110d)); border: 1px solid var(--paline, rgba(255,255,255,0.08));
+  border-radius: 12px; overflow: hidden;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.pubcard:hover { transform: translateY(-3px); border-color: rgba(245,197,24,0.45); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+.pubcard img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #0c0b09; }
+.pubcard-title { display: block; font-size: .9rem; font-weight: 600; padding: 10px 12px; }
+
+.pa-cta {
+  margin: 48px 0 0; padding: 24px;
+  background: var(--pab1);
+  border: 1px solid rgba(245,197,24,0.28); border-radius: 14px;
+}
+.pa-cta-copy { margin-bottom: 14px; color: var(--pats); }
+.pa-cta-copy b { color: var(--pat); }
+.pa-cta-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.pa-toollink { color: #f5c518; font-size: .9rem; font-weight: 600; text-decoration: none; }
+.pa-toollink:hover { text-decoration: underline; }
+.pa-hubnav { margin-top: 14px; display: flex; gap: 18px; font-size: .85rem; }
+.pa-hubnav a { color: var(--pats); text-decoration: none; }
+.pa-hubnav a:hover { color: #f5c518; }
+
+@media (max-width: 640px) {
+  .public-shell-doc .public-canvas-host { height: clamp(360px, 60dvh, 560px); }
+  .public-article { padding: 36px 16px 72px; }
+  .pa-chips { top: 44px; }
+}
+
+/* Doc-flow release for the public article page (set by PublicBoardView).
+   The app otherwise pins html/body/#root with position:fixed + inset:0 (the
+   iOS pan lock for the canvas app) — a fixed box ignores height overrides, so
+   the position itself must be released for this route. */
+html.public-doc-page, html.public-doc-page body, html.public-doc-page #root {
+  position: static;
+  inset: auto;
+  width: auto; max-width: none;
+  height: auto; min-height: 100dvh;
+  overflow: visible;
+}
+html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
